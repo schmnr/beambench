@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FocusEvent as ReactFocusEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import i18n, { SUPPORTED_LOCALES, type SupportedLocale } from '../../i18n';
+import i18n, { SUPPORTED_LOCALES, getLocaleDisplayName } from '../../i18n';
 import { MENU_LABEL_KEYS, type MenuLabelEnglish } from '../../i18n/menuLabelKeys';
 import type { AlignmentType, DistributionDirection } from '../../types/project';
 import { useProjectStore } from '../../stores/projectStore';
@@ -51,32 +51,6 @@ const noop = () => undefined;
 const APP_NAME = 'Beam Bench';
 const BRAND_MARK = '\u25c6';
 const CHECK_MARK = '\u2713';
-
-const LANGUAGE_DISPLAY: Record<SupportedLocale, string> = {
-  en: 'English',
-  de: 'Deutsch (German)',
-  'es-ES': 'Español (Spanish)',
-  'es-419': 'Español, Latinoamérica (Spanish, Latin America)',
-  fr: 'Français (French)',
-  it: 'Italiano (Italian)',
-  'pt-BR': 'Português, Brasil (Portuguese, Brazil)',
-  nl: 'Nederlands (Dutch)',
-  pl: 'Polski (Polish)',
-  cs: 'Čeština (Czech)',
-  sv: 'Svenska (Swedish)',
-  nb: 'Norsk bokmål (Norwegian Bokmål)',
-  da: 'Dansk (Danish)',
-  fi: 'Suomi (Finnish)',
-  hu: 'Magyar (Hungarian)',
-  tr: 'Türkçe (Turkish)',
-  el: 'Ελληνικά (Greek)',
-  ru: 'Русский (Russian)',
-  sl: 'Slovenščina (Slovenian)',
-  ja: '日本語 (Japanese)',
-  ko: '한국어 (Korean)',
-  'zh-CN': '简体中文 (Simplified Chinese)',
-  'zh-TW': '繁體中文 (Traditional Chinese)',
-};
 
 export function MenuBar() {
   const { t } = useTranslation();
@@ -1481,7 +1455,7 @@ export function MenuBar() {
             {SUPPORTED_LOCALES.map((code) => (
               <MenuCheckItem
                 key={code}
-                label={LANGUAGE_DISPLAY[code]}
+                label={getLocaleDisplayName(code)}
                 checked={displayLanguage === code}
                 onClick={() => {
                   void useAppStore.getState().updateSettings({ display_language: code });

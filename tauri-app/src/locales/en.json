@@ -1194,7 +1194,7 @@
       "font_sans_serif": "Sans-serif",
       "font_serif": "Serif",
       "font_monospace": "Monospace",
-      "font_missing": "Font '{font}' not found - using fallback",
+      "font_missing": "Font ''{font}'' not found - using fallback",
       "missing_glyphs": "Missing glyphs: {glyphs}. Select or install a font that supports these characters.",
       "text_height": "Height",
       "h_space": "HSpace",

@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "defaultLocale": "en",
+  "locales": [
+    {
+      "code": "en",
+      "nativeName": "English",
+      "englishName": "English",
+      "direction": "ltr",
+      "htmlLang": "en",
+      "hreflang": "en",
+      "ogLocale": "en_US"
+    },
+    {
+      "code": "de",
+      "nativeName": "Deutsch",
+      "englishName": "German",
+      "direction": "ltr",
+      "htmlLang": "de",
+      "hreflang": "de",
+      "ogLocale": "de_DE"
+    },
+    {
+      "code": "es-ES",
+      "nativeName": "Español",
+      "englishName": "Spanish",
+      "direction": "ltr",
+      "htmlLang": "es-ES",
+      "hreflang": "es-ES",
+      "ogLocale": "es_ES"
+    },
+    {
+      "code": "es-419",
+      "nativeName": "Español, Latinoamérica",
+      "englishName": "Spanish, Latin America",
+      "direction": "ltr",
+      "htmlLang": "es-419",
+      "hreflang": "es",
+      "ogLocale": "es_419"
+    },
+    {
+      "code": "fr",
+      "nativeName": "Français",
+      "englishName": "French",
+      "direction": "ltr",
+      "htmlLang": "fr",
+      "hreflang": "fr",
+      "ogLocale": "fr_FR"
+    },
+    {
+      "code": "it",
+      "nativeName": "Italiano",
+      "englishName": "Italian",
+      "direction": "ltr",
+      "htmlLang": "it",
+      "hreflang": "it",
+      "ogLocale": "it_IT"
+    },
+    {
+      "code": "pt-BR",
+      "nativeName": "Português, Brasil",
+      "englishName": "Portuguese, Brazil",
+      "direction": "ltr",
+      "htmlLang": "pt-BR",
+      "hreflang": "pt-BR",
+      "ogLocale": "pt_BR"
+    },
+    {
+      "code": "nl",
+      "nativeName": "Nederlands",
+      "englishName": "Dutch",
+      "direction": "ltr",
+      "htmlLang": "nl",
+      "hreflang": "nl",
+      "ogLocale": "nl_NL"
+    },
+    {
+      "code": "pl",
+      "nativeName": "Polski",
+      "englishName": "Polish",
+      "direction": "ltr",
+      "htmlLang": "pl",
+      "hreflang": "pl",
+      "ogLocale": "pl_PL"
+    },
+    {
+      "code": "cs",
+      "nativeName": "Čeština",
+      "englishName": "Czech",
+      "direction": "ltr",
+      "htmlLang": "cs",
+      "hreflang": "cs",
+      "ogLocale": "cs_CZ"
+    },
+    {
+      "code": "sv",
+      "nativeName": "Svenska",
+      "englishName": "Swedish",
+      "direction": "ltr",
+      "htmlLang": "sv",
+      "hreflang": "sv",
+      "ogLocale": "sv_SE"
+    },
+    {
+      "code": "nb",
+      "nativeName": "Norsk bokmål",
+      "englishName": "Norwegian Bokmål",
+      "direction": "ltr",
+      "htmlLang": "nb",
+      "hreflang": "nb",
+      "ogLocale": "nb_NO"
+    },
+    {
+      "code": "da",
+      "nativeName": "Dansk",
+      "englishName": "Danish",
+      "direction": "ltr",
+      "htmlLang": "da",
+      "hreflang": "da",
+      "ogLocale": "da_DK"
+    },
+    {
+      "code": "fi",
+      "nativeName": "Suomi",
+      "englishName": "Finnish",
+      "direction": "ltr",
+      "htmlLang": "fi",
+      "hreflang": "fi",
+      "ogLocale": "fi_FI"
+    },
+    {
+      "code": "hu",
+      "nativeName": "Magyar",
+      "englishName": "Hungarian",
+      "direction": "ltr",
+      "htmlLang": "hu",
+      "hreflang": "hu",
+      "ogLocale": "hu_HU"
+    },
+    {
+      "code": "tr",
+      "nativeName": "Türkçe",
+      "englishName": "Turkish",
+      "direction": "ltr",
+      "htmlLang": "tr",
+      "hreflang": "tr",
+      "ogLocale": "tr_TR"
+    },
+    {
+      "code": "el",
+      "nativeName": "Ελληνικά",
+      "englishName": "Greek",
+      "direction": "ltr",
+      "htmlLang": "el",
+      "hreflang": "el",
+      "ogLocale": "el_GR"
+    },
+    {
+      "code": "ru",
+      "nativeName": "Русский",
+      "englishName": "Russian",
+      "direction": "ltr",
+      "htmlLang": "ru",
+      "hreflang": "ru",
+      "ogLocale": "ru_RU"
+    },
+    {
+      "code": "sl",
+      "nativeName": "Slovenščina",
+      "englishName": "Slovenian",
+      "direction": "ltr",
+      "htmlLang": "sl",
+      "hreflang": "sl",
+      "ogLocale": "sl_SI"
+    },
+    {
+      "code": "ja",
+      "nativeName": "日本語",
+      "englishName": "Japanese",
+      "direction": "ltr",
+      "htmlLang": "ja",
+      "hreflang": "ja",
+      "ogLocale": "ja_JP"
+    },
+    {
+      "code": "ko",
+      "nativeName": "한국어",
+      "englishName": "Korean",
+      "direction": "ltr",
+      "htmlLang": "ko",
+      "hreflang": "ko",
+      "ogLocale": "ko_KR"
+    },
+    {
+      "code": "zh-CN",
+      "nativeName": "简体中文",
+      "englishName": "Simplified Chinese",
+      "direction": "ltr",
+      "htmlLang": "zh-CN",
+      "hreflang": "zh-Hans",
+      "ogLocale": "zh_CN"
+    },
+    {
+      "code": "zh-TW",
+      "nativeName": "繁體中文",
+      "englishName": "Traditional Chinese",
+      "direction": "ltr",
+      "htmlLang": "zh-TW",
+      "hreflang": "zh-Hant",
+      "ogLocale": "zh_TW"
+    }
+  ]
+}

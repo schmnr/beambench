@@ -2,6 +2,12 @@ import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import ICUImport from 'i18next-icu/cjs';
 import { buildPseudoBundle } from './pseudo';
+import {
+  LOCALE_DEFINITIONS,
+  LOCALE_MANIFEST,
+  findLocaleDefinition,
+  formatLocaleDisplayName,
+} from './localeManifest';
 
 import en from '../locales/en.json';
 import de from '../locales/de.json';
@@ -31,14 +37,7 @@ const ICU = (
   (ICUImport as unknown as { default?: typeof ICUImport }).default ?? ICUImport
 );
 
-export const SUPPORTED_LOCALES = [
-  'en', 'de', 'es-ES', 'es-419', 'fr', 'it', 'pt-BR', 'nl', 'pl', 'cs',
-  'sv', 'nb', 'da', 'fi', 'hu', 'tr', 'el', 'ru', 'sl',
-  'ja', 'ko', 'zh-CN', 'zh-TW',
-] as const;
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
-
-const resources: Record<string, { translation: Record<string, unknown> }> = {
+const productionResources = {
   en: { translation: en },
   de: { translation: de },
   'es-ES': { translation: esES },
@@ -62,6 +61,34 @@ const resources: Record<string, { translation: Record<string, unknown> }> = {
   ko: { translation: ko },
   'zh-CN': { translation: zhCN },
   'zh-TW': { translation: zhTW },
+} satisfies Record<string, { translation: Record<string, unknown> }>;
+
+export type SupportedLocale = keyof typeof productionResources;
+
+const manifestLocaleCodes = LOCALE_DEFINITIONS.map((locale) => locale.code);
+const resourceLocaleCodes = Object.keys(productionResources) as SupportedLocale[];
+const manifestMatchesResources =
+  manifestLocaleCodes.length === resourceLocaleCodes.length
+  && new Set(manifestLocaleCodes).size === resourceLocaleCodes.length
+  && manifestLocaleCodes.every((code) => code in productionResources)
+  && resourceLocaleCodes.every((code) => manifestLocaleCodes.includes(code))
+  && LOCALE_MANIFEST.defaultLocale in productionResources;
+
+if (!manifestMatchesResources) {
+  throw new Error('Locale manifest codes do not match the bundled translation resources');
+}
+
+export const SUPPORTED_LOCALES = manifestLocaleCodes as SupportedLocale[];
+export const DEFAULT_LOCALE = LOCALE_MANIFEST.defaultLocale as SupportedLocale;
+
+export function getLocaleDisplayName(code: SupportedLocale): string {
+  const locale = findLocaleDefinition(code);
+  if (!locale) throw new Error(`Missing locale manifest entry for ${code}`);
+  return formatLocaleDisplayName(locale);
+}
+
+const resources: Record<string, { translation: Record<string, unknown> }> = {
+  ...productionResources,
 };
 
 // Pseudo-locale: registered only in dev builds, never persisted.
@@ -80,7 +107,7 @@ if ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) {
 // without going through settings persistence. Production builds ignore
 // this — they always boot in 'en' and switch when settings hydrate.
 const dev = (import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV;
-let initialLanguage: string = 'en';
+let initialLanguage: string = DEFAULT_LOCALE;
 if (dev && typeof window !== 'undefined') {
   const param = new URLSearchParams(window.location.search).get('lang');
   if (param && (SUPPORTED_LOCALES as readonly string[]).concat(['en-XA']).includes(param)) {
@@ -94,7 +121,7 @@ export const i18nReady = i18next
   .init({
     resources,
     lng: initialLanguage,
-    fallbackLng: 'en',
+    fallbackLng: DEFAULT_LOCALE,
     supportedLngs: dev ? [...SUPPORTED_LOCALES, 'en-XA'] : SUPPORTED_LOCALES,
     interpolation: { escapeValue: false },
     returnNull: false,

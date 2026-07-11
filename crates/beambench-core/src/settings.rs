@@ -302,8 +302,8 @@ pub struct AppSettings {
     pub display_language: String,
 }
 
-/// Locale codes the app ships translations for. Adding a locale here
-/// also requires adding the JSON resource on the frontend.
+/// Locale codes the app ships translations for. This runtime allowlist is
+/// parity-tested against the canonical frontend locale manifest.
 pub const SUPPORTED_LOCALES: &[&str] = &[
     "en", "de", "es-ES", "es-419", "fr", "it", "pt-BR", "nl", "pl", "cs", "sv", "nb", "da", "fi",
     "hu", "tr", "el", "ru", "sl", "ja", "ko", "zh-CN", "zh-TW",
@@ -451,6 +451,50 @@ impl AppSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct LocaleManifestFixture {
+        schema_version: u32,
+        default_locale: String,
+        locales: Vec<LocaleManifestEntryFixture>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct LocaleManifestEntryFixture {
+        code: String,
+    }
+
+    #[test]
+    fn locale_manifest_matches_runtime_allowlist() {
+        let manifest: LocaleManifestFixture = serde_json::from_str(include_str!(
+            "../../../tauri-app/src/i18n/locale-manifest.json"
+        ))
+        .expect("locale manifest should be valid JSON");
+        let manifest_codes: Vec<&str> = manifest
+            .locales
+            .iter()
+            .map(|locale| locale.code.as_str())
+            .collect();
+
+        assert_eq!(manifest.schema_version, 1);
+        assert_eq!(manifest.default_locale, "en");
+        assert_eq!(manifest_codes, SUPPORTED_LOCALES);
+    }
+
+    #[test]
+    fn locale_validation_rejects_unknown_codes_and_normalizes_persisted_values() {
+        assert_eq!(validate_locale_code("de").unwrap(), "de");
+        assert!(validate_locale_code("en-XA").is_err());
+        assert!(validate_locale_code("de-DE").is_err());
+
+        let mut settings = AppSettings {
+            display_language: "unknown".to_string(),
+            ..Default::default()
+        };
+        normalize_display_language(&mut settings);
+        assert_eq!(settings.display_language, "en");
+    }
 
     #[test]
     fn default_settings_are_sensible() {
