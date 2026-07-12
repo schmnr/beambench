@@ -2,7 +2,7 @@ import { appService } from '../services/appService';
 import { persistenceService } from '../services/persistenceService';
 import { printService, type PrintMode } from '../services/printService';
 import { useNotificationStore } from '../stores/notificationStore';
-import i18n from '../i18n';
+import i18n, { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../i18n';
 import { wrapBackendError } from '../i18n/errors';
 import { useAppStore } from '../stores/appStore';
 import { usePreviewStore } from '../stores/previewStore';
@@ -1017,20 +1017,11 @@ export function getAppCommandState(): NativeMenuStateUpdate {
     checked: ui.panelLayout.toolbarVisibility[item.toolbarId],
   }));
   const toolsSelectAccelerator = accel(APP_COMMANDS.TOOLS_SELECT);
-  const displayLanguage = useAppStore.getState().settings?.display_language ?? 'en';
-  const languageItems = [
-    APP_COMMANDS.LANGUAGE_EN, APP_COMMANDS.LANGUAGE_DE, APP_COMMANDS.LANGUAGE_ES_ES,
-    APP_COMMANDS.LANGUAGE_ES_419, APP_COMMANDS.LANGUAGE_FR, APP_COMMANDS.LANGUAGE_IT,
-    APP_COMMANDS.LANGUAGE_PT_BR, APP_COMMANDS.LANGUAGE_NL, APP_COMMANDS.LANGUAGE_PL,
-    APP_COMMANDS.LANGUAGE_CS, APP_COMMANDS.LANGUAGE_SV, APP_COMMANDS.LANGUAGE_NB,
-    APP_COMMANDS.LANGUAGE_DA, APP_COMMANDS.LANGUAGE_FI, APP_COMMANDS.LANGUAGE_HU,
-    APP_COMMANDS.LANGUAGE_TR, APP_COMMANDS.LANGUAGE_EL, APP_COMMANDS.LANGUAGE_RU,
-    APP_COMMANDS.LANGUAGE_SL, APP_COMMANDS.LANGUAGE_JA, APP_COMMANDS.LANGUAGE_KO,
-    APP_COMMANDS.LANGUAGE_ZH_CN, APP_COMMANDS.LANGUAGE_ZH_TW,
-  ].map((id) => ({
-    id,
+  const displayLanguage = useAppStore.getState().settings?.display_language ?? DEFAULT_LOCALE;
+  const languageItems = SUPPORTED_LOCALES.map((code) => ({
+    id: `language.${code}` as AppCommandId,
     enabled: true,
-    checked: id === `language.${displayLanguage}`,
+    checked: code === displayLanguage,
   }));
 
   return {

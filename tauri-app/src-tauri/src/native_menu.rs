@@ -2320,6 +2320,21 @@ mod tests {
         parent: Option<String>,
     }
 
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct LocaleMenuManifestFixture {
+        default_locale: String,
+        locales: Vec<LocaleMenuManifestEntryFixture>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct LocaleMenuManifestEntryFixture {
+        code: String,
+        native_name: String,
+        english_name: String,
+    }
+
     fn menu_snapshot() -> Vec<MenuSnapshotRow> {
         let mut rows = Vec::new();
         for section in menu_spec() {
@@ -2343,6 +2358,11 @@ mod tests {
                 (menu_path, item.command_id)
             })
             .collect()
+    }
+
+    fn locale_menu_manifest_fixture() -> LocaleMenuManifestFixture {
+        serde_json::from_str(include_str!("../../src/i18n/locale-manifest.json"))
+            .expect("locale manifest JSON should parse")
     }
 
     fn snapshot_entries(
@@ -2873,6 +2893,50 @@ mod tests {
                 "Help",
             ]
         );
+    }
+
+    #[test]
+    fn native_language_menu_matches_locale_manifest() {
+        let manifest = locale_menu_manifest_fixture();
+        let expected: Vec<_> = manifest
+            .locales
+            .iter()
+            .map(|locale| {
+                let title = if locale.native_name == locale.english_name {
+                    locale.native_name.clone()
+                } else {
+                    format!("{} ({})", locale.native_name, locale.english_name)
+                };
+                (
+                    format!("language.{}", locale.code),
+                    title,
+                    None,
+                    true,
+                    locale.code == manifest.default_locale,
+                )
+            })
+            .collect();
+        let actual: Vec<_> = LANGUAGE_MENU
+            .iter()
+            .map(|entry| match *entry {
+                NativeMenuEntry::Check {
+                    id,
+                    title,
+                    accelerator,
+                    enabled,
+                    checked,
+                } => (
+                    id.to_string(),
+                    title.to_string(),
+                    accelerator.map(str::to_string),
+                    enabled,
+                    checked,
+                ),
+                _ => panic!("language menu entries must be check items: {entry:?}"),
+            })
+            .collect();
+
+        assert_eq!(actual, expected);
     }
 
     #[test]

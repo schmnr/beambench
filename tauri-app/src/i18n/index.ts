@@ -78,7 +78,9 @@ if (!manifestMatchesResources) {
   throw new Error('Locale manifest codes do not match the bundled translation resources');
 }
 
-export const SUPPORTED_LOCALES = manifestLocaleCodes as SupportedLocale[];
+export const SUPPORTED_LOCALES = Object.freeze(
+  [...manifestLocaleCodes] as SupportedLocale[],
+) as readonly SupportedLocale[];
 export const DEFAULT_LOCALE = LOCALE_MANIFEST.defaultLocale as SupportedLocale;
 
 export function getLocaleDisplayName(code: SupportedLocale): string {
