@@ -20,6 +20,11 @@ Run the macOS, Windows, and Linux release workflows for the same tag. Verify the
 signatures, checksums, installers, CLI archives, and source archives before
 publishing the release or updating the application manifest.
 
+The macOS workflow retries the Tauri packaging command up to three times. This
+covers temporary Apple timestamp or notarization service failures that can
+occur after compilation has completed. A run that still fails after all three
+attempts must be inspected rather than published.
+
 The Windows workflow treats the signed NSIS setup executable as the required
 desktop and updater artifact. The MSI is optional because it is not used by the
 website or application updater. Enable `include_msi` only when an MSI is needed.

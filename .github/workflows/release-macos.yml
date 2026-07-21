@@ -261,7 +261,28 @@ jobs:
           CI: true
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --target universal-apple-darwin
+        run: |
+          set -euo pipefail
+
+          # Apple's timestamp and notarization services occasionally return
+          # transient failures after the application has finished compiling.
+          # Retry the packaging command so a brief service interruption does
+          # not discard an otherwise valid signed build.
+          max_attempts=3
+          for attempt in $(seq 1 "$max_attempts"); do
+            if npx tauri build --target universal-apple-darwin; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::error::macOS packaging failed after ${max_attempts} attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 20))
+            echo "::warning::macOS packaging attempt ${attempt} failed; retrying in ${delay} seconds."
+            sleep "$delay"
+          done
 
       - name: Verify signed app camera entitlement
         run: |
