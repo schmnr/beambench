@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.10
 
 - Added finite manual lift-table jogging for the Experimental Ruida RDC6442S
   adapter. Ruida machine profiles can select the controller's Z or U channel,

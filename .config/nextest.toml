@@ -1,0 +1,8 @@
+[test-groups]
+ruida-udp = { max-threads = 1 }
+
+[[profile.default.overrides]]
+# These integration tests bind Ruida's fixed UDP reply port (40200). A
+# process-local mutex cannot serialize the separate processes Nextest uses.
+filter = 'test(/^ops::machine::tests::ruida_/)'
+test-group = 'ruida-udp'

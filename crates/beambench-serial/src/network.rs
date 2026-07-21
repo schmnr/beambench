@@ -280,12 +280,18 @@ impl SerialTransport for TcpLineTransport {
             let stream = self.stream.as_mut().ok_or(SerialError::NotOpen)?;
             match stream.read(&mut chunk) {
                 Ok(0) => {
-                    self.stream = None;
                     if wire.is_empty() {
+                        self.stream = None;
                         return Err(SerialError::ConnectionFailed(
                             "TCP controller closed the connection".to_string(),
                         ));
                     }
+                    // Drain and decode bytes received before the peer's FIN
+                    // before marking the transport closed. In particular, a
+                    // Telnet negotiation request can arrive in the same burst
+                    // as the final application payload, and TCP still permits
+                    // us to send the refusal after the peer closes its write
+                    // half. A later empty read observes the completed close.
                     break;
                 }
                 Ok(count) => {
@@ -434,6 +440,9 @@ mod tests {
             stream
                 .write_all(b"[VER:4.0 FluidNC v4.0.3 (esp32-wifi) :]\r\nok\n")
                 .unwrap();
+            // Make the payload's FIN deterministic while leaving the read
+            // half open so the client can return its Telnet refusal.
+            stream.shutdown(Shutdown::Write).unwrap();
             let mut refusal = [0_u8; 3];
             stream.read_exact(&mut refusal).unwrap();
             refusal

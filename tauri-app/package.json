@@ -1,7 +1,7 @@
 {
   "name": "beambench-ui",
   "private": true,
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Desktop software for preparing and running laser-cutting and engraving jobs.",
   "license": "GPL-3.0-or-later",
   "repository": "https://github.com/schmnr/beambench",
