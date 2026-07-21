@@ -20,6 +20,13 @@ Run the macOS, Windows, and Linux release workflows for the same tag. Verify the
 signatures, checksums, installers, CLI archives, and source archives before
 publishing the release or updating the application manifest.
 
+The Windows workflow treats the signed NSIS setup executable as the required
+desktop and updater artifact. The MSI is optional because it is not used by the
+website or application updater. Enable `include_msi` only when an MSI is needed.
+An MSI failure does not discard a valid signed NSIS build, and the workflow
+uploads the generated WiX inputs as a diagnostic artifact when MSI packaging
+fails.
+
 Dispatch the platform workflows one at a time. They share a same-tag concurrency
 group, and GitHub retains at most one pending run in that group.
 

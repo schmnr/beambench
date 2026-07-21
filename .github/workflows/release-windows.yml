@@ -15,6 +15,11 @@ on:
         description: "Release tag (e.g. v0.1.1)."
         required: true
         type: string
+      include_msi:
+        description: "Also attempt the optional MSI package. The signed NSIS updater remains the release gate."
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   # Serialize expensive same-tag builds and release uploads. The shared asset
@@ -280,7 +285,7 @@ jobs:
           "$hash  $([System.IO.Path]::GetFileName($archive))" |
             Out-File -FilePath $checksum -Encoding ascii
 
-      - name: Build signed Windows installers
+      - name: Build required signed NSIS installer
         working-directory: tauri-app
         env:
           AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ env.WINDOWS_SIGNING_ACCOUNT }}
@@ -291,14 +296,69 @@ jobs:
           CI: true
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --bundles nsis,msi
+        run: npx tauri build --bundles nsis
+
+      - name: Build optional signed MSI installer
+        id: msi
+        if: ${{ inputs.include_msi }}
+        continue-on-error: true
+        working-directory: tauri-app
+        env:
+          AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ env.WINDOWS_SIGNING_ACCOUNT }}
+          AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE: ${{ env.WINDOWS_SIGNING_CERTIFICATE_PROFILE }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CI: true
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build --bundles msi
+
+      - name: Record optional MSI result
+        if: ${{ always() && inputs.include_msi }}
+        env:
+          MSI_OUTCOME: ${{ steps.msi.outcome }}
+        run: |
+          if ($env:MSI_OUTCOME -eq "success") {
+            "### Optional MSI package: succeeded" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          } else {
+            "### Optional MSI package: failed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "The signed NSIS updater is still eligible for release. Inspect the uploaded WiX diagnostics before re-enabling MSI as a required artifact." |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          }
+
+      - name: Upload WiX diagnostics
+        if: ${{ always() && inputs.include_msi && steps.msi.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeamBench-WiX-diagnostics-${{ steps.tag.outputs.value }}
+          path: |
+            target/release/wix
+            target/release/bundle/msi
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Locate Windows artifacts
         id: locate
         run: |
-          $bundleArtifacts = @(Get-ChildItem -Path target -Recurse -File -Include *.exe,*.msi,*.zip,*.sig |
-            Where-Object { $_.FullName -like "*\target\release\bundle\*" })
           $version = "${{ steps.tag.outputs.version }}"
+          $nsisDir = "target\release\bundle\nsis"
+          $setupInstallers = @(Get-ChildItem -Path $nsisDir -File -Filter "*-setup.exe")
+          if ($setupInstallers.Count -ne 1) {
+            Write-Error "Expected exactly one signed NSIS setup installer, found $($setupInstallers.Count)."
+            exit 1
+          }
+          $setupInstaller = $setupInstallers[0]
+          $setupSignature = "$($setupInstaller.FullName).sig"
+          if (!(Test-Path $setupSignature -PathType Leaf)) {
+            Write-Error "Required NSIS updater signature is missing: $setupSignature"
+            exit 1
+          }
+
+          $bundleArtifacts = @($setupInstaller, (Get-Item $setupSignature))
+          $msiArtifacts = @(Get-ChildItem -Path "target\release\bundle\msi" -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -eq ".msi" -or $_.Name.EndsWith(".msi.sig") })
+          $bundleArtifacts += $msiArtifacts
           $cliDir = Join-Path "target\release-staging\cli\$version" "x86_64-pc-windows-msvc"
           $cliArchive = Join-Path $cliDir "Beam.Bench.CLI_${version}_x86_64-pc-windows-msvc.zip"
           $cliChecksum = "$cliArchive.sha256"
@@ -348,15 +408,17 @@ jobs:
 
       - name: Verify updater signatures
         run: |
-          $signatures = Get-ChildItem -Path target -Recurse -File -Include *.sig |
-            Where-Object { $_.FullName -like "*\target\release\bundle\*" }
-
-          if ($signatures.Count -eq 0) {
-            Write-Error "No Tauri updater signature produced for Windows artifacts."
+          $setupInstallers = @(Get-ChildItem -Path "target\release\bundle\nsis" -File -Filter "*-setup.exe")
+          if ($setupInstallers.Count -ne 1) {
+            Write-Error "Expected exactly one NSIS updater installer, found $($setupInstallers.Count)."
             exit 1
           }
-
-          $signatures | ForEach-Object { "Updater signature: $($_.FullName)" }
+          $signature = "$($setupInstallers[0].FullName).sig"
+          if (!(Test-Path $signature -PathType Leaf) -or (Get-Item $signature).Length -eq 0) {
+            Write-Error "Required NSIS updater signature is missing or empty: $signature"
+            exit 1
+          }
+          "Updater signature: $signature"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -369,26 +431,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.tag.outputs.value }}
+          RELEASE_FILES: ${{ steps.locate.outputs.files }}
         run: |
-          $bundleArtifacts = @(Get-ChildItem -Path target -Recurse -File -Include *.exe,*.msi,*.zip,*.sig |
-            Where-Object { $_.FullName -like "*\target\release\bundle\*" })
-          $version = "${{ steps.tag.outputs.version }}"
-          $cliDir = Join-Path "target\release-staging\cli\$version" "x86_64-pc-windows-msvc"
-          $cliArchive = Join-Path $cliDir "Beam.Bench.CLI_${version}_x86_64-pc-windows-msvc.zip"
-          $cliChecksum = "$cliArchive.sha256"
-          if (!(Test-Path $cliArchive -PathType Leaf) -or !(Test-Path $cliChecksum -PathType Leaf)) {
-            Write-Error "Verified standalone CLI archive or checksum is missing."
-            exit 1
-          }
-          $cliArtifacts = @(Get-Item $cliArchive, $cliChecksum)
-          $artifacts = @(($bundleArtifacts + $cliArtifacts) | Sort-Object FullName)
-
-          if ($artifacts.Count -eq 0) {
+          $paths = @($env:RELEASE_FILES -split "`r?`n" | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+          if ($paths.Count -eq 0) {
             Write-Error "No Windows release artifacts found to attach."
             exit 1
           }
 
-          $paths = @($artifacts | ForEach-Object { $_.FullName })
           $arguments = @("tauri-app/scripts/upload-release-assets.mjs", "--tag", $env:RELEASE_TAG)
           foreach ($path in $paths) {
             $arguments += @("--file", $path)
