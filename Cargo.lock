@@ -426,7 +426,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "beambench-api"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -452,14 +452,14 @@ dependencies = [
 
 [[package]]
 name = "beambench-buildinfo"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "vergen",
 ]
 
 [[package]]
 name = "beambench-camera"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "chrono",
@@ -473,7 +473,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-cli"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -495,7 +495,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-common"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "chrono",
  "regex",
@@ -507,7 +507,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-core"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "ab_glyph",
  "barcoders",
@@ -539,7 +539,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-discovery"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-serial",
@@ -549,7 +549,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-dsp"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -560,7 +560,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-galvo"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -571,7 +571,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-gcode"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -580,7 +580,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-grbl"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -596,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-lihuiyu"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -608,7 +608,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-marlin"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -623,7 +623,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-planner"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -645,7 +645,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-preview"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -658,7 +658,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-project"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -674,7 +674,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-raster"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "image",
@@ -686,7 +686,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-ruida"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-planner",
@@ -699,7 +699,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-serial"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "serde",
@@ -710,7 +710,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-service"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "base64 0.22.1",
  "beambench-buildinfo",
@@ -749,7 +749,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-smoothieware"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -764,7 +764,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-streamer"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "beambench-common",
  "beambench-core",
@@ -780,7 +780,7 @@ dependencies = [
 
 [[package]]
 name = "beambench-tauri"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "arboard",
  "base64 0.22.1",
