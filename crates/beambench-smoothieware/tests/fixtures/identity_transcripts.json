@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "official_edge_m115_report",
+      "lines": [
+        "FIRMWARE_NAME:Smoothieware, FIRMWARE_URL:http%3A//smoothieware.org, X-SOURCE_CODE_URL:https://github.com/Smoothieware/Smoothieware, FIRMWARE_VERSION:edge-6ce309b, PROTOCOL_VERSION:1.0, X-FIRMWARE_BUILD_DATE:Jul 18 2026, X-SYSTEM_CLOCK:120MHz, X-AXES:3, X-GRBL_MODE:0, X-CNC:0, X-ARCS:1",
+        "cached: laser_module_enable is set to true",
+        "cached: laser_module_maximum_s_value is set to 1.0",
+        "cached: laser_module_proportional_power is set to true",
+        "ok"
+      ],
+      "expected": {
+        "status": "identified",
+        "firmware_identity": "Smoothieware",
+        "firmware_version": "edge-6ce309b",
+        "firmware_url": "http%3A//smoothieware.org",
+        "source_code_url": "https://github.com/Smoothieware/Smoothieware",
+        "protocol_version": "1.0",
+        "grbl_mode": false,
+        "supports_arcs": true,
+        "laser_module_enabled": true,
+        "laser_maximum_s_value": 1.0,
+        "laser_proportional_power": true,
+        "evidence": ["firmware_info", "extended_firmware_report", "laser_configuration"]
+      }
+    },
+    {
+      "name": "grbl_mode_is_reported_without_changing_identity",
+      "lines": [
+        "Smoothie ok",
+        "FIRMWARE_NAME:Smoothieware, PROTOCOL_VERSION:1.0, X-GRBL_MODE:1, X-ARCS:1",
+        "ok"
+      ],
+      "expected": {
+        "status": "identified",
+        "firmware_identity": "Smoothieware",
+        "protocol_version": "1.0",
+        "grbl_mode": true,
+        "supports_arcs": true,
+        "evidence": ["firmware_info", "extended_firmware_report"]
+      }
+    },
+    {
+      "name": "named_fork_is_not_exact_smoothieware",
+      "lines": [
+        "FIRMWARE_NAME:SmoothiewareFork, FIRMWARE_VERSION:9.0, X-GRBL_MODE:1",
+        "ok"
+      ],
+      "expected": {
+        "status": "other_firmware",
+        "evidence": ["firmware_info"]
+      }
+    },
+    {
+      "name": "conflicting_firmware_names_fail_closed",
+      "lines": [
+        "FIRMWARE_NAME:Smoothieware, FIRMWARE_VERSION:edge",
+        "FIRMWARE_NAME:Marlin 2.1.3, PROTOCOL_VERSION:1.0",
+        "ok"
+      ],
+      "expected": {
+        "status": "conflicting",
+        "evidence": ["firmware_info", "extended_firmware_report"]
+      }
+    },
+    {
+      "name": "echoed_identity_text_is_not_identity",
+      "lines": [
+        "echo: FIRMWARE_NAME:Smoothieware, FIRMWARE_VERSION:edge",
+        "ok"
+      ],
+      "expected": {
+        "status": "unknown",
+        "evidence": []
+      }
+    }
+  ]
+}

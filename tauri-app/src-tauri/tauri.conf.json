@@ -1,0 +1,71 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "Beam Bench",
+  "identifier": "com.beambench.app",
+  "version": "0.1.9",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run licenses:generate && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Beam Bench",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "backgroundColor": "#0c0e12",
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$TEMP/beam-bench-camera/**/*"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "resources": {
+      "../../LICENSE": "licenses/GPL-3.0.txt",
+      "../../LICENSES/GPL-2.0.txt": "licenses/GPL-2.0.txt",
+      "../../LICENSES/OFL-1.1.txt": "licenses/OFL-1.1.txt",
+      "../../COPYRIGHT": "licenses/COPYRIGHT",
+      "../../THIRD_PARTY_NOTICES.md": "licenses/THIRD_PARTY_NOTICES.md",
+      "../../THIRD_PARTY_LICENSES.md": "licenses/THIRD_PARTY_LICENSES.md",
+      "../../vendor/pdf417/LICENSE": "licenses/pdf417-MIT.txt"
+    },
+    "macOS": {
+      "entitlements": "Entitlements.plist",
+      "infoPlist": "Info.plist",
+      "minimumSystemVersion": "10.15"
+    },
+    "icon": [
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRCMDlDQzMwOUMwNUJEOTIKUldTU3ZRV2NNTXdKU3p3bnRCNlpFUmcxSi9hSHk0QURUWjgrU0YvY0gzVzBmSDU3MmxoZk1TZmUK",
+      "endpoints": [
+        "https://updates.beambench.com/stable/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

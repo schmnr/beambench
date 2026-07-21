@@ -1,0 +1,65 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/beambench-buildinfo",
+    "crates/beambench-common",
+    "crates/beambench-camera",
+    "crates/beambench-core",
+    "crates/beambench-discovery",
+    "crates/beambench-dsp",
+    "crates/beambench-galvo",
+    "crates/beambench-gcode",
+    "crates/beambench-grbl",
+    "crates/beambench-lihuiyu",
+    "crates/beambench-marlin",
+    "crates/beambench-smoothieware",
+    "crates/beambench-serial",
+    "crates/beambench-streamer",
+    "crates/beambench-raster",
+    "crates/beambench-planner",
+    "crates/beambench-preview",
+    "crates/beambench-project",
+    "crates/beambench-ruida",
+    "crates/beambench-api",
+    "crates/beambench-cli",
+    "crates/beambench-service",
+    "tauri-app/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.9"
+edition = "2024"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/schmnr/beambench"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "2"
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+usvg = "0.45"
+resvg = "0.45"
+tiny-skia = "0.11"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "gif", "tiff", "webp", "tga"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+tempfile = "3"
+geo = "0.29"
+ab_glyph = "0.2"
+ttf-parser = "0.25"
+fontdb = "0.23"
+base64 = "0.22"
+barcoders = "2"
+qrcodegen = "1.8"
+datamatrix = "0.3"
+pdf417 = { path = "vendor/pdf417" }
+serialport = "4"
+nusb = "0.2.5"
+dirs = "6"
+clipper2 = "0.5"
+roxmltree = "0.20"
+u-nesting-d2 = "0.3.1"
+regex = "1"
+flate2 = "1"

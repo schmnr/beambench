@@ -1,0 +1,13 @@
+[package]
+name = "beambench-galvo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-common = { path = "../beambench-common" }
+beambench-planner = { path = "../beambench-planner" }
+chrono = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }

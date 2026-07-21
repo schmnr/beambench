@@ -1,0 +1,10 @@
+Beam Bench
+Copyright (C) 2026 Beam Bench contributors
+
+Beam Bench is free software licensed under the GNU General Public License,
+version 3 or (at your option) any later version. See LICENSE.
+
+The Potrace-derived tracing implementation under
+crates/beambench-core/src/potrace is separately identified as
+GPL-2.0-or-later and retains the copyright of Peter Selinger. See
+crates/beambench-core/src/potrace/README.md and THIRD_PARTY_NOTICES.md.

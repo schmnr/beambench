@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --bb-bg: 12 14 18;
+  --bb-bg-alt: 24 27 34;
+  --bb-input: 15 18 24;
+  --bb-panel: 19 22 25;
+  --bb-panel-header: 28 31 38;
+  --bb-surface: 23 26 32;
+  --bb-surface-2: 28 31 38;
+  --bb-surface-3: 33 37 46;
+  --bb-surface-elevated: 15 18 24;
+  --bb-border: 40 45 54;
+  --bb-control-border: 95 103 115;
+  --bb-hover: 33 37 46;
+  --bb-accent: 34 192 238;
+  --bb-accent-hover: 26 172 216;
+  --bb-on-accent: 17 24 39;
+  --bb-error: 220 38 38;
+  --bb-error-hover: 239 68 68;
+  --bb-on-error: 255 255 255;
+  --bb-warning: 245 158 11;
+  --bb-warning-hover: 251 191 36;
+  --bb-on-warning: 3 7 18;
+  --bb-success: 6 118 71;
+  --bb-success-hover: 4 96 56;
+  --bb-on-success: 255 255 255;
+  --bb-error-fg: 254 202 202;
+  --bb-error-bg: 41 27 29;
+  --bb-error-border: 107 40 42;
+  --bb-warning-fg: 253 230 138;
+  --bb-warning-bg: 43 36 24;
+  --bb-warning-border: 114 83 27;
+  --bb-success-fg: 187 247 208;
+  --bb-success-bg: 22 49 33;
+  --bb-success-border: 21 128 61;
+  --bb-info-fg: 191 219 254;
+  --bb-info-bg: 25 42 70;
+  --bb-info-border: 29 78 216;
+  --bb-text: 232 234 237;
+  --bb-text-muted: 156 163 175;
+  --bb-text-dim: 107 114 128;
+  --bb-text-disabled: 75 85 99;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  --bb-bg: 243 245 247;
+  --bb-bg-alt: 238 241 244;
+  --bb-input: 255 255 255;
+  --bb-panel: 248 250 252;
+  --bb-panel-header: 238 242 246;
+  --bb-surface: 255 255 255;
+  --bb-surface-2: 238 242 246;
+  --bb-surface-3: 226 232 240;
+  --bb-surface-elevated: 255 255 255;
+  --bb-border: 200 208 218;
+  --bb-control-border: 131 143 157;
+  --bb-hover: 227 232 238;
+  --bb-accent: 0 115 148;
+  --bb-accent-hover: 0 103 133;
+  --bb-on-accent: 255 255 255;
+  --bb-error: 217 45 32;
+  --bb-error-hover: 180 35 24;
+  --bb-on-error: 255 255 255;
+  --bb-warning: 181 71 8;
+  --bb-warning-hover: 147 55 13;
+  --bb-on-warning: 255 255 255;
+  --bb-success: 6 118 71;
+  --bb-success-hover: 4 96 56;
+  --bb-on-success: 255 255 255;
+  --bb-error-fg: 180 35 24;
+  --bb-error-bg: 254 205 202;
+  --bb-error-border: 240 68 56;
+  --bb-warning-fg: 181 71 8;
+  --bb-warning-bg: 254 240 199;
+  --bb-warning-border: 247 144 9;
+  --bb-success-fg: 6 118 71;
+  --bb-success-bg: 209 250 223;
+  --bb-success-border: 18 183 106;
+  --bb-info-fg: 23 92 211;
+  --bb-info-bg: 209 233 255;
+  --bb-info-border: 46 144 250;
+  --bb-text: 24 33 43;
+  --bb-text-muted: 79 95 112;
+  --bb-text-dim: 87 104 122;
+  --bb-text-disabled: 124 137 153;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: rgb(var(--bb-bg));
+  color: rgb(var(--bb-text));
+  scrollbar-color: rgb(var(--bb-control-border)) rgb(var(--bb-bg-alt));
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgb(var(--bb-bg-alt));
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid rgb(var(--bb-bg-alt));
+  border-radius: 999px;
+  background: rgb(var(--bb-control-border));
+}
+
+/*
+ * WKWebView can draw macOS overlay scrollbars above right-aligned controls.
+ * Keep an explicit safe edge as a fallback because overlay scrollbars do not
+ * always honor scrollbar-gutter, especially on older macOS WebKit versions.
+ */
+.scrollbar-safe-edge {
+  padding-inline-end: 1rem;
+  scrollbar-gutter: stable;
+}
+
+/* Form boundaries need more contrast than structural dividers. */
+input.border-bb-border,
+select.border-bb-border,
+textarea.border-bb-border {
+  border-color: rgb(var(--bb-control-border));
+}
+
+*:focus-visible {
+  outline: 2px solid rgb(var(--bb-accent)) !important;
+  outline-offset: 2px !important;
+}
+
+/* Disable text selection on UI chrome (not canvas/inputs) */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Hide native number-input spinners — they overlap text in compact toolbars */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* Hide scrollbars while keeping scroll functionality (grab-to-scroll) */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Canvas cursor classes */
+.cursor-crosshair { cursor: crosshair; }
+.cursor-grab { cursor: grab; }
+.cursor-grabbing { cursor: grabbing; }
+.cursor-move { cursor: move; }

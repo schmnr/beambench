@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (() => {
+        const cacheKey = 'beam-bench.ui-theme';
+        const cacheVersion = 1;
+        let selected = 'dark';
+        let resolved = 'dark';
+
+        try {
+          const cachedValue = localStorage.getItem(cacheKey);
+          const cached = cachedValue === null ? null : JSON.parse(cachedValue);
+          const selectedIsValid =
+            cached &&
+            (cached.selected === 'system' ||
+              cached.selected === 'light' ||
+              cached.selected === 'dark');
+          const resolvedIsValid =
+            cached && (cached.resolved === 'light' || cached.resolved === 'dark');
+
+          if (cached && cached.version === cacheVersion && selectedIsValid && resolvedIsValid) {
+            selected = cached.selected;
+            if (selected === 'system') {
+              resolved =
+                typeof window.matchMedia === 'function'
+                  ? window.matchMedia('(prefers-color-scheme: light)').matches
+                    ? 'light'
+                    : 'dark'
+                  : cached.resolved;
+            } else {
+              resolved = selected;
+            }
+            localStorage.setItem(
+              cacheKey,
+              JSON.stringify({ version: cacheVersion, selected, resolved }),
+            );
+          }
+        } catch {
+          selected = 'dark';
+          resolved = 'dark';
+        }
+
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
+    <title>Beam Bench</title>
+  </head>
+  <body class="bg-bb-bg text-bb-text overflow-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

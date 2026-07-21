@@ -1,0 +1,19 @@
+[package]
+name = "beambench-smoothieware"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-common = { path = "../beambench-common" }
+beambench-gcode = { path = "../beambench-gcode" }
+beambench-grbl = { path = "../beambench-grbl" }
+beambench-planner = { path = "../beambench-planner" }
+beambench-serial = { path = "../beambench-serial" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+beambench-core = { path = "../beambench-core" }
+serde_json = { workspace = true }

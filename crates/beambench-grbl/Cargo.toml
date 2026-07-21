@@ -1,0 +1,18 @@
+[package]
+name = "beambench-grbl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-common = { path = "../beambench-common" }
+beambench-core = { path = "../beambench-core" }
+beambench-serial = { path = "../beambench-serial" }
+beambench-planner = { path = "../beambench-planner" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "description": "Pinned LHYMicro-GL2 and CH341 vectors for the Lihuiyu M2-compatible protocol foundation.",
+  "sources": [
+    "https://github.com/meerk40t/meerk40t/blob/76106c5bc54e4a33c9248e9916a0e3009b5bbf5d/docs/lihuiyu/LHYMicro-GL2.pdf",
+    "https://github.com/meerk40t/meerk40t/blob/76106c5bc54e4a33c9248e9916a0e3009b5bbf5d/meerk40t/lihuiyu/controller.py",
+    "https://github.com/meerk40t/meerk40t/blob/76106c5bc54e4a33c9248e9916a0e3009b5bbf5d/test/test_drivers_lihuiyu.py"
+  ],
+  "packets": [
+    {
+      "payload_ascii": "I",
+      "packet_hex": "0049464646464646464646464646464646464646464646464646464646464682"
+    },
+    {
+      "payload_ascii": "IPP",
+      "packet_hex": "00495050464646464646464646464646464646464646464646464646464646e4"
+    },
+    {
+      "payload_ascii": "PN",
+      "packet_hex": "00504e46464646464646464646464646464646464646464646464646464646f3"
+    }
+  ],
+  "speed_codes": [
+    {
+      "kind": "vector",
+      "speed_mm_s": 15.0,
+      "encoded_ascii": "CV2490731016000027C"
+    },
+    {
+      "kind": "raster",
+      "speed_mm_s": 15.0,
+      "raster_step_mils": 2,
+      "encoded_ascii": "V1552121G002"
+    }
+  ]
+}

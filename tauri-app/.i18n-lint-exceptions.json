@@ -1,0 +1,5 @@
+{
+  "_note": "Known false positives in literal-string checks. Keys are relative to tauri-app/.",
+  "src/App.tsx": "The coverage regex treats TypeScript generics such as () => Promise<unknown> as text.",
+  "src/components/panels/ArtLibraryPanel.tsx": "Logic literals inside JSX expressions include icon glyphs and media-type discriminants; user-facing strings are translated."
+}

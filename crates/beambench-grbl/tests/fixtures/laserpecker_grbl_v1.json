@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "description": "Offline LaserPecker GRBL compatibility corpus derived from official Lbrn device profiles. Status and acknowledgement lines are synthetic shared-GRBL protocol fixtures and make no hardware-validation claim.",
+  "sources": [
+    {
+      "model": "LX1",
+      "url": "https://support.laserpecker.net/hc/article_attachments/7639507070991",
+      "transport": "serial",
+      "baud_rate": 460800,
+      "s_value_max": 255,
+      "width_mm": 400.0,
+      "height_mm": 420.0,
+      "job_header": []
+    },
+    {
+      "model": "LX1 Max",
+      "url": "https://support.laserpecker.net/hc/article_attachments/7639507071503",
+      "transport": "serial",
+      "baud_rate": 460800,
+      "s_value_max": 1000,
+      "width_mm": 400.0,
+      "height_mm": 800.0,
+      "job_header": []
+    },
+    {
+      "model": "LX2",
+      "url": "https://support.laserpecker.net/hc/article_attachments/14363201178127",
+      "transport": "tcp:8888",
+      "baud_rate": 115200,
+      "s_value_max": 1000,
+      "width_mm": 500.0,
+      "height_mm": 305.0,
+      "job_header": ["START_PRINT"]
+    },
+    {
+      "model": "LP2 Plus",
+      "url": "https://support.laserpecker.net/hc/article_attachments/14066754047887",
+      "transport": "serial",
+      "baud_rate": 460800,
+      "s_value_max": 255,
+      "width_mm": 100.0,
+      "height_mm": 100.0,
+      "job_header": ["M3030"]
+    },
+    {
+      "model": "LP4",
+      "url": "https://support.laserpecker.net/hc/en-us/article_attachments/10734266389519",
+      "transport": "serial",
+      "baud_rate": 460800,
+      "s_value_max": 255,
+      "width_mm": 160.0,
+      "height_mm": 120.0,
+      "job_header": ["M3030", "M3010"]
+    },
+    {
+      "model": "LP5",
+      "url": "https://support.laserpecker.net/hc/en-us/article_attachments/13560959269519",
+      "transport": "serial",
+      "baud_rate": 460800,
+      "s_value_max": 255,
+      "width_mm": 120.0,
+      "height_mm": 160.0,
+      "job_header": ["M3030", "M3010"]
+    }
+  ],
+  "idle_status": "<Idle|MPos:0.000,0.000,0.000|FS:0,0>",
+  "job_body": ["G90", "G21", "M4 S128", "G1 X10.000 Y10.000 F1200", "M5"],
+  "acknowledgement": "ok"
+}

@@ -1,0 +1,27 @@
+[package]
+name = "beambench-planner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-common = { path = "../beambench-common" }
+beambench-core = { path = "../beambench-core" }
+beambench-raster = { path = "../beambench-raster" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+sha2 = "0.10"
+tracing = { workspace = true }
+image = { workspace = true }
+rayon = "1.10"
+clipper2 = { workspace = true }
+
+[dev-dependencies]
+beambench-project = { path = "../beambench-project" }
+beambench-grbl = { path = "../beambench-grbl" }
+beambench-preview = { path = "../beambench-preview" }
+sha2 = "0.10"

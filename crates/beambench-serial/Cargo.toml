@@ -1,0 +1,13 @@
+[package]
+name = "beambench-serial"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-common = { path = "../beambench-common" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serialport = { workspace = true }

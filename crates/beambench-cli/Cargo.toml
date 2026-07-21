@@ -1,0 +1,24 @@
+[package]
+name = "beambench-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-common = { path = "../beambench-common" }
+beambench-core = { path = "../beambench-core" }
+beambench-service = { path = "../beambench-service" }
+beambench-planner = { path = "../beambench-planner" }
+beambench-preview = { path = "../beambench-preview" }
+beambench-grbl = { path = "../beambench-grbl" }
+beambench-serial = { path = "../beambench-serial" }
+beambench-streamer = { path = "../beambench-streamer" }
+beambench-project = { path = "../beambench-project" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+chrono = { workspace = true }
+dirs = { workspace = true }
+uuid = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }

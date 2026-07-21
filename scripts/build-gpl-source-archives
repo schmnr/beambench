@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+OUTPUT_DIR="${BEAMBENCH_SOURCE_OUTPUT_DIR:-$REPO_ROOT/dist/gpl-source}"
+
+if [[ $# -gt 0 ]]; then
+  TAGS=("$@")
+else
+  TAGS=()
+  while IFS= read -r tag; do
+    TAGS+=("$tag")
+  done < <(git -C "$REPO_ROOT" tag --list --sort=version:refname 'v*')
+fi
+
+if [[ ${#TAGS[@]} -eq 0 ]]; then
+  echo "No release tags were found." >&2
+  exit 1
+fi
+
+mkdir -p "$OUTPUT_DIR"
+
+for tag in "${TAGS[@]}"; do
+  if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Refusing non-release tag: $tag" >&2
+    exit 1
+  fi
+  git -C "$REPO_ROOT" rev-parse --verify --quiet "refs/tags/$tag^{commit}" >/dev/null || {
+    echo "Unknown release tag: $tag" >&2
+    exit 1
+  }
+
+  version="${tag#v}"
+  archive_root="Beam-Bench-$version-source"
+  work_dir="$(mktemp -d "${TMPDIR:-/tmp}/beambench-gpl-source.XXXXXX")"
+  source_dir="$work_dir/$archive_root"
+
+  cleanup() {
+    rm -rf "$work_dir"
+  }
+  trap cleanup EXIT INT TERM
+
+  echo "Exporting $tag..."
+  mkdir -p "$source_dir"
+  git -C "$REPO_ROOT" archive "$tag" | tar -xf - -C "$source_dir"
+
+  # Non-build planning and workstation-operation files are not part of the
+  # corresponding source. Normalize obsolete internal menu-contract names.
+  rm -rf "$source_dir/docs"
+  find "$source_dir" -maxdepth 1 -type f -name '*.md' -delete
+  rm -f "$source_dir"/scripts/feedback-*
+
+  obsolete_menu_stem=""
+  obsolete_menu_title=""
+  for obsolete_menu_file in "$source_dir"/tauri-app/src/commands/*ToolsMenuReference.ts; do
+    [[ -f "$obsolete_menu_file" ]] || continue
+    obsolete_menu_name="$(basename "$obsolete_menu_file")"
+    obsolete_menu_stem="${obsolete_menu_name%ToolsMenuReference.ts}"
+    obsolete_menu_title="$(perl -ne 'if (/([A-Za-z]+)ToolsMenuReferenceItem/) { print $1; exit }' "$obsolete_menu_file")"
+    mv "$obsolete_menu_file" "$source_dir/tauri-app/src/commands/toolsMenuContract.ts"
+  done
+  for obsolete_menu_file in "$source_dir"/tauri-app/src/commands/*ToolsMenuReference.json; do
+    [[ -f "$obsolete_menu_file" ]] || continue
+    mv "$obsolete_menu_file" "$source_dir/tauri-app/src/commands/toolsMenuContract.json"
+  done
+  node_tool_test="$source_dir/tauri-app/src/canvas/tools/NodeTool.test.ts"
+  if [[ -f "$node_tool_test" ]]; then
+    perl -0pi -e "s/\n  it\('documents close path and auto-join as Beam Bench toolbar extensions'.*?\n  \}\);\n\n  it\('keeps sibling snap/\n  it('keeps sibling snap/s" "$node_tool_test"
+    perl -0pi -e "s/import \{ readFileSync \} from 'node:fs';\n//" "$node_tool_test"
+  fi
+  if [[ -n "$obsolete_menu_stem" ]]; then
+    if [[ -z "$obsolete_menu_title" ]]; then
+      obsolete_menu_title="$(printf '%s' "$obsolete_menu_stem" | perl -pe 's/^([a-z])/\U$1/')"
+    fi
+    obsolete_menu_upper="$(printf '%s' "$obsolete_menu_stem" | tr '[:lower:]' '[:upper:]')"
+    while IFS= read -r obsolete_reference_file; do
+      # Keep the literal XML document root used by the optional project-file
+      # importer and its fixtures. Rewriting that token would change behavior.
+      if grep -qF "${obsolete_menu_title}Project" "$obsolete_reference_file"; then
+        continue
+      fi
+      OBSOLETE_MENU_STEM="$obsolete_menu_stem" \
+      OBSOLETE_MENU_TITLE="$obsolete_menu_title" \
+      OBSOLETE_MENU_UPPER="$obsolete_menu_upper" \
+      perl -pi -e '
+        s/\Q$ENV{OBSOLETE_MENU_TITLE}\EToolsMenuReferenceItem/ToolsMenuContractItem/g;
+        s/\Q$ENV{OBSOLETE_MENU_TITLE}\EToolsReferenceItem/ToolsMenuContractItem/g;
+        s/\Q$ENV{OBSOLETE_MENU_UPPER}\E_TOOLS_MENU_REFERENCE/TOOLS_MENU_CONTRACT/g;
+        s/\Q$ENV{OBSOLETE_MENU_STEM}\E_tools_reference_rows/tools_menu_contract_rows/g;
+        s/\Q$ENV{OBSOLETE_MENU_STEM}\EToolsMenuReference/toolsMenuContract/g;
+        s/\Q$ENV{OBSOLETE_MENU_TITLE}\E/External reference/g;
+        s/\Q$ENV{OBSOLETE_MENU_UPPER}\E/EXTERNAL_REFERENCE/g;
+        s/\Q$ENV{OBSOLETE_MENU_STEM}\E/external_reference/g;
+      ' "$obsolete_reference_file"
+    done < <(grep -IlR -i "$obsolete_menu_stem" "$source_dir" || true)
+    while IFS= read -r remaining_reference_file; do
+      if ! grep -qF "${obsolete_menu_title}Project" "$remaining_reference_file"; then
+        echo "An obsolete internal menu-contract name remains in $tag source package." >&2
+        exit 1
+      fi
+    done < <(grep -IlR -i "$obsolete_menu_stem" "$source_dir" || true)
+  fi
+
+  cp "$REPO_ROOT/LICENSE" "$source_dir/LICENSE"
+  cp "$REPO_ROOT/COPYRIGHT" "$source_dir/COPYRIGHT"
+  cp "$REPO_ROOT/README.md" "$source_dir/README.md"
+  cp "$REPO_ROOT/THIRD_PARTY_NOTICES.md" "$source_dir/THIRD_PARTY_NOTICES.md"
+  mkdir -p "$source_dir/LICENSES"
+  cp "$REPO_ROOT/LICENSES/GPL-2.0.txt" "$source_dir/LICENSES/GPL-2.0.txt"
+  cp "$REPO_ROOT/LICENSES/OFL-1.1.txt" "$source_dir/LICENSES/OFL-1.1.txt"
+  cp "$REPO_ROOT/scripts/generate-license-report.mjs" "$source_dir/scripts/generate-license-report.mjs"
+  cp "$REPO_ROOT/crates/beambench-core/src/potrace/README.md" \
+    "$source_dir/crates/beambench-core/src/potrace/README.md"
+
+  for port_file in "$source_dir"/crates/beambench-core/src/potrace/*.rs; do
+    if ! grep -q 'SPDX-FileCopyrightText: 2001-2019 Peter Selinger' "$port_file"; then
+      notice_file="$port_file.notice"
+      sed -n '1,8p' "$REPO_ROOT/${port_file#"$source_dir/"}" > "$notice_file"
+      cat "$port_file" >> "$notice_file"
+      mv "$notice_file" "$port_file"
+    fi
+  done
+
+  perl -0pi -e 's/license = "MIT"/license = "GPL-3.0-or-later"/' "$source_dir/Cargo.toml"
+  perl -0pi -e 's#repository = "https://github.com/beambench/beambench"#repository = "https://github.com/schmnr/beambench"#' "$source_dir/Cargo.toml"
+  while IFS= read -r manifest; do
+    if ! grep -q '^license' "$manifest"; then
+      perl -0pi -e 's/(edition\.workspace = true\n)/$1license.workspace = true\nrepository.workspace = true\n/' "$manifest"
+    fi
+  done < <(find "$source_dir/crates" "$source_dir/tauri-app/src-tauri" -name Cargo.toml -type f -print)
+
+  SOURCE_DIR="$source_dir" node - <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+const packagePath = path.join(process.env.SOURCE_DIR, 'tauri-app', 'package.json');
+const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+pkg.license = 'GPL-3.0-or-later';
+pkg.repository = 'https://github.com/schmnr/beambench';
+fs.writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
+NODE
+
+  commit="$(git -C "$REPO_ROOT" rev-parse "$tag^{commit}")"
+  cat > "$source_dir/SOURCE-COMPLIANCE.md" <<EOF
+# Beam Bench $tag corresponding source
+
+This archive contains the preferred form for modifying the Beam Bench binaries
+released as $tag. The application source is exported from Git commit
+\`$commit\`. License metadata and the required Potrace copyright and dated
+modification notices have been added. Non-build product-planning documents were
+omitted. These packaging-only changes do not alter program behavior.
+
+The application as a whole is distributed under GPL-3.0-or-later. The Potrace-
+derived files under \`crates/beambench-core/src/potrace\` retain their
+GPL-2.0-or-later license and Peter Selinger's copyright.
+
+Rust dependency sources are included under \`vendor/cargo\`; Cargo is configured
+to build from that directory. JavaScript dependency sources are included under
+\`tauri-app/node_modules\`. Build instructions are in \`README.md\`.
+EOF
+
+  echo "Vendoring Rust dependencies for $tag..."
+  mkdir -p "$source_dir/.cargo"
+  (
+    cd "$source_dir"
+    cargo vendor --locked --versioned-dirs vendor/cargo > .cargo/config.toml
+  )
+
+  echo "Vendoring JavaScript dependencies for $tag..."
+  (
+    cd "$source_dir/tauri-app"
+    npm ci --ignore-scripts --no-audit --no-fund
+  )
+
+  echo "Generating dependency notices for $tag..."
+  (
+    cd "$source_dir"
+    node scripts/generate-license-report.mjs
+  )
+
+  output_tar="$OUTPUT_DIR/$archive_root.tar"
+  output_gzip="$output_tar.gz"
+  rm -f "$output_tar" "$output_gzip" "$output_gzip.sha256"
+  COPYFILE_DISABLE=1 tar -cf "$output_tar" -C "$work_dir" "$archive_root"
+  gzip -n "$output_tar"
+  (
+    cd "$OUTPUT_DIR"
+    shasum -a 256 "$(basename "$output_gzip")" > "$(basename "$output_gzip").sha256"
+  )
+  echo "Created $output_gzip"
+
+  cleanup
+  trap - EXIT INT TERM
+done

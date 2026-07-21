@@ -1,0 +1,31 @@
+{
+  "name": "Beam Bench Dev",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "mounts": [
+    "source=beambench-cargo-registry,target=/usr/local/cargo/registry,type=volume",
+    "source=beambench-cargo-git,target=/usr/local/cargo/git,type=volume",
+    "source=beambench-npm-cache,target=/home/vscode/.npm,type=volume"
+  ],
+  "containerEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "CARGO_TARGET_DIR": "/tmp/cargo-target"
+  },
+  "runArgs": [
+    "--net=host",
+    "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw"
+  ],
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tauri-apps.tauri-vscode",
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}

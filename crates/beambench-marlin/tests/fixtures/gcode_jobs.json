@@ -1,0 +1,116 @@
+{
+  "schema_version": 2,
+  "cases": [
+    {
+      "name": "standard_percent_vector",
+      "laser_mode": "standard",
+      "power_scale": { "kind": "percent" },
+      "start_gcode": "M4 S77\nG4 P0.100",
+      "end_gcode": "M3 S12",
+      "segment": {
+        "type": "vector",
+        "polyline": [{ "x": 1.0, "y": 2.0 }, { "x": 3.0, "y": 4.0 }],
+        "closed": false,
+        "power_percent": 50.0,
+        "speed_mm_min": 1200.0,
+        "layer_id": "vector-layer",
+        "cut_entry_id": "vector-entry",
+        "perforation_enabled": false,
+        "perforation_on_ms": 0.0,
+        "perforation_off_ms": 0.0
+      },
+      "expected_lines": [
+        "G90",
+        "G21",
+        "M5",
+        "M400",
+        "M4 S77",
+        "G4 P0.100",
+        "G0 X1.000 Y2.000",
+        "M3 S50",
+        "G1 X3.000 Y4.000 F1200",
+        "M5",
+        "M3 S12",
+        "M5",
+        "G0 X0 Y0",
+        "M400"
+      ]
+    },
+    {
+      "name": "continuous_inline_pwm_vector",
+      "laser_mode": "continuous_inline",
+      "power_scale": { "kind": "pwm255" },
+      "segment": {
+        "type": "vector",
+        "polyline": [{ "x": 5.0, "y": 6.0 }, { "x": 7.0, "y": 8.0 }],
+        "closed": false,
+        "power_percent": 25.0,
+        "speed_mm_min": 600.0,
+        "layer_id": "vector-layer",
+        "cut_entry_id": "vector-entry",
+        "perforation_enabled": false,
+        "perforation_on_ms": 0.0,
+        "perforation_off_ms": 0.0
+      },
+      "expected_lines": [
+        "G90",
+        "G21",
+        "M5 I",
+        "M400",
+        "G0 X5.000 Y6.000",
+        "M3 I S64",
+        "G1 X7.000 Y8.000 F600 S64",
+        "M5",
+        "M5 I",
+        "G0 X0 Y0",
+        "M400"
+      ]
+    },
+    {
+      "name": "dynamic_inline_pwm_raster",
+      "laser_mode": "dynamic_inline",
+      "power_scale": { "kind": "pwm255" },
+      "segment": {
+        "type": "raster",
+        "scanlines": [
+          {
+            "y_mm": 10.0,
+            "runs": [
+              { "start_x_mm": 0.0, "end_x_mm": 2.0, "power_values": [] }
+            ],
+            "direction": "left_to_right"
+          }
+        ],
+        "line_interval_mm": 0.1,
+        "direction_mode": "bidirectional",
+        "power_mode": "binary",
+        "speed_mm_min": 2000.0,
+        "layer_id": "raster-layer",
+        "cut_entry_id": "raster-entry",
+        "scan_angle_deg": 0.0,
+        "scan_origin": { "x": 1.0, "y": 10.0 },
+        "overscan_mm": 0.0,
+        "outlines": [],
+        "scan_axis": "horizontal",
+        "power_max_percent": 80.0,
+        "power_min_percent": 0.0,
+        "dot_width_correction_mm": 0.0,
+        "ramp_length_mm": 0.0,
+        "x_pixel_mm": 0.1
+      },
+      "expected_lines": [
+        "G90",
+        "G21",
+        "M5 I",
+        "M400",
+        "G0 X0.000 Y10.000",
+        "M4 I S204",
+        "G1 X2.000 F2000 S204",
+        "M5",
+        "M5 I",
+        "G0 X0 Y0",
+        "M400"
+      ]
+    }
+  ]
+}

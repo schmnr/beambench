@@ -1,0 +1,31 @@
+# Rust
+target/
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+
+# Tauri
+tauri-app/src-tauri/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Dev container volumes
+.devcontainer/data/
+
+# Git worktrees
+.worktrees/

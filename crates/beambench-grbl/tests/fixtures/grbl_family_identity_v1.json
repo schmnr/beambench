@@ -1,0 +1,416 @@
+{
+  "schema_version": 1,
+  "description": "Offline GRBL-family identity transcripts derived from pinned upstream source formats. Synthetic cases are explicitly labeled and contain no hardware claims.",
+  "cases": [
+    {
+      "id": "stock_grbl_protocol_compatible",
+      "provenance": [
+        {
+          "kind": "source_derived",
+          "repository": "gnea/grbl",
+          "commit": "bfb67f0c7963fe3ce4aaf8a97f9009ea5a8db36e",
+          "url": "https://github.com/gnea/grbl/blob/bfb67f0c7963fe3ce4aaf8a97f9009ea5a8db36e/grbl/report.c#L170-L173",
+          "note": "Official stock GRBL welcome-message grammar"
+        }
+      ],
+      "lines": [
+        "Grbl 1.1h ['$' for help]",
+        "[VER:1.1h.20190830:stock]"
+      ],
+      "expected": {
+        "dialect": "grbl",
+        "status": "protocol_compatible",
+        "firmware_identity": null,
+        "firmware_version": null,
+        "evidence": ["protocol_signature"]
+      }
+    },
+    {
+      "id": "fluid_nc_current_identified",
+      "provenance": [
+        {
+          "kind": "source_derived",
+          "repository": "bdring/FluidNC",
+          "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+          "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/FluidNC/src/Report.cpp#L367-L370",
+          "note": "Official current FluidNC controller-info formatter"
+        }
+      ],
+      "lines": [
+        "[MSG:INFO: FluidNC v4.0.3 (main-94e8adb) https://github.com/bdring/FluidNC]",
+        "Grbl 4.0 [FluidNC v4.0.3 (main-94e8adb) (esp32-wifi) '$' for help]",
+        "[VER:4.0 FluidNC v4.0.3 (main-94e8adb) (esp32-wifi) :]"
+      ],
+      "expected": {
+        "dialect": "fluid_nc",
+        "status": "identified",
+        "firmware_identity": "FluidNC",
+        "firmware_version": "4.0.3 (main-94e8adb) (esp32-wifi)",
+        "evidence": ["startup_banner", "controller_info_version"]
+      }
+    },
+    {
+      "id": "fluid_nc_bluetooth_variant",
+      "provenance": [
+        {
+          "kind": "source_derived_variant",
+          "repository": "bdring/FluidNC",
+          "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+          "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/FluidNC/src/Report.cpp#L367-L370",
+          "note": "Official formatter with the Bluetooth compiled-platform annotation"
+        }
+      ],
+      "lines": [
+        "[VER:4.0 FluidNC v4.0.3 (main-94e8adb) (esp32-bt) :]"
+      ],
+      "expected": {
+        "dialect": "fluid_nc",
+        "status": "identified",
+        "firmware_identity": "FluidNC",
+        "firmware_version": "4.0.3 (main-94e8adb) (esp32-bt)",
+        "evidence": ["controller_info_version"]
+      }
+    },
+    {
+      "id": "fluid_nc_historical_identified",
+      "provenance": [
+        {
+          "kind": "source_derived",
+          "repository": "bdring/FluidNC",
+          "commit": "3181d6b7419d16946eda4adc76b206ccc980414f",
+          "url": "https://github.com/bdring/FluidNC/blob/3181d6b7419d16946eda4adc76b206ccc980414f/FluidNC/src/Report.cpp#L392-L395",
+          "note": "Official pre-November-2021 FluidNC controller-info formatter"
+        }
+      ],
+      "lines": [
+        "[VER:FluidNC v3.1.3:Legacy OEM]"
+      ],
+      "expected": {
+        "dialect": "fluid_nc",
+        "status": "identified",
+        "firmware_identity": "FluidNC",
+        "firmware_version": "3.1.3",
+        "evidence": ["controller_info_version"]
+      }
+    },
+    {
+      "id": "fluid_nc_banner_only_provisional",
+      "provenance": [
+        {
+          "kind": "source_derived",
+          "repository": "bdring/FluidNC",
+          "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+          "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/FluidNC/src/Main.cpp#L48-L54",
+          "note": "Official FluidNC startup identity message"
+        }
+      ],
+      "lines": [
+        "[MSG:INFO: FluidNC v3.7.17 https://github.com/bdring/FluidNC]",
+        "Grbl 3.7 [FluidNC v3.7.17 (wifi) '$' for help]"
+      ],
+      "expected": {
+        "dialect": "fluid_nc",
+        "status": "provisional",
+        "firmware_identity": "FluidNC",
+        "firmware_version": "3.7.17",
+        "evidence": ["startup_banner"]
+      }
+    },
+    {
+      "id": "grbl_hal_compatibility_mode_identified",
+      "provenance": [
+        {
+          "kind": "source_derived",
+          "repository": "grblHAL/core",
+          "commit": "2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1",
+          "url": "https://github.com/grblHAL/core/blob/2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1/report.c#L303-L315",
+          "note": "Official compatibility-sensitive startup formatter"
+        },
+        {
+          "kind": "source_derived",
+          "repository": "grblHAL/core",
+          "commit": "2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1",
+          "url": "https://github.com/grblHAL/core/blob/2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1/report.c#L1055-L1061",
+          "note": "Official extended firmware identity marker"
+        }
+      ],
+      "lines": [
+        "Grbl 1.1f ['$' for help]",
+        "[VER:1.1f.20260709:]",
+        "[FIRMWARE:grblHAL]",
+        "[COMPATIBILITY LEVEL:1]"
+      ],
+      "expected": {
+        "dialect": "grbl_hal",
+        "status": "identified",
+        "firmware_identity": "grblHAL",
+        "firmware_version": "1.1f.20260709",
+        "evidence": ["protocol_signature", "firmware_identity_message"]
+      }
+    },
+    {
+      "id": "grbl_hal_malformed_build_unbindable",
+      "provenance": [
+        {
+          "kind": "synthetic_near_miss",
+          "repository": "grblHAL/core",
+          "commit": "2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1",
+          "url": "https://github.com/grblHAL/core/blob/2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1/report.c#L863-L876",
+          "note": "Malformed build values tested against the official numeric build formatter"
+        },
+        {
+          "kind": "source_derived",
+          "repository": "grblHAL/core",
+          "commit": "2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1",
+          "url": "https://github.com/grblHAL/core/blob/2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1/report.c#L1055-L1061",
+          "note": "Official standalone firmware identity marker"
+        }
+      ],
+      "lines": [
+        "[VER:1.1f.unknown1:]",
+        "[VER:1.1f.2026dev:]",
+        "[VER:1.1f.20260709.extra:]",
+        "[FIRMWARE:grblHAL]"
+      ],
+      "expected": {
+        "dialect": "grbl_hal",
+        "status": "identified",
+        "firmware_identity": "grblHAL",
+        "firmware_version": null,
+        "evidence": ["firmware_identity_message"]
+      }
+    },
+    {
+      "id": "grbl_hal_banner_only_provisional",
+      "provenance": [
+        {
+          "kind": "source_derived",
+          "repository": "grblHAL/core",
+          "commit": "2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1",
+          "url": "https://github.com/grblHAL/core/blob/2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1/report.c#L307-L315",
+          "note": "Official grblHAL compatibility-level-zero startup banner"
+        }
+      ],
+      "lines": [
+        "GrblHAL 1.1f ['$' or '$HELP' for help]"
+      ],
+      "expected": {
+        "dialect": "grbl_hal",
+        "status": "provisional",
+        "firmware_identity": "grblHAL",
+        "firmware_version": null,
+        "evidence": ["startup_banner"]
+      }
+    },
+    {
+      "id": "simplelaser_rebrand_protocol_compatible",
+      "provenance": [
+        {
+          "kind": "synthetic_rebrand",
+          "repository": "gnea/grbl",
+          "commit": "bfb67f0c7963fe3ce4aaf8a97f9009ea5a8db36e",
+          "url": "https://github.com/gnea/grbl/blob/bfb67f0c7963fe3ce4aaf8a97f9009ea5a8db36e/grbl/report.c#L170-L173",
+          "note": "Synthetic brand using the official GRBL help-suffix grammar"
+        }
+      ],
+      "lines": [
+        "SimpleLaser 1.1f ['$' for help]",
+        "[VER:1.1f.20990101:FluidNC OEM label]"
+      ],
+      "expected": {
+        "dialect": "grbl",
+        "status": "protocol_compatible",
+        "firmware_identity": null,
+        "firmware_version": null,
+        "evidence": ["protocol_signature"]
+      }
+    },
+    {
+      "id": "conflicting_exact_markers",
+      "provenance": [
+        {
+          "kind": "synthetic_conflict",
+          "repository": "bdring/FluidNC",
+          "commit": "25ae119b1fcb691dcbe1e6f9cbb7fbf3e74fd04f",
+          "url": "https://github.com/bdring/FluidNC/blob/25ae119b1fcb691dcbe1e6f9cbb7fbf3e74fd04f/FluidNC/src/Report.cpp#L361-L364",
+          "note": "FluidNC half of a synthetic impossible transcript"
+        },
+        {
+          "kind": "synthetic_conflict",
+          "repository": "grblHAL/core",
+          "commit": "2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1",
+          "url": "https://github.com/grblHAL/core/blob/2bdfeb12dc1ea48d2af83a308c1f920b4eecdce1/report.c#L1055-L1061",
+          "note": "grblHAL half of a synthetic impossible transcript"
+        }
+      ],
+      "lines": [
+        "[VER:4.0 FluidNC v4.0.3 (esp32-wifi) :]",
+        "[FIRMWARE:grblHAL]"
+      ],
+      "expected": {
+        "dialect": "unknown",
+        "status": "conflicting",
+        "firmware_identity": null,
+        "firmware_version": null,
+        "evidence": ["controller_info_version", "firmware_identity_message"]
+      }
+    },
+    {
+      "id": "unknown_noise",
+      "provenance": [
+        {
+          "kind": "synthetic_negative_control",
+          "repository": "gnea/grbl",
+          "commit": "bfb67f0c7963fe3ce4aaf8a97f9009ea5a8db36e",
+          "url": "https://github.com/gnea/grbl/blob/bfb67f0c7963fe3ce4aaf8a97f9009ea5a8db36e/grbl/report.c#L170-L173",
+          "note": "Noise deliberately omits the official identity grammar"
+        }
+      ],
+      "lines": [
+        "Controller ready",
+        "<Idle|MPos:0.000,0.000,0.000>",
+        "[MSG:INFO: Machine Example]"
+      ],
+      "expected": {
+        "dialect": "unknown",
+        "status": "unknown",
+        "firmware_identity": null,
+        "firmware_version": null,
+        "evidence": []
+      }
+    },
+    {
+      "id": "oem_build_info_near_miss",
+      "provenance": [
+        {
+          "kind": "synthetic_near_miss",
+          "repository": "gnea/grbl",
+          "commit": "bfb67f0c7963fe3ce4aaf8a97f9009ea5a8db36e",
+          "url": "https://github.com/gnea/grbl/blob/bfb67f0c7963fe3ce4aaf8a97f9009ea5a8db36e/grbl/report.c#L369-L376",
+          "note": "Official formatter places writable OEM text after the colon"
+        }
+      ],
+      "lines": [
+        "[VER:1.1h.20190830:FluidNC]",
+        "[VER:1.1f.20260709:grblHAL compatible board]"
+      ],
+      "expected": {
+        "dialect": "unknown",
+        "status": "unknown",
+        "firmware_identity": null,
+        "firmware_version": null,
+        "evidence": []
+      }
+    },
+    {
+      "id": "fluid_nc_branch_hash_build",
+      "provenance": [
+        {
+          "kind": "source_derived",
+          "repository": "bdring/FluidNC",
+          "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+          "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/git-version.py#L18-L70",
+          "note": "Official generator appends branch and short commit to non-release builds"
+        }
+      ],
+      "lines": [
+        "[VER:3.9 FluidNC v3.9.9 (Devt-827770e):]"
+      ],
+      "expected": {
+        "dialect": "fluid_nc",
+        "status": "identified",
+        "firmware_identity": "FluidNC",
+        "firmware_version": "3.9.9 (Devt-827770e)",
+        "evidence": ["controller_info_version"]
+      }
+    },
+    {
+      "id": "fluid_nc_dirty_branch_build",
+      "provenance": [
+        {
+          "kind": "synthetic_dirty_build",
+          "repository": "bdring/FluidNC",
+          "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+          "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/git-version.py#L18-L70",
+          "note": "Synthetic transcript exercises the official dirty-worktree suffix"
+        }
+      ],
+      "lines": [
+        "[VER:4.0 FluidNC v4.0.3 (feature/identity-DEADBEE-dirty) (esp32-wifi) :]"
+      ],
+      "expected": {
+        "dialect": "fluid_nc",
+        "status": "identified",
+        "firmware_identity": "FluidNC",
+        "firmware_version": "4.0.3 (feature/identity-deadbee-dirty) (esp32-wifi)",
+        "evidence": ["controller_info_version"]
+      }
+    },
+    {
+      "id": "fluid_nc_nogit_build",
+      "provenance": [
+        {
+          "kind": "synthetic_unknown_build",
+          "repository": "bdring/FluidNC",
+          "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+          "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/git-version.py#L8-L18",
+          "note": "Official generator uses noGit when repository identity is unavailable"
+        }
+      ],
+      "lines": [
+        "[VER:4.0 FluidNC v4.0.3 (noGit) (esp32-wifi) :]"
+      ],
+      "expected": {
+        "dialect": "fluid_nc",
+        "status": "identified",
+        "firmware_identity": "FluidNC",
+        "firmware_version": null,
+        "evidence": ["controller_info_version"]
+      }
+    },
+    {
+      "id": "fluid_nc_placeholder_release",
+      "provenance": [
+        {
+          "kind": "source_derived_unknown_build",
+          "repository": "bdring/FluidNC",
+          "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+          "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/git-version.py#L8-L30",
+          "note": "Official generator falls back to the non-specific v4.x.x tag"
+        }
+      ],
+      "lines": [
+        "[VER:4.x FluidNC v4.x.x (esp32-wifi) :]"
+      ],
+      "expected": {
+        "dialect": "fluid_nc",
+        "status": "identified",
+        "firmware_identity": "FluidNC",
+        "firmware_version": null,
+        "evidence": ["controller_info_version"]
+      }
+    },
+    {
+      "id": "lossy_utf8_near_miss",
+      "provenance": [
+        {
+          "kind": "synthetic_decode_noise",
+          "repository": "bdring/FluidNC",
+          "commit": "25ae119b1fcb691dcbe1e6f9cbb7fbf3e74fd04f",
+          "url": "https://github.com/bdring/FluidNC/blob/25ae119b1fcb691dcbe1e6f9cbb7fbf3e74fd04f/FluidNC/src/Report.cpp#L361-L364",
+          "note": "Official-looking line corrupted with the lossy UTF-8 replacement marker"
+        }
+      ],
+      "lines": [
+        "[VER:4.0 FluidNC v4.0.3 (esp32-wifi) :�]"
+      ],
+      "expected": {
+        "dialect": "unknown",
+        "status": "unknown",
+        "firmware_identity": null,
+        "firmware_version": null,
+        "evidence": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,664 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_DIR="$ROOT_DIR/tauri-app"
+CONFIG_FILE="$APP_DIR/src-tauri/tauri.conf.json"
+RELEASE_HOME="${BEAMBENCH_RELEASE_HOME:-$HOME/.beambench-release}"
+APPLE_VALUES_FILE="${BEAMBENCH_APPLE_VALUES_FILE:-$RELEASE_HOME/apple/apple-notarization-values.env}"
+APPLE_IDENTITY_FILE="${BEAMBENCH_APPLE_IDENTITY_FILE:-$RELEASE_HOME/apple/apple-nonsecret-values.env}"
+UPDATER_KEY_FILE="${BEAMBENCH_UPDATER_KEY_FILE:-$RELEASE_HOME/tauri/beambench-updater.key}"
+UPDATER_PASSWORD_FILE="${BEAMBENCH_UPDATER_PASSWORD_FILE:-$RELEASE_HOME/tauri/beambench-updater.key.password}"
+
+MODE="release"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/release-macos-local [--check | --resume]
+
+Builds, signs, notarizes, verifies, and stages the universal macOS app and CLI.
+It never uploads artifacts, edits GitHub Releases, or changes latest.json.
+
+  --check   Run environment and release-source preflight checks only.
+  --resume  Resume the current version after a transient bundle/notary failure.
+  -h        Show this help.
+
+Normal release mode requires a clean worktree and tag v<app-version> at HEAD.
+Staged files are written under target/release-staging/macos/<app-version>/.
+EOF
+}
+
+die() {
+  echo "error: $*" >&2
+  exit 1
+}
+
+note() {
+  printf '\n==> %s\n' "$*"
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"
+}
+
+require_file() {
+  [[ -s "$1" ]] || die "Required release credential is missing or empty: $1"
+}
+
+load_values_file() {
+  local file line key value
+  file="$1"
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "${line//[[:space:]]/}" || "$line" == \#* ]] && continue
+    [[ "$line" == *=* ]] || die "Invalid release value in $file: expected KEY=VALUE"
+
+    key="${line%%=*}"
+    value="${line#*=}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "Invalid release variable name in $file: $key"
+    if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+
+    printf -v "$key" '%s' "$value"
+    export "$key"
+  done < "$file"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --check)
+      [[ "$MODE" == "release" ]] || die "Use only one of --check or --resume."
+      MODE="check"
+      ;;
+    --resume)
+      [[ "$MODE" == "release" ]] || die "Use only one of --check or --resume."
+      MODE="resume"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      die "Unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ "$(uname -s)" == "Darwin" ]] || die "The local macOS release must run on macOS."
+
+for candidate in \
+  /opt/homebrew/opt/node@22/bin \
+  /usr/local/opt/node@22/bin \
+  "$HOME"/.nvm/versions/node/v22*/bin
+do
+  if [[ -x "$candidate/node" ]]; then
+    export PATH="$candidate:$PATH"
+    break
+  fi
+done
+
+for command_name in git jq node npm rustup security xcrun shasum hdiutil spctl lipo ditto codesign; do
+  require_command "$command_name"
+done
+
+NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
+[[ "$NODE_MAJOR" == "22" ]] || die "Node 22 is required; active version is $(node --version)."
+
+require_file "$APPLE_VALUES_FILE"
+require_file "$APPLE_IDENTITY_FILE"
+require_file "$UPDATER_KEY_FILE"
+require_file "$UPDATER_PASSWORD_FILE"
+
+# These files contain literal paths and identifiers, not shell code. Parse
+# KEY=VALUE records directly so signing identities with spaces or parentheses
+# do not need shell escaping.
+load_values_file "$APPLE_VALUES_FILE"
+load_values_file "$APPLE_IDENTITY_FILE"
+
+: "${APPLE_API_ISSUER:?APPLE_API_ISSUER is missing from $APPLE_VALUES_FILE}"
+: "${APPLE_API_KEY:?APPLE_API_KEY is missing from $APPLE_VALUES_FILE}"
+: "${APPLE_API_KEY_PATH:?APPLE_API_KEY_PATH is missing from $APPLE_VALUES_FILE}"
+: "${APPLE_SIGNING_IDENTITY:?APPLE_SIGNING_IDENTITY is missing from $APPLE_IDENTITY_FILE}"
+: "${APPLE_TEAM_ID:?APPLE_TEAM_ID is missing from $APPLE_IDENTITY_FILE}"
+require_file "$APPLE_API_KEY_PATH"
+
+if ! security find-identity -v -p codesigning | grep -Fq "${APPLE_SIGNING_IDENTITY}"; then
+  die "Developer ID signing identity is not installed: $APPLE_SIGNING_IDENTITY"
+fi
+
+INSTALLED_TARGETS="$(rustup target list --toolchain stable --installed)"
+for target in aarch64-apple-darwin x86_64-apple-darwin; do
+  if ! printf '%s\n' "$INSTALLED_TARGETS" | grep -Fxq "$target"; then
+    die "Missing Rust target $target. Run: rustup target add --toolchain stable $target"
+  fi
+done
+
+CONFIG_VERSION="$(jq -er '.version' "$CONFIG_FILE")"
+PACKAGE_VERSION="$(jq -er '.version' "$APP_DIR/package.json")"
+WORKSPACE_VERSION="$(awk '
+  /^\[workspace\.package\]$/ { in_package = 1; next }
+  /^\[/ { in_package = 0 }
+  in_package && $1 == "version" {
+    value = $3
+    gsub(/\"/, "", value)
+    print value
+    exit
+  }
+' "$ROOT_DIR/Cargo.toml")"
+
+[[ "$CONFIG_VERSION" == "$PACKAGE_VERSION" ]] || die "Version mismatch: tauri.conf.json=$CONFIG_VERSION package.json=$PACKAGE_VERSION"
+[[ "$CONFIG_VERSION" == "$WORKSPACE_VERSION" ]] || die "Version mismatch: tauri.conf.json=$CONFIG_VERSION Cargo.toml=$WORKSPACE_VERSION"
+
+VERSION="$CONFIG_VERSION"
+TAG="v$VERSION"
+COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+TAG_COMMIT="$(git -C "$ROOT_DIR" rev-parse -q --verify "${TAG}^{commit}" 2>/dev/null || true)"
+RUN_DIR="$ROOT_DIR/target/release-staging/macos/$VERSION"
+STATE_DIR="$RUN_DIR/state"
+STAGE_DIR="$RUN_DIR/artifacts"
+SOURCE_STATE="$STATE_DIR/source.env"
+BUNDLE_MARKER="$STATE_DIR/bundle.complete"
+CLI_TARGET="universal-apple-darwin"
+CLI_WORK_DIR="$RUN_DIR/cli"
+CLI_BINARY="$CLI_WORK_DIR/beambench-cli"
+CLI_ARCHIVE="$CLI_WORK_DIR/Beam.Bench.CLI_${VERSION}_${CLI_TARGET}.zip"
+CLI_CHECKSUM="${CLI_ARCHIVE}.sha256"
+CLI_NOTARY_STATE="$STATE_DIR/cli-notary-submission.env"
+CLI_NOTARY_MARKER="$STATE_DIR/cli-notary.accepted"
+
+note "Preflight"
+printf 'Version: %s\n' "$VERSION"
+printf 'Commit:  %s\n' "$COMMIT"
+printf 'Node:    %s\n' "$(node --version)"
+printf 'Rust:    %s\n' "$(rustup run stable rustc --version)"
+printf 'Signer:  %s\n' "$APPLE_SIGNING_IDENTITY"
+
+if [[ "$MODE" == "check" ]]; then
+  if [[ -n "$(git -C "$ROOT_DIR" status --porcelain)" ]]; then
+    echo "warning: worktree is not clean; release mode would stop." >&2
+  fi
+  if [[ -z "$TAG_COMMIT" ]]; then
+    echo "warning: $TAG does not exist; release mode would stop." >&2
+  elif [[ "$TAG_COMMIT" != "$COMMIT" ]]; then
+    echo "warning: $TAG does not point at HEAD; release mode would stop." >&2
+  fi
+  echo "Local macOS release preflight passed."
+  exit 0
+fi
+
+[[ -z "$(git -C "$ROOT_DIR" status --porcelain)" ]] || die "Worktree must be clean before a release build."
+[[ -n "$TAG_COMMIT" ]] || die "Release tag does not exist: $TAG"
+[[ "$TAG_COMMIT" == "$COMMIT" ]] || die "$TAG points to $TAG_COMMIT, but HEAD is $COMMIT"
+
+if [[ "$MODE" == "resume" ]]; then
+  [[ -s "$SOURCE_STATE" ]] || die "No resumable state exists for $TAG at $SOURCE_STATE"
+  # This file is generated below and contains only version and commit values.
+  # shellcheck disable=SC1090
+  source "$SOURCE_STATE"
+  [[ "${STATE_VERSION:-}" == "$VERSION" ]] || die "Resume state version does not match $VERSION."
+  [[ "${STATE_COMMIT:-}" == "$COMMIT" ]] || die "Resume state commit does not match HEAD."
+else
+  rm -rf "$RUN_DIR"
+  mkdir -p "$STATE_DIR"
+fi
+
+mkdir -p "$STATE_DIR"
+
+if [[ ! -d "$APP_DIR/node_modules" || "$MODE" != "resume" ]]; then
+  note "Installing frontend dependencies with Node 22"
+  (cd "$APP_DIR" && npm ci)
+fi
+
+if [[ "$MODE" != "resume" || ! -x "$CLI_BINARY" || ! -s "$CLI_ARCHIVE" ]]; then
+  note "Compiling the universal standalone CLI"
+  rm -rf "$CLI_WORK_DIR"
+  mkdir -p "$CLI_WORK_DIR"
+  RUSTUP_TOOLCHAIN=stable node "$APP_DIR/scripts/build-cli-release.mjs" \
+    --target "$CLI_TARGET" \
+    --version "$VERSION" \
+    --out-dir "$CLI_WORK_DIR"
+
+  note "Signing the universal standalone CLI"
+  codesign \
+    --force \
+    --timestamp \
+    --options runtime \
+    --sign "$APPLE_SIGNING_IDENTITY" \
+    "$CLI_BINARY"
+  codesign --verify --strict --verbose=2 "$CLI_BINARY"
+  ditto -c -k "$CLI_BINARY" "$CLI_ARCHIVE"
+else
+  note "Reusing the staged universal standalone CLI"
+  RUSTUP_TOOLCHAIN=stable node "$APP_DIR/scripts/build-cli-release.mjs" \
+    --target "$CLI_TARGET" \
+    --version "$VERSION" \
+    --out-dir "$CLI_WORK_DIR" \
+    --verify-only
+  codesign --verify --strict --verbose=2 "$CLI_BINARY"
+fi
+
+UNIVERSAL_DIR="$ROOT_DIR/target/universal-apple-darwin/release"
+UNIVERSAL_BINARY="$UNIVERSAL_DIR/beambench-tauri"
+
+if [[ "$MODE" != "resume" ]]; then
+  note "Compiling the universal app without bundling"
+  (
+    cd "$APP_DIR"
+    RUSTUP_TOOLCHAIN=stable npm run tauri -- build --target universal-apple-darwin --no-bundle
+  )
+
+  [[ -x "$UNIVERSAL_BINARY" ]] || die "Universal binary was not produced: $UNIVERSAL_BINARY"
+  ARCHS="$(lipo -archs "$UNIVERSAL_BINARY")"
+  [[ " $ARCHS " == *" arm64 "* && " $ARCHS " == *" x86_64 "* ]] || die "Universal binary has unexpected architectures: $ARCHS"
+
+  {
+    printf 'STATE_VERSION=%q\n' "$VERSION"
+    printf 'STATE_COMMIT=%q\n' "$COMMIT"
+  } > "$SOURCE_STATE"
+else
+  [[ -x "$UNIVERSAL_BINARY" ]] || die "Resume requested, but the compiled binary is missing: $UNIVERSAL_BINARY"
+fi
+
+export TAURI_SIGNING_PRIVATE_KEY="$(cat "$UPDATER_KEY_FILE")"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cat "$UPDATER_PASSWORD_FILE")"
+
+NOTARY_AUTH=(
+  --key "$APPLE_API_KEY_PATH"
+  --key-id "$APPLE_API_KEY"
+  --issuer "$APPLE_API_ISSUER"
+)
+
+notarize_cli_archive() {
+  local archive_sha submission_id accepted_marker_sha submit_tmp info_tmp status
+  local attempt poll accepted verify_dir
+
+  archive_sha="$(shasum -a 256 "$CLI_ARCHIVE" | awk '{print $1}')"
+  accepted_marker_sha="$(cat "$CLI_NOTARY_MARKER" 2>/dev/null || true)"
+  if [[ "$accepted_marker_sha" == "$archive_sha" ]]; then
+    note "Reusing the accepted standalone CLI notarization"
+  else
+    submission_id=""
+    if [[ -s "$CLI_NOTARY_STATE" ]]; then
+      # This file is generated below and contains only a checksum and Apple UUID.
+      # shellcheck disable=SC1090
+      source "$CLI_NOTARY_STATE"
+      if [[ "${CLI_SUBMISSION_ARCHIVE_SHA:-}" == "$archive_sha" ]]; then
+        submission_id="${CLI_SUBMISSION_ID_VALUE:-}"
+      fi
+    fi
+
+    if [[ -z "$submission_id" ]]; then
+      note "Submitting the standalone CLI archive to Apple notarization"
+      attempt=1
+      while [[ "$attempt" -le 3 ]]; do
+        submit_tmp="$STATE_DIR/cli-notary-submit.tmp.json"
+        if xcrun notarytool submit "$CLI_ARCHIVE" "${NOTARY_AUTH[@]}" --no-wait --output-format json > "$submit_tmp"; then
+          submission_id="$(jq -er '.id' "$submit_tmp")"
+          mv "$submit_tmp" "$STATE_DIR/cli-notary-submit.json"
+          {
+            printf 'CLI_SUBMISSION_ARCHIVE_SHA=%q\n' "$archive_sha"
+            printf 'CLI_SUBMISSION_ID_VALUE=%q\n' "$submission_id"
+          } > "$CLI_NOTARY_STATE"
+          break
+        fi
+
+        rm -f "$submit_tmp"
+        if [[ "$attempt" -eq 3 ]]; then
+          die "Unable to submit the standalone CLI after three attempts. Resume later with --resume."
+        fi
+        sleep $((attempt * 20))
+        attempt=$((attempt + 1))
+      done
+    else
+      note "Resuming standalone CLI submission $submission_id"
+    fi
+
+    note "Waiting for standalone CLI notarization"
+    poll=1
+    accepted=0
+    while [[ "$poll" -le 120 ]]; do
+      info_tmp="$STATE_DIR/cli-notary-info.tmp.json"
+      if xcrun notarytool info "$submission_id" "${NOTARY_AUTH[@]}" --output-format json > "$info_tmp"; then
+        status="$(jq -er '.status' "$info_tmp")"
+        mv "$info_tmp" "$STATE_DIR/cli-notary-info.json"
+        case "$status" in
+          Accepted)
+            accepted=1
+            break
+            ;;
+          Invalid|Rejected)
+            xcrun notarytool log "$submission_id" "${NOTARY_AUTH[@]}" "$STATE_DIR/cli-notary-log.json" || true
+            die "Apple rejected the standalone CLI archive. See $STATE_DIR/cli-notary-log.json"
+            ;;
+          "In Progress")
+            ;;
+          *)
+            die "Unexpected standalone CLI notarization status: $status"
+            ;;
+        esac
+      else
+        rm -f "$info_tmp"
+        echo "Standalone CLI notarization status request failed; retrying the same submission ID."
+      fi
+
+      sleep 15
+      poll=$((poll + 1))
+    done
+
+    [[ "$accepted" -eq 1 ]] || die "Standalone CLI notarization did not complete within 30 minutes. Resume later with --resume."
+    printf '%s\n' "$archive_sha" > "$CLI_NOTARY_MARKER"
+  fi
+
+  note "Verifying the signed and notarized standalone CLI"
+  verify_dir="$STATE_DIR/cli-verify"
+  rm -rf "$verify_dir"
+  mkdir -p "$verify_dir"
+  ditto -x -k "$CLI_ARCHIVE" "$verify_dir"
+  RUSTUP_TOOLCHAIN=stable node "$APP_DIR/scripts/build-cli-release.mjs" \
+    --target "$CLI_TARGET" \
+    --version "$VERSION" \
+    --out-dir "$verify_dir" \
+    --verify-only
+  codesign --verify --strict --verbose=2 "$verify_dir/beambench-cli"
+  # Do not run spctl against the raw CLI. macOS 15 denies a valid, notarized
+  # standalone executable as "not an app". The accepted notarytool status,
+  # strict code-signature check, architecture check, and executed version
+  # check above cover the CLI artifact.
+  rm -rf "$verify_dir"
+}
+
+notarize_cli_archive
+(
+  cd "$CLI_WORK_DIR"
+  shasum -a 256 "$(basename "$CLI_ARCHIVE")" > "$(basename "$CLI_CHECKSUM")"
+  shasum -a 256 -c "$(basename "$CLI_CHECKSUM")"
+)
+
+run_bundle_with_retries() {
+  local attempt log_file bundle_status
+  attempt=1
+  while [[ "$attempt" -le 3 ]]; do
+    log_file="$STATE_DIR/tauri-bundle-attempt-$attempt.log"
+    note "Bundling, signing, and notarizing the app (attempt $attempt of 3)"
+
+    set +e
+    (
+      cd "$APP_DIR"
+      RUSTUP_TOOLCHAIN=stable npm run tauri -- bundle \
+        --target universal-apple-darwin \
+        --bundles app \
+        --ci
+    ) 2>&1 | tee "$log_file"
+    bundle_status=${PIPESTATUS[0]}
+    set -e
+
+    if [[ "$bundle_status" -eq 0 ]]; then
+      return 0
+    fi
+
+    if ! grep -Eiq 'A timestamp was expected but was not found|timestamp.*(unavailable|not found|failed)|NSURLErrorDomain Code=-1001|The request timed out|HTTP[^[:digit:]]*(408|429|500|502|503|504)' "$log_file"; then
+      die "Tauri bundling failed with a non-transient error. See $log_file"
+    fi
+
+    if [[ "$attempt" -eq 3 ]]; then
+      die "Tauri bundling still failed after three transient-error attempts. Resume later with --resume."
+    fi
+
+    echo "Apple service failure detected; retrying the bundle without recompiling."
+    sleep $((attempt * 20))
+    attempt=$((attempt + 1))
+  done
+}
+
+BUILD_DMG_MOUNT_DIR=""
+BUILD_DMG_MOUNTED=0
+
+cleanup_build_dmg_mount() {
+  if [[ "$BUILD_DMG_MOUNTED" -eq 1 ]]; then
+    hdiutil detach "$BUILD_DMG_MOUNT_DIR" -quiet || true
+  fi
+  [[ -z "$BUILD_DMG_MOUNT_DIR" ]] || rm -rf "$BUILD_DMG_MOUNT_DIR"
+}
+
+create_sandbox_safe_dmg() {
+  local app_bundle app_kb dmg_dir image_size_mb raw_dmg
+  app_bundle="$UNIVERSAL_DIR/bundle/macos/Beam Bench.app"
+  dmg_dir="$UNIVERSAL_DIR/bundle/dmg"
+  BUILD_DMG_MOUNT_DIR="$STATE_DIR/dmg-build-mount"
+  raw_dmg="$STATE_DIR/Beam.Bench_${VERSION}_universal.raw.dmg"
+  DMG="$dmg_dir/Beam Bench_${VERSION}_universal.dmg"
+
+  [[ -d "$app_bundle" ]] || die "Signed app bundle is missing: $app_bundle"
+
+  note "Creating the DMG without mounting under /Volumes"
+  cleanup_build_dmg_mount
+  rm -f "$raw_dmg" "$DMG"
+  mkdir -p "$BUILD_DMG_MOUNT_DIR" "$dmg_dir"
+  app_kb="$(du -sk "$app_bundle" | awk '{print $1}')"
+  image_size_mb=$((app_kb / 1024 + 40))
+
+  hdiutil create \
+    -size "${image_size_mb}m" \
+    -fs "HFS+" \
+    -volname "Beam Bench" \
+    "$raw_dmg"
+  hdiutil attach "$raw_dmg" \
+    -mountpoint "$BUILD_DMG_MOUNT_DIR" \
+    -readwrite \
+    -noverify \
+    -noautoopen \
+    -nobrowse \
+    -quiet
+  BUILD_DMG_MOUNTED=1
+  trap cleanup_build_dmg_mount EXIT INT TERM
+
+  ditto --noextattr --noqtn "$app_bundle" "$BUILD_DMG_MOUNT_DIR/Beam Bench.app"
+  ln -s /Applications "$BUILD_DMG_MOUNT_DIR/Applications"
+  sync
+  codesign --verify --deep --strict --verbose=2 "$BUILD_DMG_MOUNT_DIR/Beam Bench.app"
+
+  hdiutil detach "$BUILD_DMG_MOUNT_DIR" -quiet
+  BUILD_DMG_MOUNTED=0
+  rm -rf "$BUILD_DMG_MOUNT_DIR"
+  trap - EXIT INT TERM
+
+  hdiutil convert "$raw_dmg" -format UDZO -ov -o "$DMG"
+  rm -f "$raw_dmg"
+
+  codesign --force --sign "$APPLE_SIGNING_IDENTITY" "$DMG"
+}
+
+load_bundle_paths() {
+  local dmg_count archive_count signature_count
+  dmg_count="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.dmg' 2>/dev/null | wc -l | tr -d ' ')"
+  archive_count="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.app.tar.gz' 2>/dev/null | wc -l | tr -d ' ')"
+  signature_count="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.app.tar.gz.sig' 2>/dev/null | wc -l | tr -d ' ')"
+
+  [[ "$dmg_count" == "1" ]] || die "Expected one DMG, found $dmg_count."
+  [[ "$archive_count" == "1" ]] || die "Expected one updater archive, found $archive_count."
+  [[ "$signature_count" == "1" ]] || die "Expected one updater signature, found $signature_count."
+
+  DMG="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.dmg' | head -n 1)"
+  APP_ARCHIVE="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.app.tar.gz' | head -n 1)"
+  APP_SIGNATURE="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.app.tar.gz.sig' | head -n 1)"
+}
+
+if [[ "$MODE" == "resume" && -s "$BUNDLE_MARKER" ]]; then
+  note "Reusing the completed local bundle"
+else
+  run_bundle_with_retries
+  create_sandbox_safe_dmg
+  load_bundle_paths
+  printf '%s  %s\n' "$(shasum -a 256 "$DMG" | awk '{print $1}')" "$(basename "$DMG")" > "$BUNDLE_MARKER"
+fi
+
+load_bundle_paths
+DMG_SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"
+SUBMISSION_STATE="$STATE_DIR/dmg-notary-submission.env"
+SUBMISSION_ID=""
+
+if [[ -s "$SUBMISSION_STATE" ]]; then
+  # This file is generated below and contains only a checksum and Apple UUID.
+  # shellcheck disable=SC1090
+  source "$SUBMISSION_STATE"
+  if [[ "${SUBMISSION_DMG_SHA:-}" == "$DMG_SHA" ]]; then
+    SUBMISSION_ID="${SUBMISSION_ID_VALUE:-}"
+  fi
+fi
+
+if xcrun stapler validate "$DMG" >/dev/null 2>&1; then
+  note "DMG already has a valid stapled ticket"
+else
+  if [[ -z "$SUBMISSION_ID" ]]; then
+    note "Submitting the DMG to Apple notarization"
+    attempt=1
+    while [[ "$attempt" -le 3 ]]; do
+      submit_tmp="$STATE_DIR/notary-submit.tmp.json"
+      if xcrun notarytool submit "$DMG" "${NOTARY_AUTH[@]}" --no-wait --output-format json > "$submit_tmp"; then
+        SUBMISSION_ID="$(jq -er '.id' "$submit_tmp")"
+        mv "$submit_tmp" "$STATE_DIR/notary-submit.json"
+        {
+          printf 'SUBMISSION_DMG_SHA=%q\n' "$DMG_SHA"
+          printf 'SUBMISSION_ID_VALUE=%q\n' "$SUBMISSION_ID"
+        } > "$SUBMISSION_STATE"
+        break
+      fi
+
+      rm -f "$submit_tmp"
+      if [[ "$attempt" -eq 3 ]]; then
+        die "Unable to submit the DMG after three attempts. Resume later with --resume."
+      fi
+      sleep $((attempt * 20))
+      attempt=$((attempt + 1))
+    done
+  else
+    note "Resuming Apple submission $SUBMISSION_ID"
+  fi
+
+  note "Waiting for Apple notarization"
+  poll=1
+  accepted=0
+  while [[ "$poll" -le 120 ]]; do
+    info_tmp="$STATE_DIR/notary-info.tmp.json"
+    if xcrun notarytool info "$SUBMISSION_ID" "${NOTARY_AUTH[@]}" --output-format json > "$info_tmp"; then
+      status="$(jq -er '.status' "$info_tmp")"
+      mv "$info_tmp" "$STATE_DIR/notary-info.json"
+      case "$status" in
+        Accepted)
+          accepted=1
+          break
+          ;;
+        Invalid|Rejected)
+          xcrun notarytool log "$SUBMISSION_ID" "${NOTARY_AUTH[@]}" "$STATE_DIR/notary-log.json" || true
+          die "Apple rejected the DMG. See $STATE_DIR/notary-log.json"
+          ;;
+        "In Progress")
+          ;;
+        *)
+          die "Unexpected Apple notarization status: $status"
+          ;;
+      esac
+    else
+      rm -f "$info_tmp"
+      echo "Notarization status request failed; retrying the same submission ID."
+    fi
+
+    sleep 15
+    poll=$((poll + 1))
+  done
+
+  [[ "$accepted" -eq 1 ]] || die "Apple notarization did not complete within 30 minutes. Resume later with --resume."
+
+  note "Stapling the DMG"
+  attempt=1
+  while ! xcrun stapler staple "$DMG"; do
+    if [[ "$attempt" -ge 5 ]]; then
+      die "Unable to staple the accepted DMG after five attempts. Resume later with --resume."
+    fi
+    sleep $((attempt * 10))
+    attempt=$((attempt + 1))
+  done
+fi
+
+note "Verifying the signed and notarized DMG"
+hdiutil verify "$DMG"
+xcrun stapler validate "$DMG"
+spctl -a -vvv -t install "$DMG"
+
+MOUNT_DIR="$STATE_DIR/dmg-mount"
+mounted=0
+cleanup_mount() {
+  if [[ "$mounted" -eq 1 ]]; then
+    hdiutil detach "$MOUNT_DIR" -quiet || true
+  fi
+  rm -rf "$MOUNT_DIR"
+}
+trap cleanup_mount EXIT INT TERM
+
+rm -rf "$MOUNT_DIR"
+mkdir -p "$MOUNT_DIR"
+hdiutil attach "$DMG" -mountpoint "$MOUNT_DIR" -nobrowse -quiet
+mounted=1
+
+APP="$MOUNT_DIR/Beam Bench.app"
+[[ -d "$APP" ]] || die "Beam Bench.app is missing from the DMG."
+[[ -e "$MOUNT_DIR/Applications" ]] || die "The Applications shortcut is missing from the DMG."
+/usr/bin/codesign --verify --deep --strict --verbose=2 "$APP"
+spctl -a -vvv -t execute "$APP"
+
+APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
+MINIMUM_MACOS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist")"
+EXPECTED_MINIMUM_MACOS="$(jq -er '.bundle.macOS.minimumSystemVersion' "$CONFIG_FILE")"
+APP_BINARY="$(find "$APP/Contents/MacOS" -maxdepth 1 -type f | head -n 1)"
+APP_ARCHS="$(lipo -archs "$APP_BINARY")"
+APP_ENTITLEMENTS="$STATE_DIR/app-entitlements.plist"
+/usr/bin/codesign -d --entitlements :- "$APP" >"$APP_ENTITLEMENTS" 2>/dev/null
+CAMERA_ENTITLEMENT="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.device.camera' "$APP_ENTITLEMENTS" 2>/dev/null || true)"
+
+[[ "$APP_VERSION" == "$VERSION" ]] || die "App version is $APP_VERSION; expected $VERSION."
+[[ "$MINIMUM_MACOS" == "$EXPECTED_MINIMUM_MACOS" ]] || die "Minimum macOS is $MINIMUM_MACOS; expected $EXPECTED_MINIMUM_MACOS."
+[[ " $APP_ARCHS " == *" arm64 "* && " $APP_ARCHS " == *" x86_64 "* ]] || die "App has unexpected architectures: $APP_ARCHS"
+[[ "$CAMERA_ENTITLEMENT" == "true" ]] || die "Signed app is missing the camera entitlement."
+
+hdiutil detach "$MOUNT_DIR" -quiet
+mounted=0
+rm -rf "$MOUNT_DIR"
+trap - EXIT INT TERM
+
+note "Staging verified macOS artifacts"
+rm -rf "$STAGE_DIR"
+mkdir -p "$STAGE_DIR"
+cp "$DMG" "$APP_ARCHIVE" "$APP_SIGNATURE" "$CLI_ARCHIVE" "$CLI_CHECKSUM" "$STAGE_DIR/"
+(cd "$STAGE_DIR" && shasum -a 256 * | sort > SHA256SUMS)
+
+(
+  cd "$APP_DIR"
+  npm run update:manifest -- \
+    --version "$VERSION" \
+    --base-url https://updates.beambench.com/stable \
+    --mac-artifact "$STAGE_DIR/$(basename "$APP_ARCHIVE")" \
+    --out "$STAGE_DIR/latest-macos.json"
+  npm run update:validate-manifest -- \
+    "$STAGE_DIR/latest-macos.json" \
+    --platforms darwin-aarch64,darwin-x86_64
+)
+
+note "Local macOS release candidate is ready"
+printf 'Artifacts: %s\n' "$STAGE_DIR"
+cat "$STAGE_DIR/SHA256SUMS"
+cat <<'EOF'
+
+No artifacts were uploaded and no public release state was changed.
+Combine these files with the Windows and Linux artifacts before publishing.
+EOF

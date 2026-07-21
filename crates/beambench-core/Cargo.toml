@@ -1,0 +1,37 @@
+[package]
+name = "beambench-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-common = { path = "../beambench-common" }
+beambench-raster = { path = "../beambench-raster" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+usvg = { workspace = true }
+resvg = { workspace = true }
+tiny-skia = { workspace = true }
+image = { workspace = true }
+base64 = { workspace = true }
+geo = { workspace = true }
+i_overlay = "1.9.4"
+ab_glyph = { workspace = true }
+ttf-parser = { workspace = true }
+fontdb = { workspace = true }
+barcoders = { workspace = true }
+qrcodegen = { workspace = true }
+datamatrix = { workspace = true }
+pdf417 = { workspace = true }
+clipper2 = { workspace = true }
+roxmltree = { workspace = true }
+flate2 = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+# For writing PNGs with pHYs (DPI) chunks in raster import sizing tests.
+png = "0.17"

@@ -1,0 +1,20 @@
+{
+  "bundle": {
+    "windows": {
+      "signCommand": {
+        "cmd": "artifact-signing-cli",
+        "args": [
+          "-e",
+          "https://eus.codesigning.azure.net/",
+          "-a",
+          "Beambench",
+          "-c",
+          "BeamBenchPublicTrust",
+          "-d",
+          "Beam Bench",
+          "%1"
+        ]
+      }
+    }
+  }
+}

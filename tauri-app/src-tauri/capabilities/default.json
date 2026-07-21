@@ -1,0 +1,12 @@
+{
+  "identifier": "default",
+  "description": "Default capability for Beam Bench main windows",
+  "windows": ["main", "main-*"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "process:default",
+    "updater:default",
+    "shell:default"
+  ]
+}

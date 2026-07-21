@@ -1,0 +1,90 @@
+name: CI
+
+# Run the full cross-platform gate deliberately before a release.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust (build, test, clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libudev-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: taiki-e/install-action@nextest
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      # pdf417 is a vendored crate with pre-existing clippy/test issues;
+      # the project policy is to always exclude it from workspace runs.
+      - name: Build
+        run: cargo build --workspace --exclude pdf417
+
+      - name: Test
+        run: cargo nextest run --workspace --exclude pdf417
+
+      - name: Clippy
+        run: cargo clippy --workspace --exclude pdf417
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+  frontend:
+    name: Frontend (build, test, lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tauri-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: tauri-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Performance budgets
+        run: npm run test:perf
+
+      - name: Build
+        run: npm run build

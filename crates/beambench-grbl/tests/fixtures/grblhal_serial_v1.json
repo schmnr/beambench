@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "description": "Offline grblHAL serial lifecycle transcript derived from pinned upstream core sources in compatibility-level 1 form. Board- and plugin-specific fields are intentionally omitted.",
+  "provenance": [
+    {
+      "kind": "source_derived",
+      "repository": "grblHAL/core",
+      "commit": "09f8ba597abf54bc23da2bf2176065b84c94a4d2",
+      "url": "https://github.com/grblHAL/core/blob/09f8ba597abf54bc23da2bf2176065b84c94a4d2/README.md",
+      "note": "Official statement that grblHAL is based on GRBL 1.1f and remains compatible with compliant G-code senders, subject to extensions"
+    },
+    {
+      "kind": "source_derived",
+      "repository": "grblHAL/core",
+      "commit": "09f8ba597abf54bc23da2bf2176065b84c94a4d2",
+      "url": "https://github.com/grblHAL/core/blob/09f8ba597abf54bc23da2bf2176065b84c94a4d2/report.c#L304-L1134",
+      "note": "Official startup, controller-information, firmware-identity, axes, options, and compatibility-level formatters"
+    },
+    {
+      "kind": "source_derived",
+      "repository": "grblHAL/core",
+      "commit": "09f8ba597abf54bc23da2bf2176065b84c94a4d2",
+      "url": "https://github.com/grblHAL/core/blob/09f8ba597abf54bc23da2bf2176065b84c94a4d2/report.c#L1188-L1545",
+      "note": "Official runtime state, position, buffer, feed, override, offset, alarm-substate, and firmware report formatters"
+    },
+    {
+      "kind": "source_derived",
+      "repository": "grblHAL/core",
+      "commit": "09f8ba597abf54bc23da2bf2176065b84c94a4d2",
+      "url": "https://github.com/grblHAL/core/blob/09f8ba597abf54bc23da2bf2176065b84c94a4d2/system.c#L633-L662",
+      "note": "Official $I and $I+ command handlers for basic and extended build information"
+    },
+    {
+      "kind": "source_derived",
+      "repository": "grblHAL/core",
+      "commit": "09f8ba597abf54bc23da2bf2176065b84c94a4d2",
+      "url": "https://github.com/grblHAL/core/blob/09f8ba597abf54bc23da2bf2176065b84c94a4d2/settings.h#L260-L320",
+      "note": "Official extended setting identifiers including planner blocks and automatic status-report interval"
+    }
+  ],
+  "startup_lines": [
+    "Grbl 1.1f ['$' for help]"
+  ],
+  "controller_info_lines": [
+    "[VER:1.1f.20260712:Beam Bench grblHAL fixture]",
+    "[OPT:VN,35,1024]",
+    "ok"
+  ],
+  "extended_controller_info_lines": [
+    "[VER:1.1f.20260712:Beam Bench grblHAL fixture]",
+    "[OPT:VN,35,1024,3,0]",
+    "[AXS:3:XYZ]",
+    "[NEWOPT:ENUMS,RT-,HOME,SED]",
+    "[FIRMWARE:grblHAL]",
+    "[COMPATIBILITY LEVEL:1]",
+    "ok"
+  ],
+  "settings_lines": [
+    "$0=10",
+    "$10=511",
+    "$30=1000",
+    "$32=1",
+    "$398=35",
+    "$481=250",
+    "ok"
+  ],
+  "status_cases": [
+    {
+      "id": "idle_full_report",
+      "line": "<Idle|MPos:12.500,8.250,0.000|Bf:35,1024|FS:0,0|WCO:1.000,2.000,0.000|Ov:100,100,100|FW:grblHAL>",
+      "expected_state": "idle",
+      "expected_machine_position": [12.5, 8.25, 0.0],
+      "expected_work_position": [11.5, 6.25, 0.0]
+    },
+    {
+      "id": "probing_run_substate",
+      "line": "<Run:2|MPos:20.000,9.000,0.000|Bf:32,960|FS:900,250|WCO:1.000,2.000,0.000|Ov:100,100,100|A:S|FW:grblHAL>",
+      "expected_state": "run",
+      "expected_machine_position": [20.0, 9.0, 0.0],
+      "expected_work_position": [19.0, 7.0, 0.0]
+    },
+    {
+      "id": "feed_hold_complete",
+      "line": "<Hold:0|MPos:20.000,9.000,0.000|FS:0,0|WCO:1.000,2.000,0.000>",
+      "expected_state": "hold",
+      "expected_machine_position": [20.0, 9.0, 0.0],
+      "expected_work_position": [19.0, 7.0, 0.0]
+    },
+    {
+      "id": "controller_alarm_substate",
+      "line": "<Alarm:14|MPos:20.000,9.000,0.000|FS:0,0|WCO:1.000,2.000,0.000>",
+      "expected_state": "alarm",
+      "expected_machine_position": [20.0, 9.0, 0.0],
+      "expected_work_position": [19.0, 7.0, 0.0]
+    }
+  ],
+  "alarm_line": "ALARM:14",
+  "recovery_status_line": "<Idle|MPos:20.000,9.000,0.000|FS:0,0|WCO:1.000,2.000,0.000>"
+}

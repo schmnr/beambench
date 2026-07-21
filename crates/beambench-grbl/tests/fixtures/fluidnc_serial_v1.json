@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "description": "Offline FluidNC serial lifecycle transcript derived from pinned upstream sender-protocol sources. The extended numeric setting is a synthetic boundary case for Beam Bench's shared 16-bit setting contract.",
+  "provenance": [
+    {
+      "kind": "source_derived",
+      "repository": "bdring/FluidNC",
+      "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+      "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/README.md#basic-grbl-compatibility",
+      "note": "Official statement that normal sender G-code and acknowledgement behavior remains GRBL-compatible"
+    },
+    {
+      "kind": "source_derived",
+      "repository": "bdring/FluidNC",
+      "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+      "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/FluidNC/src/Report.cpp#L367-L507",
+      "note": "Official controller-information, state-name, and extended real-time status formatters"
+    },
+    {
+      "kind": "source_derived",
+      "repository": "bdring/FluidNC",
+      "commit": "94e8adbbc17fde3e29d025e4c91b8dbcf76109e3",
+      "url": "https://github.com/bdring/FluidNC/blob/94e8adbbc17fde3e29d025e4c91b8dbcf76109e3/FluidNC/src/Protocol.cpp#L104-L137",
+      "note": "Official line-processing acknowledgement and alarm reporting flow"
+    }
+  ],
+  "startup_lines": [
+    "[MSG:INFO: FluidNC v4.0.3 (main-94e8adb) https://github.com/bdring/FluidNC]",
+    "[MSG:INFO: Machine: Beta Laser]",
+    "[MSG:INFO: Configuration file:config.yaml]",
+    "Grbl 4.0 [FluidNC v4.0.3 (main-94e8adb) (esp32-wifi) '$' for help]"
+  ],
+  "controller_info_lines": [
+    "[VER:4.0 FluidNC v4.0.3 (main-94e8adb) (esp32-wifi) :]",
+    "[OPT:PHSW,15,128]",
+    "ok"
+  ],
+  "settings_lines": [
+    "$0=10",
+    "$10=3",
+    "$30=1000",
+    "$32=1",
+    "$376=3",
+    "$Report/Status=3",
+    "ok"
+  ],
+  "status_cases": [
+    {
+      "id": "idle_with_offsets",
+      "line": "<Idle|MPos:12.500,8.250,0.000|Bf:15,128|FS:0,0|WCO:1.000,2.000,0.000|Ov:100,100,100>",
+      "expected_state": "idle",
+      "expected_machine_position": [12.5, 8.25, 0.0],
+      "expected_work_position": [11.5, 6.25, 0.0]
+    },
+    {
+      "id": "running_with_sd_progress_extension",
+      "line": "<Run|MPos:20.000,9.000,0.000|Bf:12,96|FS:900,250|WCO:1.000,2.000,0.000|Ov:100,100,100|A:SM|SD:42.5,job.nc>",
+      "expected_state": "run",
+      "expected_machine_position": [20.0, 9.0, 0.0],
+      "expected_work_position": [19.0, 7.0, 0.0]
+    },
+    {
+      "id": "feed_hold_complete",
+      "line": "<Hold:0|MPos:20.000,9.000,0.000|FS:0,0|WCO:1.000,2.000,0.000>",
+      "expected_state": "hold",
+      "expected_machine_position": [20.0, 9.0, 0.0],
+      "expected_work_position": [19.0, 7.0, 0.0]
+    },
+    {
+      "id": "controller_alarm",
+      "line": "<Alarm|MPos:20.000,9.000,0.000|FS:0,0|WCO:1.000,2.000,0.000>",
+      "expected_state": "alarm",
+      "expected_machine_position": [20.0, 9.0, 0.0],
+      "expected_work_position": [19.0, 7.0, 0.0]
+    }
+  ],
+  "alarm_line": "ALARM:1",
+  "recovery_status_line": "<Idle|MPos:20.000,9.000,0.000|FS:0,0|WCO:1.000,2.000,0.000>"
+}

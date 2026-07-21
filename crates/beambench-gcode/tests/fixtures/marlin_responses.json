@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "dialect": "marlin",
+  "cases": [
+    {
+      "line": "ok",
+      "expected": { "kind": "acknowledged" }
+    },
+    {
+      "line": "ok N42 P15 B3",
+      "expected": { "kind": "acknowledged", "detail": "N42 P15 B3" }
+    },
+    {
+      "line": "busy: processing",
+      "expected": { "kind": "busy", "message": "busy: processing" }
+    },
+    {
+      "line": "echo:busy: paused for user",
+      "expected": { "kind": "busy", "message": "echo:busy: paused for user" }
+    },
+    {
+      "line": "wait",
+      "expected": { "kind": "busy", "message": "wait" }
+    },
+    {
+      "line": "Resend: N12",
+      "expected": {
+        "kind": "retry_requested",
+        "line_number": 12,
+        "message": "Resend: N12"
+      }
+    },
+    {
+      "line": "Error:Line Number is not Last Line Number+1",
+      "expected": {
+        "kind": "command_error",
+        "message": "Error:Line Number is not Last Line Number+1"
+      }
+    },
+    {
+      "line": "echo:Unknown command: \"M4\"",
+      "expected": {
+        "kind": "command_error",
+        "message": "echo:Unknown command: \"M4\""
+      }
+    },
+    {
+      "line": "FIRMWARE_NAME:Marlin 2.1.3 PROTOCOL_VERSION:1.0",
+      "expected": {
+        "kind": "informational",
+        "message": "FIRMWARE_NAME:Marlin 2.1.3 PROTOCOL_VERSION:1.0"
+      }
+    }
+  ]
+}

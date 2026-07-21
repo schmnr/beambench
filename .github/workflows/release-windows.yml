@@ -1,0 +1,401 @@
+# Builds the signed Windows installers and attaches them to a GitHub Release.
+#
+# Trigger:
+#   "Run workflow" button on the GitHub Actions page.
+#
+# Pushing v* tags intentionally does not auto-release. Keep releases deliberate
+# so GitHub Actions minutes are not spent by accident.
+#
+name: Release Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.1)."
+        required: true
+        type: string
+
+concurrency:
+  # Serialize expensive same-tag builds and release uploads. The shared asset
+  # uploader also enumerates drafts explicitly because GitHub's release-by-tag
+  # endpoint excludes them.
+  # NOTE: a concurrency group holds at most ONE pending run. Dispatch the three
+  # platform workflows one at a time, waiting for each to finish; dispatching
+  # all three together cancels the queued run (see docs/releasing.md).
+  group: beambench-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_ROLL_FORWARD: LatestMinor
+  DOTNET_ROLL_FORWARD_TO_PRERELEASE: "0"
+  WINDOWS_SIGNING_ACCOUNT: Beambench
+  WINDOWS_SIGNING_CERTIFICATE_PROFILE: BeamBenchPublicTrust
+  WINDOWS_SIGNING_ENDPOINT: https://eus.codesigning.azure.net/
+
+jobs:
+  build-windows:
+    name: Build signed Windows installers
+    runs-on: windows-2025
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Resolve release tag
+        id: tag
+        env:
+          RELEASE_TAG_INPUT: ${{ inputs.tag }}
+        run: |
+          $tag = $env:RELEASE_TAG_INPUT
+          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$') {
+            Write-Error "Invalid release tag: $tag"
+            exit 1
+          }
+          "value=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "version=$($tag.Substring(1))" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.value }}
+
+      - name: Validate required secrets
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $missing = @()
+          foreach ($name in @(
+            "AZURE_CLIENT_ID",
+            "AZURE_CLIENT_SECRET",
+            "AZURE_TENANT_ID",
+            "TAURI_SIGNING_PRIVATE_KEY",
+            "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+          )) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              $missing += $name
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            foreach ($name in $missing) {
+              Write-Error "Missing required repository secret: $name"
+            }
+            exit 1
+          }
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-windows-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri-app/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: tauri-app
+        run: npm ci
+
+      - name: Install Artifact Signing CLI
+        run: |
+          cargo install artifact-signing-cli --locked
+          "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Check Windows signing tools
+        run: |
+          $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe"
+          $az = "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd"
+
+          if (!(Test-Path $signtool)) {
+            Write-Error "Expected SignTool at $signtool"
+            exit 1
+          }
+
+          if (!(Test-Path $az)) {
+            Write-Error "Expected Azure CLI at $az"
+            exit 1
+          }
+
+          dotnet --list-sdks
+          dotnet --list-runtimes
+          & $az version
+
+      - name: Prepare Artifact Signing client
+        run: |
+          $config = Join-Path $HOME ".artifact-signing-cli"
+          $lib = Join-Path $config "lib"
+          $dll = Join-Path $lib "bin\x64\Azure.CodeSigning.Dlib.dll"
+
+          New-Item -ItemType Directory -Force -Path $config | Out-Null
+
+          if (!(Test-Path $dll)) {
+            $version = "1.0.128"
+            $nupkg = Join-Path $config "$version.nupkg"
+            $archive = Join-Path $config $version
+            $url = "https://www.nuget.org/api/v2/package/Microsoft.ArtifactSigning.Client/$version"
+
+            Invoke-WebRequest -Uri $url -OutFile $nupkg -MaximumRedirection 10
+
+            $package = Get-Item $nupkg
+            if ($package.Length -lt 100000) {
+              Write-Error "Downloaded Artifact Signing client package is unexpectedly small: $($package.Length) bytes."
+              exit 1
+            }
+
+            $bytes = [System.IO.File]::ReadAllBytes($nupkg)
+            if ($bytes.Length -lt 2 -or $bytes[0] -ne 0x50 -or $bytes[1] -ne 0x4B) {
+              Write-Error "Downloaded Artifact Signing client package is not a zip archive."
+              exit 1
+            }
+
+            if (Test-Path $lib) {
+              Remove-Item $lib -Recurse -Force
+            }
+
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($nupkg, $lib, $true)
+
+            if (!(Test-Path $dll)) {
+              Write-Error "Expected Artifact Signing client DLL after extraction: $dll"
+              exit 1
+            }
+
+            Copy-Item $nupkg $archive -Force
+          }
+
+          "Artifact Signing client ready at $dll"
+
+      - name: Smoke test Azure signing
+        env:
+          AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ env.WINDOWS_SIGNING_ACCOUNT }}
+          AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE: ${{ env.WINDOWS_SIGNING_CERTIFICATE_PROFILE }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          $source = "$env:USERPROFILE\.cargo\bin\artifact-signing-cli.exe"
+          $smoke = Join-Path $env:RUNNER_TEMP "beambench-signing-smoke.exe"
+          Copy-Item $source $smoke -Force
+
+          artifact-signing-cli `
+            -e $env:WINDOWS_SIGNING_ENDPOINT `
+            -a $env:WINDOWS_SIGNING_ACCOUNT `
+            -c $env:WINDOWS_SIGNING_CERTIFICATE_PROFILE `
+            -d "Beam Bench Signing Smoke Test" `
+            $smoke
+
+          $signature = Get-AuthenticodeSignature -FilePath $smoke
+          "{0}: {1} ({2})" -f $smoke, $signature.Status, $signature.SignerCertificate.Subject
+          if ($signature.Status -ne "Valid") {
+            Write-Error "Azure signing smoke test did not produce a valid Authenticode signature."
+            exit 1
+          }
+
+      - name: Build, sign, and verify x64 CLI
+        env:
+          AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ env.WINDOWS_SIGNING_ACCOUNT }}
+          AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE: ${{ env.WINDOWS_SIGNING_CERTIFICATE_PROFILE }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          $version = "${{ steps.tag.outputs.version }}"
+          $target = "x86_64-pc-windows-msvc"
+          $cliDir = Join-Path "target\release-staging\cli\$version" $target
+          $cli = Join-Path $cliDir "beambench-cli.exe"
+          $archive = Join-Path $cliDir "Beam.Bench.CLI_${version}_${target}.zip"
+          $checksum = "$archive.sha256"
+
+          node tauri-app/scripts/build-cli-release.mjs `
+            --target $target `
+            --version $version `
+            --out-dir $cliDir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          artifact-signing-cli `
+            -e $env:WINDOWS_SIGNING_ENDPOINT `
+            -a $env:WINDOWS_SIGNING_ACCOUNT `
+            -c $env:WINDOWS_SIGNING_CERTIFICATE_PROFILE `
+            -d "Beam Bench CLI" `
+            $cli
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $signature = Get-AuthenticodeSignature -FilePath $cli
+          "{0}: {1} ({2})" -f $cli, $signature.Status, $signature.SignerCertificate.Subject
+          if ($signature.Status -ne "Valid") {
+            Write-Error "CLI Authenticode verification failed: $($signature.Status)"
+            exit 1
+          }
+
+          Remove-Item $archive, $checksum -Force -ErrorAction SilentlyContinue
+          $packageFiles = @(
+            $cli,
+            (Join-Path $cliDir "LICENSE"),
+            (Join-Path $cliDir "COPYRIGHT"),
+            (Join-Path $cliDir "SOURCE.md"),
+            (Join-Path $cliDir "THIRD_PARTY_NOTICES.md"),
+            (Join-Path $cliDir "THIRD_PARTY_LICENSES.md")
+          )
+          Compress-Archive -Path $packageFiles -DestinationPath $archive -Force
+
+          $verifyDir = Join-Path $env:RUNNER_TEMP "beambench-cli-verify"
+          Remove-Item $verifyDir -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive -Path $archive -DestinationPath $verifyDir -Force
+          node tauri-app/scripts/build-cli-release.mjs `
+            --target $target `
+            --version $version `
+            --out-dir $verifyDir `
+            --verify-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $verifiedCli = Join-Path $verifyDir "beambench-cli.exe"
+          $verifiedSignature = Get-AuthenticodeSignature -FilePath $verifiedCli
+          if ($verifiedSignature.Status -ne "Valid") {
+            Write-Error "Archived CLI Authenticode verification failed: $($verifiedSignature.Status)"
+            exit 1
+          }
+
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash.ToLowerInvariant()
+          "$hash  $([System.IO.Path]::GetFileName($archive))" |
+            Out-File -FilePath $checksum -Encoding ascii
+
+      - name: Build signed Windows installers
+        working-directory: tauri-app
+        env:
+          AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ env.WINDOWS_SIGNING_ACCOUNT }}
+          AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE: ${{ env.WINDOWS_SIGNING_CERTIFICATE_PROFILE }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          CI: true
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build --bundles nsis,msi
+
+      - name: Locate Windows artifacts
+        id: locate
+        run: |
+          $bundleArtifacts = @(Get-ChildItem -Path target -Recurse -File -Include *.exe,*.msi,*.zip,*.sig |
+            Where-Object { $_.FullName -like "*\target\release\bundle\*" })
+          $version = "${{ steps.tag.outputs.version }}"
+          $cliDir = Join-Path "target\release-staging\cli\$version" "x86_64-pc-windows-msvc"
+          $cliArchive = Join-Path $cliDir "Beam.Bench.CLI_${version}_x86_64-pc-windows-msvc.zip"
+          $cliChecksum = "$cliArchive.sha256"
+          if (!(Test-Path $cliArchive -PathType Leaf) -or !(Test-Path $cliChecksum -PathType Leaf)) {
+            Write-Error "Verified standalone CLI archive or checksum is missing."
+            exit 1
+          }
+          $cliArtifacts = @(Get-Item $cliArchive, $cliChecksum)
+          $artifacts = @(($bundleArtifacts + $cliArtifacts) | Sort-Object FullName)
+
+          if ($artifacts.Count -eq 0) {
+            Write-Error "No Windows release artifacts produced."
+            exit 1
+          }
+
+          "Found Windows artifacts:"
+          $artifacts | ForEach-Object { "  $($_.FullName)" }
+
+          "files<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $artifacts | ForEach-Object { $_.FullName } | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Verify Authenticode signatures
+        run: |
+          $signedArtifacts = Get-ChildItem -Path target -Recurse -File -Include *.exe,*.msi |
+            Where-Object { $_.FullName -like "*\target\release\bundle\*" } |
+            Sort-Object FullName
+
+          if ($signedArtifacts.Count -eq 0) {
+            Write-Error "No Windows installers found for signature verification."
+            exit 1
+          }
+
+          $failed = @()
+          foreach ($artifact in $signedArtifacts) {
+            $signature = Get-AuthenticodeSignature -FilePath $artifact.FullName
+            "{0}: {1} ({2})" -f $artifact.FullName, $signature.Status, $signature.SignerCertificate.Subject
+            if ($signature.Status -ne "Valid") {
+              $failed += $artifact.FullName
+            }
+          }
+
+          if ($failed.Count -gt 0) {
+            Write-Error "Windows signature verification failed for: $($failed -join ', ')"
+            exit 1
+          }
+
+      - name: Verify updater signatures
+        run: |
+          $signatures = Get-ChildItem -Path target -Recurse -File -Include *.sig |
+            Where-Object { $_.FullName -like "*\target\release\bundle\*" }
+
+          if ($signatures.Count -eq 0) {
+            Write-Error "No Tauri updater signature produced for Windows artifacts."
+            exit 1
+          }
+
+          $signatures | ForEach-Object { "Updater signature: $($_.FullName)" }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeamBench-Windows-${{ steps.tag.outputs.value }}
+          path: ${{ steps.locate.outputs.files }}
+          retention-days: 30
+
+      - name: Attach Windows artifacts to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          $bundleArtifacts = @(Get-ChildItem -Path target -Recurse -File -Include *.exe,*.msi,*.zip,*.sig |
+            Where-Object { $_.FullName -like "*\target\release\bundle\*" })
+          $version = "${{ steps.tag.outputs.version }}"
+          $cliDir = Join-Path "target\release-staging\cli\$version" "x86_64-pc-windows-msvc"
+          $cliArchive = Join-Path $cliDir "Beam.Bench.CLI_${version}_x86_64-pc-windows-msvc.zip"
+          $cliChecksum = "$cliArchive.sha256"
+          if (!(Test-Path $cliArchive -PathType Leaf) -or !(Test-Path $cliChecksum -PathType Leaf)) {
+            Write-Error "Verified standalone CLI archive or checksum is missing."
+            exit 1
+          }
+          $cliArtifacts = @(Get-Item $cliArchive, $cliChecksum)
+          $artifacts = @(($bundleArtifacts + $cliArtifacts) | Sort-Object FullName)
+
+          if ($artifacts.Count -eq 0) {
+            Write-Error "No Windows release artifacts found to attach."
+            exit 1
+          }
+
+          $paths = @($artifacts | ForEach-Object { $_.FullName })
+          $arguments = @("tauri-app/scripts/upload-release-assets.mjs", "--tag", $env:RELEASE_TAG)
+          foreach ($path in $paths) {
+            $arguments += @("--file", $path)
+          }
+
+          node @arguments
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Could not attach Windows artifacts to GitHub Release $env:RELEASE_TAG."
+            exit 1
+          }

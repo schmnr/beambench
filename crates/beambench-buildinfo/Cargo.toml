@@ -1,0 +1,9 @@
+[package]
+name = "beambench-buildinfo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[build-dependencies]
+vergen = { version = "9", features = ["build", "cargo", "rustc"] }

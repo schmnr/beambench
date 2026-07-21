@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "description": "Deterministic Ruida RDC6442S Ethernet/UDP protocol vectors for the read-only feasibility layer.",
+  "evidence": {
+    "licensed_reference": "https://github.com/meerk40t/meerk40t/tree/76106c5bc54e4a33c9248e9916a0e3009b5bbf5d/meerk40t/ruida",
+    "license": "MIT",
+    "target": "RDC6442S Ethernet/UDP, port 50200, swizzle magic 0x88"
+  },
+  "cases": [
+    {
+      "name": "enquiry",
+      "magic": 136,
+      "clear_payload_hex": "ce",
+      "wire_datagram_hex": "00c8c8"
+    },
+    {
+      "name": "read_card_id",
+      "magic": 136,
+      "clear_payload_hex": "da00057e",
+      "wire_datagram_hex": "0261d4890df7"
+    },
+    {
+      "name": "read_machine_status",
+      "magic": 136,
+      "clear_payload_hex": "da000400",
+      "wire_datagram_hex": "0273d4898d89"
+    }
+  ],
+  "replies": [
+    {
+      "name": "ack",
+      "magic": 136,
+      "clear_reply_hex": "cc",
+      "wire_reply_hex": "c6"
+    },
+    {
+      "name": "nak",
+      "magic": 136,
+      "clear_reply_hex": "cf",
+      "wire_reply_hex": "48"
+    },
+    {
+      "name": "rdc6442s_card_id",
+      "magic": 136,
+      "clear_reply_hex": "da01057e0628414a10",
+      "wire_reply_hex": "d4090df78fa149c399"
+    },
+    {
+      "name": "idle_machine_status",
+      "magic": 136,
+      "clear_reply_hex": "da0104000000000000",
+      "wire_reply_hex": "d4098d898989898989"
+    }
+  ]
+}

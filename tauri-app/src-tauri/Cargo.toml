@@ -1,0 +1,69 @@
+[package]
+name = "beambench-tauri"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-common = { path = "../../crates/beambench-common" }
+beambench-api = { path = "../../crates/beambench-api" }
+beambench-buildinfo = { path = "../../crates/beambench-buildinfo" }
+beambench-core = { path = "../../crates/beambench-core" }
+beambench-planner = { path = "../../crates/beambench-planner" }
+beambench-project = { path = "../../crates/beambench-project" }
+beambench-raster = { path = "../../crates/beambench-raster" }
+beambench-serial = { path = "../../crates/beambench-serial" }
+beambench-grbl = { path = "../../crates/beambench-grbl" }
+beambench-streamer = { path = "../../crates/beambench-streamer" }
+beambench-preview = { path = "../../crates/beambench-preview" }
+beambench-service = { path = "../../crates/beambench-service" }
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-build = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-process = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+image = { workspace = true }
+sha2 = "0.10"
+base64 = { workspace = true }
+dirs = { workspace = true }
+arboard = "3.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6.4", default-features = false, features = ["std"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+  "NSButton",
+  "NSApplication",
+  "NSControl",
+  "NSPanel",
+  "NSPasteboard",
+  "NSPopUpButton",
+  "NSResponder",
+  "NSSavePanel",
+  "NSTextField",
+  "NSView",
+  "NSWindow",
+] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
+  "NSArray",
+  "NSString",
+  "NSURL",
+  "objc2-core-foundation",
+  "std",
+] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+tempfile = { workspace = true }

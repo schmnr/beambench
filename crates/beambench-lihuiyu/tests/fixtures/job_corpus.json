@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "description": "Pinned native-job vectors for the Lihuiyu M2-compatible compiler.",
+  "sources": [
+    "https://github.com/meerk40t/meerk40t/tree/76106c5bc54e4a33c9248e9916a0e3009b5bbf5d"
+  ],
+  "cases": [
+    {
+      "name": "meerk40t_20mm_origin_10mm_rectangle_15mm_s",
+      "points_mm": [[20.0, 20.0], [30.0, 20.0], [30.0, 30.0], [20.0, 30.0]],
+      "closed": true,
+      "power_percent": 100.0,
+      "speed_mm_min": 900.0,
+      "reference_egv_ascii": "IBzzzvRzzzvS1P\nICV2490731016000027CNLBS1EDz139Rz139Tz139Lz139FNSE-\n",
+      "expected_controller_ascii": "IBzzzvRzzzvS1PICV2490731016000027CNLBS1EDz139Rz139Tz139Lz139FNSE",
+      "expected_bounds_steps": [787, 787, 1181, 1181],
+      "expected_final_position_steps": [787, 787]
+    }
+  ]
+}

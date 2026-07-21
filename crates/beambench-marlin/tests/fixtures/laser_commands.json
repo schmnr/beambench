@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "standard_pwm255_full_power",
+      "mode": "standard",
+      "power_scale": { "kind": "pwm255" },
+      "power_percent": 100.0,
+      "expected_power_value": 255,
+      "expected_on_command": "M3 S255",
+      "expected_motion_power_word": "S255",
+      "expected_boundary_commands": ["M5", "M400"]
+    },
+    {
+      "name": "continuous_inline_percent_half_power",
+      "mode": "continuous_inline",
+      "power_scale": { "kind": "percent" },
+      "power_percent": 50.0,
+      "expected_power_value": 50,
+      "expected_on_command": "M3 I S50",
+      "expected_motion_power_word": "S50",
+      "expected_boundary_commands": ["M5 I", "M400"]
+    },
+    {
+      "name": "dynamic_inline_pwm255_eighty_percent",
+      "mode": "dynamic_inline",
+      "power_scale": { "kind": "pwm255" },
+      "power_percent": 80.0,
+      "expected_power_value": 204,
+      "expected_on_command": "M4 I S204",
+      "expected_motion_power_word": "S204",
+      "expected_boundary_commands": ["M5 I", "M400"]
+    },
+    {
+      "name": "standard_rpm_twenty_percent",
+      "mode": "standard",
+      "power_scale": { "kind": "rpm", "maximum": 30000 },
+      "power_percent": 20.0,
+      "expected_power_value": 6000,
+      "expected_on_command": "M3 S6000",
+      "expected_motion_power_word": "S6000",
+      "expected_boundary_commands": ["M5", "M400"]
+    },
+    {
+      "name": "vendor_custom_scale",
+      "mode": "continuous_inline",
+      "power_scale": { "kind": "custom", "maximum": 1000 },
+      "power_percent": 33.3,
+      "expected_power_value": 333,
+      "expected_on_command": "M3 I S333",
+      "expected_motion_power_word": "S333",
+      "expected_boundary_commands": ["M5 I", "M400"]
+    }
+  ]
+}

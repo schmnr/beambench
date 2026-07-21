@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "description": "Offline Smoothieware live-session transcripts derived from the firmware's M115, config-get, motion-power, M400, and M112 implementations.",
+  "provenance": [
+    "https://github.com/Smoothieware/Smoothieware/blob/edge/src/modules/communication/GcodeDispatch.cpp",
+    "https://github.com/Smoothieware/Smoothieware/blob/edge/src/modules/utils/configurator/Configurator.cpp",
+    "https://github.com/Smoothieware/Smoothieware/blob/edge/src/modules/tools/laser/Laser.cpp",
+    "https://github.com/Smoothieware/Smoothieware/blob/edge/src/modules/robot/Robot.cpp"
+  ],
+  "identity_lines": [
+    "FIRMWARE_NAME:Smoothieware, FIRMWARE_URL:http%3A//smoothieware.org, X-SOURCE_CODE_URL:https://github.com/Smoothieware/Smoothieware, FIRMWARE_VERSION:edge-6ce309b, PROTOCOL_VERSION:1.0, X-GRBL_MODE:0, X-ARCS:1",
+    "ok"
+  ],
+  "configuration": {
+    "laser_module_enable": "cached: laser_module_enable is set to true",
+    "laser_module_maximum_s_value": "cached: laser_module_maximum_s_value is set to 1.0",
+    "laser_module_proportional_power": "cached: laser_module_proportional_power is set to true"
+  },
+  "cases": [
+    {
+      "name": "terminal_m400_completes_the_job",
+      "auto_acknowledge": true,
+      "commands": ["G90", "M221 S100 P0", "G1 X10 Y10 S0.5", "M400"],
+      "cancel_after_first_tick": false,
+      "expected_state": "ready",
+      "expected_outcome": "completed",
+      "expected_sent_lines": [
+        "M115",
+        "M1000 config-get laser_module_enable",
+        "M1000 config-get laser_module_maximum_s_value",
+        "M1000 config-get laser_module_proportional_power",
+        "G90",
+        "M221 S100 P0",
+        "G1 X10 Y10 S0.5",
+        "M400"
+      ]
+    },
+    {
+      "name": "cancel_interrupts_an_unacknowledged_command_and_requires_recovery",
+      "auto_acknowledge": false,
+      "commands": ["G1 X10 Y10 S0.5", "M400"],
+      "cancel_after_first_tick": true,
+      "expected_state": "recovery_required",
+      "expected_outcome": "cancel_command_sent_recovery_required",
+      "expected_sent_lines": [
+        "M115",
+        "M1000 config-get laser_module_enable",
+        "M1000 config-get laser_module_maximum_s_value",
+        "M1000 config-get laser_module_proportional_power",
+        "G1 X10 Y10 S0.5",
+        "M112"
+      ]
+    }
+  ]
+}

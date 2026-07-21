@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "description": "Offline standard-Marlin live-session transcripts derived from the documented M115, M400, M112, and emergency-parser contracts.",
+  "provenance": [
+    "https://marlinfw.org/docs/gcode/M115.html",
+    "https://marlinfw.org/docs/gcode/M400.html",
+    "https://marlinfw.org/docs/gcode/M112.html",
+    "https://marlinfw.org/docs/development/code_structure.html"
+  ],
+  "identity_lines": [
+    "FIRMWARE_NAME:Marlin 2.1.3 SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin PROTOCOL_VERSION:1.0 MACHINE_TYPE:Laser Cutter",
+    "Cap:EMERGENCY_PARSER:1",
+    "ok"
+  ],
+  "cases": [
+    {
+      "name": "terminal_m400_completes_the_job",
+      "auto_acknowledge": true,
+      "commands": ["G90", "G21", "M5", "G0 X10 Y10", "M400"],
+      "cancel_after_first_tick": false,
+      "expected_state": "ready",
+      "expected_outcome": "completed",
+      "expected_sent_lines": ["M115", "G90", "G21", "M5", "G0 X10 Y10", "M400"]
+    },
+    {
+      "name": "cancel_interrupts_an_unacknowledged_command_and_requires_recovery",
+      "auto_acknowledge": false,
+      "commands": ["M5", "G0 X10 Y10", "M400"],
+      "cancel_after_first_tick": true,
+      "expected_state": "recovery_required",
+      "expected_outcome": "cancel_command_sent_recovery_required",
+      "expected_sent_lines": ["M115", "M5", "M112"]
+    }
+  ]
+}

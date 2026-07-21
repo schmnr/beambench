@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "dialect": "smoothieware",
+  "cases": [
+    {
+      "line": "ok",
+      "expected": { "kind": "acknowledged" }
+    },
+    {
+      "line": "OK",
+      "expected": { "kind": "acknowledged" }
+    },
+    {
+      "line": "Smoothie ok",
+      "expected": { "kind": "informational", "message": "Smoothie ok" }
+    },
+    {
+      "line": "Error: Unsupported command",
+      "expected": {
+        "kind": "command_error",
+        "message": "Error: Unsupported command"
+      }
+    },
+    {
+      "line": "error:Alarm lock",
+      "expected": { "kind": "command_error", "message": "error:Alarm lock" }
+    },
+    {
+      "line": "ok - Invalid G53",
+      "expected": { "kind": "command_error", "message": "ok - Invalid G53" }
+    },
+    {
+      "line": "Entering Alarm/Halt state",
+      "expected": {
+        "kind": "command_error",
+        "message": "Entering Alarm/Halt state"
+      }
+    },
+    {
+      "line": "Build version: edge-1234",
+      "expected": {
+        "kind": "informational",
+        "message": "Build version: edge-1234"
+      }
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "schema_version": 2,
+  "cases": [
+    {
+      "name": "official_marlin_m115_with_capabilities",
+      "lines": [
+        "FIRMWARE_NAME:Marlin 2.1.3 (Jul 17 2026) SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin PROTOCOL_VERSION:1.0 MACHINE_TYPE:Laser Cutter KINEMATICS:Cartesian EXTRUDER_COUNT:0",
+        "Cap:SERIAL_XON_XOFF:0",
+        "Cap:EMERGENCY_PARSER:1",
+        "Cap:ARCS:1",
+        "ok"
+      ],
+      "expected": {
+        "status": "identified",
+        "dialect": "generic",
+        "firmware_identity": "Marlin",
+        "firmware_version": "2.1.3",
+        "source_code_url": "github.com/MarlinFirmware/Marlin",
+        "protocol_version": "1.0",
+        "machine_type": "Laser Cutter",
+        "capabilities": {
+          "ARCS": true,
+          "EMERGENCY_PARSER": true,
+          "SERIAL_XON_XOFF": false
+        },
+        "evidence": ["firmware_info", "extended_capability_report"]
+      }
+    },
+    {
+      "name": "capabilities_may_arrive_before_identity",
+      "lines": [
+        "Cap:AUTOREPORT_POS:1",
+        "FIRMWARE_NAME:Marlin bugfix-2.1.x MACHINE_TYPE:Custom Laser PROTOCOL_VERSION:1.0",
+        "ok"
+      ],
+      "expected": {
+        "status": "identified",
+        "dialect": "generic",
+        "firmware_identity": "Marlin",
+        "firmware_version": "bugfix-2.1.x",
+        "protocol_version": "1.0",
+        "machine_type": "Custom Laser",
+        "capabilities": { "AUTOREPORT_POS": true },
+        "evidence": ["firmware_info", "extended_capability_report"]
+      }
+    },
+    {
+      "name": "snapmaker_2_marlin_signature_is_a_distinct_dialect",
+      "lines": [
+        "FIRMWARE_NAME:Marlin SM2-4.7.2 (Github) SOURCE_CODE_URL:https://github.com/whimsycwd/SnapmakerMarlin PROTOCOL_VERSION:1.0 MACHINE_TYPE:GD32F305VGT6 EXTRUDER_COUNT:1 UUID:00000000-0000-0000-0000-000000000000",
+        "ok"
+      ],
+      "expected": {
+        "status": "identified",
+        "dialect": "snapmaker",
+        "firmware_identity": "Marlin",
+        "firmware_version": "SM2-4.7.2",
+        "source_code_url": "https://github.com/whimsycwd/SnapmakerMarlin",
+        "protocol_version": "1.0",
+        "machine_type": "GD32F305VGT6",
+        "capabilities": {},
+        "evidence": ["firmware_info", "snapmaker_firmware_signature"]
+      }
+    },
+    {
+      "name": "named_fork_is_not_exact_marlin",
+      "lines": [
+        "FIRMWARE_NAME:MarlinFork 9.0 PROTOCOL_VERSION:1.0",
+        "Cap:ARCS:1",
+        "ok"
+      ],
+      "expected": {
+        "status": "other_firmware",
+        "capabilities": {},
+        "evidence": ["firmware_info", "extended_capability_report"]
+      }
+    },
+    {
+      "name": "conflicting_firmware_names_fail_closed",
+      "lines": [
+        "FIRMWARE_NAME:Marlin 2.1.3 PROTOCOL_VERSION:1.0",
+        "FIRMWARE_NAME:Klipper 0.12 PROTOCOL_VERSION:1.0",
+        "ok"
+      ],
+      "expected": {
+        "status": "conflicting",
+        "capabilities": {},
+        "evidence": ["firmware_info"]
+      }
+    },
+    {
+      "name": "echoed_identity_text_is_not_identity",
+      "lines": [
+        "echo: FIRMWARE_NAME:Marlin 2.1.3",
+        "ok"
+      ],
+      "expected": {
+        "status": "unknown",
+        "capabilities": {},
+        "evidence": []
+      }
+    }
+  ]
+}
