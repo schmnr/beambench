@@ -105,6 +105,7 @@ for tag in "${TAGS[@]}"; do
   cp "$REPO_ROOT/LICENSE" "$source_dir/LICENSE"
   cp "$REPO_ROOT/COPYRIGHT" "$source_dir/COPYRIGHT"
   cp "$REPO_ROOT/README.md" "$source_dir/README.md"
+  cp "$REPO_ROOT/TRADEMARKS.md" "$source_dir/TRADEMARKS.md"
   cp "$REPO_ROOT/THIRD_PARTY_NOTICES.md" "$source_dir/THIRD_PARTY_NOTICES.md"
   mkdir -p "$source_dir/LICENSES"
   cp "$REPO_ROOT/LICENSES/GPL-2.0.txt" "$source_dir/LICENSES/GPL-2.0.txt"

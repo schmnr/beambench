@@ -18,6 +18,12 @@ their GPL-2.0-or-later notices. See
 [the Potrace notice](crates/beambench-core/src/potrace/README.md) and
 [third-party notices](THIRD_PARTY_NOTICES.md).
 
+The GPL permits commercial use, modification, and redistribution, provided
+that distributed derivative versions remain under the GPL and include their
+corresponding source. The software license does not grant permission to present
+a fork as an official Beam Bench product or to reuse Beam Bench branding for a
+modified distribution. See [TRADEMARKS.md](TRADEMARKS.md).
+
 ## Building from source
 
 The complete source tree includes the scripts and interface files used to
