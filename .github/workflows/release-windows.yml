@@ -282,8 +282,12 @@ jobs:
           }
 
           $hash = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash.ToLowerInvariant()
-          "$hash  $([System.IO.Path]::GetFileName($archive))" |
-            Out-File -FilePath $checksum -Encoding ascii
+          $checksumLine = "$hash  $([System.IO.Path]::GetFileName($archive))`n"
+          [System.IO.File]::WriteAllText(
+            $checksum,
+            $checksumLine,
+            [System.Text.UTF8Encoding]::new($false)
+          )
 
       - name: Build required signed NSIS installer
         working-directory: tauri-app
