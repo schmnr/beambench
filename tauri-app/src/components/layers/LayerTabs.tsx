@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, Plus } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
@@ -26,9 +27,12 @@ export function LayerTabs() {
   const addLayer = useProjectStore((s) => s.addLayer);
   const updateLayer = useProjectStore((s) => s.updateLayer);
   const loadProject = useProjectStore((s) => s.loadProject);
+  const reorderLayer = useProjectStore((s) => s.reorderLayer);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) === 'inches' ? 'inches' : 'mm';
   const speedTimeUnit = useAppStore((s) => s.settings?.speed_time_unit) === 'seconds' ? 'seconds' : 'minutes';
   const canvasDark = useAppStore((s) => s.settings?.dark_mode) === true;
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   if (!project) return null;
 
@@ -98,13 +102,43 @@ export function LayerTabs() {
           <button
             key={layer.id}
             onClick={() => handleTabClick(layer.id)}
+            draggable
+            onDragStart={(e) => {
+              setDragIndex(index);
+              e.dataTransfer.effectAllowed = 'move';
+            }}
+            onDragOver={(e) => {
+              if (dragIndex === null || dragIndex === index) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setDropIndex(index);
+            }}
+            onDragLeave={() => {
+              if (dropIndex === index) setDropIndex(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragIndex !== null && dragIndex !== index) {
+                const dragged = project.layers[dragIndex];
+                if (dragged) void reorderLayer(dragged.id, index);
+              }
+              setDragIndex(null);
+              setDropIndex(null);
+            }}
+            onDragEnd={() => {
+              setDragIndex(null);
+              setDropIndex(null);
+            }}
             className={`relative flex flex-shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-2.5 text-xxs ${
               active ? 'py-1.5 font-semibold shadow-sm' : 'py-1 opacity-80 hover:opacity-100'
-            }`}
+            } ${dragIndex === index ? 'opacity-40' : ''}`}
             style={{
               ...(active ? tabColors.active : tabColors.inactive),
               marginLeft: index === 0 ? 0 : -8,
               zIndex: active ? 30 : 20 - Math.min(index, 15),
+              ...(dropIndex === index
+                ? { outline: '2px solid rgb(var(--bb-accent))', outlineOffset: -2 }
+                : {}),
             }}
             title={layer.name}
           >
