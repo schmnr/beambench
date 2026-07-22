@@ -70,7 +70,7 @@ export function AppShell() {
         {/* Content wrapper: content row + full-width bottom panel */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Content row */}
-          <div className="flex-1 flex min-h-0">
+          <div className="relative flex-1 flex min-h-0">
             {/* Left icon toolbars */}
             <div className="flex flex-shrink-0 min-h-0 overflow-y-auto scrollbar-none bg-bb-bg">
               {(toolbarVisibility.tools || toolbarVisibility.modifiers) && (
@@ -79,9 +79,10 @@ export function AppShell() {
                   {toolbarVisibility.modifiers && <ModifiersToolbar />}
                 </div>
               )}
-              <LibraryDrawer />
               {toolbarVisibility.tools && <NodeSubToolbar />}
             </div>
+            {/* Library drawer overlays the canvas next to the rail */}
+            <LibraryDrawer />
             {/* Left panel zone (between toolbars and canvas) */}
             {leftHasContent && (
               <>
