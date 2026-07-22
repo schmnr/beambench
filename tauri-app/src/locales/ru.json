@@ -1311,6 +1311,9 @@
       "no_project": "Нет проекта",
       "nothing_selected": "Ничего не выбрано"
     },
+    "library": {
+      "title": "Библиотека"
+    },
     "floating": {
       "dock_tooltip": "Закрепить панель",
       "close_tooltip": "Закрыть панель",

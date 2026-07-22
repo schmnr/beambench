@@ -1311,6 +1311,9 @@
       "no_project": "Geen project",
       "nothing_selected": "Niets geselecteerd"
     },
+    "library": {
+      "title": "Bibliotheek"
+    },
     "floating": {
       "dock_tooltip": "Paneel vastzetten",
       "close_tooltip": "Paneel sluiten",

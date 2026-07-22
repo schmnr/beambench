@@ -1311,6 +1311,9 @@
       "no_project": "Intet projekt",
       "nothing_selected": "Intet valgt"
     },
+    "library": {
+      "title": "Bibliotek"
+    },
     "floating": {
       "dock_tooltip": "Fastgør panel",
       "close_tooltip": "Luk panel",

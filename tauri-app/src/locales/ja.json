@@ -1311,6 +1311,9 @@
       "no_project": "プロジェクトなし",
       "nothing_selected": "何も選択されていません"
     },
+    "library": {
+      "title": "ライブラリ"
+    },
     "floating": {
       "dock_tooltip": "パネルをドッキング",
       "close_tooltip": "パネルを閉じる",

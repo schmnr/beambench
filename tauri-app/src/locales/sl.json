@@ -1311,6 +1311,9 @@
       "no_project": "Ni projekta",
       "nothing_selected": "Nič ni izbrano"
     },
+    "library": {
+      "title": "Knjižnica"
+    },
     "floating": {
       "dock_tooltip": "Zasidraj podokno",
       "close_tooltip": "Zapri podokno",

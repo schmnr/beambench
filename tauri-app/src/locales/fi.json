@@ -1311,6 +1311,9 @@
       "no_project": "Ei projektia",
       "nothing_selected": "Ei mitään valittuna"
     },
+    "library": {
+      "title": "Kirjasto"
+    },
     "floating": {
       "dock_tooltip": "Kiinnitä paneeli",
       "close_tooltip": "Sulje paneeli",

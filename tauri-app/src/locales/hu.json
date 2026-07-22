@@ -1311,6 +1311,9 @@
       "no_project": "Nincs projekt",
       "nothing_selected": "Nincs kijelölve semmi"
     },
+    "library": {
+      "title": "Könyvtár"
+    },
     "floating": {
       "dock_tooltip": "Panel dokkolása",
       "close_tooltip": "Panel bezárása",

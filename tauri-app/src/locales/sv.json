@@ -1311,6 +1311,9 @@
       "no_project": "Inget projekt",
       "nothing_selected": "Inget markerat"
     },
+    "library": {
+      "title": "Bibliotek"
+    },
     "floating": {
       "dock_tooltip": "Docka panel",
       "close_tooltip": "Stäng panel",

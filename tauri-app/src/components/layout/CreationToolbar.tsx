@@ -114,9 +114,20 @@ function GroupSeparator() {
   return <div className="w-10 h-px bg-bb-border my-0.5" />;
 }
 
+const LibraryLauncherIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+
 export function CreationToolbar() {
   const { t } = useTranslation();
   const activeTool = useUiStore((s) => s.activeTool);
+  const libraryDrawerOpen = useUiStore((s) => s.libraryDrawerOpen);
+  const toggleLibraryDrawer = useUiStore((s) => s.toggleLibraryDrawer);
   const setActiveTool = useUiStore((s) => s.setActiveTool);
   const lastShapeSubTool = useUiStore((s) => s.lastShapeSubTool);
   const setLastShapeSubTool = useUiStore((s) => s.setLastShapeSubTool);
@@ -165,6 +176,16 @@ export function CreationToolbar() {
 
   return (
     <div className="no-select w-16 bg-bb-panel py-1.5 gap-0.5 text-xs flex flex-col items-center">
+      {/* Library drawer launcher (Art / Materials) */}
+      <IconButton
+        icon={<LibraryLauncherIcon size={24} />}
+        label={t('panels.library.title')}
+        onClick={toggleLibraryDrawer}
+        active={libraryDrawerOpen}
+        size={SMALL_BUTTON_SIZE}
+      />
+      <GroupSeparator />
+
       {/* Select */}
       <IconButton
         icon={<MousePointer2 size={24} />}

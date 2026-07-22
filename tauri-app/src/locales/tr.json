@@ -1311,6 +1311,9 @@
       "no_project": "Proje yok",
       "nothing_selected": "Hiçbir şey seçili değil"
     },
+    "library": {
+      "title": "Kitaplık"
+    },
     "floating": {
       "dock_tooltip": "Paneli yapıştır",
       "close_tooltip": "Paneli kapat",

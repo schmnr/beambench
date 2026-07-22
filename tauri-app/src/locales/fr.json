@@ -1311,6 +1311,9 @@
       "no_project": "Aucun projet",
       "nothing_selected": "Aucune sélection"
     },
+    "library": {
+      "title": "Bibliothèque"
+    },
     "floating": {
       "dock_tooltip": "Ancrer le panneau",
       "close_tooltip": "Fermer le panneau",

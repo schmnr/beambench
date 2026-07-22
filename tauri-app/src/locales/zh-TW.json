@@ -1311,6 +1311,9 @@
       "no_project": "無專案",
       "nothing_selected": "未選取任何項目"
     },
+    "library": {
+      "title": "素材庫"
+    },
     "floating": {
       "dock_tooltip": "停駐面板",
       "close_tooltip": "關閉面板",

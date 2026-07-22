@@ -1311,6 +1311,9 @@
       "no_project": "Žádný projekt",
       "nothing_selected": "Nic není vybráno"
     },
+    "library": {
+      "title": "Knihovna"
+    },
     "floating": {
       "dock_tooltip": "Ukotvit panel",
       "close_tooltip": "Zavřít panel",

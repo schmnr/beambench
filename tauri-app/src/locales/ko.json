@@ -1311,6 +1311,9 @@
       "no_project": "프로젝트 없음",
       "nothing_selected": "선택된 항목 없음"
     },
+    "library": {
+      "title": "라이브러리"
+    },
     "floating": {
       "dock_tooltip": "패널 도킹",
       "close_tooltip": "패널 닫기",

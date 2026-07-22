@@ -12,6 +12,7 @@ import { BottomPanel } from './BottomPanel';
 import { PanelResizer } from './PanelResizer';
 import { Canvas } from '../canvas/Canvas';
 import { LayerTabs } from '../layers/LayerTabs';
+import { LibraryDrawer } from './LibraryDrawer';
 import { ImportDropZone } from '../import/ImportDropZone';
 import { FloatingPanelLayer } from './FloatingPanelLayer';
 import { PanelDndProvider } from '../../panels/DndContext';
@@ -78,6 +79,7 @@ export function AppShell() {
                   {toolbarVisibility.modifiers && <ModifiersToolbar />}
                 </div>
               )}
+              <LibraryDrawer />
               {toolbarVisibility.tools && <NodeSubToolbar />}
             </div>
             {/* Left panel zone (between toolbars and canvas) */}

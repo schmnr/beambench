@@ -1311,6 +1311,9 @@
       "no_project": "Κανένα έργο",
       "nothing_selected": "Τίποτα επιλεγμένο"
     },
+    "library": {
+      "title": "Βιβλιοθήκη"
+    },
     "floating": {
       "dock_tooltip": "Προσάρτηση πάνελ",
       "close_tooltip": "Κλείσιμο πάνελ",

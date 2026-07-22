@@ -150,6 +150,9 @@ interface UiStoreState {
 
   // Side panels
   sidePanelsVisible: boolean;
+  /** Library drawer (Art / Materials) next to the tool rail. */
+  libraryDrawerOpen: boolean;
+  libraryDrawerTab: 'art' | 'materials';
 
   // Mode toggles
   rotaryEnabled: boolean;
@@ -308,6 +311,8 @@ interface UiStoreState {
 
   // Side panels actions
   toggleSidePanels: () => void;
+  toggleLibraryDrawer: () => void;
+  setLibraryDrawerTab: (tab: 'art' | 'materials') => void;
 
   // Mode toggle actions
   toggleRotary: () => void;
@@ -437,6 +442,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   viewStyle: 'wireframe_smooth',
   sidePanelsVisible: true,
+  libraryDrawerOpen: false,
+  libraryDrawerTab: 'art' as const,
 
   cursorWorldPos: null,
   rotaryEnabled: false,
@@ -989,6 +996,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
       const suffix = s.viewStyle.includes('_smooth') ? '_smooth' : '_coarse';
       return { viewStyle: (isFilled ? `wireframe${suffix}` : `filled${suffix}`) as ViewStyle };
     }),
+  toggleLibraryDrawer: () => set((s) => ({ libraryDrawerOpen: !s.libraryDrawerOpen })),
+  setLibraryDrawerTab: (tab) => set({ libraryDrawerTab: tab }),
   toggleSidePanels: () => {
     set((s) => {
       const updated = { ...s.panelLayout, sidePanelsVisible: !s.sidePanelsVisible };
