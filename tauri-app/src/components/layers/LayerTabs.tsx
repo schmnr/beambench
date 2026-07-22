@@ -52,7 +52,6 @@ export function LayerTabs() {
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
   const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [addMenu, setAddMenu] = useState<{ x: number; y: number } | null>(null);
 
   if (!project) return null;
 
@@ -133,7 +132,6 @@ export function LayerTabs() {
     await createOrSelectLayerForColor(nextColor.hex);
   };
 
-  const toolColors = PALETTE_COLORS.filter((c) => c.is_tool_layer);
 
   return (
     <div
@@ -268,10 +266,7 @@ export function LayerTabs() {
         );
       })}
       <button
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          setAddMenu({ x: rect.left, y: rect.bottom + 2 });
-        }}
+        onClick={() => void handleAddLayer()}
         aria-label={t('panels.layers.add_layer')}
         title={t('panels.layers.add_layer')}
         data-testid="add-layer-tab"
@@ -309,27 +304,6 @@ export function LayerTabs() {
           />
         );
       })()}
-
-      {/* + menu: new layer / tool layers (portal — the strip scroll-clips inline popovers) */}
-      {addMenu && (
-        <ContextMenu
-          x={addMenu.x}
-          y={addMenu.y}
-          items={[
-            {
-              id: 'add-layer',
-              label: t('panels.layers.add_layer'),
-              onClick: () => void handleAddLayer(),
-            },
-            ...toolColors.map((c, i) => ({
-              id: `add-tool-${i + 1}`,
-              label: t(i === 0 ? 'panels.color_palette.colors.tool_1' : 'panels.color_palette.colors.tool_2'),
-              onClick: () => void createOrSelectLayerForColor(c.hex),
-            })),
-          ]}
-          onClose={() => setAddMenu(null)}
-        />
-      )}
 
       {/* Strip background menu: enable/show all, sort cuts last */}
       {stripMenu && (

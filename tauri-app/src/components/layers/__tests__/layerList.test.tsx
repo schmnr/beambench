@@ -478,8 +478,9 @@ describe('LayerList', () => {
 
     fireEvent.click(swatch);
     const picker = screen.getByTestId('layer-color-picker');
+    // 30 regular palette colors + 2 tool colors (dashed; convert to tool layer)
     const colorButtons = picker.querySelectorAll('button');
-    expect(colorButtons.length).toBe(30);
+    expect(colorButtons.length).toBe(32);
 
     fireEvent.click(colorButtons[2]);
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { color_tag: expect.stringMatching(/^#/) });

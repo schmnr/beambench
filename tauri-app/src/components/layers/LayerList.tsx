@@ -462,9 +462,10 @@ export function LayerList() {
                     data-testid="layer-color-picker"
                   >
                     {PALETTE_COLORS.filter((c) => {
-                      if (c.is_tool_layer) return false;
                       // Hide colors already used by other layers — one color,
                       // one layer family. The current layer's own color stays.
+                      // Tool colors (dashed) are included: picking one converts
+                      // the layer into a tool layer.
                       if (normColor(c.hex) === normColor(activeLayer.color_tag)) return true;
                       return !layers.some(
                         (l) => l.id !== activeLayer.id && normColor(l.color_tag) === normColor(c.hex),
@@ -472,7 +473,9 @@ export function LayerList() {
                     }).map((c) => (
                       <button
                         key={c.hex}
-                        className="h-4 w-4 rounded-sm border border-bb-border hover:ring-1 hover:ring-bb-accent"
+                        className={`h-4 w-4 rounded-sm border hover:ring-1 hover:ring-bb-accent ${
+                          c.is_tool_layer ? 'border-dashed border-bb-text-muted' : 'border-bb-border'
+                        }`}
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
                         onClick={() => {
