@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, Plus } from 'lucide-react';
+import { Eye, EyeOff, Plus, Image as ImageIcon } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
@@ -52,6 +52,7 @@ export function LayerTabs() {
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
   const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [showAddMenu, setShowAddMenu] = useState(false);
 
   if (!project) return null;
 
@@ -105,16 +106,11 @@ export function LayerTabs() {
     }
   };
 
-  const handleAddLayer = async () => {
-    const used = new Set(project.layers.map((l) => normColor(l.color_tag)));
-    const nextColor = PALETTE_COLORS.find(
-      (c) => !c.is_tool_layer && !used.has(normColor(c.hex)),
-    );
-    if (!nextColor) return;
+  const createOrSelectLayerForColor = async (colorHex: string) => {
     const out = resolveDestinationLayer({
       project,
       requestedLayerId: null,
-      pendingColor: nextColor.hex,
+      pendingColor: colorHex,
       selectedLayerId: null,
       contentKind: 'non_raster',
     });
@@ -127,6 +123,17 @@ export function LayerTabs() {
       selectLayer(out.layerId);
     }
   };
+
+  const handleAddLayer = async () => {
+    const used = new Set(project.layers.map((l) => normColor(l.color_tag)));
+    const nextColor = PALETTE_COLORS.find(
+      (c) => !c.is_tool_layer && !used.has(normColor(c.hex)),
+    );
+    if (!nextColor) return;
+    await createOrSelectLayerForColor(nextColor.hex);
+  };
+
+  const toolColors = PALETTE_COLORS.filter((c) => c.is_tool_layer);
 
   return (
     <div
@@ -194,7 +201,7 @@ export function LayerTabs() {
               active
                 ? 'flex-shrink-0 py-1.5 font-semibold shadow-sm'
                 : 'min-w-0 flex-shrink py-1 opacity-80 hover:opacity-100'
-            } ${dragIndex === index ? 'opacity-40' : ''}`}
+            } ${layer.is_tool_layer ? 'border-dashed' : ''} ${dragIndex === index ? 'opacity-40' : ''}`}
             style={{
               ...(active ? tabColors.active : tabColors.inactive),
               marginLeft: index === 0 ? 0 : -8,
@@ -211,6 +218,9 @@ export function LayerTabs() {
               className="h-2 w-2 flex-shrink-0 rounded-full"
               style={{ backgroundColor: layer.color_tag }}
             />
+            {layer.entries[0]?.operation === 'image' && (
+              <ImageIcon size={10} className="flex-shrink-0" data-testid="tab-image-marker" />
+            )}
             {renamingLayerId === layer.id ? (
               <input
                 autoFocus
@@ -257,15 +267,40 @@ export function LayerTabs() {
           </button>
         );
       })}
-      <button
-        onClick={() => void handleAddLayer()}
-        aria-label={t('panels.layers.add_layer')}
-        title={t('panels.layers.add_layer')}
-        className="relative flex flex-shrink-0 items-center rounded-t-lg border border-b-0 px-2 py-1 opacity-80 hover:opacity-100"
-        style={{ ...tabColors.inactive, marginLeft: project.layers.length > 0 ? -8 : 0, zIndex: 1 }}
-      >
-        <Plus size={12} />
-      </button>
+      <div className="relative flex items-end">
+        <button
+          onClick={() => setShowAddMenu((v) => !v)}
+          aria-label={t('panels.layers.add_layer')}
+          title={t('panels.layers.add_layer')}
+          data-testid="add-layer-tab"
+          className="relative flex flex-shrink-0 items-center rounded-t-lg border border-b-0 px-2 py-1 opacity-80 hover:opacity-100"
+          style={{ ...tabColors.inactive, marginLeft: project.layers.length > 0 ? -8 : 0, zIndex: 1 }}
+        >
+          <Plus size={12} />
+        </button>
+        {showAddMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowAddMenu(false)} />
+            <div className="absolute left-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-bb-border bg-bb-panel py-1 shadow-lg" data-testid="add-layer-menu">
+              <button
+                className="block w-full px-3 py-1.5 text-left text-xs text-bb-text hover:bg-bb-hover"
+                onClick={() => { setShowAddMenu(false); void handleAddLayer(); }}
+              >
+                {t('panels.layers.add_layer')}
+              </button>
+              {toolColors.map((c, i) => (
+                <button
+                  key={c.hex}
+                  className="block w-full px-3 py-1.5 text-left text-xs text-bb-text hover:bg-bb-hover"
+                  onClick={() => { setShowAddMenu(false); void createOrSelectLayerForColor(c.hex); }}
+                >
+                  {t(i === 0 ? 'panels.color_palette.colors.tool_1' : 'panels.color_palette.colors.tool_2')}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Per-layer context menu (ported from the layer table rows) */}
       {contextMenu && (() => {
