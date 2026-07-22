@@ -728,8 +728,10 @@ function App() {
         const knownPanel = (id: string) => getPanelById(id) !== undefined;
         const floatingPanels = (pl.floating_panels ?? []).filter((fp) => knownPanel(fp.panel_id)).map((fp) => ({
           panelId: fp.panel_id,
-          x: fp.x,
-          y: fp.y,
+          // Clamp restored positions so the title bar is always reachable
+          // (saved on a larger window, or stranded by an old bug).
+          x: Math.max(0, Math.min(window.innerWidth - 100, fp.x)),
+          y: Math.max(0, Math.min(window.innerHeight - 40, fp.y)),
           width: fp.width,
           height: fp.height,
           zIndex: fp.z_index,

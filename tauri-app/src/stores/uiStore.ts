@@ -329,6 +329,13 @@ interface UiStoreState {
   setNodeSubMode: (mode: NodeSubMode) => void;
 }
 
+
+/** Keep a floating panel's title bar reachable inside the window. */
+const clampFloatX = (x: number) =>
+  Math.max(0, Math.min(typeof window !== 'undefined' ? window.innerWidth - 100 : x, x));
+const clampFloatY = (y: number) =>
+  Math.max(0, Math.min(typeof window !== 'undefined' ? window.innerHeight - 40 : y, y));
+
 const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
 
 /** M4: how long a flash highlight stays visible before auto-clearing. */
@@ -721,7 +728,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
       }
 
       const nextZ = s.nextFloatingZIndex;
-      const fp: FloatingPanelState = { panelId, x, y, width: w, height: h, zIndex: nextZ, originZone, originIndex };
+      const fp: FloatingPanelState = { panelId, x: clampFloatX(x), y: clampFloatY(y), width: w, height: h, zIndex: nextZ, originZone, originIndex };
       const newFloating = [...s.panelLayout.floatingPanels.filter((f) => f.panelId !== panelId), fp];
 
       // Remove from hidden if present
@@ -766,7 +773,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   moveFloatingPanel: (panelId, x, y) =>
     set((s) => {
       const newFloating = s.panelLayout.floatingPanels.map((fp) =>
-        fp.panelId === panelId ? { ...fp, x, y } : fp,
+        fp.panelId === panelId ? { ...fp, x: clampFloatX(x), y: clampFloatY(y) } : fp,
       );
       const layout = { ...s.panelLayout, floatingPanels: newFloating };
       appService.persistLayout(layout);
