@@ -1,4 +1,6 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
+import { useMachineStore } from '../../stores/machineStore';
+import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
 import { getPanelById, PANEL_COMPONENTS } from '../../panels';
@@ -81,23 +83,50 @@ function ZonePanel({ zone }: { zone: PhysicalDockZone }) {
 }
 
 export function RightPanel() {
+  const { t } = useTranslation();
   const upperSplitRatio = useUiStore((s) => s.panelLayout.upperSplitRatio);
+  const activeProfile = useMachineStore(
+    (s) => s.profiles.find((p) => p.id === s.activeProfileId) ?? null,
+  );
+  const [showProfiles, setShowProfiles] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div ref={containerRef} className="no-select h-full bg-bb-panel flex flex-col" onContextMenu={(e) => e.preventDefault()}>
-      {/* Upper zone */}
-      <div className="flex flex-col min-h-0 overflow-hidden" style={{ flex: upperSplitRatio }}>
+    <div
+      ref={containerRef}
+      className="no-select h-full bg-bb-bg flex flex-col px-2 pb-2 pt-1.5"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {/* Machine profile chip — NodeCraft artboard-chip style */}
+      <button
+        className="z-10 -mb-px self-start rounded-t-lg bg-bb-accent px-3 py-1 text-xxs font-bold text-bb-on-accent hover:bg-bb-accent-hover"
+        onClick={() => setShowProfiles(true)}
+        title={t('panels.machine.laser.manage_machine_profiles')}
+        data-testid="machine-profile-chip"
+      >
+        ⌗ {activeProfile?.name ?? t('panels.machine.laser.no_machine')}
+      </button>
+
+      {/* Upper zone card */}
+      <div
+        className="flex flex-col min-h-0 overflow-hidden rounded-b-xl rounded-tr-xl border border-bb-border bg-bb-panel shadow-lg"
+        style={{ flex: upperSplitRatio }}
+      >
         <ZonePanel zone="upper-right" />
       </div>
 
       {/* Splitter */}
       <ZoneSplitter containerRef={containerRef} />
 
-      {/* Lower zone */}
-      <div className="flex flex-col min-h-0 overflow-hidden" style={{ flex: 1 - upperSplitRatio }}>
+      {/* Lower zone card */}
+      <div
+        className="flex flex-col min-h-0 overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-lg"
+        style={{ flex: 1 - upperSplitRatio }}
+      >
         <ZonePanel zone="lower-right" />
       </div>
+
+      {showProfiles && <DeviceSettingsDialog onClose={() => setShowProfiles(false)} />}
     </div>
   );
 }
