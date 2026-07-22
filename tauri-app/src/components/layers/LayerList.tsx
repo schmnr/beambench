@@ -138,7 +138,7 @@ function displayLayerName(layer: Layer): string {
     : layer.name;
 }
 
-const COL_TEMPLATE = '28px 40px 72px 1fr 32px 32px 30px 18px';
+const COL_TEMPLATE = '28px 40px 72px 1fr 18px';
 //                     #    Layer  Mode  Spd/Pwr Out  Show  Air   arrows
 const COL_GAP = 'gap-x-3';
 
@@ -508,9 +508,6 @@ export function LayerList() {
           <span>{t('panels.layers.header.layer')}</span>
           <span>{t('panels.layers.header.mode')}</span>
           <span className="text-right">{t('panels.layers.header.speed_power')}</span>
-          <span className="text-center">{t('panels.layers.header.output')}</span>
-          <span className="text-center">{t('panels.layers.header.show')}</span>
-          <span className="text-center">{t('panels.layers.header.air')}</span>
           <span />
         </div>
         <div className="px-2 py-3 text-xs text-bb-text-dim text-center" data-testid="empty-layer-row">
@@ -536,9 +533,6 @@ export function LayerList() {
         <span>{t('panels.layers.header.layer')}</span>
         <span>{t('panels.layers.header.mode')}</span>
         <span className="text-right">{t('panels.layers.header.speed_power')}</span>
-        <span className="text-center">{t('panels.layers.header.output')}</span>
-        <span className="text-center">{t('panels.layers.header.show')}</span>
-        <span className="text-center">{t('panels.layers.header.air')}</span>
         <span />
       </div>
 
@@ -682,37 +676,6 @@ export function LayerList() {
             )}
           </span>
 
-          {/* Output toggle */}
-          {layer.is_tool_layer ? (
-            <span data-testid="output-placeholder" />
-          ) : (
-            <ToggleSwitch
-              active={layer.enabled}
-              onClick={() => updateLayer(layer.id, { enabled: !layer.enabled })}
-              testId="output-toggle"
-            />
-          )}
-
-          {/* Show toggle */}
-          <ToggleSwitch
-            active={layer.visible !== false}
-            activeColor={SHOW_TOGGLE_ACTIVE_COLOR}
-            onClick={() => void handleToggleVisible(layer.id, layer.visible === false)}
-            testId="show-toggle"
-          />
-
-          {/* Air toggle */}
-          {layer.is_tool_layer ? (
-            <span data-testid="air-placeholder" />
-          ) : (
-            <ToggleSwitch
-              active={primaryEntry?.air_assist === true}
-              activeColor={AIR_TOGGLE_ACTIVE_COLOR}
-              onClick={() => void handleToggleAirAssist(layer.id, !(primaryEntry?.air_assist ?? false))}
-              testId="air-toggle"
-            />
-          )}
-
           {/* Reorder arrows */}
           <div className="flex flex-col items-center" onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
             {index > 0 && (
@@ -798,6 +761,45 @@ export function LayerList() {
           >
             <ClipboardPaste size={16} />
           </button>
+        </div>
+      )}
+
+      {/* Layer-level toggles for the selected layer (moved out of the rows) */}
+      {activeLayer && (
+        <div
+          className="flex items-center gap-5 px-2 py-1.5 border-t-2 border-bb-border bg-bb-surface text-xs"
+          data-testid="layer-toggles"
+        >
+          {!activeLayer.is_tool_layer && (
+            <label className="flex items-center gap-1.5 text-bb-text-muted">
+              {t('panels.layers.header.output')}
+              <ToggleSwitch
+                active={activeLayer.enabled}
+                onClick={() => updateLayer(activeLayer.id, { enabled: !activeLayer.enabled })}
+                testId="output-toggle"
+              />
+            </label>
+          )}
+          <label className="flex items-center gap-1.5 text-bb-text-muted">
+            {t('panels.layers.header.show')}
+            <ToggleSwitch
+              active={activeLayer.visible !== false}
+              activeColor={SHOW_TOGGLE_ACTIVE_COLOR}
+              onClick={() => void handleToggleVisible(activeLayer.id, activeLayer.visible === false)}
+              testId="show-toggle"
+            />
+          </label>
+          {!activeLayer.is_tool_layer && (
+            <label className="flex items-center gap-1.5 text-bb-text-muted">
+              {t('panels.layers.header.air')}
+              <ToggleSwitch
+                active={primaryEntry(activeLayer)?.air_assist === true}
+                activeColor={AIR_TOGGLE_ACTIVE_COLOR}
+                onClick={() => void handleToggleAirAssist(activeLayer.id, !(primaryEntry(activeLayer)?.air_assist ?? false))}
+                testId="air-toggle"
+              />
+            </label>
+          )}
         </div>
       )}
 
