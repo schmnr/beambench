@@ -33,6 +33,7 @@ import {
   AlignHorizontalSpaceAround, AlignVerticalSpaceAround,
   Crosshair,
   Play,
+  PenLine, Zap,
 } from 'lucide-react';
 import {
   MirrorAcrossLineIcon,
@@ -313,28 +314,33 @@ export function MainToolbar() {
           <span className="text-bb-accent ml-1" title={t('status.unsaved_changes')}>*</span>
         ) : null}
       </span>
-      {/* Design | Run workspace switch */}
-      <div className="mx-1 flex flex-shrink-0 rounded-lg bg-bb-surface-2 p-0.5" data-testid="mode-switch">
+      {/* Design | Run workspace switch — the app's primary navigation */}
+      <div
+        className="mx-1.5 flex flex-shrink-0 rounded-xl border border-bb-accent/40 bg-bb-surface-2 p-0.5 shadow-[0_0_10px_rgba(45,212,222,0.15)]"
+        data-testid="mode-switch"
+      >
         <button
-          className={`rounded-md px-3 py-0.5 text-xs ${
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-1 text-sm ${
             workspaceMode === 'design'
-              ? 'bg-bb-accent font-semibold text-bb-on-accent'
-              : 'text-bb-text-muted hover:text-bb-text'
+              ? 'bg-bb-accent font-bold text-bb-on-accent shadow'
+              : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
           }`}
           onClick={() => setWorkspaceMode('design')}
           data-testid="mode-design"
         >
+          <PenLine size={14} />
           {t('toolbars.main.mode_design')}
         </button>
         <button
-          className={`rounded-md px-3 py-0.5 text-xs ${
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-1 text-sm ${
             workspaceMode === 'run'
-              ? 'bg-bb-accent font-semibold text-bb-on-accent'
-              : 'text-bb-text-muted hover:text-bb-text'
+              ? 'bg-bb-accent font-bold text-bb-on-accent shadow'
+              : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
           }`}
           onClick={() => setWorkspaceMode('run')}
           data-testid="mode-run"
         >
+          <Zap size={14} />
           {t('toolbars.main.mode_run')}
         </button>
       </div>
