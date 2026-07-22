@@ -299,7 +299,7 @@ export function MainToolbar() {
   });
 
   return (
-    <div className="no-select flex items-center h-11 bg-bb-panel px-3 gap-0.5 text-xs border-b border-bb-border">
+    <div className="no-select relative flex items-center h-11 bg-bb-panel px-3 gap-0.5 text-xs border-b border-bb-border">
       {/* Brand + project identity */}
       <span
         aria-hidden="true"
@@ -449,9 +449,12 @@ export function MainToolbar() {
         </>
       )}
 
-      {/* Centered Design | Run mode switch */}
+      {/* Design | Run mode switch — pinned to the true center of the bar */}
       <div className="flex-1" />
-      <div className="flex rounded-lg bg-bb-surface-2 p-0.5" data-testid="mode-switch">
+      <div
+        className="absolute left-1/2 z-10 flex -translate-x-1/2 rounded-lg bg-bb-surface-2 p-0.5"
+        data-testid="mode-switch"
+      >
         <button
           className={`rounded-md px-3 py-0.5 text-xs ${
             workspaceMode === 'design'
@@ -477,7 +480,6 @@ export function MainToolbar() {
       </div>
 
       {/* Right side: machine connection pill */}
-      <div className="flex-1" />
       <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-bb-surface-2 px-3 py-1 text-xxs text-bb-text-muted">
         <span className={`h-2 w-2 rounded-full ${connectionDot}`} />
         <span>{connectionLabel}</span>
