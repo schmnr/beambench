@@ -2,11 +2,10 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { TextInput } from '../shared/TextInput';
 import { NumberInput } from '../shared/NumberInput';
-import { Select } from '../shared/Select';
-import { ColorDot } from '../shared/ColorDot';
 import { Toggle } from '../shared/Toggle';
 import { TextPropertiesPanel } from './TextPropertiesPanel';
 import { TransformSection } from './TransformSection';
+import { LayerSection } from './LayerSection';
 import { RasterPropertiesPanel } from './RasterPropertiesPanel';
 import { vectorService } from '../../services/vectorService';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -26,7 +25,6 @@ export function PropertiesPanel() {
   const resizeShapeObject = useProjectStore((s) => s.resizeShapeObject);
   const loadProject = useProjectStore((s) => s.loadProject);
   const booleanPending = useProjectStore((s) => s.booleanPending);
-  const reassignLayer = useProjectStore((s) => s.reassignLayer);
   const lockObjects = useProjectStore((s) => s.lockObjects);
   const unlockObjects = useProjectStore((s) => s.unlockObjects);
   const setObjectsVisible = useProjectStore((s) => s.setObjectsVisible);
@@ -39,12 +37,8 @@ export function PropertiesPanel() {
   // Multi-selection: batch controls for 2+, boolean ops for exactly 2
   if (selectedObjectIds.length >= 2) {
     const selectedObjects = project?.objects.filter((o) => selectedObjectIds.includes(o.id)) ?? [];
-    const layers = project?.layers ?? [];
-    const layerOptions = layers.map((l) => ({ value: l.id, label: l.name }));
 
     // Compute mixed state
-    const allLayerIds = new Set(selectedObjects.map((o) => o.layer_id));
-    const commonLayerId = allLayerIds.size === 1 ? [...allLayerIds][0] : '';
     const allVisible = selectedObjects.every((o) => o.visible);
     const noneVisible = selectedObjects.every((o) => !o.visible);
     const allLocked = selectedObjects.every((o) => o.locked);
@@ -56,15 +50,7 @@ export function PropertiesPanel() {
         <div className="text-xs text-bb-text-dim">{t('panels.properties.objects_selected', { count: selectedObjectIds.length })}</div>
 
         {/* Batch controls */}
-        <Select
-          label={t('panels.properties.layer')}
-          value={commonLayerId}
-          options={[
-            ...(allLayerIds.size > 1 ? [{ value: '', label: t('panels.properties.mixed') }] : []),
-            ...layerOptions,
-          ]}
-          onChange={(layer_id) => { if (layer_id) void reassignLayer(selectedObjectIds, layer_id); }}
-        />
+        <LayerSection />
         <div className="flex gap-2 items-center text-xs">
           <label className="flex items-center gap-1">
             <input
@@ -129,9 +115,6 @@ export function PropertiesPanel() {
     return <div className="text-xs text-bb-text-dim italic px-2">{t('panels.properties.nothing_selected')}</div>;
   }
 
-  const layers = project?.layers ?? [];
-  const layerOptions = layers.map((l) => ({ value: l.id, label: l.name }));
-
   const x = selectedObject.bounds.min.x;
   const y = selectedObject.bounds.min.y;
   const w = selectedObject.bounds.max.x - selectedObject.bounds.min.x;
@@ -150,8 +133,6 @@ export function PropertiesPanel() {
     selectedObject.data?.type === 'polygon' ||
     selectedObject.data?.type === 'star';
 
-  // Layer color for ColorDot
-  const currentLayer = layers.find((l) => l.id === selectedObject.layer_id);
   const transformLocks = project?.transform_locks;
 
   // Corner radius: only for rectangle shapes
@@ -170,17 +151,7 @@ export function PropertiesPanel() {
         value={selectedObject.name}
         onChange={(name) => updateObject(selectedObject.id, { name })}
       />
-      <div className="flex items-center gap-2">
-        {currentLayer && <ColorDot color={currentLayer.color_tag} />}
-        <div className="flex-1">
-          <Select
-            label={t('panels.properties.layer')}
-            value={selectedObject.layer_id}
-            options={layerOptions}
-            onChange={(layer_id) => updateObject(selectedObject.id, { layer_id })}
-          />
-        </div>
-      </div>
+      <LayerSection />
 
       <NumberInput
         label={t('panels.properties.power_scale_percent')}
