@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Product support and connection help
+    url: https://beambench.com/support
+    about: Get setup help, submit diagnostics, or ask a usage question.
+  - name: Report a security vulnerability
+    url: https://github.com/schmnr/beambench/security/advisories/new
+    about: Send a private report instead of opening a public issue.

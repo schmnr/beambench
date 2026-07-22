@@ -5,6 +5,16 @@ engraving jobs. The application includes a Tauri/React interface and a Rust
 workspace containing its import, geometry, planning, preview, and controller
 support.
 
+## Help and contributions
+
+- For product help or to submit an in-app diagnostic report, visit
+  [Beam Bench Support](https://beambench.com/support).
+- For reproducible bugs and feature proposals, use the repository's
+  [issue forms](https://github.com/schmnr/beambench/issues/new/choose).
+- To contribute code, start with [CONTRIBUTING.md](CONTRIBUTING.md).
+- Report security vulnerabilities privately as described in
+  [SECURITY.md](SECURITY.md). Do not open a public issue for a vulnerability.
+
 ## License
 
 Beam Bench is free software: you can redistribute it and/or modify it under
