@@ -28,8 +28,6 @@ export const WINDOW_TOOLBAR_MENU_ITEMS = [
   { label: 'Modifiers', commandId: APP_COMMANDS.WINDOW_TOOLBAR_MODIFIERS, toolbarId: 'modifiers' },
   { label: 'Docking', commandId: APP_COMMANDS.WINDOW_TOOLBAR_DOCKING, toolbarId: 'docking' },
   { label: 'Main', commandId: APP_COMMANDS.WINDOW_TOOLBAR_MAIN, toolbarId: 'main' },
-  { label: 'Numeric Edits', commandId: APP_COMMANDS.WINDOW_TOOLBAR_NUMERIC_EDITS, toolbarId: 'numericEdits' },
-  { label: 'Text Options', commandId: APP_COMMANDS.WINDOW_TOOLBAR_TEXT_OPTIONS, toolbarId: 'textOptions' },
   { label: 'Tools', commandId: APP_COMMANDS.WINDOW_TOOLBAR_TOOLS, toolbarId: 'tools' },
 ] as const satisfies ReadonlyArray<{ label: string; commandId: AppCommandId; toolbarId: ToolbarId }>;
 
@@ -48,10 +46,8 @@ export const WINDOW_PANEL_TOOLBAR_MENU_ITEMS = [
   WINDOW_PANEL_MENU_ITEMS[7],
   WINDOW_TOOLBAR_MENU_ITEMS[4],
   WINDOW_PANEL_MENU_ITEMS[8],
-  WINDOW_TOOLBAR_MENU_ITEMS[5],
   WINDOW_PANEL_MENU_ITEMS[9],
-  WINDOW_TOOLBAR_MENU_ITEMS[6],
-  WINDOW_TOOLBAR_MENU_ITEMS[7],
+  WINDOW_TOOLBAR_MENU_ITEMS[5],
 ] as const;
 
 export const WINDOW_MENU_COMMAND_ORDER = [

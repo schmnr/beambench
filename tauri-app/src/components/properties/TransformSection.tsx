@@ -21,7 +21,7 @@ import {
   textAnchorPoint,
   anchorLabelKeys,
   useBufferedNumericField,
-} from '../layout/PropertiesToolbar';
+} from '../shared/transformFields';
 
 const DISPLAY_UNIT_MM = 'mm' as const;
 const DISPLAY_UNIT_INCHES = 'inches' as const;

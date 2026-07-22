@@ -182,8 +182,6 @@ export const APP_COMMANDS = {
   WINDOW_TOOLBAR_MODIFIERS: 'window.toolbar.modifiers',
   WINDOW_TOOLBAR_DOCKING: 'window.toolbar.docking',
   WINDOW_TOOLBAR_MAIN: 'window.toolbar.main',
-  WINDOW_TOOLBAR_NUMERIC_EDITS: 'window.toolbar.numeric_edits',
-  WINDOW_TOOLBAR_TEXT_OPTIONS: 'window.toolbar.text_options',
   WINDOW_TOOLBAR_TOOLS: 'window.toolbar.tools',
   WINDOW_RESET_LAYOUT: 'window.reset_layout',
 

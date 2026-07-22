@@ -211,7 +211,7 @@ const INTENTIONAL_RAW_COLORS: Readonly<Record<string, readonly string[]>> = {
   './components/layers/LayerList.tsx': ['bg-green-500', 'bg-white', 'bg-yellow-500'],
   './components/layout/ColorPalette.tsx': ['border-white'],
   './components/layout/MenuBar.tsx': ['bg-black/50'],
-  './components/layout/PropertiesToolbar.tsx': ['bg-white', 'border-yellow-500', 'text-yellow-500'],
+  './components/layout/MainToolbar.tsx': ['bg-gray-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500'],
   './components/layout/StatusBar.tsx': ['bg-gray-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500'],
   './components/machine/CameraWindow.tsx': ['bg-black/50'],
   './components/machine/LaserPanel.tsx': [

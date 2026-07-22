@@ -2,7 +2,6 @@ import { useUiStore } from '../../stores/uiStore';
 import { appService } from '../../services/appService';
 import { MenuBar } from './MenuBar';
 import { MainToolbar } from './MainToolbar';
-import { PropertiesToolbar } from './PropertiesToolbar';
 import { CreationToolbar } from './CreationToolbar';
 import { NodeSubToolbar } from './NodeSubToolbar';
 import { ModifiersToolbar } from './ModifiersToolbar';
@@ -71,10 +70,6 @@ export function AppShell() {
       <div className="h-full flex flex-col">
         {!isNativeMenuActive() && <MenuBar />}
         <MainToolbar />
-        <PropertiesToolbar
-          showNumericEdits={toolbarVisibility.numericEdits}
-          showTextOptions={toolbarVisibility.textOptions}
-        />
         {/* Content wrapper: content row + full-width bottom panel */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Content row */}

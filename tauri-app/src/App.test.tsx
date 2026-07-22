@@ -17,6 +17,7 @@ import { printService } from './services/printService';
 import { appService } from './services/appService';
 import { feedbackService } from './services/feedbackService';
 import { APP_COMMANDS } from './commands/appCommandIds';
+import { executeAppCommand } from './commands/appCommands';
 import { clearClipboard, getClipboard } from './utils/clipboard';
 import type { AppSettings } from './types/commands';
 import type { AppEvent } from './types/events';
@@ -1257,7 +1258,7 @@ describe('Keyboard shortcuts', () => {
     expect(useUiStore.getState().hasClipboard).toBe(false);
   });
 
-  it('toolbar Copy stores selected objects and enables Paste', async () => {
+  it('Copy command stores selected objects and enables Paste', async () => {
     const object = makeProjectObject({ id: 'copy-source' });
     useProjectStore.setState({
       project: makeProject({ objects: [object] }),
@@ -1267,22 +1268,16 @@ describe('Keyboard shortcuts', () => {
 
     await renderApp();
 
-    expect(screen.getByTitle('Paste').closest('button')?.disabled).toBe(true);
-
-    const windowDispatch = vi.spyOn(window, 'dispatchEvent');
-
     await act(async () => {
-      fireEvent.click(screen.getByTitle('Copy'));
+      await executeAppCommand(APP_COMMANDS.EDIT_COPY);
       await Promise.resolve();
     });
 
-    expect(windowDispatch.mock.calls.some(([event]) => event instanceof KeyboardEvent && event.type === 'keydown')).toBe(false);
     expect(getClipboard()?.map((stored) => stored.id)).toEqual(['copy-source']);
     expect(useUiStore.getState().hasClipboard).toBe(true);
-    expect(screen.getByTitle('Paste').closest('button')?.disabled).toBe(false);
   });
 
-  it('toolbar Cut stores selected objects and enables Paste after deletion succeeds', async () => {
+  it('Cut command stores selected objects and enables Paste after deletion succeeds', async () => {
     const object = makeProjectObject({ id: 'cut-source' });
     const removeObjects = vi.fn().mockResolvedValue(true);
     useProjectStore.setState({
@@ -1294,19 +1289,13 @@ describe('Keyboard shortcuts', () => {
 
     await renderApp();
 
-    expect(screen.getByTitle('Paste').closest('button')?.disabled).toBe(true);
-
-    const windowDispatch = vi.spyOn(window, 'dispatchEvent');
-
     await act(async () => {
-      fireEvent.click(screen.getByTitle('Cut'));
+      await executeAppCommand(APP_COMMANDS.EDIT_CUT);
       await Promise.resolve();
     });
 
-    expect(windowDispatch.mock.calls.some(([event]) => event instanceof KeyboardEvent && event.type === 'keydown')).toBe(false);
     expect(removeObjects).toHaveBeenCalledWith(['cut-source']);
     expect(getClipboard()?.map((stored) => stored.id)).toEqual(['cut-source']);
     expect(useUiStore.getState().hasClipboard).toBe(true);
-    expect(screen.getByTitle('Paste').closest('button')?.disabled).toBe(false);
   });
 });

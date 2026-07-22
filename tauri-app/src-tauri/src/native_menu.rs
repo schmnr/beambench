@@ -193,8 +193,6 @@ pub mod command {
     pub const WINDOW_TOOLBAR_MODIFIERS: &str = "window.toolbar.modifiers";
     pub const WINDOW_TOOLBAR_DOCKING: &str = "window.toolbar.docking";
     pub const WINDOW_TOOLBAR_MAIN: &str = "window.toolbar.main";
-    pub const WINDOW_TOOLBAR_NUMERIC_EDITS: &str = "window.toolbar.numeric_edits";
-    pub const WINDOW_TOOLBAR_TEXT_OPTIONS: &str = "window.toolbar.text_options";
     pub const WINDOW_TOOLBAR_TOOLS: &str = "window.toolbar.tools";
     pub const WINDOW_RESET_LAYOUT: &str = "window.reset_layout";
 
@@ -1419,22 +1417,8 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
         checked: true,
     },
     NativeMenuEntry::Check {
-        id: command::WINDOW_TOOLBAR_NUMERIC_EDITS,
-        title: "Numeric Edits",
-        accelerator: None,
-        enabled: true,
-        checked: true,
-    },
-    NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_SHAPE_PROPERTIES,
         title: "Shape Properties",
-        accelerator: None,
-        enabled: true,
-        checked: true,
-    },
-    NativeMenuEntry::Check {
-        id: command::WINDOW_TOOLBAR_TEXT_OPTIONS,
-        title: "Text Options",
         accelerator: None,
         enabled: true,
         checked: true,
@@ -3050,20 +3034,8 @@ mod tests {
                     Some(true)
                 ),
                 (
-                    "Window > Numeric Edits".to_string(),
-                    command::WINDOW_TOOLBAR_NUMERIC_EDITS,
-                    None,
-                    Some(true)
-                ),
-                (
                     "Window > Shape Properties".to_string(),
                     command::WINDOW_PANEL_SHAPE_PROPERTIES,
-                    None,
-                    Some(true)
-                ),
-                (
-                    "Window > Text Options".to_string(),
-                    command::WINDOW_TOOLBAR_TEXT_OPTIONS,
                     None,
                     Some(true)
                 ),

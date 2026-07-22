@@ -9,7 +9,6 @@ vi.mock('../../../utils/platform', () => ({
 }));
 vi.mock('../MenuBar', () => ({ MenuBar: () => <div>File</div> }));
 vi.mock('../MainToolbar', () => ({ MainToolbar: () => <div>MainToolbar</div> }));
-vi.mock('../PropertiesToolbar', () => ({ PropertiesToolbar: () => <div>PropertiesToolbar</div> }));
 vi.mock('../CreationToolbar', () => ({ CreationToolbar: () => <div>CreationToolbar</div> }));
 vi.mock('../NodeSubToolbar', () => ({ NodeSubToolbar: () => <div>NodeSubToolbar</div> }));
 vi.mock('../ModifiersToolbar', () => ({ ModifiersToolbar: () => <div>ModifiersToolbar</div> }));

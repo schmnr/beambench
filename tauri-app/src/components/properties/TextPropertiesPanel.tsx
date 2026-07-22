@@ -8,7 +8,9 @@ import { NumberInput } from '../shared/NumberInput';
 import { Select } from '../shared/Select';
 import { Toggle } from '../shared/Toggle';
 import type { ObjectData, TextAlignment, TextAlignmentV, TextLayoutMode } from '../../types/project';
-import { applyTextLayoutMode } from './textLayoutMode';
+import { applyTextLayoutMode, clearTextGuidePath } from './textLayoutMode';
+import { useUiStore } from '../../stores/uiStore';
+import { useNotificationStore } from '../../stores/notificationStore';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
 
 interface TextPropertiesPanelProps {
@@ -125,6 +127,43 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
           })
         }
       />
+      {effectiveMode === TEXT_LAYOUT_PATH && (
+        <div className="flex items-center gap-1.5 text-xs">
+          {data.guide_path_id ? (
+            <>
+              <span className="text-bb-text-dim text-[10px]">{t('toolbars.properties.linked')}</span>
+              <button
+                className="px-1.5 py-0.5 text-[10px] bg-bb-bg border border-bb-border rounded text-bb-text hover:bg-bb-hover h-6"
+                onClick={() => {
+                  useUiStore.getState().setPendingGuidePathText(objectId);
+                  useNotificationStore.getState().push(t('toolbars.properties.select_guide_path_hint'), 'info');
+                }}
+              >
+                {t('toolbars.properties.pick')}
+              </button>
+              <button
+                className="px-1.5 py-0.5 text-[10px] bg-bb-bg border border-bb-border rounded text-bb-text hover:bg-bb-hover h-6"
+                onClick={() => void clearTextGuidePath(objectId)}
+              >
+                {t('toolbars.properties.clear')}
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-bb-warning text-[10px]">{t('toolbars.properties.no_path')}</span>
+              <button
+                className="px-1.5 py-0.5 text-[10px] bg-bb-bg border border-bb-border rounded text-bb-text hover:bg-bb-hover h-6"
+                onClick={() => {
+                  useUiStore.getState().setPendingGuidePathText(objectId);
+                  useNotificationStore.getState().push(t('toolbars.properties.select_guide_path_hint'), 'info');
+                }}
+              >
+                {t('toolbars.properties.select_path')}
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <Toggle
           label={t('panels.text_properties.bold')}

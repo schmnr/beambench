@@ -186,9 +186,7 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.WINDOW_PANEL_MATERIAL_LIBRARY, label: 'Material Library', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_TOOLBAR_MAIN, label: 'Main', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_MOVE, label: 'Move', group: 'Window', editable: false },
-  { id: APP_COMMANDS.WINDOW_TOOLBAR_NUMERIC_EDITS, label: 'Numeric Edits', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_SHAPE_PROPERTIES, label: 'Shape Properties', group: 'Window', editable: false },
-  { id: APP_COMMANDS.WINDOW_TOOLBAR_TEXT_OPTIONS, label: 'Text Options', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_TOOLBAR_TOOLS, label: 'Tools', group: 'Window', editable: false },
   { id: APP_COMMANDS.HELP_QUICK_HELP, label: 'Quick Help', group: 'Help', defaultHotkey: 'F1', editable: true },
 ];

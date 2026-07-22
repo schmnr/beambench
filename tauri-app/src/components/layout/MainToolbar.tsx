@@ -305,7 +305,7 @@ export function MainToolbar() {
       >
         B
       </span>
-      <span className="mx-2 max-w-48 truncate text-xs font-medium text-bb-text">
+      <span className="mx-2 max-w-64 truncate text-xs font-medium text-bb-text">
         {project?.metadata.project_name ?? t('toolbars.main.untitled_project')}
         {project?.dirty ? (
           <span className="text-bb-accent ml-1" title={t('status.unsaved_changes')}>*</span>

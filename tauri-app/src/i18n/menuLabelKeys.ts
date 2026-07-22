@@ -206,8 +206,6 @@ export const MENU_LABEL_KEYS = {
   Modifiers: 'menus.window.modifiers',
   Docking: 'menus.window.docking',
   Main: 'menus.window.main',
-  'Numeric Edits': 'menus.window.numeric_edits',
-  'Text Options': 'menus.window.text_options',
   Language: 'menus.language.label',
   'en-XA (Pseudo-locale)': 'menus.language.pseudo_locale',
   Help: 'menus.help.label',
