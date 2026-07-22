@@ -8,6 +8,7 @@ import { ModifiersToolbar } from './ModifiersToolbar';
 import { StatusBar } from './StatusBar';
 import { RightPanel } from './RightPanel';
 import { RunPanel } from './RunPanel';
+import { RunRail } from './RunRail';
 import { LeftPanel } from './LeftPanel';
 import { BottomPanel } from './BottomPanel';
 import { PanelResizer } from './PanelResizer';
@@ -88,6 +89,8 @@ export function AppShell() {
               </>
               )}
             </div>
+            {/* Run mode: machine rail with flyouts */}
+            {runMode && <RunRail />}
             {/* Library drawer overlays the canvas next to the rail */}
             {!runMode && <LibraryDrawer />}
             {/* Left panel zone (between toolbars and canvas) */}

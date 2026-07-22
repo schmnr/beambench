@@ -4,11 +4,12 @@ import { useMachineStore } from '../../stores/machineStore';
 import { getPanelById, PANEL_COMPONENTS } from '../../panels';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 
-const RUN_TABS = ['laser', 'cuts_layers', 'move', 'console', 'macros'] as const;
+const RUN_TABS = ['laser', 'cuts_layers'] as const;
 
 /**
  * Run-mode right panel: one floating card, machine-first. Laser Control
- * leads; layers (cut order), jog, console, and macros ride along as tabs.
+ * leads with the layer run order beside it; jog/console/macros live on the
+ * Run rail.
  */
 export function RunPanel() {
   const { t } = useTranslation();
