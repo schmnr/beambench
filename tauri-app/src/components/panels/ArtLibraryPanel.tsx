@@ -23,15 +23,11 @@ const inputClass =
 const detailMutedClass = 'text-[11px] text-bb-text-dim';
 const sectionHeaderClass = 'text-xs font-medium text-bb-accent uppercase tracking-wider';
 const ICON_SIZE_STORAGE_KEY = 'beam-bench.art-library.icon-size';
-const SIDEBAR_WIDTH_STORAGE_KEY = 'beam-bench.art-library.sidebar-width';
 const FOOTER_HEIGHT_STORAGE_KEY = 'beam-bench.art-library.footer-height';
 const ACTION_BAR_HEIGHT_STORAGE_KEY = 'beam-bench.art-library.action-bar-height';
 const DEFAULT_ICON_SIZE = 128;
 const MIN_ICON_SIZE = 96;
 const MAX_ICON_SIZE = 160;
-const DEFAULT_SIDEBAR_WIDTH = 170;
-const MIN_SIDEBAR_WIDTH = 120;
-const MAX_SIDEBAR_WIDTH = 340;
 const DEFAULT_FOOTER_HEIGHT = 34;
 const MIN_FOOTER_HEIGHT = 28;
 const MAX_FOOTER_HEIGHT = 160;
@@ -216,9 +212,6 @@ export function ArtLibraryPanel() {
   const [renameDialog, setRenameDialog] = useState<RenameDialogState | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
   const [iconSize, setIconSize] = useState<number>(readStoredIconSize);
-  const [sidebarWidth, setSidebarWidth] = useState<number>(() =>
-    readStoredSize(SIDEBAR_WIDTH_STORAGE_KEY, DEFAULT_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH),
-  );
   const [footerHeight, setFooterHeight] = useState<number>(() =>
     readStoredSize(FOOTER_HEIGHT_STORAGE_KEY, DEFAULT_FOOTER_HEIGHT, MIN_FOOTER_HEIGHT, MAX_FOOTER_HEIGHT),
   );
@@ -239,12 +232,6 @@ export function ArtLibraryPanel() {
   useEffect(() => {
     const storage = getStorage();
     if (!storage) return;
-    storage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
-  }, [sidebarWidth]);
-
-  useEffect(() => {
-    const storage = getStorage();
-    if (!storage) return;
     storage.setItem(FOOTER_HEIGHT_STORAGE_KEY, String(footerHeight));
   }, [footerHeight]);
 
@@ -254,9 +241,6 @@ export function ArtLibraryPanel() {
     storage.setItem(ACTION_BAR_HEIGHT_STORAGE_KEY, String(actionBarHeight));
   }, [actionBarHeight]);
 
-  const handleSidebarResize = (delta: number) => {
-    setSidebarWidth((w) => Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, w + delta)));
-  };
 
   const handleFooterResize = (delta: number) => {
     setFooterHeight((h) => Math.max(MIN_FOOTER_HEIGHT, Math.min(MAX_FOOTER_HEIGHT, h + delta)));
@@ -427,10 +411,10 @@ export function ArtLibraryPanel() {
   return (
     <div className="h-full min-h-0 overflow-hidden px-2 py-2 text-xs text-bb-text">
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5">
           <div
             className="flex min-h-0 flex-col rounded border border-bb-border bg-bb-surface"
-            style={{ width: sidebarWidth, flex: '0 0 auto' }}
+            style={{ height: 108, flex: '0 0 auto' }}
           >
             <div className="min-h-0 flex-1 overflow-y-auto py-1" data-testid="art-library-list">
               {libraries.length === 0 ? (
@@ -524,10 +508,6 @@ export function ArtLibraryPanel() {
                 })
               )}
             </div>
-          </div>
-
-          <div className="mx-1.5 flex items-stretch">
-            <PanelResizer direction="left" onResize={handleSidebarResize} />
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
