@@ -7,6 +7,7 @@ import { projectService } from '../../services/projectService';
 import { NumberInput } from '../shared/NumberInput';
 import { SubLayerStack } from '../properties/SubLayerStack';
 import { PALETTE_COLORS } from '../../constants/palette';
+import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { CheckSquare, ClipboardCopy, ClipboardPaste, Lock } from 'lucide-react';
 import type { Layer, OperationType, VectorSettings } from '../../types/project';
@@ -460,7 +461,15 @@ export function LayerList() {
                     className="absolute left-0 top-full z-50 mt-1 grid grid-cols-10 gap-1 rounded-lg border border-bb-border bg-bb-panel p-2 shadow-lg"
                     data-testid="layer-color-picker"
                   >
-                    {PALETTE_COLORS.filter((c) => !c.is_tool_layer).map((c) => (
+                    {PALETTE_COLORS.filter((c) => {
+                      if (c.is_tool_layer) return false;
+                      // Hide colors already used by other layers — one color,
+                      // one layer family. The current layer's own color stays.
+                      if (normColor(c.hex) === normColor(activeLayer.color_tag)) return true;
+                      return !layers.some(
+                        (l) => l.id !== activeLayer.id && normColor(l.color_tag) === normColor(c.hex),
+                      );
+                    }).map((c) => (
                       <button
                         key={c.hex}
                         className="h-4 w-4 rounded-sm border border-bb-border hover:ring-1 hover:ring-bb-accent"
