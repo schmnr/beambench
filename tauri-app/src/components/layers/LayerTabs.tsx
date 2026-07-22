@@ -129,13 +129,17 @@ export function LayerTabs() {
               setDragIndex(null);
               setDropIndex(null);
             }}
-            className={`relative flex flex-shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-2.5 text-xxs ${
-              active ? 'py-1.5 font-semibold shadow-sm' : 'py-1 opacity-80 hover:opacity-100'
+            className={`relative flex items-center gap-1.5 rounded-t-lg border border-b-0 px-2.5 text-xxs ${
+              active
+                ? 'flex-shrink-0 py-1.5 font-semibold shadow-sm'
+                : 'min-w-0 flex-shrink py-1 opacity-80 hover:opacity-100'
             } ${dragIndex === index ? 'opacity-40' : ''}`}
             style={{
               ...(active ? tabColors.active : tabColors.inactive),
               marginLeft: index === 0 ? 0 : -8,
               zIndex: active ? 30 : 20 - Math.min(index, 15),
+              // Inactive tabs compress browser-style; active keeps full detail.
+              ...(active ? {} : { maxWidth: '8rem', minWidth: '1.9rem' }),
               ...(dropIndex === index
                 ? { outline: '2px solid rgb(var(--bb-accent))', outlineOffset: -2 }
                 : {}),
@@ -146,16 +150,18 @@ export function LayerTabs() {
               className="h-2 w-2 flex-shrink-0 rounded-full"
               style={{ backgroundColor: layer.color_tag }}
             />
-            <span className="max-w-24 truncate">{layer.name}</span>
-            {!layer.is_tool_layer && entry && (
-              <span style={{ color: tabColors.dim }}>
+            <span className="min-w-0 max-w-32 truncate">{layer.name}</span>
+            {active && !layer.is_tool_layer && entry && (
+              <span className="flex-shrink-0" style={{ color: tabColors.dim }}>
                 {formatSpeedForDisplay(entry.speed_mm_min ?? 1000, displayUnit, speedTimeUnit)}/{entry.power_percent ?? 50}%
               </span>
             )}
+            {(active || hidden) && (
             <span
               role="button"
               tabIndex={0}
               aria-label={t('panels.layers.header.show')}
+              className="flex-shrink-0"
               style={{ color: hidden ? tabColors.dim : undefined, opacity: hidden ? 0.6 : 1 }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -170,6 +176,7 @@ export function LayerTabs() {
             >
               {hidden ? <EyeOff size={11} /> : <Eye size={11} />}
             </span>
+            )}
           </button>
         );
       })}
