@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { invoke } from '@tauri-apps/api/core';
 import { LayerList } from '../LayerList';
+import { LayerTabs } from '../LayerTabs';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
@@ -40,21 +41,6 @@ afterEach(() => {
 });
 
 describe('LayerList', () => {
-  it('renders table header with column labels', () => {
-    const layer = makeLayer();
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [], assets: [] }),
-    });
-
-    render(<LayerList />);
-
-    const header = screen.getByTestId('layer-table-header');
-    expect(header).toBeDefined();
-    expect(header.textContent).toContain('#');
-    expect(header.textContent).toContain('Mode');
-    expect(header.textContent).toContain('Spd/Pwr');
-  });
-
   it('displays layer IDs as C00, C01, T1 based on color', () => {
     const layers = [
       makeLayer({ id: 'l1', name: '', color_tag: '#000000' }), // C00 Black
@@ -65,9 +51,9 @@ describe('LayerList', () => {
       project: makeProject({ layers, objects: [], assets: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     expect(labels[0].textContent).toBe('C00');
     expect(labels[1].textContent).toBe('C01');
     expect(labels[2].textContent).toBe('T1');
@@ -87,7 +73,7 @@ describe('LayerList', () => {
 
     render(<LayerList />);
 
-    const modeSelect = screen.getByTestId('mode-select');
+    const modeSelect = screen.getByTestId('quick-edit-mode');
     expect((modeSelect as HTMLSelectElement).value).toBe('line');
 
     fireEvent.change(modeSelect, { target: { value: 'fill' } });
@@ -108,8 +94,8 @@ describe('LayerList', () => {
     render(<LayerList />);
 
     // Image layers must NOT render the mode dropdown — image mode is immutable.
-    expect(screen.queryByTestId('mode-select')).toBeNull();
-    const label = screen.getByTestId('mode-image-label');
+    expect(screen.queryByTestId('quick-edit-mode')).toBeNull();
+    const label = screen.getByTestId('quick-edit-mode-image');
     expect(label.textContent).toBe('Image');
   });
 
@@ -126,16 +112,12 @@ describe('LayerList', () => {
       selectedLayerId: 't1',
     });
 
-    render(<LayerList />);
+    render(<><LayerTabs /><LayerList /></>);
 
-    expect(screen.getByTestId('layer-label').textContent).toBe('T1');
-    expect(screen.getByTestId('color-swatch').textContent).toBe('T1');
-    expect(screen.getByTestId('mode-tool-label').textContent).toBe('Tool');
-    expect(screen.getByTestId('speed-power').textContent).toBe('Frame');
+    expect(screen.getByTestId('tab-label').textContent).toBe('T1');
     expect(screen.getByTestId('frame-toggle')).toBeDefined();
-    expect(screen.queryByTestId('mode-select')).toBeNull();
-    expect(screen.queryByTestId('output-toggle')).toBeNull();
     expect(screen.getByTestId('show-toggle')).toBeDefined();
+    expect(screen.queryByTestId('output-toggle')).toBeNull();
     expect(screen.queryByTestId('air-toggle')).toBeNull();
     expect(screen.queryByTestId('quick-edit')).toBeNull();
   });
@@ -179,9 +161,9 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [], assets: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.doubleClick(screen.getByTestId('layer-row'));
+    fireEvent.doubleClick(screen.getByTestId('layer-tab'));
 
     expect(screen.queryByTestId('cut-settings-overlay')).toBeNull();
   });
@@ -198,10 +180,10 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [], assets: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
     // Should display the current family label "C00", not the stale "C02 (Image)"
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     expect(labels[0].textContent).toBe('C00');
   });
 
@@ -222,14 +204,11 @@ describe('LayerList', () => {
       project: makeProject({ layers: [blue, green], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     expect(labels[0].textContent).toBe('C01');
     expect(labels[1].textContent).toBe('C03');
-    const swatches = screen.getAllByTestId('color-swatch');
-    expect(swatches[0].textContent).toBe('01');
-    expect(swatches[1].textContent).toBe('03');
   });
 
   it('two layers can share the same color tag (Image + Line on C00)', () => {
@@ -251,18 +230,14 @@ describe('LayerList', () => {
       project: makeProject({ layers: [imageLayer, lineLayer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<><LayerTabs /><LayerList /></>);
 
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     // Both rows should display "C00" because both are tagged with the first palette color.
     expect(labels[0].textContent).toBe('C00');
     expect(labels[1].textContent).toBe('C00');
-    const swatches = screen.getAllByTestId('color-swatch');
-    expect(swatches[0].textContent).toBe('00');
-    expect(swatches[1].textContent).toBe('00');
-    // Image layer renders plain label, Line layer renders dropdown.
-    expect(screen.getByTestId('mode-image-label').textContent).toBe('Image');
-    expect(screen.getByTestId('mode-select')).toBeDefined();
+    // Active layer (first = image) shows the plain Image label in quick-edit.
+    expect(screen.getByTestId('quick-edit-mode-image').textContent).toBe('Image');
   });
 
   it('collapses auto-generated family names like C00 (Line) back to C00 in the Layer column', () => {
@@ -284,9 +259,9 @@ describe('LayerList', () => {
       project: makeProject({ layers: [imageLayer, lineLayer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     expect(labels[0].textContent).toBe('C00');
     expect(labels[1].textContent).toBe('C00');
   });
@@ -385,7 +360,7 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
     const summary = screen.getByTestId('speed-power');
     expect(summary.textContent).toBe('5000/65%');
@@ -425,7 +400,7 @@ describe('LayerList', () => {
     const updateCutEntrySpy = vi.fn();
     useProjectStore.setState({ updateCutEntry: updateCutEntrySpy });
 
-    render(<LayerList />);
+    render(<><LayerTabs /><LayerList /></>);
 
     expect(screen.getByTestId('speed-power').textContent).toBe('50/65%');
     expect(screen.getByText('Speed (mm/sec)')).toBeDefined();
@@ -478,12 +453,11 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
     expect(screen.queryByTestId('cut-settings-overlay')).toBeNull();
 
-    const layerRow = screen.getByTestId('layer-row');
-    fireEvent.doubleClick(layerRow);
+    fireEvent.doubleClick(screen.getByTestId('layer-tab'));
 
     expect(screen.getByTestId('cut-settings-overlay')).toBeDefined();
     expect(screen.getByTestId('layer-name-input')).toBeDefined();
@@ -497,7 +471,7 @@ describe('LayerList', () => {
 
     render(<LayerList />);
 
-    const swatch = screen.getByTestId('color-swatch');
+    const swatch = screen.getByTestId('quick-edit-color');
     expect(swatch.style.backgroundColor).toBe('rgb(255, 0, 0)');
     // Swatch is a div, not a button — not clickable
     expect(swatch.tagName).toBe('DIV');
@@ -568,7 +542,7 @@ describe('LayerList', () => {
     });
 
     render(<LayerList />);
-    fireEvent.change(screen.getByTestId('mode-select'), { target: { value: 'fill' } });
+    fireEvent.change(screen.getByTestId('quick-edit-mode'), { target: { value: 'fill' } });
 
     await waitFor(() => {
       expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('mode failed'), 'error');
@@ -652,9 +626,9 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [obj] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const layerRow = screen.getByTestId('layer-row');
+    const layerRow = screen.getByTestId('layer-tab');
     fireEvent.contextMenu(layerRow);
 
     // Context menu renders via microtask so we need to wait
@@ -683,9 +657,9 @@ describe('LayerList', () => {
       selectObjects: selectObjectsSpy,
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.click(screen.getByTestId('layer-row'), { shiftKey: true });
+    fireEvent.click(screen.getByTestId('layer-tab'), { shiftKey: true });
 
     expect(selectObjectsSpy).toHaveBeenCalledWith(['obj-2', 'obj-1']);
   });
@@ -698,9 +672,9 @@ describe('LayerList', () => {
     });
     useUiStore.setState({ flashLayer: flashLayerSpy });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.contextMenu(screen.getByTestId('layer-row'), { shiftKey: true });
+    fireEvent.contextMenu(screen.getByTestId('layer-tab'), { shiftKey: true });
 
     expect(flashLayerSpy).toHaveBeenCalledWith('l1');
     await Promise.resolve();
@@ -716,9 +690,9 @@ describe('LayerList', () => {
     const updateLayerSpy = vi.fn();
     useProjectStore.setState({ updateLayer: updateLayerSpy });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const layerRow = screen.getByTestId('layer-row');
+    const layerRow = screen.getByTestId('layer-tab');
     fireEvent.contextMenu(layerRow);
 
     await waitFor(() => {
@@ -737,23 +711,23 @@ describe('LayerList', () => {
       updateLayer: updateLayerSpy,
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.contextMenu(screen.getByTestId('layer-row'));
+    fireEvent.contextMenu(screen.getByTestId('layer-tab'));
     await waitFor(() => {
       expect(screen.getByTestId('context-menu')).toBeDefined();
     });
     fireEvent.click(screen.getByText('Rename'));
 
-    const input = screen.getByTestId('rename-input');
+    const input = screen.getByTestId('tab-rename-input');
     fireEvent.change(input, { target: { value: 'Renamed Layer' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
       expect(updateLayerSpy).toHaveBeenCalledWith('l1', { name: 'Renamed Layer' });
     });
-    expect(screen.getByTestId('rename-input')).toBeDefined();
-    expect((screen.getByTestId('rename-input') as HTMLInputElement).value).toBe('Renamed Layer');
+    expect(screen.getByTestId('tab-rename-input')).toBeDefined();
+    expect((screen.getByTestId('tab-rename-input') as HTMLInputElement).value).toBe('Renamed Layer');
   });
 
   it('locks a layer through the batch lock action instead of per-object updates', () => {
@@ -811,9 +785,9 @@ describe('LayerList', () => {
       project: makeProject({ layers: [srcLayer, dstLayer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const rows = screen.getAllByTestId('layer-row');
+    const rows = screen.getAllByTestId('layer-tab');
     fireEvent.contextMenu(rows[0]);
     await waitFor(() => {
       expect(screen.getByText('Copy Settings')).toBeDefined();
@@ -888,7 +862,7 @@ describe('LayerList', () => {
 
     render(<LayerList />);
 
-    fireEvent.change(screen.getByTestId('mode-select'), { target: { value: 'fill' } });
+    fireEvent.change(screen.getByTestId('quick-edit-mode'), { target: { value: 'fill' } });
 
     await waitFor(() => {
       const notifications = useNotificationStore.getState().notifications;
@@ -913,9 +887,9 @@ describe('LayerList', () => {
     const selectObjectsSpy = vi.fn();
     useProjectStore.setState({ selectObjects: selectObjectsSpy });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const layerRow = screen.getByTestId('layer-row');
+    const layerRow = screen.getByTestId('layer-tab');
     fireEvent.contextMenu(layerRow);
 
     await waitFor(() => {

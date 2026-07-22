@@ -9,6 +9,12 @@ import { wrapBackendError } from '../../i18n/errors';
 import { resolveDestinationLayer, normColor } from '../../stores/layerFamilyResolver';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { formatSpeedForDisplay } from '../../utils/speedUnits';
+import { useUiStore } from '../../stores/uiStore';
+import { ContextMenu } from '../shared/ContextMenu';
+import { buildLayerContextMenuItems } from './layerMenuItems';
+import { buildLayerListHeaderMenuItems } from './LayerListHeaderMenu';
+import { CutSettingsEditor } from './CutSettingsEditor';
+import { displayLayerName } from './layerNaming';
 
 /**
  * Layer tabs above the workspace. One tab per layer: color dot, name,
@@ -28,11 +34,24 @@ export function LayerTabs() {
   const updateLayer = useProjectStore((s) => s.updateLayer);
   const loadProject = useProjectStore((s) => s.loadProject);
   const reorderLayer = useProjectStore((s) => s.reorderLayer);
+  const selectObjects = useProjectStore((s) => s.selectObjects);
+  const copyLayerSettings = useProjectStore((s) => s.copyLayerSettings);
+  const pasteLayerSettings = useProjectStore((s) => s.pasteLayerSettings);
+  const setAllLayersEnabled = useProjectStore((s) => s.setAllLayersEnabled);
+  const setAllLayersVisible = useProjectStore((s) => s.setAllLayersVisible);
+  const sortLayersCutLast = useProjectStore((s) => s.sortLayersCutLast);
+  const flashLayer = useUiStore((s) => s.flashLayer);
+  const layerSettingsClipboard = useUiStore((s) => s.layerSettingsClipboard);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) === 'inches' ? 'inches' : 'mm';
   const speedTimeUnit = useAppStore((s) => s.settings?.speed_time_unit) === 'seconds' ? 'seconds' : 'minutes';
   const canvasDark = useAppStore((s) => s.settings?.dark_mode) === true;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
+  const [stripMenu, setStripMenu] = useState<{ x: number; y: number } | null>(null);
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   if (!project) return null;
 
@@ -53,11 +72,28 @@ export function LayerTabs() {
 
   const hasSelection = selectedObjectIds.length > 0;
 
-  const handleTabClick = (layerId: string) => {
+  const handleTabClick = (layerId: string, shiftKey: boolean) => {
+    if (shiftKey) {
+      // Shift-click selects all objects on the layer (old row behavior).
+      const layerObjIds = project.objects
+        .filter((o) => o.layer_id === layerId)
+        .map((o) => o.id)
+        .reverse();
+      selectObjects(layerObjIds);
+      return;
+    }
     if (hasSelection) {
       void reassignLayer(selectedObjectIds, layerId);
     }
     selectLayer(layerId);
+  };
+
+  const handleCommitRename = async () => {
+    if (renamingLayerId && renameValue.trim()) {
+      const renamed = await updateLayer(renamingLayerId, { name: renameValue.trim() });
+      if (!renamed) return;
+    }
+    setRenamingLayerId(null);
   };
 
   const handleToggleVisible = async (layerId: string, visible: boolean) => {
@@ -93,16 +129,41 @@ export function LayerTabs() {
   };
 
   return (
-    <div className="no-select flex items-end overflow-x-auto scrollbar-none px-3 pt-2 bg-bb-bg">
+    <div
+      className="no-select flex items-end overflow-x-auto scrollbar-none px-3 pt-2 bg-bb-bg"
+      onContextMenu={(e) => {
+        // Right-click on the strip background: batch enable/show/sort menu.
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+          setStripMenu({ x: e.clientX, y: e.clientY });
+        }
+      }}
+    >
       {project.layers.map((layer, index) => {
-        const active = layer.id === selectedLayerId;
+        const activeLayerId = selectedLayerId ?? project.layers[0]?.id;
+        const active = layer.id === activeLayerId;
         const entry = layer.entries[0];
         const hidden = layer.visible === false;
         return (
           <button
             key={layer.id}
-            onClick={() => handleTabClick(layer.id)}
+            onClick={(e) => handleTabClick(layer.id, e.shiftKey)}
+            onDoubleClick={() => {
+              if (!layer.is_tool_layer) setEditingLayerId(layer.id);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              selectLayer(layer.id);
+              if (e.shiftKey) {
+                // Shift-right-click: flash the layer's content instead of a menu.
+                flashLayer(layer.id);
+                return;
+              }
+              queueMicrotask(() => setContextMenu({ x: e.clientX, y: e.clientY, layerId: layer.id }));
+            }}
             draggable
+            data-testid="layer-tab"
             onDragStart={(e) => {
               setDragIndex(index);
               e.dataTransfer.effectAllowed = 'move';
@@ -150,9 +211,25 @@ export function LayerTabs() {
               className="h-2 w-2 flex-shrink-0 rounded-full"
               style={{ backgroundColor: layer.color_tag }}
             />
-            <span className="min-w-0 max-w-32 truncate">{layer.name}</span>
+            {renamingLayerId === layer.id ? (
+              <input
+                autoFocus
+                className="w-24 rounded border border-bb-accent bg-bb-input px-0.5 text-xxs text-bb-text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={() => { void handleCommitRename(); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleCommitRename();
+                  if (e.key === 'Escape') setRenamingLayerId(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                data-testid="tab-rename-input"
+              />
+            ) : (
+              <span className="min-w-0 max-w-32 truncate" data-testid="tab-label">{displayLayerName(layer)}</span>
+            )}
             {active && !layer.is_tool_layer && entry && (
-              <span className="flex-shrink-0" style={{ color: tabColors.dim }}>
+              <span className="flex-shrink-0" data-testid="speed-power" style={{ color: tabColors.dim }}>
                 {formatSpeedForDisplay(entry.speed_mm_min ?? 1000, displayUnit, speedTimeUnit)}/{entry.power_percent ?? 50}%
               </span>
             )}
@@ -189,6 +266,58 @@ export function LayerTabs() {
       >
         <Plus size={12} />
       </button>
+
+      {/* Per-layer context menu (ported from the layer table rows) */}
+      {contextMenu && (() => {
+        const ctxLayer = project.layers.find((l) => l.id === contextMenu.layerId);
+        if (!ctxLayer) return null;
+        return (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={buildLayerContextMenuItems(t, ctxLayer, project.objects, {
+              toggleEnabled: (layerId, enabled) => void updateLayer(layerId, { enabled }),
+              toggleVisible: (layerId, visible) => void handleToggleVisible(layerId, visible),
+              selectObjects,
+              copySettings: (layer) => { if (!layer.is_tool_layer) copyLayerSettings(layer.id); },
+              pasteSettings: (layerId) => void pasteLayerSettings(layerId),
+              startRename: (layerId) => {
+                const layer = project.layers.find((l) => l.id === layerId);
+                setRenamingLayerId(layerId);
+                setRenameValue(layer?.name ?? '');
+              },
+              hasClipboard: layerSettingsClipboard !== null && layerSettingsClipboard.length > 0,
+              disableAllButThis: (layerId) => void setAllLayersEnabled({ kind: 'only_this_on', keep: layerId }),
+              hideAllButThis: (layerId) => void setAllLayersVisible({ kind: 'only_this_on', keep: layerId }),
+              flashLayer: (layerId) => flashLayer(layerId),
+            })}
+            onClose={() => setContextMenu(null)}
+          />
+        );
+      })()}
+
+      {/* Strip background menu: enable/show all, sort cuts last */}
+      {stripMenu && (
+        <ContextMenu
+          x={stripMenu.x}
+          y={stripMenu.y}
+          items={buildLayerListHeaderMenuItems(t, {
+            setAllLayersEnabled: (mode) => void setAllLayersEnabled(mode),
+            setAllLayersVisible: (mode) => void setAllLayersVisible(mode),
+            sortLayersCutLast: () => void sortLayersCutLast(),
+          })}
+          onClose={() => setStripMenu(null)}
+        />
+      )}
+
+      {/* Double-click: full per-layer cut settings editor */}
+      {editingLayerId && (
+        <CutSettingsEditor
+          layerId={editingLayerId}
+          onClose={() => setEditingLayerId(null)}
+          onSwitchLayer={(newId) => setEditingLayerId(newId)}
+        />
+      )}
     </div>
   );
 }
