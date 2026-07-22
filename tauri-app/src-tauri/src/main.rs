@@ -19,7 +19,11 @@ use tauri::{Emitter, Manager};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+// Debug builds use a separate lock so a dev app can run beside an installed release.
+#[cfg(not(debug_assertions))]
 const SINGLE_INSTANCE_LOCK_ADDR: &str = "127.0.0.1:47683";
+#[cfg(debug_assertions)]
+const SINGLE_INSTANCE_LOCK_ADDR: &str = "127.0.0.1:47684";
 const DESIGN_RENDER_TEMP_PREFIX: &str = "beambench-design-render-";
 const DESIGN_RENDER_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
