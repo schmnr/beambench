@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AlignmentType, DistributionDirection } from '../../types/project';
 import { useProjectStore } from '../../stores/projectStore';
+import { useMachineStore } from '../../stores/machineStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { usePreviewStore } from '../../stores/previewStore';
@@ -60,6 +61,13 @@ function MacroToolbarIcon({ number }: { number: number }) {
   );
 }
 
+const CONNECTION_DOT_COLORS: Record<string, string> = {
+  disconnected: 'bg-gray-500',
+  connecting: 'bg-yellow-500',
+  ready: 'bg-green-500',
+  alarm: 'bg-red-500',
+};
+
 const FLIP_HORIZONTAL = 'horizontal' as const;
 const FLIP_VERTICAL = 'vertical' as const;
 const ALIGN_LEFT = 'left' as const;
@@ -103,6 +111,8 @@ export function MainToolbar() {
   const zoomToFit = useUiStore((s) => s.zoomToFit);
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
   const hasClipboard = useUiStore((s) => s.hasClipboard);
+
+  const sessionState = useMachineStore((s) => s.sessionState);
 
   const canUndo = useUndoStore((s) => s.canUndo);
   const canRedo = useUndoStore((s) => s.canRedo);
@@ -283,8 +293,29 @@ export function MainToolbar() {
     return null;
   }
 
+  const normalizedSessionState = sessionState ?? 'disconnected';
+  const connectionDot = CONNECTION_DOT_COLORS[normalizedSessionState] ?? 'bg-gray-500';
+  const connectionLabel = t(`status.connection.${normalizedSessionState}`, {
+    defaultValue:
+      normalizedSessionState.charAt(0).toUpperCase() + normalizedSessionState.slice(1),
+  });
+
   return (
-    <div className="no-select flex items-center h-9 bg-bb-panel px-2 gap-0.5 text-xs border-b border-bb-border">
+    <div className="no-select flex items-center h-11 bg-bb-panel px-3 gap-0.5 text-xs border-b border-bb-border">
+      {/* Brand + project identity */}
+      <span
+        aria-hidden="true"
+        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-bb-accent text-[13px] font-extrabold text-bb-on-accent"
+      >
+        B
+      </span>
+      <span className="mx-2 max-w-48 truncate text-xs font-medium text-bb-text">
+        {project?.name ?? t('toolbars.main.untitled_project')}
+        {project?.dirty ? (
+          <span className="text-bb-accent ml-1" title={t('status.unsaved_changes')}>*</span>
+        ) : null}
+      </span>
+      <Separator />
       {showMain && (
         <>
       {/* File group */}
@@ -409,6 +440,13 @@ export function MainToolbar() {
           })}
         </>
       )}
+
+      {/* Right side: machine connection pill */}
+      <div className="flex-1" />
+      <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-bb-surface-2 px-3 py-1 text-xxs text-bb-text-muted">
+        <span className={`h-2 w-2 rounded-full ${connectionDot}`} />
+        <span>{connectionLabel}</span>
+      </span>
 
       {showDeviceSettings && (
         <DeviceSettingsDialog onClose={() => setShowDeviceSettings(false)} />
