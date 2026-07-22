@@ -5,6 +5,8 @@ import { useUiStore } from '../../stores/uiStore';
 import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
 import { NumberInput } from '../shared/NumberInput';
+import { SubLayerStack } from '../properties/SubLayerStack';
+import { PALETTE_COLORS } from '../../constants/palette';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { CheckSquare, ClipboardCopy, ClipboardPaste, Lock } from 'lucide-react';
 import type { Layer, OperationType, VectorSettings } from '../../types/project';
@@ -137,6 +139,7 @@ export function LayerList() {
   const speedStep = speedStepForUnit(displayUnit, speedTimeUnit);
   const maxDisplaySpeed = speedMmMinToDisplay(50000, displayUnit, speedTimeUnit);
   const minDisplaySpeed = speedMmMinToDisplay(1, displayUnit, speedTimeUnit);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [optimisticToolFrameBounds, setOptimisticToolFrameBounds] = useState<boolean | null>(null);
 
   // M4: app-scoped clipboard via uiStore (replaces the old narrow component-local useRef).
@@ -440,14 +443,38 @@ export function LayerList() {
                 </select>
               )}
             </div>
-            {/* Color swatch (read-only — use palette bar to reassign) */}
-            <div className="flex items-center gap-1.5 text-xs">
+            {/* Color swatch — click to pick a palette color for the layer */}
+            <div className="relative flex items-center gap-1.5 text-xs">
               <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
-              <div
-                className="w-5 h-4 rounded-sm border border-bb-border shrink-0"
+              <button
+                className="w-5 h-4 rounded-sm border border-bb-border shrink-0 hover:ring-1 hover:ring-bb-accent"
                 data-testid="quick-edit-color"
                 style={{ backgroundColor: activeLayer.color_tag }}
+                onClick={() => setShowColorPicker((v) => !v)}
+                aria-label={t('panels.layers.quick_edit.color')}
               />
+              {showColorPicker && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowColorPicker(false)} />
+                  <div
+                    className="absolute left-0 top-full z-50 mt-1 grid grid-cols-10 gap-1 rounded-lg border border-bb-border bg-bb-panel p-2 shadow-lg"
+                    data-testid="layer-color-picker"
+                  >
+                    {PALETTE_COLORS.filter((c) => !c.is_tool_layer).map((c) => (
+                      <button
+                        key={c.hex}
+                        className="h-4 w-4 rounded-sm border border-bb-border hover:ring-1 hover:ring-bb-accent"
+                        style={{ backgroundColor: c.hex }}
+                        title={c.name}
+                        onClick={() => {
+                          setShowColorPicker(false);
+                          void updateLayer(activeLayer.id, { color_tag: c.hex });
+                        }}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Speed */}
@@ -556,6 +583,12 @@ export function LayerList() {
         </div>
       )}
 
+      {/* Sub-layer stack (multi-pass entries) for the selected layer */}
+      {activeLayer && !activeLayer.is_tool_layer && (
+        <div className="border-t border-bb-border px-2 py-1.5">
+          <SubLayerStack layerId={activeLayer.id} />
+        </div>
+      )}
     </div>
   );
 }

@@ -403,7 +403,7 @@ describe('LayerList', () => {
     render(<><LayerTabs /><LayerList /></>);
 
     expect(screen.getByTestId('speed-power').textContent).toBe('50/65%');
-    expect(screen.getByText('Speed (mm/sec)')).toBeDefined();
+    expect(screen.getAllByText('Speed (mm/sec)').length).toBeGreaterThanOrEqual(1);
 
     const quickEdit = screen.getByTestId('quick-edit');
     const inputs = quickEdit.querySelectorAll('input[type="number"]');
@@ -463,18 +463,27 @@ describe('LayerList', () => {
     expect(screen.getByTestId('layer-name-input')).toBeDefined();
   });
 
-  it('color swatch displays the layer color (read-only)', () => {
+  it('color swatch shows the layer color and opens the palette picker', () => {
     const layer = makeLayer({ id: 'l1', color_tag: '#FF0000' });
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
     useProjectStore.setState({
       project: makeProject({ layers: [layer], objects: [] }),
+      updateLayer: updateLayerSpy,
     });
 
     render(<LayerList />);
 
     const swatch = screen.getByTestId('quick-edit-color');
     expect(swatch.style.backgroundColor).toBe('rgb(255, 0, 0)');
-    // Swatch is a div, not a button — not clickable
-    expect(swatch.tagName).toBe('DIV');
+
+    fireEvent.click(swatch);
+    const picker = screen.getByTestId('layer-color-picker');
+    const colorButtons = picker.querySelectorAll('button');
+    expect(colorButtons.length).toBe(30);
+
+    fireEvent.click(colorButtons[2]);
+    expect(updateLayerSpy).toHaveBeenCalledWith('l1', { color_tag: expect.stringMatching(/^#/) });
+    expect(screen.queryByTestId('layer-color-picker')).toBeNull();
   });
 
   it('shows empty state when no layers', () => {
