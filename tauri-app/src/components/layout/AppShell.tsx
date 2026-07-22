@@ -80,11 +80,13 @@ export function AppShell() {
           {/* Content row */}
           <div className="flex-1 flex min-h-0">
             {/* Left icon toolbars */}
-            <div className="flex flex-shrink-0 min-h-0 overflow-y-auto scrollbar-none">
-              <div className="flex flex-col flex-shrink-0">
-                {toolbarVisibility.tools && <CreationToolbar />}
-                {toolbarVisibility.modifiers && <ModifiersToolbar />}
-              </div>
+            <div className="flex flex-shrink-0 min-h-0 overflow-y-auto scrollbar-none bg-bb-bg">
+              {(toolbarVisibility.tools || toolbarVisibility.modifiers) && (
+                <div className="my-2 ml-2 flex flex-col flex-shrink-0 self-start overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-lg">
+                  {toolbarVisibility.tools && <CreationToolbar />}
+                  {toolbarVisibility.modifiers && <ModifiersToolbar />}
+                </div>
+              )}
               {toolbarVisibility.tools && <NodeSubToolbar />}
             </div>
             {/* Left panel zone (between toolbars and canvas) */}

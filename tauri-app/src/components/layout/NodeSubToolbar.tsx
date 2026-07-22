@@ -42,7 +42,7 @@ const BreakAtNodeIcon = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M3 17 Q7 8 11 10" />
     <path d="M13 10 Q17 8 21 17" />
-    <rect x="9.5" y="7.5" width="5" height="5" rx="0.5" fill="rgb(34,192,238)" />
+    <rect x="9.5" y="7.5" width="5" height="5" rx="0.5" fill="rgb(var(--bb-accent))" />
   </svg>
 );
 
@@ -66,14 +66,14 @@ const ToLineIcon = ({ size = 20 }: { size?: number }) => (
 const ToSmoothIcon = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M3 18 C8 4 16 4 21 18" />
-    <circle cx="12" cy="7" r="2.5" fill="rgb(34,192,238)" stroke="rgb(34,192,238)" />
+    <circle cx="12" cy="7" r="2.5" fill="rgb(var(--bb-accent))" stroke="rgb(var(--bb-accent))" />
   </svg>
 );
 
 const ToCornerIcon = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M4 18 L12 6 L20 18" />
-    <rect x="10" y="4" width="4" height="4" rx="0.5" fill="rgb(34,192,238)" />
+    <rect x="10" y="4" width="4" height="4" rx="0.5" fill="rgb(var(--bb-accent))" />
   </svg>
 );
 
@@ -105,7 +105,7 @@ const InsertMidpointIcon = ({ size = 20 }: { size?: number }) => (
 
 const AlignIcon = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <line x1="3" y1="19" x2="21" y2="19" strokeDasharray="2.5 2" stroke="rgb(34,192,238)" strokeWidth="1.5" />
+    <line x1="3" y1="19" x2="21" y2="19" strokeDasharray="2.5 2" stroke="rgb(var(--bb-accent))" strokeWidth="1.5" />
     <line x1="5" y1="19" x2="19" y2="5" />
     <rect x="3" y="17" width="4" height="4" rx="0.5" fill="currentColor" />
     <rect x="17" y="3" width="4" height="4" rx="0.5" fill="currentColor" />

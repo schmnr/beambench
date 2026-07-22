@@ -15,10 +15,10 @@ const TabsIcon = ({ size = 24 }: { size?: number }) => (
     {/* Cut path (dashed circle) */}
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" strokeDasharray="5 3.5" fill="none" />
     {/* Tab bridges (solid segments crossing the cut) */}
-    <rect x="11" y="1.5" width="2" height="3.5" rx="0.5" fill="rgb(34,192,238)" />
-    <rect x="11" y="19" width="2" height="3.5" rx="0.5" fill="rgb(34,192,238)" />
-    <rect x="1.5" y="11" width="3.5" height="2" rx="0.5" fill="rgb(34,192,238)" />
-    <rect x="19" y="11" width="3.5" height="2" rx="0.5" fill="rgb(34,192,238)" />
+    <rect x="11" y="1.5" width="2" height="3.5" rx="0.5" fill="rgb(var(--bb-accent))" />
+    <rect x="11" y="19" width="2" height="3.5" rx="0.5" fill="rgb(var(--bb-accent))" />
+    <rect x="1.5" y="11" width="3.5" height="2" rx="0.5" fill="rgb(var(--bb-accent))" />
+    <rect x="19" y="11" width="3.5" height="2" rx="0.5" fill="rgb(var(--bb-accent))" />
   </svg>
 );
 import type { PolygonTool } from '../../canvas/tools/PolygonTool';
@@ -33,7 +33,7 @@ const NodeEditIcon = ({ size = 24 }: { size?: number }) => (
     <circle cx="3" cy="3" r="2.8" stroke="currentColor" strokeWidth="1.8" fill="none" />
     <circle cx="21" cy="3" r="2.8" stroke="currentColor" strokeWidth="1.8" fill="none" />
     {/* Selected bottom node (hollow square, blue, bold) */}
-    <rect x="9" y="18" width="6" height="6" rx="0.8" fill="rgb(34,192,238)" />
+    <rect x="9" y="18" width="6" height="6" rx="0.8" fill="rgb(var(--bb-accent))" />
   </svg>
 );
 
@@ -164,7 +164,7 @@ export function CreationToolbar() {
   );
 
   return (
-    <div className="no-select w-16 bg-bb-panel py-1 gap-0.5 text-xs border-r border-bb-border flex flex-col items-center">
+    <div className="no-select w-16 bg-bb-panel py-1.5 gap-0.5 text-xs flex flex-col items-center">
       {/* Select */}
       <IconButton
         icon={<MousePointer2 size={24} />}

@@ -18,7 +18,7 @@ const RadiusIcon = ({ size = 24 }: { size?: number }) => (
     {/* Two straight edges forming a corner */}
     <path d="M4 3 L4 14 Q4 20, 10 20 L21 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     {/* Radius arc indicator */}
-    <path d="M4 12 Q4 12, 4 14 Q4 18, 8 20" stroke="rgb(34,192,238)" strokeWidth="1.8" strokeLinecap="round" fill="none" strokeDasharray="2 2" />
+    <path d="M4 12 Q4 12, 4 14 Q4 18, 8 20" stroke="rgb(var(--bb-accent))" strokeWidth="1.8" strokeLinecap="round" fill="none" strokeDasharray="2 2" />
   </svg>
 );
 
@@ -27,7 +27,7 @@ const StartPointIcon = ({ size = 24 }: { size?: number }) => (
     {/* Flag pole */}
     <line x1="4" y1="3" x2="4" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     {/* Flag */}
-    <path d="M4 3 L20 7 L4 12 Z" fill="rgb(34,192,238)" />
+    <path d="M4 3 L20 7 L4 12 Z" fill="rgb(var(--bb-accent))" />
     {/* Ground line with arrow */}
     <line x1="2" y1="22" x2="12" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     <path d="M10 19.5 L14 22 L10 24.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
@@ -207,7 +207,7 @@ export function ModifiersToolbar() {
   const GroupSeparator = () => <div className="w-10 h-px bg-bb-border my-0.5" />;
 
   return (
-    <div className="no-select w-16 bg-bb-panel py-1 gap-0.5 text-xs border-r border-bb-border flex flex-col items-center border-t border-t-bb-border">
+    <div className="no-select w-16 bg-bb-panel py-1.5 gap-0.5 text-xs flex flex-col items-center border-t border-t-bb-border">
       <IconButton
         icon={<OffsetIcon size={24} />}
         label={t('toolbars.modifiers.offset')}
