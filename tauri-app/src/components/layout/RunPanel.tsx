@@ -1,22 +1,27 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMachineStore } from '../../stores/machineStore';
-import { PANEL_COMPONENTS } from '../../panels';
+import { PANEL_COMPONENTS, getPanelById } from '../../panels';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 
+const LOWER_TABS = ['camera', 'macros', 'console'] as const;
+
 /**
- * Run-mode right panel: one floating card, machine-first. Laser Control,
- * full height; jog/console/macros live on the Run rail, layers in Design.
+ * Run-mode right panel: machine chip, then two stacked cards — Laser
+ * Control on top, Camera/Macros/Console tabs below.
  */
 export function RunPanel() {
   const { t } = useTranslation();
   const activeProfile = useMachineStore(
     (s) => (s.profiles ?? []).find((p) => p.id === s.activeProfileId) ?? null,
   );
+  const [lowerTab, setLowerTab] = useState<(typeof LOWER_TABS)[number]>('camera');
   const [showProfiles, setShowProfiles] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const PanelContent = PANEL_COMPONENTS['laser'] ?? null;
+  const LaserContent = PANEL_COMPONENTS['laser'] ?? null;
+  const LowerContent = PANEL_COMPONENTS[lowerTab] ?? null;
+  const laserDef = getPanelById('laser');
 
   return (
     <div
@@ -34,9 +39,47 @@ export function RunPanel() {
         ⌗ {activeProfile?.name ?? t('panels.machine.laser.no_machine')}
       </button>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl rounded-tr-xl border border-bb-border bg-bb-panel shadow-lg">
+      {/* Upper card: Laser Control */}
+      <div
+        className="flex min-h-0 flex-col overflow-hidden rounded-b-xl rounded-tr-xl border border-bb-border bg-bb-panel shadow-lg"
+        style={{ flex: 0.58 }}
+      >
+        <div className="flex border-b border-bb-border px-1 pt-1">
+          <span className="border-b-2 border-bb-accent px-1.5 pb-1.5 pt-0.5 text-xs font-semibold text-bb-accent">
+            {laserDef ? t(laserDef.titleKey) : 'Laser'}
+          </span>
+        </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {PanelContent && <PanelContent />}
+          {LaserContent && <LaserContent />}
+        </div>
+      </div>
+
+      {/* Lower card: Camera / Macros / Console */}
+      <div
+        className="mt-2 flex min-h-0 flex-col overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-lg"
+        style={{ flex: 0.42 }}
+      >
+        <div className="flex border-b border-bb-border px-1 pt-1">
+          {LOWER_TABS.map((id) => {
+            const def = getPanelById(id);
+            return (
+              <button
+                key={id}
+                className={`flex-1 truncate border-b-2 px-1.5 pb-1.5 pt-0.5 text-xs ${
+                  lowerTab === id
+                    ? 'border-bb-accent font-semibold text-bb-accent'
+                    : 'border-transparent text-bb-text-muted hover:text-bb-text'
+                }`}
+                onClick={() => setLowerTab(id)}
+                data-testid={`run-lower-tab-${id}`}
+              >
+                {def ? t(def.titleKey) : id}
+              </button>
+            );
+          })}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {LowerContent && <LowerContent />}
         </div>
       </div>
 

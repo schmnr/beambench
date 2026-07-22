@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PANEL_COMPONENTS, getPanelById } from '../../panels';
 
-const RUN_LEFT_TABS = ['move', 'console', 'macros', 'camera'] as const;
+const RUN_LEFT_TABS = ['move'] as const;
 
 /**
  * Run-mode left panel: a normal floating panel card (like the right one)
- * with tabs for the machine-support surfaces.
+ * hosting jog/move; camera, macros, and console live under the laser panel.
  */
 export function RunLeftPanel() {
   const { t } = useTranslation();
