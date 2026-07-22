@@ -109,6 +109,7 @@ export function MainToolbar() {
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
 
   const sessionState = useMachineStore((s) => s.sessionState);
+  const emergencyStop = useMachineStore((s) => s.emergencyStop);
   const workspaceMode = useUiStore((s) => s.workspaceMode);
   const setWorkspaceMode = useUiStore((s) => s.setWorkspaceMode);
 
@@ -480,8 +481,17 @@ export function MainToolbar() {
         </>
       )}
 
-      {/* Right side: machine connection pill */}
+      {/* Right side: emergency stop (whenever a machine session exists) + connection pill */}
       <div className="flex-1" />
+      {normalizedSessionState !== 'disconnected' && (
+        <button
+          className="mr-1 flex flex-shrink-0 items-center gap-1 rounded-lg bg-bb-error px-3 py-1 text-xs font-bold text-bb-on-error hover:bg-bb-error-hover"
+          onClick={() => void emergencyStop()}
+          data-testid="toolbar-emergency-stop"
+        >
+          ■ {t('panels.machine.laser.stop')}
+        </button>
+      )}
       <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-bb-surface-2 px-3 py-1 text-xxs text-bb-text-muted">
         <span className={`h-2 w-2 rounded-full ${connectionDot}`} />
         <span>{connectionLabel}</span>
