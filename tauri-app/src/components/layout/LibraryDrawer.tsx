@@ -19,7 +19,7 @@ export function LibraryDrawer() {
 
   return (
     <div
-      className="no-select absolute bottom-2 left-[4.75rem] top-2 z-20 flex w-72 flex-col overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-xl"
+      className="no-select absolute bottom-2 left-[4.75rem] top-2 z-[35] flex w-[26rem] max-w-[calc(100%-5.5rem)] flex-col overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-xl"
       data-testid="library-drawer"
     >
       <div className="flex items-center border-b border-bb-border px-2 pt-1.5">
