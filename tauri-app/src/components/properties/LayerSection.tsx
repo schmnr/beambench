@@ -54,7 +54,7 @@ export function LayerSection() {
   };
 
   return (
-    <div className="border-b border-bb-border px-2 pb-3 mb-1">
+    <div className="border-b border-bb-border pb-3 mb-1">
       <div className="flex items-center justify-between py-2">
         <span className="text-[10px] font-semibold tracking-wider text-bb-text-muted uppercase">
           {t('panels.properties.layer')}

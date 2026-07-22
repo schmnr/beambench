@@ -51,7 +51,7 @@ export function TextDefaultsSection() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-2 px-2">
+    <div className="flex flex-col gap-2.5 px-3 py-2">
       <div className="text-[10px] font-semibold tracking-wider text-bb-text-muted uppercase pt-2">
         {t('panels.text_properties.title')}
       </div>

@@ -298,7 +298,7 @@ export function TransformSection() {
   if (!hasSelection) return null;
 
   return (
-    <div className="border-b border-bb-border px-2 pb-3 mb-2">
+    <div className="border-b border-bb-border pb-3 mb-1">
       {/* Header: label, anchor grid, unit toggle */}
       <div className="flex items-center justify-between py-2">
         <span className="text-[10px] font-semibold tracking-wider text-bb-text-muted uppercase">

@@ -190,7 +190,7 @@ export function LayerList() {
     <div className="flex flex-col">
       {/* Layer action buttons */}
       {activeLayer && (
-        <div className="flex gap-1 px-1.5 py-1 border-b border-bb-border bg-bb-bg-alt" data-testid="layer-actions">
+        <div className="flex gap-1 px-3 py-1.5 border-b border-bb-border bg-bb-bg-alt" data-testid="layer-actions">
           <button
             data-testid="select-all-on-layer"
             className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text"
@@ -252,7 +252,7 @@ export function LayerList() {
       {/* Layer-level toggles for the selected layer (moved out of the rows) */}
       {activeLayer && (
         <div
-          className="flex items-center gap-5 px-2 py-1.5 border-t-2 border-bb-border bg-bb-surface text-xs"
+          className="flex items-center gap-6 px-3 py-2 border-t-2 border-bb-border bg-bb-surface text-xs"
           data-testid="layer-toggles"
         >
           {!activeLayer.is_tool_layer && (
@@ -285,7 +285,7 @@ export function LayerList() {
 
       {/* Layer-level row: color (per-pass settings live in the stack below) */}
       {activeLayer && !activeLayer.is_tool_layer && (
-        <div className="px-2 py-1.5 border-t-2 border-bb-border bg-bb-surface" data-testid="quick-edit">
+        <div className="px-3 py-2 border-t border-bb-border bg-bb-surface" data-testid="quick-edit">
             {/* Color swatch — click to pick a palette color for the layer */}
             <div className="relative flex items-center gap-1.5 text-xs">
               <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
@@ -335,7 +335,7 @@ export function LayerList() {
 
       {/* Sub-layer stack (multi-pass entries) for the selected layer */}
       {activeLayer && !activeLayer.is_tool_layer && (
-        <div className="border-t border-bb-border px-2 py-1.5">
+        <div className="border-t border-bb-border px-3 py-2">
           <SubLayerStack layerId={activeLayer.id} />
         </div>
       )}

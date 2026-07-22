@@ -341,7 +341,7 @@ export function LaserPanel() {
   };
 
   return (
-    <div className="flex flex-col gap-1.5 px-2 py-2 text-xs">
+    <div className="flex flex-col gap-2 px-3 py-2.5 text-xs">
       {/* 1. Connection gradient bar */}
       <div className={`h-1.5 rounded-full bg-gradient-to-r ${connectionGradient}`} data-testid="connection-bar" />
 
