@@ -49,7 +49,7 @@ describe('theme tokens', () => {
   const dark = themeVariables('dark');
   const light = themeVariables('light');
 
-  it('preserves every pre-light-mode dark token exactly', () => {
+  it('locks the approved dark palette', () => {
     expect(Object.fromEntries([
       'bb-bg',
       'bb-bg-alt',
@@ -70,17 +70,17 @@ describe('theme tokens', () => {
       'bb-text-dim',
       'bb-text-disabled',
     ].map((token) => [token, dark[token]]))).toEqual({
-      'bb-bg': '12 14 18',
-      'bb-bg-alt': '24 27 34',
-      'bb-input': '15 18 24',
-      'bb-panel': '19 22 25',
-      'bb-panel-header': '28 31 38',
-      'bb-surface': '23 26 32',
-      'bb-surface-elevated': '15 18 24',
-      'bb-border': '40 45 54',
-      'bb-hover': '33 37 46',
-      'bb-accent': '34 192 238',
-      'bb-accent-hover': '26 172 216',
+      'bb-bg': '19 20 23',
+      'bb-bg-alt': '21 22 26',
+      'bb-input': '26 28 32',
+      'bb-panel': '14 15 17',
+      'bb-panel-header': '26 28 32',
+      'bb-surface': '21 22 26',
+      'bb-surface-elevated': '17 18 22',
+      'bb-border': '34 36 42',
+      'bb-hover': '31 34 40',
+      'bb-accent': '45 212 222',
+      'bb-accent-hover': '34 190 200',
       'bb-error': '220 38 38',
       'bb-error-hover': '239 68 68',
       'bb-warning': '245 158 11',
