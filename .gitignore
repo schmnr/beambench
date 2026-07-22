@@ -16,6 +16,12 @@ tauri-app/src-tauri/target/
 *.swo
 *~
 
+# Local AI and planning artifacts
+.superpowers/
+docs/superpowers/
+.claude/
+**/.claude/
+
 # OS
 .DS_Store
 Thumbs.db
