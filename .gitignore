@@ -8,7 +8,6 @@ dist/
 
 # Tauri
 tauri-app/src-tauri/target/
-tauri-app/src-tauri/tauri.dev-compare.conf.json
 
 # IDE
 .idea/
