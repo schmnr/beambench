@@ -4,50 +4,17 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
-import { NumberInput } from '../shared/NumberInput';
 import { SubLayerStack } from '../properties/SubLayerStack';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { CheckSquare, ClipboardCopy, ClipboardPaste, Lock } from 'lucide-react';
-import type { Layer, OperationType, VectorSettings } from '../../types/project';
-import { effectiveLineIntervalMm } from '../../types/rasterSettings';
-import {
-  displaySpeedToMmMin,
-  
-  speedInputValue,
-  speedMmMinToDisplay,
-  speedStepForUnit,
-  speedUnitLabel,
-} from '../../utils/speedUnits';
-import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
-
-const MODE_OPTIONS: { value: OperationType; labelKey: string }[] = [
-  { value: 'line', labelKey: 'panels.layers.mode.line' },
-  { value: 'fill', labelKey: 'panels.layers.mode.fill' },
-  { value: 'offset_fill', labelKey: 'panels.layers.mode.offset_fill' },
-];
+import type { Layer } from '../../types/project';
 
 const SHOW_TOGGLE_ACTIVE_COLOR = 'bg-bb-accent';
-const AIR_TOGGLE_ACTIVE_COLOR = 'bg-yellow-500';
 
 /** Normalize color tag for comparison — strip alpha suffix, lowercase. */
 
-function primaryEntry(layer: Layer) {
-  return layer.entries[0];
-}
-
-function layerOperation(layer: Layer): OperationType {
-  return primaryEntry(layer)?.operation ?? 'line';
-}
-
-function primaryRasterSettings(layer: Layer) {
-  return primaryEntry(layer)?.raster_settings ?? null;
-}
-
-function primaryVectorSettings(layer: Layer) {
-  return primaryEntry(layer)?.vector_settings ?? null;
-}
 
 function ToggleSwitch({
   active,
@@ -125,7 +92,6 @@ export function LayerList() {
   const layers = useProjectStore((s) => s.project?.layers ?? []);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const updateLayer = useProjectStore((s) => s.updateLayer);
-  const updateCutEntry = useProjectStore((s) => s.updateCutEntry);
   const lockObjects = useProjectStore((s) => s.lockObjects);
   const unlockObjects = useProjectStore((s) => s.unlockObjects);
   const loadProject = useProjectStore((s) => s.loadProject);
@@ -134,12 +100,6 @@ export function LayerList() {
   );
   const updateSettings = useAppStore((s) => s.updateSettings);
   const currentAppSettings = useAppStore((s) => s.settings);
-  const displayUnit = currentAppSettings?.display_unit === 'inches' ? 'inches' : 'mm';
-  const speedTimeUnit = currentAppSettings?.speed_time_unit === 'seconds' ? 'seconds' : 'minutes';
-  const speedLabel = speedUnitLabel(displayUnit, speedTimeUnit);
-  const speedStep = speedStepForUnit(displayUnit, speedTimeUnit);
-  const maxDisplaySpeed = speedMmMinToDisplay(50000, displayUnit, speedTimeUnit);
-  const minDisplaySpeed = speedMmMinToDisplay(1, displayUnit, speedTimeUnit);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [optimisticToolFrameBounds, setOptimisticToolFrameBounds] = useState<boolean | null>(null);
 
@@ -176,92 +136,6 @@ export function LayerList() {
     }
   };
 
-  const handleToggleAirAssist = async (layerId: string, airAssist: boolean) => {
-    try {
-      await projectService.setLayerAirAssist(layerId, airAssist);
-      await reloadLayers(true);
-    } catch (error) {
-      notifyLayerError('panels.layers.errors.update_air_assist', error);
-    }
-  };
-
-  const handleModeChange = async (layer: Layer, operation: OperationType) => {
-    try {
-      const entry = primaryEntry(layer);
-      if (!entry) return;
-      await projectService.updateCutEntry(layer.id, entry.id, { operation });
-      await reloadLayers(true);
-    } catch (error) {
-      notifyLayerError('panels.layers.errors.update_mode', error);
-    }
-  };
-
-  const getPassCount = (layer: Layer): number => {
-    if (primaryVectorSettings(layer)) return primaryVectorSettings(layer)!.passes;
-    if (primaryRasterSettings(layer)) return primaryRasterSettings(layer)!.passes;
-    return 1;
-  };
-
-  const setPassCount = async (layer: Layer, passes: number) => {
-    const entry = primaryEntry(layer);
-    if (!entry) return;
-    try {
-      if (entry.raster_settings) {
-        await projectService.updateCutEntry(layer.id, entry.id, {
-          raster_settings: { ...entry.raster_settings, passes },
-        });
-      } else if (entry.vector_settings) {
-        await projectService.updateCutEntry(layer.id, entry.id, {
-          vector_settings: { ...entry.vector_settings, passes },
-        });
-      } else {
-        return;
-      }
-      await reloadLayers(true);
-    } catch (error) {
-      notifyLayerError('panels.layers.errors.update_passes', error);
-      await reloadLayers();
-    }
-  };
-
-  const getInterval = (layer: Layer): number => {
-    return Math.round(effectiveLineIntervalMm(primaryRasterSettings(layer)) * 1000) / 1000;
-  };
-
-  const setInterval = (layer: Layer, lineIntervalMm: number) => {
-    const entry = primaryEntry(layer);
-    if (!entry?.raster_settings) return;
-    useProjectStore.getState().updateCutEntry(layer.id, entry.id, {
-      raster_settings: {
-        ...entry.raster_settings,
-        line_interval_mm: lineIntervalMm,
-        dpi: lineIntervalMm > 0 ? Math.round(25.4 / lineIntervalMm) : 254,
-      },
-    });
-  };
-
-  const isFillMode = (layer: Layer) =>
-    !layer.is_tool_layer &&
-    (layerOperation(layer) === 'fill' || layerOperation(layer) === 'offset_fill' || layerOperation(layer) === 'image');
-
-  const isVectorMode = (layer: Layer) =>
-    !layer.is_tool_layer &&
-    (layerOperation(layer) === 'line' || layerOperation(layer) === 'cut' || layerOperation(layer) === 'score');
-
-  const updateVectorSettings = async (layer: Layer, patch: Partial<VectorSettings>) => {
-    const entry = primaryEntry(layer);
-    const vs = entry?.vector_settings;
-    if (!vs) return;
-    try {
-      await projectService.updateCutEntry(layer.id, entry.id, {
-        vector_settings: { ...vs, ...patch },
-      });
-      await reloadLayers(true);
-    } catch (error) {
-      notifyLayerError('panels.layers.errors.update_vector_settings', error);
-      await reloadLayers();
-    }
-  };
 
   // M4: full-stack copy/paste via app-scoped clipboard. Backend mints fresh entry IDs and
   // replaces the target layer's entries[] in one atomic op (one undo snapshot).
@@ -406,44 +280,12 @@ export function LayerList() {
               onToggle={() => void handleToggleToolFrameBounds()}
             />
           )}
-          {!activeLayer.is_tool_layer && (
-            <label className="flex items-center gap-1.5 text-bb-text-muted">
-              {t('panels.layers.header.air')}
-              <ToggleSwitch
-                active={primaryEntry(activeLayer)?.air_assist === true}
-                activeColor={AIR_TOGGLE_ACTIVE_COLOR}
-                onClick={() => void handleToggleAirAssist(activeLayer.id, !(primaryEntry(activeLayer)?.air_assist ?? false))}
-                testId="air-toggle"
-              />
-            </label>
-          )}
         </div>
       )}
 
-      {/* Quick-edit section — always visible, shows selected or first layer */}
+      {/* Layer-level row: color (per-pass settings live in the stack below) */}
       {activeLayer && !activeLayer.is_tool_layer && (
         <div className="px-2 py-1.5 border-t-2 border-bb-border bg-bb-surface" data-testid="quick-edit">
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-            {/* Mode (Line / Fill / Offset Fill) for the selected layer */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-bb-text-muted shrink-0">{t('panels.layers.header.mode')}</span>
-              {primaryEntry(activeLayer)?.operation === 'image' ? (
-                <span className="text-xs text-bb-text" data-testid="quick-edit-mode-image">{t('panels.layers.mode.image')}</span>
-              ) : (
-                <select
-                  className="bg-bb-input text-bb-text border border-bb-border rounded text-xs px-0.5 py-0 h-5 w-full min-w-0 truncate"
-                  value={primaryEntry(activeLayer)?.operation ?? 'line'}
-                  onChange={(e) => void handleModeChange(activeLayer, e.target.value as OperationType)}
-                  data-testid="quick-edit-mode"
-                >
-                  {MODE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {t(opt.labelKey)}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
             {/* Color swatch — click to pick a palette color for the layer */}
             <div className="relative flex items-center gap-1.5 text-xs">
               <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
@@ -488,110 +330,6 @@ export function LayerList() {
                 </>
               )}
             </div>
-
-            {/* Speed */}
-            <NumberInput
-              label={t('panels.layers.quick_edit.speed_with_unit', { unit: speedLabel })}
-              value={speedInputValue(primaryEntry(activeLayer)?.speed_mm_min ?? 1000, displayUnit, speedTimeUnit)}
-              onChange={(v) => {
-                const entry = primaryEntry(activeLayer);
-                if (entry) void updateCutEntry(activeLayer.id, entry.id, {
-                  speed_mm_min: displaySpeedToMmMin(v, displayUnit, speedTimeUnit),
-                });
-              }}
-              min={minDisplaySpeed}
-              max={maxDisplaySpeed}
-              step={speedStep}
-            />
-
-            {/* Passes */}
-            <NumberInput
-              label={t('panels.layers.quick_edit.passes')}
-              value={getPassCount(activeLayer)}
-              onChange={(p) => { void setPassCount(activeLayer, p); }}
-              min={1}
-              step={1}
-            />
-
-            {/* Max Pwr */}
-            <NumberInput
-              label={t('panels.layers.quick_edit.max_power')}
-              value={primaryEntry(activeLayer)?.power_percent ?? 50}
-              onChange={(v) => {
-                const entry = primaryEntry(activeLayer);
-                if (entry) void updateCutEntry(activeLayer.id, entry.id, { power_percent: v });
-              }}
-              min={0}
-              max={100}
-              step={1}
-            />
-
-            {/* Interval — only for fill/image modes */}
-            {isFillMode(activeLayer) && (
-              <NumberInput
-                label={labelWithUnit(t('panels.layers.quick_edit.interval'), lengthUnitLabel(displayUnit))}
-                value={roundDisplayLength(mmToDisplay(getInterval(activeLayer), displayUnit), displayUnit)}
-                onChange={(v) => setInterval(activeLayer, displayToMm(v, displayUnit))}
-                min={mmToDisplay(0.01, displayUnit)}
-                step={lengthStep(displayUnit, 0.01, 0.001)}
-              />
-            )}
-
-            {/* Min Pwr */}
-            <NumberInput
-              label={t('panels.layers.quick_edit.min_power')}
-              value={primaryEntry(activeLayer)?.power_min_percent ?? 0}
-              onChange={(v) => {
-                const entry = primaryEntry(activeLayer);
-                if (entry) void updateCutEntry(activeLayer.id, entry.id, { power_min_percent: v });
-              }}
-              min={0}
-              max={100}
-              step={1}
-            />
-          </div>
-
-          {/* Vector-only: perforation & kerf */}
-          {isVectorMode(activeLayer) && primaryVectorSettings(activeLayer) && (
-            <div className="mt-1.5 pt-1.5 border-t border-bb-border" data-testid="vector-quick-edit">
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                <label className="flex items-center gap-1 text-xs col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={primaryVectorSettings(activeLayer)?.perforation_enabled ?? false}
-                    onChange={(e) => { void updateVectorSettings(activeLayer, { perforation_enabled: e.target.checked }); }}
-                    data-testid="perf-toggle"
-                  />
-                  {t('panels.layers.quick_edit.perforation')}
-                </label>
-                {primaryVectorSettings(activeLayer)?.perforation_enabled && (
-                  <>
-                    <NumberInput
-                      label={t('panels.layers.quick_edit.on_ms')}
-                      value={primaryVectorSettings(activeLayer)?.perforation_on_ms ?? 10}
-                      onChange={(v) => { void updateVectorSettings(activeLayer, { perforation_on_ms: v }); }}
-                      min={0}
-                      step={1}
-                    />
-                    <NumberInput
-                      label={t('panels.layers.quick_edit.off_ms')}
-                      value={primaryVectorSettings(activeLayer)?.perforation_off_ms ?? 10}
-                      onChange={(v) => { void updateVectorSettings(activeLayer, { perforation_off_ms: v }); }}
-                      min={0}
-                      step={1}
-                    />
-                  </>
-                )}
-                <NumberInput
-                  label={labelWithUnit(t('panels.layers.quick_edit.kerf_mm'), lengthUnitLabel(displayUnit))}
-                  value={roundDisplayLength(mmToDisplay(primaryVectorSettings(activeLayer)?.kerf_offset_mm ?? 0, displayUnit), displayUnit)}
-                  onChange={(v) => { void updateVectorSettings(activeLayer, { kerf_offset_mm: displayToMm(v, displayUnit) || undefined }); }}
-                  min={0}
-                  step={lengthStep(displayUnit, 0.01, 0.001)}
-                />
-              </div>
-            </div>
-          )}
         </div>
       )}
 

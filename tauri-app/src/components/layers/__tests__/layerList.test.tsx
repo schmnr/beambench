@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
-import { invoke } from '@tauri-apps/api/core';
 import { LayerList } from '../LayerList';
 import { LayerTabs } from '../LayerTabs';
 import { useProjectStore } from '../../../stores/projectStore';
@@ -9,7 +8,7 @@ import { useNotificationStore } from '../../../stores/notificationStore';
 import { projectService } from '../../../services/projectService';
 import { useAppStore } from '../../../stores/appStore';
 import type { Layer, OperationType, ProjectObject } from '../../../types/project';
-import { makeAppSettings, makeLayer as makeFixtureLayer, makeProject, makeProjectObject, makeRasterSettings, type LayerFixtureOverrides } from '../../../test-utils/projectFixtures';
+import { makeAppSettings, makeLayer as makeFixtureLayer, makeProject, makeProjectObject, type LayerFixtureOverrides } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -57,46 +56,6 @@ describe('LayerList', () => {
     expect(labels[0].textContent).toBe('C00');
     expect(labels[1].textContent).toBe('C01');
     expect(labels[2].textContent).toBe('T1');
-  });
-
-  it('mode dropdown changes layer operation', async () => {
-    const layer = makeLayer({ id: 'l1', operation: 'line' });
-    const updateCutEntrySpy = vi.spyOn(projectService, 'updateCutEntry').mockResolvedValue({
-      ...layer.entries[0],
-      operation: 'fill',
-    });
-    const loadProjectSpy = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [], assets: [] }),
-      loadProject: loadProjectSpy,
-    });
-
-    render(<LayerList />);
-
-    const modeSelect = screen.getByTestId('quick-edit-mode');
-    expect((modeSelect as HTMLSelectElement).value).toBe('line');
-
-    fireEvent.change(modeSelect, { target: { value: 'fill' } });
-    await waitFor(() => {
-      expect(updateCutEntrySpy).toHaveBeenCalledWith('l1', layer.entries[0].id, {
-        operation: 'fill',
-      });
-    });
-    expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
-  });
-
-  it('image layers render plain-text "Image" label, not a dropdown', () => {
-    const layer = makeLayer({ id: 'l1', operation: 'image' });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [], assets: [] }),
-    });
-
-    render(<LayerList />);
-
-    // Image layers must NOT render the mode dropdown — image mode is immutable.
-    expect(screen.queryByTestId('quick-edit-mode')).toBeNull();
-    const label = screen.getByTestId('quick-edit-mode-image');
-    expect(label.textContent).toBe('Image');
   });
 
   it('tool layers render as frame-only rows without output or air controls', () => {
@@ -236,8 +195,6 @@ describe('LayerList', () => {
     // Both rows should display "C00" because both are tagged with the first palette color.
     expect(labels[0].textContent).toBe('C00');
     expect(labels[1].textContent).toBe('C00');
-    // Active layer (first = image) shows the plain Image label in quick-edit.
-    expect(screen.getByTestId('quick-edit-mode-image').textContent).toBe('Image');
   });
 
   it('collapses auto-generated family names like C00 (Line) back to C00 in the Layer column', () => {
@@ -319,41 +276,6 @@ describe('LayerList', () => {
     });
   });
 
-  it('air toggle circle works', async () => {
-    const layer = makeLayer({ id: 'l1', air_assist: false });
-    const loadProjectSpy = vi.spyOn(useProjectStore.getState(), 'loadProject').mockResolvedValue(undefined);
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-
-    const airToggle = screen.getByTestId('air-toggle');
-    fireEvent.click(airToggle);
-    await waitFor(() => {
-      expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
-    });
-    loadProjectSpy.mockRestore();
-  });
-
-  it('air toggle surfaces backend failures', async () => {
-    const pushSpy = vi.fn();
-    useNotificationStore.setState({ push: pushSpy });
-    vi.spyOn(projectService, 'setLayerAirAssist').mockRejectedValue(new Error('air failed'));
-
-    const layer = makeLayer({ id: 'l1', air_assist: false });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-    fireEvent.click(screen.getByTestId('air-toggle'));
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('air failed'), 'error');
-    });
-  });
-
   it('displays speed/power summary', () => {
     const layer = makeLayer({ speed_mm_min: 5000, power_percent: 65 });
     useProjectStore.setState({
@@ -364,27 +286,6 @@ describe('LayerList', () => {
 
     const summary = screen.getByTestId('speed-power');
     expect(summary.textContent).toBe('5000/65%');
-  });
-
-  it('quick-edit speed field calls updateLayer', () => {
-    const layer = makeLayer({ id: 'l1', speed_mm_min: 3000 });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'l1',
-    });
-
-    const updateCutEntrySpy = vi.fn();
-    useProjectStore.setState({ updateCutEntry: updateCutEntrySpy });
-
-    render(<LayerList />);
-
-    const quickEdit = screen.getByTestId('quick-edit');
-    const inputs = quickEdit.querySelectorAll('input[type="number"]');
-    expect(inputs.length).toBeGreaterThanOrEqual(1);
-
-    // First number input is Speed
-    fireEvent.change(inputs[0], { target: { value: '4000' } });
-    expect(updateCutEntrySpy).toHaveBeenCalledWith('l1', layer.entries[0].id, { speed_mm_min: 4000 });
   });
 
   it('converts quick-edit speed through the selected speed time unit', () => {
@@ -402,49 +303,10 @@ describe('LayerList', () => {
 
     render(<><LayerTabs /><LayerList /></>);
 
+    // Tab summary and the pass stack's speed field both use the selected unit.
     expect(screen.getByTestId('speed-power').textContent).toBe('50/65%');
     expect(screen.getAllByText('Speed (mm/sec)').length).toBeGreaterThanOrEqual(1);
-
-    const quickEdit = screen.getByTestId('quick-edit');
-    const inputs = quickEdit.querySelectorAll('input[type="number"]');
-    expect((inputs[0] as HTMLInputElement).value).toBe('50');
-
-    fireEvent.change(inputs[0], { target: { value: '75' } });
-    expect(updateCutEntrySpy).toHaveBeenCalledWith('l1', layer.entries[0].id, { speed_mm_min: 4500 });
-  });
-
-  it('quick-edit interval field updates raster_settings for image layers', () => {
-    const layer = makeLayer({
-      id: 'img1',
-      operation: 'image',
-      raster_settings: makeRasterSettings({
-        mode: 'grayscale',
-        overscan_mm: 0,
-        line_interval_mm: 0.1,
-      }),
-    });
-    const updateCutEntrySpy = vi.fn();
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'img1',
-      updateCutEntry: updateCutEntrySpy,
-    });
-
-    render(<LayerList />);
-
-    const quickEdit = screen.getByTestId('quick-edit');
-    const inputs = quickEdit.querySelectorAll('input[type="number"]');
-    expect(inputs.length).toBeGreaterThanOrEqual(5);
-
-    // Speed, Passes, Max Pwr, Interval, Min Pwr
-    fireEvent.change(inputs[3], { target: { value: '0.2' } });
-
-    expect(updateCutEntrySpy).toHaveBeenCalledWith('img1', layer.entries[0].id, {
-      raster_settings: expect.objectContaining({
-        line_interval_mm: 0.2,
-        dpi: 127,
-      }),
-    });
+    void updateCutEntrySpy;
   });
 
   it('double-click opens CutSettingsEditor dialog', () => {
@@ -496,132 +358,6 @@ describe('LayerList', () => {
     const emptyRow = screen.getByTestId('empty-layer-row');
     expect(emptyRow).toBeDefined();
     expect(emptyRow.textContent).toContain('Draw or import to create a layer');
-  });
-
-  it('setPassCount updates vector_settings.passes for line layers via updateCutEntry', async () => {
-    const layer = makeLayer({
-      id: 'l1',
-      operation: 'line',
-      raster_settings: null,
-      vector_settings: {
-        passes: 1,
-        perforation_enabled: false,
-        perforation_on_ms: 0,
-        perforation_off_ms: 0,
-      },
-    });
-    const loadProjectSpy = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'l1',
-      loadProject: loadProjectSpy,
-    });
-
-    render(<LayerList />);
-
-    const quickEdit = screen.getByTestId('quick-edit');
-    const inputs = quickEdit.querySelectorAll('input[type="number"]');
-    // Passes input is the second number field (after Speed)
-    const passesInput = inputs[1];
-    expect(passesInput).toBeDefined();
-
-    fireEvent.change(passesInput, { target: { value: '3' } });
-
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith('update_cut_entry', {
-        layerId: 'l1',
-        entryId: layer.entries[0].id,
-        patch: expect.objectContaining({
-          vector_settings: expect.objectContaining({
-            passes: 3,
-          }),
-        }),
-      });
-    });
-    expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
-  });
-
-  it('mode dropdown surfaces backend failures', async () => {
-    const pushSpy = vi.fn();
-    useNotificationStore.setState({ push: pushSpy });
-    vi.spyOn(projectService, 'updateCutEntry').mockRejectedValue(new Error('mode failed'));
-
-    const layer = makeLayer({ id: 'l1', operation: 'line' });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-    fireEvent.change(screen.getByTestId('quick-edit-mode'), { target: { value: 'fill' } });
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('mode failed'), 'error');
-    });
-  });
-
-  it('vector pass quick-edit surfaces failures and reloads layer state', async () => {
-    const pushSpy = vi.fn();
-    const loadProjectSpy = vi.fn().mockResolvedValue(undefined);
-    useNotificationStore.setState({ push: pushSpy });
-    useProjectStore.setState({ loadProject: loadProjectSpy });
-    vi.spyOn(projectService, 'updateCutEntry').mockRejectedValue(new Error('passes failed'));
-
-    const layer = makeLayer({
-      id: 'l1',
-      operation: 'line',
-      raster_settings: null,
-      vector_settings: {
-        passes: 1,
-        perforation_enabled: false,
-        perforation_on_ms: 0,
-        perforation_off_ms: 0,
-      },
-    });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'l1',
-    });
-
-    render(<LayerList />);
-    const inputs = screen.getByTestId('quick-edit').querySelectorAll('input[type="number"]');
-    fireEvent.change(inputs[1], { target: { value: '3' } });
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('passes failed'), 'error');
-      expect(loadProjectSpy).toHaveBeenCalledWith(undefined);
-    });
-  });
-
-  it('vector quick-edit setting failures are caught and resync the layer panel', async () => {
-    const pushSpy = vi.fn();
-    const loadProjectSpy = vi.fn().mockResolvedValue(undefined);
-    useNotificationStore.setState({ push: pushSpy });
-    useProjectStore.setState({ loadProject: loadProjectSpy });
-    vi.spyOn(projectService, 'updateCutEntry').mockRejectedValue(new Error('vector failed'));
-
-    const layer = makeLayer({
-      id: 'l1',
-      operation: 'line',
-      raster_settings: null,
-      vector_settings: {
-        passes: 1,
-        perforation_enabled: false,
-        perforation_on_ms: 0,
-        perforation_off_ms: 0,
-      },
-    });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'l1',
-    });
-
-    render(<LayerList />);
-    fireEvent.click(screen.getByTestId('perf-toggle'));
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('vector failed'), 'error');
-      expect(loadProjectSpy).toHaveBeenCalledWith(undefined);
-    });
   });
 
   it('right-click opens context menu with Disable and Select All', async () => {
@@ -843,40 +579,6 @@ describe('LayerList', () => {
     await waitFor(() => {
       const notifications = useNotificationStore.getState().notifications;
       expect(notifications[notifications.length - 1]?.message).toContain('Failed to update layer visibility');
-    });
-  });
-
-  it('reports an error when toggling air assist fails', async () => {
-    const layer = makeLayer({ id: 'l1', air_assist: false });
-    vi.spyOn(projectService, 'setLayerAirAssist').mockRejectedValue(new Error('air failed'));
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-
-    fireEvent.click(screen.getByTestId('air-toggle'));
-
-    await waitFor(() => {
-      const notifications = useNotificationStore.getState().notifications;
-      expect(notifications[notifications.length - 1]?.message).toContain('Failed to update layer air assist');
-    });
-  });
-
-  it('reports an error when changing mode fails', async () => {
-    const layer = makeLayer({ id: 'l1', operation: 'line' });
-    vi.spyOn(projectService, 'updateCutEntry').mockRejectedValue(new Error('mode failed'));
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-
-    fireEvent.change(screen.getByTestId('quick-edit-mode'), { target: { value: 'fill' } });
-
-    await waitFor(() => {
-      const notifications = useNotificationStore.getState().notifications;
-      expect(notifications[notifications.length - 1]?.message).toContain('Failed to update layer mode');
     });
   });
 
