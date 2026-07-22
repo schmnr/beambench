@@ -807,6 +807,26 @@ export function LayerList() {
       {activeLayer && !activeLayer.is_tool_layer && (
         <div className="px-2 py-1.5 border-t-2 border-bb-border bg-bb-surface" data-testid="quick-edit">
           <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            {/* Mode (Line / Fill / Offset Fill) for the selected layer */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-bb-text-muted shrink-0">{t('panels.layers.header.mode')}</span>
+              {primaryEntry(activeLayer)?.operation === 'image' ? (
+                <span className="text-xs text-bb-text">{t('panels.layers.mode.image')}</span>
+              ) : (
+                <select
+                  className="bg-bb-input text-bb-text border border-bb-border rounded text-xs px-0.5 py-0 h-5 w-full min-w-0 truncate"
+                  value={primaryEntry(activeLayer)?.operation ?? 'line'}
+                  onChange={(e) => void handleModeChange(activeLayer, e.target.value as OperationType)}
+                  data-testid="quick-edit-mode"
+                >
+                  {MODE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {t(opt.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
             {/* Color swatch (read-only — use palette bar to reassign) */}
             <div className="flex items-center gap-1.5 text-xs">
               <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
