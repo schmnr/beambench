@@ -66,6 +66,14 @@ const CONNECTION_DOT_COLORS: Record<string, string> = {
   alarm: 'bg-red-500',
 };
 
+/** Pill styling per connection state — quiet when idle, loud when live. */
+const CONNECTION_PILL_CLASSES: Record<string, string> = {
+  disconnected: 'bg-bb-surface-2 text-bb-text-muted',
+  connecting: 'bg-bb-warning-bg text-bb-warning-fg',
+  ready: 'bg-bb-success-bg text-bb-success-fg',
+  alarm: 'bg-bb-error-bg text-bb-error-fg',
+};
+
 const FLIP_HORIZONTAL = 'horizontal' as const;
 const FLIP_VERTICAL = 'vertical' as const;
 const ALIGN_LEFT = 'left' as const;
@@ -110,6 +118,9 @@ export function MainToolbar() {
 
   const sessionState = useMachineStore((s) => s.sessionState);
   const emergencyStop = useMachineStore((s) => s.emergencyStop);
+  const activeProfileName = useMachineStore(
+    (s) => (s.profiles ?? []).find((p) => p.id === s.activeProfileId)?.name ?? null,
+  );
   const workspaceMode = useUiStore((s) => s.workspaceMode);
   const setWorkspaceMode = useUiStore((s) => s.setWorkspaceMode);
 
@@ -506,10 +517,20 @@ export function MainToolbar() {
           ■ {t('panels.machine.laser.stop')}
         </button>
       )}
-      <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-bb-surface-2 px-3 py-1 text-xxs text-bb-text-muted">
+      <button
+        className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xxs hover:brightness-110 ${
+          CONNECTION_PILL_CLASSES[normalizedSessionState] ?? CONNECTION_PILL_CLASSES.disconnected
+        }`}
+        onClick={() => setWorkspaceMode('run')}
+        title={t('toolbars.main.mode_run_hint')}
+        data-testid="connection-pill"
+      >
         <span className={`h-2 w-2 rounded-full ${connectionDot}`} />
-        <span>{connectionLabel}</span>
-      </span>
+        <span>
+          {connectionLabel}
+          {normalizedSessionState !== 'disconnected' && activeProfileName ? ` · ${activeProfileName}` : ''}
+        </span>
+      </button>
 
       {showDeviceSettings && (
         <DeviceSettingsDialog onClose={() => setShowDeviceSettings(false)} />

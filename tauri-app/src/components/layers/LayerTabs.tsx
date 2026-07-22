@@ -195,10 +195,10 @@ export function LayerTabs() {
               setDragIndex(null);
               setDropIndex(null);
             }}
-            className={`relative flex items-center gap-1.5 rounded-t-lg border border-b-0 px-2.5 text-xxs ${
+            className={`relative flex items-center gap-1.5 rounded-t-lg border border-b-0 ${
               active
-                ? 'flex-shrink-0 py-1.5 font-semibold shadow-sm'
-                : 'min-w-0 flex-shrink py-1 opacity-80 hover:opacity-100'
+                ? 'flex-shrink-0 px-3 py-1.5 text-xs font-semibold shadow-sm'
+                : 'min-w-0 flex-shrink px-2.5 py-1 text-xxs opacity-80 hover:opacity-100'
             } ${layer.is_tool_layer ? 'border-dashed' : ''} ${dragIndex === index ? 'opacity-40' : ''}`}
             style={{
               ...(active ? tabColors.active : tabColors.inactive),
