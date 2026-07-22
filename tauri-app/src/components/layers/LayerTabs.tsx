@@ -52,7 +52,7 @@ export function LayerTabs() {
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
   const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [addMenu, setAddMenu] = useState<{ x: number; y: number } | null>(null);
 
   if (!project) return null;
 
@@ -267,40 +267,19 @@ export function LayerTabs() {
           </button>
         );
       })}
-      <div className="relative flex items-end">
-        <button
-          onClick={() => setShowAddMenu((v) => !v)}
-          aria-label={t('panels.layers.add_layer')}
-          title={t('panels.layers.add_layer')}
-          data-testid="add-layer-tab"
-          className="relative flex flex-shrink-0 items-center rounded-t-lg border border-b-0 px-2 py-1 opacity-80 hover:opacity-100"
-          style={{ ...tabColors.inactive, marginLeft: project.layers.length > 0 ? -8 : 0, zIndex: 1 }}
-        >
-          <Plus size={12} />
-        </button>
-        {showAddMenu && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setShowAddMenu(false)} />
-            <div className="absolute left-0 top-full z-50 mt-1 min-w-32 rounded-lg border border-bb-border bg-bb-panel py-1 shadow-lg" data-testid="add-layer-menu">
-              <button
-                className="block w-full px-3 py-1.5 text-left text-xs text-bb-text hover:bg-bb-hover"
-                onClick={() => { setShowAddMenu(false); void handleAddLayer(); }}
-              >
-                {t('panels.layers.add_layer')}
-              </button>
-              {toolColors.map((c, i) => (
-                <button
-                  key={c.hex}
-                  className="block w-full px-3 py-1.5 text-left text-xs text-bb-text hover:bg-bb-hover"
-                  onClick={() => { setShowAddMenu(false); void createOrSelectLayerForColor(c.hex); }}
-                >
-                  {t(i === 0 ? 'panels.color_palette.colors.tool_1' : 'panels.color_palette.colors.tool_2')}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+      <button
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setAddMenu({ x: rect.left, y: rect.bottom + 2 });
+        }}
+        aria-label={t('panels.layers.add_layer')}
+        title={t('panels.layers.add_layer')}
+        data-testid="add-layer-tab"
+        className="relative flex flex-shrink-0 items-center rounded-t-lg border border-b-0 px-2 py-1 opacity-80 hover:opacity-100"
+        style={{ ...tabColors.inactive, marginLeft: project.layers.length > 0 ? -8 : 0, zIndex: 1 }}
+      >
+        <Plus size={12} />
+      </button>
 
       {/* Per-layer context menu (ported from the layer table rows) */}
       {contextMenu && (() => {
@@ -330,6 +309,27 @@ export function LayerTabs() {
           />
         );
       })()}
+
+      {/* + menu: new layer / tool layers (portal — the strip scroll-clips inline popovers) */}
+      {addMenu && (
+        <ContextMenu
+          x={addMenu.x}
+          y={addMenu.y}
+          items={[
+            {
+              id: 'add-layer',
+              label: t('panels.layers.add_layer'),
+              onClick: () => void handleAddLayer(),
+            },
+            ...toolColors.map((c, i) => ({
+              id: `add-tool-${i + 1}`,
+              label: t(i === 0 ? 'panels.color_palette.colors.tool_1' : 'panels.color_palette.colors.tool_2'),
+              onClick: () => void createOrSelectLayerForColor(c.hex),
+            })),
+          ]}
+          onClose={() => setAddMenu(null)}
+        />
+      )}
 
       {/* Strip background menu: enable/show all, sort cuts last */}
       {stripMenu && (
