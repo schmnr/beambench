@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Move, Terminal, Play, Settings, X } from 'lucide-react';
+import { Move, Terminal, Play, X } from 'lucide-react';
 import { IconButton } from '../shared/IconButton';
 import { PANEL_COMPONENTS, getPanelById } from '../../panels';
-import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 
 const FLYOUTS = [
   { id: 'move', icon: Move },
@@ -15,13 +14,12 @@ type FlyoutId = (typeof FLYOUTS)[number]['id'];
 
 /**
  * Run-mode machine rail: jog, console, and macros open as flyout cards
- * beside the rail; device settings opens its dialog. Mirrors the Design
+ * beside the rail (device settings lives on the machine chip). Mirrors the Design
  * rail's floating-card styling.
  */
 export function RunRail() {
   const { t } = useTranslation();
   const [openFlyout, setOpenFlyout] = useState<FlyoutId | null>(null);
-  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
 
   const FlyoutContent = openFlyout ? (PANEL_COMPONENTS[openFlyout] ?? null) : null;
   const flyoutDef = openFlyout ? getPanelById(openFlyout) : undefined;
@@ -42,13 +40,6 @@ export function RunRail() {
             />
           );
         })}
-        <div className="my-0.5 h-px w-10 bg-bb-border" />
-        <IconButton
-          icon={<Settings size={24} />}
-          label={t('toolbars.main.device_settings')}
-          onClick={() => setShowDeviceSettings(true)}
-          size="sm"
-        />
       </div>
 
       {openFlyout && FlyoutContent && (
@@ -73,8 +64,6 @@ export function RunRail() {
           </div>
         </div>
       )}
-
-      {showDeviceSettings && <DeviceSettingsDialog onClose={() => setShowDeviceSettings(false)} />}
     </>
   );
 }

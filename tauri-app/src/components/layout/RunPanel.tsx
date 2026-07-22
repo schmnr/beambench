@@ -1,26 +1,22 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMachineStore } from '../../stores/machineStore';
-import { getPanelById, PANEL_COMPONENTS } from '../../panels';
+import { PANEL_COMPONENTS } from '../../panels';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 
-const RUN_TABS = ['laser', 'cuts_layers'] as const;
-
 /**
- * Run-mode right panel: one floating card, machine-first. Laser Control
- * leads with the layer run order beside it; jog/console/macros live on the
- * Run rail.
+ * Run-mode right panel: one floating card, machine-first. Laser Control,
+ * full height; jog/console/macros live on the Run rail, layers in Design.
  */
 export function RunPanel() {
   const { t } = useTranslation();
   const activeProfile = useMachineStore(
     (s) => (s.profiles ?? []).find((p) => p.id === s.activeProfileId) ?? null,
   );
-  const [activeTab, setActiveTab] = useState<(typeof RUN_TABS)[number]>('laser');
   const [showProfiles, setShowProfiles] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const PanelContent = PANEL_COMPONENTS[activeTab] ?? null;
+  const PanelContent = PANEL_COMPONENTS['laser'] ?? null;
 
   return (
     <div
@@ -39,25 +35,6 @@ export function RunPanel() {
       </button>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl rounded-tr-xl border border-bb-border bg-bb-panel shadow-lg">
-        <div className="flex border-b border-bb-border px-1 pt-1">
-          {RUN_TABS.map((id) => {
-            const def = getPanelById(id);
-            return (
-              <button
-                key={id}
-                className={`flex-1 truncate border-b-2 px-1.5 pb-1.5 pt-0.5 text-xs ${
-                  activeTab === id
-                    ? 'border-bb-accent font-semibold text-bb-accent'
-                    : 'border-transparent text-bb-text-muted hover:text-bb-text'
-                }`}
-                onClick={() => setActiveTab(id)}
-                data-testid={`run-tab-${id}`}
-              >
-                {def ? t(def.titleKey) : id}
-              </button>
-            );
-          })}
-        </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {PanelContent && <PanelContent />}
         </div>
