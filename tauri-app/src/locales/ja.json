@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "プロジェクトなし",
-      "nothing_selected": "何も選択されていません"
+      "nothing_selected": "オブジェクトを選択してプロパティを編集"
     },
     "library": {
       "title": "ライブラリ"
@@ -1397,7 +1397,7 @@
       "union": "ユニオン",
       "subtract": "減算",
       "intersection": "交差",
-      "nothing_selected": "未選択",
+      "nothing_selected": "オブジェクトを選択してプロパティを編集",
       "name": "名前",
       "power_scale_percent": "パワースケール %",
       "cut_priority": "カット優先度",

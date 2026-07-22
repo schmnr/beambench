@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Proje yok",
-      "nothing_selected": "Hiçbir şey seçili değil"
+      "nothing_selected": "Özelliklerini düzenlemek için bir nesne seçin"
     },
     "library": {
       "title": "Kitaplık"
@@ -1397,7 +1397,7 @@
       "union": "Birlik",
       "subtract": "Çıkar",
       "intersection": "Kesişim",
-      "nothing_selected": "Seçim yok",
+      "nothing_selected": "Özelliklerini düzenlemek için bir nesne seçin",
       "name": "Ad",
       "power_scale_percent": "Güç ölçeği %",
       "cut_priority": "Kesim önceliği",

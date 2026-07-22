@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "無專案",
-      "nothing_selected": "未選取任何項目"
+      "nothing_selected": "選取物件以編輯其屬性"
     },
     "library": {
       "title": "素材庫"
@@ -1397,7 +1397,7 @@
       "union": "聯盟",
       "subtract": "減去",
       "intersection": "相交",
-      "nothing_selected": "未選取任何物件",
+      "nothing_selected": "選取物件以編輯其屬性",
       "name": "名稱",
       "power_scale_percent": "功率縮放 %",
       "cut_priority": "切割優先順序",

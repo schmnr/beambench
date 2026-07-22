@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "프로젝트 없음",
-      "nothing_selected": "선택된 항목 없음"
+      "nothing_selected": "개체를 선택하여 속성을 편집하세요"
     },
     "library": {
       "title": "라이브러리"
@@ -1397,7 +1397,7 @@
       "union": "연합",
       "subtract": "빼기",
       "intersection": "교차",
-      "nothing_selected": "선택 없음",
+      "nothing_selected": "개체를 선택하여 속성을 편집하세요",
       "name": "이름",
       "power_scale_percent": "파워 스케일 %",
       "cut_priority": "절단 우선순위",

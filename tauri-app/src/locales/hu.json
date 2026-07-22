@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Nincs projekt",
-      "nothing_selected": "Nincs kijelölve semmi"
+      "nothing_selected": "Válasszon ki egy objektumot a tulajdonságai szerkesztéséhez"
     },
     "library": {
       "title": "Könyvtár"
@@ -1397,7 +1397,7 @@
       "union": "Unió",
       "subtract": "Kivonás",
       "intersection": "Metszet",
-      "nothing_selected": "Nincs kijelölés",
+      "nothing_selected": "Válasszon ki egy objektumot a tulajdonságai szerkesztéséhez",
       "name": "Név",
       "power_scale_percent": "Teljesítményskála %",
       "cut_priority": "Vágási prioritás",

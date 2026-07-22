@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Inget projekt",
-      "nothing_selected": "Inget markerat"
+      "nothing_selected": "Välj ett objekt för att redigera dess egenskaper"
     },
     "library": {
       "title": "Bibliotek"
@@ -1397,7 +1397,7 @@
       "union": "unionen",
       "subtract": "Subtrahera",
       "intersection": "Skärning",
-      "nothing_selected": "Inget markerat",
+      "nothing_selected": "Välj ett objekt för att redigera dess egenskaper",
       "name": "Namn",
       "power_scale_percent": "Effektskala %",
       "cut_priority": "Skärprioritet",

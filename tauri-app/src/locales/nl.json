@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Geen project",
-      "nothing_selected": "Niets geselecteerd"
+      "nothing_selected": "Selecteer een object om de eigenschappen te bewerken"
     },
     "library": {
       "title": "Bibliotheek"
@@ -1397,7 +1397,7 @@
       "union": "Unie",
       "subtract": "Aftrekken",
       "intersection": "Doorsnede",
-      "nothing_selected": "Niets geselecteerd",
+      "nothing_selected": "Selecteer een object om de eigenschappen te bewerken",
       "name": "Naam",
       "power_scale_percent": "Vermogensschaal %",
       "cut_priority": "Snijprioriteit",

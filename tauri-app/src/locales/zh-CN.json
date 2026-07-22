@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "无项目",
-      "nothing_selected": "未选择任何内容"
+      "nothing_selected": "选择一个对象以编辑其属性"
     },
     "library": {
       "title": "素材库"
@@ -1397,7 +1397,7 @@
       "union": "联盟",
       "subtract": "减去",
       "intersection": "相交",
-      "nothing_selected": "未选择任何对象",
+      "nothing_selected": "选择一个对象以编辑其属性",
       "name": "名称",
       "power_scale_percent": "功率缩放 %",
       "cut_priority": "切割优先级",

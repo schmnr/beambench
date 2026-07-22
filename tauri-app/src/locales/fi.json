@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Ei projektia",
-      "nothing_selected": "Ei mitään valittuna"
+      "nothing_selected": "Valitse objekti muokataksesi sen ominaisuuksia"
     },
     "library": {
       "title": "Kirjasto"
@@ -1397,7 +1397,7 @@
       "union": "liitto",
       "subtract": "Vähennä",
       "intersection": "Leikkaus",
-      "nothing_selected": "Ei valintaa",
+      "nothing_selected": "Valitse objekti muokataksesi sen ominaisuuksia",
       "name": "Nimi",
       "power_scale_percent": "Tehoasteikko %",
       "cut_priority": "Leikkausprioriteetti",

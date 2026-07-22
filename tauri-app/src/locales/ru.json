@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Нет проекта",
-      "nothing_selected": "Ничего не выбрано"
+      "nothing_selected": "Выберите объект, чтобы изменить его свойства"
     },
     "library": {
       "title": "Библиотека"
@@ -1397,7 +1397,7 @@
       "union": "Союз",
       "subtract": "Вычесть",
       "intersection": "Пересечение",
-      "nothing_selected": "Ничего не выбрано",
+      "nothing_selected": "Выберите объект, чтобы изменить его свойства",
       "name": "Имя",
       "power_scale_percent": "Масштаб мощности %",
       "cut_priority": "Приоритет резки",

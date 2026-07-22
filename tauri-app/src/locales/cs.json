@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Žádný projekt",
-      "nothing_selected": "Nic není vybráno"
+      "nothing_selected": "Vyberte objekt a upravte jeho vlastnosti"
     },
     "library": {
       "title": "Knihovna"
@@ -1397,7 +1397,7 @@
       "union": "Unie",
       "subtract": "Odčítat",
       "intersection": "Průnik",
-      "nothing_selected": "Nic není vybráno",
+      "nothing_selected": "Vyberte objekt a upravte jeho vlastnosti",
       "name": "Název",
       "power_scale_percent": "Měřítko výkonu %",
       "cut_priority": "Priorita řezu",

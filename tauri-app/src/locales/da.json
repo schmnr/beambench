@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Intet projekt",
-      "nothing_selected": "Intet valgt"
+      "nothing_selected": "Vælg et objekt for at redigere dets egenskaber"
     },
     "library": {
       "title": "Bibliotek"
@@ -1397,7 +1397,7 @@
       "union": "Union",
       "subtract": "Træk fra",
       "intersection": "Skæring",
-      "nothing_selected": "Intet valgt",
+      "nothing_selected": "Vælg et objekt for at redigere dets egenskaber",
       "name": "Navn",
       "power_scale_percent": "Effektskala %",
       "cut_priority": "Skæreprioritet",

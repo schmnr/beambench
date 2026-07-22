@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Brak projektu",
-      "nothing_selected": "Nic nie zaznaczono"
+      "nothing_selected": "Zaznacz obiekt, aby edytować jego właściwości"
     },
     "library": {
       "title": "Biblioteka"
@@ -1397,7 +1397,7 @@
       "union": "Unia",
       "subtract": "Odejmować",
       "intersection": "Część wspólna",
-      "nothing_selected": "Nic nie zaznaczono",
+      "nothing_selected": "Zaznacz obiekt, aby edytować jego właściwości",
       "name": "Nazwa",
       "power_scale_percent": "Skala mocy %",
       "cut_priority": "Priorytet cięcia",

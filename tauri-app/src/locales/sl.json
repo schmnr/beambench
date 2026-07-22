@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Ni projekta",
-      "nothing_selected": "Nič ni izbrano"
+      "nothing_selected": "Izberite predmet za urejanje njegovih lastnosti"
     },
     "library": {
       "title": "Knjižnica"
@@ -1397,7 +1397,7 @@
       "union": "zveza",
       "subtract": "Odštej",
       "intersection": "Presek",
-      "nothing_selected": "Nič ni izbrano",
+      "nothing_selected": "Izberite predmet za urejanje njegovih lastnosti",
       "name": "Ime",
       "power_scale_percent": "Merilo moči %",
       "cut_priority": "Prioriteta reza",

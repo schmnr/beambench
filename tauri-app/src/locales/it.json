@@ -1313,7 +1313,7 @@
   "panels": {
     "empty": {
       "no_project": "Nessun progetto",
-      "nothing_selected": "Niente selezionato"
+      "nothing_selected": "Seleziona un oggetto per modificarne le proprietà"
     },
     "library": {
       "title": "Libreria"
@@ -1397,7 +1397,7 @@
       "union": "Unione",
       "subtract": "Sottrarre",
       "intersection": "Intersezione",
-      "nothing_selected": "Nessuna selezione",
+      "nothing_selected": "Seleziona un oggetto per modificarne le proprietà",
       "name": "Nome",
       "power_scale_percent": "Scala potenza %",
       "cut_priority": "Priorità taglio",
