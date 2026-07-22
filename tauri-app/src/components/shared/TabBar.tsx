@@ -49,7 +49,7 @@ export function TabBar({ tabs, activeTab, onTabChange, onTabDragStart, onFloatPa
   return (
     <div
       ref={scrollRef}
-      className="flex items-center h-7 bg-bb-panel-header border-b border-bb-border overflow-x-auto scrollbar-none"
+      className="flex items-center h-8 bg-bb-panel border-b border-bb-border overflow-x-auto scrollbar-none px-1"
       data-testid="tab-bar"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -79,10 +79,10 @@ export function TabBar({ tabs, activeTab, onTabChange, onTabDragStart, onFloatPa
               }
             }}
             onClick={() => onTabChange(tab.id)}
-            className={`px-2.5 h-full text-xs whitespace-nowrap transition-colors ${
+            className={`px-2.5 h-full border-b-2 text-xs whitespace-nowrap transition-colors ${
               activeTab === tab.id
-                ? 'bg-bb-surface text-bb-text border-b-2 border-bb-accent'
-                : 'text-bb-text-muted hover:text-bb-text'
+                ? 'border-bb-accent font-semibold text-bb-accent'
+                : 'border-transparent text-bb-text-muted hover:text-bb-text'
             }`}
           >
             {tab.label}

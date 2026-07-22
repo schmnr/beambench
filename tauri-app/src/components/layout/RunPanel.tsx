@@ -46,10 +46,8 @@ export function RunPanel() {
         className="flex min-h-0 flex-col overflow-hidden rounded-b-xl rounded-tr-xl border border-bb-border bg-bb-panel shadow-lg"
         style={{ flex: upperRatio }}
       >
-        <div className="flex border-b border-bb-border px-1 pt-1">
-          <span className="border-b-2 border-bb-accent px-1.5 pb-1.5 pt-0.5 text-xs font-semibold text-bb-accent">
-            {laserDef ? t(laserDef.titleKey) : 'Laser'}
-          </span>
+        <div className="border-b border-bb-border px-3 py-1.5 text-xs font-semibold text-bb-text">
+          {laserDef ? t(laserDef.titleKey) : 'Laser'}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {LaserContent && <LaserContent />}
