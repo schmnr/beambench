@@ -10,8 +10,6 @@ import { useCameraStore } from '../../stores/cameraStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { wrapBackendError } from '../../i18n/errors';
 import { projectService } from '../../services/projectService';
-import { executeAppCommand } from '../../commands/appCommands';
-import { APP_COMMANDS } from '../../commands/appCommandIds';
 import { isTransformLocked, notifyTransformLocked, notifyObjectLocked } from '../../utils/transformLocks';
 import { zoomToFitBounds } from '../../canvas/ViewportTransform';
 import { computeVisualBoundsWorld } from '../../canvas/alignment';
@@ -23,8 +21,7 @@ import { useMacroStore } from '../../stores/macroStore';
 import {
   FilePlus, FolderOpen, Save, SaveAll, Import,
   Undo2, Redo2,
-  Scissors, Copy, ClipboardPaste, Trash2,
-  ZoomIn, ZoomOut, Maximize2, Focus,
+  ZoomIn, ZoomOut, Maximize2,
   Grid3x3, Magnet,
   Eye,
   Camera,
@@ -91,7 +88,6 @@ export function MainToolbar() {
   const project = useProjectStore((s) => s.project);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
-  const removeObjects = useProjectStore((s) => s.removeObjects);
   const groupObjects = useProjectStore((s) => s.groupObjects);
   const ungroupObjects = useProjectStore((s) => s.ungroupObjects);
   const flipObjects = useProjectStore((s) => s.flipObjects);
@@ -110,7 +106,6 @@ export function MainToolbar() {
   const toggleSnap = useUiStore((s) => s.toggleSnap);
   const zoomToFit = useUiStore((s) => s.zoomToFit);
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
-  const hasClipboard = useUiStore((s) => s.hasClipboard);
 
   const sessionState = useMachineStore((s) => s.sessionState);
 
@@ -124,6 +119,7 @@ export function MainToolbar() {
   const toggleOverlayVisible = useCameraStore((s) => s.toggleOverlayVisible);
 
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [showZoomMenu, setShowZoomMenu] = useState(false);
   const [dockDialogObjectIds, setDockDialogObjectIds] = useState<string[] | null>(null);
 
   const loadMacros = useMacroStore((s) => s.loadMacros);
@@ -310,7 +306,7 @@ export function MainToolbar() {
         B
       </span>
       <span className="mx-2 max-w-48 truncate text-xs font-medium text-bb-text">
-        {project?.name ?? t('toolbars.main.untitled_project')}
+        {project?.metadata.project_name ?? t('toolbars.main.untitled_project')}
         {project?.dirty ? (
           <span className="text-bb-accent ml-1" title={t('status.unsaved_changes')}>*</span>
         ) : null}
@@ -331,28 +327,38 @@ export function MainToolbar() {
       <IconButton icon={<Redo2 size={sz} />} label={t('toolbars.main.redo')} onClick={() => void redo()} disabled={!canRedo} />
       <Separator />
 
-      {/* Clipboard group */}
-      <IconButton icon={<Scissors size={sz} />} label={t('toolbars.main.cut')} onClick={() => void executeAppCommand(APP_COMMANDS.EDIT_CUT)} disabled={!canMutate} />
-      <IconButton icon={<Copy size={sz} />} label={t('toolbars.main.copy')} onClick={() => void executeAppCommand(APP_COMMANDS.EDIT_COPY)} disabled={!hasSelection} />
-      <IconButton
-        icon={<ClipboardPaste size={sz} />}
-        label={t('toolbars.main.paste')}
-        onClick={() => void executeAppCommand(APP_COMMANDS.EDIT_PASTE)}
-        disabled={!project || !hasClipboard}
-      />
-      <IconButton
-        icon={<Trash2 size={sz} />}
-        label={t('toolbars.main.delete')}
-        onClick={() => { if (canMutate) void removeObjects([...selectedObjectIds]); }}
-        disabled={!canMutate}
-      />
-      <Separator />
-
       {/* Zoom group */}
-      <IconButton icon={<ZoomIn size={sz} />} label={t('toolbars.main.zoom_in')} onClick={zoomInFn} />
       <IconButton icon={<ZoomOut size={sz} />} label={t('toolbars.main.zoom_out')} onClick={zoomOutFn} />
-      <IconButton icon={<Maximize2 size={sz} />} label={t('toolbars.main.fit_page')} onClick={handleZoomToPage} disabled={!project} />
-      <IconButton icon={<Focus size={sz} />} label={t('toolbars.main.fit_selection')} onClick={handleZoomToSelection} disabled={!hasSelection} />
+      <IconButton icon={<ZoomIn size={sz} />} label={t('toolbars.main.zoom_in')} onClick={zoomInFn} />
+      <div className="relative">
+        <IconButton
+          icon={<Maximize2 size={sz} />}
+          label={t('status.zoom_to_fit')}
+          onClick={() => setShowZoomMenu((v) => !v)}
+          active={showZoomMenu}
+        />
+        {showZoomMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowZoomMenu(false)} />
+            <div className="absolute left-0 top-full z-50 mt-1 min-w-44 rounded-lg border border-bb-border bg-bb-panel py-1 shadow-lg">
+              <button
+                className="block w-full px-3 py-1.5 text-left text-xs text-bb-text hover:bg-bb-hover disabled:text-bb-text-disabled disabled:hover:bg-transparent"
+                onClick={() => { handleZoomToPage(); setShowZoomMenu(false); }}
+                disabled={!project}
+              >
+                {t('toolbars.main.fit_page')}
+              </button>
+              <button
+                className="block w-full px-3 py-1.5 text-left text-xs text-bb-text hover:bg-bb-hover disabled:text-bb-text-disabled disabled:hover:bg-transparent"
+                onClick={() => { handleZoomToSelection(); setShowZoomMenu(false); }}
+                disabled={!hasSelection}
+              >
+                {t('toolbars.main.fit_selection')}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
       <Separator />
 
       {/* Grid/Snap */}

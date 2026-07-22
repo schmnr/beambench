@@ -66,17 +66,14 @@ describe('MainToolbar', () => {
     expect(importFiles).toHaveBeenCalledWith(project.layers[0].id);
   });
 
-  it('Paste is disabled until the object clipboard has data', () => {
+  it('zoom fit options live in the fit dropdown', () => {
     useProjectStore.setState({ project: makeProject() });
-    useUiStore.setState({ hasClipboard: false });
 
-    const { rerender } = render(<MainToolbar />);
-    expect(screen.getByTitle('Paste').closest('button')?.disabled).toBe(true);
+    render(<MainToolbar />);
+    fireEvent.click(screen.getByTitle('Zoom to fit'));
 
-    useUiStore.setState({ hasClipboard: true });
-    rerender(<MainToolbar />);
-
-    expect(screen.getByTitle('Paste').closest('button')?.disabled).toBe(false);
+    expect(screen.getByText('Fit Page')).toBeTruthy();
+    expect(screen.getByText('Fit Selection')).toBeTruthy();
   });
 
   it('Undo disabled when canUndo false', () => {
