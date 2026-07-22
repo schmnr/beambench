@@ -115,9 +115,10 @@ export function AppShell() {
                 />
               </>
             )}
-            {/* Canvas with layer tabs */}
+            {/* Canvas with layer tabs (both modes — in Run they show the cut
+                order and let you click through layers) */}
             <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-              {!runMode && <LayerTabs />}
+              <LayerTabs />
               <div className="flex-1 min-h-0">
                 <ImportDropZone>
                   <Canvas />
