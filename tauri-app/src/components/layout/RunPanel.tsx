@@ -62,7 +62,8 @@ export function RunPanel() {
         onResize={(delta) => {
           const height = containerRef.current?.clientHeight ?? 0;
           if (height <= 0) return;
-          setUpperRatio((r) => Math.min(0.85, Math.max(0.15, r + delta / height)));
+          // Drag up = positive delta = lower card grows (bottom-resizer semantics).
+          setUpperRatio((r) => Math.min(0.85, Math.max(0.15, r - delta / height)));
         }}
       />
 
