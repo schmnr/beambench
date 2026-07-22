@@ -682,6 +682,27 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       usePreviewStore.getState().clearPreview();
       // M4: clipboard is project-scoped; clear on project switch.
       useUiStore.getState().setLayerSettingsClipboard(null);
+      // New projects start with one ready-to-use layer so the layer tab
+      // strip is never empty.
+      const fresh = get().project;
+      if (fresh && fresh.layers.length === 0) {
+        const firstColor = PALETTE_COLORS.find((c) => !c.is_tool_layer);
+        if (firstColor) {
+          const out = resolveDestinationLayer({
+            project: fresh,
+            requestedLayerId: null,
+            pendingColor: firstColor.hex,
+            selectedLayerId: null,
+            contentKind: 'non_raster',
+          });
+          if (out.kind === 'needs_create') {
+            await get().addLayer(out.suggestedName, out.operation);
+            const layers = get().project?.layers ?? [];
+            const created = layers[layers.length - 1];
+            if (created) await get().updateLayer(created.id, { color_tag: out.colorTag });
+          }
+        }
+      }
     } catch (e) {
       const msg = String(e);
       set({ error: msg, loading: false });
