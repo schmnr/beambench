@@ -328,6 +328,7 @@ export function MainToolbar() {
               : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
           }`}
           onClick={() => setWorkspaceMode('design')}
+          title={t('toolbars.main.mode_design_hint')}
           data-testid="mode-design"
         >
           <PenLine size={14} />
@@ -340,6 +341,7 @@ export function MainToolbar() {
               : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
           }`}
           onClick={() => setWorkspaceMode('run')}
+          title={t('toolbars.main.mode_run_hint')}
           data-testid="mode-run"
         >
           <Zap size={14} />

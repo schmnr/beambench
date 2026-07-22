@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "Tasarım",
       "mode_run": "Çalıştır",
+      "mode_design_hint": "Tasarım: projeni çiz ve düzenle",
+      "mode_run_hint": "Çalıştır: işi lazerine gönder",
       "new": "Yeni",
       "untitled_project": "Başlıksız Proje",
       "open": "Açık",
@@ -1475,7 +1477,7 @@
       "tool_layer": "Araç katmanı",
       "summary": "{speed}/{power}% · {passes} geçiş",
       "output": "Çıkış",
-      "reset_to_defaults_title": "Bu alt katmanı işlemin yerleşik varsayılanlarına sıfırla",
+      "reset_to_defaults_title": "Bu geçişi işleminin varsayılanlarına sıfırla",
       "delete": "Sil",
       "mode": "Mod",
       "speed_with_unit": "Hız ({unit})",
@@ -1514,9 +1516,10 @@
       "kerf_offset_mm": "Kerf ofseti",
       "offset_overlap_mm": "Ofset bindirmesi",
       "offset_outward": "Dışa ofset",
-      "max_sub_layers_title": "En fazla 11 alt katmana ulaşıldı",
-      "add_sub_layer_title": "Alt katman ekle",
-      "add_sub_layer": "+ Alt katman ekle"
+      "max_sub_layers_title": "En fazla 11 geçişe ulaşıldı",
+      "add_sub_layer_title": "Geçiş ekle",
+      "add_sub_layer": "+ Geçiş ekle",
+      "order_hint": "Geçişler yukarıdan aşağıya sırayla çalışır."
     },
     "cut_settings": {
       "title": "Kesim ayarları",

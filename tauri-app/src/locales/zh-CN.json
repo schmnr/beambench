@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "设计",
       "mode_run": "运行",
+      "mode_design_hint": "设计：绘制并排布您的项目",
+      "mode_run_hint": "运行：将作业发送到您的激光机",
       "new": "新",
       "untitled_project": "无标题项目",
       "open": "打开",
@@ -1475,7 +1477,7 @@
       "tool_layer": "工具图层",
       "summary": "{speed}/{power}% · {passes} 次通过",
       "output": "输出",
-      "reset_to_defaults_title": "将此子图层重置为其操作的内置默认值",
+      "reset_to_defaults_title": "将此道次重置为其操作的默认值",
       "delete": "删除",
       "mode": "模式",
       "speed_with_unit": "速度 ({unit})",
@@ -1514,9 +1516,10 @@
       "kerf_offset_mm": "割缝偏移",
       "offset_overlap_mm": "偏移重叠",
       "offset_outward": "向外偏移",
-      "max_sub_layers_title": "已达到 11 个子图层上限",
-      "add_sub_layer_title": "添加子图层",
-      "add_sub_layer": "+ 添加子图层"
+      "max_sub_layers_title": "已达到最多 11 个道次",
+      "add_sub_layer_title": "添加道次",
+      "add_sub_layer": "+ 添加道次",
+      "order_hint": "道次按从上到下的顺序执行。"
     },
     "cut_settings": {
       "title": "切割设置",

@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "Návrh",
       "mode_run": "Spustit",
+      "mode_design_hint": "Návrh: kreslete a uspořádejte projekt",
+      "mode_run_hint": "Spustit: odešlete úlohu do laseru",
       "new": "Nový",
       "untitled_project": "Projekt bez názvu",
       "open": "OTEVŘENO",
@@ -1475,7 +1477,7 @@
       "tool_layer": "Nástrojová vrstva",
       "summary": "{speed}/{power}% · {passes} průchodů",
       "output": "Výstup",
-      "reset_to_defaults_title": "Obnovit tuto podvrstvu na vestavěné výchozí hodnoty pro její operaci",
+      "reset_to_defaults_title": "Obnovit tento průchod na výchozí hodnoty operace",
       "delete": "Smazat",
       "mode": "Režim",
       "speed_with_unit": "Rychlost ({unit})",
@@ -1514,9 +1516,10 @@
       "kerf_offset_mm": "Odsazení kerfu",
       "offset_overlap_mm": "Překrytí odsazení",
       "offset_outward": "Odsadit ven",
-      "max_sub_layers_title": "Dosaženo maxima 11 podvrstev",
-      "add_sub_layer_title": "Přidat podvrstvu",
-      "add_sub_layer": "+ Přidat podvrstvu"
+      "max_sub_layers_title": "Dosaženo maximálně 11 průchodů",
+      "add_sub_layer_title": "Přidat průchod",
+      "add_sub_layer": "+ Přidat průchod",
+      "order_hint": "Průchody se provádějí v pořadí shora dolů."
     },
     "cut_settings": {
       "title": "Nastavení řezu",

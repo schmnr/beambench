@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "Design",
       "mode_run": "Executar",
+      "mode_design_hint": "Design: desenhe e organize seu projeto",
+      "mode_run_hint": "Executar: envie o trabalho para o seu laser",
       "new": "Novo",
       "untitled_project": "Projeto sem título",
       "open": "Abrir",
@@ -1475,7 +1477,7 @@
       "tool_layer": "Camada de ferramenta",
       "summary": "{speed}/{power}% · {passes} passadas",
       "output": "Saída",
-      "reset_to_defaults_title": "Redefinir esta subcamada para os padrões integrados da operação",
+      "reset_to_defaults_title": "Redefinir esta passada para os padrões da operação",
       "delete": "Excluir",
       "mode": "Modo",
       "speed_with_unit": "Velocidade ({unit})",
@@ -1514,9 +1516,10 @@
       "kerf_offset_mm": "Deslocamento de kerf",
       "offset_overlap_mm": "Sobreposição de deslocamento",
       "offset_outward": "Deslocamento para fora",
-      "max_sub_layers_title": "Máximo de 11 subcamadas atingido",
-      "add_sub_layer_title": "Adicionar subcamada",
-      "add_sub_layer": "+ Adicionar subcamada"
+      "max_sub_layers_title": "Máximo de 11 passadas atingido",
+      "add_sub_layer_title": "Adicionar passada",
+      "add_sub_layer": "+ Adicionar passada",
+      "order_hint": "As passadas são executadas em ordem, de cima para baixo."
     },
     "cut_settings": {
       "title": "Configurações de corte",

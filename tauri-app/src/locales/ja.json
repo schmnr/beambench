@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "デザイン",
       "mode_run": "実行",
+      "mode_design_hint": "デザイン：プロジェクトを描いて配置する",
+      "mode_run_hint": "実行：ジョブをレーザーに送信する",
       "new": "新しい",
       "untitled_project": "無題のプロジェクト",
       "open": "開く",
@@ -1475,7 +1477,7 @@
       "tool_layer": "ツールレイヤー",
       "summary": "{speed}/{power}% · {passes} パス",
       "output": "出力",
-      "reset_to_defaults_title": "このサブレイヤーを操作の組み込み既定値にリセット",
+      "reset_to_defaults_title": "このパスを操作の既定値にリセット",
       "delete": "削除",
       "mode": "モード",
       "speed_with_unit": "速度 ({unit})",
@@ -1514,9 +1516,10 @@
       "kerf_offset_mm": "カーフオフセット",
       "offset_overlap_mm": "オフセット重なり",
       "offset_outward": "外側へオフセット",
-      "max_sub_layers_title": "サブレイヤーは最大 11 個です",
-      "add_sub_layer_title": "サブレイヤーを追加",
-      "add_sub_layer": "+ サブレイヤーを追加"
+      "max_sub_layers_title": "パスは最大11個までです",
+      "add_sub_layer_title": "パスを追加",
+      "add_sub_layer": "+ パスを追加",
+      "order_hint": "パスは上から下の順に実行されます。"
     },
     "cut_settings": {
       "title": "カット設定",

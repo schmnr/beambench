@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "Design",
       "mode_run": "Kör",
+      "mode_design_hint": "Design: rita och ordna ditt projekt",
+      "mode_run_hint": "Kör: skicka jobbet till din laser",
       "new": "Nytt",
       "untitled_project": "Namnlöst projekt",
       "open": "Öppna",
@@ -1475,7 +1477,7 @@
       "tool_layer": "Verktygslager",
       "summary": "{speed}/{power}% · {passes} pass",
       "output": "Utdata",
-      "reset_to_defaults_title": "Återställ detta underlager till inbyggda standardvärden för operationen",
+      "reset_to_defaults_title": "Återställ detta pass till standardvärden för operationen",
       "delete": "Ta bort",
       "mode": "Läge",
       "speed_with_unit": "Hastighet ({unit})",
@@ -1514,9 +1516,10 @@
       "kerf_offset_mm": "Kerf-förskjutning",
       "offset_overlap_mm": "Offsetöverlapp",
       "offset_outward": "Offset utåt",
-      "max_sub_layers_title": "Max 11 underlager nått",
-      "add_sub_layer_title": "Lägg till underlager",
-      "add_sub_layer": "+ Lägg till underlager"
+      "max_sub_layers_title": "Max 11 pass uppnått",
+      "add_sub_layer_title": "Lägg till pass",
+      "add_sub_layer": "+ Lägg till pass",
+      "order_hint": "Pass körs i ordning, uppifrån och ned."
     },
     "cut_settings": {
       "title": "Skärinställningar",

@@ -225,6 +225,9 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
 
   return (
     <div className="flex flex-col gap-2">
+      {entries.length > 1 && (
+        <div className="pb-1 text-[10px] text-bb-text-dim">{t('panels.sub_layer_stack.order_hint')}</div>
+      )}
       <div className="flex flex-wrap gap-1" data-testid="sub-layer-tabs">
         {entries.map((entry, index) => (
           <button

@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "Design",
       "mode_run": "Esegui",
+      "mode_design_hint": "Design: disegna e disponi il tuo progetto",
+      "mode_run_hint": "Esegui: invia il lavoro al tuo laser",
       "new": "Nuovo",
       "untitled_project": "Progetto senza titolo",
       "open": "Aprire",
@@ -1475,7 +1477,7 @@
       "tool_layer": "Livello strumento",
       "summary": "{speed}/{power}% · {passes} passate",
       "output": "Output",
-      "reset_to_defaults_title": "Ripristina questo sottolivello ai valori predefiniti integrati per la sua operazione",
+      "reset_to_defaults_title": "Ripristina questa passata ai valori predefiniti della sua operazione",
       "delete": "Elimina",
       "mode": "Modalità",
       "speed_with_unit": "Velocità ({unit})",
@@ -1514,9 +1516,10 @@
       "kerf_offset_mm": "Offset kerf",
       "offset_overlap_mm": "Sovrapposizione offset",
       "offset_outward": "Offset verso esterno",
-      "max_sub_layers_title": "Raggiunto il massimo di 11 sottolivelli",
-      "add_sub_layer_title": "Aggiungi sottolivello",
-      "add_sub_layer": "+ Aggiungi sottolivello"
+      "max_sub_layers_title": "Raggiunto il massimo di 11 passate",
+      "add_sub_layer_title": "Aggiungi passata",
+      "add_sub_layer": "+ Aggiungi passata",
+      "order_hint": "Le passate vengono eseguite in ordine, dall’alto verso il basso."
     },
     "cut_settings": {
       "title": "Impostazioni di taglio",

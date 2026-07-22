@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "디자인",
       "mode_run": "실행",
+      "mode_design_hint": "디자인: 프로젝트를 그리고 배치합니다",
+      "mode_run_hint": "실행: 작업을 레이저로 전송합니다",
       "new": "새로운",
       "untitled_project": "제목 없는 프로젝트",
       "open": "열기",
@@ -1475,7 +1477,7 @@
       "tool_layer": "도구 레이어",
       "summary": "{speed}/{power}% · {passes}회 패스",
       "output": "출력",
-      "reset_to_defaults_title": "이 하위 레이어를 작업의 기본값으로 재설정",
+      "reset_to_defaults_title": "이 패스를 작업의 기본값으로 재설정",
       "delete": "삭제",
       "mode": "모드",
       "speed_with_unit": "속도 ({unit})",
@@ -1514,9 +1516,10 @@
       "kerf_offset_mm": "커프 오프셋",
       "offset_overlap_mm": "오프셋 겹침",
       "offset_outward": "바깥쪽 오프셋",
-      "max_sub_layers_title": "최대 11개 하위 레이어에 도달했습니다",
-      "add_sub_layer_title": "하위 레이어 추가",
-      "add_sub_layer": "+ 하위 레이어 추가"
+      "max_sub_layers_title": "최대 11개 패스에 도달했습니다",
+      "add_sub_layer_title": "패스 추가",
+      "add_sub_layer": "+ 패스 추가",
+      "order_hint": "패스는 위에서 아래 순서로 실행됩니다."
     },
     "cut_settings": {
       "title": "컷 설정",

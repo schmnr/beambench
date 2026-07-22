@@ -1089,6 +1089,8 @@
     "main": {
       "mode_design": "Design",
       "mode_run": "Run",
+      "mode_design_hint": "Design: draw and arrange your project",
+      "mode_run_hint": "Run: send the job to your laser",
       "new": "New",
       "untitled_project": "Untitled Project",
       "open": "Open",
@@ -1590,7 +1592,7 @@
       "tool_layer": "Tool layer",
       "summary": "{speed}/{power}% · {passes, plural, one {# pass} other {# passes}}",
       "output": "Output",
-      "reset_to_defaults_title": "Reset this sub-layer to built-in defaults for its operation",
+      "reset_to_defaults_title": "Reset this pass to built-in defaults for its operation",
       "delete": "Delete",
       "mode": "Mode",
       "speed_with_unit": "Speed ({unit})",
@@ -1629,9 +1631,10 @@
       "kerf_offset_mm": "Kerf Offset",
       "offset_overlap_mm": "Offset Overlap",
       "offset_outward": "Offset Outward",
-      "max_sub_layers_title": "Maximum of 11 sub-layers reached",
-      "add_sub_layer_title": "Add sub-layer",
-      "add_sub_layer": "+ Add sub-layer"
+      "max_sub_layers_title": "Maximum of 11 passes reached",
+      "add_sub_layer_title": "Add pass",
+      "add_sub_layer": "+ Add pass",
+      "order_hint": "Passes run in order, top to bottom."
     },
     "cut_settings": {
       "title": "Cut Settings",
