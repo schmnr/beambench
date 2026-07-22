@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "디자인",
+      "mode_run": "실행",
       "new": "새로운",
       "untitled_project": "제목 없는 프로젝트",
       "open": "열기",

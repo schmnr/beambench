@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Design",
+      "mode_run": "Kør",
       "new": "Ny",
       "untitled_project": "Unavngivet projekt",
       "open": "Åbn",

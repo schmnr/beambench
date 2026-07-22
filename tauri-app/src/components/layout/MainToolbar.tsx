@@ -108,6 +108,8 @@ export function MainToolbar() {
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
 
   const sessionState = useMachineStore((s) => s.sessionState);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const setWorkspaceMode = useUiStore((s) => s.setWorkspaceMode);
 
   const canUndo = useUndoStore((s) => s.canUndo);
   const canRedo = useUndoStore((s) => s.canRedo);
@@ -446,6 +448,33 @@ export function MainToolbar() {
           })}
         </>
       )}
+
+      {/* Centered Design | Run mode switch */}
+      <div className="flex-1" />
+      <div className="flex rounded-lg bg-bb-surface-2 p-0.5" data-testid="mode-switch">
+        <button
+          className={`rounded-md px-3 py-0.5 text-xs ${
+            workspaceMode === 'design'
+              ? 'bg-bb-accent font-semibold text-bb-on-accent'
+              : 'text-bb-text-muted hover:text-bb-text'
+          }`}
+          onClick={() => setWorkspaceMode('design')}
+          data-testid="mode-design"
+        >
+          {t('toolbars.main.mode_design')}
+        </button>
+        <button
+          className={`rounded-md px-3 py-0.5 text-xs ${
+            workspaceMode === 'run'
+              ? 'bg-bb-accent font-semibold text-bb-on-accent'
+              : 'text-bb-text-muted hover:text-bb-text'
+          }`}
+          onClick={() => setWorkspaceMode('run')}
+          data-testid="mode-run"
+        >
+          {t('toolbars.main.mode_run')}
+        </button>
+      </div>
 
       {/* Right side: machine connection pill */}
       <div className="flex-1" />

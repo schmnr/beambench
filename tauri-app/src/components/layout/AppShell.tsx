@@ -7,6 +7,7 @@ import { NodeSubToolbar } from './NodeSubToolbar';
 import { ModifiersToolbar } from './ModifiersToolbar';
 import { StatusBar } from './StatusBar';
 import { RightPanel } from './RightPanel';
+import { RunPanel } from './RunPanel';
 import { LeftPanel } from './LeftPanel';
 import { BottomPanel } from './BottomPanel';
 import { PanelResizer } from './PanelResizer';
@@ -26,6 +27,8 @@ export function AppShell() {
   const setLeftPanelWidth = useUiStore((s) => s.setLeftPanelWidth);
   const setBottomPanelHeight = useUiStore((s) => s.setBottomPanelHeight);
   const sidePanelsVisible = useUiStore((s) => s.sidePanelsVisible);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const runMode = workspaceMode === 'run';
   const panelLayout = useUiStore((s) => s.panelLayout);
   const toolbarVisibility = panelLayout.toolbarVisibility;
 
@@ -71,8 +74,10 @@ export function AppShell() {
         <div className="flex-1 flex flex-col min-h-0">
           {/* Content row */}
           <div className="relative flex-1 flex min-h-0">
-            {/* Left icon toolbars */}
+            {/* Left icon toolbars (design mode only) */}
             <div className="flex flex-shrink-0 min-h-0 overflow-y-auto scrollbar-none bg-bb-bg">
+              {!runMode && (
+              <>
               {(toolbarVisibility.tools || toolbarVisibility.modifiers) && (
                 <div className="my-2 ml-2 flex flex-col flex-shrink-0 self-start overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-lg">
                   {toolbarVisibility.tools && <CreationToolbar />}
@@ -80,9 +85,11 @@ export function AppShell() {
                 </div>
               )}
               {toolbarVisibility.tools && <NodeSubToolbar />}
+              </>
+              )}
             </div>
             {/* Library drawer overlays the canvas next to the rail */}
-            <LibraryDrawer />
+            {!runMode && <LibraryDrawer />}
             {/* Left panel zone (between toolbars and canvas) */}
             {leftHasContent && (
               <>
@@ -97,7 +104,7 @@ export function AppShell() {
             )}
             {/* Canvas with layer tabs */}
             <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-              <LayerTabs />
+              {!runMode && <LayerTabs />}
               <div className="flex-1 min-h-0">
                 <ImportDropZone>
                   <Canvas />
@@ -112,7 +119,7 @@ export function AppShell() {
                   onResize={(delta) => handleRightResize(delta)}
                 />
                 <div className="flex-shrink-0" style={{ width: rightPanelWidth }}>
-                  <RightPanel />
+                  {runMode ? <RunPanel /> : <RightPanel />}
                 </div>
               </>
             )}

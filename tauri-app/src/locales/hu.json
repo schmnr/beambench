@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Tervezés",
+      "mode_run": "Futtatás",
       "new": "Új",
       "untitled_project": "Cím nélküli projekt",
       "open": "Nyissa meg",

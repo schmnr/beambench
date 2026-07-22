@@ -153,6 +153,8 @@ interface UiStoreState {
   /** Library drawer (Art / Materials) next to the tool rail. */
   libraryDrawerOpen: boolean;
   libraryDrawerTab: 'art' | 'materials';
+  /** Design (draw/arrange) vs Run (machine/job) workspace. */
+  workspaceMode: 'design' | 'run';
 
   // Mode toggles
   rotaryEnabled: boolean;
@@ -313,6 +315,7 @@ interface UiStoreState {
   toggleSidePanels: () => void;
   toggleLibraryDrawer: () => void;
   setLibraryDrawerTab: (tab: 'art' | 'materials') => void;
+  setWorkspaceMode: (mode: 'design' | 'run') => void;
 
   // Mode toggle actions
   toggleRotary: () => void;
@@ -444,6 +447,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   sidePanelsVisible: true,
   libraryDrawerOpen: false,
   libraryDrawerTab: 'art' as const,
+  workspaceMode: 'design' as const,
 
   cursorWorldPos: null,
   rotaryEnabled: false,
@@ -997,6 +1001,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
       return { viewStyle: (isFilled ? `wireframe${suffix}` : `filled${suffix}`) as ViewStyle };
     }),
   toggleLibraryDrawer: () => set((s) => ({ libraryDrawerOpen: !s.libraryDrawerOpen })),
+  setWorkspaceMode: (mode) => set({ workspaceMode: mode, libraryDrawerOpen: false }),
   setLibraryDrawerTab: (tab) => set({ libraryDrawerTab: tab }),
   toggleSidePanels: () => {
     set((s) => {

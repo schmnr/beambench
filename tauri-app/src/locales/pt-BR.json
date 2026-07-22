@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Design",
+      "mode_run": "Executar",
       "new": "Novo",
       "untitled_project": "Projeto sem título",
       "open": "Abrir",

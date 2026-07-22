@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Ontwerp",
+      "mode_run": "Uitvoeren",
       "new": "Nieuw",
       "untitled_project": "Naamloos project",
       "open": "Open",

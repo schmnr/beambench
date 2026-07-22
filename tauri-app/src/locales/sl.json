@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Oblikovanje",
+      "mode_run": "Zagon",
       "new": "Novo",
       "untitled_project": "Projekt brez naslova",
       "open": "Odpri",

@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Návrh",
+      "mode_run": "Spustit",
       "new": "Nový",
       "untitled_project": "Projekt bez názvu",
       "open": "OTEVŘENO",

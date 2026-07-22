@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "设计",
+      "mode_run": "运行",
       "new": "新",
       "untitled_project": "无标题项目",
       "open": "打开",

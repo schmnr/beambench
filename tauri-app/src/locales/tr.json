@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Tasarım",
+      "mode_run": "Çalıştır",
       "new": "Yeni",
       "untitled_project": "Başlıksız Proje",
       "open": "Açık",

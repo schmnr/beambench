@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "デザイン",
+      "mode_run": "実行",
       "new": "新しい",
       "untitled_project": "無題のプロジェクト",
       "open": "開く",

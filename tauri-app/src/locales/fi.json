@@ -1087,6 +1087,8 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Suunnittelu",
+      "mode_run": "Suorita",
       "new": "Uusi",
       "untitled_project": "Nimetön projekti",
       "open": "Avaa",
