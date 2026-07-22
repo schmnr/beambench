@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Один подслой"
     },
     "properties": {
+      "transform": "Трансформация",
       "objects_selected": "Выбрано объектов: {count}",
       "layer": "Слой",
       "mixed": "Смешано",

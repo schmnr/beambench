@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Uma subcamada"
     },
     "properties": {
+      "transform": "Transformar",
       "objects_selected": "{count} objetos selecionados",
       "layer": "Camada",
       "mixed": "Misto",

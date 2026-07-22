@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Ena podplast"
     },
     "properties": {
+      "transform": "Preoblikovanje",
       "objects_selected": "{count} predmetov izbranih",
       "layer": "Plast",
       "mixed": "Mešano",

@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Ett underlag"
     },
     "properties": {
+      "transform": "Transformering",
       "objects_selected": "{count} objekter valgt",
       "layer": "Lag",
       "mixed": "Blandet",

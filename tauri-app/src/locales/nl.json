@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Eén sublaag"
     },
     "properties": {
+      "transform": "Transformeren",
       "objects_selected": "{count} objecten geselecteerd",
       "layer": "Laag",
       "mixed": "Gemengd",

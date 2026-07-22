@@ -1380,6 +1380,7 @@
       "single_sub_layer": "단일 하위 레이어"
     },
     "properties": {
+      "transform": "변형",
       "objects_selected": "{count}개 객체 선택됨",
       "layer": "레이어",
       "mixed": "혼합",

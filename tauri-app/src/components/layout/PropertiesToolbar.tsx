@@ -31,20 +31,20 @@ const TOAST_INFO = 'info' as const;
 const TOAST_ERROR = 'error' as const;
 
 
-const anchorPoints: AnchorPoint[] = [
+export const anchorPoints: AnchorPoint[] = [
   'top_left', 'top_center', 'top_right',
   'center_left', 'center', 'center_right',
   'bottom_left', 'bottom_center', 'bottom_right',
 ];
 
-function getAnchorOffset(anchor: AnchorPoint, w: number, h: number): { ax: number; ay: number } {
+export function getAnchorOffset(anchor: AnchorPoint, w: number, h: number): { ax: number; ay: number } {
   const col = anchorPoints.indexOf(anchor) % 3;
   const row = Math.floor(anchorPoints.indexOf(anchor) / 3);
   return { ax: (col / 2) * w, ay: (row / 2) * h };
 }
 
 /** For a single text object, compute the alignment anchor point. Non-text returns undefined. */
-function textAnchorPoint(obj: ProjectObject): { x: number; y: number } | undefined {
+export function textAnchorPoint(obj: ProjectObject): { x: number; y: number } | undefined {
   if (obj.data.type !== TOOL_TEXT) return undefined;
   const { alignment, alignment_v } = obj.data;
   const b = obj.bounds;
@@ -82,7 +82,7 @@ const verticalAlignOptions: { value: TextAlignmentV; labelKey: string }[] = [
   { value: TEXT_ALIGNMENT_BOTTOM, labelKey: 'toolbars.properties.align_bottom' },
 ];
 
-const anchorLabelKeys: Record<AnchorPoint, string> = {
+export const anchorLabelKeys: Record<AnchorPoint, string> = {
   top_left: 'toolbars.properties.anchor.top_left',
   top_center: 'toolbars.properties.anchor.top_center',
   top_right: 'toolbars.properties.anchor.top_right',
@@ -159,7 +159,7 @@ function isStepperCommitEvent(e: React.ChangeEvent<HTMLInputElement>): boolean {
  * buffer; once committed, the buffer is released when the store-derived value
  * catches up (avoids flashing the stale value during the async IPC round-trip).
  */
-function useBufferedNumericField(
+export function useBufferedNumericField(
   committedValue: number | string,
   onCommit: (value: number) => void,
   resetKey: string,

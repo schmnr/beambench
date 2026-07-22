@@ -6,6 +6,7 @@ import { Select } from '../shared/Select';
 import { ColorDot } from '../shared/ColorDot';
 import { Toggle } from '../shared/Toggle';
 import { TextPropertiesPanel } from './TextPropertiesPanel';
+import { TransformSection } from './TransformSection';
 import { RasterPropertiesPanel } from './RasterPropertiesPanel';
 import { vectorService } from '../../services/vectorService';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -51,6 +52,7 @@ export function PropertiesPanel() {
 
     return (
       <div className="flex flex-col gap-2 px-2">
+        <TransformSection />
         <div className="text-xs text-bb-text-dim">{t('panels.properties.objects_selected', { count: selectedObjectIds.length })}</div>
 
         {/* Batch controls */}
@@ -162,6 +164,7 @@ export function PropertiesPanel() {
 
   return (
     <div className="flex flex-col gap-2 px-2">
+      <TransformSection />
       <TextInput
         label={t('panels.properties.name')}
         value={selectedObject.name}

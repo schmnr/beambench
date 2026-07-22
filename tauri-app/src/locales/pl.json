@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Jedna podwarstwa"
     },
     "properties": {
+      "transform": "Przekształcanie",
       "objects_selected": "Wybrano {count} obiekty",
       "layer": "Warstwa",
       "mixed": "Mieszane",

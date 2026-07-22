@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Un sous-calque"
     },
     "properties": {
+      "transform": "Transformation",
       "objects_selected": "{count} objets sélectionnés",
       "layer": "Calque",
       "mixed": "Mixte",

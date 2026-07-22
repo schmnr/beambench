@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Egy alréteg"
     },
     "properties": {
+      "transform": "Átalakítás",
       "objects_selected": "{count} objektum kijelölve",
       "layer": "Réteg",
       "mixed": "Vegyes",

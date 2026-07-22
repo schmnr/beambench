@@ -1380,6 +1380,7 @@
       "single_sub_layer": "單一子圖層"
     },
     "properties": {
+      "transform": "變形",
       "objects_selected": "已選取 {count} 個物件",
       "layer": "圖層",
       "mixed": "混合",

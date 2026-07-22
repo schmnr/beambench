@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Ett underlager"
     },
     "properties": {
+      "transform": "Omforma",
       "objects_selected": "{count} objekt markerade",
       "layer": "Lager",
       "mixed": "Blandat",

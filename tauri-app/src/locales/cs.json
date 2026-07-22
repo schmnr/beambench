@@ -1380,6 +1380,7 @@
       "single_sub_layer": "Jedna podvrstva"
     },
     "properties": {
+      "transform": "Transformace",
       "objects_selected": "Vybráno {count} objektů",
       "layer": "Vrstva",
       "mixed": "Smíšené",
