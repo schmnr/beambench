@@ -24,6 +24,13 @@ function getSupportedPaths(paths: string[]): string[] {
   });
 }
 
+function isUnreadableDroppedFileError(error: unknown): boolean {
+  if (typeof error === 'object' && error !== null && 'name' in error) {
+    return (error as { name?: unknown }).name === 'NotReadableError';
+  }
+  return String(error).includes('NotReadableError');
+}
+
 export function ImportDropZone({ children }: ImportDropZoneProps) {
   const { t } = useTranslation();
   const project = useProjectStore((s) => s.project);
@@ -148,6 +155,13 @@ export function ImportDropZone({ children }: ImportDropZoneProps) {
         );
         await useProjectStore.getState().importFileData(payload);
       } catch (err) {
+        if (isUnreadableDroppedFileError(err)) {
+          // Windows file providers (cloud folders, archives, mail clients,
+          // etc.) can revoke an HTML5 File handle immediately after a drop.
+          // Re-open the native picker so Tauri receives a durable OS path.
+          await useProjectStore.getState().importFiles();
+          return;
+        }
         useNotificationStore.getState().push(i18n.t('notifications.import_failed', { detail: String(err) }), 'error');
       }
     },

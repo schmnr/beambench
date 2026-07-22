@@ -23,9 +23,10 @@ vi.mock('@tauri-apps/api/webviewWindow', () => ({
 // Mock importService used by the store's import actions
 const mockImportFilePaths = vi.fn().mockResolvedValue([]);
 const mockImportFileData = vi.fn().mockResolvedValue([]);
+const mockPickFiles = vi.fn().mockResolvedValue([]);
 vi.mock('../../../services/importService', () => ({
   importService: {
-    pickFiles: vi.fn(),
+    pickFiles: (...args: unknown[]) => mockPickFiles(...args),
     importFilePaths: (...args: unknown[]) => mockImportFilePaths(...args),
     importFileData: (...args: unknown[]) => mockImportFileData(...args),
     importGcodeFile: vi.fn(),
@@ -81,6 +82,9 @@ afterEach(() => {
   tauriDragDrop.handler = null;
   mockImportFilePaths.mockClear();
   mockImportFileData.mockClear();
+  mockPickFiles.mockReset();
+  mockPickFiles.mockResolvedValue([]);
+  vi.unstubAllGlobals();
   mockedProjectService.addLayer.mockClear();
   mockedProjectService.updateLayer.mockClear();
   mockedProjectService.updateCutEntry.mockClear();
@@ -102,6 +106,21 @@ function setProject() {
     }),
     selectedLayerId: 'l1',
   });
+}
+
+function stubUnreadableFileReader() {
+  class UnreadableFileReader {
+    error = new DOMException('The requested file could not be read.', 'NotReadableError');
+    result: string | ArrayBuffer | null = null;
+    onerror: ((event: Event) => void) | null = null;
+    onload: ((event: Event) => void) | null = null;
+
+    readAsDataURL() {
+      queueMicrotask(() => this.onerror?.(new Event('error')));
+    }
+  }
+
+  vi.stubGlobal('FileReader', UnreadableFileReader);
 }
 
 async function emitNativeDragDropEvent(payload: { type: string; paths?: string[] }) {
@@ -164,6 +183,62 @@ describe('ImportDropZone', () => {
     await waitFor(() => {
       expect(mockImportFileData).toHaveBeenCalledWith(dataFiles(['drawing.dxf']), 'l1');
     });
+  });
+
+  it('recovers an unreadable Windows drop through the native file picker', async () => {
+    setProject();
+    stubUnreadableFileReader();
+    mockPickFiles.mockResolvedValueOnce(['C:\\Users\\maker\\drawing.dxf']);
+    mockImportFilePaths.mockResolvedValueOnce([{ id: 'obj1', layer_id: 'l1' }]);
+    mockedProjectService.getProject.mockResolvedValue(useProjectStore.getState().project);
+
+    const { container } = render(
+      <ImportDropZone>
+        <div>content</div>
+      </ImportDropZone>,
+    );
+
+    const zone = container.firstChild as HTMLElement;
+    fireEvent.drop(zone, {
+      dataTransfer: {
+        files: [new File(['0\nSECTION'], 'drawing.dxf')],
+        items: [],
+        types: ['Files'],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockPickFiles).toHaveBeenCalledOnce();
+      expect(mockImportFilePaths).toHaveBeenCalledWith(['C:\\Users\\maker\\drawing.dxf'], 'l1');
+    });
+    expect(mockImportFileData).not.toHaveBeenCalled();
+  });
+
+  it('allows the native recovery picker to be cancelled', async () => {
+    setProject();
+    stubUnreadableFileReader();
+    mockPickFiles.mockResolvedValueOnce([]);
+
+    const { container } = render(
+      <ImportDropZone>
+        <div>content</div>
+      </ImportDropZone>,
+    );
+
+    const zone = container.firstChild as HTMLElement;
+    fireEvent.drop(zone, {
+      dataTransfer: {
+        files: [new File(['x'], 'photo.png')],
+        items: [],
+        types: ['Files'],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockPickFiles).toHaveBeenCalledOnce();
+    });
+    expect(mockImportFilePaths).not.toHaveBeenCalled();
+    expect(mockImportFileData).not.toHaveBeenCalled();
   });
 
   it('imports Lbrn projects dropped from the desktop', async () => {
