@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useMachineStore } from '../../stores/machineStore';
 import { PANEL_COMPONENTS, getPanelById } from '../../panels';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
+import { PanelResizer } from './PanelResizer';
 
 const LOWER_TABS = ['camera', 'macros', 'console'] as const;
 
@@ -16,6 +17,7 @@ export function RunPanel() {
     (s) => (s.profiles ?? []).find((p) => p.id === s.activeProfileId) ?? null,
   );
   const [lowerTab, setLowerTab] = useState<(typeof LOWER_TABS)[number]>('camera');
+  const [upperRatio, setUpperRatio] = useState(0.58);
   const [showProfiles, setShowProfiles] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +44,7 @@ export function RunPanel() {
       {/* Upper card: Laser Control */}
       <div
         className="flex min-h-0 flex-col overflow-hidden rounded-b-xl rounded-tr-xl border border-bb-border bg-bb-panel shadow-lg"
-        style={{ flex: 0.58 }}
+        style={{ flex: upperRatio }}
       >
         <div className="flex border-b border-bb-border px-1 pt-1">
           <span className="border-b-2 border-bb-accent px-1.5 pb-1.5 pt-0.5 text-xs font-semibold text-bb-accent">
@@ -54,10 +56,20 @@ export function RunPanel() {
         </div>
       </div>
 
+      {/* Split handle */}
+      <PanelResizer
+        direction="bottom"
+        onResize={(delta) => {
+          const height = containerRef.current?.clientHeight ?? 0;
+          if (height <= 0) return;
+          setUpperRatio((r) => Math.min(0.85, Math.max(0.15, r + delta / height)));
+        }}
+      />
+
       {/* Lower card: Camera / Macros / Console */}
       <div
-        className="mt-2 flex min-h-0 flex-col overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-lg"
-        style={{ flex: 0.42 }}
+        className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-lg"
+        style={{ flex: 1 - upperRatio }}
       >
         <div className="flex border-b border-bb-border px-1 pt-1">
           {LOWER_TABS.map((id) => {

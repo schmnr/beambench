@@ -16,7 +16,7 @@ export function RunLeftPanel() {
 
   return (
     <div
-      className="no-select flex h-full w-80 flex-shrink-0 flex-col bg-bb-bg px-2 pb-2 pt-1.5"
+      className="no-select flex h-full w-full flex-col bg-bb-bg px-2 pb-2 pt-1.5"
       onContextMenu={(e) => e.preventDefault()}
       data-testid="run-left-panel"
     >

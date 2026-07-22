@@ -89,8 +89,18 @@ export function AppShell() {
               </>
               )}
             </div>
-            {/* Run mode: machine-support panel (left) */}
-            {runMode && <RunLeftPanel />}
+            {/* Run mode: machine-support panel (left), resizable */}
+            {runMode && (
+              <>
+                <div className="flex-shrink-0" style={{ width: effectiveLeftWidth }}>
+                  <RunLeftPanel />
+                </div>
+                <PanelResizer
+                  direction="left"
+                  onResize={(delta) => handleLeftResize(delta)}
+                />
+              </>
+            )}
             {/* Library drawer overlays the canvas next to the rail */}
             {!runMode && <LibraryDrawer />}
             {/* Left panel zone (between toolbars and canvas) */}
