@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "Dodaj warstwę",
       "header": {
         "index": "#",
         "layer": "Warstwa",

@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "Laag toevoegen",
       "header": {
         "index": "#",
         "layer": "Laag",

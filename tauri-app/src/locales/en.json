@@ -1652,6 +1652,7 @@
       }
     },
     "layers": {
+      "add_layer": "Add layer",
       "header": {
         "index": "#",
         "layer": "Layer",

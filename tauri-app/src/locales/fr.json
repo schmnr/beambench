@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "Ajouter un calque",
       "header": {
         "index": "#",
         "layer": "Calque",

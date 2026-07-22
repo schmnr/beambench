@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "Tilføj lag",
       "header": {
         "index": "#",
         "layer": "Lag",

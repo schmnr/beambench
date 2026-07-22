@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "レイヤーを追加",
       "header": {
         "index": "#",
         "layer": "レイヤー",

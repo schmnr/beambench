@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "Aggiungi livello",
       "header": {
         "index": "#",
         "layer": "Livello",

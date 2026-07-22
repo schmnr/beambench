@@ -11,6 +11,7 @@ import { LeftPanel } from './LeftPanel';
 import { BottomPanel } from './BottomPanel';
 import { PanelResizer } from './PanelResizer';
 import { Canvas } from '../canvas/Canvas';
+import { LayerTabs } from '../layers/LayerTabs';
 import { ImportDropZone } from '../import/ImportDropZone';
 import { FloatingPanelLayer } from './FloatingPanelLayer';
 import { PanelDndProvider } from '../../panels/DndContext';
@@ -98,11 +99,14 @@ export function AppShell() {
                 )}
               </>
             )}
-            {/* Canvas */}
-            <div className="flex-1 min-w-0 min-h-0">
-              <ImportDropZone>
-                <Canvas />
-              </ImportDropZone>
+            {/* Canvas with layer tabs */}
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+              <LayerTabs />
+              <div className="flex-1 min-h-0">
+                <ImportDropZone>
+                  <Canvas />
+                </ImportDropZone>
+              </div>
             </div>
             {/* Right panel zone */}
             {rightHasContent && (

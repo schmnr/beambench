@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "Añadir capa",
       "header": {
         "index": "#",
         "layer": "Capa",

@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "레이어 추가",
       "header": {
         "index": "#",
         "layer": "레이어",

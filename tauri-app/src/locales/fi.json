@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "Lisää taso",
       "header": {
         "index": "#",
         "layer": "Taso",

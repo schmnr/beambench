@@ -1537,6 +1537,7 @@
       }
     },
     "layers": {
+      "add_layer": "Добавить слой",
       "header": {
         "index": "#",
         "layer": "Слой",
