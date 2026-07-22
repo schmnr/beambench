@@ -86,7 +86,7 @@ export function RightPanel() {
   const { t } = useTranslation();
   const upperSplitRatio = useUiStore((s) => s.panelLayout.upperSplitRatio);
   const activeProfile = useMachineStore(
-    (s) => s.profiles.find((p) => p.id === s.activeProfileId) ?? null,
+    (s) => (s.profiles ?? []).find((p) => p.id === s.activeProfileId) ?? null,
   );
   const [showProfiles, setShowProfiles] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
