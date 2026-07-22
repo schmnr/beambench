@@ -1,6 +1,9 @@
 //! Simplified PDF/AI/EPS path extractor (no external dependencies).
 
-use beambench_common::path::{PathCommand, SubPath, VecPath};
+use beambench_common::{
+    geometry::{Point2D, Transform2D},
+    path::{PathCommand, SubPath, VecPath},
+};
 
 /// PDF/PostScript user-space unit is 1/72 inch (a "point"). Convert to mm.
 const PT_TO_MM: f64 = 25.4 / 72.0;
@@ -50,6 +53,7 @@ struct PdfGraphicsState {
     fill_space: PdfDeviceColorSpace,
     stroke_color: PdfRgbColor,
     fill_color: PdfRgbColor,
+    ctm: Transform2D,
 }
 
 impl Default for PdfGraphicsState {
@@ -60,6 +64,7 @@ impl Default for PdfGraphicsState {
             // DeviceGray's initial value is zero (black).
             stroke_color: PdfRgbColor { r: 0, g: 0, b: 0 },
             fill_color: PdfRgbColor { r: 0, g: 0, b: 0 },
+            ctm: Transform2D::identity(),
         }
     }
 }
@@ -273,23 +278,63 @@ fn parse_content_stream(stream: &str) -> Vec<PdfPaintedPath> {
                         subpaths.push(current);
                         current = SubPath::new();
                     }
+                    let (x, y) = transform_pdf_point(graphics_state.ctm, x, y);
                     current.commands.push(PathCommand::MoveTo { x, y });
                 }
             }
             "l" => {
                 // lineto: x y l
                 if let Some([x, y]) = last_numbers::<2>(&operands) {
+                    let (x, y) = transform_pdf_point(graphics_state.ctm, x, y);
                     current.commands.push(PathCommand::LineTo { x, y });
                 }
             }
             "c" => {
                 // curveto: x1 y1 x2 y2 x3 y3 c
                 if let Some([c1x, c1y, c2x, c2y, x, y]) = last_numbers::<6>(&operands) {
+                    let (c1x, c1y) = transform_pdf_point(graphics_state.ctm, c1x, c1y);
+                    let (c2x, c2y) = transform_pdf_point(graphics_state.ctm, c2x, c2y);
+                    let (x, y) = transform_pdf_point(graphics_state.ctm, x, y);
                     current.commands.push(PathCommand::CubicTo {
                         c1x,
                         c1y,
                         c2x,
                         c2y,
+                        x,
+                        y,
+                    });
+                }
+            }
+            "v" => {
+                // curveto shorthand: the current point is the first control
+                // point, followed by x2 y2 x3 y3 v.
+                if let (Some((c1x, c1y)), Some([c2x, c2y, x, y])) = (
+                    current_subpath_point(&current),
+                    last_numbers::<4>(&operands),
+                ) {
+                    let (c2x, c2y) = transform_pdf_point(graphics_state.ctm, c2x, c2y);
+                    let (x, y) = transform_pdf_point(graphics_state.ctm, x, y);
+                    current.commands.push(PathCommand::CubicTo {
+                        c1x,
+                        c1y,
+                        c2x,
+                        c2y,
+                        x,
+                        y,
+                    });
+                }
+            }
+            "y" => {
+                // curveto shorthand: x1 y1 x3 y3 y, with the endpoint also
+                // serving as the second control point.
+                if let Some([c1x, c1y, x, y]) = last_numbers::<4>(&operands) {
+                    let (c1x, c1y) = transform_pdf_point(graphics_state.ctm, c1x, c1y);
+                    let (x, y) = transform_pdf_point(graphics_state.ctm, x, y);
+                    current.commands.push(PathCommand::CubicTo {
+                        c1x,
+                        c1y,
+                        c2x: x,
+                        c2y: y,
                         x,
                         y,
                     });
@@ -302,12 +347,22 @@ fn parse_content_stream(stream: &str) -> Vec<PdfPaintedPath> {
                         subpaths.push(current);
                         current = SubPath::new();
                     }
-                    current.commands.push(PathCommand::MoveTo { x, y });
-                    current.commands.push(PathCommand::LineTo { x: x + w, y });
+                    let p0 = transform_pdf_point(graphics_state.ctm, x, y);
+                    let p1 = transform_pdf_point(graphics_state.ctm, x + w, y);
+                    let p2 = transform_pdf_point(graphics_state.ctm, x + w, y + h);
+                    let p3 = transform_pdf_point(graphics_state.ctm, x, y + h);
                     current
                         .commands
-                        .push(PathCommand::LineTo { x: x + w, y: y + h });
-                    current.commands.push(PathCommand::LineTo { x, y: y + h });
+                        .push(PathCommand::MoveTo { x: p0.0, y: p0.1 });
+                    current
+                        .commands
+                        .push(PathCommand::LineTo { x: p1.0, y: p1.1 });
+                    current
+                        .commands
+                        .push(PathCommand::LineTo { x: p2.0, y: p2.1 });
+                    current
+                        .commands
+                        .push(PathCommand::LineTo { x: p3.0, y: p3.1 });
                     current.commands.push(PathCommand::Close);
                     current.closed = true;
                 }
@@ -320,6 +375,15 @@ fn parse_content_stream(stream: &str) -> Vec<PdfPaintedPath> {
             "Q" => {
                 if let Some(saved) = graphics_stack.pop() {
                     graphics_state = saved;
+                }
+            }
+            "cm" => {
+                if let Some([a, b, c, d, tx, ty]) = last_numbers::<6>(&operands) {
+                    let matrix = Transform2D { a, b, c, d, tx, ty };
+                    // PDF concatenates the new matrix inside the existing CTM:
+                    // parent transforms therefore continue to apply outside
+                    // transforms established by nested content.
+                    graphics_state.ctm = graphics_state.ctm.compose(&matrix);
                 }
             }
             "G" => {
@@ -464,6 +528,24 @@ fn last_numbers<const N: usize>(operands: &[String]) -> Option<[f64; N]> {
         *value = token.parse().ok()?;
     }
     Some(values)
+}
+
+fn transform_pdf_point(transform: Transform2D, x: f64, y: f64) -> (f64, f64) {
+    let point = transform.apply(&Point2D::new(x, y));
+    (point.x, point.y)
+}
+
+fn current_subpath_point(subpath: &SubPath) -> Option<(f64, f64)> {
+    match subpath.commands.last()? {
+        PathCommand::MoveTo { x, y }
+        | PathCommand::LineTo { x, y }
+        | PathCommand::QuadTo { x, y, .. }
+        | PathCommand::CubicTo { x, y, .. } => Some((*x, *y)),
+        PathCommand::Close => subpath.commands.iter().find_map(|command| match command {
+            PathCommand::MoveTo { x, y } => Some((*x, *y)),
+            _ => None,
+        }),
+    }
 }
 
 fn parse_device_color_space(name: &str) -> Option<PdfDeviceColorSpace> {
@@ -651,6 +733,27 @@ pub fn parse_eps_paths(content: &[u8]) -> Result<Vec<VecPath>, String> {
 mod tests {
     use super::*;
 
+    fn assert_pdf_coord(actual_mm: f64, expected_points: f64) {
+        let expected_mm = expected_points * PT_TO_MM;
+        assert!(
+            (actual_mm - expected_mm).abs() < 1e-9,
+            "expected {expected_mm}mm, got {actual_mm}mm"
+        );
+    }
+
+    fn assert_command_endpoint(command: &PathCommand, x_points: f64, y_points: f64) {
+        match *command {
+            PathCommand::MoveTo { x, y }
+            | PathCommand::LineTo { x, y }
+            | PathCommand::QuadTo { x, y, .. }
+            | PathCommand::CubicTo { x, y, .. } => {
+                assert_pdf_coord(x, x_points);
+                assert_pdf_coord(y, y_points);
+            }
+            PathCommand::Close => panic!("expected command with an endpoint"),
+        }
+    }
+
     #[test]
     fn parse_pdf_moveto_lineto() {
         let content = b"stream\n10 20 m 30 40 l\nendstream";
@@ -674,6 +777,143 @@ mod tests {
         let paths = parse_pdf_paths(content).unwrap();
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].subpaths[0].commands.len(), 2); // M C
+    }
+
+    #[test]
+    fn parse_pdf_curve_shorthands_preserve_implicit_controls() {
+        let content = b"stream\n1 2 m 3 4 5 6 v 7 8 9 10 y S\nendstream";
+        let paths = parse_pdf_paths(content).unwrap();
+        let commands = &paths[0].subpaths[0].commands;
+
+        assert_eq!(commands.len(), 3);
+        match commands[1] {
+            PathCommand::CubicTo {
+                c1x,
+                c1y,
+                c2x,
+                c2y,
+                x,
+                y,
+            } => {
+                assert_pdf_coord(c1x, 1.0);
+                assert_pdf_coord(c1y, 2.0);
+                assert_pdf_coord(c2x, 3.0);
+                assert_pdf_coord(c2y, 4.0);
+                assert_pdf_coord(x, 5.0);
+                assert_pdf_coord(y, 6.0);
+            }
+            _ => panic!("expected v to produce CubicTo"),
+        }
+        match commands[2] {
+            PathCommand::CubicTo {
+                c1x,
+                c1y,
+                c2x,
+                c2y,
+                x,
+                y,
+            } => {
+                assert_pdf_coord(c1x, 7.0);
+                assert_pdf_coord(c1y, 8.0);
+                assert_pdf_coord(c2x, 9.0);
+                assert_pdf_coord(c2y, 10.0);
+                assert_pdf_coord(x, 9.0);
+                assert_pdf_coord(y, 10.0);
+            }
+            _ => panic!("expected y to produce CubicTo"),
+        }
+    }
+
+    #[test]
+    fn parse_pdf_ctm_transforms_all_curve_coordinates() {
+        let content = b"stream\n2 0 0 3 10 20 cm 1 2 m 4 5 l 6 7 8 9 10 11 c 12 13 14 15 v 16 17 18 19 y S\nendstream";
+        let paths = parse_pdf_paths(content).unwrap();
+        let commands = &paths[0].subpaths[0].commands;
+
+        assert_eq!(commands.len(), 5);
+        assert_command_endpoint(&commands[0], 12.0, 26.0);
+        assert_command_endpoint(&commands[1], 18.0, 35.0);
+        match commands[2] {
+            PathCommand::CubicTo {
+                c1x,
+                c1y,
+                c2x,
+                c2y,
+                x,
+                y,
+            } => {
+                assert_pdf_coord(c1x, 22.0);
+                assert_pdf_coord(c1y, 41.0);
+                assert_pdf_coord(c2x, 26.0);
+                assert_pdf_coord(c2y, 47.0);
+                assert_pdf_coord(x, 30.0);
+                assert_pdf_coord(y, 53.0);
+            }
+            _ => panic!("expected CubicTo"),
+        }
+        match commands[3] {
+            PathCommand::CubicTo {
+                c1x,
+                c1y,
+                c2x,
+                c2y,
+                x,
+                y,
+            } => {
+                assert_pdf_coord(c1x, 30.0);
+                assert_pdf_coord(c1y, 53.0);
+                assert_pdf_coord(c2x, 34.0);
+                assert_pdf_coord(c2y, 59.0);
+                assert_pdf_coord(x, 38.0);
+                assert_pdf_coord(y, 65.0);
+            }
+            _ => panic!("expected v CubicTo"),
+        }
+        match commands[4] {
+            PathCommand::CubicTo {
+                c1x,
+                c1y,
+                c2x,
+                c2y,
+                x,
+                y,
+            } => {
+                assert_pdf_coord(c1x, 42.0);
+                assert_pdf_coord(c1y, 71.0);
+                assert_pdf_coord(c2x, 46.0);
+                assert_pdf_coord(c2y, 77.0);
+                assert_pdf_coord(x, 46.0);
+                assert_pdf_coord(y, 77.0);
+            }
+            _ => panic!("expected y CubicTo"),
+        }
+    }
+
+    #[test]
+    fn parse_pdf_ctm_concatenates_and_restores_with_graphics_state() {
+        let content =
+            b"stream\n1 0 0 1 10 20 cm q 2 0 0 3 0 0 cm 1 1 m 2 2 l S Q 1 1 m 2 2 l S\nendstream";
+        let paths = parse_pdf_paths(content).unwrap();
+
+        assert_eq!(paths.len(), 2);
+        assert_command_endpoint(&paths[0].subpaths[0].commands[0], 12.0, 23.0);
+        assert_command_endpoint(&paths[0].subpaths[0].commands[1], 14.0, 26.0);
+        assert_command_endpoint(&paths[1].subpaths[0].commands[0], 11.0, 21.0);
+        assert_command_endpoint(&paths[1].subpaths[0].commands[1], 12.0, 22.0);
+    }
+
+    #[test]
+    fn parse_pdf_ctm_transforms_rectangle_corners() {
+        let content = b"stream\n0 1 -1 0 100 200 cm 10 20 30 40 re f\nendstream";
+        let paths = parse_pdf_paths(content).unwrap();
+        let commands = &paths[0].subpaths[0].commands;
+
+        assert_eq!(commands.len(), 5);
+        assert_command_endpoint(&commands[0], 80.0, 210.0);
+        assert_command_endpoint(&commands[1], 80.0, 240.0);
+        assert_command_endpoint(&commands[2], 40.0, 240.0);
+        assert_command_endpoint(&commands[3], 40.0, 210.0);
+        assert_eq!(commands[4], PathCommand::Close);
     }
 
     #[test]
