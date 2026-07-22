@@ -58,13 +58,8 @@ export function AppShell() {
     panelLayout.zones['lower-right']?.panelIds.some((id) => !panelLayout.hiddenPanelIds.includes(id))
   );
 
-  // Auto-size: when only color_palette is in bottom zone, use fixed 48px (one row)
-  const bottomOnlyColorPalette = bottomVisibleIds.length === 1 && bottomVisibleIds[0] === 'color_palette';
-  const effectiveBottomHeight = bottomOnlyColorPalette ? 48 : bottomPanelHeight;
-
-  // Auto-size: when only color_palette is in left zone, use fixed 44px (one column)
-  const leftOnlyColorPalette = leftVisibleIds.length === 1 && leftVisibleIds[0] === 'color_palette';
-  const effectiveLeftWidth = leftOnlyColorPalette ? 44 : leftPanelWidth;
+  const effectiveBottomHeight = bottomPanelHeight;
+  const effectiveLeftWidth = leftPanelWidth;
 
   return (
     <PanelDndProvider>
@@ -89,14 +84,12 @@ export function AppShell() {
             {leftHasContent && (
               <>
                 <div className="flex-shrink-0" style={{ width: effectiveLeftWidth }}>
-                  <LeftPanel compact={leftOnlyColorPalette} />
+                  <LeftPanel compact={false} />
                 </div>
-                {!leftOnlyColorPalette && (
-                  <PanelResizer
-                    direction="left"
-                    onResize={(delta) => handleLeftResize(delta)}
-                  />
-                )}
+                <PanelResizer
+                  direction="left"
+                  onResize={(delta) => handleLeftResize(delta)}
+                />
               </>
             )}
             {/* Canvas with layer tabs */}
@@ -124,12 +117,10 @@ export function AppShell() {
           {/* Bottom panel zone — full width below canvas + right panel */}
           {bottomHasContent && (
             <>
-              {!bottomOnlyColorPalette && (
-                <PanelResizer
-                  direction="bottom"
-                  onResize={(delta) => handleBottomResize(delta)}
-                />
-              )}
+              <PanelResizer
+                direction="bottom"
+                onResize={(delta) => handleBottomResize(delta)}
+              />
               <div className="flex-shrink-0" style={{ height: effectiveBottomHeight }}>
                 <BottomPanel />
               </div>

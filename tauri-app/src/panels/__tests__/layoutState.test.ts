@@ -30,7 +30,7 @@ describe('layoutState', () => {
     expect(layout.zones['upper-right'].panelIds).toHaveLength(5);
     expect(layout.zones['lower-right'].panelIds).toHaveLength(2);
     expect(layout.zones['left'].panelIds).toHaveLength(0);
-    expect(layout.zones['bottom'].panelIds).toHaveLength(1);
+    expect(layout.zones['bottom'].panelIds).toHaveLength(0);
   });
 
   it('upper zone default active tab is cuts_layers', () => {

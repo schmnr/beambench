@@ -15,7 +15,6 @@ export const WINDOW_PANEL_MENU_ITEMS = [
   { label: 'Console', commandId: APP_COMMANDS.WINDOW_PANEL_CONSOLE, panelId: 'console' },
   { label: 'Macros', commandId: APP_COMMANDS.WINDOW_PANEL_MACROS, panelId: 'macros' },
   { label: 'Cuts / Layers', commandId: APP_COMMANDS.WINDOW_PANEL_CUTS_LAYERS, panelId: 'cuts_layers' },
-  { label: 'Color Palette', commandId: APP_COMMANDS.WINDOW_PANEL_COLOR_PALETTE, panelId: 'color_palette' },
   { label: 'Laser Control', commandId: APP_COMMANDS.WINDOW_PANEL_LASER, panelId: 'laser' },
   { label: 'Material Library', commandId: APP_COMMANDS.WINDOW_PANEL_MATERIAL_LIBRARY, panelId: 'material' },
   { label: 'Move', commandId: APP_COMMANDS.WINDOW_PANEL_MOVE, panelId: 'move' },
@@ -40,13 +39,12 @@ export const WINDOW_PANEL_TOOLBAR_MENU_ITEMS = [
   WINDOW_PANEL_MENU_ITEMS[2],
   WINDOW_PANEL_MENU_ITEMS[3],
   WINDOW_PANEL_MENU_ITEMS[4],
-  WINDOW_PANEL_MENU_ITEMS[5],
   WINDOW_TOOLBAR_MENU_ITEMS[3],
+  WINDOW_PANEL_MENU_ITEMS[5],
   WINDOW_PANEL_MENU_ITEMS[6],
-  WINDOW_PANEL_MENU_ITEMS[7],
   WINDOW_TOOLBAR_MENU_ITEMS[4],
+  WINDOW_PANEL_MENU_ITEMS[7],
   WINDOW_PANEL_MENU_ITEMS[8],
-  WINDOW_PANEL_MENU_ITEMS[9],
   WINDOW_TOOLBAR_MENU_ITEMS[5],
 ] as const;
 

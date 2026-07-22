@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { PANEL_REGISTRY, getPanelById, getDefaultLayout } from '../panelRegistry';
 
 describe('panelRegistry', () => {
-  it('has 12 registered panels', () => {
-    expect(PANEL_REGISTRY).toHaveLength(12);
+  it('has 11 registered panels', () => {
+    expect(PANEL_REGISTRY).toHaveLength(11);
   });
 
   it('all panel ids are unique', () => {
@@ -27,10 +27,9 @@ describe('panelRegistry', () => {
     expect(layout.zones['upper-right'].panelIds).toHaveLength(5);
     expect(layout.zones['lower-right'].panelIds).toHaveLength(2);
     expect(layout.zones['left'].panelIds).toHaveLength(0);
-    expect(layout.zones['bottom'].panelIds).toHaveLength(1);
+    expect(layout.zones['bottom'].panelIds).toHaveLength(0);
     expect(layout.zones['upper-right'].activeTab).toBe('cuts_layers');
     expect(layout.zones['lower-right'].activeTab).toBe('laser');
-    expect(layout.zones['bottom'].activeTab).toBe('color_palette');
     expect(layout.hiddenPanelIds).toEqual(['measurement', 'camera', 'art_library', 'connection_diagnostics']);
   });
 
@@ -46,9 +45,9 @@ describe('panelRegistry', () => {
     expect(layout.zones['lower-right'].panelIds).toEqual(['laser', 'material']);
   });
 
-  it('bottom zone contains color_palette', () => {
+  it('bottom zone starts empty (color palette retired for layer tabs)', () => {
     const layout = getDefaultLayout();
-    expect(layout.zones['bottom'].panelIds).toEqual(['color_palette']);
+    expect(layout.zones['bottom'].panelIds).toEqual([]);
   });
 
   it('all panels have supportsFloat defined', () => {

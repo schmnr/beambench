@@ -180,7 +180,6 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.WINDOW_PANEL_CONSOLE, label: 'Console', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_MACROS, label: 'Macros', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_CUTS_LAYERS, label: 'Cuts / Layers', group: 'Window', editable: false },
-  { id: APP_COMMANDS.WINDOW_PANEL_COLOR_PALETTE, label: 'Color Palette', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_TOOLBAR_DOCKING, label: 'Docking', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_LASER, label: 'Laser Control', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_MATERIAL_LIBRARY, label: 'Material Library', group: 'Window', editable: false },

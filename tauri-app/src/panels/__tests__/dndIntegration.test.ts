@@ -13,7 +13,7 @@ describe('DnD Integration — full workflows through store actions', () => {
     });
   });
 
-  it('default layout has 12 panels across 4 zones and none floating', () => {
+  it('default layout has 11 panels across 4 zones and none floating', () => {
     const { panelLayout } = useUiStore.getState();
     const upperIds = panelLayout.zones['upper-right'].panelIds;
     const lowerIds = panelLayout.zones['lower-right'].panelIds;
@@ -22,13 +22,13 @@ describe('DnD Integration — full workflows through store actions', () => {
     expect(upperIds).toHaveLength(5);
     expect(lowerIds).toHaveLength(2);
     expect(leftIds).toHaveLength(0);
-    expect(bottomIds).toHaveLength(1);
+    expect(bottomIds).toHaveLength(0);
     expect(panelLayout.floatingPanels).toHaveLength(0);
     // Camera is defaultVisible: false, so it's in hiddenPanelIds
     expect(panelLayout.hiddenPanelIds).toContain('camera');
-    // Total non-hidden docked panels = 8
+    // Total non-hidden docked panels = 7 (color palette retired for layer tabs)
     const allDocked = [...upperIds, ...lowerIds, ...leftIds, ...bottomIds];
-    expect(allDocked).toHaveLength(8);
+    expect(allDocked).toHaveLength(7);
   });
 
   it('float a panel → leaves zone, appears in floatingPanels', () => {
@@ -135,8 +135,8 @@ describe('DnD Integration — full workflows through store actions', () => {
     expect(final.hiddenPanelIds).toContain('camera');
   });
 
-  it('registry has 12 panels total', () => {
-    expect(PANEL_REGISTRY).toHaveLength(12);
+  it('registry has 11 panels total', () => {
+    expect(PANEL_REGISTRY).toHaveLength(11);
   });
 
   it('float → dock at specific index → appears at that position', () => {

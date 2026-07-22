@@ -10,7 +10,6 @@ import { ConsoleWindow } from '../components/machine/ConsoleWindow';
 import { MacrosWindow } from '../components/machine/MacrosWindow';
 import { LaserPanel } from '../components/machine/LaserPanel';
 import { MaterialLibrary } from '../components/machine/MaterialLibrary';
-import { ColorPalette } from '../components/layout/ColorPalette';
 import { CameraContent } from '../components/machine/CameraContent';
 import { ArtLibraryPanel } from '../components/panels/ArtLibraryPanel';
 import { ConnectionDiagnosticsPanel } from '../components/panels/ConnectionDiagnosticsPanel';
@@ -59,7 +58,6 @@ export const PANEL_COMPONENTS: Record<string, ComponentType> = {
   measurement: MeasurementPanel,
   laser: LaserPanel,
   material: MaterialLibrary,
-  color_palette: ColorPalette,
   camera: CameraContent,
   art_library: ArtLibraryContent,
   connection_diagnostics: ConnectionDiagnosticsPanel,

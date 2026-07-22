@@ -66,7 +66,7 @@ import { defaultHotkeyIsOverriddenByEvent, findCommandForKeyboardEvent } from '.
 import { appService } from './services/appService';
 import { feedbackService } from './services/feedbackService';
 import type { PhysicalDockZone } from './panels';
-import { normalizeToolbarVisibility } from './panels';
+import { normalizeToolbarVisibility, getPanelById } from './panels';
 import { discardRecoveryBatch } from './utils/recovery';
 import { lengthUnitLabel, mmToDisplay, roundDisplayLength } from './utils/lengthUnits';
 import {
@@ -723,7 +723,10 @@ function App() {
       });
       if (settings.panel_layout) {
         const pl = settings.panel_layout;
-        const floatingPanels = (pl.floating_panels ?? []).map((fp) => ({
+        // Drop panels that no longer exist (e.g. retired color_palette)
+        // from persisted layouts.
+        const knownPanel = (id: string) => getPanelById(id) !== undefined;
+        const floatingPanels = (pl.floating_panels ?? []).filter((fp) => knownPanel(fp.panel_id)).map((fp) => ({
           panelId: fp.panel_id,
           x: fp.x,
           y: fp.y,
@@ -735,7 +738,11 @@ function App() {
         }));
         const maxZ = floatingPanels.reduce((max, fp) => Math.max(max, fp.zIndex), 0);
         const restoredZones = Object.fromEntries(
-          Object.entries(pl.zones).map(([k, v]) => [k, { panelIds: v.panel_ids, activeTab: v.active_tab }])
+          Object.entries(pl.zones).map(([k, v]) => {
+            const panelIds = v.panel_ids.filter(knownPanel);
+            const activeTab = panelIds.includes(v.active_tab) ? v.active_tab : (panelIds[0] ?? '');
+            return [k, { panelIds, activeTab }];
+          })
         ) as Record<PhysicalDockZone, { panelIds: string[]; activeTab: string }>;
         // Ensure new zones exist for backward compat with old persisted layouts
         if (!restoredZones['left']) restoredZones['left'] = { panelIds: [], activeTab: '' };
@@ -743,7 +750,7 @@ function App() {
         const sidePanelsVisible = pl.side_panels_visible ?? true;
         useUiStore.getState().setPanelLayout({
           zones: restoredZones,
-          hiddenPanelIds: pl.hidden_panel_ids,
+          hiddenPanelIds: pl.hidden_panel_ids.filter(knownPanel),
           floatingPanels,
           upperSplitRatio: pl.upper_split_ratio,
           rightPanelWidth: pl.right_panel_width,

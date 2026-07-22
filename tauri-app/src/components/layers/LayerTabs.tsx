@@ -28,8 +28,24 @@ export function LayerTabs() {
   const loadProject = useProjectStore((s) => s.loadProject);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) === 'inches' ? 'inches' : 'mm';
   const speedTimeUnit = useAppStore((s) => s.settings?.speed_time_unit) === 'seconds' ? 'seconds' : 'minutes';
+  const canvasDark = useAppStore((s) => s.settings?.dark_mode) === true;
 
   if (!project) return null;
+
+  // Tabs sit on the canvas edge, so they follow the canvas light/dark
+  // setting (settings.dark_mode), not the app chrome theme — matching
+  // the workspace paper they attach to.
+  const tabColors = canvasDark
+    ? {
+        active: { background: '#2a2a2a', borderColor: '#555555', color: '#e5e5e5' },
+        inactive: { background: '#3a3a3a', borderColor: '#4a4a4a', color: '#9a9a9a' },
+        dim: '#8a8a8a',
+      }
+    : {
+        active: { background: '#ffffff', borderColor: '#cccccc', color: '#1e293b' },
+        inactive: { background: '#eceff1', borderColor: '#d6dade', color: '#64748b' },
+        dim: '#94a3b8',
+      };
 
   const hasSelection = selectedObjectIds.length > 0;
 
@@ -73,8 +89,8 @@ export function LayerTabs() {
   };
 
   return (
-    <div className="no-select flex items-end gap-1 overflow-x-auto scrollbar-none px-3 pt-2 bg-bb-bg">
-      {project.layers.map((layer) => {
+    <div className="no-select flex items-end overflow-x-auto scrollbar-none px-3 pt-2 bg-bb-bg">
+      {project.layers.map((layer, index) => {
         const active = layer.id === selectedLayerId;
         const entry = layer.entries[0];
         const hidden = layer.visible === false;
@@ -82,20 +98,23 @@ export function LayerTabs() {
           <button
             key={layer.id}
             onClick={() => handleTabClick(layer.id)}
-            className={`flex flex-shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-2.5 py-1 text-xxs ${
-              active
-                ? 'border-bb-accent/50 bg-bb-surface-2 text-bb-text'
-                : 'border-bb-border bg-bb-surface text-bb-text-muted hover:text-bb-text'
+            className={`relative flex flex-shrink-0 items-center gap-1.5 rounded-t-lg border border-b-0 px-2.5 text-xxs ${
+              active ? 'py-1.5 font-semibold shadow-sm' : 'py-1 opacity-80 hover:opacity-100'
             }`}
+            style={{
+              ...(active ? tabColors.active : tabColors.inactive),
+              marginLeft: index === 0 ? 0 : -8,
+              zIndex: active ? 30 : 20 - Math.min(index, 15),
+            }}
             title={layer.name}
           >
             <span
               className="h-2 w-2 flex-shrink-0 rounded-full"
               style={{ backgroundColor: layer.color_tag }}
             />
-            <span className={`max-w-24 truncate ${active ? 'font-semibold' : ''}`}>{layer.name}</span>
+            <span className="max-w-24 truncate">{layer.name}</span>
             {!layer.is_tool_layer && entry && (
-              <span className="text-bb-text-dim">
+              <span style={{ color: tabColors.dim }}>
                 {formatSpeedForDisplay(entry.speed_mm_min ?? 1000, displayUnit, speedTimeUnit)}/{entry.power_percent ?? 50}%
               </span>
             )}
@@ -103,7 +122,7 @@ export function LayerTabs() {
               role="button"
               tabIndex={0}
               aria-label={t('panels.layers.header.show')}
-              className={`${hidden ? 'text-bb-text-disabled' : 'text-bb-text-dim'} hover:text-bb-text`}
+              style={{ color: hidden ? tabColors.dim : undefined, opacity: hidden ? 0.6 : 1 }}
               onClick={(e) => {
                 e.stopPropagation();
                 void handleToggleVisible(layer.id, hidden);
@@ -124,7 +143,8 @@ export function LayerTabs() {
         onClick={() => void handleAddLayer()}
         aria-label={t('panels.layers.add_layer')}
         title={t('panels.layers.add_layer')}
-        className="flex flex-shrink-0 items-center rounded-t-lg border border-b-0 border-bb-border bg-bb-surface px-2 py-1 text-bb-text-muted hover:text-bb-text"
+        className="relative flex flex-shrink-0 items-center rounded-t-lg border border-b-0 px-2 py-1 opacity-80 hover:opacity-100"
+        style={{ ...tabColors.inactive, marginLeft: project.layers.length > 0 ? -8 : 0, zIndex: 1 }}
       >
         <Plus size={12} />
       </button>

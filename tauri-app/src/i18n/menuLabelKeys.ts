@@ -197,7 +197,6 @@ export const MENU_LABEL_KEYS = {
   Console: 'menus.window.console',
   Macros: 'menus.window.macros',
   'Cuts / Layers': 'menus.window.cuts_layers',
-  'Color Palette': 'menus.window.color_palette',
   'Laser Control': 'menus.window.laser',
   'Material Library': 'menus.window.material_library',
   Move: 'menus.window.move',

@@ -209,7 +209,6 @@ const INTENTIONAL_RAW_COLORS: Readonly<Record<string, readonly string[]>> = {
   './components/layers/CutSettingsEditor.tsx': ['bg-black/50'],
   './components/layers/DitherSamplePreview.tsx': ['bg-white'],
   './components/layers/LayerList.tsx': ['bg-green-500', 'bg-white', 'bg-yellow-500'],
-  './components/layout/ColorPalette.tsx': ['border-white'],
   './components/layout/MenuBar.tsx': ['bg-black/50'],
   './components/layout/MainToolbar.tsx': ['bg-gray-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500'],
   './components/layout/StatusBar.tsx': ['bg-gray-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500'],

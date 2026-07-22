@@ -183,7 +183,6 @@ pub mod command {
     pub const WINDOW_PANEL_CONSOLE: &str = "window.panel.console";
     pub const WINDOW_PANEL_MACROS: &str = "window.panel.macros";
     pub const WINDOW_PANEL_CUTS_LAYERS: &str = "window.panel.cuts_layers";
-    pub const WINDOW_PANEL_COLOR_PALETTE: &str = "window.panel.color_palette";
     pub const WINDOW_PANEL_LASER: &str = "window.panel.laser";
     pub const WINDOW_PANEL_MATERIAL_LIBRARY: &str = "window.panel.material_library";
     pub const WINDOW_PANEL_MOVE: &str = "window.panel.move";
@@ -1370,13 +1369,6 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_CUTS_LAYERS,
         title: "Cuts / Layers",
-        accelerator: None,
-        enabled: true,
-        checked: true,
-    },
-    NativeMenuEntry::Check {
-        id: command::WINDOW_PANEL_COLOR_PALETTE,
-        title: "Color Palette",
         accelerator: None,
         enabled: true,
         checked: true,
@@ -2994,12 +2986,6 @@ mod tests {
                 (
                     "Window > Cuts / Layers".to_string(),
                     command::WINDOW_PANEL_CUTS_LAYERS,
-                    None,
-                    Some(true)
-                ),
-                (
-                    "Window > Color Palette".to_string(),
-                    command::WINDOW_PANEL_COLOR_PALETTE,
                     None,
                     Some(true)
                 ),
