@@ -41,6 +41,12 @@ function showArrangeLongToolbar() {
   });
 }
 
+
+// The arrange cluster lives in a popover; open it (requires a selection).
+const openArrange = () => {
+  fireEvent.click(screen.getByTitle('Arrange'));
+};
+
 describe('MainToolbar', () => {
   it('renders file operation buttons', () => {
     render(<MainToolbar />);
@@ -85,6 +91,7 @@ describe('MainToolbar', () => {
 
   it('renders arrange buttons', () => {
     render(<MainToolbar />);
+    openArrange();
     expect(screen.getByTitle('Group')).toBeDefined();
     expect(screen.getByTitle('Ungroup')).toBeDefined();
     expect(screen.getByTitle('Flip Horizontal')).toBeDefined();
@@ -98,6 +105,7 @@ describe('MainToolbar', () => {
     showArrangeLongToolbar();
 
     render(<MainToolbar />);
+    openArrange();
     expect(screen.getByTitle('Make Same Width')).toBeDefined();
     expect(screen.getByTitle('Make Same Height')).toBeDefined();
     expect(screen.getByTitle('Move H Together')).toBeDefined();
@@ -129,6 +137,7 @@ describe('MainToolbar', () => {
     });
 
     render(<MainToolbar />);
+    openArrange();
     expect(screen.getByTitle('Mirror Across Line').closest('button')?.disabled).toBe(true);
   });
 
@@ -152,12 +161,14 @@ describe('MainToolbar', () => {
     });
 
     render(<MainToolbar />);
+    openArrange();
     expect(screen.getByTitle('Mirror Across Line').closest('button')?.disabled).toBe(false);
   });
 
   it('Group disabled when selection < 2', () => {
     useProjectStore.setState({ selectedObjectIds: ['a'] });
     render(<MainToolbar />);
+    openArrange();
     const groupBtn = screen.getByTitle('Group');
     expect(groupBtn.closest('button')?.disabled).toBe(true);
   });
@@ -178,6 +189,7 @@ describe('MainToolbar', () => {
     useNotificationStore.setState({ push: pushSpy });
 
     render(<MainToolbar />);
+    openArrange();
     const alignBtn = screen.getByTitle('Align Left');
     fireEvent.click(alignBtn);
 
@@ -202,6 +214,7 @@ describe('MainToolbar', () => {
     useProjectStore.setState({ flipObjects: flipSpy });
 
     render(<MainToolbar />);
+    openArrange();
     const flipBtn = screen.getByTitle('Flip Horizontal');
     fireEvent.click(flipBtn);
 
@@ -218,6 +231,7 @@ describe('MainToolbar', () => {
       }),
     });
     render(<MainToolbar />);
+    openArrange();
     expect(screen.getByTitle('Flip Horizontal').closest('button')?.disabled).toBe(true);
     expect(screen.getByTitle('Flip Vertical').closest('button')?.disabled).toBe(true);
   });
@@ -233,6 +247,7 @@ describe('MainToolbar', () => {
       }),
     });
     render(<MainToolbar />);
+    openArrange();
     const btn = screen.getByTitle('Flip Horizontal').closest('button')!;
     expect(btn.disabled).toBe(true);
     fireEvent.click(btn);
@@ -249,6 +264,7 @@ describe('MainToolbar', () => {
       }),
     });
     render(<MainToolbar />);
+    openArrange();
     expect(screen.getByTitle('Center on Page').closest('button')?.disabled).toBe(true);
   });
 
@@ -262,6 +278,7 @@ describe('MainToolbar', () => {
       }),
     });
     render(<MainToolbar />);
+    openArrange();
     expect(screen.getByTitle('Align Left').closest('button')?.disabled).toBe(true);
     expect(screen.getByTitle('Distribute H-Centered').closest('button')?.disabled).toBe(true);
   });
@@ -306,6 +323,7 @@ describe('MainToolbar', () => {
     vi.spyOn(projectService, 'alignObjects').mockRejectedValue(new Error('align failed'));
 
     render(<MainToolbar />);
+    openArrange();
     fireEvent.click(screen.getByTitle('Align Left'));
 
     await waitFor(() => {
@@ -327,6 +345,7 @@ describe('MainToolbar', () => {
     vi.spyOn(projectService, 'distributeObjects').mockRejectedValue(new Error('distribute failed'));
 
     render(<MainToolbar />);
+    openArrange();
     fireEvent.click(screen.getByTitle('Distribute H-Centered'));
 
     await waitFor(() => {
