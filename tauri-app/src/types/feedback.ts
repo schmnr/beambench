@@ -90,6 +90,7 @@ export interface DiagnosticPort {
 export interface DiagnosticConnectionEvent {
   ts: string;
   stage: string;
+  error_code?: string | null;
   port_name?: string | null;
   baud_rate?: number | null;
   message?: string | null;

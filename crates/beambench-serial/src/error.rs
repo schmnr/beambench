@@ -10,6 +10,11 @@ pub enum SerialError {
     #[error("connection failed: {0}")]
     ConnectionFailed(String),
 
+    #[error(
+        "[serial_port_unavailable] Could not open {port_name}: {detail}. The port may be in use by another application or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again."
+    )]
+    PortUnavailable { port_name: String, detail: String },
+
     // Same OS error code, different likely cause per platform: on Windows an
     // access-denied COM open almost always means another program holds the
     // port; on Linux/macOS EACCES is almost always a device-permission

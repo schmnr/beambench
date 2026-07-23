@@ -227,6 +227,8 @@ pub struct DiagnosticConnectionEvent {
     pub ts: String,
     pub stage: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub baud_rate: Option<u32>,
@@ -473,6 +475,7 @@ mod tests {
             connection_events: vec![DiagnosticConnectionEvent {
                 ts: "2026-05-14T12:00:00Z".to_owned(),
                 stage: "open_attempt".to_owned(),
+                error_code: None,
                 port_name: Some("/Users/alice/dev/cu.usbserial".to_owned()),
                 baud_rate: Some(115200),
                 message: Some("Opening serial port".to_owned()),

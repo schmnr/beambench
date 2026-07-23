@@ -43,9 +43,23 @@ impl RealSerialTransport {
     }
 }
 
-fn map_open_error(port_name: &str, error: serialport::Error) -> SerialError {
+fn map_open_error_for_platform(
+    port_name: &str,
+    error: serialport::Error,
+    windows: bool,
+) -> SerialError {
     let detail = error.to_string();
     let lower_detail = detail.to_lowercase();
+    if windows && matches!(error.kind(), serialport::ErrorKind::NoDevice) {
+        // serialport maps ERROR_ACCESS_DENIED, ERROR_FILE_NOT_FOUND, and
+        // ERROR_PATH_NOT_FOUND to NoDevice on Windows, then localizes the
+        // description. Do not inspect translated text. A single unavailable
+        // message accurately covers both port contention and disconnection.
+        return SerialError::PortUnavailable {
+            port_name: port_name.to_string(),
+            detail: detail.trim_end().trim_end_matches('.').to_string(),
+        };
+    }
     let is_access_denied = matches!(
         error.kind(),
         serialport::ErrorKind::Io(std::io::ErrorKind::PermissionDenied)
@@ -63,6 +77,10 @@ fn map_open_error(port_name: &str, error: serialport::Error) -> SerialError {
     }
 
     SerialError::ConnectionFailed(detail)
+}
+
+fn map_open_error(port_name: &str, error: serialport::Error) -> SerialError {
+    map_open_error_for_platform(port_name, error, cfg!(windows))
 }
 
 impl SerialTransport for RealSerialTransport {
@@ -201,29 +219,21 @@ impl SerialTransport for RealSerialTransport {
 mod tests {
     use super::*;
 
-    // The guidance sentence is chosen at compile time: Windows builds blame
-    // port contention, Unix builds blame device permissions.
-    fn expected_guidance() -> &'static str {
-        if cfg!(windows) {
-            "Another application may already be using this serial port"
-        } else {
-            "add your user to the dialout group"
-        }
-    }
-
     #[test]
-    fn windows_access_denied_open_error_gets_actionable_message() {
-        let error = serialport::Error::new(serialport::ErrorKind::NoDevice, "Access is denied.");
+    fn localized_windows_no_device_error_gets_actionable_message() {
+        let error = serialport::Error::new(serialport::ErrorKind::NoDevice, "Accès refusé.");
 
-        let mapped = map_open_error("COM7", error);
+        let mapped = map_open_error_for_platform("COM7", error, true);
 
         assert!(matches!(
             mapped,
-            SerialError::AccessDenied { ref port_name, .. } if port_name == "COM7"
+            SerialError::PortUnavailable { ref port_name, .. } if port_name == "COM7"
         ));
         let message = mapped.to_string();
-        assert!(message.contains("access denied opening COM7"));
-        assert!(message.contains(expected_guidance()));
+        assert!(message.contains("[serial_port_unavailable]"));
+        assert!(message.contains("Could not open COM7"));
+        assert!(message.contains("another application"));
+        assert!(message.contains("controller may have been disconnected"));
         assert!(
             !message.contains(".."),
             "OS detail's trailing period must be trimmed: {message}"
@@ -237,19 +247,23 @@ mod tests {
             "Permission denied",
         );
 
-        let mapped = map_open_error("/dev/ttyUSB0", error);
+        let mapped = map_open_error_for_platform("/dev/ttyUSB0", error, false);
 
         assert!(matches!(mapped, SerialError::AccessDenied { .. }));
         let message = mapped.to_string();
         assert!(message.contains("access denied opening /dev/ttyUSB0"));
-        assert!(message.contains(expected_guidance()));
+        if cfg!(windows) {
+            assert!(message.contains("Another application may already be using this serial port"));
+        } else {
+            assert!(message.contains("add your user to the dialout group"));
+        }
     }
 
     #[test]
     fn unrelated_open_error_preserves_raw_detail() {
         let error = serialport::Error::new(serialport::ErrorKind::NoDevice, "No such file");
 
-        let mapped = map_open_error("COM8", error);
+        let mapped = map_open_error_for_platform("/dev/ttyUSB8", error, false);
 
         assert!(matches!(mapped, SerialError::ConnectionFailed(_)));
         assert_eq!(mapped.to_string(), "connection failed: No such file");
