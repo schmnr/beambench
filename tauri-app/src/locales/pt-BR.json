@@ -1615,7 +1615,8 @@
         "on_ms": "Ligado (ms)",
         "off_ms": "Desligado (ms)",
         "kerf_mm": "Deslocamento de kerf"
-      }
+      },
+      "settings_copied": "Configurações da camada copiadas"
     },
     "move": {
       "step_mm": "Passo",

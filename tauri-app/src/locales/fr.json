@@ -1615,7 +1615,8 @@
         "on_ms": "Activé (ms)",
         "off_ms": "Désactivé (ms)",
         "kerf_mm": "Décalage du trait"
-      }
+      },
+      "settings_copied": "Paramètres du calque copiés"
     },
     "move": {
       "step_mm": "Pas",

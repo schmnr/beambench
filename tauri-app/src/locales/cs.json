@@ -1615,7 +1615,8 @@
         "on_ms": "Zap. (ms)",
         "off_ms": "Vyp. (ms)",
         "kerf_mm": "Odsazení kerfu"
-      }
+      },
+      "settings_copied": "Nastavení vrstvy zkopírováno"
     },
     "move": {
       "step_mm": "Krok",

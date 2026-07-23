@@ -1615,7 +1615,8 @@
         "on_ms": "Wł. (ms)",
         "off_ms": "Wył. (ms)",
         "kerf_mm": "Przesunięcie kerfu"
-      }
+      },
+      "settings_copied": "Skopiowano ustawienia warstwy"
     },
     "move": {
       "step_mm": "Krok",

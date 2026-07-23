@@ -1615,7 +1615,8 @@
         "on_ms": "Açık (ms)",
         "off_ms": "Kapalı (ms)",
         "kerf_mm": "Kerf ofseti"
-      }
+      },
+      "settings_copied": "Katman ayarları kopyalandı"
     },
     "move": {
       "step_mm": "Adım",

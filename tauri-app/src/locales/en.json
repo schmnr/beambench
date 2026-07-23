@@ -1730,7 +1730,8 @@
         "on_ms": "On (ms)",
         "off_ms": "Off (ms)",
         "kerf_mm": "Kerf Offset"
-      }
+      },
+      "settings_copied": "Layer settings copied"
     },
     "move": {
       "step_mm": "Step",

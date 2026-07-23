@@ -1615,7 +1615,8 @@
         "on_ms": "Be (ms)",
         "off_ms": "Ki (ms)",
         "kerf_mm": "Kerf eltolás"
-      }
+      },
+      "settings_copied": "Rétegbeállítások másolva"
     },
     "move": {
       "step_mm": "Lépés",

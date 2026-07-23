@@ -1615,7 +1615,8 @@
         "on_ms": "Til (ms)",
         "off_ms": "Fra (ms)",
         "kerf_mm": "Kerf-forskydning"
-      }
+      },
+      "settings_copied": "Lagindstillinger kopieret"
     },
     "move": {
       "step_mm": "Trin",

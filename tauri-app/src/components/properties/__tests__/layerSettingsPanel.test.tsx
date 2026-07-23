@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import { LayerSettingsPanel } from '../LayerSettingsPanel';
 import { useProjectStore } from '../../../stores/projectStore';
 import {

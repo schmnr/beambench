@@ -1615,7 +1615,8 @@
         "on_ms": "On (ms)",
         "off_ms": "Off (ms)",
         "kerf_mm": "Offset kerf"
-      }
+      },
+      "settings_copied": "Impostazioni livello copiate"
     },
     "move": {
       "step_mm": "Passo",

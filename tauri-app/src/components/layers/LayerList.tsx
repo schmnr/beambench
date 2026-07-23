@@ -4,7 +4,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
 import { SubLayerStack } from '../properties/SubLayerStack';
-import { CheckSquare, Lock, ClipboardCopy, ClipboardPaste } from 'lucide-react';
+import { CheckSquare, Lock, ClipboardCopy, ClipboardPaste, Trash2 } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { TextInput } from '../shared/TextInput';
 import { ToggleSwitch } from '../shared/ToggleSwitch';
@@ -68,6 +68,7 @@ export function LayerList() {
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const updateLayer = useProjectStore((s) => s.updateLayer);
   const reorderLayer = useProjectStore((s) => s.reorderLayer);
+  const removeLayer = useProjectStore((s) => s.removeLayer);
   const objects = useProjectStore((s) => s.project?.objects ?? []);
   const selectObjects = useProjectStore((s) => s.selectObjects);
   const lockObjects = useProjectStore((s) => s.lockObjects);
@@ -89,6 +90,8 @@ export function LayerList() {
   
   const selectedLayer = layers.find((l) => l.id === selectedLayerId) ?? null;
   const activeLayer = selectedLayer ?? layers[0] ?? null;
+  const activeLayerObjs = activeLayer ? objects.filter((o) => o.layer_id === activeLayer.id) : [];
+  const layerAllLocked = activeLayerObjs.length > 0 && activeLayerObjs.every((o) => o.locked);
 
   const notifyLayerError = (messageKey: string, error: unknown) => {
     useNotificationStore.getState().push(t(messageKey, { detail: String(error) }), 'error');
@@ -180,6 +183,14 @@ export function LayerList() {
               >
                 ▶
               </button>
+              <button
+                className="ml-1 rounded p-1 text-bb-text-muted hover:bg-bb-error-bg hover:text-bb-error-fg"
+                title={t('panels.layers.delete_layer')}
+                onClick={() => void removeLayer(activeLayer.id)}
+                data-testid="delete-layer"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           </div>
 
@@ -264,8 +275,9 @@ export function LayerList() {
           <div className="mt-2.5 flex gap-1 border-t border-bb-border pt-2">
             <button
               data-testid="select-all-on-layer"
-              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text"
+              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text disabled:opacity-40 disabled:cursor-not-allowed"
               title={t('panels.layers.select_all_objects_title')}
+              disabled={!objects.some((o) => o.layer_id === activeLayer.id)}
               onClick={() => {
                 const layerObjIds = objects
                   .filter((o) => o.layer_id === activeLayer.id)
@@ -278,14 +290,18 @@ export function LayerList() {
             </button>
             <button
               data-testid="lock-layer"
-              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text"
+              className={`p-1 rounded disabled:opacity-40 disabled:cursor-not-allowed ${
+                layerAllLocked
+                  ? 'bg-bb-accent/15 text-bb-accent hover:bg-bb-accent/25'
+                  : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
+              }`}
               title={t('panels.layers.toggle_lock_title')}
+              disabled={!objects.some((o) => o.layer_id === activeLayer.id)}
               onClick={() => {
                 const layerObjs = objects.filter((o) => o.layer_id === activeLayer.id);
-                const allLocked = layerObjs.length > 0 && layerObjs.every((o) => o.locked);
                 const layerObjectIds = layerObjs.map((o) => o.id);
                 if (layerObjectIds.length === 0) return;
-                if (allLocked) void unlockObjects(layerObjectIds);
+                if (layerAllLocked) void unlockObjects(layerObjectIds);
                 else void lockObjects(layerObjectIds);
               }}
             >
@@ -295,7 +311,11 @@ export function LayerList() {
               data-testid="copy-layer-settings"
               className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text"
               title={t('panels.layers.copy_settings_title')}
-              onClick={() => { if (!activeLayer.is_tool_layer) copyLayerSettings(activeLayer.id); }}
+              onClick={() => {
+                if (activeLayer.is_tool_layer) return;
+                copyLayerSettings(activeLayer.id);
+                useNotificationStore.getState().push(t('panels.layers.settings_copied'), 'success');
+              }}
               disabled={activeLayer.is_tool_layer}
             >
               <ClipboardCopy size={16} />

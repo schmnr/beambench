@@ -1615,7 +1615,8 @@
         "on_ms": "開 (ms)",
         "off_ms": "關 (ms)",
         "kerf_mm": "割縫偏移"
-      }
+      },
+      "settings_copied": "已複製圖層設定"
     },
     "move": {
       "step_mm": "步長",

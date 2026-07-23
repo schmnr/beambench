@@ -1615,7 +1615,8 @@
         "on_ms": "Vkl. (ms)",
         "off_ms": "Izkl. (ms)",
         "kerf_mm": "Odmik kerfa"
-      }
+      },
+      "settings_copied": "Nastavitve plasti kopirane"
     },
     "move": {
       "step_mm": "Korak",

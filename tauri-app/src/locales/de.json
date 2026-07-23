@@ -1615,7 +1615,8 @@
         "on_ms": "Ein (ms)",
         "off_ms": "Aus (ms)",
         "kerf_mm": "Kerf-Versatz"
-      }
+      },
+      "settings_copied": "Ebeneneinstellungen kopiert"
     },
     "move": {
       "step_mm": "Schritt",

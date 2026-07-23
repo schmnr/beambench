@@ -1615,7 +1615,8 @@
         "on_ms": "Encendido (ms)",
         "off_ms": "Apagado (ms)",
         "kerf_mm": "Desfase de kerf"
-      }
+      },
+      "settings_copied": "Configuración de capa copiada"
     },
     "move": {
       "step_mm": "Paso",

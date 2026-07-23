@@ -1615,7 +1615,8 @@
         "on_ms": "켜짐 (ms)",
         "off_ms": "꺼짐 (ms)",
         "kerf_mm": "커프 오프셋"
-      }
+      },
+      "settings_copied": "레이어 설정이 복사되었습니다"
     },
     "move": {
       "step_mm": "스텝",
