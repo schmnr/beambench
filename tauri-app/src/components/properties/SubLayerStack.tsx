@@ -658,20 +658,55 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
 
                 {canVector && (
                   <div className="flex flex-col gap-2 rounded border border-bb-border/70 p-2">
-                    <div className="text-xs font-medium uppercase tracking-wide text-bb-accent">{t('panels.sub_layer_stack.vector')}</div>
                     {isLineSurface && (
-                      <Toggle
-                        label={t('panels.sub_layer_stack.perforation')}
-                        checked={entry.vector_settings?.perforation_enabled ?? false}
-                        onChange={(perforation_enabled) =>
-                          void updateCutEntry(layer.id, entry.id, {
-                            vector_settings: {
-                              ...(entry.vector_settings ?? defaultVectorSettings()),
-                              perforation_enabled,
-                            },
-                          })
-                        }
-                      />
+                      <>
+                        <Toggle
+                          label={t('panels.sub_layer_stack.perforation')}
+                          checked={entry.vector_settings?.perforation_enabled ?? false}
+                          onChange={(perforation_enabled) =>
+                            void updateCutEntry(layer.id, entry.id, {
+                              vector_settings: {
+                                ...(entry.vector_settings ?? defaultVectorSettings()),
+                                perforation_enabled,
+                              },
+                            })
+                          }
+                        />
+                        {(entry.vector_settings?.perforation_enabled ?? false) && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <NumberInput
+                              label={t('panels.layers.quick_edit.on_ms')}
+                              value={entry.vector_settings?.perforation_on_ms ?? 10}
+                              onChange={(perforation_on_ms) =>
+                                void updateCutEntry(layer.id, entry.id, {
+                                  vector_settings: {
+                                    ...(entry.vector_settings ?? defaultVectorSettings()),
+                                    perforation_on_ms,
+                                  },
+                                })
+                              }
+                              min={1}
+                              max={1000}
+                              step={1}
+                            />
+                            <NumberInput
+                              label={t('panels.layers.quick_edit.off_ms')}
+                              value={entry.vector_settings?.perforation_off_ms ?? 10}
+                              onChange={(perforation_off_ms) =>
+                                void updateCutEntry(layer.id, entry.id, {
+                                  vector_settings: {
+                                    ...(entry.vector_settings ?? defaultVectorSettings()),
+                                    perforation_off_ms,
+                                  },
+                                })
+                              }
+                              min={1}
+                              max={1000}
+                              step={1}
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
                     <NumberInput
                       label={labelWithUnit(t('panels.sub_layer_stack.kerf_offset_mm'), lengthUnitLabel(displayUnit))}
