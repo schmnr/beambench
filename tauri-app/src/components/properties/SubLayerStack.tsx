@@ -274,7 +274,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
         return (
           <div
             key={entry.id}
-            className="rounded-xl border border-bb-border bg-bb-surface shadow-sm"
+            className="rounded-xl border border-bb-accent/40 bg-bb-surface shadow-sm"
             data-testid={`sub-layer-card-${index}`}
           >
             <div className="flex items-center gap-2.5 px-3 py-2.5">

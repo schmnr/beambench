@@ -21,7 +21,7 @@ export function ToggleSwitch({
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-      className={`relative h-4 w-8 shrink-0 rounded-full transition-colors ${
+      className={`relative h-4 w-8 shrink-0 rounded-full p-0 transition-colors ${
         active ? (activeColor ?? 'bg-green-500') : 'bg-bb-text/20'
       }`}
       data-testid={testId}
@@ -29,7 +29,7 @@ export function ToggleSwitch({
       aria-pressed={active}
       title={title}
     >
-      <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
+      <span className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
         active ? 'translate-x-4' : 'translate-x-0.5'
       }`} />
     </button>

@@ -52,7 +52,7 @@ function FrameToggle({
         }`}
       >
         <span
-          className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-transform ${
+          className={`absolute left-0 top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-transform ${
             active ? 'translate-x-3.5' : 'translate-x-0.5'
           }`}
         />
