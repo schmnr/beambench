@@ -4,6 +4,8 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
 import { SubLayerStack } from '../properties/SubLayerStack';
+import { CheckSquare, Lock, ClipboardCopy, ClipboardPaste } from 'lucide-react';
+import { useUiStore } from '../../stores/uiStore';
 import { TextInput } from '../shared/TextInput';
 import { ToggleSwitch } from '../shared/ToggleSwitch';
 import { PALETTE_COLORS } from '../../constants/palette';
@@ -66,6 +68,13 @@ export function LayerList() {
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const updateLayer = useProjectStore((s) => s.updateLayer);
   const reorderLayer = useProjectStore((s) => s.reorderLayer);
+  const objects = useProjectStore((s) => s.project?.objects ?? []);
+  const selectObjects = useProjectStore((s) => s.selectObjects);
+  const lockObjects = useProjectStore((s) => s.lockObjects);
+  const unlockObjects = useProjectStore((s) => s.unlockObjects);
+  const copyLayerSettings = useProjectStore((s) => s.copyLayerSettings);
+  const pasteLayerSettings = useProjectStore((s) => s.pasteLayerSettings);
+  const layerSettingsClipboard = useUiStore((s) => s.layerSettingsClipboard);
   const loadProject = useProjectStore((s) => s.loadProject);
   const includeToolLayersInJobBounds = useAppStore(
     (s) => s.settings?.include_tool_layers_in_job_bounds ?? true,
@@ -145,7 +154,7 @@ export function LayerList() {
     <div className="flex flex-col">
       {/* ── LAYER ─────────────────────────────────────────────── */}
       {activeLayer && (
-        <div className="border-b border-bb-border px-3 py-2.5" data-testid="layer-block">
+        <div className="m-2 rounded-xl border border-bb-accent/40 bg-bb-surface px-3 py-2.5 shadow-sm" data-testid="layer-block">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">
               {t('panels.properties.layer')}
@@ -184,7 +193,7 @@ export function LayerList() {
               <div className="relative flex items-center gap-1.5 text-xs" data-testid="quick-edit">
                 <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
                 <button
-                  className="w-5 h-4 rounded-sm border border-bb-border shrink-0 hover:ring-1 hover:ring-bb-accent"
+                  className="h-6 w-8 rounded-md border border-bb-border shrink-0 hover:ring-1 hover:ring-bb-accent"
                   data-testid="quick-edit-color"
                   style={{ backgroundColor: activeLayer.color_tag }}
                   onClick={() => setShowColorPicker((v) => !v)}
@@ -194,7 +203,7 @@ export function LayerList() {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowColorPicker(false)} />
                     <div
-                      className="absolute left-0 top-full z-50 mt-1 grid grid-cols-10 gap-1 rounded-lg border border-bb-border bg-bb-panel p-2 shadow-lg"
+                      className="absolute left-0 top-full z-50 mt-1 grid grid-cols-8 gap-1.5 rounded-lg border border-bb-border bg-bb-panel p-2.5 shadow-lg"
                       data-testid="layer-color-picker"
                     >
                       {PALETTE_COLORS.filter((c) => {
@@ -205,7 +214,7 @@ export function LayerList() {
                       }).map((c) => (
                         <button
                           key={c.hex}
-                          className={`h-4 w-4 rounded-sm border hover:ring-1 hover:ring-bb-accent ${
+                          className={`h-6 w-6 rounded-md border hover:ring-1 hover:ring-bb-accent ${
                             c.is_tool_layer ? 'border-dashed border-bb-text-muted' : 'border-bb-border'
                           }`}
                           style={{ backgroundColor: c.hex }}
@@ -248,6 +257,61 @@ export function LayerList() {
                 />
               )}
             </div>
+          </div>
+
+          {/* Layer actions: select all, lock, copy/paste settings */}
+          <div className="mt-2.5 flex gap-1 border-t border-bb-border pt-2">
+            <button
+              data-testid="select-all-on-layer"
+              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text"
+              title={t('panels.layers.select_all_objects_title')}
+              onClick={() => {
+                const layerObjIds = objects
+                  .filter((o) => o.layer_id === activeLayer.id)
+                  .map((o) => o.id)
+                  .reverse();
+                selectObjects(layerObjIds);
+              }}
+            >
+              <CheckSquare size={16} />
+            </button>
+            <button
+              data-testid="lock-layer"
+              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text"
+              title={t('panels.layers.toggle_lock_title')}
+              onClick={() => {
+                const layerObjs = objects.filter((o) => o.layer_id === activeLayer.id);
+                const allLocked = layerObjs.length > 0 && layerObjs.every((o) => o.locked);
+                const layerObjectIds = layerObjs.map((o) => o.id);
+                if (layerObjectIds.length === 0) return;
+                if (allLocked) void unlockObjects(layerObjectIds);
+                else void lockObjects(layerObjectIds);
+              }}
+            >
+              <Lock size={16} />
+            </button>
+            <button
+              data-testid="copy-layer-settings"
+              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text"
+              title={t('panels.layers.copy_settings_title')}
+              onClick={() => { if (!activeLayer.is_tool_layer) copyLayerSettings(activeLayer.id); }}
+              disabled={activeLayer.is_tool_layer}
+            >
+              <ClipboardCopy size={16} />
+            </button>
+            <button
+              data-testid="paste-layer-settings"
+              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text disabled:opacity-40 disabled:cursor-not-allowed"
+              title={
+                layerSettingsClipboard && layerSettingsClipboard.length > 0
+                  ? t('panels.layers.paste_settings_title')
+                  : t('panels.layers.no_layer_settings_on_clipboard')
+              }
+              disabled={activeLayer.is_tool_layer || !layerSettingsClipboard || layerSettingsClipboard.length === 0}
+              onClick={() => void pasteLayerSettings(activeLayer.id)}
+            >
+              <ClipboardPaste size={16} />
+            </button>
           </div>
         </div>
       )}
