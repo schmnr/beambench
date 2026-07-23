@@ -805,7 +805,7 @@ describe('TraceImageDialog', () => {
 
     // Toggle Trace Transparency ON
     const toggle = screen.getByText('Trace Transparency');
-    fireEvent.click(toggle.previousElementSibling as Element); // click the checkbox input
+    fireEvent.click(toggle.closest('label')!.querySelector('input') as Element); // click the checkbox input
 
     fireEvent.click(screen.getByTestId('trace-submit'));
 
@@ -823,7 +823,7 @@ describe('TraceImageDialog', () => {
 
     // Toggle Sketch Trace ON
     const toggle = screen.getByText('Sketch Trace');
-    fireEvent.click(toggle.previousElementSibling as Element);
+    fireEvent.click(toggle.closest('label')!.querySelector('input') as Element);
 
     fireEvent.click(screen.getByTestId('trace-submit'));
 
@@ -841,7 +841,7 @@ describe('TraceImageDialog', () => {
 
     // Delete image is checked by default — toggle it OFF
     const toggle = screen.getByText('Delete image after trace');
-    fireEvent.click(toggle.previousElementSibling as Element);
+    fireEvent.click(toggle.closest('label')!.querySelector('input') as Element);
 
     fireEvent.click(screen.getByTestId('trace-submit'));
 
@@ -868,7 +868,7 @@ describe('TraceImageDialog', () => {
     // Toggle Trace Transparency ON
     const toggle = screen.getByText('Trace Transparency');
     await act(async () => {
-      fireEvent.click(toggle.previousElementSibling as Element);
+      fireEvent.click(toggle.closest('label')!.querySelector('input') as Element);
     });
 
     // Wait for debounced preview with updated param

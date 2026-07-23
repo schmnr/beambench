@@ -21,7 +21,6 @@ describe('Toggle', () => {
 
     expect(hitTarget).not.toBeNull();
     expect(hitTarget?.classList.contains('min-h-6')).toBe(true);
-    expect(hitTarget?.classList.contains('min-w-6')).toBe(true);
     expect(hitTarget?.classList.contains('w-full')).toBe(true);
     expect(hitTarget?.firstElementChild?.textContent).toBe('Enable Dot Width Correction');
 

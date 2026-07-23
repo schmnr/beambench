@@ -148,7 +148,7 @@ describe('TransformSection — position/size', () => {
   it('renders Rotate and Scale % fields', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
     render(<TransformSection />);
-    expect(screen.getByText('Rotation')).toBeDefined();
+    expect(screen.getByText('⟳')).toBeDefined();
     // Scale % fields are unlabeled — verify they exist as spinbuttons
     const inputs = screen.getAllByRole('spinbutton');
     expect(inputs[IDX_SCALE_X]).toHaveProperty('value', '100');

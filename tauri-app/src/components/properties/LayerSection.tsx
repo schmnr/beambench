@@ -3,7 +3,6 @@ import { useProjectStore } from '../../stores/projectStore';
 import { projectService } from '../../services/projectService';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { wrapBackendError } from '../../i18n/errors';
-import { Select } from '../shared/Select';
 import { Toggle } from '../shared/Toggle';
 
 /**
@@ -61,52 +60,55 @@ export function LayerSection() {
         </span>
       </div>
 
-      {/* Color-dot assignment row */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {layers.map((layer) => (
-          <button
-            key={layer.id}
-            onClick={() => void reassignLayer(selectedObjectIds, layer.id)}
-            title={layer.name}
-            aria-label={layer.name}
-            aria-pressed={layer.id === commonLayerId}
-            className={`h-4 w-4 rounded ${
-              layer.id === commonLayerId
-                ? 'ring-2 ring-bb-accent ring-offset-1 ring-offset-bb-panel'
-                : 'hover:ring-1 hover:ring-bb-control-border'
-            }`}
-            style={{ backgroundColor: layer.color_tag }}
-          />
-        ))}
-      </div>
-
-      {/* Layer picker (for long lists / mixed selections) */}
-      <div className="mt-2">
-        <Select
-          label={t('panels.properties.layer')}
+      {/* Color dots (assign) left, picker right — one row */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {layers.map((layer) => (
+            <button
+              key={layer.id}
+              onClick={() => void reassignLayer(selectedObjectIds, layer.id)}
+              title={layer.name}
+              aria-label={layer.name}
+              aria-pressed={layer.id === commonLayerId}
+              className={`h-4 w-4 rounded ${
+                layer.id === commonLayerId
+                  ? 'ring-2 ring-bb-accent ring-offset-1 ring-offset-bb-panel'
+                  : 'hover:ring-1 hover:ring-bb-control-border'
+              }`}
+              style={{ backgroundColor: layer.color_tag }}
+            />
+          ))}
+        </div>
+        <select
+          className="w-28 shrink-0 rounded border border-bb-control-border bg-bb-input px-1 py-0.5 text-xs text-bb-text focus:border-bb-accent focus:outline-none"
           value={commonLayerId}
-          options={[
-            ...(layerIds.size > 1 ? [{ value: '', label: t('panels.properties.mixed') }] : []),
-            ...layers.map((l) => ({ value: l.id, label: l.name })),
-          ]}
-          onChange={(layer_id) => { if (layer_id) void reassignLayer(selectedObjectIds, layer_id); }}
-        />
+          aria-label={t('panels.properties.layer')}
+          onChange={(e) => { if (e.target.value) void reassignLayer(selectedObjectIds, e.target.value); }}
+        >
+          {layerIds.size > 1 && <option value="">{t('panels.properties.mixed')}</option>}
+          {layers.map((l) => (
+            <option key={l.id} value={l.id}>{l.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Layer-level toggles (hidden for tool layers / mixed selections) */}
       {currentLayer && !currentLayer.is_tool_layer && (
-        <div className="mt-2 flex flex-col gap-1.5">
+        <div className="mt-2.5 flex items-center gap-5">
           <Toggle
+            labelFirst
             label={t('panels.layers.header.output')}
             checked={currentLayer.enabled}
             onChange={(enabled) => void updateLayer(currentLayer.id, { enabled })}
           />
           <Toggle
+            labelFirst
             label={t('panels.layers.header.show')}
             checked={currentLayer.visible !== false}
             onChange={(visible) => void handleShowToggle(visible)}
           />
           <Toggle
+            labelFirst
             label={t('panels.layers.header.air')}
             checked={primaryEntry?.air_assist === true}
             onChange={(airAssist) => void handleAirToggle(airAssist)}

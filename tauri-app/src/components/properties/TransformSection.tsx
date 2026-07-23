@@ -30,7 +30,26 @@ const UNIT_LABEL_INCHES = 'in';
 const TOAST_ERROR = 'error' as const;
 
 const fieldClass =
-  'w-full min-w-0 px-1.5 py-0.5 bg-bb-bg border border-bb-border rounded-lg text-xs text-bb-text text-right focus:outline-none focus:border-bb-accent h-7';
+  'w-full min-w-0 bg-transparent px-0 text-right text-xs text-bb-text focus:outline-none';
+
+/** Boxed field with the label inside (mockup style: [X  6.34  mm]). */
+function FieldBox({
+  label,
+  suffix,
+  children,
+}: {
+  label: string;
+  suffix?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex h-7 min-w-0 flex-1 items-center gap-1 rounded-lg border border-bb-border bg-bb-bg px-1.5 focus-within:border-bb-accent">
+      <span className="min-w-[0.875rem] shrink-0 text-[9px] font-semibold uppercase text-bb-text-dim">{label}</span>
+      {children}
+      {suffix && <span className="shrink-0 pl-0.5 text-[9px] text-bb-text-dim">{suffix}</span>}
+    </label>
+  );
+}
 
 /**
  * Sectioned Transform block for the Properties panel: X/Y position, W/H size
@@ -336,22 +355,19 @@ export function TransformSection() {
 
       {/* X / Y */}
       <div className="grid grid-cols-2 gap-1.5">
-        <label className="flex items-center gap-1 min-w-0">
-          <span className="text-bb-text-dim text-[10px] w-3 shrink-0">X</span>
-          <NumberStepper {...xField} step={posStep} disabled={disabled} className={fieldClass} />
-        </label>
-        <label className="flex items-center gap-1 min-w-0">
-          <span className="text-bb-text-dim text-[10px] w-3 shrink-0">Y</span>
-          <NumberStepper {...yField} step={posStep} disabled={disabled} className={fieldClass} />
-        </label>
+        <FieldBox label="X" suffix={unitLabel}>
+          <NumberStepper {...xField} step={posStep} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
+        </FieldBox>
+        <FieldBox label="Y" suffix={unitLabel}>
+          <NumberStepper {...yField} step={posStep} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
+        </FieldBox>
       </div>
 
       {/* W / lock / H */}
       <div className="mt-1.5 flex items-center gap-1">
-        <label className="flex flex-1 items-center gap-1 min-w-0">
-          <span className="text-bb-text-dim text-[10px] w-3 shrink-0">W</span>
-          <NumberStepper {...wField} step={posStep} min={sizeMin} disabled={disabled} className={fieldClass} />
-        </label>
+        <FieldBox label="W" suffix={unitLabel}>
+          <NumberStepper {...wField} step={posStep} min={sizeMin} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
+        </FieldBox>
         <button
           onClick={toggleLockAspect}
           disabled={disabled}
@@ -366,32 +382,24 @@ export function TransformSection() {
         >
           {lockAspect ? <Lock size={14} /> : <Unlock size={14} />}
         </button>
-        <label className="flex flex-1 items-center gap-1 min-w-0">
-          <span className="text-bb-text-dim text-[10px] w-3 shrink-0">H</span>
-          <NumberStepper {...hField} step={posStep} min={sizeMin} disabled={disabled} className={fieldClass} />
-        </label>
+        <FieldBox label="H" suffix={unitLabel}>
+          <NumberStepper {...hField} step={posStep} min={sizeMin} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
+        </FieldBox>
       </div>
 
-      {/* Scale X% / Y% */}
+      {/* Scale + Rotation */}
       <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-        <label className="flex items-center gap-1 min-w-0">
-          <NumberStepper {...scaleXField} step={1} min={1} disabled={disabled} className={fieldClass} />
-          <span className="text-bb-text-dim text-[10px] shrink-0">%</span>
-        </label>
-        <label className="flex items-center gap-1 min-w-0">
-          <NumberStepper {...scaleYField} step={1} min={1} disabled={disabled} className={fieldClass} />
-          <span className="text-bb-text-dim text-[10px] shrink-0">%</span>
-        </label>
+        <FieldBox label="SX" suffix="%">
+          <NumberStepper {...scaleXField} step={1} min={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
+        </FieldBox>
+        <FieldBox label="SY" suffix="%">
+          <NumberStepper {...scaleYField} step={1} min={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
+        </FieldBox>
       </div>
-
-      {/* Rotation */}
       <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-        <label className="flex items-center gap-1 min-w-0">
-          <span className="text-bb-text-dim text-[10px] shrink-0 whitespace-nowrap">
-            {t('toolbars.properties.rotation')}
-          </span>
-          <NumberStepper {...rotationField} step={1} disabled={disabled} className={fieldClass} />
-        </label>
+        <FieldBox label="⟳" suffix="°">
+          <NumberStepper {...rotationField} step={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
+        </FieldBox>
       </div>
     </div>
   );
