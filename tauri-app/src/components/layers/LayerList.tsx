@@ -5,6 +5,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
 import { SubLayerStack } from '../properties/SubLayerStack';
+import { ToggleSwitch } from '../shared/ToggleSwitch';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -16,32 +17,6 @@ const SHOW_TOGGLE_ACTIVE_COLOR = 'bg-bb-accent';
 /** Normalize color tag for comparison — strip alpha suffix, lowercase. */
 
 
-function ToggleSwitch({
-  active,
-  activeColor,
-  onClick,
-  testId,
-}: {
-  active: boolean;
-  activeColor?: string;
-  onClick: () => void;
-  testId?: string;
-}) {
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-      className={`relative w-7 h-3.5 rounded-full mx-auto transition-colors ${
-        active ? (activeColor ?? 'bg-green-500') : 'bg-bb-text/20'
-      }`}
-      data-testid={testId}
-    >
-      <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-transform ${
-        active ? 'translate-x-3.5' : 'translate-x-0.5'
-      }`} />
-    </button>
-  );
-}
 
 function FrameToggle({
   active,

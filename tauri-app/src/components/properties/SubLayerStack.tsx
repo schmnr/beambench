@@ -14,6 +14,7 @@ import type {
 import type { MachineProfile } from '../../types/machine';
 import { NumberInput } from '../shared/NumberInput';
 import { Toggle } from '../shared/Toggle';
+import { ToggleSwitch } from '../shared/ToggleSwitch';
 import { effectiveLineIntervalMm } from '../../types/rasterSettings';
 // M4: defaults moved to a dedicated module with a SYNC-WITH-RUST contract; the user-facing
 // Reset to Defaults action routes through the backend (projectStore.resetCutEntryToDefaults).
@@ -273,10 +274,10 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
         return (
           <div
             key={entry.id}
-            className="rounded border border-bb-border bg-bb-bg-alt/60"
+            className="rounded-xl border border-bb-border bg-bb-surface shadow-sm"
             data-testid={`sub-layer-card-${index}`}
           >
-            <div className="flex items-center gap-2 px-2 py-2">
+            <div className="flex items-center gap-2.5 px-3 py-2.5">
               <button
                 type="button"
                 className="text-xs text-bb-text-dim hover:text-bb-text"
@@ -285,21 +286,29 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
               >
                 {expanded ? EXPANDED_ICON : COLLAPSED_ICON}
               </button>
-              <span className="min-w-16 rounded bg-bb-accent/20 px-1.5 py-0.5 text-[11px] uppercase text-bb-text">
-                {modeLabel(entry.operation, t)}
-              </span>
-              <span className="text-xs text-bb-text-dim">
-                {t('panels.sub_layer_stack.summary', {
-                  speed: formatSpeedForDisplay(entry.speed_mm_min, displayUnit, speedTimeUnit),
-                  power: Math.round(entry.power_percent),
-                  passes,
-                })}
-              </span>
-              <div className="ml-auto flex items-center gap-1">
-                <Toggle
-                  label={t('panels.sub_layer_stack.output')}
-                  checked={entry.output_enabled}
-                  onChange={(output_enabled) => void updateCutEntry(layer.id, entry.id, { output_enabled })}
+              <span
+                className="h-6 w-6 flex-shrink-0 rounded-md border border-bb-border"
+                style={{ backgroundColor: layer.color_tag }}
+                aria-hidden="true"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold text-bb-text">
+                  {index + 1} · {modeLabel(entry.operation, t)}
+                </div>
+                <div className="truncate text-[10px] text-bb-text-dim">
+                  {t('panels.sub_layer_stack.summary', {
+                    speed: formatSpeedForDisplay(entry.speed_mm_min, displayUnit, speedTimeUnit),
+                    power: Math.round(entry.power_percent),
+                    passes,
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <ToggleSwitch
+                  active={entry.output_enabled}
+                  onClick={() => void updateCutEntry(layer.id, entry.id, { output_enabled: !entry.output_enabled })}
+                  aria-label={t('panels.sub_layer_stack.output')}
+                  title={t('panels.sub_layer_stack.output')}
                 />
                 <button
                   type="button"
@@ -341,7 +350,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
             </div>
 
             {expanded && (
-              <div className="flex flex-col gap-2 border-t border-bb-border px-2 py-2">
+              <div className="flex flex-col gap-3 border-t border-bb-border px-3 py-3">
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-bb-text-dim">{t('panels.sub_layer_stack.mode')}</label>
                   <select
@@ -372,14 +381,30 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                   max={maxDisplaySpeed}
                   step={speedStep}
                 />
-                <NumberInput
-                  label={t('panels.sub_layer_stack.power_percent')}
-                  value={entry.power_percent}
-                  onChange={(power_percent) => void updateCutEntry(layer.id, entry.id, { power_percent })}
-                  min={0}
-                  max={100}
-                  step={1}
-                />
+                <div className="flex flex-col gap-1.5">
+                  <NumberInput
+                    label={t('panels.sub_layer_stack.power_percent')}
+                    value={entry.power_percent}
+                    onChange={(power_percent) => void updateCutEntry(layer.id, entry.id, { power_percent })}
+                    min={0}
+                    max={100}
+                    step={1}
+                  />
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={entry.power_percent}
+                    onChange={(e) => void updateCutEntry(layer.id, entry.id, { power_percent: Number(e.target.value) })}
+                    aria-label={t('panels.sub_layer_stack.power_percent')}
+                    className="bb-range w-full"
+                    style={{
+                      background: `linear-gradient(to right, rgb(var(--bb-accent)) 0%, #f59e0b ${entry.power_percent}%, rgb(var(--bb-surface-3)) ${entry.power_percent}%, rgb(var(--bb-surface-3)) 100%)`,
+                    }}
+                    data-testid={`sub-layer-power-slider-${entry.id}`}
+                  />
+                </div>
                 {showMinPower && (
                   <NumberInput
                     label={t('panels.sub_layer_stack.min_power_percent')}
@@ -407,11 +432,14 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                   max={20}
                   step={1}
                 />
-                <Toggle
-                  label={t('panels.sub_layer_stack.air_assist')}
-                  checked={entry.air_assist}
-                  onChange={(air_assist) => void updateCutEntry(layer.id, entry.id, { air_assist })}
-                />
+                <div className="flex min-h-6 items-center justify-between text-xs">
+                  <span className="text-bb-text-muted">{t('panels.sub_layer_stack.air_assist')}</span>
+                  <ToggleSwitch
+                    active={entry.air_assist}
+                    onClick={() => void updateCutEntry(layer.id, entry.id, { air_assist: !entry.air_assist })}
+                    aria-label={t('panels.sub_layer_stack.air_assist')}
+                  />
+                </div>
                 {showZOffset && (
                   <NumberInput
                     label={labelWithUnit(t('panels.sub_layer_stack.z_offset_mm'), lengthUnitLabel(displayUnit))}
