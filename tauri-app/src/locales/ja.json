@@ -1469,6 +1469,7 @@
       "align_bottom": "下"
     },
     "sub_layer_stack": {
+      "title": "サブレイヤー",
       "operation_tool": "ツール",
       "operation_image": "画像",
       "operation_fill": "塗りつぶし",

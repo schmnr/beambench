@@ -1469,6 +1469,7 @@
       "align_bottom": "Onder"
     },
     "sub_layer_stack": {
+      "title": "Sublagen",
       "operation_tool": "Gereedschap",
       "operation_image": "Afbeelding",
       "operation_fill": "Vulling",

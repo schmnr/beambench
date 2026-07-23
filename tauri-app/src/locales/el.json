@@ -1469,6 +1469,7 @@
       "align_bottom": "Κάτω"
     },
     "sub_layer_stack": {
+      "title": "Υποεπίπεδα",
       "operation_tool": "Εργαλείο",
       "operation_image": "Εικόνα",
       "operation_fill": "Γέμισμα",

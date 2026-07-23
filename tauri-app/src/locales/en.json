@@ -1584,6 +1584,7 @@
       "align_bottom": "Bottom"
     },
     "sub_layer_stack": {
+      "title": "Sub-layers",
       "operation_tool": "Tool",
       "operation_image": "Image",
       "operation_fill": "Fill",

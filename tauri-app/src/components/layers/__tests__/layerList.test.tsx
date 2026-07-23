@@ -476,7 +476,7 @@ describe('LayerList', () => {
     expect((screen.getByTestId('tab-rename-input') as HTMLInputElement).value).toBe('Renamed Layer');
   });
 
-  it('locks a layer through the batch lock action instead of per-object updates', () => {
+  it('locks a layer through the tab menu batch action instead of per-object updates', async () => {
     const layer = makeLayer({ id: 'l1' });
     const obj1: ProjectObject = makeProjectObject({
       id: 'obj-1',
@@ -494,9 +494,10 @@ describe('LayerList', () => {
       updateObject: updateObjectSpy,
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.click(screen.getByTestId('lock-layer'));
+    fireEvent.contextMenu(screen.getByTestId('layer-tab'));
+    fireEvent.click(await screen.findByText('Toggle lock on layer objects'));
 
     expect(lockObjectsSpy).toHaveBeenCalledWith(['obj-1', 'obj-2']);
     expect(updateObjectSpy).not.toHaveBeenCalled();

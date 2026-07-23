@@ -1469,6 +1469,7 @@
       "align_bottom": "Bund"
     },
     "sub_layer_stack": {
+      "title": "Underlag",
       "operation_tool": "Værktøj",
       "operation_image": "Billede",
       "operation_fill": "Fyld",

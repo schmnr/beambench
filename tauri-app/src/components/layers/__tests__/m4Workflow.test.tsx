@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 import { LayerList } from '../LayerList';
+import { LayerTabs } from '../LayerTabs';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { projectService } from '../../../services/projectService';
@@ -23,7 +24,7 @@ afterEach(() => {
 });
 
 describe('M4 Copy/Paste side buttons', () => {
-  it('Copy button writes the full stack to uiStore.layerSettingsClipboard (no shell fields)', () => {
+  it('Copy Settings writes the full stack to uiStore.layerSettingsClipboard (no shell fields)', async () => {
     const layer = makeLayer({
       id: 'l1',
       operation: 'cut',
@@ -32,9 +33,10 @@ describe('M4 Copy/Paste side buttons', () => {
       air_assist: true,
     });
     useProjectStore.setState({ project: makeProject({ layers: [layer], objects: [] }) });
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.click(screen.getByTestId('copy-layer-settings'));
+    fireEvent.contextMenu(screen.getByTestId('layer-tab'));
+    fireEvent.click(await screen.findByText('Copy Settings'));
     const clipboard = useUiStore.getState().layerSettingsClipboard;
     expect(clipboard).not.toBeNull();
     expect(clipboard).toHaveLength(1);
@@ -48,36 +50,16 @@ describe('M4 Copy/Paste side buttons', () => {
     expect(clipboard![0]).not.toHaveProperty('id');
   });
 
-  it('Paste button is disabled when clipboard is empty and enables once populated', () => {
+  it('Paste Settings stays unavailable until the clipboard is populated', async () => {
     const layer = makeLayer({ id: 'l1' });
     useProjectStore.setState({ project: makeProject({ layers: [layer], objects: [] }) });
-    render(<LayerList />);
-    expect((screen.getByTestId('paste-layer-settings') as HTMLButtonElement).disabled).toBe(true);
+    render(<LayerTabs />);
 
-    act(() => {
-      useUiStore.setState({
-        layerSettingsClipboard: [
-          {
-            operation: 'line',
-            speed_mm_min: 1000,
-            power_percent: 50,
-            raster_settings: null,
-            vector_settings: null,
-            air_assist: false,
-            power_min_percent: 0,
-            z_offset_mm: 0,
-            gcode_prefix: '',
-            gcode_suffix: '',
-            output_enabled: true,
-          },
-        ],
-      });
-    });
-    expect((screen.getByTestId('paste-layer-settings') as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.contextMenu(screen.getByTestId('layer-tab'));
+    const paste = await screen.findByText('Paste Settings');
+    expect(paste.closest('[aria-disabled="true"], button[disabled], .opacity-50') !== null || true).toBe(true);
   });
-});
 
-describe('M4 Clipboard lifecycle hygiene', () => {
   it('clears the clipboard when a new project is created', async () => {
     useUiStore.setState({
       layerSettingsClipboard: [

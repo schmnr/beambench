@@ -1469,6 +1469,7 @@
       "align_bottom": "아래"
     },
     "sub_layer_stack": {
+      "title": "하위 레이어",
       "operation_tool": "도구",
       "operation_image": "이미지",
       "operation_fill": "채우기",

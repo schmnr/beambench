@@ -1469,6 +1469,7 @@
       "align_bottom": "Bunn"
     },
     "sub_layer_stack": {
+      "title": "Underlag",
       "operation_tool": "Verktøy",
       "operation_image": "Bilde",
       "operation_fill": "Fyll",

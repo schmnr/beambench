@@ -286,11 +286,6 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
               >
                 {expanded ? EXPANDED_ICON : COLLAPSED_ICON}
               </button>
-              <span
-                className="h-6 w-6 flex-shrink-0 rounded-md border border-bb-border"
-                style={{ backgroundColor: layer.color_tag }}
-                aria-hidden="true"
-              />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-semibold text-bb-text">
                   {index + 1} · {modeLabel(entry.operation, t)}
@@ -304,12 +299,16 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                <ToggleSwitch
-                  active={entry.output_enabled}
-                  onClick={() => void updateCutEntry(layer.id, entry.id, { output_enabled: !entry.output_enabled })}
-                  aria-label={t('panels.sub_layer_stack.output')}
-                  title={t('panels.sub_layer_stack.output')}
-                />
+                <label className="flex items-center gap-1.5 text-[10px] text-bb-text-muted">
+                  {t('panels.sub_layer_stack.output')}
+                  <ToggleSwitch
+                    active={entry.output_enabled}
+                    onClick={() => void updateCutEntry(layer.id, entry.id, { output_enabled: !entry.output_enabled })}
+                    aria-label={t('panels.sub_layer_stack.output')}
+                  />
+                </label>
+                {entries.length > 1 && (
+                <>
                 <button
                   type="button"
                   className="rounded border border-bb-border px-1 text-xs text-bb-text disabled:opacity-40"
@@ -328,6 +327,8 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 >
                   {MOVE_DOWN_ICON}
                 </button>
+                </>
+                )}
                 <button
                   type="button"
                   className="rounded border border-bb-border p-1 text-bb-text-muted hover:text-bb-text"
@@ -337,15 +338,16 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 >
                   <RotateCcw size={12} />
                 </button>
+                {entries.length > 1 && (
                 <button
                   type="button"
                   className="rounded border border-bb-border px-1 text-xs text-bb-text disabled:opacity-40"
                   onClick={() => void removeCutEntry(layer.id, entry.id)}
-                  disabled={entries.length === 1}
                   data-testid={`sub-layer-delete-${entry.id}`}
                 >
                   {t('panels.sub_layer_stack.delete')}
                 </button>
+                )}
               </div>
             </div>
 

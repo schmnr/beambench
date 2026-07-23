@@ -10,6 +10,7 @@ interface LayerMenuCallbacks {
   pasteSettings?: (layerId: string) => void;
   startRename?: (layerId: string) => void;
   deleteLayer?: (layerId: string) => void;
+  toggleLockObjects?: (layerId: string) => void;
   hasClipboard?: boolean;
 
   // M4 additions
@@ -107,6 +108,15 @@ export function buildLayerContextMenuItems(
         id: 'rename',
         label: t('common.rename'),
         onClick: () => callbacks.startRename!(layer.id),
+      });
+    }
+
+    if (callbacks.toggleLockObjects) {
+      items.push({
+        id: 'toggle-lock-objects',
+        label: t('panels.layers.toggle_lock_title'),
+        disabled: layerObjects.length === 0,
+        onClick: () => callbacks.toggleLockObjects!(layer.id),
       });
     }
 

@@ -1469,6 +1469,7 @@
       "align_bottom": "Spodaj"
     },
     "sub_layer_stack": {
+      "title": "Podplasti",
       "operation_tool": "Orodje",
       "operation_image": "Slika",
       "operation_fill": "Zapolnitev",

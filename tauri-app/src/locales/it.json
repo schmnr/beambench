@@ -1469,6 +1469,7 @@
       "align_bottom": "Basso"
     },
     "sub_layer_stack": {
+      "title": "Sottolivelli",
       "operation_tool": "Strumento",
       "operation_image": "Immagine",
       "operation_fill": "Riempimento",

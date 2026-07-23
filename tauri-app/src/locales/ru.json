@@ -1469,6 +1469,7 @@
       "align_bottom": "Снизу"
     },
     "sub_layer_stack": {
+      "title": "Подслои",
       "operation_tool": "Инструмент",
       "operation_image": "Изображение",
       "operation_fill": "Заливка",

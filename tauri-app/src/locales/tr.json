@@ -1469,6 +1469,7 @@
       "align_bottom": "Alt"
     },
     "sub_layer_stack": {
+      "title": "Alt katmanlar",
       "operation_tool": "Araç",
       "operation_image": "Görüntü",
       "operation_fill": "Dolgu",

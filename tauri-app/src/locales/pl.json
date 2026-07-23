@@ -1469,6 +1469,7 @@
       "align_bottom": "Dół"
     },
     "sub_layer_stack": {
+      "title": "Podwarstwy",
       "operation_tool": "Narzędzie",
       "operation_image": "Obraz",
       "operation_fill": "Wypełnienie",

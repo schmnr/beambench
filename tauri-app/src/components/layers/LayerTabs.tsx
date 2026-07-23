@@ -35,6 +35,8 @@ export function LayerTabs() {
   const loadProject = useProjectStore((s) => s.loadProject);
   const reorderLayer = useProjectStore((s) => s.reorderLayer);
   const removeLayer = useProjectStore((s) => s.removeLayer);
+  const lockObjects = useProjectStore((s) => s.lockObjects);
+  const unlockObjects = useProjectStore((s) => s.unlockObjects);
   const selectObjects = useProjectStore((s) => s.selectObjects);
   const copyLayerSettings = useProjectStore((s) => s.copyLayerSettings);
   const pasteLayerSettings = useProjectStore((s) => s.pasteLayerSettings);
@@ -301,6 +303,13 @@ export function LayerTabs() {
               hideAllButThis: (layerId) => void setAllLayersVisible({ kind: 'only_this_on', keep: layerId }),
               flashLayer: (layerId) => flashLayer(layerId),
               deleteLayer: (layerId) => void removeLayer(layerId),
+              toggleLockObjects: (layerId) => {
+                const layerObjs = project.objects.filter((o) => o.layer_id === layerId);
+                if (layerObjs.length === 0) return;
+                const ids = layerObjs.map((o) => o.id);
+                if (layerObjs.every((o) => o.locked)) void unlockObjects(ids);
+                else void lockObjects(ids);
+              },
             })}
             onClose={() => setContextMenu(null)}
           />

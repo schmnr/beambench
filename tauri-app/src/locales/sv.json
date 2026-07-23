@@ -1469,6 +1469,7 @@
       "align_bottom": "Nederst"
     },
     "sub_layer_stack": {
+      "title": "Underlager",
       "operation_tool": "Verktyg",
       "operation_image": "Bild",
       "operation_fill": "Fyllning",

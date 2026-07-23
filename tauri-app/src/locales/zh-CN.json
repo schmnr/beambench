@@ -1469,6 +1469,7 @@
       "align_bottom": "底部"
     },
     "sub_layer_stack": {
+      "title": "子图层",
       "operation_tool": "工具",
       "operation_image": "图像",
       "operation_fill": "填充",

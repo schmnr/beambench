@@ -1469,6 +1469,7 @@
       "align_bottom": "Unten"
     },
     "sub_layer_stack": {
+      "title": "Unterebenen",
       "operation_tool": "Werkzeug",
       "operation_image": "Bild",
       "operation_fill": "Füllen",

@@ -1469,6 +1469,7 @@
       "align_bottom": "Inferior"
     },
     "sub_layer_stack": {
+      "title": "Subcamadas",
       "operation_tool": "Ferramenta",
       "operation_image": "Imagem",
       "operation_fill": "Preenchimento",

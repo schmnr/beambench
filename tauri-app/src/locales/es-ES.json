@@ -1469,6 +1469,7 @@
       "align_bottom": "Abajo"
     },
     "sub_layer_stack": {
+      "title": "Subcapas",
       "operation_tool": "Herramienta",
       "operation_image": "Imagen",
       "operation_fill": "Relleno",

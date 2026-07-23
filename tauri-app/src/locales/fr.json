@@ -1469,6 +1469,7 @@
       "align_bottom": "Bas"
     },
     "sub_layer_stack": {
+      "title": "Sous-calques",
       "operation_tool": "Outil",
       "operation_image": "Image",
       "operation_fill": "Remplissage",
