@@ -82,7 +82,7 @@ export function LayerList() {
   );
   const updateSettings = useAppStore((s) => s.updateSettings);
   const currentAppSettings = useAppStore((s) => s.settings);
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [colorPicker, setColorPicker] = useState<{ x: number; y: number } | null>(null);
   const [optimisticToolFrameBounds, setOptimisticToolFrameBounds] = useState<boolean | null>(null);
 
 
@@ -202,44 +202,18 @@ export function LayerList() {
 
           <div className="mt-2 flex items-center justify-between gap-4">
             {!activeLayer.is_tool_layer && (
-              <div className="relative flex items-center gap-1.5 text-xs" data-testid="quick-edit">
+              <div className="flex items-center gap-1.5 text-xs" data-testid="quick-edit">
                 <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
                 <button
                   className="h-6 w-8 rounded-md border border-bb-border shrink-0 hover:ring-1 hover:ring-bb-accent"
                   data-testid="quick-edit-color"
                   style={{ backgroundColor: activeLayer.color_tag }}
-                  onClick={() => setShowColorPicker((v) => !v)}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setColorPicker((cur) => (cur ? null : { x: rect.left, y: rect.bottom + 4 }));
+                  }}
                   aria-label={t('panels.layers.quick_edit.color')}
                 />
-                {showColorPicker && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowColorPicker(false)} />
-                    <div
-                      className="absolute left-0 top-full z-50 mt-1 grid grid-cols-8 gap-1.5 rounded-lg border border-bb-border bg-bb-panel p-2.5 shadow-lg"
-                      data-testid="layer-color-picker"
-                    >
-                      {PALETTE_COLORS.filter((c) => {
-                        if (normColor(c.hex) === normColor(activeLayer.color_tag)) return true;
-                        return !layers.some(
-                          (l) => l.id !== activeLayer.id && normColor(l.color_tag) === normColor(c.hex),
-                        );
-                      }).map((c) => (
-                        <button
-                          key={c.hex}
-                          className={`h-6 w-6 rounded-md border hover:ring-1 hover:ring-bb-accent ${
-                            c.is_tool_layer ? 'border-dashed border-bb-text-muted' : 'border-bb-border'
-                          }`}
-                          style={{ backgroundColor: c.hex }}
-                          title={c.name}
-                          onClick={() => {
-                            setShowColorPicker(false);
-                            void updateLayer(activeLayer.id, { color_tag: c.hex });
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
               </div>
             )}
             <div className="flex items-center gap-5">
@@ -349,6 +323,47 @@ export function LayerList() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Layer color picker — fixed position so nothing clips it */}
+      {colorPicker && activeLayer && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setColorPicker(null)} />
+          <div
+            className="fixed z-50 w-56 rounded-xl border border-bb-border bg-bb-panel p-3 shadow-xl"
+            style={{ left: colorPicker.x, top: colorPicker.y }}
+            data-testid="layer-color-picker"
+          >
+            <div className="grid grid-cols-6 gap-2">
+              {PALETTE_COLORS.filter((c) => {
+                if (normColor(c.hex) === normColor(activeLayer.color_tag)) return true;
+                return !layers.some(
+                  (l) => l.id !== activeLayer.id && normColor(l.color_tag) === normColor(c.hex),
+                );
+              }).map((c) => {
+                const current = normColor(c.hex) === normColor(activeLayer.color_tag);
+                return (
+                  <button
+                    key={c.hex}
+                    className={`h-7 w-7 rounded-md border hover:ring-2 hover:ring-bb-accent ${
+                      current
+                        ? 'ring-2 ring-bb-accent'
+                        : c.is_tool_layer
+                          ? 'border-dashed border-bb-text-muted'
+                          : 'border-bb-border'
+                    }`}
+                    style={{ backgroundColor: c.hex }}
+                    title={c.name}
+                    onClick={() => {
+                      setColorPicker(null);
+                      void updateLayer(activeLayer.id, { color_tag: c.hex });
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
