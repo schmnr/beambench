@@ -24,5 +24,5 @@ export function wrapBackendError(detail: string): string {
   if (unavailablePort) {
     return i18n.t('errors.serial_port_unavailable', { port: unavailablePort[1].trim() });
   }
-  return i18n.t('errors.operation_failed_with_detail', { detail: normalized });
+  return i18n.t('errors.operation_failed_with_detail', { detail });
 }
