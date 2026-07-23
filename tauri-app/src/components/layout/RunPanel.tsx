@@ -6,6 +6,8 @@ import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 import { PanelResizer } from './PanelResizer';
 
 const LOWER_TABS = ['camera', 'macros', 'console'] as const;
+const LASER_PANEL_ID = 'laser' as const;
+const MACHINE_PROFILE_SYMBOL = '⌗';
 
 /**
  * Run-mode right panel: machine chip, then two stacked cards — Laser
@@ -21,9 +23,9 @@ export function RunPanel() {
   const [showProfiles, setShowProfiles] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const LaserContent = PANEL_COMPONENTS['laser'] ?? null;
+  const LaserContent = PANEL_COMPONENTS[LASER_PANEL_ID] ?? null;
   const LowerContent = PANEL_COMPONENTS[lowerTab] ?? null;
-  const laserDef = getPanelById('laser');
+  const laserDef = getPanelById(LASER_PANEL_ID);
 
   return (
     <div
@@ -38,7 +40,7 @@ export function RunPanel() {
         title={t('panels.machine.laser.manage_machine_profiles')}
         data-testid="run-machine-profile-chip"
       >
-        ⌗ {activeProfile?.name ?? t('panels.machine.laser.no_machine')}
+        {MACHINE_PROFILE_SYMBOL} {activeProfile?.name ?? t('panels.machine.laser.no_machine')}
       </button>
 
       {/* Upper card: Laser Control */}
@@ -47,7 +49,7 @@ export function RunPanel() {
         style={{ flex: upperRatio }}
       >
         <div className="border-b border-bb-border px-3 py-1.5 text-xs font-semibold text-bb-text">
-          {laserDef ? t(laserDef.titleKey) : 'Laser'}
+          {laserDef ? t(laserDef.titleKey) : t('panels.registry.laser')}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {LaserContent && <LaserContent />}

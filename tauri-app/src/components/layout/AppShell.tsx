@@ -58,16 +58,20 @@ export function AppShell() {
   const leftVisibleIds = sidePanelsVisible
     ? panelLayout.zones.left?.panelIds.filter((id) => !panelLayout.hiddenPanelIds.includes(id)) ?? []
     : [];
-  const leftHasContent = leftVisibleIds.length > 0;
+  // Run has its own fixed machine panels. Keep the user's configurable
+  // Design layout from appearing alongside (or hiding) those controls.
+  const leftHasContent = !runMode && leftVisibleIds.length > 0;
 
   const bottomVisibleIds = sidePanelsVisible
     ? panelLayout.zones.bottom?.panelIds.filter((id) => !panelLayout.hiddenPanelIds.includes(id)) ?? []
     : [];
-  const bottomHasContent = bottomVisibleIds.length > 0;
+  const bottomHasContent = !runMode && bottomVisibleIds.length > 0;
 
-  const rightHasContent = sidePanelsVisible && (
-    panelLayout.zones['upper-right']?.panelIds.some((id) => !panelLayout.hiddenPanelIds.includes(id)) ||
-    panelLayout.zones['lower-right']?.panelIds.some((id) => !panelLayout.hiddenPanelIds.includes(id))
+  const rightHasContent = runMode || (
+    sidePanelsVisible && (
+      panelLayout.zones['upper-right']?.panelIds.some((id) => !panelLayout.hiddenPanelIds.includes(id)) ||
+      panelLayout.zones['lower-right']?.panelIds.some((id) => !panelLayout.hiddenPanelIds.includes(id))
+    )
   );
 
   const effectiveBottomHeight = bottomPanelHeight;
@@ -160,7 +164,7 @@ export function AppShell() {
         </div>
         <StatusBar />
       </div>
-      <FloatingPanelLayer />
+      {!runMode && <FloatingPanelLayer />}
     </PanelDndProvider>
   );
 }

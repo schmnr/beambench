@@ -694,6 +694,7 @@ export function Canvas() {
     gridVisible,
     gridSpacingMm,
     previewData,
+    workspaceMode,
     theme,
     antialiasing,
     filledRendering,

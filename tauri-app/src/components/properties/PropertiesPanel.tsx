@@ -10,11 +10,9 @@ import { RasterPropertiesPanel } from './RasterPropertiesPanel';
 import { vectorService } from '../../services/vectorService';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { wrapBackendError } from '../../i18n/errors';
-import { isTransformLocked, notifyTransformLocked } from '../../utils/transformLocks';
 
 const TOAST_SUCCESS = 'success' as const;
 const TOAST_ERROR = 'error' as const;
-const TRANSFORM_LOCK_SCALE = 'scale' as const;
 
 export function PropertiesPanel() {
   const { t } = useTranslation();
@@ -22,7 +20,6 @@ export function PropertiesPanel() {
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
   const updateObject = useProjectStore((s) => s.updateObject);
   const updateObjectData = useProjectStore((s) => s.updateObjectData);
-  const resizeShapeObject = useProjectStore((s) => s.resizeShapeObject);
   const loadProject = useProjectStore((s) => s.loadProject);
   const booleanPending = useProjectStore((s) => s.booleanPending);
   const lockObjects = useProjectStore((s) => s.lockObjects);
@@ -115,25 +112,11 @@ export function PropertiesPanel() {
     return <div className="text-xs text-bb-text-dim italic px-2">{t('panels.properties.nothing_selected')}</div>;
   }
 
-  const x = selectedObject.bounds.min.x;
-  const y = selectedObject.bounds.min.y;
-  const w = selectedObject.bounds.max.x - selectedObject.bounds.min.x;
-  const h = selectedObject.bounds.max.y - selectedObject.bounds.min.y;
-
-  const updateDimensions = (newW: number, newH: number) => {
-    void resizeShapeObject(selectedObject.id, {
-      min: { x, y },
-      max: { x: x + newW, y: y + newH },
-    });
-  };
-
   const canConvertToPath =
     selectedObject.data?.type === 'shape' ||
     selectedObject.data?.type === 'text' ||
     selectedObject.data?.type === 'polygon' ||
     selectedObject.data?.type === 'star';
-
-  const transformLocks = project?.transform_locks;
 
   // Corner radius: only for rectangle shapes
   const isRectangleShape = selectedObject.data?.type === 'shape' && selectedObject.data.kind === 'rectangle';
@@ -180,42 +163,6 @@ export function PropertiesPanel() {
       {(isRectangleShape || isEllipseShape || isPolygonShape || isStarShape) && (
         <div className="flex flex-col gap-1.5 pt-1 border-t border-bb-border">
           <div className="text-xs font-medium text-bb-accent uppercase tracking-wider">{t('panels.properties.shape')}</div>
-          <NumberInput
-            label={t('panels.properties.width')}
-            value={Math.round(w * 100) / 100}
-            onChange={(newW) => {
-              if (isTransformLocked(transformLocks, TRANSFORM_LOCK_SCALE)) {
-                notifyTransformLocked(TRANSFORM_LOCK_SCALE);
-                return;
-              }
-              if (selectedObject.lock_aspect_ratio && w > 0) {
-                const ratio = h / w;
-                updateDimensions(newW, newW * ratio);
-              } else {
-                updateDimensions(newW, h);
-              }
-            }}
-            step={0.1}
-            min={0.1}
-          />
-          <NumberInput
-            label={t('panels.properties.height')}
-            value={Math.round(h * 100) / 100}
-            onChange={(newH) => {
-              if (isTransformLocked(transformLocks, TRANSFORM_LOCK_SCALE)) {
-                notifyTransformLocked(TRANSFORM_LOCK_SCALE);
-                return;
-              }
-              if (selectedObject.lock_aspect_ratio && h > 0) {
-                const ratio = w / h;
-                updateDimensions(newH * ratio, newH);
-              } else {
-                updateDimensions(w, newH);
-              }
-            }}
-            step={0.1}
-            min={0.1}
-          />
         </div>
       )}
 

@@ -4,7 +4,9 @@ import { TextPropertiesPanel } from '../TextPropertiesPanel';
 import { TextDefaultsSection } from '../TextDefaultsSection';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
+import { useAppStore } from '../../../stores/appStore';
 import type { ObjectData } from '../../../types/project';
+import { makeAppSettings } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn((cmd: string) => {
@@ -47,11 +49,13 @@ const makeTextData = (over: Partial<Extract<ObjectData, { type: 'text' }>> = {})
 
 const initialProjectState = useProjectStore.getState();
 const initialUiState = useUiStore.getState();
+const initialAppState = useAppStore.getState();
 
 afterEach(() => {
   cleanup();
   useProjectStore.setState(initialProjectState, true);
   useUiStore.setState(initialUiState, true);
+  useAppStore.setState(initialAppState, true);
 });
 
 describe('TextPropertiesPanel', () => {
@@ -91,6 +95,35 @@ describe('TextPropertiesPanel', () => {
     expect(screen.getByText('Pick')).toBeDefined();
     expect(screen.getByText('Clear')).toBeDefined();
   });
+
+  it('displays and stores text dimensions in the selected unit', () => {
+    const updateObjectData = vi.fn();
+    useAppStore.setState({ settings: makeAppSettings({ display_unit: 'inches' }) });
+    useProjectStore.setState({ updateObjectData });
+    render(
+      <TextPropertiesPanel
+        objectId="t1"
+        data={makeTextData({
+          layout_mode: 'path',
+          h_spacing: 25.4,
+          v_spacing: 50.8,
+          path_offset: 12.7,
+          max_width: 76.2,
+        })}
+      />,
+    );
+
+    expect(screen.getByLabelText('HSpace (in)')).toHaveProperty('value', '1');
+    expect(screen.getByLabelText('VSpace (in)')).toHaveProperty('value', '2');
+    expect(screen.getByLabelText('Path Offset (in)')).toHaveProperty('value', '0.5');
+    expect(screen.getByLabelText('Max Width (in)')).toHaveProperty('value', '3');
+
+    fireEvent.change(screen.getByLabelText('HSpace (in)'), { target: { value: '2' } });
+    expect(updateObjectData).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ h_spacing: 50.8 }),
+    );
+  });
 });
 
 describe('TextDefaultsSection', () => {
@@ -104,5 +137,27 @@ describe('TextDefaultsSection', () => {
     render(<TextDefaultsSection />);
     expect(screen.getByText('Font')).toBeDefined();
     expect(screen.getAllByRole('spinbutton').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('converts the minimum text size to the active display unit', () => {
+    useAppStore.setState({ settings: makeAppSettings({ display_unit: 'inches' }) });
+    render(<TextDefaultsSection />);
+
+    const sizeInput = screen.getByLabelText('Size (in)');
+    expect(Number(sizeInput.getAttribute('min'))).toBeCloseTo(0.1 / 25.4);
+  });
+
+  it('keeps the retired toolbar layout and curved-text defaults available', () => {
+    render(<TextDefaultsSection />);
+
+    fireEvent.change(screen.getByLabelText('Layout'), { target: { value: 'bend' } });
+
+    expect(useUiStore.getState().textDefaults).toMatchObject({
+      layout_mode: 'bend',
+      on_path: false,
+      bend_radius: 50,
+    });
+    expect(screen.getByLabelText('Bend Radius (mm)')).toBeDefined();
+    expect(screen.getByLabelText('Distort')).toHaveProperty('disabled', false);
   });
 });

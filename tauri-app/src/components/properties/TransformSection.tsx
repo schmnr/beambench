@@ -28,6 +28,7 @@ const DISPLAY_UNIT_INCHES = 'inches' as const;
 type DisplayUnit = typeof DISPLAY_UNIT_MM | typeof DISPLAY_UNIT_INCHES;
 const UNIT_LABEL_INCHES = 'in';
 const TOAST_ERROR = 'error' as const;
+const ROTATION_FIELD_LABEL = '⟳';
 
 const fieldClass =
   'w-full min-w-0 bg-transparent px-0 text-right text-xs text-bb-text focus:outline-none';
@@ -397,7 +398,7 @@ export function TransformSection() {
         </FieldBox>
       </div>
       <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-        <FieldBox label="⟳" suffix="°">
+        <FieldBox label={ROTATION_FIELD_LABEL} suffix="°">
           <NumberStepper {...rotationField} step={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
       </div>

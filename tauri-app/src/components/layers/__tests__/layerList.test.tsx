@@ -240,6 +240,47 @@ describe('LayerList', () => {
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { enabled: false });
   });
 
+  it('commits a layer name once after editing instead of on every keystroke', async () => {
+    const layer = makeLayer({ id: 'l1', name: 'Original' });
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [] }),
+      selectedLayerId: 'l1',
+      updateLayer: updateLayerSpy,
+    });
+
+    render(<LayerList />);
+    const input = screen.getByTestId('layer-quick-name-input');
+    fireEvent.change(input, { target: { value: 'Updated' } });
+
+    expect(updateLayerSpy).not.toHaveBeenCalled();
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(updateLayerSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(updateLayerSpy).toHaveBeenCalledWith('l1', { name: 'Updated' });
+  });
+
+  it('does not reassign a carried-over selection when reviewing tabs in Run mode', () => {
+    const source = makeLayer({ id: 'l1', name: 'Source' });
+    const target = makeLayer({ id: 'l2', name: 'Target', order_index: 1 });
+    const object = makeProjectObject({ id: 'obj-1', layer_id: source.id });
+    const reassignLayerSpy = vi.fn();
+    useUiStore.setState({ workspaceMode: 'run' });
+    useProjectStore.setState({
+      project: makeProject({ layers: [source, target], objects: [object] }),
+      selectedLayerId: source.id,
+      selectedObjectIds: [object.id],
+      reassignLayer: reassignLayerSpy,
+    });
+
+    render(<LayerTabs />);
+    fireEvent.click(screen.getAllByTestId('layer-tab')[1]);
+
+    expect(reassignLayerSpy).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().selectedLayerId).toBe(target.id);
+  });
+
   it('show toggle circle works', async () => {
     const layer = makeLayer({ id: 'l1', visible: true });
     const setLayerVisibleSpy = vi.spyOn(projectService, 'setLayerVisible').mockResolvedValue(true);

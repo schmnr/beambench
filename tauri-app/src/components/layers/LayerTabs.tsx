@@ -16,6 +16,8 @@ import { buildLayerListHeaderMenuItems } from './LayerListHeaderMenu';
 import { CutSettingsEditor } from './CutSettingsEditor';
 import { displayLayerName } from './layerNaming';
 
+const ONLY_THIS_ON = 'only_this_on' as const;
+
 /**
  * Layer tabs above the workspace. One tab per layer: color dot, name,
  * speed/power summary, visibility eye. Clicking a tab with a selection
@@ -44,6 +46,7 @@ export function LayerTabs() {
   const setAllLayersVisible = useProjectStore((s) => s.setAllLayersVisible);
   const sortLayersCutLast = useProjectStore((s) => s.sortLayersCutLast);
   const flashLayer = useUiStore((s) => s.flashLayer);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
   const layerSettingsClipboard = useUiStore((s) => s.layerSettingsClipboard);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) === 'inches' ? 'inches' : 'mm';
   const speedTimeUnit = useAppStore((s) => s.settings?.speed_time_unit) === 'seconds' ? 'seconds' : 'minutes';
@@ -85,7 +88,9 @@ export function LayerTabs() {
       selectObjects(layerObjIds);
       return;
     }
-    if (hasSelection) {
+    // Run mode tabs are for inspecting cut order. A selection carried over
+    // from Design must not be silently reassigned just by reviewing a tab.
+    if (hasSelection && workspaceMode === 'design') {
       void reassignLayer(selectedObjectIds, layerId);
     }
     selectLayer(layerId);
@@ -230,8 +235,15 @@ export function LayerTabs() {
                 onChange={(e) => setRenameValue(e.target.value)}
                 onBlur={() => { void handleCommitRename(); }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleCommitRename();
-                  if (e.key === 'Escape') setRenamingLayerId(null);
+                  e.stopPropagation();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setRenamingLayerId(null);
+                  }
                 }}
                 onClick={(e) => e.stopPropagation()}
                 data-testid="tab-rename-input"
@@ -299,8 +311,8 @@ export function LayerTabs() {
                 setRenameValue(layer?.name ?? '');
               },
               hasClipboard: layerSettingsClipboard !== null && layerSettingsClipboard.length > 0,
-              disableAllButThis: (layerId) => void setAllLayersEnabled({ kind: 'only_this_on', keep: layerId }),
-              hideAllButThis: (layerId) => void setAllLayersVisible({ kind: 'only_this_on', keep: layerId }),
+              disableAllButThis: (layerId) => void setAllLayersEnabled({ kind: ONLY_THIS_ON, keep: layerId }),
+              hideAllButThis: (layerId) => void setAllLayersVisible({ kind: ONLY_THIS_ON, keep: layerId }),
               flashLayer: (layerId) => flashLayer(layerId),
               deleteLayer: (layerId) => void removeLayer(layerId),
               toggleLockObjects: (layerId) => {

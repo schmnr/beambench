@@ -86,6 +86,7 @@ const DISTRIBUTE_H_CENTERED = 'h_centered' as const;
 const DISTRIBUTE_V_CENTERED = 'v_centered' as const;
 const SIZE_WIDTH = 'width' as const;
 const SIZE_HEIGHT = 'height' as const;
+const EMERGENCY_STOP_SYMBOL = '■';
 
 export function MainToolbar() {
   const { t } = useTranslation();
@@ -524,7 +525,7 @@ export function MainToolbar() {
           onClick={() => void emergencyStop()}
           data-testid="toolbar-emergency-stop"
         >
-          ■ {t('panels.machine.laser.stop')}
+          {EMERGENCY_STOP_SYMBOL} {t('panels.machine.laser.stop')}
         </button>
       )}
       <button

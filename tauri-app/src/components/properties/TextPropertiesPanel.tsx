@@ -51,6 +51,7 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
   const { t } = useTranslation();
   const updateObjectData = useProjectStore((s) => s.updateObjectData);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
+  const unitLabel = lengthUnitLabel(displayUnit);
   const [systemFonts, setSystemFonts] = useState<string[]>([]);
   const fontOptions = systemFonts.length > 0
     ? systemFonts.map((font) => ({ value: font, label: font }))
@@ -94,7 +95,7 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
         </div>
       )}
       <NumberInput
-        label={labelWithUnit(t('panels.text_properties.size_mm'), lengthUnitLabel(displayUnit))}
+        label={labelWithUnit(t('panels.text_properties.size_mm'), unitLabel)}
         value={roundDisplayLength(mmToDisplay(data.font_size_mm, displayUnit), displayUnit)}
         onChange={(v) => updateObjectData(objectId, { ...data, font_size_mm: displayToMm(v, displayUnit) })}
         min={mmToDisplay(0.5, displayUnit)}
@@ -108,6 +109,7 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
         onChange={(alignment) =>
           updateObjectData(objectId, { ...data, alignment: alignment as TextAlignment })
         }
+        disabled={effectiveMode !== TEXT_LAYOUT_STRAIGHT}
       />
       <Select
         label={t('panels.text_properties.v_align')}
@@ -116,6 +118,7 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
         onChange={(alignment_v) =>
           updateObjectData(objectId, { ...data, alignment_v: alignment_v as TextAlignmentV })
         }
+        disabled={effectiveMode !== TEXT_LAYOUT_STRAIGHT}
       />
       <Select
         label={t('panels.text_properties.layout')}
@@ -189,11 +192,14 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
         />
       </div>
       <NumberInput
-        label={t('panels.text_properties.max_width')}
-        value={data.max_width ?? 0}
-        onChange={(max_width) => updateObjectData(objectId, { ...data, max_width: max_width > 0 ? max_width : null })}
+        label={labelWithUnit(t('panels.text_properties.max_width'), unitLabel)}
+        value={roundDisplayLength(mmToDisplay(data.max_width ?? 0, displayUnit), displayUnit)}
+        onChange={(value) => {
+          const max_width = displayToMm(value, displayUnit);
+          updateObjectData(objectId, { ...data, max_width: max_width > 0 ? max_width : null });
+        }}
         min={0}
-        step={0.1}
+        step={lengthStep(displayUnit)}
       />
       <div className="flex items-center gap-3">
         <Toggle
@@ -205,6 +211,7 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
           label={t('panels.text_properties.distort')}
           checked={data.distort ?? false}
           onChange={(distort) => updateObjectData(objectId, { ...data, distort })}
+          disabled={effectiveMode === TEXT_LAYOUT_STRAIGHT}
         />
         <Toggle
           label={t('panels.text_properties.rtl')}
@@ -213,31 +220,33 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
         />
       </div>
       <NumberInput
-        label={t('panels.text_properties.h_space')}
-        value={data.h_spacing ?? 0}
-        onChange={(h_spacing) => updateObjectData(objectId, { ...data, h_spacing })}
-        step={0.1}
+        label={labelWithUnit(t('panels.text_properties.h_space'), unitLabel)}
+        value={roundDisplayLength(mmToDisplay(data.h_spacing ?? 0, displayUnit), displayUnit)}
+        onChange={(value) => updateObjectData(objectId, { ...data, h_spacing: displayToMm(value, displayUnit) })}
+        step={lengthStep(displayUnit)}
       />
       <NumberInput
-        label={t('panels.text_properties.v_space')}
-        value={data.v_spacing ?? 0}
-        onChange={(v_spacing) => updateObjectData(objectId, { ...data, v_spacing })}
-        step={0.1}
+        label={labelWithUnit(t('panels.text_properties.v_space'), unitLabel)}
+        value={roundDisplayLength(mmToDisplay(data.v_spacing ?? 0, displayUnit), displayUnit)}
+        onChange={(value) => updateObjectData(objectId, { ...data, v_spacing: displayToMm(value, displayUnit) })}
+        step={lengthStep(displayUnit)}
+        disabled={effectiveMode !== TEXT_LAYOUT_STRAIGHT}
       />
       {effectiveMode === TEXT_LAYOUT_PATH && (
         <NumberInput
-          label={t('panels.text_properties.path_offset')}
-          value={data.path_offset ?? 0}
-          onChange={(path_offset) => updateObjectData(objectId, { ...data, path_offset })}
-          step={0.1}
+          label={labelWithUnit(t('panels.text_properties.path_offset'), unitLabel)}
+          value={roundDisplayLength(mmToDisplay(data.path_offset ?? 0, displayUnit), displayUnit)}
+          onChange={(value) => updateObjectData(objectId, { ...data, path_offset: displayToMm(value, displayUnit) })}
+          step={lengthStep(displayUnit)}
         />
       )}
       {effectiveMode === TEXT_LAYOUT_BEND && (
         <NumberInput
-          label={t('panels.text_properties.bend_radius')}
-          value={data.bend_radius ?? 0}
-          onChange={(bend_radius) => updateObjectData(objectId, { ...data, bend_radius })}
-          step={0.1}
+          label={labelWithUnit(t('panels.text_properties.bend_radius'), unitLabel)}
+          value={roundDisplayLength(mmToDisplay(data.bend_radius ?? 0, displayUnit), displayUnit)}
+          onChange={(value) => updateObjectData(objectId, { ...data, bend_radius: displayToMm(value, displayUnit) })}
+          min={mmToDisplay(0.1, displayUnit)}
+          step={lengthStep(displayUnit, 5, 0.2)}
         />
       )}
     </div>

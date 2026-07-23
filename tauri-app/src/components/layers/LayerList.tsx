@@ -1,4 +1,4 @@
-import { useState, } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { useAppStore } from '../../stores/appStore';
@@ -13,11 +13,6 @@ import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
 
 const SHOW_TOGGLE_ACTIVE_COLOR = 'bg-bb-accent';
-
-/** Normalize color tag for comparison — strip alpha suffix, lowercase. */
-
-
-
 function FrameToggle({
   active,
   onToggle,
@@ -84,14 +79,25 @@ export function LayerList() {
   const currentAppSettings = useAppStore((s) => s.settings);
   const [colorPicker, setColorPicker] = useState<{ x: number; y: number } | null>(null);
   const [optimisticToolFrameBounds, setOptimisticToolFrameBounds] = useState<boolean | null>(null);
+  const [layerNameDraft, setLayerNameDraft] = useState('');
 
-
-
-  
   const selectedLayer = layers.find((l) => l.id === selectedLayerId) ?? null;
   const activeLayer = selectedLayer ?? layers[0] ?? null;
   const activeLayerObjs = activeLayer ? objects.filter((o) => o.layer_id === activeLayer.id) : [];
   const layerAllLocked = activeLayerObjs.length > 0 && activeLayerObjs.every((o) => o.locked);
+
+  useEffect(() => {
+    setLayerNameDraft(activeLayer?.name ?? '');
+  }, [activeLayer?.id, activeLayer?.name]);
+
+  const commitLayerName = async () => {
+    if (!activeLayer || layerNameDraft === activeLayer.name) return;
+    const updated = await updateLayer(activeLayer.id, { name: layerNameDraft });
+    if (!updated) {
+      const currentLayer = useProjectStore.getState().project?.layers.find((layer) => layer.id === activeLayer.id);
+      setLayerNameDraft(currentLayer?.name ?? activeLayer.name);
+    }
+  };
 
   const notifyLayerError = (messageKey: string, error: unknown) => {
     useNotificationStore.getState().push(t(messageKey, { detail: String(error) }), 'error');
@@ -113,8 +119,6 @@ export function LayerList() {
       notifyLayerError('panels.layers.errors.update_visibility', error);
     }
   };
-
-
   // M4: full-stack copy/paste via app-scoped clipboard. Backend mints fresh entry IDs and
   // replaces the target layer's entries[] in one atomic op (one undo snapshot).
 
@@ -196,8 +200,13 @@ export function LayerList() {
 
           <TextInput
             label={t('panels.properties.name')}
-            value={activeLayer.name}
-            onChange={(name) => void updateLayer(activeLayer.id, { name })}
+            value={layerNameDraft}
+            onChange={setLayerNameDraft}
+            onBlur={() => void commitLayerName()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+            data-testid="layer-quick-name-input"
           />
 
           <div className="mt-2 flex items-center justify-between gap-4">

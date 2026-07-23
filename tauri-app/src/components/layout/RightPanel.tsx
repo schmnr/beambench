@@ -12,6 +12,8 @@ import { usePanelDnd } from '../../panels/DndContext';
 import { ContextMenu } from '../shared/ContextMenu';
 import { usePanelTabContextMenu } from '../panels/usePanelTabContextMenu';
 
+const MACHINE_PROFILE_SYMBOL = '⌗';
+
 function ZonePanel({ zone }: { zone: PhysicalDockZone }) {
   const { t } = useTranslation();
   const panelLayout = useUiStore((s) => s.panelLayout);
@@ -104,7 +106,7 @@ export function RightPanel() {
         title={t('panels.machine.laser.manage_machine_profiles')}
         data-testid="machine-profile-chip"
       >
-        ⌗ {activeProfile?.name ?? t('panels.machine.laser.no_machine')}
+        {MACHINE_PROFILE_SYMBOL} {activeProfile?.name ?? t('panels.machine.laser.no_machine')}
       </button>
 
       {/* Upper zone card */}

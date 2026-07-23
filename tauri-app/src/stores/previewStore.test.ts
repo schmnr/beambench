@@ -117,6 +117,7 @@ describe('previewStore', () => {
       revisionHash: null,
       error: null,
       showPreview: false,
+      canvasPreviewActive: false,
       previewWindowOpen: false,
       previewGenerationDialogVisible: false,
       previewGenerationDialogTitle: 'Generating preview...',
@@ -625,6 +626,25 @@ describe('previewStore', () => {
     usePreviewStore.getState().setInteractionActive(false);
 
     await vi.advanceTimersByTimeAsync(500);
+    expect(previewService.generatePreview).toHaveBeenCalledTimes(1);
+  });
+
+  it('resumes Run-canvas auto-refresh when interaction ends', async () => {
+    vi.mocked(previewService.generatePreview).mockResolvedValue(mockPreviewData);
+    usePreviewStore.setState({
+      state: 'current',
+      data: mockPreviewData,
+      canvasPreviewActive: true,
+      interactionActive: true,
+      lastSuccessfulDurationMs: 100,
+    });
+
+    usePreviewStore.getState().invalidate();
+    expect(usePreviewStore.getState().pendingInteractionRefresh).toBe(true);
+
+    usePreviewStore.getState().setInteractionActive(false);
+    await vi.advanceTimersByTimeAsync(500);
+
     expect(previewService.generatePreview).toHaveBeenCalledTimes(1);
   });
 });

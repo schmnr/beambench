@@ -144,7 +144,7 @@ describe('PropertiesPanel', () => {
     });
     useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
     render(<PropertiesPanel />);
-    expect(screen.getByText('Max Width')).toBeDefined();
+    expect(screen.getByText(/Max Width/)).toBeDefined();
     expect(screen.getByText('Squeeze')).toBeDefined();
     expect(screen.queryByText('Ignore Empty Vars')).toBeNull();
     expect(screen.getByText('RTL')).toBeDefined();
@@ -176,21 +176,13 @@ describe('PropertiesPanel', () => {
     expect(await screen.findByRole('option', { name: 'Noto Sans CJK SC' })).toBeDefined();
   });
 
-  it('routes shape width edits through resizeShapeObject', () => {
-    const resizeShapeObject = vi.fn().mockResolvedValue(true);
-    useProjectStore.setState({
-      project: makeProject(),
-      selectedObjectIds: ['obj1'],
-      resizeShapeObject,
-    });
+  it('does not duplicate the Transform section width and height controls', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
 
     render(<PropertiesPanel />);
-    fireEvent.change(screen.getByLabelText('Width'), { target: { value: '80' } });
 
-    expect(resizeShapeObject).toHaveBeenCalledWith('obj1', {
-      min: { x: 10, y: 20 },
-      max: { x: 90, y: 70 },
-    });
+    expect(screen.queryByLabelText('Width')).toBeNull();
+    expect(screen.queryByLabelText('Height')).toBeNull();
   });
 
   it('Path layout enters guide-pick mode from the text properties panel', async () => {

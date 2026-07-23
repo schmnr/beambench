@@ -369,13 +369,19 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
     const {
       state,
       previewWindowOpen,
+      canvasPreviewActive,
       pendingInteractionRefresh,
       lastSuccessfulDurationMs,
     } = get();
 
     set({ interactionActive: active });
 
-    if (active || !pendingInteractionRefresh || state !== 'stale' || !previewWindowOpen) {
+    if (
+      active ||
+      !pendingInteractionRefresh ||
+      state !== 'stale' ||
+      (!previewWindowOpen && !canvasPreviewActive)
+    ) {
       return;
     }
 
