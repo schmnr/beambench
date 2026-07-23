@@ -4,6 +4,30 @@ Beam Bench combines a Rust workspace with a Tauri 2 and React desktop
 application. Contributions should preserve compatibility with existing project
 files and fail safely when a controller or machine state is uncertain.
 
+## Before you start
+
+- Use the repository's issue forms for reproducible bugs and feature proposals.
+- Use [Beam Bench Support](https://beambench.com/support) for setup help,
+  connection troubleshooting, and questions that are not source-code issues.
+- Open an issue before investing in a large feature or architectural change so
+  the direction can be agreed on first.
+- Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+  Never include credentials, private user data, or unredacted diagnostics in a
+  public issue or pull request.
+
+## Contribution workflow
+
+1. Fork the repository and branch from the latest `main`.
+2. Keep each branch and pull request focused on one change.
+3. Add or update tests for behavior changes.
+4. Run the relevant quality checks below.
+5. Open a draft pull request early if you want feedback.
+6. Describe the user impact, safety impact, and validation in the pull request.
+
+Maintainers normally squash a pull request when merging it. A pull request may
+be closed when it is out of scope, duplicates existing work, creates an
+unacceptable safety risk, or cannot be maintained.
+
 ## Development setup
 
 Install a current stable Rust toolchain, Node.js, and the platform prerequisites

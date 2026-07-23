@@ -114,6 +114,25 @@ describe('DeviceSettingsDialog', () => {
     expect(screen.getByTestId('tab-controller')).toBeDefined();
   });
 
+  it('keeps an actionable connection error visible in the Connection tab', async () => {
+    render(<DeviceSettingsDialog onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('connection-tab')).toBeDefined();
+    });
+
+    act(() => {
+      useMachineStore.setState({
+        error:
+          'transport error: [serial_port_unavailable] Could not open COM5: Accès refusé. The port may be in use by another application or the controller may have been disconnected.',
+      });
+    });
+
+    expect(screen.getByTestId('device-settings-connection-error').textContent).toBe(
+      'Could not open COM5. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.',
+    );
+  });
+
   it('GRBL tab calls getGrblSettings on mount', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'get_grbl_settings') {

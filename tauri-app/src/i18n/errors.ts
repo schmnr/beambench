@@ -2,6 +2,8 @@ import i18n from './index';
 
 const MACHINE_ZERO_REQUIRES_HOME =
   'Machine-zero moves require homing in the current session first';
+const SERIAL_PORT_UNAVAILABLE =
+  /\[serial_port_unavailable\]\s+Could not open ([^:]+):/u;
 
 /**
  * Localize a raw backend error string for display to the user.
@@ -17,6 +19,10 @@ export function wrapBackendError(detail: string): string {
   const normalized = detail.replace(/^(?:Error:\s*|Operation failed:\s*)+/u, '');
   if (normalized === MACHINE_ZERO_REQUIRES_HOME) {
     return i18n.t('errors.machine_zero_requires_home');
+  }
+  const unavailablePort = normalized.match(SERIAL_PORT_UNAVAILABLE);
+  if (unavailablePort) {
+    return i18n.t('errors.serial_port_unavailable', { port: unavailablePort[1].trim() });
   }
   return i18n.t('errors.operation_failed_with_detail', { detail });
 }

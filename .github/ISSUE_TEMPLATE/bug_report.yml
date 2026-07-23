@@ -1,0 +1,94 @@
+name: Bug report
+description: Report a reproducible problem in Beam Bench
+title: "[Bug]: "
+labels:
+  - kind:bug
+  - status:new
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Beam Bench. For connection problems, use **Tools > Connection Diagnostics** first. Do not include passwords, API keys, private files, or unredacted personal information.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: This is a product bug, not a security vulnerability or a general support question.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Beam Bench version
+      description: Find this in Help > About Beam Bench.
+      placeholder: "0.1.10"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Laser and controller
+      description: Include the laser model, controller, and firmware when relevant.
+      placeholder: "Example: GRBL 1.1h over CH340 USB"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Explain the problem and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open...
+        2. Select...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: safety-impact
+    attributes:
+      label: Safety impact
+      description: Stop using the affected operation until a safety-related problem is understood.
+      options:
+        - No safety impact observed
+        - Unexpected machine motion
+        - Unexpected laser output
+        - Job or project corruption
+        - Unsure or other safety concern
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics and supporting files
+      description: Add a diagnostic report ID, redacted logs, screenshots, or the smallest safe sample that reproduces the problem.
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Include anything else that may help investigate the problem.

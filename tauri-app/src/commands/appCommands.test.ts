@@ -20,7 +20,7 @@ import { useAppStore } from '../stores/appStore';
 import { makeAppSettings, makeProject, makeProjectObject } from '../test-utils/projectFixtures';
 import { clearCanvasViewportSize, setCanvasViewportSize } from '../canvas/canvasViewportRegistry';
 import { DEFAULT_TOOLBAR_VISIBILITY } from '../panels';
-import i18n from '../i18n';
+import i18n, { SUPPORTED_LOCALES } from '../i18n';
 
 const initialProjectState = useProjectStore.getState();
 const initialPreviewState = usePreviewStore.getState();
@@ -889,6 +889,21 @@ describe('language dispatch', () => {
     useAppStore.setState(initialAppState, true);
   });
 
+  it('keeps TypeScript command constants and native-menu state in manifest order', () => {
+    const expectedIds = SUPPORTED_LOCALES.map((code) => `language.${code}`);
+    const commandIds = Object.entries(APP_COMMANDS)
+      .filter(([name]) => name.startsWith('LANGUAGE_') && name !== 'LANGUAGE_ENGLISH')
+      .map(([, id]) => id);
+    useAppStore.setState({ settings: makeAppSettings({ display_language: 'de' }) });
+    const stateItems = getAppCommandState().items
+      .filter((item) => item.id.startsWith('language.'));
+
+    expect(commandIds).toEqual(expectedIds);
+    expect(stateItems.map((item) => item.id)).toEqual(expectedIds);
+    expect(stateItems.filter((item) => item.checked).map((item) => item.id))
+      .toEqual(['language.de']);
+  });
+
   it.each([
     ['language.de', 'de'],
     ['language.es-ES', 'es-ES'],
@@ -911,12 +926,7 @@ describe('language dispatch', () => {
 
   it('routes every SUPPORTED_LOCALES code through the same dispatch', async () => {
     const storeSpy = vi.spyOn(useAppStore.getState(), 'updateSettings').mockResolvedValue();
-    const codes = [
-      'en', 'de', 'es-ES', 'es-419', 'fr', 'it', 'pt-BR', 'nl', 'pl', 'cs',
-      'sv', 'nb', 'da', 'fi', 'hu', 'tr', 'el', 'ru', 'sl',
-      'ja', 'ko', 'zh-CN', 'zh-TW',
-    ];
-    for (const code of codes) {
+    for (const code of SUPPORTED_LOCALES) {
       storeSpy.mockClear();
       await executeAppCommand(`language.${code}`);
       expect(storeSpy).toHaveBeenCalledWith({ display_language: code });

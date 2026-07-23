@@ -2335,6 +2335,7 @@
   "errors": {
     "operation_failed_with_detail": "操作失敗：{detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "ui_error_title": "Beam Bench 發生介面錯誤",
     "reload": "重新載入"
   },
