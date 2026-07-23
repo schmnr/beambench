@@ -229,6 +229,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
       {entries.length > 1 && (
         <div className="pb-1 text-[10px] text-bb-text-dim">{t('panels.sub_layer_stack.order_hint')}</div>
       )}
+      {entries.length > 1 && (
       <div className="flex flex-wrap gap-1" data-testid="sub-layer-tabs">
         {entries.map((entry, index) => (
           <button
@@ -246,6 +247,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
           </button>
         ))}
       </div>
+      )}
       {entries.map((entry, index) => {
         const expanded = entry.id === expandedId;
         if (!expanded) return null;
@@ -274,9 +276,14 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
         return (
           <div
             key={entry.id}
-            className={`rounded-xl border border-bb-border bg-bb-surface shadow-sm transition-opacity ${entry.output_enabled ? "" : "opacity-55"}`}
+            className={
+              entries.length > 1
+                ? `rounded-xl border border-bb-border bg-bb-surface shadow-sm transition-opacity ${entry.output_enabled ? '' : 'opacity-55'}`
+                : ''
+            }
             data-testid={`sub-layer-card-${index}`}
           >
+            {entries.length > 1 && (
             <div className="flex items-center gap-2.5 px-3 py-2.5">
               <button
                 type="button"
@@ -350,9 +357,11 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 )}
               </div>
             </div>
+            )}
+
 
             {expanded && (
-              <div className="flex flex-col gap-3 border-t border-bb-border px-3 py-3">
+              <div className={entries.length > 1 ? "flex flex-col gap-3 border-t border-bb-border px-3 py-3" : "flex flex-col gap-3"}>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-bb-text-dim">{t('panels.sub_layer_stack.mode')}</label>
                   <select

@@ -167,7 +167,6 @@ describe('CutSettingsEditor', () => {
       option.getAttribute('value'),
     );
     expect(options).toEqual(['line', 'fill', 'offset_fill']);
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
     expect(screen.getByText('Perforation')).toBeDefined();
   });
 
@@ -208,7 +207,6 @@ describe('CutSettingsEditor', () => {
     });
 
     render(<CutSettingsEditor layerId="layer-1" onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
     fireEvent.change(screen.getByDisplayValue('0.1'), {
       target: { value: '0.08' },
     });
@@ -236,7 +234,6 @@ describe('CutSettingsEditor', () => {
     });
 
     render(<CutSettingsEditor layerId="layer-1" onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
 
     expect(screen.queryByText('Perforation')).toBeNull();
     expect(screen.queryByText('G-code Prefix')).toBeNull();

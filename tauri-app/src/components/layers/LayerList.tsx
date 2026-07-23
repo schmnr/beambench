@@ -154,7 +154,8 @@ export function LayerList() {
     <div className="flex flex-col">
       {/* ── LAYER ─────────────────────────────────────────────── */}
       {activeLayer && (
-        <div className="m-2 rounded-xl border border-bb-accent/40 bg-bb-surface px-3 py-2.5 shadow-sm" data-testid="layer-block">
+        <div className="m-2 overflow-hidden rounded-xl border border-bb-accent/40 bg-bb-surface shadow-sm" data-testid="layer-block">
+          <div className="px-3 py-2.5">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">
               {t('panels.properties.layer')}
@@ -313,19 +314,20 @@ export function LayerList() {
               <ClipboardPaste size={16} />
             </button>
           </div>
-        </div>
-      )}
+          </div>
 
-      {/* ── SUB-LAYERS ────────────────────────────────────────── */}
-      {activeLayer && !activeLayer.is_tool_layer && (
-        <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">
-          {t('panels.sub_layer_stack.title')}
-        </div>
-      )}
-      {/* Sub-layer stack (multi-pass entries) for the selected layer */}
-      {activeLayer && !activeLayer.is_tool_layer && (
-        <div className="border-t border-bb-border px-3 py-2">
-          <SubLayerStack layerId={activeLayer.id} />
+          {/* Cut settings — flat for a single sub-layer; the stacked
+              sub-layer UI only appears once a second one exists. */}
+          {!activeLayer.is_tool_layer && (
+            <div className="border-t border-bb-border px-3 py-2.5">
+              {activeLayer.entries.length > 1 && (
+                <div className="pb-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">
+                  {t('panels.sub_layer_stack.title')}
+                </div>
+              )}
+              <SubLayerStack layerId={activeLayer.id} />
+            </div>
+          )}
         </div>
       )}
     </div>

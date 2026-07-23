@@ -35,7 +35,6 @@ describe('LayerSettingsPanel', () => {
     render(<LayerSettingsPanel />);
 
     expect(screen.getByDisplayValue('Image Layer')).toBeDefined();
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
 
     const modeSelect = screen.getAllByRole('combobox')[1];
     const options = Array.from(modeSelect.querySelectorAll('option')).map((option) =>
@@ -71,7 +70,6 @@ describe('LayerSettingsPanel', () => {
 
     render(<LayerSettingsPanel />);
 
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
 
     expect(screen.getByTestId('offset-fill-mode-graphic')).toBeDefined();
     expect(screen.getByText('Line Interval (mm)')).toBeDefined();
