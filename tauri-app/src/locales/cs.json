@@ -1477,7 +1477,7 @@
       "tool_layer": "Nástrojová vrstva",
       "summary": "{speed}/{power}% · {passes} průchodů",
       "output": "Výstup",
-      "reset_to_defaults_title": "Obnovit tento průchod na výchozí hodnoty operace",
+      "reset_to_defaults_title": "Obnovit tuto podvrstvu na vestavěné výchozí hodnoty pro její operaci",
       "delete": "Smazat",
       "mode": "Režim",
       "speed_with_unit": "Rychlost ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Odsazení kerfu",
       "offset_overlap_mm": "Překrytí odsazení",
       "offset_outward": "Odsadit ven",
-      "max_sub_layers_title": "Dosaženo maximálně 11 průchodů",
-      "add_sub_layer_title": "Přidat průchod",
-      "add_sub_layer": "+ Přidat průchod",
-      "order_hint": "Průchody se provádějí v pořadí shora dolů."
+      "max_sub_layers_title": "Dosaženo maxima 11 podvrstev",
+      "add_sub_layer_title": "Přidat podvrstvu",
+      "add_sub_layer": "+ Přidat podvrstvu",
+      "order_hint": "Podvrstvy se provádějí v pořadí shora dolů."
     },
     "cut_settings": {
       "title": "Nastavení řezu",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Smazat vrstvu",
       "add_layer": "Přidat vrstvu",
       "header": {
         "index": "#",

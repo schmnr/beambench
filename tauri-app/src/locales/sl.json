@@ -1477,7 +1477,7 @@
       "tool_layer": "Plast orodja",
       "summary": "{speed}/{power}% · {passes} prehodov",
       "output": "Izhod",
-      "reset_to_defaults_title": "Ponastavi ta prehod na privzete vrednosti operacije",
+      "reset_to_defaults_title": "Ponastavi to podplast na vgrajene privzete vrednosti za operacijo",
       "delete": "Izbriši",
       "mode": "Način",
       "speed_with_unit": "Hitrost ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Odmik kerfa",
       "offset_overlap_mm": "Prekrivanje odmika",
       "offset_outward": "Odmik navzven",
-      "max_sub_layers_title": "Doseženih največ 11 prehodov",
-      "add_sub_layer_title": "Dodaj prehod",
-      "add_sub_layer": "+ Dodaj prehod",
-      "order_hint": "Prehodi se izvajajo po vrsti, od zgoraj navzdol."
+      "max_sub_layers_title": "Doseženo je največ 11 podplasti",
+      "add_sub_layer_title": "Dodaj podplast",
+      "add_sub_layer": "+ Dodaj podplast",
+      "order_hint": "Podplasti se izvajajo po vrsti, od zgoraj navzdol."
     },
     "cut_settings": {
       "title": "Nastavitve reza",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Izbriši plast",
       "add_layer": "Dodaj plast",
       "header": {
         "index": "#",

@@ -1477,7 +1477,7 @@
       "tool_layer": "Araç katmanı",
       "summary": "{speed}/{power}% · {passes} geçiş",
       "output": "Çıkış",
-      "reset_to_defaults_title": "Bu geçişi işleminin varsayılanlarına sıfırla",
+      "reset_to_defaults_title": "Bu alt katmanı işlemin yerleşik varsayılanlarına sıfırla",
       "delete": "Sil",
       "mode": "Mod",
       "speed_with_unit": "Hız ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Kerf ofseti",
       "offset_overlap_mm": "Ofset bindirmesi",
       "offset_outward": "Dışa ofset",
-      "max_sub_layers_title": "En fazla 11 geçişe ulaşıldı",
-      "add_sub_layer_title": "Geçiş ekle",
-      "add_sub_layer": "+ Geçiş ekle",
-      "order_hint": "Geçişler yukarıdan aşağıya sırayla çalışır."
+      "max_sub_layers_title": "En fazla 11 alt katmana ulaşıldı",
+      "add_sub_layer_title": "Alt katman ekle",
+      "add_sub_layer": "+ Alt katman ekle",
+      "order_hint": "Alt katmanlar yukarıdan aşağıya sırayla çalışır."
     },
     "cut_settings": {
       "title": "Kesim ayarları",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Katmanı sil",
       "add_layer": "Katman ekle",
       "header": {
         "index": "#",

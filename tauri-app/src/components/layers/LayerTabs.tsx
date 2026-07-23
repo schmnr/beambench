@@ -34,6 +34,7 @@ export function LayerTabs() {
   const updateLayer = useProjectStore((s) => s.updateLayer);
   const loadProject = useProjectStore((s) => s.loadProject);
   const reorderLayer = useProjectStore((s) => s.reorderLayer);
+  const removeLayer = useProjectStore((s) => s.removeLayer);
   const selectObjects = useProjectStore((s) => s.selectObjects);
   const copyLayerSettings = useProjectStore((s) => s.copyLayerSettings);
   const pasteLayerSettings = useProjectStore((s) => s.pasteLayerSettings);
@@ -299,6 +300,7 @@ export function LayerTabs() {
               disableAllButThis: (layerId) => void setAllLayersEnabled({ kind: 'only_this_on', keep: layerId }),
               hideAllButThis: (layerId) => void setAllLayersVisible({ kind: 'only_this_on', keep: layerId }),
               flashLayer: (layerId) => flashLayer(layerId),
+              deleteLayer: (layerId) => void removeLayer(layerId),
             })}
             onClose={() => setContextMenu(null)}
           />

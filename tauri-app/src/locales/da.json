@@ -1477,7 +1477,7 @@
       "tool_layer": "Værktøjslag",
       "summary": "{speed}/{power}% · {passes} passager",
       "output": "Output",
-      "reset_to_defaults_title": "Nulstil dette gennemløb til standardværdier for operationen",
+      "reset_to_defaults_title": "Nulstil dette underlag til indbyggede standarder for operationen",
       "delete": "Slet",
       "mode": "Tilstand",
       "speed_with_unit": "Hastighed ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Kerf-forskydning",
       "offset_overlap_mm": "Offset-overlap",
       "offset_outward": "Offset udad",
-      "max_sub_layers_title": "Maksimum på 11 gennemløb nået",
-      "add_sub_layer_title": "Tilføj gennemløb",
-      "add_sub_layer": "+ Tilføj gennemløb",
-      "order_hint": "Gennemløb køres i rækkefølge, oppefra og ned."
+      "max_sub_layers_title": "Maksimum på 11 underlag nået",
+      "add_sub_layer_title": "Tilføj underlag",
+      "add_sub_layer": "+ Tilføj underlag",
+      "order_hint": "Underlag køres i rækkefølge, oppefra og ned."
     },
     "cut_settings": {
       "title": "Skæreindstillinger",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Slet lag",
       "add_layer": "Tilføj lag",
       "header": {
         "index": "#",

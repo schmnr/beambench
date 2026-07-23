@@ -5,6 +5,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
 import { SubLayerStack } from '../properties/SubLayerStack';
+import { TextInput } from '../shared/TextInput';
 import { ToggleSwitch } from '../shared/ToggleSwitch';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { normColor } from '../../stores/layerFamilyResolver';
@@ -221,6 +222,17 @@ export function LayerList() {
           >
             <ClipboardPaste size={16} />
           </button>
+        </div>
+      )}
+
+      {/* Layer name (rename inline) */}
+      {activeLayer && (
+        <div className="border-t border-bb-border px-3 py-2">
+          <TextInput
+            label={t('panels.properties.name')}
+            value={activeLayer.name}
+            onChange={(name) => void updateLayer(activeLayer.id, { name })}
+          />
         </div>
       )}
 

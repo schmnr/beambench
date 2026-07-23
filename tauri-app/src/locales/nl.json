@@ -1477,7 +1477,7 @@
       "tool_layer": "Gereedschapslaag",
       "summary": "{speed}/{power}% · {passes} passages",
       "output": "Uitvoer",
-      "reset_to_defaults_title": "Deze doorgang terugzetten naar de standaardwaarden van de bewerking",
+      "reset_to_defaults_title": "Deze sublaag terugzetten naar ingebouwde standaardwaarden voor de bewerking",
       "delete": "Verwijderen",
       "mode": "Modus",
       "speed_with_unit": "Snelheid ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Kerfverschuiving",
       "offset_overlap_mm": "Offset-overlap",
       "offset_outward": "Offset naar buiten",
-      "max_sub_layers_title": "Maximum van 11 doorgangen bereikt",
-      "add_sub_layer_title": "Doorgang toevoegen",
-      "add_sub_layer": "+ Doorgang toevoegen",
-      "order_hint": "Doorgangen worden op volgorde uitgevoerd, van boven naar beneden."
+      "max_sub_layers_title": "Maximum van 11 sublagen bereikt",
+      "add_sub_layer_title": "Sublaag toevoegen",
+      "add_sub_layer": "+ Sublaag toevoegen",
+      "order_hint": "Sublagen worden op volgorde uitgevoerd, van boven naar beneden."
     },
     "cut_settings": {
       "title": "Snij-instellingen",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Laag verwijderen",
       "add_layer": "Laag toevoegen",
       "header": {
         "index": "#",

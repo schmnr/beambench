@@ -1477,7 +1477,7 @@
       "tool_layer": "Työkalutaso",
       "summary": "{speed}/{power}% · {passes} ajoa",
       "output": "Tulostus",
-      "reset_to_defaults_title": "Palauta tämä ajokerta toiminnon oletusarvoihin",
+      "reset_to_defaults_title": "Palauta tämä alitaso toiminnon sisäänrakennettuihin oletuksiin",
       "delete": "Poista",
       "mode": "Tila",
       "speed_with_unit": "Nopeus ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Kerf-siirtymä",
       "offset_overlap_mm": "Offset-limitys",
       "offset_outward": "Offset ulospäin",
-      "max_sub_layers_title": "Enintään 11 ajokertaa saavutettu",
-      "add_sub_layer_title": "Lisää ajokerta",
-      "add_sub_layer": "+ Lisää ajokerta",
-      "order_hint": "Ajokerrat suoritetaan järjestyksessä ylhäältä alas."
+      "max_sub_layers_title": "Enimmäismäärä 11 alitasoa saavutettu",
+      "add_sub_layer_title": "Lisää alitaso",
+      "add_sub_layer": "+ Lisää alitaso",
+      "order_hint": "Alitasot suoritetaan järjestyksessä ylhäältä alas."
     },
     "cut_settings": {
       "title": "Leikkausasetukset",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Poista taso",
       "add_layer": "Lisää taso",
       "header": {
         "index": "#",

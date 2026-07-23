@@ -1477,7 +1477,7 @@
       "tool_layer": "Warstwa narzędziowa",
       "summary": "{speed}/{power}% · {passes} przebiegi",
       "output": "Wyjście",
-      "reset_to_defaults_title": "Przywróć to przejście do domyślnych ustawień operacji",
+      "reset_to_defaults_title": "Przywróć tę podwarstwę do wbudowanych domyślnych wartości operacji",
       "delete": "Usuń",
       "mode": "Tryb",
       "speed_with_unit": "Prędkość ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Przesunięcie kerfu",
       "offset_overlap_mm": "Nakładanie offsetu",
       "offset_outward": "Offset na zewnątrz",
-      "max_sub_layers_title": "Osiągnięto maksimum 11 przejść",
-      "add_sub_layer_title": "Dodaj przejście",
-      "add_sub_layer": "+ Dodaj przejście",
-      "order_hint": "Przejścia wykonywane są kolejno, od góry do dołu."
+      "max_sub_layers_title": "Osiągnięto maksimum 11 podwarstw",
+      "add_sub_layer_title": "Dodaj podwarstwę",
+      "add_sub_layer": "+ Dodaj podwarstwę",
+      "order_hint": "Podwarstwy wykonywane są kolejno, od góry do dołu."
     },
     "cut_settings": {
       "title": "Ustawienia cięcia",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Usuń warstwę",
       "add_layer": "Dodaj warstwę",
       "header": {
         "index": "#",

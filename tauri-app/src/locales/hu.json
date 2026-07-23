@@ -1477,7 +1477,7 @@
       "tool_layer": "Eszközréteg",
       "summary": "{speed}/{power}% · {passes} menet",
       "output": "Kimenet",
-      "reset_to_defaults_title": "A menet visszaállítása a művelet alapértelmezett értékeire",
+      "reset_to_defaults_title": "Az alréteg visszaállítása a művelet beépített alapértékeire",
       "delete": "Törlés",
       "mode": "Mód",
       "speed_with_unit": "Sebesség ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Kerf eltolás",
       "offset_overlap_mm": "Eltolás átfedése",
       "offset_outward": "Eltolás kifelé",
-      "max_sub_layers_title": "Elérte a maximum 11 menetet",
-      "add_sub_layer_title": "Menet hozzáadása",
-      "add_sub_layer": "+ Menet hozzáadása",
-      "order_hint": "A menetek sorrendben futnak, fentről lefelé."
+      "max_sub_layers_title": "Elérte a 11 alréteges maximumot",
+      "add_sub_layer_title": "Alréteg hozzáadása",
+      "add_sub_layer": "+ Alréteg hozzáadása",
+      "order_hint": "Az alrétegek sorrendben futnak, fentről lefelé."
     },
     "cut_settings": {
       "title": "Vágási beállítások",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Réteg törlése",
       "add_layer": "Réteg hozzáadása",
       "header": {
         "index": "#",

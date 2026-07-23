@@ -1477,7 +1477,7 @@
       "tool_layer": "Calque outil",
       "summary": "{speed}/{power}% · {passes} passes",
       "output": "Sortie",
-      "reset_to_defaults_title": "Réinitialiser cette passe aux valeurs par défaut de son opération",
+      "reset_to_defaults_title": "Réinitialiser ce sous-calque aux valeurs intégrées de son opération",
       "delete": "Supprimer",
       "mode": "Mode",
       "speed_with_unit": "Vitesse ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Décalage du trait",
       "offset_overlap_mm": "Chevauchement du décalage",
       "offset_outward": "Décalage vers extérieur",
-      "max_sub_layers_title": "Maximum de 11 passes atteint",
-      "add_sub_layer_title": "Ajouter une passe",
-      "add_sub_layer": "+ Ajouter une passe",
-      "order_hint": "Les passes s’exécutent dans l’ordre, de haut en bas."
+      "max_sub_layers_title": "Maximum de 11 sous-calques atteint",
+      "add_sub_layer_title": "Ajouter un sous-calque",
+      "add_sub_layer": "+ Ajouter un sous-calque",
+      "order_hint": "Les sous-calques s’exécutent dans l’ordre, de haut en bas."
     },
     "cut_settings": {
       "title": "Paramètres de coupe",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Supprimer le calque",
       "add_layer": "Ajouter un calque",
       "header": {
         "index": "#",

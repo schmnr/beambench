@@ -1477,7 +1477,7 @@
       "tool_layer": "Werkzeugebene",
       "summary": "{speed}/{power}% · {passes} Durchgänge",
       "output": "Ausgabe",
-      "reset_to_defaults_title": "Diesen Durchgang auf die Standardwerte der Operation zurücksetzen",
+      "reset_to_defaults_title": "Diese Unterebene auf die integrierten Standardwerte für ihre Operation zurücksetzen",
       "delete": "Löschen",
       "mode": "Modus",
       "speed_with_unit": "Geschwindigkeit ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Kerf-Versatz",
       "offset_overlap_mm": "Offset-Überlappung",
       "offset_outward": "Offset nach außen",
-      "max_sub_layers_title": "Maximum von 11 Durchgängen erreicht",
-      "add_sub_layer_title": "Durchgang hinzufügen",
-      "add_sub_layer": "+ Durchgang hinzufügen",
-      "order_hint": "Durchgänge laufen der Reihe nach, von oben nach unten."
+      "max_sub_layers_title": "Maximum von 11 Unterebenen erreicht",
+      "add_sub_layer_title": "Unterebene hinzufügen",
+      "add_sub_layer": "+ Unterebene hinzufügen",
+      "order_hint": "Unterebenen laufen der Reihe nach, von oben nach unten."
     },
     "cut_settings": {
       "title": "Schnitteinstellungen",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Ebene löschen",
       "add_layer": "Ebene hinzufügen",
       "header": {
         "index": "#",

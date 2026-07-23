@@ -9,6 +9,7 @@ interface LayerMenuCallbacks {
   copySettings?: (layer: Layer) => void;
   pasteSettings?: (layerId: string) => void;
   startRename?: (layerId: string) => void;
+  deleteLayer?: (layerId: string) => void;
   hasClipboard?: boolean;
 
   // M4 additions
@@ -106,6 +107,14 @@ export function buildLayerContextMenuItems(
         id: 'rename',
         label: t('common.rename'),
         onClick: () => callbacks.startRename!(layer.id),
+      });
+    }
+
+    if (callbacks.deleteLayer) {
+      items.push({
+        id: 'delete-layer',
+        label: t('panels.layers.delete_layer'),
+        onClick: () => callbacks.deleteLayer!(layer.id),
       });
     }
   }

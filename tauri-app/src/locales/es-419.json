@@ -1477,7 +1477,7 @@
       "tool_layer": "Capa de herramienta",
       "summary": "{speed}/{power}% · {passes} pasadas",
       "output": "Salida",
-      "reset_to_defaults_title": "Restablecer esta pasada a los valores predeterminados de su operación",
+      "reset_to_defaults_title": "Restablecer esta subcapa a los valores integrados para su operación",
       "delete": "Eliminar",
       "mode": "Modo",
       "speed_with_unit": "Velocidad ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Desfase de kerf",
       "offset_overlap_mm": "Solape de desfase",
       "offset_outward": "Desfase hacia afuera",
-      "max_sub_layers_title": "Se alcanzó el máximo de 11 pasadas",
-      "add_sub_layer_title": "Agregar pasada",
-      "add_sub_layer": "+ Agregar pasada",
-      "order_hint": "Las pasadas se ejecutan en orden, de arriba hacia abajo."
+      "max_sub_layers_title": "Se alcanzó el máximo de 11 subcapas",
+      "add_sub_layer_title": "Agregar subcapa",
+      "add_sub_layer": "+ Agregar subcapa",
+      "order_hint": "Las subcapas se ejecutan en orden, de arriba hacia abajo."
     },
     "cut_settings": {
       "title": "Ajustes de corte",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Eliminar capa",
       "add_layer": "Agregar capa",
       "header": {
         "index": "#",

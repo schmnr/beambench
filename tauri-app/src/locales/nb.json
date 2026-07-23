@@ -1477,7 +1477,7 @@
       "tool_layer": "Verktøylag",
       "summary": "{speed}/{power}% · {passes} passeringer",
       "output": "Utdata",
-      "reset_to_defaults_title": "Tilbakestill denne gjennomgangen til standardverdier for operasjonen",
+      "reset_to_defaults_title": "Tilbakestill dette underlaget til innebygde standarder for operasjonen",
       "delete": "Slett",
       "mode": "Modus",
       "speed_with_unit": "Hastighet ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "Kerf-forskyvning",
       "offset_overlap_mm": "Offset-overlapp",
       "offset_outward": "Offset utover",
-      "max_sub_layers_title": "Maksimum 11 gjennomganger nådd",
-      "add_sub_layer_title": "Legg til gjennomgang",
-      "add_sub_layer": "+ Legg til gjennomgang",
-      "order_hint": "Gjennomganger kjøres i rekkefølge, ovenfra og ned."
+      "max_sub_layers_title": "Maksimum 11 underlag nådd",
+      "add_sub_layer_title": "Legg til underlag",
+      "add_sub_layer": "+ Legg til underlag",
+      "order_hint": "Underlag kjøres i rekkefølge, ovenfra og ned."
     },
     "cut_settings": {
       "title": "Kuttinnstillinger",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "Slett lag",
       "add_layer": "Legg til lag",
       "header": {
         "index": "#",

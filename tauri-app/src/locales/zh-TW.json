@@ -1477,7 +1477,7 @@
       "tool_layer": "工具圖層",
       "summary": "{speed}/{power}% · {passes} 次通過",
       "output": "輸出",
-      "reset_to_defaults_title": "將此道次重設為其操作的預設值",
+      "reset_to_defaults_title": "將此子圖層重設為其操作的內建預設值",
       "delete": "刪除",
       "mode": "模式",
       "speed_with_unit": "速度 ({unit})",
@@ -1516,10 +1516,10 @@
       "kerf_offset_mm": "割縫偏移",
       "offset_overlap_mm": "偏移重疊",
       "offset_outward": "向外偏移",
-      "max_sub_layers_title": "已達到最多 11 個道次",
-      "add_sub_layer_title": "新增道次",
-      "add_sub_layer": "+ 新增道次",
-      "order_hint": "道次依由上而下的順序執行。"
+      "max_sub_layers_title": "已達到 11 個子圖層上限",
+      "add_sub_layer_title": "新增子圖層",
+      "add_sub_layer": "+ 新增子圖層",
+      "order_hint": "子圖層依由上而下的順序執行。"
     },
     "cut_settings": {
       "title": "切割設定",
@@ -1545,6 +1545,7 @@
       }
     },
     "layers": {
+      "delete_layer": "刪除圖層",
       "add_layer": "新增圖層",
       "header": {
         "index": "#",
