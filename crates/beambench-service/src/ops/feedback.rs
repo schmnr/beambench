@@ -4,14 +4,16 @@ use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use beambench_common::controller_choice::ControllerConnectionEndpoint;
 use beambench_common::feedback::{
-    ConnectionDiagnosticsSnapshot, DiagnosticBundleV1, DiagnosticClient, DiagnosticLogEntry,
-    DiagnosticMachine, DiagnosticPanic, DiagnosticPort, DiagnosticProjectMetadata,
-    DiagnosticSessionState, DiagnosticSystem, FEEDBACK_HISTORY_MAX_ENTRIES,
-    FEEDBACK_SCHEMA_VERSION, FeedbackHistoryEntry, FeedbackKind, FeedbackReportInput,
-    KnownIssueWarning, MAX_FEEDBACK_DESCRIPTION_CHARS, MAX_FEEDBACK_REPLY_TO_EMAIL_CHARS,
-    MAX_FEEDBACK_TITLE_CHARS, MAX_PROJECT_ATTACHMENT_RAW_BYTES, MAX_SUBMIT_BODY_BYTES, SavedReport,
-    SubmitFeedbackRequest, scrub_and_serialize, scrub_deserialized,
+    ConnectionDiagnosticsSnapshot, DiagnosticBundleV1, DiagnosticClient, DiagnosticConnectionEvent,
+    DiagnosticLogEntry, DiagnosticMachine, DiagnosticPanic, DiagnosticPort,
+    DiagnosticProjectMetadata, DiagnosticSessionState, DiagnosticSystem,
+    FEEDBACK_HISTORY_MAX_ENTRIES, FEEDBACK_SCHEMA_VERSION, FeedbackHistoryEntry, FeedbackKind,
+    FeedbackReportInput, KnownIssueWarning, MAX_FEEDBACK_DESCRIPTION_CHARS,
+    MAX_FEEDBACK_REPLY_TO_EMAIL_CHARS, MAX_FEEDBACK_TITLE_CHARS, MAX_PROJECT_ATTACHMENT_RAW_BYTES,
+    MAX_SUBMIT_BODY_BYTES, SavedReport, SubmitFeedbackRequest, scrub_and_serialize,
+    scrub_deserialized,
 };
 use beambench_common::machine::{PortInfo, SessionState};
 use beambench_core::object::ObjectData;
@@ -77,9 +79,15 @@ pub fn build_bundle(
     let project_metadata = project
         .as_ref()
         .map(|project| build_project_metadata(project, project_path.as_deref()));
+    let connection_events = ctx.recent_connection_events();
     let ports_detected = detect_ports(ctx);
-    let machine = build_machine_diagnostics(ctx, &ports_detected);
-    let known_issues = known_issues_for(&machine);
+    let machine = build_machine_diagnostics(ctx, &ports_detected, &connection_events);
+    let known_issues = known_issues_for(&machine, &connection_events);
+    let locale = ctx
+        .settings
+        .lock()
+        .ok()
+        .map(|settings| settings.display_language.clone());
 
     Ok(DiagnosticBundleV1 {
         schema_version: FEEDBACK_SCHEMA_VERSION,
@@ -96,11 +104,11 @@ pub fn build_bundle(
             os: std::env::consts::OS.to_owned(),
             os_version: None,
             arch: std::env::consts::ARCH.to_owned(),
-            locale: std::env::var("LANG").ok(),
+            locale,
         },
         machine,
         ports_detected,
-        connection_events: ctx.recent_connection_events(),
+        connection_events,
         recent_serial: recent_serial_traffic(),
         recent_logs: active_error_entries(ctx),
         recent_panics: recent_panic_reports_for_bundle(ctx),
@@ -387,28 +395,53 @@ fn project_file_name_for_diagnostics(path: &Path) -> Option<String> {
 }
 
 fn detect_ports(ctx: &ServiceContext) -> Vec<DiagnosticPort> {
+    let owned_port = beambench_owned_serial_port(ctx);
+
+    list_available_ports()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|port| diagnostic_port(port, owned_port.as_deref()))
+        .collect()
+}
+
+fn serial_port_from_endpoint(endpoint: &ControllerConnectionEndpoint) -> Option<&str> {
+    match endpoint {
+        ControllerConnectionEndpoint::Serial { port_name, .. } => Some(port_name),
+        ControllerConnectionEndpoint::Tcp { .. }
+        | ControllerConnectionEndpoint::Udp { .. }
+        | ControllerConnectionEndpoint::Usb { .. } => None,
+    }
+}
+
+fn beambench_owned_serial_port(ctx: &ServiceContext) -> Option<String> {
     let active_port = ctx
         .session
         .lock()
         .ok()
         .and_then(|guard| guard.as_ref().and_then(|session| session.port_name()));
+    if active_port.is_some() {
+        return active_port;
+    }
 
-    list_available_ports()
-        .unwrap_or_default()
-        .into_iter()
-        .map(|port| diagnostic_port(port, active_port.as_deref()))
-        .collect()
+    ctx.pending_controller_connection
+        .lock()
+        .ok()
+        .and_then(|guard| {
+            guard
+                .as_ref()
+                .and_then(|pending| serial_port_from_endpoint(&pending.endpoint).map(str::to_owned))
+        })
 }
 
-fn diagnostic_port(port: PortInfo, active_port: Option<&str>) -> DiagnosticPort {
+fn diagnostic_port(port: PortInfo, owned_port: Option<&str>) -> DiagnosticPort {
     DiagnosticPort {
         name: port.port_name.clone(),
         description: non_empty_string(port.description),
         manufacturer: non_empty_string(port.manufacturer),
         vendor_id: port.vid.map(|vid| format!("0x{vid:04x}")),
         product_id: port.pid.map(|pid| format!("0x{pid:04x}")),
-        in_use_by_beambench: active_port.is_some_and(|active| active == port.port_name),
-        available: active_port.is_none_or(|active| active != port.port_name),
+        in_use_by_beambench: owned_port.is_some_and(|owned| owned == port.port_name),
+        available: owned_port.is_none_or(|owned| owned != port.port_name),
     }
 }
 
@@ -421,7 +454,11 @@ fn non_empty_string(value: String) -> Option<String> {
     }
 }
 
-fn build_machine_diagnostics(ctx: &ServiceContext, ports: &[DiagnosticPort]) -> DiagnosticMachine {
+fn build_machine_diagnostics(
+    ctx: &ServiceContext,
+    ports: &[DiagnosticPort],
+    connection_events: &[DiagnosticConnectionEvent],
+) -> DiagnosticMachine {
     let profile = ctx.settings.lock().ok().and_then(|settings| {
         settings.active_profile_id.and_then(|id| {
             settings
@@ -431,12 +468,32 @@ fn build_machine_diagnostics(ctx: &ServiceContext, ports: &[DiagnosticPort]) -> 
                 .cloned()
         })
     });
-    let baud_rate = profile.as_ref().map(|profile| profile.default_baud_rate);
+    let profile_baud_rate = profile.as_ref().map(|profile| profile.default_baud_rate);
     let profile_model = profile.as_ref().map(|profile| profile.name.clone());
     let profile_fields = MachineProfileDiagnosticFields::from_profile(profile.as_ref());
 
     let session = ctx.session.lock().ok();
     let Some(session) = session.as_deref().and_then(|guard| guard.as_ref()) else {
+        drop(session);
+        let pending_endpoint = ctx
+            .pending_controller_connection
+            .lock()
+            .ok()
+            .and_then(|guard| guard.as_ref().map(|pending| pending.endpoint.clone()));
+        let last_port_event = connection_events
+            .iter()
+            .rev()
+            .find(|event| event.port_name.is_some());
+        let port_name = pending_endpoint
+            .as_ref()
+            .and_then(serial_port_from_endpoint)
+            .map(str::to_owned)
+            .or_else(|| last_port_event.and_then(|event| event.port_name.clone()));
+        let port = port_name
+            .as_deref()
+            .and_then(|attempted| ports.iter().find(|port| port.name == attempted));
+        let failure = latest_connection_failure(connection_events);
+        let waiting_for_choice = pending_endpoint.is_some();
         return DiagnosticMachine {
             connected: false,
             model: profile_model,
@@ -455,12 +512,28 @@ fn build_machine_diagnostics(ctx: &ServiceContext, ports: &[DiagnosticPort]) -> 
             emit_s_every_g1: profile_fields.emit_s_every_g1,
             use_g0_for_overscan: profile_fields.use_g0_for_overscan,
             firmware_version: None,
-            baud_rate,
-            port_name: None,
-            port_vendor_id: None,
-            port_product_id: None,
-            session_state: DiagnosticSessionState::Disconnected,
-            handshake_message: Some("Disconnected".to_owned()),
+            baud_rate: pending_endpoint
+                .as_ref()
+                .and_then(ControllerConnectionEndpoint::baud_rate)
+                .or_else(|| last_port_event.and_then(|event| event.baud_rate))
+                .or(profile_baud_rate),
+            port_name,
+            port_vendor_id: port.and_then(|port| port.vendor_id.clone()),
+            port_product_id: port.and_then(|port| port.product_id.clone()),
+            session_state: if waiting_for_choice {
+                DiagnosticSessionState::Connecting
+            } else if failure.is_some() {
+                DiagnosticSessionState::HandshakeFailed
+            } else {
+                DiagnosticSessionState::Disconnected
+            },
+            handshake_message: if waiting_for_choice {
+                Some("Controller detected; waiting for controller selection".to_owned())
+            } else {
+                failure
+                    .map(connection_failure_summary)
+                    .or_else(|| Some("Disconnected".to_owned()))
+            },
         };
     };
 
@@ -495,7 +568,7 @@ fn build_machine_diagnostics(ctx: &ServiceContext, ports: &[DiagnosticPort]) -> 
         emit_s_every_g1: profile_fields.emit_s_every_g1,
         use_g0_for_overscan: profile_fields.use_g0_for_overscan,
         firmware_version,
-        baud_rate,
+        baud_rate: profile_baud_rate,
         port_name,
         port_vendor_id: port.and_then(|port| port.vendor_id.clone()),
         port_product_id: port.and_then(|port| port.product_id.clone()),
@@ -577,6 +650,48 @@ fn handshake_message(
     }
 }
 
+fn latest_connection_failure(
+    events: &[DiagnosticConnectionEvent],
+) -> Option<&DiagnosticConnectionEvent> {
+    for event in events.iter().rev() {
+        let failed_stage = event.stage.ends_with("_failed")
+            || event.stage.ends_with("_timeout")
+            || event.stage == "banner_timeout";
+        if event.error.is_some() || failed_stage {
+            return Some(event);
+        }
+        if matches!(
+            event.stage.as_str(),
+            "open_attempt" | "transport_open" | "ready"
+        ) {
+            return None;
+        }
+    }
+    None
+}
+
+fn connection_failure_summary(event: &DiagnosticConnectionEvent) -> String {
+    if event.error_code.as_deref() == Some("serial_port_unavailable")
+        || event
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("[serial_port_unavailable]"))
+    {
+        return match event.port_name.as_deref() {
+            Some(port) => format!(
+                "Beam Bench could not open {port}. Another application may be using the port, or the controller may have been disconnected."
+            ),
+            None => "Beam Bench could not open the serial port. Another application may be using it, or the controller may have been disconnected.".to_owned(),
+        };
+    }
+
+    event
+        .error
+        .clone()
+        .or_else(|| event.message.clone())
+        .unwrap_or_else(|| "Connection failed".to_owned())
+}
+
 fn active_error_entries(ctx: &ServiceContext) -> Vec<DiagnosticLogEntry> {
     ctx.active_errors
         .lock()
@@ -633,7 +748,10 @@ fn recent_panic_reports_for_bundle(ctx: &ServiceContext) -> Vec<DiagnosticPanic>
     reports
 }
 
-fn known_issues_for(machine: &DiagnosticMachine) -> Vec<KnownIssueWarning> {
+fn known_issues_for(
+    machine: &DiagnosticMachine,
+    connection_events: &[DiagnosticConnectionEvent],
+) -> Vec<KnownIssueWarning> {
     let issue_match_text = [
         machine.model.as_deref(),
         machine.firmware_type.as_deref(),
@@ -652,7 +770,7 @@ fn known_issues_for(machine: &DiagnosticMachine) -> Vec<KnownIssueWarning> {
         .unwrap_or_default()
         .to_lowercase();
 
-    KNOWN_ISSUES
+    let mut issues = KNOWN_ISSUES
         .iter()
         .filter(|issue| issue_match_text.contains(issue.model_contains))
         .filter(|issue| {
@@ -671,7 +789,23 @@ fn known_issues_for(machine: &DiagnosticMachine) -> Vec<KnownIssueWarning> {
             severity: issue.severity.to_owned(),
             message: issue.message.to_owned(),
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    if let Some(failure) = latest_connection_failure(connection_events)
+        && failure.stage == "open_failed"
+    {
+        issues.retain(|issue| issue.code != "no_grbl_response");
+        issues.insert(
+            0,
+            KnownIssueWarning {
+                code: "serial_port_unavailable".to_owned(),
+                severity: "warning".to_owned(),
+                message: connection_failure_summary(failure),
+            },
+        );
+    }
+
+    issues
 }
 
 fn write_report_zip(path: &Path, report_bytes: &[u8], project_bytes: &[u8]) -> ServiceResult<()> {
@@ -888,6 +1022,49 @@ mod tests {
     }
 
     #[test]
+    fn preview_preserves_attempted_port_locale_and_unavailable_port_diagnostics() {
+        let ctx = ServiceContext::new();
+        ctx.settings.lock().unwrap().display_language = "fr".to_owned();
+        ctx.push_connection_event(
+            "open_failed",
+            Some("COM5".to_owned()),
+            Some(115_200),
+            None,
+            Some(
+                "[serial_port_unavailable] Could not open COM5: Accès refusé. The port may be in use by another application or the controller may have been disconnected."
+                    .to_owned(),
+            ),
+        );
+
+        let bundle = preview_feedback_report(&ctx, bug_input()).unwrap();
+
+        assert_eq!(bundle.system.locale.as_deref(), Some("fr"));
+        assert_eq!(bundle.machine.port_name.as_deref(), Some("COM5"));
+        assert_eq!(bundle.machine.baud_rate, Some(115_200));
+        assert_eq!(
+            bundle.machine.session_state,
+            DiagnosticSessionState::HandshakeFailed
+        );
+        assert!(
+            bundle
+                .machine
+                .handshake_message
+                .as_deref()
+                .is_some_and(|message| message.contains("could not open COM5"))
+        );
+        assert_eq!(
+            bundle.connection_events[0].error_code.as_deref(),
+            Some("serial_port_unavailable")
+        );
+        assert!(
+            bundle
+                .known_issues
+                .iter()
+                .any(|issue| issue.code == "serial_port_unavailable")
+        );
+    }
+
+    #[test]
     fn preview_includes_retained_terminal_job_diagnostic() {
         let ctx = ServiceContext::new();
         let mut progress = JobProgress::default();
@@ -1029,31 +1206,34 @@ mod tests {
 
     #[test]
     fn known_issues_match_profile_firmware_type() {
-        let issues = known_issues_for(&DiagnosticMachine {
-            connected: false,
-            model: Some("Preset Test".to_owned()),
-            profile_id: None,
-            profile_name: Some("Preset Test".to_owned()),
-            profile_preset_id: None,
-            profile_preset_version: None,
-            firmware_type: Some("grbl".to_owned()),
-            controller_family: None,
-            controller_model: None,
-            transport_kind: None,
-            transfer_mode: None,
-            s_value_max: None,
-            homing_enabled: None,
-            use_constant_power: None,
-            emit_s_every_g1: None,
-            use_g0_for_overscan: None,
-            firmware_version: None,
-            baud_rate: Some(115_200),
-            port_name: None,
-            port_vendor_id: None,
-            port_product_id: None,
-            session_state: DiagnosticSessionState::Disconnected,
-            handshake_message: Some("Disconnected".to_owned()),
-        });
+        let issues = known_issues_for(
+            &DiagnosticMachine {
+                connected: false,
+                model: Some("Preset Test".to_owned()),
+                profile_id: None,
+                profile_name: Some("Preset Test".to_owned()),
+                profile_preset_id: None,
+                profile_preset_version: None,
+                firmware_type: Some("grbl".to_owned()),
+                controller_family: None,
+                controller_model: None,
+                transport_kind: None,
+                transfer_mode: None,
+                s_value_max: None,
+                homing_enabled: None,
+                use_constant_power: None,
+                emit_s_every_g1: None,
+                use_g0_for_overscan: None,
+                firmware_version: None,
+                baud_rate: Some(115_200),
+                port_name: None,
+                port_vendor_id: None,
+                port_product_id: None,
+                session_state: DiagnosticSessionState::Disconnected,
+                handshake_message: Some("Disconnected".to_owned()),
+            },
+            &[],
+        );
 
         assert!(issues.iter().any(|issue| issue.code == "no_grbl_response"));
     }

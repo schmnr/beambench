@@ -19,4 +19,14 @@ describe('wrapBackendError', () => {
       'Operation failed: Unexpected backend detail',
     );
   });
+
+  it('uses the stable serial error code even when Windows localizes the detail', () => {
+    expect(
+      wrapBackendError(
+        'transport error: [serial_port_unavailable] Could not open COM5: Accès refusé. The port may be in use by another application or the controller may have been disconnected.',
+      ),
+    ).toBe(
+      'Could not open COM5. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.',
+    );
+  });
 });

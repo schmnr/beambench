@@ -2322,6 +2322,7 @@
   "errors": {
     "operation_failed_with_detail": "작업에 실패했습니다: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
+    "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "ui_error_title": "Beam Bench에서 UI 오류가 발생했습니다",
     "reload": "새로고침"
   },

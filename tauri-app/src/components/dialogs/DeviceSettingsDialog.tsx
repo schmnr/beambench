@@ -51,6 +51,7 @@ import {
 import { useAppStore } from '../../stores/appStore';
 import { SERIAL_BAUD_RATE_OPTIONS } from '../../constants/serial';
 import { lihuiyuUsbDeviceId, lihuiyuUsbDeviceLabel } from '../../utils/lihuiyuUsb';
+import { wrapBackendError } from '../../i18n/errors';
 
 interface DeviceSettingsDialogProps {
   onClose: () => void;
@@ -230,6 +231,7 @@ function ConnectionTab({ active }: { active: boolean }) {
   const profiles = useMachineStore((s) => s.profiles);
   const activeProfileId = useMachineStore((s) => s.activeProfileId);
   const loading = useMachineStore((s) => s.loading);
+  const error = useMachineStore((s) => s.error);
   const controllerSelection = useMachineStore((s) => s.controllerSelection);
   const controllerConnectionChallenge = useMachineStore((s) => s.controllerConnectionChallenge);
   const connect = useMachineStore((s) => s.connect);
@@ -519,6 +521,16 @@ function ConnectionTab({ active }: { active: boolean }) {
         <div className={`w-2 h-2 rounded-full ${SESSION_STATE_DOT_CLASSES[sessionState]}`} />
         <span className="text-bb-text-muted">{stateLabels[sessionState]}</span>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          data-testid="device-settings-connection-error"
+          className="rounded border border-bb-error/40 bg-bb-error/10 px-3 py-2 text-xs text-bb-error-fg"
+        >
+          {wrapBackendError(error)}
+        </div>
+      )}
     </div>
   );
 }

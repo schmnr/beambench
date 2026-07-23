@@ -356,9 +356,15 @@ impl ServiceContext {
         error: Option<String>,
     ) {
         if let Ok(mut events) = self.connection_events.lock() {
+            let error_code = error.as_deref().and_then(|detail| {
+                detail
+                    .contains("[serial_port_unavailable]")
+                    .then(|| "serial_port_unavailable".to_owned())
+            });
             events.push_back(DiagnosticConnectionEvent {
                 ts: Utc::now().to_rfc3339(),
                 stage: stage.into(),
+                error_code,
                 port_name,
                 baud_rate,
                 message,
