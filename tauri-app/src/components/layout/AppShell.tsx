@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useUiStore } from '../../stores/uiStore';
+import { usePreviewStore } from '../../stores/previewStore';
 import { appService } from '../../services/appService';
 import { MenuBar } from './MenuBar';
 import { MainToolbar } from './MainToolbar';
@@ -30,6 +32,11 @@ export function AppShell() {
   const sidePanelsVisible = useUiStore((s) => s.sidePanelsVisible);
   const workspaceMode = useUiStore((s) => s.workspaceMode);
   const runMode = workspaceMode === 'run';
+
+  useEffect(() => {
+    usePreviewStore.getState().setCanvasPreviewActive(runMode);
+    return () => usePreviewStore.getState().setCanvasPreviewActive(false);
+  }, [runMode]);
   const panelLayout = useUiStore((s) => s.panelLayout);
   const toolbarVisibility = panelLayout.toolbarVisibility;
 

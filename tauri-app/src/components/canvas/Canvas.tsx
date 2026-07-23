@@ -173,6 +173,7 @@ export function Canvas() {
   const zoom = useUiStore((s) => s.zoom);
   const viewportOffset = useUiStore((s) => s.viewportOffset);
   const viewStyle = useUiStore((s) => s.viewStyle);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
   const gridVisible = useUiStore((s) => s.gridVisible);
   const snapEnabled = useUiStore((s) => s.snapToGrid);
   const snapToObjects = useUiStore((s) => s.snapToObjects);
@@ -610,7 +611,7 @@ export function Canvas() {
       gridSpacingMm,
       toolOverlay: effectiveOverlay,
       previewData: previewData,
-      showPreview: false,
+      showPreview: workspaceMode === 'run',
       cameraOverlay,
       theme,
       antialiasing,
@@ -633,6 +634,7 @@ export function Canvas() {
     gridVisible,
     gridSpacingMm,
     previewData,
+    workspaceMode,
     cameraOverlay,
     theme,
     antialiasing,
@@ -669,7 +671,7 @@ export function Canvas() {
       gridSpacingMm,
       toolOverlay: buildEffectiveOverlay(),
       previewData: previewData,
-      showPreview: false,
+      showPreview: workspaceMode === 'run',
       theme,
       antialiasing,
       filledRendering,

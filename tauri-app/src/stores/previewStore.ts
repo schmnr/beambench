@@ -23,6 +23,8 @@ interface PreviewStoreState {
   revisionHash: string | null;
   error: string | null;
   showPreview: boolean;
+  /** Run-mode canvas renders the toolpath preview. */
+  canvasPreviewActive: boolean;
   previewWindowOpen: boolean;
   previewGenerationDialogVisible: boolean;
   previewGenerationDialogTitle: string;
@@ -32,6 +34,7 @@ interface PreviewStoreState {
   pendingInteractionRefresh: boolean;
 
   generatePreview: () => Promise<boolean>;
+  setCanvasPreviewActive: (active: boolean) => void;
   cancelPreviewGeneration: () => Promise<void>;
   refreshPreview: () => Promise<boolean>;
   invalidate: () => void;
@@ -117,6 +120,7 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
   revisionHash: null,
   error: null,
   showPreview: false,
+  canvasPreviewActive: false,
   previewWindowOpen: false,
   previewGenerationDialogVisible: false,
   previewGenerationDialogTitle: DEFAULT_PREVIEW_GENERATION_DIALOG_TITLE,
@@ -254,6 +258,18 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
     });
   },
 
+  setCanvasPreviewActive: (active) => {
+    const wasActive = get().canvasPreviewActive;
+    set({ canvasPreviewActive: active });
+    // Entering the run canvas with no fresh plan: build one.
+    if (active && !wasActive) {
+      const { state, data } = get();
+      if (state === 'stale' || data === null) {
+        void get().generatePreview();
+      }
+    }
+  },
+
   refreshPreview: async () => get().generatePreview(),
 
   invalidate: () => {
@@ -264,10 +280,10 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
       lastSuccessfulDurationMs,
     } = get();
 
-    if (state === 'idle' && !previewWindowOpen) return;
+    if (state === 'idle' && !previewWindowOpen && !get().canvasPreviewActive) return;
 
     previewEpoch += 1;
-    const visible = previewWindowOpen;
+    const visible = previewWindowOpen || get().canvasPreviewActive;
     const canAutoRefresh =
       visible &&
       !interactionActive &&
