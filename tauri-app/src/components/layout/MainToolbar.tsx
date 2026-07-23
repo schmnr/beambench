@@ -441,46 +441,56 @@ export function MainToolbar() {
           {showArrangeMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowArrangeMenu(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 rounded-xl border border-bb-border bg-bb-panel p-2 shadow-xl" data-testid="arrange-popover">
+              <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl border border-bb-border bg-bb-panel p-3 shadow-xl" data-testid="arrange-popover">
                 {showArrange && (
-                  <div className="flex items-center gap-0.5">
-                    <IconButton icon={<Group size={sz} />} label={t('toolbars.main.group')} onClick={() => void groupObjects(selectedObjectIds)} disabled={!canGroup} />
-                    <IconButton icon={<Ungroup size={sz} />} label={t('toolbars.main.ungroup')} onClick={() => void ungroupObjects(selectedObjectIds[0])} disabled={!canUngroup} />
-                    <Separator />
-                    <IconButton icon={<FlipHorizontal2 size={sz} />} label={t('toolbars.main.flip_horizontal')} onClick={() => handleFlip(FLIP_HORIZONTAL)} disabled={!canMutate} />
-                    <IconButton icon={<FlipVertical2 size={sz} />} label={t('toolbars.main.flip_vertical')} onClick={() => handleFlip(FLIP_VERTICAL)} disabled={!canMutate} />
-                    <IconButton icon={<MirrorAcrossLineIcon size={sz} />} label={t('toolbars.main.mirror_across_line')} onClick={() => void handleMirrorAcrossLine()} disabled={!canMirrorAcrossLine} />
-                  </div>
-                )}
-                {showArrange && (
-                  <div className="mt-1 flex items-center gap-0.5">
-                    <IconButton icon={<AlignStartVertical size={sz} />} label={t('toolbars.main.align_left')} onClick={() => void handleAlign(ALIGN_LEFT)} disabled={!canAlign} />
-                    <IconButton icon={<AlignEndVertical size={sz} />} label={t('toolbars.main.align_right')} onClick={() => void handleAlign(ALIGN_RIGHT)} disabled={!canAlign} />
-                    <IconButton icon={<AlignStartHorizontal size={sz} />} label={t('toolbars.main.align_top')} onClick={() => void handleAlign(ALIGN_TOP)} disabled={!canAlign} />
-                    <IconButton icon={<AlignEndHorizontal size={sz} />} label={t('toolbars.main.align_bottom')} onClick={() => void handleAlign(ALIGN_BOTTOM)} disabled={!canAlign} />
-                    <IconButton icon={<AlignCenterHorizontal size={sz} />} label={t('toolbars.main.align_vertical_centers')} onClick={() => void handleAlign(ALIGN_VERTICAL_CENTERS)} disabled={!canAlign} />
-                    <IconButton icon={<AlignCenterVertical size={sz} />} label={t('toolbars.main.align_horizontal_centers')} onClick={() => void handleAlign(ALIGN_HORIZONTAL_CENTERS)} disabled={!canAlign} />
-                  </div>
+                  <>
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('menus.arrange.group')}</div>
+                    <div className="flex items-center gap-0.5">
+                      <IconButton icon={<Group size={sz} />} label={t('toolbars.main.group')} onClick={() => void groupObjects(selectedObjectIds)} disabled={!canGroup} />
+                      <IconButton icon={<Ungroup size={sz} />} label={t('toolbars.main.ungroup')} onClick={() => void ungroupObjects(selectedObjectIds[0])} disabled={!canUngroup} />
+                    </div>
+                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('menus.arrange.flip_horizontal_vertical')}</div>
+                    <div className="flex items-center gap-0.5">
+                      <IconButton icon={<FlipHorizontal2 size={sz} />} label={t('toolbars.main.flip_horizontal')} onClick={() => handleFlip(FLIP_HORIZONTAL)} disabled={!canMutate} />
+                      <IconButton icon={<FlipVertical2 size={sz} />} label={t('toolbars.main.flip_vertical')} onClick={() => handleFlip(FLIP_VERTICAL)} disabled={!canMutate} />
+                      <IconButton icon={<MirrorAcrossLineIcon size={sz} />} label={t('toolbars.main.mirror_across_line')} onClick={() => void handleMirrorAcrossLine()} disabled={!canMirrorAcrossLine} />
+                    </div>
+                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('menus.arrange.align')}</div>
+                    <div className="flex items-center gap-0.5">
+                      <IconButton icon={<AlignStartVertical size={sz} />} label={t('toolbars.main.align_left')} onClick={() => void handleAlign(ALIGN_LEFT)} disabled={!canAlign} />
+                      <IconButton icon={<AlignEndVertical size={sz} />} label={t('toolbars.main.align_right')} onClick={() => void handleAlign(ALIGN_RIGHT)} disabled={!canAlign} />
+                      <IconButton icon={<AlignStartHorizontal size={sz} />} label={t('toolbars.main.align_top')} onClick={() => void handleAlign(ALIGN_TOP)} disabled={!canAlign} />
+                      <IconButton icon={<AlignEndHorizontal size={sz} />} label={t('toolbars.main.align_bottom')} onClick={() => void handleAlign(ALIGN_BOTTOM)} disabled={!canAlign} />
+                      <IconButton icon={<AlignCenterHorizontal size={sz} />} label={t('toolbars.main.align_vertical_centers')} onClick={() => void handleAlign(ALIGN_VERTICAL_CENTERS)} disabled={!canAlign} />
+                      <IconButton icon={<AlignCenterVertical size={sz} />} label={t('toolbars.main.align_horizontal_centers')} onClick={() => void handleAlign(ALIGN_HORIZONTAL_CENTERS)} disabled={!canAlign} />
+                    </div>
+                  </>
                 )}
                 {showArrangeLong && (
-                  <div className="mt-1 flex items-center gap-0.5">
-                    <IconButton icon={<AlignHorizontalSpaceAround size={sz} />} label={t('toolbars.main.distribute_h_centered')} onClick={() => void handleDistribute(DISTRIBUTE_H_CENTERED)} disabled={!canDistribute} />
-                    <IconButton icon={<AlignVerticalSpaceAround size={sz} />} label={t('toolbars.main.distribute_v_centered')} onClick={() => void handleDistribute(DISTRIBUTE_V_CENTERED)} disabled={!canDistribute} />
-                    <IconButton icon={<MakeSameWidthIcon size={sz} />} label={t('toolbars.main.make_same_width')} onClick={(event) => void handleMakeSameSize(SIZE_WIDTH, Boolean(event?.shiftKey))} disabled={!canMakeSameSize} />
-                    <IconButton icon={<MakeSameHeightIcon size={sz} />} label={t('toolbars.main.make_same_height')} onClick={(event) => void handleMakeSameSize(SIZE_HEIGHT, Boolean(event?.shiftKey))} disabled={!canMakeSameSize} />
-                    <IconButton icon={<MoveHorizontallyTogetherIcon size={sz} />} label={t('toolbars.main.move_h_together')} onClick={() => void handleMoveTogether(FLIP_HORIZONTAL)} disabled={!canMoveTogether} />
-                    <IconButton icon={<MoveVerticallyTogetherIcon size={sz} />} label={t('toolbars.main.move_v_together')} onClick={() => void handleMoveTogether(FLIP_VERTICAL)} disabled={!canMoveTogether} />
-                  </div>
+                  <>
+                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('menus.arrange.distribute')}</div>
+                    <div className="flex items-center gap-0.5">
+                      <IconButton icon={<AlignHorizontalSpaceAround size={sz} />} label={t('toolbars.main.distribute_h_centered')} onClick={() => void handleDistribute(DISTRIBUTE_H_CENTERED)} disabled={!canDistribute} />
+                      <IconButton icon={<AlignVerticalSpaceAround size={sz} />} label={t('toolbars.main.distribute_v_centered')} onClick={() => void handleDistribute(DISTRIBUTE_V_CENTERED)} disabled={!canDistribute} />
+                      <IconButton icon={<MakeSameWidthIcon size={sz} />} label={t('toolbars.main.make_same_width')} onClick={(event) => void handleMakeSameSize(SIZE_WIDTH, Boolean(event?.shiftKey))} disabled={!canMakeSameSize} />
+                      <IconButton icon={<MakeSameHeightIcon size={sz} />} label={t('toolbars.main.make_same_height')} onClick={(event) => void handleMakeSameSize(SIZE_HEIGHT, Boolean(event?.shiftKey))} disabled={!canMakeSameSize} />
+                      <IconButton icon={<MoveHorizontallyTogetherIcon size={sz} />} label={t('toolbars.main.move_h_together')} onClick={() => void handleMoveTogether(FLIP_HORIZONTAL)} disabled={!canMoveTogether} />
+                      <IconButton icon={<MoveVerticallyTogetherIcon size={sz} />} label={t('toolbars.main.move_v_together')} onClick={() => void handleMoveTogether(FLIP_VERTICAL)} disabled={!canMoveTogether} />
+                    </div>
+                  </>
                 )}
                 {(showArrangeLong || showDocking) && (
-                  <div className="mt-1 flex items-center gap-0.5">
-                    {showArrangeLong && (
-                      <IconButton icon={<Crosshair size={sz} />} label={t('toolbars.main.center_on_page')} onClick={() => void handleCenterOnPage()} disabled={!canMutate} />
-                    )}
-                    {showDocking && (
-                      <IconButton icon={<DockToEdgeIcon size={sz} />} label={t('toolbars.main.dock')} onClick={handleOpenDockDialog} disabled={!canDock} />
-                    )}
-                  </div>
+                  <>
+                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('toolbars.main.center_on_page')}</div>
+                    <div className="flex items-center gap-0.5">
+                      {showArrangeLong && (
+                        <IconButton icon={<Crosshair size={sz} />} label={t('toolbars.main.center_on_page')} onClick={() => void handleCenterOnPage()} disabled={!canMutate} />
+                      )}
+                      {showDocking && (
+                        <IconButton icon={<DockToEdgeIcon size={sz} />} label={t('toolbars.main.dock')} onClick={handleOpenDockDialog} disabled={!canDock} />
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </>
