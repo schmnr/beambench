@@ -26,11 +26,20 @@ pub use validation::{
 
 #[cfg(test)]
 pub(crate) mod test_support {
+    use std::cell::Cell;
     use std::sync::{LazyLock, Mutex, MutexGuard};
 
     use crate::persist;
 
     static PERSIST_TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
+    thread_local! {
+        static PERSISTENCE_ENABLED: Cell<bool> = const { Cell::new(false) };
+    }
+
+    pub(crate) fn persistence_enabled_for_current_test() -> bool {
+        PERSISTENCE_ENABLED.get()
+    }
 
     pub(crate) struct PersistTestGuard {
         _lock: MutexGuard<'static, ()>,
@@ -49,6 +58,7 @@ pub(crate) mod test_support {
                 std::env::set_var(persist::CONFIG_DIR_ENV, config_dir.path());
                 std::env::set_var(persist::DATA_DIR_ENV, data_dir.path());
             }
+            PERSISTENCE_ENABLED.set(true);
             Self {
                 _lock: lock,
                 _config_dir: config_dir,
@@ -59,6 +69,7 @@ pub(crate) mod test_support {
 
     impl Drop for PersistTestGuard {
         fn drop(&mut self) {
+            PERSISTENCE_ENABLED.set(false);
             // SAFETY: guarded by `PERSIST_TEST_LOCK` held for this guard's
             // lifetime.
             unsafe {

@@ -271,6 +271,13 @@ pub fn bootstrap_profile(
             enable_laser_fire_button: false,
             default_fire_power_percent: 1.0,
             quality_test_settings: Default::default(),
+            rotary_enabled: false,
+            rotary_type: beambench_core::RotaryType::Roller,
+            rotary_axis: beambench_core::RotaryAxis::Y,
+            rotary_mm_per_rotation: 50.0,
+            rotary_roller_diameter_mm: 16.0,
+            rotary_object_diameter_mm: 75.0,
+            rotary_reverse_direction: false,
         },
     )?;
     if input.activate {

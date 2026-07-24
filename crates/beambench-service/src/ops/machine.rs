@@ -360,13 +360,14 @@ fn generic_preflight_checks(
     plan: &ExecutionPlan,
     profile: &MachineProfile,
 ) -> (Vec<PreflightCheck>, bool) {
+    let (workspace_width_mm, workspace_height_mm) = profile.workspace_dimensions_mm();
     let session_ready = session_state == SessionState::Ready;
     let machine_idle = run_state == MachineRunState::Idle;
     let plan_not_empty = !plan.segments.is_empty();
     let bounds_fit = plan.bounds.min.x >= 0.0
         && plan.bounds.min.y >= 0.0
-        && plan.bounds.max.x <= profile.bed_width_mm
-        && plan.bounds.max.y <= profile.bed_height_mm;
+        && plan.bounds.max.x <= workspace_width_mm
+        && plan.bounds.max.y <= workspace_height_mm;
     let mut checks = vec![
         PreflightCheck {
             category: "connection".to_string(),
@@ -400,8 +401,8 @@ fn generic_preflight_checks(
                 plan.bounds.min.y,
                 plan.bounds.max.x,
                 plan.bounds.max.y,
-                profile.bed_width_mm,
-                profile.bed_height_mm
+                workspace_width_mm,
+                workspace_height_mm
             ),
         },
     ];
@@ -661,9 +662,10 @@ fn apply_grbl_settings_to_profile(
 }
 
 fn workspace_from_profile(profile: &MachineProfile) -> Workspace {
+    let (bed_width_mm, bed_height_mm) = profile.workspace_dimensions_mm();
     Workspace {
-        bed_width_mm: profile.bed_width_mm,
-        bed_height_mm: profile.bed_height_mm,
+        bed_width_mm,
+        bed_height_mm,
         origin: profile.origin,
     }
 }
@@ -674,6 +676,8 @@ pub(crate) fn sync_open_project_workspace_from_profile(
     source: &'static str,
 ) -> ServiceResult<bool> {
     let workspace = workspace_from_profile(profile);
+    let workspace_width_mm = workspace.bed_width_mm;
+    let workspace_height_mm = workspace.bed_height_mm;
     let snapshot = profile.snapshot();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let Some(project) = project_guard.as_mut() else {
@@ -710,8 +714,8 @@ pub(crate) fn sync_open_project_workspace_from_profile(
             "project_id": project_id,
             "machine_profile_id": profile.id,
             "workspace": {
-                "bed_width_mm": profile.bed_width_mm,
-                "bed_height_mm": profile.bed_height_mm,
+                "bed_width_mm": workspace_width_mm,
+                "bed_height_mm": workspace_height_mm,
                 "origin": profile.origin,
             },
             "source": source,
@@ -2976,6 +2980,11 @@ pub fn session_state(ctx: &ServiceContext) -> ServiceResult<SessionState> {
 }
 
 pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
+    if active_profile(ctx)?.rotary_enabled {
+        return Err(ServiceError::invalid_state(
+            "Homing is disabled while rotary mode is active. Disable rotary mode and reconnect the normal axes before homing.",
+        ));
+    }
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
         .as_mut()
@@ -3074,7 +3083,26 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
     let mut ruida_table_axis = None;
     match session {
         MachineSessionHandle::Grbl(session) => {
+            if profile.rotary_enabled && !session.capabilities().supports_rotary {
+                return Err(ServiceError::invalid_state(
+                    "The connected controller does not support Beam Bench's generic rotary workflow",
+                ));
+            }
+            if profile.rotary_enabled && input.z_mm.is_some() {
+                return Err(ServiceError::invalid_state(
+                    "Manual Z jogging is unavailable while rotary mode is active",
+                ));
+            }
             validate_optional_z(&profile, input.z_mm, "Jog")?;
+            let rotary_scale = if profile.rotary_enabled {
+                Some(profile.rotary_command_scale().ok_or_else(|| {
+                    ServiceError::invalid_state(
+                        "Rotary calibration is invalid; check mm per rotation and diameter values",
+                    )
+                })?)
+            } else {
+                None
+            };
             let mut x_mm = input.x_mm;
             let mut y_mm = input.y_mm;
             if input.continuous {
@@ -3082,25 +3110,45 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
                     return Err(ServiceError::busy("A continuous jog is already active"));
                 }
                 let status = session.last_status();
-                if x_mm > 0.0 {
+                let rotary_x =
+                    profile.rotary_enabled && profile.rotary_axis == beambench_core::RotaryAxis::X;
+                let rotary_y =
+                    profile.rotary_enabled && profile.rotary_axis != beambench_core::RotaryAxis::X;
+                if !rotary_x && x_mm > 0.0 {
                     x_mm = x_mm.min((profile.bed_width_mm - status.work_position.x).max(0.0));
-                } else if x_mm < 0.0 {
+                } else if !rotary_x && x_mm < 0.0 {
                     x_mm = -(-x_mm).min(status.work_position.x.max(0.0));
                 }
-                if y_mm > 0.0 {
+                if !rotary_y && y_mm > 0.0 {
                     y_mm = y_mm.min((profile.bed_height_mm - status.work_position.y).max(0.0));
-                } else if y_mm < 0.0 {
+                } else if !rotary_y && y_mm < 0.0 {
                     y_mm = -(-y_mm).min(status.work_position.y.max(0.0));
                 }
             }
-            session
-                .jog(x_mm, y_mm, input.z_mm, input.feed_rate)
-                .map_err(|e| {
-                    if input.continuous {
-                        ctx.active_jog.store(false, Ordering::Release);
-                    }
-                    ServiceError::machine(e.to_string())
-                })?;
+            let mut z_mm = input.z_mm;
+            let mut feed_rate = input.feed_rate;
+            if let Some(scale) = rotary_scale {
+                let surface_distance = x_mm.hypot(y_mm);
+                let (command_x, command_y, command_z) = match profile.rotary_axis {
+                    beambench_core::RotaryAxis::X => (x_mm * scale, y_mm, None),
+                    beambench_core::RotaryAxis::Y => (x_mm, y_mm * scale, None),
+                    beambench_core::RotaryAxis::Z => (x_mm, 0.0, Some(y_mm * scale)),
+                };
+                if surface_distance > f64::EPSILON {
+                    let command_distance =
+                        command_x.hypot(command_y).hypot(command_z.unwrap_or(0.0));
+                    feed_rate *= command_distance / surface_distance;
+                }
+                x_mm = command_x;
+                y_mm = command_y;
+                z_mm = command_z;
+            }
+            session.jog(x_mm, y_mm, z_mm, feed_rate).map_err(|e| {
+                if input.continuous {
+                    ctx.active_jog.store(false, Ordering::Release);
+                }
+                ServiceError::machine(e.to_string())
+            })?;
         }
         MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
             validate_optional_z(&profile, input.z_mm, "Jog")?;
@@ -3304,6 +3352,47 @@ pub fn run_preflight_check_with_options(
         }
     };
 
+    if profile.rotary_enabled {
+        let controller_ok = matches!(session, MachineSessionHandle::Grbl(_))
+            && session.capabilities().supports_rotary;
+        let positioning_ok = project_for_controller.start_from == StartFromMode::CurrentPosition;
+        let calibration_ok = profile.rotary_command_scale().is_some();
+        let z_offset_ok = profile.rotary_axis != beambench_core::RotaryAxis::Z
+            || project_for_controller
+                .layers
+                .iter()
+                .flat_map(|layer| layer.entries.iter())
+                .all(|entry| entry.z_offset_mm.abs() <= f64::EPSILON);
+        let rotary_ok = controller_ok && positioning_ok && calibration_ok && z_offset_ok;
+        let message = if matches!(session, MachineSessionHandle::Grbl(_))
+            && !session.capabilities().supports_rotary
+        {
+            "The connected controller uses a different rotary workflow".to_string()
+        } else if !controller_ok {
+            "Rotary mode is currently supported only for GRBL-family G-code sessions".to_string()
+        } else if !positioning_ok {
+            "Choose Start From Current Position before running a rotary job".to_string()
+        } else if !calibration_ok {
+            "Check rotary mm-per-rotation and diameter settings".to_string()
+        } else if !z_offset_ok {
+            "Z-axis rotary mode cannot be combined with layer Z offsets".to_string()
+        } else {
+            format!(
+                "Rotary {:?} axis is calibrated and anchored to the current position",
+                profile.rotary_axis
+            )
+        };
+        report.checks.push(PreflightCheck {
+            category: "rotary".to_string(),
+            description: "Rotary configuration is safe to run".to_string(),
+            passed: rotary_ok,
+            message,
+        });
+        if !rotary_ok {
+            report.outcome = PreflightOutcome::Fail;
+        }
+    }
+
     // Surface plan warnings as preflight checks so the user sees them before starting.
     if !plan.warnings.is_empty() {
         for w in &plan.warnings {
@@ -3438,6 +3527,18 @@ pub fn start_job_with_options(
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
     let job = match session {
         MachineSessionHandle::Grbl(session) => {
+            if profile.rotary_enabled && !session.capabilities().supports_rotary {
+                return Err(ServiceError::invalid_state(
+                    "The connected controller does not support Beam Bench's generic rotary workflow",
+                ));
+            }
+            super::output::apply_rotary_runtime(
+                &mut gcode_config,
+                &project_for_gcode,
+                &profile,
+                session.last_status(),
+            )
+            .map_err(ServiceError::invalid_state)?;
             let config = gcode_config;
             let mut job = JobController::prepare(&plan, &config)
                 .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?;
@@ -3973,7 +4074,19 @@ pub fn frame_job(
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
     let job = match session {
         MachineSessionHandle::Grbl(session) => {
-            let config = frame_gcode_config;
+            if profile.rotary_enabled && !session.capabilities().supports_rotary {
+                return Err(ServiceError::invalid_state(
+                    "The connected controller does not support Beam Bench's generic rotary workflow",
+                ));
+            }
+            let mut config = frame_gcode_config;
+            super::output::apply_rotary_runtime(
+                &mut config,
+                &project,
+                &profile,
+                session.last_status(),
+            )
+            .map_err(ServiceError::invalid_state)?;
             let mut job = JobController::prepare(&frame_plan, &config)
                 .map_err(|e| ServiceError::machine(format!("Frame prepare failed: {e}")))?;
             job.start(session)
@@ -4035,6 +4148,11 @@ pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResu
     require_finite(input.y, "y")?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
     let profile = active_profile(ctx)?;
+    if profile.rotary_enabled {
+        return Err(ServiceError::invalid_state(
+            "Absolute laser positioning is disabled in rotary mode. Use the jog controls to align the linear and rotary axes.",
+        ));
+    }
     validate_optional_z(&profile, input.z, "Go")?;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
@@ -4094,6 +4212,11 @@ pub fn move_laser_to_machine(ctx: &ServiceContext, input: MoveLaserInput) -> Ser
     require_finite(input.y, "y")?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
     let profile = active_profile(ctx)?;
+    if profile.rotary_enabled {
+        return Err(ServiceError::invalid_state(
+            "Machine-coordinate positioning is disabled while rotary mode is active",
+        ));
+    }
     validate_optional_z(&profile, input.z, "Machine-zero move")?;
     if !ctx.machine_coordinates_valid.load(Ordering::Acquire) {
         return Err(ServiceError::invalid_state(
@@ -4727,6 +4850,13 @@ pub fn save_profile(
             enable_laser_fire_button: profile.enable_laser_fire_button,
             default_fire_power_percent: profile.default_fire_power_percent,
             quality_test_settings: profile.quality_test_settings,
+            rotary_enabled: profile.rotary_enabled,
+            rotary_type: profile.rotary_type,
+            rotary_axis: profile.rotary_axis,
+            rotary_mm_per_rotation: profile.rotary_mm_per_rotation,
+            rotary_roller_diameter_mm: profile.rotary_roller_diameter_mm,
+            rotary_object_diameter_mm: profile.rotary_object_diameter_mm,
+            rotary_reverse_direction: profile.rotary_reverse_direction,
         },
     )
 }
@@ -5301,7 +5431,9 @@ mod tests {
         assert_eq!(state.controller_model, Some(ControllerModel::LaserPecker));
         assert_eq!(state.transport_kind, Some(TransportKind::Tcp));
         assert!(state.experimental_mode);
-        assert!(state.capabilities.unwrap().can_run_job);
+        let capabilities = state.capabilities.unwrap();
+        assert!(capabilities.can_run_job);
+        assert!(!capabilities.supports_rotary);
 
         disconnect_machine(&ctx).unwrap();
         let commands = server.join().unwrap();

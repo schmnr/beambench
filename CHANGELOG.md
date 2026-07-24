@@ -2,6 +2,17 @@
 
 ## 0.1.10
 
+- Added Experimental rotary attachment support for GRBL-family G-code
+  controllers. Machine profiles can configure roller or chuck geometry, X, Y,
+  or dedicated Z-axis mapping, travel per rotation, direction reversal, and the
+  workpiece diameter. Beam Bench keeps artwork and previews in surface
+  millimetres, maps motion and feed rates only when G-code is emitted, and uses
+  the workpiece circumference as the rotary workspace dimension. Rotary jobs
+  require Start From Current Position; homing and absolute moves are blocked
+  while active, and a Z-mapped rotary cannot be combined with job Z offsets.
+  Existing non-rotary G-code remains unchanged. LaserPecker accessory modes,
+  DSP controllers, and galvo cylinder marking are not included in this generic
+  workflow.
 - Added finite manual lift-table jogging for the Experimental Ruida RDC6442S
   adapter. Ruida machine profiles can select the controller's Z or U channel,
   since cabinet machines use both conventions, and the Move panel exposes

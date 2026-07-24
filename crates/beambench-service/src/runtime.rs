@@ -144,7 +144,13 @@ impl GrblRuntimeSession {
             ControllerDriverId::Grbl if experimental_mode => {
                 DeviceCapabilities::experimental_grbl_compatible()
             }
-            ControllerDriverId::LaserPecker => DeviceCapabilities::experimental_named_grbl_family(),
+            ControllerDriverId::LaserPecker => {
+                let mut capabilities = DeviceCapabilities::experimental_named_grbl_family();
+                // LaserPecker accessory modes require vendor-specific mode
+                // commands and are not the generic axis-substitution workflow.
+                capabilities.supports_rotary = false;
+                capabilities
+            }
             ControllerDriverId::Grbl => grbl_capabilities(),
             ControllerDriverId::Marlin
             | ControllerDriverId::Snapmaker

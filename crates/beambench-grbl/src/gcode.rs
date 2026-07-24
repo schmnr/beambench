@@ -2,7 +2,7 @@
 
 use crate::error::GrblError;
 use beambench_common::geometry::Point2D;
-use beambench_core::{FinishPosition, FocusTestZMode, TransferMode};
+use beambench_core::{FinishPosition, FocusTestZMode, RotaryAxis, TransferMode};
 use beambench_planner::{
     ExecutionPlan, PlanSegment, PowerMode, ScanAxis, ScanDirection, Scanline, z_offset_command,
 };
@@ -76,6 +76,27 @@ pub struct GcodeConfig {
     /// Cut-entry IDs and their configured Z offsets in mm.
     #[serde(default)]
     pub z_offset_cut_entry_ids: Vec<(String, f64)>,
+    /// Optional runtime rotary mapping. Artwork remains expressed in surface
+    /// millimetres; this transform maps the rotary dimension to controller
+    /// coordinates at emission time.
+    #[serde(default)]
+    pub rotary: Option<RotaryGcodeConfig>,
+}
+
+/// Runtime values needed to map a 2D surface plan onto a rotary controller
+/// axis without changing the controller's persistent firmware settings.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RotaryGcodeConfig {
+    pub axis: RotaryAxis,
+    /// Controller-coordinate millimetres per surface millimetre. Negative
+    /// values reverse rotary direction.
+    pub command_scale: f64,
+    /// Plan-space point placed at the live rotary starting position.
+    pub surface_origin_x_mm: f64,
+    pub surface_origin_y_mm: f64,
+    /// Current work-coordinate position of the controller axis used by the
+    /// rotary. This keeps absolute G-code continuous with the live machine.
+    pub axis_origin_mm: f64,
 }
 
 fn default_air_assist_on_gcode() -> String {
@@ -116,7 +137,130 @@ impl Default for GcodeConfig {
             z_base_mm: 0.0,
             z_mode: FocusTestZMode::AbsoluteWorkCoord,
             z_offset_cut_entry_ids: Vec::new(),
+            rotary: None,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct MappedPoint {
+    x: Option<f64>,
+    y: Option<f64>,
+    z: Option<f64>,
+}
+
+impl MappedPoint {
+    fn words(self) -> String {
+        let mut words = Vec::with_capacity(3);
+        if let Some(x) = self.x {
+            words.push(format!("X{x:.3}"));
+        }
+        if let Some(y) = self.y {
+            words.push(format!("Y{y:.3}"));
+        }
+        if let Some(z) = self.z {
+            words.push(format!("Z{z:.3}"));
+        }
+        words.join(" ")
+    }
+}
+
+fn validate_rotary_config(config: &GcodeConfig) -> Result<(), GrblError> {
+    let Some(rotary) = config.rotary else {
+        return Ok(());
+    };
+    if !rotary.command_scale.is_finite() || rotary.command_scale.abs() <= f64::EPSILON {
+        return Err(GrblError::GcodeError(
+            "rotary command scale must be a finite non-zero number".to_string(),
+        ));
+    }
+    if !rotary.surface_origin_x_mm.is_finite()
+        || !rotary.surface_origin_y_mm.is_finite()
+        || !rotary.axis_origin_mm.is_finite()
+    {
+        return Err(GrblError::GcodeError(
+            "rotary runtime origin must contain finite coordinates".to_string(),
+        ));
+    }
+    if rotary.axis == RotaryAxis::Z && config.z_moves_enabled {
+        return Err(GrblError::GcodeError(
+            "rotary Z-axis output cannot be combined with job Z offsets".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn map_point(point: Point2D, config: &GcodeConfig) -> MappedPoint {
+    let Some(rotary) = config.rotary else {
+        return MappedPoint {
+            x: Some(point.x),
+            y: Some(point.y),
+            z: None,
+        };
+    };
+    match rotary.axis {
+        RotaryAxis::X => MappedPoint {
+            x: Some(
+                rotary.axis_origin_mm
+                    + (point.x - rotary.surface_origin_x_mm) * rotary.command_scale,
+            ),
+            y: Some(point.y),
+            z: None,
+        },
+        RotaryAxis::Y => MappedPoint {
+            x: Some(point.x),
+            y: Some(
+                rotary.axis_origin_mm
+                    + (point.y - rotary.surface_origin_y_mm) * rotary.command_scale,
+            ),
+            z: None,
+        },
+        RotaryAxis::Z => MappedPoint {
+            x: Some(point.x),
+            y: None,
+            z: Some(
+                rotary.axis_origin_mm
+                    + (point.y - rotary.surface_origin_y_mm) * rotary.command_scale,
+            ),
+        },
+    }
+}
+
+fn mapped_feed(
+    start: Point2D,
+    end: Point2D,
+    surface_feed_mm_min: f64,
+    config: &GcodeConfig,
+) -> f64 {
+    if config.rotary.is_none() {
+        return surface_feed_mm_min;
+    }
+    let surface_dx = end.x - start.x;
+    let surface_dy = end.y - start.y;
+    let surface_distance = surface_dx.hypot(surface_dy);
+    if surface_distance <= f64::EPSILON {
+        return surface_feed_mm_min;
+    }
+    let mapped_start = map_point(start, config);
+    let mapped_end = map_point(end, config);
+    let dx = mapped_end.x.unwrap_or(0.0) - mapped_start.x.unwrap_or(0.0);
+    let dy = mapped_end.y.unwrap_or(0.0) - mapped_start.y.unwrap_or(0.0);
+    let dz = mapped_end.z.unwrap_or(0.0) - mapped_start.z.unwrap_or(0.0);
+    let command_distance = (dx * dx + dy * dy + dz * dz).sqrt();
+    surface_feed_mm_min * command_distance / surface_distance
+}
+
+fn mapped_motion(
+    code: &str,
+    point: Point2D,
+    feed: Option<f64>,
+    suffix: &str,
+    config: &GcodeConfig,
+) -> String {
+    let words = map_point(point, config).words();
+    match feed {
+        Some(feed) => format!("{code} {words} F{feed:.0}{suffix}"),
+        None => format!("{code} {words}{suffix}"),
     }
 }
 
@@ -125,6 +269,7 @@ pub fn generate_gcode(
     plan: &ExecutionPlan,
     config: &GcodeConfig,
 ) -> Result<Vec<String>, GrblError> {
+    validate_rotary_config(config)?;
     let mut lines = vec![
         "G90".to_string(), // Absolute positioning
         "G21".to_string(), // Metric units
@@ -206,12 +351,15 @@ pub fn generate_gcode(
     // Postamble
     lines.push("M5".to_string()); // Laser off
     match config.finish_position {
-        FinishPosition::Origin => lines.push("G0 X0 Y0".to_string()),
+        FinishPosition::Origin if config.rotary.is_none() => lines.push("G0 X0 Y0".to_string()),
+        FinishPosition::Origin => {
+            lines.push(mapped_motion("G0", Point2D::zero(), None, "", config))
+        }
         FinishPosition::DontMove => { /* no movement command */ }
         FinishPosition::CustomXY => {
             let x = config.finish_x.unwrap_or(0.0);
             let y = config.finish_y.unwrap_or(0.0);
-            lines.push(format!("G0 X{x:.3} Y{y:.3}"));
+            lines.push(mapped_motion("G0", Point2D::new(x, y), None, "", config));
         }
     }
 
@@ -389,34 +537,6 @@ fn percent_to_s_value(percent: f64, config: &GcodeConfig) -> u32 {
     (percent.clamp(0.0, 100.0) / 100.0 * max).round() as u32
 }
 
-fn axis_burn_move(
-    axis: char,
-    position: f64,
-    speed_mm_min: Option<f64>,
-    s_value: u32,
-    config: &GcodeConfig,
-) -> String {
-    let suffix = power_suffix(config, s_value);
-    match speed_mm_min {
-        Some(speed) => format!("G1 {axis}{position:.3} F{speed:.0}{suffix}"),
-        None => format!("G1 {axis}{position:.3}{suffix}"),
-    }
-}
-
-fn xy_burn_move(
-    x: f64,
-    y: f64,
-    speed_mm_min: Option<f64>,
-    s_value: u32,
-    config: &GcodeConfig,
-) -> String {
-    let suffix = power_suffix(config, s_value);
-    match speed_mm_min {
-        Some(speed) => format!("G1 X{x:.3} Y{y:.3} F{speed:.0}{suffix}"),
-        None => format!("G1 X{x:.3} Y{y:.3}{suffix}"),
-    }
-}
-
 /// Linearly interpolate scanning offset from a sorted (speed, offset) table.
 /// Empty table → 0.0. Clamps to min/max for out-of-range speeds.
 /// Interpolate the scanning-offset table at a given speed (mm/min).
@@ -479,16 +599,16 @@ enum RasterLineGeometry {
 }
 
 impl RasterLineGeometry {
-    fn rapid_move(self, run_pos: f64) -> String {
+    fn point(self, run_pos: f64) -> Point2D {
         match self {
             Self::Orthogonal {
                 axis: ScanAxis::Horizontal,
                 cross_pos,
-            } => format!("G0 X{run_pos:.3} Y{cross_pos:.3}"),
+            } => Point2D::new(run_pos, cross_pos),
             Self::Orthogonal {
                 axis: ScanAxis::Vertical,
                 cross_pos,
-            } => format!("G0 X{cross_pos:.3} Y{run_pos:.3}"),
+            } => Point2D::new(cross_pos, run_pos),
             Self::Rotated {
                 cross_pos,
                 cos_a,
@@ -496,31 +616,50 @@ impl RasterLineGeometry {
                 origin,
             } => {
                 let (x, y) = rotate_to_world(run_pos, cross_pos, &origin, cos_a, sin_a);
-                format!("G0 X{x:.3} Y{y:.3}")
+                Point2D::new(x, y)
             }
         }
     }
 
-    fn approach_move(self, run_pos: f64, speed_mm_min: f64) -> String {
-        match self {
-            Self::Orthogonal {
-                axis: ScanAxis::Horizontal,
-                cross_pos,
-            } => format!("G1 X{run_pos:.3} Y{cross_pos:.3} S0 F{speed_mm_min:.0}"),
-            Self::Orthogonal {
-                axis: ScanAxis::Vertical,
-                cross_pos,
-            } => format!("G1 X{cross_pos:.3} Y{run_pos:.3} S0 F{speed_mm_min:.0}"),
-            Self::Rotated {
-                cross_pos,
-                cos_a,
-                sin_a,
-                origin,
-            } => {
-                let (x, y) = rotate_to_world(run_pos, cross_pos, &origin, cos_a, sin_a);
-                format!("G1 X{x:.3} Y{y:.3} S0 F{speed_mm_min:.0}")
-            }
+    fn rapid_move(self, run_pos: f64, config: &GcodeConfig) -> String {
+        if config.rotary.is_none() {
+            return match self {
+                Self::Orthogonal {
+                    axis: ScanAxis::Horizontal,
+                    cross_pos,
+                } => format!("G0 X{run_pos:.3} Y{cross_pos:.3}"),
+                Self::Orthogonal {
+                    axis: ScanAxis::Vertical,
+                    cross_pos,
+                } => format!("G0 X{cross_pos:.3} Y{run_pos:.3}"),
+                Self::Rotated { .. } => {
+                    let point = self.point(run_pos);
+                    format!("G0 X{:.3} Y{:.3}", point.x, point.y)
+                }
+            };
         }
+        mapped_motion("G0", self.point(run_pos), None, "", config)
+    }
+
+    fn approach_move(self, run_pos: f64, speed_mm_min: f64, config: &GcodeConfig) -> String {
+        if config.rotary.is_none() {
+            return match self {
+                Self::Orthogonal {
+                    axis: ScanAxis::Horizontal,
+                    cross_pos,
+                } => format!("G1 X{run_pos:.3} Y{cross_pos:.3} S0 F{speed_mm_min:.0}"),
+                Self::Orthogonal {
+                    axis: ScanAxis::Vertical,
+                    cross_pos,
+                } => format!("G1 X{cross_pos:.3} Y{run_pos:.3} S0 F{speed_mm_min:.0}"),
+                Self::Rotated { .. } => {
+                    let point = self.point(run_pos);
+                    format!("G1 X{:.3} Y{:.3} S0 F{speed_mm_min:.0}", point.x, point.y)
+                }
+            };
+        }
+        let feed = mapped_feed(self.point(0.0), self.point(1.0), speed_mm_min, config);
+        mapped_motion("G1", self.point(run_pos), Some(feed), " S0", config)
     }
 
     fn feed_move(
@@ -530,25 +669,43 @@ impl RasterLineGeometry {
         s_value: u32,
         config: &GcodeConfig,
     ) -> String {
-        match self {
-            Self::Orthogonal {
-                axis: ScanAxis::Horizontal,
-                ..
-            } => axis_burn_move('X', run_pos, speed_mm_min, s_value, config),
-            Self::Orthogonal {
-                axis: ScanAxis::Vertical,
-                ..
-            } => axis_burn_move('Y', run_pos, speed_mm_min, s_value, config),
-            Self::Rotated {
-                cross_pos,
-                cos_a,
-                sin_a,
-                origin,
-            } => {
-                let (x, y) = rotate_to_world(run_pos, cross_pos, &origin, cos_a, sin_a);
-                xy_burn_move(x, y, speed_mm_min, s_value, config)
-            }
+        if config.rotary.is_none() {
+            let suffix = power_suffix(config, s_value);
+            return match self {
+                Self::Orthogonal {
+                    axis: ScanAxis::Horizontal,
+                    ..
+                } => match speed_mm_min {
+                    Some(speed) => format!("G1 X{run_pos:.3} F{speed:.0}{suffix}"),
+                    None => format!("G1 X{run_pos:.3}{suffix}"),
+                },
+                Self::Orthogonal {
+                    axis: ScanAxis::Vertical,
+                    ..
+                } => match speed_mm_min {
+                    Some(speed) => format!("G1 Y{run_pos:.3} F{speed:.0}{suffix}"),
+                    None => format!("G1 Y{run_pos:.3}{suffix}"),
+                },
+                Self::Rotated { .. } => {
+                    let point = self.point(run_pos);
+                    match speed_mm_min {
+                        Some(speed) => {
+                            format!("G1 X{:.3} Y{:.3} F{speed:.0}{suffix}", point.x, point.y)
+                        }
+                        None => format!("G1 X{:.3} Y{:.3}{suffix}", point.x, point.y),
+                    }
+                }
+            };
         }
+        let feed =
+            speed_mm_min.map(|speed| mapped_feed(self.point(0.0), self.point(1.0), speed, config));
+        mapped_motion(
+            "G1",
+            self.point(run_pos),
+            feed,
+            &power_suffix(config, s_value),
+            config,
+        )
     }
 }
 
@@ -613,14 +770,14 @@ fn emit_raster_scanline(
     let mut need_feed = overscan_mm <= 0.0;
     if overscan_mm > 0.0 {
         if config.use_g0_for_overscan {
-            lines.push(geometry.rapid_move(overscan_start));
+            lines.push(geometry.rapid_move(overscan_start, config));
         } else {
-            lines.push(geometry.approach_move(overscan_start, speed_mm_min));
+            lines.push(geometry.approach_move(overscan_start, speed_mm_min, config));
         }
         lines.push(laser_on_zero(config));
         lines.push(geometry.feed_move(row_start, Some(speed_mm_min), 0, config));
     } else {
-        lines.push(geometry.rapid_move(row_start));
+        lines.push(geometry.rapid_move(row_start, config));
     }
 
     let mut current_pos = row_start;
@@ -707,7 +864,7 @@ fn generate_segment(
 ) -> Result<(), GrblError> {
     match segment {
         PlanSegment::Travel { end, .. } => {
-            lines.push(format!("G0 X{:.3} Y{:.3}", end.x, end.y));
+            lines.push(mapped_motion("G0", *end, None, "", config));
         }
         PlanSegment::Vector {
             polyline,
@@ -725,10 +882,7 @@ fn generate_segment(
             let emission_polyline = vector_points_for_emission(polyline, *closed);
 
             // Rapid move to start
-            lines.push(format!(
-                "G0 X{:.3} Y{:.3}",
-                emission_polyline[0].x, emission_polyline[0].y
-            ));
+            lines.push(mapped_motion("G0", emission_polyline[0], None, "", config));
 
             // S-value: power_percent scaled to configured max
             let s_value = percent_to_s_value(*power_percent, config);
@@ -740,7 +894,9 @@ fn generate_segment(
                 let on_dist = speed_mm_min / 60_000.0 * perforation_on_ms;
                 let off_dist = speed_mm_min / 60_000.0 * perforation_off_ms;
 
-                lines.push(format!("F{speed_mm_min:.0}"));
+                if config.rotary.is_none() {
+                    lines.push(format!("F{speed_mm_min:.0}"));
+                }
 
                 let mut laser_on = false;
                 // Track remaining phase distance across segment boundaries
@@ -767,15 +923,25 @@ fn generate_segment(
                                 laser_on = true;
                             }
                             let advance = (seg_len - traveled).min(remaining_on);
+                            let start_traveled = traveled;
                             traveled += advance;
                             remaining_on -= advance;
                             let nx = p0.x + ux * traveled;
                             let ny = p0.y + uy * traveled;
-                            if config.emit_s_every_g1 {
-                                lines.push(format!("G1 X{nx:.3} Y{ny:.3} S{s_value}"));
+                            let start = Point2D::new(
+                                p0.x + ux * start_traveled,
+                                p0.y + uy * start_traveled,
+                            );
+                            let end = Point2D::new(nx, ny);
+                            let feed = config
+                                .rotary
+                                .map(|_| mapped_feed(start, end, *speed_mm_min, config));
+                            let suffix = if config.emit_s_every_g1 {
+                                format!(" S{s_value}")
                             } else {
-                                lines.push(format!("G1 X{nx:.3} Y{ny:.3}"));
-                            }
+                                String::new()
+                            };
+                            lines.push(mapped_motion("G1", end, feed, &suffix, config));
 
                             if remaining_on < 1e-9 {
                                 // Transition to off-phase. The gap is purely
@@ -799,7 +965,7 @@ fn generate_segment(
                             remaining_off -= advance;
                             let nx = p0.x + ux * traveled;
                             let ny = p0.y + uy * traveled;
-                            lines.push(format!("G0 X{nx:.3} Y{ny:.3}"));
+                            lines.push(mapped_motion("G0", Point2D::new(nx, ny), None, "", config));
 
                             if remaining_off < 1e-9 {
                                 // Transition to on-phase
@@ -817,18 +983,16 @@ fn generate_segment(
                 // Continuous cutting mode
                 lines.push(laser_on_command(config, s_value));
 
-                for point in emission_polyline.iter().skip(1) {
-                    if config.emit_s_every_g1 {
-                        lines.push(format!(
-                            "G1 X{:.3} Y{:.3} F{:.0} S{s_value}",
-                            point.x, point.y, speed_mm_min
-                        ));
+                for pair in emission_polyline.windows(2) {
+                    let start = pair[0];
+                    let end = pair[1];
+                    let feed = mapped_feed(start, end, *speed_mm_min, config);
+                    let suffix = if config.emit_s_every_g1 {
+                        format!(" S{s_value}")
                     } else {
-                        lines.push(format!(
-                            "G1 X{:.3} Y{:.3} F{:.0}",
-                            point.x, point.y, speed_mm_min
-                        ));
-                    }
+                        String::new()
+                    };
+                    lines.push(mapped_motion("G1", end, Some(feed), &suffix, config));
                 }
 
                 lines.push("M5".to_string());
@@ -845,7 +1009,7 @@ fn generate_segment(
             }
 
             // Rapid move to start
-            lines.push(format!("G0 X{:.3} Y{:.3}", path[0].x, path[0].y));
+            lines.push(mapped_motion("G0", path[0], None, "", config));
 
             let laser_on = *power_percent > 0.0;
             let s_value = percent_to_s_value(*power_percent, config);
@@ -853,18 +1017,19 @@ fn generate_segment(
                 lines.push(laser_on_command(config, s_value));
             }
 
-            for point in path.iter().skip(1) {
-                if laser_on && config.emit_s_every_g1 {
-                    lines.push(format!(
-                        "G1 X{:.3} Y{:.3} F{:.0} S{s_value}",
-                        point.x, point.y, speed_mm_min
-                    ));
+            for pair in path.windows(2) {
+                let suffix = if laser_on && config.emit_s_every_g1 {
+                    format!(" S{s_value}")
                 } else {
-                    lines.push(format!(
-                        "G1 X{:.3} Y{:.3} F{:.0}",
-                        point.x, point.y, speed_mm_min
-                    ));
-                }
+                    String::new()
+                };
+                lines.push(mapped_motion(
+                    "G1",
+                    pair[1],
+                    Some(mapped_feed(pair[0], pair[1], *speed_mm_min, config)),
+                    &suffix,
+                    config,
+                ));
             }
 
             lines.push("M5".to_string());
@@ -1022,6 +1187,118 @@ mod tests {
             source_object_id: None,
             source_subpath_index: None,
         }
+    }
+
+    #[test]
+    fn z_axis_rotary_maps_surface_y_and_compensates_feed_rate() {
+        let plan = make_plan(vec![PlanSegment::Vector {
+            polyline: vec![
+                Point2D::new(10.0, 20.0),
+                Point2D::new(20.0, 20.0),
+                Point2D::new(20.0, 30.0),
+            ],
+            closed: false,
+            power_percent: 50.0,
+            speed_mm_min: 1000.0,
+            layer_id: "layer".to_string(),
+            cut_entry_id: "entry".to_string(),
+            perforation_enabled: false,
+            perforation_on_ms: 0.0,
+            perforation_off_ms: 0.0,
+            source_object_id: None,
+            source_subpath_index: None,
+        }]);
+        let config = GcodeConfig {
+            rotary: Some(RotaryGcodeConfig {
+                axis: RotaryAxis::Z,
+                command_scale: 2.0,
+                surface_origin_x_mm: 10.0,
+                surface_origin_y_mm: 20.0,
+                axis_origin_mm: 5.0,
+            }),
+            ..GcodeConfig::default()
+        };
+
+        let gcode = generate_gcode(&plan, &config).unwrap();
+        assert!(gcode.iter().any(|line| line == "G0 X10.000 Z5.000"));
+        assert!(gcode.iter().any(|line| line == "G1 X20.000 Z5.000 F1000"));
+        assert!(gcode.iter().any(|line| line == "G1 X20.000 Z25.000 F2000"));
+        assert!(gcode.iter().all(|line| !line.contains(" Y")));
+    }
+
+    #[test]
+    fn z_axis_rotary_maps_vertical_raster_motion_and_feed_rate() {
+        let plan = make_plan(vec![raster_segment_with_runs(
+            vec![ScanRun {
+                start_x_mm: 5.0,
+                end_x_mm: 25.0,
+                power_values: vec![],
+            }],
+            ScanDirection::LeftToRight,
+            PowerMode::Binary,
+            ScanAxis::Vertical,
+            0.0,
+            0.0,
+        )]);
+        let config = GcodeConfig {
+            rotary: Some(RotaryGcodeConfig {
+                axis: RotaryAxis::Z,
+                command_scale: 2.0,
+                surface_origin_x_mm: 0.0,
+                surface_origin_y_mm: 0.0,
+                axis_origin_mm: 0.0,
+            }),
+            ..GcodeConfig::default()
+        };
+
+        let gcode = generate_gcode(&plan, &config).unwrap();
+        assert!(gcode.iter().any(|line| line == "G0 X10.000 Z10.000"));
+        assert!(gcode.iter().any(|line| line == "G1 X10.000 Z50.000 F4000"));
+        assert!(gcode.iter().all(|line| !line.contains(" Y")));
+    }
+
+    #[test]
+    fn reversed_y_rotary_maps_around_live_axis_origin() {
+        let plan = make_plan(vec![PlanSegment::Travel {
+            start: Point2D::new(40.0, 50.0),
+            end: Point2D::new(45.0, 60.0),
+        }]);
+        let config = GcodeConfig {
+            rotary: Some(RotaryGcodeConfig {
+                axis: RotaryAxis::Y,
+                command_scale: -0.5,
+                surface_origin_x_mm: 40.0,
+                surface_origin_y_mm: 50.0,
+                axis_origin_mm: 12.0,
+            }),
+            ..GcodeConfig::default()
+        };
+
+        let gcode = generate_gcode(&plan, &config).unwrap();
+        assert!(gcode.iter().any(|line| line == "G0 X45.000 Y7.000"));
+    }
+
+    #[test]
+    fn z_axis_rotary_rejects_job_z_offsets() {
+        let plan = make_plan(vec![z_test_vector("entry", 0.0)]);
+        let config = GcodeConfig {
+            z_moves_enabled: true,
+            rotary: Some(RotaryGcodeConfig {
+                axis: RotaryAxis::Z,
+                command_scale: 1.0,
+                surface_origin_x_mm: 0.0,
+                surface_origin_y_mm: 0.0,
+                axis_origin_mm: 0.0,
+            }),
+            ..GcodeConfig::default()
+        };
+
+        let error = generate_gcode(&plan, &config).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("cannot be combined with job Z offsets")
+        );
     }
 
     #[test]

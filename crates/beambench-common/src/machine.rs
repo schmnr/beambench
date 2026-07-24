@@ -159,7 +159,7 @@ impl DeviceCapabilities {
             reports_absolute_position: true,
             can_manual_fire: true,
             can_adjust_overrides: true,
-            supports_rotary: false,
+            supports_rotary: true,
             supports_cylinder: false,
             supports_camera_alignment: false,
         }
@@ -182,7 +182,7 @@ impl DeviceCapabilities {
             reports_absolute_position: true,
             can_manual_fire: true,
             can_adjust_overrides: true,
-            supports_rotary: false,
+            supports_rotary: true,
             supports_cylinder: false,
             supports_camera_alignment: false,
         }
@@ -557,7 +557,7 @@ mod tests {
         assert!(capabilities.can_set_origin);
         assert!(capabilities.can_frame);
         assert!(capabilities.can_run_job);
-        assert!(!capabilities.supports_rotary);
+        assert!(capabilities.supports_rotary);
         assert!(!capabilities.supports_cylinder);
         assert!(!capabilities.supports_camera_alignment);
     }
@@ -572,7 +572,7 @@ mod tests {
         assert!(capabilities.can_set_origin);
         assert!(capabilities.can_frame);
         assert!(capabilities.can_run_job);
-        assert!(!capabilities.supports_rotary);
+        assert!(capabilities.supports_rotary);
         assert!(!capabilities.supports_cylinder);
         assert!(!capabilities.supports_camera_alignment);
     }
@@ -605,7 +605,7 @@ mod tests {
                 "reports_absolute_position": true,
                 "can_manual_fire": true,
                 "can_adjust_overrides": true,
-                "supports_rotary": false,
+                "supports_rotary": true,
                 "supports_cylinder": false,
                 "supports_camera_alignment": false
             })

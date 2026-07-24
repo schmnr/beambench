@@ -82,6 +82,15 @@ fn log_persist_warning(_what: &str, _err: &str) {}
 /// propagating errors — this is intentional: callers treat persistence as
 /// fire-and-forget.
 pub fn persist_settings_to_disk(ctx: &super::ServiceContext) {
+    // Most service tests exercise state transitions without testing disk I/O.
+    // Only tests holding `PersistTestGuard` may write through this best-effort
+    // path. This avoids unrelated parallel tests following a temporary config
+    // directory installed by a persistence test.
+    #[cfg(test)]
+    if !crate::test_support::persistence_enabled_for_current_test() {
+        return;
+    }
+
     if let Ok(guard) = ctx.settings.lock()
         && let Err(e) = save_settings(&guard)
     {

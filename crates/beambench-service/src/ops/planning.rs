@@ -370,6 +370,27 @@ pub fn export_gcode_to_path_with_options(
     let profile = active_profile(ctx)?;
     let mut gcode_config = output::build_gcode_config(&project.optimization, &profile);
     output::apply_project_gcode_metadata(&mut gcode_config, &project);
+    if profile.rotary_enabled {
+        let session_guard = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        let session = session_guard.as_ref().ok_or_else(|| {
+            ServiceError::invalid_state(
+                "Rotary G-code export requires a connected GRBL machine and a current position",
+            )
+        })?;
+        if !session.capabilities().supports_rotary {
+            return Err(ServiceError::invalid_state(
+                "The connected controller does not support Beam Bench's generic rotary workflow",
+            ));
+        }
+        let MachineSessionHandle::Grbl(session) = session else {
+            return Err(ServiceError::invalid_state(
+                "Rotary G-code export requires a connected GRBL machine and a current position",
+            ));
+        };
+        let status = session.last_status();
+        output::apply_rotary_runtime(&mut gcode_config, &project, &profile, status)
+            .map_err(ServiceError::invalid_state)?;
+    }
     let gcode_lines = generate_gcode(&plan, &gcode_config)
         .map_err(|e| ServiceError::invalid_state(format!("G-code generation failed: {e}")))?;
     std::fs::write(path, gcode_lines.join("\n"))

@@ -43,6 +43,31 @@ pub enum RuidaTableAxis {
     U,
 }
 
+/// Mechanical style of a rotary attachment.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RotaryType {
+    /// The workpiece rests on driven rollers. Output scaling is based on the
+    /// driven roller diameter; object diameter only defines the usable wrap.
+    #[default]
+    Roller,
+    /// The workpiece is held by a chuck. Output scaling is based on the
+    /// workpiece diameter.
+    Chuck,
+}
+
+/// Controller axis used for rotary motion on a G-code machine.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RotaryAxis {
+    X,
+    #[default]
+    Y,
+    /// Dedicated rotary interfaces, including the Genmitsu Kiosk, commonly
+    /// expose the attachment as the controller's Z axis.
+    Z,
+}
+
 /// Entry in the scanning-offset calibration table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScanningOffsetEntry {
@@ -60,6 +85,18 @@ fn default_z_move_feed_mm_min() -> f64 {
 
 fn default_fire_power_percent() -> f64 {
     1.0
+}
+
+fn default_rotary_mm_per_rotation() -> f64 {
+    50.0
+}
+
+fn default_rotary_roller_diameter_mm() -> f64 {
+    16.0
+}
+
+fn default_rotary_object_diameter_mm() -> f64 {
+    75.0
 }
 
 /// A machine profile describing a laser engraver's capabilities.
@@ -172,6 +209,27 @@ pub struct MachineProfile {
     /// Persisted dialog state for Material/Focus/Interval quality-test tools.
     #[serde(default)]
     pub quality_test_settings: QualityTestSettings,
+    /// Whether G-code output is currently mapped to a rotary attachment.
+    #[serde(default)]
+    pub rotary_enabled: bool,
+    /// Roller or chuck mechanics.
+    #[serde(default)]
+    pub rotary_type: RotaryType,
+    /// Controller axis receiving the rotary motion.
+    #[serde(default)]
+    pub rotary_axis: RotaryAxis,
+    /// Commanded controller millimetres that rotate the attachment once.
+    #[serde(default = "default_rotary_mm_per_rotation")]
+    pub rotary_mm_per_rotation: f64,
+    /// Diameter of the driven roller. Used only for roller scaling.
+    #[serde(default = "default_rotary_roller_diameter_mm")]
+    pub rotary_roller_diameter_mm: f64,
+    /// Diameter of the workpiece. Used for chuck scaling and wrap dimensions.
+    #[serde(default = "default_rotary_object_diameter_mm")]
+    pub rotary_object_diameter_mm: f64,
+    /// Invert rotary motion without mirroring the artwork itself.
+    #[serde(default)]
+    pub rotary_reverse_direction: bool,
 }
 
 impl Default for MachineProfile {
@@ -223,6 +281,13 @@ impl Default for MachineProfile {
             enable_laser_fire_button: false,
             default_fire_power_percent: default_fire_power_percent(),
             quality_test_settings: QualityTestSettings::default(),
+            rotary_enabled: false,
+            rotary_type: RotaryType::Roller,
+            rotary_axis: RotaryAxis::Y,
+            rotary_mm_per_rotation: default_rotary_mm_per_rotation(),
+            rotary_roller_diameter_mm: default_rotary_roller_diameter_mm(),
+            rotary_object_diameter_mm: default_rotary_object_diameter_mm(),
+            rotary_reverse_direction: false,
         }
     }
 }
@@ -238,12 +303,58 @@ pub struct MachineProfileSnapshot {
 }
 
 impl MachineProfile {
+    /// Circumference represented by the rotary workspace.
+    pub fn rotary_object_circumference_mm(&self) -> f64 {
+        std::f64::consts::PI * self.rotary_object_diameter_mm
+    }
+
+    /// Controller-coordinate distance per millimetre of workpiece surface.
+    pub fn rotary_command_scale(&self) -> Option<f64> {
+        if !self.rotary_enabled || !self.rotary_mm_per_rotation.is_finite() {
+            return None;
+        }
+        let reference_diameter = match self.rotary_type {
+            RotaryType::Roller => self.rotary_roller_diameter_mm,
+            RotaryType::Chuck => self.rotary_object_diameter_mm,
+        };
+        if !reference_diameter.is_finite()
+            || reference_diameter <= 0.0
+            || self.rotary_mm_per_rotation <= 0.0
+        {
+            return None;
+        }
+        let direction = if self.rotary_reverse_direction {
+            -1.0
+        } else {
+            1.0
+        };
+        Some(direction * self.rotary_mm_per_rotation / (std::f64::consts::PI * reference_diameter))
+    }
+
+    /// Effective design surface while rotary mode is enabled. The physical
+    /// gantry dimension remains unchanged on the linear axis, while the rotary
+    /// dimension becomes one workpiece circumference.
+    pub fn workspace_dimensions_mm(&self) -> (f64, f64) {
+        if !self.rotary_enabled {
+            return (self.bed_width_mm, self.bed_height_mm);
+        }
+        let circumference = self.rotary_object_circumference_mm();
+        if !circumference.is_finite() || circumference <= 0.0 {
+            return (self.bed_width_mm, self.bed_height_mm);
+        }
+        match self.rotary_axis {
+            RotaryAxis::X => (circumference, self.bed_height_mm),
+            RotaryAxis::Y | RotaryAxis::Z => (self.bed_width_mm, circumference),
+        }
+    }
+
     pub fn snapshot(&self) -> MachineProfileSnapshot {
+        let (bed_width_mm, bed_height_mm) = self.workspace_dimensions_mm();
         MachineProfileSnapshot {
             profile_id: self.id,
             profile_name: self.name.clone(),
-            bed_width_mm: self.bed_width_mm,
-            bed_height_mm: self.bed_height_mm,
+            bed_width_mm,
+            bed_height_mm,
             max_speed_mm_min: self.max_speed_mm_min,
         }
     }
@@ -265,6 +376,8 @@ mod tests {
         assert_eq!(p.ruida_table_axis, RuidaTableAxis::Disabled);
         assert!(!p.enable_laser_fire_button);
         assert_eq!(p.default_fire_power_percent, 1.0);
+        assert!(!p.rotary_enabled);
+        assert_eq!(p.rotary_axis, RotaryAxis::Y);
     }
 
     #[test]
@@ -290,6 +403,42 @@ mod tests {
         assert_eq!(snap.bed_height_mm, 400.0);
         assert_eq!(snap.max_speed_mm_min, 5000.0);
         assert_eq!(snap.profile_id, p.id);
+    }
+
+    #[test]
+    fn roller_rotary_uses_roller_for_scale_and_object_for_workspace() {
+        let p = MachineProfile {
+            rotary_enabled: true,
+            rotary_type: RotaryType::Roller,
+            rotary_axis: RotaryAxis::Z,
+            rotary_mm_per_rotation: 80.0,
+            rotary_roller_diameter_mm: 20.0,
+            rotary_object_diameter_mm: 100.0,
+            ..Default::default()
+        };
+
+        assert!(
+            (p.rotary_command_scale().unwrap() - 80.0 / (20.0 * std::f64::consts::PI)).abs() < 1e-9
+        );
+        let (width, height) = p.workspace_dimensions_mm();
+        assert_eq!(width, p.bed_width_mm);
+        assert!((height - 100.0 * std::f64::consts::PI).abs() < 1e-9);
+    }
+
+    #[test]
+    fn chuck_rotary_reverse_produces_negative_scale() {
+        let p = MachineProfile {
+            rotary_enabled: true,
+            rotary_type: RotaryType::Chuck,
+            rotary_axis: RotaryAxis::X,
+            rotary_mm_per_rotation: 40.0,
+            rotary_object_diameter_mm: 50.0,
+            rotary_reverse_direction: true,
+            ..Default::default()
+        };
+
+        assert!(p.rotary_command_scale().unwrap() < 0.0);
+        assert!((p.workspace_dimensions_mm().0 - 50.0 * std::f64::consts::PI).abs() < 1e-9);
     }
 
     // --- MachineProfile field tests ---
