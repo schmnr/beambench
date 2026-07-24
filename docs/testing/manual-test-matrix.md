@@ -87,7 +87,7 @@ Manual case inventory in this suite:
 | `FSW-016` | Materials library | `NL-065`, `NL-066` | Mapped |
 | `FSW-017` | Macros and console | `NL-069`, `NL-070`, `HW-013`, `HW-014` | Mapped |
 | `FSW-018` | Device settings and profiles | `HW-001`, `HW-002`, `DSP-004`, `DSP-005`, `GAL-004` | Mapped |
-| `FSW-019` | Machine session and jobs | `HW-003`, `HW-007` to `HW-034`, `DSP-005` | Mapped |
+| `FSW-019` | Machine session and jobs | `HW-003`, `HW-007` to `HW-035`, `DSP-005` | Mapped |
 | `FSW-020` | Discovery and profile bootstrap | `HW-005`, `HW-006`, `DSP-002`, `GAL-002` | Mapped |
 | `FSW-021` | DSP/Galvo runtime support | `DSP-001` to `DSP-005`, `GAL-001` to `GAL-004` | Mapped |
 | `FSW-022` | Camera calibration/alignment/overlay | `CAM-001` to `CAM-007` | Mapped |
@@ -100,7 +100,7 @@ Manual case inventory in this suite:
 | `FSW-029` | Settings bundles / backup restore | `GAP-004` | Unimplemented |
 | `FSW-030` | Nesting | `GAP-005` | Unimplemented |
 | `FSW-031` | Material test / focus test / interval test | `GAP-006`, `GAP-007`, `GAP-008` | Deferred/incomplete |
-| `FSW-032` | Rotary and cylinder workflows | `GAL-004`, `GAP-012` | Partial |
+| `FSW-032` | Rotary and cylinder workflows | `HW-035`, `GAL-004`, `GAP-012` | Partial |
 | `FSW-033` | Accessibility | `NL-074` | Mapped |
 
 ## Visible Surface Inventory
@@ -184,7 +184,7 @@ Manual case inventory in this suite:
 | `GAP-009` | Build health, eventing, API/CLI parity, and summary rows are not manual desktop cases; they remain automated/headless verification | `FSW-001`, `FSW-023`, `FSW-025`, `LB Summary Counts` | `N/A` |
 | `GAP-010` | File parity gaps remain for unsupported formats or features: run saved machine files, PLT/HPGL import, raster workspace export, print, new window | `LB 1.1`, `LB 1.5`, `LB 2.5` | Missing |
 | `GAP-011` | Selection/shape parity gaps remain for tab-cycle, contained-size filters, immediate post-create handles, center-out creation, and shape-specific handles | `LB 1.2`, `LB 1.4`, `LB 2.2` | Missing |
-| `GAP-012` | Advanced capability-specific gaps remain for rotary/cylinder workflows and some controller/detail settings despite partial runtime support | `FSW-032`, `LB 12`, `LB 20.*`, `LB 21.*` | Partial |
+| `GAP-012` | Generic GRBL-family axis-mapped rotary is implemented, but LaserPecker accessory modes, DSP rotary, and galvo cylinder marking remain controller-specific gaps | `FSW-032`, `LB 12`, `LB 20.*`, `LB 21.*` | Partial |
 
 ## Unmapped Rows
 

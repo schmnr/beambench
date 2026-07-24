@@ -8,6 +8,7 @@ import { zoomToFitBounds } from '../../canvas/ViewportTransform';
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
 import type { TransformLocks } from '../../types/project';
 import { canvasToMachinePoint } from '../../utils/workspaceCoordinates';
+import { openRotarySetup } from '../../rotaryEvents';
 
 const CONNECTION_COLORS: Record<string, string> = {
   disconnected: 'bg-gray-500',
@@ -70,6 +71,10 @@ export function StatusBar() {
 
   const sessionState = useMachineStore((s) => s.sessionState);
   const jobProgress = useMachineStore((s) => s.jobProgress);
+  const profiles = useMachineStore((s) => s.profiles);
+  const activeProfileId = useMachineStore((s) => s.activeProfileId);
+  const activeProfile = (profiles ?? []).find((profile) => profile.id === activeProfileId);
+  const rotaryEnabled = activeProfile?.rotary_enabled ?? false;
 
   const unit = settings?.display_unit ?? 'mm';
   const unitLabel = unit === 'inches' ? 'in' : 'mm';
@@ -201,11 +206,15 @@ export function StatusBar() {
           </button>
         ))}
         <span className="w-px h-3 bg-bb-border mx-1" />
-        {/* Modes, disabled until implemented */}
+        {/* Modes */}
         <button
-          disabled
-          title={t('status.rotary_tooltip')}
-          className="px-1 py-0 rounded text-xs text-bb-text-disabled cursor-not-allowed"
+          title={t(rotaryEnabled ? 'status.rotary_active_tooltip' : 'status.rotary_tooltip')}
+          onClick={openRotarySetup}
+          className={`px-1 py-0 rounded text-xs ${
+            rotaryEnabled
+              ? 'bg-bb-accent/15 border border-bb-accent/30 text-bb-text'
+              : 'text-bb-text-muted hover:text-bb-text hover:bg-bb-surface'
+          }`}
         >
           {t('status.rotary')}
         </button>

@@ -1,7 +1,9 @@
+use beambench_common::StartFromMode;
+use beambench_common::machine::MachineStatus;
 use beambench_core::{
-    FinishPosition, MachineProfile, Project, ProjectOptimization, ScanningOffsetEntry,
+    FinishPosition, MachineProfile, Project, ProjectOptimization, RotaryAxis, ScanningOffsetEntry,
 };
-use beambench_grbl::GcodeConfig;
+use beambench_grbl::{GcodeConfig, RotaryGcodeConfig};
 use beambench_planner::PlannerCalibration;
 
 /// Build a `GcodeConfig` from the persisted project optimization and the
@@ -62,6 +64,54 @@ pub fn apply_project_gcode_metadata(config: &mut GcodeConfig, project: &Project)
         .collect();
 }
 
+/// Attach the live coordinate anchor required by rotary output. Rotary jobs
+/// deliberately require Current Position mode so a dedicated Z rotary and an
+/// X/Y substitution both start from the controller's reported work position
+/// without rewriting persistent firmware or work offsets.
+pub fn apply_rotary_runtime(
+    config: &mut GcodeConfig,
+    project: &Project,
+    profile: &MachineProfile,
+    status: &MachineStatus,
+) -> Result<(), String> {
+    if !profile.rotary_enabled {
+        config.rotary = None;
+        return Ok(());
+    }
+    if project.start_from != StartFromMode::CurrentPosition {
+        return Err(
+            "Rotary mode requires Start From Current Position so the attachment can be anchored safely"
+                .to_string(),
+        );
+    }
+    let command_scale = profile.rotary_command_scale().ok_or_else(|| {
+        "Rotary calibration is invalid; check mm per rotation and diameter values".to_string()
+    })?;
+    if profile.rotary_axis == RotaryAxis::Z {
+        let uses_job_z_offsets = config
+            .z_offset_cut_entry_ids
+            .iter()
+            .any(|(_, offset)| offset.abs() > f64::EPSILON);
+        if uses_job_z_offsets {
+            return Err("Z-axis rotary mode cannot be combined with layer Z offsets".to_string());
+        }
+        config.z_moves_enabled = false;
+    }
+    let work = &status.work_position;
+    config.rotary = Some(RotaryGcodeConfig {
+        axis: profile.rotary_axis,
+        command_scale,
+        surface_origin_x_mm: work.x,
+        surface_origin_y_mm: work.y,
+        axis_origin_mm: match profile.rotary_axis {
+            RotaryAxis::X => work.x,
+            RotaryAxis::Y => work.y,
+            RotaryAxis::Z => work.z,
+        },
+    });
+    Ok(())
+}
+
 /// Build `PlannerCalibration` from the active machine profile.
 pub fn build_planner_calibration(profile: &MachineProfile) -> PlannerCalibration {
     PlannerCalibration {
@@ -84,6 +134,7 @@ pub fn normalize_scanning_offsets(entries: &mut Vec<ScanningOffsetEntry>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use beambench_common::machine::{MachinePosition, MachineRunState};
     use beambench_core::FinishPosition;
 
     #[test]
@@ -124,6 +175,58 @@ mod tests {
         assert_eq!(config.scanning_offsets.len(), 2);
         assert_eq!(config.scanning_offsets[0], (1000.0, 0.1));
         assert_eq!(config.scanning_offsets[1], (2000.0, 0.2));
+    }
+
+    #[test]
+    fn apply_rotary_runtime_anchors_z_axis_to_live_work_position() {
+        let mut profile = MachineProfile {
+            rotary_enabled: true,
+            rotary_axis: RotaryAxis::Z,
+            rotary_mm_per_rotation: 50.0,
+            rotary_roller_diameter_mm: 10.0,
+            ..MachineProfile::default()
+        };
+        profile.supports_z_moves = true;
+        let mut project = Project::new("Rotary");
+        project.start_from = StartFromMode::CurrentPosition;
+        let status = MachineStatus {
+            run_state: MachineRunState::Idle,
+            machine_position: MachinePosition {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            work_position: MachinePosition {
+                x: 12.0,
+                y: 34.0,
+                z: 5.0,
+            },
+            ..MachineStatus::default()
+        };
+        let mut config = build_gcode_config(&project.optimization, &profile);
+
+        apply_rotary_runtime(&mut config, &project, &profile, &status).unwrap();
+
+        let rotary = config.rotary.expect("rotary mapping");
+        assert_eq!(rotary.axis, RotaryAxis::Z);
+        assert_eq!(rotary.surface_origin_x_mm, 12.0);
+        assert_eq!(rotary.surface_origin_y_mm, 34.0);
+        assert_eq!(rotary.axis_origin_mm, 5.0);
+        assert!(!config.z_moves_enabled);
+    }
+
+    #[test]
+    fn apply_rotary_runtime_requires_current_position_mode() {
+        let profile = MachineProfile {
+            rotary_enabled: true,
+            ..MachineProfile::default()
+        };
+        let project = Project::new("Rotary");
+        let status = MachineStatus::default();
+        let mut config = GcodeConfig::default();
+
+        let error = apply_rotary_runtime(&mut config, &project, &profile, &status).unwrap_err();
+        assert!(error.contains("Start From Current Position"));
     }
 
     #[test]

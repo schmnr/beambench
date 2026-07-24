@@ -69,8 +69,9 @@ pub fn run_preflight(
 
     // 5. Bounds fit on bed
     let bounds = &plan.bounds;
-    let fits_x = bounds.max.x <= profile.bed_width_mm && bounds.min.x >= 0.0;
-    let fits_y = bounds.max.y <= profile.bed_height_mm && bounds.min.y >= 0.0;
+    let (workspace_width_mm, workspace_height_mm) = profile.workspace_dimensions_mm();
+    let fits_x = bounds.max.x <= workspace_width_mm && bounds.min.x >= 0.0;
+    let fits_y = bounds.max.y <= workspace_height_mm && bounds.min.y >= 0.0;
     let bounds_fit = fits_x && fits_y;
     checks.push(PreflightCheck {
         category: "bounds".to_string(),
@@ -81,8 +82,8 @@ pub fn run_preflight(
                 "Plan bounds ({:.1}x{:.1}mm) fit bed ({:.0}x{:.0}mm)",
                 bounds.width(),
                 bounds.height(),
-                profile.bed_width_mm,
-                profile.bed_height_mm
+                workspace_width_mm,
+                workspace_height_mm
             )
         } else {
             format!(
@@ -91,8 +92,8 @@ pub fn run_preflight(
                 bounds.min.y,
                 bounds.max.x,
                 bounds.max.y,
-                profile.bed_width_mm,
-                profile.bed_height_mm
+                workspace_width_mm,
+                workspace_height_mm
             )
         },
     });
@@ -180,6 +181,7 @@ pub fn check_raster_motion_bounds(
 ) -> Option<PreflightCheck> {
     use beambench_planner::{PlanSegment, ScanAxis};
 
+    let (workspace_width_mm, workspace_height_mm) = profile.workspace_dimensions_mm();
     let offset_table: Vec<(f64, f64)> = {
         let mut pairs: Vec<(f64, f64)> = profile
             .scanning_offsets
@@ -244,8 +246,8 @@ pub fn check_raster_motion_bounds(
                 continue;
             }
             let (axis, limit) = match scan_axis {
-                ScanAxis::Horizontal => ("X", profile.bed_width_mm),
-                ScanAxis::Vertical => ("Y", profile.bed_height_mm),
+                ScanAxis::Horizontal => ("X", workspace_width_mm),
+                ScanAxis::Vertical => ("Y", workspace_height_mm),
             };
             record_axis_overrun(
                 &mut worst,
@@ -290,8 +292,8 @@ pub fn check_raster_motion_bounds(
             if !any_runs {
                 continue;
             }
-            record_axis_overrun(&mut worst, "X", min_x, max_x, profile.bed_width_mm, margin);
-            record_axis_overrun(&mut worst, "Y", min_y, max_y, profile.bed_height_mm, margin);
+            record_axis_overrun(&mut worst, "X", min_x, max_x, workspace_width_mm, margin);
+            record_axis_overrun(&mut worst, "Y", min_y, max_y, workspace_height_mm, margin);
         }
     }
 
@@ -353,8 +355,9 @@ pub fn check_profile_mismatch(
     snapshot: &MachineProfileSnapshot,
     active_profile: &MachineProfile,
 ) -> Option<PreflightCheck> {
-    let width_match = (snapshot.bed_width_mm - active_profile.bed_width_mm).abs() < f64::EPSILON;
-    let height_match = (snapshot.bed_height_mm - active_profile.bed_height_mm).abs() < f64::EPSILON;
+    let (active_width_mm, active_height_mm) = active_profile.workspace_dimensions_mm();
+    let width_match = (snapshot.bed_width_mm - active_width_mm).abs() < f64::EPSILON;
+    let height_match = (snapshot.bed_height_mm - active_height_mm).abs() < f64::EPSILON;
 
     if width_match && height_match {
         None
@@ -369,8 +372,8 @@ pub fn check_profile_mismatch(
                 snapshot.bed_width_mm,
                 snapshot.bed_height_mm,
                 active_profile.name,
-                active_profile.bed_width_mm,
-                active_profile.bed_height_mm,
+                active_width_mm,
+                active_height_mm,
             ),
         })
     }

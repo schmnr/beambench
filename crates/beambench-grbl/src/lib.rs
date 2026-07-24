@@ -20,7 +20,7 @@ pub use beambench_common::{
     GrblFamilyDialect, GrblFamilyIdentity, GrblFamilyIdentityEvidence, GrblFamilyIdentityStatus,
 };
 pub use error::GrblError;
-pub use gcode::{GcodeConfig, generate_gcode, interpolate_scanning_offset};
+pub use gcode::{GcodeConfig, RotaryGcodeConfig, generate_gcode, interpolate_scanning_offset};
 pub use identity::{GrblFamilyIdentityDetector, MAX_IDENTITY_LINE_BYTES};
 pub use identity_probe::{
     DEFAULT_IDENTITY_PROBE_COMMAND_TIMEOUT, DEFAULT_IDENTITY_PROBE_POLL_INTERVAL,

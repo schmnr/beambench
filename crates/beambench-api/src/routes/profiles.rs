@@ -6,7 +6,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use beambench_common::{CameraAlignment, CameraCalibration, Id};
 use beambench_core::{
-    MachineProfileId, RuidaTableAxis, ScanningOffsetEntry, TransferMode, WorkspaceOrigin,
+    MachineProfileId, RotaryAxis, RotaryType, RuidaTableAxis, ScanningOffsetEntry, TransferMode,
+    WorkspaceOrigin,
 };
 use beambench_service::ServiceContext;
 use beambench_service::ops::discovery;
@@ -97,6 +98,15 @@ struct SaveProfileRequest {
     #[serde(default)]
     enable_laser_fire_button: Option<bool>,
     default_fire_power_percent: Option<f64>,
+    #[serde(default)]
+    rotary_enabled: Option<bool>,
+    rotary_type: Option<RotaryType>,
+    rotary_axis: Option<RotaryAxis>,
+    rotary_mm_per_rotation: Option<f64>,
+    rotary_roller_diameter_mm: Option<f64>,
+    rotary_object_diameter_mm: Option<f64>,
+    #[serde(default)]
+    rotary_reverse_direction: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -233,6 +243,21 @@ fn create_save_input(
             .default_fire_power_percent
             .unwrap_or(defaults.default_fire_power_percent),
         quality_test_settings: defaults.quality_test_settings.clone(),
+        rotary_enabled: body.rotary_enabled.unwrap_or(defaults.rotary_enabled),
+        rotary_type: body.rotary_type.unwrap_or(defaults.rotary_type),
+        rotary_axis: body.rotary_axis.unwrap_or(defaults.rotary_axis),
+        rotary_mm_per_rotation: body
+            .rotary_mm_per_rotation
+            .unwrap_or(defaults.rotary_mm_per_rotation),
+        rotary_roller_diameter_mm: body
+            .rotary_roller_diameter_mm
+            .unwrap_or(defaults.rotary_roller_diameter_mm),
+        rotary_object_diameter_mm: body
+            .rotary_object_diameter_mm
+            .unwrap_or(defaults.rotary_object_diameter_mm),
+        rotary_reverse_direction: body
+            .rotary_reverse_direction
+            .unwrap_or(defaults.rotary_reverse_direction),
     })
 }
 
@@ -317,6 +342,21 @@ fn merge_save_input(
             .default_fire_power_percent
             .unwrap_or(existing.default_fire_power_percent),
         quality_test_settings: existing.quality_test_settings,
+        rotary_enabled: body.rotary_enabled.unwrap_or(existing.rotary_enabled),
+        rotary_type: body.rotary_type.unwrap_or(existing.rotary_type),
+        rotary_axis: body.rotary_axis.unwrap_or(existing.rotary_axis),
+        rotary_mm_per_rotation: body
+            .rotary_mm_per_rotation
+            .unwrap_or(existing.rotary_mm_per_rotation),
+        rotary_roller_diameter_mm: body
+            .rotary_roller_diameter_mm
+            .unwrap_or(existing.rotary_roller_diameter_mm),
+        rotary_object_diameter_mm: body
+            .rotary_object_diameter_mm
+            .unwrap_or(existing.rotary_object_diameter_mm),
+        rotary_reverse_direction: body
+            .rotary_reverse_direction
+            .unwrap_or(existing.rotary_reverse_direction),
     }
 }
 

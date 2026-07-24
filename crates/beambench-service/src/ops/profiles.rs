@@ -4,8 +4,8 @@ use std::path::Path;
 use beambench_common::{CameraAlignment, CameraCalibration};
 use beambench_core::WorkspaceOrigin;
 use beambench_core::{
-    MachineProfile, MachineProfileId, QualityTestSettings, RuidaTableAxis, ScanningOffsetEntry,
-    TransferMode,
+    MachineProfile, MachineProfileId, QualityTestSettings, RotaryAxis, RotaryType, RuidaTableAxis,
+    ScanningOffsetEntry, TransferMode,
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -82,6 +82,13 @@ pub struct SaveProfileInput {
     pub enable_laser_fire_button: bool,
     pub default_fire_power_percent: f64,
     pub quality_test_settings: QualityTestSettings,
+    pub rotary_enabled: bool,
+    pub rotary_type: RotaryType,
+    pub rotary_axis: RotaryAxis,
+    pub rotary_mm_per_rotation: f64,
+    pub rotary_roller_diameter_mm: f64,
+    pub rotary_object_diameter_mm: f64,
+    pub rotary_reverse_direction: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -149,7 +156,7 @@ fn portable_profile(mut profile: MachineProfile) -> MachineProfile {
     profile
 }
 
-fn validate_imported_profile(profile: &MachineProfile) -> ServiceResult<()> {
+fn validate_profile(profile: &MachineProfile) -> ServiceResult<()> {
     if profile.name.trim().is_empty() {
         return Err(ServiceError::invalid_input(
             "Machine profile name cannot be blank",
@@ -213,6 +220,27 @@ fn validate_imported_profile(profile: &MachineProfile) -> ServiceResult<()> {
         ));
     }
 
+    if profile.rotary_enabled {
+        for (label, value) in [
+            ("rotary mm per rotation", profile.rotary_mm_per_rotation),
+            ("rotary object diameter", profile.rotary_object_diameter_mm),
+        ] {
+            if !value.is_finite() || value <= 0.0 {
+                return Err(ServiceError::invalid_input(format!(
+                    "Machine profile {label} must be a positive finite number"
+                )));
+            }
+        }
+        if profile.rotary_type == RotaryType::Roller
+            && (!profile.rotary_roller_diameter_mm.is_finite()
+                || profile.rotary_roller_diameter_mm <= 0.0)
+        {
+            return Err(ServiceError::invalid_input(
+                "Machine profile rotary roller diameter must be a positive finite number",
+            ));
+        }
+    }
+
     for (index, entry) in profile.scanning_offsets.iter().enumerate() {
         if !entry.speed_mm_min.is_finite() || entry.speed_mm_min <= 0.0 {
             return Err(ServiceError::invalid_input(format!(
@@ -260,7 +288,7 @@ fn parse_machine_profile_payload(path: &Path) -> ServiceResult<MachineProfileFil
             payload.format_version
         )));
     }
-    validate_imported_profile(&payload.profile)?;
+    validate_profile(&payload.profile)?;
     Ok(payload)
 }
 
@@ -918,7 +946,6 @@ pub fn save_profile(
     ctx: &ServiceContext,
     input: SaveProfileInput,
 ) -> ServiceResult<MachineProfile> {
-    let mut settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
     let mut scanning_offsets = input.scanning_offsets;
     super::output::normalize_scanning_offsets(&mut scanning_offsets);
     let profile = MachineProfile {
@@ -968,7 +995,16 @@ pub fn save_profile(
         enable_laser_fire_button: input.enable_laser_fire_button,
         default_fire_power_percent: input.default_fire_power_percent,
         quality_test_settings: input.quality_test_settings,
+        rotary_enabled: input.rotary_enabled,
+        rotary_type: input.rotary_type,
+        rotary_axis: input.rotary_axis,
+        rotary_mm_per_rotation: input.rotary_mm_per_rotation,
+        rotary_roller_diameter_mm: input.rotary_roller_diameter_mm,
+        rotary_object_diameter_mm: input.rotary_object_diameter_mm,
+        rotary_reverse_direction: input.rotary_reverse_direction,
     };
+    validate_profile(&profile)?;
+    let mut settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
     if let Some(existing) = settings
         .machine_profiles
         .iter_mut()
@@ -981,7 +1017,12 @@ pub fn save_profile(
     let should_invalidate = settings.active_profile_id == Some(profile.id);
     let result = profile;
     drop(settings);
-    if should_invalidate {
+    let project_workspace_synced = if should_invalidate {
+        super::machine::sync_open_project_workspace_from_profile(ctx, &result, "profile_save")?
+    } else {
+        false
+    };
+    if should_invalidate && !project_workspace_synced {
         super::planning::invalidate_plan_cache(ctx)?;
     }
     persist_settings_to_disk(ctx);
@@ -1093,6 +1134,13 @@ mod tests {
             enable_laser_fire_button: false,
             default_fire_power_percent: 1.0,
             quality_test_settings: QualityTestSettings::default(),
+            rotary_enabled: false,
+            rotary_type: RotaryType::Roller,
+            rotary_axis: RotaryAxis::Y,
+            rotary_mm_per_rotation: 50.0,
+            rotary_roller_diameter_mm: 16.0,
+            rotary_object_diameter_mm: 75.0,
+            rotary_reverse_direction: false,
         }
     }
 
@@ -1362,7 +1410,7 @@ mod tests {
         ];
 
         for profile in invalid_profiles {
-            assert!(validate_imported_profile(&profile).is_err());
+            assert!(validate_profile(&profile).is_err());
         }
     }
 
@@ -1382,6 +1430,19 @@ mod tests {
 
         let by_name = get_profile(&ctx, ProfileLookup::Name("Beta".to_string())).unwrap();
         assert_eq!(by_name.id, created.id);
+    }
+
+    #[test]
+    fn save_profile_rejects_invalid_enabled_rotary_calibration() {
+        let ctx = ServiceContext::with_settings(AppSettings::default());
+        let mut input = sample_input();
+        input.rotary_enabled = true;
+        input.rotary_mm_per_rotation = 0.0;
+
+        let error = save_profile(&ctx, input).unwrap_err();
+
+        assert!(error.message.contains("rotary mm per rotation"));
+        assert!(list_profiles(&ctx).unwrap().is_empty());
     }
 
     #[test]

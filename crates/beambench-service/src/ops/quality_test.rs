@@ -862,6 +862,11 @@ pub fn quality_test_export_gcode(
     path: &std::path::Path,
 ) -> ServiceResult<TransientExportResponse> {
     let profile = active_machine_profile(ctx)?;
+    if profile.rotary_enabled {
+        return Err(ServiceError::invalid_state(
+            "Quality-test G-code export is not available while rotary mode is active",
+        ));
+    }
     let proj_ctx = snapshot_context(ctx, request, &profile)?;
     gate_focus_material_height_for_context(request, &proj_ctx)?;
     let (synthetic, warnings) = build_synthetic_project(request, &proj_ctx, &profile);
@@ -1375,6 +1380,11 @@ fn stream_job(
     if job_slot.is_some() {
         return Err(ServiceError::conflict(
             "A job is already active. Cancel or wait for it to finish.",
+        ));
+    }
+    if profile.rotary_enabled {
+        return Err(ServiceError::invalid_state(
+            "Material, focus, and interval test jobs are not available while rotary mode is active",
         ));
     }
     let mut session_lock = ctx

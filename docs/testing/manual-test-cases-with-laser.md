@@ -456,6 +456,19 @@ Shared fixtures:
 - Undo / Redo Expectation: Runtime-only.
 - Status: Active
 
+### HW-035 — GRBL Rotary Attachment Setup And Safe Motion
+- Source Ref: `FSW-019`, `FSW-032`; `LB 12`
+- Feature / Function: Roller or chuck rotary output mapped to a GRBL X, Y, or dedicated Z axis
+- Hardware Requirement: GRBL-family laser with a known compatible rotary attachment and accessible physical stop
+- Prerequisites: Rotary wiring and controller settings verified for the selected axis; laser output disabled for initial checks
+- Setup / Fixture: Small outline project, Start From Current Position, conservative jog/feed values, measured roller and object diameters, and known travel per rotation
+- Steps: Enable Rotary Attachment in the active profile; choose roller/chuck and the wired axis; enter calibration values; save; confirm the workspace rotary dimension matches the displayed circumference; use a laser-off jog equal to one circumference; verify direction, return, frame, and then run the low-power outline only after motion is correct.
+- Expected Result: One circumference of surface jog produces one object revolution; reverse direction flips the rotary sign; framing and output follow the surface-space design without unexpected linear-axis motion; the app remains responsive and returns to Ready.
+- Edge / Negative Cases: Verify preflight rejects Absolute Coordinates, invalid calibration, unsupported controllers, and Z-axis rotary with layer Z offsets. Confirm Home, Machine Zero, absolute Go, manual Z jog, and quality-test motion are blocked while rotary mode is active. Use the physical stop if motion is unexpected.
+- Persistence / Reopen Check: Save and relaunch, then confirm enabled state, type, axis, calibration, diameter, direction, and circumference-derived workspace persist.
+- Undo / Redo Expectation: Profile settings and runtime motion are outside project undo history.
+- Status: Active
+
 ## Camera
 
 ### CAM-001 — Camera Device Refresh, Select, And No-Profile State
