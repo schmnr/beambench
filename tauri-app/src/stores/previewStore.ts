@@ -225,8 +225,15 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
         });
         return false;
       }
-      const { useProjectStore } = await import('./projectStore');
-      const boundsError = formatWorkspaceBoundsError(e, useProjectStore.getState().project);
+      const [{ useProjectStore }, { useAppStore }] = await Promise.all([
+        import('./projectStore'),
+        import('./appStore'),
+      ]);
+      const boundsError = formatWorkspaceBoundsError(
+        e,
+        useProjectStore.getState().project,
+        useAppStore.getState().settings?.display_unit ?? 'mm',
+      );
       if (boundsError) {
         if (boundsError.sourceObjectId) {
           useProjectStore.getState().selectObjects([boundsError.sourceObjectId]);

@@ -1014,7 +1014,7 @@
       "default_fire_power_percent": "Fire Power (%)",
       "rotary_attachment": "Rotary Attachment",
       "enable_rotary": "Enable Rotary Mode",
-      "rotary_safety": "Use Start From Current Position. Do not home the machine while the rotary is connected.",
+      "rotary_safety": "Use Start From Current Position. G-code export requires a connected, supported GRBL machine. Do not home the machine while the rotary is connected.",
       "rotary_type": "Rotary Type",
       "rotary_type_roller": "Roller",
       "rotary_type_chuck": "Chuck",
@@ -2344,7 +2344,7 @@
     "workspace_edge_right": "right",
     "workspace_edge_top": "top",
     "workspace_edge_bottom": "bottom",
-    "artwork_outside_workspace": "{hasObject, select, yes {“{object}” extends {amount} mm beyond the {edge} edge of the workspace. It has been selected. Move it inside the workspace before previewing or running the job.} other {Part of your artwork extends {amount} mm beyond the {edge} edge of the workspace. Move it inside the workspace before previewing or running the job.}}",
+    "artwork_outside_workspace": "{hasObject, select, yes {“{object}” extends {amount} {unit} beyond the {edge} edge of the workspace. It has been selected. Move it inside the workspace before previewing or running the job.} other {Part of your artwork extends {amount} {unit} beyond the {edge} edge of the workspace. Move it inside the workspace before previewing or running the job.}}",
     "ui_error_title": "Beam Bench hit a UI error",
     "reload": "Reload"
   },

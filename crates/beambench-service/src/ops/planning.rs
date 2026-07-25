@@ -1,7 +1,7 @@
 use beambench_common::StartFromMode;
 use beambench_common::geometry::Bounds;
 use beambench_core::object::ProjectObject;
-use beambench_core::{MachineProfile, Project, WorkspaceOrigin};
+use beambench_core::{DisplayUnit, MachineProfile, Project, WorkspaceOrigin};
 use beambench_grbl::generate_gcode;
 use beambench_planner::{
     BoundsAxis, BoundsBoundary, BoundsViolation, ExecutionPlan, PlanStats, PlannerCancellation,
@@ -168,6 +168,11 @@ fn build_plan_for_project(
         .map_err(|e| lock_err("optimization_runtime", e))?
         .clone();
     let calibration = output::build_planner_calibration(&active_profile(ctx)?);
+    let display_unit = ctx
+        .settings
+        .lock()
+        .map_err(|e| lock_err("settings", e))?
+        .display_unit;
     let request_id = ctx
         .latest_planning_request_id
         .fetch_add(1, Ordering::AcqRel)
@@ -185,12 +190,18 @@ fn build_plan_for_project(
     build_plan_with_input_and_cache(project, &input, &ctx.raster_cache, &ctx.scaled_image_cache)
         .map_err(|e| match e {
             PlannerError::Cancelled => ServiceError::stale_revision("Plan generation cancelled"),
-            PlannerError::BoundsExceeded(violation) => bounds_exceeded_error(project, violation),
+            PlannerError::BoundsExceeded(violation) => {
+                bounds_exceeded_error(project, violation, display_unit)
+            }
             other => ServiceError::invalid_state(format!("Plan generation failed: {other}")),
         })
 }
 
-fn bounds_exceeded_error(project: &Project, violation: BoundsViolation) -> ServiceError {
+fn bounds_exceeded_error(
+    project: &Project,
+    violation: BoundsViolation,
+    display_unit: DisplayUnit,
+) -> ServiceError {
     let edge = match (violation.axis, violation.boundary, project.workspace.origin) {
         (BoundsAxis::X, BoundsBoundary::Min, _) => "left",
         (BoundsAxis::X, BoundsBoundary::Max, _) => "right",
@@ -206,14 +217,16 @@ fn bounds_exceeded_error(project: &Project, violation: BoundsViolation) -> Servi
             .find(|object| object.id.to_string() == source_id)
             .map(|object| object.name.as_str())
     });
+    let (amount, unit) = match display_unit {
+        DisplayUnit::Mm => (format!("{:.2}", violation.amount_mm), "mm"),
+        DisplayUnit::Inches => (format!("{:.4}", violation.amount_mm / 25.4), "in"),
+    };
     let message = match object_name {
         Some(name) => format!(
-            "\"{name}\" extends {:.2} mm beyond the {edge} edge of the workspace. Move it inside the workspace before previewing or running the job.",
-            violation.amount_mm
+            "\"{name}\" extends {amount} {unit} beyond the {edge} edge of the workspace. Move it inside the workspace before previewing or running the job."
         ),
         None => format!(
-            "Part of your artwork extends {:.2} mm beyond the {edge} edge of the workspace. Move it inside the workspace before previewing or running the job.",
-            violation.amount_mm
+            "Part of your artwork extends {amount} {unit} beyond the {edge} edge of the workspace. Move it inside the workspace before previewing or running the job."
         ),
     };
 
@@ -427,6 +440,7 @@ pub fn export_gcode_to_path_with_options(
         output::apply_rotary_runtime(&mut gcode_config, &project, &profile, status)
             .map_err(ServiceError::invalid_state)?;
     }
+    output::validate_rotary_feed_limit(&plan, &profile).map_err(ServiceError::invalid_state)?;
     let gcode_lines = generate_gcode(&plan, &gcode_config)
         .map_err(|e| ServiceError::invalid_state(format!("G-code generation failed: {e}")))?;
     std::fs::write(path, gcode_lines.join("\n"))
@@ -522,6 +536,25 @@ mod tests {
         assert_eq!(details["violation"]["source_object_id"], object_id);
         assert_eq!(details["object_name"], object_name);
         assert_eq!(details["workspace_origin"], "bottom_left");
+    }
+
+    #[test]
+    fn bounds_error_fallback_uses_the_configured_display_unit() {
+        let project = Project::new("Imperial bounds");
+        let violation = BoundsViolation::new(
+            BoundsAxis::X,
+            BoundsBoundary::Min,
+            -25.4,
+            0.0,
+            0,
+            "vector point 0",
+            None,
+        );
+
+        let error = bounds_exceeded_error(&project, violation, DisplayUnit::Inches);
+
+        assert!(error.message.contains("1.0000 in beyond the left edge"));
+        assert!(!error.message.contains("25.40 mm"));
     }
 
     #[test]

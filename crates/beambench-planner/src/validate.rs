@@ -54,10 +54,12 @@ pub fn validate_bounds(
                 _ => max_overshoot,
             });
 
+    let mut worst_violation = None;
     for (idx, segment) in segments.iter().enumerate() {
         match segment {
             PlanSegment::Travel { start, end } => {
-                check_point_with_tolerance(
+                record_point_violations(
+                    &mut worst_violation,
                     start,
                     bed_width_mm,
                     bed_height_mm,
@@ -65,8 +67,9 @@ pub fn validate_bounds(
                     idx,
                     "travel start",
                     None,
-                )?;
-                check_point_with_tolerance(
+                );
+                record_point_violations(
+                    &mut worst_violation,
                     end,
                     bed_width_mm,
                     bed_height_mm,
@@ -74,7 +77,7 @@ pub fn validate_bounds(
                     idx,
                     "travel end",
                     None,
-                )?;
+                );
             }
             PlanSegment::Vector {
                 polyline,
@@ -82,26 +85,30 @@ pub fn validate_bounds(
                 ..
             } => {
                 for (pt_idx, point) in polyline.iter().enumerate() {
-                    check_point(
+                    record_point_violations(
+                        &mut worst_violation,
                         point,
                         bed_width_mm,
                         bed_height_mm,
+                        FP_TOLERANCE_MM,
                         idx,
                         &format!("vector point {}", pt_idx),
                         source_object_id.as_deref(),
-                    )?;
+                    );
                 }
             }
             PlanSegment::Frame { path, .. } => {
                 for (pt_idx, point) in path.iter().enumerate() {
-                    check_point(
+                    record_point_violations(
+                        &mut worst_violation,
                         point,
                         bed_width_mm,
                         bed_height_mm,
+                        FP_TOLERANCE_MM,
                         idx,
                         &format!("frame point {}", pt_idx),
                         None,
-                    )?;
+                    );
                 }
             }
             PlanSegment::Raster {
@@ -135,73 +142,91 @@ pub fn validate_bounds(
                 for (line_idx, scanline) in scanlines.iter().enumerate() {
                     // Check cross-axis coordinate
                     if scanline.y_mm < -FP_TOLERANCE_MM {
-                        return Err(bounds_exceeded(
-                            scanline_axis,
-                            BoundsBoundary::Min,
-                            scanline.y_mm,
-                            0.0,
-                            idx,
-                            format!("raster scanline {}", line_idx),
-                            None,
-                        ));
+                        record_violation(
+                            &mut worst_violation,
+                            BoundsViolation::new(
+                                scanline_axis,
+                                BoundsBoundary::Min,
+                                scanline.y_mm,
+                                0.0,
+                                idx,
+                                format!("raster scanline {}", line_idx),
+                                None,
+                            ),
+                        );
                     }
                     if scanline.y_mm > scanline_limit + FP_TOLERANCE_MM {
-                        return Err(bounds_exceeded(
-                            scanline_axis,
-                            BoundsBoundary::Max,
-                            scanline.y_mm,
-                            scanline_limit,
-                            idx,
-                            format!("raster scanline {}", line_idx),
-                            None,
-                        ));
+                        record_violation(
+                            &mut worst_violation,
+                            BoundsViolation::new(
+                                scanline_axis,
+                                BoundsBoundary::Max,
+                                scanline.y_mm,
+                                scanline_limit,
+                                idx,
+                                format!("raster scanline {}", line_idx),
+                                None,
+                            ),
+                        );
                     }
 
                     // Check scan-axis ranges
                     for (run_idx, run) in scanline.runs.iter().enumerate() {
                         if run.start_x_mm < -FP_TOLERANCE_MM {
-                            return Err(bounds_exceeded(
-                                run_axis,
-                                BoundsBoundary::Min,
-                                run.start_x_mm,
-                                0.0,
-                                idx,
-                                format!("raster scanline {} run {} start", line_idx, run_idx),
-                                None,
-                            ));
+                            record_violation(
+                                &mut worst_violation,
+                                BoundsViolation::new(
+                                    run_axis,
+                                    BoundsBoundary::Min,
+                                    run.start_x_mm,
+                                    0.0,
+                                    idx,
+                                    format!("raster scanline {} run {} start", line_idx, run_idx),
+                                    None,
+                                ),
+                            );
                         }
                         if run.start_x_mm > run_limit + FP_TOLERANCE_MM {
-                            return Err(bounds_exceeded(
-                                run_axis,
-                                BoundsBoundary::Max,
-                                run.start_x_mm,
-                                run_limit,
-                                idx,
-                                format!("raster scanline {} run {} start", line_idx, run_idx),
-                                None,
-                            ));
+                            record_violation(
+                                &mut worst_violation,
+                                BoundsViolation::new(
+                                    run_axis,
+                                    BoundsBoundary::Max,
+                                    run.start_x_mm,
+                                    run_limit,
+                                    idx,
+                                    format!("raster scanline {} run {} start", line_idx, run_idx),
+                                    None,
+                                ),
+                            );
                         }
                         if run.end_x_mm < -FP_TOLERANCE_MM {
-                            return Err(bounds_exceeded(
-                                run_axis,
-                                BoundsBoundary::Min,
-                                run.end_x_mm,
-                                0.0,
-                                idx,
-                                format!("raster scanline {} run {} end", line_idx, run_idx),
-                                None,
-                            ));
+                            record_violation(
+                                &mut worst_violation,
+                                BoundsViolation::new(
+                                    run_axis,
+                                    BoundsBoundary::Min,
+                                    run.end_x_mm,
+                                    0.0,
+                                    idx,
+                                    format!("raster scanline {} run {} end", line_idx, run_idx),
+                                    None,
+                                ),
+                            );
                         }
                         if run.end_x_mm > run_limit + FP_TOLERANCE_MM {
-                            return Err(bounds_exceeded(
-                                run_axis,
-                                BoundsBoundary::Max,
-                                run.end_x_mm,
-                                run_limit,
-                                idx,
-                                format!("raster scanline {} run {} end", line_idx, run_idx),
-                                None,
-                            ));
+                            record_violation(
+                                &mut worst_violation,
+                                BoundsViolation::new(
+                                    run_axis,
+                                    BoundsBoundary::Max,
+                                    run.end_x_mm,
+                                    run_limit,
+                                    idx,
+                                    format!("raster scanline {} run {} end", line_idx, run_idx),
+                                    None,
+                                ),
+                            );
                         }
                     }
                 }
@@ -210,33 +235,18 @@ pub fn validate_bounds(
         }
     }
 
-    Ok(())
+    match worst_violation {
+        Some(violation) => Err(PlannerError::BoundsExceeded(violation)),
+        None => Ok(()),
+    }
 }
 
 /// Small tolerance for floating-point drift from geometric operations
 /// (undo/redo, transform round-trips, boolean ops, etc.).
 const FP_TOLERANCE_MM: f64 = 0.5;
 
-fn check_point(
-    point: &Point2D,
-    bed_width_mm: f64,
-    bed_height_mm: f64,
-    segment_idx: usize,
-    label: &str,
-    source_object_id: Option<&str>,
-) -> Result<(), PlannerError> {
-    check_point_with_tolerance(
-        point,
-        bed_width_mm,
-        bed_height_mm,
-        FP_TOLERANCE_MM,
-        segment_idx,
-        label,
-        source_object_id,
-    )
-}
-
-fn check_point_with_tolerance(
+fn record_point_violations(
+    worst: &mut Option<BoundsViolation>,
     point: &Point2D,
     bed_width_mm: f64,
     bed_height_mm: f64,
@@ -244,72 +254,75 @@ fn check_point_with_tolerance(
     segment_idx: usize,
     label: &str,
     source_object_id: Option<&str>,
-) -> Result<(), PlannerError> {
+) {
     if point.x < -tolerance {
-        return Err(bounds_exceeded(
-            BoundsAxis::X,
-            BoundsBoundary::Min,
-            point.x,
-            0.0,
-            segment_idx,
-            label,
-            source_object_id,
-        ));
+        record_violation(
+            worst,
+            BoundsViolation::new(
+                BoundsAxis::X,
+                BoundsBoundary::Min,
+                point.x,
+                0.0,
+                segment_idx,
+                label,
+                source_object_id,
+            ),
+        );
     }
     if point.x > bed_width_mm + tolerance {
-        return Err(bounds_exceeded(
-            BoundsAxis::X,
-            BoundsBoundary::Max,
-            point.x,
-            bed_width_mm,
-            segment_idx,
-            label,
-            source_object_id,
-        ));
+        record_violation(
+            worst,
+            BoundsViolation::new(
+                BoundsAxis::X,
+                BoundsBoundary::Max,
+                point.x,
+                bed_width_mm,
+                segment_idx,
+                label,
+                source_object_id,
+            ),
+        );
     }
     if point.y < -tolerance {
-        return Err(bounds_exceeded(
-            BoundsAxis::Y,
-            BoundsBoundary::Min,
-            point.y,
-            0.0,
-            segment_idx,
-            label,
-            source_object_id,
-        ));
+        record_violation(
+            worst,
+            BoundsViolation::new(
+                BoundsAxis::Y,
+                BoundsBoundary::Min,
+                point.y,
+                0.0,
+                segment_idx,
+                label,
+                source_object_id,
+            ),
+        );
     }
     if point.y > bed_height_mm + tolerance {
-        return Err(bounds_exceeded(
-            BoundsAxis::Y,
-            BoundsBoundary::Max,
-            point.y,
-            bed_height_mm,
-            segment_idx,
-            label,
-            source_object_id,
-        ));
+        record_violation(
+            worst,
+            BoundsViolation::new(
+                BoundsAxis::Y,
+                BoundsBoundary::Max,
+                point.y,
+                bed_height_mm,
+                segment_idx,
+                label,
+                source_object_id,
+            ),
+        );
     }
-    Ok(())
 }
 
-fn bounds_exceeded(
-    axis: BoundsAxis,
-    boundary: BoundsBoundary,
-    coordinate_mm: f64,
-    limit_mm: f64,
-    segment_index: usize,
-    geometry_label: impl Into<String>,
-    source_object_id: Option<&str>,
-) -> PlannerError {
-    PlannerError::BoundsExceeded(BoundsViolation::new(
-        axis,
-        boundary,
-        coordinate_mm,
-        limit_mm,
-        segment_index,
-        geometry_label,
-        source_object_id,
-    ))
+fn record_violation(worst: &mut Option<BoundsViolation>, candidate: BoundsViolation) {
+    let should_replace = worst.as_ref().is_none_or(|current| {
+        candidate.amount_mm > current.amount_mm
+            || (candidate.amount_mm == current.amount_mm
+                && current.source_object_id.is_none()
+                && candidate.source_object_id.is_some())
+    });
+    if should_replace {
+        *worst = Some(candidate);
+    }
 }
 
 #[cfg(test)]
@@ -414,6 +427,35 @@ mod tests {
                 assert_eq!(violation.coordinate_mm, 450.0);
                 assert_eq!(violation.amount_mm, 50.0);
                 assert_eq!(violation.source_object_id.as_deref(), Some("obj-outside"));
+            }
+            _ => panic!("Expected BoundsExceeded error"),
+        }
+    }
+
+    #[test]
+    fn validate_bounds_reports_the_worst_violation_not_the_first_point() {
+        let segments = vec![PlanSegment::Vector {
+            polyline: vec![Point2D::new(-1.35, 50.0), Point2D::new(-8.0, 100.0)],
+            closed: false,
+            power_percent: 80.0,
+            speed_mm_min: 1000.0,
+            layer_id: "layer1".to_string(),
+            cut_entry_id: String::new(),
+            perforation_enabled: false,
+            perforation_on_ms: 0.0,
+            perforation_off_ms: 0.0,
+            source_object_id: Some("logo".to_string()),
+            source_subpath_index: None,
+        }];
+
+        let result = validate_bounds(&segments, 400.0, 300.0);
+
+        match result {
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.coordinate_mm, -8.0);
+                assert_eq!(violation.amount_mm, 8.0);
+                assert_eq!(violation.geometry_label, "vector point 1");
+                assert_eq!(violation.source_object_id.as_deref(), Some("logo"));
             }
             _ => panic!("Expected BoundsExceeded error"),
         }
