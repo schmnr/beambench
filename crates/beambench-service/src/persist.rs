@@ -19,6 +19,10 @@ pub const PREFERENCES_BACKUP_RETENTION: usize = 50;
 /// Return the config directory for Beam Bench.
 /// `$CONFIG_DIR/beam-bench/`
 pub fn config_dir() -> Option<PathBuf> {
+    #[cfg(test)]
+    if let Some(path) = crate::test_support::persistence_config_dir_for_current_test() {
+        return Some(path);
+    }
     if let Some(path) = std::env::var_os(CONFIG_DIR_ENV) {
         return Some(PathBuf::from(path));
     }
@@ -84,8 +88,8 @@ fn log_persist_warning(_what: &str, _err: &str) {}
 pub fn persist_settings_to_disk(ctx: &super::ServiceContext) {
     // Most service tests exercise state transitions without testing disk I/O.
     // Only tests holding `PersistTestGuard` may write through this best-effort
-    // path. This avoids unrelated parallel tests following a temporary config
-    // directory installed by a persistence test.
+    // path. Test persistence uses thread-local temporary directories so
+    // unrelated parallel tests cannot read or write another test's files.
     #[cfg(test)]
     if !crate::test_support::persistence_enabled_for_current_test() {
         return;
@@ -212,6 +216,10 @@ pub fn save_macros(macros: &[MacroDefinition]) -> Result<(), String> {
 /// Return the directory for art libraries.
 /// `$DATA_DIR/beam-bench/libraries/`
 pub fn data_dir() -> Option<PathBuf> {
+    #[cfg(test)]
+    if let Some(path) = crate::test_support::persistence_data_dir_for_current_test() {
+        return Some(path);
+    }
     if let Some(path) = std::env::var_os(DATA_DIR_ENV) {
         return Some(PathBuf::from(path));
     }

@@ -4,7 +4,7 @@ use beambench_core::{
     FinishPosition, MachineProfile, Project, ProjectOptimization, RotaryAxis, ScanningOffsetEntry,
 };
 use beambench_grbl::{GcodeConfig, RotaryGcodeConfig};
-use beambench_planner::PlannerCalibration;
+use beambench_planner::{ExecutionPlan, PlanSegment, PlannerCalibration, ScanAxis};
 
 /// Build a `GcodeConfig` from the persisted project optimization and the
 /// active machine profile. This is the single source of truth for
@@ -112,6 +112,131 @@ pub fn apply_rotary_runtime(
     Ok(())
 }
 
+fn rotary_feed_factor(dx: f64, dy: f64, profile: &MachineProfile, command_scale: f64) -> f64 {
+    let surface_distance = dx.hypot(dy);
+    if surface_distance <= f64::EPSILON {
+        return 1.0;
+    }
+    let (mapped_dx, mapped_dy, mapped_dz) = match profile.rotary_axis {
+        RotaryAxis::X => (dx * command_scale, dy, 0.0),
+        RotaryAxis::Y => (dx, dy * command_scale, 0.0),
+        RotaryAxis::Z => (dx, 0.0, dy * command_scale),
+    };
+    mapped_dx.hypot(mapped_dy).hypot(mapped_dz) / surface_distance
+}
+
+fn maximum_path_rotary_feed(
+    points: &[beambench_common::geometry::Point2D],
+    speed: f64,
+    closed: bool,
+    profile: &MachineProfile,
+    command_scale: f64,
+) -> f64 {
+    let mut maximum = points.windows(2).fold(0.0_f64, |current, pair| {
+        current.max(
+            speed
+                * rotary_feed_factor(
+                    pair[1].x - pair[0].x,
+                    pair[1].y - pair[0].y,
+                    profile,
+                    command_scale,
+                ),
+        )
+    });
+    if closed && points.len() > 1 {
+        let first = points[0];
+        let last = points[points.len() - 1];
+        maximum = maximum.max(
+            speed * rotary_feed_factor(first.x - last.x, first.y - last.y, profile, command_scale),
+        );
+    }
+    maximum
+}
+
+/// Highest controller feed that rotary compensation will emit for this plan.
+/// The plan stays in surface millimetres, while the mapped controller axis may
+/// need to travel much farther for the same surface motion.
+pub fn maximum_rotary_command_feed(plan: &ExecutionPlan, profile: &MachineProfile) -> Option<f64> {
+    if !profile.rotary_enabled {
+        return None;
+    }
+    let command_scale = profile.rotary_command_scale()?;
+    let mut maximum = 0.0_f64;
+
+    for segment in &plan.segments {
+        match segment {
+            PlanSegment::Vector {
+                polyline,
+                closed,
+                speed_mm_min,
+                ..
+            } => {
+                maximum = maximum.max(maximum_path_rotary_feed(
+                    polyline,
+                    *speed_mm_min,
+                    *closed,
+                    profile,
+                    command_scale,
+                ));
+            }
+            PlanSegment::Frame {
+                path, speed_mm_min, ..
+            } => {
+                maximum = maximum.max(maximum_path_rotary_feed(
+                    path,
+                    *speed_mm_min,
+                    false,
+                    profile,
+                    command_scale,
+                ));
+            }
+            PlanSegment::Raster {
+                scanlines,
+                speed_mm_min,
+                scan_angle_deg,
+                scan_axis,
+                ..
+            } if scanlines.iter().any(|line| !line.runs.is_empty()) => {
+                let orthogonal = scan_angle_deg.abs() < 0.5
+                    || (scan_angle_deg.abs() - 90.0).abs() < 0.5
+                    || (scan_angle_deg.abs() - 180.0).abs() < 0.5
+                    || (scan_angle_deg.abs() - 270.0).abs() < 0.5
+                    || (scan_angle_deg.abs() - 360.0).abs() < 0.5;
+                let (dx, dy) = if orthogonal {
+                    match scan_axis {
+                        ScanAxis::Horizontal => (1.0, 0.0),
+                        ScanAxis::Vertical => (0.0, 1.0),
+                    }
+                } else {
+                    let radians = scan_angle_deg.to_radians();
+                    (radians.cos(), radians.sin())
+                };
+                maximum =
+                    maximum.max(speed_mm_min * rotary_feed_factor(dx, dy, profile, command_scale));
+            }
+            _ => {}
+        }
+    }
+
+    Some(maximum)
+}
+
+pub fn validate_rotary_feed_limit(
+    plan: &ExecutionPlan,
+    profile: &MachineProfile,
+) -> Result<(), String> {
+    let Some(required_feed) = maximum_rotary_command_feed(plan, profile) else {
+        return Ok(());
+    };
+    if required_feed <= profile.max_speed_mm_min + f64::EPSILON {
+        return Ok(());
+    }
+    Err(format!(
+        "Rotary feed compensation requires up to {required_feed:.0} mm/min, above the machine profile limit of {:.0} mm/min. Lower the artwork speed or correct the machine maximum speed.",
+        profile.max_speed_mm_min
+    ))
+}
+
 /// Build `PlannerCalibration` from the active machine profile.
 pub fn build_planner_calibration(profile: &MachineProfile) -> PlannerCalibration {
     PlannerCalibration {
@@ -134,8 +259,27 @@ pub fn normalize_scanning_offsets(entries: &mut Vec<ScanningOffsetEntry>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use beambench_common::geometry::{Bounds, Point2D};
     use beambench_common::machine::{MachinePosition, MachineRunState};
-    use beambench_core::FinishPosition;
+    use beambench_core::{FinishPosition, RotaryType};
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    fn plan_with_segments(segments: Vec<PlanSegment>) -> ExecutionPlan {
+        ExecutionPlan {
+            id: Uuid::new_v4(),
+            project_id: Uuid::new_v4(),
+            revision_hash: "test".to_string(),
+            created_at: Utc::now(),
+            bounds: Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+            total_distance_mm: 0.0,
+            estimated_duration_secs: 0.0,
+            segments,
+            layer_order: vec![],
+            warnings: vec![],
+            failed_entries: vec![],
+        }
+    }
 
     #[test]
     fn build_gcode_config_maps_profile_fields() {
@@ -227,6 +371,37 @@ mod tests {
 
         let error = apply_rotary_runtime(&mut config, &project, &profile, &status).unwrap_err();
         assert!(error.contains("Start From Current Position"));
+    }
+
+    #[test]
+    fn rotary_feed_limit_checks_the_compensated_controller_rate() {
+        let profile = MachineProfile {
+            rotary_enabled: true,
+            rotary_type: RotaryType::Chuck,
+            rotary_axis: RotaryAxis::Y,
+            rotary_mm_per_rotation: 20.0 * std::f64::consts::PI,
+            rotary_object_diameter_mm: 10.0,
+            max_speed_mm_min: 1500.0,
+            ..MachineProfile::default()
+        };
+        let plan = plan_with_segments(vec![PlanSegment::Vector {
+            polyline: vec![Point2D::new(0.0, 0.0), Point2D::new(0.0, 10.0)],
+            closed: false,
+            power_percent: 50.0,
+            speed_mm_min: 1000.0,
+            layer_id: "layer".to_string(),
+            cut_entry_id: "entry".to_string(),
+            perforation_enabled: false,
+            perforation_on_ms: 0.0,
+            perforation_off_ms: 0.0,
+            source_object_id: None,
+            source_subpath_index: None,
+        }]);
+
+        assert_eq!(maximum_rotary_command_feed(&plan, &profile), Some(2000.0));
+        let error = validate_rotary_feed_limit(&plan, &profile).unwrap_err();
+        assert!(error.contains("2000 mm/min"));
+        assert!(error.contains("1500 mm/min"));
     }
 
     #[test]

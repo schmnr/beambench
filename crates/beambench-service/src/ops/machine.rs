@@ -3142,6 +3142,15 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
                 x_mm = command_x;
                 y_mm = command_y;
                 z_mm = command_z;
+                if feed_rate > profile.max_speed_mm_min + f64::EPSILON {
+                    if input.continuous {
+                        ctx.active_jog.store(false, Ordering::Release);
+                    }
+                    return Err(ServiceError::invalid_state(format!(
+                        "Rotary feed compensation requires {feed_rate:.0} mm/min, above the machine profile limit of {:.0} mm/min. Lower the jog speed or correct the machine maximum speed.",
+                        profile.max_speed_mm_min
+                    )));
+                }
             }
             session.jog(x_mm, y_mm, z_mm, feed_rate).map_err(|e| {
                 if input.continuous {
@@ -3363,7 +3372,9 @@ pub fn run_preflight_check_with_options(
                 .iter()
                 .flat_map(|layer| layer.entries.iter())
                 .all(|entry| entry.z_offset_mm.abs() <= f64::EPSILON);
-        let rotary_ok = controller_ok && positioning_ok && calibration_ok && z_offset_ok;
+        let feed_error = super::output::validate_rotary_feed_limit(&plan, &profile).err();
+        let feed_ok = feed_error.is_none();
+        let rotary_ok = controller_ok && positioning_ok && calibration_ok && z_offset_ok && feed_ok;
         let message = if matches!(session, MachineSessionHandle::Grbl(_))
             && !session.capabilities().supports_rotary
         {
@@ -3376,6 +3387,8 @@ pub fn run_preflight_check_with_options(
             "Check rotary mm-per-rotation and diameter settings".to_string()
         } else if !z_offset_ok {
             "Z-axis rotary mode cannot be combined with layer Z offsets".to_string()
+        } else if let Some(error) = feed_error {
+            error
         } else {
             format!(
                 "Rotary {:?} axis is calibrated and anchored to the current position",
@@ -3520,6 +3533,8 @@ pub fn start_job_with_options(
     let mut gcode_config =
         super::output::build_gcode_config(&project_for_gcode.optimization, &profile);
     super::output::apply_project_gcode_metadata(&mut gcode_config, &project_for_gcode);
+    super::output::validate_rotary_feed_limit(&plan, &profile)
+        .map_err(ServiceError::invalid_state)?;
 
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
@@ -4072,13 +4087,20 @@ pub fn frame_job(
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+    if profile.rotary_enabled && !matches!(session, MachineSessionHandle::Grbl(_)) {
+        return Err(ServiceError::invalid_state(
+            "Rotary mode is currently supported only for GRBL-family G-code sessions",
+        ));
+    }
+    if profile.rotary_enabled && !session.capabilities().supports_rotary {
+        return Err(ServiceError::invalid_state(
+            "The connected controller does not support Beam Bench's generic rotary workflow",
+        ));
+    }
+    super::output::validate_rotary_feed_limit(&frame_plan, &profile)
+        .map_err(ServiceError::invalid_state)?;
     let job = match session {
         MachineSessionHandle::Grbl(session) => {
-            if profile.rotary_enabled && !session.capabilities().supports_rotary {
-                return Err(ServiceError::invalid_state(
-                    "The connected controller does not support Beam Bench's generic rotary workflow",
-                ));
-            }
             let mut config = frame_gcode_config;
             super::output::apply_rotary_runtime(
                 &mut config,
@@ -7094,6 +7116,31 @@ mod tests {
                 .any(|line| line.contains("F1234")),
             "frame job should stream commands with the requested move feed"
         );
+    }
+
+    #[test]
+    fn frame_job_rejects_rotary_mode_for_non_grbl_sessions() {
+        let profile = MachineProfile {
+            rotary_enabled: true,
+            ..MachineProfile::default()
+        };
+        let settings = AppSettings {
+            active_profile_id: Some(profile.id),
+            machine_profiles: vec![profile],
+            ..AppSettings::default()
+        };
+        let ctx = ServiceContext::with_settings(settings);
+        *ctx.project.lock().unwrap() = Some(frame_project());
+        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Dsp(DspSession::connect(
+            ControllerModel::Ruida,
+            "mock".to_string(),
+        )));
+
+        let error = frame_job(&ctx, "rectangular", &[], false, None).unwrap_err();
+
+        assert_eq!(error.code, crate::error::ServiceErrorCode::InvalidState);
+        assert!(error.message.contains("only for GRBL-family"));
+        assert!(ctx.job.lock().unwrap().is_none());
     }
 
     #[test]

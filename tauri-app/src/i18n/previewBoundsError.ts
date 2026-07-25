@@ -1,5 +1,7 @@
 import i18n from './index';
 import type { Project, WorkspaceOrigin } from '../types/project';
+import type { DisplayUnit } from '../utils/lengthUnits';
+import { lengthUnitLabel, mmToDisplay } from '../utils/lengthUnits';
 
 type BoundsAxis = 'x' | 'y';
 type BoundsBoundary = 'min' | 'max';
@@ -89,6 +91,7 @@ function visualEdge(
 export function formatWorkspaceBoundsError(
   error: unknown,
   project: Project | null,
+  displayUnit: DisplayUnit = 'mm',
 ): ActionableBoundsError | null {
   const details = parseBoundsDetails(error);
   if (!details) return null;
@@ -102,15 +105,17 @@ export function formatWorkspaceBoundsError(
     details.violation.boundary,
     origin,
   )}`);
+  const displayAmount = mmToDisplay(details.violation.amount_mm, displayUnit);
   const amount = new Intl.NumberFormat(i18n.resolvedLanguage ?? i18n.language, {
-    maximumFractionDigits: 2,
-  }).format(details.violation.amount_mm);
+    maximumFractionDigits: displayUnit === 'inches' ? 4 : 2,
+  }).format(displayAmount);
 
   return {
     message: i18n.t('errors.artwork_outside_workspace', {
       hasObject: sourceObject ? 'yes' : 'no',
       object: sourceObject?.name ?? '',
       amount,
+      unit: lengthUnitLabel(displayUnit),
       edge,
     }),
     sourceObjectId: sourceObject?.id ?? null,

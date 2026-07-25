@@ -27,4 +27,20 @@ describe('formatWorkspaceBoundsError', () => {
   it('ignores errors without structured bounds details', () => {
     expect(formatWorkspaceBoundsError(new Error('Preview failed'), null)).toBeNull();
   });
+
+  it('formats the overrun in the user display unit', () => {
+    const result = formatWorkspaceBoundsError({
+      details: {
+        kind: 'bounds_exceeded',
+        violation: {
+          axis: 'x',
+          boundary: 'max',
+          amount_mm: 25.4,
+        },
+      },
+    }, makeProject(), 'inches');
+
+    expect(result?.message).toContain('1 in');
+    expect(result?.message).not.toContain('25.4 mm');
+  });
 });
