@@ -26,3 +26,16 @@ export function wrapBackendError(detail: string): string {
   }
   return i18n.t('errors.operation_failed_with_detail', { detail });
 }
+
+/** Read the useful message from either a structured Tauri error or a legacy error. */
+export function backendErrorMessage(error: unknown): string {
+  if (
+    typeof error === 'object'
+    && error !== null
+    && 'message' in error
+    && typeof error.message === 'string'
+  ) {
+    return error.message;
+  }
+  return String(error);
+}

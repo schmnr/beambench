@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "Operazione non riuscita: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "sinistro",
+    "workspace_edge_right": "destro",
+    "workspace_edge_top": "superiore",
+    "workspace_edge_bottom": "inferiore",
+    "artwork_outside_workspace": "{hasObject, select, yes {“{object}” supera di {amount} mm il bordo {edge} dell’area di lavoro. L’oggetto è stato selezionato. Spostalo all’interno dell’area di lavoro prima di visualizzare l’anteprima o avviare il lavoro.} other {Una parte del disegno supera di {amount} mm il bordo {edge} dell’area di lavoro. Spostala all’interno dell’area di lavoro prima di visualizzare l’anteprima o avviare il lavoro.}}",
     "ui_error_title": "Beam Bench ha riscontrato un errore dell'interfaccia",
     "reload": "Ricarica"
   },

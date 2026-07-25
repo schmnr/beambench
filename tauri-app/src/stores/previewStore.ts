@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import type { PreviewData } from '../types/preview';
 import { previewService } from '../services/previewService';
 import { useNotificationStore } from './notificationStore';
-import { wrapBackendError } from '../i18n/errors';
+import { backendErrorMessage, wrapBackendError } from '../i18n/errors';
+import { formatWorkspaceBoundsError } from '../i18n/previewBoundsError';
 import { sessionJobOptions } from '../types/jobOptions';
 
 export type PreviewState = 'idle' | 'generating' | 'current' | 'stale' | 'error';
@@ -193,7 +194,7 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
         return false;
       }
       clearPreviewGenerationRevealTimer();
-      const msg = String(e);
+      const msg = backendErrorMessage(e);
       if (isEmptyPlanError(msg)) {
         lastToastedWarnings = [];
         previewEpoch += 1;
@@ -222,6 +223,21 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
           manualRefreshRequired: true,
           pendingInteractionRefresh: false,
         });
+        return false;
+      }
+      const { useProjectStore } = await import('./projectStore');
+      const boundsError = formatWorkspaceBoundsError(e, useProjectStore.getState().project);
+      if (boundsError) {
+        if (boundsError.sourceObjectId) {
+          useProjectStore.getState().selectObjects([boundsError.sourceObjectId]);
+        }
+        set({
+          state: 'error',
+          error: boundsError.message,
+          previewGenerationDialogVisible: false,
+          previewGenerationDialogTitle: DEFAULT_PREVIEW_GENERATION_DIALOG_TITLE,
+        });
+        useNotificationStore.getState().push(boundsError.message, 'error');
         return false;
       }
       set({

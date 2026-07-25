@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "A művelet sikertelen: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "bal",
+    "workspace_edge_right": "jobb",
+    "workspace_edge_top": "felső",
+    "workspace_edge_bottom": "alsó",
+    "artwork_outside_workspace": "{hasObject, select, yes {A(z) „{object}” {amount} mm-rel túlnyúlik a munkaterület {edge} szélén. Az objektum ki lett jelölve. Előnézet vagy a munka indítása előtt helyezze a munkaterületen belülre.} other {A terv egy része {amount} mm-rel túlnyúlik a munkaterület {edge} szélén. Előnézet vagy a munka indítása előtt helyezze a munkaterületen belülre.}}",
     "ui_error_title": "A Beam Benchben felhasználói felületi hiba történt",
     "reload": "Újratöltés"
   },

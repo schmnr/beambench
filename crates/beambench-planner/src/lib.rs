@@ -18,7 +18,7 @@ pub use builder::{
     build_frame_plan, build_hull_frame_plan, build_plan, build_plan_with_input,
     build_plan_with_input_and_cache, calculate_plan_bounds, offset_fill_boolean_tolerances_mm,
 };
-pub use error::PlannerError;
+pub use error::{BoundsAxis, BoundsBoundary, BoundsViolation, PlannerError};
 pub use extensions::{
     air_assist_commands, anchor_segments_to_target, apply_kerf_offset, apply_tabs,
     apply_workspace_origin_transform, flip_bounds_y, job_anchor_point, translate_segments,

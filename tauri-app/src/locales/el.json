@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "Η λειτουργία απέτυχε: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "αριστερό",
+    "workspace_edge_right": "δεξί",
+    "workspace_edge_top": "επάνω",
+    "workspace_edge_bottom": "κάτω",
+    "artwork_outside_workspace": "{hasObject, select, yes {Το «{object}» εκτείνεται κατά {amount} mm πέρα από το {edge} άκρο του χώρου εργασίας. Το αντικείμενο επιλέχθηκε. Μετακινήστε το μέσα στον χώρο εργασίας πριν από την προεπισκόπηση ή την εκτέλεση της εργασίας.} other {Ένα μέρος του σχεδίου σας εκτείνεται κατά {amount} mm πέρα από το {edge} άκρο του χώρου εργασίας. Μετακινήστε το μέσα στον χώρο εργασίας πριν από την προεπισκόπηση ή την εκτέλεση της εργασίας.}}",
     "ui_error_title": "Το Beam Bench αντιμετώπισε σφάλμα διεπαφής",
     "reload": "Επαναφόρτωση"
   },

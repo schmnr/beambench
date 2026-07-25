@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "작업에 실패했습니다: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "왼쪽",
+    "workspace_edge_right": "오른쪽",
+    "workspace_edge_top": "위쪽",
+    "workspace_edge_bottom": "아래쪽",
+    "artwork_outside_workspace": "{hasObject, select, yes {“{object}”이(가) 작업 영역의 {edge} 경계에서 {amount} mm 벗어나 있습니다. 해당 개체를 선택했습니다. 미리 보거나 작업을 실행하기 전에 작업 영역 안으로 이동하세요.} other {아트워크의 일부가 작업 영역의 {edge} 경계에서 {amount} mm 벗어나 있습니다. 미리 보거나 작업을 실행하기 전에 작업 영역 안으로 이동하세요.}}",
     "ui_error_title": "Beam Bench에서 UI 오류가 발생했습니다",
     "reload": "새로고침"
   },
