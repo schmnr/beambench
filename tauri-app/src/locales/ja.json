@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "操作に失敗しました: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "左端",
+    "workspace_edge_right": "右端",
+    "workspace_edge_top": "上端",
+    "workspace_edge_bottom": "下端",
+    "artwork_outside_workspace": "{hasObject, select, yes {「{object}」が作業領域の{edge}から {amount} mm はみ出しています。このオブジェクトを選択しました。プレビューまたはジョブの実行前に、作業領域内へ移動してください。} other {アートワークの一部が作業領域の{edge}から {amount} mm はみ出しています。プレビューまたはジョブの実行前に、作業領域内へ移動してください。}}",
     "ui_error_title": "Beam Bench で UI エラーが発生しました",
     "reload": "再読み込み"
   },

@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "Operace se nezdařila: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "levý",
+    "workspace_edge_right": "pravý",
+    "workspace_edge_top": "horní",
+    "workspace_edge_bottom": "dolní",
+    "artwork_outside_workspace": "{hasObject, select, yes {„{object}“ přesahuje o {amount} mm přes {edge} okraj pracovní plochy. Objekt byl vybrán. Před náhledem nebo spuštěním úlohy jej přesuňte dovnitř pracovní plochy.} other {Část návrhu přesahuje o {amount} mm přes {edge} okraj pracovní plochy. Před náhledem nebo spuštěním úlohy ji přesuňte dovnitř pracovní plochy.}}",
     "ui_error_title": "V Beam Bench došlo k chybě uživatelského rozhraní",
     "reload": "Načíst znovu"
   },

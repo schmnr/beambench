@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "Åtgärden misslyckades: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "vänstra",
+    "workspace_edge_right": "högra",
+    "workspace_edge_top": "övre",
+    "workspace_edge_bottom": "nedre",
+    "artwork_outside_workspace": "{hasObject, select, yes {”{object}” sträcker sig {amount} mm utanför arbetsytans {edge} kant. Objektet har markerats. Flytta in det på arbetsytan innan du förhandsgranskar eller kör jobbet.} other {En del av motivet sträcker sig {amount} mm utanför arbetsytans {edge} kant. Flytta in den på arbetsytan innan du förhandsgranskar eller kör jobbet.}}",
     "ui_error_title": "Beam Bench råkade ut för ett gränssnittsfel",
     "reload": "Läs in igen"
   },

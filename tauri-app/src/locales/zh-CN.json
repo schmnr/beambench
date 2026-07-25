@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "操作失败：{detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "左边缘",
+    "workspace_edge_right": "右边缘",
+    "workspace_edge_top": "上边缘",
+    "workspace_edge_bottom": "下边缘",
+    "artwork_outside_workspace": "{hasObject, select, yes {“{object}”超出工作区{edge} {amount} 毫米。该对象已被选中。请在预览或运行任务前将其移入工作区。} other {图稿的一部分超出工作区{edge} {amount} 毫米。请在预览或运行任务前将其移入工作区。}}",
     "ui_error_title": "Beam Bench 遇到界面错误",
     "reload": "重新加载"
   },

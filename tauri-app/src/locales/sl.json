@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "Operacija ni uspela: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "levi",
+    "workspace_edge_right": "desni",
+    "workspace_edge_top": "zgornji",
+    "workspace_edge_bottom": "spodnji",
+    "artwork_outside_workspace": "{hasObject, select, yes {»{object}« sega {amount} mm čez {edge} rob delovnega območja. Predmet je izbran. Pred predogledom ali zagonom opravila ga premaknite v delovno območje.} other {Del vašega načrta sega {amount} mm čez {edge} rob delovnega območja. Pred predogledom ali zagonom opravila ga premaknite v delovno območje.}}",
     "ui_error_title": "V Beam Bench je prišlo do napake vmesnika",
     "reload": "Ponovno naloži"
   },

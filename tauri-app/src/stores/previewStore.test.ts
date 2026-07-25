@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePreviewStore } from './previewStore';
 import { useProjectStore } from './projectStore';
+import { useNotificationStore } from './notificationStore';
 import type { PreviewData } from '../types/preview';
 import {
   makeLayer,
@@ -126,6 +127,7 @@ describe('previewStore', () => {
       pendingInteractionRefresh: false,
     });
     useProjectStore.setState({ project: null });
+    useNotificationStore.setState({ notifications: [] });
     vi.clearAllMocks();
     vi.useFakeTimers();
   });
@@ -292,6 +294,49 @@ describe('previewStore', () => {
 
     expect(usePreviewStore.getState().state).toBe('error');
     expect(usePreviewStore.getState().error).toContain('Plan failed');
+  });
+
+  it('explains workspace bounds errors and selects the offending object', async () => {
+    const object = makeProjectObject({ id: 'obj-outside', name: 'Outside logo' });
+    useProjectStore.setState({
+      project: makeProject({
+        workspace: { bed_width_mm: 400, bed_height_mm: 300, origin: 'top_left' },
+        objects: [object],
+      }),
+      selectedObjectIds: [],
+    });
+    vi.mocked(previewService.generatePreview).mockRejectedValue({
+      code: 'invalid_state',
+      message: 'Geometry exceeds workspace bounds',
+      details: {
+        kind: 'bounds_exceeded',
+        workspace_origin: 'top_left',
+        object_name: object.name,
+        violation: {
+          axis: 'x',
+          boundary: 'min',
+          amount_mm: 1.3530704225352035,
+          coordinate_mm: -1.3530704225352035,
+          limit_mm: 0,
+          segment_index: 0,
+          geometry_label: 'vector point 90',
+          source_object_id: object.id,
+        },
+      },
+    });
+
+    await expect(usePreviewStore.getState().generatePreview()).resolves.toBe(false);
+
+    expect(usePreviewStore.getState().state).toBe('error');
+    expect(usePreviewStore.getState().error).toContain('Outside logo');
+    expect(usePreviewStore.getState().error).toContain('1.35 mm');
+    expect(usePreviewStore.getState().error).toContain('left edge');
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([object.id]);
+    const notifications = useNotificationStore.getState().notifications;
+    expect(notifications[notifications.length - 1]).toMatchObject({
+      type: 'error',
+      message: usePreviewStore.getState().error,
+    });
   });
 
   it('empty project preview failure quietly clears preview mode instead of erroring', async () => {

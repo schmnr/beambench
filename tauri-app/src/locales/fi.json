@@ -2340,6 +2340,11 @@
     "operation_failed_with_detail": "Toiminto epäonnistui: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "workspace_edge_left": "vasemman",
+    "workspace_edge_right": "oikean",
+    "workspace_edge_top": "yläreunan",
+    "workspace_edge_bottom": "alareunan",
+    "artwork_outside_workspace": "{hasObject, select, yes {”{object}” ulottuu {amount} mm työalueen {edge} yli. Objekti on valittu. Siirrä se työalueen sisään ennen esikatselua tai työn suorittamista.} other {Osa kuviosta ulottuu {amount} mm työalueen {edge} yli. Siirrä se työalueen sisään ennen esikatselua tai työn suorittamista.}}",
     "ui_error_title": "Beam Benchissä tapahtui käyttöliittymävirhe",
     "reload": "Lataa uudelleen"
   },
