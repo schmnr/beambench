@@ -1,14 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.1.11
 
 - Added corrected overhead-camera alignment. Four-point calibration now fixes
   perspective, while the recommended nine-point workflow also compensates for
   wide-angle lens distortion. Corrected overlays remain adjustable, saved
   profiles from earlier versions remain compatible, and a new camera
   calibration guide explains the full setup.
-
-## 0.1.10
 
 - Added Experimental rotary attachment support for GRBL-family G-code
   controllers. Machine profiles can configure roller or chuck geometry, X, Y,
@@ -21,6 +19,25 @@
   Existing non-rotary G-code remains unchanged. LaserPecker accessory modes,
   DSP controllers, and galvo cylinder marking are not included in this generic
   workflow.
+- Workspace-bounds errors now identify and select the offending object, name
+  the affected edge, and report the largest overrun in the user's selected
+  units. Rotary framing is also blocked on unsupported controllers, and unsafe
+  compensated feed rates are rejected before motion or export.
+- PDF and PDF-compatible AI imports now preserve curved paths and nested
+  transforms more accurately. Dragging files into Beam Bench on Windows no
+  longer risks reading binary artwork as text and producing an unreadable
+  import.
+- Serial connection failures now provide clearer recovery guidance, including
+  localized Windows port-access errors. Bug reports record the port that was
+  actually attempted instead of substituting a different detected port.
+- Updated Tauri and other runtime dependencies to include available security
+  fixes. The remaining upstream Linux GTK advisory does not affect APIs called
+  directly by Beam Bench and has no compatible update in Tauri's GTK3 stack.
+- Added public contribution, support, security-reporting, and automated CI
+  workflows for the open-source repository.
+
+## 0.1.10
+
 - Added finite manual lift-table jogging for the Experimental Ruida RDC6442S
   adapter. Ruida machine profiles can select the controller's Z or U channel,
   since cabinet machines use both conventions, and the Move panel exposes
