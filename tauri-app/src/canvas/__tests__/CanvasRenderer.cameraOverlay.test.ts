@@ -109,6 +109,8 @@ describe('CanvasRenderer camera overlay', () => {
       toolOverlay: { type: 'none' },
       cameraOverlay: {
         frameHandleId: 'frame-1',
+        sourceWidthPx: 100,
+        sourceHeightPx: 80,
         widthPx: 100,
         heightPx: 80,
         transform: {

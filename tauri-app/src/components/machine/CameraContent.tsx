@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useCameraStore } from '../../stores/cameraStore';
 import { useMachineStore } from '../../stores/machineStore';
 import { useProjectStore } from '../../stores/projectStore';
-import { CameraCalibrationDialog } from '../dialogs/CameraCalibrationDialog';
 import { CameraAlignmentDialog } from '../dialogs/CameraAlignmentDialog';
 import {
   CameraOverlayControls,
@@ -36,7 +35,6 @@ export function CameraContent() {
   const resetCalibration = useCameraStore((s) => s.resetCalibration);
   const resetAlignment = useCameraStore((s) => s.resetAlignment);
 
-  const [showCalibrationDialog, setShowCalibrationDialog] = useState(false);
   const [showAlignmentDialog, setShowAlignmentDialog] = useState(false);
 
   // Refresh devices, overlay state, calibration and alignment on mount
@@ -124,13 +122,15 @@ export function CameraContent() {
         >
           {t('panels.machine.camera.refresh_overlay')}
         </button>
-        <button
-          className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
-          disabled={!cameraControlsEnabled || !calibration}
-          onClick={() => void resetCalibration()}
-        >
-          {t('panels.machine.camera.reset_calibration')}
-        </button>
+        {calibration && !alignment && (
+          <button
+            className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
+            disabled={!cameraControlsEnabled}
+            onClick={() => void resetCalibration()}
+          >
+            {t('panels.machine.camera.reset_calibration')}
+          </button>
+        )}
         <button
           className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
           disabled={!cameraControlsEnabled || !alignment}
@@ -142,27 +142,13 @@ export function CameraContent() {
 
       <div className="flex gap-1">
         <button
-          className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
-          disabled={!cameraControlsEnabled}
-          onClick={() => setShowCalibrationDialog(true)}
-        >
-          {t('panels.machine.camera.calibrate_lens')}
-        </button>
-        <button
-          className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
+          className="px-2 py-1 rounded bg-bb-accent text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-60"
           disabled={!cameraControlsEnabled}
           onClick={() => setShowAlignmentDialog(true)}
         >
           {t('panels.machine.camera.align_camera')}
         </button>
       </div>
-
-      {showCalibrationDialog && selectedCameraId && (
-        <CameraCalibrationDialog
-          cameraId={selectedCameraId}
-          onClose={() => setShowCalibrationDialog(false)}
-        />
-      )}
 
       {showAlignmentDialog && selectedCameraId && (
         <CameraAlignmentDialog onClose={() => setShowAlignmentDialog(false)} />

@@ -557,7 +557,10 @@
     },
     "camera_alignment": {
       "title": "Camera Alignment",
-      "help": "Enter matching camera and workspace fiducial points. At least three point pairs are required.",
+      "help": "Choose a point layout, then select each point and click the matching known location in the camera image. Four points correct perspective. Nine well-spread points also correct wide-angle lens distortion.",
+      "layout": "Calibration point layout",
+      "quick_points": "Quick setup (4 points)",
+      "wide_angle_points": "Wide-angle setup (9 points, recommended)",
       "point": "Point {index}",
       "remove": "Remove",
       "camera_x": "Camera X",

@@ -15,15 +15,19 @@ interface CameraAlignmentDialogProps {
   onClose: () => void;
 }
 
-function defaultPoints(frameWidth: number, frameHeight: number, workspace: Workspace | null): AlignmentPoint[] {
+function defaultPoints(
+  frameWidth: number,
+  frameHeight: number,
+  workspace: Workspace | null,
+  pointCount: 4 | 9,
+): AlignmentPoint[] {
   const bedWidth = workspace?.bed_width_mm ?? 100;
   const bedHeight = workspace?.bed_height_mm ?? 100;
-  const pairs = [
-    { camera: { x: 0, y: 0 }, canvas: { x: 0, y: 0 } },
-    { camera: { x: frameWidth, y: 0 }, canvas: { x: bedWidth, y: 0 } },
-    { camera: { x: frameWidth, y: frameHeight }, canvas: { x: bedWidth, y: bedHeight } },
-    { camera: { x: 0, y: frameHeight }, canvas: { x: 0, y: bedHeight } },
-  ];
+  const ratios = pointCount === 9 ? [0.1, 0.5, 0.9] : [0.08, 0.92];
+  const pairs = ratios.flatMap((yRatio) => ratios.map((xRatio) => ({
+    camera: { x: frameWidth * xRatio, y: frameHeight * yRatio },
+    canvas: { x: bedWidth * xRatio, y: bedHeight * yRatio },
+  })));
   return pairs.map(({ camera, canvas }) => {
     const machine = workspace ? canvasToMachinePoint(canvas, workspace) : canvas;
     return {
@@ -50,9 +54,15 @@ export function CameraAlignmentDialog({ onClose }: CameraAlignmentDialogProps) {
   const frameUrl = frame ? cameraFrameAssetUrl(frame.file_path, frame.handle_id) : null;
 
   const [points, setPoints] = useState<AlignmentPoint[]>(() =>
-    defaultPoints(frameWidth, frameHeight, workspace));
+    defaultPoints(frameWidth, frameHeight, workspace, 9));
   const [activePointIndex, setActivePointIndex] = useState(0);
   const [solvedAlignment, setSolvedAlignment] = useState<CameraAlignment | null>(alignment);
+
+  const applyPointLayout = (pointCount: 4 | 9) => {
+    setPoints(defaultPoints(frameWidth, frameHeight, workspace, pointCount));
+    setActivePointIndex(0);
+    setSolvedAlignment(null);
+  };
 
   const updatePoint = (index: number, patch: Partial<AlignmentPoint>) => {
     setSolvedAlignment(null);
@@ -134,6 +144,23 @@ export function CameraAlignmentDialog({ onClose }: CameraAlignmentDialogProps) {
           {t('dialog.camera_alignment.help')}
         </div>
 
+        <div className="flex gap-2 mb-3" role="group" aria-label={t('dialog.camera_alignment.layout')}>
+          <button
+            type="button"
+            className="px-2 py-1 rounded bg-bb-hover text-bb-text hover:bg-bb-border"
+            onClick={() => applyPointLayout(4)}
+          >
+            {t('dialog.camera_alignment.quick_points')}
+          </button>
+          <button
+            type="button"
+            className="px-2 py-1 rounded bg-bb-accent text-bb-on-accent hover:bg-bb-accent-hover"
+            onClick={() => applyPointLayout(9)}
+          >
+            {t('dialog.camera_alignment.wide_angle_points')}
+          </button>
+        </div>
+
         {frameUrl && (
           <div className="flex justify-center mb-3">
             <button
@@ -198,7 +225,7 @@ export function CameraAlignmentDialog({ onClose }: CameraAlignmentDialogProps) {
           <button className="px-2 py-1 rounded bg-bb-hover text-bb-text hover:bg-bb-border" onClick={addPoint}>
             {t('dialog.camera_alignment.add_point')}
           </button>
-          <button className="px-2 py-1 rounded bg-bb-accent text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-60" disabled={points.length < 3} onClick={() => void handleSolve()}>
+          <button className="px-2 py-1 rounded bg-bb-accent text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-60" disabled={points.length < 4} onClick={() => void handleSolve()}>
             {t('dialog.camera_alignment.solve')}
           </button>
           <button className="px-2 py-1 rounded bg-bb-hover text-bb-text hover:bg-bb-border disabled:opacity-60" disabled={!solvedAlignment} onClick={() => void handleSave()}>

@@ -7,6 +7,7 @@ import {
   fitCameraOverlayToWorkspace,
   hitTestCameraOverlayControls,
   mapCameraPixelToWorkspace,
+  mapCameraPixelThroughWarp,
   rotateCameraOverlayTransform,
   scaleCameraOverlayTransform,
   translateCameraOverlayTransform,
@@ -26,6 +27,22 @@ describe('cameraOverlay geometry', () => {
 
     expect(point.x).toBeCloseTo(6);
     expect(point.y).toBeCloseTo(22);
+  });
+
+  it('maps source pixels through radial and projective correction', () => {
+    const mapped = mapCameraPixelThroughWarp(
+      { x: 100, y: 50 },
+      200,
+      100,
+      {
+        output_width_px: 400,
+        output_height_px: 200,
+        homography: [1, 0, 0.25, 0, 1, -0.2, 0, 0, 1],
+        radial_coefficient: 0.3,
+      },
+    );
+
+    expect(mapped).toEqual({ x: 250, y: 80 });
   });
 
   it('maps overlay corners to predictable workspace and screen coordinates', () => {

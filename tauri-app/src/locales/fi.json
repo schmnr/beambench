@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Kameran kohdistus",
-      "help": "Syötä vastaavat kameran ja työtilan referenssipisteet. Vaaditaan vähintään kolme pisteparia.",
+      "help": "Valitse pisteasettelu. Valitse sitten jokainen piste ja napsauta sitä vastaavaa tunnettua sijaintia kamerakuvassa. Neljä pistettä korjaa perspektiivin. Yhdeksän tasaisesti sijoitettua pistettä korjaa myös laajakulmaobjektiivin vääristymän.",
+      "layout": "Kalibrointipisteiden asettelu",
+      "quick_points": "Pika-asetus (4 pistettä)",
+      "wide_angle_points": "Laajakulma-asetus (9 pistettä, suositus)",
       "point": "Piste {index}",
       "remove": "Poista",
       "camera_x": "Kamera X",
