@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Zarovnání kamery",
-      "help": "Zadejte odpovídající body kamery a pracovní plochy. Vyžadují se alespoň tři páry bodů.",
+      "help": "Vyberte rozložení bodů, potom vyberte každý bod a klikněte na odpovídající známé místo v obrazu kamery. Čtyři body opraví perspektivu. Devět rovnoměrně rozmístěných bodů opraví také zkreslení širokoúhlého objektivu.",
+      "layout": "Rozložení kalibračních bodů",
+      "quick_points": "Rychlé nastavení (4 body)",
+      "wide_angle_points": "Širokoúhlé nastavení (9 bodů, doporučeno)",
       "point": "Bod {index}",
       "remove": "Odstranit",
       "camera_x": "Kamera X",

@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Poravnava kamere",
-      "help": "Vnesite ujemajoče se referenčne točke kamere in delovnega območja. Potrebni so vsaj trije pari točk.",
+      "help": "Izberite razporeditev točk, nato izberite vsako točko in kliknite ustrezno znano mesto na sliki kamere. Štiri točke popravijo perspektivo. Devet dobro razporejenih točk popravi tudi popačenje širokokotnega objektiva.",
+      "layout": "Razporeditev kalibracijskih točk",
+      "quick_points": "Hitra nastavitev (4 točke)",
+      "wide_angle_points": "Širokokotna nastavitev (9 točk, priporočeno)",
       "point": "Točka {index}",
       "remove": "Odstrani",
       "camera_x": "Kamera X",

@@ -1,4 +1,4 @@
-import type { SimilarityTransform } from '../types/camera';
+import type { CameraImageWarp, SimilarityTransform } from '../types/camera';
 import type { Point2D } from '../types/project';
 import { pxPerMm, worldToScreen, type ViewportParams } from './ViewportTransform';
 
@@ -27,8 +27,11 @@ export interface CameraOverlayHandleGeometry {
 
 export interface CameraOverlayRenderParams {
   frameHandleId: string;
+  sourceWidthPx: number;
+  sourceHeightPx: number;
   widthPx: number;
   heightPx: number;
+  imageWarp?: CameraImageWarp | null;
   transform: SimilarityTransform;
   opacity: number;
 }
@@ -38,6 +41,33 @@ export interface CameraOverlayCanvasTransform {
   translateY: number;
   rotationRad: number;
   scale: number;
+}
+
+export function mapCameraPixelThroughWarp(
+  point: Point2D,
+  sourceWidthPx: number,
+  sourceHeightPx: number,
+  warp: CameraImageWarp,
+): Point2D | null {
+  if (sourceWidthPx <= 0 || sourceHeightPx <= 0) return null;
+  const x = (point.x * 2) / sourceWidthPx - 1;
+  const y = (point.y * 2) / sourceHeightPx - 1;
+  const radialDenominator = 1 + warp.radial_coefficient * (x * x + y * y);
+  if (!Number.isFinite(radialDenominator) || radialDenominator <= 0.1) return null;
+  const radialX = x / radialDenominator;
+  const radialY = y / radialDenominator;
+  const h = warp.homography;
+  const projectiveDenominator = h[6] * radialX + h[7] * radialY + h[8];
+  if (!Number.isFinite(projectiveDenominator) || Math.abs(projectiveDenominator) < 1e-8) {
+    return null;
+  }
+  const outputX = (h[0] * radialX + h[1] * radialY + h[2]) / projectiveDenominator;
+  const outputY = (h[3] * radialX + h[4] * radialY + h[5]) / projectiveDenominator;
+  if (!Number.isFinite(outputX) || !Number.isFinite(outputY)) return null;
+  return {
+    x: ((outputX + 1) * warp.output_width_px) / 2,
+    y: ((outputY + 1) * warp.output_height_px) / 2,
+  };
 }
 
 export function mapCameraPixelToWorkspace(

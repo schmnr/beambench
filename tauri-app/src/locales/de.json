@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Kameraausrichtung",
-      "help": "Passende Kamera- und Arbeitsbereich-Referenzpunkte eingeben. Mindestens drei Punktpaare sind erforderlich.",
+      "help": "Wählen Sie ein Punktraster aus. Wählen Sie dann jeden Punkt und klicken Sie auf die entsprechende bekannte Position im Kamerabild. Vier Punkte korrigieren die Perspektive. Neun gut verteilte Punkte korrigieren zusätzlich die Weitwinkelverzerrung.",
+      "layout": "Anordnung der Kalibrierpunkte",
+      "quick_points": "Schnelleinrichtung (4 Punkte)",
+      "wide_angle_points": "Weitwinkeleinrichtung (9 Punkte, empfohlen)",
       "point": "Punkt {index}",
       "remove": "Entfernen",
       "camera_x": "Kamera X",

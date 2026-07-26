@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Kamera hizalama",
-      "help": "Eşleşen kamera ve çalışma alanı referans noktalarını girin. En az üç nokta çifti gereklidir.",
+      "help": "Bir nokta düzeni seçin, ardından her noktayı seçip kamera görüntüsündeki karşılık gelen bilinen konuma tıklayın. Dört nokta perspektifi düzeltir. İyi dağıtılmış dokuz nokta geniş açılı lens bozulmasını da düzeltir.",
+      "layout": "Kalibrasyon noktası düzeni",
+      "quick_points": "Hızlı kurulum (4 nokta)",
+      "wide_angle_points": "Geniş açı kurulumu (9 nokta, önerilir)",
       "point": "Nokta {index}",
       "remove": "Kaldır",
       "camera_x": "Kamera X",

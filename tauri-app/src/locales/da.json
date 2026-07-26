@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Kamerajustering",
-      "help": "Indtast matchende referencepunkter for kamera og arbejdsområde. Mindst tre punktpar kræves.",
+      "help": "Vælg et punktlayout, vælg derefter hvert punkt, og klik på den tilsvarende kendte placering i kamerabilledet. Fire punkter korrigerer perspektivet. Ni godt fordelte punkter korrigerer også vidvinkelforvrængning.",
+      "layout": "Layout af kalibreringspunkter",
+      "quick_points": "Hurtig opsætning (4 punkter)",
+      "wide_angle_points": "Vidvinkelopsætning (9 punkter, anbefalet)",
       "point": "Punkt {index}",
       "remove": "Fjern",
       "camera_x": "Kamera X",

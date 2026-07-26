@@ -241,15 +241,32 @@ describe('CameraAlignmentDialog', () => {
     fireEvent.click(screen.getByText('Solve'));
 
     await waitFor(() => {
-      expect(solveAlignment).toHaveBeenCalledWith({
-        points: [
-          { camera_x: 0, camera_y: 0, workspace_x_mm: 0, workspace_y_mm: 0 },
-          { camera_x: 100, camera_y: 0, workspace_x_mm: 400, workspace_y_mm: 0 },
-          { camera_x: 100, camera_y: 100, workspace_x_mm: 400, workspace_y_mm: 300 },
-          { camera_x: 0, camera_y: 100, workspace_x_mm: 0, workspace_y_mm: 300 },
-        ],
-      });
+      expect(solveAlignment).toHaveBeenCalled();
     });
+    const submitted = solveAlignment.mock.calls[0][0].points;
+    expect(submitted).toHaveLength(9);
+    expect(submitted[0]).toEqual({
+      camera_x: 10,
+      camera_y: 10,
+      workspace_x_mm: 40,
+      workspace_y_mm: 30,
+    });
+    expect(submitted[8]).toEqual({
+      camera_x: 90,
+      camera_y: 90,
+      workspace_x_mm: 360,
+      workspace_y_mm: 270,
+    });
+  });
+
+  it('offers quick four-point and recommended wide-angle layouts', () => {
+    render(<CameraAlignmentDialog onClose={vi.fn()} />);
+
+    expect(screen.getAllByLabelText('Camera X')).toHaveLength(9);
+    fireEvent.click(screen.getByText('Quick setup (4 points)'));
+    expect(screen.getAllByLabelText('Camera X')).toHaveLength(4);
+    fireEvent.click(screen.getByText('Wide-angle setup (9 points, recommended)'));
+    expect(screen.getAllByLabelText('Camera X')).toHaveLength(9);
   });
 
   it('picks camera coordinates directly from the captured frame', () => {

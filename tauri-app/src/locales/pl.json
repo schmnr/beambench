@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Wyrównanie kamery",
-      "help": "Wprowadź pasujące punkty referencyjne kamery i obszaru roboczego. Wymagane są co najmniej trzy pary punktów.",
+      "help": "Wybierz układ punktów, a następnie zaznacz każdy punkt i kliknij odpowiadające mu znane położenie na obrazie z kamery. Cztery punkty korygują perspektywę. Dziewięć dobrze rozmieszczonych punktów koryguje również zniekształcenie obiektywu szerokokątnego.",
+      "layout": "Układ punktów kalibracji",
+      "quick_points": "Szybka konfiguracja (4 punkty)",
+      "wide_angle_points": "Konfiguracja szerokokątna (9 punktów, zalecana)",
       "point": "Punkt {index}",
       "remove": "Usuń",
       "camera_x": "Kamera X",

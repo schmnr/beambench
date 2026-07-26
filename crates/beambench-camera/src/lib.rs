@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use beambench_common::{
     AlignmentPointSet, CalibrationPointSet, CalibrationSolveResult, CameraAlignment,
     CameraAlignmentSource, CameraBackendKind, CameraCalibration, CameraDeviceInfo,
-    CameraFrameHandle, SimilarityTransform,
+    CameraFrameHandle, CameraImageWarp, SimilarityTransform,
 };
 use chrono::Utc;
 use image::{ImageBuffer, Rgba, RgbaImage};
@@ -500,6 +500,376 @@ fn points_span_area(points: &[(f64, f64)]) -> bool {
     false
 }
 
+fn solve_linear_8(mut matrix: [[f64; 8]; 8], mut rhs: [f64; 8]) -> Option<[f64; 8]> {
+    for column in 0..8 {
+        let mut pivot = column;
+        for row in (column + 1)..8 {
+            if matrix[row][column].abs() > matrix[pivot][column].abs() {
+                pivot = row;
+            }
+        }
+        if !matrix[pivot][column].is_finite() || matrix[pivot][column].abs() < 1e-10 {
+            return None;
+        }
+        if pivot != column {
+            matrix.swap(pivot, column);
+            rhs.swap(pivot, column);
+        }
+
+        let divisor = matrix[column][column];
+        for value in &mut matrix[column][column..] {
+            *value /= divisor;
+        }
+        rhs[column] /= divisor;
+
+        for row in 0..8 {
+            if row == column {
+                continue;
+            }
+            let factor = matrix[row][column];
+            if factor.abs() < f64::EPSILON {
+                continue;
+            }
+            let pivot_values = matrix[column];
+            for (value, pivot_value) in matrix[row][column..]
+                .iter_mut()
+                .zip(&pivot_values[column..])
+            {
+                *value -= factor * pivot_value;
+            }
+            rhs[row] -= factor * rhs[column];
+        }
+    }
+    rhs.iter().all(|value| value.is_finite()).then_some(rhs)
+}
+
+fn solve_homography(src: &[(f64, f64)], dst: &[(f64, f64)]) -> Option<[f64; 9]> {
+    if src.len() != dst.len() || src.len() < 4 {
+        return None;
+    }
+
+    let mut normal = [[0.0_f64; 8]; 8];
+    let mut rhs = [0.0_f64; 8];
+    let mut accumulate = |row: [f64; 8], target: f64| {
+        for i in 0..8 {
+            rhs[i] += row[i] * target;
+            for j in 0..8 {
+                normal[i][j] += row[i] * row[j];
+            }
+        }
+    };
+
+    for ((x, y), (u, v)) in src.iter().zip(dst.iter()) {
+        accumulate([*x, *y, 1.0, 0.0, 0.0, 0.0, -*u * *x, -*u * *y], *u);
+        accumulate([0.0, 0.0, 0.0, *x, *y, 1.0, -*v * *x, -*v * *y], *v);
+    }
+
+    let solved = solve_linear_8(normal, rhs)?;
+    Some([
+        solved[0], solved[1], solved[2], solved[3], solved[4], solved[5], solved[6], solved[7], 1.0,
+    ])
+}
+
+fn apply_homography(point: (f64, f64), homography: &[f64; 9]) -> Option<(f64, f64)> {
+    let denominator = homography[6] * point.0 + homography[7] * point.1 + homography[8];
+    if !denominator.is_finite() || denominator.abs() < 1e-8 {
+        return None;
+    }
+    let x = (homography[0] * point.0 + homography[1] * point.1 + homography[2]) / denominator;
+    let y = (homography[3] * point.0 + homography[4] * point.1 + homography[5]) / denominator;
+    (x.is_finite() && y.is_finite()).then_some((x, y))
+}
+
+fn normalize_image_point(x: f64, y: f64, width_px: u32, height_px: u32) -> (f64, f64) {
+    (
+        x * 2.0 / f64::from(width_px) - 1.0,
+        y * 2.0 / f64::from(height_px) - 1.0,
+    )
+}
+
+fn correct_radial(point: (f64, f64), coefficient: f64) -> Option<(f64, f64)> {
+    let radius_squared = point.0 * point.0 + point.1 * point.1;
+    let denominator = 1.0 + coefficient * radius_squared;
+    if !denominator.is_finite() || denominator <= 0.1 {
+        return None;
+    }
+    Some((point.0 / denominator, point.1 / denominator))
+}
+
+fn inverse_similarity_point(point: (f64, f64), transform: &SimilarityTransform) -> (f64, f64) {
+    let translated_x = point.0 - transform.translation_x;
+    let translated_y = point.1 - transform.translation_y;
+    let rotation = -transform.rotation_deg.to_radians();
+    let cos = rotation.cos();
+    let sin = rotation.sin();
+    (
+        (cos * translated_x - sin * translated_y) / transform.scale,
+        (sin * translated_x + cos * translated_y) / transform.scale,
+    )
+}
+
+fn normalized_output_point(
+    workspace_point: (f64, f64),
+    output_width_px: u32,
+    output_height_px: u32,
+    transform: &SimilarityTransform,
+) -> (f64, f64) {
+    let output = inverse_similarity_point(workspace_point, transform);
+    (
+        output.0 * 2.0 / f64::from(output_width_px) - 1.0,
+        output.1 * 2.0 / f64::from(output_height_px) - 1.0,
+    )
+}
+
+fn warp_rmse_mm(
+    src: &[(f64, f64)],
+    workspace_dst: &[(f64, f64)],
+    homography: &[f64; 9],
+    radial_coefficient: f64,
+    output_width_px: u32,
+    output_height_px: u32,
+    transform: &SimilarityTransform,
+) -> Option<f64> {
+    let mut squared_error = 0.0;
+    for (source, expected) in src.iter().zip(workspace_dst.iter()) {
+        let corrected = correct_radial(*source, radial_coefficient)?;
+        let normalized_output = apply_homography(corrected, homography)?;
+        let output_x = (normalized_output.0 + 1.0) * f64::from(output_width_px) / 2.0;
+        let output_y = (normalized_output.1 + 1.0) * f64::from(output_height_px) / 2.0;
+        let actual = {
+            let rotation = transform.rotation_deg.to_radians();
+            let cos = rotation.cos();
+            let sin = rotation.sin();
+            (
+                transform.scale * (cos * output_x - sin * output_y) + transform.translation_x,
+                transform.scale * (sin * output_x + cos * output_y) + transform.translation_y,
+            )
+        };
+        squared_error += (actual.0 - expected.0).powi(2) + (actual.1 - expected.1).powi(2);
+    }
+    Some((squared_error / src.len() as f64).sqrt())
+}
+
+fn fit_warp(
+    src: &[(f64, f64)],
+    normalized_dst: &[(f64, f64)],
+    workspace_dst: &[(f64, f64)],
+    radial_coefficient: f64,
+    output_width_px: u32,
+    output_height_px: u32,
+    transform: &SimilarityTransform,
+) -> Option<([f64; 9], f64)> {
+    let corrected = src
+        .iter()
+        .map(|point| correct_radial(*point, radial_coefficient))
+        .collect::<Option<Vec<_>>>()?;
+    let homography = solve_homography(&corrected, normalized_dst)?;
+    let rmse = warp_rmse_mm(
+        src,
+        workspace_dst,
+        &homography,
+        radial_coefficient,
+        output_width_px,
+        output_height_px,
+        transform,
+    )?;
+    Some((homography, rmse))
+}
+
+/// Solve an installed-camera alignment that can correct perspective and, with
+/// six or more well-spread points, radial wide-angle distortion.
+pub fn solve_warped_alignment(
+    points: &AlignmentPointSet,
+    image_width_px: u32,
+    image_height_px: u32,
+    workspace_width_mm: f64,
+    workspace_height_mm: f64,
+) -> Result<CameraAlignment, String> {
+    if image_width_px == 0 || image_height_px == 0 {
+        return Err("Camera frame dimensions must be greater than zero".to_string());
+    }
+    if !workspace_width_mm.is_finite()
+        || !workspace_height_mm.is_finite()
+        || workspace_width_mm <= 0.0
+        || workspace_height_mm <= 0.0
+    {
+        return Err("Workspace dimensions must be greater than zero".to_string());
+    }
+    if points.points.len() < 4 {
+        return Err("At least four point pairs are required for corrected alignment".to_string());
+    }
+    if points.points.iter().any(|point| {
+        !point.camera_x.is_finite()
+            || !point.camera_y.is_finite()
+            || !point.workspace_x_mm.is_finite()
+            || !point.workspace_y_mm.is_finite()
+            || point.camera_x < 0.0
+            || point.camera_y < 0.0
+            || point.camera_x > f64::from(image_width_px)
+            || point.camera_y > f64::from(image_height_px)
+            || point.workspace_x_mm < 0.0
+            || point.workspace_y_mm < 0.0
+            || point.workspace_x_mm > workspace_width_mm
+            || point.workspace_y_mm > workspace_height_mm
+    }) {
+        return Err(
+            "Alignment points must fall within the captured frame and workspace".to_string(),
+        );
+    }
+
+    let source_pixels = points
+        .points
+        .iter()
+        .map(|point| (point.camera_x, point.camera_y))
+        .collect::<Vec<_>>();
+    let workspace_dst = points
+        .points
+        .iter()
+        .map(|point| (point.workspace_x_mm, point.workspace_y_mm))
+        .collect::<Vec<_>>();
+    if !points_span_area(&source_pixels) {
+        return Err("Camera points must span a non-zero area".to_string());
+    }
+    if !points_span_area(&workspace_dst) {
+        return Err("Workspace points must span a non-zero area".to_string());
+    }
+
+    let pixels_per_mm = (f64::from(image_width_px) / workspace_width_mm)
+        .min(f64::from(image_height_px) / workspace_height_mm)
+        .max(1.0);
+    let output_width_px = (workspace_width_mm * pixels_per_mm)
+        .round()
+        .clamp(1.0, f64::from(image_width_px)) as u32;
+    let output_height_px = (workspace_height_mm * pixels_per_mm)
+        .round()
+        .clamp(1.0, f64::from(image_height_px)) as u32;
+    let transform = {
+        let scale = (workspace_width_mm / f64::from(output_width_px))
+            .min(workspace_height_mm / f64::from(output_height_px));
+        SimilarityTransform {
+            scale,
+            rotation_deg: 0.0,
+            translation_x: (workspace_width_mm - f64::from(output_width_px) * scale) / 2.0,
+            translation_y: (workspace_height_mm - f64::from(output_height_px) * scale) / 2.0,
+        }
+    };
+    let src = source_pixels
+        .iter()
+        .map(|(x, y)| normalize_image_point(*x, *y, image_width_px, image_height_px))
+        .collect::<Vec<_>>();
+    let normalized_dst = workspace_dst
+        .iter()
+        .map(|point| normalized_output_point(*point, output_width_px, output_height_px, &transform))
+        .collect::<Vec<_>>();
+
+    let (zero_homography, zero_rmse) = fit_warp(
+        &src,
+        &normalized_dst,
+        &workspace_dst,
+        0.0,
+        output_width_px,
+        output_height_px,
+        &transform,
+    )
+    .ok_or_else(|| {
+        "Camera alignment points could not produce a stable perspective correction".to_string()
+    })?;
+
+    let mut best = (0.0, zero_homography, zero_rmse);
+    if points.points.len() >= 6 {
+        let mut coefficient = -0.38;
+        while coefficient <= 0.800_001 {
+            if let Some((homography, rmse)) = fit_warp(
+                &src,
+                &normalized_dst,
+                &workspace_dst,
+                coefficient,
+                output_width_px,
+                output_height_px,
+                &transform,
+            ) && rmse < best.2
+            {
+                best = (coefficient, homography, rmse);
+            }
+            coefficient += 0.02;
+        }
+
+        let mut low = (best.0 - 0.03).max(-0.38);
+        let mut high = (best.0 + 0.03).min(0.8);
+        for _ in 0..24 {
+            let left = low + (high - low) / 3.0;
+            let right = high - (high - low) / 3.0;
+            let left_fit = fit_warp(
+                &src,
+                &normalized_dst,
+                &workspace_dst,
+                left,
+                output_width_px,
+                output_height_px,
+                &transform,
+            );
+            let right_fit = fit_warp(
+                &src,
+                &normalized_dst,
+                &workspace_dst,
+                right,
+                output_width_px,
+                output_height_px,
+                &transform,
+            );
+            match (left_fit, right_fit) {
+                (Some((left_h, left_rmse)), Some((right_h, right_rmse))) => {
+                    if left_rmse <= right_rmse {
+                        high = right;
+                        if left_rmse < best.2 {
+                            best = (left, left_h, left_rmse);
+                        }
+                    } else {
+                        low = left;
+                        if right_rmse < best.2 {
+                            best = (right, right_h, right_rmse);
+                        }
+                    }
+                }
+                (Some((left_h, left_rmse)), None) => {
+                    high = right;
+                    if left_rmse < best.2 {
+                        best = (left, left_h, left_rmse);
+                    }
+                }
+                (None, Some((right_h, right_rmse))) => {
+                    low = left;
+                    if right_rmse < best.2 {
+                        best = (right, right_h, right_rmse);
+                    }
+                }
+                (None, None) => break,
+            }
+        }
+
+        let meaningful_improvement = zero_rmse - best.2 > zero_rmse.mul_add(0.05, 0.05);
+        if !meaningful_improvement {
+            best = (0.0, zero_homography, zero_rmse);
+        }
+    }
+
+    Ok(CameraAlignment {
+        transform,
+        image_warp: Some(CameraImageWarp {
+            output_width_px,
+            output_height_px,
+            homography: best.1,
+            radial_coefficient: best.0,
+        }),
+        image_width_px: Some(image_width_px),
+        image_height_px: Some(image_height_px),
+        rmse_mm: best.2,
+        quality_score: quality_score(best.2),
+        solved_at: Utc::now().to_rfc3339(),
+        source: CameraAlignmentSource::SolvedPoints,
+    })
+}
+
 pub fn solve_calibration(points: &CalibrationPointSet) -> Result<CalibrationSolveResult, String> {
     if points.image_width_px == 0 || points.image_height_px == 0 {
         return Err("Camera frame dimensions must be greater than zero".to_string());
@@ -561,6 +931,7 @@ pub fn solve_alignment(points: &AlignmentPointSet) -> Result<CameraAlignment, St
             translation_x: solution.tx,
             translation_y: solution.ty,
         },
+        image_warp: None,
         image_width_px: None,
         image_height_px: None,
         rmse_mm: solution.rmse,
@@ -680,6 +1051,77 @@ mod tests {
         .unwrap();
         assert!((alignment.transform.translation_x - 5.0).abs() < 0.001);
         assert!((alignment.transform.translation_y - 8.0).abs() < 0.001);
+        assert!(alignment.image_warp.is_none());
+    }
+
+    #[test]
+    fn warped_alignment_corrects_perspective_from_four_points() {
+        let alignment = solve_warped_alignment(
+            &AlignmentPointSet {
+                points: vec![
+                    AlignmentPoint {
+                        camera_x: 140.0,
+                        camera_y: 90.0,
+                        workspace_x_mm: 0.0,
+                        workspace_y_mm: 0.0,
+                    },
+                    AlignmentPoint {
+                        camera_x: 900.0,
+                        camera_y: 130.0,
+                        workspace_x_mm: 200.0,
+                        workspace_y_mm: 0.0,
+                    },
+                    AlignmentPoint {
+                        camera_x: 820.0,
+                        camera_y: 700.0,
+                        workspace_x_mm: 200.0,
+                        workspace_y_mm: 100.0,
+                    },
+                    AlignmentPoint {
+                        camera_x: 210.0,
+                        camera_y: 660.0,
+                        workspace_x_mm: 0.0,
+                        workspace_y_mm: 100.0,
+                    },
+                ],
+            },
+            1000,
+            800,
+            200.0,
+            100.0,
+        )
+        .unwrap();
+
+        let warp = alignment.image_warp.as_ref().unwrap();
+        assert_eq!(warp.radial_coefficient, 0.0);
+        assert!(alignment.rmse_mm < 1e-6);
+        assert_eq!(warp.output_width_px, 1000);
+        assert_eq!(warp.output_height_px, 500);
+    }
+
+    #[test]
+    fn warped_alignment_estimates_wide_angle_radial_correction() {
+        let expected_coefficient = 0.28;
+        let mut points = Vec::new();
+        for y in [-0.82, 0.0, 0.82] {
+            for x in [-0.82, 0.0, 0.82] {
+                let corrected = correct_radial((x, y), expected_coefficient).unwrap();
+                points.push(AlignmentPoint {
+                    camera_x: (x + 1.0) * 500.0,
+                    camera_y: (y + 1.0) * 500.0,
+                    workspace_x_mm: (corrected.0 + 1.0) * 100.0,
+                    workspace_y_mm: (corrected.1 + 1.0) * 100.0,
+                });
+            }
+        }
+
+        let alignment =
+            solve_warped_alignment(&AlignmentPointSet { points }, 1000, 1000, 200.0, 200.0)
+                .unwrap();
+        let warp = alignment.image_warp.as_ref().unwrap();
+
+        assert!((warp.radial_coefficient - expected_coefficient).abs() < 0.01);
+        assert!(alignment.rmse_mm < 0.01);
     }
 
     #[test]

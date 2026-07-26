@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Kamera kalibráció",
-      "help": "Adja meg a kamera és a munkaterület megfelelő referenciapontjait. Legalább három pontpár szükséges.",
+      "help": "Válasszon pontelrendezést, majd jelölje ki az egyes pontokat, és kattintson a kameraképen a hozzájuk tartozó ismert helyre. Négy pont korrigálja a perspektívát. Kilenc jól elosztott pont a nagy látószögű objektív torzítását is korrigálja.",
+      "layout": "Kalibrációs pontok elrendezése",
+      "quick_points": "Gyors beállítás (4 pont)",
+      "wide_angle_points": "Nagy látószögű beállítás (9 pont, ajánlott)",
       "point": "Pont {index}",
       "remove": "Eltávolítás",
       "camera_x": "Kamera X",

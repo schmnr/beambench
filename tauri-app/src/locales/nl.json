@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Camera-uitlijning",
-      "help": "Voer overeenkomende camera- en werkruimteijkpunten in. Er zijn minstens drie puntparen vereist.",
+      "help": "Kies een puntindeling. Selecteer daarna elk punt en klik op de bijbehorende bekende locatie in het camerabeeld. Vier punten corrigeren het perspectief. Negen goed verspreide punten corrigeren ook de groothoekvervorming.",
+      "layout": "Indeling van kalibratiepunten",
+      "quick_points": "Snelle instelling (4 punten)",
+      "wide_angle_points": "Groothoekinstelling (9 punten, aanbevolen)",
       "point": "Punt {index}",
       "remove": "Verwijderen",
       "camera_x": "Camera X",

@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Allineamento fotocamera",
-      "help": "Inserisci punti fiduciari corrispondenti della fotocamera e dell'area di lavoro. Sono richieste almeno tre coppie di punti.",
+      "help": "Scegli una disposizione dei punti, quindi seleziona ogni punto e fai clic sulla posizione nota corrispondente nell'immagine della fotocamera. Quattro punti correggono la prospettiva. Nove punti ben distribuiti correggono anche la distorsione dell'obiettivo grandangolare.",
+      "layout": "Disposizione dei punti di calibrazione",
+      "quick_points": "Configurazione rapida (4 punti)",
+      "wide_angle_points": "Configurazione grandangolare (9 punti, consigliata)",
       "point": "Punto {index}",
       "remove": "Rimuovi",
       "camera_x": "Fotocamera X",
