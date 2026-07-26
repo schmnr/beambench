@@ -108,7 +108,7 @@ do
   fi
 done
 
-for command_name in git jq node npm rustup security xcrun shasum hdiutil spctl lipo ditto codesign; do
+for command_name in git jq node npm rustup security xcrun shasum hdiutil spctl lipo ditto codesign zip; do
   require_command "$command_name"
 done
 
@@ -237,7 +237,16 @@ if [[ "$MODE" != "resume" || ! -x "$CLI_BINARY" || ! -s "$CLI_ARCHIVE" ]]; then
     --sign "$APPLE_SIGNING_IDENTITY" \
     "$CLI_BINARY"
   codesign --verify --strict --verbose=2 "$CLI_BINARY"
-  ditto -c -k "$CLI_BINARY" "$CLI_ARCHIVE"
+  (
+    cd "$CLI_WORK_DIR"
+    zip -9 "$(basename "$CLI_ARCHIVE")" \
+      beambench-cli \
+      LICENSE \
+      COPYRIGHT \
+      SOURCE.md \
+      THIRD_PARTY_NOTICES.md \
+      THIRD_PARTY_LICENSES.md
+  )
 else
   note "Reusing the staged universal standalone CLI"
   RUSTUP_TOOLCHAIN=stable node "$APP_DIR/scripts/build-cli-release.mjs" \
