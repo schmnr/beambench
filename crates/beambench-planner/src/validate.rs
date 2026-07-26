@@ -1,7 +1,7 @@
 //! Validation functions for execution plans.
 
 use crate::{
-    error::PlannerError,
+    error::{BoundsAxis, BoundsBoundary, BoundsViolation, PlannerError},
     plan::{PlanSegment, ScanAxis},
 };
 use beambench_common::geometry::Point2D;
@@ -54,46 +54,61 @@ pub fn validate_bounds(
                 _ => max_overshoot,
             });
 
+    let mut worst_violation = None;
     for (idx, segment) in segments.iter().enumerate() {
         match segment {
             PlanSegment::Travel { start, end } => {
-                check_point_with_tolerance(
+                record_point_violations(
+                    &mut worst_violation,
                     start,
                     bed_width_mm,
                     bed_height_mm,
                     max_travel_overshoot,
                     idx,
                     "travel start",
-                )?;
-                check_point_with_tolerance(
+                    None,
+                );
+                record_point_violations(
+                    &mut worst_violation,
                     end,
                     bed_width_mm,
                     bed_height_mm,
                     max_travel_overshoot,
                     idx,
                     "travel end",
-                )?;
+                    None,
+                );
             }
-            PlanSegment::Vector { polyline, .. } => {
+            PlanSegment::Vector {
+                polyline,
+                source_object_id,
+                ..
+            } => {
                 for (pt_idx, point) in polyline.iter().enumerate() {
-                    check_point(
+                    record_point_violations(
+                        &mut worst_violation,
                         point,
                         bed_width_mm,
                         bed_height_mm,
+                        FP_TOLERANCE_MM,
                         idx,
                         &format!("vector point {}", pt_idx),
-                    )?;
+                        source_object_id.as_deref(),
+                    );
                 }
             }
             PlanSegment::Frame { path, .. } => {
                 for (pt_idx, point) in path.iter().enumerate() {
-                    check_point(
+                    record_point_violations(
+                        &mut worst_violation,
                         point,
                         bed_width_mm,
                         bed_height_mm,
+                        FP_TOLERANCE_MM,
                         idx,
                         &format!("frame point {}", pt_idx),
-                    )?;
+                        None,
+                    );
                 }
             }
             PlanSegment::Raster {
@@ -115,51 +130,103 @@ pub fn validate_bounds(
                 // For vertical scans the axes are swapped: scanline.y_mm
                 // holds the X world coordinate (bounded by bed width) and
                 // run positions hold Y (bounded by bed height).
-                let (scanline_limit, scanline_dim, run_limit, run_dim) = match scan_axis {
-                    ScanAxis::Horizontal => (bed_height_mm, "height", bed_width_mm, "width"),
-                    ScanAxis::Vertical => (bed_width_mm, "width", bed_height_mm, "height"),
+                let (scanline_limit, scanline_axis, run_limit, run_axis) = match scan_axis {
+                    ScanAxis::Horizontal => {
+                        (bed_height_mm, BoundsAxis::Y, bed_width_mm, BoundsAxis::X)
+                    }
+                    ScanAxis::Vertical => {
+                        (bed_width_mm, BoundsAxis::X, bed_height_mm, BoundsAxis::Y)
+                    }
                 };
 
                 for (line_idx, scanline) in scanlines.iter().enumerate() {
                     // Check cross-axis coordinate
                     if scanline.y_mm < -FP_TOLERANCE_MM {
-                        return Err(PlannerError::BoundsExceeded(format!(
-                            "Segment {} raster scanline {} y={} is below bed origin 0",
-                            idx, line_idx, scanline.y_mm
-                        )));
+                        record_violation(
+                            &mut worst_violation,
+                            BoundsViolation::new(
+                                scanline_axis,
+                                BoundsBoundary::Min,
+                                scanline.y_mm,
+                                0.0,
+                                idx,
+                                format!("raster scanline {}", line_idx),
+                                None,
+                            ),
+                        );
                     }
                     if scanline.y_mm > scanline_limit + FP_TOLERANCE_MM {
-                        return Err(PlannerError::BoundsExceeded(format!(
-                            "Segment {} raster scanline {} y={} exceeds bed {} {}",
-                            idx, line_idx, scanline.y_mm, scanline_dim, scanline_limit
-                        )));
+                        record_violation(
+                            &mut worst_violation,
+                            BoundsViolation::new(
+                                scanline_axis,
+                                BoundsBoundary::Max,
+                                scanline.y_mm,
+                                scanline_limit,
+                                idx,
+                                format!("raster scanline {}", line_idx),
+                                None,
+                            ),
+                        );
                     }
 
                     // Check scan-axis ranges
                     for (run_idx, run) in scanline.runs.iter().enumerate() {
                         if run.start_x_mm < -FP_TOLERANCE_MM {
-                            return Err(PlannerError::BoundsExceeded(format!(
-                                "Segment {} raster scanline {} run {} start_x={} is below bed origin 0",
-                                idx, line_idx, run_idx, run.start_x_mm
-                            )));
+                            record_violation(
+                                &mut worst_violation,
+                                BoundsViolation::new(
+                                    run_axis,
+                                    BoundsBoundary::Min,
+                                    run.start_x_mm,
+                                    0.0,
+                                    idx,
+                                    format!("raster scanline {} run {} start", line_idx, run_idx),
+                                    None,
+                                ),
+                            );
                         }
                         if run.start_x_mm > run_limit + FP_TOLERANCE_MM {
-                            return Err(PlannerError::BoundsExceeded(format!(
-                                "Segment {} raster scanline {} run {} start_x={} exceeds bed {} {}",
-                                idx, line_idx, run_idx, run.start_x_mm, run_dim, run_limit
-                            )));
+                            record_violation(
+                                &mut worst_violation,
+                                BoundsViolation::new(
+                                    run_axis,
+                                    BoundsBoundary::Max,
+                                    run.start_x_mm,
+                                    run_limit,
+                                    idx,
+                                    format!("raster scanline {} run {} start", line_idx, run_idx),
+                                    None,
+                                ),
+                            );
                         }
                         if run.end_x_mm < -FP_TOLERANCE_MM {
-                            return Err(PlannerError::BoundsExceeded(format!(
-                                "Segment {} raster scanline {} run {} end_x={} is below bed origin 0",
-                                idx, line_idx, run_idx, run.end_x_mm
-                            )));
+                            record_violation(
+                                &mut worst_violation,
+                                BoundsViolation::new(
+                                    run_axis,
+                                    BoundsBoundary::Min,
+                                    run.end_x_mm,
+                                    0.0,
+                                    idx,
+                                    format!("raster scanline {} run {} end", line_idx, run_idx),
+                                    None,
+                                ),
+                            );
                         }
                         if run.end_x_mm > run_limit + FP_TOLERANCE_MM {
-                            return Err(PlannerError::BoundsExceeded(format!(
-                                "Segment {} raster scanline {} run {} end_x={} exceeds bed {} {}",
-                                idx, line_idx, run_idx, run.end_x_mm, run_dim, run_limit
-                            )));
+                            record_violation(
+                                &mut worst_violation,
+                                BoundsViolation::new(
+                                    run_axis,
+                                    BoundsBoundary::Max,
+                                    run.end_x_mm,
+                                    run_limit,
+                                    idx,
+                                    format!("raster scanline {} run {} end", line_idx, run_idx),
+                                    None,
+                                ),
+                            );
                         }
                     }
                 }
@@ -168,63 +235,94 @@ pub fn validate_bounds(
         }
     }
 
-    Ok(())
+    match worst_violation {
+        Some(violation) => Err(PlannerError::BoundsExceeded(violation)),
+        None => Ok(()),
+    }
 }
 
 /// Small tolerance for floating-point drift from geometric operations
 /// (undo/redo, transform round-trips, boolean ops, etc.).
 const FP_TOLERANCE_MM: f64 = 0.5;
 
-fn check_point(
-    point: &Point2D,
-    bed_width_mm: f64,
-    bed_height_mm: f64,
-    segment_idx: usize,
-    label: &str,
-) -> Result<(), PlannerError> {
-    check_point_with_tolerance(
-        point,
-        bed_width_mm,
-        bed_height_mm,
-        FP_TOLERANCE_MM,
-        segment_idx,
-        label,
-    )
-}
-
-fn check_point_with_tolerance(
+fn record_point_violations(
+    worst: &mut Option<BoundsViolation>,
     point: &Point2D,
     bed_width_mm: f64,
     bed_height_mm: f64,
     tolerance: f64,
     segment_idx: usize,
     label: &str,
-) -> Result<(), PlannerError> {
+    source_object_id: Option<&str>,
+) {
     if point.x < -tolerance {
-        return Err(PlannerError::BoundsExceeded(format!(
-            "Segment {} {} x={} is below bed origin 0",
-            segment_idx, label, point.x
-        )));
+        record_violation(
+            worst,
+            BoundsViolation::new(
+                BoundsAxis::X,
+                BoundsBoundary::Min,
+                point.x,
+                0.0,
+                segment_idx,
+                label,
+                source_object_id,
+            ),
+        );
     }
     if point.x > bed_width_mm + tolerance {
-        return Err(PlannerError::BoundsExceeded(format!(
-            "Segment {} {} x={} exceeds bed width {}",
-            segment_idx, label, point.x, bed_width_mm
-        )));
+        record_violation(
+            worst,
+            BoundsViolation::new(
+                BoundsAxis::X,
+                BoundsBoundary::Max,
+                point.x,
+                bed_width_mm,
+                segment_idx,
+                label,
+                source_object_id,
+            ),
+        );
     }
     if point.y < -tolerance {
-        return Err(PlannerError::BoundsExceeded(format!(
-            "Segment {} {} y={} is below bed origin 0",
-            segment_idx, label, point.y
-        )));
+        record_violation(
+            worst,
+            BoundsViolation::new(
+                BoundsAxis::Y,
+                BoundsBoundary::Min,
+                point.y,
+                0.0,
+                segment_idx,
+                label,
+                source_object_id,
+            ),
+        );
     }
     if point.y > bed_height_mm + tolerance {
-        return Err(PlannerError::BoundsExceeded(format!(
-            "Segment {} {} y={} exceeds bed height {}",
-            segment_idx, label, point.y, bed_height_mm
-        )));
+        record_violation(
+            worst,
+            BoundsViolation::new(
+                BoundsAxis::Y,
+                BoundsBoundary::Max,
+                point.y,
+                bed_height_mm,
+                segment_idx,
+                label,
+                source_object_id,
+            ),
+        );
     }
-    Ok(())
+}
+
+fn record_violation(worst: &mut Option<BoundsViolation>, candidate: BoundsViolation) {
+    let should_replace = worst.as_ref().is_none_or(|current| {
+        candidate.amount_mm > current.amount_mm
+            || (candidate.amount_mm == current.amount_mm
+                && current.source_object_id.is_none()
+                && candidate.source_object_id.is_some())
+    });
+    if should_replace {
+        *worst = Some(candidate);
+    }
 }
 
 #[cfg(test)]
@@ -316,16 +414,48 @@ mod tests {
             perforation_enabled: false,
             perforation_on_ms: 0.0,
             perforation_off_ms: 0.0,
-            source_object_id: None,
+            source_object_id: Some("obj-outside".to_string()),
             source_subpath_index: None,
         }];
 
         let result = validate_bounds(&segments, 400.0, 300.0);
         assert!(result.is_err());
         match result {
-            Err(PlannerError::BoundsExceeded(msg)) => {
-                assert!(msg.contains("exceeds bed width"));
-                assert!(msg.contains("450"));
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.axis, BoundsAxis::X);
+                assert_eq!(violation.boundary, BoundsBoundary::Max);
+                assert_eq!(violation.coordinate_mm, 450.0);
+                assert_eq!(violation.amount_mm, 50.0);
+                assert_eq!(violation.source_object_id.as_deref(), Some("obj-outside"));
+            }
+            _ => panic!("Expected BoundsExceeded error"),
+        }
+    }
+
+    #[test]
+    fn validate_bounds_reports_the_worst_violation_not_the_first_point() {
+        let segments = vec![PlanSegment::Vector {
+            polyline: vec![Point2D::new(-1.35, 50.0), Point2D::new(-8.0, 100.0)],
+            closed: false,
+            power_percent: 80.0,
+            speed_mm_min: 1000.0,
+            layer_id: "layer1".to_string(),
+            cut_entry_id: String::new(),
+            perforation_enabled: false,
+            perforation_on_ms: 0.0,
+            perforation_off_ms: 0.0,
+            source_object_id: Some("logo".to_string()),
+            source_subpath_index: None,
+        }];
+
+        let result = validate_bounds(&segments, 400.0, 300.0);
+
+        match result {
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.coordinate_mm, -8.0);
+                assert_eq!(violation.amount_mm, 8.0);
+                assert_eq!(violation.geometry_label, "vector point 1");
+                assert_eq!(violation.source_object_id.as_deref(), Some("logo"));
             }
             _ => panic!("Expected BoundsExceeded error"),
         }
@@ -350,9 +480,11 @@ mod tests {
         let result = validate_bounds(&segments, 400.0, 300.0);
         assert!(result.is_err());
         match result {
-            Err(PlannerError::BoundsExceeded(msg)) => {
-                assert!(msg.contains("exceeds bed height"));
-                assert!(msg.contains("350"));
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.axis, BoundsAxis::Y);
+                assert_eq!(violation.boundary, BoundsBoundary::Max);
+                assert_eq!(violation.coordinate_mm, 350.0);
+                assert_eq!(violation.amount_mm, 50.0);
             }
             _ => panic!("Expected BoundsExceeded error"),
         }
@@ -377,9 +509,11 @@ mod tests {
         let result = validate_bounds(&segments, 400.0, 300.0);
         assert!(result.is_err());
         match result {
-            Err(PlannerError::BoundsExceeded(msg)) => {
-                assert!(msg.contains("below bed origin"));
-                assert!(msg.contains("-1"));
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.axis, BoundsAxis::Y);
+                assert_eq!(violation.boundary, BoundsBoundary::Min);
+                assert_eq!(violation.coordinate_mm, -1.0);
+                assert_eq!(violation.amount_mm, 1.0);
             }
             _ => panic!("Expected BoundsExceeded error"),
         }
@@ -395,9 +529,10 @@ mod tests {
         let result = validate_bounds(&segments, 400.0, 300.0);
         assert!(result.is_err());
         match result {
-            Err(PlannerError::BoundsExceeded(msg)) => {
-                assert!(msg.contains("travel end"));
-                assert!(msg.contains("exceeds bed width"));
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.axis, BoundsAxis::X);
+                assert_eq!(violation.boundary, BoundsBoundary::Max);
+                assert_eq!(violation.geometry_label, "travel end");
             }
             _ => panic!("Expected BoundsExceeded error"),
         }
@@ -473,10 +608,10 @@ mod tests {
         let result = validate_bounds(&segments, 400.0, 300.0);
 
         match result {
-            Err(PlannerError::BoundsExceeded(msg)) => {
-                assert!(msg.contains("raster scanline"));
-                assert!(msg.contains("below bed origin"));
-                assert!(!msg.contains("exceeds bed height"));
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.axis, BoundsAxis::Y);
+                assert_eq!(violation.boundary, BoundsBoundary::Min);
+                assert!(violation.geometry_label.contains("raster scanline"));
             }
             _ => panic!("Expected BoundsExceeded error"),
         }
@@ -485,18 +620,18 @@ mod tests {
     #[test]
     fn validate_raster_run_endpoints_materially_below_origin_report_lower_bound() {
         let cases = [
-            (horizontal_raster_segment(100.0, -0.500_1, 50.0), "start_x"),
-            (horizontal_raster_segment(100.0, 50.0, -0.500_1), "end_x"),
+            (horizontal_raster_segment(100.0, -0.500_1, 50.0), "start"),
+            (horizontal_raster_segment(100.0, 50.0, -0.500_1), "end"),
         ];
 
         for (segment, expected_label) in cases {
             let result = validate_bounds(&[segment], 400.0, 300.0);
 
             match result {
-                Err(PlannerError::BoundsExceeded(msg)) => {
-                    assert!(msg.contains(expected_label));
-                    assert!(msg.contains("below bed origin"));
-                    assert!(!msg.contains("exceeds bed width"));
+                Err(PlannerError::BoundsExceeded(violation)) => {
+                    assert_eq!(violation.axis, BoundsAxis::X);
+                    assert_eq!(violation.boundary, BoundsBoundary::Min);
+                    assert!(violation.geometry_label.contains(expected_label));
                 }
                 _ => panic!("Expected BoundsExceeded error"),
             }
@@ -536,9 +671,10 @@ mod tests {
         let result = validate_bounds(&segments, 400.0, 300.0);
         assert!(result.is_err());
         match result {
-            Err(PlannerError::BoundsExceeded(msg)) => {
-                assert!(msg.contains("scanline"));
-                assert!(msg.contains("exceeds bed height"));
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.axis, BoundsAxis::Y);
+                assert_eq!(violation.boundary, BoundsBoundary::Max);
+                assert!(violation.geometry_label.contains("scanline"));
             }
             _ => panic!("Expected BoundsExceeded error"),
         }
@@ -577,9 +713,10 @@ mod tests {
         let result = validate_bounds(&segments, 400.0, 300.0);
         assert!(result.is_err());
         match result {
-            Err(PlannerError::BoundsExceeded(msg)) => {
-                assert!(msg.contains("end_x"));
-                assert!(msg.contains("exceeds bed width"));
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.axis, BoundsAxis::X);
+                assert_eq!(violation.boundary, BoundsBoundary::Max);
+                assert!(violation.geometry_label.contains("end"));
             }
             _ => panic!("Expected BoundsExceeded error"),
         }
@@ -659,9 +796,10 @@ mod tests {
         let result = validate_bounds(&segments, 400.0, 300.0);
         assert!(result.is_err());
         match result {
-            Err(PlannerError::BoundsExceeded(msg)) => {
-                assert!(msg.contains("end_x"));
-                assert!(msg.contains("exceeds bed height"));
+            Err(PlannerError::BoundsExceeded(violation)) => {
+                assert_eq!(violation.axis, BoundsAxis::Y);
+                assert_eq!(violation.boundary, BoundsBoundary::Max);
+                assert!(violation.geometry_label.contains("end"));
             }
             _ => panic!("Expected BoundsExceeded error"),
         }

@@ -15,7 +15,7 @@ Experimental confirmation.
 
 | Controller choice | Connection | Status | Current scope |
 | --- | --- | --- | --- |
-| GRBL | Serial | Supported | Existing GRBL job, framing, homing, jogging, unlock, origin, pause/resume, and status workflow. |
+| GRBL | Serial | Supported | Existing GRBL job, framing, homing, jogging, unlock, origin, pause/resume, and status workflow. Experimental generic rotary mode is described below. |
 | FluidNC | Serial or Network (TCP, normally port 23) | Experimental | Requires an exact FluidNC identity and uses the normal GRBL-family job and machine controls. |
 | grblHAL | Serial or Network (TCP, normally port 23) | Experimental | Requires exact grblHAL firmware identity and uses the normal GRBL-family job and machine controls. |
 | LaserPecker LX1 / LX1 Max, LP2 Plus, LP4 / LP4 Safeguard, LP5 | Serial (460800 baud) | Experimental | Explicit LaserPecker adapter with official-profile workspaces, power scales, top-left coordinates, regular-mode commands, dual-laser selection for LP4/LP5, and shared GRBL-family jobs and controls. |
@@ -50,6 +50,40 @@ machine preset; it supplies the 460800 baud rate and model-specific job settings
 For Ruida RDC6442S, use the controller's IP address and UDP port 50200. For a
 stock K40/Lihuiyu board, choose USB; Beam Bench lists only matching CH341
 `1a86:5512` devices and validates the controller before entering Ready.
+
+### GRBL Rotary Notes
+
+Beam Bench provides an Experimental generic rotary workflow for standard GRBL,
+FluidNC, grblHAL, and explicitly selected Generic GRBL-compatible sessions. In
+the active machine profile, enable **Rotary Attachment**, then choose a roller
+or chuck, the controller axis used by the attachment (X, Y, or Z), its travel
+per rotation, and the relevant diameter. The Z choice covers machines with a
+dedicated rotary port that is presented to G-code as the Z axis, including the
+Genmitsu Kiosk rotary interface arrangement.
+
+Artwork, preview, and jogging stay expressed in millimetres along the object's
+surface. The rotary dimension of the workspace becomes the circumference of the
+configured workpiece. Beam Bench converts that surface motion to controller
+coordinates at output time and compensates feed rates for the mapped axis.
+
+Rotary jobs must use **Start From Current Position**. Park the laser at the job
+start, save the profile, and verify direction and calibration with a low-speed,
+laser-off jog before framing or running a job. Homing, Machine Zero, and other
+absolute positioning are disabled while rotary mode is active. Z-axis rotary
+mode also disables manual/job Z motion, layer Z offsets, and focus-test motion.
+Beam Bench does not silently change controller soft limits or persistent GRBL
+settings, so the machine's rotary wiring and firmware configuration must already
+permit the selected axis to move safely.
+
+This generic mapping does not cover LaserPecker's vendor-specific accessory
+modes, Ruida or other DSP controllers, or galvo cylinder marking. Those remain
+separate controller-specific workflows.
+
+The setup fields follow the common G-code rotary model documented in
+[LightBurn's GCode rotary reference](https://docs.lightburnsoftware.com/2.1/Reference/RotaryMode/RotaryModeGCode/).
+SainSmart's [Genmitsu Kiosk product page](https://www.sainsmart.com/products/kiosk-laser)
+identifies its MD18/MD19 rotary interface; always follow the machine and rotary
+manufacturer's wiring instructions for the specific hardware.
 
 ### CLI And Local API
 

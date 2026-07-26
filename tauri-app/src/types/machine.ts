@@ -454,6 +454,15 @@ export interface MachineProfile {
   default_fire_power_percent?: number;
   /** M3: persisted Material/Focus/Interval Test dialog state. */
   quality_test_settings?: QualityTestSettings;
+  /** Map G-code output to a configured rotary attachment. */
+  rotary_enabled?: boolean;
+  rotary_type?: 'roller' | 'chuck';
+  rotary_axis?: 'x' | 'y' | 'z';
+  /** Controller-coordinate millimetres that rotate the attachment once. */
+  rotary_mm_per_rotation?: number;
+  rotary_roller_diameter_mm?: number;
+  rotary_object_diameter_mm?: number;
+  rotary_reverse_direction?: boolean;
 }
 
 export interface MachineProfilePreset {

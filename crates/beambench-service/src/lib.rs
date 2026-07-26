@@ -26,11 +26,28 @@ pub use validation::{
 
 #[cfg(test)]
 pub(crate) mod test_support {
+    use std::cell::{Cell, RefCell};
+    use std::path::PathBuf;
     use std::sync::{LazyLock, Mutex, MutexGuard};
 
-    use crate::persist;
-
     static PERSIST_TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
+    thread_local! {
+        static PERSISTENCE_ENABLED: Cell<bool> = const { Cell::new(false) };
+        static PERSISTENCE_DIRS: RefCell<Option<(PathBuf, PathBuf)>> = const { RefCell::new(None) };
+    }
+
+    pub(crate) fn persistence_enabled_for_current_test() -> bool {
+        PERSISTENCE_ENABLED.get()
+    }
+
+    pub(crate) fn persistence_config_dir_for_current_test() -> Option<PathBuf> {
+        PERSISTENCE_DIRS.with(|dirs| dirs.borrow().as_ref().map(|(config, _)| config.clone()))
+    }
+
+    pub(crate) fn persistence_data_dir_for_current_test() -> Option<PathBuf> {
+        PERSISTENCE_DIRS.with(|dirs| dirs.borrow().as_ref().map(|(_, data)| data.clone()))
+    }
 
     pub(crate) struct PersistTestGuard {
         _lock: MutexGuard<'static, ()>,
@@ -43,12 +60,13 @@ pub(crate) mod test_support {
             let lock = PERSIST_TEST_LOCK.lock().unwrap();
             let config_dir = tempfile::tempdir().unwrap();
             let data_dir = tempfile::tempdir().unwrap();
-            // SAFETY: all service tests that mutate persistence env vars use
-            // this crate-level guard, so env access is serialized.
-            unsafe {
-                std::env::set_var(persist::CONFIG_DIR_ENV, config_dir.path());
-                std::env::set_var(persist::DATA_DIR_ENV, data_dir.path());
-            }
+            PERSISTENCE_DIRS.with(|dirs| {
+                *dirs.borrow_mut() = Some((
+                    config_dir.path().to_path_buf(),
+                    data_dir.path().to_path_buf(),
+                ));
+            });
+            PERSISTENCE_ENABLED.set(true);
             Self {
                 _lock: lock,
                 _config_dir: config_dir,
@@ -59,12 +77,8 @@ pub(crate) mod test_support {
 
     impl Drop for PersistTestGuard {
         fn drop(&mut self) {
-            // SAFETY: guarded by `PERSIST_TEST_LOCK` held for this guard's
-            // lifetime.
-            unsafe {
-                std::env::remove_var(persist::CONFIG_DIR_ENV);
-                std::env::remove_var(persist::DATA_DIR_ENV);
-            }
+            PERSISTENCE_ENABLED.set(false);
+            PERSISTENCE_DIRS.with(|dirs| *dirs.borrow_mut() = None);
         }
     }
 }

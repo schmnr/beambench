@@ -55,6 +55,13 @@ function makeProfile(overrides: Partial<MachineProfile> = {}): MachineProfile {
     enable_scanning_offset: false,
     dot_width_mm: 0,
     enable_dot_width: false,
+    rotary_enabled: false,
+    rotary_type: 'roller',
+    rotary_axis: 'y',
+    rotary_mm_per_rotation: 50,
+    rotary_roller_diameter_mm: 16,
+    rotary_object_diameter_mm: 75,
+    rotary_reverse_direction: false,
     ...overrides,
   };
 }
@@ -277,6 +284,44 @@ describe('DeviceSettingsDialog', () => {
     expect(screen.getByText('Emit S on Every G1')).toBeDefined();
     expect(screen.getByText('S-value Max')).toBeDefined();
     expect(screen.getByText('Use G0 for Overscan')).toBeDefined();
+  });
+
+  it('configures and saves rotary attachment settings without showing them until enabled', async () => {
+    const testProfile = makeProfile();
+    const saveProfile = vi.fn().mockResolvedValue(undefined);
+    useMachineStore.setState({
+      profiles: [testProfile],
+      activeProfileId: 'prof-1',
+      saveProfile,
+    });
+
+    render(<DeviceSettingsDialog onClose={vi.fn()} initialTab="machine" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Rotary Attachment')).toBeDefined();
+    });
+    expect(screen.queryByLabelText('Travel per Rotation (mm)')).toBeNull();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable Rotary Mode' }));
+
+    expect(screen.getByLabelText('Travel per Rotation (mm)')).toBeDefined();
+    fireEvent.change(screen.getByLabelText('Rotary Type'), { target: { value: 'chuck' } });
+    fireEvent.change(screen.getByLabelText('Rotary Axis'), { target: { value: 'z' } });
+    fireEvent.change(screen.getByLabelText('Object Diameter (mm)'), { target: { value: '80' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Reverse Rotary Direction' }));
+    fireEvent.click(screen.getByTestId('machine-save-btn'));
+
+    await waitFor(() => {
+      expect(saveProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rotary_enabled: true,
+          rotary_type: 'chuck',
+          rotary_axis: 'z',
+          rotary_object_diameter_mm: 80,
+          rotary_reverse_direction: true,
+        }),
+      );
+    });
   });
 
   it('Machine tab renders calibration section with dot width and scanning offset', async () => {

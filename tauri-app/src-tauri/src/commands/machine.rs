@@ -425,6 +425,13 @@ pub fn save_machine_profile(
             enable_laser_fire_button: profile.enable_laser_fire_button,
             default_fire_power_percent: profile.default_fire_power_percent,
             quality_test_settings: profile.quality_test_settings,
+            rotary_enabled: profile.rotary_enabled,
+            rotary_type: profile.rotary_type,
+            rotary_axis: profile.rotary_axis,
+            rotary_mm_per_rotation: profile.rotary_mm_per_rotation,
+            rotary_roller_diameter_mm: profile.rotary_roller_diameter_mm,
+            rotary_object_diameter_mm: profile.rotary_object_diameter_mm,
+            rotary_reverse_direction: profile.rotary_reverse_direction,
         },
     )
     .map_err(Into::into)

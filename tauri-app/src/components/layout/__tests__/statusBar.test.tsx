@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { StatusBar } from '../StatusBar';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useAppStore } from '../../../stores/appStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useMeasurementStore } from '../../../stores/measurementStore';
+import { useMachineStore } from '../../../stores/machineStore';
 import { makeProject, makeProjectObject } from '../../../test-utils/projectFixtures';
+import { ROTARY_SETUP_OPEN_EVENT } from '../../../rotaryEvents';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -14,6 +16,7 @@ const initialProjectState = useProjectStore.getState();
 const initialAppState = useAppStore.getState();
 const initialUiState = useUiStore.getState();
 const initialMeasurementState = useMeasurementStore.getState();
+const initialMachineState = useMachineStore.getState();
 
 afterEach(() => {
   cleanup();
@@ -21,6 +24,7 @@ afterEach(() => {
   useAppStore.setState(initialAppState, true);
   useUiStore.setState(initialUiState, true);
   useMeasurementStore.setState(initialMeasurementState, true);
+  useMachineStore.setState(initialMachineState, true);
 });
 
 describe('StatusBar', () => {
@@ -90,6 +94,23 @@ describe('StatusBar', () => {
     render(<StatusBar />);
 
     expect(screen.queryByTestId('selection-bounds')).toBeNull();
+  });
+
+  it('opens rotary setup from the status bar and marks an active rotary profile', () => {
+    useMachineStore.setState({
+      activeProfileId: 'rotary-profile',
+      profiles: [{ id: 'rotary-profile', rotary_enabled: true }] as never,
+    });
+    const onOpen = vi.fn();
+    window.addEventListener(ROTARY_SETUP_OPEN_EVENT, onOpen);
+
+    render(<StatusBar />);
+    const button = screen.getByRole('button', { name: 'Rotary' });
+    expect(button.title).toContain('active');
+    fireEvent.click(button);
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    window.removeEventListener(ROTARY_SETUP_OPEN_EVENT, onOpen);
   });
 
   it('distinguishes node segment trim from the standalone trim tool', () => {

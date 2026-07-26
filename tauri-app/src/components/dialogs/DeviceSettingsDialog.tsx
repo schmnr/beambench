@@ -55,10 +55,16 @@ import { wrapBackendError } from '../../i18n/errors';
 
 interface DeviceSettingsDialogProps {
   onClose: () => void;
+  initialTab?: TabId;
 }
 const START_END_GCODE_HELP_ID = 'device-settings-start-end-gcode-help';
 
 type TabId = 'connection' | 'machine' | 'grbl' | 'controller' | 'discovery' | 'profiles';
+const ROTARY_TYPE_ROLLER = 'roller' as const;
+const ROTARY_TYPE_CHUCK = 'chuck' as const;
+const ROTARY_AXIS_X = 'x' as const;
+const ROTARY_AXIS_Y = 'y' as const;
+const ROTARY_AXIS_Z = 'z' as const;
 type CloseGuardResult = Promise<boolean>;
 type CandidateAction = Promise<void>;
 type PendingProfileAction =
@@ -98,9 +104,9 @@ function normalizeStringRecord(payload: unknown): Record<string, string> {
   return Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, String(value)]));
 }
 
-export function DeviceSettingsDialog({ onClose }: DeviceSettingsDialogProps) {
+export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: DeviceSettingsDialogProps) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<TabId>('connection');
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [machineCloseGuard, setMachineCloseGuard] = useState<CloseGuard | null>(null);
   const [closePromptVisible, setClosePromptVisible] = useState(false);
 
@@ -773,6 +779,116 @@ function MachineTab({
           checked={editProfile.cnc_machine ?? false}
           onChange={(v) => updateField('cnc_machine', v)}
         />
+      </div>
+
+      <div className="border-t border-bb-border pt-2 mt-3" data-testid="rotary-settings">
+        <div className="text-xs font-semibold text-bb-text mb-2">
+          {t('dialog.device_settings.rotary_attachment')}
+        </div>
+        <div className="space-y-2">
+          <Toggle
+            label={t('dialog.device_settings.enable_rotary')}
+            checked={editProfile.rotary_enabled ?? false}
+            onChange={(v) => updateField('rotary_enabled', v)}
+            className="w-full"
+            labelFirst
+          />
+          {(editProfile.rotary_enabled ?? false) && (
+            <>
+              <div className="rounded border border-bb-warning-border bg-bb-warning-bg px-2 py-1.5 text-xs text-bb-warning-fg">
+                {t('dialog.device_settings.rotary_safety')}
+              </div>
+              <Select
+                label={t('dialog.device_settings.rotary_type')}
+                value={editProfile.rotary_type ?? ROTARY_TYPE_ROLLER}
+                options={[
+                  { value: ROTARY_TYPE_ROLLER, label: t('dialog.device_settings.rotary_type_roller') },
+                  { value: ROTARY_TYPE_CHUCK, label: t('dialog.device_settings.rotary_type_chuck') },
+                ]}
+                onChange={(v) => updateField('rotary_type', v as 'roller' | 'chuck')}
+              />
+              <Select
+                label={t('dialog.device_settings.rotary_axis')}
+                value={editProfile.rotary_axis ?? ROTARY_AXIS_Y}
+                options={[
+                  { value: ROTARY_AXIS_X, label: t('dialog.device_settings.rotary_axis_x') },
+                  { value: ROTARY_AXIS_Y, label: t('dialog.device_settings.rotary_axis_y') },
+                  { value: ROTARY_AXIS_Z, label: t('dialog.device_settings.rotary_axis_z') },
+                ]}
+                onChange={(v) => updateField('rotary_axis', v as 'x' | 'y' | 'z')}
+              />
+              <NumberInput
+                label={labelWithUnit(
+                  t('dialog.device_settings.rotary_mm_per_rotation'),
+                  lengthUnitLabel(displayUnit),
+                )}
+                value={roundDisplayLength(
+                  mmToDisplay(editProfile.rotary_mm_per_rotation ?? 50, displayUnit),
+                  displayUnit,
+                )}
+                onChange={(v) => updateField('rotary_mm_per_rotation', displayToMm(v, displayUnit))}
+                min={mmToDisplay(0.001, displayUnit)}
+                step={lengthStep(displayUnit, 0.1, 0.005)}
+              />
+              {(editProfile.rotary_type ?? ROTARY_TYPE_ROLLER) === ROTARY_TYPE_ROLLER && (
+                <NumberInput
+                  label={labelWithUnit(
+                    t('dialog.device_settings.rotary_roller_diameter'),
+                    lengthUnitLabel(displayUnit),
+                  )}
+                  value={roundDisplayLength(
+                    mmToDisplay(editProfile.rotary_roller_diameter_mm ?? 16, displayUnit),
+                    displayUnit,
+                  )}
+                  onChange={(v) =>
+                    updateField('rotary_roller_diameter_mm', displayToMm(v, displayUnit))
+                  }
+                  min={mmToDisplay(0.001, displayUnit)}
+                  step={lengthStep(displayUnit, 0.1, 0.005)}
+                />
+              )}
+              <NumberInput
+                label={labelWithUnit(
+                  t('dialog.device_settings.rotary_object_diameter'),
+                  lengthUnitLabel(displayUnit),
+                )}
+                value={roundDisplayLength(
+                  mmToDisplay(editProfile.rotary_object_diameter_mm ?? 75, displayUnit),
+                  displayUnit,
+                )}
+                onChange={(v) =>
+                  updateField('rotary_object_diameter_mm', displayToMm(v, displayUnit))
+                }
+                min={mmToDisplay(0.001, displayUnit)}
+                step={lengthStep(displayUnit, 0.1, 0.005)}
+              />
+              <div className="text-xs text-bb-text-muted">
+                {t('dialog.device_settings.rotary_circumference', {
+                  value: roundDisplayLength(
+                    mmToDisplay(
+                      Math.PI * (editProfile.rotary_object_diameter_mm ?? 75),
+                      displayUnit,
+                    ),
+                    displayUnit,
+                  ),
+                  unit: lengthUnitLabel(displayUnit),
+                })}
+              </div>
+              <Toggle
+                label={t('dialog.device_settings.rotary_reverse')}
+                checked={editProfile.rotary_reverse_direction ?? false}
+                onChange={(v) => updateField('rotary_reverse_direction', v)}
+                className="w-full"
+                labelFirst
+              />
+              {(editProfile.rotary_axis ?? ROTARY_AXIS_Y) === ROTARY_AXIS_Z && (
+                <div className="text-xs text-bb-text-muted">
+                  {t('dialog.device_settings.rotary_z_note')}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="border-t border-bb-border pt-2 mt-3">

@@ -15,6 +15,7 @@ import { zoomToFitBounds } from '../../canvas/ViewportTransform';
 import { computeVisualBoundsWorld } from '../../canvas/alignment';
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
+import { ROTARY_SETUP_OPEN_EVENT } from '../../rotaryEvents';
 import { DockDialog } from '../dialogs/DockDialog';
 import { IconButton } from '../shared/IconButton';
 import { useMacroStore } from '../../stores/macroStore';
@@ -87,6 +88,8 @@ const DISTRIBUTE_V_CENTERED = 'v_centered' as const;
 const SIZE_WIDTH = 'width' as const;
 const SIZE_HEIGHT = 'height' as const;
 const EMERGENCY_STOP_SYMBOL = '■';
+const CONNECTION_SETTINGS_TAB = 'connection' as const;
+const MACHINE_SETTINGS_TAB = 'machine' as const;
 
 export function MainToolbar() {
   const { t } = useTranslation();
@@ -137,6 +140,9 @@ export function MainToolbar() {
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [showZoomMenu, setShowZoomMenu] = useState(false);
   const [showArrangeMenu, setShowArrangeMenu] = useState(false);
+  const [deviceSettingsInitialTab, setDeviceSettingsInitialTab] = useState<
+    typeof CONNECTION_SETTINGS_TAB | typeof MACHINE_SETTINGS_TAB
+  >(CONNECTION_SETTINGS_TAB);
   const [dockDialogObjectIds, setDockDialogObjectIds] = useState<string[] | null>(null);
 
   const loadMacros = useMacroStore((s) => s.loadMacros);
@@ -146,6 +152,15 @@ export function MainToolbar() {
   useEffect(() => {
     void loadMacros();
   }, [loadMacros]);
+
+  useEffect(() => {
+    const openRotary = () => {
+      setDeviceSettingsInitialTab(MACHINE_SETTINGS_TAB);
+      setShowDeviceSettings(true);
+    };
+    window.addEventListener(ROTARY_SETUP_OPEN_EVENT, openRotary);
+    return () => window.removeEventListener(ROTARY_SETUP_OPEN_EVENT, openRotary);
+  }, []);
 
   const hasSelection = selectedObjectIds.length > 0;
   const selCount = selectedObjectIds.length;
@@ -426,7 +441,10 @@ export function MainToolbar() {
       <Separator />
 
       {/* Settings */}
-      <IconButton icon={<Settings size={sz} />} label={t('toolbars.main.device_settings')} onClick={() => setShowDeviceSettings(true)} />
+      <IconButton icon={<Settings size={sz} />} label={t('toolbars.main.device_settings')} onClick={() => {
+        setDeviceSettingsInitialTab(CONNECTION_SETTINGS_TAB);
+        setShowDeviceSettings(true);
+      }} />
       <div className="w-3" />
         </>
       )}
@@ -544,7 +562,10 @@ export function MainToolbar() {
       </button>
 
       {showDeviceSettings && (
-        <DeviceSettingsDialog onClose={() => setShowDeviceSettings(false)} />
+        <DeviceSettingsDialog
+          initialTab={deviceSettingsInitialTab}
+          onClose={() => setShowDeviceSettings(false)}
+        />
       )}
       {dockDialogObjectIds && (
         <DockDialog objectIds={dockDialogObjectIds} onClose={() => setDockDialogObjectIds(null)} />
