@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added corrected overhead-camera alignment. Four-point calibration now fixes
+  perspective, while the recommended nine-point workflow also compensates for
+  wide-angle lens distortion. Corrected overlays remain adjustable, saved
+  profiles from earlier versions remain compatible, and a new camera
+  calibration guide explains the full setup.
+
 ## 0.1.10
 
 - Added Experimental rotary attachment support for GRBL-family G-code

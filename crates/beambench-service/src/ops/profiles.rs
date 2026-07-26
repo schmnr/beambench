@@ -1158,6 +1158,7 @@ mod tests {
     fn sample_camera_alignment() -> CameraAlignment {
         CameraAlignment {
             transform: SimilarityTransform::default(),
+            image_warp: None,
             image_width_px: Some(1920),
             image_height_px: Some(1080),
             rmse_mm: 0.25,

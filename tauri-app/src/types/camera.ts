@@ -57,8 +57,16 @@ export interface AlignmentPointSet {
 
 export type CameraAlignmentSource = 'solved_points' | 'manual_adjust';
 
+export interface CameraImageWarp {
+  output_width_px: number;
+  output_height_px: number;
+  homography: [number, number, number, number, number, number, number, number, number];
+  radial_coefficient: number;
+}
+
 export interface CameraAlignment {
   transform: SimilarityTransform;
+  image_warp?: CameraImageWarp | null;
   image_width_px?: number;
   image_height_px?: number;
   rmse_mm: number;

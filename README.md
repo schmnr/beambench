@@ -9,6 +9,8 @@ support.
 
 - For product help or to submit an in-app diagnostic report, visit
   [Beam Bench Support](https://beambench.com/support).
+- To set up a fixed overhead camera, follow the
+  [camera calibration guide](docs/camera-calibration.md).
 - For reproducible bugs and feature proposals, use the repository's
   [issue forms](https://github.com/schmnr/beambench/issues/new/choose).
 - To contribute code, start with [CONTRIBUTING.md](CONTRIBUTING.md).

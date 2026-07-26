@@ -49,6 +49,7 @@ import { getCachedTransformedBoundsWorld } from './sceneIndex';
 import { measureCanvasPerf } from './canvasPerf';
 import {
   CAMERA_OVERLAY_HANDLE_SIZE_PX,
+  mapCameraPixelThroughWarp,
   cameraOverlayScreenHandleGeometry,
   cameraOverlayCanvasTransform,
   type CameraOverlayRenderParams,
@@ -258,6 +259,7 @@ export class CanvasRenderer {
   private vectorProxyCache: Map<string, VectorProxyEntry> = new Map();
   private cameraOverlayImageCache: Map<string, HTMLImageElement> = new Map();
   private cameraOverlayImageErrorCache: Map<string, string> = new Map();
+  private cameraOverlayWarpCache: Map<string, HTMLCanvasElement> = new Map();
   private vectorPathIds: WeakMap<PathCommand[], number> = new WeakMap();
   private nextVectorPathId = 1;
   private renderCallback: (() => void) | null = null;
@@ -305,6 +307,7 @@ export class CanvasRenderer {
   clearCameraOverlayImageCache(): void {
     this.cameraOverlayImageCache.clear();
     this.cameraOverlayImageErrorCache.clear();
+    this.cameraOverlayWarpCache.clear();
   }
 
   markImageLoadError(assetKey: string, error: string): void {
@@ -354,6 +357,7 @@ export class CanvasRenderer {
         }
       }
       this.cameraOverlayImageErrorCache.delete(frameHandleId);
+      this.cameraOverlayWarpCache.clear();
       this.renderCallback?.();
     };
     img.onerror = () => {
@@ -831,6 +835,8 @@ export class CanvasRenderer {
           params.cameraOverlay.frameHandleId,
           params.cameraOverlay.widthPx,
           params.cameraOverlay.heightPx,
+          params.cameraOverlay.imageWarp?.homography.join(',') ?? '',
+          params.cameraOverlay.imageWarp?.radial_coefficient ?? '',
           params.cameraOverlay.opacity,
           params.cameraOverlay.transform.scale,
           params.cameraOverlay.transform.rotation_deg,
@@ -945,14 +951,138 @@ export class CanvasRenderer {
       return;
     }
 
+    const drawable = overlay.imageWarp
+      ? this.correctedCameraOverlayImage(image, overlay)
+      : image;
+    if (!drawable) return;
+
     const transform = cameraOverlayCanvasTransform(overlay.transform, vp);
     ctx.save();
     ctx.globalAlpha *= Math.max(0, Math.min(1, overlay.opacity));
     ctx.translate(transform.translateX, transform.translateY);
     ctx.rotate(transform.rotationRad);
     ctx.scale(transform.scale, transform.scale);
-    ctx.drawImage(image, 0, 0, overlay.widthPx, overlay.heightPx);
+    ctx.drawImage(drawable, 0, 0, overlay.widthPx, overlay.heightPx);
     ctx.restore();
+  }
+
+  private correctedCameraOverlayImage(
+    image: HTMLImageElement,
+    overlay: CameraOverlayRenderParams,
+  ): HTMLCanvasElement | null {
+    const warp = overlay.imageWarp;
+    if (!warp) return null;
+    const cacheKey = [
+      overlay.frameHandleId,
+      overlay.sourceWidthPx,
+      overlay.sourceHeightPx,
+      warp.output_width_px,
+      warp.output_height_px,
+      warp.radial_coefficient,
+      ...warp.homography,
+    ].join(':');
+    const cached = this.cameraOverlayWarpCache.get(cacheKey);
+    if (cached) return cached;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = warp.output_width_px;
+    canvas.height = warp.output_height_px;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    const columns = 40;
+    const rows = Math.max(
+      18,
+      Math.round(columns * overlay.sourceHeightPx / overlay.sourceWidthPx),
+    );
+    const vertices: Array<Array<Point2D | null>> = [];
+    for (let row = 0; row <= rows; row += 1) {
+      const sourceY = (row / rows) * overlay.sourceHeightPx;
+      const vertexRow: Array<Point2D | null> = [];
+      for (let column = 0; column <= columns; column += 1) {
+        const sourceX = (column / columns) * overlay.sourceWidthPx;
+        vertexRow.push(mapCameraPixelThroughWarp(
+          { x: sourceX, y: sourceY },
+          overlay.sourceWidthPx,
+          overlay.sourceHeightPx,
+          warp,
+        ));
+      }
+      vertices.push(vertexRow);
+    }
+
+    for (let row = 0; row < rows; row += 1) {
+      const sourceTop = (row / rows) * overlay.sourceHeightPx;
+      const sourceBottom = ((row + 1) / rows) * overlay.sourceHeightPx;
+      for (let column = 0; column < columns; column += 1) {
+        const sourceLeft = (column / columns) * overlay.sourceWidthPx;
+        const sourceRight = ((column + 1) / columns) * overlay.sourceWidthPx;
+        const topLeft = vertices[row][column];
+        const topRight = vertices[row][column + 1];
+        const bottomLeft = vertices[row + 1][column];
+        const bottomRight = vertices[row + 1][column + 1];
+        if (!topLeft || !topRight || !bottomLeft || !bottomRight) continue;
+        this.drawCameraWarpTriangle(
+          context,
+          image,
+          [
+            { x: sourceLeft, y: sourceTop },
+            { x: sourceRight, y: sourceTop },
+            { x: sourceRight, y: sourceBottom },
+          ],
+          [topLeft, topRight, bottomRight],
+        );
+        this.drawCameraWarpTriangle(
+          context,
+          image,
+          [
+            { x: sourceLeft, y: sourceTop },
+            { x: sourceRight, y: sourceBottom },
+            { x: sourceLeft, y: sourceBottom },
+          ],
+          [topLeft, bottomRight, bottomLeft],
+        );
+      }
+    }
+
+    this.cameraOverlayWarpCache.clear();
+    this.cameraOverlayWarpCache.set(cacheKey, canvas);
+    return canvas;
+  }
+
+  private drawCameraWarpTriangle(
+    context: CanvasRenderingContext2D,
+    image: HTMLImageElement,
+    source: [Point2D, Point2D, Point2D],
+    destination: [Point2D, Point2D, Point2D],
+  ): void {
+    const [s0, s1, s2] = source;
+    const denominator = s0.x * (s1.y - s2.y)
+      + s1.x * (s2.y - s0.y)
+      + s2.x * (s0.y - s1.y);
+    if (Math.abs(denominator) < 1e-8) return;
+    const solve = (v0: number, v1: number, v2: number) => ({
+      x: (v0 * (s1.y - s2.y) + v1 * (s2.y - s0.y) + v2 * (s0.y - s1.y))
+        / denominator,
+      y: (v0 * (s2.x - s1.x) + v1 * (s0.x - s2.x) + v2 * (s1.x - s0.x))
+        / denominator,
+      offset: (v0 * (s1.x * s2.y - s2.x * s1.y)
+        + v1 * (s2.x * s0.y - s0.x * s2.y)
+        + v2 * (s0.x * s1.y - s1.x * s0.y)) / denominator,
+    });
+    const x = solve(destination[0].x, destination[1].x, destination[2].x);
+    const y = solve(destination[0].y, destination[1].y, destination[2].y);
+
+    context.save();
+    context.beginPath();
+    context.moveTo(destination[0].x, destination[0].y);
+    context.lineTo(destination[1].x, destination[1].y);
+    context.lineTo(destination[2].x, destination[2].y);
+    context.closePath();
+    context.clip();
+    context.transform(x.x, y.x, x.y, y.y, x.offset, y.offset);
+    context.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
+    context.restore();
   }
 
   private drawCameraOverlayAdjustHandles(

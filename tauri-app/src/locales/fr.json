@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Alignement caméra",
-      "help": "Entrez des points de repère correspondants entre la caméra et l'espace de travail. Au moins trois paires de points sont requises.",
+      "help": "Choisissez une disposition de points, puis sélectionnez chaque point et cliquez sur l'emplacement connu correspondant dans l'image de la caméra. Quatre points corrigent la perspective. Neuf points bien répartis corrigent aussi la distorsion de l'objectif grand-angle.",
+      "layout": "Disposition des points d'étalonnage",
+      "quick_points": "Configuration rapide (4 points)",
+      "wide_angle_points": "Configuration grand-angle (9 points, recommandée)",
       "point": "Point {index}",
       "remove": "Supprimer",
       "camera_x": "Caméra X",

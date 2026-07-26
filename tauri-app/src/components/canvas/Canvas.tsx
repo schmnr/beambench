@@ -272,6 +272,11 @@ export function Canvas() {
     );
   }, [project, machineStatus?.work_position]);
   const cameraFrame = cameraOverlayState?.frame ?? null;
+  const cameraImageWarp = (
+    cameraOverlayState?.alignment ?? cameraAlignment
+  )?.image_warp ?? null;
+  const cameraOverlayWidthPx = cameraImageWarp?.output_width_px ?? cameraFrame?.width_px ?? 0;
+  const cameraOverlayHeightPx = cameraImageWarp?.output_height_px ?? cameraFrame?.height_px ?? 0;
   const cameraOverlayAssetUrl = useMemo(() => {
     if (!cameraFrame) return null;
     return cameraFrameAssetUrl(cameraFrame.file_path, cameraFrame.handle_id);
@@ -309,16 +314,22 @@ export function Canvas() {
     }
     return {
       frameHandleId: cameraFrame.handle_id,
-      widthPx: cameraFrame.width_px,
-      heightPx: cameraFrame.height_px,
+      sourceWidthPx: cameraFrame.width_px,
+      sourceHeightPx: cameraFrame.height_px,
+      widthPx: cameraOverlayWidthPx,
+      heightPx: cameraOverlayHeightPx,
+      imageWarp: cameraImageWarp,
       transform: cameraOverlayTransform,
       opacity: cameraOverlayOpacity,
     };
   }, [
     cameraFrame,
+    cameraImageWarp,
+    cameraOverlayHeightPx,
     cameraOverlayOpacity,
     cameraOverlayTransform,
     cameraOverlayVisible,
+    cameraOverlayWidthPx,
   ]);
 
   useEffect(() => {
@@ -576,8 +587,8 @@ export function Canvas() {
     if (cameraOverlayAdjustMode && cameraFrame && cameraOverlayTransform) {
       effectiveOverlay = {
         type: 'camera-overlay-adjust' as const,
-        widthPx: cameraFrame.width_px,
-        heightPx: cameraFrame.height_px,
+        widthPx: cameraOverlayWidthPx,
+        heightPx: cameraOverlayHeightPx,
         transform: cameraOverlayTransform,
       };
     }
@@ -586,7 +597,9 @@ export function Canvas() {
   }, [
     cameraFrame,
     cameraOverlayAdjustMode,
+    cameraOverlayHeightPx,
     cameraOverlayTransform,
+    cameraOverlayWidthPx,
     offsetPreview,
     project,
     rulerGuidePreview,
@@ -980,8 +993,8 @@ export function Canvas() {
           );
         } else if (cameraDrag.target.type === 'scale') {
           nextTransform = scaleCameraOverlayTransform(
-            cameraFrame.width_px,
-            cameraFrame.height_px,
+            cameraOverlayWidthPx,
+            cameraOverlayHeightPx,
             cameraDrag.startTransform,
             cameraDrag.startScreen,
             currentScreen,
@@ -989,8 +1002,8 @@ export function Canvas() {
           );
         } else {
           nextTransform = rotateCameraOverlayTransform(
-            cameraFrame.width_px,
-            cameraFrame.height_px,
+            cameraOverlayWidthPx,
+            cameraOverlayHeightPx,
             cameraDrag.startTransform,
             cameraDrag.startScreen,
             currentScreen,
@@ -1066,6 +1079,8 @@ export function Canvas() {
       setCursorWorldPos,
       startPointVertices,
       cameraFrame,
+      cameraOverlayHeightPx,
+      cameraOverlayWidthPx,
       setCameraDraftOverlayTransform,
       requestRender,
     ],
@@ -1100,8 +1115,8 @@ export function Canvas() {
           };
           const hit = hitTestCameraOverlayControls(
             screen,
-            cameraFrame.width_px,
-            cameraFrame.height_px,
+            cameraOverlayWidthPx,
+            cameraOverlayHeightPx,
             cameraOverlayTransform,
             vp,
           );
@@ -1252,7 +1267,9 @@ export function Canvas() {
       cameraFrame,
       cameraOverlayAdjustMode,
       cameraOverlayDraftDirty,
+      cameraOverlayHeightPx,
       cameraOverlayTransform,
+      cameraOverlayWidthPx,
       extractGuideValue,
       getRulerDragAxis,
       requestRender,

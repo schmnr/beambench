@@ -23,9 +23,9 @@ pub use camera::{
     AlignmentPoint, AlignmentPointSet, CalibrationPoint, CalibrationPointSet,
     CalibrationSolveResult, CameraAgentState, CameraAlignment, CameraAlignmentSource,
     CameraArtifactInfo, CameraBackendKind, CameraCalibration, CameraDeviceInfo, CameraFrameHandle,
-    CameraOverlayDisplayState, CameraOverlayRenderOptions, CameraOverlayRenderResult,
-    CameraOverlayRenderView, CameraOverlayRuntimeState, CameraOverlayState, CameraOverlayStatus,
-    SimilarityTransform,
+    CameraImageWarp, CameraOverlayDisplayState, CameraOverlayRenderOptions,
+    CameraOverlayRenderResult, CameraOverlayRenderView, CameraOverlayRuntimeState,
+    CameraOverlayState, CameraOverlayStatus, SimilarityTransform,
 };
 pub use color::ColorTag;
 pub use console::{ConsoleDirection, ConsoleEntry};

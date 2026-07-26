@@ -92,6 +92,12 @@ pub enum CameraAlignmentSource {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CameraAlignment {
     pub transform: SimilarityTransform,
+    /// Optional correction applied to the captured frame before `transform`.
+    ///
+    /// Older profiles omit this field and continue to use the original
+    /// scale/rotation/translation-only alignment path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_warp: Option<CameraImageWarp>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_width_px: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -101,6 +107,21 @@ pub struct CameraAlignment {
     pub solved_at: String,
     #[serde(default)]
     pub source: CameraAlignmentSource,
+}
+
+/// Rectifies a captured camera frame into a flat, workspace-shaped image.
+///
+/// Source and destination coordinates are normalized to `[-1, 1]`. The
+/// division-model coefficient corrects radial lens distortion first, then the
+/// homography corrects perspective. `CameraAlignment::transform` positions the
+/// resulting rectified image in workspace coordinates.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CameraImageWarp {
+    pub output_width_px: u32,
+    pub output_height_px: u32,
+    pub homography: [f64; 9],
+    #[serde(default)]
+    pub radial_coefficient: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -251,12 +272,19 @@ mod tests {
         assert_eq!(restored.source, CameraAlignmentSource::SolvedPoints);
         assert_eq!(restored.image_width_px, None);
         assert_eq!(restored.image_height_px, None);
+        assert_eq!(restored.image_warp, None);
     }
 
     #[test]
     fn manual_alignment_source_roundtrips() {
         let alignment = CameraAlignment {
             transform: SimilarityTransform::default(),
+            image_warp: Some(CameraImageWarp {
+                output_width_px: 1600,
+                output_height_px: 1200,
+                homography: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+                radial_coefficient: -0.12,
+            }),
             image_width_px: Some(1920),
             image_height_px: Some(1080),
             rmse_mm: 0.0,
@@ -269,5 +297,12 @@ mod tests {
         assert_eq!(restored.source, CameraAlignmentSource::ManualAdjust);
         assert_eq!(restored.image_width_px, Some(1920));
         assert_eq!(restored.image_height_px, Some(1080));
+        assert_eq!(
+            restored
+                .image_warp
+                .as_ref()
+                .map(|warp| warp.output_width_px),
+            Some(1600)
+        );
     }
 }

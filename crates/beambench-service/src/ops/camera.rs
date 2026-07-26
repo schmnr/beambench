@@ -393,6 +393,57 @@ fn validate_camera_alignment(alignment: &CameraAlignment) -> ServiceResult<()> {
             ));
         }
     }
+    if let Some(warp) = alignment.image_warp.as_ref() {
+        let output_pixels = u64::from(warp.output_width_px) * u64::from(warp.output_height_px);
+        if alignment.image_width_px.is_none()
+            || alignment.image_height_px.is_none()
+            || warp.output_width_px == 0
+            || warp.output_height_px == 0
+            || warp.output_width_px > MAX_CAMERA_FRAME_DIMENSION
+            || warp.output_height_px > MAX_CAMERA_FRAME_DIMENSION
+            || output_pixels > MAX_CAMERA_FRAME_PIXELS
+        {
+            return Err(ServiceError::invalid_input(
+                "Camera correction dimensions are incomplete or unsupported",
+            ));
+        }
+        if warp.homography.iter().any(|value| !value.is_finite())
+            || !warp.radial_coefficient.is_finite()
+            || !(-0.45..=2.0).contains(&warp.radial_coefficient)
+        {
+            return Err(ServiceError::invalid_input(
+                "Camera correction must contain finite, supported values",
+            ));
+        }
+        let mut projective_sign = None;
+        for x in [-1.0_f64, -0.5, 0.0, 0.5, 1.0] {
+            for y in [-1.0_f64, -0.5, 0.0, 0.5, 1.0] {
+                let radial_denominator = 1.0 + warp.radial_coefficient * (x * x + y * y);
+                if radial_denominator <= 0.1 {
+                    return Err(ServiceError::invalid_input(
+                        "Camera radial correction folds inside the captured frame",
+                    ));
+                }
+                let corrected_x = x / radial_denominator;
+                let corrected_y = y / radial_denominator;
+                let projective_denominator = warp.homography[6] * corrected_x
+                    + warp.homography[7] * corrected_y
+                    + warp.homography[8];
+                if !projective_denominator.is_finite() || projective_denominator.abs() < 1e-8 {
+                    return Err(ServiceError::invalid_input(
+                        "Camera perspective correction is unstable inside the captured frame",
+                    ));
+                }
+                let sign = projective_denominator.is_sign_positive();
+                if projective_sign.is_some_and(|expected| expected != sign) {
+                    return Err(ServiceError::invalid_input(
+                        "Camera perspective correction folds inside the captured frame",
+                    ));
+                }
+                projective_sign = Some(sign);
+            }
+        }
+    }
     if !alignment.rmse_mm.is_finite() || alignment.rmse_mm < 0.0 {
         return Err(ServiceError::invalid_input(
             "Camera alignment RMSE must be a non-negative finite value",
@@ -498,6 +549,18 @@ pub fn fit_camera_overlay_to_bed(
         translation_x: (bed_width_mm - width * scale) / 2.0,
         translation_y: (bed_height_mm - height * scale) / 2.0,
     }
+}
+
+fn effective_overlay_dimensions(
+    profile: &beambench_core::MachineProfile,
+    frame: &CameraFrameHandle,
+) -> (u32, u32) {
+    profile
+        .camera_alignment
+        .as_ref()
+        .and_then(|alignment| alignment.image_warp.as_ref())
+        .map(|warp| (warp.output_width_px, warp.output_height_px))
+        .unwrap_or((frame.width_px, frame.height_px))
 }
 
 fn transform_center(width_px: u32, height_px: u32, transform: &SimilarityTransform) -> (f64, f64) {
@@ -969,9 +1032,25 @@ pub fn solve_camera_alignment(
     input: CameraAlignmentInput,
 ) -> ServiceResult<CameraAlignment> {
     let (profile, camera_id) = current_profile_and_camera_id(ctx, input.camera_id)?;
-    let mut alignment =
-        camera_backend::solve_alignment(&input.points).map_err(ServiceError::invalid_input)?;
-    if let Some((width_px, height_px)) = camera_dimensions_for_profile(ctx, &profile, &camera_id)? {
+    let dimensions = camera_dimensions_for_profile(ctx, &profile, &camera_id)?;
+    let (workspace_width_mm, workspace_height_mm) = active_workspace_dims(ctx, &profile);
+    let mut alignment = if input.points.points.len() >= 4
+        && let Some((width_px, height_px)) = dimensions
+        && workspace_width_mm > 0.0
+        && workspace_height_mm > 0.0
+    {
+        camera_backend::solve_warped_alignment(
+            &input.points,
+            width_px,
+            height_px,
+            workspace_width_mm,
+            workspace_height_mm,
+        )
+        .map_err(ServiceError::invalid_input)?
+    } else {
+        camera_backend::solve_alignment(&input.points).map_err(ServiceError::invalid_input)?
+    };
+    if let Some((width_px, height_px)) = dimensions {
         alignment.image_width_px = Some(width_px);
         alignment.image_height_px = Some(height_px);
     }
@@ -1214,7 +1293,9 @@ pub fn fit_overlay_to_bed(ctx: &ServiceContext) -> ServiceResult<CameraAgentStat
     let frame = current_frame_for_profile(ctx, profile.id)?
         .ok_or_else(|| ServiceError::invalid_state("No camera frame to fit"))?;
     let (bed_width, bed_height) = active_workspace_dims(ctx, &profile);
-    let fitted = fit_camera_overlay_to_bed(frame.width_px, frame.height_px, bed_width, bed_height);
+    let (overlay_width_px, overlay_height_px) = effective_overlay_dimensions(&profile, &frame);
+    let fitted =
+        fit_camera_overlay_to_bed(overlay_width_px, overlay_height_px, bed_width, bed_height);
     let saved_transform = saved_profile_transform(&profile);
     mutate_runtime_for_profile(ctx, profile.id, |runtime| {
         runtime.overlay_visible = true;
@@ -1252,10 +1333,12 @@ pub fn save_overlay_draft_alignment(ctx: &ServiceContext) -> ServiceResult<Camer
         .selected_camera_id
         .clone()
         .ok_or_else(|| ServiceError::invalid_state("No camera selected on the active profile"))?;
+    let saved_alignment = profile.camera_alignment.as_ref();
     let alignment = CameraAlignment {
         transform,
-        image_width_px: None,
-        image_height_px: None,
+        image_warp: saved_alignment.and_then(|alignment| alignment.image_warp.clone()),
+        image_width_px: saved_alignment.and_then(|alignment| alignment.image_width_px),
+        image_height_px: saved_alignment.and_then(|alignment| alignment.image_height_px),
         rmse_mm: 0.0,
         quality_score: 1.0,
         solved_at: Utc::now().to_rfc3339(),
@@ -1282,6 +1365,7 @@ pub fn update_overlay_transform(
     let profile = active_profile(ctx)?;
     let frame = current_frame_for_profile(ctx, profile.id)?
         .ok_or_else(|| ServiceError::invalid_state("No camera frame to transform"))?;
+    let (overlay_width_px, overlay_height_px) = effective_overlay_dimensions(&profile, &frame);
     let mut transform = current_overlay_transform_for_edit(ctx, &profile)?;
     if let Some(set) = input.set {
         if let Some(x) = set.x {
@@ -1304,8 +1388,8 @@ pub fn update_overlay_transform(
     if let Some(factor) = input.scale_factor {
         let next_scale = (transform.scale * factor).clamp(OVERLAY_MIN_SCALE, OVERLAY_MAX_SCALE);
         transform = transform_keeping_center(
-            frame.width_px,
-            frame.height_px,
+            overlay_width_px,
+            overlay_height_px,
             &transform,
             next_scale,
             transform.rotation_deg,
@@ -1313,8 +1397,8 @@ pub fn update_overlay_transform(
     }
     if let Some(deg) = input.rotate_deg {
         transform = transform_keeping_center(
-            frame.width_px,
-            frame.height_px,
+            overlay_width_px,
+            overlay_height_px,
             &transform,
             transform.scale,
             transform.rotation_deg + deg,
@@ -1593,7 +1677,7 @@ mod tests {
     use crate::error::ServiceErrorCode;
     use beambench_common::{
         AlignmentPoint, CalibrationPoint, CameraAlignment, CameraAlignmentSource,
-        CameraCalibration, SimilarityTransform,
+        CameraCalibration, CameraImageWarp, SimilarityTransform,
     };
     use beambench_core::{AppSettings, MachineProfile};
 
@@ -1638,6 +1722,7 @@ mod tests {
                 translation_x: 10.0,
                 translation_y: 20.0,
             },
+            image_warp: None,
             image_width_px: Some(640),
             image_height_px: Some(480),
             rmse_mm: 0.1,
@@ -2074,6 +2159,37 @@ mod tests {
         assert_eq!(state.display.effective_transform, Some(draft));
     }
 
+    #[test]
+    fn manual_overlay_adjustment_preserves_saved_image_correction() {
+        let ctx = ctx_with_active_profile();
+        select_camera(&ctx, Some("cam-a".to_string())).unwrap();
+        let mut alignment = test_alignment();
+        alignment.image_warp = Some(CameraImageWarp {
+            output_width_px: 500,
+            output_height_px: 400,
+            homography: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            radial_coefficient: 0.2,
+        });
+        save_camera_alignment(&ctx, Some("cam-a".to_string()), alignment.clone()).unwrap();
+        capture_camera_frame(&ctx, None).unwrap();
+
+        update_overlay_transform(
+            &ctx,
+            CameraOverlayTransformCommand {
+                nudge: Some(CameraOverlayNudge { dx: 2.0, dy: 3.0 }),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        save_overlay_draft_alignment(&ctx).unwrap();
+
+        let saved = get_camera_alignment(&ctx).unwrap().unwrap();
+        assert_eq!(saved.image_warp, alignment.image_warp);
+        assert_eq!(saved.image_width_px, Some(640));
+        assert_eq!(saved.image_height_px, Some(480));
+        assert_eq!(saved.source, CameraAlignmentSource::ManualAdjust);
+    }
+
     #[tokio::test]
     async fn app_assisted_capture_requires_frontend_bridge() {
         let ctx = std::sync::Arc::new(ctx_with_active_profile());
@@ -2271,5 +2387,50 @@ mod tests {
         assert!(get_camera_alignment(&ctx).unwrap().is_some());
         reset_camera_alignment(&ctx, Some("cam-b".to_string())).unwrap();
         assert!(get_camera_alignment(&ctx).unwrap().is_none());
+    }
+
+    #[test]
+    fn four_point_alignment_uses_corrected_camera_path() {
+        let ctx = ctx_with_active_profile();
+        let alignment = solve_camera_alignment(
+            &ctx,
+            CameraAlignmentInput {
+                camera_id: Some("cam-b".to_string()),
+                points: AlignmentPointSet {
+                    points: vec![
+                        AlignmentPoint {
+                            camera_x: 80.0,
+                            camera_y: 60.0,
+                            workspace_x_mm: 0.0,
+                            workspace_y_mm: 0.0,
+                        },
+                        AlignmentPoint {
+                            camera_x: 720.0,
+                            camera_y: 80.0,
+                            workspace_x_mm: 200.0,
+                            workspace_y_mm: 0.0,
+                        },
+                        AlignmentPoint {
+                            camera_x: 680.0,
+                            camera_y: 540.0,
+                            workspace_x_mm: 200.0,
+                            workspace_y_mm: 200.0,
+                        },
+                        AlignmentPoint {
+                            camera_x: 100.0,
+                            camera_y: 520.0,
+                            workspace_x_mm: 0.0,
+                            workspace_y_mm: 200.0,
+                        },
+                    ],
+                },
+            },
+        )
+        .unwrap();
+
+        assert!(alignment.image_warp.is_some());
+        assert_eq!(alignment.image_width_px, Some(800));
+        assert_eq!(alignment.image_height_px, Some(600));
+        assert!(alignment.rmse_mm < 1e-6);
     }
 }

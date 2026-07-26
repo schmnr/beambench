@@ -446,7 +446,10 @@
     },
     "camera_alignment": {
       "title": "Alineación de cámara",
-      "help": "Introduce puntos fiduciales coincidentes de la cámara y del área de trabajo. Se requieren al menos tres pares de puntos.",
+      "help": "Elige una distribución de puntos. Después, selecciona cada punto y haz clic en la ubicación conocida correspondiente de la imagen de la cámara. Cuatro puntos corrigen la perspectiva. Nueve puntos bien distribuidos también corrigen la distorsión del objetivo gran angular.",
+      "layout": "Distribución de puntos de calibración",
+      "quick_points": "Configuración rápida (4 puntos)",
+      "wide_angle_points": "Configuración gran angular (9 puntos, recomendada)",
       "point": "Punto {index}",
       "remove": "Eliminar",
       "camera_x": "Cámara X",
