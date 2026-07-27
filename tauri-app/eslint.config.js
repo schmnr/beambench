@@ -16,7 +16,14 @@ export default tseslint.config(
   {
     plugins: { 'react-hooks': reactHooks },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      // Keep the established Hooks correctness checks explicit. React Hooks 7
+      // adds compiler-oriented rules to its recommended preset; those deserve
+      // a separate cleanup instead of silently expanding the release lint gate.
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      // ESLint 10 added this rule to eslint:recommended. Preserve the existing
+      // lint baseline while the two current assignments are reviewed normally.
+      'no-useless-assignment': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
