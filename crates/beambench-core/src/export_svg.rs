@@ -1,11 +1,19 @@
 //! SVG export for projects.
 
-use crate::object::{ObjectData, ObjectId};
+use base64::{Engine as _, engine::general_purpose};
+use beambench_common::Transform2D;
+
+use crate::export_bitmap::processed_bitmap_png_for_object;
+use crate::object::{ObjectData, ObjectId, ProjectObject};
 use crate::project::Project;
 use crate::vector::convert::object_to_world_vecpath;
 
 /// Export project as SVG XML.
-pub fn export_svg(project: &Project, selection_only: bool, selected_ids: &[ObjectId]) -> String {
+pub fn export_svg(
+    project: &Project,
+    selection_only: bool,
+    selected_ids: &[ObjectId],
+) -> Result<String, String> {
     let mut svg = String::new();
 
     // SVG header with viewBox matching workspace. Explicit mm width/height tell
@@ -41,28 +49,86 @@ pub fn export_svg(project: &Project, selection_only: bool, selected_ids: &[Objec
             continue;
         }
 
-        // Text is exported as geometry only. Emitting both editable <text> and
-        // outline path creates duplicate laser geometry and visibly offset text
-        // in SVG viewers when alignment anchors are involved.
-        if let Some(path) = object_to_world_vecpath(obj) {
-            let d = path.to_svg_d();
-            svg.push_str(&format!(
-                r#"  <path d="{}" fill="none" stroke="black"/>"#,
-                d
-            ));
-            svg.push('\n');
+        match &obj.data {
+            ObjectData::RasterImage { .. } => svg.push_str(&raster_image_svg(project, obj)?),
+            _ => {
+                // Text is exported as geometry only. Emitting both editable <text> and
+                // outline path creates duplicate laser geometry and visibly offset text
+                // in SVG viewers when alignment anchors are involved.
+                if let Some(path) = object_to_world_vecpath(obj) {
+                    let d = path.to_svg_d();
+                    svg.push_str(&format!(
+                        r#"  <path d="{}" fill="none" stroke="black"/>"#,
+                        d
+                    ));
+                    svg.push('\n');
+                }
+            }
         }
     }
 
     svg.push_str("</svg>\n");
-    svg
+    Ok(svg)
+}
+
+fn raster_image_svg(project: &Project, obj: &ProjectObject) -> Result<String, String> {
+    let png = processed_bitmap_png_for_object(project, obj)?;
+    let data = general_purpose::STANDARD.encode(png);
+    Ok(format!(
+        r#"  <image x="{}" y="{}" width="{}" height="{}" href="data:image/png;base64,{}" preserveAspectRatio="none"{}/>
+"#,
+        fmt_num(obj.bounds.min.x),
+        fmt_num(obj.bounds.min.y),
+        fmt_num(obj.bounds.width()),
+        fmt_num(obj.bounds.height()),
+        data,
+        svg_transform_attr_around_center(obj),
+    ))
+}
+
+fn svg_transform_attr_around_center(obj: &ProjectObject) -> String {
+    if obj.transform.is_identity() {
+        return String::new();
+    }
+
+    let cx = (obj.bounds.min.x + obj.bounds.max.x) / 2.0;
+    let cy = (obj.bounds.min.y + obj.bounds.max.y) / 2.0;
+    let effective = Transform2D::translate(cx, cy)
+        .compose(&obj.transform)
+        .compose(&Transform2D::translate(-cx, -cy));
+    format!(
+        r#" transform="matrix({} {} {} {} {} {})""#,
+        fmt_num(effective.a),
+        fmt_num(effective.b),
+        fmt_num(effective.c),
+        fmt_num(effective.d),
+        fmt_num(effective.tx),
+        fmt_num(effective.ty),
+    )
+}
+
+fn fmt_num(value: f64) -> String {
+    let mut formatted = format!("{value:.6}");
+    while formatted.contains('.') && formatted.ends_with('0') {
+        formatted.pop();
+    }
+    if formatted.ends_with('.') {
+        formatted.pop();
+    }
+    if formatted == "-0" {
+        "0".to_string()
+    } else {
+        formatted
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::asset::{Asset, AssetMediaType};
     use crate::object::{ObjectData, ProjectObject};
-    use beambench_common::{Bounds, Point2D};
+    use beambench_common::{Bounds, Point2D, Transform2D};
+    use image::ImageEncoder;
 
     fn test_project() -> (Project, ObjectId) {
         let mut project = Project::new("Export Test");
@@ -87,7 +153,7 @@ mod tests {
     #[test]
     fn export_svg_includes_header() {
         let (project, _) = test_project();
-        let svg = export_svg(&project, false, &[]);
+        let svg = export_svg(&project, false, &[]).unwrap();
         assert!(svg.contains("<svg"));
         assert!(svg.contains("xmlns"));
         assert!(svg.contains("viewBox"));
@@ -100,7 +166,7 @@ mod tests {
     #[test]
     fn export_svg_includes_paths() {
         let (project, _) = test_project();
-        let svg = export_svg(&project, false, &[]);
+        let svg = export_svg(&project, false, &[]).unwrap();
         assert!(svg.contains("<path"));
         assert!(svg.contains("d="));
     }
@@ -109,13 +175,81 @@ mod tests {
     fn export_svg_selection_only() {
         let (project, obj_id) = test_project();
 
-        let svg_all = export_svg(&project, false, &[]);
-        let svg_selected = export_svg(&project, true, &[obj_id]);
-        let svg_empty = export_svg(&project, true, &[]);
+        let svg_all = export_svg(&project, false, &[]).unwrap();
+        let svg_selected = export_svg(&project, true, &[obj_id]).unwrap();
+        let svg_empty = export_svg(&project, true, &[]).unwrap();
 
         assert!(svg_all.contains("<path"));
         assert!(svg_selected.contains("<path"));
         assert!(!svg_empty.contains("<path"));
+    }
+
+    fn mixed_vector_raster_project() -> (Project, ObjectId, ObjectId) {
+        let (mut project, vector_id) = test_project();
+        let layer_id = project.layers[0].id;
+        let mut png = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut png)
+            .write_image(&[0, 85, 170, 255], 2, 2, image::ExtendedColorType::L8)
+            .unwrap();
+        let asset = Asset::new(
+            "photo.png",
+            AssetMediaType::Png,
+            png.len() as u64,
+            Some(2),
+            Some(2),
+        );
+        let asset_key = asset.id.to_string();
+        project.add_asset(asset, png);
+
+        let mut raster = ProjectObject::new(
+            "photo",
+            layer_id,
+            Bounds::new(Point2D::new(100.0, 50.0), Point2D::new(140.0, 70.0)),
+            ObjectData::RasterImage {
+                asset_key,
+                original_width_px: 2,
+                original_height_px: 2,
+                adjustments: None,
+                masks: Vec::new(),
+            },
+        );
+        raster.transform = Transform2D::translate(5.0, 6.0);
+        let raster_id = raster.id;
+        project.add_object(raster);
+        (project, vector_id, raster_id)
+    }
+
+    #[test]
+    fn export_svg_embeds_raster_alongside_vector_geometry() {
+        let (project, _, _) = mixed_vector_raster_project();
+
+        let svg = export_svg(&project, false, &[]).unwrap();
+
+        assert!(svg.contains("<path"));
+        assert!(svg.contains("<image"));
+        assert!(svg.contains(r#"href="data:image/png;base64,"#));
+        assert!(svg.contains(r#"x="100" y="50" width="40" height="20""#));
+        assert!(svg.contains(r#"transform="matrix(1 0 0 1 5 6)""#));
+    }
+
+    #[test]
+    fn export_svg_selection_only_includes_selected_raster() {
+        let (project, _, raster_id) = mixed_vector_raster_project();
+
+        let svg = export_svg(&project, true, &[raster_id]).unwrap();
+
+        assert!(svg.contains("<image"));
+        assert!(!svg.contains("<path"));
+    }
+
+    #[test]
+    fn export_svg_reports_missing_raster_asset_instead_of_silently_dropping_it() {
+        let (mut project, _, _) = mixed_vector_raster_project();
+        project.asset_data.clear();
+
+        let error = export_svg(&project, false, &[]).unwrap_err();
+
+        assert!(error.contains("Asset data not found"));
     }
 
     fn text_project_with_system_font() -> Project {
@@ -209,7 +343,7 @@ mod tests {
     #[test]
     fn export_svg_text_with_system_font_emits_single_path_only() {
         let project = text_project_with_system_font();
-        let svg = export_svg(&project, false, &[]);
+        let svg = export_svg(&project, false, &[]).unwrap();
         assert!(
             !svg.contains("<text"),
             "SVG should not contain editable <text> because that duplicates path geometry"
@@ -232,7 +366,7 @@ mod tests {
     #[test]
     fn export_svg_text_missing_font_no_text_element() {
         let project = text_project_missing_font();
-        let svg = export_svg(&project, false, &[]);
+        let svg = export_svg(&project, false, &[]).unwrap();
         assert!(
             !svg.contains("<text"),
             "SVG should NOT contain <text> for missing font"
@@ -321,7 +455,7 @@ mod tests {
                 ignore_empty_vars: false,
             },
         ));
-        let svg = export_svg(&project, false, &[]);
+        let svg = export_svg(&project, false, &[]).unwrap();
         assert!(
             !svg.contains("<text"),
             "SVG should NOT contain <text> for path-text objects"
@@ -371,7 +505,7 @@ mod tests {
                 ignore_empty_vars: false,
             },
         ));
-        let svg = export_svg(&project, false, &[]);
+        let svg = export_svg(&project, false, &[]).unwrap();
         assert!(
             !svg.contains("<text"),
             "styled text should not emit editable <text> that duplicates geometry"
@@ -422,7 +556,7 @@ mod tests {
                 ignore_empty_vars: false,
             },
         ));
-        let svg = export_svg(&project, false, &[]);
+        let svg = export_svg(&project, false, &[]).unwrap();
         assert!(
             !svg.contains("<text"),
             "rtl text should not emit editable <text> that duplicates geometry"

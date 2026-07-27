@@ -47,8 +47,7 @@ use beambench_smoothieware::{
     SmoothiewareSerialSession, SmoothiewareSerialSessionConfig, generate_smoothieware_gcode,
 };
 use beambench_streamer::{
-    JobController, check_profile_mismatch, check_raster_motion_bounds, check_tool_layers,
-    run_preflight,
+    JobController, check_raster_motion_bounds, check_tool_layers, run_preflight,
 };
 use serde::Serialize;
 use serde_json::json;
@@ -3457,19 +3456,6 @@ pub fn run_preflight_check_with_options(
         report.outcome = PreflightOutcome::Fail;
     }
 
-    let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    if let Some(project) = project_guard.as_ref() {
-        if let Some(ref snapshot) = project.machine_profile_snapshot {
-            if let Some(mismatch_check) = check_profile_mismatch(snapshot, &profile) {
-                report.checks.push(mismatch_check);
-                if report.outcome == PreflightOutcome::Pass
-                    || report.outcome == PreflightOutcome::PassWithWarnings
-                {
-                    report.outcome = PreflightOutcome::Fail;
-                }
-            }
-        }
-    }
     // Tool layer informational check (pre-computed before plan generation)
     if let Some(tool_check) = tool_layer_check {
         report.checks.push(tool_check);
@@ -7966,5 +7952,100 @@ mod tests {
         assert_eq!(ctx.job.lock().unwrap().is_some(), false);
         let details = err.details.expect("preflight details should be attached");
         assert_ne!(details["preflight"]["outcome"], "pass");
+    }
+
+    fn profile_switch_preflight_context(design_height_mm: f64) -> ServiceContext {
+        let active_profile = MachineProfile {
+            name: "800 x 500 Laser".to_string(),
+            bed_width_mm: 800.0,
+            bed_height_mm: 500.0,
+            homing_enabled: false,
+            ..MachineProfile::default()
+        };
+        let original_profile = MachineProfile {
+            name: "800 x 600 Laser".to_string(),
+            bed_width_mm: 800.0,
+            bed_height_mm: 600.0,
+            ..MachineProfile::default()
+        };
+        let settings = AppSettings {
+            active_profile_id: Some(active_profile.id),
+            machine_profiles: vec![active_profile],
+            ..AppSettings::default()
+        };
+        let ctx = ServiceContext::with_settings(settings);
+
+        let mut project = Project::new("Profile switch");
+        project.workspace = Workspace {
+            bed_width_mm: 800.0,
+            bed_height_mm: 600.0,
+            origin: beambench_core::WorkspaceOrigin::TopLeft,
+        };
+        project.machine_profile_id = Some(original_profile.id);
+        project.machine_profile_snapshot = Some(original_profile.snapshot());
+        let layer_id = project.ensure_default_layer();
+        project.add_object(ProjectObject::new(
+            "Design",
+            layer_id,
+            Bounds::new(
+                Point2D::new(0.0, 0.0),
+                Point2D::new(300.0, design_height_mm),
+            ),
+            ObjectData::Shape {
+                kind: ShapeKind::Rectangle,
+                width: 300.0,
+                height: design_height_mm,
+                corner_radius: 0.0,
+            },
+        ));
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let mut transport = MockSerialTransport::new("mock");
+        transport.enqueue_response("Grbl 1.1h");
+        transport.enqueue_response("$32=1");
+        transport.enqueue_response("$22=1");
+        transport.enqueue_response("<Idle|MPos:0.000,0.000,0.000|FS:0,0>");
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+        session.poll().unwrap();
+        session.mark_ready().unwrap();
+        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Grbl(session.into()));
+        ctx
+    }
+
+    #[test]
+    fn preflight_allows_project_from_different_bed_when_design_fits_active_machine() {
+        let ctx = profile_switch_preflight_context(300.0);
+
+        let report = run_preflight_check(&ctx).unwrap();
+
+        assert_eq!(report.outcome, PreflightOutcome::Pass);
+        assert!(
+            report
+                .checks
+                .iter()
+                .any(|check| check.category == "bounds" && check.passed)
+        );
+        assert!(
+            report
+                .checks
+                .iter()
+                .all(|check| check.category != "profile")
+        );
+    }
+
+    #[test]
+    fn preflight_still_rejects_design_outside_active_machine_after_profile_switch() {
+        let ctx = profile_switch_preflight_context(550.0);
+
+        let report = run_preflight_check(&ctx).unwrap();
+
+        assert_eq!(report.outcome, PreflightOutcome::Fail);
+        assert!(
+            report
+                .checks
+                .iter()
+                .any(|check| check.category == "bounds" && !check.passed)
+        );
     }
 }
