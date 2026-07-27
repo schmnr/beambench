@@ -195,4 +195,29 @@ describe('FeedbackReportDialog', () => {
       expect(vi.mocked(feedbackService.previewReport).mock.calls.length).toBeGreaterThan(callsBeforeReopen);
     });
   });
+
+  it('uses the compatibility presentation and never offers a project attachment', async () => {
+    render(
+      <FeedbackReportDialog
+        kind="connectivity"
+        presentation="job_compatibility"
+        title="Successful job compatibility check"
+        sourceContext={{ source: 'post_job_prompt', feature: 'job_compatibility_success' }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Share Job Compatibility Result')).toBeDefined();
+    expect(screen.getByText(/Nothing has been sent yet/)).toBeDefined();
+    expect(screen.queryByLabelText('Include project file')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send to Beam Bench' }));
+    await waitFor(() => expect(feedbackService.submitReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'connectivity',
+        include_project_file: false,
+        source_context: expect.objectContaining({ feature: 'job_compatibility_success' }),
+      }),
+    ));
+  });
 });

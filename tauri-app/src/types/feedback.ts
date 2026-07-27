@@ -211,6 +211,7 @@ export const DIAGNOSTIC_BUNDLE_DISCLOSURE_FIELDS = [
   'recent_serial',
   'recent_logs',
   'recent_panics',
+  'terminal_job',
   'project_metadata',
   'known_issues',
   'project_file_attached',

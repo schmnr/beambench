@@ -25,6 +25,7 @@ import { FocusTestDialog } from './components/dialogs/FocusTestDialog';
 import { IntervalTestDialog } from './components/dialogs/IntervalTestDialog';
 import { FeedbackErrorBoundary } from './components/dialogs/FeedbackErrorBoundary';
 import { FeedbackReportDialog } from './components/dialogs/FeedbackReportDialog';
+import { PostJobCompatibilityDialog } from './components/dialogs/PostJobCompatibilityDialog';
 import { useAppStore } from './stores/appStore';
 import { useProjectStore } from './stores/projectStore';
 import { usePreviewStore } from './stores/previewStore';
@@ -86,6 +87,11 @@ import type { CameraDeviceInfo } from './types/camera';
 import { isNativeMenuActive } from './utils/platform';
 import { FEEDBACK_REPORT_OPEN_EVENT, type FeedbackReportOpenDetail } from './feedbackEvents';
 import type { JobProgress } from './types/machine';
+import {
+  postJobPromptFingerprint,
+  recordPostJobPromptOutcome,
+  shouldShowPostJobPrompt,
+} from './utils/postJobCompatibilityPrompt';
 
 const EMPTY_LAYERS: import('./types/project').Layer[] = [];
 const EMPTY_RECENT_FILES: import('./types/commands').RecentFile[] = [];
@@ -114,8 +120,24 @@ interface CameraOverlayRenderRequestedPayload {
   };
 }
 
+interface PostJobCompatibilityPromptState {
+  fingerprint: string;
+  profileName?: string;
+}
+
 function isExportCancelledError(error: unknown): boolean {
   return String(error).toLowerCase().includes('cancelled');
+}
+
+function persistPostJobPromptOutcome(
+  fingerprint: string,
+  outcome: 'completed' | 'problem' | 'not_now',
+): void {
+  try {
+    recordPostJobPromptOutcome(fingerprint, outcome, window.localStorage);
+  } catch {
+    // Storage may be disabled; this preference is non-essential.
+  }
 }
 
 function isJobProgressPayload(payload: unknown): payload is JobProgress {
@@ -525,6 +547,7 @@ function App() {
   const [closeToleranceObjectIds, setCloseToleranceObjectIds] = useState<string[] | null>(null);
   const [deleteDuplicatesCount, setDeleteDuplicatesCount] = useState<number | null>(null);
   const [feedbackDialog, setFeedbackDialog] = useState<FeedbackReportOpenDetail | null>(null);
+  const [postJobCompatibilityPrompt, setPostJobCompatibilityPrompt] = useState<PostJobCompatibilityPromptState | null>(null);
   const startupCrashPromptChecked = useRef(false);
   const [showMaterialTestDialog, setShowMaterialTestDialog] = useState(false);
   const [showResetPreferencesDialog, setShowResetPreferencesDialog] = useState(false);
@@ -936,12 +959,45 @@ function App() {
     if (JOB_PROGRESS_EVENT_TYPES.has(event.type) && isJobProgressPayload(event.payload)) {
       useMachineStore.setState({ jobProgress: event.payload, error: null });
     }
+    if (event.type === 'job.completed' && isJobProgressPayload(event.payload)) {
+      const machineState = useMachineStore.getState();
+      if (machineState.activeJobPurpose === 'job' && !machineState.connectionPreview) {
+        const activeProfile = Array.isArray(machineState.profiles)
+          ? machineState.profiles.find((profile) => profile.id === machineState.activeProfileId)
+          : undefined;
+        const selection = machineState.controllerSelection;
+        const controllerKey = selection.mode === 'known_driver' ? selection.driver : selection.mode;
+        const fingerprint = postJobPromptFingerprint(machineState.activeProfileId, controllerKey);
+        try {
+          if (fingerprint && shouldShowPostJobPrompt(fingerprint, window.localStorage)) {
+            setPostJobCompatibilityPrompt((current) => current ?? {
+              fingerprint,
+              profileName: activeProfile?.name,
+            });
+          }
+        } catch {
+          // Privacy settings may disable localStorage; job completion still succeeds normally.
+        }
+      }
+    }
+    if (
+      event.type === 'job.completed'
+      || event.type === 'job.failed'
+      || event.type === 'job.cancelled'
+    ) {
+      useMachineStore.setState({ activeJobPurpose: null });
+    }
     if (event.type === 'job.tick_failed') {
       const p = event.payload as { message?: unknown } | undefined;
       const message = typeof p?.message === 'string' && p.message.trim().length > 0
         ? p.message
         : 'Job streaming tick failed';
-      useMachineStore.setState({ jobProgress: null, error: message, loading: false });
+      useMachineStore.setState({
+        jobProgress: null,
+        activeJobPurpose: null,
+        error: message,
+        loading: false,
+      });
       useNotificationStore.getState().push(wrapBackendError(message), 'error');
     }
     if (event.type === 'machine.disconnected') {
@@ -958,6 +1014,7 @@ function App() {
         machineCoordinatesValid: false,
         capabilities: null,
         loading: false,
+        activeJobPurpose: null,
         jobProgress: isTerminalJobProgress(currentJobProgress) ? currentJobProgress : null,
       });
     }
@@ -1588,11 +1645,56 @@ function App() {
       {feedbackDialog && (
         <FeedbackReportDialog
           kind={feedbackDialog.kind}
+          presentation={feedbackDialog.presentation}
           title={feedbackDialog.title}
           description={feedbackDialog.description}
           notes={feedbackDialog.notes}
           sourceContext={feedbackDialog.sourceContext}
           onClose={() => setFeedbackDialog(null)}
+        />
+      )}
+      {postJobCompatibilityPrompt && !feedbackDialog && (
+        <PostJobCompatibilityDialog
+          profileName={postJobCompatibilityPrompt.profileName}
+          onNotNow={() => {
+            persistPostJobPromptOutcome(
+              postJobCompatibilityPrompt.fingerprint,
+              'not_now',
+            );
+            setPostJobCompatibilityPrompt(null);
+          }}
+          onCompleted={() => {
+            persistPostJobPromptOutcome(
+              postJobCompatibilityPrompt.fingerprint,
+              'completed',
+            );
+            setPostJobCompatibilityPrompt(null);
+            setFeedbackDialog({
+              kind: 'connectivity',
+              presentation: 'job_compatibility',
+              title: i18n.t('feedback.post_job_success_report_title'),
+              sourceContext: {
+                source: 'post_job_prompt',
+                feature: 'job_compatibility_success',
+              },
+            });
+          }}
+          onProblem={() => {
+            persistPostJobPromptOutcome(
+              postJobCompatibilityPrompt.fingerprint,
+              'problem',
+            );
+            setPostJobCompatibilityPrompt(null);
+            setFeedbackDialog({
+              kind: 'bug',
+              title: i18n.t('feedback.post_job_problem_report_title'),
+              description: '',
+              sourceContext: {
+                source: 'post_job_prompt',
+                feature: 'job_compatibility_problem',
+              },
+            });
+          }}
         />
       )}
       <PreviewGenerationDialog />
