@@ -89,7 +89,7 @@ pub fn build_bundle(
         .ok()
         .map(|settings| settings.display_language.clone());
 
-    Ok(DiagnosticBundleV1 {
+    let mut bundle = DiagnosticBundleV1 {
         schema_version: FEEDBACK_SCHEMA_VERSION,
         kind: input.kind,
         created_at: Utc::now().to_rfc3339(),
@@ -121,7 +121,60 @@ pub fn build_bundle(
         known_issues,
         project_file_attached: input.include_project_file,
         source_context: input.source_context.clone(),
-    })
+    };
+
+    if is_successful_job_compatibility_report(input) {
+        minimize_successful_job_compatibility_bundle(&mut bundle);
+    }
+
+    Ok(bundle)
+}
+
+fn is_successful_job_compatibility_report(input: &FeedbackReportInput) -> bool {
+    input.kind == FeedbackKind::Connectivity
+        && input
+            .source_context
+            .as_ref()
+            .and_then(|context| context.feature.as_deref())
+            == Some("job_compatibility_success")
+}
+
+fn minimize_successful_job_compatibility_bundle(bundle: &mut DiagnosticBundleV1) {
+    // Compatibility reports answer one narrow question: which Beam Bench build,
+    // OS/controller family, and machine settings completed a job. Keep personal
+    // profile/device identifiers and design/command content out of that report.
+    bundle.system.locale = None;
+    bundle.machine.model = None;
+    bundle.machine.profile_id = None;
+    bundle.machine.profile_name = None;
+    bundle.machine.port_name = None;
+    bundle.machine.port_vendor_id = None;
+    bundle.machine.port_product_id = None;
+    bundle.machine.handshake_message = None;
+    bundle.ports_detected.clear();
+    bundle.connection_events.clear();
+    bundle.recent_serial = Default::default();
+    bundle.recent_logs.clear();
+    bundle.recent_panics.clear();
+    bundle.project_metadata = None;
+    bundle.known_issues.clear();
+    bundle.project_file_attached = false;
+
+    if let Some(job) = bundle.terminal_job.as_mut() {
+        job.error = None;
+        job.job_console.clear();
+        job.session_console.clear();
+        if let Some(progress) = job.progress.as_mut() {
+            progress.error_message = None;
+            progress.buckets.clear();
+        }
+    }
+
+    if let Some(context) = bundle.source_context.as_mut() {
+        context.error_message = None;
+        context.stack = None;
+        context.correlation_ts = None;
+    }
 }
 
 pub fn preview_feedback_report(
@@ -271,6 +324,11 @@ fn submit_request(
 }
 
 fn validate_feedback_input(input: &FeedbackReportInput) -> ServiceResult<()> {
+    if is_successful_job_compatibility_report(input) && input.include_project_file {
+        return Err(ServiceError::invalid_input(
+            "Project files cannot be attached to successful job compatibility reports",
+        ));
+    }
     if input
         .title
         .as_deref()
@@ -947,7 +1005,9 @@ pub fn load_panic_reports_from_dir(dir: &Path) -> Vec<crate::context::StoredPani
 mod tests {
     use super::*;
     use beambench_common::feedback::{DiagnosticTerminalJob, FeedbackSourceContext};
-    use beambench_common::machine::{JobProgress, JobState, MachineRunState, SessionState};
+    use beambench_common::machine::{
+        JobProgress, JobProgressBucket, JobState, MachineRunState, SessionState,
+    };
     use beambench_common::{ConsoleDirection, ConsoleEntry};
     use beambench_core::Project;
     use std::io::Read;
@@ -967,6 +1027,24 @@ mod tests {
                 stack: None,
                 feature: None,
                 correlation_ts: None,
+            }),
+        }
+    }
+
+    fn successful_job_compatibility_input() -> FeedbackReportInput {
+        FeedbackReportInput {
+            kind: FeedbackKind::Connectivity,
+            title: Some("Successful job compatibility check".to_owned()),
+            description: None,
+            notes: None,
+            reply_to_email: None,
+            include_project_file: false,
+            source_context: Some(FeedbackSourceContext {
+                source: "post_job_prompt".to_owned(),
+                error_message: None,
+                stack: None,
+                feature: Some("job_compatibility_success".to_owned()),
+                correlation_ts: Some("2026-05-14T12:34:56Z".to_owned()),
             }),
         }
     }
@@ -1102,6 +1180,84 @@ mod tests {
         assert_eq!(retained.error.as_deref(), Some("serial read failed"));
         assert_eq!(retained.job_console[0].content, "G1 X10");
         assert_eq!(retained.session_console[0].content, "error:2");
+    }
+
+    #[test]
+    fn successful_job_compatibility_preview_excludes_design_and_trace_data() {
+        let ctx = ServiceContext::new();
+        ctx.settings.lock().unwrap().display_language = "fr".to_owned();
+        ctx.push_error("WARN test: project /Users/alice/secret.lzrproj".to_owned());
+        ctx.push_connection_event(
+            "ready",
+            Some("/dev/cu.unique-device".to_owned()),
+            Some(115_200),
+            None,
+            None,
+        );
+        *ctx.project.lock().unwrap() = Some(Project::new("Private artwork"));
+        let mut progress = JobProgress::default();
+        progress.state = JobState::Completed;
+        progress.total_lines = 42;
+        progress.buckets.push(JobProgressBucket {
+            layer_id: "private-layer-id".to_owned(),
+            cut_entry_id: "private-cut-id".to_owned(),
+            segment_count: 12,
+        });
+        *ctx.last_terminal_job.lock().unwrap() = Some(DiagnosticTerminalJob {
+            captured_at: "2026-05-14T12:34:56Z".to_owned(),
+            reason: "terminal_progress".to_owned(),
+            progress: Some(progress),
+            error: None,
+            job_tick_loop_running: false,
+            session_state: Some(SessionState::Ready),
+            machine_run_state: Some(MachineRunState::Idle),
+            job_console: vec![ConsoleEntry {
+                timestamp: Utc::now(),
+                direction: ConsoleDirection::Sent,
+                content: "G1 X10 Y20".to_owned(),
+            }],
+            session_console: vec![],
+        });
+
+        let bundle = preview_feedback_report(&ctx, successful_job_compatibility_input()).unwrap();
+        let terminal = bundle.terminal_job.as_ref().expect("completed job summary");
+
+        assert!(bundle.system.locale.is_none());
+        assert!(bundle.ports_detected.is_empty());
+        assert!(bundle.connection_events.is_empty());
+        assert_eq!(bundle.recent_serial, Default::default());
+        assert!(bundle.recent_logs.is_empty());
+        assert!(bundle.recent_panics.is_empty());
+        assert!(bundle.project_metadata.is_none());
+        assert!(terminal.job_console.is_empty());
+        assert!(terminal.session_console.is_empty());
+        assert_eq!(
+            terminal
+                .progress
+                .as_ref()
+                .map(|progress| progress.total_lines),
+            Some(42)
+        );
+        assert!(terminal.progress.as_ref().unwrap().buckets.is_empty());
+        assert!(
+            bundle
+                .source_context
+                .as_ref()
+                .unwrap()
+                .correlation_ts
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn successful_job_compatibility_report_rejects_project_attachment() {
+        let ctx = ServiceContext::new();
+        let mut input = successful_job_compatibility_input();
+        input.include_project_file = true;
+
+        let error = preview_feedback_report(&ctx, input).unwrap_err();
+
+        assert!(error.to_string().contains("cannot be attached"));
     }
 
     #[test]
