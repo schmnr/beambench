@@ -1,8 +1,8 @@
 {
   "layer_count": 1,
-  "total_distance_mm": 2144.54,
-  "travel_distance_mm": 1340.84,
-  "burn_distance_mm": 803.7,
+  "total_distance_mm": 2140.58,
+  "travel_distance_mm": 1340.78,
+  "burn_distance_mm": 799.8,
   "segment_count": 2,
   "raster_line_count": 40,
   "travel_move_count": 1

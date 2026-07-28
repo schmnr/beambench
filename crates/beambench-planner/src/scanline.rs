@@ -23,13 +23,6 @@ pub fn generate_scanlines(
     for y in 0..raster.height_px {
         let y_mm = origin_y_mm + y as f64 * raster.line_interval_mm;
 
-        // Determine scan direction
-        let direction = if bidirectional && y % 2 == 1 {
-            ScanDirection::RightToLeft
-        } else {
-            ScanDirection::LeftToRight
-        };
-
         // Find runs in this row
         let mut runs = match raster.format {
             RasterPixelFormat::Binary => find_binary_runs(raster, y, origin_x_mm, overscan_mm),
@@ -42,6 +35,15 @@ pub fn generate_scanlines(
         if runs.is_empty() {
             continue;
         }
+
+        // Alternate emitted rows, not source bitmap rows. Whitespace rows are
+        // omitted, so using `y` can make consecutive physical sweeps travel in
+        // the same direction and force a full-width return.
+        let direction = if bidirectional && scanlines.len() % 2 == 1 {
+            ScanDirection::RightToLeft
+        } else {
+            ScanDirection::LeftToRight
+        };
 
         // Reverse runs for right-to-left scan
         if direction == ScanDirection::RightToLeft {
@@ -258,6 +260,25 @@ mod tests {
         assert_eq!(scanlines[0].direction, ScanDirection::LeftToRight);
         assert_eq!(scanlines[1].direction, ScanDirection::RightToLeft);
         assert_eq!(scanlines[2].direction, ScanDirection::LeftToRight);
+    }
+
+    #[test]
+    fn bidirectional_alternates_across_emitted_rows_when_source_rows_are_blank() {
+        let raster = ProcessedRaster {
+            width_px: 8,
+            height_px: 3,
+            line_interval_mm: 0.1,
+            x_pixel_mm: 0.1,
+            format: RasterPixelFormat::Binary,
+            // The middle source row is white and is omitted from the plan.
+            data: vec![0x00, 0xFF, 0x00],
+        };
+
+        let scanlines = generate_scanlines(&raster, 0.0, 0.0, true, 0.0);
+
+        assert_eq!(scanlines.len(), 2);
+        assert_eq!(scanlines[0].direction, ScanDirection::LeftToRight);
+        assert_eq!(scanlines[1].direction, ScanDirection::RightToLeft);
     }
 
     #[test]

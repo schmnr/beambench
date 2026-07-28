@@ -1,6 +1,6 @@
 //! Travel segment insertion between disconnected path segments.
 
-use crate::plan::{PlanSegment, ScanDirection};
+use crate::plan::PlanSegment;
 use beambench_common::geometry::Point2D;
 
 const POSITION_TOLERANCE_MM: f64 = 0.001;
@@ -56,20 +56,6 @@ pub fn insert_travel_segments(segments: Vec<PlanSegment>) -> Vec<PlanSegment> {
     }
 
     final_result
-}
-
-/// Transform a local-space raster point to world space using scan_angle + scan_origin.
-fn local_to_world(local: Point2D, scan_angle_deg: f64, scan_origin: &Point2D) -> Point2D {
-    if scan_angle_deg.abs() < 0.5 {
-        return local;
-    }
-    let rad = scan_angle_deg.to_radians();
-    let cos_a = rad.cos();
-    let sin_a = rad.sin();
-    Point2D::new(
-        scan_origin.x + local.x * cos_a - local.y * sin_a,
-        scan_origin.y + local.x * sin_a + local.y * cos_a,
-    )
 }
 
 /// Reorder segments using a greedy nearest-neighbor heuristic to minimize travel distance.
@@ -230,33 +216,7 @@ fn angle_between(a: Point2D, b: Point2D) -> f64 {
 /// For raster segments, returns the overscan-adjusted start position
 /// (os_start) matching where the G-code emitter actually rapids to.
 pub(crate) fn segment_start(segment: &PlanSegment) -> Option<Point2D> {
-    match segment {
-        PlanSegment::Travel { start, .. } => Some(*start),
-        PlanSegment::Vector { polyline, .. } => polyline.first().copied(),
-        PlanSegment::Frame { path, .. } => path.first().copied(),
-        PlanSegment::Raster {
-            scanlines,
-            scan_angle_deg,
-            scan_origin,
-            overscan_mm,
-            ..
-        } => scanlines.first().and_then(|line| {
-            line.runs.first().map(|run| {
-                let (start_pos, end_pos) = match line.direction {
-                    ScanDirection::LeftToRight => (run.start_x_mm, run.end_x_mm),
-                    ScanDirection::RightToLeft => (run.end_x_mm, run.start_x_mm),
-                };
-                let dir_sign = if start_pos <= end_pos { 1.0 } else { -1.0 };
-                let os_start = start_pos - dir_sign * overscan_mm;
-                local_to_world(
-                    Point2D::new(os_start, line.y_mm),
-                    *scan_angle_deg,
-                    scan_origin,
-                )
-            })
-        }),
-        PlanSegment::OffsetFill { .. } => None,
-    }
+    segment.motion_start()
 }
 
 /// Get the ending point of a segment.
@@ -264,33 +224,7 @@ pub(crate) fn segment_start(segment: &PlanSegment) -> Option<Point2D> {
 /// For raster segments, returns the overscan-adjusted end position
 /// (os_end) matching where the G-code emitter actually finishes.
 pub(crate) fn segment_end(segment: &PlanSegment) -> Option<Point2D> {
-    match segment {
-        PlanSegment::Travel { end, .. } => Some(*end),
-        PlanSegment::Vector { polyline, .. } => polyline.last().copied(),
-        PlanSegment::Frame { path, .. } => path.last().copied(),
-        PlanSegment::Raster {
-            scanlines,
-            scan_angle_deg,
-            scan_origin,
-            overscan_mm,
-            ..
-        } => scanlines.last().and_then(|line| {
-            line.runs.last().map(|run| {
-                let (start_pos, end_pos) = match line.direction {
-                    ScanDirection::LeftToRight => (run.start_x_mm, run.end_x_mm),
-                    ScanDirection::RightToLeft => (run.end_x_mm, run.start_x_mm),
-                };
-                let dir_sign = if start_pos <= end_pos { 1.0 } else { -1.0 };
-                let os_end = end_pos + dir_sign * overscan_mm;
-                local_to_world(
-                    Point2D::new(os_end, line.y_mm),
-                    *scan_angle_deg,
-                    scan_origin,
-                )
-            })
-        }),
-        PlanSegment::OffsetFill { .. } => None,
-    }
+    segment.motion_end()
 }
 
 #[cfg(test)]

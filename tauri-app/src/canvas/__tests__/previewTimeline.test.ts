@@ -340,6 +340,31 @@ describe('buildTimeline', () => {
     expect(rasters[0].endTime - rasters[0].startTime).toBeCloseTo(42.5, 5);
   });
 
+  it('scales playback to the machine-calibrated backend duration', () => {
+    const data = makePreviewData({
+      travel_moves: [makeTravelMove({ to: { x: 100, y: 0 } })],
+      layers: [{
+        layer_id: 'L1',
+        vector_paths: [makeVectorPreview()], // 10 mm at 600 mm/min = 1 second
+        raster_regions: [],
+      }],
+      stats: {
+        total_distance_mm: 110,
+        travel_distance_mm: 100,
+        burn_distance_mm: 10,
+        estimated_duration_secs: 4,
+        segment_count: 2,
+        raster_line_count: 0,
+      },
+    });
+
+    const full = buildTimeline(data, ['#ff0000'], 6000);
+    expect(full.playbackDuration).toBeCloseTo(4, 5);
+
+    const withoutTravel = buildTimeline(data, ['#ff0000'], 6000, true);
+    expect(withoutTravel.playbackDuration).toBeCloseTo(2, 5);
+  });
+
   it('includes frame as a timed segment at the start', () => {
     const data = makePreviewData({
       frame: {

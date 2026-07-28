@@ -1,7 +1,7 @@
 //! Job progress tracking.
 
 use beambench_common::machine::{JobProgress, JobProgressBucket, JobState};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// Tracks progress of a streaming job.
 pub struct ProgressTracker {
@@ -10,7 +10,9 @@ pub struct ProgressTracker {
     queued_lines: usize,
     sent_lines: usize,
     acknowledged_lines: usize,
-    start_time: Option<Instant>,
+    running_since: Option<Instant>,
+    active_elapsed: Duration,
+    planned_duration_secs: Option<f64>,
     buffer_fill_bytes: usize,
     error_message: Option<String>,
     buckets: Vec<JobProgressBucket>,
@@ -22,13 +24,23 @@ impl ProgressTracker {
     }
 
     pub fn with_buckets(total_lines: usize, buckets: Vec<JobProgressBucket>) -> Self {
+        Self::with_buckets_and_duration(total_lines, buckets, None)
+    }
+
+    pub fn with_buckets_and_duration(
+        total_lines: usize,
+        buckets: Vec<JobProgressBucket>,
+        planned_duration_secs: Option<f64>,
+    ) -> Self {
         Self {
             state: JobState::Preparing,
             total_lines,
             queued_lines: total_lines,
             sent_lines: 0,
             acknowledged_lines: 0,
-            start_time: None,
+            running_since: None,
+            active_elapsed: Duration::ZERO,
+            planned_duration_secs: planned_duration_secs.filter(|value| *value > 0.0),
             buffer_fill_bytes: 0,
             error_message: None,
             buckets,
@@ -36,12 +48,16 @@ impl ProgressTracker {
     }
 
     pub fn set_state(&mut self, state: JobState) {
+        if self.state == JobState::Running && state != JobState::Running {
+            if let Some(started) = self.running_since.take() {
+                self.active_elapsed += started.elapsed();
+            }
+        } else if self.state != JobState::Running && state == JobState::Running {
+            self.running_since = Some(Instant::now());
+        }
         self.state = state;
         if state != JobState::Failed {
             self.error_message = None;
-        }
-        if state == JobState::Running && self.start_time.is_none() {
-            self.start_time = Some(Instant::now());
         }
     }
 
@@ -63,7 +79,7 @@ impl ProgressTracker {
     }
 
     pub fn set_failed(&mut self, message: impl Into<String>) {
-        self.state = JobState::Failed;
+        self.set_state(JobState::Failed);
         self.error_message = Some(message.into());
     }
 
@@ -73,12 +89,20 @@ impl ProgressTracker {
 
     /// Take a snapshot of current progress.
     pub fn snapshot(&self) -> JobProgress {
-        let elapsed = self
-            .start_time
-            .map(|t| t.elapsed().as_secs_f64())
-            .unwrap_or(0.0);
+        let elapsed = self.active_elapsed.as_secs_f64()
+            + self
+                .running_since
+                .map(|started| started.elapsed().as_secs_f64())
+                .unwrap_or(0.0);
 
-        let estimated_remaining = if self.acknowledged_lines > 0 && self.total_lines > 0 {
+        let estimated_remaining = if matches!(self.state, JobState::Running | JobState::Paused)
+            && self.planned_duration_secs.is_some()
+        {
+            (self.planned_duration_secs.unwrap_or_default() - elapsed).max(0.0)
+        } else if matches!(self.state, JobState::Running | JobState::Paused)
+            && self.acknowledged_lines > 0
+            && self.total_lines > 0
+        {
             let rate = self.acknowledged_lines as f64 / elapsed.max(0.001);
             let remaining = self.total_lines.saturating_sub(self.acknowledged_lines) as f64;
             remaining / rate
@@ -166,5 +190,44 @@ mod tests {
         let mut tracker = ProgressTracker::new(10);
         tracker.set_buffer_fill(64);
         assert_eq!(tracker.snapshot().buffer_fill_bytes, 64);
+    }
+
+    #[test]
+    fn planned_eta_does_not_jump_when_zero_duration_lines_are_acknowledged() {
+        let mut tracker = ProgressTracker::with_buckets_and_duration(1_000, Vec::new(), Some(60.0));
+        tracker.set_state(JobState::Running);
+        let before = tracker.snapshot().estimated_remaining_secs;
+        for _ in 0..900 {
+            tracker.record_acknowledged();
+        }
+        let after = tracker.snapshot().estimated_remaining_secs;
+
+        assert!(
+            (before - after).abs() < 0.1,
+            "before={before}, after={after}"
+        );
+        assert!(after > 59.0);
+    }
+
+    #[test]
+    fn pause_freezes_active_elapsed_and_planned_eta() {
+        let mut tracker = ProgressTracker::with_buckets_and_duration(100, Vec::new(), Some(60.0));
+        tracker.set_state(JobState::Running);
+        std::thread::sleep(Duration::from_millis(10));
+        tracker.set_state(JobState::Paused);
+        let paused = tracker.snapshot();
+        std::thread::sleep(Duration::from_millis(20));
+        let still_paused = tracker.snapshot();
+
+        assert!((still_paused.elapsed_secs - paused.elapsed_secs).abs() < 0.001);
+        assert!(
+            (still_paused.estimated_remaining_secs - paused.estimated_remaining_secs).abs() < 0.001
+        );
+
+        tracker.set_state(JobState::Running);
+        std::thread::sleep(Duration::from_millis(10));
+        let resumed = tracker.snapshot();
+        assert!(resumed.elapsed_secs > paused.elapsed_secs);
+        assert!(resumed.estimated_remaining_secs < paused.estimated_remaining_secs);
     }
 }

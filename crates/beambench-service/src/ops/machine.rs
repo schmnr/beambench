@@ -145,6 +145,7 @@ pub struct ProfileAutoSync {
     pub bed_width_mm: Option<f64>,
     pub bed_height_mm: Option<f64>,
     pub max_speed_mm_min: Option<f64>,
+    pub acceleration_mm_s2: Option<f64>,
     pub s_value_max: Option<u32>,
     pub homing_enabled: Option<bool>,
     pub project_workspace_synced: bool,
@@ -598,6 +599,18 @@ fn grbl_axis_max_speed(settings: &GrblSettings) -> Option<f64> {
     }
 }
 
+fn grbl_axis_acceleration(settings: &GrblSettings) -> Option<f64> {
+    match (
+        positive_finite(settings.acceleration_x()),
+        positive_finite(settings.acceleration_y()),
+    ) {
+        (Some(x), Some(y)) => Some(x.min(y)),
+        (Some(x), None) => Some(x),
+        (None, Some(y)) => Some(y),
+        (None, None) => None,
+    }
+}
+
 fn apply_grbl_settings_to_profile(
     profile: &mut MachineProfile,
     grbl_settings: &GrblSettings,
@@ -612,6 +625,7 @@ fn apply_grbl_settings_to_profile(
             .map(|preset| (preset.bed_width_mm, preset.bed_height_mm))
     });
     let max_speed_mm_min = grbl_axis_max_speed(grbl_settings);
+    let acceleration_mm_s2 = grbl_axis_acceleration(grbl_settings);
     let s_value_max =
         positive_finite(grbl_settings.max_spindle_speed()).map(|value| value.round() as u32);
     let homing_enabled = grbl_settings.get(22).map(|value| value != 0.0);
@@ -635,6 +649,9 @@ fn apply_grbl_settings_to_profile(
     if let Some(value) = max_speed_mm_min {
         profile.max_speed_mm_min = value;
     }
+    if let Some(value) = acceleration_mm_s2 {
+        profile.acceleration_mm_s2 = value;
+    }
     if let Some(value) = s_value_max {
         profile.s_value_max = value.max(1);
     }
@@ -654,6 +671,7 @@ fn apply_grbl_settings_to_profile(
         bed_width_mm: applied_bed_width_mm,
         bed_height_mm: applied_bed_height_mm,
         max_speed_mm_min,
+        acceleration_mm_s2,
         s_value_max,
         homing_enabled,
         project_workspace_synced: false,
@@ -727,6 +745,7 @@ fn profile_changed_by_sync(before: &MachineProfile, after: &MachineProfile) -> b
     !nearly_equal(before.bed_width_mm, after.bed_width_mm)
         || !nearly_equal(before.bed_height_mm, after.bed_height_mm)
         || !nearly_equal(before.max_speed_mm_min, after.max_speed_mm_min)
+        || !nearly_equal(before.acceleration_mm_s2, after.acceleration_mm_s2)
         || before.s_value_max != after.s_value_max
         || before.homing_enabled != after.homing_enabled
         || before.default_baud_rate != after.default_baud_rate
@@ -3551,15 +3570,27 @@ pub fn start_job_with_options(
             let driver = session.driver();
             let commands = acknowledged_gcode_commands(driver, &plan, gcode_config)
                 .map_err(ServiceError::machine)?;
-            ActiveJobHandle::Marlin(MarlinRuntimeJob::start(commands, session).map_err(
-                |error| ServiceError::machine(format!("{driver:?} job start failed: {error}")),
-            )?)
+            ActiveJobHandle::Marlin(
+                MarlinRuntimeJob::start_with_duration(
+                    commands,
+                    session,
+                    Some(plan.estimated_duration_secs),
+                )
+                .map_err(|error| {
+                    ServiceError::machine(format!("{driver:?} job start failed: {error}"))
+                })?,
+            )
         }
         MachineSessionHandle::Smoothieware(session) => {
             let commands = smoothieware_gcode_commands(session, &plan, gcode_config)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Smoothieware(
-                SmoothiewareRuntimeJob::start(commands, session).map_err(|error| {
+                SmoothiewareRuntimeJob::start_with_duration(
+                    commands,
+                    session,
+                    Some(plan.estimated_duration_secs),
+                )
+                .map_err(|error| {
                     ServiceError::machine(format!("Smoothieware job start failed: {error}"))
                 })?,
             )
@@ -3746,15 +3777,20 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
     Ok(progress)
 }
 
-/// Tick cadence for the active job. Acknowledged-G-code sessions (Marlin,
-/// Smoothieware) send at most one line per protocol round, so their
-/// throughput is bounded by this cadence; GRBL keeps its own 127-byte RX
-/// window full and only needs the slow cadence.
+/// Tick cadence for the active job. Acknowledged-G-code sessions send at
+/// most one line per protocol round. GRBL also needs a fast cadence: its
+/// 127-byte window is only refilled by `tick_job`, so a 50 ms interval caps
+/// throughput far below a normal 115200-baud serial link and starves dense
+/// raster motion.
 fn job_tick_interval(ctx: &ServiceContext) -> Duration {
     let fast_tick = ctx.job.lock().ok().is_some_and(|guard| {
         matches!(
             guard.as_ref(),
-            Some(ActiveJobHandle::Marlin(_) | ActiveJobHandle::Smoothieware(_))
+            Some(
+                ActiveJobHandle::Grbl(_)
+                    | ActiveJobHandle::Marlin(_)
+                    | ActiveJobHandle::Smoothieware(_)
+            )
         )
     }) || ctx.session.lock().ok().is_some_and(|guard| {
         // Staged Lihuiyu/Ruida transfers advance one bounded step per tick;
@@ -4105,15 +4141,27 @@ pub fn frame_job(
             let driver = session.driver();
             let commands = acknowledged_gcode_commands(driver, &frame_plan, frame_gcode_config)
                 .map_err(ServiceError::machine)?;
-            ActiveJobHandle::Marlin(MarlinRuntimeJob::start(commands, session).map_err(
-                |error| ServiceError::machine(format!("{driver:?} frame start failed: {error}")),
-            )?)
+            ActiveJobHandle::Marlin(
+                MarlinRuntimeJob::start_with_duration(
+                    commands,
+                    session,
+                    Some(frame_plan.estimated_duration_secs),
+                )
+                .map_err(|error| {
+                    ServiceError::machine(format!("{driver:?} frame start failed: {error}"))
+                })?,
+            )
         }
         MachineSessionHandle::Smoothieware(session) => {
             let commands = smoothieware_gcode_commands(session, &frame_plan, frame_gcode_config)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Smoothieware(
-                SmoothiewareRuntimeJob::start(commands, session).map_err(|error| {
+                SmoothiewareRuntimeJob::start_with_duration(
+                    commands,
+                    session,
+                    Some(frame_plan.estimated_duration_secs),
+                )
+                .map_err(|error| {
                     ServiceError::machine(format!("Smoothieware frame start failed: {error}"))
                 })?,
             )
@@ -4819,6 +4867,7 @@ pub fn save_profile(
             bed_width_mm: profile.bed_width_mm,
             bed_height_mm: profile.bed_height_mm,
             max_speed_mm_min: profile.max_speed_mm_min,
+            acceleration_mm_s2: profile.acceleration_mm_s2,
             max_power_percent: profile.max_power_percent,
             s_value_max: profile.s_value_max,
             homing_enabled: profile.homing_enabled,
@@ -7286,6 +7335,8 @@ mod tests {
         grbl.set(131, 410.0);
         grbl.set(110, 6000.0);
         grbl.set(111, 5000.0);
+        grbl.set(120, 450.0);
+        grbl.set(121, 400.0);
         grbl.set(30, 1000.0);
         grbl.set(22, 1.0);
 
@@ -7300,11 +7351,13 @@ mod tests {
         assert_eq!(sync.bed_width_mm, Some(400.0));
         assert_eq!(sync.bed_height_mm, Some(410.0));
         assert_eq!(sync.max_speed_mm_min, Some(5000.0));
+        assert_eq!(sync.acceleration_mm_s2, Some(400.0));
         assert_eq!(sync.s_value_max, Some(1000));
         assert_eq!(sync.homing_enabled, Some(true));
         assert_eq!(profile.bed_width_mm, 400.0);
         assert_eq!(profile.bed_height_mm, 410.0);
         assert_eq!(profile.max_speed_mm_min, 5000.0);
+        assert_eq!(profile.acceleration_mm_s2, 400.0);
         assert_eq!(profile.s_value_max, 1000);
         assert!(profile.homing_enabled);
         assert_eq!(profile.default_baud_rate, 115200);

@@ -148,6 +148,126 @@ pub struct ScanRun {
     pub power_values: Vec<u8>, // 1 value per pixel for grayscale, empty for binary (implied 100%)
 }
 
+/// Return the physical start and end points of one emitted raster row,
+/// including overscan and all local-to-workspace coordinate transforms.
+///
+/// Raster runs always use canonical ascending X bounds. Direction changes
+/// their traversal order; it does not reverse each run's stored endpoints.
+pub fn raster_scanline_motion_points(
+    scanline: &Scanline,
+    scan_axis: ScanAxis,
+    scan_angle_deg: f64,
+    scan_origin: Point2D,
+    overscan_mm: f64,
+) -> Option<(Point2D, Point2D)> {
+    let row_min = scanline
+        .runs
+        .iter()
+        .map(|run| run.start_x_mm.min(run.end_x_mm))
+        .reduce(f64::min)?;
+    let row_max = scanline
+        .runs
+        .iter()
+        .map(|run| run.start_x_mm.max(run.end_x_mm))
+        .reduce(f64::max)?;
+    let (start, end, direction) = match scanline.direction {
+        ScanDirection::LeftToRight => (row_min, row_max, 1.0),
+        ScanDirection::RightToLeft => (row_max, row_min, -1.0),
+    };
+    let local_start = Point2D::new(start - direction * overscan_mm, scanline.y_mm);
+    let local_end = Point2D::new(end + direction * overscan_mm, scanline.y_mm);
+    Some((
+        raster_local_to_world(local_start, scan_axis, scan_angle_deg, scan_origin),
+        raster_local_to_world(local_end, scan_axis, scan_angle_deg, scan_origin),
+    ))
+}
+
+/// Convert a raster point from the planner's scanline frame into workspace
+/// coordinates. Cardinal vertical scans are transposed; arbitrary-angle
+/// scans are rotated around their stored world-space origin.
+pub fn raster_local_to_world(
+    local: Point2D,
+    scan_axis: ScanAxis,
+    scan_angle_deg: f64,
+    scan_origin: Point2D,
+) -> Point2D {
+    let absolute_angle = scan_angle_deg.abs();
+    let is_cardinal = absolute_angle < 0.5
+        || (absolute_angle - 90.0).abs() < 0.5
+        || (absolute_angle - 180.0).abs() < 0.5
+        || (absolute_angle - 270.0).abs() < 0.5
+        || (absolute_angle - 360.0).abs() < 0.5;
+    if !is_cardinal {
+        let angle = scan_angle_deg.to_radians();
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        return Point2D::new(
+            scan_origin.x + local.x * cos_a - local.y * sin_a,
+            scan_origin.y + local.x * sin_a + local.y * cos_a,
+        );
+    }
+    match scan_axis {
+        ScanAxis::Horizontal => local,
+        ScanAxis::Vertical => Point2D::new(local.y, local.x),
+    }
+}
+
+impl PlanSegment {
+    /// Physical point where this segment begins, matching emitted motion.
+    pub fn motion_start(&self) -> Option<Point2D> {
+        match self {
+            Self::Travel { start, .. } => Some(*start),
+            Self::Vector { polyline, .. } => polyline.first().copied(),
+            Self::Frame { path, .. } => path.first().copied(),
+            Self::Raster {
+                scanlines,
+                scan_axis,
+                scan_angle_deg,
+                scan_origin,
+                overscan_mm,
+                ..
+            } => scanlines.iter().find_map(|scanline| {
+                raster_scanline_motion_points(
+                    scanline,
+                    *scan_axis,
+                    *scan_angle_deg,
+                    *scan_origin,
+                    *overscan_mm,
+                )
+                .map(|points| points.0)
+            }),
+            Self::OffsetFill { .. } => None,
+        }
+    }
+
+    /// Physical point where this segment ends, matching emitted motion.
+    pub fn motion_end(&self) -> Option<Point2D> {
+        match self {
+            Self::Travel { end, .. } => Some(*end),
+            Self::Vector { polyline, .. } => polyline.last().copied(),
+            Self::Frame { path, .. } => path.last().copied(),
+            Self::Raster {
+                scanlines,
+                scan_axis,
+                scan_angle_deg,
+                scan_origin,
+                overscan_mm,
+                ..
+            } => scanlines.iter().rev().find_map(|scanline| {
+                raster_scanline_motion_points(
+                    scanline,
+                    *scan_axis,
+                    *scan_angle_deg,
+                    *scan_origin,
+                    *overscan_mm,
+                )
+                .map(|points| points.1)
+            }),
+            Self::OffsetFill { .. } => None,
+        }
+    }
+}
+
 /// Direction of a scanline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -220,6 +340,14 @@ pub struct PlannerCalibration {
     pub dot_width_mm: f64,
     /// Whether dot-width correction is active.
     pub enable_dot_width: bool,
+    /// Effective machine rapid/feed limit in mm/min. Zero means unknown.
+    pub max_speed_mm_min: f64,
+    /// Effective XY acceleration in mm/s². Zero means unknown and disables
+    /// acceleration modeling rather than inventing a machine value.
+    pub acceleration_mm_s2: f64,
+    /// True when overscan approach moves are emitted as engraving-speed G1
+    /// instead of rapid G0 moves.
+    pub slow_overscan_approach: bool,
 }
 
 fn default_power_max() -> f64 {
@@ -561,6 +689,62 @@ mod tests {
         let cal = PlannerCalibration::default();
         assert_eq!(cal.dot_width_mm, 0.0);
         assert!(!cal.enable_dot_width);
+        assert_eq!(cal.max_speed_mm_min, 0.0);
+        assert_eq!(cal.acceleration_mm_s2, 0.0);
+        assert!(!cal.slow_overscan_approach);
+    }
+
+    #[test]
+    fn raster_motion_points_apply_direction_overscan_and_vertical_axis() {
+        let scanline = Scanline {
+            y_mm: 7.0,
+            runs: vec![ScanRun {
+                start_x_mm: 10.0,
+                end_x_mm: 20.0,
+                power_values: vec![],
+            }],
+            direction: ScanDirection::RightToLeft,
+        };
+
+        let (start, end) = raster_scanline_motion_points(
+            &scanline,
+            ScanAxis::Vertical,
+            90.0,
+            Point2D::zero(),
+            2.0,
+        )
+        .unwrap();
+
+        assert_eq!(start, Point2D::new(7.0, 22.0));
+        assert_eq!(end, Point2D::new(7.0, 8.0));
+    }
+
+    #[test]
+    fn raster_motion_points_rotate_about_scan_origin() {
+        let scanline = Scanline {
+            y_mm: 0.0,
+            runs: vec![ScanRun {
+                start_x_mm: 0.0,
+                end_x_mm: 10.0,
+                power_values: vec![],
+            }],
+            direction: ScanDirection::LeftToRight,
+        };
+
+        let (start, end) = raster_scanline_motion_points(
+            &scanline,
+            ScanAxis::Horizontal,
+            45.0,
+            Point2D::new(5.0, 6.0),
+            0.0,
+        )
+        .unwrap();
+
+        assert!((start.x - 5.0).abs() < 1e-10);
+        assert!((start.y - 6.0).abs() < 1e-10);
+        let diagonal = 10.0 / 2.0_f64.sqrt();
+        assert!((end.x - (5.0 + diagonal)).abs() < 1e-10);
+        assert!((end.y - (6.0 + diagonal)).abs() < 1e-10);
     }
 
     #[test]

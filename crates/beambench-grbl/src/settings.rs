@@ -58,6 +58,16 @@ impl GrblSettings {
         self.get(111)
     }
 
+    /// $120 — X-axis acceleration (mm/s²)
+    pub fn acceleration_x(&self) -> Option<f64> {
+        self.get(120)
+    }
+
+    /// $121 — Y-axis acceleration (mm/s²)
+    pub fn acceleration_y(&self) -> Option<f64> {
+        self.get(121)
+    }
+
     /// $130 — Max travel X (mm)
     pub fn max_travel_x(&self) -> Option<f64> {
         self.get(130)
@@ -125,6 +135,8 @@ mod tests {
         let mut settings = GrblSettings::new();
         settings.set(110, 3000.0);
         settings.set(111, 2000.0);
+        settings.set(120, 500.0);
+        settings.set(121, 400.0);
         settings.set(130, 200.0);
         settings.set(131, 300.0);
         settings.set(32, 1.0);
@@ -133,6 +145,8 @@ mod tests {
 
         assert_eq!(settings.max_rate_x(), Some(3000.0));
         assert_eq!(settings.max_rate_y(), Some(2000.0));
+        assert_eq!(settings.acceleration_x(), Some(500.0));
+        assert_eq!(settings.acceleration_y(), Some(400.0));
         assert_eq!(settings.max_travel_x(), Some(200.0));
         assert_eq!(settings.max_travel_y(), Some(300.0));
         assert!(settings.laser_mode());

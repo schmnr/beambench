@@ -41,7 +41,11 @@ impl JobController {
         let commands = generate_gcode(plan, config)?;
         let total = commands.len();
         let engine = StreamingEngine::new_with_transfer_mode(commands, config.transfer_mode);
-        let progress = ProgressTracker::with_buckets(total, build_progress_buckets(plan));
+        let progress = ProgressTracker::with_buckets_and_duration(
+            total,
+            build_progress_buckets(plan),
+            Some(plan.estimated_duration_secs),
+        );
 
         Ok(Self {
             engine,
