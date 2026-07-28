@@ -43,6 +43,7 @@ struct SaveProfileRequest {
     bed_width_mm: Option<f64>,
     bed_height_mm: Option<f64>,
     max_speed_mm_min: Option<f64>,
+    acceleration_mm_s2: Option<f64>,
     max_power_percent: Option<f64>,
     #[serde(default)]
     homing_enabled: Option<bool>,
@@ -176,6 +177,9 @@ fn create_save_input(
         bed_width_mm: body.bed_width_mm.unwrap_or(default_bed_width()),
         bed_height_mm: body.bed_height_mm.unwrap_or(default_bed_height()),
         max_speed_mm_min: body.max_speed_mm_min.unwrap_or(default_max_speed()),
+        acceleration_mm_s2: body
+            .acceleration_mm_s2
+            .unwrap_or(defaults.acceleration_mm_s2),
         max_power_percent: body.max_power_percent.unwrap_or(default_max_power()),
         homing_enabled: body.homing_enabled.unwrap_or(defaults.homing_enabled),
         default_baud_rate: body.default_baud_rate.unwrap_or(default_baud_rate()),
@@ -273,6 +277,9 @@ fn merge_save_input(
         bed_width_mm: body.bed_width_mm.unwrap_or(existing.bed_width_mm),
         bed_height_mm: body.bed_height_mm.unwrap_or(existing.bed_height_mm),
         max_speed_mm_min: body.max_speed_mm_min.unwrap_or(existing.max_speed_mm_min),
+        acceleration_mm_s2: body
+            .acceleration_mm_s2
+            .unwrap_or(existing.acceleration_mm_s2),
         max_power_percent: body.max_power_percent.unwrap_or(existing.max_power_percent),
         homing_enabled: body.homing_enabled.unwrap_or(existing.homing_enabled),
         default_baud_rate: body.default_baud_rate.unwrap_or(existing.default_baud_rate),
@@ -683,6 +690,7 @@ mod tests {
                           "use_constant_power":true,
                           "emit_s_every_g1":true,
                           "use_g0_for_overscan":true,
+                          "acceleration_mm_s2":500.0,
                           "enable_scanning_offset":true,
                           "scanning_offsets":[{"speed_mm_min":1000.0,"offset_mm":0.1}],
                           "dot_width_mm":0.15,
@@ -701,6 +709,7 @@ mod tests {
         assert_eq!(created["use_constant_power"], true);
         assert_eq!(created["emit_s_every_g1"], true);
         assert_eq!(created["use_g0_for_overscan"], true);
+        assert_eq!(created["acceleration_mm_s2"], 500.0);
         assert_eq!(created["enable_scanning_offset"], true);
         assert_eq!(created["scanning_offsets"][0]["speed_mm_min"], 1000.0);
         assert_eq!(created["dot_width_mm"], 0.15);
@@ -734,6 +743,7 @@ mod tests {
         assert_eq!(updated["use_constant_power"], false);
         assert_eq!(updated["emit_s_every_g1"], false);
         assert_eq!(updated["use_g0_for_overscan"], true);
+        assert_eq!(updated["acceleration_mm_s2"], 500.0);
         assert_eq!(updated["scanning_offsets"][0]["speed_mm_min"], 500.0);
         assert_eq!(updated["scanning_offsets"][1]["speed_mm_min"], 2000.0);
         assert_eq!(updated["dot_width_mm"], 0.2);

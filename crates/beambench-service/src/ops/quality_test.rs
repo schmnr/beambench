@@ -1413,16 +1413,28 @@ fn stream_job(
             let commands =
                 crate::ops::machine::acknowledged_gcode_commands(driver, &plan, gcode_config)
                     .map_err(ServiceError::machine)?;
-            ActiveJobHandle::Marlin(MarlinRuntimeJob::start(commands, session).map_err(
-                |error| ServiceError::machine(format!("{driver:?} job start failed: {error}")),
-            )?)
+            ActiveJobHandle::Marlin(
+                MarlinRuntimeJob::start_with_duration(
+                    commands,
+                    session,
+                    Some(plan.estimated_duration_secs),
+                )
+                .map_err(|error| {
+                    ServiceError::machine(format!("{driver:?} job start failed: {error}"))
+                })?,
+            )
         }
         MachineSessionHandle::Smoothieware(session) => {
             let commands =
                 crate::ops::machine::smoothieware_gcode_commands(session, &plan, gcode_config)
                     .map_err(ServiceError::machine)?;
             ActiveJobHandle::Smoothieware(
-                SmoothiewareRuntimeJob::start(commands, session).map_err(|error| {
+                SmoothiewareRuntimeJob::start_with_duration(
+                    commands,
+                    session,
+                    Some(plan.estimated_duration_secs),
+                )
+                .map_err(|error| {
                     ServiceError::machine(format!("Smoothieware job start failed: {error}"))
                 })?,
             )

@@ -111,19 +111,26 @@ pub fn run_preflight(
         checks.push(check);
     }
 
-    // 6. Laser mode enabled ($32=1). Profiles configured for constant power
-    // (M3) intentionally run in spindle mode — needle cutters, servo Z lifts,
-    // some CO2 setups — so $32=0 is expected there, not a warning.
+    // 6. Laser mode enabled ($32=1). Constant-power vector profiles may
+    // intentionally use spindle mode, but raster output relies on GRBL laser
+    // mode to keep inline S changes and G0 row transitions continuous.
     let laser_mode = session.settings().laser_mode();
-    let laser_mode_ok = laser_mode || profile.use_constant_power;
+    let has_raster = plan
+        .segments
+        .iter()
+        .any(|segment| matches!(segment, beambench_planner::PlanSegment::Raster { .. }));
+    let laser_mode_ok = laser_mode || (profile.use_constant_power && !has_raster);
     checks.push(PreflightCheck {
         category: "settings".to_string(),
         description: "Laser mode enabled ($32=1)".to_string(),
         passed: laser_mode_ok,
         message: if laser_mode {
             "Laser mode enabled".to_string()
-        } else if profile.use_constant_power {
+        } else if profile.use_constant_power && !has_raster {
             "Spindle mode ($32=0) with a constant-power (M3) profile".to_string()
+        } else if has_raster {
+            "Raster engraving requires laser mode. Enable it with $32=1 before running this job"
+                .to_string()
         } else {
             "Laser mode disabled ($32=0). Enable with $32=1".to_string()
         },
@@ -157,6 +164,7 @@ pub fn run_preflight(
         || !plan_not_empty
         || !bounds_fit
         || !raster_motion_ok
+        || (has_raster && !laser_mode)
         || !no_alarm
         || homing_failed;
 
@@ -478,6 +486,14 @@ mod tests {
         profile.use_constant_power = false;
         let report = run_preflight(&session, &plan, &profile);
         assert_eq!(report.outcome, PreflightOutcome::PassWithWarnings);
+
+        // Constant power is valid for vector-only spindle tooling, but it
+        // cannot make raster S changes continuous while GRBL laser mode is
+        // disabled.
+        profile.use_constant_power = true;
+        let raster = raster_plan(20.0, 180.0, 5.0);
+        let report = run_preflight(&session, &raster, &profile);
+        assert_eq!(report.outcome, PreflightOutcome::Fail);
     }
 
     #[test]
@@ -538,11 +554,9 @@ mod tests {
     }
 
     #[test]
-    fn fitting_raster_does_not_escalate_warnings_to_fail() {
-        // A raster whose motion check PASSES plus an unrelated warning
-        // ($32=0 without a constant-power profile): the outcome must stay
-        // PassWithWarnings. The passing raster check used to be treated as
-        // critical merely because it existed, escalating this to Fail.
+    fn fitting_raster_still_requires_laser_mode() {
+        // Raster power changes rely on GRBL laser mode preserving continuous
+        // motion. Safe bounds do not make $32=0 acceptable.
         let mut transport = MockSerialTransport::new("mock");
         transport.enqueue_response("Grbl 1.1h");
         transport.enqueue_response("$32=0");
@@ -566,12 +580,12 @@ mod tests {
             "raster motion check should be present and passing: {:?}",
             report.checks
         );
-        assert_eq!(
-            report.outcome,
-            PreflightOutcome::PassWithWarnings,
-            "a passing raster check must not turn warnings into Fail: {:?}",
-            report.checks
-        );
+        assert_eq!(report.outcome, PreflightOutcome::Fail);
+        assert!(report.checks.iter().any(|c| {
+            c.description.contains("Laser mode")
+                && !c.passed
+                && c.message.contains("Raster engraving requires")
+        }));
     }
 
     #[test]

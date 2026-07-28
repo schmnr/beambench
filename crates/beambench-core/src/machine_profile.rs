@@ -111,6 +111,10 @@ pub struct MachineProfile {
     pub bed_width_mm: f64,
     pub bed_height_mm: f64,
     pub max_speed_mm_min: f64,
+    /// Effective XY acceleration used for duration estimates, in mm/s².
+    /// Zero means unknown. GRBL profiles are synchronized from $120/$121.
+    #[serde(default)]
+    pub acceleration_mm_s2: f64,
     pub max_power_percent: f64,
     pub s_value_max: u32,
     pub homing_enabled: bool,
@@ -242,6 +246,7 @@ impl Default for MachineProfile {
             bed_width_mm: 200.0,
             bed_height_mm: 200.0,
             max_speed_mm_min: 3000.0,
+            acceleration_mm_s2: 0.0,
             max_power_percent: 100.0,
             s_value_max: 1000,
             homing_enabled: false,

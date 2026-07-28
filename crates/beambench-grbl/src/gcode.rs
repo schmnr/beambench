@@ -502,14 +502,6 @@ fn laser_on_zero(config: &GcodeConfig) -> String {
     }
 }
 
-fn power_suffix(config: &GcodeConfig, s_value: u32) -> String {
-    if config.emit_s_every_g1 {
-        format!(" S{s_value}")
-    } else {
-        String::new()
-    }
-}
-
 fn same_point(a: Point2D, b: Point2D) -> bool {
     let dx = a.x - b.x;
     let dy = a.y - b.y;
@@ -669,8 +661,11 @@ impl RasterLineGeometry {
         s_value: u32,
         config: &GcodeConfig,
     ) -> String {
+        // Raster power is carried inline on every feed move. This is both
+        // compact and required now that the laser mode is selected once per
+        // raster segment instead of repeated before every power transition.
+        let suffix = format!(" S{s_value}");
         if config.rotary.is_none() {
-            let suffix = power_suffix(config, s_value);
             return match self {
                 Self::Orthogonal {
                     axis: ScanAxis::Horizontal,
@@ -699,13 +694,7 @@ impl RasterLineGeometry {
         }
         let feed =
             speed_mm_min.map(|speed| mapped_feed(self.point(0.0), self.point(1.0), speed, config));
-        mapped_motion(
-            "G1",
-            self.point(run_pos),
-            feed,
-            &power_suffix(config, s_value),
-            config,
-        )
+        mapped_motion("G1", self.point(run_pos), feed, &suffix, config)
     }
 }
 
@@ -718,7 +707,6 @@ fn emit_raster_power_move(
     s_value: u32,
     config: &GcodeConfig,
 ) {
-    lines.push(laser_on_command(config, s_value));
     let feed = need_feed.then_some(speed_mm_min);
     lines.push(geometry.feed_move(end_pos, feed, s_value, config));
     *need_feed = false;
@@ -774,7 +762,6 @@ fn emit_raster_scanline(
         } else {
             lines.push(geometry.approach_move(overscan_start, speed_mm_min, config));
         }
-        lines.push(laser_on_zero(config));
         lines.push(geometry.feed_move(row_start, Some(speed_mm_min), 0, config));
     } else {
         lines.push(geometry.rapid_move(row_start, config));
@@ -784,7 +771,6 @@ fn emit_raster_scanline(
     for run in runs {
         let (run_start, run_end) = directed_bounds(run);
         if (run_start - current_pos).abs() > 1e-9 {
-            lines.push(laser_on_zero(config));
             let feed = need_feed.then_some(speed_mm_min);
             lines.push(geometry.feed_move(run_start, feed, 0, config));
             need_feed = false;
@@ -851,10 +837,8 @@ fn emit_raster_scanline(
     }
 
     if overscan_mm > 0.0 {
-        lines.push(laser_on_zero(config));
         lines.push(geometry.feed_move(overscan_end, Some(speed_mm_min), 0, config));
     }
-    lines.push("M5".to_string());
 }
 
 fn generate_segment(
@@ -1071,6 +1055,14 @@ fn generate_segment(
                 Some((radians.cos(), radians.sin()))
             };
 
+            let has_motion = scanlines.iter().any(|scanline| !scanline.runs.is_empty());
+            if has_motion {
+                // Select the spindle/laser mode once for the raster segment.
+                // Every feed move carries an inline S value, including S0 for
+                // acceleration zones and white gaps, so repeating M3/M4 for
+                // every power change only wastes serial bandwidth.
+                lines.push(laser_on_zero(config));
+            }
             for scanline in scanlines {
                 let geometry = match rotated {
                     None => RasterLineGeometry::Orthogonal {
@@ -1097,6 +1089,11 @@ fn generate_segment(
                     scan_offset,
                     config,
                 );
+            }
+            if has_motion {
+                // One synchronization boundary per raster segment, never per
+                // scanline. The job postamble provides the final fail-safe M5.
+                lines.push("M5".to_string());
             }
         }
     }
@@ -1171,6 +1168,21 @@ mod tests {
                     .and_then(|value| value.parse().ok())
             })
             .collect()
+    }
+
+    fn has_inline_power(gcode: &[String], value: u32) -> bool {
+        let needle = format!(" S{value}");
+        gcode
+            .iter()
+            .any(|line| line.starts_with("G1 ") && line.contains(&needle))
+    }
+
+    fn inline_power_count(gcode: &[String], value: u32) -> usize {
+        let needle = format!(" S{value}");
+        gcode
+            .iter()
+            .filter(|line| line.starts_with("G1 ") && line.contains(&needle))
+            .count()
     }
 
     fn z_test_vector(entry_id: &str, y: f64) -> PlanSegment {
@@ -1253,7 +1265,11 @@ mod tests {
 
         let gcode = generate_gcode(&plan, &config).unwrap();
         assert!(gcode.iter().any(|line| line == "G0 X10.000 Z10.000"));
-        assert!(gcode.iter().any(|line| line == "G1 X10.000 Z50.000 F4000"));
+        assert!(
+            gcode
+                .iter()
+                .any(|line| line == "G1 X10.000 Z50.000 F4000 S1000")
+        );
         assert!(gcode.iter().all(|line| !line.contains(" Y")));
     }
 
@@ -1681,9 +1697,9 @@ mod tests {
             x_pixel_mm: 0.0,
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
-        assert!(gcode.contains(&"M4 S1000".to_string()));
+        assert!(has_inline_power(&gcode, 1000));
         assert!(gcode.contains(&"G0 X5.000 Y10.000".to_string()));
-        assert!(gcode.contains(&"G1 X25.000 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X25.000 F2000 S1000".to_string()));
     }
 
     #[test]
@@ -1854,7 +1870,7 @@ mod tests {
         }]);
         let raster_gcode = generate_gcode(&raster_plan, &config).unwrap();
         assert!(
-            raster_gcode.contains(&"M4 S255".to_string()),
+            has_inline_power(&raster_gcode, 255),
             "100% raster power should emit S255 when s_value_max is 255"
         );
     }
@@ -1889,7 +1905,7 @@ mod tests {
             x_pixel_mm: 0.0,
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
-        assert!(gcode.contains(&"M4 S800".to_string()));
+        assert!(has_inline_power(&gcode, 800));
     }
 
     #[test]
@@ -1925,8 +1941,7 @@ mod tests {
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
 
         // Count G1 X... lines for this raster row (excludes preamble Y move).
-        // Default config doesn't emit S on every G1 — power changes come from
-        // preceding M4 S<val> lines. 6 ramp-in + 1 const + 6 ramp-out = 13.
+        // 6 ramp-in + 1 constant + 6 ramp-out inline-power moves = 13.
         let g1_x = gcode
             .iter()
             .filter(|l| l.starts_with("G1 X") && !l.contains(" Y"))
@@ -1938,20 +1953,21 @@ mod tests {
             gcode.iter().any(|l| l.starts_with("G1 X20.000")),
             "should emit final ramp segment ending at X20.000"
         );
-        // Should include peak M4 S1000 line for the constant region
-        assert!(
-            gcode.iter().any(|l| l == "M4 S1000"),
-            "constant region should emit at peak M4 S1000"
-        );
-        // Should include at least one low-power M4 S line for the ramp ends
+        assert!(has_inline_power(&gcode, 1000));
+        // Should include at least one low-power inline S value for each ramp end
         // (first/last ramp step has fraction 1/12 → s ≈ 83)
         let low_s_count = gcode
             .iter()
-            .filter(|l| l.starts_with("M4 S") && l.as_str() != "M4 S1000" && l.as_str() != "M4 S0")
+            .filter(|line| {
+                line.starts_with("G1 ")
+                    && line.contains(" S")
+                    && !line.contains(" S1000")
+                    && !line.contains(" S0")
+            })
             .count();
         assert!(
             low_s_count >= 2,
-            "expected multiple sub-peak M4 S values from ramp, got {low_s_count}"
+            "expected multiple sub-peak inline S values from ramp, got {low_s_count}"
         );
     }
 
@@ -1987,15 +2003,14 @@ mod tests {
             x_pixel_mm: 0.0,
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
-        // Legacy binary path: one M4 S<max> then one G1 X20.000 F<feed>
-        assert!(gcode.contains(&"G1 X20.000 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X20.000 F2000 S1000".to_string()));
         // Only one G1 X line for this row — ramp expansion should be skipped
         let g1_x = gcode
             .iter()
             .filter(|l| l.starts_with("G1 X") && !l.contains(" Y"))
             .count();
         assert_eq!(g1_x, 1, "non-ramped binary should emit a single G1 X");
-        // Single peak M4 S1000 only, no varying ramp powers
+        // One M4 S0 mode selection only, no per-power M4 commands.
         let m4_lines = gcode.iter().filter(|l| l.starts_with("M4 ")).count();
         assert_eq!(m4_lines, 1, "non-ramped binary should emit a single M4");
     }
@@ -2032,11 +2047,9 @@ mod tests {
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         // 128/255 * 1000 ≈ 502
-        let m4_count = gcode.iter().filter(|l| l.starts_with("M4 S")).count();
-        assert_eq!(m4_count, 1, "Uniform power should emit single M4");
-        assert!(gcode.contains(&"M4 S502".to_string()));
+        assert_eq!(inline_power_count(&gcode, 502), 1);
         // Single G1 move to end
-        assert!(gcode.contains(&"G1 X25.000 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X25.000 F2000 S502".to_string()));
     }
 
     #[test]
@@ -2072,21 +2085,23 @@ mod tests {
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         let gcode_str = gcode.join("\n");
 
-        // 3 different powers → 3 M4 commands
-        let m4_count = gcode.iter().filter(|l| l.starts_with("M4 S")).count();
-        assert_eq!(m4_count, 3, "Gradient should emit 3 sub-runs");
+        let inline_count = gcode
+            .iter()
+            .filter(|line| line.starts_with("G1 X") && !line.contains(" S0"))
+            .count();
+        assert_eq!(inline_count, 3, "Gradient should emit 3 sub-runs");
 
         // S-values: 255→1000, 128→502, 64→251
         assert!(
-            gcode_str.contains("M4 S1000"),
+            has_inline_power(&gcode, 1000),
             "First sub-run should be S1000"
         );
         assert!(
-            gcode_str.contains("M4 S502"),
+            has_inline_power(&gcode, 502),
             "Second sub-run should be S502"
         );
         assert!(
-            gcode_str.contains("M4 S251"),
+            has_inline_power(&gcode, 251),
             "Third sub-run should be S251"
         );
 
@@ -2095,7 +2110,7 @@ mod tests {
         // Sub-run 2 ends at 0 + 2*10 = 20
         // Sub-run 3 ends at 0 + 3*10 = 30
         assert!(
-            gcode_str.contains("G1 X10.000 F3000"),
+            gcode_str.contains("G1 X10.000 F3000 S1000"),
             "First sub-run end at X10"
         );
         assert!(
@@ -2145,13 +2160,68 @@ mod tests {
         // Pixel powers are stored left-to-right, so RTL emission must reverse
         // them: the right pixel (128) burns first, then the left pixel (255).
         assert!(gcode.contains(&"G0 X20.000 Y10.000".to_string()));
-        assert!(gcode.contains(&"G1 X10.000 F2000".to_string()));
-        assert!(gcode.contains(&"G1 X0.000".to_string()));
-        let first_power = gcode.iter().position(|line| line == "M4 S502").unwrap();
-        let second_power = gcode.iter().position(|line| line == "M4 S1000").unwrap();
+        assert!(gcode.contains(&"G1 X10.000 F2000 S502".to_string()));
+        assert!(gcode.contains(&"G1 X0.000 S1000".to_string()));
+        let first_power = gcode
+            .iter()
+            .position(|line| line.starts_with("G1 ") && line.contains(" S502"))
+            .unwrap();
+        let second_power = gcode
+            .iter()
+            .position(|line| line.starts_with("G1 ") && line.contains(" S1000"))
+            .unwrap();
         assert!(
             first_power < second_power,
             "RTL powers were not reversed: {gcode:?}"
+        );
+    }
+
+    #[test]
+    fn multirow_raster_has_no_per_scanline_laser_mode_boundaries() {
+        let row = |y_mm, direction| Scanline {
+            y_mm,
+            runs: vec![ScanRun {
+                start_x_mm: 0.0,
+                end_x_mm: 10.0,
+                power_values: vec![],
+            }],
+            direction,
+        };
+        let plan = make_plan(vec![PlanSegment::Raster {
+            scanlines: vec![
+                row(0.0, ScanDirection::LeftToRight),
+                row(0.1, ScanDirection::RightToLeft),
+                row(0.2, ScanDirection::LeftToRight),
+            ],
+            line_interval_mm: 0.1,
+            direction_mode: DirectionMode::Bidirectional,
+            power_mode: PowerMode::Binary,
+            speed_mm_min: 3000.0,
+            layer_id: "l1".to_string(),
+            cut_entry_id: String::new(),
+            scan_angle_deg: 0.0,
+            scan_origin: Point2D::zero(),
+            overscan_mm: 1.0,
+            outlines: vec![],
+            scan_axis: ScanAxis::Horizontal,
+            power_max_percent: 100.0,
+            power_min_percent: 0.0,
+            dot_width_correction_mm: 0.0,
+            ramp_length_mm: 0.0,
+            x_pixel_mm: 0.1,
+        }]);
+
+        let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
+
+        assert_eq!(gcode.iter().filter(|line| *line == "M4 S0").count(), 1);
+        // Preamble, one raster-segment boundary, and final fail-safe only.
+        assert_eq!(gcode.iter().filter(|line| *line == "M5").count(), 3);
+        assert!(
+            gcode
+                .iter()
+                .filter(|line| line.starts_with("G1 "))
+                .all(|line| line.contains(" S")),
+            "every raster feed move must carry inline power: {gcode:?}"
         );
     }
 
@@ -2186,7 +2256,7 @@ mod tests {
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         // Empty power_values → max_s = 800
-        assert!(gcode.contains(&"M4 S800".to_string()));
+        assert!(has_inline_power(&gcode, 800));
     }
 
     #[test]
@@ -2223,8 +2293,8 @@ mod tests {
         // pixel_width = 10/5 = 2mm
         // Sub-run 1 (pv=100, idx 0-1): end = 0 + 2*2 = 4.0
         // Sub-run 2 (pv=200, idx 2-4): end = 0 + 5*2 = 10.0
-        assert!(gcode.contains(&"G1 X4.000 F1500".to_string()));
-        assert!(gcode.contains(&"G1 X10.000".to_string()));
+        assert!(gcode.contains(&"G1 X4.000 F1500 S392".to_string()));
+        assert!(gcode.contains(&"G1 X10.000 S784".to_string()));
     }
 
     #[test]
@@ -2260,8 +2330,8 @@ mod tests {
         // Vertical: y_mm=15 → X, start_x=5 → Y start
         assert!(gcode.contains(&"G0 X15.000 Y5.000".to_string()));
         // pixel_width = (25-5)/2 = 10; sub-run 1 end = 5+1*10 = 15, sub-run 2 end = 5+2*10 = 25
-        assert!(gcode.contains(&"G1 Y15.000 F2000".to_string()));
-        assert!(gcode.contains(&"G1 Y25.000".to_string()));
+        assert!(gcode.contains(&"G1 Y15.000 F2000 S1000".to_string()));
+        assert!(gcode.contains(&"G1 Y25.000 S502".to_string()));
     }
 
     #[test]
@@ -2320,7 +2390,7 @@ mod tests {
             x_pixel_mm: 0.0,
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
-        assert!(gcode.contains(&"M4 S451".to_string()));
+        assert!(has_inline_power(&gcode, 451));
     }
 
     #[test]
@@ -2354,9 +2424,9 @@ mod tests {
             x_pixel_mm: 0.0,
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
-        assert!(gcode.contains(&"M4 S1000".to_string()));
+        assert!(has_inline_power(&gcode, 1000));
         assert!(gcode.contains(&"G0 X5.000 Y10.000".to_string()));
-        assert!(gcode.contains(&"G1 X25.000 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X25.000 F2000 S1000".to_string()));
     }
 
     #[test]
@@ -2469,7 +2539,6 @@ mod tests {
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         let gcode_str = gcode.join("\n");
-
         // Should have multiple M4/M5 pairs (perforation pulses)
         let m4_count = gcode.iter().filter(|l| l.starts_with("M4 S")).count();
         let _m5_count = gcode.iter().filter(|l| *l == "M5").count();
@@ -2571,7 +2640,6 @@ mod tests {
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         let gcode_str = gcode.join("\n");
-
         // Should NOT have G4 dwell commands
         assert!(
             !gcode_str.contains("G4 P"),
@@ -2619,7 +2687,7 @@ mod tests {
         );
         // Burn along Y axis
         assert!(
-            gcode.contains(&"G1 Y25.000 F2000".to_string()),
+            gcode.contains(&"G1 Y25.000 F2000 S1000".to_string()),
             "Vertical raster should burn along Y axis"
         );
         // Should NOT contain horizontal movement (G1 X...)
@@ -2662,7 +2730,7 @@ mod tests {
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         // Same as existing behavior
         assert!(gcode.contains(&"G0 X5.000 Y10.000".to_string()));
-        assert!(gcode.contains(&"G1 X25.000 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X25.000 F2000 S1000".to_string()));
     }
 
     #[test]
@@ -2735,7 +2803,7 @@ mod tests {
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         // Should use direct coordinates (orthogonal fast path)
         assert!(gcode.contains(&"G0 X5.000 Y10.000".to_string()));
-        assert!(gcode.contains(&"G1 X25.000 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X25.000 F2000 S1000".to_string()));
     }
 
     #[test]
@@ -2780,15 +2848,15 @@ mod tests {
         assert!(gcode_str.contains("M4 S0"), "Should have S0 for overscan");
         // G1 to burn start at feed rate
         assert!(
-            gcode_str.contains("G1 X5.000 F2000"),
+            gcode_str.contains("G1 X5.000 F2000 S0"),
             "Should accelerate to burn start"
         );
         // Actual burn at max power
-        assert!(gcode_str.contains("M4 S1000"), "Should burn at max power");
+        assert!(has_inline_power(&gcode, 1000), "Should burn at max power");
         assert!(gcode_str.contains("G1 X25.000"), "Should burn to end");
         // Trailing overscan: 25.0 + 2.0 = 27.0
         assert!(
-            gcode_str.contains("G1 X27.000 F2000"),
+            gcode_str.contains("G1 X27.000 F2000 S0"),
             "Should decelerate through trailing overscan with explicit feed rate"
         );
     }
@@ -2846,7 +2914,7 @@ mod tests {
             "Should rapid to overscan start"
         );
         assert!(
-            gcode_str.contains("G1 X35.000 F3000"),
+            gcode_str.contains("G1 X35.000 F3000 S0"),
             "Should have trailing overscan with explicit feed rate"
         );
     }
@@ -2891,12 +2959,12 @@ mod tests {
             "RTL: Should rapid to overscan start (right of burn)"
         );
         assert!(
-            gcode_str.contains("G1 X25.000 F2000"),
+            gcode_str.contains("G1 X25.000 F2000 S0"),
             "RTL: Should accelerate to burn start"
         );
         assert!(gcode_str.contains("G1 X5.000"), "RTL: Should burn to end");
         assert!(
-            gcode_str.contains("G1 X2.000 F2000"),
+            gcode_str.contains("G1 X2.000 F2000 S0"),
             "RTL: Should decelerate through trailing overscan with explicit feed rate"
         );
     }
@@ -2933,13 +3001,14 @@ mod tests {
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
 
-        // Should NOT have S0 overscan zones
+        // One S0 command selects the raster laser mode safely even without
+        // an overscan acceleration zone.
         let s0_count = gcode.iter().filter(|l| *l == "M4 S0").count();
-        assert_eq!(s0_count, 0, "Zero overscan should not produce S0 zones");
+        assert_eq!(s0_count, 1);
         // Standard behavior
         assert!(gcode.contains(&"G0 X5.000 Y10.000".to_string()));
-        assert!(gcode.contains(&"M4 S1000".to_string()));
-        assert!(gcode.contains(&"G1 X25.000 F2000".to_string()));
+        assert!(has_inline_power(&gcode, 1000));
+        assert!(gcode.contains(&"G1 X25.000 F2000 S1000".to_string()));
     }
 
     #[test]
@@ -3023,7 +3092,7 @@ mod tests {
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         // 90deg should take the orthogonal fast path (no rotation applied)
         // G1 should have X only, no Y (single-axis movement)
-        assert!(gcode.contains(&"G1 X25.000 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X25.000 F2000 S1000".to_string()));
     }
 
     #[test]
@@ -3119,15 +3188,15 @@ mod tests {
             x_pixel_mm: 0.0,
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
-        let gcode_str = gcode.join("\n");
-
-        // Should have 2 M4 S commands (two different power levels)
-        let m4_count = gcode.iter().filter(|l| l.starts_with("M4 S")).count();
-        assert_eq!(m4_count, 2, "Should emit 2 sub-runs, got {m4_count}");
+        let subrun_count = gcode
+            .iter()
+            .filter(|line| line.starts_with("G1 ") && !line.contains(" S0"))
+            .count();
+        assert_eq!(subrun_count, 2);
 
         // S-values: 100/255*1000 ≈ 392, 200/255*1000 ≈ 784
-        assert!(gcode_str.contains("M4 S392"), "First sub-run S392");
-        assert!(gcode_str.contains("M4 S784"), "Second sub-run S784");
+        assert!(has_inline_power(&gcode, 392), "First sub-run S392");
+        assert!(has_inline_power(&gcode, 784), "Second sub-run S784");
 
         // Both X and Y should change (diagonal movement)
         let g1_lines: Vec<_> = gcode.iter().filter(|l| l.starts_with("G1 ")).collect();
@@ -3171,17 +3240,11 @@ mod tests {
             x_pixel_mm: 0.0,
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
-        let gcode_str = gcode.join("\n");
-
-        // Should have S0 lead-in and S0 lead-out
-        let s0_count = gcode.iter().filter(|l| *l == "M4 S0").count();
-        assert!(
-            s0_count >= 2,
-            "Should have S0 lead-in and lead-out, got {s0_count}"
-        );
+        let s0_moves = inline_power_count(&gcode, 0);
+        assert!(s0_moves >= 2, "Should have S0 lead-in and lead-out");
 
         // The burn should still be present
-        assert!(gcode_str.contains("M4 S784"), "Should have burn sub-run");
+        assert!(has_inline_power(&gcode, 784), "Should have burn sub-run");
     }
 
     #[test]
@@ -3216,18 +3279,10 @@ mod tests {
         }]);
         let gcode = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
 
-        // S0 overscan lines should be present
-        let s0_count = gcode.iter().filter(|l| *l == "M4 S0").count();
-        assert!(
-            s0_count >= 2,
-            "Binary rotated should have overscan S0 lines"
-        );
+        assert!(inline_power_count(&gcode, 0) >= 2);
 
         // Burn at 80% → S800
-        assert!(
-            gcode.iter().any(|l| l == "M4 S800"),
-            "Should have burn at S800"
-        );
+        assert!(has_inline_power(&gcode, 800), "Should have burn at S800");
     }
 
     #[test]
@@ -3353,7 +3408,8 @@ mod tests {
             ..GcodeConfig::default()
         };
         let gcode = generate_gcode(&plan, &config).unwrap();
-        assert!(gcode.iter().any(|l| l == "M3 S1000"));
+        assert!(gcode.iter().any(|l| l == "M3 S0"));
+        assert!(has_inline_power(&gcode, 1000));
         assert!(!gcode.iter().any(|l| l.starts_with("M4 S")));
     }
 
@@ -3440,16 +3496,16 @@ mod tests {
             ramp_length_mm: 0.0,
             x_pixel_mm: 0.0,
         }]);
-        // emit_s_every_g1 not set — sub-run G1 lines should NOT have S
+        // Raster power is always inline so dense grayscale output does not
+        // need a redundant M3/M4 command before every pixel group.
         let gcode_default = generate_gcode(&plan, &GcodeConfig::default()).unwrap();
         let g1_burn_default: Vec<_> = gcode_default
             .iter()
             .filter(|l| l.starts_with("G1 X") && !l.contains("S0"))
             .collect();
-        // At least one G1 burn line should NOT contain S (default behavior)
         assert!(
-            g1_burn_default.iter().any(|l| !l.contains(" S")),
-            "Default: G1 burn lines should not all have S"
+            g1_burn_default.iter().all(|l| l.contains(" S")),
+            "Raster G1 burn lines must always carry inline power"
         );
 
         let gcode_with_s = generate_gcode(
@@ -3614,7 +3670,7 @@ mod tests {
         };
         let gcode = generate_gcode(&plan, &config).unwrap();
         assert!(gcode.contains(&"G0 X5.000 Y10.000".to_string()));
-        assert!(gcode.contains(&"G1 X25.000 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X25.000 F2000 S1000".to_string()));
     }
 
     #[test]
@@ -3665,10 +3721,10 @@ mod tests {
         let gcode = generate_gcode(&plan, &config).unwrap();
         // LTR: positions shifted by -0.1 → 4.9, 24.9
         assert!(gcode.contains(&"G0 X4.900 Y10.000".to_string()));
-        assert!(gcode.contains(&"G1 X24.900 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X24.900 F2000 S1000".to_string()));
         // RTL: positions shifted by +0.1 → 25.1, 5.1
         assert!(gcode.contains(&"G0 X25.100 Y11.000".to_string()));
-        assert!(gcode.contains(&"G1 X5.100 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X5.100 F2000 S1000".to_string()));
     }
 
     #[test]
@@ -3712,9 +3768,9 @@ mod tests {
         // overscan was computed from the unshifted span, the lead-in came up
         // short by the offset — laser firing while still accelerating.)
         assert!(gcode.contains(&"G0 X2.900 Y10.000".to_string()));
-        assert!(gcode.contains(&"G1 X4.900 F2000".to_string()));
-        assert!(gcode.contains(&"G1 X24.900".to_string()));
-        assert!(gcode.contains(&"G1 X26.900 F2000".to_string()));
+        assert!(gcode.contains(&"G1 X4.900 F2000 S0".to_string()));
+        assert!(gcode.contains(&"G1 X24.900 S1000".to_string()));
+        assert!(gcode.contains(&"G1 X26.900 F2000 S0".to_string()));
     }
 
     #[test]
@@ -3795,14 +3851,14 @@ mod tests {
         generate_segment(&mut lines, &segment, &config).unwrap();
         let gcode = lines.join("\n");
 
-        // Find overscan-exit G1 lines: they follow an S0 line and precede M5.
+        // Find overscan-exit G1 lines: inline S0 immediately before the
+        // segment's single M5 boundary.
         let line_vec: Vec<&str> = gcode.lines().collect();
         let mut found = 0;
         for (i, line) in line_vec.iter().enumerate() {
-            if line.starts_with("G1") && i > 0 && i + 1 < line_vec.len() {
-                let prev = line_vec[i - 1];
+            if line.starts_with("G1") && i + 1 < line_vec.len() {
                 let next = line_vec[i + 1];
-                if prev.contains("S0") && next == "M5" {
+                if line.contains(" S0") && next == "M5" {
                     assert!(
                         line.contains("F3000"),
                         "[{label}] Overscan exit G1 must include F3000. Got: {line}"

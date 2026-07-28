@@ -381,12 +381,21 @@ pub struct SmoothiewareRuntimeJob {
     acknowledged_lines: usize,
     in_flight: bool,
     error_message: Option<String>,
+    planned_duration_secs: Option<f64>,
 }
 
 impl SmoothiewareRuntimeJob {
     pub fn start(
         commands: Vec<String>,
         session: &mut SmoothiewareRuntimeSession,
+    ) -> Result<Self, String> {
+        Self::start_with_duration(commands, session, None)
+    }
+
+    pub fn start_with_duration(
+        commands: Vec<String>,
+        session: &mut SmoothiewareRuntimeSession,
+        planned_duration_secs: Option<f64>,
     ) -> Result<Self, String> {
         let total_lines = commands.len();
         session.start_job(commands)?;
@@ -398,6 +407,7 @@ impl SmoothiewareRuntimeJob {
             acknowledged_lines: 0,
             in_flight: false,
             error_message: None,
+            planned_duration_secs: planned_duration_secs.filter(|value| *value > 0.0),
         })
     }
 
@@ -435,15 +445,18 @@ impl SmoothiewareRuntimeJob {
 
     pub fn progress(&self) -> JobProgress {
         let elapsed_secs = self.started_at.elapsed().as_secs_f64();
-        let estimated_remaining_secs = if self.acknowledged_lines > 0
-            && self.acknowledged_lines < self.total_lines
-            && self.state == JobState::Running
-        {
-            elapsed_secs * (self.total_lines - self.acknowledged_lines) as f64
-                / self.acknowledged_lines as f64
-        } else {
-            0.0
-        };
+        let estimated_remaining_secs =
+            if self.state == JobState::Running && self.planned_duration_secs.is_some() {
+                (self.planned_duration_secs.unwrap_or_default() - elapsed_secs).max(0.0)
+            } else if self.acknowledged_lines > 0
+                && self.acknowledged_lines < self.total_lines
+                && self.state == JobState::Running
+            {
+                elapsed_secs * (self.total_lines - self.acknowledged_lines) as f64
+                    / self.acknowledged_lines as f64
+            } else {
+                0.0
+            };
         JobProgress {
             state: self.state,
             total_lines: self.total_lines,
@@ -629,12 +642,21 @@ pub struct MarlinRuntimeJob {
     acknowledged_lines: usize,
     in_flight: bool,
     error_message: Option<String>,
+    planned_duration_secs: Option<f64>,
 }
 
 impl MarlinRuntimeJob {
     pub fn start(
         commands: Vec<String>,
         session: &mut MarlinRuntimeSession,
+    ) -> Result<Self, String> {
+        Self::start_with_duration(commands, session, None)
+    }
+
+    pub fn start_with_duration(
+        commands: Vec<String>,
+        session: &mut MarlinRuntimeSession,
+        planned_duration_secs: Option<f64>,
     ) -> Result<Self, String> {
         let total_lines = commands.len();
         session.start_job(commands)?;
@@ -646,6 +668,7 @@ impl MarlinRuntimeJob {
             acknowledged_lines: 0,
             in_flight: false,
             error_message: None,
+            planned_duration_secs: planned_duration_secs.filter(|value| *value > 0.0),
         })
     }
 
@@ -680,15 +703,18 @@ impl MarlinRuntimeJob {
 
     pub fn progress(&self) -> JobProgress {
         let elapsed_secs = self.started_at.elapsed().as_secs_f64();
-        let estimated_remaining_secs = if self.acknowledged_lines > 0
-            && self.acknowledged_lines < self.total_lines
-            && self.state == JobState::Running
-        {
-            elapsed_secs * (self.total_lines - self.acknowledged_lines) as f64
-                / self.acknowledged_lines as f64
-        } else {
-            0.0
-        };
+        let estimated_remaining_secs =
+            if self.state == JobState::Running && self.planned_duration_secs.is_some() {
+                (self.planned_duration_secs.unwrap_or_default() - elapsed_secs).max(0.0)
+            } else if self.acknowledged_lines > 0
+                && self.acknowledged_lines < self.total_lines
+                && self.state == JobState::Running
+            {
+                elapsed_secs * (self.total_lines - self.acknowledged_lines) as f64
+                    / self.acknowledged_lines as f64
+            } else {
+                0.0
+            };
         JobProgress {
             state: self.state,
             total_lines: self.total_lines,

@@ -409,6 +409,7 @@ export interface MachineProfile {
   bed_width_mm: number;
   bed_height_mm: number;
   max_speed_mm_min: number;
+  acceleration_mm_s2?: number;
   max_power_percent: number;
   s_value_max: number;
   homing_enabled: boolean;

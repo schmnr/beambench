@@ -125,11 +125,27 @@ describe('PreviewWindow', () => {
     expect(screen.getByTitle('Play')).toBeDefined();
   });
 
+  it('formats long preview totals and playback positions as hours', () => {
+    const layers = [makeLayer({ id: 'layer-1', operation: 'cut', color_tag: '#ff0000' })];
+    render(
+      <PreviewWindow
+        data={buildPreviewData('long-plan', 4 * 3600 + 5 * 60 + 6)}
+        previewState="current"
+        layers={layers}
+        workspace={makeWorkspace()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Duration: 4:05:06')).toBeDefined();
+    expect(screen.getByText('Playback: 4:05:06 / 4:05:06')).toBeDefined();
+  });
+
   it('does not re-jump to the end when preview options change duration', () => {
     const onClose = vi.fn();
     const layers = [makeLayer({ id: 'layer-1', operation: 'cut', color_tag: '#ff0000' })];
     const workspace = makeWorkspace();
-    const data = buildPreviewData('plan-with-travel', 10, {
+    const data = buildPreviewData('plan-with-travel', 70, {
       travel_moves: [{
         from: { x: 0, y: 0 },
         to: { x: 10000, y: 0 },

@@ -43,6 +43,7 @@ pub struct SaveProfileInput {
     pub bed_width_mm: f64,
     pub bed_height_mm: f64,
     pub max_speed_mm_min: f64,
+    pub acceleration_mm_s2: f64,
     pub max_power_percent: f64,
     pub s_value_max: u32,
     pub homing_enabled: bool,
@@ -174,6 +175,12 @@ fn validate_profile(profile: &MachineProfile) -> ServiceResult<()> {
                 "Machine profile {label} must be a positive finite number"
             )));
         }
+    }
+
+    if !profile.acceleration_mm_s2.is_finite() || profile.acceleration_mm_s2 < 0.0 {
+        return Err(ServiceError::invalid_input(
+            "Machine profile acceleration must be zero (unknown) or a positive finite number",
+        ));
     }
 
     for (label, value) in [
@@ -956,6 +963,7 @@ pub fn save_profile(
         bed_width_mm: input.bed_width_mm,
         bed_height_mm: input.bed_height_mm,
         max_speed_mm_min: input.max_speed_mm_min,
+        acceleration_mm_s2: input.acceleration_mm_s2,
         max_power_percent: input.max_power_percent,
         s_value_max: input.s_value_max,
         homing_enabled: input.homing_enabled,
@@ -1095,6 +1103,7 @@ mod tests {
             bed_width_mm: 300.0,
             bed_height_mm: 200.0,
             max_speed_mm_min: 4000.0,
+            acceleration_mm_s2: 500.0,
             max_power_percent: 80.0,
             s_value_max: 1000,
             homing_enabled: true,

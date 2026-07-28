@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- Reworked GRBL raster output so laser power changes travel inline with motion,
+  the laser mode is selected once per raster segment, and scanlines no longer
+  stop the controller with repeated `M4`/`M5` commands. Dense grayscale
+  benchmarks now use roughly half as many G-code lines, and the active-job tick
+  loop refills GRBL's serial buffer quickly enough for normal 115200-baud use.
+- Raster preflight now requires GRBL laser mode (`$32=1`). Planning uses the
+  connected machine's XY speed and acceleration limits for more realistic
+  duration estimates, warns about speeds above the machine limit and inadequate
+  overscan, and accounts for profiles that use engraving-speed overscan moves.
+- Live remaining time now counts down from the planned motion duration instead
+  of treating every G-code line as equal, and paused time is excluded. Preview
+  totals and playback positions use `h:mm:ss` for jobs longer than one hour.
+- Corrected additional raster edge cases involving right-to-left dot-width
+  correction, blank-row bidirectional alternation, binary flood fill, vertical
+  and rotated raster endpoints, preview travel geometry, and empty corrected
+  scanlines.
+
 ## 0.1.11
 
 - Added corrected overhead-camera alignment. Four-point calibration now fixes

@@ -144,6 +144,7 @@ export function buildTimeline(
 ): AnimationTimeline {
   const segments: AnimationSegment[] = [];
   let cursor = 0;
+  let skippedTravelDuration = 0;
 
   // --- Frame segment (runs first, before cuts) ---
   if (data.frame && data.frame.path.length >= 2) {
@@ -195,7 +196,9 @@ export function buildTimeline(
   for (const item of ordered) {
     if (item.kind === 'travel') {
       const dist = pointDistance(item.data.from, item.data.to);
-      const duration = skipTravelTime ? 0 : (rapidSpeedMmMin > 0 ? (dist / rapidSpeedMmMin) * 60 : 0);
+      const nominalDuration = rapidSpeedMmMin > 0 ? (dist / rapidSpeedMmMin) * 60 : 0;
+      const duration = skipTravelTime ? 0 : nominalDuration;
+      if (skipTravelTime) skippedTravelDuration += nominalDuration;
       segments.push({
         type: 'travel',
         from: item.data.from,
@@ -260,6 +263,23 @@ export function buildTimeline(
       });
       cursor += duration;
     }
+  }
+
+  // The backend total includes the connected machine's speed limit and
+  // acceleration. Preview payloads intentionally stay lightweight, so apply
+  // that authoritative calibration as one scale factor after constructing the
+  // nominal per-segment timeline. When travel display is skipped, derive the
+  // factor from the full timeline so hiding travel removes its share instead
+  // of stretching the remaining work back to the full job duration.
+  const fullNominalDuration = cursor + skippedTravelDuration;
+  const calibratedDuration = data.stats.estimated_duration_secs;
+  if (fullNominalDuration > 0 && calibratedDuration > 0) {
+    const durationScale = calibratedDuration / fullNominalDuration;
+    for (const segment of segments) {
+      segment.startTime *= durationScale;
+      segment.endTime *= durationScale;
+    }
+    cursor *= durationScale;
   }
 
   return {

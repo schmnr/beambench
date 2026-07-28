@@ -1,6 +1,6 @@
 //! Statistics calculation for execution plans.
 
-use crate::plan::PlanSegment;
+use crate::plan::{PlanSegment, PlannerCalibration, ScanDirection};
 
 const RAPID_SPEED_MM_MIN: f64 = 10000.0;
 
@@ -11,7 +11,18 @@ pub fn calculate_distance(segments: &[PlanSegment]) -> f64 {
 
 /// Calculate estimated duration in seconds.
 pub fn calculate_duration(segments: &[PlanSegment]) -> f64 {
-    segments.iter().map(segment_duration).sum()
+    calculate_duration_with_calibration(segments, &PlannerCalibration::default())
+}
+
+/// Calculate duration using the active machine's motion limits.
+pub fn calculate_duration_with_calibration(
+    segments: &[PlanSegment],
+    calibration: &PlannerCalibration,
+) -> f64 {
+    segments
+        .iter()
+        .map(|segment| segment_duration_with_calibration(segment, calibration))
+        .sum()
 }
 
 fn segment_distance(segment: &PlanSegment) -> f64 {
@@ -81,13 +92,19 @@ fn raster_distance_components(scanlines: &[crate::plan::Scanline], os: f64) -> (
 
 /// Compute the estimated duration of a single plan segment in seconds.
 pub fn segment_duration(segment: &PlanSegment) -> f64 {
+    segment_duration_with_calibration(segment, &PlannerCalibration::default())
+}
+
+pub fn segment_duration_with_calibration(
+    segment: &PlanSegment,
+    calibration: &PlannerCalibration,
+) -> f64 {
+    let rapid_speed = effective_speed(RAPID_SPEED_MM_MIN, calibration);
+    let acceleration = positive(calibration.acceleration_mm_s2);
     match segment {
         PlanSegment::Travel { start, end } => {
             let dist = start.distance_to(end);
-            if RAPID_SPEED_MM_MIN == 0.0 {
-                return 0.0;
-            }
-            (dist / RAPID_SPEED_MM_MIN) * 60.0
+            move_duration_secs(dist, rapid_speed, acceleration)
         }
         PlanSegment::Vector {
             polyline,
@@ -95,40 +112,120 @@ pub fn segment_duration(segment: &PlanSegment) -> f64 {
             ..
         } => {
             let dist: f64 = polyline.windows(2).map(|w| w[0].distance_to(&w[1])).sum();
-            if *speed_mm_min == 0.0 {
-                return 0.0;
-            }
-            (dist / speed_mm_min) * 60.0
+            move_duration_secs(
+                dist,
+                effective_speed(*speed_mm_min, calibration),
+                acceleration,
+            )
         }
         PlanSegment::Frame {
             path, speed_mm_min, ..
         } => {
             let dist: f64 = path.windows(2).map(|w| w[0].distance_to(&w[1])).sum();
-            if *speed_mm_min == 0.0 {
-                return 0.0;
-            }
-            (dist / speed_mm_min) * 60.0
+            move_duration_secs(
+                dist,
+                effective_speed(*speed_mm_min, calibration),
+                acceleration,
+            )
         }
         PlanSegment::Raster {
             scanlines,
             overscan_mm,
             speed_mm_min,
             ..
-        } => {
-            let (feed, rapid) = raster_distance_components(scanlines, *overscan_mm);
-            if *speed_mm_min == 0.0 {
-                return 0.0;
-            }
-            let feed_secs = (feed / speed_mm_min) * 60.0;
-            let rapid_secs = if RAPID_SPEED_MM_MIN > 0.0 {
-                (rapid / RAPID_SPEED_MM_MIN) * 60.0
-            } else {
-                0.0
-            };
-            feed_secs + rapid_secs
-        }
+        } => raster_duration_secs(
+            scanlines,
+            *overscan_mm,
+            effective_speed(*speed_mm_min, calibration),
+            rapid_speed,
+            acceleration,
+            calibration.slow_overscan_approach,
+        ),
         PlanSegment::OffsetFill { .. } => 0.0,
     }
+}
+
+fn positive(value: f64) -> Option<f64> {
+    (value.is_finite() && value > 0.0).then_some(value)
+}
+
+fn effective_speed(requested_mm_min: f64, calibration: &PlannerCalibration) -> f64 {
+    let requested = positive(requested_mm_min).unwrap_or(0.0);
+    match positive(calibration.max_speed_mm_min) {
+        Some(limit) => requested.min(limit),
+        None => requested,
+    }
+}
+
+/// Rest-to-rest trapezoidal (or triangular) move time. Raster pixel commands
+/// within a row are deliberately modeled as one continuous sweep; inline S
+/// changes do not create separate acceleration events in laser mode.
+fn move_duration_secs(distance_mm: f64, speed_mm_min: f64, acceleration: Option<f64>) -> f64 {
+    if !distance_mm.is_finite() || distance_mm <= 0.0 || speed_mm_min <= 0.0 {
+        return 0.0;
+    }
+    let velocity = speed_mm_min / 60.0;
+    let Some(acceleration) = acceleration else {
+        return distance_mm / velocity;
+    };
+    let acceleration_distance = velocity * velocity / acceleration;
+    if distance_mm >= acceleration_distance {
+        2.0 * velocity / acceleration + (distance_mm - acceleration_distance) / velocity
+    } else {
+        2.0 * (distance_mm / acceleration).sqrt()
+    }
+}
+
+fn raster_duration_secs(
+    scanlines: &[crate::plan::Scanline],
+    overscan_mm: f64,
+    feed_speed_mm_min: f64,
+    rapid_speed_mm_min: f64,
+    acceleration: Option<f64>,
+    slow_overscan_approach: bool,
+) -> f64 {
+    let mut duration = 0.0;
+    let mut previous_end: Option<(f64, f64)> = None;
+    for scanline in scanlines {
+        let Some(row_min) = scanline
+            .runs
+            .iter()
+            .map(|run| run.start_x_mm.min(run.end_x_mm))
+            .reduce(f64::min)
+        else {
+            continue;
+        };
+        let row_max = scanline
+            .runs
+            .iter()
+            .map(|run| run.start_x_mm.max(run.end_x_mm))
+            .reduce(f64::max)
+            .unwrap_or(row_min);
+        let (start, end, direction) = match scanline.direction {
+            ScanDirection::LeftToRight => (row_min, row_max, 1.0),
+            ScanDirection::RightToLeft => (row_max, row_min, -1.0),
+        };
+        let overscan_start = start - direction * overscan_mm;
+        let overscan_end = end + direction * overscan_mm;
+        if let Some((previous_x, previous_y)) = previous_end {
+            let dx = overscan_start - previous_x;
+            let dy = scanline.y_mm - previous_y;
+            let transition_distance = (dx * dx + dy * dy).sqrt();
+            let transition_speed = if slow_overscan_approach && overscan_mm > 0.0 {
+                feed_speed_mm_min
+            } else {
+                rapid_speed_mm_min
+            };
+            duration += move_duration_secs(transition_distance, transition_speed, acceleration);
+        }
+        duration += move_duration_secs(
+            row_max - row_min + 2.0 * overscan_mm,
+            feed_speed_mm_min,
+            acceleration,
+        );
+        previous_end = Some((overscan_end, scanline.y_mm));
+    }
+    duration
 }
 
 #[cfg(test)]
@@ -690,5 +787,112 @@ mod tests {
 
         let duration = calculate_duration(&segments);
         assert_eq!(duration, 0.0);
+    }
+
+    #[test]
+    fn calibrated_duration_clamps_requested_speed_to_machine_limit() {
+        let segments = vec![PlanSegment::Vector {
+            polyline: vec![Point2D::new(0.0, 0.0), Point2D::new(60.0, 0.0)],
+            closed: false,
+            power_percent: 80.0,
+            speed_mm_min: 6000.0,
+            layer_id: "layer1".to_string(),
+            cut_entry_id: String::new(),
+            perforation_enabled: false,
+            perforation_on_ms: 0.0,
+            perforation_off_ms: 0.0,
+            source_object_id: None,
+            source_subpath_index: None,
+        }];
+        let calibration = PlannerCalibration {
+            max_speed_mm_min: 3000.0,
+            ..PlannerCalibration::default()
+        };
+
+        assert!((calculate_duration_with_calibration(&segments, &calibration) - 1.2).abs() < 1e-10);
+    }
+
+    #[test]
+    fn calibrated_duration_models_acceleration_for_short_moves() {
+        let segments = vec![PlanSegment::Vector {
+            polyline: vec![Point2D::new(0.0, 0.0), Point2D::new(100.0, 0.0)],
+            closed: false,
+            power_percent: 80.0,
+            speed_mm_min: 6000.0,
+            layer_id: "layer1".to_string(),
+            cut_entry_id: String::new(),
+            perforation_enabled: false,
+            perforation_on_ms: 0.0,
+            perforation_off_ms: 0.0,
+            source_object_id: None,
+            source_subpath_index: None,
+        }];
+        let calibration = PlannerCalibration {
+            acceleration_mm_s2: 100.0,
+            ..PlannerCalibration::default()
+        };
+
+        // 100 mm at 100 mm/s needs the full distance to accelerate and
+        // decelerate at 100 mm/s², so the rest-to-rest move takes 2 seconds.
+        assert!((calculate_duration_with_calibration(&segments, &calibration) - 2.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn raster_duration_uses_feed_speed_for_slow_overscan_row_transitions() {
+        let segments = vec![PlanSegment::Raster {
+            scanlines: vec![
+                Scanline {
+                    y_mm: 0.0,
+                    runs: vec![ScanRun {
+                        start_x_mm: 0.0,
+                        end_x_mm: 10.0,
+                        power_values: vec![],
+                    }],
+                    direction: ScanDirection::LeftToRight,
+                },
+                Scanline {
+                    y_mm: 0.1,
+                    runs: vec![ScanRun {
+                        start_x_mm: 0.0,
+                        end_x_mm: 10.0,
+                        power_values: vec![],
+                    }],
+                    direction: ScanDirection::LeftToRight,
+                },
+            ],
+            line_interval_mm: 0.1,
+            direction_mode: DirectionMode::Unidirectional,
+            power_mode: PowerMode::Binary,
+            speed_mm_min: 600.0,
+            layer_id: "layer1".to_string(),
+            cut_entry_id: String::new(),
+            scan_angle_deg: 0.0,
+            scan_origin: Point2D::zero(),
+            overscan_mm: 1.0,
+            outlines: vec![],
+            scan_axis: ScanAxis::Horizontal,
+            power_max_percent: 100.0,
+            power_min_percent: 0.0,
+            dot_width_correction_mm: 0.0,
+            ramp_length_mm: 0.0,
+            x_pixel_mm: 0.1,
+        }];
+        let fast = calculate_duration_with_calibration(
+            &segments,
+            &PlannerCalibration {
+                max_speed_mm_min: 6000.0,
+                ..PlannerCalibration::default()
+            },
+        );
+        let slow = calculate_duration_with_calibration(
+            &segments,
+            &PlannerCalibration {
+                max_speed_mm_min: 6000.0,
+                slow_overscan_approach: true,
+                ..PlannerCalibration::default()
+            },
+        );
+
+        assert!(slow > fast + 1.0, "slow={slow}, fast={fast}");
     }
 }
