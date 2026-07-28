@@ -120,6 +120,10 @@ export const appService = {
     return invoke<void>('request_window_close');
   },
 
+  async setWindowTitle(title: string): Promise<void> {
+    return invoke<void>('set_window_title', { title });
+  },
+
   async updateSettings(updates: AppSettingsUpdate): Promise<AppSettings> {
     return invoke<AppSettings>('update_app_settings', snakeToCamel(updates as Record<string, unknown>));
   },

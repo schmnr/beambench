@@ -2333,7 +2333,7 @@
     "zoom_to_fit": "Sovita näkymään",
     "zoom_in": "Lähennä",
     "tool_hint": {
-      "select": "Valitse napsauttamalla, vedä valintakehys",
+      "select": "Valitse napsauttamalla, vedä valintakehys, lisää Vaihto+napsautuksella",
       "rect": "Napsauta ja vedä piirtääksesi suorakulmion",
       "ellipse": "Napsauta ja vedä piirtääksesi ellipsin",
       "star": "Napsauta ja vedä piirtääksesi tähden",

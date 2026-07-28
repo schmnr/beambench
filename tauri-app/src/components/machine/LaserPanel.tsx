@@ -165,6 +165,7 @@ export function LaserPanel() {
   const [frameConfirm, setFrameConfirm] = useState(false);
   const [frameLaserOnConfirm, setFrameLaserOnConfirm] = useState(false);
   const [frameShiftArmed, setFrameShiftArmed] = useState(false);
+  const [laserFrameRequested, setLaserFrameRequested] = useState(false);
   const [showOptDialog, setShowOptDialog] = useState(false);
   const [optimizationDraft, setOptimizationDraft] = useState<ProjectOptimization>(projectOptimization);
   const optimizationSnapshotRef = useRef<ProjectOptimization>(cloneOptimization(projectOptimization));
@@ -223,7 +224,7 @@ export function LaserPanel() {
   const profileLaserOnFraming = activeProfile?.laser_on_when_framing ?? false;
   const laserOnFramingArmed = frameConfirm
     ? frameLaserOnConfirm
-    : profileLaserOnFraming || frameShiftArmed;
+    : profileLaserOnFraming || laserFrameRequested || frameShiftArmed;
 
   const isConnected = sessionState === 'ready' || sessionState === 'running' || sessionState === 'paused' || sessionState === 'alarm';
   const isIdleState =
@@ -255,6 +256,7 @@ export function LaserPanel() {
       await frameJob(frameMode, undefined, laserOnOverride);
       setFrameConfirm(false);
       setFrameLaserOnConfirm(false);
+      setLaserFrameRequested(false);
     } catch (e) {
       useNotificationStore.getState().push(wrapBackendError(String(e)), 'error');
       setFrameConfirm(false);
@@ -263,7 +265,7 @@ export function LaserPanel() {
   };
 
   const handleFrameClick = (shiftKey: boolean) => {
-    const armed = profileLaserOnFraming || shiftKey || frameShiftArmed;
+    const armed = profileLaserOnFraming || laserFrameRequested || shiftKey || frameShiftArmed;
     if (frameConfirm) {
       void handleFrame(frameLaserOnConfirm || armed);
     } else {
@@ -408,19 +410,39 @@ export function LaserPanel() {
               ? frameLaserOnConfirm ? t('panels.machine.laser.confirm_laser_frame') : t('panels.machine.laser.confirm_frame')
               : laserOnFramingArmed ? t('panels.machine.laser.frame_laser_on') : t('panels.machine.laser.frame')}
           </button>
-          <button
-            data-testid="frame-mode-toggle"
-            disabled={!canUseMotionControls}
-            className={`px-2 py-1 rounded border text-xs disabled:opacity-50 disabled:cursor-not-allowed ${
-              frameMode === 'rubber_band'
-                ? 'bg-bb-accent border-bb-accent text-bb-on-accent'
-                : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
-            }`}
-            onClick={() => setFrameMode(frameMode === 'rectangular' ? 'rubber_band' : 'rectangular')}
-            title={frameMode === 'rectangular' ? t('panels.machine.laser.rectangular_frame') : t('panels.machine.laser.rubber_band_frame')}
-          >
-            {frameMode === 'rectangular' ? t('panels.machine.laser.frame_mode_rect') : t('panels.machine.laser.frame_mode_hull')}
-          </button>
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              data-testid="frame-mode-toggle"
+              disabled={!canUseMotionControls}
+              className={`px-2 py-1 rounded border text-xs disabled:opacity-50 disabled:cursor-not-allowed ${
+                frameMode === 'rubber_band'
+                  ? 'bg-bb-accent border-bb-accent text-bb-on-accent'
+                  : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
+              }`}
+              onClick={() => setFrameMode(frameMode === 'rectangular' ? 'rubber_band' : 'rectangular')}
+              title={frameMode === 'rectangular' ? t('panels.machine.laser.rectangular_frame') : t('panels.machine.laser.rubber_band_frame')}
+            >
+              {frameMode === 'rectangular' ? t('panels.machine.laser.frame_mode_rect') : t('panels.machine.laser.frame_mode_hull')}
+            </button>
+            <label
+              className={`flex items-center justify-center gap-1.5 rounded border px-2 py-1 text-xs ${
+                laserOnFramingArmed
+                  ? 'bg-bb-error-bg border-bb-error-border text-bb-error-fg'
+                  : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
+              } ${!canUseMotionControls || frameConfirm || profileLaserOnFraming ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+              title={t('panels.machine.laser.laser_on_frame_warning')}
+            >
+              <input
+                type="checkbox"
+                data-testid="laser-frame-toggle"
+                checked={profileLaserOnFraming || laserFrameRequested}
+                disabled={!canUseMotionControls || frameConfirm || profileLaserOnFraming}
+                onChange={(event) => setLaserFrameRequested(event.target.checked)}
+                className="accent-bb-error"
+              />
+              {t('panels.machine.laser.frame_laser_on')}
+            </label>
+          </div>
         </div>
       )}
 

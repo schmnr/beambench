@@ -152,6 +152,18 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                )
+                // Secondary windows use generated labels and should not leave
+                // an ever-growing set of one-time entries in the state file.
+                .with_filter(|label| label == "main")
+                .build(),
+        )
         .manage(ctx.clone())
         .manage(api_runtime)
         .manage(single_instance_lock)
@@ -214,6 +226,7 @@ fn main() {
             commands::app::mark_frontend_ready,
             commands::app::confirm_window_close,
             commands::app::request_window_close,
+            commands::app::set_window_title,
             commands::app::open_external_url,
             commands::app::get_app_settings,
             commands::app::open_new_window,

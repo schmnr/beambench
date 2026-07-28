@@ -11,6 +11,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { isTransformLocked, notifyObjectLocked, notifyTransformLocked } from '../../utils/transformLocks';
 import { commitPendingTextEdit, isNewEmptyText } from '../textEditSession';
+import { beginTextEditFromDoubleClick } from '../textDoubleClick';
 import { queryWorldBoundsCandidates } from '../sceneIndex';
 import i18n from '../../i18n';
 
@@ -930,27 +931,10 @@ export class SelectTool implements CanvasTool {
   onDoubleClick(e: CanvasMouseEvent, ctx: ToolContext): void {
     void (async () => {
       const screenPt = { x: e.screenX, y: e.screenY };
+      if (await beginTextEditFromDoubleClick(e, ctx)) return;
+
       const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp);
-      if (hit && hit.data.type === 'text') {
-        if (useUiStore.getState().textEditObjectId && useUiStore.getState().textEditObjectId !== hit.id) {
-          const prevId = useUiStore.getState().textEditObjectId;
-          const prevMode = useUiStore.getState().textEditMode;
-          const shouldDelete = isNewEmptyText(prevId, prevMode);
-          const committed = await commitPendingTextEdit();
-          if (!committed) return;
-          useUiStore.setState({
-            textEditObjectId: null,
-            textEditClickPos: null,
-            textEditMode: null,
-            textEditCaretIndex: null,
-          });
-          if (shouldDelete && prevId) {
-            await useProjectStore.getState().removeObject(prevId);
-          }
-        }
-        ctx.selectObjects([hit.id]);
-        useUiStore.getState().beginTextEditSession(hit.id, 'double-click');
-      } else if (hit && hit.data.type === 'raster_image') {
+      if (hit && hit.data.type === 'raster_image') {
         ctx.selectObjects([hit.id]);
         const obj = ctx.objects.find((o) => o.id === hit.id);
         if (obj) {

@@ -8,6 +8,7 @@ import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useAppStore } from '../../../stores/appStore';
 import { makeProjectObject, makeTextObjectData } from '../../../test-utils/projectFixtures';
+import { beginTextEditFromDoubleClick } from '../../textDoubleClick';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -20,10 +21,12 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
 
 const initialUiState = useUiStore.getState();
 const initialAppState = useAppStore.getState();
+const initialProjectState = useProjectStore.getState();
 
 afterEach(() => {
   useUiStore.setState(initialUiState, true);
   useAppStore.setState(initialAppState, true);
+  useProjectStore.setState(initialProjectState, true);
 });
 
 const identity: Transform2D = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 };
@@ -191,6 +194,46 @@ describe('SelectTool double-click text editing', () => {
     await vi.waitFor(() => {
       expect(useUiStore.getState().textEditObjectId).toBeNull();
     });
+  });
+});
+
+describe('tool-independent double-click text editing', () => {
+  it('opens text editing without depending on the active tool', async () => {
+    const textObj = makeTextObject('text-global', 'Correct me', {
+      min: { x: 10, y: 10 },
+      max: { x: 50, y: 20 },
+    });
+    const ctx = makeToolContext({ objects: [textObj] });
+
+    const handled = await beginTextEditFromDoubleClick(makeMouseEvent({
+      screenX: 430,
+      screenY: 325,
+      worldX: 15,
+      worldY: 12.5,
+    }), ctx);
+
+    expect(handled).toBe(true);
+    expect(ctx.selectObjects).toHaveBeenCalledWith(['text-global']);
+    expect(useUiStore.getState().textEditObjectId).toBe('text-global');
+    expect(useUiStore.getState().textEditMode).toBe('double-click');
+    expect(useProjectStore.getState().selectedLayerId).toBe('layer1');
+  });
+
+  it('does not edit locked text or fall through to another tool', async () => {
+    const textObj = makeTextObject('text-locked', 'Locked', {
+      min: { x: 10, y: 10 },
+      max: { x: 50, y: 20 },
+    }, { locked: true });
+    const ctx = makeToolContext({ objects: [textObj] });
+
+    const handled = await beginTextEditFromDoubleClick(makeMouseEvent({
+      screenX: 430,
+      screenY: 325,
+    }), ctx);
+
+    expect(handled).toBe(true);
+    expect(ctx.selectObjects).not.toHaveBeenCalled();
+    expect(useUiStore.getState().textEditObjectId).toBeNull();
   });
 });
 

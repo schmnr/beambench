@@ -2333,7 +2333,7 @@
     "zoom_to_fit": "Adatta alla vista",
     "zoom_in": "Aumenta zoom",
     "tool_hint": {
-      "select": "Fai clic per selezionare, trascina per il riquadro di selezione",
+      "select": "Fai clic per selezionare, trascina per il riquadro, Maiusc+clic per aggiungere",
       "rect": "Fai clic e trascina per disegnare un rettangolo",
       "ellipse": "Fai clic e trascina per disegnare un'ellisse",
       "star": "Fai clic e trascina per disegnare una stella",

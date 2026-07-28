@@ -2333,7 +2333,7 @@
     "zoom_to_fit": "Ajustar a la vista",
     "zoom_in": "Acercar",
     "tool_hint": {
-      "select": "Haz clic para seleccionar, arrastra para hacer un recuadro",
+      "select": "Haz clic para seleccionar, arrastra para hacer un recuadro, Mayús+clic para añadir",
       "rect": "Haz clic y arrastra para dibujar un rectángulo",
       "ellipse": "Haz clic y arrastra para dibujar una elipse",
       "star": "Haz clic y arrastra para dibujar una estrella",

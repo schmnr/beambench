@@ -2333,7 +2333,7 @@
     "zoom_to_fit": "Passend maken",
     "zoom_in": "Inzoomen",
     "tool_hint": {
-      "select": "Klik om te selecteren, sleep voor een selectiekader",
+      "select": "Klik om te selecteren, sleep voor een selectiekader, Shift-klik om toe te voegen",
       "rect": "Klik en sleep om een rechthoek te tekenen",
       "ellipse": "Klik en sleep om een ellips te tekenen",
       "star": "Klik en sleep om een ster te tekenen",

@@ -64,6 +64,7 @@ import { isArtLibraryDragDataTransfer } from '../shared/artLibraryDragData';
 import { TraceImageDialog } from '../dialogs/TraceImageDialog';
 import { AdjustImageDialog } from '../dialogs/AdjustImageDialog';
 import { commitPendingTextEdit, getPendingContent } from '../../canvas/textEditSession';
+import { beginTextEditFromDoubleClick } from '../../canvas/textDoubleClick';
 import { registerToolInstances } from '../layout/CreationToolbar';
 import type { StartPointMode } from '../../types/vector';
 import { resolveCanvasPointerSnap } from '../../canvas/pointerSnap';
@@ -1434,11 +1435,13 @@ export function Canvas() {
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
-      if (tool.onDoubleClick) {
-        const me = buildMouseEvent(e);
-        const ctx = buildToolContext();
+      const me = buildMouseEvent(e);
+      const ctx = buildToolContext();
+      void (async () => {
+        if (await beginTextEditFromDoubleClick(me, ctx)) return;
+        if (!tool.onDoubleClick) return;
         tool.onDoubleClick(me, ctx);
-      }
+      })();
     },
     [tool, buildMouseEvent, buildToolContext],
   );
