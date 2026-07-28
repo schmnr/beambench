@@ -2333,7 +2333,7 @@
     "zoom_to_fit": "Anpassa till vy",
     "zoom_in": "Zooma in",
     "tool_hint": {
-      "select": "Klicka för att markera, dra för markeringsruta",
+      "select": "Klicka för att markera, dra en markeringsruta, Skift-klicka för att lägga till",
       "rect": "Klicka och dra för att rita en rektangel",
       "ellipse": "Klicka och dra för att rita en ellips",
       "star": "Klicka och dra för att rita en stjärna",

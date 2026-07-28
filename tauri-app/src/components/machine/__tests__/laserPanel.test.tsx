@@ -252,9 +252,9 @@ describe('LaserPanel', () => {
 
     const frameButton = screen.getByText('Frame');
     fireEvent.mouseMove(frameButton, { shiftKey: true });
-    expect(screen.getByText('Frame: Laser On')).toBeDefined();
+    expect(screen.getByText('Frame: Laser On', { selector: 'button' })).toBeDefined();
 
-    fireEvent.click(screen.getByText('Frame: Laser On'), { shiftKey: true });
+    fireEvent.click(screen.getByText('Frame: Laser On', { selector: 'button' }), { shiftKey: true });
     expect(screen.getByText('Confirm Laser Frame')).toBeDefined();
 
     fireEvent.click(screen.getByText('Confirm Laser Frame'));
@@ -262,6 +262,28 @@ describe('LaserPanel', () => {
     await waitFor(() => {
       expect(machineService.frameJob).toHaveBeenCalledWith('rectangular', undefined, true, 1000);
     });
+  });
+
+  it('offers a visible one-shot low-power laser frame option', async () => {
+    setConnectedWithProject();
+    vi.mocked(machineService.frameJob).mockResolvedValueOnce(makeJobProgress({ state: 'running' }));
+    render(<LaserPanel />);
+
+    fireEvent.click(screen.getByTestId('laser-frame-toggle'));
+    expect(screen.getByText('Frame: Laser On', { selector: 'button' })).toBeDefined();
+
+    fireEvent.click(screen.getByText('Frame: Laser On', { selector: 'button' }));
+    expect(screen.getByText('Confirm Laser Frame')).toBeDefined();
+    fireEvent.click(screen.getByText('Confirm Laser Frame'));
+
+    await waitFor(() => {
+      expect(machineService.frameJob).toHaveBeenCalledWith('rectangular', undefined, true, 1000);
+    });
+    act(() => useMachineStore.setState({ jobProgress: null }));
+    await waitFor(() => {
+      expect(screen.getByTestId('laser-frame-toggle')).toBeDefined();
+    });
+    expect((screen.getByTestId('laser-frame-toggle') as HTMLInputElement).checked).toBe(false);
   });
 
   it('renders Save GCode button and calls previewService.exportGcode()', () => {
