@@ -20,6 +20,7 @@ import { useNotificationStore } from '../../stores/notificationStore';
 
 export interface FeedbackReportDialogProps {
   kind: FeedbackKind;
+  presentation?: 'default' | 'job_compatibility';
   title?: string;
   description?: string;
   notes?: string;
@@ -42,6 +43,7 @@ function byteLabel(bytes: number): string {
 
 export function FeedbackReportDialog({
   kind,
+  presentation = 'default',
   title: initialTitle = '',
   description: initialDescription = '',
   notes: initialNotes = '',
@@ -63,6 +65,7 @@ export function FeedbackReportDialog({
   const previewRequestVersion = useRef(0);
 
   const requiresDescription = kind === 'bug' || kind === 'crash';
+  const isJobCompatibility = presentation === 'job_compatibility';
   const busy = busyAction !== null;
   const projectTooLarge = projectSize !== null && projectSize > MAX_PROJECT_ATTACHMENT_RAW_BYTES;
 
@@ -72,9 +75,9 @@ export function FeedbackReportDialog({
     description: description.trim() || null,
     notes: notes.trim() || null,
     reply_to_email: replyToEmail.trim() || null,
-    include_project_file: includeProjectFile,
+    include_project_file: isJobCompatibility ? false : includeProjectFile,
     source_context: sourceContext ?? null,
-  }), [description, includeProjectFile, kind, notes, replyToEmail, sourceContext, title]);
+  }), [description, includeProjectFile, isJobCompatibility, kind, notes, replyToEmail, sourceContext, title]);
 
   useEffect(() => {
     previewRequestVersion.current += 1;
@@ -265,7 +268,11 @@ export function FeedbackReportDialog({
       <div className="flex max-h-[90vh] w-[680px] max-w-full flex-col rounded-lg border border-bb-border bg-bb-panel shadow-2xl">
         <div className="flex items-center justify-between border-b border-bb-border px-5 py-3">
           <h2 className="text-sm font-semibold text-bb-text">
-            {kind === 'connectivity' ? t('dialog.feedback.title_connectivity') : t('dialog.feedback.title_bug')}
+            {isJobCompatibility
+              ? t('dialog.feedback.title_job_compatibility')
+              : kind === 'connectivity'
+                ? t('dialog.feedback.title_connectivity')
+                : t('dialog.feedback.title_bug')}
           </h2>
           <button type="button" onClick={onClose} className="rounded p-1 text-bb-text-dim hover:bg-bb-hover">
             <X size={16} />
@@ -274,6 +281,11 @@ export function FeedbackReportDialog({
 
         <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
           <div className="grid gap-3">
+            {isJobCompatibility && (
+              <div className="rounded border border-bb-border bg-bb-bg/60 p-3 text-xs text-bb-text-dim">
+                {t('dialog.feedback.job_compatibility_help')}
+              </div>
+            )}
             <label className="grid gap-1 text-xs text-bb-text">
               <span className="font-medium">{t('dialog.feedback.field_title')}</span>
               <input
@@ -285,7 +297,11 @@ export function FeedbackReportDialog({
             </label>
 
             <label className="grid gap-1 text-xs text-bb-text">
-              <span className="font-medium">{kind === 'connectivity' ? t('dialog.feedback.field_note') : t('dialog.feedback.field_description')}</span>
+              <span className="font-medium">{isJobCompatibility
+                ? t('dialog.feedback.field_optional_comment')
+                : kind === 'connectivity'
+                  ? t('dialog.feedback.field_note')
+                  : t('dialog.feedback.field_description')}</span>
               <textarea
                 value={kind === 'connectivity' ? notes : description}
                 maxLength={MAX_FEEDBACK_DESCRIPTION_CHARS}
@@ -309,26 +325,28 @@ export function FeedbackReportDialog({
               />
             </label>
 
-            <label className={`flex items-start gap-2 rounded border border-bb-border bg-bb-bg/50 p-2 text-xs ${projectTooLarge ? 'text-bb-text-dim' : 'text-bb-text'}`}>
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={includeProjectFile}
-                disabled={projectTooLarge}
-                onChange={(event) => setIncludeProjectFile(event.target.checked)}
-              />
-              <span>
-                {t('dialog.feedback.include_project_file')}
-                <span className="block text-bb-text-dim">
-                  {projectTooLarge && projectSize !== null
-                    ? t('dialog.feedback.validation_project_too_large', {
-                        size: byteLabel(projectSize),
-                        limit: byteLabel(MAX_PROJECT_ATTACHMENT_RAW_BYTES),
-                      })
-                    : t('dialog.feedback.include_project_file_help')}
+            {!isJobCompatibility && (
+              <label className={`flex items-start gap-2 rounded border border-bb-border bg-bb-bg/50 p-2 text-xs ${projectTooLarge ? 'text-bb-text-dim' : 'text-bb-text'}`}>
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={includeProjectFile}
+                  disabled={projectTooLarge}
+                  onChange={(event) => setIncludeProjectFile(event.target.checked)}
+                />
+                <span>
+                  {t('dialog.feedback.include_project_file')}
+                  <span className="block text-bb-text-dim">
+                    {projectTooLarge && projectSize !== null
+                      ? t('dialog.feedback.validation_project_too_large', {
+                          size: byteLabel(projectSize),
+                          limit: byteLabel(MAX_PROJECT_ATTACHMENT_RAW_BYTES),
+                        })
+                      : t('dialog.feedback.include_project_file_help')}
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            )}
 
             <div className="rounded border border-bb-border">
               <button

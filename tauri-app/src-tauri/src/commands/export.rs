@@ -266,7 +266,7 @@ pub fn export_svg(
         .collect::<Result<Vec<_>, _>>()?;
     let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
     let project = guard.as_ref().ok_or("No project open")?;
-    let svg_content = beambench_core::export_svg(project, selection_only, &parsed_ids);
+    let svg_content = beambench_core::export_svg(project, selection_only, &parsed_ids)?;
     std::fs::write(&path, &svg_content).map_err(|e| format!("Failed to write SVG: {e}"))?;
     Ok(path)
 }

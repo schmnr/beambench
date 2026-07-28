@@ -1,7 +1,7 @@
 //! Preflight validation checks before starting a job.
 
 use beambench_common::machine::{PreflightCheck, PreflightOutcome, PreflightReport, SessionState};
-use beambench_core::{MachineProfile, MachineProfileSnapshot};
+use beambench_core::MachineProfile;
 use beambench_grbl::GrblSession;
 use beambench_planner::ExecutionPlan;
 
@@ -347,38 +347,6 @@ pub fn check_tool_layers(project: &beambench_core::Project) -> Option<PreflightC
     None
 }
 
-/// Check whether the project's saved machine profile snapshot matches the
-/// currently active profile's bed dimensions. Returns a failing
-/// `PreflightCheck` if the bed width or height differ, or `None` if they match
-/// (or if no snapshot is present in the project).
-pub fn check_profile_mismatch(
-    snapshot: &MachineProfileSnapshot,
-    active_profile: &MachineProfile,
-) -> Option<PreflightCheck> {
-    let (active_width_mm, active_height_mm) = active_profile.workspace_dimensions_mm();
-    let width_match = (snapshot.bed_width_mm - active_width_mm).abs() < f64::EPSILON;
-    let height_match = (snapshot.bed_height_mm - active_height_mm).abs() < f64::EPSILON;
-
-    if width_match && height_match {
-        None
-    } else {
-        Some(PreflightCheck {
-            category: "profile".to_string(),
-            description: "Machine profile bed size mismatch".to_string(),
-            passed: false,
-            message: format!(
-                "Project was created for '{}' ({:.0}x{:.0}mm) but active profile '{}' has {:.0}x{:.0}mm bed",
-                snapshot.profile_name,
-                snapshot.bed_width_mm,
-                snapshot.bed_height_mm,
-                active_profile.name,
-                active_width_mm,
-                active_height_mm,
-            ),
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -717,87 +685,6 @@ mod tests {
                 .iter()
                 .any(|c| c.description == "Machine is idle" && !c.passed)
         );
-    }
-
-    #[test]
-    fn profile_mismatch_detects_bed_size_difference() {
-        let profile = MachineProfile {
-            name: "Big Laser".to_string(),
-            bed_width_mm: 400.0,
-            bed_height_mm: 300.0,
-            ..Default::default()
-        };
-        let snapshot = beambench_core::MachineProfileSnapshot {
-            profile_id: profile.id,
-            profile_name: "Small Laser".to_string(),
-            bed_width_mm: 200.0,
-            bed_height_mm: 200.0,
-            max_speed_mm_min: 3000.0,
-        };
-
-        let result = check_profile_mismatch(&snapshot, &profile);
-        assert!(result.is_some());
-        let check = result.unwrap();
-        assert!(!check.passed);
-        assert_eq!(check.category, "profile");
-        assert!(check.message.contains("Small Laser"));
-        assert!(check.message.contains("Big Laser"));
-    }
-
-    #[test]
-    fn profile_mismatch_passes_when_bed_sizes_match() {
-        let profile = MachineProfile {
-            name: "My Laser".to_string(),
-            bed_width_mm: 200.0,
-            bed_height_mm: 200.0,
-            ..Default::default()
-        };
-        let snapshot = beambench_core::MachineProfileSnapshot {
-            profile_id: profile.id,
-            profile_name: "My Laser".to_string(),
-            bed_width_mm: 200.0,
-            bed_height_mm: 200.0,
-            max_speed_mm_min: 3000.0,
-        };
-
-        let result = check_profile_mismatch(&snapshot, &profile);
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn profile_mismatch_detects_width_only_difference() {
-        let profile = MachineProfile {
-            bed_width_mm: 300.0,
-            bed_height_mm: 200.0,
-            ..Default::default()
-        };
-        let snapshot = beambench_core::MachineProfileSnapshot {
-            profile_id: profile.id,
-            profile_name: "Other".to_string(),
-            bed_width_mm: 200.0,
-            bed_height_mm: 200.0,
-            max_speed_mm_min: 3000.0,
-        };
-
-        assert!(check_profile_mismatch(&snapshot, &profile).is_some());
-    }
-
-    #[test]
-    fn profile_mismatch_detects_height_only_difference() {
-        let profile = MachineProfile {
-            bed_width_mm: 200.0,
-            bed_height_mm: 300.0,
-            ..Default::default()
-        };
-        let snapshot = beambench_core::MachineProfileSnapshot {
-            profile_id: profile.id,
-            profile_name: "Other".to_string(),
-            bed_width_mm: 200.0,
-            bed_height_mm: 200.0,
-            max_speed_mm_min: 3000.0,
-        };
-
-        assert!(check_profile_mismatch(&snapshot, &profile).is_some());
     }
 
     #[test]

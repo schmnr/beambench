@@ -132,6 +132,7 @@ interface MachineStoreState {
 
   // Job
   jobProgress: JobProgress | null;
+  activeJobPurpose: 'job' | 'frame' | null;
   preflightReport: PreflightReport | null;
 
   // Profiles
@@ -206,6 +207,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   controllerConnectionChallenge: null,
   capabilities: null,
   jobProgress: null,
+  activeJobPurpose: null,
   preflightReport: null,
   profiles: [],
   activeProfileId: null,
@@ -713,7 +715,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   startJob: async () => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, activeJobPurpose: 'job' });
     try {
       await useProjectStore.getState().advanceAutoVariableText();
       const progress = await machineService.startJob(
@@ -722,13 +724,13 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       set({ jobProgress: progress, loading: false });
     } catch (e) {
       const msg = String(e);
-      set({ error: msg, loading: false });
+      set({ error: msg, loading: false, activeJobPurpose: null });
       notifyError(msg);
     }
   },
 
   frameJob: async (frameMode, selectedObjectIds, laserOnOverride = false) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, activeJobPurpose: 'frame' });
     try {
       const progress = await machineService.frameJob(
         frameMode,
@@ -748,7 +750,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       return progress;
     } catch (e) {
       const msg = String(e);
-      set({ error: msg, loading: false });
+      set({ error: msg, loading: false, activeJobPurpose: null });
       notifyError(msg);
       return null;
     }

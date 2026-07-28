@@ -65,11 +65,11 @@ pub fn export_document(
 
     let selected_ids = &input.selected_ids;
     let content = match input.format {
-        ExportFormat::Svg => ExportDocumentContent::Svg(beambench_core::export_svg(
-            project,
-            input.selection_only,
-            selected_ids,
-        )),
+        ExportFormat::Svg => ExportDocumentContent::Svg(
+            beambench_core::export_svg(project, input.selection_only, selected_ids).map_err(
+                |error| ServiceError::invalid_state(format!("Failed to export SVG: {error}")),
+            )?,
+        ),
         ExportFormat::Dxf => ExportDocumentContent::Dxf(beambench_core::export_dxf(
             project,
             input.selection_only,

@@ -10,7 +10,5 @@ pub mod progress;
 pub use engine::StreamingEngine;
 pub use error::StreamerError;
 pub use job::JobController;
-pub use preflight::{
-    check_profile_mismatch, check_raster_motion_bounds, check_tool_layers, run_preflight,
-};
+pub use preflight::{check_raster_motion_bounds, check_tool_layers, run_preflight};
 pub use progress::ProgressTracker;

@@ -20,7 +20,7 @@ import { APP_COMMANDS } from './commands/appCommandIds';
 import { clearClipboard, getClipboard } from './utils/clipboard';
 import type { AppSettings } from './types/commands';
 import type { AppEvent } from './types/events';
-import type { JobProgress } from './types/machine';
+import type { JobProgress, MachineProfile } from './types/machine';
 import type { DiagnosticBundleV1, DiagnosticPanic } from './types/feedback';
 import { makeProject, makeProjectObject, makeTransformLocks } from './test-utils/projectFixtures';
 
@@ -238,6 +238,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   clearClipboard();
+  window.localStorage.clear();
   useAppStore.setState(initialAppState, true);
   useProjectStore.setState(initialProjectState, true);
   useUiStore.setState(initialUiState, true);
@@ -455,6 +456,52 @@ describe('App bootstrap', () => {
       expect(screen.getByDisplayValue('Previous crash')).toBeDefined();
       expect(screen.getByDisplayValue(/Beam Bench detected a crash from the previous session/)).toBeDefined();
     });
+  });
+
+  it('prompts after a real completed job, then opens a review without sending', async () => {
+    const submitReport = vi.spyOn(feedbackService, 'submitReport');
+    useMachineStore.setState({
+      activeJobPurpose: 'job',
+      activeProfileId: 'profile-k40',
+      profiles: [{ id: 'profile-k40', name: 'K40' } as MachineProfile],
+      controllerSelection: { mode: 'known_driver', driver: 'grbl' },
+      connectionPreview: false,
+      loadProfiles: vi.fn().mockResolvedValue(undefined),
+    });
+    await renderApp();
+
+    await act(async () => {
+      await getAppEventListener()({
+        payload: makeAppEvent('job.completed', makeJobProgress({ state: 'completed' })),
+      });
+    });
+
+    expect(screen.getByText('Did this job finish correctly?')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, it completed' }));
+
+    expect(await screen.findByText('Share Job Compatibility Result')).toBeDefined();
+    expect(screen.getByText(/Nothing has been sent yet/)).toBeDefined();
+    expect(submitReport).not.toHaveBeenCalled();
+  });
+
+  it('does not prompt after a framing pass completes', async () => {
+    useMachineStore.setState({
+      activeJobPurpose: 'frame',
+      activeProfileId: 'profile-k40',
+      profiles: [{ id: 'profile-k40', name: 'K40' } as MachineProfile],
+      controllerSelection: { mode: 'known_driver', driver: 'grbl' },
+      connectionPreview: false,
+      loadProfiles: vi.fn().mockResolvedValue(undefined),
+    });
+    await renderApp();
+
+    await act(async () => {
+      await getAppEventListener()({
+        payload: makeAppEvent('job.completed', makeJobProgress({ state: 'completed' })),
+      });
+    });
+
+    expect(screen.queryByText('Did this job finish correctly?')).toBeNull();
   });
 
   it('warns when subscribing to the app event bridge fails', async () => {
