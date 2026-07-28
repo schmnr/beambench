@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.12
+
+- Expanded compatible-controller handling so positively identified machines
+  can use the appropriate shared controller path, while preserving the
+  existing safety and capability checks.
+- SVG export now preserves embedded raster images instead of silently omitting
+  them.
+- Added an optional, consent-based prompt after successful jobs so users can
+  share basic controller compatibility results without project artwork. The
+  complete flow is localized in every supported language.
 
 - Reworked GRBL raster output so laser power changes travel inline with motion,
   the laser mode is selected once per raster segment, and scanlines no longer
