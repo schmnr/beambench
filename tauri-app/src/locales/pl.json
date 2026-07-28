@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Dopasuj do widoku",
     "zoom_in": "Powiększ",
     "tool_hint": {
-      "select": "Kliknij, aby zaznaczyć, przeciągnij, aby utworzyć ramkę zaznaczenia",
+      "select": "Kliknij, aby zaznaczyć, przeciągnij ramkę, Shift+kliknięcie, aby dodać",
       "rect": "Kliknij i przeciągnij, aby narysować prostokąt",
       "ellipse": "Kliknij i przeciągnij, aby narysować elipsę",
       "star": "Kliknij i przeciągnij, aby narysować gwiazdę",

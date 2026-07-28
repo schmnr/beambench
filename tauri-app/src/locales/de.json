@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Einpassen",
     "zoom_in": "Vergrößern",
     "tool_hint": {
-      "select": "Klicken zum Auswählen, ziehen für Auswahlrahmen",
+      "select": "Klicken zum Auswählen, ziehen für Auswahlrahmen, Umschalt+Klick zum Hinzufügen",
       "rect": "Klicken und ziehen, um ein Rechteck zu zeichnen",
       "ellipse": "Klicken und ziehen, um eine Ellipse zu zeichnen",
       "star": "Klicken und ziehen, um einen Stern zu zeichnen",

@@ -92,6 +92,7 @@ import {
   recordPostJobPromptOutcome,
   shouldShowPostJobPrompt,
 } from './utils/postJobCompatibilityPrompt';
+import { projectWindowTitle } from './utils/windowTitle';
 
 const EMPTY_LAYERS: import('./types/project').Layer[] = [];
 const EMPTY_RECENT_FILES: import('./types/commands').RecentFile[] = [];
@@ -385,6 +386,22 @@ function AgentSelectionSyncBridge() {
 
     return () => window.clearTimeout(timer);
   }, [projectId, selectedLayerId, selectedObjectIds, selectionKey]);
+
+  return null;
+}
+
+function WindowTitleBridge() {
+  const projectPath = useProjectStore((s) => s.projectPath);
+  const projectName = useProjectStore((s) => s.project?.metadata.project_name ?? null);
+  const dirty = useProjectStore((s) => s.project?.dirty ?? false);
+
+  useEffect(() => {
+    const title = projectWindowTitle(projectPath, projectName, dirty);
+    document.title = title;
+    void appService.setWindowTitle(title).catch((error) => {
+      console.error('[Beam Bench] Failed to update the native window title', error);
+    });
+  }, [dirty, projectName, projectPath]);
 
   return null;
 }
@@ -1566,6 +1583,7 @@ function App() {
     <>
       <NativeMenuBridge dialogActions={nativeMenuDialogActions} />
       <AgentSelectionSyncBridge />
+      <WindowTitleBridge />
       <FeedbackErrorBoundary>
         <AppShell />
       </FeedbackErrorBoundary>

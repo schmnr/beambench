@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Ajustar à tela",
     "zoom_in": "Ampliar zoom",
     "tool_hint": {
-      "select": "Clique para selecionar, arraste para criar uma caixa de seleção",
+      "select": "Clique para selecionar, arraste para criar uma caixa, Shift+clique para adicionar",
       "rect": "Clique e arraste para desenhar um retângulo",
       "ellipse": "Clique e arraste para desenhar uma elipse",
       "star": "Clique e arraste para desenhar uma estrela",

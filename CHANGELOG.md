@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Double-clicking editable text now opens the inline editor regardless of the
+  active canvas tool.
+- The main window remembers its position, size, and maximized state, and its
+  title now shows the current project filename with an unsaved-work marker.
+- Low-power laser framing now has a visible one-shot control in the Laser
+  panel. The existing confirmation and 1% power safety behavior remain in
+  place.
+- The Select tool hint now explains Shift-click multiple selection in every
+  supported language.
+
 ## 0.1.12
 
 - Expanded compatible-controller handling so positively identified machines

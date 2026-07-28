@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Ajuster à la vue",
     "zoom_in": "Zoomer",
     "tool_hint": {
-      "select": "Cliquez pour sélectionner, faites glisser pour un rectangle de sélection",
+      "select": "Cliquez pour sélectionner, faites glisser pour un rectangle, Maj+clic pour ajouter",
       "rect": "Cliquez et faites glisser pour dessiner un rectangle",
       "ellipse": "Cliquez et faites glisser pour dessiner une ellipse",
       "star": "Cliquez et faites glisser pour dessiner une étoile",

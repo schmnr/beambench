@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Görünüme sığdır",
     "zoom_in": "Yakınlaştır",
     "tool_hint": {
-      "select": "Seçmek için tıklayın, seçim kutusu için sürükleyin",
+      "select": "Seçmek için tıklayın, seçim kutusu çizin, eklemek için Shift+tıklayın",
       "rect": "Dikdörtgen çizmek için tıklayıp sürükleyin",
       "ellipse": "Elips çizmek için tıklayıp sürükleyin",
       "star": "Yıldız çizmek için tıklayıp sürükleyin",

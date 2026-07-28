@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Nézethez igazítás",
     "zoom_in": "Nagyítás",
     "tool_hint": {
-      "select": "Kattintson a kijelöléshez, húzással keretes kijelölés",
+      "select": "Kattintson a kijelöléshez, húzzon keretet, Shift+kattintással hozzáadhat",
       "rect": "Kattintson és húzzon téglalap rajzolásához",
       "ellipse": "Kattintson és húzzon ellipszis rajzolásához",
       "star": "Kattintson és húzzon csillag rajzolásához",

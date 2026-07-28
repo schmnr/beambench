@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Tilpas til visning",
     "zoom_in": "Zoom ind",
     "tool_hint": {
-      "select": "Klik for at vælge, træk for markeringsramme",
+      "select": "Klik for at vælge, træk en markeringsramme, Skift-klik for at tilføje",
       "rect": "Klik og træk for at tegne et rektangel",
       "ellipse": "Klik og træk for at tegne en ellipse",
       "star": "Klik og træk for at tegne en stjerne",

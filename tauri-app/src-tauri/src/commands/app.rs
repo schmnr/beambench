@@ -47,6 +47,22 @@ pub fn request_window_close(window: WebviewWindow) -> Result<(), String> {
     window.close().map_err(|e| e.to_string())
 }
 
+/// Keep the native title bar in sync with the project shown by this webview.
+/// A backend command avoids granting the frontend broad window-mutation
+/// permissions just to update one bounded string.
+#[tauri::command]
+pub fn set_window_title(window: WebviewWindow, title: String) -> Result<(), String> {
+    let title = title.replace(['\r', '\n'], " ");
+    let title = title.trim();
+    if title.is_empty() {
+        return Err("Window title cannot be empty".to_string());
+    }
+    if title.chars().count() > 512 {
+        return Err("Window title is too long".to_string());
+    }
+    window.set_title(title).map_err(|e| e.to_string())
+}
+
 /// Called by the frontend once React has mounted. Until this fires, the
 /// webview may have failed to boot (an old system WebKit that cannot run the
 /// bundled JS); the startup watchdog and the native Quit fallback key off

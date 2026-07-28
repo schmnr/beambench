@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Přizpůsobit zobrazení",
     "zoom_in": "Přiblížit",
     "tool_hint": {
-      "select": "Kliknutím vyberete, tažením vytvoříte výběrový rámeček",
+      "select": "Kliknutím vyberete, tažením vytvoříte rámeček, Shift+kliknutí přidá k výběru",
       "rect": "Klikněte a táhněte pro nakreslení obdélníku",
       "ellipse": "Klikněte a táhněte pro nakreslení elipsy",
       "star": "Klikněte a táhněte pro nakreslení hvězdy",

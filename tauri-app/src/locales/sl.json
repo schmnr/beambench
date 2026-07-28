@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Prilagodi pogledu",
     "zoom_in": "Povečaj",
     "tool_hint": {
-      "select": "Kliknite za izbiro, povlecite za izbirni okvir",
+      "select": "Kliknite za izbiro, povlecite okvir, Shift+klik za dodajanje",
       "rect": "Kliknite in povlecite za risanje pravokotnika",
       "ellipse": "Kliknite in povlecite za risanje elipse",
       "star": "Kliknite in povlecite za risanje zvezde",

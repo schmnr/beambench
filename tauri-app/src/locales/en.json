@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Zoom to fit",
     "zoom_in": "Zoom in",
     "tool_hint": {
-      "select": "Click to select, drag to rubber-band",
+      "select": "Click to select, drag to rubber-band, Shift-click to add",
       "rect": "Click and drag to draw rectangle",
       "ellipse": "Click and drag to draw ellipse",
       "star": "Click and drag to draw star",

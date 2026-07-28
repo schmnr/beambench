@@ -2346,7 +2346,7 @@
     "zoom_to_fit": "Tilpass til visning",
     "zoom_in": "Zoom inn",
     "tool_hint": {
-      "select": "Klikk for å velge, dra for markeringsramme",
+      "select": "Klikk for å velge, dra en markeringsramme, Skift-klikk for å legge til",
       "rect": "Klikk og dra for å tegne et rektangel",
       "ellipse": "Klikk og dra for å tegne en ellipse",
       "star": "Klikk og dra for å tegne en stjerne",
