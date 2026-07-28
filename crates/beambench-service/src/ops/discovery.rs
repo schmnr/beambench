@@ -232,6 +232,7 @@ pub fn bootstrap_profile(
                 }
                 _ => 6000.0,
             },
+            acceleration_mm_s2: 0.0,
             max_power_percent: 100.0,
             s_value_max: 1000,
             homing_enabled: candidate.capabilities.can_home,

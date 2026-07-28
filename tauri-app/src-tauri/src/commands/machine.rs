@@ -386,6 +386,7 @@ pub fn save_machine_profile(
             bed_width_mm: profile.bed_width_mm,
             bed_height_mm: profile.bed_height_mm,
             max_speed_mm_min: profile.max_speed_mm_min,
+            acceleration_mm_s2: profile.acceleration_mm_s2,
             max_power_percent: profile.max_power_percent,
             s_value_max: profile.s_value_max,
             homing_enabled: profile.homing_enabled,

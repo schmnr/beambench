@@ -77,7 +77,7 @@ use crate::optimize::{
 };
 use crate::plan::*;
 use crate::scanline::generate_scanlines;
-use crate::stats::{calculate_distance, calculate_duration};
+use crate::stats::{calculate_distance, calculate_duration, calculate_duration_with_calibration};
 use crate::validate::validate_bounds;
 
 // Emergency ceiling only. Normal completion is driven by geometry exits below;
@@ -244,7 +244,20 @@ fn set_raster_pixel_unburned(raster: &mut beambench_raster::ProcessedRaster, x: 
 
 fn raster_has_burn_pixels(raster: &beambench_raster::ProcessedRaster) -> bool {
     match raster.format {
-        RasterPixelFormat::Binary => raster.data.iter().any(|byte| *byte != 0xFF),
+        RasterPixelFormat::Binary => {
+            let width = raster.width_px as usize;
+            let row_bytes = width.div_ceil(8);
+            (0..raster.height_px as usize).any(|row| {
+                (0..width).any(|column| {
+                    let index = row * row_bytes + column / 8;
+                    let bit = 7 - (column % 8);
+                    raster
+                        .data
+                        .get(index)
+                        .is_some_and(|byte| byte & (1 << bit) == 0)
+                })
+            })
+        }
         RasterPixelFormat::Grayscale8 => raster.data.iter().any(|pixel| *pixel < 255),
     }
 }
@@ -1879,7 +1892,7 @@ fn apply_flood_fill(processed: &mut beambench_raster::ProcessedRaster) {
     // Convert to GrayImage for flood fill
     let mut gray = match processed.format {
         RasterPixelFormat::Binary => {
-            // Expand bits to bytes: bit=1 means black (engrave)→0, bit=0 means white→255
+            // Binary rasters use 0=burn and 1=white throughout the pipeline.
             let row_bytes = w.div_ceil(8) as usize;
             let mut img = image::GrayImage::new(w, h);
             for row in 0..h {
@@ -1887,7 +1900,7 @@ fn apply_flood_fill(processed: &mut beambench_raster::ProcessedRaster) {
                     let byte_idx = row as usize * row_bytes + (col / 8) as usize;
                     let bit = 7 - (col % 8);
                     let val = if byte_idx < processed.data.len() {
-                        if (processed.data[byte_idx] >> bit) & 1 == 1 {
+                        if (processed.data[byte_idx] >> bit) & 1 == 0 {
                             0
                         } else {
                             255
@@ -1919,15 +1932,16 @@ fn apply_flood_fill(processed: &mut beambench_raster::ProcessedRaster) {
     match processed.format {
         RasterPixelFormat::Binary => {
             let row_bytes = w.div_ceil(8) as usize;
-            let mut data = vec![0u8; row_bytes * h as usize];
+            // Initialize every pixel, including row padding, as white.
+            let mut data = vec![0xFFu8; row_bytes * h as usize];
             for row in 0..h {
                 for col in 0..w {
                     let px = gray.get_pixel(col, row)[0];
                     if px < 128 {
-                        // Dark pixel = engrave = bit 1
+                        // Dark pixel = engrave = bit 0.
                         let byte_idx = row as usize * row_bytes + (col / 8) as usize;
                         let bit = 7 - (col % 8);
-                        data[byte_idx] |= 1 << bit;
+                        data[byte_idx] &= !(1 << bit);
                     }
                 }
             }
@@ -3354,9 +3368,63 @@ fn build_plan_inner(
         FinishPosition::DontMove => { /* no travel appended */ }
     }
 
+    if calibration.max_speed_mm_min.is_finite() && calibration.max_speed_mm_min > 0.0 {
+        let requested_max = segments
+            .iter()
+            .filter_map(|segment| match segment {
+                PlanSegment::Vector { speed_mm_min, .. }
+                | PlanSegment::Raster { speed_mm_min, .. }
+                | PlanSegment::Frame { speed_mm_min, .. } => Some(*speed_mm_min),
+                _ => None,
+            })
+            .fold(0.0_f64, f64::max);
+        if requested_max > calibration.max_speed_mm_min + f64::EPSILON {
+            warnings.push(PlanWarning {
+                message: format!(
+                    "Requested speed {requested_max:.0} mm/min exceeds the machine limit of {:.0} mm/min. The controller will run more slowly than requested.",
+                    calibration.max_speed_mm_min
+                ),
+            });
+        }
+    }
+    if calibration.acceleration_mm_s2.is_finite() && calibration.acceleration_mm_s2 > 0.0 {
+        let mut worst_overscan: Option<(f64, f64, f64)> = None;
+        for segment in &segments {
+            let PlanSegment::Raster {
+                speed_mm_min,
+                overscan_mm,
+                ..
+            } = segment
+            else {
+                continue;
+            };
+            let effective_speed = if calibration.max_speed_mm_min > 0.0 {
+                speed_mm_min.min(calibration.max_speed_mm_min)
+            } else {
+                *speed_mm_min
+            };
+            let velocity_mm_s = effective_speed / 60.0;
+            let required = velocity_mm_s * velocity_mm_s / (2.0 * calibration.acceleration_mm_s2);
+            if required > *overscan_mm + 0.01
+                && worst_overscan
+                    .as_ref()
+                    .is_none_or(|(previous, _, _)| required - overscan_mm > *previous)
+            {
+                worst_overscan = Some((required - overscan_mm, required, *overscan_mm));
+            }
+        }
+        if let Some((_, required, configured)) = worst_overscan {
+            warnings.push(PlanWarning {
+                message: format!(
+                    "Raster overscan is {configured:.1} mm, but this machine needs approximately {required:.1} mm to reach the requested engraving speed. Increase overscan or reduce speed to avoid uneven row edges."
+                ),
+            });
+        }
+    }
+
     // 9. Calculate statistics (includes finish travel distance)
     let total_distance_mm = calculate_distance(&segments);
-    let estimated_duration_secs = calculate_duration(&segments);
+    let estimated_duration_secs = calculate_duration_with_calibration(&segments, calibration);
 
     // 10. Build and return ExecutionPlan
     info!(
@@ -3407,21 +3475,17 @@ fn apply_dot_width_correction(segments: &mut [PlanSegment], calibration: &Planne
             }
             let trim = total_dwc / 2.0;
             for scanline in scanlines.iter_mut() {
-                let is_rtl = matches!(scanline.direction, ScanDirection::RightToLeft);
                 scanline.runs.retain_mut(|run| {
-                    if is_rtl {
-                        // RTL: start_x > end_x, trim start inward (subtract) and end inward (add)
-                        run.start_x_mm -= trim;
-                        run.end_x_mm += trim;
-                        run.start_x_mm - run.end_x_mm > 1e-9
-                    } else {
-                        // LTR: start_x < end_x, trim start inward (add) and end inward (subtract)
-                        run.start_x_mm += trim;
-                        run.end_x_mm -= trim;
-                        run.end_x_mm - run.start_x_mm > 1e-9
-                    }
+                    // Runs retain canonical ascending coordinates even when
+                    // their scanline is traversed right-to-left.
+                    run.start_x_mm += trim;
+                    run.end_x_mm -= trim;
+                    run.end_x_mm - run.start_x_mm > 1e-9
                 });
             }
+            // A correction can consume every short run on a row. Downstream
+            // travel and endpoint logic must never see placeholder empty rows.
+            scanlines.retain(|scanline| !scanline.runs.is_empty());
         }
     }
 }
@@ -3535,15 +3599,7 @@ fn find_asset_data(
 
 /// Get the last point in a sequence of plan segments (for appending finish travel).
 fn get_last_point(segments: &[PlanSegment]) -> Option<Point2D> {
-    segments.last().and_then(|seg| match seg {
-        PlanSegment::Travel { end, .. } => Some(*end),
-        PlanSegment::Vector { polyline, .. } => polyline.last().copied(),
-        PlanSegment::Frame { path, .. } => path.last().copied(),
-        PlanSegment::Raster { scanlines, .. } => scanlines
-            .last()
-            .and_then(|sl| sl.runs.last().map(|r| Point2D::new(r.end_x_mm, sl.y_mm))),
-        PlanSegment::OffsetFill { .. } => None,
-    })
+    segments.iter().rev().find_map(PlanSegment::motion_end)
 }
 
 /// Calculate bounding box for all segments.
@@ -6836,6 +6892,7 @@ mod tests {
             &PlannerCalibration {
                 dot_width_mm: 0.2,
                 enable_dot_width: true,
+                ..PlannerCalibration::default()
             },
         );
 
@@ -6881,13 +6938,77 @@ mod tests {
             &PlannerCalibration {
                 dot_width_mm: 0.1,
                 enable_dot_width: true,
+                ..PlannerCalibration::default()
             },
         );
 
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
             panic!("expected raster");
         };
-        assert!(scanlines[0].runs.is_empty());
+        assert!(scanlines.is_empty());
+    }
+
+    #[test]
+    fn dot_width_correction_keeps_and_trims_right_to_left_rows() {
+        let mut segment = dwc_test_segment(0.0);
+        let PlanSegment::Raster { scanlines, .. } = &mut segment else {
+            unreachable!();
+        };
+        scanlines[0].direction = ScanDirection::RightToLeft;
+        let mut segments = vec![segment];
+
+        apply_dot_width_correction(
+            &mut segments,
+            &PlannerCalibration {
+                dot_width_mm: 0.2,
+                enable_dot_width: true,
+                ..PlannerCalibration::default()
+            },
+        );
+
+        let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
+            unreachable!();
+        };
+        assert_eq!(scanlines.len(), 1);
+        assert_eq!(scanlines[0].runs[0].start_x_mm, 0.1);
+        assert_eq!(scanlines[0].runs[0].end_x_mm, 9.9);
+        assert_eq!(scanlines[0].direction, ScanDirection::RightToLeft);
+    }
+
+    #[test]
+    fn binary_flood_fill_preserves_enclosed_burn_pixel_and_white_padding() {
+        let mut processed = beambench_raster::ProcessedRaster {
+            width_px: 3,
+            height_px: 3,
+            line_interval_mm: 0.1,
+            x_pixel_mm: 0.1,
+            format: RasterPixelFormat::Binary,
+            // White border with one dark center pixel. Padding bits are white.
+            data: vec![0xFF, 0xBF, 0xFF],
+        };
+
+        apply_flood_fill(&mut processed);
+
+        assert_eq!(processed.data, vec![0xFF, 0xBF, 0xFF]);
+        assert!(raster_has_burn_pixels(&processed));
+    }
+
+    #[test]
+    fn binary_flood_fill_clears_dark_background_connected_to_edge() {
+        let mut processed = beambench_raster::ProcessedRaster {
+            width_px: 3,
+            height_px: 3,
+            line_interval_mm: 0.1,
+            x_pixel_mm: 0.1,
+            format: RasterPixelFormat::Binary,
+            // Three dark image bits per row, with white padding bits.
+            data: vec![0x1F, 0x1F, 0x1F],
+        };
+
+        apply_flood_fill(&mut processed);
+
+        assert_eq!(processed.data, vec![0xFF, 0xFF, 0xFF]);
+        assert!(!raster_has_burn_pixels(&processed));
     }
 
     /// Helper for DWC composition tests: build a simple raster segment with the
@@ -6931,6 +7052,7 @@ mod tests {
             &PlannerCalibration {
                 dot_width_mm: 0.2,
                 enable_dot_width: true,
+                ..PlannerCalibration::default()
             },
         );
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
@@ -6949,6 +7071,7 @@ mod tests {
             &PlannerCalibration {
                 dot_width_mm: 0.0,
                 enable_dot_width: false,
+                ..PlannerCalibration::default()
             },
         );
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
@@ -6967,6 +7090,7 @@ mod tests {
             &PlannerCalibration {
                 dot_width_mm: 0.2,
                 enable_dot_width: true,
+                ..PlannerCalibration::default()
             },
         );
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
@@ -6984,6 +7108,7 @@ mod tests {
             &PlannerCalibration {
                 dot_width_mm: 0.0,
                 enable_dot_width: false,
+                ..PlannerCalibration::default()
             },
         );
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
@@ -7003,6 +7128,7 @@ mod tests {
             &PlannerCalibration {
                 dot_width_mm: 0.5,
                 enable_dot_width: false,
+                ..PlannerCalibration::default()
             },
         );
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {

@@ -216,11 +216,6 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                 let mut min_y = min_y_local;
                 let mut max_y = max_y_local;
 
-                // Add vertical movement between scanlines
-                if scanlines.len() > 1 {
-                    burn_distance_mm += (scanlines.len() - 1) as f64 * line_interval_mm;
-                }
-
                 // Compute fill_density from burn-only bounds BEFORE overscan expansion.
                 // Overscan adds acceleration travel, not image content.
                 let burn_bbox_width = max_x - min_x;
@@ -295,7 +290,6 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                 // Compute raster travel using the same motion model as the
                 // G-code emitter: one continuous feed sweep and one overscan
                 // pair per non-empty row, plus inter-scanline rapids.
-                let raster_end_point: Option<(f64, f64)>;
                 {
                     let mut prev_end: Option<(f64, f64)> = None;
 
@@ -326,7 +320,6 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                             (row_max - row_min - row_burn_width).max(0.0) + 2.0 * overscan_mm;
                         prev_end = Some((os_end, sl.y_mm));
                     }
-                    raster_end_point = prev_end;
                 }
 
                 let avg_power_normalized = if power_count > 0 {
@@ -335,14 +328,10 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                     0.0
                 };
 
-                // Un-transpose the end point for vertical scan (same as bounds)
-                let end_point = raster_end_point.map(|(x, y)| {
-                    if *scan_axis == ScanAxis::Vertical {
-                        Point2D::new(y, x)
-                    } else {
-                        Point2D::new(x, y)
-                    }
-                });
+                // Use the planner's canonical motion endpoint so RTL,
+                // overscan, vertical scans, and arbitrary rotation agree with
+                // emitted G-code and inserted travel segments.
+                let end_point = segment.motion_end();
 
                 if min_x.is_finite() && max_x.is_finite() && min_y.is_finite() && max_y.is_finite()
                 {

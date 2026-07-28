@@ -170,6 +170,7 @@ mod tests {
         let cal = PlannerCalibration {
             dot_width_mm: 0.1,
             enable_dot_width: true,
+            ..PlannerCalibration::default()
         };
         let input = PlannerInput::new(opt.clone(), runtime.clone(), cal.clone());
         assert_eq!(input.optimization, opt);

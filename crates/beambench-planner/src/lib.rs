@@ -29,4 +29,5 @@ pub use optimize::{OptimizationRuntime, PlannerCancellation, PlannerInput};
 pub use plan::{
     DirectionMode, ExecutionPlan, PlanEntryFailure, PlanEntryFailureReason, PlanSegment, PlanStats,
     PlanWarning, PlannerCalibration, PowerMode, ScanAxis, ScanDirection, ScanRun, Scanline,
+    raster_local_to_world, raster_scanline_motion_points,
 };

@@ -77,11 +77,11 @@ pub fn generate_marlin_gcode(
             push_custom_gcode(&mut lines, &suffix);
             lines.push(boundary[0].to_string());
         } else {
-            if let Some(line) =
-                adapt_generated_laser_command(line, config.laser_mode, &mut inline_mode_selected)
-            {
-                lines.push(line);
-            }
+            lines.extend(adapt_generated_laser_commands(
+                line,
+                config.laser_mode,
+                &mut inline_mode_selected,
+            ));
         }
     }
     // The established emitter may place a configured finish-position move
@@ -109,25 +109,59 @@ fn validate_base_layout(lines: &[String]) -> Result<(), MarlinGcodeError> {
     Ok(())
 }
 
-fn adapt_generated_laser_command(
+fn adapt_generated_laser_commands(
     line: String,
     mode: MarlinLaserMode,
     inline_mode_selected: &mut bool,
-) -> Option<String> {
+) -> Vec<String> {
+    if mode == MarlinLaserMode::Standard {
+        // The shared raster emitter carries power on motion blocks for GRBL
+        // and inline-capable dialects. Standard Marlin deliberately uses its
+        // synchronizing M3 contract instead, so restore a power command before
+        // each generated powered/unpowered raster move and remove inline S.
+        if line == "M3 S0" {
+            return Vec::new();
+        }
+        if let Some((motion, power)) = separate_inline_power(&line) {
+            return vec![format!("M3 S{power}"), motion];
+        }
+        return vec![line];
+    }
+
     let (source, replacement) = match mode {
-        MarlinLaserMode::Standard => return Some(line),
+        MarlinLaserMode::Standard => unreachable!(),
         MarlinLaserMode::ContinuousInline => ("M3 S", "M3 I S"),
         MarlinLaserMode::DynamicInline => ("M4 S", "M4 I S"),
     };
 
     let Some(power) = line.strip_prefix(source) else {
-        return Some(line);
+        return vec![line];
     };
     if *inline_mode_selected {
-        return None;
+        return Vec::new();
     }
     *inline_mode_selected = true;
-    Some(format!("{replacement}{power}"))
+    vec![format!("{replacement}{power}")]
+}
+
+fn separate_inline_power(line: &str) -> Option<(String, String)> {
+    if !(line.starts_with("G1 ") || line.starts_with("G2 ") || line.starts_with("G3 ")) {
+        return None;
+    }
+    let mut power = None;
+    let motion = line
+        .split_ascii_whitespace()
+        .filter(|token| {
+            if let Some(value) = token.strip_prefix('S') {
+                power = Some(value.to_string());
+                false
+            } else {
+                true
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    power.map(|power| (motion, power))
 }
 
 fn push_custom_gcode(lines: &mut Vec<String>, block: &str) {
@@ -282,7 +316,7 @@ mod tests {
             ..MarlinGcodeConfig::default()
         };
 
-        let lines = generate_marlin_gcode(&plan(vec![segment]), &config).unwrap();
+        let lines = generate_marlin_gcode(&plan(vec![segment.clone()]), &config).unwrap();
         assert_eq!(
             lines
                 .iter()
@@ -292,5 +326,17 @@ mod tests {
         );
         assert!(lines.iter().any(|line| line == "G1 X1.000 F2000 S64"));
         assert!(lines.iter().any(|line| line == "G1 X2.000 S192"));
+
+        let standard =
+            generate_marlin_gcode(&plan(vec![segment]), &MarlinGcodeConfig::default()).unwrap();
+        assert!(standard.iter().any(|line| line == "M3 S64"));
+        assert!(standard.iter().any(|line| line == "M3 S192"));
+        assert!(standard.iter().any(|line| line == "G1 X1.000 F2000"));
+        assert!(standard.iter().any(|line| line == "G1 X2.000"));
+        assert!(
+            !standard
+                .iter()
+                .any(|line| line.starts_with("G1 ") && line.contains(" S"))
+        );
     }
 }

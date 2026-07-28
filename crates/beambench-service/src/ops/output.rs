@@ -242,6 +242,9 @@ pub fn build_planner_calibration(profile: &MachineProfile) -> PlannerCalibration
     PlannerCalibration {
         dot_width_mm: profile.dot_width_mm,
         enable_dot_width: profile.enable_dot_width,
+        max_speed_mm_min: profile.max_speed_mm_min,
+        acceleration_mm_s2: profile.acceleration_mm_s2,
+        slow_overscan_approach: !profile.use_g0_for_overscan,
     }
 }
 
@@ -850,6 +853,7 @@ mod tests {
                 PlannerCalibration {
                     dot_width_mm: 0.0,
                     enable_dot_width: false,
+                    ..PlannerCalibration::default()
                 },
             ),
         )

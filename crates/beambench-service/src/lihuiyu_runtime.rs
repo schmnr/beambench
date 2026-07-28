@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use beambench_common::{
     ControllerDriverId, ControllerEvidenceState, ControllerFamily, ControllerModel,
@@ -194,6 +194,8 @@ impl LihuiyuRuntimeSession {
             // the runtime cannot pause a staged transfer, only a running job.
             state: JobState::Preparing,
             started_at: Instant::now(),
+            paused_at: None,
+            paused_duration: Duration::ZERO,
             acknowledged_packets: 0,
             total_packets: compiled.packets.len(),
             error_message: None,
@@ -284,6 +286,8 @@ impl LihuiyuRuntimeSession {
 pub struct LihuiyuRuntimeJob {
     state: JobState,
     started_at: Instant,
+    paused_at: Option<Instant>,
+    paused_duration: Duration,
     acknowledged_packets: usize,
     total_packets: usize,
     error_message: Option<String>,
@@ -349,12 +353,16 @@ impl LihuiyuRuntimeJob {
             );
         }
         session.pause_job()?;
+        self.paused_at.get_or_insert_with(Instant::now);
         self.state = JobState::Paused;
         Ok(self.progress())
     }
 
     pub fn resume(&mut self, session: &mut LihuiyuRuntimeSession) -> Result<JobProgress, String> {
         session.resume_job()?;
+        if let Some(paused_at) = self.paused_at.take() {
+            self.paused_duration += paused_at.elapsed();
+        }
         self.state = JobState::Running;
         Ok(self.progress())
     }
@@ -372,7 +380,7 @@ impl LihuiyuRuntimeJob {
             queued_lines: self.total_packets.saturating_sub(self.acknowledged_packets),
             sent_lines: self.acknowledged_packets,
             acknowledged_lines: self.acknowledged_packets,
-            elapsed_secs: self.started_at.elapsed().as_secs_f64(),
+            elapsed_secs: self.active_elapsed_secs(),
             estimated_remaining_secs: 0.0,
             buffer_fill_bytes: 0,
             error_message: self.error_message.clone(),
@@ -382,6 +390,17 @@ impl LihuiyuRuntimeJob {
 
     pub const fn is_frame(&self) -> bool {
         self.frame
+    }
+
+    fn active_elapsed_secs(&self) -> f64 {
+        let current_pause = self
+            .paused_at
+            .map(|paused_at| paused_at.elapsed())
+            .unwrap_or(Duration::ZERO);
+        self.started_at
+            .elapsed()
+            .saturating_sub(self.paused_duration + current_pause)
+            .as_secs_f64()
     }
 }
 

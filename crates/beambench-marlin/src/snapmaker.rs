@@ -74,6 +74,13 @@ pub fn generate_snapmaker_gcode(
         } else if index == final_off_index {
             push_custom_gcode(&mut lines, &suffix);
             lines.push("M5".to_string());
+        } else if config.laser_mode == SnapmakerLaserMode::Constant && line == "M3 S0" {
+            continue;
+        } else if config.laser_mode == SnapmakerLaserMode::Constant
+            && let Some((motion, power)) = separate_inline_power(&line)
+        {
+            lines.push(format!("M3 S{power}"));
+            lines.push(motion);
         } else {
             lines.push(line);
         }
@@ -107,6 +114,26 @@ fn push_custom_gcode(lines: &mut Vec<String>, block: &str) {
             .filter(|line| !line.is_empty())
             .map(str::to_string),
     );
+}
+
+fn separate_inline_power(line: &str) -> Option<(String, String)> {
+    if !(line.starts_with("G1 ") || line.starts_with("G2 ") || line.starts_with("G3 ")) {
+        return None;
+    }
+    let mut power = None;
+    let motion = line
+        .split_ascii_whitespace()
+        .filter(|token| {
+            if let Some(value) = token.strip_prefix('S') {
+                power = Some(value.to_string());
+                false
+            } else {
+                true
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    power.map(|power| (motion, power))
 }
 
 #[cfg(test)]
@@ -202,12 +229,25 @@ mod tests {
             ..SnapmakerGcodeConfig::default()
         };
 
-        let lines = generate_snapmaker_gcode(&plan(vec![segment]), &config).unwrap();
+        let lines = generate_snapmaker_gcode(&plan(vec![segment.clone()]), &config).unwrap();
 
-        assert!(lines.iter().any(|line| line == "M4 S64"));
+        assert!(lines.iter().any(|line| line == "M4 S0"));
         assert!(lines.iter().any(|line| line == "G1 X1.000 F2000 S64"));
         assert!(lines.iter().any(|line| line == "G1 X2.000 S192"));
         assert!(!lines.iter().any(|line| line.contains(" I")));
+
+        let constant =
+            generate_snapmaker_gcode(&plan(vec![segment]), &SnapmakerGcodeConfig::default())
+                .unwrap();
+        assert!(constant.iter().any(|line| line == "M3 S64"));
+        assert!(constant.iter().any(|line| line == "M3 S192"));
+        assert!(constant.iter().any(|line| line == "G1 X1.000 F2000"));
+        assert!(constant.iter().any(|line| line == "G1 X2.000"));
+        assert!(
+            !constant
+                .iter()
+                .any(|line| line.starts_with("G1 ") && line.contains(" S"))
+        );
     }
 
     #[test]
