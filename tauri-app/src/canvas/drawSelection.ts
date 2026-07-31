@@ -43,6 +43,20 @@ export interface HandleInfo {
   id: HandleId;
   screenX: number;
   screenY: number;
+  /** Screen-space direction from the selection center to a rotation handle. */
+  rotationMidAngle?: number;
+}
+
+export interface SelectionFrameScreen {
+  nw: Point2D;
+  n: Point2D;
+  ne: Point2D;
+  w: Point2D;
+  center: Point2D;
+  e: Point2D;
+  sw: Point2D;
+  s: Point2D;
+  se: Point2D;
 }
 
 export interface MeshDeformHandleInfo {
@@ -66,13 +80,6 @@ export function drawSelectionHighlight(
   const anyLocked = objects.some((o) => o.locked);
 
   for (const obj of objects) {
-    // Draw selection outline from visual bounds (matches handle positions)
-    const vb = computeVisualBoundsWorld(obj, allObjects);
-    const vtl = worldToScreen(vb.min, vp);
-    const vbr = worldToScreen(vb.max, vp);
-    const vw = vbr.x - vtl.x;
-    const vh = vbr.y - vtl.y;
-
     ctx.save();
     if (obj.locked) {
       ctx.globalAlpha = 0.5;
@@ -81,7 +88,22 @@ export function drawSelectionHighlight(
     ctx.lineWidth = 1;
     ctx.setLineDash(SELECTION_DASH);
     ctx.lineDashOffset = dashOffset ?? 0;
-    ctx.strokeRect(vtl.x, vtl.y, vw, vh);
+    if (hasOrientedTransform(obj)) {
+      const outline = getObjectBoundsOutlineScreen(obj, vp);
+      ctx.beginPath();
+      ctx.moveTo(outline[0].x, outline[0].y);
+      for (let i = 1; i < outline.length; i++) {
+        ctx.lineTo(outline[i].x, outline[i].y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      // Identity objects retain their tight visual bounds.
+      const vb = computeVisualBoundsWorld(obj, allObjects);
+      const vtl = worldToScreen(vb.min, vp);
+      const vbr = worldToScreen(vb.max, vp);
+      ctx.strokeRect(vtl.x, vtl.y, vbr.x - vtl.x, vbr.y - vtl.y);
+    }
     ctx.setLineDash([]);
     ctx.restore();
   }
@@ -119,14 +141,7 @@ function drawRotationArrow(ctx: CanvasRenderingContext2D, handle: HandleInfo): v
   // 110° arc centered on the diagonal away from the selection box,
   // with arrowheads on both ends suggesting bidirectional rotation.
   const halfSweep = (110 / 2) * PI / 180; // 55° in radians
-  let midAngle: number;
-  switch (handle.id) {
-    case 'rotate_nw': midAngle = 5 * PI / 4; break;   // upper-left diagonal
-    case 'rotate_ne': midAngle = -PI / 4; break;       // upper-right diagonal
-    case 'rotate_se': midAngle = PI / 4; break;         // lower-right diagonal
-    case 'rotate_sw': midAngle = 3 * PI / 4; break;    // lower-left diagonal
-    default: midAngle = 5 * PI / 4;
-  }
+  const midAngle = handle.rotationMidAngle ?? defaultRotationMidAngle(handle.id);
   const startAngle = midAngle - halfSweep;
   const endAngle = midAngle + halfSweep;
 
@@ -174,6 +189,16 @@ function drawRotationArrow(ctx: CanvasRenderingContext2D, handle: HandleInfo): v
   }
 
   ctx.restore();
+}
+
+function defaultRotationMidAngle(handleId: HandleId): number {
+  switch (handleId) {
+    case 'rotate_nw': return 5 * Math.PI / 4;
+    case 'rotate_ne': return -Math.PI / 4;
+    case 'rotate_se': return Math.PI / 4;
+    case 'rotate_sw': return 3 * Math.PI / 4;
+    default: return 5 * Math.PI / 4;
+  }
 }
 
 export function drawMeshDeformOverlay(
@@ -235,8 +260,156 @@ export function getSelectionHandles(
 ): HandleInfo[] {
   if (objects.length === 0) return [];
   const singleGuideSelected = objects.length === 1 && isRulerGuideObject(objects[0]);
+  const frame = getSelectionFrameScreen(objects, vp, allObjects);
+  if (!frame) return [];
 
-  // Compute axis-aligned screen bbox using visual bounds (tight, transform-aware)
+  const handles: HandleInfo[] = [];
+
+  // Resize handles (8) — hidden when size_enabled === false
+  if (!singleGuideSelected && transformLocks?.size_enabled !== false) {
+    handles.push(
+      handleAt('nw', frame.nw),
+      handleAt('n', frame.n),
+      handleAt('ne', frame.ne),
+      handleAt('w', frame.w),
+      handleAt('e', frame.e),
+      handleAt('sw', frame.sw),
+      handleAt('s', frame.s),
+      handleAt('se', frame.se),
+    );
+  }
+
+  // Center handle — hidden when move_enabled === false
+  if (transformLocks?.move_enabled !== false) {
+    handles.push(handleAt('center', frame.center));
+  }
+
+  // Rotation handles (4 corners) — hidden when rotate_enabled === false
+  if (!singleGuideSelected && transformLocks?.rotate_enabled !== false) {
+    const rotationOffset = ROTATION_CORNER_OFFSET * Math.SQRT2;
+    for (const [id, point] of [
+      ['rotate_nw', frame.nw],
+      ['rotate_ne', frame.ne],
+      ['rotate_sw', frame.sw],
+      ['rotate_se', frame.se],
+    ] as const) {
+      const angle = Math.atan2(point.y - frame.center.y, point.x - frame.center.x);
+      handles.push({
+        id,
+        screenX: point.x + Math.cos(angle) * rotationOffset,
+        screenY: point.y + Math.sin(angle) * rotationOffset,
+        rotationMidAngle: angle,
+      });
+    }
+  }
+
+  // Shear handles (2) — hidden when shear_enabled === false
+  // Positioned at edge centers, outside the selection box.
+  if (!singleGuideSelected && transformLocks?.shear_enabled !== false) {
+    handles.push(
+      offsetHandleFromCenter('shear_n', frame.n, frame.center, SHEAR_HANDLE_OFFSET),
+      offsetHandleFromCenter('shear_e', frame.e, frame.center, SHEAR_HANDLE_OFFSET),
+    );
+  }
+
+  return handles;
+}
+
+function handleAt(id: HandleId, point: Point2D): HandleInfo {
+  return { id, screenX: point.x, screenY: point.y };
+}
+
+function offsetHandleFromCenter(
+  id: HandleId,
+  point: Point2D,
+  center: Point2D,
+  distance: number,
+): HandleInfo {
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+  const length = Math.hypot(dx, dy) || 1;
+  return {
+    id,
+    screenX: point.x + (dx / length) * distance,
+    screenY: point.y + (dy / length) * distance,
+  };
+}
+
+function midpoint(a: Point2D, b: Point2D): Point2D {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function frameFromCorners(nw: Point2D, ne: Point2D, se: Point2D, sw: Point2D): SelectionFrameScreen {
+  return {
+    nw,
+    n: midpoint(nw, ne),
+    ne,
+    w: midpoint(nw, sw),
+    center: midpoint(nw, se),
+    e: midpoint(ne, se),
+    sw,
+    s: midpoint(sw, se),
+    se,
+  };
+}
+
+function frameFromAxisAlignedBounds(minX: number, minY: number, maxX: number, maxY: number): SelectionFrameScreen {
+  ({ minX, minY, maxX, maxY } = expandDegenerateHandleBounds(minX, minY, maxX, maxY));
+  return frameFromCorners(
+    { x: minX, y: minY },
+    { x: maxX, y: minY },
+    { x: maxX, y: maxY },
+    { x: minX, y: maxY },
+  );
+}
+
+function hasOrientedTransform(obj: ProjectObject): boolean {
+  return obj.transform.a !== 1
+    || obj.transform.b !== 0
+    || obj.transform.c !== 0
+    || obj.transform.d !== 1;
+}
+
+function getObjectBoundsOutlineScreen(obj: ProjectObject, vp: ViewportParams): [Point2D, Point2D, Point2D, Point2D] {
+  const center = {
+    x: (obj.bounds.min.x + obj.bounds.max.x) / 2,
+    y: (obj.bounds.min.y + obj.bounds.max.y) / 2,
+  };
+  const worldCorners = [
+    { x: obj.bounds.min.x, y: obj.bounds.min.y },
+    { x: obj.bounds.max.x, y: obj.bounds.min.y },
+    { x: obj.bounds.max.x, y: obj.bounds.max.y },
+    { x: obj.bounds.min.x, y: obj.bounds.max.y },
+  ].map((point) => ({
+    x: obj.transform.a * (point.x - center.x) + obj.transform.c * (point.y - center.y) + obj.transform.tx + center.x,
+    y: obj.transform.b * (point.x - center.x) + obj.transform.d * (point.y - center.y) + obj.transform.ty + center.y,
+  }));
+  return worldCorners.map((point) => worldToScreen(point, vp)) as [Point2D, Point2D, Point2D, Point2D];
+}
+
+/**
+ * Returns an object-local frame for one selected object and an axis-aligned
+ * aggregate frame for multi-selection. This mirrors professional vector tools:
+ * a rotated object keeps resize handles on its own axes, while a group selection
+ * gets one predictable world-aligned box.
+ */
+export function getSelectionFrameScreen(
+  objects: ProjectObject[],
+  vp: ViewportParams,
+  allObjects?: ProjectObject[],
+): SelectionFrameScreen | null {
+  if (objects.length === 0) return null;
+
+  if (objects.length === 1 && !isRulerGuideObject(objects[0])) {
+    const [nw, ne, se, sw] = getObjectBoundsOutlineScreen(objects[0], vp);
+    if (
+      Math.hypot(ne.x - nw.x, ne.y - nw.y) >= MIN_HANDLE_LAYOUT_SPAN_PX
+      && Math.hypot(sw.x - nw.x, sw.y - nw.y) >= MIN_HANDLE_LAYOUT_SPAN_PX
+    ) {
+      return frameFromCorners(nw, ne, se, sw);
+    }
+  }
+
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const obj of objects) {
     const vb = computeVisualBoundsWorld(obj, allObjects);
@@ -246,60 +419,14 @@ export function getSelectionHandles(
       worldToScreen(vb.max, vp),
       worldToScreen({ x: vb.min.x, y: vb.max.y }, vp),
     ];
-    for (const c of corners) {
-      minX = Math.min(minX, c.x);
-      minY = Math.min(minY, c.y);
-      maxX = Math.max(maxX, c.x);
-      maxY = Math.max(maxY, c.y);
+    for (const corner of corners) {
+      minX = Math.min(minX, corner.x);
+      minY = Math.min(minY, corner.y);
+      maxX = Math.max(maxX, corner.x);
+      maxY = Math.max(maxY, corner.y);
     }
   }
-
-  ({ minX, minY, maxX, maxY } = expandDegenerateHandleBounds(minX, minY, maxX, maxY));
-
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-
-  const handles: HandleInfo[] = [];
-
-  // Resize handles (8) — hidden when size_enabled === false
-  if (!singleGuideSelected && transformLocks?.size_enabled !== false) {
-    handles.push(
-      { id: 'nw', screenX: minX, screenY: minY },
-      { id: 'n', screenX: cx, screenY: minY },
-      { id: 'ne', screenX: maxX, screenY: minY },
-      { id: 'w', screenX: minX, screenY: cy },
-      { id: 'e', screenX: maxX, screenY: cy },
-      { id: 'sw', screenX: minX, screenY: maxY },
-      { id: 's', screenX: cx, screenY: maxY },
-      { id: 'se', screenX: maxX, screenY: maxY },
-    );
-  }
-
-  // Center handle — hidden when move_enabled === false
-  if (transformLocks?.move_enabled !== false) {
-    handles.push({ id: 'center', screenX: cx, screenY: cy });
-  }
-
-  // Rotation handles (4 corners) — hidden when rotate_enabled === false
-  if (!singleGuideSelected && transformLocks?.rotate_enabled !== false) {
-    handles.push(
-      { id: 'rotate_nw', screenX: minX - ROTATION_CORNER_OFFSET, screenY: minY - ROTATION_CORNER_OFFSET },
-      { id: 'rotate_ne', screenX: maxX + ROTATION_CORNER_OFFSET, screenY: minY - ROTATION_CORNER_OFFSET },
-      { id: 'rotate_sw', screenX: minX - ROTATION_CORNER_OFFSET, screenY: maxY + ROTATION_CORNER_OFFSET },
-      { id: 'rotate_se', screenX: maxX + ROTATION_CORNER_OFFSET, screenY: maxY + ROTATION_CORNER_OFFSET },
-    );
-  }
-
-  // Shear handles (2) — hidden when shear_enabled === false
-  // Positioned at edge centers, outside the selection box.
-  if (!singleGuideSelected && transformLocks?.shear_enabled !== false) {
-    handles.push(
-      { id: 'shear_n', screenX: cx, screenY: minY - SHEAR_HANDLE_OFFSET },
-      { id: 'shear_e', screenX: maxX + SHEAR_HANDLE_OFFSET, screenY: cy },
-    );
-  }
-
-  return handles;
+  return frameFromAxisAlignedBounds(minX, minY, maxX, maxY);
 }
 
 function expandDegenerateHandleBounds(

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
@@ -162,11 +162,17 @@ export function TransformSection() {
   const lockAspect = selectedObjects.length > 0
     && selectedObjects.every((object) => object.lock_aspect_ratio);
   const selectionKey = selectedObjectIds.join(',');
+  const scaleBaselineRef = useRef({ selectionKey, width: w, height: h });
+  if (scaleBaselineRef.current.selectionKey !== selectionKey) {
+    scaleBaselineRef.current = { selectionKey, width: w, height: h };
+  }
 
   useEffect(() => {
-    setScaleXPercent(100);
-    setScaleYPercent(100);
-  }, [selectionKey, selBounds?.min.x, selBounds?.min.y, selBounds?.max.x, selBounds?.max.y]);
+    const baseline = scaleBaselineRef.current;
+    if (baseline.selectionKey !== selectionKey) return;
+    setScaleXPercent(baseline.width > 0 ? Math.round((w / baseline.width) * 1000) / 10 : 100);
+    setScaleYPercent(baseline.height > 0 ? Math.round((h / baseline.height) * 1000) / 10 : 100);
+  }, [selectionKey, w, h]);
 
   const col = anchorPoints.indexOf(anchor) % 3;
   const row = Math.floor(anchorPoints.indexOf(anchor) / 3);
@@ -359,7 +365,7 @@ export function TransformSection() {
     if (isTransformLocked(locks, 'scale')) { notifyTransformLocked('scale'); return; }
     setScaleXPercent(pct);
     if (lockAspect) setScaleYPercent(pct);
-    const factor = pct / 100;
+    const factor = pct / scaleXPercent;
     if (multiSel) {
       scaleSelection(factor, lockAspect ? factor : 1);
     } else if (obj) {
@@ -381,7 +387,7 @@ export function TransformSection() {
     if (isTransformLocked(locks, 'scale')) { notifyTransformLocked('scale'); return; }
     setScaleYPercent(pct);
     if (lockAspect) setScaleXPercent(pct);
-    const factor = pct / 100;
+    const factor = pct / scaleYPercent;
     if (multiSel) {
       scaleSelection(lockAspect ? factor : 1, factor);
     } else if (obj) {

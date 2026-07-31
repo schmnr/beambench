@@ -6,6 +6,7 @@ import {
   drawPolygonPreview,
   drawShapePreview,
   drawStarPreview,
+  getSelectionFrameScreen,
   getSelectionHandles,
 } from './drawSelection';
 import { DARK_THEME } from './constants';
@@ -176,6 +177,54 @@ describe('getSelectionHandles', () => {
     // because the visual bounds are larger
     expect(rotNw.screenX).toBeLessThan(unrotNw.screenX);
     expect(rotNw.screenY).toBeLessThan(unrotNw.screenY);
+  });
+
+  it('keeps a single rotated object frame on the object local axes', () => {
+    const rotatedObj = makeObj({
+      bounds: { min: { x: 0, y: 0 }, max: { x: 40, y: 20 } },
+      transform: { a: 0, b: 1, c: -1, d: 0, tx: 0, ty: 0 },
+      data: { type: 'shape', kind: 'rectangle', width: 40, height: 20, corner_radius: 0 },
+    });
+
+    const frame = getSelectionFrameScreen([rotatedObj], defaultVp)!;
+
+    // The object's local top edge is vertical after a 90-degree rotation.
+    expect(frame.nw.x).toBeCloseTo(frame.ne.x);
+    expect(frame.nw.y).not.toBeCloseTo(frame.ne.y);
+    expect(frame.n.x).toBeCloseTo(frame.nw.x);
+    expect(frame.e.y).toBeCloseTo(frame.ne.y);
+  });
+
+  it('draws a rotated selection outline as an oriented path', () => {
+    const rotatedObj = makeObj({
+      transform: { a: 0, b: 1, c: -1, d: 0, tx: 0, ty: 0 },
+      locked: true,
+    });
+    const ctx = {
+      globalAlpha: 1,
+      strokeStyle: '',
+      fillStyle: '',
+      lineWidth: 1,
+      lineDashOffset: 0,
+      save: vi.fn(),
+      restore: vi.fn(),
+      setLineDash: vi.fn(),
+      strokeRect: vi.fn(),
+      fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      stroke: vi.fn(),
+      arc: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+
+    drawSelectionHighlight(ctx, [rotatedObj], defaultVp, DARK_THEME);
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+    expect(ctx.moveTo).toHaveBeenCalledOnce();
+    expect(ctx.lineTo).toHaveBeenCalledTimes(3);
+    expect(ctx.closePath).toHaveBeenCalledOnce();
   });
 
   it('returns empty array for no objects', () => {

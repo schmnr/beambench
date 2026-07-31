@@ -573,6 +573,44 @@ describe('TransformSection — Scale X/Y', () => {
     });
   });
 
+  it('keeps the committed scale percentage after the bounds update and scales from that baseline', () => {
+    const updateObject = vi.fn().mockResolvedValue(undefined);
+    const project = makeProject();
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'], updateObject });
+    render(<TransformSection />);
+
+    let inputs = screen.getAllByRole('spinbutton');
+    typeAndCommit(inputs[IDX_SCALE_X], '150');
+    expect(updateObject).toHaveBeenLastCalledWith('obj1', {
+      bounds: { min: { x: 10, y: 20 }, max: { x: 85, y: 70 } },
+    });
+
+    act(() => {
+      useProjectStore.setState({
+        project: {
+          ...project,
+          objects: [{
+            ...project.objects[0],
+            bounds: { min: { x: 10, y: 20 }, max: { x: 85, y: 70 } },
+          }],
+        },
+      });
+    });
+
+    inputs = screen.getAllByRole('spinbutton');
+    expect(inputs[IDX_SCALE_X]).toHaveProperty('value', '150');
+    typeAndCommit(inputs[IDX_SCALE_X], '200');
+    expect(updateObject).toHaveBeenLastCalledWith('obj1', {
+      bounds: { min: { x: 10, y: 20 }, max: { x: 110, y: 70 } },
+    });
+
+    act(() => {
+      useProjectStore.setState({ project });
+    });
+    inputs = screen.getAllByRole('spinbutton');
+    expect(inputs[IDX_SCALE_X]).toHaveProperty('value', '100');
+  });
+
   it('Scale Y only changes height', () => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'], updateObject });

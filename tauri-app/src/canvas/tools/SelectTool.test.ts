@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SelectTool, computeResizedBounds } from './SelectTool';
+import { SelectTool, computeObjectLocalResizeBounds, computeResizedBounds } from './SelectTool';
 import type { CanvasMouseEvent, ToolContext } from './types';
 import type { Bounds, ProjectObject, Transform2D } from '../../types/project';
 import type { ViewportParams } from '../ViewportTransform';
@@ -1185,6 +1185,27 @@ describe('SelectTool mixed-selection drag batches atomically', () => {
     expect(entries).toHaveLength(2);
     const ids = entries.map((e: { id: string }) => e.id).sort();
     expect(ids).toEqual(['path1', 'shape1']);
+  });
+});
+
+describe('computeObjectLocalResizeBounds', () => {
+  it('resizes on rotated local axes while keeping the opposite handle fixed', () => {
+    const original = { min: { x: 0, y: 0 }, max: { x: 100, y: 50 } };
+    const rotate90 = { a: 0, b: 1, c: -1, d: 0, tx: 0, ty: 0 };
+
+    const resized = computeObjectLocalResizeBounds(
+      original,
+      rotate90,
+      'e',
+      20,
+      0,
+      false,
+      false,
+    );
+
+    expect(resized.max.x - resized.min.x).toBeCloseTo(120);
+    expect(resized.max.y - resized.min.y).toBeCloseTo(50);
+    expect(resized).toEqual({ min: { x: -10, y: 10 }, max: { x: 110, y: 60 } });
   });
 });
 

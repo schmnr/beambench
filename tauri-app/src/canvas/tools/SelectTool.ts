@@ -25,6 +25,7 @@ type SelectState =
       origBounds: Map<string, Bounds>; origTransforms: Map<string, Transform2D>;
       sharedCenter: Point2D; selectionWidth: number; selectionHeight: number;
       origVisualSelBounds?: Bounds;
+      localResizeObjectId?: string;
       startAngle?: number };
 
 /**
@@ -179,6 +180,11 @@ export class SelectTool implements CanvasTool {
       const selectionWidth = sMaxX - sMinX;
       const selectionHeight = sMaxY - sMinY;
       const origVisualSelBounds: Bounds = { min: { x: sMinX, y: sMinY }, max: { x: sMaxX, y: sMaxY } };
+      const localResizeObjectId = selectedObjects.length === 1
+        && transformIds.length === 1
+        && Math.abs(determinant(selectedObjects[0].transform)) > 1e-9
+        ? selectedObjects[0].id
+        : undefined;
 
       if (isRotateHandle) {
         const startAngle = Math.atan2(worldPt.y - sharedCenter.y, worldPt.x - sharedCenter.x);
@@ -194,6 +200,7 @@ export class SelectTool implements CanvasTool {
           selectionWidth,
           selectionHeight,
           origVisualSelBounds,
+          localResizeObjectId,
           startAngle,
         };
       } else {
@@ -209,6 +216,7 @@ export class SelectTool implements CanvasTool {
           selectionWidth,
           selectionHeight,
           origVisualSelBounds,
+          localResizeObjectId,
         };
       }
       return;
@@ -634,6 +642,34 @@ export class SelectTool implements CanvasTool {
           ctx.requestRender();
         } else if (isResizeHandle) {
           if (isTransformLocked(ctx.transformLocks, 'scale')) break;
+
+          // A single object's frame follows its own transformed axes. Convert
+          // the pointer delta back into the object's local bounds space so the
+          // handle remains attached to the rotated frame while resizing.
+          if (this.state.localResizeObjectId) {
+            const id = this.state.localResizeObjectId;
+            const obj = ctx.objects.find((candidate) => candidate.id === id);
+            const ob = origBounds.get(id);
+            const ot = origTransforms.get(id);
+            if (obj && ob && ot) {
+              const localDelta = inverseLinearDelta(
+                ot,
+                e.worldX - this.state.startWorld.x,
+                e.worldY - this.state.startWorld.y,
+              );
+              obj.bounds = computeObjectLocalResizeBounds(
+                ob,
+                ot,
+                handleId,
+                localDelta.x,
+                localDelta.y,
+                !e.shiftKey,
+                e.ctrlKey,
+              );
+              ctx.requestRender();
+            }
+            break;
+          }
 
           // Selection-level resize using visual selection bounds (matches handle positions)
           const rawWorldPt = { x: e.worldX, y: e.worldY };
@@ -1224,6 +1260,127 @@ function orderMultiSelectBatchForAnchor(ids: string[], objects: ProjectObject[])
   // rubber-band step adds multiple objects, so use the first object in
   // draw order as that anchor, so we append the batch in reverse draw order.
   return [...ids].sort((a, b) => (drawOrder.get(b) ?? -1) - (drawOrder.get(a) ?? -1));
+}
+
+function determinant(transform: Transform2D): number {
+  return transform.a * transform.d - transform.b * transform.c;
+}
+
+function inverseLinearDelta(transform: Transform2D, dx: number, dy: number): Point2D {
+  const det = determinant(transform);
+  if (Math.abs(det) <= 1e-9) return { x: dx, y: dy };
+  return {
+    x: (transform.d * dx - transform.c * dy) / det,
+    y: (-transform.b * dx + transform.a * dy) / det,
+  };
+}
+
+function boundsPoint(bounds: Bounds, fx: number, fy: number): Point2D {
+  return {
+    x: bounds.min.x + (bounds.max.x - bounds.min.x) * fx,
+    y: bounds.min.y + (bounds.max.y - bounds.min.y) * fy,
+  };
+}
+
+function oppositeHandleAnchor(handleId: HandleId): { fx: number; fy: number } {
+  switch (handleId) {
+    case 'nw': return { fx: 1, fy: 1 };
+    case 'n': return { fx: 0.5, fy: 1 };
+    case 'ne': return { fx: 0, fy: 1 };
+    case 'w': return { fx: 1, fy: 0.5 };
+    case 'e': return { fx: 0, fy: 0.5 };
+    case 'sw': return { fx: 1, fy: 0 };
+    case 's': return { fx: 0.5, fy: 0 };
+    case 'se': return { fx: 0, fy: 0 };
+    default: return { fx: 0.5, fy: 0.5 };
+  }
+}
+
+/** Exported for regression tests around rotated, object-local resize frames. */
+export function computeObjectLocalResizeBounds(
+  original: Bounds,
+  transform: Transform2D,
+  handleId: HandleId,
+  localDx: number,
+  localDy: number,
+  proportional: boolean,
+  fromCenter: boolean,
+): Bounds {
+  const originalWidth = original.max.x - original.min.x;
+  const originalHeight = original.max.y - original.min.y;
+  const affectsX = !['n', 's'].includes(handleId);
+  const affectsY = !['e', 'w'].includes(handleId);
+  const west = handleId.endsWith('w') || handleId === 'w';
+  const north = handleId.startsWith('n') || handleId === 'n';
+  const centerMultiplier = fromCenter ? 2 : 1;
+
+  let scaleX = affectsX && originalWidth > 0
+    ? (originalWidth + (west ? -localDx : localDx) * centerMultiplier) / originalWidth
+    : 1;
+  let scaleY = affectsY && originalHeight > 0
+    ? (originalHeight + (north ? -localDy : localDy) * centerMultiplier) / originalHeight
+    : 1;
+  scaleX = Math.max(scaleX, MIN_RESIZE_SCALE);
+  scaleY = Math.max(scaleY, MIN_RESIZE_SCALE);
+
+  const isCorner = ['nw', 'ne', 'sw', 'se'].includes(handleId);
+  if (isCorner && proportional) {
+    const scale = Math.abs(scaleX - 1) >= Math.abs(scaleY - 1) ? scaleX : scaleY;
+    scaleX = scale;
+    scaleY = scale;
+  }
+
+  const width = originalWidth * scaleX;
+  const height = originalHeight * scaleY;
+  const originalCenter = boundsPoint(original, 0.5, 0.5);
+  let next: Bounds = {
+    min: { ...original.min },
+    max: { ...original.max },
+  };
+
+  if (affectsX) {
+    if (fromCenter) {
+      next.min.x = originalCenter.x - width / 2;
+      next.max.x = originalCenter.x + width / 2;
+    } else if (west) {
+      next.min.x = original.max.x - width;
+    } else {
+      next.max.x = original.min.x + width;
+    }
+  }
+  if (affectsY) {
+    if (fromCenter) {
+      next.min.y = originalCenter.y - height / 2;
+      next.max.y = originalCenter.y + height / 2;
+    } else if (north) {
+      next.min.y = original.max.y - height;
+    } else {
+      next.max.y = original.min.y + height;
+    }
+  }
+
+  // Because transforms are evaluated around the bounds center, an asymmetric
+  // resize changes that center. Translate the new bounds so the opposite handle
+  // remains visually fixed in world space.
+  const anchor = fromCenter ? { fx: 0.5, fy: 0.5 } : oppositeHandleAnchor(handleId);
+  const oldAnchorWorld = applyAroundCenter(
+    transform,
+    boundsPoint(original, anchor.fx, anchor.fy),
+    originalCenter,
+  );
+  const nextCenter = boundsPoint(next, 0.5, 0.5);
+  const nextAnchorWorld = applyAroundCenter(
+    transform,
+    boundsPoint(next, anchor.fx, anchor.fy),
+    nextCenter,
+  );
+  const shiftX = oldAnchorWorld.x - nextAnchorWorld.x;
+  const shiftY = oldAnchorWorld.y - nextAnchorWorld.y;
+  next = {
+    min: { x: next.min.x + shiftX, y: next.min.y + shiftY },
+    max: { x: next.max.x + shiftX, y: next.max.y + shiftY },
+  };
+  return next;
 }
 
 function rotateTransform(radians: number): Transform2D {
