@@ -29,7 +29,6 @@ type SettingsDraft = {
   scrollZoom: boolean;
   checkForUpdatesOnStartup: boolean;
   allowImportingToToolLayers: boolean;
-  includeToolLayersInJobBounds: boolean;
 };
 
 const SETTINGS_DRAFT_KEYS = [
@@ -54,7 +53,6 @@ const SETTINGS_DRAFT_KEYS = [
   'scrollZoom',
   'checkForUpdatesOnStartup',
   'allowImportingToToolLayers',
-  'includeToolLayersInJobBounds',
 ] as const;
 
 type SettingsDraftKey = (typeof SETTINGS_DRAFT_KEYS)[number];
@@ -85,7 +83,6 @@ function createDraft(settings: AppSettings): SettingsDraft {
     scrollZoom: settings.scroll_zoom ?? true,
     checkForUpdatesOnStartup: settings.check_for_updates_on_startup ?? true,
     allowImportingToToolLayers: settings.allow_importing_to_tool_layers ?? false,
-    includeToolLayersInJobBounds: settings.include_tool_layers_in_job_bounds ?? true,
   };
 }
 
@@ -111,7 +108,6 @@ const FALLBACK_DRAFT: SettingsDraft = {
   scrollZoom: true,
   checkForUpdatesOnStartup: true,
   allowImportingToToolLayers: false,
-  includeToolLayersInJobBounds: true,
 };
 
 function SwitchRow(props: {
@@ -291,7 +287,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         scroll_zoom: draft.scrollZoom,
         check_for_updates_on_startup: draft.checkForUpdatesOnStartup,
         allow_importing_to_tool_layers: draft.allowImportingToToolLayers,
-        include_tool_layers_in_job_bounds: draft.includeToolLayersInJobBounds,
       });
       onClose();
     } catch (e) {
@@ -367,7 +362,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <div className="px-5 py-8 text-sm text-bb-text-muted">{t('dialog.settings.loading')}</div>
         ) : (
           <div className="flex min-h-0 flex-1">
-            <div className="w-44 shrink-0 border-r border-bb-border p-2">
+            <div className="w-44 shrink-0 border-r border-bb-border p-2" role="tablist" aria-orientation="vertical">
               {TAB_IDS.map((id) => (
                 <button
                   key={id}
@@ -377,6 +372,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                       : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
                   }`}
                   onClick={() => setActiveTab(id)}
+                  role="tab"
+                  aria-selected={activeTab === id}
                 >
                   {t(`dialog.settings.tab.${id}`)}
                 </button>
@@ -596,12 +593,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     checked={content.allowImportingToToolLayers}
                     onChange={(v) => updateDraft('allowImportingToToolLayers', v)}
                     testId="toggle-allow-import-tool-layers"
-                  />
-                  <SwitchRow
-                    label={t('dialog.settings.include_tool_layers_job_bounds')}
-                    checked={content.includeToolLayersInJobBounds}
-                    onChange={(v) => updateDraft('includeToolLayersInJobBounds', v)}
-                    testId="toggle-tool-layers-job-bounds"
                   />
                 </div>
               )}

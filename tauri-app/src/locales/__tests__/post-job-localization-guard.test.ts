@@ -10,6 +10,7 @@ const POST_JOB_COPY_KEYS = [
   'dialog.feedback.title_job_compatibility',
   'dialog.feedback.field_optional_comment',
   'dialog.feedback.job_compatibility_help',
+  'dialog.feedback.privacy_policy',
   'feedback.post_job_title',
   'feedback.post_job_question',
   'feedback.post_job_help',

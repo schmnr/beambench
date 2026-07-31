@@ -69,6 +69,25 @@ describe('normalizeSelectionMembers', () => {
     expect(normalizeSelectionMembers(project, ['shape', 'missing'])).toEqual(['shape']);
   });
 
+  it('drops hidden objects and objects on hidden layers', () => {
+    const project = makeProject({
+      layers: [
+        makeLayer({ id: 'visible-layer', visible: true }),
+        makeLayer({ id: 'hidden-layer', visible: false }),
+      ],
+      objects: [
+        makeProjectObject({ id: 'visible', layer_id: 'visible-layer', visible: true }),
+        makeProjectObject({ id: 'object-hidden', layer_id: 'visible-layer', visible: false }),
+        makeProjectObject({ id: 'layer-hidden', layer_id: 'hidden-layer', visible: true }),
+      ],
+    });
+
+    expect(normalizeSelectionMembers(
+      project,
+      ['visible', 'object-hidden', 'layer-hidden'],
+    )).toEqual(['visible']);
+  });
+
   it('promotes group children to top-level parent and dedupes', () => {
     const project = makeProject({
       objects: [

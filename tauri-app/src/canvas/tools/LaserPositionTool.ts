@@ -45,9 +45,14 @@ export class LaserPositionTool implements CanvasTool {
       if (wp) { ox = wp.x; oy = wp.y; }
     }
 
+    const ui = useUiStore.getState();
+    const feedRate = ui.moveWindowJogFeedRateMmMin;
+    // Positioning is a one-shot action. Disarm as soon as a valid move is
+    // accepted so another canvas click cannot queue an unintended move.
+    ui.setActiveTool('select');
+
     void (async () => {
       try {
-        const feedRate = useUiStore.getState().moveWindowJogFeedRateMmMin;
         await machineService.moveLaserTo(machinePoint.x + ox, machinePoint.y + oy, feedRate);
       } catch (error) {
         const message = String(error);

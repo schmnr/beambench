@@ -33,71 +33,27 @@ describe('ModifiersToolbar', () => {
   it('renders all modifier buttons', () => {
     render(<ModifiersToolbar />);
     expect(screen.getByTitle('Offset')).toBeDefined();
-    // Boolean ops are now in a submenu — the button shows the last-used op (default: Union)
-    expect(screen.getByTitle('Union')).toBeDefined();
-    expect(screen.getByTitle('Weld')).toBeDefined();
     expect(screen.getByTitle('Grid Array')).toBeDefined();
     expect(screen.getByTitle('Circular Array')).toBeDefined();
     expect(screen.getByTitle('Set Start Point')).toBeDefined();
     expect(screen.getByTitle('Radius Tool')).toBeDefined();
   });
 
-  it('Boolean submenu button disabled when selection < 2', () => {
-    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['a'] });
+  it('does not duplicate Boolean operations from the Properties panel', () => {
     render(<ModifiersToolbar />);
-    // The submenu button shows 'Union' (default last-used op) — it should be disabled
-    expect(screen.getByTitle('Union').closest('button')?.disabled).toBe(true);
-  });
-
-  it('Boolean submenu button enabled when exactly 2 selected', () => {
-    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['a', 'b'] });
-    render(<ModifiersToolbar />);
-    expect(screen.getByTitle('Union').closest('button')?.disabled).toBe(false);
-  });
-
-  it('Click boolean submenu executes last-used op (union) with correct IDs', () => {
-    const booleanUnion = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['a', 'b'], booleanUnion });
-    render(<ModifiersToolbar />);
-    // pointerDown + pointerUp = short click = execute last-used op
-    const btn = screen.getByTitle('Union');
-    fireEvent.pointerDown(btn);
-    fireEvent.pointerUp(btn);
-    expect(booleanUnion).toHaveBeenCalledWith('a', 'b');
-  });
-
-  it('Click boolean submenu executes last-used exclude op with correct IDs', () => {
-    const booleanExclude = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['a', 'b'], booleanExclude });
-    useUiStore.setState({ lastBooleanOp: 'exclude' });
-    render(<ModifiersToolbar />);
-
-    const btn = screen.getByTitle('Exclude');
-    fireEvent.pointerDown(btn);
-    fireEvent.pointerUp(btn);
-
-    expect(booleanExclude).toHaveBeenCalledWith('a', 'b');
+    expect(screen.queryByTitle('Weld')).toBeNull();
+    expect(screen.queryByTitle('Union')).toBeNull();
+    expect(screen.queryByTitle('Subtract')).toBeNull();
+    expect(screen.queryByTitle('Intersect')).toBeNull();
+    expect(screen.queryByTitle('Exclude')).toBeNull();
   });
 
   it('all buttons disabled when selected objects are locked', () => {
     useProjectStore.setState({ project: makeProject(true), selectedObjectIds: ['a', 'b'] });
     render(<ModifiersToolbar />);
     expect(screen.getByTitle('Offset').closest('button')?.disabled).toBe(true);
-    // Boolean submenu button
-    expect(screen.getByTitle('Union').closest('button')?.disabled).toBe(true);
-    expect(screen.getByTitle('Weld').closest('button')?.disabled).toBe(true);
     expect(screen.getByTitle('Grid Array').closest('button')?.disabled).toBe(true);
     expect(screen.getByTitle('Circular Array').closest('button')?.disabled).toBe(true);
-  });
-
-  it('Boolean op not called when objects are locked and button clicked', () => {
-    const booleanUnion = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({ project: makeProject(true), selectedObjectIds: ['a', 'b'], booleanUnion });
-    render(<ModifiersToolbar />);
-    const btn = screen.getByTitle('Union');
-    fireEvent.pointerDown(btn);
-    fireEvent.pointerUp(btn);
-    expect(booleanUnion).not.toHaveBeenCalled();
   });
 
   it('Grid Array button opens dialog instead of executing directly', () => {

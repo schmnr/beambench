@@ -19,6 +19,7 @@ function makeObj(
   bounds: Bounds,
   z_index: number = 0,
   opts?: { visible?: boolean; locked?: boolean },
+  layerId: string = 'layer1',
 ): ProjectObject {
   return makeProjectObject({
     id,
@@ -27,7 +28,7 @@ function makeObj(
     locked: opts?.locked ?? false,
     transform: identity,
     bounds,
-    layer_id: 'layer1',
+    layer_id: layerId,
     z_index,
     data: { type: 'shape', kind: 'rectangle', width: bounds.max.x - bounds.min.x, height: bounds.max.y - bounds.min.y, corner_radius: 0 },
   });
@@ -49,6 +50,22 @@ describe('hitTestPoint', () => {
     //   screenY = (250 - 200) * 2 + 300 = 100 + 300 = 400
     const hit = hitTestPoint({ x: 350, y: 250 }, objects, defaultVp);
     expect(hit?.id).toBe('b');
+  });
+
+  it('matches the visible layer stack before comparing object z-order', () => {
+    const bounds = { min: { x: 100, y: 100 }, max: { x: 300, y: 300 } };
+    const foreground = makeObj('foreground', bounds, 1, undefined, 'foreground-layer');
+    const background = makeObj('background', bounds, 99, undefined, 'background-layer');
+
+    const hit = hitTestPoint(
+      { x: 400, y: 300 },
+      [background, foreground],
+      defaultVp,
+      false,
+      [{ id: 'foreground-layer' }, { id: 'background-layer' }],
+    );
+
+    expect(hit?.id).toBe('foreground');
   });
 
   it('returns null when no object is hit', () => {

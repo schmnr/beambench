@@ -1362,6 +1362,141 @@ pub fn boolean_exclude(
     boolean_binary_op(ctx, input, "Exclude", path_exclude)
 }
 
+fn intersect_shapes(paths: &[VecPath]) -> VecPath {
+    let Some(first) = paths.first() else {
+        return VecPath { subpaths: vec![] };
+    };
+    paths[1..].iter().fold(first.clone(), |result, path| {
+        path_intersection(&result, path)
+    })
+}
+
+fn exclude_shapes(paths: &[VecPath]) -> VecPath {
+    let Some(first) = paths.first() else {
+        return VecPath { subpaths: vec![] };
+    };
+    paths[1..]
+        .iter()
+        .fold(first.clone(), |result, path| path_exclude(&result, path))
+}
+
+/// Subtract the union of every later operand from the first operand.
+fn subtract_shapes(paths: &[VecPath]) -> VecPath {
+    let Some(subject) = paths.first() else {
+        return VecPath { subpaths: vec![] };
+    };
+    if paths.len() == 1 {
+        return subject.clone();
+    }
+    path_subtract(subject, &weld_shapes(&paths[1..]))
+}
+
+fn boolean_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+    op_name: &str,
+    op: fn(&[VecPath]) -> VecPath,
+) -> ServiceResult<ProjectObject> {
+    if input.object_ids.len() < 2 {
+        return Err(ServiceError::invalid_input(format!(
+            "{op_name} requires at least two objects"
+        )));
+    }
+
+    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    let result_obj = boolean_many_in_project(project, input.clone(), op_name, op)?;
+    project.dirty = true;
+
+    drop(guard);
+    planning::invalidate_plan_cache(ctx)?;
+    ctx.emit_event(
+        boolean_event_name(op_name),
+        json!({
+            "source_object_ids": input.object_ids,
+            "object": events::object_summary(&result_obj),
+        }),
+    );
+    Ok(result_obj)
+}
+
+fn boolean_many_in_project(
+    project: &mut Project,
+    input: BooleanWeldInput,
+    op_name: &str,
+    op: fn(&[VecPath]) -> VecPath,
+) -> ServiceResult<ProjectObject> {
+    let was_dirty = project.dirty;
+    if input.object_ids.len() < 2 {
+        return Err(ServiceError::invalid_input(format!(
+            "{op_name} requires at least two objects"
+        )));
+    }
+    for object_id in &input.object_ids {
+        project
+            .ensure_resolved(*object_id)
+            .map_err(ServiceError::internal)?;
+    }
+
+    let mut operands = Vec::new();
+    for object_id in &input.object_ids {
+        operands.push(resolve_boolean_operand(
+            project,
+            *object_id,
+            "Object not found",
+        )?);
+    }
+    let requested_layer_id = operands
+        .first()
+        .ok_or_else(|| {
+            ServiceError::invalid_input(format!("{op_name} requires at least two objects"))
+        })?
+        .layer_id;
+    let paths: Vec<VecPath> = operands
+        .iter()
+        .map(|operand| operand.path.clone())
+        .collect();
+    let delete_ids = dedupe_ids(operands.into_iter().flat_map(|operand| operand.delete_ids));
+    let result = op(&paths);
+    project.remove_objects(&delete_ids);
+    let result_obj = create_boolean_result(project, op_name, requested_layer_id, result)?;
+    project.dirty = was_dirty;
+    Ok(result_obj)
+}
+
+pub fn boolean_intersection_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+) -> ServiceResult<ProjectObject> {
+    boolean_many(ctx, input, "Intersection", intersect_shapes)
+}
+
+pub fn boolean_union_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+) -> ServiceResult<ProjectObject> {
+    boolean_many(ctx, input, "Union", weld_shapes)
+}
+
+pub fn boolean_exclude_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+) -> ServiceResult<ProjectObject> {
+    boolean_many(ctx, input, "Exclude", exclude_shapes)
+}
+
+pub fn boolean_subtract_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+) -> ServiceResult<ProjectObject> {
+    boolean_many(ctx, input, "Subtract", subtract_shapes)
+}
+
 pub fn boolean_weld(ctx: &ServiceContext, input: BooleanWeldInput) -> ServiceResult<ProjectObject> {
     if input.object_ids.len() < 2 {
         return Err(ServiceError::invalid_input(
@@ -1395,40 +1530,7 @@ pub(crate) fn boolean_weld_in_project(
     project: &mut Project,
     input: BooleanWeldInput,
 ) -> ServiceResult<ProjectObject> {
-    let was_dirty = project.dirty;
-    if input.object_ids.len() < 2 {
-        return Err(ServiceError::invalid_input(
-            "Weld requires at least two objects",
-        ));
-    }
-    for object_id in &input.object_ids {
-        project
-            .ensure_resolved(*object_id)
-            .map_err(ServiceError::internal)?;
-    }
-
-    let mut operands = Vec::new();
-    for object_id in &input.object_ids {
-        operands.push(resolve_boolean_operand(
-            project,
-            *object_id,
-            "Object not found",
-        )?);
-    }
-    let requested_layer_id = operands
-        .first()
-        .ok_or_else(|| ServiceError::invalid_input("Weld requires at least two objects"))?
-        .layer_id;
-    let paths: Vec<VecPath> = operands
-        .iter()
-        .map(|operand| operand.path.clone())
-        .collect();
-    let delete_ids = dedupe_ids(operands.into_iter().flat_map(|operand| operand.delete_ids));
-    let result = weld_shapes(&paths);
-    project.remove_objects(&delete_ids);
-    let result_obj = create_boolean_result(project, "Weld", requested_layer_id, result)?;
-    project.dirty = was_dirty;
-    Ok(result_obj)
+    boolean_many_in_project(project, input, "Weld", weld_shapes)
 }
 
 pub fn group_objects(
@@ -3327,6 +3429,41 @@ mod tests {
         (ctx, layer_id, id_a, id_b)
     }
 
+    fn sample_three_tool_shapes() -> (ServiceContext, beambench_core::LayerId, Vec<ObjectId>) {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Multi Boolean Tool Layer");
+        let mut layer = Layer::new("T1", OperationType::Tool);
+        layer.is_tool_layer = true;
+        let layer_id = layer.id;
+        project.add_layer(layer);
+
+        let bounds = [
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+            Bounds::new(Point2D::new(5.0, 0.0), Point2D::new(15.0, 10.0)),
+            Bounds::new(Point2D::new(7.0, 0.0), Point2D::new(12.0, 10.0)),
+        ];
+        let mut ids = Vec::new();
+        for (index, bounds) in bounds.into_iter().enumerate() {
+            let width = bounds.max.x - bounds.min.x;
+            let height = bounds.max.y - bounds.min.y;
+            let object = ProjectObject::new(
+                format!("Tool shape {}", index + 1),
+                layer_id,
+                bounds,
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width,
+                    height,
+                    corner_radius: 0.0,
+                },
+            );
+            ids.push(object.id);
+            project.add_object(object);
+        }
+        *ctx.project.lock().unwrap() = Some(project);
+        (ctx, layer_id, ids)
+    }
+
     fn rect_object(
         name: &str,
         layer_id: beambench_core::LayerId,
@@ -3483,6 +3620,53 @@ mod tests {
         assert!(project.find_object(id_a).is_none());
         assert!(project.find_object(id_b).is_none());
         assert!(project.find_object(result.id).is_some());
+    }
+
+    #[test]
+    fn multi_boolean_operations_work_atomically_on_tool_layers() {
+        let (ctx, layer_id, ids) = sample_three_tool_shapes();
+        let union = boolean_union_many(
+            &ctx,
+            BooleanWeldInput {
+                object_ids: ids.clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(union.layer_id, layer_id);
+        assert!(path_is_filled_evenodd(&result_vecpath(&union), 14.0, 5.0));
+
+        let (ctx, layer_id, ids) = sample_three_tool_shapes();
+        let intersection = boolean_intersection_many(
+            &ctx,
+            BooleanWeldInput {
+                object_ids: ids.clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(intersection.layer_id, layer_id);
+        let intersection_path = result_vecpath(&intersection);
+        assert!(path_is_filled_evenodd(&intersection_path, 8.0, 5.0));
+        assert!(!path_is_filled_evenodd(&intersection_path, 6.0, 5.0));
+
+        let (ctx, layer_id, ids) = sample_three_tool_shapes();
+        let exclude = boolean_exclude_many(
+            &ctx,
+            BooleanWeldInput {
+                object_ids: ids.clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(exclude.layer_id, layer_id);
+        let exclude_path = result_vecpath(&exclude);
+        assert!(path_is_filled_evenodd(&exclude_path, 8.0, 5.0));
+        assert!(!path_is_filled_evenodd(&exclude_path, 6.0, 5.0));
+
+        let (ctx, layer_id, ids) = sample_three_tool_shapes();
+        let subtract = boolean_subtract_many(&ctx, BooleanWeldInput { object_ids: ids }).unwrap();
+        assert_eq!(subtract.layer_id, layer_id);
+        let subtract_path = result_vecpath(&subtract);
+        assert!(path_is_filled_evenodd(&subtract_path, 2.0, 5.0));
+        assert!(!path_is_filled_evenodd(&subtract_path, 6.0, 5.0));
     }
 
     #[test]

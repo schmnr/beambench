@@ -142,6 +142,11 @@ textarea.border-bb-border {
   outline-offset: 2px !important;
 }
 
+/* The canvas caret is the focus cue while editing text in place. */
+.text-edit-overlay:focus-visible {
+  outline: none !important;
+}
+
 /* Disable text selection on UI chrome (not canvas/inputs) */
 .no-select {
   user-select: none;
@@ -173,7 +178,7 @@ input[type='number'] {
 .cursor-grabbing { cursor: grabbing; }
 .cursor-move { cursor: move; }
 
-/* Gradient range slider (pass power) */
+/* Gradient range sliders for primary cut parameters */
 input.bb-range {
   -webkit-appearance: none;
   appearance: none;

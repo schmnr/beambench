@@ -82,9 +82,21 @@ pub struct FloatingPanelState {
 /// Persistent panel layout configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PanelLayout {
+    #[serde(default)]
+    pub layout_version: u32,
     pub zones: HashMap<String, ZoneState>,
     pub hidden_panel_ids: Vec<String>,
     pub upper_split_ratio: f64,
+    #[serde(default)]
+    pub run_zones: HashMap<String, ZoneState>,
+    #[serde(default)]
+    pub run_hidden_panel_ids: Vec<String>,
+    #[serde(default)]
+    pub run_floating_panels: Vec<FloatingPanelState>,
+    #[serde(default = "default_run_upper_split_ratio")]
+    pub run_upper_split_ratio: f64,
+    #[serde(default)]
+    pub column_split_ratios: HashMap<String, Vec<f64>>,
     pub right_panel_width: f64,
     #[serde(default)]
     pub floating_panels: Vec<FloatingPanelState>,
@@ -96,6 +108,10 @@ pub struct PanelLayout {
     pub side_panels_visible: bool,
     #[serde(default = "default_toolbar_visibility")]
     pub toolbar_visibility: HashMap<String, bool>,
+}
+
+fn default_run_upper_split_ratio() -> f64 {
+    0.58
 }
 
 /// A saved machine position (name + coordinates).
@@ -813,9 +829,15 @@ mod tests {
             },
         );
         s.panel_layout = Some(PanelLayout {
+            layout_version: 3,
             zones,
             hidden_panel_ids: vec!["macros".to_string()],
             upper_split_ratio: 0.7,
+            run_zones: HashMap::new(),
+            run_hidden_panel_ids: vec![],
+            run_floating_panels: vec![],
+            run_upper_split_ratio: 0.58,
+            column_split_ratios: HashMap::new(),
             right_panel_width: 400.0,
             floating_panels: vec![],
             left_panel_width: 280.0,
@@ -869,9 +891,15 @@ mod tests {
             },
         );
         s.panel_layout = Some(PanelLayout {
+            layout_version: 3,
             zones,
             hidden_panel_ids: vec![],
             upper_split_ratio: 0.6,
+            run_zones: HashMap::new(),
+            run_hidden_panel_ids: vec![],
+            run_floating_panels: vec![],
+            run_upper_split_ratio: 0.58,
+            column_split_ratios: HashMap::new(),
             right_panel_width: 384.0,
             floating_panels: vec![
                 FloatingPanelState {

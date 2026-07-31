@@ -77,6 +77,7 @@ export class MeasureTool implements CanvasTool {
       visibleObjects,
       ctx.vp,
       true,
+      ctx.layers,
     );
 
     if (!object) {

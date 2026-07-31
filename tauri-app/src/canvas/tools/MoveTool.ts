@@ -36,7 +36,7 @@ export class MoveTool implements CanvasTool {
 
   onMouseDown(e: CanvasMouseEvent, ctx: ToolContext): void {
     const screenPt = { x: e.screenX, y: e.screenY };
-    const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp);
+    const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp, false, ctx.layers);
 
     if (hit) {
       const objectId = topLevelSelectableObjectId(hit.id, ctx.objects);

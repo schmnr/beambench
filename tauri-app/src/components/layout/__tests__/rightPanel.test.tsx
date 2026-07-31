@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { RightPanel } from '../RightPanel';
+import { PanelColumn } from '../PanelColumn';
 import { useUiStore } from '../../../stores/uiStore';
 import { useProjectStore } from '../../../stores/projectStore';
 import { appService } from '../../../services/appService';
 import { createDefaultLayout } from '../../../panels';
 import { PanelDndProvider } from '../../../panels/DndContext';
+import { makeProject, makeProjectObject } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -28,40 +30,142 @@ afterEach(() => {
 });
 
 describe('RightPanel', () => {
-  it('renders upper zone with 5 tabs in correct order', () => {
+  it('uses only the two Design-default tabs in one card', () => {
     renderWithDnd(<RightPanel />);
-    const expectedOrder = ['Cuts / Layers', 'Move', 'Console', 'Macros', 'Shape Properties'];
-    for (const label of expectedOrder) {
-      expect(screen.getByText(label)).toBeDefined();
-    }
-    // Verify order by checking all tab bar buttons
-    const tabBars = screen.getAllByTestId('tab-bar');
-    const upperTabBar = tabBars[0];
-    const buttons = upperTabBar.querySelectorAll('button');
-    const labels = Array.from(buttons)
-      .map((b) => b.textContent?.trim())
-      .filter((t) => t && !t.includes('⊡'));
-    expect(labels.indexOf('Macros')).toBeLessThan(labels.indexOf('Shape Properties'));
+    expect(screen.getByText('Layers')).toBeDefined();
+    expect(screen.getByText('Properties')).toBeDefined();
+    expect(screen.queryByText('Move')).toBeNull();
+    expect(screen.queryByText('Console')).toBeNull();
+    expect(screen.queryByText('Macros')).toBeNull();
+    expect(screen.queryByText('Laser Control')).toBeNull();
+    expect(screen.queryByText('Material Library')).toBeNull();
+    expect(screen.getAllByTestId('tab-bar')).toHaveLength(1);
   });
 
-  it('renders lower zone with 2 tabs', () => {
+  it('collapses the second Design dock behind top and bottom reveal handles', () => {
     renderWithDnd(<RightPanel />);
-    expect(screen.getByText('Laser Control')).toBeDefined();
-    expect(screen.getByText('Material Library')).toBeDefined();
-    // Color Palette moved to bottom zone
+    expect(screen.getByTestId('panel-column-right-top-reveal-handle')).toBeDefined();
+    expect(screen.getByTestId('panel-column-right-bottom-reveal-handle')).toBeDefined();
+    expect(screen.queryByTestId('right-panel-splitter')).toBeNull();
   });
 
-  it('defaults to cuts_layers upper tab and laser lower tab', () => {
+  it('pulling the bottom handle opens an empty secondary dock', () => {
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 440,
+      bottom: 1000,
+      left: 0,
+      width: 440,
+      height: 1000,
+      toJSON: () => ({}),
+    });
+    renderWithDnd(<RightPanel />);
+
+    fireEvent.mouseDown(screen.getByTestId('panel-column-right-bottom-reveal-handle'));
+    fireEvent.mouseMove(document, { clientY: 620 });
+    fireEvent.mouseUp(document);
+
+    expect(useUiStore.getState().panelLayout.upperSplitRatio).toBeCloseTo(0.62);
+    expect(screen.getByTestId('empty-zone-panel-picker-middle-right')).toBeDefined();
+    rectSpy.mockRestore();
+  });
+
+  it('supports a third bottom dock but no fourth dock', () => {
+    useUiStore.getState().revealColumnEdge('right', 'bottom');
+    useUiStore.getState().revealColumnEdge('right', 'bottom');
+    renderWithDnd(<RightPanel />);
+
+    expect(screen.getByTestId('empty-zone-panel-picker-middle-right')).toBeDefined();
+    expect(screen.getByTestId('empty-zone-panel-picker-bottom-right')).toBeDefined();
+    expect(screen.queryByTestId('panel-column-right-top-reveal-handle')).toBeNull();
+    expect(screen.queryByTestId('panel-column-right-bottom-reveal-handle')).toBeNull();
+  });
+
+  it('collapses one section when a three-way divider is dragged to an edge', () => {
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 440,
+      bottom: 1000,
+      left: 0,
+      width: 440,
+      height: 1000,
+      toJSON: () => ({}),
+    });
+    useUiStore.getState().revealColumnEdge('right', 'bottom');
+    useUiStore.getState().revealColumnEdge('right', 'bottom');
+    renderWithDnd(<RightPanel />);
+
+    fireEvent.mouseDown(screen.getByTestId('panel-column-right-splitter-0'));
+    fireEvent.mouseMove(document, { clientY: 0 });
+    fireEvent.mouseUp(document);
+
+    expect(useUiStore.getState().panelLayout.columnRatios.right[0]).toBe(0);
+    expect(useUiStore.getState().panelLayout.columnRatios.right.filter((ratio) => ratio > 0)).toHaveLength(2);
+    rectSpy.mockRestore();
+  });
+
+  it('can split the Run Move column and add a panel below it', () => {
+    useUiStore.setState({ workspaceMode: 'run' });
+    useUiStore.getState().revealColumnEdge('left', 'bottom');
+    renderWithDnd(<PanelColumn side="left" />);
+
+    expect(screen.getByRole('tab', { name: 'Move' })).toBeDefined();
+    expect(screen.getByTestId('empty-zone-panel-picker-middle-left')).toBeDefined();
+    useUiStore.getState().movePanelBetweenZones('camera', 'middle-right', 'middle-left');
+    expect(useUiStore.getState().panelLayout.runZones['middle-left'].panelIds).toContain('camera');
+  });
+
+  it('adds a selected panel to the revealed dock', () => {
+    useUiStore.getState().setUpperSplitRatio(0.62);
+    renderWithDnd(<RightPanel />);
+
+    fireEvent.change(screen.getByTestId('empty-zone-panel-picker-middle-right'), {
+      target: { value: 'console' },
+    });
+
     const layout = useUiStore.getState().panelLayout;
-    expect(layout.zones['upper-right'].activeTab).toBe('cuts_layers');
-    expect(layout.zones['lower-right'].activeTab).toBe('laser');
+    expect(layout.zones['middle-right'].panelIds).toContain('console');
+    expect(layout.hiddenPanelIds).not.toContain('console');
+  });
+
+  it('uses the machine-oriented panel defaults in Run', () => {
+    useUiStore.setState({ workspaceMode: 'run' });
+    renderWithDnd(<RightPanel />);
+
+    expect(screen.getByText('Laser Control')).toBeDefined();
+    expect(screen.queryByText('Material Library')).toBeNull();
+    expect(screen.getByText('Camera')).toBeDefined();
+    expect(screen.getByText('Macros')).toBeDefined();
+    expect(screen.getByText('Console')).toBeDefined();
+    expect(screen.queryByText('Layers')).toBeNull();
+    expect(screen.getAllByTestId('tab-bar')).toHaveLength(2);
+    expect(screen.getAllByTestId('run-inspector-card')).toHaveLength(2);
+    for (const card of screen.getAllByTestId('run-inspector-card')) {
+      expect(card.className).toContain('border-bb-accent/40');
+    }
+  });
+
+  it('keeps Design and Run active tabs independent', () => {
+    const layout = useUiStore.getState().panelLayout;
+    expect(layout.zones['top-right'].activeTab).toBe('cuts_layers');
+    useUiStore.setState({ workspaceMode: 'run' });
+    renderWithDnd(<RightPanel />);
+    fireEvent.click(screen.getByText('Console'));
+    const updated = useUiStore.getState().panelLayout;
+    expect(updated.runZones['middle-right'].activeTab).toBe('console');
+    expect(updated.zones['top-right'].activeTab).toBe('cuts_layers');
   });
 
   it('uses visible scroll containers for tall docked content', () => {
+    useUiStore.setState({ workspaceMode: 'run' });
     const { container } = renderWithDnd(<RightPanel />);
     const scrollPanes = Array.from(container.querySelectorAll('.overflow-y-auto'));
 
-    expect(scrollPanes).toHaveLength(2);
+    expect(scrollPanes.length).toBeGreaterThanOrEqual(2);
     for (const pane of scrollPanes) {
       expect(pane.className).not.toContain('scrollbar-none');
     }
@@ -69,69 +173,71 @@ describe('RightPanel', () => {
 
   it('switches upper tab on click', () => {
     renderWithDnd(<RightPanel />);
-    fireEvent.click(screen.getByText('Console'));
-    expect(useUiStore.getState().panelLayout.zones['upper-right'].activeTab).toBe('console');
+    fireEvent.click(screen.getByText('Properties'));
+    expect(useUiStore.getState().panelLayout.zones['top-right'].activeTab).toBe('properties');
   });
 
-  it('switches lower tab on click', () => {
+  it('updates docked Properties content when an object becomes selected', () => {
+    const project = makeProject({ objects: [makeProjectObject({ id: 'obj-1' })] });
+    useProjectStore.setState({ project, selectedObjectIds: [] });
+    useUiStore.getState().setZoneActiveTab('top-right', 'properties');
     renderWithDnd(<RightPanel />);
-    fireEvent.click(screen.getByText('Material Library'));
-    expect(useUiStore.getState().panelLayout.zones['lower-right'].activeTab).toBe('material');
+    expect(screen.getByText('Select an object to edit its properties')).toBeDefined();
+
+    act(() => useProjectStore.getState().selectObjects(['obj-1']));
+
+    expect(screen.getByTestId('transform-section')).toBeDefined();
+    expect(screen.queryByText('Select an object to edit its properties')).toBeNull();
   });
 
-  it('highlights active upper tab with accent border', () => {
+  it('highlights the active upper tab with the original accent underline', () => {
     renderWithDnd(<RightPanel />);
-    const cutsTab = screen.getByText('Cuts / Layers');
+    const cutsTab = screen.getByText('Layers');
+    expect(cutsTab.getAttribute('aria-selected')).toBe('true');
     expect(cutsTab.className).toContain('border-bb-accent');
   });
 
-  it('highlights active lower tab with accent border', () => {
-    renderWithDnd(<RightPanel />);
-    const laserTab = screen.getByText('Laser Control');
-    expect(laserTab.className).toContain('border-bb-accent');
-  });
-
   it('hides a panel when toggled hidden', () => {
-    useUiStore.getState().togglePanelVisibility('macros');
+    useUiStore.getState().togglePanelVisibility('properties');
     renderWithDnd(<RightPanel />);
-    expect(screen.queryByText('Macros')).toBeNull();
+    expect(screen.queryByText('Properties')).toBeNull();
   });
 
   it('shows a panel when toggled visible again', () => {
-    useUiStore.getState().togglePanelVisibility('macros');
-    useUiStore.getState().togglePanelVisibility('macros');
+    useUiStore.getState().togglePanelVisibility('properties');
+    useUiStore.getState().togglePanelVisibility('properties');
     renderWithDnd(<RightPanel />);
-    expect(screen.getByText('Macros')).toBeDefined();
+    expect(screen.getByText('Properties')).toBeDefined();
   });
 
   it('persists layout when switching tabs', () => {
     renderWithDnd(<RightPanel />);
-    fireEvent.click(screen.getByText('Console'));
+    fireEvent.click(screen.getByText('Properties'));
     expect(appService.persistLayout).toHaveBeenCalledWith(
       expect.objectContaining({
         zones: expect.objectContaining({
-          'upper-right': expect.objectContaining({ activeTab: 'console' }),
+          'top-right': expect.objectContaining({ activeTab: 'properties' }),
         }),
       })
     );
   });
 
   it('resetLayout restores default state', () => {
-    useUiStore.getState().togglePanelVisibility('macros');
+    useUiStore.getState().togglePanelVisibility('properties');
     useUiStore.getState().setUpperSplitRatio(0.3);
     useUiStore.getState().resetLayout();
     const layout = useUiStore.getState().panelLayout;
     const def = createDefaultLayout();
     expect(layout.hiddenPanelIds).toEqual(def.hiddenPanelIds);
     expect(layout.upperSplitRatio).toBe(def.upperSplitRatio);
-    expect(layout.zones['upper-right'].panelIds).toEqual(def.zones['upper-right'].panelIds);
+    expect(layout.zones['top-right'].panelIds).toEqual(def.zones['top-right'].panelIds);
   });
 
   it('togglePanelVisibility switches active tab when hiding current tab', () => {
-    useUiStore.getState().setZoneActiveTab('upper-right', 'macros');
-    useUiStore.getState().togglePanelVisibility('macros');
+    useUiStore.getState().setZoneActiveTab('top-right', 'properties');
+    useUiStore.getState().togglePanelVisibility('properties');
     const layout = useUiStore.getState().panelLayout;
-    expect(layout.zones['upper-right'].activeTab).not.toBe('macros');
-    expect(layout.hiddenPanelIds).toContain('macros');
+    expect(layout.zones['top-right'].activeTab).not.toBe('properties');
+    expect(layout.hiddenPanelIds).toContain('properties');
   });
 });

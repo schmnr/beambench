@@ -11,14 +11,25 @@ import type { FloatingPanelState } from '../layoutState';
 describe('layoutState', () => {
   it('createDefaultLayout has correct defaults', () => {
     const layout = createDefaultLayout();
+    expect(layout.layoutVersion).toBe(5);
     expect(layout.upperSplitRatio).toBe(DEFAULT_UPPER_SPLIT_RATIO);
     expect(layout.rightPanelWidth).toBe(DEFAULT_RIGHT_PANEL_WIDTH);
-    expect(layout.hiddenPanelIds).toEqual(['measurement', 'camera', 'art_library', 'connection_diagnostics']);
+    expect(layout.hiddenPanelIds).toEqual([
+      'move',
+      'console',
+      'macros',
+      'measurement',
+      'laser',
+      'material',
+      'camera',
+      'art_library',
+      'connection_diagnostics',
+    ]);
     expect(layout.toolbarVisibility).toEqual(DEFAULT_TOOLBAR_VISIBILITY);
   });
 
-  it('DEFAULT_UPPER_SPLIT_RATIO is 0.6', () => {
-    expect(DEFAULT_UPPER_SPLIT_RATIO).toBe(0.6);
+  it('collapses the secondary Design dock by default', () => {
+    expect(DEFAULT_UPPER_SPLIT_RATIO).toBe(1);
   });
 
   it('DEFAULT_RIGHT_PANEL_WIDTH is 440', () => {
@@ -27,20 +38,28 @@ describe('layoutState', () => {
 
   it('createDefaultLayout zones have correct panels', () => {
     const layout = createDefaultLayout();
-    expect(layout.zones['upper-right'].panelIds).toHaveLength(5);
-    expect(layout.zones['lower-right'].panelIds).toHaveLength(2);
+    expect(layout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'properties']);
+    expect(layout.zones['middle-right'].panelIds).toHaveLength(0);
+    expect(layout.zones['bottom-right'].panelIds).toHaveLength(0);
+    expect(layout.zones['top-left'].panelIds).toHaveLength(0);
     expect(layout.zones['left'].panelIds).toHaveLength(0);
     expect(layout.zones['bottom'].panelIds).toHaveLength(0);
   });
 
   it('upper zone default active tab is cuts_layers', () => {
     const layout = createDefaultLayout();
-    expect(layout.zones['upper-right'].activeTab).toBe('cuts_layers');
+    expect(layout.zones['top-right'].activeTab).toBe('cuts_layers');
   });
 
-  it('lower zone default active tab is laser', () => {
+  it('Run has its own machine-oriented defaults', () => {
     const layout = createDefaultLayout();
-    expect(layout.zones['lower-right'].activeTab).toBe('laser');
+    expect(layout.runZones['top-left']).toEqual({ panelIds: ['move'], activeTab: 'move' });
+    expect(layout.runZones['top-right']).toEqual({ panelIds: ['laser'], activeTab: 'laser' });
+    expect(layout.runZones['middle-right']).toEqual({
+      panelIds: ['camera', 'macros', 'console'],
+      activeTab: 'camera',
+    });
+    expect(layout.runColumnRatios).toEqual({ left: [1, 0, 0], right: [0.58, 0.42, 0] });
   });
 
   it('createDefaultLayout has empty floatingPanels', () => {

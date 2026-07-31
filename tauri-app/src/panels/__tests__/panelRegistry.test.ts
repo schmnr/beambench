@@ -14,8 +14,12 @@ describe('panelRegistry', () => {
   it('getPanelById returns correct panel', () => {
     const panel = getPanelById('cuts_layers');
     expect(panel).toBeDefined();
-    expect(panel!.title).toBe('Cuts / Layers');
-    expect(panel!.defaultZone).toBe('upper-right');
+    expect(panel!.title).toBe('Layers');
+    expect(panel!.defaultZone).toBe('top-right');
+  });
+
+  it('resolves duplicated panel instance ids to their panel type', () => {
+    expect(getPanelById('connection_diagnostics::2')?.id).toBe('connection_diagnostics');
   });
 
   it('getPanelById returns undefined for unknown id', () => {
@@ -24,25 +28,43 @@ describe('panelRegistry', () => {
 
   it('getDefaultLayout produces valid state', () => {
     const layout = getDefaultLayout();
-    expect(layout.zones['upper-right'].panelIds).toHaveLength(5);
-    expect(layout.zones['lower-right'].panelIds).toHaveLength(2);
+    expect(layout.zones['top-right'].panelIds).toHaveLength(2);
+    expect(layout.zones['middle-right'].panelIds).toHaveLength(0);
     expect(layout.zones['left'].panelIds).toHaveLength(0);
     expect(layout.zones['bottom'].panelIds).toHaveLength(0);
-    expect(layout.zones['upper-right'].activeTab).toBe('cuts_layers');
-    expect(layout.zones['lower-right'].activeTab).toBe('laser');
-    expect(layout.hiddenPanelIds).toEqual(['measurement', 'camera', 'art_library', 'connection_diagnostics']);
-  });
-
-  it('upper-right zone contains correct panels', () => {
-    const layout = getDefaultLayout();
-    expect(layout.zones['upper-right'].panelIds).toEqual([
-      'cuts_layers', 'move', 'console', 'macros', 'properties',
+    expect(layout.zones['top-right'].activeTab).toBe('cuts_layers');
+    expect(layout.zones['middle-right'].activeTab).toBe('');
+    expect(layout.runZones['top-right'].activeTab).toBe('laser');
+    expect(layout.hiddenPanelIds).toEqual([
+      'move',
+      'console',
+      'macros',
+      'measurement',
+      'laser',
+      'material',
+      'camera',
+      'art_library',
+      'connection_diagnostics',
     ]);
   });
 
-  it('lower-right zone contains correct panels', () => {
+  it('top-right zone contains correct panels', () => {
     const layout = getDefaultLayout();
-    expect(layout.zones['lower-right'].panelIds).toEqual(['laser', 'material']);
+    expect(layout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'properties']);
+  });
+
+  it('middle-right zone contains correct panels', () => {
+    const layout = getDefaultLayout();
+    expect(layout.zones['middle-right'].panelIds).toEqual([]);
+  });
+
+  it('uses run-focused defaults in Run mode', () => {
+    const layout = getDefaultLayout();
+    expect(layout.runZones['top-left'].panelIds).toEqual(['move']);
+    expect(layout.runZones['top-right'].panelIds).toEqual(['laser']);
+    expect(layout.runZones['middle-right'].panelIds).toEqual([
+      'camera', 'macros', 'console',
+    ]);
   });
 
   it('bottom zone starts empty (color palette retired for layer tabs)', () => {

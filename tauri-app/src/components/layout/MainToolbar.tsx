@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AlignmentType, DistributionDirection } from '../../types/project';
 import { useProjectStore } from '../../stores/projectStore';
 import { useMachineStore } from '../../stores/machineStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useCameraStore } from '../../stores/cameraStore';
-import { useNotificationStore } from '../../stores/notificationStore';
-import { wrapBackendError } from '../../i18n/errors';
-import { projectService } from '../../services/projectService';
 import { isTransformLocked, notifyTransformLocked, notifyObjectLocked } from '../../utils/transformLocks';
 import { zoomToFitBounds } from '../../canvas/ViewportTransform';
 import { computeVisualBoundsWorld } from '../../canvas/alignment';
@@ -27,21 +23,12 @@ import {
   Eye,
   Camera,
   Settings,
-  Group, Ungroup, FlipHorizontal2, FlipVertical2,
-  AlignStartVertical, AlignEndVertical,
-  AlignStartHorizontal, AlignEndHorizontal,
-  AlignCenterHorizontal, AlignCenterVertical,
-  AlignHorizontalSpaceAround, AlignVerticalSpaceAround,
-  Crosshair,
+  FlipHorizontal2, FlipVertical2,
   Play,
-  PenLine, Zap,
+  PenLine, Zap, MapPin,
 } from 'lucide-react';
 import {
   MirrorAcrossLineIcon,
-  MakeSameWidthIcon,
-  MakeSameHeightIcon,
-  MoveHorizontallyTogetherIcon,
-  MoveVerticallyTogetherIcon,
   DockToEdgeIcon,
 } from '../icons/ArrangeIcons';
 
@@ -77,19 +64,11 @@ const CONNECTION_PILL_CLASSES: Record<string, string> = {
 
 const FLIP_HORIZONTAL = 'horizontal' as const;
 const FLIP_VERTICAL = 'vertical' as const;
-const ALIGN_LEFT = 'left' as const;
-const ALIGN_RIGHT = 'right' as const;
-const ALIGN_TOP = 'top' as const;
-const ALIGN_BOTTOM = 'bottom' as const;
-const ALIGN_VERTICAL_CENTERS = 'centers_v' as const;
-const ALIGN_HORIZONTAL_CENTERS = 'centers_h' as const;
-const DISTRIBUTE_H_CENTERED = 'h_centered' as const;
-const DISTRIBUTE_V_CENTERED = 'v_centered' as const;
-const SIZE_WIDTH = 'width' as const;
-const SIZE_HEIGHT = 'height' as const;
 const EMERGENCY_STOP_SYMBOL = '■';
 const CONNECTION_SETTINGS_TAB = 'connection' as const;
 const MACHINE_SETTINGS_TAB = 'machine' as const;
+const TOOL_SELECT = 'select' as const;
+const TOOL_LASER_POSITION = 'laser_position' as const;
 
 export function MainToolbar() {
   const { t } = useTranslation();
@@ -101,13 +80,8 @@ export function MainToolbar() {
   const project = useProjectStore((s) => s.project);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
-  const groupObjects = useProjectStore((s) => s.groupObjects);
-  const ungroupObjects = useProjectStore((s) => s.ungroupObjects);
   const flipObjects = useProjectStore((s) => s.flipObjects);
-  const moveObjectsTo = useProjectStore((s) => s.moveObjectsTo);
-  const moveObjectsTogether = useProjectStore((s) => s.moveObjectsTogether);
   const mirrorAcrossLine = useProjectStore((s) => s.mirrorAcrossLine);
-  const makeSameSize = useProjectStore((s) => s.makeSameSize);
   const computeDockArrangementSelection = useProjectStore((s) => s.computeDockArrangementSelection);
   const computeMirrorAcrossLineSelection = useProjectStore((s) => s.computeMirrorAcrossLineSelection);
 
@@ -119,6 +93,8 @@ export function MainToolbar() {
   const toggleSnap = useUiStore((s) => s.toggleSnap);
   const zoomToFit = useUiStore((s) => s.zoomToFit);
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
+  const activeTool = useUiStore((s) => s.activeTool);
+  const setActiveTool = useUiStore((s) => s.setActiveTool);
 
   const sessionState = useMachineStore((s) => s.sessionState);
   const emergencyStop = useMachineStore((s) => s.emergencyStop);
@@ -139,7 +115,6 @@ export function MainToolbar() {
 
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [showZoomMenu, setShowZoomMenu] = useState(false);
-  const [showArrangeMenu, setShowArrangeMenu] = useState(false);
   const [deviceSettingsInitialTab, setDeviceSettingsInitialTab] = useState<
     typeof CONNECTION_SETTINGS_TAB | typeof MACHINE_SETTINGS_TAB
   >(CONNECTION_SETTINGS_TAB);
@@ -163,21 +138,13 @@ export function MainToolbar() {
   }, []);
 
   const hasSelection = selectedObjectIds.length > 0;
-  const selCount = selectedObjectIds.length;
   const selectedObjects = project?.objects.filter((o) => selectedObjectIds.includes(o.id)) ?? [];
   const anyLocked = selectedObjects.some((o) => o.locked);
   const canMutate = hasSelection && !anyLocked;
-  const singleSelected = selectedObjects.length === 1 ? selectedObjects[0] : null;
-  const canGroup = selCount >= 2 && !anyLocked;
-  const canUngroup = selCount === 1 && !anyLocked && singleSelected?.data.type === 'group';
-  const canAlign = selCount >= 2 && !anyLocked;
-  const canDistribute = selCount >= 3 && !anyLocked;
   const arrangementSelection = computeDockArrangementSelection();
   const mirrorAcrossLineSelection = computeMirrorAcrossLineSelection();
-  const canMoveTogether = arrangementSelection.length >= 2 && !anyLocked;
   const canDock = arrangementSelection.length >= 1 && !anyLocked;
   const canMirrorAcrossLine = mirrorAcrossLineSelection.length >= 2 && !anyLocked;
-  const canMakeSameSize = arrangementSelection.length >= 2 && !anyLocked;
 
   const blockTransform = (kind: 'position' | 'scale' | 'rotation') => {
     const locks = useProjectStore.getState().project?.transform_locks;
@@ -194,80 +161,15 @@ export function MainToolbar() {
     void flipObjects(selectedObjectIds, direction);
   };
 
-  const handleAlign = async (alignmentType: AlignmentType) => {
-    if (selectedObjectIds.length < 2) return;
-    if (anyLocked) { notifyObjectLocked(); return; }
-    if (blockTransform('position')) return;
-    try {
-      const updatedObjects = await projectService.alignObjects(selectedObjectIds, alignmentType);
-      const project = useProjectStore.getState().project;
-      if (project) {
-        const updatedMap = new Map(updatedObjects.map((o) => [o.id, o]));
-        useProjectStore.setState({
-          project: {
-            ...project,
-            objects: project.objects.map((o) => updatedMap.get(o.id) ?? o),
-            dirty: true,
-          },
-        });
-        usePreviewStore.getState().invalidate();
-        await useUndoStore.getState().refresh();
-      }
-    } catch (error) {
-      useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
-    }
-  };
-
-  const handleDistribute = async (direction: DistributionDirection) => {
-    if (selectedObjectIds.length < 3) return;
-    if (anyLocked) { notifyObjectLocked(); return; }
-    if (blockTransform('position')) return;
-    try {
-      const updatedObjects = await projectService.distributeObjects(selectedObjectIds, direction);
-      const project = useProjectStore.getState().project;
-      if (project) {
-        const updatedMap = new Map(updatedObjects.map((o) => [o.id, o]));
-        useProjectStore.setState({
-          project: {
-            ...project,
-            objects: project.objects.map((o) => updatedMap.get(o.id) ?? o),
-            dirty: true,
-          },
-        });
-        usePreviewStore.getState().invalidate();
-        await useUndoStore.getState().refresh();
-      }
-    } catch (error) {
-      useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
-    }
-  };
-
-  const handleMoveTogether = async (axis: 'horizontal' | 'vertical') => {
-    await moveObjectsTogether(axis);
-  };
-
   const handleMirrorAcrossLine = async () => {
     if (anyLocked) { notifyObjectLocked(); return; }
     await mirrorAcrossLine();
-  };
-
-  const handleMakeSameSize = async (axis: 'width' | 'height', preserveAspect: boolean) => {
-    await makeSameSize(axis, preserveAspect);
   };
 
   const handleOpenDockDialog = () => {
     if (blockTransform('position')) return;
     if (arrangementSelection.length === 0) return;
     setDockDialogObjectIds(arrangementSelection);
-  };
-
-  const handleCenterOnPage = async () => {
-    if (selectedObjectIds.length < 1 || !project) return;
-    if (anyLocked) { notifyObjectLocked(); return; }
-    if (blockTransform('position')) return;
-    const cx = project.workspace.bed_width_mm / 2;
-    const cy = project.workspace.bed_height_mm / 2;
-    await moveObjectsTo(selectedObjectIds, cx, cy);
   };
 
   const handleImport = () => {
@@ -313,11 +215,10 @@ export function MainToolbar() {
 
   const sz = 20;
   const showMain = toolbarVisibility.main;
-  const showArrange = toolbarVisibility.arrange;
-  const showArrangeLong = toolbarVisibility.arrangeLong;
+  const showMirror = toolbarVisibility.arrange || toolbarVisibility.arrangeLong;
   const showDocking = toolbarVisibility.docking;
 
-  if (!showMain && !showArrange && !showArrangeLong && !showDocking) {
+  if (!showMain && workspaceMode !== 'design') {
     return null;
   }
 
@@ -383,7 +284,7 @@ export function MainToolbar() {
       <IconButton icon={<FolderOpen size={sz} />} label={t('toolbars.main.open')} onClick={() => void openProject()} />
       <IconButton icon={<Save size={sz} />} label={t('toolbars.main.save')} onClick={() => void saveProject()} disabled={!project} />
       <IconButton icon={<SaveAll size={sz} />} label={t('toolbars.main.save_as')} onClick={() => void saveProjectAs()} disabled={!project} />
-      <IconButton icon={<Import size={sz} />} label={t('toolbars.main.import')} onClick={handleImport} disabled={!project} />
+      <IconButton icon={<Import size={sz} />} label={t('toolbars.main.import')} onClick={handleImport} disabled={!project || workspaceMode === 'run'} />
       <Separator />
 
       {/* Undo/Redo */}
@@ -445,76 +346,36 @@ export function MainToolbar() {
         setDeviceSettingsInitialTab(CONNECTION_SETTINGS_TAB);
         setShowDeviceSettings(true);
       }} />
-      <div className="w-3" />
         </>
       )}
 
-      {(showArrange || showArrangeLong || showDocking) && (
-        <div className="relative">
-          <IconButton
-            icon={<AlignStartVertical size={sz} />}
-            label={t('menus.arrange.label')}
-            onClick={() => setShowArrangeMenu((v) => !v)}
-            active={showArrangeMenu}
-          />
-          {showArrangeMenu && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowArrangeMenu(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl border border-bb-border bg-bb-panel p-3 shadow-xl" data-testid="arrange-popover">
-                {showArrange && (
-                  <>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('menus.arrange.group')}</div>
-                    <div className="flex items-center gap-0.5">
-                      <IconButton icon={<Group size={sz} />} label={t('toolbars.main.group')} onClick={() => void groupObjects(selectedObjectIds)} disabled={!canGroup} />
-                      <IconButton icon={<Ungroup size={sz} />} label={t('toolbars.main.ungroup')} onClick={() => void ungroupObjects(selectedObjectIds[0])} disabled={!canUngroup} />
-                    </div>
-                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('menus.arrange.flip_horizontal_vertical')}</div>
-                    <div className="flex items-center gap-0.5">
-                      <IconButton icon={<FlipHorizontal2 size={sz} />} label={t('toolbars.main.flip_horizontal')} onClick={() => handleFlip(FLIP_HORIZONTAL)} disabled={!canMutate} />
-                      <IconButton icon={<FlipVertical2 size={sz} />} label={t('toolbars.main.flip_vertical')} onClick={() => handleFlip(FLIP_VERTICAL)} disabled={!canMutate} />
-                      <IconButton icon={<MirrorAcrossLineIcon size={sz} />} label={t('toolbars.main.mirror_across_line')} onClick={() => void handleMirrorAcrossLine()} disabled={!canMirrorAcrossLine} />
-                    </div>
-                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('menus.arrange.align')}</div>
-                    <div className="flex items-center gap-0.5">
-                      <IconButton icon={<AlignStartVertical size={sz} />} label={t('toolbars.main.align_left')} onClick={() => void handleAlign(ALIGN_LEFT)} disabled={!canAlign} />
-                      <IconButton icon={<AlignEndVertical size={sz} />} label={t('toolbars.main.align_right')} onClick={() => void handleAlign(ALIGN_RIGHT)} disabled={!canAlign} />
-                      <IconButton icon={<AlignStartHorizontal size={sz} />} label={t('toolbars.main.align_top')} onClick={() => void handleAlign(ALIGN_TOP)} disabled={!canAlign} />
-                      <IconButton icon={<AlignEndHorizontal size={sz} />} label={t('toolbars.main.align_bottom')} onClick={() => void handleAlign(ALIGN_BOTTOM)} disabled={!canAlign} />
-                      <IconButton icon={<AlignCenterHorizontal size={sz} />} label={t('toolbars.main.align_vertical_centers')} onClick={() => void handleAlign(ALIGN_VERTICAL_CENTERS)} disabled={!canAlign} />
-                      <IconButton icon={<AlignCenterVertical size={sz} />} label={t('toolbars.main.align_horizontal_centers')} onClick={() => void handleAlign(ALIGN_HORIZONTAL_CENTERS)} disabled={!canAlign} />
-                    </div>
-                  </>
-                )}
-                {showArrangeLong && (
-                  <>
-                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('menus.arrange.distribute')}</div>
-                    <div className="flex items-center gap-0.5">
-                      <IconButton icon={<AlignHorizontalSpaceAround size={sz} />} label={t('toolbars.main.distribute_h_centered')} onClick={() => void handleDistribute(DISTRIBUTE_H_CENTERED)} disabled={!canDistribute} />
-                      <IconButton icon={<AlignVerticalSpaceAround size={sz} />} label={t('toolbars.main.distribute_v_centered')} onClick={() => void handleDistribute(DISTRIBUTE_V_CENTERED)} disabled={!canDistribute} />
-                      <IconButton icon={<MakeSameWidthIcon size={sz} />} label={t('toolbars.main.make_same_width')} onClick={(event) => void handleMakeSameSize(SIZE_WIDTH, Boolean(event?.shiftKey))} disabled={!canMakeSameSize} />
-                      <IconButton icon={<MakeSameHeightIcon size={sz} />} label={t('toolbars.main.make_same_height')} onClick={(event) => void handleMakeSameSize(SIZE_HEIGHT, Boolean(event?.shiftKey))} disabled={!canMakeSameSize} />
-                      <IconButton icon={<MoveHorizontallyTogetherIcon size={sz} />} label={t('toolbars.main.move_h_together')} onClick={() => void handleMoveTogether(FLIP_HORIZONTAL)} disabled={!canMoveTogether} />
-                      <IconButton icon={<MoveVerticallyTogetherIcon size={sz} />} label={t('toolbars.main.move_v_together')} onClick={() => void handleMoveTogether(FLIP_VERTICAL)} disabled={!canMoveTogether} />
-                    </div>
-                  </>
-                )}
-                {(showArrangeLong || showDocking) && (
-                  <>
-                    <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">{t('toolbars.main.center_on_page')}</div>
-                    <div className="flex items-center gap-0.5">
-                      {showArrangeLong && (
-                        <IconButton icon={<Crosshair size={sz} />} label={t('toolbars.main.center_on_page')} onClick={() => void handleCenterOnPage()} disabled={!canMutate} />
-                      )}
-                      {showDocking && (
-                        <IconButton icon={<DockToEdgeIcon size={sz} />} label={t('toolbars.main.dock')} onClick={handleOpenDockDialog} disabled={!canDock} />
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
+      {workspaceMode === 'design' && (
+        <>
+          <Separator />
+          <IconButton icon={<FlipHorizontal2 size={sz} />} label={t('toolbars.main.flip_horizontal')} onClick={() => handleFlip(FLIP_HORIZONTAL)} disabled={!canMutate} />
+          <IconButton icon={<FlipVertical2 size={sz} />} label={t('toolbars.main.flip_vertical')} onClick={() => handleFlip(FLIP_VERTICAL)} disabled={!canMutate} />
+          {showMirror && (
+            <IconButton icon={<MirrorAcrossLineIcon size={sz} />} label={t('toolbars.main.mirror_across_line')} onClick={() => void handleMirrorAcrossLine()} disabled={!canMirrorAcrossLine} />
           )}
-        </div>
+          {showDocking && (
+            <IconButton icon={<DockToEdgeIcon size={sz} />} label={t('toolbars.main.dock')} onClick={handleOpenDockDialog} disabled={!canDock} />
+          )}
+          <div className="w-3" />
+        </>
+      )}
+
+      {workspaceMode === 'run' && (
+        <>
+          <Separator />
+          <IconButton
+            icon={<MapPin size={sz} />}
+            label={t('toolbars.creation.laser_position')}
+            onClick={() => setActiveTool(
+              activeTool === TOOL_LASER_POSITION ? TOOL_SELECT : TOOL_LASER_POSITION,
+            )}
+            active={activeTool === TOOL_LASER_POSITION}
+          />
+        </>
       )}
 
       {showMain && toolbarMacros.length > 0 && (

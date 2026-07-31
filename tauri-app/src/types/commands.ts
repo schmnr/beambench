@@ -81,9 +81,24 @@ export interface AppSettings {
   scroll_zoom: boolean;
   debug_log_enabled: boolean;
   panel_layout: {
+    layout_version?: number;
     zones: Record<string, { panel_ids: string[]; active_tab: string }>;
     hidden_panel_ids: string[];
     upper_split_ratio: number;
+    run_zones?: Record<string, { panel_ids: string[]; active_tab: string }>;
+    run_hidden_panel_ids?: string[];
+    run_upper_split_ratio?: number;
+    column_split_ratios?: Record<string, number[]>;
+    run_floating_panels?: Array<{
+      panel_id: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      z_index: number;
+      origin_zone: string | null;
+      origin_index: number | null;
+    }>;
     right_panel_width: number;
     left_panel_width: number;
     bottom_panel_height: number;

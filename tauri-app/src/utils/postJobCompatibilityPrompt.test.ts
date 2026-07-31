@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   postJobPromptFingerprint,
-  postJobPromptNotNowSnoozeMs,
   recordPostJobPromptOutcome,
+  shouldOfferPostJobCompatibility,
   shouldShowPostJobPrompt,
 } from './postJobCompatibilityPrompt';
 
@@ -24,30 +24,63 @@ describe('post-job compatibility prompt rate limiting', () => {
     expect(postJobPromptFingerprint('profile-1', 'GRBL')).toBe('profile-1:grbl');
   });
 
-  it('does not repeat after the user chooses a completed or problem outcome', () => {
+  it('does not repeat after the one-time notification has been offered', () => {
     const storage = memoryStorage();
-    const fingerprint = 'profile-1:grbl';
+    const fingerprint = 'profile-1:ruida';
     expect(shouldShowPostJobPrompt(fingerprint, storage)).toBe(true);
 
-    recordPostJobPromptOutcome(fingerprint, 'completed', storage);
+    recordPostJobPromptOutcome(fingerprint, 'offered', storage);
     expect(shouldShowPostJobPrompt(fingerprint, storage)).toBe(false);
   });
 
-  it('snoozes Not now for fourteen days', () => {
+  it('treats legacy Not now records as permanently dismissed', () => {
     const storage = memoryStorage();
-    const fingerprint = 'profile-1:grbl';
-    const now = new Date('2026-07-01T00:00:00Z');
-    recordPostJobPromptOutcome(fingerprint, 'not_now', storage, now);
+    const fingerprint = 'profile-1:ruida';
+    storage.setItem(
+      'beambench.post-job-compatibility.v1',
+      JSON.stringify({
+        [fingerprint]: { outcome: 'not_now', recorded_at: '2026-07-01T00:00:00Z' },
+      }),
+    );
 
-    expect(shouldShowPostJobPrompt(
-      fingerprint,
-      storage,
-      now.getTime() + postJobPromptNotNowSnoozeMs - 1,
-    )).toBe(false);
-    expect(shouldShowPostJobPrompt(
-      fingerprint,
-      storage,
-      now.getTime() + postJobPromptNotNowSnoozeMs,
-    )).toBe(true);
+    expect(shouldShowPostJobPrompt(fingerprint, storage)).toBe(false);
+  });
+
+  it('reports unavailable storage so callers can avoid repeat notifications', () => {
+    const storage = memoryStorage();
+    storage.setItem = () => { throw new Error('storage disabled'); };
+
+    expect(recordPostJobPromptOutcome('profile-1:ruida', 'offered', storage)).toBe(false);
+  });
+
+  it('targets beta and experimental non-GRBL-family controllers only', () => {
+    expect(shouldOfferPostJobCompatibility({
+      controller_driver: 'ruida',
+      product_tier: 'experimental',
+    })).toBe(true);
+    expect(shouldOfferPostJobCompatibility({
+      controller_driver: 'marlin',
+      product_tier: 'beta',
+    })).toBe(true);
+    expect(shouldOfferPostJobCompatibility({
+      controller_driver: 'grbl',
+      product_tier: 'experimental',
+    })).toBe(false);
+    expect(shouldOfferPostJobCompatibility({
+      controller_driver: 'fluid_nc',
+      product_tier: 'experimental',
+    })).toBe(false);
+    expect(shouldOfferPostJobCompatibility({
+      controller_driver: 'grbl_hal',
+      product_tier: 'beta',
+    })).toBe(false);
+    expect(shouldOfferPostJobCompatibility({
+      controller_driver: 'lihuiyu',
+      product_tier: 'supported',
+    })).toBe(false);
+    expect(shouldOfferPostJobCompatibility({
+      controller_driver: null,
+      product_tier: null,
+    })).toBe(false);
   });
 });

@@ -239,7 +239,7 @@ describe('SettingsDialog', () => {
 
     fireEvent.click(screen.getByText('File & Import'));
     expect(screen.getByText('Allow importing to tool layers')).toBeDefined();
-    expect(screen.getByText('Include tool layers in job bounds')).toBeDefined();
+    expect(screen.queryByText('Include tool layers in job bounds')).toBeNull();
 
     expect(screen.queryByText('Hotkeys')).toBeNull();
     expect(screen.queryByText('Edit Hotkeys')).toBeNull();

@@ -158,6 +158,18 @@ export const vectorService = {
   booleanWeld: (objectIds: string[]): Promise<ProjectObject> =>
     invoke('boolean_weld', { objectIds }),
 
+  booleanUnionMany: (objectIds: string[]): Promise<ProjectObject> =>
+    invoke('boolean_union_many', { objectIds }),
+
+  booleanIntersectionMany: (objectIds: string[]): Promise<ProjectObject> =>
+    invoke('boolean_intersection_many', { objectIds }),
+
+  booleanExcludeMany: (objectIds: string[]): Promise<ProjectObject> =>
+    invoke('boolean_exclude_many', { objectIds }),
+
+  booleanSubtractMany: (objectIds: string[]): Promise<ProjectObject> =>
+    invoke('boolean_subtract_many', { objectIds }),
+
   offsetShapes: (
     objectIds: string[],
     distance: number,

@@ -7,7 +7,7 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn(), save: vi.fn() }));
 
 import { projectService } from '../projectService';
 import { appService } from '../appService';
-import { DEFAULT_TOOLBAR_VISIBILITY } from '../../panels';
+import { createDefaultLayout, DEFAULT_TOOLBAR_VISIBILITY } from '../../panels';
 import { importService } from '../importService';
 import { useNotificationStore } from '../../stores/notificationStore';
 import type { AlignmentType, DistributionDirection, FlipAxis, OperationType, RasterMode, ResizeSlotsOptions, SameSizeAxis } from '../../types/project';
@@ -374,11 +374,13 @@ describe('appService methods', () => {
     useNotificationStore.setState({ notifications: [] });
 
     appService.persistLayout({
+      ...createDefaultLayout(),
       zones: {
+        ...createDefaultLayout().zones,
         left: { panelIds: [], activeTab: '' },
         bottom: { panelIds: [], activeTab: '' },
-        'upper-right': { panelIds: ['cuts_layers'], activeTab: 'cuts_layers' },
-        'lower-right': { panelIds: ['laser'], activeTab: 'laser' },
+        'top-right': { panelIds: ['cuts_layers'], activeTab: 'cuts_layers' },
+        'middle-right': { panelIds: ['laser'], activeTab: 'laser' },
       },
       hiddenPanelIds: [],
       floatingPanels: [],
@@ -408,11 +410,13 @@ describe('appService methods', () => {
     vi.mocked(invoke).mockResolvedValue({});
 
     appService.persistLayout({
+      ...createDefaultLayout(),
       zones: {
+        ...createDefaultLayout().zones,
         left: { panelIds: ['art_library'], activeTab: 'art_library' },
         bottom: { panelIds: ['console'], activeTab: 'console' },
-        'upper-right': { panelIds: ['cuts_layers', 'move'], activeTab: 'move' },
-        'lower-right': { panelIds: ['laser'], activeTab: 'laser' },
+        'top-right': { panelIds: ['cuts_layers', 'move'], activeTab: 'move' },
+        'middle-right': { panelIds: ['laser'], activeTab: 'laser' },
       },
       hiddenPanelIds: ['macros'],
       floatingPanels: [{
@@ -422,7 +426,7 @@ describe('appService methods', () => {
         width: 320,
         height: 240,
         zIndex: 3,
-        originZone: 'upper-right',
+        originZone: 'top-right',
         originIndex: 1,
       }],
       upperSplitRatio: 0.55,
@@ -437,13 +441,37 @@ describe('appService methods', () => {
 
     expect(invoke).toHaveBeenCalledWith('update_app_settings', {
       panelLayout: {
+        layout_version: 5,
         zones: {
+          'top-left': { panel_ids: [], active_tab: '' },
+          'middle-left': { panel_ids: [], active_tab: '' },
+          'bottom-left': { panel_ids: [], active_tab: '' },
+          'bottom-right': { panel_ids: [], active_tab: '' },
           left: { panel_ids: ['art_library'], active_tab: 'art_library' },
           bottom: { panel_ids: ['console'], active_tab: 'console' },
-          'upper-right': { panel_ids: ['cuts_layers', 'move'], active_tab: 'move' },
-          'lower-right': { panel_ids: ['laser'], active_tab: 'laser' },
+          'top-right': { panel_ids: ['cuts_layers', 'move'], active_tab: 'move' },
+          'middle-right': { panel_ids: ['laser'], active_tab: 'laser' },
         },
         hidden_panel_ids: ['macros'],
+        run_zones: {
+          'top-left': { panel_ids: ['move'], active_tab: 'move' },
+          'middle-left': { panel_ids: [], active_tab: '' },
+          'bottom-left': { panel_ids: [], active_tab: '' },
+          'bottom-right': { panel_ids: [], active_tab: '' },
+          left: { panel_ids: [], active_tab: '' },
+          bottom: { panel_ids: [], active_tab: '' },
+          'top-right': { panel_ids: ['laser'], active_tab: 'laser' },
+          'middle-right': { panel_ids: ['camera', 'macros', 'console'], active_tab: 'camera' },
+        },
+        run_hidden_panel_ids: ['cuts_layers', 'properties', 'measurement', 'material', 'art_library', 'connection_diagnostics'],
+        run_upper_split_ratio: 0.58,
+        column_split_ratios: {
+          design_left: [1, 0, 0],
+          design_right: [1, 0, 0],
+          run_left: [1, 0, 0],
+          run_right: [0.58, 0.42, 0],
+        },
+        run_floating_panels: [],
         floating_panels: [{
           panel_id: 'camera',
           x: 10,
@@ -451,7 +479,7 @@ describe('appService methods', () => {
           width: 320,
           height: 240,
           z_index: 3,
-          origin_zone: 'upper-right',
+          origin_zone: 'top-right',
           origin_index: 1,
         }],
         upper_split_ratio: 0.55,

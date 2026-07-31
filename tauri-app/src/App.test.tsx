@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { StrictMode } from 'react';
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
 import { invoke } from '@tauri-apps/api/core';
@@ -16,6 +17,7 @@ import { persistenceService } from './services/persistenceService';
 import { printService } from './services/printService';
 import { appService } from './services/appService';
 import { feedbackService } from './services/feedbackService';
+import { machineService } from './services/machineService';
 import { APP_COMMANDS } from './commands/appCommandIds';
 import { executeAppCommand } from './commands/appCommands';
 import { clearClipboard, getClipboard } from './utils/clipboard';
@@ -279,9 +281,12 @@ describe('App', () => {
 
   it('renders panel tabs', async () => {
     await act(async () => { render(<App />); });
-    expect(screen.getByText('Cuts / Layers')).toBeDefined();
-    expect(screen.getByText('Shape Properties')).toBeDefined();
-    expect(screen.getByText('Laser Control')).toBeDefined();
+    expect(screen.getByText('Layers')).toBeDefined();
+    expect(screen.getByText('Properties')).toBeDefined();
+    expect(screen.queryByText('Console')).toBeNull();
+    expect(screen.queryByText('Macros')).toBeNull();
+    expect(screen.queryByText('Laser Control')).toBeNull();
+    expect(screen.queryByText('Material Library')).toBeNull();
   });
 
   it('calls fetchStatus and fetchSettings on mount', async () => {
@@ -348,11 +353,11 @@ describe('App', () => {
     vi.useRealTimers();
   });
 
-  it('renders status bar zoom controls', async () => {
+  it('renders zoom plus the toolbar grid and snap controls', async () => {
     await act(async () => { render(<App />); });
     expect(screen.getByText('100%')).toBeDefined();
-    expect(screen.getAllByText('Grid').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Snap').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByTitle('Grid')).toBeDefined();
+    expect(screen.getByTitle('Snap')).toBeDefined();
   });
 
   it('renders a global cancellable preview generation dialog', async () => {
@@ -386,12 +391,14 @@ describe('App bootstrap', () => {
   it('mounts and completes the async IPC bootstrap', async () => {
     render(<App />);
 
-    // Before the fetches resolve, StatusBar shows the loading state.
-    expect(screen.getByText('Initializing...')).toBeDefined();
+    // Persistent app and connection state live in the main toolbar, so the
+    // compact status bar no longer duplicates the bootstrap label.
+    expect(screen.queryByText('Initializing...')).toBeNull();
 
-    // Wait for the async mount path to complete: StatusBar reflects
-    // the resolved status once fetchStatus settles the store.
-    await screen.findByText('ready');
+    // Wait for the async mount path to complete and the build identity to
+    // appear once fetchStatus settles the store.
+    await waitFor(() => expect(useAppStore.getState().loading).toBe(false));
+    expect(screen.queryByText('ready')).toBeNull();
     expect(screen.getByText(/v0\.1\.0/)).toBeDefined();
 
     // Verify the store converged to the expected post-bootstrap state.
@@ -400,6 +407,28 @@ describe('App bootstrap', () => {
     expect(loading).toBe(false);
     expect(status).toEqual({ version: '0.1.0', state: 'ready' });
     expect(settings).toEqual(makeSettings());
+  });
+
+  it('initializes an empty project only once under React Strict Mode', async () => {
+    const loadProject = vi.fn().mockResolvedValue(undefined);
+    const createProject = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: null,
+      loadProject,
+      createProject,
+    });
+
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+
+    await waitFor(() => {
+      expect(loadProject).toHaveBeenCalledTimes(1);
+      expect(createProject).toHaveBeenCalledTimes(1);
+    });
+    expect(createProject).toHaveBeenCalledWith('Untitled Project');
   });
 
   it('warns when restoring the saved panel layout fails', async () => {
@@ -421,6 +450,50 @@ describe('App bootstrap', () => {
             && notification.type === 'warning',
         ),
       ).toBe(true);
+    });
+  });
+
+  it('repairs the Run Move panel lost by the v4 dock migration', async () => {
+    const emptyZone = { panel_ids: [] as string[], active_tab: '' };
+    vi.spyOn(appService, 'getSettings').mockResolvedValue(makeSettings({
+      panel_layout: {
+        layout_version: 4,
+        zones: {
+          'top-right': { panel_ids: ['cuts_layers', 'properties'], active_tab: 'cuts_layers' },
+          'middle-right': emptyZone,
+          'bottom-right': emptyZone,
+          'top-left': emptyZone,
+          'middle-left': emptyZone,
+          'bottom-left': emptyZone,
+        },
+        hidden_panel_ids: ['move'],
+        upper_split_ratio: 1,
+        run_zones: {
+          'top-right': { panel_ids: ['laser'], active_tab: 'laser' },
+          'middle-right': { panel_ids: ['camera', 'macros', 'console'], active_tab: 'camera' },
+          'bottom-right': emptyZone,
+          'top-left': emptyZone,
+          'middle-left': emptyZone,
+          'bottom-left': emptyZone,
+        },
+        run_hidden_panel_ids: ['cuts_layers', 'move', 'properties'],
+        run_upper_split_ratio: 0.58,
+        right_panel_width: 440,
+        left_panel_width: 392,
+        bottom_panel_height: 36,
+        side_panels_visible: true,
+        floating_panels: [],
+        run_floating_panels: [],
+      },
+    }));
+
+    render(<App />);
+
+    await waitFor(() => {
+      const layout = useUiStore.getState().panelLayout;
+      expect(layout.layoutVersion).toBe(5);
+      expect(layout.runZones['top-left']).toEqual({ panelIds: ['move'], activeTab: 'move' });
+      expect(layout.runHiddenPanelIds).not.toContain('move');
     });
   });
 
@@ -459,12 +532,62 @@ describe('App bootstrap', () => {
     });
   });
 
-  it('prompts after a real completed job, then opens a review without sending', async () => {
+  it('offers a one-time non-modal compatibility review for an experimental controller', async () => {
     const submitReport = vi.spyOn(feedbackService, 'submitReport');
+    vi.spyOn(machineService, 'getMachineRuntimeState').mockResolvedValue({
+      controller_family: 'dsp',
+      controller_model: 'ruida',
+      controller_driver: 'ruida',
+      controller_selection: { mode: 'known_driver', driver: 'ruida' },
+      experimental_mode: true,
+      product_tier: 'experimental',
+      evidence_state: 'emulated',
+      transport_kind: 'udp',
+      capabilities: null,
+      session_state: 'ready',
+    });
     useMachineStore.setState({
       activeJobPurpose: 'job',
       activeProfileId: 'profile-k40',
       profiles: [{ id: 'profile-k40', name: 'K40' } as MachineProfile],
+      controllerSelection: { mode: 'known_driver', driver: 'ruida' },
+      connectionPreview: false,
+      loadProfiles: vi.fn().mockResolvedValue(undefined),
+    });
+    await renderApp();
+
+    await act(async () => {
+      await getAppEventListener()({
+        payload: makeAppEvent('job.completed', makeJobProgress({ state: 'completed' })),
+      });
+    });
+
+    expect(await screen.findByText('Did this job finish correctly?')).toBeDefined();
+    expect(screen.queryByText('Share Job Compatibility Result')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, it completed' }));
+
+    expect(await screen.findByText('Share Job Compatibility Result')).toBeDefined();
+    expect(screen.getByText(/Nothing has been sent yet/)).toBeDefined();
+    expect(submitReport).not.toHaveBeenCalled();
+  });
+
+  it('does not offer compatibility feedback for established GRBL', async () => {
+    const getRuntimeState = vi.spyOn(machineService, 'getMachineRuntimeState').mockResolvedValue({
+      controller_family: 'gcode',
+      controller_model: 'grbl',
+      controller_driver: 'grbl',
+      controller_selection: { mode: 'known_driver', driver: 'grbl' },
+      experimental_mode: false,
+      product_tier: 'supported',
+      evidence_state: 'lab_vendor_verified',
+      transport_kind: 'serial',
+      capabilities: null,
+      session_state: 'ready',
+    });
+    useMachineStore.setState({
+      activeJobPurpose: 'job',
+      activeProfileId: 'profile-grbl',
+      profiles: [{ id: 'profile-grbl', name: 'GRBL Laser' } as MachineProfile],
       controllerSelection: { mode: 'known_driver', driver: 'grbl' },
       connectionPreview: false,
       loadProfiles: vi.fn().mockResolvedValue(undefined),
@@ -477,12 +600,9 @@ describe('App bootstrap', () => {
       });
     });
 
-    expect(screen.getByText('Did this job finish correctly?')).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, it completed' }));
-
-    expect(await screen.findByText('Share Job Compatibility Result')).toBeDefined();
-    expect(screen.getByText(/Nothing has been sent yet/)).toBeDefined();
-    expect(submitReport).not.toHaveBeenCalled();
+    await waitFor(() => expect(getRuntimeState).toHaveBeenCalledOnce());
+    expect(screen.queryByRole('button', { name: 'Yes, it completed' })).toBeNull();
+    expect(screen.queryByText('Share Job Compatibility Result')).toBeNull();
   });
 
   it('does not prompt after a framing pass completes', async () => {

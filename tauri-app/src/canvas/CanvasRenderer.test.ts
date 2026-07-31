@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CanvasRenderer } from './CanvasRenderer';
+import { CanvasRenderer, sortObjectsForLayerStack } from './CanvasRenderer';
 import type { RenderParams } from './CanvasRenderer';
 import type { PreviewData } from '../types/preview';
 import { DARK_THEME, LIGHT_THEME } from './constants';
@@ -147,6 +147,25 @@ describe('CanvasRenderer', () => {
     vi.mocked(invoke).mockReset();
   });
 
+  it('draws later layer tabs behind earlier tabs while preserving z-order within a layer', () => {
+    const foregroundLayer = makeLayer({ id: 'foreground', order_index: 0 });
+    const backgroundLayer = makeLayer({ id: 'background', order_index: 1 });
+    const foregroundLow = makeProjectObject({ id: 'foreground-low', layer_id: foregroundLayer.id, z_index: 1 });
+    const foregroundHigh = makeProjectObject({ id: 'foreground-high', layer_id: foregroundLayer.id, z_index: 2 });
+    const backgroundHigh = makeProjectObject({ id: 'background-high', layer_id: backgroundLayer.id, z_index: 99 });
+
+    const ordered = sortObjectsForLayerStack(
+      [foregroundHigh, backgroundHigh, foregroundLow],
+      [foregroundLayer, backgroundLayer],
+    );
+
+    expect(ordered.map((object) => object.id)).toEqual([
+      'background-high',
+      'foreground-low',
+      'foreground-high',
+    ]);
+  });
+
   it('renders without errors when no preview data', () => {
     expect(() => renderer.render(baseParams)).not.toThrow();
     expect(ctx.fillRect).toHaveBeenCalled(); // Background cleared
@@ -228,6 +247,23 @@ describe('CanvasRenderer', () => {
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
 
+  it('shows live width and height while a text box is being dragged', () => {
+    vi.mocked(ctx.measureText).mockReturnValue({ width: 64 } as TextMetrics);
+
+    renderer.renderToolOverlay({
+      ...baseParams,
+      displayUnit: 'mm',
+      toolOverlay: {
+        type: 'text-box-preview',
+        startWorld: { x: 10, y: 20 },
+        endWorld: { x: 70, y: 50 },
+      },
+    });
+
+    expect(ctx.strokeRect).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith('60 × 30 mm', expect.any(Number), expect.any(Number));
+  });
+
   it('renders selection highlights on the overlay without repainting the base scene background', () => {
     const selected: ProjectObject = makeProjectObject({
       id: 'selected',
@@ -258,6 +294,31 @@ describe('CanvasRenderer', () => {
       baseParams.vp.canvasHeight,
     );
     expect(ctx.strokeRect).toHaveBeenCalled();
+  });
+
+  it('does not render selection handles for hidden objects or hidden layers', () => {
+    const hiddenObject = makeProjectObject({
+      id: 'hidden-object',
+      visible: false,
+      layer_id: 'visible-layer',
+    });
+    const layerHiddenObject = makeProjectObject({
+      id: 'layer-hidden-object',
+      visible: true,
+      layer_id: 'hidden-layer',
+    });
+
+    renderer.renderToolOverlay({
+      ...baseParams,
+      objects: [hiddenObject, layerHiddenObject],
+      selectedObjectIds: ['hidden-object', 'layer-hidden-object'],
+      layers: [
+        makeLayer({ id: 'visible-layer', visible: true }),
+        makeLayer({ id: 'hidden-layer', visible: false }),
+      ],
+    });
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
   });
 
   it('redraws only a bounded dirty region for base-scene object movement', () => {

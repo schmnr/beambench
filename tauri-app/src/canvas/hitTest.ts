@@ -10,6 +10,7 @@ import { applyAroundCenter, computeTransformedBoundsWorld, computeVisualBoundsWo
 import { queryPointCandidates, queryRectCandidates } from './sceneIndex';
 import { measureCanvasPerf } from './canvasPerf';
 import { useAppStore } from '../stores/appStore';
+import type { LayerStackLayer } from './layerStack';
 
 function clickTolerancePx(): number {
   return useAppStore.getState().settings?.click_tolerance_px ?? 5;
@@ -27,9 +28,10 @@ export function hitTestPoint(
   objects: ProjectObject[],
   vp: ViewportParams,
   includeLocked = false,
+  layers?: LayerStackLayer[],
 ): ProjectObject | null {
   return measureCanvasPerf('hit-test', () => {
-    const sorted = queryPointCandidates(screenPt, objects, vp, rulerGuideHitTolerancePx());
+    const sorted = queryPointCandidates(screenPt, objects, vp, rulerGuideHitTolerancePx(), layers);
 
     for (const obj of sorted) {
       if (!includeLocked && obj.locked) continue;
@@ -47,8 +49,9 @@ export function hitTestPointAll(
   objects: ProjectObject[],
   vp: ViewportParams,
   includeLocked = false,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
-  const sorted = queryPointCandidates(screenPt, objects, vp, rulerGuideHitTolerancePx());
+  const sorted = queryPointCandidates(screenPt, objects, vp, rulerGuideHitTolerancePx(), layers);
   const hits: ProjectObject[] = [];
   for (const obj of sorted) {
     if (!includeLocked && obj.locked) continue;
@@ -65,10 +68,11 @@ export function hitTestRect(
   objects: ProjectObject[],
   vp: ViewportParams,
   includeLocked = false,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
   const result: ProjectObject[] = [];
 
-  for (const obj of queryRectCandidates(screenRect, objects, vp)) {
+  for (const obj of queryRectCandidates(screenRect, objects, vp, layers)) {
     if (!includeLocked && obj.locked) continue;
 
     const vb = computeVisualBoundsWorld(obj, objects);
@@ -95,10 +99,11 @@ export function hitTestRectContained(
   objects: ProjectObject[],
   vp: ViewportParams,
   includeLocked = false,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
   const result: ProjectObject[] = [];
 
-  for (const obj of queryRectCandidates(screenRect, objects, vp)) {
+  for (const obj of queryRectCandidates(screenRect, objects, vp, layers)) {
     if (!includeLocked && obj.locked) continue;
 
     const vb = computeVisualBoundsWorld(obj, objects);

@@ -899,6 +899,69 @@ pub fn boolean_weld(
     boolean_weld_inner(&svc, parsed_ids)
 }
 
+fn parse_boolean_many_ids(object_ids: &[String]) -> Result<Vec<ObjectId>, String> {
+    object_ids
+        .iter()
+        .map(|id| parse_id(id))
+        .collect::<Result<Vec<_>, _>>()
+}
+
+#[tauri::command]
+pub fn boolean_intersection_many(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+) -> Result<ProjectObject, String> {
+    vector::boolean_intersection_many(
+        &svc,
+        vector::BooleanWeldInput {
+            object_ids: parse_boolean_many_ids(&object_ids)?,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn boolean_union_many(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+) -> Result<ProjectObject, String> {
+    vector::boolean_union_many(
+        &svc,
+        vector::BooleanWeldInput {
+            object_ids: parse_boolean_many_ids(&object_ids)?,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn boolean_exclude_many(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+) -> Result<ProjectObject, String> {
+    vector::boolean_exclude_many(
+        &svc,
+        vector::BooleanWeldInput {
+            object_ids: parse_boolean_many_ids(&object_ids)?,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn boolean_subtract_many(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+) -> Result<ProjectObject, String> {
+    vector::boolean_subtract_many(
+        &svc,
+        vector::BooleanWeldInput {
+            object_ids: parse_boolean_many_ids(&object_ids)?,
+        },
+    )
+    .map_err(Into::into)
+}
+
 fn boolean_weld_inner(
     svc: &ServiceContext,
     parsed_ids: Vec<ObjectId>,

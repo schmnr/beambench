@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { TextPropertiesPanel } from '../TextPropertiesPanel';
 import { TextDefaultsSection } from '../TextDefaultsSection';
 import { useProjectStore } from '../../../stores/projectStore';
@@ -7,6 +7,11 @@ import { useUiStore } from '../../../stores/uiStore';
 import { useAppStore } from '../../../stores/appStore';
 import type { ObjectData } from '../../../types/project';
 import { makeAppSettings } from '../../../test-utils/projectFixtures';
+import {
+  clearPendingEdit,
+  setPendingEdit,
+  updatePendingContent,
+} from '../../../canvas/textEditSession';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn((cmd: string) => {
@@ -53,6 +58,7 @@ const initialAppState = useAppStore.getState();
 
 afterEach(() => {
   cleanup();
+  clearPendingEdit();
   useProjectStore.setState(initialProjectState, true);
   useUiStore.setState(initialUiState, true);
   useAppStore.setState(initialAppState, true);
@@ -73,6 +79,15 @@ describe('TextPropertiesPanel', () => {
     render(<TextPropertiesPanel objectId="t1" data={makeTextData()} />);
     fireEvent.click(screen.getByLabelText('Uppercase'));
     expect(updateObjectData).toHaveBeenCalledWith('t1', expect.objectContaining({ upper_case: true }));
+  });
+
+  it('mirrors the active on-canvas text draft live', () => {
+    setPendingEdit('t1', 'Hello');
+    render(<TextPropertiesPanel objectId="t1" data={makeTextData()} />);
+
+    act(() => updatePendingContent('Hello from canvas'));
+
+    expect(screen.getByLabelText('Content')).toHaveProperty('value', 'Hello from canvas');
   });
 
   it('path mode without a guide path offers Select Path', () => {
@@ -113,12 +128,12 @@ describe('TextPropertiesPanel', () => {
       />,
     );
 
-    expect(screen.getByLabelText('HSpace (in)')).toHaveProperty('value', '1');
-    expect(screen.getByLabelText('VSpace (in)')).toHaveProperty('value', '2');
+    expect(screen.getByLabelText('Tracking (in)')).toHaveProperty('value', '1');
+    expect(screen.getByLabelText('Line spacing (in)')).toHaveProperty('value', '2');
     expect(screen.getByLabelText('Path Offset (in)')).toHaveProperty('value', '0.5');
-    expect(screen.getByLabelText('Max Width (in)')).toHaveProperty('value', '3');
+    expect(screen.getByLabelText('Box width (in)')).toHaveProperty('value', '3');
 
-    fireEvent.change(screen.getByLabelText('HSpace (in)'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Tracking (in)'), { target: { value: '2' } });
     expect(updateObjectData).toHaveBeenCalledWith(
       't1',
       expect.objectContaining({ h_spacing: 50.8 }),
@@ -139,6 +154,16 @@ describe('TextDefaultsSection', () => {
     expect(screen.getAllByRole('spinbutton').length).toBeGreaterThanOrEqual(3);
   });
 
+  it('makes Point the default and requires Box mode for wrapping text', () => {
+    render(<TextDefaultsSection />);
+
+    expect(screen.getByRole('button', { name: 'Point' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Box' }));
+
+    expect(useUiStore.getState().textDefaults.max_width).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Box width (mm)')).toBeDefined();
+  });
+
   it('converts the minimum text size to the active display unit', () => {
     useAppStore.setState({ settings: makeAppSettings({ display_unit: 'inches' }) });
     render(<TextDefaultsSection />);
@@ -150,7 +175,7 @@ describe('TextDefaultsSection', () => {
   it('keeps the retired toolbar layout and curved-text defaults available', () => {
     render(<TextDefaultsSection />);
 
-    fireEvent.change(screen.getByLabelText('Layout'), { target: { value: 'bend' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Bend' }));
 
     expect(useUiStore.getState().textDefaults).toMatchObject({
       layout_mode: 'bend',

@@ -95,6 +95,7 @@ export function MenuBar() {
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
   const showNotesDialog = useUiStore((s) => s.showNotesDialog);
   const toggleNotesDialog = useUiStore((s) => s.toggleNotesDialog);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
   const recentFiles = useAppStore((s) => s.settings?.recent_files) ?? EMPTY_RECENT_FILES;
   const displayLanguage = useAppStore((s) => s.settings?.display_language ?? 'en');
   const fetchSettings = useAppStore((s) => s.fetchSettings);
@@ -972,7 +973,7 @@ export function MenuBar() {
             <MenuItem
               label={ml("Position Laser")}
               shortcut="Ctrl+Shift+L"
-              disabled={!project}
+              disabled={!project || workspaceMode !== 'run'}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_POSITION_LASER); }}
             />
             <MenuItem
@@ -1001,19 +1002,19 @@ export function MenuBar() {
             <MenuItem
               label={ml("Boolean Union")}
               shortcut="Alt++"
-              disabled={!canBoolean}
+              disabled={!selCtx.canWeld || booleanPending}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_UNION); }}
             />
             <MenuItem
               label={ml("Boolean Subtract")}
               shortcut="Alt+-"
-              disabled={!canBoolean}
+              disabled={!selCtx.canWeld || booleanPending}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT); }}
             />
             <MenuItem
               label={ml("Boolean Intersection")}
               shortcut="Alt+*"
-              disabled={!canBoolean}
+              disabled={!selCtx.canWeld || booleanPending}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION); }}
             />
             <MenuItem

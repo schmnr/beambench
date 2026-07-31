@@ -44,6 +44,21 @@ describe('vectorService methods', () => {
     expect(invoke).toHaveBeenCalledWith('boolean_exclude', { objectIdA: 'a', objectIdB: 'b' });
   });
 
+  it('invokes atomic multi-object Boolean commands', async () => {
+    vi.mocked(invoke).mockResolvedValue({});
+    const objectIds = ['a', 'b', 'c'];
+
+    await vectorService.booleanUnionMany(objectIds);
+    await vectorService.booleanSubtractMany(objectIds);
+    await vectorService.booleanIntersectionMany(objectIds);
+    await vectorService.booleanExcludeMany(objectIds);
+
+    expect(invoke).toHaveBeenNthCalledWith(1, 'boolean_union_many', { objectIds });
+    expect(invoke).toHaveBeenNthCalledWith(2, 'boolean_subtract_many', { objectIds });
+    expect(invoke).toHaveBeenNthCalledWith(3, 'boolean_intersection_many', { objectIds });
+    expect(invoke).toHaveBeenNthCalledWith(4, 'boolean_exclude_many', { objectIds });
+  });
+
   it('booleanAssistantPreview invokes the read-only preview command', async () => {
     vi.mocked(invoke).mockResolvedValue({});
     const operation: BooleanAssistantOperation = 'subtract';

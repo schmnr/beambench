@@ -25,7 +25,6 @@ import { FocusTestDialog } from './components/dialogs/FocusTestDialog';
 import { IntervalTestDialog } from './components/dialogs/IntervalTestDialog';
 import { FeedbackErrorBoundary } from './components/dialogs/FeedbackErrorBoundary';
 import { FeedbackReportDialog } from './components/dialogs/FeedbackReportDialog';
-import { PostJobCompatibilityDialog } from './components/dialogs/PostJobCompatibilityDialog';
 import { useAppStore } from './stores/appStore';
 import { useProjectStore } from './stores/projectStore';
 import { usePreviewStore } from './stores/previewStore';
@@ -66,8 +65,15 @@ import { APP_COMMANDS } from './commands/appCommandIds';
 import { defaultHotkeyIsOverriddenByEvent, findCommandForKeyboardEvent } from './commands/commandRegistry';
 import { appService } from './services/appService';
 import { feedbackService } from './services/feedbackService';
-import type { PhysicalDockZone } from './panels';
-import { normalizeToolbarVisibility, getPanelById } from './panels';
+import { machineService } from './services/machineService';
+import type { ColumnSplitRatios, PhysicalDockZone } from './panels';
+import {
+  COLUMN_ZONES,
+  createDefaultLayout,
+  normalizeToolbarVisibility,
+  getPanelById,
+  PANEL_LAYOUT_VERSION,
+} from './panels';
 import { discardRecoveryBatch } from './utils/recovery';
 import { lengthUnitLabel, mmToDisplay, roundDisplayLength } from './utils/lengthUnits';
 import {
@@ -90,6 +96,7 @@ import type { JobProgress } from './types/machine';
 import {
   postJobPromptFingerprint,
   recordPostJobPromptOutcome,
+  shouldOfferPostJobCompatibility,
   shouldShowPostJobPrompt,
 } from './utils/postJobCompatibilityPrompt';
 import { projectWindowTitle } from './utils/windowTitle';
@@ -121,23 +128,19 @@ interface CameraOverlayRenderRequestedPayload {
   };
 }
 
-interface PostJobCompatibilityPromptState {
-  fingerprint: string;
-  profileName?: string;
-}
-
 function isExportCancelledError(error: unknown): boolean {
   return String(error).toLowerCase().includes('cancelled');
 }
 
 function persistPostJobPromptOutcome(
   fingerprint: string,
-  outcome: 'completed' | 'problem' | 'not_now',
-): void {
+  outcome: 'offered' | 'completed',
+): boolean {
   try {
-    recordPostJobPromptOutcome(fingerprint, outcome, window.localStorage);
+    return recordPostJobPromptOutcome(fingerprint, outcome, window.localStorage);
   } catch {
     // Storage may be disabled; this preference is non-essential.
+    return false;
   }
 }
 
@@ -543,6 +546,7 @@ function App() {
   const updateDialogOpen = useUpdateStore((s) => s.dialogOpen);
   const runStartupUpdateCheck = useUpdateStore((s) => s.runStartupCheck);
   const welcomeDialogOpen = useWelcomeStore((s) => s.dialogOpen);
+  const projectBootstrapStartedRef = useRef(false);
 
   const [recoveries, setRecoveries] = useState<RecoveryInfo[]>([]);
   // dismissing the recovery dialog (X / backdrop) should hide it for
@@ -564,7 +568,6 @@ function App() {
   const [closeToleranceObjectIds, setCloseToleranceObjectIds] = useState<string[] | null>(null);
   const [deleteDuplicatesCount, setDeleteDuplicatesCount] = useState<number | null>(null);
   const [feedbackDialog, setFeedbackDialog] = useState<FeedbackReportOpenDetail | null>(null);
-  const [postJobCompatibilityPrompt, setPostJobCompatibilityPrompt] = useState<PostJobCompatibilityPromptState | null>(null);
   const startupCrashPromptChecked = useRef(false);
   const [showMaterialTestDialog, setShowMaterialTestDialog] = useState(false);
   const [showResetPreferencesDialog, setShowResetPreferencesDialog] = useState(false);
@@ -763,38 +766,150 @@ function App() {
       });
       if (settings.panel_layout) {
         const pl = settings.panel_layout;
+        if (
+          !pl.zones
+          || !Array.isArray(pl.hidden_panel_ids)
+          || !Array.isArray(pl.floating_panels)
+          || typeof pl.upper_split_ratio !== 'number'
+          || typeof pl.right_panel_width !== 'number'
+        ) {
+          throw new Error('Invalid persisted panel layout');
+        }
+        const defaults = createDefaultLayout();
         // Drop panels that no longer exist (e.g. retired color_palette)
         // from persisted layouts.
         const knownPanel = (id: string) => getPanelById(id) !== undefined;
-        const floatingPanels = (pl.floating_panels ?? []).filter((fp) => knownPanel(fp.panel_id)).map((fp) => ({
-          panelId: fp.panel_id,
-          // Clamp restored positions so the title bar is always reachable
-          // (saved on a larger window, or stranded by an old bug).
-          x: Math.max(0, Math.min(window.innerWidth - 100, fp.x)),
-          y: Math.max(0, Math.min(window.innerHeight - 40, fp.y)),
-          width: fp.width,
-          height: fp.height,
-          zIndex: fp.z_index,
-          originZone: fp.origin_zone ?? undefined,
-          originIndex: fp.origin_index ?? undefined,
-        }));
-        const maxZ = floatingPanels.reduce((max, fp) => Math.max(max, fp.zIndex), 0);
-        const restoredZones = Object.fromEntries(
-          Object.entries(pl.zones).map(([k, v]) => {
-            const panelIds = v.panel_ids.filter(knownPanel);
-            const activeTab = panelIds.includes(v.active_tab) ? v.active_tab : (panelIds[0] ?? '');
-            return [k, { panelIds, activeTab }];
-          })
-        ) as Record<PhysicalDockZone, { panelIds: string[]; activeTab: string }>;
-        // Ensure new zones exist for backward compat with old persisted layouts
-        if (!restoredZones['left']) restoredZones['left'] = { panelIds: [], activeTab: '' };
-        if (!restoredZones['bottom']) restoredZones['bottom'] = { panelIds: [], activeTab: '' };
+        const restoreFloatingPanels = (panels: NonNullable<typeof pl.floating_panels>) =>
+          panels.filter((fp) => knownPanel(fp.panel_id)).map((fp) => ({
+            panelId: fp.panel_id,
+            // Clamp restored positions so the title bar is always reachable
+            // (saved on a larger window, or stranded by an old bug).
+            x: Math.max(0, Math.min(window.innerWidth - 100, fp.x)),
+            y: Math.max(0, Math.min(window.innerHeight - 40, fp.y)),
+            width: fp.width,
+            height: fp.height,
+            zIndex: fp.z_index,
+            originZone: fp.origin_zone ?? undefined,
+            originIndex: fp.origin_index ?? undefined,
+          }));
+        const restoreZones = (
+          persisted: Record<string, { panel_ids: string[]; active_tab: string }> | undefined,
+          fallback: typeof defaults.zones,
+        ) => {
+          const migrated: Record<string, { panel_ids: string[]; active_tab: string }> | undefined = persisted ? {
+            ...persisted,
+            'top-right': persisted['top-right'] ?? persisted['upper-right'],
+            'middle-right': persisted['middle-right'] ?? persisted['lower-right'],
+            'top-left': persisted['top-left'] ?? persisted.left,
+            'bottom-right': persisted['bottom-right'] ?? persisted.bottom,
+          } : undefined;
+          return Object.fromEntries(
+            (Object.keys(fallback) as PhysicalDockZone[]).map((zone) => {
+              const saved = migrated?.[zone];
+              if (!saved) return [zone, fallback[zone]];
+              const panelIds = saved.panel_ids.filter(knownPanel);
+              const activeTab = panelIds.includes(saved.active_tab) ? saved.active_tab : (panelIds[0] ?? '');
+              return [zone, { panelIds, activeTab }];
+            }),
+          ) as typeof defaults.zones;
+        };
+
+        const savedLayoutVersion = pl.layout_version ?? 0;
+        // Version 4 introduced the three-zone columns. Keep those split ratios
+        // intact while applying the narrower v5 repair below.
+        const legacyColumnLayout = savedLayoutVersion < 4;
+        const designZones = restoreZones(pl.zones, defaults.zones);
+        let runZones = !pl.run_zones || Object.keys(pl.run_zones).length === 0
+          ? defaults.runZones
+          : restoreZones(pl.run_zones, defaults.runZones);
+        const restoreColumnRatios = (
+          key: string,
+          fallback: ColumnSplitRatios,
+        ): ColumnSplitRatios => {
+          const saved = pl.column_split_ratios?.[key];
+          if (!saved || saved.length !== 3 || saved.some((ratio) => !Number.isFinite(ratio) || ratio < 0)) {
+            return [...fallback];
+          }
+          const total = saved.reduce((sum, ratio) => sum + ratio, 0);
+          if (total <= 0) return [...fallback];
+          return saved.map((ratio) => ratio / total) as ColumnSplitRatios;
+        };
+        const migrateColumnRatios = (
+          zones: typeof defaults.zones,
+          side: 'left' | 'right',
+          preferredFirst = 0.6,
+        ): ColumnSplitRatios => {
+          const occupied = COLUMN_ZONES[side].map((zone) => zones[zone].panelIds.length > 0);
+          const occupiedCount = occupied.filter(Boolean).length;
+          if (occupiedCount === 0) return [1, 0, 0];
+          if (occupiedCount === 1) return occupied.map((value) => value ? 1 : 0) as ColumnSplitRatios;
+          if (occupiedCount === 3) return [1 / 3, 1 / 3, 1 / 3];
+          const first = Math.max(0.2, Math.min(0.8, preferredFirst));
+          const second = 1 - first;
+          return occupied.map((value, index) => {
+            if (!value) return 0;
+            return occupied.findIndex(Boolean) === index ? first : second;
+          }) as ColumnSplitRatios;
+        };
+        const floatingPanels = restoreFloatingPanels(pl.floating_panels ?? []);
+        const runFloatingPanels = restoreFloatingPanels(pl.run_floating_panels ?? []);
+        let runHiddenPanelIds = (pl.run_hidden_panel_ids ?? defaults.runHiddenPanelIds)
+          .filter(knownPanel);
+
+        // Before panels became fully dockable, Run's Move panel lived outside
+        // the saved dock zones and was therefore persisted as hidden. The v4
+        // migration carried that stale state forward, leaving Run with no left
+        // panel. Repair only layouts where Move is genuinely unassigned; a
+        // deliberately hidden or relocated Move tab remains untouched.
+        const runMoveAssigned = Object.values(runZones).some(
+          (zone) => zone.panelIds.includes('move'),
+        ) || runFloatingPanels.some((panel) => panel.panelId === 'move');
+        if (savedLayoutVersion < 5 && !runMoveAssigned) {
+          const topLeft = runZones['top-left'];
+          runZones = {
+            ...runZones,
+            'top-left': {
+              panelIds: ['move', ...topLeft.panelIds.filter((id) => id !== 'move')],
+              activeTab: 'move',
+            },
+          };
+          runHiddenPanelIds = runHiddenPanelIds.filter((id) => id !== 'move');
+        }
+        const maxZ = [...floatingPanels, ...runFloatingPanels].reduce(
+          (max, fp) => Math.max(max, fp.zIndex),
+          0,
+        );
         const sidePanelsVisible = pl.side_panels_visible ?? true;
         useUiStore.getState().setPanelLayout({
-          zones: restoredZones,
+          layoutVersion: PANEL_LAYOUT_VERSION,
+          zones: designZones,
           hiddenPanelIds: pl.hidden_panel_ids.filter(knownPanel),
           floatingPanels,
-          upperSplitRatio: pl.upper_split_ratio,
+          upperSplitRatio: legacyColumnLayout ? defaults.upperSplitRatio : pl.upper_split_ratio,
+          columnRatios: legacyColumnLayout ? {
+            left: migrateColumnRatios(designZones, 'left'),
+            right: migrateColumnRatios(designZones, 'right', pl.upper_split_ratio),
+          } : {
+            left: restoreColumnRatios('design_left', defaults.columnRatios.left),
+            right: restoreColumnRatios('design_right', defaults.columnRatios.right),
+          },
+          runZones,
+          runHiddenPanelIds,
+          runFloatingPanels,
+          runUpperSplitRatio: legacyColumnLayout
+            ? defaults.runUpperSplitRatio
+            : (pl.run_upper_split_ratio ?? defaults.runUpperSplitRatio),
+          runColumnRatios: legacyColumnLayout ? {
+            left: migrateColumnRatios(runZones, 'left'),
+            right: migrateColumnRatios(
+              runZones,
+              'right',
+              pl.run_upper_split_ratio ?? defaults.runUpperSplitRatio,
+            ),
+          } : {
+            left: restoreColumnRatios('run_left', defaults.runColumnRatios.left),
+            right: restoreColumnRatios('run_right', defaults.runColumnRatios.right),
+          },
           rightPanelWidth: pl.right_panel_width,
           leftPanelWidth: pl.left_panel_width ?? 280,
           bottomPanelHeight: pl.bottom_panel_height ?? 80,
@@ -817,11 +932,17 @@ function App() {
     // so the former `loadOptimizationSettings()` boot call is gone.
     void loadProfiles();
     void hydrateSession();
-    loadProject().then(() => {
-      if (!useProjectStore.getState().project) {
-        useProjectStore.getState().createProject('Untitled Project');
-      }
-    });
+    // React Strict Mode intentionally replays mount effects in development.
+    // Keep project initialization single-flight so two concurrent empty-project
+    // checks cannot each create their own default C00 layer.
+    if (!projectBootstrapStartedRef.current) {
+      projectBootstrapStartedRef.current = true;
+      void loadProject().then(() => {
+        if (!useProjectStore.getState().project) {
+          void useProjectStore.getState().createProject('Untitled Project');
+        }
+      });
+    }
 
     // Check for recovery files on startup
     persistenceService.checkRecovery().then((files) => {
@@ -979,22 +1100,43 @@ function App() {
     if (event.type === 'job.completed' && isJobProgressPayload(event.payload)) {
       const machineState = useMachineStore.getState();
       if (machineState.activeJobPurpose === 'job' && !machineState.connectionPreview) {
-        const activeProfile = Array.isArray(machineState.profiles)
-          ? machineState.profiles.find((profile) => profile.id === machineState.activeProfileId)
-          : undefined;
-        const selection = machineState.controllerSelection;
-        const controllerKey = selection.mode === 'known_driver' ? selection.driver : selection.mode;
-        const fingerprint = postJobPromptFingerprint(machineState.activeProfileId, controllerKey);
-        try {
-          if (fingerprint && shouldShowPostJobPrompt(fingerprint, window.localStorage)) {
-            setPostJobCompatibilityPrompt((current) => current ?? {
-              fingerprint,
-              profileName: activeProfile?.name,
-            });
+        void machineService.getMachineRuntimeState().then((runtime) => {
+          if (!shouldOfferPostJobCompatibility(runtime)) return;
+          const controllerKey = runtime.controller_driver ?? runtime.controller_model ?? 'unknown';
+          const fingerprint = postJobPromptFingerprint(machineState.activeProfileId, controllerKey);
+          try {
+            if (fingerprint && shouldShowPostJobPrompt(fingerprint, window.localStorage)) {
+              // Record the offer immediately so dismissing or ignoring the
+              // notification is permanent for this profile/controller pair.
+              if (!persistPostJobPromptOutcome(fingerprint, 'offered')) return;
+              useNotificationStore.getState().push(
+                i18n.t('feedback.post_job_question'),
+                'info',
+                {
+                  actionLabel: i18n.t('feedback.post_job_completed'),
+                  autoDismissMs: 10_000,
+                  onAction: () => {
+                    persistPostJobPromptOutcome(fingerprint, 'completed');
+                    setFeedbackDialog({
+                      kind: 'connectivity',
+                      presentation: 'job_compatibility',
+                      title: i18n.t('feedback.post_job_success_report_title'),
+                      sourceContext: {
+                        source: 'post_job_prompt',
+                        feature: 'job_compatibility_success',
+                      },
+                    });
+                  },
+                },
+              );
+            }
+          } catch {
+            // Privacy settings may disable localStorage; job completion still succeeds normally.
           }
-        } catch {
-          // Privacy settings may disable localStorage; job completion still succeeds normally.
-        }
+        }).catch(() => {
+          // Compatibility outreach is optional. Runtime metadata failures must
+          // never affect a completed job or create a generic prompt.
+        });
       }
     }
     if (
@@ -1460,24 +1602,36 @@ function App() {
         const objs = ps.project?.objects ?? [];
         const sel = ps.selectedObjectIds;
         const selObjs = objs.filter((o) => sel.includes(o.id));
-        if (sel.length === 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
-          void ps.booleanUnion(sel[0], sel[1]);
+        if (sel.length >= 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
+          if (sel.length === 2) {
+            void ps.booleanUnion(sel[0], sel[1]);
+          } else {
+            void ps.booleanUnionMany(sel);
+          }
         }
       } else if (alt && e.key === '-' && !ctrl && !isInput) {
         e.preventDefault();
         const objs = ps.project?.objects ?? [];
         const sel = ps.selectedObjectIds;
         const selObjs = objs.filter((o) => sel.includes(o.id));
-        if (sel.length === 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
-          void ps.booleanSubtract(sel[0], sel[1]);
+        if (sel.length >= 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
+          if (sel.length === 2) {
+            void ps.booleanSubtract(sel[0], sel[1]);
+          } else {
+            void ps.booleanSubtractMany(sel);
+          }
         }
       } else if (alt && e.key === '*' && !ctrl && !isInput) {
         e.preventDefault();
         const objs = ps.project?.objects ?? [];
         const sel = ps.selectedObjectIds;
         const selObjs = objs.filter((o) => sel.includes(o.id));
-        if (sel.length === 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
-          void ps.booleanIntersection(sel[0], sel[1]);
+        if (sel.length >= 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
+          if (sel.length === 2) {
+            void ps.booleanIntersection(sel[0], sel[1]);
+          } else {
+            void ps.booleanIntersectionMany(sel);
+          }
         }
       } else if (ctrl && e.key === 'w' && !isInput) {
         e.preventDefault();
@@ -1669,50 +1823,6 @@ function App() {
           notes={feedbackDialog.notes}
           sourceContext={feedbackDialog.sourceContext}
           onClose={() => setFeedbackDialog(null)}
-        />
-      )}
-      {postJobCompatibilityPrompt && !feedbackDialog && (
-        <PostJobCompatibilityDialog
-          profileName={postJobCompatibilityPrompt.profileName}
-          onNotNow={() => {
-            persistPostJobPromptOutcome(
-              postJobCompatibilityPrompt.fingerprint,
-              'not_now',
-            );
-            setPostJobCompatibilityPrompt(null);
-          }}
-          onCompleted={() => {
-            persistPostJobPromptOutcome(
-              postJobCompatibilityPrompt.fingerprint,
-              'completed',
-            );
-            setPostJobCompatibilityPrompt(null);
-            setFeedbackDialog({
-              kind: 'connectivity',
-              presentation: 'job_compatibility',
-              title: i18n.t('feedback.post_job_success_report_title'),
-              sourceContext: {
-                source: 'post_job_prompt',
-                feature: 'job_compatibility_success',
-              },
-            });
-          }}
-          onProblem={() => {
-            persistPostJobPromptOutcome(
-              postJobCompatibilityPrompt.fingerprint,
-              'problem',
-            );
-            setPostJobCompatibilityPrompt(null);
-            setFeedbackDialog({
-              kind: 'bug',
-              title: i18n.t('feedback.post_job_problem_report_title'),
-              description: '',
-              sourceContext: {
-                source: 'post_job_prompt',
-                feature: 'job_compatibility_problem',
-              },
-            });
-          }}
         />
       )}
       <PreviewGenerationDialog />

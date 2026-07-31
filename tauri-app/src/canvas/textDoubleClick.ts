@@ -3,6 +3,7 @@ import { commitPendingTextEdit, isNewEmptyText } from './textEditSession';
 import type { CanvasMouseEvent, ToolContext } from './tools/types';
 import { useProjectStore } from '../stores/projectStore';
 import { useUiStore } from '../stores/uiStore';
+import { getCaretIndexFromClick } from './textMeasure';
 
 /**
  * Start inline editing whenever a text object is double-clicked, regardless
@@ -18,6 +19,7 @@ export async function beginTextEditFromDoubleClick(
     ctx.objects,
     ctx.vp,
     true,
+    ctx.layers,
   );
   if (!hit || hit.data.type !== 'text') return false;
   if (hit.locked) return true;
@@ -41,6 +43,16 @@ export async function beginTextEditFromDoubleClick(
 
   ctx.selectObjects([hit.id]);
   useProjectStore.getState().selectLayer(hit.layer_id);
-  useUiStore.getState().beginTextEditSession(hit.id, 'double-click');
+  const caretIndex = getCaretIndexFromClick(
+    { x: event.worldX, y: event.worldY },
+    hit,
+    ctx.vp,
+  );
+  useUiStore.getState().beginTextEditSession(
+    hit.id,
+    'double-click',
+    undefined,
+    caretIndex ?? undefined,
+  );
   return true;
 }

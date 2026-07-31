@@ -10,64 +10,77 @@ describe('DnD Integration — full workflows through store actions', () => {
       panelLayout: createDefaultLayout(),
       nextFloatingZIndex: 1,
       cameraWindowOpen: false,
+      workspaceMode: 'design',
     });
   });
 
-  it('default layout has 11 panels across 4 zones and none floating', () => {
+  it('default Design layout has one populated right dock and none floating', () => {
     const { panelLayout } = useUiStore.getState();
-    const upperIds = panelLayout.zones['upper-right'].panelIds;
-    const lowerIds = panelLayout.zones['lower-right'].panelIds;
+    const upperIds = panelLayout.zones['top-right'].panelIds;
+    const lowerIds = panelLayout.zones['middle-right'].panelIds;
     const leftIds = panelLayout.zones['left'].panelIds;
     const bottomIds = panelLayout.zones['bottom'].panelIds;
-    expect(upperIds).toHaveLength(5);
-    expect(lowerIds).toHaveLength(2);
+    expect(upperIds).toEqual(['cuts_layers', 'properties']);
+    expect(lowerIds).toHaveLength(0);
     expect(leftIds).toHaveLength(0);
     expect(bottomIds).toHaveLength(0);
     expect(panelLayout.floatingPanels).toHaveLength(0);
-    // Camera is defaultVisible: false, so it's in hiddenPanelIds
+    expect(panelLayout.upperSplitRatio).toBe(1);
     expect(panelLayout.hiddenPanelIds).toContain('camera');
-    // Total non-hidden docked panels = 7 (color palette retired for layer tabs)
     const allDocked = [...upperIds, ...lowerIds, ...leftIds, ...bottomIds];
-    expect(allDocked).toHaveLength(7);
+    expect(allDocked).toHaveLength(2);
   });
 
   it('float a panel → leaves zone, appears in floatingPanels', () => {
     useUiStore.getState().floatPanel('console', 100, 200, 420, 300);
 
     const { panelLayout } = useUiStore.getState();
-    expect(panelLayout.zones['upper-right'].panelIds).not.toContain('console');
+    expect(panelLayout.zones['top-right'].panelIds).not.toContain('console');
     expect(panelLayout.floatingPanels).toHaveLength(1);
     expect(panelLayout.floatingPanels[0].panelId).toBe('console');
   });
 
   it('dock it back → leaves floatingPanels, appears in zone', () => {
     useUiStore.getState().floatPanel('console', 100, 200, 420, 300);
-    useUiStore.getState().dockPanel('console', 'upper-right');
+    useUiStore.getState().dockPanel('console', 'top-right');
 
     const { panelLayout } = useUiStore.getState();
     expect(panelLayout.floatingPanels).toHaveLength(0);
-    expect(panelLayout.zones['upper-right'].panelIds).toContain('console');
-    expect(panelLayout.zones['upper-right'].activeTab).toBe('console');
+    expect(panelLayout.zones['top-right'].panelIds).toContain('console');
+    expect(panelLayout.zones['top-right'].activeTab).toBe('console');
   });
 
   it('move between zones (upper→lower) → correct zone membership', () => {
-    useUiStore.getState().movePanelBetweenZones('console', 'upper-right', 'lower-right');
+    useUiStore.getState().movePanelBetweenZones('properties', 'top-right', 'middle-right');
 
     const { panelLayout } = useUiStore.getState();
-    expect(panelLayout.zones['upper-right'].panelIds).not.toContain('console');
-    expect(panelLayout.zones['lower-right'].panelIds).toContain('console');
-    expect(panelLayout.zones['lower-right'].activeTab).toBe('console');
+    expect(panelLayout.zones['top-right'].panelIds).not.toContain('properties');
+    expect(panelLayout.zones['middle-right'].panelIds).toContain('properties');
+    expect(panelLayout.zones['middle-right'].activeTab).toBe('properties');
+    expect(panelLayout.upperSplitRatio).toBeLessThan(1);
+  });
+
+  it('moves a Run tab between right and left column zones', () => {
+    useUiStore.setState({ workspaceMode: 'run' });
+
+    useUiStore.getState().movePanelBetweenZones('camera', 'middle-right', 'middle-left');
+
+    const { panelLayout } = useUiStore.getState();
+    expect(panelLayout.runZones['middle-right'].panelIds).not.toContain('camera');
+    expect(panelLayout.runZones['middle-left'].panelIds).toContain('camera');
+    expect(panelLayout.runZones['middle-left'].activeTab).toBe('camera');
+    expect(panelLayout.runColumnRatios.left[1]).toBeGreaterThan(0);
   });
 
   it('reorder tabs within zone → order changes', () => {
-    const before = useUiStore.getState().panelLayout.zones['upper-right'].panelIds;
+    const before = useUiStore.getState().panelLayout.zones['top-right'].panelIds;
     expect(before[0]).toBe('cuts_layers');
-    expect(before[2]).toBe('console');
+    expect(before[1]).toBe('properties');
 
-    useUiStore.getState().reorderPanelInZone('console', 'upper-right', 0);
+    useUiStore.getState().reorderPanelInZone('properties', 'top-right', 0);
 
-    const after = useUiStore.getState().panelLayout.zones['upper-right'].panelIds;
-    expect(after[0]).toBe('console');
+    const after = useUiStore.getState().panelLayout.zones['top-right'].panelIds;
+    expect(after[0]).toBe('properties');
   });
 
   it('close a floating panel → hidden but float entry preserved', () => {
@@ -102,8 +115,7 @@ describe('DnD Integration — full workflows through store actions', () => {
     const { panelLayout, nextFloatingZIndex } = useUiStore.getState();
     expect(panelLayout.floatingPanels).toHaveLength(0);
     expect(nextFloatingZIndex).toBe(1);
-    expect(panelLayout.zones['upper-right'].panelIds).toContain('console');
-    expect(panelLayout.zones['upper-right'].panelIds).toContain('macros');
+    expect(panelLayout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'properties']);
   });
 
   it('two floating panels → bringToFront gives correct z-order', () => {
@@ -141,9 +153,9 @@ describe('DnD Integration — full workflows through store actions', () => {
 
   it('float → dock at specific index → appears at that position', () => {
     useUiStore.getState().floatPanel('properties', 0, 0, 384, 400);
-    useUiStore.getState().dockPanel('properties', 'lower-right', 0);
+    useUiStore.getState().dockPanel('properties', 'middle-right', 0);
 
-    const ids = useUiStore.getState().panelLayout.zones['lower-right'].panelIds;
+    const ids = useUiStore.getState().panelLayout.zones['middle-right'].panelIds;
     expect(ids[0]).toBe('properties');
   });
 

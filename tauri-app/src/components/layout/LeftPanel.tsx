@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
-import { getPanelById, PANEL_COMPONENTS } from '../../panels';
+import { getPanelById, getPanelComponent } from '../../panels';
 import type { PhysicalDockZone } from '../../panels';
 import { TabBar } from '../shared/TabBar';
 import { appService } from '../../services/appService';
@@ -29,7 +29,6 @@ export function LeftPanel({ compact }: LeftPanelProps) {
   const zone: PhysicalDockZone = 'left';
   const panelLayout = useUiStore((s) => s.panelLayout);
   const setZoneActiveTab = useUiStore((s) => s.setZoneActiveTab);
-  const floatPanel = useUiStore((s) => s.floatPanel);
   const { dragState, startDrag, registerDropZone } = usePanelDnd();
   const { menuState, handleTabContextMenu, closeMenu } = usePanelTabContextMenu(zone);
 
@@ -42,24 +41,19 @@ export function LeftPanel({ compact }: LeftPanelProps) {
   const visiblePanelIds = zoneState.panelIds.filter((id) => !hiddenIds.includes(id));
   const tabs = visiblePanelIds.map((id) => {
     const def = getPanelById(id);
-    return { id, label: def ? t(def.titleKey) : id };
+    const suffix = id.includes('::') ? ` ${id.split('::').slice(-1)[0]}` : '';
+    return { id, label: def ? `${t(def.titleKey)}${suffix}` : id };
   });
 
   const activeTab = visiblePanelIds.includes(zoneState.activeTab)
     ? zoneState.activeTab
     : visiblePanelIds[0] ?? '';
 
-  const PanelContent = activeTab ? (PANEL_COMPONENTS[activeTab] ?? null) : null;
+  const PanelContent = activeTab ? getPanelComponent(activeTab) : null;
 
   const handleTabChange = (tabId: string) => {
     setZoneActiveTab(zone, tabId);
     appService.persistLayout(useUiStore.getState().panelLayout);
-  };
-
-  const handleFloatPanel = (panelId: string) => {
-    const def = getPanelById(panelId);
-    const size = def?.defaultFloatSize ?? { w: 384, h: 300 };
-    floatPanel(panelId, 100, 100, size.w, size.h);
   };
 
   const handleCompactContextMenu = useCallback((e: React.MouseEvent) => {
@@ -74,7 +68,6 @@ export function LeftPanel({ compact }: LeftPanelProps) {
     const items = buildPanelTabMenuItems(t, {
       panelId,
       mode: 'docked',
-      hiddenPanelIds: state.panelLayout.hiddenPanelIds,
       sidePanelsVisible: state.sidePanelsVisible,
       onFloat: (id) => {
         const panelDef = getPanelById(id);
@@ -82,14 +75,10 @@ export function LeftPanel({ compact }: LeftPanelProps) {
         useUiStore.getState().floatPanel(id, 100, 100, size.w, size.h);
       },
       onClose: (id) => {
-        useUiStore.getState().togglePanelVisibility(id);
+        useUiStore.getState().removePanelInstance(id);
       },
-      onTogglePanel: (id) => {
-        if (id === 'camera') {
-          useUiStore.getState().toggleCameraWindow();
-        } else {
-          useUiStore.getState().togglePanelVisibility(id);
-        }
+      onAddPanel: (id) => {
+        useUiStore.getState().addPanelInstance(id, zone);
       },
       onToggleSidePanels: () => {
         useUiStore.getState().toggleSidePanels();
@@ -130,9 +119,7 @@ export function LeftPanel({ compact }: LeftPanelProps) {
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        zone={zone}
         onTabDragStart={(panelId, e) => startDrag(panelId, zone, e)}
-        onFloatPanel={handleFloatPanel}
         onTabContextMenu={handleTabContextMenu}
         dropInsertIndex={dropInsertIndex}
       />

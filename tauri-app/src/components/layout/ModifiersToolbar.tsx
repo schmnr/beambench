@@ -7,7 +7,6 @@ import { isTransformLocked, notifyTransformLocked, notifyObjectLocked } from '..
 import { mmToDisplay, displayToMm, roundDisplayLength } from '../../utils/lengthUnits';
 import { IconButton } from '../shared/IconButton';
 import { NumberStepper } from '../shared/NumberStepper';
-import { ToolbarSubmenuButton, type SubmenuItem } from '../shared/ToolbarSubmenuButton';
 import { OffsetDialog } from '../dialogs/OffsetDialog';
 import { GridArrayDialog } from '../dialogs/GridArrayDialog';
 import { CircularArrayDialog } from '../dialogs/CircularArrayDialog';
@@ -47,7 +46,7 @@ const CircularArrayIcon = ({ size = 24 }: { size?: number }) => (
     <circle cx="5.1" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.5" fill="none" />
   </svg>
 );
-import { resolveEffectiveData, isEffectiveVector, isBooleanCompatible } from '../../commands/selectionContext';
+import { resolveEffectiveData, isEffectiveVector } from '../../commands/selectionContext';
 
 const OffsetIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -55,69 +54,6 @@ const OffsetIcon = ({ size = 24 }: { size?: number }) => (
     <rect x="2.5" y="2.5" width="19" height="19" rx="4" strokeDasharray="3 2.5" />
   </svg>
 );
-
-/* ── Boolean / Weld icons ──
-   Two overlapping rectangles with large overlap for readability at small sizes.
-   Rect A = (1,1 → 15,15), Rect B = (9,9 → 23,23).
-   Overlap region = (9,9 → 15,15) — 6×6 px, ~43% of each rect. */
-
-const UnionIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none">
-    <path d="M1,1 H15 V9 H23 V23 H9 V15 H1 Z" />
-  </svg>
-);
-
-const SubtractIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-    {/* A minus overlap — the L-shaped remainder */}
-    <path d="M1,1 H15 V9 H9 V15 H1 Z" fill="currentColor" stroke="none" />
-    {/* B shown as dashed outline */}
-    <rect x="9" y="9" width="14" height="14" strokeWidth="1.5" strokeDasharray="2.5 2" />
-  </svg>
-);
-
-const IntersectIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-    {/* Both rects as dashed outlines */}
-    <rect x="1" y="1" width="14" height="14" strokeWidth="1.5" strokeDasharray="2.5 2" />
-    <rect x="9" y="9" width="14" height="14" strokeWidth="1.5" strokeDasharray="2.5 2" />
-    {/* Overlap region filled — large and obvious */}
-    <rect x="9" y="9" width="6" height="6" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-const ExcludeIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-    <rect x="1" y="1" width="14" height="14" strokeWidth="1.5" strokeDasharray="2.5 2" />
-    <rect x="9" y="9" width="14" height="14" strokeWidth="1.5" strokeDasharray="2.5 2" />
-    <path d="M1,1 H15 V9 H9 V15 H1 Z" fill="currentColor" stroke="none" />
-    <path d="M15,9 H23 V23 H9 V15 H15 Z" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-const WeldIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-    {/* Asymmetric 3-rect weld:
-        R1 left-middle (1,5→14,18), R2 upper-right (10,1→23,14), R3 lower-middle (5,12→19,23) */}
-    <path d="M10,1 H23 V14 H19 V23 H5 V18 H1 V5 H10 Z" strokeWidth="1.5" />
-    {/* Dashed internal edges showing original rect boundaries */}
-    <line x1="10" y1="5" x2="14" y2="5" strokeWidth="1" strokeDasharray="1.5 1.5" />
-    <line x1="10" y1="5" x2="10" y2="14" strokeWidth="1" strokeDasharray="1.5 1.5" />
-    <line x1="14" y1="5" x2="14" y2="18" strokeWidth="1" strokeDasharray="1.5 1.5" />
-    <line x1="5" y1="12" x2="19" y2="12" strokeWidth="1" strokeDasharray="1.5 1.5" />
-    <line x1="5" y1="18" x2="14" y2="18" strokeWidth="1" strokeDasharray="1.5 1.5" />
-    <line x1="10" y1="14" x2="19" y2="14" strokeWidth="1" strokeDasharray="1.5 1.5" />
-    <line x1="5" y1="12" x2="5" y2="18" strokeWidth="1" strokeDasharray="1.5 1.5" />
-    <line x1="19" y1="12" x2="19" y2="14" strokeWidth="1" strokeDasharray="1.5 1.5" />
-  </svg>
-);
-
-const BOOLEAN_ITEM_DEFS: Array<Omit<SubmenuItem, 'label'> & { labelKey: string }> = [
-  { id: 'union', icon: <UnionIcon size={20} />, labelKey: 'toolbars.modifiers.union' },
-  { id: 'subtract', icon: <SubtractIcon size={20} />, labelKey: 'toolbars.modifiers.subtract' },
-  { id: 'intersect', icon: <IntersectIcon size={20} />, labelKey: 'toolbars.modifiers.intersect' },
-  { id: 'exclude', icon: <ExcludeIcon size={20} />, labelKey: 'toolbars.modifiers.exclude' },
-];
 
 const SMALL_BUTTON_SIZE = 'sm' as const;
 const TOOL_SELECT = 'select' as const;
@@ -127,11 +63,6 @@ export function ModifiersToolbar() {
   const { t } = useTranslation();
   const project = useProjectStore((s) => s.project);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
-  const booleanUnion = useProjectStore((s) => s.booleanUnion);
-  const booleanSubtract = useProjectStore((s) => s.booleanSubtract);
-  const booleanIntersection = useProjectStore((s) => s.booleanIntersection);
-  const booleanExclude = useProjectStore((s) => s.booleanExclude);
-  const booleanWeld = useProjectStore((s) => s.booleanWeld);
 
   const activeTool = useUiStore((s) => s.activeTool);
   const radiusToolValue = useUiStore((s) => s.radiusToolValue);
@@ -159,12 +90,6 @@ export function ModifiersToolbar() {
   const selectedObjects = project?.objects.filter((o) => selectedObjectIds.includes(o.id)) ?? [];
   const anyLocked = selectedObjects.some((o) => o.locked);
   const hasSel = selCount > 0 && !anyLocked;
-  const booleanPending = useProjectStore((s) => s.booleanPending);
-  const allSelectedBooleanOk = selectedObjects.length >= 2 && selectedObjects.every((o) =>
-    isBooleanCompatible(o, project?.objects ?? []),
-  );
-  const hasBool = selCount === 2 && !anyLocked && !booleanPending && allSelectedBooleanOk;
-  const hasWeld = selCount >= 2 && !anyLocked && !booleanPending && allSelectedBooleanOk;
   const hasOne = selCount === 1 && !anyLocked;
   const hasVector = hasOne && selectedObjects[0] &&
     isEffectiveVector(selectedObjects[0], project?.objects ?? []);
@@ -182,28 +107,6 @@ export function ModifiersToolbar() {
     return false;
   };
 
-  const lastBooleanOp = useUiStore((s) => s.lastBooleanOp);
-  const setLastBooleanOp = useUiStore((s) => s.setLastBooleanOp);
-
-  const booleanOps: Record<string, typeof booleanUnion> = {
-    union: booleanUnion,
-    subtract: booleanSubtract,
-    intersect: booleanIntersection,
-    exclude: booleanExclude,
-  };
-  const booleanItems = BOOLEAN_ITEM_DEFS.map((item) => ({
-    id: item.id,
-    icon: item.icon,
-    label: t(item.labelKey),
-  }));
-
-  const executeBooleanOp = (opId: string) => {
-    if (guardLock()) return;
-    setLastBooleanOp(opId);
-    const op = booleanOps[opId];
-    if (op) void op(selectedObjectIds[0], selectedObjectIds[1]);
-  };
-
   const GroupSeparator = () => <div className="w-10 h-px bg-bb-border my-0.5" />;
 
   return (
@@ -213,22 +116,6 @@ export function ModifiersToolbar() {
         label={t('toolbars.modifiers.offset')}
         onClick={() => { if (!guardLock()) setShowOffsetDialog(true); }}
         disabled={!hasSel}
-        size={SMALL_BUTTON_SIZE}
-      />
-      <GroupSeparator />
-      <IconButton
-        icon={<WeldIcon size={24} />}
-        label={t('toolbars.modifiers.weld')}
-        onClick={() => { if (!guardLock()) void booleanWeld(selectedObjectIds); }}
-        disabled={!hasWeld}
-        size={SMALL_BUTTON_SIZE}
-      />
-      <ToolbarSubmenuButton
-        items={booleanItems}
-        activeItemId={lastBooleanOp}
-        onSelect={executeBooleanOp}
-        isToolActive={false}
-        disabled={!hasBool}
         size={SMALL_BUTTON_SIZE}
       />
       <GroupSeparator />

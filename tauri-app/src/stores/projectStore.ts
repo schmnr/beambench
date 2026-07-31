@@ -62,6 +62,7 @@ import { applyAroundCenter, getCombinedBounds, resolveCloneForGeometry } from '.
 
 const invalidatePreview = () => usePreviewStore.getState().invalidate();
 const notifyError = (msg: string) => useNotificationStore.getState().push(wrapBackendError(msg), 'error');
+const projectCreationBlocked = () => useUiStore.getState().workspaceMode === 'run';
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 const TOOL1_COLOR = PALETTE_COLORS.find((entry) => entry.name === 'Tool 1')?.hex ?? '#DA0B3F';
 
@@ -424,6 +425,7 @@ interface ProjectStoreState {
     },
   ) => Promise<boolean>;
   updateObjectData: (objectId: string, data: ObjectData) => Promise<boolean>;
+  resizeTextArea: (objectId: string, bounds: Bounds) => Promise<boolean>;
   resizeShapeObject: (objectId: string, bounds: Bounds) => Promise<boolean>;
   removeObject: (objectId: string) => Promise<void>;
   removeObjects: (objectIds: string[]) => Promise<boolean>;
@@ -531,6 +533,10 @@ interface ProjectStoreState {
   // Boolean / vector ops
   booleanIntersection: (objectIdA: string, objectIdB: string) => Promise<void>;
   booleanWeld: (objectIds: string[]) => Promise<void>;
+  booleanUnionMany: (objectIds: string[]) => Promise<void>;
+  booleanIntersectionMany: (objectIds: string[]) => Promise<void>;
+  booleanExcludeMany: (objectIds: string[]) => Promise<void>;
+  booleanSubtractMany: (objectIds: string[]) => Promise<void>;
   cutShapes: (objectIds: string[]) => Promise<void>;
   closeAndJoin: (
     objectIds: string[],
@@ -758,7 +764,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         pendingPaletteColor: null,
         selectedLayerId: resolveSelectedLayerId(project, previousSelectedLayerId),
         selectedObjectIds: project
-          ? previousSelectedObjectIds.filter((id) => project.objects.some((obj) => obj.id === id))
+          ? normalizeSelectionMembers(project, previousSelectedObjectIds)
           : [],
       });
       if (options?.invalidatePreview) {
@@ -796,6 +802,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   addLayer: async (name, operation) => {
+    if (projectCreationBlocked()) return;
     try {
       const layer = decorateLayer(await projectService.addLayer(name, operation));
       const { project } = get();
@@ -831,12 +838,14 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       }
       const updatedLayer = decorateLayer(await projectService.updateLayer(layerId, updates));
       if (project) {
+        const nextProject = {
+          ...project,
+          layers: project.layers.map((l) => (l.id === layerId ? updatedLayer! : l)),
+          dirty: true,
+        };
         set({
-          project: {
-              ...project,
-              layers: project.layers.map((l) => (l.id === layerId ? updatedLayer! : l)),
-              dirty: true,
-          },
+          project: nextProject,
+          selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
         });
         invalidatePreview();
         await refreshUndo();
@@ -1007,7 +1016,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const layers = await projectService.reorderLayer(layerId, newIndex);
       const { project } = get();
       if (project) {
-        set({ project: { ...project, layers: layers.map(decorateLayer), dirty: true } });
+        const nextProject = { ...project, layers: layers.map(decorateLayer), dirty: true };
+        set({
+          project: nextProject,
+          selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
+        });
         invalidatePreview();
         await refreshUndo();
       }
@@ -1117,7 +1130,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const layers = await projectService.setAllLayersVisible(mode);
       const { project } = get();
       if (project) {
-        set({ project: { ...project, layers: layers.map(decorateLayer), dirty: true } });
+        const nextProject = { ...project, layers: layers.map(decorateLayer), dirty: true };
+        set({
+          project: nextProject,
+          selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
+        });
         invalidatePreview();
         await refreshUndo();
       }
@@ -1145,6 +1162,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   addObject: async (name, layerId, objectData, bounds) => {
+    if (projectCreationBlocked()) return null;
     try {
       // Classify the new object's content type so the layer-family
       // resolver can route it to the correct sibling (image vs
@@ -1422,6 +1440,30 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
+      return false;
+    }
+  },
+
+  resizeTextArea: async (objectId, bounds) => {
+    try {
+      const updated = await projectService.resizeTextArea(objectId, bounds);
+      const { project } = get();
+      if (project) {
+        set({
+          project: {
+            ...project,
+            objects: project.objects.map((object) => object.id === objectId ? updated : object),
+            dirty: true,
+          },
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+      return true;
+    } catch (error) {
+      const message = String(error);
+      set({ error: message });
+      notifyError(message);
       return false;
     }
   },
@@ -2381,7 +2423,13 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       await projectService.setObjectsVisible(objectIds, visible);
       const project = await projectService.getProject();
-      if (project) set({ project: { ...project, dirty: true } });
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
+        });
+      }
       invalidatePreview();
       await refreshUndo();
     } catch (e) {
@@ -2944,6 +2992,98 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
             [newObj.id],
             newObj.layer_id,
           ),
+          selectedObjectIds: [newObj.id],
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    } finally {
+      set({ booleanPending: false });
+    }
+  },
+
+  booleanUnionMany: async (objectIds) => {
+    if (get().booleanPending) return;
+    set({ booleanPending: true });
+    try {
+      const newObj = await vectorService.booleanUnionMany(objectIds);
+      const project = await projectService.getProject();
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedLayerId: resolveSelectedLayerForObjects(nextProject, [newObj.id], newObj.layer_id),
+          selectedObjectIds: [newObj.id],
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    } finally {
+      set({ booleanPending: false });
+    }
+  },
+
+  booleanIntersectionMany: async (objectIds) => {
+    if (get().booleanPending) return;
+    set({ booleanPending: true });
+    try {
+      const newObj = await vectorService.booleanIntersectionMany(objectIds);
+      const project = await projectService.getProject();
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedLayerId: resolveSelectedLayerForObjects(nextProject, [newObj.id], newObj.layer_id),
+          selectedObjectIds: [newObj.id],
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    } finally {
+      set({ booleanPending: false });
+    }
+  },
+
+  booleanExcludeMany: async (objectIds) => {
+    if (get().booleanPending) return;
+    set({ booleanPending: true });
+    try {
+      const newObj = await vectorService.booleanExcludeMany(objectIds);
+      const project = await projectService.getProject();
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedLayerId: resolveSelectedLayerForObjects(nextProject, [newObj.id], newObj.layer_id),
+          selectedObjectIds: [newObj.id],
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    } finally {
+      set({ booleanPending: false });
+    }
+  },
+
+  booleanSubtractMany: async (objectIds) => {
+    if (get().booleanPending) return;
+    set({ booleanPending: true });
+    try {
+      const newObj = await vectorService.booleanSubtractMany(objectIds);
+      const project = await projectService.getProject();
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedLayerId: resolveSelectedLayerForObjects(nextProject, [newObj.id], newObj.layer_id),
           selectedObjectIds: [newObj.id],
         });
         invalidatePreview();

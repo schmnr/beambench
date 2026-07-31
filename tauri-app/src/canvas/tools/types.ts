@@ -26,6 +26,8 @@ export interface ToolContext {
   selectedLayerId: string | null;
   layers: { id: string; enabled: boolean; visible?: boolean; operation?: string }[];
   transformLocks?: TransformLocks;
+  /** Selection remains available, but project geometry must not be mutated. */
+  readOnly?: boolean;
   snapEnabled: boolean;
   snapToObjects: boolean;
   gridSpacingMm: number;

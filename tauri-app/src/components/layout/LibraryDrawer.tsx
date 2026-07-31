@@ -22,7 +22,7 @@ export function LibraryDrawer() {
       className="no-select absolute bottom-2 left-[4.75rem] top-2 z-[35] flex w-[26rem] max-w-[calc(100%-5.5rem)] flex-col overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-xl"
       data-testid="library-drawer"
     >
-      <div className="flex items-center border-b border-bb-border px-2 pt-1.5">
+      <div className="flex items-center border-b border-bb-border px-2 pt-1.5" role="tablist">
         <button
           className={`flex-1 border-b-2 px-2 pb-1.5 text-xs ${
             tab === 'art'
@@ -31,6 +31,8 @@ export function LibraryDrawer() {
           }`}
           onClick={() => setTab('art')}
           data-testid="library-tab-art"
+          role="tab"
+          aria-selected={tab === 'art'}
         >
           {t('panels.registry.art_library')}
         </button>
@@ -42,6 +44,8 @@ export function LibraryDrawer() {
           }`}
           onClick={() => setTab('materials')}
           data-testid="library-tab-materials"
+          role="tab"
+          aria-selected={tab === 'materials'}
         >
           {t('panels.registry.material')}
         </button>

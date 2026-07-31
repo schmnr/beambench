@@ -11,6 +11,7 @@ import { renderOptionsFromViewStyle, useUiStore, type ToolType, type ViewStyle }
 import { useUndoStore } from '../stores/undoStore';
 import { guardUnsavedChanges } from '../stores/unsavedGuardStore';
 import { useMachineStore } from '../stores/machineStore';
+import { getWorkspacePanelLayout } from '../panels';
 import {
   clearClipboard,
   hasClipboardData,
@@ -33,6 +34,7 @@ import {
 import { APP_COMMANDS, type AppCommandId } from './appCommandIds';
 import {
   imageObjectHasSourcePath,
+  isBooleanCompatible,
   isClosedVectorCompatible,
   pickLastSelectedVectorGuide,
   resolveEffectiveData,
@@ -693,13 +695,25 @@ export async function executeAppCommand(
       return;
     }
     case APP_COMMANDS.TOOLS_BOOLEAN_UNION:
-      if (selectedIds.length >= 2) await runCommand(() => ps.booleanUnion(selectedIds[0], selectedIds[1]));
+      if (selectedIds.length === 2) {
+        await runCommand(() => ps.booleanUnion(selectedIds[0], selectedIds[1]));
+      } else if (selectedIds.length > 2) {
+        await runCommand(() => ps.booleanUnionMany(selectedIds));
+      }
       return;
     case APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT:
-      if (selectedIds.length >= 2) await runCommand(() => ps.booleanSubtract(selectedIds[0], selectedIds[1]));
+      if (selectedIds.length === 2) {
+        await runCommand(() => ps.booleanSubtract(selectedIds[0], selectedIds[1]));
+      } else if (selectedIds.length > 2) {
+        await runCommand(() => ps.booleanSubtractMany(selectedIds));
+      }
       return;
     case APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION:
-      if (selectedIds.length >= 2) await runCommand(() => ps.booleanIntersection(selectedIds[0], selectedIds[1]));
+      if (selectedIds.length === 2) {
+        await runCommand(() => ps.booleanIntersection(selectedIds[0], selectedIds[1]));
+      } else if (selectedIds.length > 2) {
+        await runCommand(() => ps.booleanIntersectionMany(selectedIds));
+      }
       return;
     case APP_COMMANDS.TOOLS_BOOLEAN_WELD:
       if (selectedIds.length >= 2) await runCommand(() => ps.booleanWeld(selectedIds));
@@ -980,8 +994,10 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const singleVectorSelection = singleSelection !== null && vectorSelection;
   const singleClosedVectorCompatibleSelection =
     singleSelection !== null && isClosedVectorCompatible(singleSelection, allObjects);
-  const canBoolean = selectedObjects.length === 2 && unlockedSelection;
-  const canWeld = selectedObjects.length >= 2 && unlockedSelection;
+  const booleanCompatibleSelection = selectedObjects.length >= 2
+    && selectedObjects.every((object) => isBooleanCompatible(object, allObjects));
+  const canBoolean = selectedObjects.length === 2 && unlockedSelection && booleanCompatibleSelection;
+  const canWeld = unlockedSelection && booleanCompatibleSelection;
   const canApplyPathToText = selectedObjects.length === 2
     && Boolean(selectedTextObject && selectedPathObject && selectedTextObject.id !== selectedPathObject.id);
   const canApplyMaskToImage = selectedRasterObject !== null
@@ -1006,10 +1022,11 @@ export function getAppCommandState(): NativeMenuStateUpdate {
     enabled: true,
     checked: ui.viewStyle === item.viewStyle,
   }));
+  const activePanelLayout = getWorkspacePanelLayout(ui.panelLayout, ui.workspaceMode);
   const panelItems = WINDOW_PANEL_MENU_ITEMS.map((item) => ({
     id: item.commandId,
     enabled: true,
-    checked: !ui.panelLayout.hiddenPanelIds.includes(item.panelId),
+    checked: !activePanelLayout.hiddenPanelIds.includes(item.panelId),
   }));
   const toolbarItems = WINDOW_TOOLBAR_MENU_ITEMS.map((item) => ({
     id: item.commandId,
@@ -1112,14 +1129,14 @@ export function getAppCommandState(): NativeMenuStateUpdate {
       { id: APP_COMMANDS.TOOLS_TRIM, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TRIM) },
       { id: APP_COMMANDS.TOOLS_TABS, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TABS) },
       { id: APP_COMMANDS.TOOLS_TEXT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TEXT) },
-      { id: APP_COMMANDS.TOOLS_POSITION_LASER, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_POSITION_LASER) },
+      { id: APP_COMMANDS.TOOLS_POSITION_LASER, enabled: projectLoaded && ui.workspaceMode === 'run', accelerator: accel(APP_COMMANDS.TOOLS_POSITION_LASER) },
       { id: APP_COMMANDS.TOOLS_MEASURE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_MEASURE) },
       { id: APP_COMMANDS.TOOLS_BARCODE, enabled: projectLoaded },
       { id: APP_COMMANDS.TOOLS_OFFSET, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.TOOLS_OFFSET) },
       { id: APP_COMMANDS.TOOLS_BOOLEAN_WELD, enabled: canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_WELD) },
-      { id: APP_COMMANDS.TOOLS_BOOLEAN_UNION, enabled: canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_UNION) },
-      { id: APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT, enabled: canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT) },
-      { id: APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION, enabled: canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION) },
+      { id: APP_COMMANDS.TOOLS_BOOLEAN_UNION, enabled: canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_UNION) },
+      { id: APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT, enabled: canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT) },
+      { id: APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION, enabled: canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION) },
       { id: APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT, enabled: canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT) },
       { id: APP_COMMANDS.TOOLS_CUT_SHAPES, enabled: selectedObjects.length >= 2 && unlockedSelection, accelerator: accel(APP_COMMANDS.TOOLS_CUT_SHAPES) },
       { id: APP_COMMANDS.TOOLS_ADJUST_IMAGE, enabled: rasterSelected, accelerator: accel(APP_COMMANDS.TOOLS_ADJUST_IMAGE) },

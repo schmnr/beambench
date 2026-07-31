@@ -53,6 +53,7 @@ import { ContextMenu } from '../shared/ContextMenu';
 import { useCanvasContextMenu } from './useCanvasContextMenu';
 import { TextEditOverlay } from './TextEditOverlay';
 import { cancelPendingGuidePathSelection } from './guidePathCancel';
+import { exitStartPointPickMode } from './startPointPick';
 import {
   buildCanvasArtLibraryDragOverState,
   buildCanvasArtLibraryDropPayload,
@@ -63,9 +64,10 @@ import { resolveRulerGuideDropValue } from './rulerGuideDrag';
 import { isArtLibraryDragDataTransfer } from '../shared/artLibraryDragData';
 import { TraceImageDialog } from '../dialogs/TraceImageDialog';
 import { AdjustImageDialog } from '../dialogs/AdjustImageDialog';
-import { commitPendingTextEdit, getPendingContent } from '../../canvas/textEditSession';
+import { commitPendingTextEdit, getPendingContent, updatePendingContent } from '../../canvas/textEditSession';
 import { beginTextEditFromDoubleClick } from '../../canvas/textDoubleClick';
 import { registerToolInstances } from '../layout/CreationToolbar';
+import { resolveWorkspaceCanvasTool } from '../../canvas/workspaceCanvasTool';
 import type { StartPointMode } from '../../types/vector';
 import { resolveCanvasPointerSnap } from '../../canvas/pointerSnap';
 import {
@@ -104,6 +106,12 @@ registerToolInstances(TOOL_INSTANCES as unknown as Record<string, unknown>);
 const INTERACTION_IDLE_MS = 150;
 const POINTER_DRAG_INTERACTION_THRESHOLD_PX = 4;
 const HEAVY_SELECTION_COMMAND_THRESHOLD = 2000;
+const RUN_MODE_SELECTION_LOCKS = {
+  move_enabled: false,
+  size_enabled: false,
+  rotate_enabled: false,
+  shear_enabled: false,
+} as const;
 
 type MouseEventLike = {
   clientX: number;
@@ -166,6 +174,7 @@ export function Canvas() {
 
   const previewState = usePreviewStore((s) => s.state);
   const previewData = usePreviewStore((s) => s.data);
+  const showPreview = usePreviewStore((s) => s.showPreview);
   const manualRefreshRequired = usePreviewStore((s) => s.manualRefreshRequired);
 
   const settings = useAppStore((s) => s.settings);
@@ -189,6 +198,9 @@ export function Canvas() {
   // Offset dialog live preview (dashed ghost). Subscribe with a selector so the
   // dirty-flag canvas repaints when the dialog sets/clears it.
   const offsetPreview = useUiStore((s) => s.offsetPreview);
+  // Cursor feedback must update immediately when the text panel switches
+  // between Point and Box mode. TextTool reads the same value in getCursor().
+  const textBoxModeActive = useUiStore((s) => (s.textDefaults.max_width ?? 0) > 0);
   const insertArtLibraryItem = useArtLibraryStore((s) => s.insertToProject);
   const setArtLibraryDragState = useArtLibraryStore((s) => s.setDragState);
 
@@ -206,7 +218,7 @@ export function Canvas() {
   const setCameraDraftOverlayTransform = useCameraStore((s) => s.setDraftOverlayTransform);
   const commitCameraDraftOverlayTransform = useCameraStore((s) => s.commitDraftOverlayTransform);
 
-  const tool = TOOL_INSTANCES[activeTool];
+  const tool = TOOL_INSTANCES[resolveWorkspaceCanvasTool(workspaceMode, activeTool)];
 
   const theme = settings?.dark_mode ? DARK_THEME : LIGHT_THEME;
   const { antialiasing, filledRendering } = renderOptionsFromViewStyle(viewStyle);
@@ -519,7 +531,10 @@ export function Canvas() {
   const buildEffectiveOverlay = useCallback(() => {
     if (!project) return { type: 'none' } as ReturnType<CanvasTool['getOverlay']>;
 
-    let effectiveOverlay = tool.getOverlay();
+    // Never carry a partially-drawn design overlay into the Run workspace.
+    let effectiveOverlay = workspaceMode === 'run'
+      ? ({ type: 'none' } as ReturnType<CanvasTool['getOverlay']>)
+      : tool.getOverlay();
     if (rulerGuidePreview) {
       effectiveOverlay = {
         type: 'ruler-guide-preview',
@@ -607,6 +622,7 @@ export function Canvas() {
     rulerGuidePreview,
     startPointVertices,
     tool,
+    workspaceMode,
   ]);
 
   const renderBaseScene = useCallback(() => {
@@ -625,7 +641,9 @@ export function Canvas() {
       gridSpacingMm,
       toolOverlay: effectiveOverlay,
       previewData: previewData,
-      showPreview: workspaceMode === 'run',
+      // Run is a read-only workspace, not an implicit toolpath preview.
+      // Canvas preview visibility is controlled independently of workspace mode.
+      showPreview,
       cameraOverlay,
       theme,
       antialiasing,
@@ -637,7 +655,7 @@ export function Canvas() {
       laserPosition,
       skipObjectId: textEditObjectId,
       displayUnit: (settings?.display_unit === 'inches' ? 'inches' : 'mm') as 'mm' | 'inches',
-      transformLocks: project?.transform_locks,
+      transformLocks: workspaceMode === 'run' ? RUN_MODE_SELECTION_LOCKS : project?.transform_locks,
       flashedLayerId,
       interactionState,
     });
@@ -648,6 +666,7 @@ export function Canvas() {
     gridVisible,
     gridSpacingMm,
     previewData,
+    showPreview,
     workspaceMode,
     cameraOverlay,
     theme,
@@ -685,7 +704,7 @@ export function Canvas() {
       gridSpacingMm,
       toolOverlay: buildEffectiveOverlay(),
       previewData: previewData,
-      showPreview: workspaceMode === 'run',
+      showPreview,
       theme,
       antialiasing,
       filledRendering,
@@ -697,7 +716,7 @@ export function Canvas() {
       skipObjectId: textEditObjectId,
       persistentTabMarkers: filteredTabMarkers,
       displayUnit: (settings?.display_unit === 'inches' ? 'inches' : 'mm') as 'mm' | 'inches',
-      transformLocks: project?.transform_locks,
+      transformLocks: workspaceMode === 'run' ? RUN_MODE_SELECTION_LOCKS : project?.transform_locks,
       flashedLayerId,
       interactionState,
     });
@@ -708,6 +727,7 @@ export function Canvas() {
     gridVisible,
     gridSpacingMm,
     previewData,
+    showPreview,
     workspaceMode,
     theme,
     antialiasing,
@@ -918,6 +938,7 @@ export function Canvas() {
         rotate_enabled: true,
         shear_enabled: true,
       },
+      readOnly: workspaceMode === 'run',
       snapEnabled: snapEnabled && gridVisible,
       snapToObjects,
       gridSpacingMm: effectiveSnapSpacing,
@@ -939,6 +960,7 @@ export function Canvas() {
     project,
     selectedObjectIds,
     selectedLayerId,
+    workspaceMode,
     snapEnabled,
     snapToObjects,
     gridVisible,
@@ -1019,7 +1041,7 @@ export function Canvas() {
         return;
       }
 
-      if (((e.buttons ?? 0) & 1) === 1 && pointerDragCandidateRef.current) {
+      if (workspaceMode !== 'run' && ((e.buttons ?? 0) & 1) === 1 && pointerDragCandidateRef.current) {
         const dx = e.clientX - pointerDragCandidateRef.current.x;
         const dy = e.clientY - pointerDragCandidateRef.current.y;
         if (
@@ -1066,12 +1088,15 @@ export function Canvas() {
         return;
       }
 
+      const liveUi = useUiStore.getState();
       const me = buildMouseEvent(e);
-      const ctx = buildToolContext();
-      tool.onMouseMove(me, ctx);
+      const ctx = { ...buildToolContext(), readOnly: liveUi.workspaceMode === 'run' };
+      const pointerTool = TOOL_INSTANCES[
+        resolveWorkspaceCanvasTool(liveUi.workspaceMode, liveUi.activeTool)
+      ];
+      pointerTool.onMouseMove(me, ctx);
     },
     [
-      tool,
       beginInteraction,
       buildMouseEvent,
       buildToolContext,
@@ -1087,6 +1112,7 @@ export function Canvas() {
       cameraOverlayWidthPx,
       setCameraDraftOverlayTransform,
       requestRender,
+      workspaceMode,
     ],
   );
 
@@ -1110,6 +1136,7 @@ export function Canvas() {
       }
 
       if (e.button === 0) {
+        const liveWorkspaceMode = useUiStore.getState().workspaceMode;
         const adjustCanvas = overlayCanvasRef.current;
         if (cameraOverlayAdjustMode && cameraFrame && cameraOverlayTransform && adjustCanvas) {
           const rect = adjustCanvas.getBoundingClientRect();
@@ -1138,15 +1165,17 @@ export function Canvas() {
           return;
         }
 
-        pointerDragCandidateRef.current = {
-          x: e.clientX,
-          y: e.clientY,
-          objectIds: [...selectedObjectIds],
-        };
+        pointerDragCandidateRef.current = liveWorkspaceMode === 'run'
+          ? null
+          : {
+              x: e.clientX,
+              y: e.clientY,
+              objectIds: [...selectedObjectIds],
+            };
 
         // Intercept click for Set Start Point pick mode
         const pendingId = useUiStore.getState().pendingStartPointObjectId;
-        if (pendingId) {
+        if (pendingId && liveWorkspaceMode !== 'run') {
           const me = buildMouseEvent(e);
           // Only act when the click is within hit radius of a closed-subpath vertex
           const HIT_RADIUS = 8;
@@ -1167,6 +1196,15 @@ export function Canvas() {
           }
           // Determine mode from modifier keys
           const mode: StartPointMode = me.ctrlKey ? 'reset' : me.shiftKey ? 'set_and_reverse' : 'set';
+
+          // The start-point picker is a one-shot action. Consume it as soon as a
+          // valid vertex is chosen so a slow backend refresh cannot leave stale
+          // nodes visible or accept a second click.
+          exitStartPointPickMode();
+          setStartPointVertices([]);
+          startPointHoveredRef.current = null;
+          requestRender();
+
           void (async () => {
             try {
               await vectorService.setStartPoint(pendingId, me.worldX, me.worldY, mode);
@@ -1176,18 +1214,6 @@ export function Canvas() {
                 usePreviewStore.getState().invalidate();
                 await useUndoStore.getState().refresh();
               }
-              // Re-fetch vertices to update overlay (stay in pick mode)
-              const verts = await vectorService.getPathVertices(pendingId);
-              setStartPointVertices(
-                verts.map((v) => ({
-                  worldX: v.x,
-                  worldY: v.y,
-                  isStart: v.isStart,
-                  subpathIndex: v.subpathIndex,
-                  vertexIndex: v.vertexIndex,
-                  subpathClosed: v.subpathClosed,
-                })),
-              );
             } catch (err) {
               useNotificationStore.getState().push(wrapBackendError(String(err)), 'error');
             }
@@ -1198,11 +1224,12 @@ export function Canvas() {
 
         // Intercept click for Guide Path pick mode
         const pendingGuideText = useUiStore.getState().pendingGuidePathTextId;
-        if (pendingGuideText) {
+        if (pendingGuideText && liveWorkspaceMode !== 'run') {
           const me = buildMouseEvent(e);
           const screenPt = { x: me.screenX, y: me.screenY };
-          const objects = useProjectStore.getState().project?.objects ?? [];
-          const hit = hitTestPoint(screenPt, objects, vp);
+          const currentProject = useProjectStore.getState().project;
+          const objects = currentProject?.objects ?? [];
+          const hit = hitTestPoint(screenPt, objects, vp, false, currentProject?.layers);
           const guideTypes = new Set(['shape', 'vector_path', 'polygon', 'star']);
           let hitType = hit?.data.type ?? '';
           if (hit && hitType === 'virtual_clone') {
@@ -1242,7 +1269,7 @@ export function Canvas() {
         }
 
         const canvas = overlayCanvasRef.current;
-        if (canvas) {
+        if (canvas && liveWorkspaceMode !== 'run') {
           const rect = canvas.getBoundingClientRect();
           const rulerAxis = getRulerDragAxis(e.clientX - rect.left, e.clientY - rect.top);
           if (rulerAxis) {
@@ -1258,13 +1285,16 @@ export function Canvas() {
           }
         }
 
+        const liveUi = useUiStore.getState();
         const me = buildMouseEvent(e);
-        const ctx = buildToolContext();
-        tool.onMouseDown(me, ctx);
+        const ctx = { ...buildToolContext(), readOnly: liveUi.workspaceMode === 'run' };
+        const pointerTool = TOOL_INSTANCES[
+          resolveWorkspaceCanvasTool(liveUi.workspaceMode, liveUi.activeTool)
+        ];
+        pointerTool.onMouseDown(me, ctx);
       }
     },
     [
-      tool,
       buildMouseEvent,
       buildToolContext,
       beginInteraction,
@@ -1348,14 +1378,17 @@ export function Canvas() {
           scheduleInteractionStop();
           return;
         }
+        const liveUi = useUiStore.getState();
         const me = buildMouseEvent(e);
-        const ctx = buildToolContext();
-        tool.onMouseUp(me, ctx);
+        const ctx = { ...buildToolContext(), readOnly: liveUi.workspaceMode === 'run' };
+        const pointerTool = TOOL_INSTANCES[
+          resolveWorkspaceCanvasTool(liveUi.workspaceMode, liveUi.activeTool)
+        ];
+        pointerTool.onMouseUp(me, ctx);
         scheduleInteractionStop();
       }
     },
     [
-      tool,
       buildMouseEvent,
       buildToolContext,
       extractGuideValue,
@@ -1475,8 +1508,23 @@ export function Canvas() {
         return;
       }
 
-      // When text editing overlay is active, let the textarea handle all input
-      if (useUiStore.getState().textEditObjectId) return;
+      // When a brand-new edit session opens, object creation and textarea focus
+      // can land a frame apart. Buffer printable keys during that gap so rapid
+      // typing never loses its first character. Once focused, the textarea
+      // handles input normally.
+      if (useUiStore.getState().textEditObjectId) {
+        const target = e.target as HTMLElement | null;
+        const editorFocused = target?.classList?.contains('text-edit-overlay') ?? false;
+        if (!editorFocused && useUiStore.getState().textEditMode === 'new' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          const text = e.key === 'Enter' ? '\n' : e.key.length === 1 ? e.key : '';
+          if (text) {
+            e.preventDefault();
+            e.stopPropagation();
+            updatePendingContent(`${getPendingContent() ?? ''}${text}`);
+          }
+        }
+        return;
+      }
 
       if (e.key === 'Escape' && useCameraStore.getState().overlayAdjustMode) {
         const cameraDrag = cameraOverlayAdjustDragRef.current;
@@ -1499,7 +1547,10 @@ export function Canvas() {
 
       // Cancel start-point pick mode on Escape
       if (e.key === 'Escape' && useUiStore.getState().pendingStartPointObjectId) {
-        useUiStore.getState().setPendingStartPoint(null);
+        exitStartPointPickMode();
+        setStartPointVertices([]);
+        startPointHoveredRef.current = null;
+        requestRender();
         return;
       }
 
@@ -1568,17 +1619,17 @@ export function Canvas() {
     if (useUiStore.getState().pendingStartPointObjectId) {
       useUiStore.getState().setPendingStartPoint(null);
     }
-  }, [activeTool]);
+  }, [activeTool, workspaceMode]);
 
   useEffect(() => {
-    if (activeTool !== 'node') return;
+    if (workspaceMode === 'run' || activeTool !== 'node') return;
     void nodeTool.prepareForSelection(buildToolContext());
-  }, [activeTool, selectedObjectIds, project, buildToolContext]);
+  }, [activeTool, selectedObjectIds, project, buildToolContext, workspaceMode]);
 
   // Tab tool: refresh markers when tool becomes active, selection changes, or geometry changes.
   // Clear cached markers when selection becomes empty or multi-select to avoid stale overlay.
   useEffect(() => {
-    if (activeTool !== 'tabs') return;
+    if (workspaceMode === 'run' || activeTool !== 'tabs') return;
     if (selectedObjectIds.length !== 1) {
       (TOOL_INSTANCES.tabs as TabTool).reset();
       requestRender();
@@ -1587,11 +1638,11 @@ export function Canvas() {
     void (TOOL_INSTANCES.tabs as TabTool)
       .refreshMarkers(selectedObjectIds[0])
       .then(() => requestRender());
-  }, [activeTool, selectedObjectIds, project, requestRender]);
+  }, [activeTool, selectedObjectIds, project, requestRender, workspaceMode]);
 
   // Radius tool: refresh candidates when tool becomes active, selection changes, or geometry changes.
   useEffect(() => {
-    if (activeTool !== 'radius') return;
+    if (workspaceMode === 'run' || activeTool !== 'radius') return;
     if (selectedObjectIds.length !== 1) {
       (TOOL_INSTANCES.radius as RadiusTool).reset();
       requestRender();
@@ -1600,7 +1651,7 @@ export function Canvas() {
     void (TOOL_INSTANCES.radius as RadiusTool)
       .refreshCandidates(selectedObjectIds[0])
       .then(() => requestRender());
-  }, [activeTool, selectedObjectIds, project, requestRender]);
+  }, [activeTool, selectedObjectIds, project, requestRender, workspaceMode]);
 
   const tabbedObjectsKey = useMemo(() => {
     if (!project) return '';
@@ -1684,8 +1735,9 @@ export function Canvas() {
       return cameraOverlayAdjustDragRef.current ? 'grabbing' : 'move';
     }
     if (pendingStartPoint || pendingGuidePath) return 'crosshair';
-    return tool.getCursor({ vp } as ToolContext);
-  }, [cameraOverlayAdjustMode, tool, vp, pendingStartPoint, pendingGuidePath]);
+    if (workspaceMode !== 'run' && activeTool === 'text') return textBoxModeActive ? 'crosshair' : 'text';
+    return tool.getCursor({ vp, readOnly: workspaceMode === 'run' } as ToolContext);
+  }, [activeTool, cameraOverlayAdjustMode, tool, vp, pendingStartPoint, pendingGuidePath, textBoxModeActive, workspaceMode]);
 
   const handleArtLibraryCanvasDragOver = useCallback((e: ReactDragEvent<HTMLElement>) => {
     const liveDragState = resolveCanvasArtLibraryDragState({
@@ -1729,6 +1781,10 @@ export function Canvas() {
       ref={containerRef}
       className="h-full w-full overflow-hidden relative"
       style={{ cursor: cursorStyle }}
+      // Keep zoom on the shared canvas surface rather than the drawing canvas.
+      // The inline text editor is layered above the canvas, so wheel events
+      // originating over text must bubble here to retain normal canvas zoom.
+      onWheel={handleWheel}
     >
       <canvas
         ref={baseCanvasRef}
@@ -1745,7 +1801,6 @@ export function Canvas() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
-        onWheel={handleWheel}
         onPointerLeave={handleMouseLeave}
         onContextMenu={handleCanvasContextMenu}
       />

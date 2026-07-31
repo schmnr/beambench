@@ -4,9 +4,9 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
-import { Lock, Unlock } from 'lucide-react';
+import { Focus, Lock, Unlock } from 'lucide-react';
 import { NumberStepper } from '../shared/NumberStepper';
-import type { AnchorPoint } from '../../types/project';
+import type { AnchorPoint, TransformLocks } from '../../types/project';
 import { useNotificationStore } from '../../stores/notificationStore';
 import {
   isTransformLocked,
@@ -22,6 +22,8 @@ import {
   anchorLabelKeys,
   useBufferedNumericField,
 } from '../shared/transformFields';
+import { INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
+import { computeVisualBoundsWorld, getCombinedBounds } from '../../canvas/alignment';
 
 const DISPLAY_UNIT_MM = 'mm' as const;
 const DISPLAY_UNIT_INCHES = 'inches' as const;
@@ -29,7 +31,10 @@ type DisplayUnit = typeof DISPLAY_UNIT_MM | typeof DISPLAY_UNIT_INCHES;
 const UNIT_LABEL_INCHES = 'in';
 const TOAST_ERROR = 'error' as const;
 const ROTATION_FIELD_LABEL = '⟳';
-
+const MOVE_LOCK_KEY: keyof TransformLocks = 'move_enabled';
+const SIZE_LOCK_KEY: keyof TransformLocks = 'size_enabled';
+const ROTATE_LOCK_KEY: keyof TransformLocks = 'rotate_enabled';
+const SHEAR_LOCK_KEY: keyof TransformLocks = 'shear_enabled';
 const fieldClass =
   'w-full min-w-0 bg-transparent px-0 text-right text-xs text-bb-text focus:outline-none';
 
@@ -52,6 +57,38 @@ function FieldBox({
   );
 }
 
+function TransformLockButton({
+  label,
+  locked,
+  onClick,
+  disabled = false,
+}: {
+  label: string;
+  locked: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={locked}
+      title={label}
+      className={`flex h-7 w-5 shrink-0 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-default ${
+        disabled
+          ? 'text-bb-text-disabled'
+          : locked
+            ? 'text-bb-accent hover:text-bb-accent'
+            : 'text-bb-text-dim hover:text-bb-text'
+      }`}
+    >
+      {locked ? <Lock size={13} /> : <Unlock size={13} />}
+    </button>
+  );
+}
+
 /**
  * Sectioned Transform block for the Properties panel: X/Y position, W/H size
  * with aspect lock, scale %, rotation, anchor grid, and unit toggle.
@@ -68,6 +105,8 @@ export function TransformSection() {
   const updateObjectBoundsBatch = useProjectStore((s) => s.updateObjectBoundsBatch);
   const rotateObjects = useProjectStore((s) => s.rotateObjects);
   const nudgeObjects = useProjectStore((s) => s.nudgeObjects);
+  const moveObjectsTo = useProjectStore((s) => s.moveObjectsTo);
+  const setTransformLocks = useProjectStore((s) => s.setTransformLocks);
 
   const lockAspect = useUiStore((s) => s.lockAspect);
   const toggleLockAspect = useUiStore((s) => s.toggleLockAspect);
@@ -106,6 +145,11 @@ export function TransformSection() {
   const b = selBounds;
   const w = b ? b.max.x - b.min.x : 0;
   const h = b ? b.max.y - b.min.y : 0;
+  const visualBounds = selectedObjects.length > 0
+    ? getCombinedBounds(selectedObjects.map((object) => computeVisualBoundsWorld(object, project?.objects)))
+    : undefined;
+  const visualW = visualBounds ? visualBounds.max.x - visualBounds.min.x : 0;
+  const visualH = visualBounds ? visualBounds.max.y - visualBounds.min.y : 0;
   const { ax, ay } = getAnchorOffset(anchor, w, h);
   const txtAnchor = !multiSel && obj ? textAnchorPoint(obj) : undefined;
   const canvasAnchorPoint = txtAnchor ?? (b ? { x: b.min.x + ax, y: b.min.y + ay } : { x: 0, y: 0 });
@@ -116,7 +160,12 @@ export function TransformSection() {
     ? Math.round(Math.atan2(obj.transform.b, obj.transform.a) * (180 / Math.PI) * 10) / 10
     : 0;
 
-  const locks = project?.transform_locks;
+  const locks: TransformLocks = project?.transform_locks ?? {
+    move_enabled: true,
+    size_enabled: true,
+    rotate_enabled: true,
+    shear_enabled: true,
+  };
   const selectionKey = selectedObjectIds.join(',');
 
   useEffect(() => {
@@ -130,6 +179,75 @@ export function TransformSection() {
   const guardLocked = (): boolean => {
     if (selectedObjects.some((o) => o.locked)) { notifyObjectLocked(); return true; }
     return false;
+  };
+
+  const toggleTransformLock = (key: keyof TransformLocks) => {
+    void setTransformLocks({ ...locks, [key]: !locks[key] });
+  };
+
+  const allTransformsLocked = Object.values(locks).every((enabled) => enabled === false);
+  const allLocksLocked = allTransformsLocked && lockAspect;
+  const allTransformsLockLabel = allLocksLocked
+    ? t('toolbars.transform_toggles.unlock_all')
+    : t('toolbars.transform_toggles.lock_all');
+  const toggleAllTransformLocks = () => {
+    const shouldLock = !allLocksLocked;
+    const enabled = !shouldLock;
+    void setTransformLocks({
+      move_enabled: enabled,
+      size_enabled: enabled,
+      rotate_enabled: enabled,
+      shear_enabled: enabled,
+    });
+    if (lockAspect !== shouldLock) toggleLockAspect();
+  };
+
+  const visualSizeAfterRawScale = (scaleX: number, scaleY: number) => {
+    if (!b || selectedObjects.length === 0) return { width: visualW, height: visualH };
+    const anchorX = b.min.x + (col / 2) * w;
+    const anchorY = b.min.y + (row / 2) * h;
+    const scaledObjects = selectedObjects.map((object) => ({
+      ...object,
+      bounds: {
+        min: {
+          x: anchorX + (object.bounds.min.x - anchorX) * scaleX,
+          y: anchorY + (object.bounds.min.y - anchorY) * scaleY,
+        },
+        max: {
+          x: anchorX + (object.bounds.max.x - anchorX) * scaleX,
+          y: anchorY + (object.bounds.max.y - anchorY) * scaleY,
+        },
+      },
+    }));
+    const scaledBounds = getCombinedBounds(
+      scaledObjects.map((object) => computeVisualBoundsWorld(object, scaledObjects)),
+    );
+    return {
+      width: scaledBounds.max.x - scaledBounds.min.x,
+      height: scaledBounds.max.y - scaledBounds.min.y,
+    };
+  };
+
+  const rawScaleForVisualSize = (axis: 'width' | 'height', target: number) => {
+    const currentVisualSize = axis === 'width' ? visualW : visualH;
+    const currentRawSize = axis === 'width' ? w : h;
+    if (currentVisualSize <= 0 || currentRawSize <= 0) return 1;
+    if (lockAspect) return Math.max(target / currentVisualSize, 0.0001);
+    const hasIdentityLinearTransforms = selectedObjects.every((object) =>
+      object.transform.a === 1
+      && object.transform.b === 0
+      && object.transform.c === 0
+      && object.transform.d === 1,
+    );
+    if (hasIdentityLinearTransforms) return Math.max(target / currentRawSize, 0.0001);
+
+    const probeScale = 1.01;
+    const probeSize = axis === 'width'
+      ? visualSizeAfterRawScale(probeScale, 1).width
+      : visualSizeAfterRawScale(1, probeScale).height;
+    const response = (probeSize - currentVisualSize) / (probeScale - 1);
+    if (Math.abs(response) < 1e-9) return Math.max(target / currentVisualSize, 0.0001);
+    return Math.max(1 + (target - currentVisualSize) / response, 0.0001);
   };
 
   const handleXChange = (newDisplayX: number) => {
@@ -187,11 +305,13 @@ export function TransformSection() {
   };
 
   const handleWChange = (newDisplayW: number) => {
-    const newW = displayToMm(newDisplayW, displayUnit);
-    if (!b || newW <= 0) return;
+    const targetVisualW = displayToMm(newDisplayW, displayUnit);
+    if (!b || targetVisualW <= 0) return;
     if (guardLocked()) return;
     if (isTransformLocked(locks, 'scale')) { notifyTransformLocked('scale'); return; }
-    const newH = lockAspect ? (h * newW) / w : h;
+    const scale = rawScaleForVisualSize('width', targetVisualW);
+    const newW = w * scale;
+    const newH = lockAspect ? h * scale : h;
     if (multiSel) {
       scaleSelection(newW / w, lockAspect ? newH / h : 1);
     } else if (obj) {
@@ -206,11 +326,13 @@ export function TransformSection() {
   };
 
   const handleHChange = (newDisplayH: number) => {
-    const newH = displayToMm(newDisplayH, displayUnit);
-    if (!b || newH <= 0) return;
+    const targetVisualH = displayToMm(newDisplayH, displayUnit);
+    if (!b || targetVisualH <= 0) return;
     if (guardLocked()) return;
     if (isTransformLocked(locks, 'scale')) { notifyTransformLocked('scale'); return; }
-    const newW = lockAspect ? (w * newH) / h : w;
+    const scale = rawScaleForVisualSize('height', targetVisualH);
+    const newH = h * scale;
+    const newW = lockAspect ? w * scale : w;
     if (multiSel) {
       scaleSelection(lockAspect ? newW / w : 1, newH / h);
     } else if (obj) {
@@ -274,6 +396,15 @@ export function TransformSection() {
     void rotateObjects(selectedObjectIds, deg - rotationDeg);
   };
 
+  const handleCenterOnPage = () => {
+    if (!project || !b) return;
+    if (guardLocked()) return;
+    if (isTransformLocked(locks, 'position')) { notifyTransformLocked('position'); return; }
+    const targetX = (project.workspace.bed_width_mm - w) / 2;
+    const targetY = (project.workspace.bed_height_mm - h) / 2;
+    void moveObjectsTo(selectedObjectIds, targetX, targetY);
+  };
+
   const toggleUnit = () => {
     const newUnit: DisplayUnit = displayUnit === DISPLAY_UNIT_MM ? DISPLAY_UNIT_INCHES : DISPLAY_UNIT_MM;
     const cur = useAppStore.getState().settings;
@@ -302,12 +433,12 @@ export function TransformSection() {
     fieldResetKey,
   );
   const wField = useBufferedNumericField(
-    disabled ? '' : roundDisplayLength(mmToDisplay(w, displayUnit), displayUnit),
+    disabled ? '' : roundDisplayLength(mmToDisplay(visualW, displayUnit), displayUnit),
     handleWChange,
     fieldResetKey,
   );
   const hField = useBufferedNumericField(
-    disabled ? '' : roundDisplayLength(mmToDisplay(h, displayUnit), displayUnit),
+    disabled ? '' : roundDisplayLength(mmToDisplay(visualH, displayUnit), displayUnit),
     handleHChange,
     fieldResetKey,
   );
@@ -318,13 +449,38 @@ export function TransformSection() {
   if (!hasSelection) return null;
 
   return (
-    <div className="border-b border-bb-border pb-3 mb-1">
+    <div className="border-b border-bb-border pb-3 mb-1" data-testid="transform-section">
       {/* Header: label, anchor grid, unit toggle */}
       <div className="flex items-center justify-between py-2">
-        <span className="text-[10px] font-semibold tracking-wider text-bb-text-muted uppercase">
+        <span className={INSPECTOR_SECTION_HEADER_CLASS}>
           {t('panels.properties.transform')}
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleCenterOnPage}
+            disabled={disabled || selectedObjects.some((object) => object.locked)}
+            aria-label={t('toolbars.main.center_on_page')}
+            title={t('toolbars.main.center_on_page')}
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-bb-border bg-bb-bg text-bb-text-muted transition-colors hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:border-bb-border disabled:hover:bg-bb-bg"
+          >
+            <Focus size={17} />
+          </button>
+          <button
+            type="button"
+            onClick={toggleAllTransformLocks}
+            disabled={disabled}
+            aria-label={allTransformsLockLabel}
+            aria-pressed={allLocksLocked}
+            title={allTransformsLockLabel}
+            className={`flex h-7 w-7 items-center justify-center rounded-lg border bg-bb-bg transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-default disabled:text-bb-text-disabled ${
+              allLocksLocked
+                ? 'border-bb-accent/50 text-bb-accent hover:bg-bb-hover'
+                : 'border-bb-border text-bb-text-muted hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text'
+            }`}
+          >
+            {allLocksLocked ? <Lock size={17} /> : <Unlock size={17} />}
+          </button>
           <div className="grid grid-cols-3 gap-1">
             {anchorPoints.map((ap) => (
               <button
@@ -355,52 +511,72 @@ export function TransformSection() {
       </div>
 
       {/* X / Y */}
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1">
         <FieldBox label="X" suffix={unitLabel}>
           <NumberStepper {...xField} step={posStep} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
+        <TransformLockButton
+          label={t('toolbars.transform_toggles.move')}
+          locked={locks.move_enabled === false}
+          onClick={() => toggleTransformLock(MOVE_LOCK_KEY)}
+        />
         <FieldBox label="Y" suffix={unitLabel}>
           <NumberStepper {...yField} step={posStep} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
       </div>
 
-      {/* W / lock / H */}
+      {/* W / proportional lock / H */}
       <div className="mt-1.5 flex items-center gap-1">
         <FieldBox label="W" suffix={unitLabel}>
           <NumberStepper {...wField} step={posStep} min={sizeMin} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
-        <button
+        <TransformLockButton
+          label={t('toolbars.properties.lock_aspect_ratio')}
+          locked={lockAspect}
           onClick={toggleLockAspect}
           disabled={disabled}
-          className={`shrink-0 rounded p-0.5 ${
-            disabled
-              ? 'text-bb-text-dim/40 cursor-not-allowed'
-              : lockAspect
-                ? 'text-bb-accent hover:text-bb-accent/80'
-                : 'text-bb-text-dim hover:text-bb-text-muted'
-          }`}
-          title={t('toolbars.properties.lock_aspect_ratio')}
-        >
-          {lockAspect ? <Lock size={14} /> : <Unlock size={14} />}
-        </button>
+        />
         <FieldBox label="H" suffix={unitLabel}>
           <NumberStepper {...hField} step={posStep} min={sizeMin} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
       </div>
 
-      {/* Scale + Rotation */}
-      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+      {/* Scale, rotation, and canvas-only shear lock */}
+      <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1">
         <FieldBox label="SX" suffix="%">
           <NumberStepper {...scaleXField} step={1} min={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
+        <TransformLockButton
+          label={t('toolbars.transform_toggles.size')}
+          locked={locks.size_enabled === false}
+          onClick={() => toggleTransformLock(SIZE_LOCK_KEY)}
+        />
         <FieldBox label="SY" suffix="%">
           <NumberStepper {...scaleYField} step={1} min={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
       </div>
-      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+      <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1">
         <FieldBox label={ROTATION_FIELD_LABEL} suffix="°">
           <NumberStepper {...rotationField} step={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
+        <TransformLockButton
+          label={t('toolbars.transform_toggles.rotate')}
+          locked={locks.rotate_enabled === false}
+          onClick={() => toggleTransformLock(ROTATE_LOCK_KEY)}
+        />
+        <button
+          type="button"
+          onClick={() => toggleTransformLock(SHEAR_LOCK_KEY)}
+          aria-label={t('toolbars.transform_toggles.shear')}
+          aria-pressed={locks.shear_enabled === false}
+          title={t('toolbars.transform_toggles.shear')}
+          className={`flex h-7 min-w-0 items-center justify-between rounded-lg border border-bb-border bg-bb-bg px-2 text-[9px] font-semibold uppercase transition-colors hover:border-bb-accent/40 hover:text-bb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent ${
+            locks.shear_enabled === false ? 'text-bb-accent' : 'text-bb-text-dim'
+          }`}
+        >
+          <span>{t('toolbars.transform_toggles.shear')}</span>
+          {locks.shear_enabled === false ? <Lock size={13} /> : <Unlock size={13} />}
+        </button>
       </div>
     </div>
   );

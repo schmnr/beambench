@@ -251,6 +251,10 @@ export const projectService = {
     return invoke<ProjectObject>('update_object_data', { objectId, data });
   },
 
+  async resizeTextArea(objectId: string, bounds: Bounds): Promise<ProjectObject> {
+    return invoke<ProjectObject>('resize_text_area', { objectId, bounds });
+  },
+
   async advanceAutoVariableText(): Promise<ProjectObject[]> {
     return invoke<ProjectObject[]>('advance_auto_variable_text');
   },

@@ -11,6 +11,19 @@
   place.
 - The Select tool hint now explains Shift-click multiple selection in every
   supported language.
+- Post-job compatibility requests now target Beta and Experimental
+  non-GRBL-family controllers. The old blocking prompt is replaced by a
+  one-time notification, while GRBL, FluidNC, and grblHAL jobs are no longer
+  prompted.
+- Design and Run now remember separate customizable panel arrangements. Tabs
+  can move between the left and right columns, and draggable top and bottom
+  seams let either column grow to as many as three stacked panel docks. Design
+  still starts with only Cuts / Layers and Shape Properties.
+- Tabs across panel docks, the Library drawer, device settings, and application
+  settings now share the raised/recessed visual language introduced by the
+  layer tabs, with consistent active, inactive, hover, and keyboard-focus states.
+- Speed and passes now use the same direct slider controls as power, with up to
+  50 passes.
 
 ## 0.1.12
 
@@ -42,6 +55,11 @@
 
 ## 0.1.11
 
+- Added optional, consent-based compatibility feedback after a completed job.
+  Nothing is sent when the prompt appears. Successful-job reports are reduced
+  to non-identifying build, system, controller, machine-setting, and job-total
+  data, while problem reports open the normal previewable bug reporter. The
+  prompt and report flow are localized in every supported language.
 - Added corrected overhead-camera alignment. Four-point calibration now fixes
   perspective, while the recommended nine-point workflow also compensates for
   wide-angle lens distortion. Corrected overlays remain adjustable, saved

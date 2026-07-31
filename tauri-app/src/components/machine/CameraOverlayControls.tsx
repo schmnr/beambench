@@ -4,6 +4,7 @@ import { useCameraStore } from '../../stores/cameraStore';
 import { useProjectStore } from '../../stores/projectStore';
 import type { CameraFrameHandle } from '../../types/camera';
 import { cameraFrameAssetUrl } from '../../services/cameraFrameAsset';
+import { rangeTrackBackground } from '../shared/RangeInput';
 
 export function CameraStillPreview({ frame }: { frame: CameraFrameHandle | null | undefined }) {
   const { t } = useTranslation();
@@ -57,7 +58,8 @@ export function CameraOverlayControls() {
           step={0.05}
           value={overlayOpacity}
           onChange={(event) => setOverlayOpacity(Number(event.currentTarget.value))}
-          className="min-w-0 flex-1 accent-bb-accent"
+          className="bb-range min-w-0 flex-1"
+          style={{ background: rangeTrackBackground(overlayOpacity, 0, 1) }}
         />
         <span className="w-8 text-right">{Math.round(overlayOpacity * 100)}%</span>
       </label>

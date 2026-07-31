@@ -17,21 +17,21 @@ import { CutSettingsEditor } from './CutSettingsEditor';
 import { displayLayerName } from './layerNaming';
 
 const ONLY_THIS_ON = 'only_this_on' as const;
+const DESIGN_WORKSPACE = 'design' as const;
+const LAYERS_PANEL_ID = 'cuts_layers';
 
 /**
  * Layer tabs above the workspace. One tab per layer: color dot, name,
- * speed/power summary, visibility eye. Clicking a tab with a selection
- * assigns the selection to that layer (the palette's one-click flow);
- * with no selection it sets the active layer for new objects. The `+`
- * tab creates a layer using the first unused palette color.
+ * speed/power summary, visibility eye. Clicking a tab sets the active layer
+ * for new objects. Moving existing objects between layers is an explicit
+ * action elsewhere in the UI. The `+` tab creates a layer using the first
+ * unused palette color.
  */
 export function LayerTabs() {
   const { t } = useTranslation();
   const project = useProjectStore((s) => s.project);
-  const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const selectLayer = useProjectStore((s) => s.selectLayer);
-  const reassignLayer = useProjectStore((s) => s.reassignLayer);
   const addLayer = useProjectStore((s) => s.addLayer);
   const updateLayer = useProjectStore((s) => s.updateLayer);
   const loadProject = useProjectStore((s) => s.loadProject);
@@ -76,7 +76,12 @@ export function LayerTabs() {
         dim: '#94a3b8',
       };
 
-  const hasSelection = selectedObjectIds.length > 0;
+  const revealLayersPanel = () => {
+    const ui = useUiStore.getState();
+    if (ui.workspaceMode !== DESIGN_WORKSPACE) return;
+    if (!ui.sidePanelsVisible) ui.toggleSidePanels();
+    useUiStore.getState().showPanel(LAYERS_PANEL_ID);
+  };
 
   const handleTabClick = (layerId: string, shiftKey: boolean) => {
     if (shiftKey) {
@@ -88,12 +93,8 @@ export function LayerTabs() {
       selectObjects(layerObjIds);
       return;
     }
-    // Run mode tabs are for inspecting cut order. A selection carried over
-    // from Design must not be silently reassigned just by reviewing a tab.
-    if (hasSelection && workspaceMode === 'design') {
-      void reassignLayer(selectedObjectIds, layerId);
-    }
     selectLayer(layerId);
+    revealLayersPanel();
   };
 
   const handleCommitRename = async () => {
@@ -132,6 +133,8 @@ export function LayerTabs() {
   };
 
   const handleAddLayer = async () => {
+    if (useUiStore.getState().workspaceMode === 'run') return;
+    revealLayersPanel();
     const used = new Set(project.layers.map((l) => normColor(l.color_tag)));
     const nextColor = PALETTE_COLORS.find(
       (c) => !c.is_tool_layer && !used.has(normColor(c.hex)),
@@ -144,6 +147,7 @@ export function LayerTabs() {
   return (
     <div
       className="no-select flex items-end overflow-x-auto scrollbar-none px-3 pt-2 bg-bb-bg"
+      role="tablist"
       onContextMenu={(e) => {
         // Right-click on the strip background: batch enable/show/sort menu.
         if (e.target === e.currentTarget) {
@@ -162,9 +166,11 @@ export function LayerTabs() {
             key={layer.id}
             onClick={(e) => handleTabClick(layer.id, e.shiftKey)}
             onDoubleClick={() => {
+              if (workspaceMode === 'run') return;
               if (!layer.is_tool_layer) setEditingLayerId(layer.id);
             }}
             onContextMenu={(e) => {
+              if (workspaceMode === 'run') return;
               e.preventDefault();
               e.stopPropagation();
               selectLayer(layer.id);
@@ -175,9 +181,12 @@ export function LayerTabs() {
               }
               queueMicrotask(() => setContextMenu({ x: e.clientX, y: e.clientY, layerId: layer.id }));
             }}
-            draggable
+            draggable={workspaceMode === 'design'}
+            role="tab"
+            aria-selected={active}
             data-testid="layer-tab"
             onDragStart={(e) => {
+              if (workspaceMode === 'run') return;
               setDragIndex(index);
               e.dataTransfer.effectAllowed = 'move';
             }}
@@ -206,7 +215,7 @@ export function LayerTabs() {
             className={`relative flex items-center gap-1.5 rounded-t-lg border border-b-0 ${
               active
                 ? 'flex-shrink-0 px-3 py-1.5 text-xs font-semibold shadow-sm'
-                : 'min-w-0 flex-shrink px-2.5 py-1 text-xxs opacity-80 hover:opacity-100'
+                : 'min-w-0 flex-shrink px-2.5 py-1 text-xxs'
             } ${layer.is_tool_layer ? 'border-dashed' : ''} ${dragIndex === index ? 'opacity-40' : ''}`}
             style={{
               ...(active ? tabColors.active : tabColors.inactive),
@@ -280,16 +289,18 @@ export function LayerTabs() {
           </button>
         );
       })}
-      <button
-        onClick={() => void handleAddLayer()}
-        aria-label={t('panels.layers.add_layer')}
-        title={t('panels.layers.add_layer')}
-        data-testid="add-layer-tab"
-        className="relative flex flex-shrink-0 items-center rounded-t-lg border border-b-0 px-2 py-1 opacity-80 hover:opacity-100"
-        style={{ ...tabColors.inactive, marginLeft: project.layers.length > 0 ? -8 : 0, zIndex: 1 }}
-      >
-        <Plus size={12} />
-      </button>
+      {workspaceMode === 'design' && (
+        <button
+          onClick={() => void handleAddLayer()}
+          aria-label={t('panels.layers.add_layer')}
+          title={t('panels.layers.add_layer')}
+          data-testid="add-layer-tab"
+          className="relative flex flex-shrink-0 items-center rounded-t-lg border border-b-0 px-2 py-1"
+          style={{ ...tabColors.inactive, marginLeft: project.layers.length > 0 ? -8 : 0, zIndex: 1 }}
+        >
+          <Plus size={12} />
+        </button>
+      )}
 
       {/* Per-layer context menu (ported from the layer table rows) */}
       {contextMenu && (() => {

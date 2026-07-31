@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useProjectStore } from '../projectStore';
 import { useNotificationStore } from '../notificationStore';
+import { useUiStore } from '../uiStore';
 
 const previewInvalidate = vi.fn();
 const previewClear = vi.fn();
@@ -68,6 +69,10 @@ vi.mock('../../services/vectorService', () => ({
     booleanExclude: vi.fn(),
     booleanIntersection: vi.fn(),
     booleanWeld: vi.fn(),
+    booleanUnionMany: vi.fn(),
+    booleanIntersectionMany: vi.fn(),
+    booleanExcludeMany: vi.fn(),
+    booleanSubtractMany: vi.fn(),
     groupObjects: vi.fn(),
     autoGroupObjects: vi.fn(),
     ungroupObjects: vi.fn(),
@@ -261,6 +266,38 @@ describe('projectStore — new actions', () => {
       error: null,
     });
     useNotificationStore.setState({ notifications: [] });
+    useUiStore.setState({ workspaceMode: 'design', activeTool: 'select' });
+  });
+
+  it('blocks layer creation while the Run workspace is active', async () => {
+    useUiStore.getState().setWorkspaceMode('run');
+
+    await useProjectStore.getState().addLayer('C01', 'line');
+
+    expect(mockedProject.addLayer).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().project?.layers).toHaveLength(1);
+  });
+
+  it('blocks object creation while the Run workspace is active', async () => {
+    useUiStore.getState().setWorkspaceMode('run');
+
+    const created = await useProjectStore.getState().addObject(
+      'Rectangle',
+      'layer1',
+      {
+        type: 'shape',
+        kind: 'rectangle',
+        width: 10,
+        height: 10,
+        corner_radius: 0,
+      },
+      { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
+    );
+
+    expect(created).toBeNull();
+    expect(mockedProject.addObject).not.toHaveBeenCalled();
+    expect(mockedProject.addObjectAtomic).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().project?.objects).toHaveLength(2);
   });
 
   it('preserves ordered selection and moves deselect/reselect to the anchor end', () => {
@@ -529,12 +566,14 @@ describe('projectStore — new actions', () => {
     reloaded.objects[0].visible = false;
     mockedProject.setObjectsVisible.mockResolvedValue(undefined);
     mockedProject.getProject.mockResolvedValue(reloaded);
+    useProjectStore.setState({ selectedObjectIds: ['obj1'] });
 
     await useProjectStore.getState().setObjectsVisible(['obj1'], false);
 
     expect(mockedProject.setObjectsVisible).toHaveBeenCalledWith(['obj1'], false);
     expect(mockedProject.getProject).toHaveBeenCalled();
     expect(useProjectStore.getState().project?.objects[0].visible).toBe(false);
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
   });
 
   it('updateObjectBoundsBatch refetches committed path data and bounds on success', async () => {
@@ -1503,6 +1542,18 @@ describe('projectStore — new actions', () => {
 
     expect(useProjectStore.getState().selectedLayerId).toBe('layer1');
     expect(useProjectStore.getState().selectedObjectIds).toEqual(['obj1']);
+  });
+
+  it('loadProject clears selections that became hidden with their layer', async () => {
+    const project = makeProject();
+    project.layers[0].visible = false;
+    useProjectStore.setState({ selectedLayerId: 'layer1', selectedObjectIds: ['obj1'] });
+    mockedProject.getProject.mockResolvedValue(project);
+
+    await useProjectStore.getState().loadProject();
+
+    expect(useProjectStore.getState().selectedLayerId).toBe('layer1');
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
   });
 
   it('loadProject can invalidate preview for mutation-driven reloads', async () => {

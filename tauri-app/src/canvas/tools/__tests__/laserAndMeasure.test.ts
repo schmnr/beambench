@@ -23,7 +23,10 @@ vi.mock('../../../stores/projectStore', () => ({
 
 vi.mock('../../../stores/uiStore', () => ({
   useUiStore: {
-    getState: vi.fn().mockReturnValue({ moveWindowJogFeedRateMmMin: 1500 }),
+    getState: vi.fn().mockReturnValue({
+      moveWindowJogFeedRateMmMin: 1500,
+      setActiveTool: vi.fn(),
+    }),
   },
 }));
 
@@ -88,6 +91,7 @@ describe('LaserPositionTool', () => {
 
   it('calls machineService.moveLaserTo on mouseDown', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
+    const { useUiStore } = await import('../../../stores/uiStore');
 
     const ctx = makeToolContext();
 
@@ -98,6 +102,7 @@ describe('LaserPositionTool', () => {
       y: 75,
       feedRate: 1500,
     });
+    expect(useUiStore.getState().setActiveTool).toHaveBeenCalledWith('select');
   });
 
   it('surfaces move failures as an operator-visible error', async () => {
@@ -117,6 +122,7 @@ describe('LaserPositionTool', () => {
 
   it('shows status message when disconnected', async () => {
     const { useMachineStore } = await import('../../../stores/machineStore');
+    const { useUiStore } = await import('../../../stores/uiStore');
     vi.mocked(useMachineStore.getState).mockReturnValue({
       ...useMachineStore.getState(),
       sessionState: 'disconnected',
@@ -128,6 +134,7 @@ describe('LaserPositionTool', () => {
     tool.onMouseDown(makeMouseEvent({ worldX: 50, worldY: 75 }), ctx);
 
     expect(setStatusMessage).toHaveBeenCalledWith('Machine not connected');
+    expect(useUiStore.getState().setActiveTool).not.toHaveBeenCalled();
   });
 
   it('applies user_origin offset in UserOrigin mode', async () => {
@@ -286,6 +293,7 @@ describe('LaserPositionTool', () => {
     const { invoke } = await import('@tauri-apps/api/core');
     const { useMachineStore } = await import('../../../stores/machineStore');
     const { useProjectStore } = await import('../../../stores/projectStore');
+    const { useUiStore } = await import('../../../stores/uiStore');
 
     vi.mocked(useMachineStore.getState).mockReturnValue({
       ...useMachineStore.getState(),
@@ -309,6 +317,7 @@ describe('LaserPositionTool', () => {
     );
 
     expect(invoke).not.toHaveBeenCalled();
+    expect(useUiStore.getState().setActiveTool).not.toHaveBeenCalled();
     expect(setStatusMessage).toHaveBeenCalledWith('Click inside the workspace to move the laser');
   });
 });

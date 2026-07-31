@@ -8,7 +8,7 @@ import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { useMacroStore } from '../../../stores/macroStore';
-import { projectService } from '../../../services/projectService';
+import { useCameraStore } from '../../../stores/cameraStore';
 import { makeLayer, makeProject, makeProjectObject, makeTransformLocks } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
@@ -19,6 +19,7 @@ const initialProjectState = useProjectStore.getState();
 const initialUiState = useUiStore.getState();
 const initialNotificationState = useNotificationStore.getState();
 const initialMacroState = useMacroStore.getState();
+const initialCameraState = useCameraStore.getState();
 
 afterEach(() => {
   cleanup();
@@ -27,25 +28,8 @@ afterEach(() => {
   useUiStore.setState(initialUiState, true);
   useNotificationStore.setState(initialNotificationState, true);
   useMacroStore.setState(initialMacroState, true);
+  useCameraStore.setState(initialCameraState, true);
 });
-
-function showArrangeLongToolbar() {
-  useUiStore.setState({
-    panelLayout: {
-      ...useUiStore.getState().panelLayout,
-      toolbarVisibility: {
-        ...useUiStore.getState().panelLayout.toolbarVisibility,
-        arrangeLong: true,
-      },
-    },
-  });
-}
-
-
-// The arrange cluster lives in a popover; open it (requires a selection).
-const openArrange = () => {
-  fireEvent.click(screen.getByTitle('Arrange'));
-};
 
 describe('MainToolbar', () => {
   it('renders file operation buttons', () => {
@@ -55,6 +39,21 @@ describe('MainToolbar', () => {
     expect(screen.getByTitle('Save')).toBeDefined();
     expect(screen.getByTitle('Undo')).toBeDefined();
     expect(screen.getByTitle('Redo')).toBeDefined();
+  });
+
+  it('starts Camera Overlay inactive and highlights it only when enabled', () => {
+    const toggleOverlayVisible = vi.fn(() => {
+      useCameraStore.setState((state) => ({ overlayVisible: !state.overlayVisible }));
+    });
+    useCameraStore.setState({ overlayVisible: false, toggleOverlayVisible });
+    render(<MainToolbar />);
+
+    const cameraOverlay = screen.getByTitle('Camera Overlay');
+    expect(cameraOverlay.className).not.toContain('bg-bb-accent/15');
+
+    fireEvent.click(cameraOverlay);
+    expect(toggleOverlayVisible).toHaveBeenCalledOnce();
+    expect(screen.getByTitle('Camera Overlay').className).toContain('bg-bb-accent/15');
   });
 
   it('Import button uses the selected project layer', () => {
@@ -89,28 +88,57 @@ describe('MainToolbar', () => {
     expect(undoBtn.closest('button')?.disabled).toBe(true);
   });
 
-  it('renders arrange buttons', () => {
+  it('renders only mirror and dock actions directly on the Design toolbar', () => {
     render(<MainToolbar />);
-    openArrange();
-    expect(screen.getByTitle('Group')).toBeDefined();
-    expect(screen.getByTitle('Ungroup')).toBeDefined();
-    expect(screen.getByTitle('Flip Horizontal')).toBeDefined();
+    const settingsButton = screen.getByTitle('Device Settings');
+    const flipHorizontalButton = screen.getByTitle('Flip Horizontal');
+    expect(settingsButton.compareDocumentPosition(flipHorizontalButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTitle('Flip Vertical')).toBeDefined();
     expect(screen.getByTitle('Mirror Across Line')).toBeDefined();
-    expect(screen.getByTitle('Align Left')).toBeDefined();
     expect(screen.getByTitle('Dock')).toBeDefined();
+    expect(screen.queryByTitle('Arrange')).toBeNull();
+    expect(screen.queryByTitle('Group')).toBeNull();
+    expect(screen.queryByTitle('Ungroup')).toBeNull();
+    expect(screen.queryByTitle('Align Left')).toBeNull();
     expect(screen.queryByTitle('Make Same Width')).toBeNull();
   });
 
-  it('renders Arrange Long buttons when that toolbar is visible', () => {
-    showArrangeLongToolbar();
+  it('keeps mirror and dock actions on the top toolbar only in Design mode', () => {
+    const { rerender } = render(<MainToolbar />);
+    expect(screen.getByTitle('Flip Horizontal')).toBeDefined();
+    expect(screen.getByTitle('Flip Vertical')).toBeDefined();
+    expect(screen.getByTitle('Mirror Across Line')).toBeDefined();
+    expect(screen.getByTitle('Dock')).toBeDefined();
 
+    useUiStore.setState({ workspaceMode: 'run' });
+    rerender(<MainToolbar />);
+
+    expect(screen.queryByTitle('Flip Horizontal')).toBeNull();
+    expect(screen.queryByTitle('Flip Vertical')).toBeNull();
+    expect(screen.queryByTitle('Mirror Across Line')).toBeNull();
+    expect(screen.queryByTitle('Dock')).toBeNull();
+  });
+
+  it('shows Laser Position on the top toolbar only in Run mode', () => {
     render(<MainToolbar />);
-    openArrange();
-    expect(screen.getByTitle('Make Same Width')).toBeDefined();
-    expect(screen.getByTitle('Make Same Height')).toBeDefined();
-    expect(screen.getByTitle('Move H Together')).toBeDefined();
-    expect(screen.getByTitle('Move V Together')).toBeDefined();
-    expect(screen.queryByTitle('Resize Slots')).toBeNull();
+    expect(screen.queryByTitle('Laser Position')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('mode-run'));
+    const laserPosition = screen.getByTitle('Laser Position');
+    fireEvent.click(laserPosition);
+
+    expect(useUiStore.getState().activeTool).toBe('laser_position');
+    expect(laserPosition.className).toContain('bg-bb-accent/15');
+
+    fireEvent.click(laserPosition);
+    expect(useUiStore.getState().activeTool).toBe('select');
+
+    fireEvent.click(screen.getByTitle('Laser Position'));
+    expect(useUiStore.getState().activeTool).toBe('laser_position');
+
+    fireEvent.click(screen.getByTestId('mode-design'));
+    expect(screen.queryByTitle('Laser Position')).toBeNull();
+    expect(useUiStore.getState().activeTool).toBe('select');
   });
 
   it('Mirror Across Line is disabled when normalized arrangement selection has fewer than two objects', () => {
@@ -137,7 +165,6 @@ describe('MainToolbar', () => {
     });
 
     render(<MainToolbar />);
-    openArrange();
     expect(screen.getByTitle('Mirror Across Line').closest('button')?.disabled).toBe(true);
   });
 
@@ -161,39 +188,7 @@ describe('MainToolbar', () => {
     });
 
     render(<MainToolbar />);
-    openArrange();
     expect(screen.getByTitle('Mirror Across Line').closest('button')?.disabled).toBe(false);
-  });
-
-  it('Group disabled when selection < 2', () => {
-    useProjectStore.setState({ selectedObjectIds: ['a'] });
-    render(<MainToolbar />);
-    openArrange();
-    const groupBtn = screen.getByTitle('Group');
-    expect(groupBtn.closest('button')?.disabled).toBe(true);
-  });
-
-  it('align is blocked when position transform is locked', () => {
-    useProjectStore.setState({
-      selectedObjectIds: ['a', 'b'],
-      // full Project via makeProject; transform_locks via makeTransformLocks.
-      project: makeProject({
-        transform_locks: makeTransformLocks({ move_enabled: false }),
-        workspace: { bed_width_mm: 400, bed_height_mm: 400, origin: 'top_left' as const },
-        objects: [],
-        layers: [],
-      }),
-    });
-
-    const pushSpy = vi.fn();
-    useNotificationStore.setState({ push: pushSpy });
-
-    render(<MainToolbar />);
-    openArrange();
-    const alignBtn = screen.getByTitle('Align Left');
-    fireEvent.click(alignBtn);
-
-    expect(pushSpy).toHaveBeenCalledWith('Position is locked for this project', 'warning');
   });
 
   it('flip is blocked when position transform is locked', () => {
@@ -214,7 +209,6 @@ describe('MainToolbar', () => {
     useProjectStore.setState({ flipObjects: flipSpy });
 
     render(<MainToolbar />);
-    openArrange();
     const flipBtn = screen.getByTitle('Flip Horizontal');
     fireEvent.click(flipBtn);
 
@@ -231,7 +225,6 @@ describe('MainToolbar', () => {
       }),
     });
     render(<MainToolbar />);
-    openArrange();
     expect(screen.getByTitle('Flip Horizontal').closest('button')?.disabled).toBe(true);
     expect(screen.getByTitle('Flip Vertical').closest('button')?.disabled).toBe(true);
   });
@@ -247,40 +240,15 @@ describe('MainToolbar', () => {
       }),
     });
     render(<MainToolbar />);
-    openArrange();
     const btn = screen.getByTitle('Flip Horizontal').closest('button')!;
     expect(btn.disabled).toBe(true);
     fireEvent.click(btn);
     expect(flipSpy).not.toHaveBeenCalled();
   });
 
-  it('center on page disabled when selected object is locked', () => {
-    showArrangeLongToolbar();
-    useProjectStore.setState({
-      selectedObjectIds: ['a'],
-      project: makeProject({
-        objects: [makeProjectObject({ id: 'a', locked: true })],
-        layers: [],
-      }),
-    });
+  it('does not duplicate Center on Page on the top toolbar', () => {
     render(<MainToolbar />);
-    openArrange();
-    expect(screen.getByTitle('Center on Page').closest('button')?.disabled).toBe(true);
-  });
-
-  it('align buttons disabled when selected objects include locked ones', () => {
-    showArrangeLongToolbar();
-    useProjectStore.setState({
-      selectedObjectIds: ['a', 'b'],
-      project: makeProject({
-        objects: [makeProjectObject({ id: 'a', locked: true }), makeProjectObject({ id: 'b', locked: false })],
-        layers: [],
-      }),
-    });
-    render(<MainToolbar />);
-    openArrange();
-    expect(screen.getByTitle('Align Left').closest('button')?.disabled).toBe(true);
-    expect(screen.getByTitle('Distribute H-Centered').closest('button')?.disabled).toBe(true);
+    expect(screen.queryByTitle('Center on Page')).toBeNull();
   });
 
   it('loads toolbar macros on mount and gives each visible macro a numbered identity', async () => {
@@ -310,48 +278,6 @@ describe('MainToolbar', () => {
     expect(runMacro).toHaveBeenCalledWith('macro-2');
   });
 
-  it('align surfaces backend failures instead of rejecting from the toolbar', async () => {
-    const pushSpy = vi.fn();
-    useNotificationStore.setState({ push: pushSpy });
-    useProjectStore.setState({
-      selectedObjectIds: ['a', 'b'],
-      project: makeProject({
-        objects: [makeProjectObject({ id: 'a', locked: false }), makeProjectObject({ id: 'b', locked: false })],
-        layers: [],
-      }),
-    });
-    vi.spyOn(projectService, 'alignObjects').mockRejectedValue(new Error('align failed'));
-
-    render(<MainToolbar />);
-    openArrange();
-    fireEvent.click(screen.getByTitle('Align Left'));
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('align failed'), 'error');
-    });
-  });
-
-  it('distribute surfaces backend failures instead of rejecting from the toolbar', async () => {
-    showArrangeLongToolbar();
-    const pushSpy = vi.fn();
-    useNotificationStore.setState({ push: pushSpy });
-    useProjectStore.setState({
-      selectedObjectIds: ['a', 'b', 'c'],
-      project: makeProject({
-        objects: [makeProjectObject({ id: 'a', locked: false }), makeProjectObject({ id: 'b', locked: false }), makeProjectObject({ id: 'c', locked: false })],
-        layers: [],
-      }),
-    });
-    vi.spyOn(projectService, 'distributeObjects').mockRejectedValue(new Error('distribute failed'));
-
-    render(<MainToolbar />);
-    openArrange();
-    fireEvent.click(screen.getByTitle('Distribute H-Centered'));
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('distribute failed'), 'error');
-    });
-  });
 });
 
 describe('NodeSubToolbar', () => {
@@ -372,10 +298,11 @@ describe('CreationToolbar', () => {
   it('renders standalone tool buttons and shapes submenu', () => {
     render(<CreationToolbar />);
     // Standalone buttons always visible
-    const standaloneLabels = ['Select', 'Draw', 'Node Edit', 'Trim', 'Tabs', 'Text', 'Laser Position', 'Measure'];
+    const standaloneLabels = ['Select', 'Draw', 'Node Edit', 'Trim', 'Tabs', 'Text', 'Measure'];
     for (const label of standaloneLabels) {
       expect(screen.getByTitle(label)).toBeDefined();
     }
+    expect(screen.queryByTitle('Laser Position')).toBeNull();
     // Shapes submenu shows the last-used shape (default: Rectangle)
     expect(screen.getByTitle('Rectangle')).toBeDefined();
   });

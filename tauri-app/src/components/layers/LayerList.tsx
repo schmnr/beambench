@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
-import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
 import { SubLayerStack } from '../properties/SubLayerStack';
 import { CheckSquare, Lock, ClipboardCopy, ClipboardPaste, Trash2 } from 'lucide-react';
@@ -11,51 +10,9 @@ import { ToggleSwitch } from '../shared/ToggleSwitch';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { INSPECTOR_CARD_CLASS, INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
 
 const SHOW_TOGGLE_ACTIVE_COLOR = 'bg-bb-accent';
-function FrameToggle({
-  active,
-  onToggle,
-}: {
-  active: boolean;
-  onToggle: () => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <button
-      type="button"
-      className="inline-flex w-full items-center justify-end gap-2 text-bb-text"
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle();
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-      title={
-        active
-          ? t('panels.layers.exclude_tool_layers_from_job_bounds')
-          : t('panels.layers.include_tool_layers_in_job_bounds')
-      }
-      data-testid="frame-toggle"
-    >
-      <span
-        className={`relative inline-flex w-7 h-3.5 shrink-0 rounded-full transition-colors ${
-          active ? 'bg-green-500' : 'bg-bb-text/20'
-        }`}
-      >
-        <span
-          className={`absolute left-0 top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-transform ${
-            active ? 'translate-x-3.5' : 'translate-x-0.5'
-          }`}
-        />
-      </span>
-      <span className="shrink-0">{t('panels.layers.frame')}</span>
-    </button>
-  );
-}
 
 export function LayerList() {
   const { t } = useTranslation();
@@ -72,13 +29,7 @@ export function LayerList() {
   const pasteLayerSettings = useProjectStore((s) => s.pasteLayerSettings);
   const layerSettingsClipboard = useUiStore((s) => s.layerSettingsClipboard);
   const loadProject = useProjectStore((s) => s.loadProject);
-  const includeToolLayersInJobBounds = useAppStore(
-    (s) => s.settings?.include_tool_layers_in_job_bounds ?? true,
-  );
-  const updateSettings = useAppStore((s) => s.updateSettings);
-  const currentAppSettings = useAppStore((s) => s.settings);
   const [colorPicker, setColorPicker] = useState<{ x: number; y: number } | null>(null);
-  const [optimisticToolFrameBounds, setOptimisticToolFrameBounds] = useState<boolean | null>(null);
   const [layerNameDraft, setLayerNameDraft] = useState('');
 
   const selectedLayer = layers.find((l) => l.id === selectedLayerId) ?? null;
@@ -123,32 +74,6 @@ export function LayerList() {
   // replaces the target layer's entries[] in one atomic op (one undo snapshot).
 
 
-  const handleToggleToolFrameBounds = async () => {
-    const currentValue = optimisticToolFrameBounds ?? includeToolLayersInJobBounds;
-    const nextValue = !currentValue;
-    setOptimisticToolFrameBounds(nextValue);
-    if (currentAppSettings) {
-      useAppStore.setState({
-        settings: {
-          ...currentAppSettings,
-          include_tool_layers_in_job_bounds: nextValue,
-        },
-      });
-    }
-    try {
-      await updateSettings({
-        include_tool_layers_in_job_bounds: nextValue,
-      });
-      setOptimisticToolFrameBounds(null);
-    } catch (error) {
-      if (currentAppSettings) {
-        useAppStore.setState({ settings: currentAppSettings });
-      }
-      setOptimisticToolFrameBounds(null);
-      notifyLayerError('panels.layers.errors.update_tool_frame', error);
-    }
-  };
-
   if (layers.length === 0) {
     return (
       <div className="px-2 py-3 text-xs text-bb-text-dim text-center" data-testid="empty-layer-row">
@@ -161,15 +86,81 @@ export function LayerList() {
     <div className="flex flex-col">
       {/* ── LAYER ─────────────────────────────────────────────── */}
       {activeLayer && (
-        <div className="m-2 overflow-hidden rounded-xl border border-bb-accent/40 bg-bb-surface shadow-sm" data-testid="layer-block">
+        <div className={INSPECTOR_CARD_CLASS} data-testid="layer-block">
           <div className="px-3 py-2.5">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className={INSPECTOR_SECTION_HEADER_CLASS}>
               {t('panels.properties.layer')}
             </span>
-            {/* Move the layer earlier/later in the run order (tab order) */}
-            <div className="flex items-center gap-0.5">
+            <div className="flex shrink-0 items-center gap-0.5" data-testid="layer-header-actions">
               <button
+                type="button"
+                data-testid="select-all-on-layer"
+                className="rounded p-1 text-bb-text-muted hover:bg-bb-hover hover:text-bb-text disabled:cursor-not-allowed disabled:opacity-40"
+                title={t('panels.layers.select_all_objects_title')}
+                disabled={!objects.some((o) => o.layer_id === activeLayer.id)}
+                onClick={() => {
+                  const layerObjIds = objects
+                    .filter((o) => o.layer_id === activeLayer.id)
+                    .map((o) => o.id)
+                    .reverse();
+                  selectObjects(layerObjIds);
+                }}
+              >
+                <CheckSquare size={16} />
+              </button>
+              <button
+                type="button"
+                data-testid="lock-layer"
+                className={`rounded p-1 disabled:cursor-not-allowed disabled:opacity-40 ${
+                  layerAllLocked
+                    ? 'bg-bb-accent/15 text-bb-accent hover:bg-bb-accent/25'
+                    : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
+                }`}
+                title={t('panels.layers.toggle_lock_title')}
+                disabled={!objects.some((o) => o.layer_id === activeLayer.id)}
+                onClick={() => {
+                  const layerObjs = objects.filter((o) => o.layer_id === activeLayer.id);
+                  const layerObjectIds = layerObjs.map((o) => o.id);
+                  if (layerObjectIds.length === 0) return;
+                  if (layerAllLocked) void unlockObjects(layerObjectIds);
+                  else void lockObjects(layerObjectIds);
+                }}
+              >
+                <Lock size={16} />
+              </button>
+              <button
+                type="button"
+                data-testid="copy-layer-settings"
+                className="rounded p-1 text-bb-text-muted hover:bg-bb-hover hover:text-bb-text disabled:cursor-not-allowed disabled:opacity-40"
+                title={t('panels.layers.copy_settings_title')}
+                onClick={() => {
+                  if (activeLayer.is_tool_layer) return;
+                  copyLayerSettings(activeLayer.id);
+                  useNotificationStore.getState().push(t('panels.layers.settings_copied'), 'success');
+                }}
+                disabled={activeLayer.is_tool_layer}
+              >
+                <ClipboardCopy size={16} />
+              </button>
+              <button
+                type="button"
+                data-testid="paste-layer-settings"
+                className="rounded p-1 text-bb-text-muted hover:bg-bb-hover hover:text-bb-text disabled:cursor-not-allowed disabled:opacity-40"
+                title={
+                  layerSettingsClipboard && layerSettingsClipboard.length > 0
+                    ? t('panels.layers.paste_settings_title')
+                    : t('panels.layers.no_layer_settings_on_clipboard')
+                }
+                disabled={activeLayer.is_tool_layer || !layerSettingsClipboard || layerSettingsClipboard.length === 0}
+                onClick={() => void pasteLayerSettings(activeLayer.id)}
+              >
+                <ClipboardPaste size={16} />
+              </button>
+              <span aria-hidden="true" className="mx-0.5 h-4 w-px bg-bb-border" />
+              {/* Move the layer earlier/later in the run order (tab order) */}
+              <button
+                type="button"
                 className="rounded p-1 text-bb-text-muted hover:bg-bb-hover hover:text-bb-text disabled:opacity-30"
                 title={t('panels.layers.move_up')}
                 disabled={layers.findIndex((l) => l.id === activeLayer.id) === 0}
@@ -179,6 +170,7 @@ export function LayerList() {
                 ◀
               </button>
               <button
+                type="button"
                 className="rounded p-1 text-bb-text-muted hover:bg-bb-hover hover:text-bb-text disabled:opacity-30"
                 title={t('panels.layers.move_down')}
                 disabled={layers.findIndex((l) => l.id === activeLayer.id) === layers.length - 1}
@@ -188,6 +180,7 @@ export function LayerList() {
                 ▶
               </button>
               <button
+                type="button"
                 className="ml-1 rounded p-1 text-bb-text-muted hover:bg-bb-error-bg hover:text-bb-error-fg"
                 title={t('panels.layers.delete_layer')}
                 onClick={() => void removeLayer(activeLayer.id)}
@@ -210,21 +203,19 @@ export function LayerList() {
           />
 
           <div className="mt-2 flex items-center justify-between gap-4">
-            {!activeLayer.is_tool_layer && (
-              <div className="flex items-center gap-1.5 text-xs" data-testid="quick-edit">
-                <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
-                <button
-                  className="h-6 w-8 rounded-md border border-bb-border shrink-0 hover:ring-1 hover:ring-bb-accent"
-                  data-testid="quick-edit-color"
-                  style={{ backgroundColor: activeLayer.color_tag }}
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setColorPicker((cur) => (cur ? null : { x: rect.left, y: rect.bottom + 4 }));
-                  }}
-                  aria-label={t('panels.layers.quick_edit.color')}
-                />
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 text-xs" data-testid="quick-edit">
+              <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
+              <button
+                className="h-6 w-8 rounded-md border border-bb-border shrink-0 hover:ring-1 hover:ring-bb-accent"
+                data-testid="quick-edit-color"
+                style={{ backgroundColor: activeLayer.color_tag }}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setColorPicker((cur) => (cur ? null : { x: rect.left, y: rect.bottom + 4 }));
+                }}
+                aria-label={t('panels.layers.quick_edit.color')}
+              />
+            </div>
             <div className="flex items-center gap-5">
               {!activeLayer.is_tool_layer && (
                 <label className="flex items-center gap-1.5 text-xs text-bb-text-muted">
@@ -245,78 +236,9 @@ export function LayerList() {
                   testId="show-toggle"
                 />
               </label>
-              {activeLayer.is_tool_layer && (
-                <FrameToggle
-                  active={optimisticToolFrameBounds ?? includeToolLayersInJobBounds}
-                  onToggle={() => void handleToggleToolFrameBounds()}
-                />
-              )}
             </div>
           </div>
 
-          {/* Layer actions: select all, lock, copy/paste settings */}
-          <div className="mt-2.5 flex gap-1 border-t border-bb-border pt-2">
-            <button
-              data-testid="select-all-on-layer"
-              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text disabled:opacity-40 disabled:cursor-not-allowed"
-              title={t('panels.layers.select_all_objects_title')}
-              disabled={!objects.some((o) => o.layer_id === activeLayer.id)}
-              onClick={() => {
-                const layerObjIds = objects
-                  .filter((o) => o.layer_id === activeLayer.id)
-                  .map((o) => o.id)
-                  .reverse();
-                selectObjects(layerObjIds);
-              }}
-            >
-              <CheckSquare size={16} />
-            </button>
-            <button
-              data-testid="lock-layer"
-              className={`p-1 rounded disabled:opacity-40 disabled:cursor-not-allowed ${
-                layerAllLocked
-                  ? 'bg-bb-accent/15 text-bb-accent hover:bg-bb-accent/25'
-                  : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
-              }`}
-              title={t('panels.layers.toggle_lock_title')}
-              disabled={!objects.some((o) => o.layer_id === activeLayer.id)}
-              onClick={() => {
-                const layerObjs = objects.filter((o) => o.layer_id === activeLayer.id);
-                const layerObjectIds = layerObjs.map((o) => o.id);
-                if (layerObjectIds.length === 0) return;
-                if (layerAllLocked) void unlockObjects(layerObjectIds);
-                else void lockObjects(layerObjectIds);
-              }}
-            >
-              <Lock size={16} />
-            </button>
-            <button
-              data-testid="copy-layer-settings"
-              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text"
-              title={t('panels.layers.copy_settings_title')}
-              onClick={() => {
-                if (activeLayer.is_tool_layer) return;
-                copyLayerSettings(activeLayer.id);
-                useNotificationStore.getState().push(t('panels.layers.settings_copied'), 'success');
-              }}
-              disabled={activeLayer.is_tool_layer}
-            >
-              <ClipboardCopy size={16} />
-            </button>
-            <button
-              data-testid="paste-layer-settings"
-              className="p-1 rounded hover:bg-bb-hover text-bb-text-muted hover:text-bb-text disabled:opacity-40 disabled:cursor-not-allowed"
-              title={
-                layerSettingsClipboard && layerSettingsClipboard.length > 0
-                  ? t('panels.layers.paste_settings_title')
-                  : t('panels.layers.no_layer_settings_on_clipboard')
-              }
-              disabled={activeLayer.is_tool_layer || !layerSettingsClipboard || layerSettingsClipboard.length === 0}
-              onClick={() => void pasteLayerSettings(activeLayer.id)}
-            >
-              <ClipboardPaste size={16} />
-            </button>
-          </div>
           </div>
 
           {/* Cut settings — flat for a single sub-layer; the stacked
@@ -324,7 +246,7 @@ export function LayerList() {
           {!activeLayer.is_tool_layer && (
             <div className="border-t border-bb-border px-3 py-2.5">
               {activeLayer.entries.length > 1 && (
-                <div className="pb-2 text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim">
+                <div className={`${INSPECTOR_SECTION_HEADER_CLASS} pb-2`}>
                   {t('panels.sub_layer_stack.title')}
                 </div>
               )}

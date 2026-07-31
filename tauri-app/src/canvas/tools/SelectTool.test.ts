@@ -1369,6 +1369,72 @@ describe('SelectTool resize clamp (no bounds inversion)', () => {
   });
 });
 
+describe('SelectTool read-only selection', () => {
+  it('keeps click selection but never starts an object move', () => {
+    const tool = new SelectTool();
+    const obj = makeVectorObject('target', { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    const selectObjects = vi.fn();
+    const updateObjectBoundsBatch = vi.fn().mockResolvedValue(undefined);
+    const ctx = makeToolContext({
+      objects: [obj],
+      readOnly: true,
+      selectObjects,
+      updateObjectBoundsBatch,
+    });
+
+    tool.onMouseDown(makeMouseEvent({
+      screenX: 414, screenY: 308,
+      worldX: 7, worldY: 4,
+      snappedX: 7, snappedY: 4,
+    }), ctx);
+    tool.onMouseMove(makeMouseEvent({
+      screenX: 454, screenY: 308,
+      worldX: 27, worldY: 4,
+      snappedX: 27, snappedY: 4,
+    }), ctx);
+    tool.onMouseUp(makeMouseEvent({
+      screenX: 454, screenY: 308,
+      worldX: 27, worldY: 4,
+      snappedX: 27, snappedY: 4,
+    }), ctx);
+
+    expect(obj.bounds).toEqual({ min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    expect(updateObjectBoundsBatch).not.toHaveBeenCalled();
+    expect(selectObjects).toHaveBeenLastCalledWith(['target']);
+  });
+
+  it('does not activate resize handles or mutate their bounds', () => {
+    const tool = new SelectTool();
+    const obj = makeVectorObject('target', { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    const updateObjectBoundsBatch = vi.fn().mockResolvedValue(undefined);
+    const ctx = makeToolContext({
+      objects: [obj],
+      selectedObjectIds: ['target'],
+      readOnly: true,
+      updateObjectBoundsBatch,
+    });
+
+    tool.onMouseDown(makeMouseEvent({
+      screenX: 420, screenY: 320,
+      worldX: 10, worldY: 10,
+      snappedX: 10, snappedY: 10,
+    }), ctx);
+    tool.onMouseMove(makeMouseEvent({
+      screenX: 440, screenY: 340,
+      worldX: 20, worldY: 20,
+      snappedX: 20, snappedY: 20,
+    }), ctx);
+    tool.onMouseUp(makeMouseEvent({
+      screenX: 440, screenY: 340,
+      worldX: 20, worldY: 20,
+      snappedX: 20, snappedY: 20,
+    }), ctx);
+
+    expect(obj.bounds).toEqual({ min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    expect(updateObjectBoundsBatch).not.toHaveBeenCalled();
+  });
+});
+
 describe('SelectTool cancelDrag (right-click / context-menu cancel path)', () => {
   let tool: SelectTool;
 

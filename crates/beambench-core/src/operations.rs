@@ -701,9 +701,6 @@ pub fn reassign_layer(project: &mut Project, ids: &[ObjectId], target_layer_id: 
     }
 
     project.dirty = true;
-
-    // Clean up layers that lost all their objects
-    project.clean_empty_layers();
 }
 
 /// Select all open shapes (VectorPath objects where closed=false).
@@ -1179,7 +1176,7 @@ mod tests {
     }
 
     #[test]
-    fn reassign_layer_cleans_up_empty_source_layer() {
+    fn reassign_layer_preserves_empty_layers() {
         use crate::layer::{Layer, OperationType};
 
         let mut project = make_test_project();
@@ -1202,9 +1199,11 @@ mod tests {
         reassign_layer(&mut project, &[id], lid_b);
 
         assert_eq!(project.objects[0].layer_id, lid_b);
-        // layer_a should be cleaned up (no objects left)
-        assert_eq!(project.layers.len(), 1);
-        assert_eq!(project.layers[0].id, lid_b);
+        // Empty layers are intentional project structure and remain until
+        // the user explicitly deletes them.
+        assert_eq!(project.layers.len(), 2);
+        assert_eq!(project.layers[0].id, lid_a);
+        assert_eq!(project.layers[1].id, lid_b);
     }
 
     #[test]

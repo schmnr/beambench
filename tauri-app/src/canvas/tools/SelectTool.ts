@@ -117,7 +117,8 @@ export class SelectTool implements CanvasTool {
       .map((id) => ctx.objects.find((o) => o.id === id))
       .filter(Boolean) as typeof ctx.objects;
     const selectionHasLockedObjects = selectedObjects.some((object) => object.locked);
-    const handleId = selectionHasLockedObjects
+    const transformsDisabled = ctx.readOnly || selectionHasLockedObjects;
+    const handleId = transformsDisabled
       ? null
       : hitTestHandle(screenPt, selectedObjects, ctx.vp, ctx.transformLocks, ctx.objects);
 
@@ -215,7 +216,7 @@ export class SelectTool implements CanvasTool {
 
     // Check snap-point hit for snap-point drag (before general object hit)
     if (selectedObjects.length > 0) {
-      const snapHit = selectionHasLockedObjects
+      const snapHit = transformsDisabled
         ? null
         : hitTestSnapPoint(screenPt, selectedObjects, ctx.vp, ctx.transformLocks, ctx.objects);
       if (snapHit) {
@@ -232,7 +233,7 @@ export class SelectTool implements CanvasTool {
       }
 
       // Check edge hit for edge drag
-      const edgeHit = selectionHasLockedObjects
+      const edgeHit = transformsDisabled
         ? null
         : hitTestSelectionEdge(screenPt, selectedObjects, ctx.vp, ctx.transformLocks, ctx.objects);
       if (edgeHit) {
@@ -249,7 +250,7 @@ export class SelectTool implements CanvasTool {
     }
 
     // Check object hit
-    const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp, true);
+    const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp, true, ctx.layers);
 
     if (hit) {
       this.state = {
@@ -278,6 +279,15 @@ export class SelectTool implements CanvasTool {
   onMouseMove(e: CanvasMouseEvent, ctx: ToolContext): void {
     const screenPt = { x: e.screenX, y: e.screenY };
     const worldPt = { x: e.snappedX, y: e.snappedY };
+
+    if (ctx.readOnly) {
+      if (this.state.type === 'dragging' || this.state.type === 'handle-drag') {
+        this.cancelDrag(ctx);
+      }
+      // Keep maybe-drag as a click-selection candidate. Rubber-band selection
+      // remains available because it changes selection, not project geometry.
+      if (this.state.type !== 'rubber-band') return;
+    }
 
     switch (this.state.type) {
       case 'maybe-drag': {
@@ -740,6 +750,11 @@ export class SelectTool implements CanvasTool {
   }
 
   onMouseUp(e: CanvasMouseEvent, ctx: ToolContext): void {
+    if (ctx.readOnly && (this.state.type === 'dragging' || this.state.type === 'handle-drag')) {
+      this.cancelDrag(ctx);
+      return;
+    }
+
     switch (this.state.type) {
       case 'maybe-drag': {
         // Click-select
@@ -749,7 +764,7 @@ export class SelectTool implements CanvasTool {
 
         if (e.altKey && mode === 'replace') {
           // Alt+click: cycle through overlapping objects
-          const hits = normalizeHitObjects(hitTestPointAll(screenPt, ctx.objects, ctx.vp, true), ctx.objects);
+          const hits = normalizeHitObjects(hitTestPointAll(screenPt, ctx.objects, ctx.vp, true, ctx.layers), ctx.objects);
           if (hits.length > 1) {
             const sameSpot = this.lastAltClickScreen != null &&
               Math.abs(screenPt.x - this.lastAltClickScreen.x) <= 2 &&
@@ -769,7 +784,7 @@ export class SelectTool implements CanvasTool {
         this.altCycleIndex = 0;
 
         if (mode === 'replace') {
-          const hits = normalizeHitObjects(hitTestPointAll(screenPt, ctx.objects, ctx.vp, true), ctx.objects);
+          const hits = normalizeHitObjects(hitTestPointAll(screenPt, ctx.objects, ctx.vp, true, ctx.layers), ctx.objects);
           const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects);
           const selectedHitIndex = hits.findIndex((hit) => currentSelectionIds.includes(hit.id));
           const sameSpot = this.lastClickCycleScreen != null &&
@@ -829,8 +844,8 @@ export class SelectTool implements CanvasTool {
           },
         };
         const hits = crossing
-          ? hitTestRect(rect, ctx.objects, ctx.vp, true)
-          : hitTestRectContained(rect, ctx.objects, ctx.vp, true);
+          ? hitTestRect(rect, ctx.objects, ctx.vp, true, ctx.layers)
+          : hitTestRectContained(rect, ctx.objects, ctx.vp, true, ctx.layers);
         const ids = normalizeSelectableIds(
           orderMultiSelectBatchForAnchor(hits.map((o) => o.id), ctx.objects),
           ctx.objects,
@@ -929,11 +944,13 @@ export class SelectTool implements CanvasTool {
   }
 
   onDoubleClick(e: CanvasMouseEvent, ctx: ToolContext): void {
+    if (ctx.readOnly) return;
+
     void (async () => {
       const screenPt = { x: e.screenX, y: e.screenY };
       if (await beginTextEditFromDoubleClick(e, ctx)) return;
 
-      const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp);
+      const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp, false, ctx.layers);
       if (hit && hit.data.type === 'raster_image') {
         ctx.selectObjects([hit.id]);
         const obj = ctx.objects.find((o) => o.id === hit.id);
@@ -948,7 +965,7 @@ export class SelectTool implements CanvasTool {
           if (useUiStore.getState().panelLayout.hiddenPanelIds.includes('properties')) {
             useUiStore.getState().togglePanelVisibility('properties');
           }
-          useUiStore.getState().setZoneActiveTab('upper-right', 'properties');
+          useUiStore.getState().setZoneActiveTab('top-right', 'properties');
         }
       }
     })();
@@ -1007,7 +1024,11 @@ export class SelectTool implements CanvasTool {
     return hadActiveDrag;
   }
 
-  getCursor(_ctx: ToolContext): string {
+  getCursor(ctx: ToolContext): string {
+    if (ctx.readOnly) {
+      return this.state.type === 'rubber-band' ? 'crosshair' : 'default';
+    }
+
     switch (this.state.type) {
       case 'dragging':
         return 'move';

@@ -8,25 +8,25 @@ afterEach(() => {
 });
 
 const sampleZoneRects: ZoneRect[] = [
-  { zone: 'upper-right', rect: new DOMRect(600, 0, 300, 200) },
-  { zone: 'lower-right', rect: new DOMRect(600, 210, 300, 200) },
+  { zone: 'top-right', rect: new DOMRect(600, 0, 300, 200) },
+  { zone: 'middle-right', rect: new DOMRect(600, 210, 300, 200) },
 ];
 
 const sampleTabRects: TabRect[] = [
-  { zone: 'upper-right', panelId: 'cuts_layers', rect: new DOMRect(600, 0, 80, 28) },
-  { zone: 'upper-right', panelId: 'move', rect: new DOMRect(680, 0, 60, 28) },
-  { zone: 'upper-right', panelId: 'console', rect: new DOMRect(740, 0, 70, 28) },
-  { zone: 'lower-right', panelId: 'laser', rect: new DOMRect(600, 210, 60, 28) },
-  { zone: 'lower-right', panelId: 'material', rect: new DOMRect(660, 210, 80, 28) },
+  { zone: 'top-right', panelId: 'cuts_layers', rect: new DOMRect(600, 0, 80, 28) },
+  { zone: 'top-right', panelId: 'move', rect: new DOMRect(680, 0, 60, 28) },
+  { zone: 'top-right', panelId: 'console', rect: new DOMRect(740, 0, 70, 28) },
+  { zone: 'middle-right', panelId: 'laser', rect: new DOMRect(600, 210, 60, 28) },
+  { zone: 'middle-right', panelId: 'material', rect: new DOMRect(660, 210, 80, 28) },
 ];
 
 describe('dndEngine', () => {
   describe('startPanelDrag', () => {
     it('creates initial state with isDragging=false', () => {
-      const state = startPanelDrag('console', 'upper-right', 100, 200);
+      const state = startPanelDrag('console', 'top-right', 100, 200);
       expect(state.isDragging).toBe(false);
       expect(state.panelId).toBe('console');
-      expect(state.sourceZone).toBe('upper-right');
+      expect(state.sourceZone).toBe('top-right');
       expect(state.startX).toBe(100);
       expect(state.startY).toBe(200);
       expect(state.ghostEl).toBeNull();
@@ -35,14 +35,14 @@ describe('dndEngine', () => {
 
   describe('updatePanelDrag', () => {
     it('movement below threshold keeps isDragging=false', () => {
-      const state = startPanelDrag('console', 'upper-right', 100, 200);
+      const state = startPanelDrag('console', 'top-right', 100, 200);
       const updated = updatePanelDrag(state, 102, 201, 'Console', sampleZoneRects, sampleTabRects, 420, 300);
       expect(updated.isDragging).toBe(false);
       expect(updated.ghostEl).toBeNull();
     });
 
     it('movement at threshold sets isDragging=true and creates ghost', () => {
-      const state = startPanelDrag('console', 'upper-right', 100, 200);
+      const state = startPanelDrag('console', 'top-right', 100, 200);
       const updated = updatePanelDrag(state, 105, 200, 'Console', sampleZoneRects, sampleTabRects, 420, 300);
       expect(updated.isDragging).toBe(true);
       expect(updated.ghostEl).not.toBeNull();
@@ -52,13 +52,13 @@ describe('dndEngine', () => {
 
   describe('endPanelDrag', () => {
     it('returns null when not dragging', () => {
-      const state = startPanelDrag('console', 'upper-right', 100, 200);
+      const state = startPanelDrag('console', 'top-right', 100, 200);
       const result = endPanelDrag(state);
       expect(result).toBeNull();
     });
 
     it('returns drop target when dragging', () => {
-      let state = startPanelDrag('console', 'upper-right', 100, 200);
+      let state = startPanelDrag('console', 'top-right', 100, 200);
       state = updatePanelDrag(state, 650, 100, 'Console', sampleZoneRects, sampleTabRects, 420, 300);
       const result = endPanelDrag(state);
       expect(result).not.toBeNull();
@@ -66,7 +66,7 @@ describe('dndEngine', () => {
     });
 
     it('cleans up ghost element', () => {
-      let state = startPanelDrag('console', 'upper-right', 100, 200);
+      let state = startPanelDrag('console', 'top-right', 100, 200);
       state = updatePanelDrag(state, 200, 200, 'Console', sampleZoneRects, sampleTabRects, 420, 300);
       expect(state.ghostEl).not.toBeNull();
       endPanelDrag(state);
@@ -80,7 +80,7 @@ describe('dndEngine', () => {
       expect(target).not.toBeNull();
       expect(target!.type).toBe('zone');
       if (target!.type === 'zone') {
-        expect(target!.zone).toBe('upper-right');
+        expect(target!.zone).toBe('top-right');
       }
     });
 
@@ -115,11 +115,11 @@ describe('dndEngine', () => {
       }
     });
 
-    it('returns lower-right zone for cursor in lower zone', () => {
+    it('returns middle-right zone for cursor in lower zone', () => {
       const target = resolveDropTarget(650, 230, sampleZoneRects, sampleTabRects, 420, 300);
       expect(target!.type).toBe('zone');
       if (target!.type === 'zone') {
-        expect(target!.zone).toBe('lower-right');
+        expect(target!.zone).toBe('middle-right');
       }
     });
   });

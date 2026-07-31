@@ -9,6 +9,7 @@ import { useUiStore } from '../../../stores/uiStore';
 import { useAppStore } from '../../../stores/appStore';
 import { makeProjectObject, makeTextObjectData } from '../../../test-utils/projectFixtures';
 import { beginTextEditFromDoubleClick } from '../../textDoubleClick';
+import { clearPendingEdit, getPendingContent } from '../../textEditSession';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -24,6 +25,7 @@ const initialAppState = useAppStore.getState();
 const initialProjectState = useProjectStore.getState();
 
 afterEach(() => {
+  clearPendingEdit();
   useUiStore.setState(initialUiState, true);
   useAppStore.setState(initialAppState, true);
   useProjectStore.setState(initialProjectState, true);
@@ -190,6 +192,7 @@ describe('SelectTool double-click text editing', () => {
     });
 
     tool.onMouseDown(event, ctx);
+    tool.onMouseUp(event, ctx);
 
     await vi.waitFor(() => {
       expect(useUiStore.getState().textEditObjectId).toBeNull();
@@ -261,6 +264,7 @@ describe('TextTool hit-test and stay-active', () => {
     });
 
     tool.onMouseDown(event, ctx);
+    tool.onMouseUp(event, ctx);
 
     expect(ctx.selectObjects).toHaveBeenCalledWith(['text-1']);
     expect(useUiStore.getState().textEditObjectId).toBe('text-1');
@@ -285,6 +289,7 @@ describe('TextTool hit-test and stay-active', () => {
     });
 
     tool.onMouseDown(event, ctx);
+    tool.onMouseUp(event, ctx);
 
     // Non-text hit → creates new text object
     await vi.waitFor(() => {
@@ -331,6 +336,7 @@ describe('TextTool hit-test and stay-active', () => {
     });
 
     tool.onMouseDown(event, ctx);
+    tool.onMouseUp(event, ctx);
 
     // Wait for the promise to resolve
     await vi.waitFor(() => {
@@ -339,6 +345,37 @@ describe('TextTool hit-test and stay-active', () => {
 
     expect(useUiStore.getState().activeTool).toBe('text');
     expect(useUiStore.getState().textEditMode).toBe('new');
+  });
+
+  it('buffers typing that begins before asynchronous text creation finishes', async () => {
+    let resolveCreated!: (object: ProjectObject) => void;
+    const createdPromise = new Promise<ProjectObject>((resolve) => {
+      resolveCreated = resolve;
+    });
+    const createdObject = makeTextObject('new-text-fast', '', {
+      min: { x: 40, y: 55 },
+      max: { x: 60, y: 65 },
+    });
+    const ctx = makeToolContext({
+      objects: [],
+      addObject: vi.fn().mockReturnValue(createdPromise),
+    });
+    const event = makeMouseEvent({
+      snappedX: 50,
+      snappedY: 60,
+      worldX: 50,
+      worldY: 60,
+    });
+
+    tool.onMouseDown(event, ctx);
+    tool.onMouseUp(event, ctx);
+    tool.onKeyDown!(new KeyboardEvent('keydown', { key: 'P' }));
+    resolveCreated(createdObject);
+
+    await vi.waitFor(() => {
+      expect(useUiStore.getState().textEditObjectId).toBe('new-text-fast');
+    });
+    expect(getPendingContent()).toBe('P');
   });
 
   it('does not open inline editing on a stale selected object when create fails', async () => {
@@ -356,11 +393,139 @@ describe('TextTool hit-test and stay-active', () => {
     });
 
     tool.onMouseDown(event, ctx);
+    tool.onMouseUp(event, ctx);
 
     await vi.waitFor(() => {
       expect(ctx.addObject).toHaveBeenCalledTimes(1);
     });
     expect(useUiStore.getState().textEditObjectId).toBeNull();
+  });
+
+  it('keeps point text natural even when the pointer moves before release', async () => {
+    const ctx = makeToolContext({ objects: [] });
+    const start = makeMouseEvent({
+      screenX: 100,
+      screenY: 100,
+      worldX: 10,
+      worldY: 20,
+      snappedX: 10,
+      snappedY: 20,
+    });
+    const end = makeMouseEvent({
+      screenX: 220,
+      screenY: 160,
+      worldX: 70,
+      worldY: 50,
+      snappedX: 70,
+      snappedY: 50,
+    });
+
+    tool.onMouseDown(start, ctx);
+    tool.onMouseMove(end, ctx);
+    expect(tool.getOverlay()).toEqual({ type: 'none' });
+    tool.onMouseUp(end, ctx);
+
+    await vi.waitFor(() => expect(ctx.addObject).toHaveBeenCalledTimes(1));
+    expect(ctx.addObject).toHaveBeenCalledWith(
+      'Text',
+      'layer1',
+      expect.objectContaining({ max_width: null, squeeze: false }),
+      expect.any(Object),
+    );
+  });
+
+  it('drags out a wrapping text box with a live preview only in explicit Box mode', async () => {
+    useUiStore.setState({
+      textDefaults: {
+        ...useUiStore.getState().textDefaults,
+        max_width: 40,
+        squeeze: false,
+      },
+    });
+    const ctx = makeToolContext({ objects: [] });
+    const start = makeMouseEvent({
+      screenX: 100,
+      screenY: 100,
+      worldX: 10,
+      worldY: 20,
+      snappedX: 10,
+      snappedY: 20,
+    });
+    const end = makeMouseEvent({
+      screenX: 220,
+      screenY: 160,
+      worldX: 70,
+      worldY: 50,
+      snappedX: 70,
+      snappedY: 50,
+    });
+
+    tool.onMouseDown(start, ctx);
+    tool.onMouseMove(end, ctx);
+    expect(tool.getOverlay()).toEqual({
+      type: 'text-box-preview',
+      startWorld: { x: 10, y: 20 },
+      endWorld: { x: 70, y: 50 },
+    });
+    tool.onMouseUp(end, ctx);
+
+    await vi.waitFor(() => expect(ctx.addObject).toHaveBeenCalledTimes(1));
+    expect(ctx.addObject).toHaveBeenCalledWith(
+      'Text',
+      'layer1',
+      expect.objectContaining({ max_width: 60, squeeze: false }),
+      { min: { x: 10, y: 20 }, max: { x: 70, y: 50 } },
+    );
+    expect(tool.getOverlay()).toEqual({ type: 'none' });
+  });
+
+  it('uses a crosshair in Box mode and an I-beam in Point mode', () => {
+    useUiStore.setState({
+      textDefaults: {
+        ...useUiStore.getState().textDefaults,
+        max_width: null,
+      },
+    });
+    expect(tool.getCursor()).toBe('text');
+
+    useUiStore.setState({
+      textDefaults: {
+        ...useUiStore.getState().textDefaults,
+        max_width: 60,
+      },
+    });
+    expect(tool.getCursor()).toBe('crosshair');
+  });
+
+  it('clicking in Box mode creates a useful default text area', async () => {
+    useUiStore.setState({
+      textDefaults: {
+        ...useUiStore.getState().textDefaults,
+        font_size_mm: 10,
+        max_width: 60,
+        squeeze: false,
+      },
+    });
+    const ctx = makeToolContext({ objects: [] });
+    const click = makeMouseEvent({
+      screenX: 100,
+      screenY: 100,
+      worldX: 10,
+      worldY: 20,
+      snappedX: 10,
+      snappedY: 20,
+    });
+
+    tool.onMouseDown(click, ctx);
+    tool.onMouseUp(click, ctx);
+
+    await vi.waitFor(() => expect(ctx.addObject).toHaveBeenCalledTimes(1));
+    expect(ctx.addObject).toHaveBeenCalledWith(
+      'Text',
+      'layer1',
+      expect.objectContaining({ max_width: 60 }),
+      { min: { x: 10, y: 20 }, max: { x: 70, y: 60 } },
+    );
   });
 });
 

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { open, save } from '@tauri-apps/plugin-dialog';
 
 import { ArtLibraryPanel } from '../ArtLibraryPanel';
+import { ART_LIBRARY_DRAG_MIME } from '../../shared/artLibraryDragData';
 import { useArtLibraryStore } from '../../../stores/artLibraryStore';
 import { useProjectStore } from '../../../stores/projectStore';
 import type { ArtLibraryItem, LoadedArtLibrary } from '../../../types/artLibrary';
@@ -140,7 +141,7 @@ async function renderPanel(
 }
 
 describe('ArtLibraryPanel', () => {
-  it('renders search, icon-size, and grouped-section controls', async () => {
+  it('renders the consolidated library and artwork sections', async () => {
     const library = makeLibrary({
       items: [makeSnapshotItem()],
     });
@@ -155,48 +156,53 @@ describe('ArtLibraryPanel', () => {
     expect(screen.getByTestId('art-library-icon-size-readout').textContent).toBe('128 x 128');
     expect(screen.getByText('Art Library')).toBeDefined();
     expect(screen.getByText('Graphic')).toBeDefined();
+    expect(screen.queryByText('No graphic selected')).toBeNull();
+    expect(screen.queryByText('Add Graphic to Project')).toBeNull();
     expect(screen.queryByDisplayValue('All')).toBeNull();
   });
 
-  it('renders the required bottom button clusters and icons', async () => {
+  it('places compact library and artwork actions beside their sections', async () => {
     const library = makeLibrary();
     await renderPanel({
       libraries: [library],
       selectedLibraryId: library.library_id,
     });
 
-    expect(screen.getByTestId('art-library-new').querySelector('svg')).not.toBeNull();
-    expect(screen.getByTestId('art-library-import').querySelector('svg')).not.toBeNull();
-    expect(screen.getByTestId('art-library-delete').querySelector('svg')).not.toBeNull();
-    expect(screen.getByTestId('art-library-unload')).toBeDefined();
-    expect(screen.getByTestId('art-library-add-to-project')).toBeDefined();
-    expect(screen.getByTestId('art-library-import-from-project')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'New Library' }).querySelector('svg')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Load Library' }).querySelector('svg')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Unload Library: Projects and Art' }).querySelector('svg')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Import' }).querySelector('svg')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Import Graphic from Project' }).querySelector('svg')).not.toBeNull();
+    expect(screen.queryByText('Add Graphic to Project')).toBeNull();
   });
 
-  it('shows strong disabled states when no item is selected', async () => {
+  it('keeps library and artwork management available without an item selection', async () => {
     const library = makeLibrary();
     await renderPanel({
       libraries: [library],
       selectedLibraryId: library.library_id,
     });
 
-    expect((screen.getByTestId('art-library-add-to-project') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByTestId('art-library-delete') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByTestId('art-library-unload') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Unload Library: Projects and Art' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Import' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Import Graphic from Project' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('disables Add Graphic to Project when no project is open', async () => {
+  it('does not insert on item click when no project is open', async () => {
     const library = makeLibrary({
       items: [makeSnapshotItem()],
     });
+    const insertToProject = vi.fn().mockResolvedValue(undefined);
     await renderPanel({
       libraries: [library],
       selectedLibraryId: library.library_id,
-    });
+      insertToProject,
+    } as never);
 
     fireEvent.click(screen.getByTestId('art-item-snapshot-1'));
 
-    expect((screen.getByTestId('art-library-add-to-project') as HTMLButtonElement).disabled).toBe(true);
+    expect(insertToProject).not.toHaveBeenCalled();
+    expect(screen.queryByText('Add Graphic to Project')).toBeNull();
 
     fireEvent.contextMenu(screen.getByTestId('art-item-snapshot-1'));
     await waitFor(() => {
@@ -213,7 +219,7 @@ describe('ArtLibraryPanel', () => {
     });
 
     expect(screen.getByText('Save failed: Permission denied')).toBeDefined();
-    expect((screen.getByTestId('art-library-unload') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Unload Library: Projects and Art' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('opens Save As immediately when creating a new library', async () => {
@@ -221,7 +227,7 @@ describe('ArtLibraryPanel', () => {
     vi.mocked(save).mockResolvedValue('/tmp/New Shapes.bbart');
     await renderPanel({ createLibrary } as never);
 
-    fireEvent.click(screen.getByTestId('art-library-new'));
+    fireEvent.click(screen.getByRole('button', { name: 'New Library' }));
 
     await waitFor(() => {
       expect(save).toHaveBeenCalledWith({
@@ -238,7 +244,7 @@ describe('ArtLibraryPanel', () => {
     vi.mocked(open).mockResolvedValue('/tmp/Loaded.bbart');
     await renderPanel({ loadLibrary } as never);
 
-    fireEvent.click(screen.getByTestId('art-library-load'));
+    fireEvent.click(screen.getByRole('button', { name: 'Load Library' }));
 
     await waitFor(() => {
       expect(open).toHaveBeenCalledWith({
@@ -250,7 +256,7 @@ describe('ArtLibraryPanel', () => {
     expect(loadLibrary).toHaveBeenCalledWith('/tmp/Loaded.bbart');
   });
 
-  it('imports external artwork from the bottom action bar', async () => {
+  it('imports external artwork from the artwork header', async () => {
     const library = makeLibrary({ items: [] });
     const addFileItems = vi.fn().mockResolvedValue(undefined);
     vi.mocked(open).mockResolvedValue(['/tmp/library-art.tga', '/tmp/library-vector.svg']);
@@ -260,7 +266,7 @@ describe('ArtLibraryPanel', () => {
       addFileItems,
     } as never);
 
-    fireEvent.click(screen.getByTestId('art-library-import'));
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
 
     await waitFor(() => {
       expect(open).toHaveBeenCalledWith({
@@ -285,7 +291,7 @@ describe('ArtLibraryPanel', () => {
     );
   });
 
-  it('captures project selection from the bottom action bar', async () => {
+  it('captures project selection from the artwork header', async () => {
     const library = makeLibrary();
     const addSelectionItem = vi.fn().mockResolvedValue(undefined);
     await renderPanel({
@@ -294,14 +300,14 @@ describe('ArtLibraryPanel', () => {
       addSelectionItem,
     } as never);
 
-    fireEvent.click(screen.getByTestId('art-library-import-from-project'));
+    fireEvent.click(screen.getByRole('button', { name: 'Import Graphic from Project' }));
 
     await waitFor(() => {
       expect(addSelectionItem).toHaveBeenCalledWith('library-1', 'Selection', 'General', []);
     });
   });
 
-  it('selects an item, updates the footer, and enables Add Graphic to Project', async () => {
+  it('keeps item clicks inert and exposes artwork through drag-and-drop', async () => {
     const library = makeLibrary({
       items: [makeSnapshotItem()],
     });
@@ -323,15 +329,34 @@ describe('ArtLibraryPanel', () => {
 
     fireEvent.click(screen.getByTestId('art-item-snapshot-1'));
 
-    expect(screen.getAllByText('General Text').length).toBeGreaterThan(1);
-    expect(screen.getByText('25.4 mm x 25.4 mm')).toBeDefined();
-    expect(screen.getAllByText('Graphic').length).toBeGreaterThan(0);
-    expect((screen.getByTestId('art-library-add-to-project') as HTMLButtonElement).disabled).toBe(false);
-
-    fireEvent.click(screen.getByTestId('art-library-add-to-project'));
-    await waitFor(() => {
-      expect(insertToProject).toHaveBeenCalledWith('library-1', 'snapshot-1');
+    expect(insertToProject).not.toHaveBeenCalled();
+    const setData = vi.fn();
+    fireEvent.dragStart(screen.getByTestId('art-item-snapshot-1'), {
+      dataTransfer: { effectAllowed: '', setData },
     });
+    expect(setData).toHaveBeenCalledWith(
+      ART_LIBRARY_DRAG_MIME,
+      expect.any(String),
+    );
+    expect(useArtLibraryStore.getState().dragState).toEqual(expect.objectContaining({
+      sourceLibraryId: 'library-1',
+      itemId: 'snapshot-1',
+    }));
+    expect(screen.getAllByText('General Text')).toHaveLength(1);
+    expect(screen.queryByText('25.4 mm x 25.4 mm')).toBeNull();
+  });
+
+  it('opens item deletion from the card corner control', async () => {
+    const library = makeLibrary();
+    await renderPanel({
+      libraries: [library],
+      selectedLibraryId: library.library_id,
+    });
+
+    fireEvent.click(screen.getByTestId('art-item-delete-item-1'));
+
+    expect(screen.getByRole('dialog', { name: 'Delete Artwork Item' })).toBeDefined();
+    expect(screen.getByText('Delete "Test -Kerf width card" from this library?')).toBeDefined();
   });
 
   it('persists icon size locally and restores the readout on remount', async () => {
@@ -392,8 +417,11 @@ describe('ArtLibraryPanel', () => {
     expect((screen.getByTestId('art-library-rename-input') as HTMLInputElement).value).toBe('Test -Kerf width card');
 
     fireEvent.click(screen.getByText('Cancel'));
-    fireEvent.click(screen.getByTestId('art-item-item-1'));
-    fireEvent.click(screen.getByTestId('art-library-delete'));
+    fireEvent.contextMenu(screen.getByText('Test -Kerf width card'));
+    await waitFor(() => {
+      expect(screen.getByTestId('context-menu-item-art-delete')).toBeDefined();
+    });
+    fireEvent.click(screen.getByTestId('context-menu-item-art-delete'));
     expect(screen.getByRole('dialog', { name: 'Delete Artwork Item' })).toBeDefined();
   });
 

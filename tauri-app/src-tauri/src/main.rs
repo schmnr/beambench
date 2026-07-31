@@ -302,6 +302,7 @@ fn main() {
             commands::project::add_object_atomic,
             commands::project::update_object,
             commands::project::update_object_data,
+            commands::project::resize_text_area,
             commands::project::advance_auto_variable_text,
             commands::project::apply_adjust_image_dialog,
             commands::project::resize_shape_object,
@@ -417,6 +418,10 @@ fn main() {
             // Vector
             commands::vector::boolean_intersection,
             commands::vector::boolean_weld,
+            commands::vector::boolean_union_many,
+            commands::vector::boolean_intersection_many,
+            commands::vector::boolean_exclude_many,
+            commands::vector::boolean_subtract_many,
             commands::vector::offset_shapes,
             commands::vector::preview_offset_shapes,
             commands::vector::close_path,

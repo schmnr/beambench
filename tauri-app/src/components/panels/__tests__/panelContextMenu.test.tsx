@@ -33,7 +33,7 @@ describe('Panel context menu suppression', () => {
   it('RightPanel suppresses context menu on panel content', () => {
     renderWithDnd(<RightPanel />);
     // The first tab content is visible; fire contextmenu on the overall container
-    const container = screen.getByText('Cuts / Layers').closest('.no-select')!;
+    const container = screen.getByText('Layers').closest('.no-select')!;
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     container.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
@@ -123,9 +123,16 @@ describe('Panel context menu suppression', () => {
 });
 
 describe('Docked tab context menu', () => {
+  it('right-clicking empty title-strip space opens the active panel menu', () => {
+    renderWithDnd(<RightPanel />);
+    fireEvent.contextMenu(screen.getAllByTestId('tab-bar')[0]);
+    expect(screen.getByTestId('context-menu-item-panel-tab-float')).toBeDefined();
+    expect(screen.getByTestId('context-menu-item-panel-tab-close')).toBeDefined();
+  });
+
   it('right-click a docked tab opens context menu with Float/Close/Panels', () => {
     renderWithDnd(<RightPanel />);
-    const tab = screen.getByText('Cuts / Layers');
+    const tab = screen.getByText('Layers');
     // Right-click on the tab's parent div wrapper (which has the onContextMenu)
     const tabWrapper = tab.closest('.group')!;
     fireEvent.contextMenu(tabWrapper);
@@ -137,7 +144,7 @@ describe('Docked tab context menu', () => {
 
   it('Float action from tab menu calls floatPanel', () => {
     renderWithDnd(<RightPanel />);
-    const tab = screen.getByText('Cuts / Layers');
+    const tab = screen.getByText('Layers');
     const tabWrapper = tab.closest('.group')!;
     fireEvent.contextMenu(tabWrapper);
     fireEvent.click(screen.getByTestId('context-menu-item-panel-tab-float'));
@@ -146,15 +153,14 @@ describe('Docked tab context menu', () => {
     expect(state.panelLayout.floatingPanels.some((fp) => fp.panelId === 'cuts_layers')).toBe(true);
   });
 
-  it('Close action from tab menu hides the panel', () => {
+  it('Close action from the title menu removes that panel instance', () => {
     renderWithDnd(<RightPanel />);
-    const tab = screen.getByText('Cuts / Layers');
+    const tab = screen.getByText('Layers');
     const tabWrapper = tab.closest('.group')!;
     fireEvent.contextMenu(tabWrapper);
     fireEvent.click(screen.getByTestId('context-menu-item-panel-tab-close'));
-    // Panel should be hidden
     const state = useUiStore.getState();
-    expect(state.panelLayout.hiddenPanelIds).toContain('cuts_layers');
+    expect(Object.values(state.panelLayout.zones).flatMap((zone) => zone.panelIds)).not.toContain('cuts_layers');
   });
 });
 
@@ -165,7 +171,7 @@ describe('Floating panel title bar context menu', () => {
       panelLayout: {
         ...state.panelLayout,
         floatingPanels: [
-          { panelId, x: 100, y: 100, width: 400, height: 300, zIndex: 1, originZone: 'upper-right', originIndex: 2 },
+          { panelId, x: 100, y: 100, width: 400, height: 300, zIndex: 1, originZone: 'top-right', originIndex: 2 },
         ],
         hiddenPanelIds: state.panelLayout.hiddenPanelIds.filter((id) => id !== panelId),
       },
@@ -192,8 +198,8 @@ describe('Floating panel title bar context menu', () => {
     const state = useUiStore.getState();
     // Should no longer be floating
     expect(state.panelLayout.floatingPanels.some((fp) => fp.panelId === 'console')).toBe(false);
-    // Should be in upper-right zone (originZone)
-    expect(state.panelLayout.zones['upper-right'].panelIds).toContain('console');
+    // Should be in top-right zone (originZone)
+    expect(state.panelLayout.zones['top-right'].panelIds).toContain('console');
   });
 
   it('Close on floating camera sets cameraWindowOpen to false', async () => {
@@ -249,9 +255,9 @@ describe('Close docked camera via togglePanelVisibility', () => {
         ...state.panelLayout,
         zones: {
           ...state.panelLayout.zones,
-          'upper-right': {
-            ...state.panelLayout.zones['upper-right'],
-            panelIds: [...state.panelLayout.zones['upper-right'].panelIds, 'camera'],
+          'top-right': {
+            ...state.panelLayout.zones['top-right'],
+            panelIds: [...state.panelLayout.zones['top-right'].panelIds, 'camera'],
           },
         },
         hiddenPanelIds: state.panelLayout.hiddenPanelIds.filter((id) => id !== 'camera'),
@@ -269,13 +275,13 @@ describe('Close docked camera via togglePanelVisibility', () => {
 describe('Right-click button guards', () => {
   it('right-click on tab does NOT start DnD', () => {
     renderWithDnd(<RightPanel />);
-    const tab = screen.getByText('Cuts / Layers');
+    const tab = screen.getByText('Layers');
     // Simulate right-button mousedown (button=2) on the tab button
     fireEvent.mouseDown(tab, { button: 2 });
     // No DnD ghost should appear — verify no drag state set
     // Since startDrag is from DnD context, we just check no errors occur
     // and the tab is still there
-    expect(screen.getByText('Cuts / Layers')).toBeDefined();
+    expect(screen.getByText('Layers')).toBeDefined();
   });
 
   it('right-click on floating title bar does NOT start drag', () => {

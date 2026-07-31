@@ -462,9 +462,15 @@ mod tests {
         );
 
         let layout = PanelLayout {
+            layout_version: 3,
             zones,
             hidden_panel_ids: vec!["macros".to_string()],
             upper_split_ratio: 0.65,
+            run_zones: HashMap::new(),
+            run_hidden_panel_ids: vec![],
+            run_floating_panels: vec![],
+            run_upper_split_ratio: 0.58,
+            column_split_ratios: HashMap::new(),
             right_panel_width: 400.0,
             floating_panels: vec![],
             left_panel_width: 280.0,

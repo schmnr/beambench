@@ -1,170 +1,44 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MousePointer2, Type } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
-import { useAppStore } from '../../stores/appStore';
-import { appService } from '../../services/appService';
-import { NumberInput } from '../shared/NumberInput';
-import { Select } from '../shared/Select';
-import { Toggle } from '../shared/Toggle';
-import type { TextAlignment, TextAlignmentV, TextLayoutMode } from '../../types/project';
-import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
+import type { TextLayoutMode } from '../../types/project';
+import { TextControls, type TextControlValue } from './TextControls';
 
-const TEXT_LAYOUT_STRAIGHT = 'straight' as const;
-const TEXT_LAYOUT_BEND = 'bend' as const;
-const TEXT_LAYOUT_PATH = 'path' as const;
-
-const fontFamilyOptions = [
-  { value: 'sans-serif', labelKey: 'panels.text_properties.font_sans_serif' },
-  { value: 'serif', labelKey: 'panels.text_properties.font_serif' },
-  { value: 'monospace', labelKey: 'panels.text_properties.font_monospace' },
-];
-
-const alignmentOptions = [
-  { value: 'left', labelKey: 'panels.text_properties.align_left' },
-  { value: 'center', labelKey: 'panels.text_properties.align_center' },
-  { value: 'right', labelKey: 'panels.text_properties.align_right' },
-];
-
-const verticalAlignmentOptions = [
-  { value: 'top', labelKey: 'panels.text_properties.align_top' },
-  { value: 'middle', labelKey: 'panels.text_properties.align_middle' },
-  { value: 'bottom', labelKey: 'panels.text_properties.align_bottom' },
-];
-
-const layoutModeOptions = [
-  { value: TEXT_LAYOUT_STRAIGHT, labelKey: 'panels.text_properties.layout_straight' },
-  { value: TEXT_LAYOUT_BEND, labelKey: 'panels.text_properties.layout_bend' },
-  { value: TEXT_LAYOUT_PATH, labelKey: 'panels.text_properties.layout_path' },
-];
-
-/**
- * Editable defaults for the next text object, shown in the Properties panel
- * while the text tool is active with nothing selected. Replaces the old
- * properties-toolbar flow for pre-configuring text before clicking the canvas.
- */
+/** Settings for the next text object, shown before anything is placed. */
 export function TextDefaultsSection() {
   const { t } = useTranslation();
-  const textDefaults = useUiStore((s) => s.textDefaults);
-  const updateTextDefaults = useUiStore((s) => s.updateTextDefaults);
-  const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
-  const unitLabel = lengthUnitLabel(displayUnit);
-  const [systemFonts, setSystemFonts] = useState<string[]>([]);
-  const fontOptions = systemFonts.length > 0
-    ? systemFonts.map((font) => ({ value: font, label: font }))
-    : fontFamilyOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }));
+  const textDefaults = useUiStore((state) => state.textDefaults);
+  const updateTextDefaults = useUiStore((state) => state.updateTextDefaults);
 
-  useEffect(() => {
-    appService.getSystemFonts().then((fonts) => {
-      if (fonts.length > 0) setSystemFonts(fonts);
-    }).catch(() => {
-      // Keep generic defaults when native font enumeration is unavailable.
-    });
-  }, []);
+  const value: TextControlValue = {
+    ...textDefaults,
+    max_width: textDefaults.max_width ?? null,
+    squeeze: textDefaults.squeeze ?? false,
+    rtl: textDefaults.rtl ?? false,
+  };
 
   return (
-    <div className="flex flex-col gap-2.5 px-3 py-2">
-      <div className="text-[10px] font-semibold tracking-wider text-bb-text-muted uppercase pt-2">
-        {t('panels.text_properties.title')}
+    <div className="flex flex-col gap-2.5 px-3 py-2.5">
+      <div className="flex items-center gap-2 text-xs font-semibold text-bb-text">
+        <Type size={15} className="text-bb-accent" />
+        {t('panels.text_properties.tool_title')}
       </div>
-      <Select
-        label={t('panels.text_properties.font')}
-        value={textDefaults.font_family}
-        options={fontOptions}
-        onChange={(font_family) => updateTextDefaults({ font_family })}
-      />
-      <NumberInput
-        label={labelWithUnit(t('panels.text_properties.size_mm'), unitLabel)}
-        value={roundDisplayLength(mmToDisplay(textDefaults.font_size_mm, displayUnit), displayUnit)}
-        onChange={(v) => updateTextDefaults({ font_size_mm: displayToMm(v, displayUnit) })}
-        step={lengthStep(displayUnit)}
-        min={mmToDisplay(0.1, displayUnit)}
-      />
-      <div className="flex items-center gap-3">
-        <Toggle
-          label={t('panels.text_properties.bold')}
-          checked={textDefaults.bold}
-          onChange={(bold) => updateTextDefaults({ bold })}
-        />
-        <Toggle
-          label={t('panels.text_properties.italic')}
-          checked={textDefaults.italic}
-          onChange={(italic) => updateTextDefaults({ italic })}
-        />
-        <Toggle
-          label={t('panels.text_properties.uppercase')}
-          checked={textDefaults.upper_case}
-          onChange={(upper_case) => updateTextDefaults({ upper_case })}
-        />
+      <div className="flex gap-2 rounded bg-bb-bg px-2.5 py-2 text-[11px] leading-4 text-bb-text-muted">
+        <MousePointer2 size={14} className="mt-0.5 shrink-0 text-bb-accent" />
+        <span>{t('panels.text_properties.creation_hint')}</span>
       </div>
-      <Select
-        label={t('panels.text_properties.align')}
-        value={textDefaults.alignment}
-        options={alignmentOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
-        onChange={(alignment) => updateTextDefaults({ alignment: alignment as TextAlignment })}
-        disabled={textDefaults.layout_mode !== TEXT_LAYOUT_STRAIGHT}
-      />
-      <Select
-        label={t('panels.text_properties.v_align')}
-        value={textDefaults.alignment_v}
-        options={verticalAlignmentOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
-        onChange={(alignment_v) => updateTextDefaults({ alignment_v: alignment_v as TextAlignmentV })}
-        disabled={textDefaults.layout_mode !== TEXT_LAYOUT_STRAIGHT}
-      />
-      <Select
-        label={t('panels.text_properties.layout')}
-        value={textDefaults.layout_mode}
-        options={layoutModeOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
-        onChange={(value) => {
-          const layout_mode = value as TextLayoutMode;
+      <TextControls
+        value={value}
+        creationMode
+        onPatch={(patch) => updateTextDefaults(patch)}
+        onLayoutChange={(layoutMode) => {
+          const layout_mode = layoutMode as TextLayoutMode;
           updateTextDefaults({
             layout_mode,
-            on_path: layout_mode === TEXT_LAYOUT_PATH,
-            ...(layout_mode === TEXT_LAYOUT_BEND && textDefaults.bend_radius === 0
-              ? { bend_radius: 50 }
-              : {}),
+            on_path: layout_mode === 'path',
+            ...(layout_mode === 'bend' && textDefaults.bend_radius === 0 ? { bend_radius: 50 } : {}),
           });
         }}
-      />
-      <NumberInput
-        label={labelWithUnit(t('panels.text_properties.h_space'), unitLabel)}
-        value={roundDisplayLength(mmToDisplay(textDefaults.h_spacing, displayUnit), displayUnit)}
-        onChange={(v) => updateTextDefaults({ h_spacing: displayToMm(v, displayUnit) })}
-        step={lengthStep(displayUnit)}
-      />
-      <NumberInput
-        label={labelWithUnit(t('panels.text_properties.v_space'), unitLabel)}
-        value={roundDisplayLength(mmToDisplay(textDefaults.v_spacing, displayUnit), displayUnit)}
-        onChange={(v) => updateTextDefaults({ v_spacing: displayToMm(v, displayUnit) })}
-        step={lengthStep(displayUnit)}
-        disabled={textDefaults.layout_mode !== TEXT_LAYOUT_STRAIGHT}
-      />
-      {textDefaults.layout_mode === TEXT_LAYOUT_PATH && (
-        <NumberInput
-          label={labelWithUnit(t('panels.text_properties.path_offset'), unitLabel)}
-          value={roundDisplayLength(mmToDisplay(textDefaults.path_offset, displayUnit), displayUnit)}
-          onChange={(value) => updateTextDefaults({ path_offset: displayToMm(value, displayUnit) })}
-          step={lengthStep(displayUnit)}
-        />
-      )}
-      {textDefaults.layout_mode === TEXT_LAYOUT_BEND && (
-        <NumberInput
-          label={labelWithUnit(t('panels.text_properties.bend_radius'), unitLabel)}
-          value={roundDisplayLength(mmToDisplay(textDefaults.bend_radius, displayUnit), displayUnit)}
-          onChange={(value) => updateTextDefaults({ bend_radius: displayToMm(value, displayUnit) })}
-          min={mmToDisplay(0.1, displayUnit)}
-          step={lengthStep(displayUnit, 5, 0.2)}
-        />
-      )}
-      <Toggle
-        label={t('panels.text_properties.weld')}
-        checked={textDefaults.welded}
-        onChange={(welded) => updateTextDefaults({ welded })}
-      />
-      <Toggle
-        label={t('panels.text_properties.distort')}
-        checked={textDefaults.distort}
-        onChange={(distort) => updateTextDefaults({ distort })}
-        disabled={textDefaults.layout_mode === TEXT_LAYOUT_STRAIGHT}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import { ToolbarSubmenuButton, type SubmenuItem } from '../shared/ToolbarSubmenu
 import {
   MousePointer2, Square, Circle,
   Pentagon, Star, Type, ScissorsLineDashed,
-  MapPin, Ruler, PenTool as PenToolIcon,
+  Ruler, PenTool as PenToolIcon,
   Triangle, Hexagon, Octagon,
 } from 'lucide-react';
 
@@ -71,7 +71,6 @@ const TOOL_TEXT = 'text' as const;
 const TOOL_NODE = 'node' as const;
 const TOOL_TRIM = 'trim' as const;
 const TOOL_TABS = 'tabs' as const;
-const TOOL_LASER_POSITION = 'laser_position' as const;
 const TOOL_MEASURE = 'measure' as const;
 const SMALL_BUTTON_SIZE = 'sm' as const;
 
@@ -250,14 +249,7 @@ export function CreationToolbar() {
 
       <GroupSeparator />
 
-      {/* Laser Position / Measure */}
-      <IconButton
-        icon={<MapPin size={24} />}
-        label={t('toolbars.creation.laser_position')}
-        onClick={() => setActiveTool(TOOL_LASER_POSITION)}
-        active={activeTool === TOOL_LASER_POSITION}
-        size={SMALL_BUTTON_SIZE}
-      />
+      {/* Measure */}
       <IconButton
         icon={<Ruler size={24} />}
         label={t('toolbars.creation.measure')}

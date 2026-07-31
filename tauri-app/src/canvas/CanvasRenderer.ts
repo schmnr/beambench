@@ -43,10 +43,13 @@ import {
 } from './drawPreview';
 import { previewViewportForWorkspace } from './previewViewport';
 import { PreviewBitmapCache } from './previewBitmapCache';
+import { isObjectVisibleInLayerStack, sortObjectsForLayerStack } from './layerStack';
+export { sortObjectsForLayerStack } from './layerStack';
 import { useNotificationStore } from '../stores/notificationStore';
 import i18n from '../i18n';
 import { getCachedTransformedBoundsWorld } from './sceneIndex';
 import { measureCanvasPerf } from './canvasPerf';
+import { lengthUnitLabel, mmToDisplay, roundDisplayLength } from '../utils/lengthUnits';
 import {
   CAMERA_OVERLAY_HANDLE_SIZE_PX,
   mapCameraPixelThroughWarp,
@@ -59,6 +62,7 @@ import type { MeasurementDragMetrics, MeasurementSegmentMetrics } from './measur
 export type ToolOverlay =
   | { type: 'none' }
   | { type: 'rubber-band'; startScreen: Point2D; endScreen: Point2D; crossing?: boolean }
+  | { type: 'text-box-preview'; startWorld: Point2D; endWorld: Point2D }
   | {
       type: 'shape-preview';
       // World coordinates, converted at draw time with the CURRENT viewport
@@ -197,6 +201,52 @@ export interface CanvasInteractionState {
   active: boolean;
   kind: 'none' | 'object-drag' | 'pan' | 'zoom';
   objectIds?: string[];
+}
+
+function drawTextBoxPreview(
+  ctx: CanvasRenderingContext2D,
+  overlay: Extract<ToolOverlay, { type: 'text-box-preview' }>,
+  vp: ViewportParams,
+  displayUnit: 'mm' | 'inches',
+): void {
+  const start = worldToScreen(overlay.startWorld, vp);
+  const end = worldToScreen(overlay.endWorld, vp);
+  const left = Math.min(start.x, end.x);
+  const top = Math.min(start.y, end.y);
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(45, 212, 222, 0.95)';
+  ctx.fillStyle = 'rgba(45, 212, 222, 0.07)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 4]);
+  ctx.fillRect(left, top, width, height);
+  ctx.strokeRect(left + 0.5, top + 0.5, Math.max(0, width - 1), Math.max(0, height - 1));
+
+  // Keep the live dimensions attached to the gesture so Box mode feels
+  // like drawing a shape, rather than revealing its size after release.
+  const widthMm = Math.abs(overlay.endWorld.x - overlay.startWorld.x);
+  const heightMm = Math.abs(overlay.endWorld.y - overlay.startWorld.y);
+  const label = `${roundDisplayLength(mmToDisplay(widthMm, displayUnit), displayUnit)} × ${roundDisplayLength(mmToDisplay(heightMm, displayUnit), displayUnit)} ${lengthUnitLabel(displayUnit)}`;
+  ctx.font = '500 11px system-ui, sans-serif';
+  const labelWidth = ctx.measureText(label).width;
+  const badgeWidth = labelWidth + 12;
+  const badgeHeight = 20;
+  const badgeX = Math.max(4, Math.min(left, vp.canvasWidth - badgeWidth - 4));
+  const badgeY = top >= badgeHeight + 8
+    ? top - badgeHeight - 5
+    : Math.min(top + 6, vp.canvasHeight - badgeHeight - 4);
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.beginPath();
+  ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 4);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, badgeX + 6, badgeY + badgeHeight / 2);
+  ctx.restore();
 }
 
 // Default layer colors for preview rendering
@@ -1437,18 +1487,17 @@ export class CanvasRenderer {
     // 5. Origin crosshair
     drawOrigin(ctx, workspace, vp);
 
-    // 6. Objects (sorted by z_index, filtered by visibility + layer visible)
+    // 6. Objects (layer stack first, then z-order within each visible layer)
     const layerMap = new Map(layers.map((l) => [l.id, l]));
     const skipId = params.skipObjectId;
-    const visibleObjects = objects
+    const visibleObjects = sortObjectsForLayerStack(objects
       .filter((obj) => {
         if (!obj.visible) return false;
         if (skipId && obj.id === skipId) return false;
         const layer = layerMap.get(obj.layer_id);
         if (layer && previewedLayerIds.has(layer.id)) return false;
         return layer?.visible !== false; // Show OFF hides completely
-      })
-      .sort((a, b) => a.z_index - b.z_index);
+      }), layers);
 
     for (const obj of visibleObjects) {
       const layer = layerMap.get(obj.layer_id);
@@ -1619,6 +1668,10 @@ export class CanvasRenderer {
       case 'rubber-band':
         drawRubberBand(ctx, toolOverlay.startScreen, toolOverlay.endScreen, toolOverlay.crossing);
         break;
+      case 'text-box-preview': {
+        drawTextBoxPreview(ctx, toolOverlay, vp, displayUnit);
+        break;
+      }
       case 'shape-preview': {
         // Convert with the CURRENT viewport so mid-draw zoom/pan keeps the
         // preview at true world size.
@@ -1828,15 +1881,14 @@ export class CanvasRenderer {
       ctx.imageSmoothingEnabled = params.antialiasing !== false;
       const layerMap = new Map(layers.map((l) => [l.id, l]));
       const skipId = params.skipObjectId;
-      const visibleObjects = objects
+      const visibleObjects = sortObjectsForLayerStack(objects
         .filter((obj) => {
           if (!obj.visible) return false;
           if (skipId && obj.id === skipId) return false;
           const layer = layerMap.get(obj.layer_id);
           if (layer && previewedLayerIds.has(layer.id)) return false;
           return layer?.visible !== false;
-        })
-        .sort((a, b) => a.z_index - b.z_index);
+        }), layers);
       const currentSnapshots = this.buildBaseObjectSnapshots(visibleObjects, objects, vp);
       const currentSignature = this.getBaseSceneSignature(params, previewedLayerIds);
       const canUseDirtyRect =
@@ -1887,7 +1939,9 @@ export class CanvasRenderer {
       }
 
       const selectedObjects = objects.filter(
-        (o) => selectedObjectIds.includes(o.id) && o.id !== skipId,
+        (o) => selectedObjectIds.includes(o.id)
+          && o.id !== skipId
+          && isObjectVisibleInLayerStack(o, params.layers),
       );
       if (selectedObjects.length > 0) {
         const selectionLocks = toolOverlay.type === 'mesh-deform'
@@ -1907,6 +1961,9 @@ export class CanvasRenderer {
       switch (toolOverlay.type) {
       case 'rubber-band':
         drawRubberBand(ctx, toolOverlay.startScreen, toolOverlay.endScreen, toolOverlay.crossing);
+        break;
+      case 'text-box-preview':
+        drawTextBoxPreview(ctx, toolOverlay, vp, displayUnit);
         break;
       case 'shape-preview': {
         // Convert with the CURRENT viewport so mid-draw zoom/pan keeps the

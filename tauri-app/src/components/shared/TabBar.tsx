@@ -1,8 +1,4 @@
 import { useRef, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import type { PhysicalDockZone } from '../../panels';
-
-const FLOAT_ICON = '⊡';
 
 interface Tab {
   id: string;
@@ -13,15 +9,19 @@ interface TabBarProps {
   tabs: Tab[];
   activeTab: string;
   onTabChange: (tabId: string) => void;
-  zone?: PhysicalDockZone;
   onTabDragStart?: (panelId: string, e: React.MouseEvent) => void;
-  onFloatPanel?: (panelId: string) => void;
   onTabContextMenu?: (panelId: string, e: React.MouseEvent) => void;
   dropInsertIndex?: number | null;
 }
 
-export function TabBar({ tabs, activeTab, onTabChange, onTabDragStart, onFloatPanel, onTabContextMenu, dropInsertIndex }: TabBarProps) {
-  const { t } = useTranslation();
+export function TabBar({
+  tabs,
+  activeTab,
+  onTabChange,
+  onTabDragStart,
+  onTabContextMenu,
+  dropInsertIndex,
+}: TabBarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragScrollRef = useRef<{ startX: number; scrollLeft: number } | null>(null);
 
@@ -51,9 +51,16 @@ export function TabBar({ tabs, activeTab, onTabChange, onTabDragStart, onFloatPa
       ref={scrollRef}
       className="flex items-center h-8 bg-bb-panel border-b border-bb-border overflow-x-auto scrollbar-none px-1"
       data-testid="tab-bar"
+      role="tablist"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onContextMenu={(event) => {
+        if (!activeTab || !onTabContextMenu) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onTabContextMenu(activeTab, event);
+      }}
     >
       {tabs.map((tab, i) => (
         <div
@@ -79,6 +86,8 @@ export function TabBar({ tabs, activeTab, onTabChange, onTabDragStart, onFloatPa
               }
             }}
             onClick={() => onTabChange(tab.id)}
+            role="tab"
+            aria-selected={activeTab === tab.id}
             className={`px-2.5 h-full border-b-2 text-xs whitespace-nowrap transition-colors ${
               activeTab === tab.id
                 ? 'border-bb-accent font-semibold text-bb-accent'
@@ -87,20 +96,6 @@ export function TabBar({ tabs, activeTab, onTabChange, onTabDragStart, onFloatPa
           >
             {tab.label}
           </button>
-          {/* Float button — visible on hover */}
-          {onFloatPanel && (
-            <button
-              className="hidden group-hover:flex items-center justify-center w-3 h-3 text-bb-text-muted hover:text-bb-text text-[9px] mr-0.5"
-              onClick={(e) => {
-                e.stopPropagation();
-                onFloatPanel(tab.id);
-              }}
-              title={t('panels.floating.float_tooltip')}
-              data-testid={`float-btn-${tab.id}`}
-            >
-              {FLOAT_ICON}
-            </button>
-          )}
         </div>
       ))}
       {/* Drop indicator at end */}

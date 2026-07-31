@@ -338,6 +338,16 @@ pub fn update_object_data(
 }
 
 #[tauri::command]
+pub fn resize_text_area(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+    bounds: Bounds,
+) -> Result<ProjectObject, String> {
+    let oid: ObjectId = parse_id(&object_id)?;
+    project_ops::resize_text_area(&svc, oid, bounds).map_err(Into::into)
+}
+
+#[tauri::command]
 pub fn advance_auto_variable_text(
     svc: State<'_, Arc<ServiceContext>>,
 ) -> Result<Vec<ProjectObject>, String> {

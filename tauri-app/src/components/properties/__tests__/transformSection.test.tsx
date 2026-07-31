@@ -145,6 +145,69 @@ describe('TransformSection — position/size', () => {
     expect(anchorButtons.length).toBe(9);
   });
 
+  it('places the Focus-style Center on Page action before the anchor grid', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    render(<TransformSection />);
+
+    const centerButton = screen.getByRole('button', { name: 'Center on Page' });
+    const firstAnchor = screen.getByRole('button', { name: 'Top left' });
+    expect(centerButton.className).toContain('h-7');
+    expect(centerButton.className).toContain('w-7');
+    expect(centerButton.querySelector('.lucide-focus')).not.toBeNull();
+    expect(centerButton.compareDocumentPosition(firstAnchor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('toggles every transform lock from the header and changes its icon', () => {
+    const setTransformLocks = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeProject(),
+      selectedObjectIds: ['obj1'],
+      setTransformLocks,
+    });
+
+    const { rerender } = render(<TransformSection />);
+    const lockAllButton = screen.getByRole('button', { name: 'Lock all transforms' });
+    expect(lockAllButton.querySelector('.lucide-lock-open')).not.toBeNull();
+    fireEvent.click(lockAllButton);
+    expect(useUiStore.getState().lockAspect).toBe(true);
+    expect(setTransformLocks).toHaveBeenCalledWith(makeTransformLocks({
+      move_enabled: false,
+      size_enabled: false,
+      rotate_enabled: false,
+      shear_enabled: false,
+    }));
+
+    const lockedProject = makeProject();
+    lockedProject.transform_locks = makeTransformLocks({
+      move_enabled: false,
+      size_enabled: false,
+      rotate_enabled: false,
+      shear_enabled: false,
+    });
+    useProjectStore.setState({ project: lockedProject });
+    rerender(<TransformSection />);
+
+    const unlockAllButton = screen.getByRole('button', { name: 'Unlock all transforms' });
+    expect(unlockAllButton.querySelector('.lucide-lock')).not.toBeNull();
+    fireEvent.click(unlockAllButton);
+    expect(setTransformLocks).toHaveBeenLastCalledWith(makeTransformLocks());
+    expect(useUiStore.getState().lockAspect).toBe(false);
+  });
+
+  it('centers the selected object on the page from the Transform header', () => {
+    const moveObjectsTo = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeProject(),
+      selectedObjectIds: ['obj1'],
+      moveObjectsTo,
+    });
+
+    render(<TransformSection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Center on Page' }));
+
+    expect(moveObjectsTo).toHaveBeenCalledWith(['obj1'], 175, 175);
+  });
+
   it('renders Rotate and Scale % fields', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
     render(<TransformSection />);
@@ -153,6 +216,94 @@ describe('TransformSection — position/size', () => {
     const inputs = screen.getAllByRole('spinbutton');
     expect(inputs[IDX_SCALE_X]).toHaveProperty('value', '100');
     expect(inputs[IDX_SCALE_Y]).toHaveProperty('value', '100');
+  });
+
+  it('reports transform-aware width and height after shear', () => {
+    const project = makeProject();
+    project.objects[0].transform = { a: 1, b: 0.4, c: 0.5, d: 1, tx: 0, ty: 0 };
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+
+    render(<TransformSection />);
+
+    const inputs = screen.getAllByRole('spinbutton');
+    expect(inputs[IDX_W]).toHaveProperty('value', '75');
+    expect(inputs[IDX_H]).toHaveProperty('value', '70');
+  });
+
+  it('translates a visible sheared width edit back to the raw object bounds', () => {
+    const updateObject = vi.fn().mockResolvedValue(undefined);
+    const project = makeProject();
+    project.objects[0].transform = { a: 1, b: 0, c: 0.5, d: 1, tx: 0, ty: 0 };
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'], updateObject });
+
+    render(<TransformSection />);
+    const inputs = screen.getAllByRole('spinbutton');
+    typeAndCommit(inputs[IDX_W], '100');
+
+    expect(updateObject).toHaveBeenCalledTimes(1);
+    const updates = updateObject.mock.calls[0][1];
+    expect(updates.bounds.min.x).toBeCloseTo(10);
+    expect(updates.bounds.max.x).toBeCloseTo(85);
+    expect(updates.bounds.min.y).toBeCloseTo(20);
+    expect(updates.bounds.max.y).toBeCloseTo(70);
+  });
+
+  it('puts each project transform lock beside the fields it governs', () => {
+    const setTransformLocks = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeProject(),
+      selectedObjectIds: ['obj1'],
+      setTransformLocks,
+    });
+
+    render(<TransformSection />);
+
+    expect(screen.queryByTestId('transform-lock-controls')).toBeNull();
+    const moveLock = screen.getByRole('button', { name: 'Move' });
+    expect(screen.getByRole('button', { name: 'Size' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Rotate' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Shear' })).toBeDefined();
+    expect(moveLock.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(moveLock);
+    expect(setTransformLocks).toHaveBeenCalledWith(makeTransformLocks({ move_enabled: false }));
+  });
+
+  it('uses the same padlock vocabulary for proportional W/H sizing', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ lockAspect: false });
+
+    render(<TransformSection />);
+
+    const aspectButton = screen.getByTitle('Lock aspect ratio');
+    expect(aspectButton.querySelector('.lucide-lock-open')).not.toBeNull();
+    fireEvent.click(aspectButton);
+    expect(aspectButton.querySelector('.lucide-lock')).not.toBeNull();
+  });
+
+  it('uses the cyan active color for every locked transform control', () => {
+    const project = makeProject();
+    project.transform_locks = makeTransformLocks({
+      move_enabled: false,
+      size_enabled: false,
+      rotate_enabled: false,
+      shear_enabled: false,
+    });
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ lockAspect: true });
+
+    render(<TransformSection />);
+
+    const lockButtons = [
+      screen.getByRole('button', { name: 'Move' }),
+      screen.getByTitle('Lock aspect ratio'),
+      screen.getByRole('button', { name: 'Size' }),
+      screen.getByRole('button', { name: 'Rotate' }),
+      screen.getByRole('button', { name: 'Shear' }),
+    ];
+    lockButtons.forEach((button) => {
+      expect(button.className).toContain('text-bb-accent');
+      expect(button.className).not.toContain('text-bb-text-dim');
+    });
   });
 
   it('X change is blocked when position is locked', () => {
@@ -312,6 +463,20 @@ describe('TransformSection — multi-selection', () => {
     // Move Y from 20 to 30 → dy=10
     typeAndCommit(inputs[IDX_Y], '30');
     expect(nudgeObjects).toHaveBeenCalledWith(['obj1', 'obj2'], 0, 10);
+  });
+
+  it('centers the combined selection bounds on the page', () => {
+    const moveObjectsTo = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeMultiProject(),
+      selectedObjectIds: ['obj1', 'obj2'],
+      moveObjectsTo,
+    });
+
+    render(<TransformSection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Center on Page' }));
+
+    expect(moveObjectsTo).toHaveBeenCalledWith(['obj1', 'obj2'], 130, 175);
   });
 
   it('W change calls updateObject for each selected object (proportional scale)', () => {

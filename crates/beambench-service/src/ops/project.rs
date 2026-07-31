@@ -295,6 +295,21 @@ fn rebuild_text_bounds_aligned(old: &Bounds, new_w: f64, new_h: f64, data: &Obje
     Bounds::new(Point2D::new(mx, my), Point2D::new(mx + new_w, my + new_h))
 }
 
+/// Width of a true, straight area-text frame. Point text and transformed/path
+/// text continue to size themselves from their generated geometry.
+fn straight_text_area_width(data: &ObjectData) -> Option<f64> {
+    match data {
+        ObjectData::Text {
+            max_width: Some(width),
+            layout_mode: TextLayoutMode::Straight,
+            on_path: false,
+            transform_style: beambench_core::TextTransformStyle::None,
+            ..
+        } if width.is_finite() && *width > 0.0 => Some(*width),
+        _ => None,
+    }
+}
+
 /// Adopt generated text geometry without baking placement into the object.
 /// The existing affine transform remains untouched and the persisted text
 /// alignment determines which pre-refit bounds anchor stays fixed.
@@ -2250,7 +2265,33 @@ fn apply_update_object_patch_in_project(
         }
         if let Some(data) = data {
             let placement_bounds = obj.bounds;
-            if let Some(intrinsic_bounds) = intrinsic_text_bounds(&data) {
+            let previous_area_width = straight_text_area_width(&current_data);
+            let next_area_width = straight_text_area_width(&data);
+            if let Some(area_width) = next_area_width {
+                // Area text owns a user-defined frame. Content/font changes must
+                // reflow inside it rather than replacing it with intrinsic glyph
+                // bounds. A width edit updates the frame; converting Point → Box
+                // starts with a useful four-line-high area.
+                if previous_area_width != Some(area_width)
+                    || (obj.bounds.width() - area_width).abs() > 1e-6
+                {
+                    let font_size = match &data {
+                        ObjectData::Text { font_size_mm, .. } => *font_size_mm,
+                        _ => 0.0,
+                    };
+                    let height = if previous_area_width.is_some() {
+                        obj.bounds.height()
+                    } else {
+                        obj.bounds.height().max(font_size * 4.0)
+                    };
+                    obj.bounds = rebuild_text_bounds_aligned(
+                        &obj.bounds,
+                        area_width,
+                        height.max(font_size.max(0.1)),
+                        &data,
+                    );
+                }
+            } else if let Some(intrinsic_bounds) = intrinsic_text_bounds(&data) {
                 let is_straight = match &data {
                     ObjectData::Text {
                         layout_mode,
@@ -2442,6 +2483,62 @@ pub fn update_object_data(
         Some(data),
     )?;
     project.dirty = true;
+    drop(project_guard);
+    invalidate_plan(ctx)?;
+    ctx.emit_event(
+        "project.object.data_updated",
+        json!({
+            "object": events::object_summary(&updated),
+        }),
+    );
+    Ok(updated)
+}
+
+/// Resize a straight area-text frame without scaling its typography. Generic
+/// object resizing intentionally scales text; an area-frame resize only changes
+/// wrapping width and available height.
+pub fn resize_text_area(
+    ctx: &ServiceContext,
+    object_id: ObjectId,
+    bounds: Bounds,
+) -> ServiceResult<ProjectObject> {
+    let width = bounds.width();
+    let height = bounds.height();
+    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+        return Err(ServiceError::invalid_input(
+            "Text area width and height must be positive finite values",
+        ));
+    }
+
+    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = project_guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+
+    let current = project
+        .find_object(object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    if straight_text_area_width(&current.data).is_none() {
+        return Err(ServiceError::invalid_input(
+            "Object is not straight area text",
+        ));
+    }
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    let obj = project
+        .find_object_mut(object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    if let ObjectData::Text { max_width, .. } = &mut obj.data {
+        *max_width = Some(width);
+    }
+    obj.bounds = bounds;
+    refresh_text_object_cache(&mut obj.data, &obj.bounds);
+    project.dirty = true;
+    let updated = project
+        .find_object(object_id)
+        .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
+        .clone();
     drop(project_guard);
     invalidate_plan(ctx)?;
     ctx.emit_event(
@@ -2647,7 +2744,6 @@ pub fn remove_object(ctx: &ServiceContext, object_id: ObjectId) -> ServiceResult
         return Err(ServiceError::not_found("Object not found"));
     }
     unlink_guide_path_references(project, &[object_id]);
-    project.clean_empty_layers();
     drop(project_guard);
     invalidate_plan(ctx)?;
     ctx.emit_event(
@@ -2675,7 +2771,6 @@ pub fn remove_objects(ctx: &ServiceContext, object_ids: &[ObjectId]) -> ServiceR
         .map_err(ServiceError::internal)?;
     let removed = project.remove_objects(object_ids);
     unlink_guide_path_references(project, object_ids);
-    project.clean_empty_layers();
     drop(project_guard);
     invalidate_plan(ctx)?;
     ctx.emit_event(
@@ -4729,6 +4824,56 @@ mod tests {
         assert!(updated.bounds.height() > 10.0);
     }
 
+    #[test]
+    fn update_object_data_preserves_area_text_frame() {
+        let ctx = ServiceContext::new();
+        let (mut project, obj_id) = sample_text_project();
+        let expected = Bounds::new(Point2D::new(10.0, 10.0), Point2D::new(70.0, 50.0));
+        let obj = project.find_object_mut(obj_id).unwrap();
+        obj.bounds = expected;
+        if let ObjectData::Text { max_width, .. } = &mut obj.data {
+            *max_width = Some(60.0);
+        }
+        let mut updated_data = obj.data.clone();
+        if let ObjectData::Text { content, .. } = &mut updated_data {
+            *content = "A much longer sentence that wraps inside the area".to_string();
+        }
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let updated = update_object_data(&ctx, obj_id, updated_data).unwrap();
+
+        assert_eq!(updated.bounds, expected);
+        assert_eq!(straight_text_area_width(&updated.data), Some(60.0));
+    }
+
+    #[test]
+    fn resize_text_area_changes_frame_without_scaling_typography() {
+        let ctx = ServiceContext::new();
+        let (mut project, obj_id) = sample_text_project();
+        let obj = project.find_object_mut(obj_id).unwrap();
+        obj.bounds = Bounds::new(Point2D::new(10.0, 10.0), Point2D::new(70.0, 50.0));
+        if let ObjectData::Text { max_width, .. } = &mut obj.data {
+            *max_width = Some(60.0);
+        }
+        *ctx.project.lock().unwrap() = Some(project);
+        let resized_bounds = Bounds::new(Point2D::new(10.0, 10.0), Point2D::new(100.0, 80.0));
+
+        let updated = resize_text_area(&ctx, obj_id, resized_bounds).unwrap();
+
+        assert_eq!(updated.bounds, resized_bounds);
+        if let ObjectData::Text {
+            font_size_mm,
+            max_width,
+            ..
+        } = updated.data
+        {
+            assert_eq!(font_size_mm, 5.0);
+            assert_eq!(max_width, Some(90.0));
+        } else {
+            panic!("expected text");
+        }
+    }
+
     // the Adjust Image dialog previously committed its two
     // mutations (object adjustments + layer raster settings) as two
     // separate backend calls, each pushing its own undo snapshot. The new
@@ -5214,6 +5359,37 @@ mod tests {
     }
 
     #[test]
+    fn remove_object_preserves_the_now_empty_layer() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Keep Empty Layer");
+        let layer = Layer::new("Prepared Cut", OperationType::Cut);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+        let object = project
+            .add_object(ProjectObject::new(
+                "Rect",
+                layer_id,
+                Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            ))
+            .clone();
+        *ctx.project.lock().unwrap() = Some(project);
+
+        remove_object(&ctx, object.id).unwrap();
+
+        let stored = ctx.project.lock().unwrap();
+        let stored = stored.as_ref().unwrap();
+        assert!(stored.objects.is_empty());
+        assert_eq!(stored.layers.len(), 1);
+        assert_eq!(stored.layers[0].id, layer_id);
+    }
+
+    #[test]
     fn remove_objects_batch_unlinks_guide_path_references() {
         let ctx = ServiceContext::new();
         let (mut project, text_id) = sample_text_project();
@@ -5251,6 +5427,54 @@ mod tests {
             }
             _ => panic!("expected text"),
         }
+    }
+
+    #[test]
+    fn remove_objects_preserves_layers_emptied_by_the_batch() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Keep Empty Layers");
+        let first_layer = Layer::new("First", OperationType::Cut);
+        let first_layer_id = first_layer.id;
+        let second_layer = Layer::new("Second", OperationType::Line);
+        let second_layer_id = second_layer.id;
+        project.add_layer(first_layer);
+        project.add_layer(second_layer);
+        let first_object = project
+            .add_object(ProjectObject::new(
+                "First Rect",
+                first_layer_id,
+                Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            ))
+            .id;
+        let second_object = project
+            .add_object(ProjectObject::new(
+                "Second Rect",
+                second_layer_id,
+                Bounds::new(Point2D::new(20.0, 0.0), Point2D::new(30.0, 10.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            ))
+            .id;
+        *ctx.project.lock().unwrap() = Some(project);
+
+        remove_objects(&ctx, &[first_object, second_object]).unwrap();
+
+        let stored = ctx.project.lock().unwrap();
+        let stored = stored.as_ref().unwrap();
+        assert!(stored.objects.is_empty());
+        assert_eq!(stored.layers.len(), 2);
+        assert_eq!(stored.layers[0].id, first_layer_id);
+        assert_eq!(stored.layers[1].id, second_layer_id);
     }
 
     #[test]

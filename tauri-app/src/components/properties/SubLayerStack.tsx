@@ -13,6 +13,7 @@ import type {
 } from '../../types/project';
 import type { MachineProfile } from '../../types/machine';
 import { NumberInput } from '../shared/NumberInput';
+import { RangeInput } from '../shared/RangeInput';
 import { Toggle } from '../shared/Toggle';
 import { ToggleSwitch } from '../shared/ToggleSwitch';
 import { effectiveLineIntervalMm } from '../../types/rasterSettings';
@@ -58,6 +59,7 @@ const EXPANDED_ICON = '▾';
 const COLLAPSED_ICON = '▸';
 const MOVE_UP_ICON = '▲';
 const MOVE_DOWN_ICON = '▼';
+const MAX_PASSES = 50;
 const GROUPING_OPTIONS = [
   { value: GROUP_ALL_SHAPES, labelKey: 'panels.sub_layer_stack.group_all_shapes' },
   { value: GROUPS_TOGETHER, labelKey: 'panels.sub_layer_stack.group_groups_together' },
@@ -117,6 +119,19 @@ function buildOperationPatch(entry: CutEntry, operation: OperationType) {
 
 function getPasses(entry: CutEntry): number {
   return entry.vector_settings?.passes ?? entry.raster_settings?.passes ?? 1;
+}
+
+function buildPassesPatch(entry: CutEntry, passes: number) {
+  const usesRasterPasses = entry.operation === OPERATION_IMAGE || entry.operation === OPERATION_FILL;
+  const canVector = usesLineSurface(entry.operation) || entry.operation === OPERATION_OFFSET_FILL;
+  return {
+    raster_settings: usesRasterPasses
+      ? { ...(entry.raster_settings ?? defaultRasterSettings()), passes }
+      : entry.raster_settings,
+    vector_settings: canVector
+      ? { ...(entry.vector_settings ?? defaultVectorSettings()), passes }
+      : entry.vector_settings,
+  };
 }
 
 function lineIntervalToLinesPerInch(lineIntervalMm: number): number {
@@ -180,7 +195,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
   const layer = useProjectStore((s) => s.project?.layers.find((candidate) => candidate.id === layerId) ?? null);
   const projectObjects = useProjectStore((s) => s.project?.objects ?? []);
   const activeProfile = useMachineStore((s) =>
-    s.profiles.find((profile) => profile.id === s.activeProfileId) ?? null,
+    (s.profiles ?? []).find((profile) => profile.id === s.activeProfileId) ?? null,
   );
   const addCutEntry = useProjectStore((s) => s.addCutEntry);
   const removeCutEntry = useProjectStore((s) => s.removeCutEntry);
@@ -252,10 +267,10 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
         const expanded = entry.id === expandedId;
         if (!expanded) return null;
         const passes = getPasses(entry);
+        const displaySpeed = speedInputValue(entry.speed_mm_min, displayUnit, speedTimeUnit);
         const lineInterval = effectiveLineIntervalMm(entry.raster_settings);
         const linesPerInch = lineIntervalToLinesPerInch(lineInterval);
         const showsRasterSettings = entry.operation === OPERATION_IMAGE || entry.operation === OPERATION_FILL || entry.operation === OPERATION_OFFSET_FILL;
-        const usesRasterPasses = entry.operation === OPERATION_IMAGE || entry.operation === OPERATION_FILL;
         const isOffsetFill = entry.operation === OPERATION_OFFSET_FILL;
         const isLineSurface = usesLineSurface(entry.operation);
         const canVector = isLineSurface || entry.operation === OPERATION_OFFSET_FILL;
@@ -382,40 +397,26 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                     ))}
                   </select>
                 </div>
-                <NumberInput
+                <RangeInput
                   label={t('panels.sub_layer_stack.speed_with_unit', { unit: speedLabel })}
-                  value={speedInputValue(entry.speed_mm_min, displayUnit, speedTimeUnit)}
+                  value={displaySpeed}
                   onChange={(speed) => void updateCutEntry(layer.id, entry.id, {
                     speed_mm_min: displaySpeedToMmMin(speed, displayUnit, speedTimeUnit),
                   })}
                   min={minDisplaySpeed}
                   max={maxDisplaySpeed}
                   step={speedStep}
+                  testId={`sub-layer-speed-slider-${entry.id}`}
                 />
-                <div className="flex flex-col gap-1.5">
-                  <NumberInput
-                    label={t('panels.sub_layer_stack.power_percent')}
-                    value={entry.power_percent}
-                    onChange={(power_percent) => void updateCutEntry(layer.id, entry.id, { power_percent })}
-                    min={0}
-                    max={100}
-                    step={1}
-                  />
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={entry.power_percent}
-                    onChange={(e) => void updateCutEntry(layer.id, entry.id, { power_percent: Number(e.target.value) })}
-                    aria-label={t('panels.sub_layer_stack.power_percent')}
-                    className="bb-range w-full"
-                    style={{
-                      background: `linear-gradient(to right, rgb(var(--bb-accent)) 0%, #f59e0b ${entry.power_percent}%, rgb(var(--bb-surface-3)) ${entry.power_percent}%, rgb(var(--bb-surface-3)) 100%)`,
-                    }}
-                    data-testid={`sub-layer-power-slider-${entry.id}`}
-                  />
-                </div>
+                <RangeInput
+                  label={t('panels.sub_layer_stack.power_percent')}
+                  value={entry.power_percent}
+                  onChange={(power_percent) => void updateCutEntry(layer.id, entry.id, { power_percent })}
+                  min={0}
+                  max={100}
+                  step={1}
+                  testId={`sub-layer-power-slider-${entry.id}`}
+                />
                 {showMinPower && (
                   <NumberInput
                     label={t('panels.sub_layer_stack.min_power_percent')}
@@ -426,22 +427,16 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                     step={1}
                   />
                 )}
-                <NumberInput
+                <RangeInput
                   label={t('panels.sub_layer_stack.passes')}
                   value={passes}
                   onChange={(nextPasses) =>
-                    void updateCutEntry(layer.id, entry.id, {
-                      raster_settings: usesRasterPasses
-                        ? { ...(entry.raster_settings ?? defaultRasterSettings()), passes: nextPasses }
-                        : entry.raster_settings,
-                      vector_settings: canVector
-                        ? { ...(entry.vector_settings ?? defaultVectorSettings()), passes: nextPasses }
-                        : entry.vector_settings,
-                    })
+                    void updateCutEntry(layer.id, entry.id, buildPassesPatch(entry, nextPasses))
                   }
                   min={1}
-                  max={20}
+                  max={MAX_PASSES}
                   step={1}
+                  testId={`sub-layer-passes-slider-${entry.id}`}
                 />
                 <div className="flex min-h-6 items-center justify-between text-xs">
                   <span className="text-bb-text-muted">{t('panels.sub_layer_stack.air_assist')}</span>

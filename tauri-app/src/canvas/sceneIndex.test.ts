@@ -60,6 +60,44 @@ describe('sceneIndex', () => {
     expect(candidates.map((obj) => obj.id)).toEqual(['high', 'low']);
   });
 
+  it('re-evaluates object visibility without rebuilding the cached object array', () => {
+    const object = makeObj(
+      'toggle',
+      { min: { x: 100, y: 100 }, max: { x: 200, y: 200 } },
+      1,
+    );
+    const objects = [object];
+
+    expect(queryPointCandidates({ x: 350, y: 250 }, objects, defaultVp)).toEqual([object]);
+    object.visible = false;
+    expect(queryPointCandidates({ x: 350, y: 250 }, objects, defaultVp)).toEqual([]);
+    object.visible = true;
+    expect(queryPointCandidates({ x: 350, y: 250 }, objects, defaultVp)).toEqual([object]);
+  });
+
+  it('excludes objects on hidden layers from every candidate query', () => {
+    const object = makeObj(
+      'layer-hidden',
+      { min: { x: 100, y: 100 }, max: { x: 200, y: 200 } },
+      1,
+    );
+    const hiddenLayers = [{ id: 'layer1', visible: false }];
+
+    expect(queryPointCandidates(
+      { x: 350, y: 250 },
+      [object],
+      defaultVp,
+      undefined,
+      hiddenLayers,
+    )).toEqual([]);
+    expect(queryRectCandidates(
+      { min: { x: 290, y: 190 }, max: { x: 410, y: 310 } },
+      [object],
+      defaultVp,
+      hiddenLayers,
+    )).toEqual([]);
+  });
+
   it('keeps locked objects in candidate queries for selection-time filtering', () => {
     const unlocked = makeObj('unlocked', { min: { x: 100, y: 100 }, max: { x: 180, y: 180 } }, 1);
     const locked = makeObj(

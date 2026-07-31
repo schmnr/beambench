@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../stores/projectStore';
 import { LayerList } from '../components/layers/LayerList';
@@ -14,6 +14,8 @@ import { CameraContent } from '../components/machine/CameraContent';
 import { ArtLibraryPanel } from '../components/panels/ArtLibraryPanel';
 import { ConnectionDiagnosticsPanel } from '../components/panels/ConnectionDiagnosticsPanel';
 import { MeasurementPanel } from '../components/panels/MeasurementPanel';
+import { INSPECTOR_CARD_CLASS } from '../components/shared/panelAppearance';
+import { getPanelTypeId } from './panelRegistry';
 
 function CutsLayersContent() {
   const { t } = useTranslation();
@@ -21,8 +23,32 @@ function CutsLayersContent() {
   return hasProject ? <LayerList /> : <div className="text-xs text-bb-text-dim italic px-2 py-2">{t('panels.empty.no_project')}</div>;
 }
 
+function RunInspectorCard({ children }: { children: ReactNode }) {
+  return (
+    <div className={INSPECTOR_CARD_CLASS} data-testid="run-inspector-card">
+      {children}
+    </div>
+  );
+}
+
 function MoveContent() {
-  return <MovePanel />;
+  return <RunInspectorCard><MovePanel /></RunInspectorCard>;
+}
+
+function LaserContent() {
+  return <RunInspectorCard><LaserPanel /></RunInspectorCard>;
+}
+
+function CameraPanelContent() {
+  return <RunInspectorCard><CameraContent /></RunInspectorCard>;
+}
+
+function MacrosContent() {
+  return <RunInspectorCard><MacrosWindow /></RunInspectorCard>;
+}
+
+function ConsoleContent() {
+  return <RunInspectorCard><ConsoleWindow /></RunInspectorCard>;
 }
 
 function PropertiesContent() {
@@ -52,13 +78,17 @@ function ArtLibraryContent() {
 export const PANEL_COMPONENTS: Record<string, ComponentType> = {
   cuts_layers: CutsLayersContent,
   move: MoveContent,
-  console: ConsoleWindow,
-  macros: MacrosWindow,
+  console: ConsoleContent,
+  macros: MacrosContent,
   properties: PropertiesContent,
   measurement: MeasurementPanel,
-  laser: LaserPanel,
+  laser: LaserContent,
   material: MaterialLibrary,
-  camera: CameraContent,
+  camera: CameraPanelContent,
   art_library: ArtLibraryContent,
   connection_diagnostics: ConnectionDiagnosticsPanel,
 };
+
+export function getPanelComponent(panelInstanceId: string): ComponentType | null {
+  return PANEL_COMPONENTS[getPanelTypeId(panelInstanceId)] ?? null;
+}

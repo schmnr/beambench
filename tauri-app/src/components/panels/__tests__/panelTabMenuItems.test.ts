@@ -11,12 +11,11 @@ function makeCtx(overrides: Partial<PanelTabMenuContext> = {}): PanelTabMenuCont
   return {
     panelId: 'cuts_layers',
     mode: 'docked',
-    hiddenPanelIds: [],
     sidePanelsVisible: true,
     onFloat: vi.fn(),
     onDock: vi.fn(),
     onClose: vi.fn(),
-    onTogglePanel: vi.fn(),
+    onAddPanel: vi.fn(),
     onToggleSidePanels: vi.fn(),
     ...overrides,
   };
@@ -85,37 +84,37 @@ describe('buildPanelTabMenuItems', () => {
     expect(isSeparator(submenu.children[1])).toBe(true);
   });
 
-  it('Panels submenu: hidden panels are unchecked', () => {
-    const items = buildPanelTabMenuItems(t, makeCtx({ hiddenPanelIds: ['camera', 'console'] }));
+  it('Panels submenu: panel types are add actions, not visibility toggles', () => {
+    const items = buildPanelTabMenuItems(t, makeCtx());
     const submenu = items.find((it) => isSubmenu(it)) as ContextMenuSubmenu;
     const cameraItem = submenu.children.find(
-      (ch) => isCheckItem(ch) && (ch as ContextMenuCheckItem).id === 'panel-tab-camera',
-    ) as ContextMenuCheckItem;
-    expect(cameraItem.checked).toBe(false);
-    const consoleItem = submenu.children.find(
-      (ch) => isCheckItem(ch) && (ch as ContextMenuCheckItem).id === 'panel-tab-console',
-    ) as ContextMenuCheckItem;
-    expect(consoleItem.checked).toBe(false);
+      (ch) => !isCheckItem(ch) && !isSeparator(ch) && !isSubmenu(ch)
+        && (ch as ContextMenuItem).id === 'panel-tab-add-camera',
+    ) as ContextMenuItem;
+    expect(cameraItem).toBeDefined();
+    expect(isCheckItem(cameraItem)).toBe(false);
   });
 
-  it('Panels submenu: visible panels are checked', () => {
-    const items = buildPanelTabMenuItems(t, makeCtx({ hiddenPanelIds: [] }));
+  it('Panels submenu includes the current panel type so duplicates can be added', () => {
+    const items = buildPanelTabMenuItems(t, makeCtx());
     const submenu = items.find((it) => isSubmenu(it)) as ContextMenuSubmenu;
     const cutsItem = submenu.children.find(
-      (ch) => isCheckItem(ch) && (ch as ContextMenuCheckItem).id === 'panel-tab-cuts_layers',
-    ) as ContextMenuCheckItem;
-    expect(cutsItem.checked).toBe(true);
+      (ch) => !isCheckItem(ch) && !isSeparator(ch) && !isSubmenu(ch)
+        && (ch as ContextMenuItem).id === 'panel-tab-add-cuts_layers',
+    ) as ContextMenuItem;
+    expect(cutsItem).toBeDefined();
   });
 
-  it('Panels submenu: toggle click calls onTogglePanel', () => {
-    const onTogglePanel = vi.fn();
-    const items = buildPanelTabMenuItems(t, makeCtx({ onTogglePanel }));
+  it('Panels submenu: add click calls onAddPanel', () => {
+    const onAddPanel = vi.fn();
+    const items = buildPanelTabMenuItems(t, makeCtx({ onAddPanel }));
     const submenu = items.find((it) => isSubmenu(it)) as ContextMenuSubmenu;
     const cameraItem = submenu.children.find(
-      (ch) => isCheckItem(ch) && (ch as ContextMenuCheckItem).id === 'panel-tab-camera',
-    ) as ContextMenuCheckItem;
+      (ch) => !isCheckItem(ch) && !isSeparator(ch) && !isSubmenu(ch)
+        && (ch as ContextMenuItem).id === 'panel-tab-add-camera',
+    ) as ContextMenuItem;
     cameraItem.onClick();
-    expect(onTogglePanel).toHaveBeenCalledWith('camera');
+    expect(onAddPanel).toHaveBeenCalledWith('camera');
   });
 
   it('Panels submenu: Side Panels click calls onToggleSidePanels', () => {

@@ -2172,21 +2172,24 @@ fn build_plan_inner(
 
     // 5. Process each layer
     for layer in enabled_layers {
-        // Collect visible, unlocked objects for this layer. Priority is an
-        // optimization ordering key rather than an unconditional project order.
+        // Collect visible objects for this layer. Locking is an editing
+        // constraint and must not remove an object from the generated job.
+        // Priority is an optimization ordering key rather than an unconditional
+        // project order.
         // Include both original concrete objects and expanded clones
         let mut layer_objects: Vec<_> = project
             .objects
             .iter()
             .filter(|obj| {
                 obj.visible
-                    && !obj.locked
                     && obj.layer_id.to_string() == layer.id.to_string()
                     && !matches!(obj.data, ObjectData::VirtualClone { .. })
             })
-            .chain(expanded_objects.iter().filter(|obj| {
-                obj.visible && !obj.locked && obj.layer_id.to_string() == layer.id.to_string()
-            }))
+            .chain(
+                expanded_objects
+                    .iter()
+                    .filter(|obj| obj.visible && obj.layer_id.to_string() == layer.id.to_string()),
+            )
             .collect();
         if optimization.has_order_key(OptimizationOrderKey::Priority) {
             layer_objects.sort_by_key(|obj| obj.priority);
@@ -4103,7 +4106,7 @@ mod tests {
     }
 
     #[test]
-    fn locked_objects_skipped() {
+    fn locked_objects_are_included_in_the_plan() {
         let mut project = create_test_project();
 
         let layer = Layer::new("Lines", OperationType::Line);
@@ -4128,7 +4131,7 @@ mod tests {
         assert!(result.is_ok());
 
         let plan = result.unwrap();
-        assert_eq!(plan.segments.len(), 0);
+        assert!(!plan.segments.is_empty());
     }
 
     #[test]

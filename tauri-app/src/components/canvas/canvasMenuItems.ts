@@ -5,6 +5,7 @@ import {
   clipboardCut,
   clipboardCopy,
   clipboardPaste,
+  clipboardPasteInPlace,
   clipboardDuplicate,
   hasClipboardData,
 } from '../../utils/clipboard';
@@ -123,6 +124,15 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
           await pasteClipboardArtworkFromSystem();
         })();
       },
+    },
+    {
+      id: 'paste-in-place',
+      label: t('menus.edit.paste_in_place'),
+      shortcut: 'Alt+V',
+      // Paste in Place requires our object snapshot clipboard; arbitrary
+      // system artwork has no existing canvas position to preserve.
+      disabled: !ctx.hasClipboard,
+      onClick: () => void clipboardPasteInPlace(),
     },
     {
       id: 'duplicate',

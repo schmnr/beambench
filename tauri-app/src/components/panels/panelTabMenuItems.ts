@@ -7,12 +7,11 @@ export type PanelTabMenuMode = 'docked' | 'floating';
 export interface PanelTabMenuContext {
   panelId: string;
   mode: PanelTabMenuMode;
-  hiddenPanelIds: string[];
   sidePanelsVisible: boolean;
   onFloat: (panelId: string) => void;
   onDock: (panelId: string) => void;
   onClose: (panelId: string) => void;
-  onTogglePanel: (panelId: string) => void;
+  onAddPanel: (panelTypeId: string) => void;
   onToggleSidePanels: () => void;
 }
 
@@ -27,11 +26,9 @@ function buildPanelsSubmenu(t: TFunction, ctx: PanelTabMenuContext): ContextMenu
     },
     { type: 'separator' },
     ...PANEL_REGISTRY.map((def) => ({
-      type: 'check' as const,
-      id: `panel-tab-${def.id}`,
+      id: `panel-tab-add-${def.id}`,
       label: def.titleKey ? t(def.titleKey) : def.title,
-      checked: !ctx.hiddenPanelIds.includes(def.id),
-      onClick: () => ctx.onTogglePanel(def.id),
+      onClick: () => ctx.onAddPanel(def.id),
     })),
   ];
 

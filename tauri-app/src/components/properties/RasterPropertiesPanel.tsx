@@ -5,6 +5,7 @@ import { NumberInput } from '../shared/NumberInput';
 import { Toggle } from '../shared/Toggle';
 import { CutSettingsEditor } from '../layers/CutSettingsEditor';
 import type { ObjectData, RasterAdjustments } from '../../types/project';
+import { INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
 
 interface RasterPropertiesPanelProps {
   objectId: string;
@@ -46,7 +47,7 @@ export function RasterPropertiesPanel({ objectId, data, passThrough }: RasterPro
   return (
     <div className="flex flex-col gap-1.5 pt-1 border-t border-bb-border">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-medium text-bb-accent uppercase tracking-wider">{t('panels.raster_properties.title')}</div>
+        <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.raster_properties.title')}</div>
         {layerId && (
           <button
             data-testid="edit-layer-settings"

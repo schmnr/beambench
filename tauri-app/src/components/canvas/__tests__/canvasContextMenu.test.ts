@@ -64,6 +64,7 @@ describe('buildCanvasContextMenuItems', () => {
     expect(findItem(items, 'cut')).toBeDefined();
     expect(findItem(items, 'copy')).toBeDefined();
     expect(findItem(items, 'paste')).toBeDefined();
+    expect(findItem(items, 'paste-in-place')).toBeDefined();
     expect(findItem(items, 'duplicate')).toBeDefined();
     expect(findItem(items, 'select-all')).toBeDefined();
     expect(findItem(items, 'delete')).toBeDefined();
@@ -123,6 +124,17 @@ describe('buildCanvasContextMenuItems', () => {
   it('paste enabled when clipboard has data', () => {
     const items = buildCanvasContextMenuItems(t, ctx([], [], true));
     expect(findItem(items, 'paste')?.disabled).toBe(false);
+  });
+
+  it('paste in place is available only for the object clipboard', () => {
+    expect(findItem(
+      buildCanvasContextMenuItems(t, ctx([], [], false)),
+      'paste-in-place',
+    )?.disabled).toBe(true);
+    expect(findItem(
+      buildCanvasContextMenuItems(t, ctx([], [], true)),
+      'paste-in-place',
+    )?.disabled).toBe(false);
   });
 
   it('group disabled with fewer than 2 selected', () => {
@@ -248,7 +260,7 @@ describe('buildCanvasContextMenuItems', () => {
 
     const expectedOrder = [
       'windows',
-      'cut', 'copy', 'paste', 'duplicate',
+      'cut', 'copy', 'paste', 'paste-in-place', 'duplicate',
       'delete', 'select-all',
       'group', 'ungroup',
       'lock', // single unlocked object

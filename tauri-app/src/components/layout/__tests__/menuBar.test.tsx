@@ -248,6 +248,18 @@ describe('MenuBar', () => {
     expect(screen.queryByText('Exclude')).toBeNull();
   });
 
+  it('enables Position Laser in the Tools menu only in Run mode', () => {
+    setProjectWithSelection();
+    render(<MenuBar />);
+    fireEvent.click(screen.getByText('Tools'));
+    expect(screen.getByText('Position Laser').closest('button')?.disabled).toBe(true);
+
+    fireEvent.click(screen.getByText('Tools'));
+    useUiStore.getState().setWorkspaceMode('run');
+    fireEvent.click(screen.getByText('Tools'));
+    expect(screen.getByText('Position Laser').closest('button')?.disabled).toBe(false);
+  });
+
   it('Tools menu command order matches the product contract', () => {
     setProjectWithSelection(['txt1', 'path1']);
     render(<MenuBar />);

@@ -1,7 +1,9 @@
-const STORAGE_KEY = 'beambench.post-job-compatibility.v1';
-const NOT_NOW_SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
+import type { MachineRuntimeState } from '../types/machine';
 
-export type PostJobPromptOutcome = 'completed' | 'problem' | 'not_now';
+const STORAGE_KEY = 'beambench.post-job-compatibility.v1';
+const GRBL_FAMILY_DRIVERS = new Set(['grbl', 'fluid_nc', 'grbl_hal']);
+
+export type PostJobPromptOutcome = 'offered' | 'completed';
 
 interface PromptRecord {
   outcome: PostJobPromptOutcome;
@@ -30,14 +32,24 @@ export function postJobPromptFingerprint(
 export function shouldShowPostJobPrompt(
   fingerprint: string | null,
   storage: Storage,
-  now = Date.now(),
 ): boolean {
   if (!fingerprint) return false;
-  const record = readRecords(storage)[fingerprint];
-  if (!record) return true;
-  if (record.outcome !== 'not_now') return false;
-  const recordedAt = Date.parse(record.recorded_at);
-  return !Number.isFinite(recordedAt) || now - recordedAt >= NOT_NOW_SNOOZE_MS;
+  return readRecords(storage)[fingerprint] === undefined;
+}
+
+/**
+ * Compatibility outreach is intentionally limited to controller paths where
+ * real-hardware evidence is still useful. GRBL-family sessions and unknown
+ * legacy runtime responses never create a post-job interruption.
+ */
+export function shouldOfferPostJobCompatibility(
+  runtime: Pick<MachineRuntimeState, 'controller_driver' | 'product_tier'>,
+): boolean {
+  const targetedTier = runtime.product_tier === 'experimental' || runtime.product_tier === 'beta';
+  return targetedTier
+    && runtime.controller_driver !== null
+    && runtime.controller_driver !== 'unknown'
+    && !GRBL_FAMILY_DRIVERS.has(runtime.controller_driver);
 }
 
 export function recordPostJobPromptOutcome(
@@ -45,15 +57,16 @@ export function recordPostJobPromptOutcome(
   outcome: PostJobPromptOutcome,
   storage: Storage,
   now = new Date(),
-): void {
+): boolean {
   const records = readRecords(storage);
   records[fingerprint] = { outcome, recorded_at: now.toISOString() };
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(records));
+    return true;
   } catch {
     // A blocked/full local store should never interfere with running a job.
+    return false;
   }
 }
 
 export const postJobPromptStorageKey = STORAGE_KEY;
-export const postJobPromptNotNowSnoozeMs = NOT_NOW_SNOOZE_MS;

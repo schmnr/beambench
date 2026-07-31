@@ -40,6 +40,17 @@ afterEach(() => {
 });
 
 describe('LayerList', () => {
+  it('does not expose layer creation in the Run workspace', () => {
+    useUiStore.setState({ workspaceMode: 'run' });
+    useProjectStore.setState({
+      project: makeProject({ layers: [makeLayer({ id: 'l1' })], objects: [] }),
+    });
+
+    render(<LayerTabs />);
+
+    expect(screen.queryByTestId('add-layer-tab')).toBeNull();
+  });
+
   it('displays layer IDs as C00, C01, T1 based on color', () => {
     const layers = [
       makeLayer({ id: 'l1', name: '', color_tag: '#000000' }), // C00 Black
@@ -58,7 +69,28 @@ describe('LayerList', () => {
     expect(labels[2].textContent).toBe('T1');
   });
 
-  it('tool layers render as frame-only rows without output or air controls', () => {
+  it('keeps inactive layer and add-tab surfaces fully opaque', () => {
+    const layers = [
+      makeLayer({ id: 'l1', color_tag: '#000000' }),
+      makeLayer({ id: 'l2', color_tag: '#FF0000', order_index: 1 }),
+    ];
+    useUiStore.setState({ workspaceMode: 'design' });
+    useProjectStore.setState({
+      project: makeProject({ layers, objects: [] }),
+      selectedLayerId: 'l1',
+    });
+
+    render(<LayerTabs />);
+
+    const inactiveTab = screen.getAllByTestId('layer-tab')[1];
+    const addTab = screen.getByTestId('add-layer-tab');
+    expect(inactiveTab.className).not.toContain('opacity-80');
+    expect(addTab.className).not.toContain('opacity-80');
+    expect(inactiveTab.style.background).not.toBe('transparent');
+    expect(addTab.style.background).not.toBe('transparent');
+  });
+
+  it('tool layers retain the standard color editor while showing tool-only controls', () => {
     const layer = makeLayer({
       id: 't1',
       name: 'T1',
@@ -74,39 +106,38 @@ describe('LayerList', () => {
     render(<><LayerTabs /><LayerList /></>);
 
     expect(screen.getByTestId('tab-label').textContent).toBe('T1');
-    expect(screen.getByTestId('frame-toggle')).toBeDefined();
+    expect(screen.queryByTestId('frame-toggle')).toBeNull();
     expect(screen.getByTestId('show-toggle')).toBeDefined();
     expect(screen.queryByTestId('output-toggle')).toBeNull();
     expect(screen.queryByTestId('air-toggle')).toBeNull();
-    expect(screen.queryByTestId('quick-edit')).toBeNull();
+    expect(screen.getByTestId('quick-edit')).toBeDefined();
+    expect(screen.getByTestId('quick-edit-color')).toBeDefined();
   });
 
-  it('tool layer Frame toggle updates the global job-bounds setting', async () => {
+  it('lets a tool layer change to a normal layer color or another tool color', () => {
     const layer = makeLayer({
       id: 't1',
+      name: 'T1',
       color_tag: '#DA0B3F',
       operation: 'tool',
       is_tool_layer: true,
     });
-    const updateSettings = vi.fn().mockResolvedValue(undefined);
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
     useProjectStore.setState({
       project: makeProject({ layers: [layer], objects: [], assets: [] }),
       selectedLayerId: 't1',
-    });
-    useAppStore.setState({
-      settings: makeAppSettings({ include_tool_layers_in_job_bounds: true }),
-      updateSettings,
+      updateLayer: updateLayerSpy,
     });
 
-    render(<LayerList />);
+    const { rerender } = render(<LayerList />);
+    fireEvent.click(screen.getByTestId('quick-edit-color'));
+    fireEvent.click(screen.getByTitle('Black'));
+    expect(updateLayerSpy).toHaveBeenLastCalledWith('t1', { color_tag: '#000000' });
 
-    fireEvent.click(screen.getByTestId('frame-toggle'));
-
-    await waitFor(() => {
-      expect(updateSettings).toHaveBeenCalledWith({
-        include_tool_layers_in_job_bounds: false,
-      });
-    });
+    rerender(<LayerList />);
+    fireEvent.click(screen.getByTestId('quick-edit-color'));
+    fireEvent.click(screen.getByTitle('Tool 2'));
+    expect(updateLayerSpy).toHaveBeenLastCalledWith('t1', { color_tag: '#00D4FF' });
   });
 
   it('double-clicking a tool layer does not open the cut settings editor', () => {
@@ -261,24 +292,64 @@ describe('LayerList', () => {
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { name: 'Updated' });
   });
 
-  it('does not reassign a carried-over selection when reviewing tabs in Run mode', () => {
+  it('activates a tab and reveals its relocated Layers panel without reassigning the current selection', () => {
     const source = makeLayer({ id: 'l1', name: 'Source' });
     const target = makeLayer({ id: 'l2', name: 'Target', order_index: 1 });
     const object = makeProjectObject({ id: 'obj-1', layer_id: source.id });
     const reassignLayerSpy = vi.fn();
-    useUiStore.setState({ workspaceMode: 'run' });
+    useUiStore.setState({ workspaceMode: 'design' });
     useProjectStore.setState({
       project: makeProject({ layers: [source, target], objects: [object] }),
       selectedLayerId: source.id,
       selectedObjectIds: [object.id],
       reassignLayer: reassignLayerSpy,
     });
+    useUiStore.getState().movePanelBetweenZones('cuts_layers', 'top-right', 'middle-left');
+    useUiStore.getState().setZoneActiveTab('top-right', 'properties');
+    useUiStore.getState().setZoneActiveTab('middle-left', '');
 
     render(<LayerTabs />);
     fireEvent.click(screen.getAllByTestId('layer-tab')[1]);
 
     expect(reassignLayerSpy).not.toHaveBeenCalled();
     expect(useProjectStore.getState().selectedLayerId).toBe(target.id);
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([object.id]);
+    expect(useUiStore.getState().panelLayout.zones['middle-left'].activeTab).toBe('cuts_layers');
+    expect(useUiStore.getState().panelLayout.zones['top-right'].activeTab).toBe('properties');
+  });
+
+  it('opens the relocated Layers panel after adding a layer without clearing the object selection', async () => {
+    const source = makeLayer({ id: 'l1', name: 'Source', color_tag: '#000000' });
+    const object = makeProjectObject({ id: 'obj-1', layer_id: source.id });
+    const addLayer = vi.fn().mockImplementation(async () => {
+      const state = useProjectStore.getState();
+      const created = makeLayer({ id: 'l2', name: 'C01 (Line)', color_tag: '#ff0000', order_index: 1 });
+      useProjectStore.setState({
+        project: state.project ? { ...state.project, layers: [...state.project.layers, created] } : null,
+        selectedLayerId: created.id,
+      });
+    });
+    const updateLayer = vi.fn().mockResolvedValue(true);
+
+    useProjectStore.setState({
+      project: makeProject({ layers: [source], objects: [object] }),
+      selectedLayerId: source.id,
+      selectedObjectIds: [object.id],
+      addLayer,
+      updateLayer,
+    });
+    useUiStore.getState().movePanelBetweenZones('cuts_layers', 'top-right', 'middle-left');
+    useUiStore.getState().setZoneActiveTab('top-right', 'properties');
+    useUiStore.getState().setZoneActiveTab('middle-left', '');
+
+    render(<LayerTabs />);
+    fireEvent.click(screen.getByTestId('add-layer-tab'));
+
+    await waitFor(() => {
+      expect(useUiStore.getState().panelLayout.zones['middle-left'].activeTab).toBe('cuts_layers');
+    });
+    expect(useUiStore.getState().panelLayout.zones['top-right'].activeTab).toBe('properties');
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([object.id]);
   });
 
   it('show toggle circle works', async () => {

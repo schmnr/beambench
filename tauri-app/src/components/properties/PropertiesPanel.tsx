@@ -2,17 +2,35 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { TextInput } from '../shared/TextInput';
 import { NumberInput } from '../shared/NumberInput';
-import { Toggle } from '../shared/Toggle';
 import { TextPropertiesPanel } from './TextPropertiesPanel';
 import { TransformSection } from './TransformSection';
-import { LayerSection } from './LayerSection';
 import { RasterPropertiesPanel } from './RasterPropertiesPanel';
 import { vectorService } from '../../services/vectorService';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { wrapBackendError } from '../../i18n/errors';
+import { RangeInput } from '../shared/RangeInput';
+import { useUiStore } from '../../stores/uiStore';
+import { TextDefaultsSection } from './TextDefaultsSection';
+import { SelectionArrangeSection } from './SelectionArrangeSection';
+import { createSelectionContext, isBooleanCompatible } from '../../commands/selectionContext';
+import { IconButton } from '../shared/IconButton';
+import {
+  ExcludeIcon,
+  IntersectIcon,
+  ReverseSubtractIcon,
+  SubtractIcon,
+  UnionIcon,
+} from '../shared/BooleanOperationIcons';
+import {
+  INSPECTOR_CARD_CLASS,
+  INSPECTOR_EMPTY_CLASS,
+  INSPECTOR_SECTION_HEADER_CLASS,
+} from '../shared/panelAppearance';
 
 const TOAST_SUCCESS = 'success' as const;
 const TOAST_ERROR = 'error' as const;
+const BOOLEAN_BUTTON_SIZE = 'sm' as const;
+const BOOLEAN_ICON_SIZE = 24;
 
 export function PropertiesPanel() {
   const { t } = useTranslation();
@@ -22,33 +40,42 @@ export function PropertiesPanel() {
   const updateObjectData = useProjectStore((s) => s.updateObjectData);
   const loadProject = useProjectStore((s) => s.loadProject);
   const booleanPending = useProjectStore((s) => s.booleanPending);
-  const lockObjects = useProjectStore((s) => s.lockObjects);
-  const unlockObjects = useProjectStore((s) => s.unlockObjects);
   const setObjectsVisible = useProjectStore((s) => s.setObjectsVisible);
+  const assignImageMask = useProjectStore((s) => s.assignImageMask);
+  const activeTool = useUiStore((s) => s.activeTool);
 
   const selectedObject = project?.objects.find((o) => o.id === selectedObjectIds[0]) ?? null;
-  const secondObject = selectedObjectIds.length === 2
-    ? project?.objects.find((o) => o.id === selectedObjectIds[1]) ?? null
-    : null;
-
-  // Multi-selection: batch controls for 2+, boolean ops for exactly 2
+  // Multi-selection: batch controls and contextual arrange/vector operations.
   if (selectedObjectIds.length >= 2) {
     const selectedObjects = project?.objects.filter((o) => selectedObjectIds.includes(o.id)) ?? [];
 
     // Compute mixed state
     const allVisible = selectedObjects.every((o) => o.visible);
     const noneVisible = selectedObjects.every((o) => !o.visible);
-    const allLocked = selectedObjects.every((o) => o.locked);
-    const noneLocked = selectedObjects.every((o) => !o.locked);
+    const allBooleanCompatible = selectedObjects.length === selectedObjectIds.length
+      && selectedObjects.every((object) => isBooleanCompatible(object, project?.objects ?? []));
+    const canUseBoolean = selectedObjectIds.length >= 2 && allBooleanCompatible && !booleanPending;
+    const reverseBooleanOrder = [
+      selectedObjectIds[selectedObjectIds.length - 1],
+      ...selectedObjectIds.slice(0, -1),
+    ];
+    const selectionContext = createSelectionContext(
+      selectedObjectIds,
+      project?.objects ?? [],
+      false,
+      [],
+    );
+    const canApplyImageMask = selectionContext.canUseAsImageMask
+      && !selectionContext.imageMaskSelectionHasInvalidMasks;
 
     return (
-      <div className="flex flex-col gap-2.5 px-3 py-2">
+      <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
+      <div className="flex flex-col gap-2.5 px-3 py-2.5">
         <TransformSection />
         <div className="text-xs text-bb-text-dim">{t('panels.properties.objects_selected', { count: selectedObjectIds.length })}</div>
 
         {/* Batch controls */}
-        <LayerSection />
-        <div className="flex gap-2 items-center text-xs">
+        <div className="flex items-center text-xs">
           <label className="flex items-center gap-1">
             <input
               type="checkbox"
@@ -59,57 +86,113 @@ export function PropertiesPanel() {
             />
             {t('panels.properties.visible')}
           </label>
-          <label className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              data-testid="batch-locked"
-              checked={allLocked}
-              ref={(el) => { if (el) el.indeterminate = !allLocked && !noneLocked; }}
-              onChange={() => void ((!allLocked ? lockObjects : unlockObjects)(selectedObjectIds))}
-            />
-            {t('panels.properties.locked')}
-          </label>
         </div>
 
-        {/* Boolean ops only for exactly 2 */}
-        {selectedObjectIds.length === 2 && selectedObject && secondObject && (
-          <div className="flex flex-col gap-1 mt-1">
-            <div className="text-xs text-bb-text-dim">{t('panels.properties.boolean_operations')}</div>
-            <button
-              disabled={booleanPending}
-              className={`w-full text-xs px-2 py-1 rounded bg-bb-surface-2 border border-bb-border text-bb-text ${booleanPending ? 'opacity-50 cursor-not-allowed' : 'hover:bg-bb-surface-3'}`}
-              onClick={() => {
-                useProjectStore.getState().booleanUnion(selectedObjectIds[0], selectedObjectIds[1]);
-              }}
-            >
-              {t('panels.properties.union')}
-            </button>
-            <button
-              disabled={booleanPending}
-              className={`w-full text-xs px-2 py-1 rounded bg-bb-surface-2 border border-bb-border text-bb-text ${booleanPending ? 'opacity-50 cursor-not-allowed' : 'hover:bg-bb-surface-3'}`}
-              onClick={() => {
-                useProjectStore.getState().booleanSubtract(selectedObjectIds[0], selectedObjectIds[1]);
-              }}
-            >
-              {t('panels.properties.subtract')}
-            </button>
-            <button
-              disabled={booleanPending}
-              className={`w-full text-xs px-2 py-1 rounded bg-bb-surface-2 border border-bb-border text-bb-text ${booleanPending ? 'opacity-50 cursor-not-allowed' : 'hover:bg-bb-surface-3'}`}
-              onClick={() => {
-                useProjectStore.getState().booleanIntersection(selectedObjectIds[0], selectedObjectIds[1]);
-              }}
-            >
-              {t('panels.properties.intersection')}
-            </button>
+        <SelectionArrangeSection />
+
+        {selectionContext.canUseAsImageMask && (
+          <section className="flex flex-col gap-1.5 border-t border-bb-border pt-3" data-testid="image-mask-section">
+            <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('context_menu.use_as_image_mask')}</div>
+            {selectionContext.imageMaskSelectionHasInvalidMasks && (
+              <div className="text-[11px] text-bb-text-dim">
+                {t('context_menu.image_mask_requires_closed')}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                className="h-8 rounded-lg border border-bb-border bg-bb-bg px-2 text-xs font-medium text-bb-text transition-colors hover:border-bb-accent/40 hover:bg-bb-hover disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:border-bb-border disabled:hover:bg-bb-bg"
+                disabled={!canApplyImageMask}
+                onClick={() => void assignImageMask(
+                  selectionContext.imageMaskTargetId!,
+                  selectionContext.imageMaskObjectIds,
+                  'keep_inside',
+                )}
+              >
+                {t('panels.raster_properties.keep_inside')}
+              </button>
+              <button
+                type="button"
+                className="h-8 rounded-lg border border-bb-border bg-bb-bg px-2 text-xs font-medium text-bb-text transition-colors hover:border-bb-accent/40 hover:bg-bb-hover disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:border-bb-border disabled:hover:bg-bb-bg"
+                disabled={!canApplyImageMask}
+                onClick={() => void assignImageMask(
+                  selectionContext.imageMaskTargetId!,
+                  selectionContext.imageMaskObjectIds,
+                  'keep_outside',
+                )}
+              >
+                {t('panels.raster_properties.keep_outside')}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {allBooleanCompatible && (
+          <div className="flex flex-col gap-1.5 border-t border-bb-border pt-3">
+            <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.properties.boolean_operations')}</div>
+            <div className="mt-1 grid grid-cols-5 gap-0.5">
+              <IconButton
+                icon={<UnionIcon size={BOOLEAN_ICON_SIZE} />}
+                label={t('toolbars.modifiers.union')}
+                onClick={() => void (selectedObjectIds.length === 2
+                  ? useProjectStore.getState().booleanUnion(selectedObjectIds[0], selectedObjectIds[1])
+                  : useProjectStore.getState().booleanUnionMany(selectedObjectIds))}
+                disabled={!canUseBoolean}
+                size={BOOLEAN_BUTTON_SIZE}
+              />
+              <IconButton
+                icon={<SubtractIcon size={BOOLEAN_ICON_SIZE} />}
+                label={`${t('toolbars.modifiers.subtract')} A − (B…)`}
+                onClick={() => void (selectedObjectIds.length === 2
+                  ? useProjectStore.getState().booleanSubtract(selectedObjectIds[0], selectedObjectIds[1])
+                  : useProjectStore.getState().booleanSubtractMany(selectedObjectIds))}
+                disabled={!canUseBoolean}
+                size={BOOLEAN_BUTTON_SIZE}
+              />
+              <IconButton
+                icon={<ReverseSubtractIcon size={BOOLEAN_ICON_SIZE} />}
+                label={`${t('toolbars.modifiers.subtract')} B − (A…)`}
+                onClick={() => void (selectedObjectIds.length === 2
+                  ? useProjectStore.getState().booleanSubtract(selectedObjectIds[1], selectedObjectIds[0])
+                  : useProjectStore.getState().booleanSubtractMany(reverseBooleanOrder))}
+                disabled={!canUseBoolean}
+                size={BOOLEAN_BUTTON_SIZE}
+              />
+              <IconButton
+                icon={<IntersectIcon size={BOOLEAN_ICON_SIZE} />}
+                label={t('toolbars.modifiers.intersect')}
+                onClick={() => void (selectedObjectIds.length === 2
+                  ? useProjectStore.getState().booleanIntersection(selectedObjectIds[0], selectedObjectIds[1])
+                  : useProjectStore.getState().booleanIntersectionMany(selectedObjectIds))}
+                disabled={!canUseBoolean}
+                size={BOOLEAN_BUTTON_SIZE}
+              />
+              <IconButton
+                icon={<ExcludeIcon size={BOOLEAN_ICON_SIZE} />}
+                label={t('toolbars.modifiers.exclude')}
+                onClick={() => void (selectedObjectIds.length === 2
+                  ? useProjectStore.getState().booleanExclude(selectedObjectIds[0], selectedObjectIds[1])
+                  : useProjectStore.getState().booleanExcludeMany(selectedObjectIds))}
+                disabled={!canUseBoolean}
+                size={BOOLEAN_BUTTON_SIZE}
+              />
+            </div>
           </div>
         )}
+      </div>
       </div>
     );
   }
 
   if (!selectedObject) {
-    return <div className="text-xs text-bb-text-dim italic px-2">{t('panels.properties.nothing_selected')}</div>;
+    if (activeTool === 'text') {
+      return (
+        <div className={INSPECTOR_CARD_CLASS} data-testid="text-defaults-card">
+          <TextDefaultsSection />
+        </div>
+      );
+    }
+    return <div className={INSPECTOR_EMPTY_CLASS}>{t('panels.properties.nothing_selected')}</div>;
   }
 
   const canConvertToPath =
@@ -121,28 +204,30 @@ export function PropertiesPanel() {
   // Corner radius: only for rectangle shapes
   const isRectangleShape = selectedObject.data?.type === 'shape' && selectedObject.data.kind === 'rectangle';
   const isEllipseShape = selectedObject.data?.type === 'shape' && selectedObject.data.kind === 'ellipse';
+  const isTextObject = selectedObject.data?.type === 'text';
   const isPolygonShape = selectedObject.data?.type === 'polygon';
   const isStarShape = selectedObject.data?.type === 'star';
   const polygonData = isPolygonShape ? selectedObject.data as Extract<typeof selectedObject.data, { type: 'polygon' }> : null;
   const starData = isStarShape ? selectedObject.data as Extract<typeof selectedObject.data, { type: 'star' }> : null;
+  const powerScalePercent = Math.round((selectedObject.power_scale ?? 1) * 100);
 
   return (
-    <div className="flex flex-col gap-2.5 px-3 py-2">
+    <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
+    <div className="flex flex-col gap-2.5 px-3 py-2.5">
       <TransformSection />
       <TextInput
         label={t('panels.properties.name')}
         value={selectedObject.name}
         onChange={(name) => updateObject(selectedObject.id, { name })}
       />
-      <LayerSection />
-
-      <NumberInput
+      <RangeInput
         label={t('panels.properties.power_scale_percent')}
-        value={Math.round((selectedObject.power_scale ?? 1) * 100)}
+        value={powerScalePercent}
         onChange={(v) => updateObject(selectedObject.id, { power_scale: v / 100 })}
         step={1}
         min={0}
         max={100}
+        testId="properties-power-scale-slider"
       />
 
       <NumberInput
@@ -154,15 +239,15 @@ export function PropertiesPanel() {
         max={99}
       />
 
-      <Toggle
-        label={t('panels.properties.locked')}
-        checked={selectedObject.locked}
-        onChange={(locked) => updateObject(selectedObject.id, { locked })}
-      />
+      <SelectionArrangeSection />
+
+      {isTextObject && selectedObject.data.type === 'text' && (
+        <TextPropertiesPanel objectId={selectedObject.id} data={selectedObject.data} />
+      )}
 
       {(isRectangleShape || isEllipseShape || isPolygonShape || isStarShape) && (
         <div className="flex flex-col gap-1.5 pt-1 border-t border-bb-border">
-          <div className="text-xs font-medium text-bb-accent uppercase tracking-wider">{t('panels.properties.shape')}</div>
+          <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.properties.shape')}</div>
         </div>
       )}
 
@@ -244,10 +329,6 @@ export function PropertiesPanel() {
         </div>
       )}
 
-      {selectedObject.data?.type === 'text' && (
-        <TextPropertiesPanel objectId={selectedObject.id} data={selectedObject.data} />
-      )}
-
       {selectedObject.data?.type === 'raster_image' && (
         <RasterPropertiesPanel
           objectId={selectedObject.id}
@@ -274,6 +355,7 @@ export function PropertiesPanel() {
           {t('panels.properties.convert_to_path')}
         </button>
       )}
+    </div>
     </div>
   );
 }

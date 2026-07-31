@@ -146,6 +146,17 @@ describe('app command bridge', () => {
     }));
   });
 
+  it('enables the native Position Laser command only in Run mode', () => {
+    useProjectStore.setState({ project: makeProject() });
+    const positionLaserState = () => [...getAppCommandState().items].reverse().find(
+      (item) => item.id === APP_COMMANDS.TOOLS_POSITION_LASER,
+    );
+
+    expect(positionLaserState()?.enabled).toBe(false);
+    useUiStore.getState().setWorkspaceMode('run');
+    expect(positionLaserState()?.enabled).toBe(true);
+  });
+
   it('localizes native menu dynamic titles from the active i18n language', async () => {
     const previousLanguage = i18n.language;
     try {

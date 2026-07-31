@@ -415,6 +415,11 @@ pub fn export_gcode_to_path_with_options(
     options: &SessionJobOptions,
 ) -> ServiceResult<String> {
     let plan = ensure_current_plan_with_options(ctx, options)?;
+    if plan.segments.is_empty() {
+        return Err(ServiceError::invalid_state(
+            "Cannot export G-code because the job contains no output paths",
+        ));
+    }
     let project = current_project(ctx)?;
     let profile = active_profile(ctx)?;
     let mut gcode_config = output::build_gcode_config(&project.optimization, &profile);
@@ -643,6 +648,26 @@ mod tests {
             "G-code should contain travel to custom finish point (99, 88), got:\n{}",
             gcode.lines().rev().take(10).collect::<Vec<_>>().join("\n")
         );
+    }
+
+    #[test]
+    fn export_rejects_a_job_with_only_empty_layers() {
+        let ctx = create_test_ctx_with_project();
+        ctx.project
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .objects
+            .clear();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("empty.gcode");
+
+        let error = export_gcode_to_path(&ctx, &path).unwrap_err();
+
+        assert_eq!(error.code, ServiceErrorCode::InvalidState);
+        assert!(error.message.contains("no output paths"));
+        assert!(!path.exists());
     }
 
     #[test]

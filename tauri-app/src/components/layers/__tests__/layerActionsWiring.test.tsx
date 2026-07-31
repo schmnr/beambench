@@ -26,6 +26,21 @@ const setup = () => {
 };
 
 describe('layer card action buttons', () => {
+  it('keeps the layer actions together in the card header', () => {
+    const { layer, obj } = setup();
+    useProjectStore.setState({ project: makeProject({ layers: [layer], objects: [obj] }) });
+    render(<LayerList />);
+
+    const headerActions = screen.getByTestId('layer-header-actions');
+    expect(headerActions.contains(screen.getByTestId('select-all-on-layer'))).toBe(true);
+    expect(headerActions.contains(screen.getByTestId('lock-layer'))).toBe(true);
+    expect(headerActions.contains(screen.getByTestId('copy-layer-settings'))).toBe(true);
+    expect(headerActions.contains(screen.getByTestId('paste-layer-settings'))).toBe(true);
+    expect(headerActions.contains(screen.getByTestId('layer-move-earlier'))).toBe(true);
+    expect(headerActions.contains(screen.getByTestId('layer-move-later'))).toBe(true);
+    expect(headerActions.contains(screen.getByTestId('delete-layer'))).toBe(true);
+  });
+
   it('select-all selects the layer objects', () => {
     const { layer, obj } = setup();
     const selectObjects = vi.fn();

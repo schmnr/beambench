@@ -194,12 +194,14 @@ export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: Dev
             </div>
           </div>
         )}
-        <div className="flex shrink-0 gap-1 border-b border-bb-border mb-3" data-testid="tab-bar">
+        <div className="flex shrink-0 gap-1 border-b border-bb-border mb-3" data-testid="tab-bar" role="tablist">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               data-testid={`tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
+              role="tab"
+              aria-selected={activeTab === tab.id}
               className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
                 activeTab === tab.id
                   ? 'bg-bb-bg text-bb-text border border-b-0 border-bb-border -mb-px'

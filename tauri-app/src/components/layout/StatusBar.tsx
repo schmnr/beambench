@@ -6,16 +6,7 @@ import { useMachineStore } from '../../stores/machineStore';
 import { useMeasurementStore } from '../../stores/measurementStore';
 import { zoomToFitBounds } from '../../canvas/ViewportTransform';
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
-import type { TransformLocks } from '../../types/project';
 import { canvasToMachinePoint } from '../../utils/workspaceCoordinates';
-import { openRotarySetup } from '../../rotaryEvents';
-
-const CONNECTION_COLORS: Record<string, string> = {
-  disconnected: 'bg-gray-500',
-  connecting: 'bg-yellow-500',
-  ready: 'bg-green-500',
-  alarm: 'bg-red-500',
-};
 
 const TOOL_HINT_KEYS: Record<ToolType, string> = {
   select: 'status.tool_hint.select',
@@ -40,13 +31,6 @@ const NODE_SUBMODE_HINT_KEYS: Partial<Record<NodeSubMode, string>> = {
   trim: 'status.tool_hint.node_trim',
 };
 
-const transformToggleKeys: { key: keyof TransformLocks; labelKey: string }[] = [
-  { key: 'move_enabled', labelKey: 'toolbars.transform_toggles.move' },
-  { key: 'size_enabled', labelKey: 'toolbars.transform_toggles.size' },
-  { key: 'rotate_enabled', labelKey: 'toolbars.transform_toggles.rotate' },
-  { key: 'shear_enabled', labelKey: 'toolbars.transform_toggles.shear' },
-];
-
 export function StatusBar() {
   const { t } = useTranslation();
   const status = useAppStore((s) => s.status);
@@ -56,42 +40,19 @@ export function StatusBar() {
   const zoomOut = useUiStore((s) => s.zoomOut);
   const zoomToFit = useUiStore((s) => s.zoomToFit);
   const cursorWorldPos = useUiStore((s) => s.cursorWorldPos);
-  const gridVisible = useUiStore((s) => s.gridVisible);
-  const snapToGrid = useUiStore((s) => s.snapToGrid);
-  const toggleGrid = useUiStore((s) => s.toggleGrid);
-  const toggleSnap = useUiStore((s) => s.toggleSnap);
   const activeTool = useUiStore((s) => s.activeTool);
+  const textBoxModeActive = useUiStore((s) => (s.textDefaults.max_width ?? 0) > 0);
   const nodeSubMode = useUiStore((s) => s.nodeSubMode);
   const nodeEditNodeCount = useUiStore((s) => s.nodeEditNodeCount);
   const project = useProjectStore((s) => s.project);
-  const setTransformLocks = useProjectStore((s) => s.setTransformLocks);
 
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
   const measurement = useMeasurementStore((s) => s.state);
 
-  const sessionState = useMachineStore((s) => s.sessionState);
   const jobProgress = useMachineStore((s) => s.jobProgress);
-  const profiles = useMachineStore((s) => s.profiles);
-  const activeProfileId = useMachineStore((s) => s.activeProfileId);
-  const activeProfile = (profiles ?? []).find((profile) => profile.id === activeProfileId);
-  const rotaryEnabled = activeProfile?.rotary_enabled ?? false;
 
   const unit = settings?.display_unit ?? 'mm';
   const unitLabel = unit === 'inches' ? 'in' : 'mm';
-  // TransformLocks is non-optional on every field. Default matches
-  // the backend `Default` impl (all enabled).
-  const locks: TransformLocks = project?.transform_locks ?? {
-    move_enabled: true,
-    size_enabled: true,
-    rotate_enabled: true,
-    shear_enabled: true,
-  };
-
-  const handleToggle = (key: keyof TransformLocks) => {
-    void setTransformLocks({ ...locks, [key]: !locks[key] });
-  };
-
-  const isLocked = (key: keyof TransformLocks) => locks[key] === false;
 
   const displayPoint = (point: { x: number; y: number }) => (
     project ? canvasToMachinePoint(point, project.workspace) : point
@@ -162,13 +123,6 @@ export function StatusBar() {
     zoomToFit(result.offset, result.zoom);
   };
 
-  const normalizedSessionState = sessionState ?? 'disconnected';
-  const connectionColor = CONNECTION_COLORS[normalizedSessionState] ?? 'bg-gray-500';
-  const connectionLabel = t(`status.connection.${normalizedSessionState}`, {
-    defaultValue:
-      normalizedSessionState.charAt(0).toUpperCase() + normalizedSessionState.slice(1),
-  });
-
   const jobPercent =
     jobProgress && jobProgress.total_lines > 0
       ? Math.round((jobProgress.acknowledged_lines / jobProgress.total_lines) * 100)
@@ -185,65 +139,21 @@ export function StatusBar() {
   const toolHintKey = activeTool === 'node'
     ? NODE_SUBMODE_HINT_KEYS[nodeSubMode] ?? TOOL_HINT_KEYS.node
     : TOOL_HINT_KEYS[activeTool] ?? '';
-  const toolHint = toolHintKey ? t(toolHintKey) : '';
+  const toolHint = activeTool === 'text' && textBoxModeActive
+    ? t('panels.text_properties.creation_hint')
+    : toolHintKey ? t(toolHintKey) : '';
 
   return (
     <div className="no-select flex items-center justify-between h-6 bg-bb-panel px-3 text-xs text-bb-text-muted border-t border-bb-border">
-      {/* Left: transform toggles + modes + machine state + tool hint */}
+      {/* Left: transient job state + contextual tool hint. Persistent machine
+          and project identity live in the main toolbar. */}
       <span className="flex items-center gap-2">
-        {/* Transform toggles (absorbed from TransformToggles) */}
-        {transformToggleKeys.map(({ key, labelKey }) => (
-          <button
-            key={key}
-            onClick={() => handleToggle(key)}
-            className={`px-1 py-0 rounded text-xs ${
-              isLocked(key)
-                ? 'bg-bb-accent/15 border border-bb-accent/30 text-bb-text'
-                : 'text-bb-text-muted hover:text-bb-text hover:bg-bb-surface'
-            }`}
-          >
-            {t(labelKey)}
-          </button>
-        ))}
-        <span className="w-px h-3 bg-bb-border mx-1" />
-        {/* Modes */}
-        <button
-          title={t(rotaryEnabled ? 'status.rotary_active_tooltip' : 'status.rotary_tooltip')}
-          onClick={openRotarySetup}
-          className={`px-1 py-0 rounded text-xs ${
-            rotaryEnabled
-              ? 'bg-bb-accent/15 border border-bb-accent/30 text-bb-text'
-              : 'text-bb-text-muted hover:text-bb-text hover:bg-bb-surface'
-          }`}
-        >
-          {t('status.rotary')}
-        </button>
-        <button
-          disabled
-          title={t('status.print_cut_tooltip')}
-          className="px-1 py-0 rounded text-xs text-bb-text-disabled cursor-not-allowed"
-        >
-          {t('status.print_cut')}
-        </button>
-        <span className="w-px h-3 bg-bb-border mx-1" />
-        <span className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full ${connectionColor}`} />
-          <span>{connectionLabel}</span>
-        </span>
         {jobLabel && (
-          <>
-            <span className="w-px h-3 bg-bb-border mx-1" />
-            <span className="text-bb-accent">{jobLabel}</span>
-          </>
+          <span className="text-bb-accent">{jobLabel}</span>
         )}
-        <span className="w-px h-3 bg-bb-border mx-1" />
-        <span>
-          {project?.metadata.project_name ?? status?.state ?? t('status.initializing')}
-          {project?.dirty ? <span className="text-bb-accent ml-1" title={t('status.unsaved_changes')}>*</span> : null}
-        </span>
         {toolHint && (
           <>
-            <span className="w-px h-3 bg-bb-border mx-1" />
+            {jobLabel ? <span className="w-px h-3 bg-bb-border mx-1" /> : null}
             <span className="text-bb-text-dim italic">{toolHint}</span>
           </>
         )}
@@ -284,23 +194,8 @@ export function StatusBar() {
         ) : null}
       </span>
 
-      {/* Right: grid/snap indicators + zoom controls */}
+      {/* Right: zoom + build identity. Grid and Snap live in the main toolbar. */}
       <span className="flex items-center gap-2">
-        <button
-          onClick={toggleGrid}
-          className={`px-1 rounded ${gridVisible ? 'text-bb-text' : 'text-bb-text-dim'} hover:text-bb-text`}
-          title={t('status.grid_tooltip')}
-        >
-          {t('status.grid')}
-        </button>
-        <button
-          onClick={toggleSnap}
-          className={`px-1 rounded ${snapToGrid ? 'text-bb-text' : 'text-bb-text-dim'} hover:text-bb-text`}
-          title={t('status.snap_tooltip')}
-        >
-          {t('status.snap')}
-        </button>
-        <span className="w-px h-3 bg-bb-border mx-1" />
         <button onClick={zoomOut} className="hover:text-bb-text px-0.5" title={t('status.zoom_out')}>
           -
         </button>

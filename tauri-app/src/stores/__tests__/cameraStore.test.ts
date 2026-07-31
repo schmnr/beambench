@@ -173,19 +173,19 @@ describe('cameraStore overlay display state', () => {
   });
 
   it('keeps visibility and opacity as global frontend-only session state', () => {
-    expect(useCameraStore.getState().overlayVisible).toBe(true);
+    expect(useCameraStore.getState().overlayVisible).toBe(false);
     expect(useCameraStore.getState().overlayOpacity).toBe(0.4);
 
-    useCameraStore.getState().setOverlayVisible(false);
+    useCameraStore.getState().setOverlayVisible(true);
     useCameraStore.getState().setOverlayOpacity(1.5);
 
-    expect(useCameraStore.getState().overlayVisible).toBe(false);
+    expect(useCameraStore.getState().overlayVisible).toBe(true);
     expect(useCameraStore.getState().overlayOpacity).toBe(1);
 
     useCameraStore.getState().toggleOverlayVisible();
     useCameraStore.getState().setOverlayOpacity(-0.5);
 
-    expect(useCameraStore.getState().overlayVisible).toBe(true);
+    expect(useCameraStore.getState().overlayVisible).toBe(false);
     expect(useCameraStore.getState().overlayOpacity).toBe(0);
   });
 

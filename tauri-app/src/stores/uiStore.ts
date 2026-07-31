@@ -11,8 +11,26 @@ import type {
   TextTransformStyle,
 } from '../types/project';
 import type { OffsetPreviewPath } from '../types/vector';
-import type { PhysicalDockZone, PanelLayoutState, FloatingPanelState, ToolbarId } from '../panels';
-import { createDefaultLayout, getPanelById, normalizeToolbarVisibility } from '../panels';
+import type {
+  ColumnSplitRatios,
+  PanelColumnSide,
+  PhysicalDockZone,
+  PanelLayoutState,
+  FloatingPanelState,
+  ToolbarId,
+  WorkspacePanelLayout,
+} from '../panels';
+import {
+  COLUMN_ZONES,
+  createPanelInstanceId,
+  createDefaultLayout,
+  getColumnForZone,
+  getPanelById,
+  getPanelTypeId,
+  getWorkspacePanelLayout,
+  normalizeToolbarVisibility,
+  setWorkspacePanelLayout,
+} from '../panels';
 import { DEFAULT_GRID_SPACING_MM, MIN_ZOOM, MAX_ZOOM, ZOOM_STEP } from '../canvas/constants';
 import { appService } from '../services/appService';
 import { commitPendingTextEdit, hasPendingTextEdit, isNewEmptyText } from '../canvas/textEditSession';
@@ -67,6 +85,9 @@ export interface TextDefaults {
   transform_style: TextTransformStyle;
   transform_curve: number;
   circle_placement: TextCirclePlacement;
+  max_width: number | null;
+  squeeze: boolean;
+  rtl: boolean;
 }
 
 export const DEFAULT_TEXT_DEFAULTS: TextDefaults = {
@@ -88,6 +109,9 @@ export const DEFAULT_TEXT_DEFAULTS: TextDefaults = {
   transform_style: 'none',
   transform_curve: 0,
   circle_placement: 'top_outside',
+  max_width: null,
+  squeeze: false,
+  rtl: false,
 };
 
 export const DEFAULT_DOCK_SETTINGS: DockOptions = {
@@ -217,8 +241,6 @@ interface UiStoreState {
   // Toolbar submenu memory
   lastShapeSubTool: string;
   setLastShapeSubTool: (id: string) => void;
-  lastBooleanOp: string;
-  setLastBooleanOp: (id: string) => void;
 
   // App-level dialogs whose state must be visible to native menu state sync
   showNotesDialog: boolean;
@@ -264,12 +286,22 @@ interface UiStoreState {
   setToolbarVisibility: (toolbarId: ToolbarId, visible: boolean) => void;
   toggleToolbarVisibility: (toolbarId: ToolbarId) => void;
   setUpperSplitRatio: (ratio: number) => void;
+  swapRightPanelZones: () => void;
+  setColumnBoundary: (
+    side: PanelColumnSide,
+    upperIndex: 0 | 1,
+    boundaryRatio: number,
+    lowerIndex?: 1 | 2,
+  ) => void;
+  revealColumnEdge: (side: PanelColumnSide, edge: 'top' | 'bottom') => void;
   setRightPanelWidth: (width: number) => void;
   setLeftPanelWidth: (width: number) => void;
   setBottomPanelHeight: (height: number) => void;
   resetLayout: () => void;
 
   // Floating panel actions
+  addPanelInstance: (panelTypeId: string, targetZone: PhysicalDockZone) => void;
+  removePanelInstance: (panelId: string) => void;
   floatPanel: (panelId: string, x: number, y: number, w: number, h: number) => void;
   dockPanel: (panelId: string, targetZone: PhysicalDockZone, insertIndex?: number) => void;
   moveFloatingPanel: (panelId: string, x: number, y: number) => void;
@@ -340,6 +372,13 @@ const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
 
 /** M4: how long a flash highlight stays visible before auto-clearing. */
 const FLASH_DURATION_MS = 600;
+const DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT = 220;
+const BOTTOM_DOCK_COLLAPSE_THRESHOLD = 32;
+
+function revealPhysicalDock(layout: PanelLayoutState, zone: PhysicalDockZone): PanelLayoutState {
+  if (zone !== 'bottom' || layout.bottomPanelHeight >= BOTTOM_DOCK_COLLAPSE_THRESHOLD) return layout;
+  return { ...layout, bottomPanelHeight: DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT };
+}
 
 /** Fix active tab after removing a panel from a zone. */
 function fixActiveTab(zone: { panelIds: string[]; activeTab: string }, removedId: string, hidden: string[]): { panelIds: string[]; activeTab: string } {
@@ -349,25 +388,88 @@ function fixActiveTab(zone: { panelIds: string[]; activeTab: string }, removedId
 }
 
 function sanitizePanelLayout(layout: PanelLayoutState): PanelLayoutState {
-  const hiddenPanelIds = [...new Set(layout.hiddenPanelIds.filter((id) => getPanelById(id)))];
-  const zones = { ...layout.zones };
-  for (const zoneKey of Object.keys(zones) as PhysicalDockZone[]) {
-    const zone = zones[zoneKey];
-    const panelIds = zone.panelIds.filter((id) => getPanelById(id));
-    zones[zoneKey] = {
-      panelIds,
-      activeTab: panelIds.includes(zone.activeTab) && !hiddenPanelIds.includes(zone.activeTab)
-        ? zone.activeTab
-        : panelIds.find((id) => !hiddenPanelIds.includes(id)) ?? '',
+  const normalizeRatios = (ratios: ColumnSplitRatios): ColumnSplitRatios => {
+    const safe = ratios.map((ratio) => Number.isFinite(ratio) ? Math.max(0, ratio) : 0);
+    const total = safe.reduce((sum, ratio) => sum + ratio, 0);
+    if (total <= 0) return [1, 0, 0];
+    return safe.map((ratio) => ratio / total) as ColumnSplitRatios;
+  };
+  const sanitizeWorkspace = (workspace: WorkspacePanelLayout): WorkspacePanelLayout => {
+    const hiddenPanelIds = [...new Set(workspace.hiddenPanelIds.filter((id) => getPanelById(id)))];
+    const zones = { ...workspace.zones };
+    for (const zoneKey of Object.keys(zones) as PhysicalDockZone[]) {
+      const zone = zones[zoneKey];
+      const panelIds = zone.panelIds.filter((id) => getPanelById(id));
+      zones[zoneKey] = {
+        panelIds,
+        activeTab: panelIds.includes(zone.activeTab) && !hiddenPanelIds.includes(zone.activeTab)
+          ? zone.activeTab
+          : panelIds.find((id) => !hiddenPanelIds.includes(id)) ?? '',
+      };
+    }
+    return {
+      zones,
+      hiddenPanelIds,
+      floatingPanels: workspace.floatingPanels.filter((fp) => getPanelById(fp.panelId)),
+      upperSplitRatio: Math.max(0, Math.min(1, workspace.upperSplitRatio)),
+      columnRatios: {
+        left: normalizeRatios(workspace.columnRatios.left),
+        right: normalizeRatios(workspace.columnRatios.right),
+      },
     };
+  };
+  const design = sanitizeWorkspace(getWorkspacePanelLayout(layout, 'design'));
+  const run = sanitizeWorkspace(getWorkspacePanelLayout(layout, 'run'));
+  const withDesign = setWorkspacePanelLayout(layout, 'design', design);
+
+  return setWorkspacePanelLayout({
+    ...withDesign,
+    layoutVersion: layout.layoutVersion,
+    toolbarVisibility: normalizeToolbarVisibility(layout.toolbarVisibility),
+  }, 'run', run);
+}
+
+function revealWorkspaceZone(workspace: WorkspacePanelLayout, zone: PhysicalDockZone): WorkspacePanelLayout {
+  const side = getColumnForZone(zone);
+  if (!side) return workspace;
+  const zoneIndex = COLUMN_ZONES[side].indexOf(zone as never);
+  const ratios = [...workspace.columnRatios[side]] as ColumnSplitRatios;
+  if (zoneIndex < 0 || ratios[zoneIndex] > 0) return workspace;
+  const donorIndex = ratios.indexOf(Math.max(...ratios));
+  const revealSize = ratios[donorIndex] >= 0.5 ? 0.32 : ratios[donorIndex] / 2;
+  ratios[donorIndex] -= revealSize;
+  ratios[zoneIndex] = revealSize;
+  return {
+    ...workspace,
+    upperSplitRatio: side === 'right' ? ratios[0] : workspace.upperSplitRatio,
+    columnRatios: { ...workspace.columnRatios, [side]: ratios },
+  };
+}
+
+function collapseWorkspaceZone(workspace: WorkspacePanelLayout, zone: PhysicalDockZone): WorkspacePanelLayout {
+  const side = getColumnForZone(zone);
+  if (!side) return workspace;
+  const zoneIndex = COLUMN_ZONES[side].indexOf(zone as never);
+  if (zoneIndex < 0) return workspace;
+
+  const ratios = [...workspace.columnRatios[side]] as ColumnSplitRatios;
+  const released = ratios[zoneIndex];
+  ratios[zoneIndex] = 0;
+  const remainingTotal = ratios.reduce((sum, ratio) => sum + ratio, 0);
+  if (remainingTotal <= 0) {
+    ratios[0] = 1;
+  } else if (released > 0) {
+    for (let index = 0; index < ratios.length; index += 1) {
+      if (index !== zoneIndex && ratios[index] > 0) {
+        ratios[index] += released * (ratios[index] / remainingTotal);
+      }
+    }
   }
 
   return {
-    ...layout,
-    zones,
-    hiddenPanelIds,
-    floatingPanels: layout.floatingPanels.filter((fp) => getPanelById(fp.panelId)),
-    toolbarVisibility: normalizeToolbarVisibility(layout.toolbarVisibility),
+    ...workspace,
+    upperSplitRatio: side === 'right' ? ratios[0] : workspace.upperSplitRatio,
+    columnRatios: { ...workspace.columnRatios, [side]: ratios },
   };
 }
 
@@ -414,7 +516,7 @@ function showMeasurementPanel(
     };
   }
 
-  const targetZone: PhysicalDockZone = 'upper-right';
+  const targetZone: PhysicalDockZone = 'top-right';
   return {
     layout: {
       ...layout,
@@ -475,7 +577,6 @@ export const useUiStore = create<UiStoreState>((set) => ({
   moveWindowJogDistanceMm: 10,
   moveWindowJogFeedRateMmMin: 1000,
   lastShapeSubTool: 'rect',
-  lastBooleanOp: 'union',
   showNotesDialog: false,
   nodeEditNodeCount: 0,
   nodeSubMode: 'select' as NodeSubMode,
@@ -499,89 +600,99 @@ export const useUiStore = create<UiStoreState>((set) => ({
   toggleNotesDialog: () => set((s) => ({ showNotesDialog: !s.showNotesDialog })),
 
   setZoneActiveTab: (zone, tabId) =>
-    set((s) => ({
-      panelLayout: {
-        ...s.panelLayout,
+    set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const nextWorkspace = {
+        ...workspace,
         zones: {
-          ...s.panelLayout.zones,
-          [zone]: { ...s.panelLayout.zones[zone], activeTab: tabId },
+          ...workspace.zones,
+          [zone]: { ...workspace.zones[zone], activeTab: tabId },
         },
-      },
-    })),
+      };
+      return { panelLayout: setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace) };
+    }),
 
   showPanel: (panelId) =>
     set((s) => {
-      const hidden = s.panelLayout.hiddenPanelIds;
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const hidden = workspace.hiddenPanelIds;
       const isHidden = hidden.includes(panelId);
-      const newLayout: PanelLayoutState = {
-        ...s.panelLayout,
+      let nextWorkspace: WorkspacePanelLayout = {
+        ...workspace,
         hiddenPanelIds: isHidden ? hidden.filter((id) => id !== panelId) : hidden,
       };
-      const floatingIndex = newLayout.floatingPanels.findIndex((fp) => fp.panelId === panelId);
+      const floatingIndex = nextWorkspace.floatingPanels.findIndex((fp) => fp.panelId === panelId);
       if (floatingIndex >= 0) {
         const nextZ = s.nextFloatingZIndex;
-        newLayout.floatingPanels = newLayout.floatingPanels.map((fp, index) =>
+        nextWorkspace.floatingPanels = nextWorkspace.floatingPanels.map((fp, index) =>
           index === floatingIndex ? { ...fp, zIndex: nextZ } : fp,
         );
+        const newLayout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
         appService.persistLayout(newLayout);
         return { panelLayout: newLayout, nextFloatingZIndex: nextZ + 1 };
       }
 
       const def = getPanelById(panelId);
       if (def) {
-        const existingZoneKey = (Object.keys(newLayout.zones) as PhysicalDockZone[]).find(
-          (zk) => newLayout.zones[zk].panelIds.includes(panelId),
+        const existingZoneKey = (Object.keys(nextWorkspace.zones) as PhysicalDockZone[]).find(
+          (zk) => nextWorkspace.zones[zk].panelIds.includes(panelId),
         );
         if (!existingZoneKey) {
           if (def.defaultZone === 'floating') {
             const size = def.defaultFloatSize ?? { w: 384, h: 300 };
             const nextZ = s.nextFloatingZIndex;
-            newLayout.floatingPanels = [
-              ...newLayout.floatingPanels,
+            nextWorkspace.floatingPanels = [
+              ...nextWorkspace.floatingPanels,
               { panelId, x: 100, y: 100, width: size.w, height: size.h, zIndex: nextZ },
             ];
+            const newLayout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
             appService.persistLayout(newLayout);
             return { panelLayout: newLayout, nextFloatingZIndex: nextZ + 1 };
           }
           const targetZone = def.defaultZone as PhysicalDockZone;
-          const zone = newLayout.zones[targetZone];
+          const zone = nextWorkspace.zones[targetZone];
           if (zone) {
-            newLayout.zones = {
-              ...newLayout.zones,
+            nextWorkspace.zones = {
+              ...nextWorkspace.zones,
               [targetZone]: { ...zone, panelIds: [...zone.panelIds, panelId], activeTab: panelId },
             };
+            nextWorkspace = revealWorkspaceZone(nextWorkspace, targetZone);
           }
         } else {
-          const zone = newLayout.zones[existingZoneKey];
-          newLayout.zones = {
-            ...newLayout.zones,
+          const zone = nextWorkspace.zones[existingZoneKey];
+          nextWorkspace.zones = {
+            ...nextWorkspace.zones,
             [existingZoneKey]: { ...zone, activeTab: panelId },
           };
+          nextWorkspace = revealWorkspaceZone(nextWorkspace, existingZoneKey);
         }
       }
 
+      const newLayout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
       appService.persistLayout(newLayout);
       return { panelLayout: newLayout };
     }),
 
   togglePanelVisibility: (panelId) =>
     set((s) => {
-      const hidden = s.panelLayout.hiddenPanelIds;
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const hidden = workspace.hiddenPanelIds;
       const isHidden = hidden.includes(panelId);
       const newHidden = isHidden ? hidden.filter((id) => id !== panelId) : [...hidden, panelId];
 
       // Keep floating entries on hide — position/size is preserved in floatingPanels.
       // FloatingPanelLayer filters out hidden panels before rendering.
-      const newLayout: PanelLayoutState = { ...s.panelLayout, hiddenPanelIds: newHidden };
+      let nextWorkspace: WorkspacePanelLayout = { ...workspace, hiddenPanelIds: newHidden };
 
       if (isHidden) {
         // Showing: if the panel is already in floatingPanels, unhide it and bring to front
-        const wasFloating = newLayout.floatingPanels.some((fp) => fp.panelId === panelId);
+        const wasFloating = nextWorkspace.floatingPanels.some((fp) => fp.panelId === panelId);
         if (wasFloating) {
           const nextZ = s.nextFloatingZIndex;
-          newLayout.floatingPanels = newLayout.floatingPanels.map((fp) =>
+          nextWorkspace.floatingPanels = nextWorkspace.floatingPanels.map((fp) =>
             fp.panelId === panelId ? { ...fp, zIndex: nextZ } : fp,
           );
+          const newLayout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
           appService.persistLayout(newLayout);
           return { panelLayout: newLayout, nextFloatingZIndex: nextZ + 1 };
         }
@@ -591,10 +702,11 @@ export const useUiStore = create<UiStoreState>((set) => ({
         if (def?.defaultZone === 'floating') {
           const size = def.defaultFloatSize ?? { w: 384, h: 300 };
           const nextZ = s.nextFloatingZIndex;
-          newLayout.floatingPanels = [
-            ...newLayout.floatingPanels,
+          nextWorkspace.floatingPanels = [
+            ...nextWorkspace.floatingPanels,
             { panelId, x: 100, y: 100, width: size.w, height: size.h, zIndex: nextZ },
           ];
+          const newLayout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
           appService.persistLayout(newLayout);
           return { panelLayout: newLayout, nextFloatingZIndex: nextZ + 1 };
         }
@@ -602,30 +714,32 @@ export const useUiStore = create<UiStoreState>((set) => ({
         // If unhiding a docked panel that is not in any zone, insert it into its defaultZone.
         // If it IS already in a zone, activate its tab so the user actually sees it.
         if (def) {
-          const existingZoneKey = (Object.keys(newLayout.zones) as PhysicalDockZone[]).find(
-            (zk) => newLayout.zones[zk].panelIds.includes(panelId),
+          const existingZoneKey = (Object.keys(nextWorkspace.zones) as PhysicalDockZone[]).find(
+            (zk) => nextWorkspace.zones[zk].panelIds.includes(panelId),
           );
           if (!existingZoneKey) {
             const targetZone = def.defaultZone as PhysicalDockZone;
-            const zone = newLayout.zones[targetZone];
+            const zone = nextWorkspace.zones[targetZone];
             if (zone) {
-              newLayout.zones = {
-                ...newLayout.zones,
+              nextWorkspace.zones = {
+                ...nextWorkspace.zones,
                 [targetZone]: { ...zone, panelIds: [...zone.panelIds, panelId], activeTab: panelId },
               };
+              nextWorkspace = revealWorkspaceZone(nextWorkspace, targetZone);
             }
           } else {
-            const zone = newLayout.zones[existingZoneKey];
-            newLayout.zones = {
-              ...newLayout.zones,
+            const zone = nextWorkspace.zones[existingZoneKey];
+            nextWorkspace.zones = {
+              ...nextWorkspace.zones,
               [existingZoneKey]: { ...zone, activeTab: panelId },
             };
+            nextWorkspace = revealWorkspaceZone(nextWorkspace, existingZoneKey);
           }
         }
       }
 
       // If hiding the active tab in a zone, switch to the first visible tab in that zone
-      const newZones = { ...newLayout.zones };
+      const newZones = { ...nextWorkspace.zones };
       if (!isHidden) {
         for (const zoneKey of Object.keys(newZones) as PhysicalDockZone[]) {
           const zone = newZones[zoneKey];
@@ -636,10 +750,11 @@ export const useUiStore = create<UiStoreState>((set) => ({
         }
       }
 
-      const layout = {
-        ...newLayout,
+      nextWorkspace = {
+        ...nextWorkspace,
         zones: newZones,
       };
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
       appService.persistLayout(layout);
       return {
         panelLayout: layout,
@@ -675,29 +790,156 @@ export const useUiStore = create<UiStoreState>((set) => ({
     }),
 
   setUpperSplitRatio: (ratio) =>
-    set((s) => ({
-      panelLayout: {
-        ...s.panelLayout,
-        upperSplitRatio: Math.max(0.2, Math.min(0.8, ratio)),
-      },
-    })),
+    set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const clamped = Math.max(0, Math.min(1, ratio));
+      const snapped = clamped < 0.06 ? 0 : clamped > 0.94 ? 1 : clamped;
+      const rightRatios: ColumnSplitRatios = [snapped, 1 - snapped, 0];
+      return {
+        panelLayout: setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, {
+          ...workspace,
+          upperSplitRatio: snapped,
+          columnRatios: { ...workspace.columnRatios, right: rightRatios },
+        }),
+      };
+    }),
+
+  swapRightPanelZones: () =>
+    set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const nextWorkspace: WorkspacePanelLayout = {
+        ...workspace,
+        zones: {
+          ...workspace.zones,
+          'top-right': workspace.zones['middle-right'],
+          'middle-right': workspace.zones['top-right'],
+        },
+        upperSplitRatio: 1 - workspace.upperSplitRatio,
+        columnRatios: {
+          ...workspace.columnRatios,
+          right: [
+            workspace.columnRatios.right[1],
+            workspace.columnRatios.right[0],
+            workspace.columnRatios.right[2],
+          ],
+        },
+      };
+      return { panelLayout: setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace) };
+    }),
+
+  setColumnBoundary: (side, upperIndex, boundaryRatio, requestedLowerIndex) =>
+    set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const ratios = [...workspace.columnRatios[side]] as ColumnSplitRatios;
+      const lowerIndex = requestedLowerIndex ?? upperIndex + 1;
+      const prefix = ratios.slice(0, upperIndex).reduce((sum, ratio) => sum + ratio, 0);
+      const pairTotal = ratios[upperIndex] + ratios[lowerIndex];
+      if (pairTotal <= 0) return {};
+      const clamped = Math.max(prefix, Math.min(prefix + pairTotal, boundaryRatio));
+      let first = clamped - prefix;
+      let second = pairTotal - first;
+      if (first < 0.06) {
+        first = 0;
+        second = pairTotal;
+      } else if (second < 0.06) {
+        first = pairTotal;
+        second = 0;
+      }
+      ratios[upperIndex] = first;
+      ratios[lowerIndex] = second;
+      const nextWorkspace: WorkspacePanelLayout = {
+        ...workspace,
+        upperSplitRatio: side === 'right' && upperIndex === 0 ? ratios[0] : workspace.upperSplitRatio,
+        columnRatios: { ...workspace.columnRatios, [side]: ratios },
+      };
+      return { panelLayout: setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace) };
+    }),
+
+  revealColumnEdge: (side, edge) =>
+    set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const zoneIds = COLUMN_ZONES[side];
+      const ratios = [...workspace.columnRatios[side]] as ColumnSplitRatios;
+      const activeCount = ratios.filter((ratio) => ratio > 0).length;
+      if (activeCount >= 3) return {};
+      const zones = { ...workspace.zones };
+      const emptyZone = { panelIds: [], activeTab: '' };
+
+      // If an interior section was collapsed, either outer reveal handle restores
+      // that same section instead of shifting zones and orphaning its tabs.
+      if (activeCount === 2) {
+        const collapsedIndex = ratios.findIndex((ratio) => ratio <= 0);
+        if (collapsedIndex >= 0) {
+          const revealSize = 0.28;
+          const occupiedTotal = ratios.reduce((sum, ratio) => sum + ratio, 0);
+          for (let index = 0; index < ratios.length; index += 1) {
+            if (index !== collapsedIndex && ratios[index] > 0) {
+              ratios[index] = ratios[index] / occupiedTotal * (1 - revealSize);
+            }
+          }
+          ratios[collapsedIndex] = revealSize;
+        }
+      } else if (edge === 'top') {
+        if (ratios[0] <= 0) {
+          const remaining = ratios[1] + ratios[2];
+          ratios[0] = 0.28;
+          if (remaining > 0) {
+            ratios[1] = ratios[1] / remaining * 0.72;
+            ratios[2] = ratios[2] / remaining * 0.72;
+          }
+        } else {
+          zones[zoneIds[2]] = workspace.zones[zoneIds[1]];
+          zones[zoneIds[1]] = workspace.zones[zoneIds[0]];
+          zones[zoneIds[0]] = emptyZone;
+          ratios[2] = ratios[1] * 0.72;
+          ratios[1] = ratios[0] * 0.72;
+          ratios[0] = 0.28;
+        }
+      } else if (ratios[1] <= 0 && ratios[2] <= 0) {
+        ratios[0] = 0.72;
+        ratios[1] = 0.28;
+      } else if (ratios[2] <= 0) {
+        const occupied = ratios[0] + ratios[1];
+        ratios[0] = ratios[0] / occupied * 0.72;
+        ratios[1] = ratios[1] / occupied * 0.72;
+        ratios[2] = 0.28;
+      } else {
+        zones[zoneIds[0]] = workspace.zones[zoneIds[1]];
+        zones[zoneIds[1]] = workspace.zones[zoneIds[2]];
+        zones[zoneIds[2]] = emptyZone;
+        ratios[0] = ratios[1] * 0.72;
+        ratios[1] = ratios[2] * 0.72;
+        ratios[2] = 0.28;
+      }
+
+      const nextWorkspace: WorkspacePanelLayout = {
+        ...workspace,
+        zones,
+        upperSplitRatio: side === 'right' ? ratios[0] : workspace.upperSplitRatio,
+        columnRatios: { ...workspace.columnRatios, [side]: ratios },
+      };
+      return { panelLayout: setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace) };
+    }),
 
   setRightPanelWidth: (width) =>
     set((s) => ({
       panelLayout: {
         ...s.panelLayout,
-        rightPanelWidth: Math.max(180, Math.min(600, width)),
+        rightPanelWidth: width < 180 ? 0 : Math.min(600, width),
       },
     })),
 
   setLeftPanelWidth: (width) =>
     set((s) => ({
-      panelLayout: { ...s.panelLayout, leftPanelWidth: Math.max(150, Math.min(600, width)) },
+      panelLayout: { ...s.panelLayout, leftPanelWidth: width < 150 ? 0 : Math.min(600, width) },
     })),
 
   setBottomPanelHeight: (height) =>
     set((s) => ({
-      panelLayout: { ...s.panelLayout, bottomPanelHeight: Math.max(36, Math.min(500, height)) },
+      panelLayout: {
+        ...s.panelLayout,
+        bottomPanelHeight: height < BOTTOM_DOCK_COLLAPSE_THRESHOLD ? 0 : Math.min(500, height),
+      },
     })),
 
   resetLayout: () => {
@@ -708,10 +950,73 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   // --- Floating panel actions ---
 
+  addPanelInstance: (panelTypeId, targetZone) =>
+    set((s) => {
+      const definition = getPanelById(panelTypeId);
+      if (!definition) return {};
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const occupiedIds = [
+        ...Object.values(workspace.zones).flatMap((zone) => zone.panelIds),
+        ...workspace.floatingPanels.map((panel) => panel.panelId),
+      ];
+      const panelId = createPanelInstanceId(definition.id, occupiedIds);
+      const target = workspace.zones[targetZone];
+      if (!target) return {};
+      const zones = {
+        ...workspace.zones,
+        [targetZone]: {
+          ...target,
+          panelIds: [...target.panelIds, panelId],
+          activeTab: panelId,
+        },
+      };
+      const nextWorkspace = revealWorkspaceZone({
+        ...workspace,
+        zones,
+        hiddenPanelIds: workspace.hiddenPanelIds.filter((id) => id !== panelId),
+      }, targetZone);
+      const layout = revealPhysicalDock(
+        setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace),
+        targetZone,
+      );
+      appService.persistLayout(layout);
+      return { panelLayout: layout };
+    }),
+
+  removePanelInstance: (panelId) =>
+    set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const hiddenPanelIds = workspace.hiddenPanelIds.filter((id) => id !== panelId);
+      let emptiedZone: PhysicalDockZone | null = null;
+      const zones = { ...workspace.zones };
+      for (const zoneKey of Object.keys(zones) as PhysicalDockZone[]) {
+        const zone = zones[zoneKey];
+        if (!zone.panelIds.includes(panelId)) continue;
+        const panelIds = zone.panelIds.filter((id) => id !== panelId);
+        zones[zoneKey] = fixActiveTab({ ...zone, panelIds }, panelId, hiddenPanelIds);
+        if (!panelIds.some((id) => !hiddenPanelIds.includes(id))) emptiedZone = zoneKey;
+      }
+
+      let nextWorkspace: WorkspacePanelLayout = {
+        ...workspace,
+        zones,
+        hiddenPanelIds,
+        floatingPanels: workspace.floatingPanels.filter((panel) => panel.panelId !== panelId),
+      };
+      if (emptiedZone) nextWorkspace = collapseWorkspaceZone(nextWorkspace, emptiedZone);
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
+      appService.persistLayout(layout);
+      return {
+        panelLayout: layout,
+        ...(getPanelTypeId(panelId) === 'camera' ? { cameraWindowOpen: false } : {}),
+      };
+    }),
+
   floatPanel: (panelId, x, y, w, h) =>
     set((s) => {
-      const newZones = { ...s.panelLayout.zones };
-      const hidden = s.panelLayout.hiddenPanelIds;
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const newZones = { ...workspace.zones };
+      const hidden = workspace.hiddenPanelIds;
 
       // Remove from whichever dock zone it's in, recording the origin zone and tab index
       let originZone: string | undefined;
@@ -729,88 +1034,110 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
       const nextZ = s.nextFloatingZIndex;
       const fp: FloatingPanelState = { panelId, x: clampFloatX(x), y: clampFloatY(y), width: w, height: h, zIndex: nextZ, originZone, originIndex };
-      const newFloating = [...s.panelLayout.floatingPanels.filter((f) => f.panelId !== panelId), fp];
+      const newFloating = [...workspace.floatingPanels.filter((f) => f.panelId !== panelId), fp];
 
       // Remove from hidden if present
       const newHidden = hidden.filter((id) => id !== panelId);
 
-      const layout: PanelLayoutState = {
-        ...s.panelLayout,
+      const nextWorkspace: WorkspacePanelLayout = {
+        ...workspace,
         zones: newZones,
         floatingPanels: newFloating,
         hiddenPanelIds: newHidden,
       };
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
       appService.persistLayout(layout);
       return { panelLayout: layout, nextFloatingZIndex: nextZ + 1 };
     }),
 
   dockPanel: (panelId, targetZone, insertIndex) =>
     set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
       // Remove from floatingPanels
-      const newFloating = s.panelLayout.floatingPanels.filter((fp) => fp.panelId !== panelId);
+      const newFloating = workspace.floatingPanels.filter((fp) => fp.panelId !== panelId);
 
       // Remove from hidden
-      const newHidden = s.panelLayout.hiddenPanelIds.filter((id) => id !== panelId);
+      const newHidden = workspace.hiddenPanelIds.filter((id) => id !== panelId);
 
       // Add to target zone
-      const newZones = { ...s.panelLayout.zones };
+      const newZones = { ...workspace.zones };
       const zone = newZones[targetZone];
       const panelIds = zone.panelIds.filter((id) => id !== panelId);
       const idx = insertIndex !== undefined ? Math.min(insertIndex, panelIds.length) : panelIds.length;
       panelIds.splice(idx, 0, panelId);
       newZones[targetZone] = { panelIds, activeTab: panelId };
 
-      const layout: PanelLayoutState = {
-        ...s.panelLayout,
+      const nextWorkspace = revealWorkspaceZone({
+        ...workspace,
         zones: newZones,
         floatingPanels: newFloating,
         hiddenPanelIds: newHidden,
-      };
+      }, targetZone);
+      const layout = revealPhysicalDock(
+        setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace),
+        targetZone,
+      );
       appService.persistLayout(layout);
       return { panelLayout: layout };
     }),
 
   moveFloatingPanel: (panelId, x, y) =>
     set((s) => {
-      const newFloating = s.panelLayout.floatingPanels.map((fp) =>
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const newFloating = workspace.floatingPanels.map((fp) =>
         fp.panelId === panelId ? { ...fp, x: clampFloatX(x), y: clampFloatY(y) } : fp,
       );
-      const layout = { ...s.panelLayout, floatingPanels: newFloating };
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, {
+        ...workspace,
+        floatingPanels: newFloating,
+      });
       appService.persistLayout(layout);
       return { panelLayout: layout };
     }),
 
   resizeFloatingPanel: (panelId, w, h) =>
     set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
       const def = getPanelById(panelId);
       const minW = def?.minFloatSize?.w ?? 200;
       const minH = def?.minFloatSize?.h ?? 150;
-      const newFloating = s.panelLayout.floatingPanels.map((fp) =>
+      const newFloating = workspace.floatingPanels.map((fp) =>
         fp.panelId === panelId ? { ...fp, width: Math.max(minW, w), height: Math.max(minH, h) } : fp,
       );
-      const layout = { ...s.panelLayout, floatingPanels: newFloating };
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, {
+        ...workspace,
+        floatingPanels: newFloating,
+      });
       appService.persistLayout(layout);
       return { panelLayout: layout };
     }),
 
   bringToFront: (panelId) =>
     set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
       const nextZ = s.nextFloatingZIndex;
-      const newFloating = s.panelLayout.floatingPanels.map((fp) =>
+      const newFloating = workspace.floatingPanels.map((fp) =>
         fp.panelId === panelId ? { ...fp, zIndex: nextZ } : fp,
       );
-      const layout = { ...s.panelLayout, floatingPanels: newFloating };
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, {
+        ...workspace,
+        floatingPanels: newFloating,
+      });
       appService.persistLayout(layout);
       return { panelLayout: layout, nextFloatingZIndex: nextZ + 1 };
     }),
 
   closeFloatingPanel: (panelId) =>
     set((s) => {
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
       // Keep floating entry (position/size preserved) — just hide the panel
-      const newHidden = s.panelLayout.hiddenPanelIds.includes(panelId)
-        ? s.panelLayout.hiddenPanelIds
-        : [...s.panelLayout.hiddenPanelIds, panelId];
-      const layout: PanelLayoutState = { ...s.panelLayout, hiddenPanelIds: newHidden };
+      const newHidden = workspace.hiddenPanelIds.includes(panelId)
+        ? workspace.hiddenPanelIds
+        : [...workspace.hiddenPanelIds, panelId];
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, {
+        ...workspace,
+        hiddenPanelIds: newHidden,
+      });
       appService.persistLayout(layout);
       return {
         panelLayout: layout,
@@ -820,8 +1147,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   movePanelBetweenZones: (panelId, fromZone, toZone, insertIndex) =>
     set((s) => {
-      const newZones = { ...s.panelLayout.zones };
-      const hidden = s.panelLayout.hiddenPanelIds;
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const newZones = { ...workspace.zones };
+      const hidden = workspace.hiddenPanelIds;
 
       // Remove from source zone
       const fromState = newZones[fromZone];
@@ -835,21 +1163,29 @@ export const useUiStore = create<UiStoreState>((set) => ({
       toIds.splice(idx, 0, panelId);
       newZones[toZone] = { panelIds: toIds, activeTab: panelId };
 
-      const layout: PanelLayoutState = { ...s.panelLayout, zones: newZones };
+      const nextWorkspace = revealWorkspaceZone({ ...workspace, zones: newZones }, toZone);
+      const layout = revealPhysicalDock(
+        setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace),
+        toZone,
+      );
       appService.persistLayout(layout);
       return { panelLayout: layout };
     }),
 
   reorderPanelInZone: (panelId, zone, newIndex) =>
     set((s) => {
-      const newZones = { ...s.panelLayout.zones };
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const newZones = { ...workspace.zones };
       const zoneState = newZones[zone];
       const ids = zoneState.panelIds.filter((id) => id !== panelId);
       const idx = Math.min(newIndex, ids.length);
       ids.splice(idx, 0, panelId);
       newZones[zone] = { ...zoneState, panelIds: ids };
 
-      const layout: PanelLayoutState = { ...s.panelLayout, zones: newZones };
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, {
+        ...workspace,
+        zones: newZones,
+      });
       appService.persistLayout(layout);
       return { panelLayout: layout };
     }),
@@ -920,6 +1256,15 @@ export const useUiStore = create<UiStoreState>((set) => ({
   },
 
   setActiveTool: (tool) => {
+    // Run is an inspection/execution workspace. Tool commands can originate
+    // from global shortcuts and native-menu actions even though the creation
+    // toolbar is hidden, so reject drawing/editing tools at the store boundary.
+    // Laser Position is the one Run-owned canvas tool; reject it in Design too
+    // so shortcuts and native menu commands cannot bypass workspace ownership.
+    const workspaceMode = useUiStore.getState().workspaceMode;
+    if (workspaceMode === 'run' && tool !== 'select' && tool !== 'laser_position') return;
+    if (workspaceMode === 'design' && tool === 'laser_position') return;
+
     const prevId = useUiStore.getState().textEditObjectId;
     const prevMode = useUiStore.getState().textEditMode;
     const shouldDelete = isNewEmptyText(prevId, prevMode);
@@ -937,6 +1282,10 @@ export const useUiStore = create<UiStoreState>((set) => ({
         return {
           activeTool: tool,
           nodeSubMode: 'select' as NodeSubMode,
+          // Set Start Point is a modal canvas overlay, not an active ToolType.
+          // Any explicit tool choice must dismiss it, even when the user
+          // re-selects the tool that is already active (most often Select).
+          pendingStartPointObjectId: null,
           ...EMPTY_TEXT_EDIT_STATE,
           panelLayout: panelUpdate.layout,
           sidePanelsVisible: panelUpdate.layout.sidePanelsVisible,
@@ -960,6 +1309,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
           return {
             activeTool: tool,
             nodeSubMode: 'select' as NodeSubMode,
+            pendingStartPointObjectId: null,
             ...EMPTY_TEXT_EDIT_STATE,
             panelLayout: panelUpdate.layout,
             sidePanelsVisible: panelUpdate.layout.sidePanelsVisible,
@@ -1008,7 +1358,13 @@ export const useUiStore = create<UiStoreState>((set) => ({
       return { viewStyle: (isFilled ? `wireframe${suffix}` : `filled${suffix}`) as ViewStyle };
     }),
   toggleLibraryDrawer: () => set((s) => ({ libraryDrawerOpen: !s.libraryDrawerOpen })),
-  setWorkspaceMode: (mode) => set({ workspaceMode: mode, libraryDrawerOpen: false }),
+  setWorkspaceMode: (mode) => set((s) => ({
+    workspaceMode: mode,
+    libraryDrawerOpen: false,
+    ...(mode === 'run' || s.activeTool === 'laser_position'
+      ? { activeTool: 'select' as const }
+      : {}),
+  })),
   setLibraryDrawerTab: (tab) => set({ libraryDrawerTab: tab }),
   toggleSidePanels: () => {
     set((s) => {
@@ -1022,40 +1378,43 @@ export const useUiStore = create<UiStoreState>((set) => ({
   togglePrintAndCut: () => set((s) => ({ printAndCutEnabled: !s.printAndCutEnabled })),
   toggleCameraWindow: () =>
     set((s) => {
-      const hidden = s.panelLayout.hiddenPanelIds;
+      const workspace = getWorkspacePanelLayout(s.panelLayout, s.workspaceMode);
+      const hidden = workspace.hiddenPanelIds;
       const isHidden = hidden.includes('camera');
-      const isFloating = s.panelLayout.floatingPanels.some((fp) => fp.panelId === 'camera');
+      const isFloating = workspace.floatingPanels.some((fp) => fp.panelId === 'camera');
 
       if (isHidden) {
         // If camera has a saved floating entry, unhide it and bring to front
-        const wasFloating = s.panelLayout.floatingPanels.some((fp) => fp.panelId === 'camera');
+        const wasFloating = workspace.floatingPanels.some((fp) => fp.panelId === 'camera');
         if (wasFloating) {
           const nextZ = s.nextFloatingZIndex;
-          const layout: PanelLayoutState = {
-            ...s.panelLayout,
+          const nextWorkspace: WorkspacePanelLayout = {
+            ...workspace,
             hiddenPanelIds: hidden.filter((id) => id !== 'camera'),
-            floatingPanels: s.panelLayout.floatingPanels.map((fp) =>
+            floatingPanels: workspace.floatingPanels.map((fp) =>
               fp.panelId === 'camera' ? { ...fp, zIndex: nextZ } : fp,
             ),
           };
+          const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
           appService.persistLayout(layout);
           return { panelLayout: layout, nextFloatingZIndex: nextZ + 1, cameraWindowOpen: true };
         }
 
         // If camera is still in a dock zone, unhide it and activate its tab
-        const dockedZoneKey = (Object.keys(s.panelLayout.zones) as PhysicalDockZone[]).find(
-          (zk) => s.panelLayout.zones[zk].panelIds.includes('camera'),
+        const dockedZoneKey = (Object.keys(workspace.zones) as PhysicalDockZone[]).find(
+          (zk) => workspace.zones[zk].panelIds.includes('camera'),
         );
         if (dockedZoneKey) {
-          const zone = s.panelLayout.zones[dockedZoneKey];
-          const layout: PanelLayoutState = {
-            ...s.panelLayout,
+          const zone = workspace.zones[dockedZoneKey];
+          const nextWorkspace = revealWorkspaceZone({
+            ...workspace,
             hiddenPanelIds: hidden.filter((id) => id !== 'camera'),
             zones: {
-              ...s.panelLayout.zones,
+              ...workspace.zones,
               [dockedZoneKey]: { ...zone, activeTab: 'camera' },
             },
-          };
+          }, dockedZoneKey);
+          const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
           appService.persistLayout(layout);
           return { panelLayout: layout, cameraWindowOpen: true };
         }
@@ -1072,27 +1431,29 @@ export const useUiStore = create<UiStoreState>((set) => ({
           height: size.h,
           zIndex: nextZ,
         };
-        const layout: PanelLayoutState = {
-          ...s.panelLayout,
+        const nextWorkspace: WorkspacePanelLayout = {
+          ...workspace,
           hiddenPanelIds: hidden.filter((id) => id !== 'camera'),
-          floatingPanels: [...s.panelLayout.floatingPanels, fp],
+          floatingPanels: [...workspace.floatingPanels, fp],
         };
+        const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
         appService.persistLayout(layout);
         return { panelLayout: layout, nextFloatingZIndex: nextZ + 1, cameraWindowOpen: true };
       }
 
       if (isFloating) {
         // Hide: keep floating entry (position preserved), just add to hiddenPanelIds
-        const layout: PanelLayoutState = {
-          ...s.panelLayout,
+        const nextWorkspace: WorkspacePanelLayout = {
+          ...workspace,
           hiddenPanelIds: [...hidden, 'camera'],
         };
+        const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
         appService.persistLayout(layout);
         return { panelLayout: layout, cameraWindowOpen: false };
       }
 
       // In a dock zone — hide it
-      const newZones = { ...s.panelLayout.zones };
+      const newZones = { ...workspace.zones };
       const newHidden = [...hidden, 'camera'];
       for (const zoneKey of Object.keys(newZones) as PhysicalDockZone[]) {
         const zone = newZones[zoneKey];
@@ -1101,11 +1462,12 @@ export const useUiStore = create<UiStoreState>((set) => ({
           newZones[zoneKey] = { ...zone, activeTab: firstVisible ?? '' };
         }
       }
-      const layout: PanelLayoutState = {
-        ...s.panelLayout,
+      const nextWorkspace: WorkspacePanelLayout = {
+        ...workspace,
         zones: newZones,
         hiddenPanelIds: newHidden,
       };
+      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
       appService.persistLayout(layout);
       return { panelLayout: layout, cameraWindowOpen: false };
     }),
@@ -1136,7 +1498,6 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setMoveWindowJogDistanceMm: (distanceMm) => set({ moveWindowJogDistanceMm: Math.max(0.001, distanceMm) }),
   setMoveWindowJogFeedRateMmMin: (feedRateMmMin) => set({ moveWindowJogFeedRateMmMin: Math.max(1, feedRateMmMin) }),
   setLastShapeSubTool: (id) => set({ lastShapeSubTool: id }),
-  setLastBooleanOp: (id) => set({ lastBooleanOp: id }),
   setNodeEditNodeCount: (count) => set({ nodeEditNodeCount: count }),
   setNodeSubMode: (mode) => set({ nodeSubMode: mode }),
   setPendingStartPoint: (objectId) => set({ pendingStartPointObjectId: objectId }),
@@ -1146,11 +1507,11 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
 // Convenience getters derived from panelLayout
 export function getActiveUpperTab(): string {
-  return useUiStore.getState().panelLayout.zones['upper-right'].activeTab;
+  return useUiStore.getState().panelLayout.zones['top-right'].activeTab;
 }
 
 export function getActiveLowerTab(): string {
-  return useUiStore.getState().panelLayout.zones['lower-right'].activeTab;
+  return useUiStore.getState().panelLayout.zones['middle-right'].activeTab;
 }
 
 export function getRightPanelWidth(): number {

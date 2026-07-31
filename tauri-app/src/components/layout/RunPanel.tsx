@@ -72,7 +72,7 @@ export function RunPanel() {
         className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-lg"
         style={{ flex: 1 - upperRatio }}
       >
-        <div className="flex border-b border-bb-border px-1 pt-1">
+        <div className="flex border-b border-bb-border px-1 pt-1" role="tablist">
           {LOWER_TABS.map((id) => {
             const def = getPanelById(id);
             return (
@@ -85,6 +85,8 @@ export function RunPanel() {
                 }`}
                 onClick={() => setLowerTab(id)}
                 data-testid={`run-lower-tab-${id}`}
+                role="tab"
+                aria-selected={lowerTab === id}
               >
                 {def ? t(def.titleKey) : id}
               </button>

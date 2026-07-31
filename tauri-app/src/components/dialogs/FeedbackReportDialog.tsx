@@ -3,6 +3,7 @@ import { wrapBackendError } from '../../i18n/errors';
 import { Copy, Eye, EyeOff, FolderOpen, Save, Send, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { feedbackService } from '../../services/feedbackService';
+import { appService } from '../../services/appService';
 import {
   DIAGNOSTIC_BUNDLE_DISCLOSURE_FIELDS,
   MAX_FEEDBACK_DESCRIPTION_CHARS,
@@ -17,6 +18,8 @@ import {
   type SubmitFeedbackResponse,
 } from '../../types/feedback';
 import { useNotificationStore } from '../../stores/notificationStore';
+
+const PRIVACY_POLICY_URL = 'https://beambench.com/privacy#post-job-feedback';
 
 export interface FeedbackReportDialogProps {
   kind: FeedbackKind;
@@ -283,7 +286,18 @@ export function FeedbackReportDialog({
           <div className="grid gap-3">
             {isJobCompatibility && (
               <div className="rounded border border-bb-border bg-bb-bg/60 p-3 text-xs text-bb-text-dim">
-                {t('dialog.feedback.job_compatibility_help')}
+                <p>{t('dialog.feedback.job_compatibility_help')}</p>
+                <button
+                  type="button"
+                  className="mt-2 text-bb-accent underline underline-offset-2 hover:text-bb-accent-hover"
+                  onClick={() => {
+                    void appService.openExternalUrl(PRIVACY_POLICY_URL).catch((openError) => {
+                      useNotificationStore.getState().push(wrapBackendError(String(openError)), 'error');
+                    });
+                  }}
+                >
+                  {t('dialog.feedback.privacy_policy')}
+                </button>
               </div>
             )}
             <label className="grid gap-1 text-xs text-bb-text">
