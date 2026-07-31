@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -9,12 +8,7 @@ import {
   notifyTransformLocked,
   notifyObjectLocked,
 } from '../../utils/transformLocks';
-import { mmToDisplay, displayToMm, roundDisplayLength } from '../../utils/lengthUnits';
 import { IconButton } from '../shared/IconButton';
-import { NumberStepper } from '../shared/NumberStepper';
-import { OffsetDialog } from '../dialogs/OffsetDialog';
-import { GridArrayDialog } from '../dialogs/GridArrayDialog';
-import { CircularArrayDialog } from '../dialogs/CircularArrayDialog';
 import { LayoutGrid } from 'lucide-react';
 
 const RadiusIcon = ({ size = 24 }: { size?: number }) => (
@@ -63,6 +57,9 @@ const OffsetIcon = ({ size = 24 }: { size?: number }) => (
 const SMALL_BUTTON_SIZE = 'sm' as const;
 const TOOL_SELECT = 'select' as const;
 const TOOL_RADIUS = 'radius' as const;
+const MODIFIER_OFFSET = 'offset' as const;
+const MODIFIER_GRID_ARRAY = 'grid_array' as const;
+const MODIFIER_CIRCULAR_ARRAY = 'circular_array' as const;
 
 export function ModifiersToolbar() {
   const { t } = useTranslation();
@@ -70,26 +67,7 @@ export function ModifiersToolbar() {
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
 
   const activeTool = useUiStore((s) => s.activeTool);
-  const radiusToolValue = useUiStore((s) => s.radiusToolValue);
-  const settings = useAppStore((s) => s.settings);
-
-  const [showOffsetDialog, setShowOffsetDialog] = useState(false);
-  const [showGridArrayDialog, setShowGridArrayDialog] = useState(false);
-  const [showCircularArrayDialog, setShowCircularArrayDialog] = useState(false);
-  const [localRadiusStr, setLocalRadiusStr] = useState<string | null>(null);
-
-  const displayUnit = (settings?.display_unit === 'inches' ? 'inches' : 'mm') as 'mm' | 'inches';
-  const unitLabel = displayUnit === 'mm' ? 'mm' : 'in';
-  const radiusStep = displayUnit === 'inches' ? 0.01 : 0.5;
-  const effectiveRadius = radiusToolValue ?? settings?.last_radius_mm ?? 5;
-
-  // Clear stale local input when leaving radius tool or switching units
-  useEffect(() => {
-    if (activeTool !== 'radius') setLocalRadiusStr(null);
-  }, [activeTool]);
-  useEffect(() => {
-    setLocalRadiusStr(null);
-  }, [displayUnit]);
+  const modifierPropertiesSession = useUiStore((s) => s.modifierPropertiesSession);
 
   const selCount = selectedObjectIds.length;
   const selectedObjects = project?.objects.filter((o) => selectedObjectIds.includes(o.id)) ?? [];
@@ -112,6 +90,15 @@ export function ModifiersToolbar() {
     return false;
   };
 
+  const toggleModifierProperties = (kind: 'offset' | 'grid_array' | 'circular_array') => {
+    const ui = useUiStore.getState();
+    if (modifierPropertiesSession?.kind === kind) {
+      ui.closeModifierProperties();
+      return;
+    }
+    if (!guardLock()) ui.openModifierProperties(kind, selectedObjectIds);
+  };
+
   const GroupSeparator = () => <div className="w-10 h-px bg-bb-border my-0.5" />;
 
   return (
@@ -119,23 +106,26 @@ export function ModifiersToolbar() {
       <IconButton
         icon={<OffsetIcon size={24} />}
         label={t('toolbars.modifiers.offset')}
-        onClick={() => { if (!guardLock()) setShowOffsetDialog(true); }}
+        onClick={() => toggleModifierProperties(MODIFIER_OFFSET)}
         disabled={!hasSel}
+        active={modifierPropertiesSession?.kind === 'offset'}
         size={SMALL_BUTTON_SIZE}
       />
       <GroupSeparator />
       <IconButton
         icon={<LayoutGrid size={24} />}
         label={t('toolbars.modifiers.grid_array')}
-        onClick={() => { if (!guardLock()) setShowGridArrayDialog(true); }}
+        onClick={() => toggleModifierProperties(MODIFIER_GRID_ARRAY)}
         disabled={!hasSel}
+        active={modifierPropertiesSession?.kind === 'grid_array'}
         size={SMALL_BUTTON_SIZE}
       />
       <IconButton
         icon={<CircularArrayIcon size={24} />}
         label={t('toolbars.modifiers.circular_array')}
-        onClick={() => { if (!guardLock()) setShowCircularArrayDialog(true); }}
+        onClick={() => toggleModifierProperties(MODIFIER_CIRCULAR_ARRAY)}
         disabled={!hasSel}
+        active={modifierPropertiesSession?.kind === 'circular_array'}
         size={SMALL_BUTTON_SIZE}
       />
       <GroupSeparator />
@@ -170,35 +160,6 @@ export function ModifiersToolbar() {
         active={activeTool === TOOL_RADIUS}
         size={SMALL_BUTTON_SIZE}
       />
-
-      <div className={`flex flex-col items-center gap-1 mt-1 px-0.5 ${activeTool !== TOOL_RADIUS ? 'opacity-40 pointer-events-none' : ''}`}>
-        <span className="text-sm font-medium leading-none text-bb-text-dim">{t('toolbars.modifiers.radius_with_unit', { unit: unitLabel })}</span>
-        <NumberStepper
-          className="w-[3.75rem] text-center text-sm bg-bb-bg border border-bb-border rounded px-1 py-0.5 text-bb-text"
-          value={localRadiusStr ?? roundDisplayLength(mmToDisplay(effectiveRadius, displayUnit), displayUnit)}
-          step={radiusStep}
-          onChange={(e) => {
-            const raw = e.target.value;
-            setLocalRadiusStr(raw);
-            const v = parseFloat(raw);
-            if (!isNaN(v)) {
-              useUiStore.getState().setRadiusToolValue(displayToMm(v, displayUnit));
-            }
-          }}
-          onBlur={() => setLocalRadiusStr(null)}
-          onKeyDown={(e) => { if (e.key === 'Enter') setLocalRadiusStr(null); }}
-        />
-      </div>
-
-      {showOffsetDialog && (
-        <OffsetDialog objectIds={selectedObjectIds} onClose={() => setShowOffsetDialog(false)} />
-      )}
-      {showGridArrayDialog && (
-        <GridArrayDialog objectIds={selectedObjectIds} onClose={() => setShowGridArrayDialog(false)} />
-      )}
-      {showCircularArrayDialog && (
-        <CircularArrayDialog objectIds={selectedObjectIds} onClose={() => setShowCircularArrayDialog(false)} />
-      )}
     </div>
   );
 }

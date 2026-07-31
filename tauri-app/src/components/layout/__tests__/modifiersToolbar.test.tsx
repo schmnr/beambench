@@ -56,21 +56,37 @@ describe('ModifiersToolbar', () => {
     expect(screen.getByTitle('Circular Array').closest('button')?.disabled).toBe(true);
   });
 
-  it('Grid Array button opens dialog instead of executing directly', () => {
+  it('Grid Array button opens a contextual Properties session instead of a dialog', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['a', 'b'] });
     render(<ModifiersToolbar />);
     fireEvent.click(screen.getByTitle('Grid Array'));
-    // Dialog should render with its title
-    expect(screen.getByText('Grid Array')).toBeDefined();
-    expect(screen.getByText('Apply')).toBeDefined();
+    expect(useUiStore.getState().modifierPropertiesSession).toEqual({
+      kind: 'grid_array',
+      objectIds: ['a', 'b'],
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByTitle('Grid Array').closest('button')?.className).toContain('bg-bb-accent/15');
   });
 
-  it('Circular Array button opens dialog instead of executing directly', () => {
+  it('Circular Array button opens a contextual Properties session instead of a dialog', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['a', 'b'] });
     render(<ModifiersToolbar />);
     fireEvent.click(screen.getByTitle('Circular Array'));
-    expect(screen.getByText('Circular Array')).toBeDefined();
-    expect(screen.getByText('Apply')).toBeDefined();
+    expect(useUiStore.getState().modifierPropertiesSession).toEqual({
+      kind: 'circular_array',
+      objectIds: ['a', 'b'],
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('clicking an active modifier button closes its Properties session', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['a', 'b'] });
+    useUiStore.setState({ modifierPropertiesSession: { kind: 'offset', objectIds: ['a', 'b'] } });
+    render(<ModifiersToolbar />);
+
+    fireEvent.click(screen.getByTitle('Offset'));
+
+    expect(useUiStore.getState().modifierPropertiesSession).toBeNull();
   });
 
   it('Grid Array button does not open dialog when locked', () => {
@@ -78,8 +94,7 @@ describe('ModifiersToolbar', () => {
     useProjectStore.setState({ project: makeProject(true), selectedObjectIds: ['a', 'b'], gridArray });
     render(<ModifiersToolbar />);
     fireEvent.click(screen.getByTitle('Grid Array'));
-    // Dialog should NOT render — button is disabled
-    expect(screen.queryByText('Apply')).toBeNull();
+    expect(useUiStore.getState().modifierPropertiesSession).toBeNull();
     expect(gridArray).not.toHaveBeenCalled();
   });
 });

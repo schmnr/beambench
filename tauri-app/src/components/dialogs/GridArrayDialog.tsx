@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { LayoutGrid } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { useAppStore } from '../../stores/appStore';
@@ -10,14 +10,19 @@ import { Toggle } from '../shared/Toggle';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
 import type { GridArraySizingMode, GridSpacingMode } from '../../types/vector';
 import { computeGridArrayFootprint, fitGridArrayCounts } from '../../utils/gridArraySizing';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { ContextualToolActions, ContextualToolPresentation } from '../properties/ContextualToolSection';
+
+const GRID_ARRAY_MIN_WIDTH_CLASS = 'min-w-[360px]';
+const GRID_ARRAY_SUBMIT_TEST_ID = 'grid-array-submit';
+const PROPERTIES_PRESENTATION = 'properties' as const;
 
 interface GridArrayDialogProps {
   objectIds: string[];
   onClose: () => void;
+  presentation?: 'dialog' | 'properties';
 }
 
-export function GridArrayDialog({ objectIds, onClose }: GridArrayDialogProps) {
+export function GridArrayDialog({ objectIds, onClose, presentation = 'dialog' }: GridArrayDialogProps) {
   const { t } = useTranslation();
   const project = useProjectStore((s) => s.project);
   const projectId = project?.metadata.project_id ?? null;
@@ -27,9 +32,6 @@ export function GridArrayDialog({ objectIds, onClose }: GridArrayDialogProps) {
   );
   const initialProjectIdRef = useRef(projectId);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, true);
-
   const [rows, setRows] = useState(2);
   const [cols, setCols] = useState(2);
   const [sizingModeX, setSizingModeX] = useState<GridArraySizingMode>('count');
@@ -187,10 +189,15 @@ export function GridArrayDialog({ objectIds, onClose }: GridArrayDialogProps) {
     }
   };
 
-  return createPortal(
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dialog-title" className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-bb-panel border border-bb-border rounded-lg shadow-xl p-4 min-w-[360px] max-h-[80vh] overflow-y-auto">
-        <h2 id="dialog-title" className="text-sm font-semibold text-bb-text mb-3">{t('dialog.grid_array.title')}</h2>
+  return (
+    <ContextualToolPresentation
+      presentation={presentation}
+      title={t('dialog.grid_array.title')}
+      icon={<LayoutGrid size={16} />}
+      testId="grid-array-properties-section"
+      minWidthClass={GRID_ARRAY_MIN_WIDTH_CLASS}
+      onClose={onClose}
+    >
 
         <div className="text-xs text-bb-text-muted font-medium mb-1">{t('dialog.grid_array.section_grid_size')}</div>
         <div className="space-y-2 mb-3">
@@ -295,12 +302,25 @@ export function GridArrayDialog({ objectIds, onClose }: GridArrayDialogProps) {
           </div>
         )}
 
-        <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose} className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text">{t('common.cancel')}</button>
-          <button data-testid="grid-array-submit" onClick={() => void handleSubmit()} disabled={!isValid} className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent disabled:opacity-50">{t('common.apply')}</button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+        {presentation === 'properties' ? (
+          <ContextualToolActions
+            onCancel={onClose}
+            onApply={() => void handleSubmit()}
+            cancelLabel={t('common.cancel')}
+            applyLabel={t('common.apply')}
+            applyDisabled={!isValid}
+            applyTestId={GRID_ARRAY_SUBMIT_TEST_ID}
+          />
+        ) : (
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={onClose} className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text">{t('common.cancel')}</button>
+            <button data-testid="grid-array-submit" onClick={() => void handleSubmit()} disabled={!isValid} className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent disabled:opacity-50">{t('common.apply')}</button>
+          </div>
+        )}
+    </ContextualToolPresentation>
   );
+}
+
+export function GridArrayPropertiesSection({ objectIds, onClose }: Omit<GridArrayDialogProps, 'presentation'>) {
+  return <GridArrayDialog objectIds={objectIds} onClose={onClose} presentation={PROPERTIES_PRESENTATION} />;
 }

@@ -107,6 +107,7 @@ export function AppShell() {
   const sidePanelsVisible = useUiStore((s) => s.sidePanelsVisible);
   const workspaceMode = useUiStore((s) => s.workspaceMode);
   const activeTool = useUiStore((s) => s.activeTool);
+  const modifierPropertiesSession = useUiStore((s) => s.modifierPropertiesSession);
   const selectionKey = useProjectStore((s) => s.selectedObjectIds.join('|'));
   const runMode = workspaceMode === 'run';
 
@@ -120,11 +121,17 @@ export function AppShell() {
   }, [selectionKey, workspaceMode]);
 
   useEffect(() => {
-    if (workspaceMode !== DESIGN_WORKSPACE || (activeTool !== 'text' && activeTool !== 'node')) return;
+    if (workspaceMode !== DESIGN_WORKSPACE || !['text', 'node', 'radius'].includes(activeTool)) return;
     const ui = useUiStore.getState();
     if (!ui.sidePanelsVisible) ui.toggleSidePanels();
     useUiStore.getState().showPanel(PROPERTIES_PANEL_ID);
   }, [activeTool, workspaceMode]);
+
+  useEffect(() => {
+    if (!modifierPropertiesSession) return;
+    if (selectionKey === modifierPropertiesSession.objectIds.join('|')) return;
+    useUiStore.getState().closeModifierProperties();
+  }, [modifierPropertiesSession, selectionKey]);
   const panelLayout = useUiStore((s) => s.panelLayout);
   const toolbarVisibility = panelLayout.toolbarVisibility;
   const [openedEmptyDocks, setOpenedEmptyDocks] = useState<Record<string, boolean>>({});

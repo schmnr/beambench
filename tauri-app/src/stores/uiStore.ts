@@ -39,6 +39,13 @@ import { useMeasurementStore } from './measurementStore';
 
 export type ToolType = 'select' | 'rect' | 'ellipse' | 'star' | 'text' | 'node' | 'line' | 'polygon' | 'trim' | 'tabs' | 'radius' | 'measure' | 'laser_position' | 'two_point_rotate_scale' | 'warp_selection' | 'deform_selection';
 
+export type ModifierPropertiesKind = 'offset' | 'grid_array' | 'circular_array';
+
+export interface ModifierPropertiesSession {
+  kind: ModifierPropertiesKind;
+  objectIds: string[];
+}
+
 export type NodeSubMode =
   | 'select' | 'insert' | 'delete_node' | 'break'
   | 'delete_segment' | 'to_line' | 'to_smooth' | 'to_corner'
@@ -225,6 +232,11 @@ interface UiStoreState {
   // Radius tool value (per-session override; null = use persisted setting)
   radiusToolValue: number | null;
   setRadiusToolValue: (v: number | null) => void;
+
+  // Contextual modifier controls shown at the bottom of Properties.
+  modifierPropertiesSession: ModifierPropertiesSession | null;
+  openModifierProperties: (kind: ModifierPropertiesKind, objectIds: string[]) => void;
+  closeModifierProperties: () => void;
 
   // Arrangement dialog memory
   dockSettings: DockOptions;
@@ -571,6 +583,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   defaultCornerRadius: 0,
   textDefaults: { ...DEFAULT_TEXT_DEFAULTS },
   radiusToolValue: null,
+  modifierPropertiesSession: null,
   dockSettings: { ...DEFAULT_DOCK_SETTINGS },
   nestSettings: { ...DEFAULT_NEST_SETTINGS },
   nestingInProgress: false,
@@ -1281,6 +1294,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
         }
         return {
           activeTool: tool,
+          modifierPropertiesSession: null,
           nodeSubMode: 'select' as NodeSubMode,
           // Set Start Point is a modal canvas overlay, not an active ToolType.
           // Any explicit tool choice must dismiss it, even when the user
@@ -1308,6 +1322,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
           }
           return {
             activeTool: tool,
+            modifierPropertiesSession: null,
             nodeSubMode: 'select' as NodeSubMode,
             pendingStartPointObjectId: null,
             ...EMPTY_TEXT_EDIT_STATE,
@@ -1361,6 +1376,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setWorkspaceMode: (mode) => set((s) => ({
     workspaceMode: mode,
     libraryDrawerOpen: false,
+    modifierPropertiesSession: null,
     ...(mode === 'run' || s.activeTool === 'laser_position'
       ? { activeTool: 'select' as const }
       : {}),
@@ -1492,6 +1508,17 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setDefaultCornerRadius: (r) => set({ defaultCornerRadius: Math.max(0, r) }),
   updateTextDefaults: (partial) => set((s) => ({ textDefaults: { ...s.textDefaults, ...partial } })),
   setRadiusToolValue: (v) => set({ radiusToolValue: v }),
+  openModifierProperties: (kind, objectIds) => {
+    // Modifier panels are selection actions, not canvas tools. Leaving an
+    // active drawing/editing tool also prevents its overlays from competing
+    // with the contextual controls.
+    useUiStore.getState().setActiveTool('select');
+    set({ modifierPropertiesSession: { kind, objectIds: [...objectIds] } });
+    const ui = useUiStore.getState();
+    if (!ui.sidePanelsVisible) ui.toggleSidePanels();
+    useUiStore.getState().showPanel('properties');
+  },
+  closeModifierProperties: () => set({ modifierPropertiesSession: null }),
   updateDockSettings: (partial) => set((s) => ({ dockSettings: { ...s.dockSettings, ...partial } })),
   updateNestSettings: (partial) => set((s) => ({ nestSettings: { ...s.nestSettings, ...partial } })),
   setNestingInProgress: (inProgress) => set({ nestingInProgress: inProgress }),

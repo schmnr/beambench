@@ -87,6 +87,37 @@ describe('PropertiesPanel', () => {
     expect(powerSlider.compareDocumentPosition(nodeEditing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it.each([
+    ['offset', 'offset-properties-section'],
+    ['grid_array', 'grid-array-properties-section'],
+    ['circular_array', 'circular-array-properties-section'],
+  ] as const)('places the %s controls at the bottom of Properties', (kind, testId) => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({
+      activeTool: 'select',
+      modifierPropertiesSession: { kind, objectIds: ['obj1'] },
+    });
+
+    render(<PropertiesPanel />);
+
+    const powerSlider = screen.getByTestId('properties-power-scale-slider');
+    const modifierSection = screen.getByTestId(testId);
+    expect(powerSlider.compareDocumentPosition(modifierSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('places Radius controls at the bottom while the canvas tool is active', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'radius', radiusToolValue: 7.5 });
+
+    render(<PropertiesPanel />);
+
+    const powerSlider = screen.getByTestId('properties-power-scale-slider');
+    const radiusSection = screen.getByTestId('radius-properties-section');
+    expect(powerSlider.compareDocumentPosition(radiusSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText('Click corner to apply radius fillet')).toBeDefined();
+  });
+
   it('enables Close Path only for an editable open vector and dispatches the one-shot action', () => {
     const project = makeProject({
       data: { type: 'vector_path' as const, path_data: 'M0 0L10 10', closed: false },

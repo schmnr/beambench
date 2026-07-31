@@ -13,6 +13,8 @@ import { useUiStore } from '../../stores/uiStore';
 import { TextDefaultsSection } from './TextDefaultsSection';
 import { SelectionArrangeSection } from './SelectionArrangeSection';
 import { NodeEditingSection } from './NodeEditingSection';
+import { ModifierPropertiesSection } from './ModifierPropertiesSection';
+import { RadiusPropertiesSection } from './RadiusPropertiesSection';
 import { createSelectionContext, isBooleanCompatible } from '../../commands/selectionContext';
 import { IconButton } from '../shared/IconButton';
 import {
@@ -44,6 +46,7 @@ export function PropertiesPanel() {
   const setObjectsVisible = useProjectStore((s) => s.setObjectsVisible);
   const assignImageMask = useProjectStore((s) => s.assignImageMask);
   const activeTool = useUiStore((s) => s.activeTool);
+  const modifierPropertiesSession = useUiStore((s) => s.modifierPropertiesSession);
 
   const selectedObject = project?.objects.find((o) => o.id === selectedObjectIds[0]) ?? null;
   // Multi-selection: batch controls and contextual arrange/vector operations.
@@ -182,6 +185,8 @@ export function PropertiesPanel() {
         )}
 
         {activeTool === 'node' && <NodeEditingSection />}
+        {activeTool === 'radius' && <RadiusPropertiesSection />}
+        <ModifierPropertiesSection />
       </div>
       </div>
     );
@@ -201,6 +206,24 @@ export function PropertiesPanel() {
       return (
         <div className={INSPECTOR_CARD_CLASS} data-testid="text-defaults-card">
           <TextDefaultsSection />
+        </div>
+      );
+    }
+    if (activeTool === 'radius') {
+      return (
+        <div className={INSPECTOR_CARD_CLASS} data-testid="radius-tool-card">
+          <div className="p-3">
+            <RadiusPropertiesSection />
+          </div>
+        </div>
+      );
+    }
+    if (modifierPropertiesSession) {
+      return (
+        <div className={INSPECTOR_CARD_CLASS} data-testid="modifier-properties-card">
+          <div className="p-3">
+            <ModifierPropertiesSection />
+          </div>
         </div>
       );
     }
@@ -369,6 +392,8 @@ export function PropertiesPanel() {
       )}
 
       {activeTool === 'node' && <NodeEditingSection />}
+      {activeTool === 'radius' && <RadiusPropertiesSection />}
+      <ModifierPropertiesSection />
     </div>
     </div>
   );

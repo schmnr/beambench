@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { CircleDot } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { notifyObjectLocked } from '../../utils/transformLocks';
@@ -8,24 +8,26 @@ import { useAppStore } from '../../stores/appStore';
 import { NumberInput } from '../shared/NumberInput';
 import { Toggle } from '../shared/Toggle';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { ContextualToolActions, ContextualToolPresentation } from '../properties/ContextualToolSection';
+
+const CIRCULAR_ARRAY_MIN_WIDTH_CLASS = 'min-w-[340px]';
+const CIRCULAR_ARRAY_SUBMIT_TEST_ID = 'circular-array-submit';
+const PROPERTIES_PRESENTATION = 'properties' as const;
 
 type CenterMode = 'auto' | 'chooseObject' | 'explicit';
 
 interface CircularArrayDialogProps {
   objectIds: string[];
   onClose: () => void;
+  presentation?: 'dialog' | 'properties';
 }
 
-export function CircularArrayDialog({ objectIds, onClose }: CircularArrayDialogProps) {
+export function CircularArrayDialog({ objectIds, onClose, presentation = 'dialog' }: CircularArrayDialogProps) {
   const { t } = useTranslation();
   const project = useProjectStore((s) => s.project);
   const projectId = project?.metadata.project_id ?? null;
   const initialProjectIdRef = useRef(projectId);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, true);
-
   const [count, setCount] = useState(6);
   const [radius, setRadius] = useState(50);
   const [rotateCopies, setRotateCopies] = useState(true);
@@ -96,10 +98,15 @@ export function CircularArrayDialog({ objectIds, onClose }: CircularArrayDialogP
     }
   };
 
-  return createPortal(
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dialog-title" className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-bb-panel border border-bb-border rounded-lg shadow-xl p-4 min-w-[340px] max-h-[80vh] overflow-y-auto">
-        <h2 id="dialog-title" className="text-sm font-semibold text-bb-text mb-3">{t('dialog.circular_array.title')}</h2>
+  return (
+    <ContextualToolPresentation
+      presentation={presentation}
+      title={t('dialog.circular_array.title')}
+      icon={<CircleDot size={16} />}
+      testId="circular-array-properties-section"
+      minWidthClass={CIRCULAR_ARRAY_MIN_WIDTH_CLASS}
+      onClose={onClose}
+    >
 
         {/* Array */}
         <div className="text-xs text-bb-text-muted font-medium mb-1">{t('dialog.circular_array.section_array')}</div>
@@ -175,12 +182,24 @@ export function CircularArrayDialog({ objectIds, onClose }: CircularArrayDialogP
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose} className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text">{t('common.cancel')}</button>
-          <button data-testid="circular-array-submit" onClick={() => void handleSubmit()} className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent">{t('common.apply')}</button>
-        </div>
-      </div>
-    </div>,
-    document.body
+        {presentation === 'properties' ? (
+          <ContextualToolActions
+            onCancel={onClose}
+            onApply={() => void handleSubmit()}
+            cancelLabel={t('common.cancel')}
+            applyLabel={t('common.apply')}
+            applyTestId={CIRCULAR_ARRAY_SUBMIT_TEST_ID}
+          />
+        ) : (
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={onClose} className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text">{t('common.cancel')}</button>
+            <button data-testid="circular-array-submit" onClick={() => void handleSubmit()} className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent">{t('common.apply')}</button>
+          </div>
+        )}
+    </ContextualToolPresentation>
   );
+}
+
+export function CircularArrayPropertiesSection({ objectIds, onClose }: Omit<CircularArrayDialogProps, 'presentation'>) {
+  return <CircularArrayDialog objectIds={objectIds} onClose={onClose} presentation={PROPERTIES_PRESENTATION} />;
 }

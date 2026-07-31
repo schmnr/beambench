@@ -687,23 +687,26 @@ describe('MenuBar', () => {
     );
   });
 
-  it('captures the launch-time selection for Grid Array', () => {
-    const gridArray = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({ gridArray } as never);
+  it('captures the launch-time selection for the Grid Array Properties session', () => {
     setProjectWithSelection(['txt1', 'path1']);
 
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Arrange'));
     fireEvent.click(screen.getByText('Grid Array'));
 
+    expect(useUiStore.getState().modifierPropertiesSession).toEqual({
+      kind: 'grid_array',
+      objectIds: ['txt1', 'path1'],
+    });
+
     act(() => {
       useProjectStore.setState({ selectedObjectIds: ['path2'] });
     });
-    fireEvent.click(screen.getByTestId('grid-array-submit'));
 
-    expect(gridArray).toHaveBeenCalledWith(expect.objectContaining({
+    expect(useUiStore.getState().modifierPropertiesSession).toEqual({
+      kind: 'grid_array',
       objectIds: ['txt1', 'path1'],
-    }));
+    });
   });
 
   it('enables Close & Join for clone-backed vector selections', () => {

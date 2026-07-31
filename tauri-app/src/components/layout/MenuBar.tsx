@@ -20,9 +20,6 @@ import { MachineProfileDialog } from '../machine/MachineProfileDialog';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { AboutDialog } from '../settings/AboutDialog';
-import { GridArrayDialog } from '../dialogs/GridArrayDialog';
-import { CircularArrayDialog } from '../dialogs/CircularArrayDialog';
-import { OffsetDialog } from '../dialogs/OffsetDialog';
 import { BooleanAssistantDialog } from '../dialogs/BooleanAssistantDialog';
 import { TraceImageDialog } from '../dialogs/TraceImageDialog';
 import { AdjustImageDialog } from '../dialogs/AdjustImageDialog';
@@ -40,6 +37,9 @@ import {
   resolveEffectiveData,
 } from '../../commands/selectionContext';
 import type { RecentFile } from '../../types/commands';
+
+const MODIFIER_GRID_ARRAY = 'grid_array' as const;
+const MODIFIER_CIRCULAR_ARRAY = 'circular_array' as const;
 import { findAutoGroupCandidates } from '../../utils/autoGroupCandidates';
 import {
   WINDOW_PANEL_TOOLBAR_MENU_ITEMS,
@@ -141,10 +141,7 @@ export function MenuBar() {
   const [showDeviceSettingsDialog, setShowDeviceSettingsDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
-  const [gridArrayDialogObjectIds, setGridArrayDialogObjectIds] = useState<string[] | null>(null);
-  const [circularArrayDialogObjectIds, setCircularArrayDialogObjectIds] = useState<string[] | null>(null);
   const [copyAlongPathDialogState, setCopyAlongPathDialogState] = useState<{ objectIds: string[]; pathObjectId: string } | null>(null);
-  const [offsetDialogObjectIds, setOffsetDialogObjectIds] = useState<string[] | null>(null);
   const [nestDialogObjectIds, setNestDialogObjectIds] = useState<string[] | null>(null);
   const [booleanAssistantObjectIds, setBooleanAssistantObjectIds] = useState<string[] | null>(null);
   const [traceDialogObjectId, setTraceDialogObjectId] = useState<string | null>(null);
@@ -432,10 +429,10 @@ export function MenuBar() {
     openTraceImage: setTraceDialogObjectId,
     openAdjustImage: setAdjustDialogObjectId,
     openBarcode: setBarcodeDialogLayerId,
-    openOffset: (objectIds) => setOffsetDialogObjectIds([...objectIds]),
+    openOffset: (objectIds) => useUiStore.getState().openModifierProperties('offset', objectIds),
     openBooleanAssistant: (objectIds) => setBooleanAssistantObjectIds([...objectIds]),
-    openGridArray: (objectIds) => setGridArrayDialogObjectIds([...objectIds]),
-    openCircularArray: (objectIds) => setCircularArrayDialogObjectIds([...objectIds]),
+    openGridArray: (objectIds) => useUiStore.getState().openModifierProperties('grid_array', objectIds),
+    openCircularArray: (objectIds) => useUiStore.getState().openModifierProperties('circular_array', objectIds),
     openCopyAlongPath: (objectIds, pathObjectId) => setCopyAlongPathDialogState({ objectIds: [...objectIds], pathObjectId }),
     openNest: (objectIds) => setNestDialogObjectIds([...objectIds]),
   };
@@ -1162,7 +1159,7 @@ export function MenuBar() {
               disabled={!unlockedSelection}
               onClick={() => {
                 setOpenMenu(null);
-                setGridArrayDialogObjectIds([...selectedObjectIds]);
+                useUiStore.getState().openModifierProperties(MODIFIER_GRID_ARRAY, selectedObjectIds);
               }}
             />
             <MenuItem
@@ -1170,7 +1167,7 @@ export function MenuBar() {
               disabled={!unlockedSelection}
               onClick={() => {
                 setOpenMenu(null);
-                setCircularArrayDialogObjectIds([...selectedObjectIds]);
+                useUiStore.getState().openModifierProperties(MODIFIER_CIRCULAR_ARRAY, selectedObjectIds);
               }}
             />
             <MenuItem
@@ -1544,24 +1541,12 @@ export function MenuBar() {
         <AboutDialog onClose={() => setShowAboutDialog(false)} />
       )}
 
-      {gridArrayDialogObjectIds && (
-        <GridArrayDialog objectIds={gridArrayDialogObjectIds} onClose={() => setGridArrayDialogObjectIds(null)} />
-      )}
-
-      {circularArrayDialogObjectIds && (
-        <CircularArrayDialog objectIds={circularArrayDialogObjectIds} onClose={() => setCircularArrayDialogObjectIds(null)} />
-      )}
-
       {copyAlongPathDialogState && (
         <CopyAlongPathDialog
           objectIds={copyAlongPathDialogState.objectIds}
           pathObjectId={copyAlongPathDialogState.pathObjectId}
           onClose={() => setCopyAlongPathDialogState(null)}
         />
-      )}
-
-      {offsetDialogObjectIds && (
-        <OffsetDialog objectIds={offsetDialogObjectIds} onClose={() => setOffsetDialogObjectIds(null)} />
       )}
 
       {nestDialogObjectIds && (

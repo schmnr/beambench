@@ -13,7 +13,6 @@ import { SettingsDialog } from './components/settings/SettingsDialog';
 import { HotkeyEditorDialog } from './components/settings/HotkeyEditorDialog';
 import { TraceImageDialog } from './components/dialogs/TraceImageDialog';
 import { AdjustImageDialog } from './components/dialogs/AdjustImageDialog';
-import { OffsetDialog } from './components/dialogs/OffsetDialog';
 import { BooleanAssistantDialog } from './components/dialogs/BooleanAssistantDialog';
 import { BarcodeDialog } from './components/dialogs/BarcodeDialog';
 import { CloseSelectedPathsWithToleranceDialog } from './components/dialogs/CloseSelectedPathsWithToleranceDialog';
@@ -565,7 +564,6 @@ function App() {
   const [showHotkeyEditorDialog, setShowHotkeyEditorDialog] = useState(false);
   const [traceDialogObjectId, setTraceDialogObjectId] = useState<string | null>(null);
   const [adjustDialogObjectId, setAdjustDialogObjectId] = useState<string | null>(null);
-  const [offsetDialogObjectIds, setOffsetDialogObjectIds] = useState<string[] | null>(null);
   const [booleanAssistantObjectIds, setBooleanAssistantObjectIds] = useState<string[] | null>(null);
   const [barcodeDialogLayerId, setBarcodeDialogLayerId] = useState<string | null>(null);
   const [nestDialogObjectIds, setNestDialogObjectIds] = useState<string[] | null>(null);
@@ -658,7 +656,9 @@ function App() {
     openHotkeyEditor: () => setShowHotkeyEditorDialog(true),
     openTraceImage: (objectId: string) => setTraceDialogObjectId(objectId),
     openAdjustImage: (objectId: string) => setAdjustDialogObjectId(objectId),
-    openOffset: (objectIds: string[]) => setOffsetDialogObjectIds([...objectIds]),
+    openOffset: (objectIds: string[]) => useUiStore.getState().openModifierProperties('offset', objectIds),
+    openGridArray: (objectIds: string[]) => useUiStore.getState().openModifierProperties('grid_array', objectIds),
+    openCircularArray: (objectIds: string[]) => useUiStore.getState().openModifierProperties('circular_array', objectIds),
     openBooleanAssistant: (objectIds: string[]) => setBooleanAssistantObjectIds([...objectIds]),
     openBarcode: (layerId: string) => setBarcodeDialogLayerId(layerId),
     openNest: (objectIds: string[]) => setNestDialogObjectIds([...objectIds]),
@@ -1774,9 +1774,6 @@ function App() {
       )}
       {adjustDialogObjectId && (
         <AdjustImageDialog objectId={adjustDialogObjectId} onClose={() => setAdjustDialogObjectId(null)} />
-      )}
-      {offsetDialogObjectIds && (
-        <OffsetDialog objectIds={offsetDialogObjectIds} onClose={() => setOffsetDialogObjectIds(null)} />
       )}
       {booleanAssistantObjectIds && (
         <BooleanAssistantDialog
