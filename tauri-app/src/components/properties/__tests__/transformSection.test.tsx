@@ -288,9 +288,40 @@ describe('TransformSection — position/size', () => {
     expect(updateObjectTransformState).toHaveBeenCalledWith(['obj1'], { lockAspectRatio: true });
     const lockedProject = makeProject();
     lockedProject.objects[0].lock_aspect_ratio = true;
-    useProjectStore.setState({ project: lockedProject });
+    act(() => {
+      useProjectStore.setState({ project: lockedProject });
+    });
     rerender(<TransformSection />);
     expect(screen.getByTitle('Lock aspect ratio').querySelector('.lucide-lock')).not.toBeNull();
+  });
+
+  it('exposes a distinct aspect link directly between the scale fields', () => {
+    const updateObjectTransformState = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject(),
+      selectedObjectIds: ['obj1'],
+      updateObjectTransformState,
+    });
+
+    const { rerender } = render(<TransformSection />);
+
+    const aspectLink = screen.getByRole('button', { name: 'Lock aspect ratio (SX / SY)' });
+    expect(aspectLink.getAttribute('aria-pressed')).toBe('false');
+    expect(aspectLink.querySelector('.lucide-unlink-2')).not.toBeNull();
+    fireEvent.click(aspectLink);
+    expect(updateObjectTransformState).toHaveBeenCalledWith(['obj1'], { lockAspectRatio: true });
+
+    const lockedProject = makeProject();
+    lockedProject.objects[0].lock_aspect_ratio = true;
+    act(() => {
+      useProjectStore.setState({ project: lockedProject });
+    });
+    rerender(<TransformSection />);
+
+    const linkedAspect = screen.getByRole('button', { name: 'Lock aspect ratio (SX / SY)' });
+    expect(linkedAspect.getAttribute('aria-pressed')).toBe('true');
+    expect(linkedAspect.querySelector('.lucide-link-2')).not.toBeNull();
+    expect(linkedAspect.className).toContain('text-bb-accent');
   });
 
   it('uses the cyan active color for every locked transform control', () => {
@@ -309,6 +340,7 @@ describe('TransformSection — position/size', () => {
     const lockButtons = [
       screen.getByRole('button', { name: 'Move' }),
       screen.getByTitle('Lock aspect ratio'),
+      screen.getByRole('button', { name: 'Lock aspect ratio (SX / SY)' }),
       screen.getByRole('button', { name: 'Size' }),
       screen.getByRole('button', { name: 'Rotate' }),
       screen.getByRole('button', { name: 'Shear' }),

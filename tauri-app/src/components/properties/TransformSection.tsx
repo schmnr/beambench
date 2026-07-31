@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
-import { Focus, Lock, Unlock } from 'lucide-react';
+import { Focus, Link2, Lock, Unlink2, Unlock } from 'lucide-react';
 import { NumberStepper } from '../shared/NumberStepper';
 import type { AnchorPoint, TransformLocks } from '../../types/project';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -86,6 +86,38 @@ function TransformLockButton({
       }`}
     >
       {locked ? <Lock size={13} /> : <Unlock size={13} />}
+    </button>
+  );
+}
+
+function AspectLinkButton({
+  label,
+  linked,
+  onClick,
+  disabled = false,
+}: {
+  label: string;
+  linked: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={linked}
+      title={label}
+      className={`flex h-7 w-5 shrink-0 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-default ${
+        disabled
+          ? 'text-bb-text-disabled'
+          : linked
+            ? 'text-bb-accent hover:text-bb-accent'
+            : 'text-bb-text-dim hover:text-bb-text'
+      }`}
+    >
+      {linked ? <Link2 size={13} /> : <Unlink2 size={13} />}
     </button>
   );
 }
@@ -559,11 +591,19 @@ export function TransformSection() {
         <FieldBox label="SX" suffix="%">
           <NumberStepper {...scaleXField} step={1} min={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
-        <TransformLockButton
-          label={t('toolbars.transform_toggles.size')}
-          locked={locks.size_enabled === false}
-          onClick={() => toggleTransformLock(SIZE_LOCK_KEY)}
-        />
+        <div className="flex shrink-0 items-center gap-0.5">
+          <AspectLinkButton
+            label={`${t('toolbars.properties.lock_aspect_ratio')} (SX / SY)`}
+            linked={lockAspect}
+            onClick={toggleLockAspect}
+            disabled={disabled}
+          />
+          <TransformLockButton
+            label={t('toolbars.transform_toggles.size')}
+            locked={locks.size_enabled === false}
+            onClick={() => toggleTransformLock(SIZE_LOCK_KEY)}
+          />
+        </div>
         <FieldBox label="SY" suffix="%">
           <NumberStepper {...scaleYField} step={1} min={1} disabled={disabled} className={fieldClass} containerClassName="min-w-0 flex-1" />
         </FieldBox>
