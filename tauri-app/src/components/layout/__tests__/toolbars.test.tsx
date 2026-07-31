@@ -8,7 +8,8 @@ import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { useMacroStore } from '../../../stores/macroStore';
 import { useCameraStore } from '../../../stores/cameraStore';
-import { makeLayer, makeProject, makeProjectObject, makeTransformLocks } from '../../../test-utils/projectFixtures';
+import { useAppStore } from '../../../stores/appStore';
+import { makeAppSettings, makeLayer, makeProject, makeProjectObject, makeTransformLocks } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -19,6 +20,7 @@ const initialUiState = useUiStore.getState();
 const initialNotificationState = useNotificationStore.getState();
 const initialMacroState = useMacroStore.getState();
 const initialCameraState = useCameraStore.getState();
+const initialAppState = useAppStore.getState();
 
 afterEach(() => {
   cleanup();
@@ -28,6 +30,7 @@ afterEach(() => {
   useNotificationStore.setState(initialNotificationState, true);
   useMacroStore.setState(initialMacroState, true);
   useCameraStore.setState(initialCameraState, true);
+  useAppStore.setState(initialAppState, true);
 });
 
 describe('MainToolbar', () => {
@@ -53,6 +56,30 @@ describe('MainToolbar', () => {
     fireEvent.click(cameraOverlay);
     expect(toggleOverlayVisible).toHaveBeenCalledOnce();
     expect(screen.getByTitle('Camera Overlay').className).toContain('bg-bb-accent/15');
+  });
+
+  it('places the editable grid spacing between Grid and Snap', () => {
+    const updateSettings = vi.fn().mockResolvedValue(undefined);
+    useAppStore.setState({
+      settings: makeAppSettings({ display_unit: 'mm', grid_spacing_mm: 10 }),
+      updateSettings,
+    });
+    useUiStore.setState({ gridSpacingMm: 10 });
+    render(<MainToolbar />);
+
+    const grid = screen.getByTitle('Grid');
+    const spacing = screen.getByRole('spinbutton', { name: 'Grid spacing (mm)' });
+    const snap = screen.getByTitle('Snap');
+
+    expect(grid.compareDocumentPosition(spacing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(spacing.compareDocumentPosition(snap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.focus(spacing);
+    fireEvent.change(spacing, { target: { value: '5' } });
+    expect(useUiStore.getState().gridSpacingMm).toBe(5);
+    fireEvent.blur(spacing);
+
+    expect(updateSettings).toHaveBeenCalledWith({ grid_spacing_mm: 5 });
   });
 
   it('Import button uses the selected project layer', () => {

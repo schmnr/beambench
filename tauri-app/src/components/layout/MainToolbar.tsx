@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../../stores/appStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useMachineStore } from '../../stores/machineStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -20,6 +21,14 @@ import { ROTARY_SETUP_OPEN_EVENT } from '../../rotaryEvents';
 import { DockDialog } from '../dialogs/DockDialog';
 import { IconButton } from '../shared/IconButton';
 import { useMacroStore } from '../../stores/macroStore';
+import {
+  displayToMm,
+  labelWithUnit,
+  lengthStep,
+  lengthUnitLabel,
+  mmToDisplay,
+  roundDisplayLength,
+} from '../../utils/lengthUnits';
 import {
   FilePlus, FolderOpen, Save, SaveAll, Import,
   Undo2, Redo2,
@@ -74,6 +83,91 @@ const CONNECTION_SETTINGS_TAB = 'connection' as const;
 const MACHINE_SETTINGS_TAB = 'machine' as const;
 const TOOL_SELECT = 'select' as const;
 const TOOL_LASER_POSITION = 'laser_position' as const;
+
+function GridSpacingEditor({ label }: { label: string }) {
+  const settings = useAppStore((state) => state.settings);
+  const gridSpacingMm = useUiStore((state) => state.gridSpacingMm);
+  const setGridSpacing = useUiStore((state) => state.setGridSpacing);
+  const displayUnit = settings?.display_unit === 'inches' ? 'inches' : 'mm';
+  const displayedSpacing = roundDisplayLength(mmToDisplay(gridSpacingMm, displayUnit), displayUnit);
+  const [draft, setDraft] = useState(String(displayedSpacing));
+  const [editing, setEditing] = useState(false);
+  const spacingAtFocusRef = useRef(gridSpacingMm);
+  const cancelBlurCommitRef = useRef(false);
+  const unit = lengthUnitLabel(displayUnit);
+  const accessibleLabel = labelWithUnit(label, unit);
+
+  useEffect(() => {
+    if (!editing) setDraft(String(displayedSpacing));
+  }, [displayedSpacing, editing]);
+
+  const restoreFocusedValue = () => {
+    const restored = spacingAtFocusRef.current;
+    setGridSpacing(restored);
+    setDraft(String(roundDisplayLength(mmToDisplay(restored, displayUnit), displayUnit)));
+  };
+
+  const commitDraft = () => {
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      restoreFocusedValue();
+      return;
+    }
+
+    const spacingMm = Math.max(0.1, displayToMm(parsed, displayUnit));
+    setGridSpacing(spacingMm);
+    setDraft(String(roundDisplayLength(mmToDisplay(spacingMm, displayUnit), displayUnit)));
+    void useAppStore.getState().updateSettings({ grid_spacing_mm: spacingMm });
+  };
+
+  return (
+    <label
+      title={accessibleLabel}
+      className="flex h-8 flex-shrink-0 items-center rounded-lg border border-transparent px-1 text-xs text-bb-text-muted transition-colors hover:border-bb-control-border hover:bg-bb-surface focus-within:border-bb-accent focus-within:bg-bb-input"
+    >
+      <input
+        type="number"
+        aria-label={accessibleLabel}
+        data-testid="toolbar-grid-spacing"
+        value={draft}
+        min={mmToDisplay(0.1, displayUnit)}
+        step={lengthStep(displayUnit, 0.1, 0.005)}
+        className="w-14 bg-transparent px-1 text-right text-xs tabular-nums text-bb-text outline-none"
+        onFocus={(event) => {
+          spacingAtFocusRef.current = gridSpacingMm;
+          cancelBlurCommitRef.current = false;
+          setEditing(true);
+          event.currentTarget.select();
+        }}
+        onChange={(event) => {
+          const nextDraft = event.target.value;
+          setDraft(nextDraft);
+          const parsed = Number(nextDraft);
+          if (nextDraft !== '' && Number.isFinite(parsed) && parsed > 0) {
+            setGridSpacing(Math.max(0.1, displayToMm(parsed, displayUnit)));
+          }
+        }}
+        onBlur={() => {
+          setEditing(false);
+          if (cancelBlurCommitRef.current) {
+            cancelBlurCommitRef.current = false;
+            return;
+          }
+          commitDraft();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+          if (event.key === 'Escape') {
+            cancelBlurCommitRef.current = true;
+            restoreFocusedValue();
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      <span className="pr-1 text-bb-text-dim" aria-hidden="true">{unit}</span>
+    </label>
+  );
+}
 
 export function MainToolbar() {
   const { t } = useTranslation();
@@ -332,8 +426,11 @@ export function MainToolbar() {
       <Separator />
 
       {/* Grid/Snap */}
-      <IconButton icon={<Grid3x3 size={sz} />} label={t('toolbars.main.grid')} onClick={toggleGrid} active={gridVisible} />
-      <IconButton icon={<Magnet size={sz} />} label={t('toolbars.main.snap')} onClick={toggleSnap} active={snapToGrid} />
+      <div className="flex flex-shrink-0 items-center gap-0.5">
+        <IconButton icon={<Grid3x3 size={sz} />} label={t('toolbars.main.grid')} onClick={toggleGrid} active={gridVisible} />
+        <GridSpacingEditor label={t('dialog.settings.grid_spacing')} />
+        <IconButton icon={<Magnet size={sz} />} label={t('toolbars.main.snap')} onClick={toggleSnap} active={snapToGrid} />
+      </div>
       <Separator />
 
       {/* Preview */}
