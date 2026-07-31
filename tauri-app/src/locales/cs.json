@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Automatické spojení vybraných tvarů",
       "close_and_join": "Zavřít a připojit se",
       "convert_to_bitmap": "Převést na bitmapu",
+      "extract_selected_nodes_to_path": "Extrahovat vybrané uzly do nové cesty",
       "duplicate": "Duplicitní",
       "image_options": "Možnosti obrázku",
       "invert_selection": "Invertovat výběr",
@@ -1198,13 +1199,16 @@
       "close_path": "Zavřít cestu",
       "auto_join_paths": "Cesty automatického připojení",
       "insert_midpoint": "Vložit střed (M)",
-      "align_to_angle": "Zarovnat do úhlu (A)"
+      "align_to_angle": "Zarovnat do úhlu (A)",
+      "extend_to_intersection": "Prodloužit ke křížení (E)"
     },
     "transform_toggles": {
       "move": "Pohyb",
       "size": "Velikost",
       "rotate": "Střídat",
-      "shear": "Stříhat"
+      "shear": "Stříhat",
+      "lock_all": "Zamknout všechny transformace",
+      "unlock_all": "Odemknout všechny transformace"
     },
     "properties": {
       "position_x": "Poz. X",

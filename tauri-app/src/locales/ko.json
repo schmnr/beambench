@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "선택한 도형 자동 결합",
       "close_and_join": "닫기 및 가입",
       "convert_to_bitmap": "비트맵으로 변환",
+      "extract_selected_nodes_to_path": "선택한 노드를 새 경로로 추출",
       "duplicate": "중복",
       "image_options": "이미지 옵션",
       "invert_selection": "선택 반전",
@@ -1198,13 +1199,16 @@
       "close_path": "경로 닫기",
       "auto_join_paths": "자동 조인 경로",
       "insert_midpoint": "중간점 삽입 (M)",
-      "align_to_angle": "각도에 맞춰 정렬 (A)"
+      "align_to_angle": "각도에 맞춰 정렬 (A)",
+      "extend_to_intersection": "교차점까지 연장 (E)"
     },
     "transform_toggles": {
       "move": "이동",
       "size": "크기",
       "rotate": "회전",
-      "shear": "전단"
+      "shear": "전단",
+      "lock_all": "모든 변형 잠금",
+      "unlock_all": "모든 변형 잠금 해제"
     },
     "properties": {
       "position_x": "X 위치",

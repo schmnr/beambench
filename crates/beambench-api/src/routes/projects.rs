@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::extract::{Path, State};
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
-use beambench_common::{Bounds, Id, Transform2D};
+use beambench_common::{Bounds, Id, Transform2D, TransformLocks};
 use beambench_core::{CutEntryPatch, LayerPatch, ObjectData, OperationType, Project};
 use beambench_service::ServiceContext;
 use beambench_service::ops::{persistence, project};
@@ -423,6 +423,7 @@ struct UpdateObjectBody {
     transform: Option<Transform2D>,
     bounds: Option<Bounds>,
     lock_aspect_ratio: Option<bool>,
+    transform_locks: Option<TransformLocks>,
     power_scale: Option<f64>,
     priority: Option<i32>,
 }
@@ -445,6 +446,7 @@ async fn update_object(
             transform: body.transform,
             bounds: body.bounds,
             lock_aspect_ratio: body.lock_aspect_ratio,
+            transform_locks: body.transform_locks,
             power_scale: body.power_scale,
             priority: body.priority,
         },

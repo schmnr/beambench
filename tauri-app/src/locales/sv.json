@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Automatiskt sammanfoga valda former",
       "close_and_join": "Stäng & gå med",
       "convert_to_bitmap": "Konvertera till bitmapp",
+      "extract_selected_nodes_to_path": "Extrahera valda noder till ny bana",
       "duplicate": "Duplicera",
       "image_options": "Bildalternativ",
       "invert_selection": "Invertera urval",
@@ -1198,13 +1199,16 @@
       "close_path": "Stäng sökväg",
       "auto_join_paths": "Automatiska anslutningsvägar",
       "insert_midpoint": "Infoga mittpunkt (M)",
-      "align_to_angle": "Rikta in till vinkel (A)"
+      "align_to_angle": "Rikta in till vinkel (A)",
+      "extend_to_intersection": "Förläng till skärning (E)"
     },
     "transform_toggles": {
       "move": "Flytta",
       "size": "Storlek",
       "rotate": "Rotera",
-      "shear": "Skärning"
+      "shear": "Skärning",
+      "lock_all": "Lås alla transformeringar",
+      "unlock_all": "Lås upp alla transformeringar"
     },
     "properties": {
       "position_x": "X-pos",

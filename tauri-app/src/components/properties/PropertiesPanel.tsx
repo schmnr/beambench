@@ -12,6 +12,7 @@ import { RangeInput } from '../shared/RangeInput';
 import { useUiStore } from '../../stores/uiStore';
 import { TextDefaultsSection } from './TextDefaultsSection';
 import { SelectionArrangeSection } from './SelectionArrangeSection';
+import { NodeEditingSection } from './NodeEditingSection';
 import { createSelectionContext, isBooleanCompatible } from '../../commands/selectionContext';
 import { IconButton } from '../shared/IconButton';
 import {
@@ -72,6 +73,7 @@ export function PropertiesPanel() {
       <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
       <div className="flex flex-col gap-2.5 px-3 py-2.5">
         <TransformSection />
+        {activeTool === 'node' && <NodeEditingSection />}
         <div className="text-xs text-bb-text-dim">{t('panels.properties.objects_selected', { count: selectedObjectIds.length })}</div>
 
         {/* Batch controls */}
@@ -185,6 +187,15 @@ export function PropertiesPanel() {
   }
 
   if (!selectedObject) {
+    if (activeTool === 'node') {
+      return (
+        <div className={INSPECTOR_CARD_CLASS} data-testid="node-editing-card">
+          <div className="p-3">
+            <NodeEditingSection />
+          </div>
+        </div>
+      );
+    }
     if (activeTool === 'text') {
       return (
         <div className={INSPECTOR_CARD_CLASS} data-testid="text-defaults-card">
@@ -215,6 +226,7 @@ export function PropertiesPanel() {
     <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
     <div className="flex flex-col gap-2.5 px-3 py-2.5">
       <TransformSection />
+      {activeTool === 'node' && <NodeEditingSection />}
       <TextInput
         label={t('panels.properties.name')}
         value={selectedObject.name}

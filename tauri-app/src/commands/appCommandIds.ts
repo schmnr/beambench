@@ -35,6 +35,7 @@ export const APP_COMMANDS = {
   EDIT_SETTINGS: 'edit.settings',
   EDIT_CONVERT_TO_PATH: 'edit.convert_to_path',
   EDIT_CONVERT_TO_BITMAP: 'edit.convert_to_bitmap',
+  EDIT_EXTRACT_NODES_TO_PATH: 'edit.extract_nodes_to_path',
   EDIT_CLOSE_PATH: 'edit.close_path',
   EDIT_AUTO_JOIN_SELECTED_SHAPES: 'edit.auto_join_selected_shapes',
   EDIT_CLOSE_AND_JOIN: 'edit.close_and_join',

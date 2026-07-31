@@ -340,6 +340,8 @@ export interface ProjectObject {
   z_index: number;
   data: ObjectData;
   lock_aspect_ratio: boolean;
+  /** Per-object transform permissions; absent only in legacy project data. */
+  transform_locks?: TransformLocks;
   power_scale: number;
   priority: number;
   created_at: string;

@@ -1397,9 +1397,11 @@ describe('Keyboard shortcuts', () => {
         metadata: { format_version: '1', app_version: '0.1.0', project_id: 'p1', project_name: 'Test', created_at: '', modified_at: '' },
         workspace: { bed_width_mm: 400, bed_height_mm: 400, origin: 'top_left' },
         layers: [],
-        objects: [],
+        objects: [makeProjectObject({
+          id: 'o1',
+          transform_locks: makeTransformLocks({ rotate_enabled: false }),
+        })],
         assets: [],
-        transform_locks: makeTransformLocks({ rotate_enabled: false }),
       }),
       selectedObjectIds: ['o1'],
       rotateObjects,

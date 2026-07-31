@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Αυτόματη σύνδεση επιλεγμένων σχημάτων",
       "close_and_join": "Κλείσιμο & Εγγραφή",
       "convert_to_bitmap": "Μετατροπή σε Bitmap",
+      "extract_selected_nodes_to_path": "Εξαγωγή επιλεγμένων κόμβων σε νέα διαδρομή",
       "duplicate": "Διπλότυπο",
       "image_options": "Επιλογές εικόνας",
       "invert_selection": "Αντιστροφή επιλογής",
@@ -1198,13 +1199,16 @@
       "close_path": "Κλείσιμο μονοπατιού",
       "auto_join_paths": "Διαδρομές αυτόματης σύνδεσης",
       "insert_midpoint": "Εισαγωγή μέσου σημείου (M)",
-      "align_to_angle": "Στοίχιση στη γωνία (A)"
+      "align_to_angle": "Στοίχιση στη γωνία (A)",
+      "extend_to_intersection": "Επέκταση έως τη διασταύρωση (E)"
     },
     "transform_toggles": {
       "move": "Μετακίνηση",
       "size": "Μέγεθος",
       "rotate": "Περιστροφή",
-      "shear": "Διάτμηση"
+      "shear": "Διάτμηση",
+      "lock_all": "Κλείδωμα όλων των μετασχηματισμών",
+      "unlock_all": "Ξεκλείδωμα όλων των μετασχηματισμών"
     },
     "properties": {
       "position_x": "Θέση X",

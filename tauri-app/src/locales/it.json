@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Unisci automaticamente le forme selezionate",
       "close_and_join": "Chiudi e partecipa",
       "convert_to_bitmap": "Converti in bitmap",
+      "extract_selected_nodes_to_path": "Estrai i nodi selezionati in un nuovo tracciato",
       "duplicate": "Duplicato",
       "image_options": "Opzioni immagine",
       "invert_selection": "Inverti selezione",
@@ -1198,13 +1199,16 @@
       "close_path": "Chiudi percorso",
       "auto_join_paths": "Unione automatica dei percorsi",
       "insert_midpoint": "Inserisci punto medio (M)",
-      "align_to_angle": "Allinea all'angolo (A)"
+      "align_to_angle": "Allinea all'angolo (A)",
+      "extend_to_intersection": "Estendi fino all'intersezione (E)"
     },
     "transform_toggles": {
       "move": "Mossa",
       "size": "Misurare",
       "rotate": "Ruotare",
-      "shear": "Taglio"
+      "shear": "Taglio",
+      "lock_all": "Blocca tutte le trasformazioni",
+      "unlock_all": "Sblocca tutte le trasformazioni"
     },
     "properties": {
       "position_x": "Pos. X",

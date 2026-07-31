@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Auto-sammenføj udvalgte former",
       "close_and_join": "Luk & Deltag",
       "convert_to_bitmap": "Konverter til bitmap",
+      "extract_selected_nodes_to_path": "Udtræk valgte noder til ny sti",
       "duplicate": "Duplikat",
       "image_options": "Billedindstillinger",
       "invert_selection": "Inverter markering",
@@ -1198,13 +1199,16 @@
       "close_path": "Luk sti",
       "auto_join_paths": "Auto-tilslutningsstier",
       "insert_midpoint": "Indsæt midtpunkt (M)",
-      "align_to_angle": "Juster til vinkel (A)"
+      "align_to_angle": "Juster til vinkel (A)",
+      "extend_to_intersection": "Forlæng til skæring (E)"
     },
     "transform_toggles": {
       "move": "Flyt",
       "size": "Størrelse",
       "rotate": "Roter",
-      "shear": "Forskydning"
+      "shear": "Forskydning",
+      "lock_all": "Lås alle transformeringer",
+      "unlock_all": "Lås alle transformeringer op"
     },
     "properties": {
       "position_x": "X-pos",

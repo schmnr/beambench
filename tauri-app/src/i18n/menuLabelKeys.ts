@@ -34,6 +34,7 @@ export const MENU_LABEL_KEYS = {
   Delete: 'menus.edit.delete',
   'Convert to Path': 'menus.edit.convert_to_path',
   'Convert to Bitmap': 'menus.edit.convert_to_bitmap',
+  'Extract Selected Nodes to New Path': 'menus.edit.extract_selected_nodes_to_path',
   'Close Path': 'menus.edit.close_path',
   'Close Selected Paths With Tolerance': 'menus.edit.close_selected_paths_with_tolerance',
   'Auto-Join Selected Shapes': 'menus.edit.auto_join_selected_shapes',

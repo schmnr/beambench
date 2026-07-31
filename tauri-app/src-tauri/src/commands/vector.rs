@@ -133,6 +133,64 @@ pub fn get_editable_path(
 }
 
 #[tauri::command]
+pub fn copy_nodes(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+    node_ids: Vec<serde_json::Value>,
+) -> Result<vector::NodeClipboardCopy, String> {
+    let node_ids = node_ids
+        .into_iter()
+        .map(|value| serde_json::from_value(value).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    vector::copy_nodes(
+        &svc,
+        vector::CopyNodesInput {
+            object_id: parse_id(&object_id)?,
+            node_ids,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn paste_nodes(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+    copied_path_json: String,
+    offset_mm: Option<f64>,
+) -> Result<vector::NodePasteResult, String> {
+    vector::paste_nodes(
+        &svc,
+        vector::PasteNodesInput {
+            object_id: parse_id(&object_id)?,
+            copied_path_json,
+            offset_mm: offset_mm.unwrap_or(5.0),
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn extract_nodes_to_path(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+    node_ids: Vec<serde_json::Value>,
+) -> Result<ProjectObject, String> {
+    let node_ids = node_ids
+        .into_iter()
+        .map(|value| serde_json::from_value(value).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    vector::extract_nodes_to_path(
+        &svc,
+        vector::ExtractNodesInput {
+            object_id: parse_id(&object_id)?,
+            node_ids,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
 pub fn update_node(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,

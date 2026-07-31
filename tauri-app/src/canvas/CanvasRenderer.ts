@@ -22,6 +22,7 @@ import {
 import {
   drawSelectionHighlight,
   drawRubberBand,
+  drawLasso,
   drawShapePreview,
   drawNodeHandles,
   drawHoveredSegment,
@@ -89,6 +90,7 @@ export type ToolOverlay =
       hoveredEndpoint?: NodeId | null;
       joinTargetNodeId?: NodeId | null;
       selectionRect?: { startScreen: Point2D; endScreen: Point2D; crossing?: boolean } | null;
+      selectionLasso?: { points: Point2D[] } | null;
     }
   | { type: 'snap-guides'; guides: { axis: 'x' | 'y'; value: number }[] }
   | { type: 'ruler-guide-preview'; axis: 'horizontal' | 'vertical'; value: number }
@@ -1720,6 +1722,9 @@ export class CanvasRenderer {
             toolOverlay.selectionRect.crossing,
           );
         }
+        if (toolOverlay.selectionLasso) {
+          drawLasso(ctx, toolOverlay.selectionLasso.points);
+        }
         drawNodeHandles(
           ctx,
           toolOverlay.paths,
@@ -2012,6 +2017,9 @@ export class CanvasRenderer {
             toolOverlay.selectionRect.endScreen,
             toolOverlay.selectionRect.crossing,
           );
+        }
+        if (toolOverlay.selectionLasso) {
+          drawLasso(ctx, toolOverlay.selectionLasso.points);
         }
         drawNodeHandles(
           ctx,

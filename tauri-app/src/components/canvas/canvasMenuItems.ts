@@ -24,6 +24,12 @@ export interface CanvasMenuCallbacks {
 }
 
 export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext, callbacks?: CanvasMenuCallbacks): ContextMenuEntry[] {
+  const nodeMode = useUiStore.getState().activeTool === 'node';
+  const runNodeEditAction = (
+    action: 'copy' | 'cut' | 'paste' | 'extract' | 'delete' | 'select_all',
+  ) => {
+    window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: action }));
+  };
   // --- Windows submenu ---
   const windowsSubmenu: ContextMenuEntry = {
     type: 'submenu',
@@ -97,14 +103,18 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
       label: t('context_menu.cut'),
       shortcut: 'Ctrl+X',
       disabled: !ctx.canMutate,
-      onClick: () => void clipboardCut([...ctx.selectedObjectIds]),
+      onClick: () => nodeMode
+        ? runNodeEditAction('cut')
+        : void clipboardCut([...ctx.selectedObjectIds]),
     },
     {
       id: 'copy',
       label: t('context_menu.copy'),
       shortcut: 'Ctrl+C',
       disabled: !ctx.hasSelection,
-      onClick: () => clipboardCopy([...ctx.selectedObjectIds]),
+      onClick: () => nodeMode
+        ? runNodeEditAction('copy')
+        : clipboardCopy([...ctx.selectedObjectIds]),
     },
     {
       id: 'paste',
@@ -116,6 +126,10 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
       // the Edit menu).
       disabled: false,
       onClick: () => {
+        if (nodeMode) {
+          runNodeEditAction('paste');
+          return;
+        }
         void (async () => {
           if (hasClipboardData()) {
             await clipboardPaste();
@@ -149,14 +163,26 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
       label: t('context_menu.delete'),
       shortcut: 'Del',
       disabled: !ctx.canMutate,
-      onClick: () => void useProjectStore.getState().removeObjects([...ctx.selectedObjectIds]),
+      onClick: () => nodeMode
+        ? runNodeEditAction('delete')
+        : void useProjectStore.getState().removeObjects([...ctx.selectedObjectIds]),
     },
     {
       id: 'select-all',
       label: t('context_menu.select_all'),
       shortcut: 'Ctrl+A',
-      onClick: () => useProjectStore.getState().selectAllObjects(),
+      onClick: () => nodeMode
+        ? runNodeEditAction('select_all')
+        : useProjectStore.getState().selectAllObjects(),
     },
+    ...(nodeMode
+      ? [{
+          id: 'extract-nodes-to-path',
+          label: 'Extract Selected Nodes to New Path',
+          disabled: !ctx.canMutate,
+          onClick: () => runNodeEditAction('extract'),
+        } as ContextMenuEntry]
+      : []),
     { type: 'separator' },
 
     // --- Group / Ungroup ---

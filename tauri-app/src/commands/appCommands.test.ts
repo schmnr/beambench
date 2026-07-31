@@ -883,6 +883,30 @@ describe('app command bridge', () => {
     }));
   });
 
+  it('routes native edit commands to node editing while the node tool is active', async () => {
+    const project = makeProject();
+    useProjectStore.setState({ project, selectedObjectIds: [project.objects[0].id] });
+    useUiStore.setState({ activeTool: 'node' });
+    const actions: string[] = [];
+    const listener = (event: Event) => {
+      actions.push((event as CustomEvent<string>).detail);
+    };
+    window.addEventListener('bb:node-edit-action', listener);
+
+    try {
+      await executeAppCommand(APP_COMMANDS.EDIT_SELECT_ALL);
+      await executeAppCommand(APP_COMMANDS.EDIT_COPY);
+      await executeAppCommand(APP_COMMANDS.EDIT_CUT);
+      await executeAppCommand(APP_COMMANDS.EDIT_PASTE);
+      await executeAppCommand(APP_COMMANDS.EDIT_DELETE);
+      await executeAppCommand(APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH);
+    } finally {
+      window.removeEventListener('bb:node-edit-action', listener);
+    }
+
+    expect(actions).toEqual(['select_all', 'copy', 'cut', 'paste', 'delete', 'extract']);
+  });
+
   it('reports recent files for native submenu rebuilds', () => {
     useAppStore.setState({
       settings: makeAppSettings({

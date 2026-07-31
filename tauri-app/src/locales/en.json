@@ -89,6 +89,7 @@
       "delete": "Delete",
       "convert_to_path": "Convert to Path",
       "convert_to_bitmap": "Convert to Bitmap",
+      "extract_selected_nodes_to_path": "Extract Selected Nodes to New Path",
       "close_path": "Close Path",
       "close_selected_paths_with_tolerance": "Close Selected Paths With Tolerance",
       "auto_join_selected_shapes": "Auto-Join Selected Shapes",
@@ -1198,7 +1199,8 @@
       "close_path": "Close Path",
       "auto_join_paths": "Auto-Join Paths",
       "insert_midpoint": "Insert Midpoint (M)",
-      "align_to_angle": "Align to Angle (A)"
+      "align_to_angle": "Align to Angle (A)",
+      "extend_to_intersection": "Extend to Intersection (E)"
     },
     "transform_toggles": {
       "move": "Move",
@@ -2331,10 +2333,10 @@
     "diagnostics_saved": "Diagnostics saved to {path}",
     "import_failed": "Import failed: {detail}",
     "lock": {
-      "position": "Position is locked for this project",
-      "scale": "Scale is locked for this project",
-      "rotation": "Rotation is locked for this project",
-      "shear": "Shear is locked for this project"
+      "position": "Position is locked for the selection",
+      "scale": "Scale is locked for the selection",
+      "rotation": "Rotation is locked for the selection",
+      "shear": "Shear is locked for the selection"
     },
     "update": {
       "up_to_date": "Beam Bench is up to date.",

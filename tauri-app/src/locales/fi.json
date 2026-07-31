@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Liity valittuihin muotoihin automaattisesti",
       "close_and_join": "Sulje & Liity",
       "convert_to_bitmap": "Muunna bittikartaksi",
+      "extract_selected_nodes_to_path": "Pura valitut solmut uudeksi poluksi",
       "duplicate": "Kopioi",
       "image_options": "Kuva-asetukset",
       "invert_selection": "Käänteinen valinta",
@@ -1198,13 +1199,16 @@
       "close_path": "Sulje polku",
       "auto_join_paths": "Liity automaattisesti polkuihin",
       "insert_midpoint": "Lisää keskipiste (M)",
-      "align_to_angle": "Kohdista kulmaan (A)"
+      "align_to_angle": "Kohdista kulmaan (A)",
+      "extend_to_intersection": "Jatka leikkauspisteeseen (E)"
     },
     "transform_toggles": {
       "move": "Siirrä",
       "size": "Koko",
       "rotate": "Kierrä",
-      "shear": "Leikkaus"
+      "shear": "Leikkaus",
+      "lock_all": "Lukitse kaikki muunnokset",
+      "unlock_all": "Avaa kaikki muunnokset"
     },
     "properties": {
       "position_x": "X-sij.",

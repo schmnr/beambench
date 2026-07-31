@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "選択した図形を自動結合",
       "close_and_join": "閉じて参加",
       "convert_to_bitmap": "ビットマップに変換",
+      "extract_selected_nodes_to_path": "選択したノードを新しいパスに抽出",
       "duplicate": "重複",
       "image_options": "画像オプション",
       "invert_selection": "選択範囲を反転",
@@ -1198,13 +1199,16 @@
       "close_path": "パスを閉じる",
       "auto_join_paths": "パスの自動結合",
       "insert_midpoint": "中点の挿入 (M)",
-      "align_to_angle": "角度に揃える (A)"
+      "align_to_angle": "角度に揃える (A)",
+      "extend_to_intersection": "交点まで延長 (E)"
     },
     "transform_toggles": {
       "move": "移動",
       "size": "サイズ",
       "rotate": "回転",
-      "shear": "せん断"
+      "shear": "せん断",
+      "lock_all": "すべての変形をロック",
+      "unlock_all": "すべての変形のロックを解除"
     },
     "properties": {
       "position_x": "X位置",

@@ -237,6 +237,7 @@ export const projectService = {
       transform?: Transform2D;
       bounds?: Bounds;
       lock_aspect_ratio?: boolean;
+      transform_locks?: TransformLocks;
       power_scale?: number;
       priority?: number;
     },
@@ -244,6 +245,24 @@ export const projectService = {
     return invoke<ProjectObject>('update_object', {
       objectId,
       ...snakeToCamel(updates as Record<string, unknown>),
+    });
+  },
+
+  async updateObjectTransformState(
+    objectIds: string[],
+    updates: {
+      transformLocks?: TransformLocks;
+      transformLockKey?: keyof TransformLocks;
+      transformEnabled?: boolean;
+      lockAspectRatio?: boolean;
+    },
+  ): Promise<ProjectObject[]> {
+    return invoke<ProjectObject[]>('update_object_transform_state', {
+      objectIds,
+      transformLocks: updates.transformLocks,
+      transformLockKey: updates.transformLockKey,
+      transformEnabled: updates.transformEnabled,
+      lockAspectRatio: updates.lockAspectRatio,
     });
   },
 

@@ -51,6 +51,7 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.EDIT_SETTINGS, label: 'Settings', group: 'Edit', editable: false },
   { id: APP_COMMANDS.EDIT_CONVERT_TO_PATH, label: 'Convert to Path', group: 'Edit', defaultHotkey: 'Ctrl+Shift+c', editable: true },
   { id: APP_COMMANDS.EDIT_CONVERT_TO_BITMAP, label: 'Convert to Bitmap', group: 'Edit', defaultHotkey: 'Ctrl+Shift+b', editable: true },
+  { id: APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH, label: 'Extract Selected Nodes to New Path', group: 'Edit', editable: true },
   { id: APP_COMMANDS.EDIT_CLOSE_PATH, label: 'Close Path', group: 'Edit', editable: true },
   { id: APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES, label: 'Auto-Join Selected Shapes', group: 'Edit', defaultHotkey: 'Alt+j', editable: true },
   { id: APP_COMMANDS.EDIT_CLOSE_AND_JOIN, label: 'Close & Join', group: 'Edit', editable: true },

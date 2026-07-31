@@ -45,6 +45,7 @@ pub mod command {
     pub const EDIT_SETTINGS: &str = "edit.settings";
     pub const EDIT_CONVERT_TO_PATH: &str = "edit.convert_to_path";
     pub const EDIT_CONVERT_TO_BITMAP: &str = "edit.convert_to_bitmap";
+    pub const EDIT_EXTRACT_NODES_TO_PATH: &str = "edit.extract_nodes_to_path";
     pub const EDIT_CLOSE_PATH: &str = "edit.close_path";
     pub const EDIT_AUTO_JOIN_SELECTED_SHAPES: &str = "edit.auto_join_selected_shapes";
     pub const EDIT_CLOSE_AND_JOIN: &str = "edit.close_and_join";
@@ -485,6 +486,12 @@ const EDIT_MENU: &[NativeMenuEntry] = &[
         id: command::EDIT_CONVERT_TO_BITMAP,
         title: "Convert to Bitmap",
         accelerator: Some("CmdOrCtrl+Shift+B"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_EXTRACT_NODES_TO_PATH,
+        title: "Extract Selected Nodes to New Path",
+        accelerator: None,
         enabled: false,
     },
     NativeMenuEntry::Separator,
@@ -2545,6 +2552,10 @@ mod tests {
                 (
                     "Edit > Convert to Bitmap".to_string(),
                     command::EDIT_CONVERT_TO_BITMAP,
+                ),
+                (
+                    "Edit > Extract Selected Nodes to New Path".to_string(),
+                    command::EDIT_EXTRACT_NODES_TO_PATH,
                 ),
                 ("Edit > Close Path".to_string(), command::EDIT_CLOSE_PATH),
                 (

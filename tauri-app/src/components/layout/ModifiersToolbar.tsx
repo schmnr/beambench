@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useAppStore } from '../../stores/appStore';
-import { isTransformLocked, notifyTransformLocked, notifyObjectLocked } from '../../utils/transformLocks';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyTransformLocked,
+  notifyObjectLocked,
+} from '../../utils/transformLocks';
 import { mmToDisplay, displayToMm, roundDisplayLength } from '../../utils/lengthUnits';
 import { IconButton } from '../shared/IconButton';
 import { NumberStepper } from '../shared/NumberStepper';
@@ -102,7 +107,7 @@ export function ModifiersToolbar() {
 
   const guardLock = (): boolean => {
     if (anyLocked) { notifyObjectLocked(); return true; }
-    const locks = project?.transform_locks;
+    const locks = effectiveTransformLocks(selectedObjects);
     if (isTransformLocked(locks, 'position')) { notifyTransformLocked('position'); return true; }
     return false;
   };

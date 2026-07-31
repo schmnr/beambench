@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Seçili Şekilleri Otomatik Birleştir",
       "close_and_join": "Kapat ve Katıl",
       "convert_to_bitmap": "Bitmap'e Dönüştür",
+      "extract_selected_nodes_to_path": "Seçili düğümleri yeni yola çıkar",
       "duplicate": "Çoğalt",
       "image_options": "Görüntü Seçenekleri",
       "invert_selection": "Seçimi Ters Çevir",
@@ -1198,13 +1199,16 @@
       "close_path": "Yolu Kapat",
       "auto_join_paths": "Otomatik Katılma Yolları",
       "insert_midpoint": "Orta Nokta Ekle (M)",
-      "align_to_angle": "Açıya Hizala (A)"
+      "align_to_angle": "Açıya Hizala (A)",
+      "extend_to_intersection": "Kesişime Kadar Uzat (E)"
     },
     "transform_toggles": {
       "move": "Taşı",
       "size": "Boyut",
       "rotate": "Döndür",
-      "shear": "Kesme"
+      "shear": "Kesme",
+      "lock_all": "Tüm dönüşümleri kilitle",
+      "unlock_all": "Tüm dönüşümlerin kilidini aç"
     },
     "properties": {
       "position_x": "X Kon.",

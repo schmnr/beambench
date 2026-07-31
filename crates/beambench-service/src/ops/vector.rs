@@ -79,6 +79,42 @@ pub struct UpdateNodesBatchInput {
 }
 
 #[derive(Debug, Clone)]
+pub struct CopyNodesInput {
+    pub object_id: ObjectId,
+    pub node_ids: Vec<NodeId>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PasteNodesInput {
+    pub object_id: ObjectId,
+    pub copied_path_json: String,
+    pub offset_mm: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExtractNodesInput {
+    pub object_id: ObjectId,
+    pub node_ids: Vec<NodeId>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeClipboardCopy {
+    pub path_json: String,
+    pub path_data: String,
+    pub bounds: Bounds,
+    pub closed: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NodePasteResult {
+    pub object: ProjectObject,
+    pub pasted_subpath_start: usize,
+    pub pasted_subpath_count: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct DeleteNodeInput {
     pub object_id: ObjectId,
     pub subpath_idx: usize,
@@ -226,6 +262,152 @@ fn write_vec_path_to_object(
 
 fn command_has_editable_node(command: &PathCommand) -> bool {
     !matches!(command, PathCommand::Close)
+}
+
+fn selected_node_path(
+    project: &Project,
+    object_id: ObjectId,
+    node_ids: &[NodeId],
+) -> ServiceResult<VecPath> {
+    if node_ids.is_empty() {
+        return Err(ServiceError::invalid_input("No nodes supplied"));
+    }
+    let object = project
+        .find_object(object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    let resolved = project.resolve_clone(object);
+    let effective = resolved.as_ref().unwrap_or(object);
+    let path = object_to_world_vecpath(effective)
+        .ok_or_else(|| ServiceError::invalid_input("Cannot copy nodes from this object"))?;
+    let editable = EditablePath::from_vecpath(&path);
+    let selected: HashSet<(usize, usize)> = node_ids
+        .iter()
+        .map(|id| (id.subpath_idx, id.command_idx))
+        .collect();
+    let mut copied = VecPath::new();
+
+    for (subpath_idx, subpath) in path.subpaths.iter().enumerate() {
+        let editable_ids: Vec<usize> = editable
+            .get(subpath_idx)
+            .map(|entry| entry.nodes.iter().map(|node| node.id.command_idx).collect())
+            .unwrap_or_default();
+        let selected_indices: Vec<usize> = editable_ids
+            .iter()
+            .copied()
+            .filter(|command_idx| selected.contains(&(subpath_idx, *command_idx)))
+            .collect();
+        if selected_indices.is_empty() {
+            continue;
+        }
+        if selected_indices.len() == editable_ids.len() {
+            copied.subpaths.push(subpath.clone());
+            continue;
+        }
+
+        let flush_run = |indices: &mut Vec<usize>, output: &mut VecPath| {
+            if indices.is_empty() {
+                return;
+            }
+            let Some(start) = subpath.commands.get(indices[0]).and_then(command_endpoint) else {
+                indices.clear();
+                return;
+            };
+            let mut commands = vec![PathCommand::MoveTo {
+                x: start.x,
+                y: start.y,
+            }];
+            for command_idx in indices.iter().skip(1) {
+                if let Some(command) = subpath.commands.get(*command_idx)
+                    && !matches!(command, PathCommand::MoveTo { .. } | PathCommand::Close)
+                {
+                    commands.push(*command);
+                }
+            }
+            output.subpaths.push(SubPath {
+                commands,
+                closed: false,
+            });
+            indices.clear();
+        };
+        let mut run = Vec::new();
+        for command_idx in selected_indices {
+            if run
+                .last()
+                .is_some_and(|previous| command_idx != *previous + 1)
+            {
+                flush_run(&mut run, &mut copied);
+            }
+            run.push(command_idx);
+        }
+        flush_run(&mut run, &mut copied);
+    }
+
+    if copied.subpaths.is_empty() {
+        return Err(ServiceError::invalid_input(
+            "The selected nodes could not be copied",
+        ));
+    }
+    Ok(copied)
+}
+
+fn remove_selected_nodes_from_path(
+    mut path: VecPath,
+    node_ids: &[NodeId],
+) -> ServiceResult<VecPath> {
+    let mut sorted = node_ids.to_vec();
+    sorted.sort_by(|a, b| {
+        b.subpath_idx
+            .cmp(&a.subpath_idx)
+            .then_with(|| b.command_idx.cmp(&a.command_idx))
+    });
+    sorted.dedup_by(|a, b| a.subpath_idx == b.subpath_idx && a.command_idx == b.command_idx);
+    let delete_keys: HashSet<(usize, usize)> = sorted
+        .iter()
+        .map(|node_id| (node_id.subpath_idx, node_id.command_idx))
+        .collect();
+    let fully_selected_subpaths: HashSet<usize> = path
+        .subpaths
+        .iter()
+        .enumerate()
+        .filter_map(|(subpath_idx, subpath)| {
+            let editable_command_idxs: Vec<usize> = subpath
+                .commands
+                .iter()
+                .enumerate()
+                .filter_map(|(command_idx, command)| {
+                    command_has_editable_node(command).then_some(command_idx)
+                })
+                .collect();
+            (!editable_command_idxs.is_empty()
+                && editable_command_idxs
+                    .iter()
+                    .all(|command_idx| delete_keys.contains(&(subpath_idx, *command_idx))))
+            .then_some(subpath_idx)
+        })
+        .collect();
+
+    for node_id in &sorted {
+        if fully_selected_subpaths.contains(&node_id.subpath_idx) {
+            continue;
+        }
+        if !node_edit::delete_node(&mut path, *node_id) {
+            return Err(ServiceError::invalid_input(
+                "Cannot extract one or more selected nodes",
+            ));
+        }
+    }
+    if !fully_selected_subpaths.is_empty() {
+        path.subpaths = path
+            .subpaths
+            .into_iter()
+            .enumerate()
+            .filter_map(|(idx, subpath)| {
+                (!fully_selected_subpaths.contains(&idx)).then_some(subpath)
+            })
+            .collect();
+    }
+    prune_degenerate_subpaths(&mut path);
+    Ok(path)
 }
 
 fn command_draws_segment(command: &PathCommand) -> bool {
@@ -1824,6 +2006,161 @@ pub fn get_editable_path(
         }
     }
     Ok(EditablePath::from_vecpath(&vec_path))
+}
+
+pub fn copy_nodes(ctx: &ServiceContext, input: CopyNodesInput) -> ServiceResult<NodeClipboardCopy> {
+    let guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_ref()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    let copied = selected_node_path(project, input.object_id, &input.node_ids)?;
+    let bounds = copied
+        .visual_bounds()
+        .or_else(|| copied.bounds())
+        .unwrap_or_else(|| Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
+    Ok(NodeClipboardCopy {
+        path_json: serde_json::to_string(&copied)
+            .map_err(|error| ServiceError::internal(error.to_string()))?,
+        path_data: copied.to_svg_d(),
+        closed: copied.subpaths.iter().any(|subpath| subpath.closed),
+        bounds,
+    })
+}
+
+pub fn paste_nodes(ctx: &ServiceContext, input: PasteNodesInput) -> ServiceResult<NodePasteResult> {
+    if !input.offset_mm.is_finite() {
+        return Err(ServiceError::invalid_input("Paste offset must be finite"));
+    }
+    let copied: VecPath = serde_json::from_str(&input.copied_path_json)
+        .map_err(|error| ServiceError::invalid_input(format!("Invalid node clipboard: {error}")))?;
+    if copied.subpaths.is_empty() {
+        return Err(ServiceError::invalid_input("The node clipboard is empty"));
+    }
+
+    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    project
+        .ensure_resolved(input.object_id)
+        .map_err(ServiceError::internal)?;
+    path_ops_core::ensure_denormalized(
+        project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+    );
+    let object = project
+        .find_object(input.object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    let mut path = object_to_world_vecpath(object)
+        .ok_or_else(|| ServiceError::invalid_input("Cannot paste nodes into this object"))?;
+    let pasted = bake_transform(
+        &copied,
+        &Transform2D::translate(input.offset_mm, input.offset_mm),
+    );
+    let pasted_subpath_start = path.subpaths.len();
+    let pasted_subpath_count = pasted.subpaths.len();
+    path.subpaths.extend(pasted.subpaths);
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    let object = project
+        .find_object_mut(input.object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    object.transform = Transform2D::identity();
+    object.start_point_edits.clear();
+    write_vec_path_to_object(object, &path, None);
+    let result = object.clone();
+    project.dirty = true;
+
+    drop(guard);
+    planning::invalidate_plan_cache(ctx)?;
+    ctx.emit_event(
+        "vector.nodes.pasted",
+        json!({
+            "object": events::object_summary(&result),
+            "pasted_subpath_start": pasted_subpath_start,
+            "pasted_subpath_count": pasted_subpath_count,
+        }),
+    );
+    Ok(NodePasteResult {
+        object: result,
+        pasted_subpath_start,
+        pasted_subpath_count,
+    })
+}
+
+pub fn extract_nodes_to_path(
+    ctx: &ServiceContext,
+    input: ExtractNodesInput,
+) -> ServiceResult<ProjectObject> {
+    if input.node_ids.is_empty() {
+        return Err(ServiceError::invalid_input("No nodes supplied"));
+    }
+    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    project
+        .ensure_resolved(input.object_id)
+        .map_err(ServiceError::internal)?;
+    path_ops_core::ensure_denormalized(
+        project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+    );
+    let copied = selected_node_path(project, input.object_id, &input.node_ids)?;
+    let source = project
+        .find_object(input.object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?
+        .clone();
+    let source_path = require_vector_path(&source)?;
+    let remaining = remove_selected_nodes_from_path(source_path, &input.node_ids)?;
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    if remaining.subpaths.is_empty() {
+        project.remove_object(input.object_id);
+    } else {
+        let object = project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_vec_path_to_object(object, &remaining, None);
+    }
+
+    let layer_id = reroute_vector_result_layer(project, source.layer_id)?;
+    let bounds = copied
+        .visual_bounds()
+        .or_else(|| copied.bounds())
+        .unwrap_or_else(|| Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
+    let mut extracted = ProjectObject::new(
+        format!("{} Extracted", source.name),
+        layer_id,
+        bounds,
+        ObjectData::VectorPath {
+            path_data: copied.to_svg_d(),
+            closed: copied.subpaths.iter().any(|subpath| subpath.closed),
+            ruler_guide_axis: None,
+        },
+    );
+    extracted.visible = source.visible;
+    extracted.z_index = source.z_index.saturating_add(1);
+    extracted.power_scale = source.power_scale;
+    extracted.priority = source.priority;
+    let result = project.add_object(extracted).clone();
+    project.dirty = true;
+
+    drop(guard);
+    planning::invalidate_plan_cache(ctx)?;
+    ctx.emit_event(
+        "vector.nodes.extracted",
+        json!({
+            "source_object_id": input.object_id,
+            "object": events::object_summary(&result),
+            "node_count": input.node_ids.len(),
+        }),
+    );
+    Ok(result)
 }
 
 pub fn update_node(ctx: &ServiceContext, input: UpdateNodeInput) -> ServiceResult<ProjectObject> {
@@ -5741,5 +6078,103 @@ mod tests {
         } else {
             panic!("expected VectorPath");
         }
+    }
+
+    fn node_clipboard_project() -> (ServiceContext, ObjectId) {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Node Clipboard");
+        let layer = Layer::new("Work", OperationType::Cut);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+        let path_data = "M 0 0 L 10 0 L 10 10 L 0 10 Z";
+        let path = VecPath::parse_svg_d(path_data);
+        let object = ProjectObject::new(
+            "Square",
+            layer_id,
+            path.visual_bounds().unwrap(),
+            ObjectData::VectorPath {
+                path_data: path_data.to_string(),
+                closed: true,
+                ruler_guide_axis: None,
+            },
+        );
+        let object_id = object.id;
+        project.add_object(object);
+        *ctx.project.lock().unwrap() = Some(project);
+        (ctx, object_id)
+    }
+
+    #[test]
+    fn copy_and_paste_nodes_use_world_space_and_one_native_mutation() {
+        let (ctx, object_id) = node_clipboard_project();
+        let copied = copy_nodes(
+            &ctx,
+            CopyNodesInput {
+                object_id,
+                node_ids: vec![
+                    NodeId {
+                        subpath_idx: 0,
+                        command_idx: 0,
+                    },
+                    NodeId {
+                        subpath_idx: 0,
+                        command_idx: 1,
+                    },
+                ],
+            },
+        )
+        .unwrap();
+        let copied_path: VecPath = serde_json::from_str(&copied.path_json).unwrap();
+        assert_eq!(copied_path.subpaths.len(), 1);
+        assert!(!copied_path.subpaths[0].closed);
+        assert_eq!(copied_path.subpaths[0].commands.len(), 2);
+
+        let pasted = paste_nodes(
+            &ctx,
+            PasteNodesInput {
+                object_id,
+                copied_path_json: copied.path_json,
+                offset_mm: 5.0,
+            },
+        )
+        .unwrap();
+        assert_eq!(pasted.pasted_subpath_start, 1);
+        assert_eq!(pasted.pasted_subpath_count, 1);
+        let ObjectData::VectorPath { path_data, .. } = pasted.object.data else {
+            panic!("expected VectorPath");
+        };
+        let path = VecPath::parse_svg_d(&path_data);
+        assert_eq!(path.subpaths.len(), 2);
+        assert_eq!(
+            command_endpoint(&path.subpaths[1].commands[0]),
+            Some(Point2D::new(5.0, 5.0)),
+        );
+    }
+
+    #[test]
+    fn extracting_a_complete_subpath_replaces_the_source_with_a_new_object() {
+        let (ctx, object_id) = node_clipboard_project();
+        let extracted = extract_nodes_to_path(
+            &ctx,
+            ExtractNodesInput {
+                object_id,
+                node_ids: (0..4)
+                    .map(|command_idx| NodeId {
+                        subpath_idx: 0,
+                        command_idx,
+                    })
+                    .collect(),
+            },
+        )
+        .unwrap();
+
+        let guard = ctx.project.lock().unwrap();
+        let project = guard.as_ref().unwrap();
+        assert!(project.find_object(object_id).is_none());
+        assert!(project.find_object(extracted.id).is_some());
+        assert!(matches!(
+            extracted.data,
+            ObjectData::VectorPath { closed: true, .. }
+        ));
     }
 }

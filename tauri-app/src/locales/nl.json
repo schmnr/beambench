@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Automatisch samenvoegen van geselecteerde vormen",
       "close_and_join": "Sluiten en meedoen",
       "convert_to_bitmap": "Converteren naar bitmap",
+      "extract_selected_nodes_to_path": "Geselecteerde knooppunten naar nieuw pad extraheren",
       "duplicate": "Duplicaat",
       "image_options": "Afbeeldingsopties",
       "invert_selection": "Selectie omkeren",
@@ -1198,13 +1199,16 @@
       "close_path": "Sluit pad",
       "auto_join_paths": "Paden automatisch samenvoegen",
       "insert_midpoint": "Middelpunt invoegen (M)",
-      "align_to_angle": "Uitlijnen op hoek (A)"
+      "align_to_angle": "Uitlijnen op hoek (A)",
+      "extend_to_intersection": "Verlengen tot snijpunt (E)"
     },
     "transform_toggles": {
       "move": "Beweging",
       "size": "Maat",
       "rotate": "Draaien",
-      "shear": "Scheer"
+      "shear": "Scheer",
+      "lock_all": "Alle transformaties vergrendelen",
+      "unlock_all": "Alle transformaties ontgrendelen"
     },
     "properties": {
       "position_x": "X-pos",

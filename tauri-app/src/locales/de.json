@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Ausgewählte Formen automatisch verbinden",
       "close_and_join": "Schließen und beitreten",
       "convert_to_bitmap": "In Bitmap konvertieren",
+      "extract_selected_nodes_to_path": "Ausgewählte Knoten in neuen Pfad extrahieren",
       "duplicate": "Duplizieren",
       "image_options": "Bildoptionen",
       "invert_selection": "Auswahl umkehren",
@@ -1198,13 +1199,16 @@
       "close_path": "Pfad schließen",
       "auto_join_paths": "Pfade automatisch verbinden",
       "insert_midpoint": "Mittelpunkt einfügen (M)",
-      "align_to_angle": "An Winkel (A) ausrichten (A)"
+      "align_to_angle": "An Winkel (A) ausrichten (A)",
+      "extend_to_intersection": "Bis zum Schnittpunkt verlängern (E)"
     },
     "transform_toggles": {
       "move": "Bewegen",
       "size": "Größe",
       "rotate": "Drehen",
-      "shear": "Scheren"
+      "shear": "Scheren",
+      "lock_all": "Alle Transformationen sperren",
+      "unlock_all": "Alle Transformationen entsperren"
     },
     "properties": {
       "position_x": "X-Pos",

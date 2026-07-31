@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Unir automaticamente formas selecionadas",
       "close_and_join": "Fechar e aderir",
       "convert_to_bitmap": "Converter para bitmap",
+      "extract_selected_nodes_to_path": "Extrair nós selecionados para um novo caminho",
       "duplicate": "Duplicar",
       "image_options": "Opções de imagem",
       "invert_selection": "Inverter seleção",
@@ -1198,13 +1199,16 @@
       "close_path": "Fechar caminho",
       "auto_join_paths": "Caminhos de junção automática",
       "insert_midpoint": "Inserir ponto médio (M)",
-      "align_to_angle": "Alinhar ao ângulo (A)"
+      "align_to_angle": "Alinhar ao ângulo (A)",
+      "extend_to_intersection": "Estender até a interseção (E)"
     },
     "transform_toggles": {
       "move": "Mover",
       "size": "Tamanho",
       "rotate": "Girar",
-      "shear": "Cisalhamento"
+      "shear": "Cisalhamento",
+      "lock_all": "Bloquear todas as transformações",
+      "unlock_all": "Desbloquear todas as transformações"
     },
     "properties": {
       "position_x": "Pos. X",

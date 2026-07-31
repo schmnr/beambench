@@ -11,7 +11,6 @@ vi.mock('../../../utils/platform', () => ({
 vi.mock('../MenuBar', () => ({ MenuBar: () => <div>File</div> }));
 vi.mock('../MainToolbar', () => ({ MainToolbar: () => <div>MainToolbar</div> }));
 vi.mock('../CreationToolbar', () => ({ CreationToolbar: () => <div>CreationToolbar</div> }));
-vi.mock('../NodeSubToolbar', () => ({ NodeSubToolbar: () => <div>NodeSubToolbar</div> }));
 vi.mock('../ModifiersToolbar', () => ({ ModifiersToolbar: () => <div>ModifiersToolbar</div> }));
 vi.mock('../StatusBar', () => ({ StatusBar: () => <div>StatusBar</div> }));
 vi.mock('../RightPanel', () => ({ RightPanel: () => <div>RightPanel</div> }));
@@ -86,6 +85,20 @@ describe('AppShell workspace modes', () => {
 
     render(<AppShell />);
     act(() => useUiStore.setState({ activeTool: 'text' }));
+
+    const state = useUiStore.getState();
+    expect(state.sidePanelsVisible).toBe(true);
+    expect(state.panelLayout.zones['middle-right'].activeTab).toBe('properties');
+  });
+
+  it('reveals the relocated Properties panel when the node tool is chosen', () => {
+    useUiStore.getState().dockPanel('console', 'middle-right');
+    useUiStore.getState().movePanelBetweenZones('properties', 'top-right', 'middle-right');
+    useUiStore.getState().setZoneActiveTab('middle-right', 'console');
+    useUiStore.setState({ sidePanelsVisible: false, activeTool: 'select', workspaceMode: 'design' });
+
+    render(<AppShell />);
+    act(() => useUiStore.setState({ activeTool: 'node' }));
 
     const state = useUiStore.getState();
     expect(state.sidePanelsVisible).toBe(true);

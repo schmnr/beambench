@@ -13,9 +13,12 @@ import { DRAG_THRESHOLD_PX, NODE_HIT_SIZE } from '../constants';
 import { resolveCanvasPointerSnap } from '../pointerSnap';
 import { hitTestPointAll } from '../hitTest';
 import { wrapBackendError } from '../../i18n/errors';
+import { pasteClipboardArtworkFromSystem } from '../../utils/systemClipboard';
+import { readNodeClipboard, writeNodeClipboard } from '../../utils/nodeClipboard';
 import i18n from '../../i18n';
 
 export type NodeImmediateAction = 'midpoint' | 'align' | 'trim' | 'extend' | 'close_open' | 'auto_join';
+export type NodeEditAction = 'copy' | 'cut' | 'paste' | 'extract' | 'delete' | 'select_all';
 
 type DragPointSnapshot = {
   target: NodeSelectionTarget;
@@ -58,6 +61,11 @@ type NodeToolState =
       currentScreen: Point2D;
       selectionMode: NodeSelectionModifierMode;
       crossing: boolean;
+    }
+  | {
+      type: 'lasso';
+      points: Point2D[];
+      selectionMode: NodeSelectionModifierMode;
     }
   | {
       type: 'dragging';
@@ -139,7 +147,14 @@ export class NodeTool implements CanvasTool {
 
     switch (subMode) {
       case 'select':
-        this.handleSelectMouseDown(screenPt, ctx, e.shiftKey, e.ctrlKey);
+        this.handleSelectMouseDown(
+          screenPt,
+          { x: e.worldX, y: e.worldY },
+          ctx,
+          e.shiftKey,
+          e.ctrlKey,
+          e.altKey,
+        );
         break;
       case 'insert':
         this.handleInsertClick(screenPt, ctx);
@@ -227,6 +242,15 @@ export class NodeTool implements CanvasTool {
     if (this.state.type === 'rubber-band') {
       this.state.currentScreen = screenPt;
       this.state.crossing = screenPt.x < this.state.startScreen.x;
+      ctx.requestRender();
+      return;
+    }
+
+    if (this.state.type === 'lasso') {
+      const last = this.state.points[this.state.points.length - 1];
+      if (!last || Math.hypot(screenPt.x - last.x, screenPt.y - last.y) >= 2) {
+        this.state.points.push(screenPt);
+      }
       ctx.requestRender();
       return;
     }
@@ -361,6 +385,26 @@ export class NodeTool implements CanvasTool {
         ctx.requestRender();
         return;
       }
+      case 'lasso': {
+        const { points, selectionMode } = this.state;
+        this.state = { type: 'idle' };
+        const start = points[0];
+        const moved = Boolean(start && points.some((point) =>
+          Math.hypot(point.x - start.x, point.y - start.y) > DRAG_THRESHOLD_PX,
+        ));
+        if (!moved) {
+          if (selectionMode === 'replace') this.selectOnly(null);
+          ctx.requestRender();
+          return;
+        }
+
+        this.applySelectionTargetsModifier(
+          this.nodeTargetsInScreenLasso(points, ctx),
+          selectionMode,
+        );
+        ctx.requestRender();
+        return;
+      }
       case 'dragging': {
         const objectId = this.objectId;
         const joinTarget = this.joinTargetNodeId;
@@ -418,6 +462,22 @@ export class NodeTool implements CanvasTool {
       this.selectTargets(this.allNodeTargets());
       ctx.requestRender();
       return;
+    }
+
+    if (e.metaKey || e.ctrlKey) {
+      const clipboardAction = ({ c: 'copy', x: 'cut', v: 'paste' } as const)[e.key.toLowerCase()];
+      if (clipboardAction) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.performNodeAction(clipboardAction, ctx);
+        return;
+      }
+      // Native/global command handling owns every other modified shortcut.
+      // Letting Cmd+S, Cmd+Z, etc. fall through to the single-letter node
+      // modes would mutate the path while the user was saving or undoing.
+      // Modified arrow keys are the exception: they are deliberate fine and
+      // ultra-fine node nudges handled below.
+      if (!e.key.startsWith('Arrow')) return;
     }
 
     // Sub-mode shortcuts — immediate action when a node is selected,
@@ -588,6 +648,7 @@ export class NodeTool implements CanvasTool {
       case 'dragging':
         return 'move';
       case 'rubber-band':
+      case 'lasso':
         return 'crosshair';
       default:
         switch (subMode) {
@@ -630,7 +691,8 @@ export class NodeTool implements CanvasTool {
         suspendPreview:
           this.state.type === 'dragging' ||
           this.state.type === 'maybe-drag' ||
-          this.state.type === 'rubber-band',
+          this.state.type === 'rubber-band' ||
+          this.state.type === 'lasso',
         hoveredSegment: this.hoveredSegment,
         hoveredEndpoint: this.hoveredEndpoint,
         joinTargetNodeId: this.joinTargetNodeId,
@@ -640,6 +702,9 @@ export class NodeTool implements CanvasTool {
               endScreen: this.state.currentScreen,
               crossing: this.state.crossing,
             }
+          : null,
+        selectionLasso: this.state.type === 'lasso'
+          ? { points: this.state.points }
           : null,
       };
     }
@@ -705,6 +770,93 @@ export class NodeTool implements CanvasTool {
       case 'auto_join':
         this.handleAutoJoinClick(ctx);
     }
+  }
+
+  performNodeAction(action: NodeEditAction, ctx: ToolContext): void {
+    if (this.pendingNodeCommit) return;
+    const objectId = this.objectId;
+    const nodeIds = this.selectedNodeIds();
+
+    if (action === 'select_all') {
+      this.selectTargets(this.allNodeTargets());
+      ctx.requestRender();
+      return;
+    }
+
+    if (action !== 'paste' && (!objectId || nodeIds.length === 0)) {
+      ctx.setStatusMessage(i18n.t('canvas_status.select_vector_path_nodes'));
+      return;
+    }
+
+    if (action === 'delete') {
+      this.deleteSelectedNodes(ctx);
+      return;
+    }
+
+    if (action === 'copy') {
+      const commit = vectorService
+        .copyNodes(objectId!, nodeIds)
+        .then(writeNodeClipboard)
+        .catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+      this.trackNodeCommit(commit);
+      return;
+    }
+
+    if (action === 'cut') {
+      const commit = (async () => {
+        const copy = await vectorService.copyNodes(objectId!, nodeIds);
+        await writeNodeClipboard(copy);
+        if (this.isDeletingEveryEditableNode(nodeIds)) {
+          await useProjectStore.getState().removeObject(objectId!);
+          this.reset();
+        } else {
+          const updated = await vectorService.deleteNodes(objectId!, nodeIds);
+          this.applyUpdatedObject(updated);
+          this.selectOnly(null);
+          await useUndoStore.getState().refresh();
+          await this.loadEditablePath(objectId!, ctx);
+        }
+        ctx.requestRender();
+      })().catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+      this.trackNodeCommit(commit);
+      return;
+    }
+
+    if (action === 'extract') {
+      const commit = vectorService
+        .extractNodesToPath(objectId!, nodeIds)
+        .then(async (created) => {
+          this.reset();
+          await useProjectStore.getState().loadProject();
+          useProjectStore.getState().selectObjects([created.id]);
+          await useUndoStore.getState().refresh();
+          ctx.requestRender();
+        })
+        .catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+      this.trackNodeCommit(commit);
+      return;
+    }
+
+    const commit = (async () => {
+      const copiedPathJson = await readNodeClipboard();
+      if (!copiedPathJson || !objectId) {
+        await pasteClipboardArtworkFromSystem();
+        return;
+      }
+      const result = await vectorService.pasteNodes(objectId, copiedPathJson);
+      this.applyUpdatedObject(result.object);
+      await useUndoStore.getState().refresh();
+      await this.loadEditablePath(objectId, ctx);
+      const first = result.pastedSubpathStart;
+      const last = first + result.pastedSubpathCount;
+      this.selectTargets(this.editablePaths.flatMap((path) => {
+        const subpathIdx = path.nodes[0]?.id.subpath_idx;
+        if (subpathIdx === undefined || subpathIdx < first || subpathIdx >= last) return [];
+        return path.nodes.map((node) => ({ kind: 'node' as const, nodeId: node.id }));
+      }));
+      ctx.requestRender();
+    })().catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+    this.trackNodeCommit(commit);
   }
 
   // --- Private helpers ---
@@ -1153,6 +1305,21 @@ export class NodeTool implements CanvasTool {
         ) {
           return [];
         }
+        return [{ kind: 'node' as const, nodeId: node.id }];
+      }),
+    );
+  }
+
+  private nodeTargetsInScreenLasso(
+    points: Point2D[],
+    ctx: ToolContext,
+  ): NodeSelectionTarget[] {
+    if (points.length < 3) return [];
+
+    return this.editablePaths.flatMap((path) =>
+      path.nodes.flatMap((node) => {
+        const screenPos = worldToScreen(this.nodeToWorld(node.position), ctx.vp);
+        if (!this.pointInsidePolygon(screenPos, points, 1)) return [];
         return [{ kind: 'node' as const, nodeId: node.id }];
       }),
     );
@@ -1732,7 +1899,14 @@ export class NodeTool implements CanvasTool {
 
   // --- Sub-mode handlers ---
 
-  private handleSelectMouseDown(screenPt: Point2D, ctx: ToolContext, shiftKey: boolean, ctrlKey: boolean): void {
+  private handleSelectMouseDown(
+    screenPt: Point2D,
+    worldPt: Point2D,
+    ctx: ToolContext,
+    shiftKey: boolean,
+    ctrlKey: boolean,
+    altKey: boolean,
+  ): void {
     const selectionMode = nodeSelectionModifierMode(shiftKey, ctrlKey);
     const handleHit = this.hitTestHandlesAny(screenPt, ctx);
     if (handleHit) {
@@ -1803,15 +1977,163 @@ export class NodeTool implements CanvasTool {
       return;
     }
 
+    if (selectionMode === 'replace') {
+      const islandDrag = this.selectedFilledIslandDrag(screenPt, ctx);
+      if (islandDrag) {
+        this.activeSubpathIdx = islandDrag.target.nodeId.subpath_idx;
+        this.state = {
+          type: 'maybe-drag',
+          target: islandDrag.target,
+          startScreen: screenPt,
+          startWorld: worldPt,
+          initialPoints: islandDrag.initialPoints,
+          excludedPoints: islandDrag.excludedPoints,
+        };
+        ctx.requestRender();
+        return;
+      }
+    }
+
     if (selectionMode === 'replace') this.selectOnly(null);
-    this.state = {
-      type: 'rubber-band',
-      startScreen: screenPt,
-      currentScreen: screenPt,
-      selectionMode,
-      crossing: false,
-    };
+    this.state = altKey
+      ? {
+          type: 'rubber-band',
+          startScreen: screenPt,
+          currentScreen: screenPt,
+          selectionMode,
+          crossing: false,
+        }
+      : {
+          type: 'lasso',
+          points: [screenPt],
+          selectionMode,
+        };
     ctx.requestRender();
+  }
+
+  private selectedFilledIslandDrag(
+    screenPt: Point2D,
+    ctx: ToolContext,
+  ): {
+    target: Extract<NodeSelectionTarget, { kind: 'node' }>;
+    initialPoints: DragPointSnapshot[];
+    excludedPoints: Point2D[];
+  } | null {
+    if (!this.objectId) return null;
+    const object = ctx.objects.find((candidate) => candidate.id === this.objectId);
+    const layerOperation = ctx.layers.find((layer) => layer.id === object?.layer_id)?.operation;
+    if (layerOperation !== 'fill' && layerOperation !== 'offset_fill') return null;
+
+    const selectedNodeKeys = new Set(this.selectedNodeIds().map((nodeId) => this.nodeKey(nodeId)));
+    const containingPaths = this.editablePaths.flatMap((path) => {
+      if (!path.closed || path.nodes.length < 3) return [];
+      const polygon = this.flattenEditablePathToScreen(path, ctx);
+      if (!this.pointInsidePolygon(screenPt, polygon)) return [];
+      return [{ path, polygon }];
+    });
+
+    // Node editing is rendered with the same even-odd fill rule, so an odd
+    // number of containing contours is material while an even count is a hole.
+    if (containingPaths.length % 2 === 0) return null;
+
+    const clicked = containingPaths.reduce((smallest, candidate) =>
+      Math.abs(this.polygonArea(candidate.polygon)) < Math.abs(this.polygonArea(smallest.polygon))
+        ? candidate
+        : smallest,
+    );
+    if (!clicked.path.nodes.every((node) => selectedNodeKeys.has(this.nodeKey(node.id)))) {
+      return null;
+    }
+
+    const targetNode = clicked.path.nodes.find((node) =>
+      this.primaryTarget?.kind === 'node'
+      && this.nodeKey(node.id) === this.nodeKey(this.primaryTarget.nodeId),
+    ) ?? clicked.path.nodes[0];
+    if (!targetNode) return null;
+
+    const initialPoints = this.buildSelectedDragPoints();
+    if (initialPoints.length === 0) return null;
+    return {
+      target: { kind: 'node', nodeId: targetNode.id },
+      initialPoints,
+      excludedPoints: initialPoints.map((snapshot) => snapshot.world),
+    };
+  }
+
+  private flattenEditablePathToScreen(path: EditablePath, ctx: ToolContext): Point2D[] {
+    const points: Point2D[] = [];
+    const append = (point: Point2D) => points.push(worldToScreen(this.nodeToWorld(point), ctx.vp));
+    const appendSegment = (
+      previous: EditablePath['nodes'][number],
+      current: EditablePath['nodes'][number],
+    ) => {
+      const p0 = previous.position;
+      const p3 = current.position;
+      const hasHandles = previous.handle_out !== null || current.handle_in !== null;
+      const steps = hasHandles ? 16 : 1;
+      for (let step = 1; step <= steps; step++) {
+        const t = step / steps;
+        const u = 1 - t;
+        if (hasHandles) {
+          const p1 = previous.handle_out ?? p0;
+          const p2 = current.handle_in ?? p3;
+          append({
+            x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+            y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+          });
+        } else {
+          append({ x: p0.x + (p3.x - p0.x) * t, y: p0.y + (p3.y - p0.y) * t });
+        }
+      }
+    };
+
+    const first = path.nodes[0];
+    if (!first) return points;
+    append(first.position);
+    for (let index = 1; index < path.nodes.length; index++) {
+      appendSegment(path.nodes[index - 1], path.nodes[index]);
+    }
+    if (path.closed && path.nodes.length > 1) {
+      appendSegment(path.nodes[path.nodes.length - 1], first);
+    }
+    return points;
+  }
+
+  private pointInsidePolygon(point: Point2D, polygon: Point2D[], edgeTolerance = 0): boolean {
+    if (polygon.length < 3) return false;
+    let inside = false;
+    for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
+      const start = polygon[previous];
+      const end = polygon[index];
+      if (edgeTolerance > 0) {
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const lengthSquared = dx * dx + dy * dy;
+        if (lengthSquared > 0) {
+          const t = Math.max(0, Math.min(1,
+            ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared,
+          ));
+          if (Math.hypot(
+            point.x - (start.x + t * dx),
+            point.y - (start.y + t * dy),
+          ) <= edgeTolerance) return true;
+        }
+      }
+      const crosses = (start.y > point.y) !== (end.y > point.y)
+        && point.x < ((end.x - start.x) * (point.y - start.y)) / (end.y - start.y) + start.x;
+      if (crosses) inside = !inside;
+    }
+    return inside;
+  }
+
+  private polygonArea(polygon: Point2D[]): number {
+    let area = 0;
+    for (let index = 0; index < polygon.length; index++) {
+      const current = polygon[index];
+      const next = polygon[(index + 1) % polygon.length];
+      area += current.x * next.y - next.x * current.y;
+    }
+    return area / 2;
   }
 
   private handleInsertClick(screenPt: Point2D, ctx: ToolContext): void {

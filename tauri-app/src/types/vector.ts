@@ -71,6 +71,19 @@ export interface EditablePath {
   closed: boolean;
 }
 
+export interface NodeClipboardCopy {
+  pathJson: string;
+  pathData: string;
+  bounds: Bounds;
+  closed: boolean;
+}
+
+export interface NodePasteResult {
+  object: ProjectObject;
+  pastedSubpathStart: number;
+  pastedSubpathCount: number;
+}
+
 export interface NormalizedVector {
   polylines: { points: Point2D[]; closed: boolean }[];
   layer_id: string;

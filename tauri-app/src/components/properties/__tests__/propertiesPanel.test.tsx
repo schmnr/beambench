@@ -42,6 +42,60 @@ afterEach(() => {
 });
 
 describe('PropertiesPanel', () => {
+  it('shows NodeCraft-style node modes in Properties instead of a canvas-side toolbar', () => {
+    useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
+    useUiStore.setState({ activeTool: 'node', nodeSubMode: 'select' });
+
+    render(<PropertiesPanel />);
+
+    const section = screen.getByTestId('node-editing-section');
+    const modeLabels = [
+      'Select / Move (Esc)',
+      'Insert Node (I)',
+      'Insert Midpoint (M)',
+      'Break at Node (B)',
+      'Delete Node (D)',
+      'Delete Segment (X)',
+      'Convert to Line (L)',
+      'Convert to Smooth (S)',
+      'Convert to Corner (C)',
+      'Extend to Intersection (E)',
+    ];
+    modeLabels.forEach((label) => {
+      const button = screen.getByRole('button', { name: label });
+      expect(button.querySelector('svg')).not.toBeNull();
+    });
+    expect(section.querySelectorAll('[role="toolbar"] > div').length).toBe(5);
+    expect(screen.queryByRole('button', { name: 'Align to Angle (A)' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Insert Midpoint (M)' }));
+    expect(useUiStore.getState().nodeSubMode).toBe('insert_midpoint');
+    expect(screen.getByRole('button', { name: 'Insert Midpoint (M)' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Node Edit' }));
+    expect(screen.queryByRole('button', { name: 'Insert Node (I)' })).toBeNull();
+  });
+
+  it('enables Close Path only for an editable open vector and dispatches the one-shot action', () => {
+    const project = makeProject({
+      data: { type: 'vector_path' as const, path_data: 'M0 0L10 10', closed: false },
+    });
+    const immediateAction = vi.fn();
+    window.addEventListener('bb:node-immediate-action', immediateAction);
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'node' });
+
+    render(<PropertiesPanel />);
+
+    const closePath = screen.getByRole('button', { name: 'Close Path' }) as HTMLButtonElement;
+    expect(closePath.disabled).toBe(false);
+    fireEvent.click(closePath);
+    expect(immediateAction).toHaveBeenCalledOnce();
+    expect((immediateAction.mock.calls[0][0] as CustomEvent).detail).toBe('close_open');
+
+    window.removeEventListener('bb:node-immediate-action', immediateAction);
+  });
+
   it('shows next-text settings when the text tool is active without a selection', () => {
     useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
     useUiStore.setState({ activeTool: 'text' });

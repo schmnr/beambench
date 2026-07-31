@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { TransformSection } from '../TransformSection';
 import { useProjectStore } from '../../../stores/projectStore';
-import { useUiStore } from '../../../stores/uiStore';
 import { useAppStore } from '../../../stores/appStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { makeAppSettings, makeLayer, makeProject as makeProjectFixture, makeProjectObject, makeTransformLocks } from '../../../test-utils/projectFixtures';
@@ -54,13 +53,11 @@ const typeAndCommit = (input: Element, value: string) => {
 };
 
 const initialState = useProjectStore.getState();
-const initialUiState = useUiStore.getState();
 const initialAppState = useAppStore.getState();
 
 afterEach(() => {
   cleanup();
   useProjectStore.setState(initialState, true);
-  useUiStore.setState(initialUiState, true);
   useAppStore.setState(initialAppState, true);
 });
 
@@ -122,11 +119,10 @@ describe('TransformSection — position/size', () => {
 
   it('Lock aspect constrains dimensions proportionally', () => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'], updateObject });
+    const project = makeProject();
+    project.objects[0].lock_aspect_ratio = true;
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'], updateObject });
     render(<TransformSection />);
-    // Enable lock via the padlock toggle button
-    const lockButton = screen.getByTitle('Lock aspect ratio');
-    fireEvent.click(lockButton);
     // Change W from 50 to 100 — H should scale to 100 too (1:1 aspect)
     const inputs = screen.getAllByRole('spinbutton');
     typeAndCommit(inputs[IDX_W], '100');
@@ -158,40 +154,45 @@ describe('TransformSection — position/size', () => {
   });
 
   it('toggles every transform lock from the header and changes its icon', () => {
-    const setTransformLocks = vi.fn().mockResolvedValue(undefined);
+    const updateObjectTransformState = vi.fn().mockResolvedValue(true);
     useProjectStore.setState({
       project: makeProject(),
       selectedObjectIds: ['obj1'],
-      setTransformLocks,
+      updateObjectTransformState,
     });
 
     const { rerender } = render(<TransformSection />);
     const lockAllButton = screen.getByRole('button', { name: 'Lock all transforms' });
     expect(lockAllButton.querySelector('.lucide-lock-open')).not.toBeNull();
     fireEvent.click(lockAllButton);
-    expect(useUiStore.getState().lockAspect).toBe(true);
-    expect(setTransformLocks).toHaveBeenCalledWith(makeTransformLocks({
-      move_enabled: false,
-      size_enabled: false,
-      rotate_enabled: false,
-      shear_enabled: false,
-    }));
+    expect(updateObjectTransformState).toHaveBeenCalledWith(['obj1'], {
+      transformLocks: makeTransformLocks({
+        move_enabled: false,
+        size_enabled: false,
+        rotate_enabled: false,
+        shear_enabled: false,
+      }),
+      lockAspectRatio: true,
+    });
 
     const lockedProject = makeProject();
-    lockedProject.transform_locks = makeTransformLocks({
+    lockedProject.objects[0].transform_locks = makeTransformLocks({
       move_enabled: false,
       size_enabled: false,
       rotate_enabled: false,
       shear_enabled: false,
     });
+    lockedProject.objects[0].lock_aspect_ratio = true;
     useProjectStore.setState({ project: lockedProject });
     rerender(<TransformSection />);
 
     const unlockAllButton = screen.getByRole('button', { name: 'Unlock all transforms' });
     expect(unlockAllButton.querySelector('.lucide-lock')).not.toBeNull();
     fireEvent.click(unlockAllButton);
-    expect(setTransformLocks).toHaveBeenLastCalledWith(makeTransformLocks());
-    expect(useUiStore.getState().lockAspect).toBe(false);
+    expect(updateObjectTransformState).toHaveBeenLastCalledWith(['obj1'], {
+      transformLocks: makeTransformLocks(),
+      lockAspectRatio: false,
+    });
   });
 
   it('centers the selected object on the page from the Transform header', () => {
@@ -248,12 +249,12 @@ describe('TransformSection — position/size', () => {
     expect(updates.bounds.max.y).toBeCloseTo(70);
   });
 
-  it('puts each project transform lock beside the fields it governs', () => {
-    const setTransformLocks = vi.fn().mockResolvedValue(undefined);
+  it('puts each object transform lock beside the fields it governs', () => {
+    const updateObjectTransformState = vi.fn().mockResolvedValue(true);
     useProjectStore.setState({
       project: makeProject(),
       selectedObjectIds: ['obj1'],
-      setTransformLocks,
+      updateObjectTransformState,
     });
 
     render(<TransformSection />);
@@ -265,31 +266,43 @@ describe('TransformSection — position/size', () => {
     expect(screen.getByRole('button', { name: 'Shear' })).toBeDefined();
     expect(moveLock.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(moveLock);
-    expect(setTransformLocks).toHaveBeenCalledWith(makeTransformLocks({ move_enabled: false }));
+    expect(updateObjectTransformState).toHaveBeenCalledWith(['obj1'], {
+      transformLockKey: 'move_enabled',
+      transformEnabled: false,
+    });
   });
 
   it('uses the same padlock vocabulary for proportional W/H sizing', () => {
-    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
-    useUiStore.setState({ lockAspect: false });
+    const updateObjectTransformState = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject(),
+      selectedObjectIds: ['obj1'],
+      updateObjectTransformState,
+    });
 
-    render(<TransformSection />);
+    const { rerender } = render(<TransformSection />);
 
     const aspectButton = screen.getByTitle('Lock aspect ratio');
     expect(aspectButton.querySelector('.lucide-lock-open')).not.toBeNull();
     fireEvent.click(aspectButton);
-    expect(aspectButton.querySelector('.lucide-lock')).not.toBeNull();
+    expect(updateObjectTransformState).toHaveBeenCalledWith(['obj1'], { lockAspectRatio: true });
+    const lockedProject = makeProject();
+    lockedProject.objects[0].lock_aspect_ratio = true;
+    useProjectStore.setState({ project: lockedProject });
+    rerender(<TransformSection />);
+    expect(screen.getByTitle('Lock aspect ratio').querySelector('.lucide-lock')).not.toBeNull();
   });
 
   it('uses the cyan active color for every locked transform control', () => {
     const project = makeProject();
-    project.transform_locks = makeTransformLocks({
+    project.objects[0].transform_locks = makeTransformLocks({
       move_enabled: false,
       size_enabled: false,
       rotate_enabled: false,
       shear_enabled: false,
     });
     useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
-    useUiStore.setState({ lockAspect: true });
+    project.objects[0].lock_aspect_ratio = true;
 
     render(<TransformSection />);
 
@@ -309,7 +322,7 @@ describe('TransformSection — position/size', () => {
   it('X change is blocked when position is locked', () => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
     const proj = makeProject();
-    proj.transform_locks = makeTransformLocks({ move_enabled: false });
+    proj.objects[0].transform_locks = makeTransformLocks({ move_enabled: false });
     useProjectStore.setState({ project: proj, selectedObjectIds: ['obj1'], updateObject });
     useNotificationStore.setState({ notifications: [] });
     render(<TransformSection />);
@@ -320,10 +333,35 @@ describe('TransformSection — position/size', () => {
     expect(notifications[notifications.length - 1]?.message).toContain('Position is locked');
   });
 
+  it('keeps transform locks isolated between objects on the same layer', () => {
+    const project = makeProject();
+    project.objects[0].transform_locks = makeTransformLocks({ move_enabled: false });
+    project.objects.push(makeProjectObject({
+      id: 'obj2',
+      name: 'Rect2',
+      layer_id: 'l1',
+      bounds: { min: { x: 80, y: 20 }, max: { x: 130, y: 70 } },
+      data: {
+        type: 'shape',
+        kind: 'rectangle',
+        width: 50,
+        height: 50,
+        corner_radius: 0,
+      },
+    }));
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+    const { rerender } = render(<TransformSection />);
+    expect(screen.getByRole('button', { name: 'Move' }).getAttribute('aria-pressed')).toBe('true');
+
+    useProjectStore.setState({ selectedObjectIds: ['obj2'] });
+    rerender(<TransformSection />);
+    expect(screen.getByRole('button', { name: 'Move' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('W change is blocked when scale is locked', () => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
     const proj = makeProject();
-    proj.transform_locks = makeTransformLocks({ size_enabled: false });
+    proj.objects[0].transform_locks = makeTransformLocks({ size_enabled: false });
     useProjectStore.setState({ project: proj, selectedObjectIds: ['obj1'], updateObject });
     useNotificationStore.setState({ notifications: [] });
     render(<TransformSection />);
@@ -346,7 +384,7 @@ describe('TransformSection — position/size', () => {
   it('rotation is blocked when rotation is locked', () => {
     const rotateObjects = vi.fn().mockResolvedValue(undefined);
     const proj = makeProject();
-    (proj as Record<string, unknown>).transform_locks = { rotate_enabled: false };
+    proj.objects[0].transform_locks = makeTransformLocks({ rotate_enabled: false });
     useProjectStore.setState({ project: proj, selectedObjectIds: ['obj1'], rotateObjects });
     useNotificationStore.setState({ notifications: [] });
     render(<TransformSection />);
@@ -549,9 +587,10 @@ describe('TransformSection — Scale X/Y', () => {
 
   it('locked Scale X changes width and height proportionally', () => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'], updateObject });
+    const project = makeProject();
+    project.objects[0].lock_aspect_ratio = true;
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'], updateObject });
     render(<TransformSection />);
-    fireEvent.click(screen.getByTitle('Lock aspect ratio'));
     const inputs = screen.getAllByRole('spinbutton');
     typeAndCommit(inputs[IDX_SCALE_X], '200');
     expect(updateObject).toHaveBeenCalledWith('obj1', {
@@ -561,9 +600,10 @@ describe('TransformSection — Scale X/Y', () => {
 
   it('locked Scale Y changes width and height proportionally', () => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'], updateObject });
+    const project = makeProject();
+    project.objects[0].lock_aspect_ratio = true;
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'], updateObject });
     render(<TransformSection />);
-    fireEvent.click(screen.getByTitle('Lock aspect ratio'));
     const inputs = screen.getAllByRole('spinbutton');
     typeAndCommit(inputs[IDX_SCALE_Y], '200');
     expect(updateObject).toHaveBeenCalledWith('obj1', {
@@ -603,13 +643,14 @@ describe('TransformSection — Scale X/Y', () => {
 
   it('locked multi-selection percentage scaling preserves the selection aspect ratio', () => {
     const updateObjectBoundsBatch = vi.fn().mockResolvedValue(undefined);
+    const project = makeMultiProject();
+    project.objects.forEach((object) => { object.lock_aspect_ratio = true; });
     useProjectStore.setState({
-      project: makeMultiProject(),
+      project,
       selectedObjectIds: ['obj1', 'obj2'],
       updateObjectBoundsBatch,
     });
     render(<TransformSection />);
-    fireEvent.click(screen.getByTitle('Lock aspect ratio'));
     const inputs = screen.getAllByRole('spinbutton');
     typeAndCommit(inputs[IDX_SCALE_X], '200');
     expect(updateObjectBoundsBatch).toHaveBeenCalledWith([

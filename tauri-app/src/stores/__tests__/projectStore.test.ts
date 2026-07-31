@@ -20,6 +20,7 @@ vi.mock('../../services/projectService', () => ({
     addObject: vi.fn(),
     addObjectAtomic: vi.fn(),
     updateObject: vi.fn(),
+    updateObjectTransformState: vi.fn(),
     updateObjectData: vi.fn(),
     resizeShapeObject: vi.fn(),
     removeObject: vi.fn(),
@@ -146,7 +147,12 @@ import { persistenceService } from '../../services/persistenceService';
 import { previewService } from '../../services/previewService';
 import type { ObjectData, Project, ProjectOptimization } from '../../types/project';
 import { DEFAULT_PROJECT_OPTIMIZATION } from '../../types/project';
-import { makeLayer, makeProject as makeProjectFixture, makeProjectObject } from '../../test-utils/projectFixtures';
+import {
+  makeLayer,
+  makeProject as makeProjectFixture,
+  makeProjectObject,
+  makeTransformLocks,
+} from '../../test-utils/projectFixtures';
 
 const mockedProject = projectService as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const mockedVector = vectorService as unknown as Record<string, ReturnType<typeof vi.fn>>;
@@ -822,16 +828,13 @@ describe('projectStore — new actions', () => {
     );
   });
 
-  it('resizeSlots refuses scale-locked projects before calling the service', async () => {
+  it('resizeSlots refuses scale-locked objects before calling the service', async () => {
     useProjectStore.setState({
       project: makeProject({
-        transform_locks: {
-          move_enabled: true,
-          size_enabled: false,
-          rotate_enabled: true,
-          shear_enabled: true,
-        },
-        objects: [makeProjectObject({ id: 'obj-1' })],
+        objects: [makeProjectObject({
+          id: 'obj-1',
+          transform_locks: makeTransformLocks({ size_enabled: false }),
+        })],
       }),
       selectedObjectIds: ['obj-1'],
     });
@@ -2757,12 +2760,14 @@ describe('projectStore — new actions', () => {
     expect(useNotificationStore.getState().notifications[0]?.message).toContain('Object is locked');
   });
 
-  it('copyAlongPath refuses scale-locked projects when scaling is enabled', async () => {
+  it('copyAlongPath refuses scale-locked objects when scaling is enabled', async () => {
     useProjectStore.setState({
       project: makeProject({
-        transform_locks: { move_enabled: true, size_enabled: false, rotate_enabled: true, shear_enabled: true },
         objects: [
-          ...makeProject().objects,
+          ...makeProject().objects.map((object) => ({
+            ...object,
+            transform_locks: makeTransformLocks({ size_enabled: false }),
+          })),
           makeProjectObject({
             id: 'guide-1',
             bounds: { min: { x: 0, y: 20 }, max: { x: 100, y: 25 } },

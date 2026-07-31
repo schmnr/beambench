@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Automatisk sammenføyning av valgte former",
       "close_and_join": "Lukk og bli med",
       "convert_to_bitmap": "Konverter til bitmap",
+      "extract_selected_nodes_to_path": "Trekk ut valgte noder til ny bane",
       "duplicate": "Duplikat",
       "image_options": "Bildealternativer",
       "invert_selection": "Inverter utvalg",
@@ -1198,13 +1199,16 @@
       "close_path": "Lukk sti",
       "auto_join_paths": "Automatisk koblingsveier",
       "insert_midpoint": "Sett inn midtpunkt (M)",
-      "align_to_angle": "Juster til vinkel (A)"
+      "align_to_angle": "Juster til vinkel (A)",
+      "extend_to_intersection": "Forleng til skjæringspunkt (E)"
     },
     "transform_toggles": {
       "move": "Flytt",
       "size": "Størrelse",
       "rotate": "Roter",
-      "shear": "Skjær"
+      "shear": "Skjær",
+      "lock_all": "Lås alle transformasjoner",
+      "unlock_all": "Lås opp alle transformasjoner"
     },
     "properties": {
       "position_x": "X-pos",

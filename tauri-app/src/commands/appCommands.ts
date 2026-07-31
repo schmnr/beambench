@@ -462,6 +462,10 @@ export async function executeAppCommand(
       useUndoStore.getState().redo();
       return;
     case APP_COMMANDS.EDIT_SELECT_ALL:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'select_all' }));
+        return;
+      }
       ps.selectAllObjects();
       return;
     case APP_COMMANDS.EDIT_INVERT_SELECTION: {
@@ -472,12 +476,24 @@ export async function executeAppCommand(
       return;
     }
     case APP_COMMANDS.EDIT_CUT:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'cut' }));
+        return;
+      }
       if (unlockedSelection) await runCommand(() => clipboardCut(selectedIds));
       return;
     case APP_COMMANDS.EDIT_COPY:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'copy' }));
+        return;
+      }
       clipboardCopy(selectedIds);
       return;
     case APP_COMMANDS.EDIT_PASTE:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'paste' }));
+        return;
+      }
       await runCommand(async () => {
         if (hasClipboardData()) {
           await clipboardPaste();
@@ -493,6 +509,10 @@ export async function executeAppCommand(
       if (unlockedSelection) await runCommand(() => clipboardDuplicate(selectedIds));
       return;
     case APP_COMMANDS.EDIT_DELETE:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'delete' }));
+        return;
+      }
       if (unlockedSelection) await runCommand(() => ps.removeObjects(selectedIds));
       return;
     case APP_COMMANDS.EDIT_SETTINGS:
@@ -503,6 +523,11 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.EDIT_CONVERT_TO_BITMAP:
       if (selectedIds.length === 1) await runCommand(() => ps.convertToBitmap(selectedIds[0], 300));
+      return;
+    case APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'extract' }));
+      }
       return;
     case APP_COMMANDS.EDIT_CLOSE_PATH:
       if (selectedIds.length > 0) {
@@ -1088,6 +1113,7 @@ export function getAppCommandState(): NativeMenuStateUpdate {
       { id: APP_COMMANDS.EDIT_SETTINGS, enabled: true },
       { id: APP_COMMANDS.EDIT_CONVERT_TO_PATH, enabled: singleVectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_PATH) },
       { id: APP_COMMANDS.EDIT_CONVERT_TO_BITMAP, enabled: singleSelection !== null, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP) },
+      { id: APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH, enabled: ui.activeTool === 'node' && singleVectorSelection },
       { id: APP_COMMANDS.EDIT_CLOSE_PATH, enabled: vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CLOSE_PATH) },
       { id: APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE, enabled: vectorSelection },
       { id: APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES, enabled: vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES) },

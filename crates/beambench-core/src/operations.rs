@@ -777,6 +777,7 @@ mod tests {
             },
             z_index: 0,
             lock_aspect_ratio: false,
+            transform_locks: Default::default(),
             power_scale: 1.0,
             priority: 0,
             created_at: chrono::Utc::now(),

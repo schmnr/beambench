@@ -49,7 +49,11 @@ import { captureBrowserCameraFrame } from './services/browserCameraCapture';
 import { exportCanvasScreenshot } from './services/canvasScreenshotExportService';
 import { getCanvasViewportSize } from './canvas/canvasViewportRegistry';
 import { zoomToFitBounds } from './canvas/ViewportTransform';
-import { isTransformLocked, notifyTransformLocked } from './utils/transformLocks';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyTransformLocked,
+} from './utils/transformLocks';
 import { matchesHotkey } from './utils/hotkeyMatch';
 import { createSelectionContext, isBooleanCompatible } from './commands/selectionContext';
 import {
@@ -1336,7 +1340,7 @@ function App() {
         ps.project?.assets ?? [],
       );
       const blockTransform = (kind: 'position' | 'scale' | 'rotation') => {
-        if (isTransformLocked(ps.project?.transform_locks, kind)) {
+        if (isTransformLocked(effectiveTransformLocks(selectedObjects), kind)) {
           notifyTransformLocked(kind);
           return true;
         }

@@ -9,7 +9,9 @@ import type {
   GridSpacingMode,
   HandleType,
   NodeBatchUpdate,
+  NodeClipboardCopy,
   NodeId,
+  NodePasteResult,
   NormalizedVector,
   OffsetCornerStyle,
   OffsetDirection,
@@ -54,6 +56,19 @@ export const vectorService = {
 
   getEditablePath: (objectId: string): Promise<EditablePath[]> =>
     invoke('get_editable_path', { objectId }),
+
+  copyNodes: (objectId: string, nodeIds: NodeId[]): Promise<NodeClipboardCopy> =>
+    invoke('copy_nodes', { objectId, nodeIds }),
+
+  pasteNodes: (
+    objectId: string,
+    copiedPathJson: string,
+    offsetMm = 5,
+  ): Promise<NodePasteResult> =>
+    invoke('paste_nodes', { objectId, copiedPathJson, offsetMm }),
+
+  extractNodesToPath: (objectId: string, nodeIds: NodeId[]): Promise<ProjectObject> =>
+    invoke('extract_nodes_to_path', { objectId, nodeIds }),
 
   updateNode: (
     objectId: string,

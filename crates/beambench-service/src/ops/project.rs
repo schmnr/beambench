@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use beambench_common::path::{PathCommand, VecPath};
 use beambench_common::{
-    Bounds, ColorTag, PALETTE_COLORS, Point2D, Transform2D, canonical_palette_color_tag,
+    Bounds, ColorTag, PALETTE_COLORS, Point2D, Transform2D, TransformLocks,
+    canonical_palette_color_tag,
 };
 use beambench_core::variable_text::{VariableTextConfig, advance_sequence_value};
 use beambench_core::vector::convert::object_to_world_vecpath_resolved;
@@ -84,8 +85,18 @@ pub struct UpdateObjectInput {
     pub transform: Option<Transform2D>,
     pub bounds: Option<Bounds>,
     pub lock_aspect_ratio: Option<bool>,
+    pub transform_locks: Option<TransformLocks>,
     pub power_scale: Option<f64>,
     pub priority: Option<i32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpdateObjectTransformStateInput {
+    pub object_ids: Vec<ObjectId>,
+    pub transform_locks: Option<TransformLocks>,
+    pub transform_lock_key: Option<String>,
+    pub transform_enabled: Option<bool>,
+    pub lock_aspect_ratio: Option<bool>,
 }
 
 /// Per-copy input for batch generation: resolved text + full variable text config.
@@ -2204,6 +2215,82 @@ pub fn update_object(
     Ok(updated)
 }
 
+pub fn update_object_transform_state(
+    ctx: &ServiceContext,
+    input: UpdateObjectTransformStateInput,
+) -> ServiceResult<Vec<ProjectObject>> {
+    if input.object_ids.is_empty() {
+        return Err(ServiceError::invalid_input("No objects supplied"));
+    }
+    if input.transform_lock_key.is_some() != input.transform_enabled.is_some() {
+        return Err(ServiceError::invalid_input(
+            "Transform lock key and enabled state must be supplied together",
+        ));
+    }
+    if input.transform_locks.is_some() && input.transform_lock_key.is_some() {
+        return Err(ServiceError::invalid_input(
+            "Supply complete transform locks or one transform lock key, not both",
+        ));
+    }
+    if let Some(key) = input.transform_lock_key.as_deref()
+        && !matches!(
+            key,
+            "move_enabled" | "size_enabled" | "rotate_enabled" | "shear_enabled"
+        )
+    {
+        return Err(ServiceError::invalid_input("Unknown transform lock key"));
+    }
+    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    for object_id in &input.object_ids {
+        if project.find_object(*object_id).is_none() {
+            return Err(ServiceError::not_found("Object not found"));
+        }
+    }
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    let mut updated = Vec::with_capacity(input.object_ids.len());
+    for object_id in &input.object_ids {
+        let object = project
+            .find_object_mut(*object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        if let Some(locks) = input.transform_locks {
+            object.transform_locks = locks;
+        } else if let (Some(key), Some(enabled)) =
+            (input.transform_lock_key.as_deref(), input.transform_enabled)
+        {
+            match key {
+                "move_enabled" => object.transform_locks.move_enabled = enabled,
+                "size_enabled" => object.transform_locks.size_enabled = enabled,
+                "rotate_enabled" => object.transform_locks.rotate_enabled = enabled,
+                "shear_enabled" => object.transform_locks.shear_enabled = enabled,
+                _ => unreachable!("transform lock key was validated before mutation"),
+            }
+        }
+        if let Some(lock_aspect_ratio) = input.lock_aspect_ratio {
+            object.lock_aspect_ratio = lock_aspect_ratio;
+        }
+        updated.push(object.clone());
+    }
+    project.dirty = true;
+    drop(guard);
+
+    ctx.emit_event(
+        "project.objects.transform_state_updated",
+        json!({
+            "object_ids": input.object_ids,
+            "transform_locks": input.transform_locks,
+            "transform_lock_key": input.transform_lock_key,
+            "transform_enabled": input.transform_enabled,
+            "lock_aspect_ratio": input.lock_aspect_ratio,
+        }),
+    );
+    Ok(updated)
+}
+
 fn validate_update_object_patch_in_project(
     project: &Project,
     object_id: ObjectId,
@@ -2259,6 +2346,9 @@ fn apply_update_object_patch_in_project(
         }
         if let Some(lock_aspect_ratio) = input.lock_aspect_ratio {
             obj.lock_aspect_ratio = lock_aspect_ratio;
+        }
+        if let Some(transform_locks) = input.transform_locks {
+            obj.transform_locks = transform_locks;
         }
         if let Some(power_scale) = input.power_scale {
             obj.power_scale = power_scale;
@@ -3928,6 +4018,57 @@ mod tests {
             },
         ));
         project
+    }
+
+    #[test]
+    fn transform_state_updates_only_the_requested_object() {
+        let ctx = ServiceContext::new();
+        let mut project = sample_project();
+        let first_id = project.objects[0].id;
+        let layer_id = project.objects[0].layer_id;
+        let second = ProjectObject::new(
+            "Second Rect",
+            layer_id,
+            Bounds::new(Point2D::new(20.0, 0.0), Point2D::new(30.0, 10.0)),
+            ObjectData::Shape {
+                kind: ShapeKind::Rectangle,
+                width: 10.0,
+                height: 10.0,
+                corner_radius: 0.0,
+            },
+        );
+        let second_id = second.id;
+        project.add_object(second);
+        *ctx.project.lock().unwrap() = Some(project);
+
+        update_object_transform_state(
+            &ctx,
+            UpdateObjectTransformStateInput {
+                object_ids: vec![first_id],
+                transform_locks: None,
+                transform_lock_key: Some("move_enabled".to_string()),
+                transform_enabled: Some(false),
+                lock_aspect_ratio: None,
+            },
+        )
+        .unwrap();
+
+        let guard = ctx.project.lock().unwrap();
+        let project = guard.as_ref().unwrap();
+        assert!(
+            !project
+                .find_object(first_id)
+                .unwrap()
+                .transform_locks
+                .move_enabled
+        );
+        assert!(
+            project
+                .find_object(second_id)
+                .unwrap()
+                .transform_locks
+                .move_enabled
+        );
     }
 
     /// Regression: enabling pass-through on a layer that holds a

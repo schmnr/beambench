@@ -262,6 +262,26 @@ pub fn read_clipboard_artwork() -> Result<Option<ClipboardArtworkPayload>, Strin
 }
 
 #[tauri::command]
+pub fn read_clipboard_text() -> Result<Option<String>, String> {
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|e| format!("Failed to open system clipboard: {e}"))?;
+    match clipboard.get_text() {
+        Ok(text) => Ok(Some(text)),
+        Err(arboard::Error::ContentNotAvailable) => Ok(None),
+        Err(error) => Err(format!("Failed to read clipboard text: {error}")),
+    }
+}
+
+#[tauri::command]
+pub fn write_clipboard_text(text: String) -> Result<(), String> {
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|e| format!("Failed to open system clipboard: {e}"))?;
+    clipboard
+        .set_text(text)
+        .map_err(|error| format!("Failed to write clipboard text: {error}"))
+}
+
+#[tauri::command]
 pub fn import_clipboard_artwork(
     svc: State<'_, Arc<ServiceContext>>,
     data_base64: String,

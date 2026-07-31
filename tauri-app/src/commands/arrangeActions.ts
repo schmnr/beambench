@@ -6,7 +6,11 @@ import { useNotificationStore } from '../stores/notificationStore';
 import i18n from '../i18n';
 import { useProjectStore } from '../stores/projectStore';
 import { useUiStore } from '../stores/uiStore';
-import { isTransformLocked, notifyTransformLocked } from '../utils/transformLocks';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyTransformLocked,
+} from '../utils/transformLocks';
 import { canvasToMachinePoint, machineToCanvasPoint } from '../utils/workspaceCoordinates';
 
 export type SelectionAnchor =
@@ -92,7 +96,8 @@ export async function moveSelectedToPageAnchor(anchor: SelectionAnchor): Promise
   const project = ps.project;
   const bounds = getSelectionBounds(project, ps.selectedObjectIds);
   if (!project || !bounds) return;
-  if (isTransformLocked(project.transform_locks, 'position')) {
+  const selectedObjects = project.objects.filter((object) => ps.selectedObjectIds.includes(object.id));
+  if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'position')) {
     notifyTransformLocked('position');
     return;
   }
@@ -109,7 +114,8 @@ export async function moveSelectedToLaserPosition(): Promise<void> {
   const project = ps.project;
   const machineStatus = useMachineStore.getState().machineStatus;
   if (!project || !machineStatus?.work_position || ps.selectedObjectIds.length === 0) return;
-  if (isTransformLocked(project.transform_locks, 'position')) {
+  const selectedObjects = project.objects.filter((object) => ps.selectedObjectIds.includes(object.id));
+  if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'position')) {
     notifyTransformLocked('position');
     return;
   }

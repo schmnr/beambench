@@ -32,7 +32,11 @@ import { SelectTool } from '../../canvas/tools/SelectTool';
 import { RectTool } from '../../canvas/tools/RectTool';
 import { EllipseTool } from '../../canvas/tools/EllipseTool';
 import { TextTool } from '../../canvas/tools/TextTool';
-import { NodeTool, type NodeImmediateAction } from '../../canvas/tools/NodeTool';
+import {
+  NodeTool,
+  type NodeEditAction,
+  type NodeImmediateAction,
+} from '../../canvas/tools/NodeTool';
 import { PenTool } from '../../canvas/tools/PenTool';
 import { PolygonTool } from '../../canvas/tools/PolygonTool';
 import { StarTool } from '../../canvas/tools/StarTool';
@@ -78,6 +82,7 @@ import { machineToCanvasPoint } from '../../utils/workspaceCoordinates';
 import type { SimilarityTransform } from '../../types/camera';
 import type { Point2D } from '../../types/project';
 import { isEffectiveVector } from '../../commands/selectionContext';
+import { effectiveTransformLocks } from '../../utils/transformLocks';
 
 const nodeTool = new NodeTool();
 
@@ -163,6 +168,12 @@ export function Canvas() {
   // Store selectors
   const project = useProjectStore((s) => s.project);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
+  const selectionTransformLocks = useMemo(
+    () => effectiveTransformLocks(
+      project?.objects.filter((object) => selectedObjectIds.includes(object.id)) ?? [],
+    ),
+    [project?.objects, selectedObjectIds],
+  );
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const selectObjects = useProjectStore((s) => s.selectObjects);
   const toggleObjectSelection = useProjectStore((s) => s.toggleObjectSelection);
@@ -655,13 +666,14 @@ export function Canvas() {
       laserPosition,
       skipObjectId: textEditObjectId,
       displayUnit: (settings?.display_unit === 'inches' ? 'inches' : 'mm') as 'mm' | 'inches',
-      transformLocks: workspaceMode === 'run' ? RUN_MODE_SELECTION_LOCKS : project?.transform_locks,
+      transformLocks: workspaceMode === 'run' ? RUN_MODE_SELECTION_LOCKS : selectionTransformLocks,
       flashedLayerId,
       interactionState,
     });
   }, [
     project,
     selectedObjectIds,
+    selectionTransformLocks,
     vp,
     gridVisible,
     gridSpacingMm,
@@ -716,13 +728,14 @@ export function Canvas() {
       skipObjectId: textEditObjectId,
       persistentTabMarkers: filteredTabMarkers,
       displayUnit: (settings?.display_unit === 'inches' ? 'inches' : 'mm') as 'mm' | 'inches',
-      transformLocks: workspaceMode === 'run' ? RUN_MODE_SELECTION_LOCKS : project?.transform_locks,
+      transformLocks: workspaceMode === 'run' ? RUN_MODE_SELECTION_LOCKS : selectionTransformLocks,
       flashedLayerId,
       interactionState,
     });
   }, [
     project,
     selectedObjectIds,
+    selectionTransformLocks,
     vp,
     gridVisible,
     gridSpacingMm,
@@ -932,12 +945,7 @@ export function Canvas() {
           operation: l.entries[0]?.operation ?? 'line',
         })) ?? [],
       // TransformLocks is non-optional; default to all-enabled per backend Default impl.
-      transformLocks: project?.transform_locks ?? {
-        move_enabled: true,
-        size_enabled: true,
-        rotate_enabled: true,
-        shear_enabled: true,
-      },
+      transformLocks: selectionTransformLocks,
       readOnly: workspaceMode === 'run',
       snapEnabled: snapEnabled && gridVisible,
       snapToObjects,
@@ -959,6 +967,7 @@ export function Canvas() {
     vp,
     project,
     selectedObjectIds,
+    selectionTransformLocks,
     selectedLayerId,
     workspaceMode,
     snapEnabled,
@@ -1590,11 +1599,18 @@ export function Canvas() {
       const action = (event as CustomEvent<NodeImmediateAction>).detail;
       nodeTool.performImmediateAction(action, buildToolContext());
     };
+    const handleNodeEditAction = (event: Event) => {
+      if (activeTool !== 'node') return;
+      const action = (event as CustomEvent<NodeEditAction>).detail;
+      nodeTool.performNodeAction(action, buildToolContext());
+    };
     window.addEventListener('bb:node-immediate-action', handleNodeImmediateAction as EventListener);
+    window.addEventListener('bb:node-edit-action', handleNodeEditAction as EventListener);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('bb:node-immediate-action', handleNodeImmediateAction as EventListener);
+      window.removeEventListener('bb:node-edit-action', handleNodeEditAction as EventListener);
     };
   }, [activeTool, buildToolContext, requestRender, tool]);
 

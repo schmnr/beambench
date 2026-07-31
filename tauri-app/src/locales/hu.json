@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Automatikus csatlakozás a kiválasztott alakzatokhoz",
       "close_and_join": "Bezárás és csatlakozás",
       "convert_to_bitmap": "Konvertálás bittérképre",
+      "extract_selected_nodes_to_path": "Kijelölt csomópontok kibontása új útvonalba",
       "duplicate": "Megkettőzés",
       "image_options": "Képbeállítások",
       "invert_selection": "Kijelölés megfordítása",
@@ -1198,13 +1199,16 @@
       "close_path": "Útvonal bezárása",
       "auto_join_paths": "Útvonalak automatikus csatlakozása",
       "insert_midpoint": "Középpont beszúrása (M)",
-      "align_to_angle": "Igazítás a szöghez (A)"
+      "align_to_angle": "Igazítás a szöghez (A)",
+      "extend_to_intersection": "Meghosszabbítás a metszésig (E)"
     },
     "transform_toggles": {
       "move": "Mozgás",
       "size": "Méret",
       "rotate": "Forgatás",
-      "shear": "Nyírás"
+      "shear": "Nyírás",
+      "lock_all": "Minden átalakítás zárolása",
+      "unlock_all": "Minden átalakítás feloldása"
     },
     "properties": {
       "position_x": "X poz.",

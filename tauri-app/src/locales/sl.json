@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Samodejno združi izbrane oblike",
       "close_and_join": "Zapri in se pridruži",
       "convert_to_bitmap": "Pretvori v bitno sliko",
+      "extract_selected_nodes_to_path": "Izloči izbrana vozlišča v novo pot",
       "duplicate": "Dvojnik",
       "image_options": "Možnosti slike",
       "invert_selection": "Obrni izbor",
@@ -1198,13 +1199,16 @@
       "close_path": "Zapri pot",
       "auto_join_paths": "Samodejno združevanje poti",
       "insert_midpoint": "Vstavi sredino (M)",
-      "align_to_angle": "Poravnaj s kotom (A)"
+      "align_to_angle": "Poravnaj s kotom (A)",
+      "extend_to_intersection": "Podaljšaj do presečišča (E)"
     },
     "transform_toggles": {
       "move": "Premakni se",
       "size": "Velikost",
       "rotate": "Zasukaj",
-      "shear": "striženje"
+      "shear": "striženje",
+      "lock_all": "Zakleni vse transformacije",
+      "unlock_all": "Odkleni vse transformacije"
     },
     "properties": {
       "position_x": "Položaj X",

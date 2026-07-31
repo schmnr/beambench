@@ -6,7 +6,12 @@ import { useUiStore } from '../../stores/uiStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useCameraStore } from '../../stores/cameraStore';
-import { isTransformLocked, notifyTransformLocked, notifyObjectLocked } from '../../utils/transformLocks';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyTransformLocked,
+  notifyObjectLocked,
+} from '../../utils/transformLocks';
 import { zoomToFitBounds } from '../../canvas/ViewportTransform';
 import { computeVisualBoundsWorld } from '../../canvas/alignment';
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
@@ -147,7 +152,7 @@ export function MainToolbar() {
   const canMirrorAcrossLine = mirrorAcrossLineSelection.length >= 2 && !anyLocked;
 
   const blockTransform = (kind: 'position' | 'scale' | 'rotation') => {
-    const locks = useProjectStore.getState().project?.transform_locks;
+    const locks = effectiveTransformLocks(selectedObjects);
     if (isTransformLocked(locks, kind)) {
       notifyTransformLocked(kind);
       return true;

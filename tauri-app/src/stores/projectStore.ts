@@ -56,7 +56,12 @@ import { objectContentKind } from '../commands/selectionContext';
 import { buildRulerGuideGeometry, normalizeProjectRulerGuides } from '../utils/rulerGuides';
 import { expandArrangementSelectionMembers, expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers, resolveArrangementAnchorId } from '../utils/arrangementSelection';
 import { findAutoGroupCandidates } from '../utils/autoGroupCandidates';
-import { isTransformLocked, notifyObjectLocked, notifyTransformLocked } from '../utils/transformLocks';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyObjectLocked,
+  notifyTransformLocked,
+} from '../utils/transformLocks';
 import { parsePathData, computePathBBox, mapPathCoordToBounds } from '../canvas/drawObjects';
 import { applyAroundCenter, getCombinedBounds, resolveCloneForGeometry } from '../canvas/alignment';
 
@@ -182,15 +187,16 @@ function canArrangeObjects(project: Project, objectIds: string[]): boolean {
     notifyObjectLocked();
     return false;
   }
-  if (isTransformLocked(project.transform_locks, 'position')) {
+  if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'position')) {
     notifyTransformLocked('position');
     return false;
   }
   return true;
 }
 
-function canPositionObjects(project: Project): boolean {
-  if (isTransformLocked(project.transform_locks, 'position')) {
+function canPositionObjects(project: Project, objectIds: string[]): boolean {
+  const selectedObjects = project.objects.filter((object) => objectIds.includes(object.id));
+  if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'position')) {
     notifyTransformLocked('position');
     return false;
   }
@@ -203,7 +209,7 @@ function canScaleObjects(project: Project, objectIds: string[]): boolean {
     notifyObjectLocked();
     return false;
   }
-  if (isTransformLocked(project.transform_locks, 'scale')) {
+  if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'scale')) {
     notifyTransformLocked('scale');
     return false;
   }
@@ -222,11 +228,12 @@ function canCopyAlongPathObjects(
     notifyObjectLocked();
     return false;
   }
-  if (isTransformLocked(project.transform_locks, 'position')) {
+  const locks = effectiveTransformLocks(involvedObjects);
+  if (isTransformLocked(locks, 'position')) {
     notifyTransformLocked('position');
     return false;
   }
-  if (scaleCopies && isTransformLocked(project.transform_locks, 'scale')) {
+  if (scaleCopies && isTransformLocked(locks, 'scale')) {
     notifyTransformLocked('scale');
     return false;
   }
@@ -420,8 +427,18 @@ interface ProjectStoreState {
       transform?: Transform2D;
       bounds?: Bounds;
       lock_aspect_ratio?: boolean;
+      transform_locks?: TransformLocks;
       power_scale?: number;
       priority?: number;
+    },
+  ) => Promise<boolean>;
+  updateObjectTransformState: (
+    objectIds: string[],
+    updates: {
+      transformLocks?: TransformLocks;
+      transformLockKey?: keyof TransformLocks;
+      transformEnabled?: boolean;
+      lockAspectRatio?: boolean;
     },
   ) => Promise<boolean>;
   updateObjectData: (objectId: string, data: ObjectData) => Promise<boolean>;
@@ -1420,6 +1437,30 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     }
   },
 
+  updateObjectTransformState: async (objectIds, updates) => {
+    try {
+      const updated = await projectService.updateObjectTransformState(objectIds, updates);
+      const updatedById = new Map(updated.map((object) => [object.id, object]));
+      const { project } = get();
+      if (project) {
+        set({
+          project: {
+            ...project,
+            objects: project.objects.map((object) => updatedById.get(object.id) ?? object),
+            dirty: true,
+          },
+        });
+        await refreshUndo();
+      }
+      return true;
+    } catch (e) {
+      const msg = String(e);
+      set({ error: msg });
+      notifyError(msg);
+      return false;
+    }
+  },
+
   updateObjectData: async (objectId, data) => {
     try {
       const updated = await projectService.updateObjectData(objectId, data);
@@ -1744,7 +1785,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       if (objectIds.length < 2) return;
       const currentProject = get().project;
-      if (!currentProject || !canPositionObjects(currentProject)) return;
+      if (!currentProject || !canPositionObjects(currentProject, objectIds)) return;
       const normalizedIds = normalizeArrangementSelection(currentProject, objectIds);
       if (normalizedIds.length < 2) return;
       const resolvedAnchor = anchorObjectId ?? resolveArrangementAnchorId(currentProject, objectIds);
@@ -1774,7 +1815,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       if (objectIds.length < 3) return;
       const currentProject = get().project;
-      if (!currentProject || !canPositionObjects(currentProject)) return;
+      if (!currentProject || !canPositionObjects(currentProject, objectIds)) return;
       const normalizedIds = normalizeArrangementSelection(currentProject, objectIds);
       if (normalizedIds.length < 3) return;
       const updatedObjects = await projectService.distributeObjects(normalizedIds, direction);
@@ -2609,7 +2650,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const current = get();
     const project = current.project;
     if (!project) return;
-    if (!canPositionObjects(project)) return;
+    if (!canPositionObjects(project, current.selectedObjectIds)) return;
     const normalizedIds = normalizeArrangementSelection(project, current.selectedObjectIds);
     if (normalizedIds.length < 2) return;
     const anchorObjectId = resolveArrangementAnchorId(project, current.selectedObjectIds) ?? normalizedIds[normalizedIds.length - 1];

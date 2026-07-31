@@ -350,6 +350,25 @@ export function drawRubberBand(
   ctx.setLineDash([]);
 }
 
+/** Draw the freehand node-selection lasso and its implicit closing edge. */
+export function drawLasso(
+  ctx: CanvasRenderingContext2D,
+  points: Point2D[],
+): void {
+  if (points.length === 0) return;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const point of points.slice(1)) ctx.lineTo(point.x, point.y);
+  if (points.length > 2) ctx.closePath();
+  ctx.fillStyle = RUBBER_BAND_FILL;
+  if (points.length > 2) ctx.fill();
+  ctx.strokeStyle = RUBBER_BAND_STROKE;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
 /** Draw a shape preview during creation (rect or ellipse tool) */
 export function drawShapePreview(
   ctx: CanvasRenderingContext2D,

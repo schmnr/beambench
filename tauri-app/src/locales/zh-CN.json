@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "自动连接选定的形状",
       "close_and_join": "关闭并加入",
       "convert_to_bitmap": "转换为位图",
+      "extract_selected_nodes_to_path": "将选定节点提取到新路径",
       "duplicate": "重复",
       "image_options": "图像选项",
       "invert_selection": "反转选择",
@@ -1198,13 +1199,16 @@
       "close_path": "关闭路径",
       "auto_join_paths": "自动连接路径",
       "insert_midpoint": "插入中点 (M)",
-      "align_to_angle": "对齐角度 (A)"
+      "align_to_angle": "对齐角度 (A)",
+      "extend_to_intersection": "延伸到交点 (E)"
     },
     "transform_toggles": {
       "move": "移动",
       "size": "尺寸",
       "rotate": "旋转",
-      "shear": "剪切"
+      "shear": "剪切",
+      "lock_all": "锁定所有变换",
+      "unlock_all": "解锁所有变换"
     },
     "properties": {
       "position_x": "X 位置",

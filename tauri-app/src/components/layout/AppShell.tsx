@@ -6,7 +6,6 @@ import { appService } from '../../services/appService';
 import { MenuBar } from './MenuBar';
 import { MainToolbar } from './MainToolbar';
 import { CreationToolbar } from './CreationToolbar';
-import { NodeSubToolbar } from './NodeSubToolbar';
 import { ModifiersToolbar } from './ModifiersToolbar';
 import { StatusBar } from './StatusBar';
 import { RightPanel } from './RightPanel';
@@ -121,7 +120,7 @@ export function AppShell() {
   }, [selectionKey, workspaceMode]);
 
   useEffect(() => {
-    if (workspaceMode !== DESIGN_WORKSPACE || activeTool !== 'text') return;
+    if (workspaceMode !== DESIGN_WORKSPACE || (activeTool !== 'text' && activeTool !== 'node')) return;
     const ui = useUiStore.getState();
     if (!ui.sidePanelsVisible) ui.toggleSidePanels();
     useUiStore.getState().showPanel(PROPERTIES_PANEL_ID);
@@ -203,7 +202,6 @@ export function AppShell() {
                   {toolbarVisibility.modifiers && <ModifiersToolbar />}
                 </div>
               )}
-              {toolbarVisibility.tools && <NodeSubToolbar />}
               </>
               )}
             </div>

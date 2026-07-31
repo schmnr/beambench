@@ -301,6 +301,7 @@ pub fn update_object(
     transform: Option<Transform2D>,
     bounds: Option<Bounds>,
     lock_aspect_ratio: Option<bool>,
+    transform_locks: Option<TransformLocks>,
     power_scale: Option<f64>,
     priority: Option<i32>,
 ) -> Result<ProjectObject, String> {
@@ -320,8 +321,35 @@ pub fn update_object(
             transform,
             bounds,
             lock_aspect_ratio,
+            transform_locks,
             power_scale,
             priority,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn update_object_transform_state(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+    transform_locks: Option<TransformLocks>,
+    transform_lock_key: Option<String>,
+    transform_enabled: Option<bool>,
+    lock_aspect_ratio: Option<bool>,
+) -> Result<Vec<ProjectObject>, String> {
+    let object_ids = object_ids
+        .iter()
+        .map(|id| parse_id(id))
+        .collect::<Result<Vec<_>, _>>()?;
+    project_ops::update_object_transform_state(
+        &svc,
+        project_ops::UpdateObjectTransformStateInput {
+            object_ids,
+            transform_locks,
+            transform_lock_key,
+            transform_enabled,
+            lock_aspect_ratio,
         },
     )
     .map_err(Into::into)

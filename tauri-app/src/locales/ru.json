@@ -90,6 +90,7 @@
       "auto_join_selected_shapes": "Автоматическое соединение выбранных фигур",
       "close_and_join": "Закрыть и присоединиться",
       "convert_to_bitmap": "Преобразовать в растровое изображение",
+      "extract_selected_nodes_to_path": "Извлечь выбранные узлы в новый контур",
       "duplicate": "Дублировать",
       "image_options": "Параметры изображения",
       "invert_selection": "Инвертировать выделение",
@@ -1198,13 +1199,16 @@
       "close_path": "Закрыть путь",
       "auto_join_paths": "Пути автоматического соединения",
       "insert_midpoint": "Вставьте среднюю точку (M)",
-      "align_to_angle": "Выровнять по углу (A)"
+      "align_to_angle": "Выровнять по углу (A)",
+      "extend_to_intersection": "Продлить до пересечения (E)"
     },
     "transform_toggles": {
       "move": "Переместить",
       "size": "Размер",
       "rotate": "Поворот",
-      "shear": "сдвиг"
+      "shear": "сдвиг",
+      "lock_all": "Заблокировать все преобразования",
+      "unlock_all": "Разблокировать все преобразования"
     },
     "properties": {
       "position_x": "Поз. X",

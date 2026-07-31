@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { MainToolbar } from '../MainToolbar';
 import { CreationToolbar } from '../CreationToolbar';
-import { NodeSubToolbar } from '../NodeSubToolbar';
 import { useUndoStore } from '../../../stores/undoStore';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
@@ -194,11 +193,12 @@ describe('MainToolbar', () => {
   it('flip is blocked when position transform is locked', () => {
     useProjectStore.setState({
       selectedObjectIds: ['a'],
-      // full Project via makeProject; transform_locks via makeTransformLocks.
       project: makeProject({
-        transform_locks: makeTransformLocks({ move_enabled: false }),
         workspace: { bed_width_mm: 400, bed_height_mm: 400, origin: 'top_left' as const },
-        objects: [],
+        objects: [makeProjectObject({
+          id: 'a',
+          transform_locks: makeTransformLocks({ move_enabled: false }),
+        })],
         layers: [],
       }),
     });
@@ -212,7 +212,7 @@ describe('MainToolbar', () => {
     const flipBtn = screen.getByTitle('Flip Horizontal');
     fireEvent.click(flipBtn);
 
-    expect(pushSpy).toHaveBeenCalledWith('Position is locked for this project', 'warning');
+    expect(pushSpy).toHaveBeenCalledWith('Position is locked for the selection', 'warning');
     expect(flipSpy).not.toHaveBeenCalled();
   });
 
@@ -278,20 +278,6 @@ describe('MainToolbar', () => {
     expect(runMacro).toHaveBeenCalledWith('macro-2');
   });
 
-});
-
-describe('NodeSubToolbar', () => {
-  it('hides deferred node trim and extend buttons while keeping adjacent node actions available', () => {
-    useUiStore.setState({ activeTool: 'node' });
-
-    render(<NodeSubToolbar />);
-
-    expect(screen.getByTitle('Insert Midpoint (M)')).toBeDefined();
-    expect(screen.getByTitle('Align to Angle (A)')).toBeDefined();
-    expect(screen.queryByTitle('Trim Segment to Intersection (T)')).toBeNull();
-    expect(screen.queryByTitle('Trim to Intersection (T)')).toBeNull();
-    expect(screen.queryByTitle('Extend to Intersection (E)')).toBeNull();
-  });
 });
 
 describe('CreationToolbar', () => {

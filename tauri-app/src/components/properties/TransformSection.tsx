@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
-import { useUiStore } from '../../stores/uiStore';
 import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
 import { Focus, Lock, Unlock } from 'lucide-react';
@@ -10,6 +9,8 @@ import type { AnchorPoint, TransformLocks } from '../../types/project';
 import { useNotificationStore } from '../../stores/notificationStore';
 import {
   isTransformLocked,
+  effectiveTransformLocks,
+  DEFAULT_TRANSFORM_LOCKS,
   notifyTransformLocked,
   notifyObjectLocked,
 } from '../../utils/transformLocks';
@@ -106,10 +107,7 @@ export function TransformSection() {
   const rotateObjects = useProjectStore((s) => s.rotateObjects);
   const nudgeObjects = useProjectStore((s) => s.nudgeObjects);
   const moveObjectsTo = useProjectStore((s) => s.moveObjectsTo);
-  const setTransformLocks = useProjectStore((s) => s.setTransformLocks);
-
-  const lockAspect = useUiStore((s) => s.lockAspect);
-  const toggleLockAspect = useUiStore((s) => s.toggleLockAspect);
+  const updateObjectTransformState = useProjectStore((s) => s.updateObjectTransformState);
 
   const settings = useAppStore((s) => s.settings);
   const displayUnit = (settings?.display_unit === DISPLAY_UNIT_INCHES
@@ -160,12 +158,9 @@ export function TransformSection() {
     ? Math.round(Math.atan2(obj.transform.b, obj.transform.a) * (180 / Math.PI) * 10) / 10
     : 0;
 
-  const locks: TransformLocks = project?.transform_locks ?? {
-    move_enabled: true,
-    size_enabled: true,
-    rotate_enabled: true,
-    shear_enabled: true,
-  };
+  const locks = effectiveTransformLocks(selectedObjects);
+  const lockAspect = selectedObjects.length > 0
+    && selectedObjects.every((object) => object.lock_aspect_ratio);
   const selectionKey = selectedObjectIds.join(',');
 
   useEffect(() => {
@@ -182,24 +177,36 @@ export function TransformSection() {
   };
 
   const toggleTransformLock = (key: keyof TransformLocks) => {
-    void setTransformLocks({ ...locks, [key]: !locks[key] });
+    void updateObjectTransformState(selectedObjectIds, {
+      transformLockKey: key,
+      transformEnabled: !locks[key],
+    });
   };
 
-  const allTransformsLocked = Object.values(locks).every((enabled) => enabled === false);
-  const allLocksLocked = allTransformsLocked && lockAspect;
+  const allLocksLocked = selectedObjects.length > 0 && selectedObjects.every((object) => {
+    const objectLocks = object.transform_locks ?? DEFAULT_TRANSFORM_LOCKS;
+    return Object.values(objectLocks).every((enabled) => enabled === false)
+      && object.lock_aspect_ratio;
+  });
   const allTransformsLockLabel = allLocksLocked
     ? t('toolbars.transform_toggles.unlock_all')
     : t('toolbars.transform_toggles.lock_all');
   const toggleAllTransformLocks = () => {
     const shouldLock = !allLocksLocked;
     const enabled = !shouldLock;
-    void setTransformLocks({
-      move_enabled: enabled,
-      size_enabled: enabled,
-      rotate_enabled: enabled,
-      shear_enabled: enabled,
+    void updateObjectTransformState(selectedObjectIds, {
+      transformLocks: {
+        move_enabled: enabled,
+        size_enabled: enabled,
+        rotate_enabled: enabled,
+        shear_enabled: enabled,
+      },
+      lockAspectRatio: shouldLock,
     });
-    if (lockAspect !== shouldLock) toggleLockAspect();
+  };
+
+  const toggleLockAspect = () => {
+    void updateObjectTransformState(selectedObjectIds, { lockAspectRatio: !lockAspect });
   };
 
   const visualSizeAfterRawScale = (scaleX: number, scaleY: number) => {
