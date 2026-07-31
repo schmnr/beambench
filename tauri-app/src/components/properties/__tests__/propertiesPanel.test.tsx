@@ -76,6 +76,17 @@ describe('PropertiesPanel', () => {
     expect(screen.queryByRole('button', { name: 'Insert Node (I)' })).toBeNull();
   });
 
+  it('places node editing after the selected object properties', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'node', nodeSubMode: 'select' });
+
+    render(<PropertiesPanel />);
+
+    const powerSlider = screen.getByTestId('properties-power-scale-slider');
+    const nodeEditing = screen.getByTestId('node-editing-section');
+    expect(powerSlider.compareDocumentPosition(nodeEditing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('enables Close Path only for an editable open vector and dispatches the one-shot action', () => {
     const project = makeProject({
       data: { type: 'vector_path' as const, path_data: 'M0 0L10 10', closed: false },

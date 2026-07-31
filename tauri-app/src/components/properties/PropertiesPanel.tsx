@@ -73,7 +73,6 @@ export function PropertiesPanel() {
       <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
       <div className="flex flex-col gap-2.5 px-3 py-2.5">
         <TransformSection />
-        {activeTool === 'node' && <NodeEditingSection />}
         <div className="text-xs text-bb-text-dim">{t('panels.properties.objects_selected', { count: selectedObjectIds.length })}</div>
 
         {/* Batch controls */}
@@ -181,6 +180,8 @@ export function PropertiesPanel() {
             </div>
           </div>
         )}
+
+        {activeTool === 'node' && <NodeEditingSection />}
       </div>
       </div>
     );
@@ -226,7 +227,6 @@ export function PropertiesPanel() {
     <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
     <div className="flex flex-col gap-2.5 px-3 py-2.5">
       <TransformSection />
-      {activeTool === 'node' && <NodeEditingSection />}
       <TextInput
         label={t('panels.properties.name')}
         value={selectedObject.name}
@@ -367,6 +367,8 @@ export function PropertiesPanel() {
           {t('panels.properties.convert_to_path')}
         </button>
       )}
+
+      {activeTool === 'node' && <NodeEditingSection />}
     </div>
     </div>
   );
