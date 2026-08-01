@@ -2257,6 +2257,7 @@
       "filter_artwork": "Графика"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Окна",
     "side_panels": "Боковые панели",

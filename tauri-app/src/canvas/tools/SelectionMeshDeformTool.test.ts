@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DeformSelectionTool, WarpSelectionTool } from './SelectionMeshDeformTool';
+import { WarpTool } from './SelectionMeshDeformTool';
 import type { CanvasMouseEvent, ToolContext } from './types';
 import { vectorService } from '../../services/vectorService';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUndoStore } from '../../stores/undoStore';
+import { useUiStore } from '../../stores/uiStore';
 import type { ViewportParams } from '../ViewportTransform';
 import { worldToScreen } from '../ViewportTransform';
 import { makeProject, makeProjectObject } from '../../test-utils/projectFixtures';
@@ -16,6 +17,7 @@ vi.mock('../../services/vectorService', () => ({
 
 const initialProjectState = useProjectStore.getState();
 const initialUndoState = useUndoStore.getState();
+const initialUiState = useUiStore.getState();
 
 const defaultVp: ViewportParams = {
   offset: { x: 0, y: 0 },
@@ -79,6 +81,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   useProjectStore.setState(initialProjectState, true);
   useUndoStore.setState(initialUndoState, true);
+  useUiStore.setState(initialUiState, true);
 });
 
 describe('SelectionMeshDeformTool', () => {
@@ -97,7 +100,8 @@ describe('SelectionMeshDeformTool', () => {
       },
     ]);
 
-    const tool = new WarpSelectionTool();
+    useUiStore.setState({ meshDeformMode: 'warp' });
+    const tool = new WarpTool();
     tool.onMouseMove(makeMouseEvent(), ctx);
 
     const overlay = tool.getOverlay();
@@ -135,7 +139,8 @@ describe('SelectionMeshDeformTool', () => {
 
   it('renders a 16-handle deform grid', () => {
     const ctx = makeToolContext();
-    const tool = new DeformSelectionTool();
+    useUiStore.setState({ meshDeformMode: 'mesh' });
+    const tool = new WarpTool();
 
     tool.onMouseMove(makeMouseEvent(), ctx);
 
@@ -143,5 +148,42 @@ describe('SelectionMeshDeformTool', () => {
     expect(overlay).toMatchObject({ type: 'mesh-deform', gridSize: 4 });
     if (overlay.type !== 'mesh-deform') throw new Error('expected mesh overlay');
     expect(overlay.handles).toHaveLength(16);
+  });
+
+  it('switches modes without changing tools', () => {
+    const ctx = makeToolContext();
+    const tool = new WarpTool();
+
+    useUiStore.setState({ meshDeformMode: 'warp' });
+    tool.onMouseMove(makeMouseEvent(), ctx);
+    expect(tool.getOverlay()).toMatchObject({ type: 'mesh-deform', gridSize: 2 });
+
+    useUiStore.setState({ meshDeformMode: 'mesh' });
+    tool.onMouseMove(makeMouseEvent(), ctx);
+    const overlay = tool.getOverlay();
+    expect(overlay).toMatchObject({ type: 'mesh-deform', gridSize: 4 });
+    if (overlay.type !== 'mesh-deform') throw new Error('expected mesh overlay');
+    expect(overlay.handles).toHaveLength(16);
+  });
+
+  it('does not move a handle until the pointer actually drags', () => {
+    const ctx = makeToolContext();
+    const tool = new WarpTool();
+    useUiStore.setState({ meshDeformMode: 'warp' });
+    tool.onMouseMove(makeMouseEvent(), ctx);
+    const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
+
+    tool.onMouseDown(makeMouseEvent({
+      screenX: topRight.x,
+      screenY: topRight.y,
+      snappedX: 25,
+      snappedY: 25,
+    }), ctx);
+    tool.onMouseUp(makeMouseEvent(), ctx);
+
+    const overlay = tool.getOverlay();
+    if (overlay.type !== 'mesh-deform') throw new Error('expected mesh overlay');
+    expect(overlay.handles[1]).toMatchObject({ worldX: 10, worldY: 0 });
+    expect(vectorService.meshDeformSelection).not.toHaveBeenCalled();
   });
 });

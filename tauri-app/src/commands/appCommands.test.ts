@@ -351,10 +351,12 @@ describe('app command bridge', () => {
     });
 
     await executeAppCommand(APP_COMMANDS.TOOLS_WARP_SELECTION);
-    expect(useUiStore.getState().activeTool).toBe('warp_selection');
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(useUiStore.getState().meshDeformMode).toBe('warp');
 
     await executeAppCommand(APP_COMMANDS.TOOLS_DEFORM_SELECTION);
-    expect(useUiStore.getState().activeTool).toBe('deform_selection');
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(useUiStore.getState().meshDeformMode).toBe('mesh');
   });
 
   it('routes native preference commands to dialog launchers', async () => {

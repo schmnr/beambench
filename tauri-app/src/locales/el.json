@@ -2257,6 +2257,7 @@
       "filter_artwork": "Γραφικό"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Παράθυρα",
     "side_panels": "Πλαϊνά πάνελ",

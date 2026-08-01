@@ -2257,6 +2257,7 @@
       "filter_artwork": "아트워크"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "창",
     "side_panels": "측면 패널",

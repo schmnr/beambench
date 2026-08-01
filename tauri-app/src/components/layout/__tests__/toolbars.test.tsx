@@ -345,7 +345,7 @@ describe('CreationToolbar', () => {
   it('renders standalone tool buttons and shapes submenu', () => {
     render(<CreationToolbar />);
     // Standalone buttons always visible
-    const standaloneLabels = ['Select', 'Draw', 'Node Edit', 'Trim', 'Tabs', 'Text', 'Measure'];
+    const standaloneLabels = ['Select', 'Draw', 'Node Edit', 'Trim', 'Tabs', 'Warp', 'Text', 'Measure'];
     for (const label of standaloneLabels) {
       expect(screen.getByTitle(label)).toBeDefined();
     }
@@ -362,5 +362,14 @@ describe('CreationToolbar', () => {
     expect(rectBtn.className).toContain('bg-bb-accent/15');
     const selectBtn = screen.getByTitle('Select');
     expect(selectBtn.className).not.toContain('bg-bb-accent/15');
+  });
+
+  it('activates Warp as one contextual canvas tool', () => {
+    render(<CreationToolbar />);
+
+    fireEvent.click(screen.getByTitle('Warp'));
+
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(screen.getByTitle('Warp').className).toContain('bg-bb-accent/15');
   });
 });

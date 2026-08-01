@@ -46,7 +46,7 @@ import { RadiusTool } from '../../canvas/tools/RadiusTool';
 import { MeasureTool } from '../../canvas/tools/MeasureTool';
 import { LaserPositionTool } from '../../canvas/tools/LaserPositionTool';
 import { TwoPointRotateScaleTool } from '../../canvas/tools/TwoPointRotateScaleTool';
-import { DeformSelectionTool, WarpSelectionTool } from '../../canvas/tools/SelectionMeshDeformTool';
+import { WarpTool } from '../../canvas/tools/SelectionMeshDeformTool';
 import { useMachineStore } from '../../stores/machineStore';
 import { hitTestPoint } from '../../canvas/hitTest';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -101,8 +101,7 @@ const TOOL_INSTANCES: Record<ToolType, CanvasTool> = {
   measure: new MeasureTool(),
   laser_position: new LaserPositionTool(),
   two_point_rotate_scale: new TwoPointRotateScaleTool(),
-  warp_selection: new WarpSelectionTool(),
-  deform_selection: new DeformSelectionTool(),
+  warp: new WarpTool(),
 };
 
 // Register TOOL_INSTANCES so CreationToolbar can configure polygon sides / star dualRadius
@@ -167,6 +166,7 @@ export function Canvas() {
 
   // Store selectors
   const project = useProjectStore((s) => s.project);
+  const meshDeformMode = useUiStore((s) => s.meshDeformMode);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
   const selectionTransformLocks = useMemo(
     () => effectiveTransformLocks(
@@ -1638,6 +1638,12 @@ export function Canvas() {
       useUiStore.getState().setPendingStartPoint(null);
     }
   }, [activeTool, workspaceMode]);
+
+  useEffect(() => {
+    if (activeTool !== 'warp') return;
+    TOOL_INSTANCES.warp.reset();
+    requestRender();
+  }, [activeTool, meshDeformMode, requestRender]);
 
   useEffect(() => {
     if (workspaceMode === 'run' || activeTool !== 'node') return;

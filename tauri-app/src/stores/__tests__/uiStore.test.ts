@@ -31,7 +31,7 @@ describe('uiStore', () => {
   });
 
   it('accepts new tool types via setActiveTool', () => {
-    const newTools = ['line', 'polygon', 'trim', 'tabs', 'measure'] as const;
+    const newTools = ['line', 'polygon', 'trim', 'tabs', 'warp', 'measure'] as const;
     for (const tool of newTools) {
       useUiStore.getState().setActiveTool(tool);
       expect(useUiStore.getState().activeTool).toBe(tool);

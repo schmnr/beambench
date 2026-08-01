@@ -121,7 +121,7 @@ export function AppShell() {
   }, [selectionKey, workspaceMode]);
 
   useEffect(() => {
-    if (workspaceMode !== DESIGN_WORKSPACE || !['text', 'node', 'radius'].includes(activeTool)) return;
+    if (workspaceMode !== DESIGN_WORKSPACE || !['text', 'node', 'radius', 'warp'].includes(activeTool)) return;
     const ui = useUiStore.getState();
     if (!ui.sidePanelsVisible) ui.toggleSidePanels();
     useUiStore.getState().showPanel(PROPERTIES_PANEL_ID);

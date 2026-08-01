@@ -42,6 +42,24 @@ afterEach(() => {
 });
 
 describe('PropertiesPanel', () => {
+  it('shows one Warp tool with 4-point and 16-point modes in Properties', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'warp', meshDeformMode: 'warp' });
+
+    render(<PropertiesPanel />);
+
+    const section = screen.getByTestId('warp-properties-section');
+    const fourPoint = screen.getByRole('button', { name: 'Warp Selection (4 Points)' });
+    const sixteenPoint = screen.getByRole('button', { name: 'Deform Selection (16 Points)' });
+    expect(fourPoint.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('properties-power-scale-slider').compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(sixteenPoint);
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(useUiStore.getState().meshDeformMode).toBe('mesh');
+    expect(sixteenPoint.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('shows NodeCraft-style node modes in Properties instead of a canvas-side toolbar', () => {
     useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
     useUiStore.setState({ activeTool: 'node', nodeSubMode: 'select' });

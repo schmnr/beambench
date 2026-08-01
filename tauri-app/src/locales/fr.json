@@ -2257,6 +2257,7 @@
       "filter_artwork": "Illustration"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Fenêtres",
     "side_panels": "Panneaux latéraux",

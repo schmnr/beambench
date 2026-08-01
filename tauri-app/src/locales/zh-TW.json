@@ -2257,6 +2257,7 @@
       "filter_artwork": "圖稿"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "視窗",
     "side_panels": "側邊面板",

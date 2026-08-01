@@ -2257,6 +2257,7 @@
       "filter_artwork": "Grafika"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Okna",
     "side_panels": "Stranski podokna",

@@ -15,6 +15,7 @@ import { SelectionArrangeSection } from './SelectionArrangeSection';
 import { NodeEditingSection } from './NodeEditingSection';
 import { ModifierPropertiesSection } from './ModifierPropertiesSection';
 import { RadiusPropertiesSection } from './RadiusPropertiesSection';
+import { WarpPropertiesSection } from './WarpPropertiesSection';
 import { createSelectionContext, isBooleanCompatible } from '../../commands/selectionContext';
 import { IconButton } from '../shared/IconButton';
 import {
@@ -186,6 +187,7 @@ export function PropertiesPanel() {
 
         {activeTool === 'node' && <NodeEditingSection />}
         {activeTool === 'radius' && <RadiusPropertiesSection />}
+        {activeTool === 'warp' && <WarpPropertiesSection />}
         <ModifierPropertiesSection />
       </div>
       </div>
@@ -214,6 +216,15 @@ export function PropertiesPanel() {
         <div className={INSPECTOR_CARD_CLASS} data-testid="radius-tool-card">
           <div className="p-3">
             <RadiusPropertiesSection />
+          </div>
+        </div>
+      );
+    }
+    if (activeTool === 'warp') {
+      return (
+        <div className={INSPECTOR_CARD_CLASS} data-testid="warp-tool-card">
+          <div className="p-3">
+            <WarpPropertiesSection />
           </div>
         </div>
       );
@@ -393,6 +404,7 @@ export function PropertiesPanel() {
 
       {activeTool === 'node' && <NodeEditingSection />}
       {activeTool === 'radius' && <RadiusPropertiesSection />}
+      {activeTool === 'warp' && <WarpPropertiesSection />}
       <ModifierPropertiesSection />
     </div>
     </div>

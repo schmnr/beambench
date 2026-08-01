@@ -2257,6 +2257,7 @@
       "filter_artwork": "Grafikk"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Vinduer",
     "side_panels": "Sidepaneler",

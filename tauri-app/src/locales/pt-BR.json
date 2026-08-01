@@ -2257,6 +2257,7 @@
       "filter_artwork": "Arte"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Janelas",
     "side_panels": "Painéis laterais",

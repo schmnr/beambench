@@ -119,6 +119,20 @@ describe('AppShell workspace modes', () => {
     expect(state.panelLayout.zones['middle-right'].activeTab).toBe('properties');
   });
 
+  it('reveals the relocated Properties panel when the Warp tool is chosen', () => {
+    useUiStore.getState().dockPanel('console', 'middle-right');
+    useUiStore.getState().movePanelBetweenZones('properties', 'top-right', 'middle-right');
+    useUiStore.getState().setZoneActiveTab('middle-right', 'console');
+    useUiStore.setState({ sidePanelsVisible: false, activeTool: 'select', workspaceMode: 'design' });
+
+    render(<AppShell />);
+    act(() => useUiStore.setState({ activeTool: 'warp' }));
+
+    const state = useUiStore.getState();
+    expect(state.sidePanelsVisible).toBe(true);
+    expect(state.panelLayout.zones['middle-right'].activeTab).toBe('properties');
+  });
+
   it('closes contextual modifier controls when the source selection changes', () => {
     useProjectStore.setState({ selectedObjectIds: ['obj-1'] });
     useUiStore.setState({

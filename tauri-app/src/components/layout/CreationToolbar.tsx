@@ -4,6 +4,7 @@ import { useUiStore, type ToolType } from '../../stores/uiStore';
 import { IconButton } from '../shared/IconButton';
 import { ToolbarSubmenuButton, type SubmenuItem } from '../shared/ToolbarSubmenuButton';
 import { LibraryIcon } from '../icons/LibraryIcon';
+import { WarpIcon } from '../icons/WarpIcon';
 import {
   MousePointer2, Square, Circle,
   Pentagon, Star, Type, ScissorsLineDashed,
@@ -72,6 +73,7 @@ const TOOL_TEXT = 'text' as const;
 const TOOL_NODE = 'node' as const;
 const TOOL_TRIM = 'trim' as const;
 const TOOL_TABS = 'tabs' as const;
+const TOOL_WARP = 'warp' as const;
 const TOOL_MEASURE = 'measure' as const;
 const SMALL_BUTTON_SIZE = 'sm' as const;
 
@@ -236,6 +238,13 @@ export function CreationToolbar() {
         label={t('toolbars.creation.tabs')}
         onClick={() => setActiveTool(TOOL_TABS)}
         active={activeTool === TOOL_TABS}
+        size={SMALL_BUTTON_SIZE}
+      />
+      <IconButton
+        icon={<WarpIcon size={24} />}
+        label={t('warp_tool.title')}
+        onClick={() => setActiveTool(TOOL_WARP)}
+        active={activeTool === TOOL_WARP}
         size={SMALL_BUTTON_SIZE}
       />
 

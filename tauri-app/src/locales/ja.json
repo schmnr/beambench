@@ -2257,6 +2257,7 @@
       "filter_artwork": "アートワーク"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "ウィンドウ",
     "side_panels": "サイドパネル",

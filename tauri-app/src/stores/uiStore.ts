@@ -37,7 +37,9 @@ import { commitPendingTextEdit, hasPendingTextEdit, isNewEmptyText } from '../ca
 import { useProjectStore } from './projectStore';
 import { useMeasurementStore } from './measurementStore';
 
-export type ToolType = 'select' | 'rect' | 'ellipse' | 'star' | 'text' | 'node' | 'line' | 'polygon' | 'trim' | 'tabs' | 'radius' | 'measure' | 'laser_position' | 'two_point_rotate_scale' | 'warp_selection' | 'deform_selection';
+export type ToolType = 'select' | 'rect' | 'ellipse' | 'star' | 'text' | 'node' | 'line' | 'polygon' | 'trim' | 'tabs' | 'radius' | 'measure' | 'laser_position' | 'two_point_rotate_scale' | 'warp';
+
+export type MeshDeformMode = 'warp' | 'mesh';
 
 export type ModifierPropertiesKind = 'offset' | 'grid_array' | 'circular_array';
 
@@ -159,6 +161,7 @@ interface UiStoreState {
   nextFloatingZIndex: number;
 
   activeTool: ToolType;
+  meshDeformMode: MeshDeformMode;
   zoom: number;
 
   // Viewport
@@ -327,6 +330,7 @@ interface UiStoreState {
 
   // Tool actions
   setActiveTool: (tool: ToolType) => void;
+  setMeshDeformMode: (mode: MeshDeformMode) => void;
 
   // Zoom actions
   setZoom: (zoom: number) => void;
@@ -554,6 +558,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   panelLayout: createDefaultLayout(),
   nextFloatingZIndex: 1,
   activeTool: 'select',
+  meshDeformMode: 'warp',
   zoom: 100,
 
   // Default viewport offset: center of 400x400mm bed
@@ -1341,6 +1346,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
       }
     })();
   },
+
+  setMeshDeformMode: (mode) => set({ meshDeformMode: mode }),
 
   setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
   zoomIn: () => set((s) => ({ zoom: clampZoom(s.zoom + ZOOM_STEP) })),

@@ -2257,6 +2257,7 @@
       "filter_artwork": "Illustratie"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Vensters",
     "side_panels": "Zijpanelen",

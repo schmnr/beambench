@@ -23,8 +23,7 @@ const TOOL_HINT_KEYS: Record<ToolType, string> = {
   measure: 'status.tool_hint.measure',
   laser_position: 'status.tool_hint.laser_position',
   two_point_rotate_scale: 'status.tool_hint.two_point_rotate_scale',
-  warp_selection: 'status.tool_hint.warp_selection',
-  deform_selection: 'status.tool_hint.deform_selection',
+  warp: 'status.tool_hint.warp_selection',
 };
 
 const NODE_SUBMODE_HINT_KEYS: Partial<Record<NodeSubMode, string>> = {
@@ -41,6 +40,7 @@ export function StatusBar() {
   const zoomToFit = useUiStore((s) => s.zoomToFit);
   const cursorWorldPos = useUiStore((s) => s.cursorWorldPos);
   const activeTool = useUiStore((s) => s.activeTool);
+  const meshDeformMode = useUiStore((s) => s.meshDeformMode);
   const textBoxModeActive = useUiStore((s) => (s.textDefaults.max_width ?? 0) > 0);
   const nodeSubMode = useUiStore((s) => s.nodeSubMode);
   const nodeEditNodeCount = useUiStore((s) => s.nodeEditNodeCount);
@@ -138,6 +138,8 @@ export function StatusBar() {
 
   const toolHintKey = activeTool === 'node'
     ? NODE_SUBMODE_HINT_KEYS[nodeSubMode] ?? TOOL_HINT_KEYS.node
+    : activeTool === 'warp' && meshDeformMode === 'mesh'
+      ? 'status.tool_hint.deform_selection'
     : TOOL_HINT_KEYS[activeTool] ?? '';
   const toolHint = activeTool === 'text' && textBoxModeActive
     ? t('panels.text_properties.creation_hint')

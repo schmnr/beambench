@@ -2257,6 +2257,7 @@
       }
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Windows",
     "side_panels": "Side Panels",

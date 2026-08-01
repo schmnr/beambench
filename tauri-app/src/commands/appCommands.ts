@@ -701,14 +701,16 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.TOOLS_WARP_SELECTION:
       if (unlockedSelection && deformCompatibleSelection) {
-        ui.setActiveTool('warp_selection');
+        ui.setMeshDeformMode('warp');
+        ui.setActiveTool('warp');
       } else {
         useNotificationStore.getState().push(i18n.t('notifications.warp_requires_selection'), 'warning');
       }
       return;
     case APP_COMMANDS.TOOLS_DEFORM_SELECTION:
       if (unlockedSelection && deformCompatibleSelection) {
-        ui.setActiveTool('deform_selection');
+        ui.setMeshDeformMode('mesh');
+        ui.setActiveTool('warp');
       } else {
         useNotificationStore.getState().push(i18n.t('notifications.deform_requires_selection'), 'warning');
       }

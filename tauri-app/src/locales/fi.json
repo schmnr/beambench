@@ -2257,6 +2257,7 @@
       "filter_artwork": "Kuvitus"
     }
   },
+  "warp_tool": { "title": "Warp" },
   "context_menu": {
     "windows": "Ikkunat",
     "side_panels": "Sivupaneelit",
