@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { LayerSettingsPanel } from '../LayerSettingsPanel';
 import { useProjectStore } from '../../../stores/projectStore';
 import {
@@ -20,6 +20,25 @@ afterEach(() => {
 });
 
 describe('LayerSettingsPanel', () => {
+  it('uses a pressed wind icon for air assist instead of a switch', () => {
+    const layer = makeLayer({ id: 'l1', air_assist: true });
+    const updateCutEntry = vi.fn();
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [], assets: [] }),
+      selectedLayerId: 'l1',
+      updateCutEntry,
+    });
+
+    render(<LayerSettingsPanel />);
+
+    const airAssist = screen.getByRole('button', { name: 'Air Assist' });
+    expect(airAssist.getAttribute('aria-pressed')).toBe('true');
+    expect(airAssist.querySelector('.lucide-wind')).not.toBeNull();
+
+    fireEvent.click(airAssist);
+    expect(updateCutEntry).toHaveBeenCalledWith('l1', 'entry-1', { air_assist: false });
+  });
+
   it('hosts the shared sub-layer stack and exposes raster mode options when expanded', () => {
     const layer = makeLayer({
       id: 'l1',
