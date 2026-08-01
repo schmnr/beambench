@@ -214,6 +214,8 @@ export interface Layer {
   color_tag: string;
   visible: boolean;
   is_tool_layer: boolean;
+  /** Design-only opacity for layers whose operation uses a filled appearance. */
+  fill_opacity?: number;
 }
 
 export interface LayerPatch {
@@ -221,6 +223,7 @@ export interface LayerPatch {
   enabled?: boolean;
   visible?: boolean;
   color_tag?: string;
+  fill_opacity?: number;
 }
 
 // --- Raster adjustments ---

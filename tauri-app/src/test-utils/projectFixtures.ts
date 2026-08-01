@@ -156,6 +156,7 @@ export function makeLayer(overrides: LayerFixtureOverrides = {}): Layer {
     color_tag: '#000000',
     visible: true,
     is_tool_layer: isToolLayer,
+    fill_opacity: 1,
     ...overrides,
   };
 }

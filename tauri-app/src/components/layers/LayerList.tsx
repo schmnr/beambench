@@ -6,11 +6,13 @@ import { SubLayerStack } from '../properties/SubLayerStack';
 import { CheckSquare, Eye, EyeOff, Lock, ClipboardCopy, ClipboardPaste, Trash2, Zap, ZapOff } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { TextInput } from '../shared/TextInput';
+import { RangeInput } from '../shared/RangeInput';
 import { IconToggleButton } from '../shared/IconToggleButton';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { INSPECTOR_CARD_CLASS, INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
+import { layerFillOpacity, layerUsesFilledAppearance } from '../../utils/layerAppearance';
 
 export function LayerList() {
   const { t } = useTranslation();
@@ -34,6 +36,7 @@ export function LayerList() {
   const activeLayer = selectedLayer ?? layers[0] ?? null;
   const activeLayerObjs = activeLayer ? objects.filter((o) => o.layer_id === activeLayer.id) : [];
   const layerAllLocked = activeLayerObjs.length > 0 && activeLayerObjs.every((o) => o.locked);
+  const usesFilledAppearance = activeLayer ? layerUsesFilledAppearance(activeLayer) : false;
 
   useEffect(() => {
     setLayerNameDraft(activeLayer?.name ?? '');
@@ -241,6 +244,20 @@ export function LayerList() {
               </div>
             </div>
           </div>
+
+          {usesFilledAppearance && (
+            <div className="mt-3" data-testid="layer-fill-opacity-control">
+              <RangeInput
+                label={`${t('panels.camera.opacity')} (%)`}
+                value={Math.round(layerFillOpacity(activeLayer) * 100)}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(value) => void updateLayer(activeLayer.id, { fill_opacity: value / 100 })}
+                testId="layer-fill-opacity"
+              />
+            </div>
+          )}
 
           </div>
 

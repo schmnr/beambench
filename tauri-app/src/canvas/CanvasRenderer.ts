@@ -51,6 +51,7 @@ import i18n from '../i18n';
 import { getCachedTransformedBoundsWorld } from './sceneIndex';
 import { measureCanvasPerf } from './canvasPerf';
 import { lengthUnitLabel, mmToDisplay, roundDisplayLength } from '../utils/lengthUnits';
+import { layerFillOpacity, layerUsesFilledAppearance } from '../utils/layerAppearance';
 import {
   CAMERA_OVERLAY_HANDLE_SIZE_PX,
   mapCameraPixelThroughWarp,
@@ -181,6 +182,8 @@ export interface RenderParams {
   theme?: CanvasTheme;
   antialiasing?: boolean;
   filledRendering?: boolean;
+  /** Use each layer's operation to choose wireframe/filled rendering (Design workspace). */
+  useLayerAppearance?: boolean;
   selectionDashOffset?: number;
   showLastPosition?: boolean;
   laserPosition?: Point2D | null;
@@ -570,7 +573,7 @@ export class CanvasRenderer {
         ]),
       );
       if (filled && hasClosedSubpath) {
-        ctx.fillStyle = color + 'B0';
+        ctx.fillStyle = color;
         ctx.fill(mapped);
       }
       ctx.stroke(mapped);
@@ -626,7 +629,7 @@ export class CanvasRenderer {
           drawCommands(subpath.commands, true);
         }
       }
-      ctx.fillStyle = color + 'B0';
+      ctx.fillStyle = color;
       ctx.fill('evenodd');
     }
 
@@ -785,6 +788,7 @@ export class CanvasRenderer {
     theme: CanvasTheme,
     filled: boolean | undefined,
     isToolLayer: boolean,
+    useLayerAppearance: boolean,
   ): void {
     if (obj.data.type === 'raster_image') {
       if (isToolLayer) {
@@ -818,6 +822,7 @@ export class CanvasRenderer {
       isToolLayer,
       this.barcodePathCache,
       this.imageErrorCache,
+      useLayerAppearance,
     );
   }
 
@@ -903,6 +908,8 @@ export class CanvasRenderer {
         layer.visible !== false ? 1 : 0,
         layer.color_tag ?? '',
         layer.is_tool_layer === true ? 1 : 0,
+        layer.fill_opacity ?? 1,
+        layer.entries.map((entry) => entry.operation).join(','),
       ].join(':'))
       .join('|');
     return [
@@ -919,6 +926,7 @@ export class CanvasRenderer {
       params.theme?.canvasBg ?? DARK_THEME.canvasBg,
       params.antialiasing !== false ? 1 : 0,
       params.filledRendering === true ? 1 : 0,
+      params.useLayerAppearance === true ? 1 : 0,
       params.displayUnit ?? 'mm',
       params.showPreview ? 1 : 0,
       previewRevision,
@@ -1296,6 +1304,10 @@ export class CanvasRenderer {
       if (!layer) continue;
       const isToolLayer = layer.is_tool_layer === true;
       const layerDisabled = layer.enabled === false;
+      const filled = params.useLayerAppearance
+        ? layerUsesFilledAppearance(layer)
+        : params.filledRendering === true;
+      const fillOpacity = params.useLayerAppearance && filled ? layerFillOpacity(layer) : 1;
 
       if (obj.data.type === 'virtual_clone') {
         const cloneData = obj.data;
@@ -1319,12 +1331,13 @@ export class CanvasRenderer {
           }
           ctx.save();
           if (layerDisabled) ctx.globalAlpha *= 0.3;
+          ctx.globalAlpha *= fillOpacity;
           ctx.globalAlpha *= 0.6;
           ctx.setLineDash([4, 4]);
           const usedProxy =
             resolved.data.type === 'vector_path' &&
             this.shouldUseVectorProxy(resolved, params.interactionState) &&
-            this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, params.filledRendering === true);
+            this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, filled);
           if (!usedProxy) {
             this.drawObjectWithRasterMasks(
               ctx,
@@ -1333,8 +1346,9 @@ export class CanvasRenderer {
               vp,
               objects,
               theme,
-              params.filledRendering,
+              filled,
               isToolLayer,
+              params.useLayerAppearance === true,
             );
           }
           ctx.restore();
@@ -1351,9 +1365,11 @@ export class CanvasRenderer {
         toolOverlay.objectId === obj.id &&
         obj.data.type === 'vector_path'
       ) {
-        if (isToolLayer || layerDisabled) {
+        const needsLayerContext = isToolLayer || layerDisabled || fillOpacity < 1;
+        if (needsLayerContext) {
           ctx.save();
           if (layerDisabled) ctx.globalAlpha *= 0.3;
+          ctx.globalAlpha *= fillOpacity;
           if (isToolLayer) {
             ctx.globalAlpha *= 0.6;
             ctx.setLineDash([8, 4]);
@@ -1365,23 +1381,25 @@ export class CanvasRenderer {
           layer.color_tag,
           vp,
           toolOverlay.nodeToWorld,
-          params.filledRendering,
+          filled,
         );
-        if (isToolLayer || layerDisabled) {
+        if (needsLayerContext) {
           ctx.restore();
         }
       } else {
         if (this.isObjectCulled(obj, vp)) {
           continue;
         }
-        if (layerDisabled) {
+        const needsLayerContext = layerDisabled || fillOpacity < 1;
+        if (needsLayerContext) {
           ctx.save();
-          ctx.globalAlpha *= 0.3;
+          if (layerDisabled) ctx.globalAlpha *= 0.3;
+          ctx.globalAlpha *= fillOpacity;
         }
         const usedProxy =
           obj.data.type === 'vector_path' &&
           this.shouldUseVectorProxy(obj, params.interactionState) &&
-          this.drawVectorProxy(ctx, obj, layer.color_tag, vp, params.filledRendering === true);
+          this.drawVectorProxy(ctx, obj, layer.color_tag, vp, filled);
         if (!usedProxy) {
           this.drawObjectWithRasterMasks(
             ctx,
@@ -1390,11 +1408,12 @@ export class CanvasRenderer {
             vp,
             objects,
             theme,
-            params.filledRendering,
+            filled,
             isToolLayer,
+            params.useLayerAppearance === true,
           );
         }
-        if (layerDisabled) {
+        if (needsLayerContext) {
           ctx.restore();
         }
       }
@@ -1506,6 +1525,10 @@ export class CanvasRenderer {
       if (layer) {
         const isToolLayer = layer.is_tool_layer === true;
         const layerDisabled = layer.enabled === false;
+        const filled = params.useLayerAppearance
+          ? layerUsesFilledAppearance(layer)
+          : params.filledRendering === true;
+        const fillOpacity = params.useLayerAppearance && filled ? layerFillOpacity(layer) : 1;
 
         // Resolve VirtualClone: follow chain to find real source geometry
         if (obj.data.type === 'virtual_clone') {
@@ -1531,12 +1554,13 @@ export class CanvasRenderer {
             }
             ctx.save();
             if (layerDisabled) ctx.globalAlpha *= 0.3;
+            ctx.globalAlpha *= fillOpacity;
             ctx.globalAlpha *= 0.6;
             ctx.setLineDash([4, 4]);
             const usedProxy =
               resolved.data.type === 'vector_path' &&
               this.shouldUseVectorProxy(resolved, params.interactionState) &&
-              this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, params.filledRendering === true);
+              this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, filled);
             if (!usedProxy) {
               this.drawObjectWithRasterMasks(
                 ctx,
@@ -1545,8 +1569,9 @@ export class CanvasRenderer {
                 vp,
                 objects,
                 theme,
-                params.filledRendering,
+                filled,
                 isToolLayer,
+                params.useLayerAppearance === true,
               );
             }
             ctx.restore();
@@ -1566,9 +1591,11 @@ export class CanvasRenderer {
           toolOverlay.objectId === obj.id &&
           obj.data.type === 'vector_path'
         ) {
-          if (isToolLayer || layerDisabled) {
+          const needsLayerContext = isToolLayer || layerDisabled || fillOpacity < 1;
+          if (needsLayerContext) {
             ctx.save();
             if (layerDisabled) ctx.globalAlpha *= 0.3;
+            ctx.globalAlpha *= fillOpacity;
             if (isToolLayer) {
               ctx.globalAlpha *= 0.6;
               ctx.setLineDash([8, 4]);
@@ -1580,23 +1607,25 @@ export class CanvasRenderer {
             layer.color_tag,
             vp,
             toolOverlay.nodeToWorld,
-            params.filledRendering,
+            filled,
           );
-          if (isToolLayer || layerDisabled) {
+          if (needsLayerContext) {
             ctx.restore();
           }
         } else {
           if (this.isObjectCulled(obj, vp)) {
             continue;
           }
-          if (layerDisabled) {
+          const needsLayerContext = layerDisabled || fillOpacity < 1;
+          if (needsLayerContext) {
             ctx.save();
-            ctx.globalAlpha *= 0.3;
+            if (layerDisabled) ctx.globalAlpha *= 0.3;
+            ctx.globalAlpha *= fillOpacity;
           }
           const usedProxy =
             obj.data.type === 'vector_path' &&
             this.shouldUseVectorProxy(obj, params.interactionState) &&
-            this.drawVectorProxy(ctx, obj, layer.color_tag, vp, params.filledRendering === true);
+            this.drawVectorProxy(ctx, obj, layer.color_tag, vp, filled);
           if (!usedProxy) {
             this.drawObjectWithRasterMasks(
               ctx,
@@ -1605,11 +1634,12 @@ export class CanvasRenderer {
               vp,
               objects,
               theme,
-              params.filledRendering,
+              filled,
               isToolLayer,
+              params.useLayerAppearance === true,
             );
           }
-          if (layerDisabled) {
+          if (needsLayerContext) {
             ctx.restore();
           }
         }

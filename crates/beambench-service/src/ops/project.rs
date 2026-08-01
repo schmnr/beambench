@@ -36,6 +36,7 @@ pub struct UpdateLayerInput {
     pub enabled: Option<bool>,
     pub visible: Option<bool>,
     pub color_tag: Option<String>,
+    pub fill_opacity: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -1494,6 +1495,11 @@ pub fn update_layer(
     layer_id: LayerId,
     input: UpdateLayerInput,
 ) -> ServiceResult<Layer> {
+    let display_only_update = input.fill_opacity.is_some()
+        && input.name.is_none()
+        && input.enabled.is_none()
+        && input.visible.is_none()
+        && input.color_tag.is_none();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let project = project_guard
         .as_mut()
@@ -1512,6 +1518,9 @@ pub fn update_layer(
     }
     if let Some(visible) = input.visible {
         candidate.visible = visible;
+    }
+    if let Some(fill_opacity) = input.fill_opacity {
+        candidate.fill_opacity = fill_opacity.clamp(0.0, 1.0);
     }
     if let Some(ref color) = input.color_tag {
         candidate.color_tag = ColorTag(canonical_palette_color_tag(color).to_string());
@@ -1539,7 +1548,9 @@ pub fn update_layer(
         .ok_or_else(|| ServiceError::internal("layer not found after mutation"))?
         .clone();
     drop(project_guard);
-    invalidate_plan(ctx)?;
+    if !display_only_update {
+        invalidate_plan(ctx)?;
+    }
     ctx.emit_event(
         "project.layer.updated",
         json!({
@@ -5253,6 +5264,42 @@ mod tests {
         )
         .unwrap();
         assert!(updated.is_tool_layer);
+    }
+
+    #[test]
+    fn update_layer_clamps_design_fill_opacity() {
+        let ctx = ServiceContext::new();
+        create_project(&ctx, "Opacity Test").unwrap();
+        let layer = add_layer(
+            &ctx,
+            AddLayerInput {
+                name: "Fill".to_string(),
+                operation: OperationType::Fill,
+            },
+        )
+        .unwrap();
+
+        let transparent = update_layer(
+            &ctx,
+            layer.id,
+            UpdateLayerInput {
+                fill_opacity: Some(-0.5),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(transparent.fill_opacity, 0.0);
+
+        let opaque = update_layer(
+            &ctx,
+            layer.id,
+            UpdateLayerInput {
+                fill_opacity: Some(1.5),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(opaque.fill_opacity, 1.0);
     }
 
     #[test]

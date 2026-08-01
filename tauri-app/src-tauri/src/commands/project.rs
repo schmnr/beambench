@@ -92,6 +92,7 @@ pub fn update_layer(
             enabled: patch.enabled,
             visible: patch.visible,
             color_tag: patch.color_tag,
+            fill_opacity: patch.fill_opacity,
             ..Default::default()
         },
     )

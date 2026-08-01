@@ -886,6 +886,19 @@ describe('projectStore — new actions', () => {
     expect(useProjectStore.getState().error).toBe('Rename failed');
   });
 
+  it('updates display-only layer opacity without invalidating the toolpath preview', async () => {
+    const layer = useProjectStore.getState().project!.layers[0];
+    mockedProject.updateLayer.mockResolvedValue({ ...layer, fill_opacity: 0.4 });
+
+    await expect(
+      useProjectStore.getState().updateLayer(layer.id, { fill_opacity: 0.4 }),
+    ).resolves.toBe(true);
+
+    expect(useProjectStore.getState().project?.layers[0].fill_opacity).toBe(0.4);
+    expect(previewInvalidate).not.toHaveBeenCalled();
+    expect(undoRefresh).toHaveBeenCalledOnce();
+  });
+
   it('loadAssetData caches blob URLs and revokes them when the project closes', async () => {
     const urlApi = mockUrlApi();
     mockedPersistence.getAssetData.mockResolvedValue([1, 2, 3]);

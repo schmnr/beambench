@@ -121,6 +121,7 @@ function decorateLayer(layer: Layer): Layer {
   const entries = layer.entries ?? [];
   return {
     ...layer,
+    fill_opacity: Math.min(1, Math.max(0, layer.fill_opacity ?? 1)),
     entries: entries.length > 0 ? entries : [primaryEntryOf(layer)],
   };
 }
@@ -849,6 +850,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         ...(updates.enabled !== undefined ? { enabled: updates.enabled } : {}),
         ...(updates.visible !== undefined ? { visible: updates.visible } : {}),
         ...(updates.color_tag !== undefined ? { color_tag: updates.color_tag } : {}),
+        ...(updates.fill_opacity !== undefined ? { fill_opacity: updates.fill_opacity } : {}),
       });
       if (JSON.stringify(candidate) === JSON.stringify(layer)) {
         return false;
@@ -864,7 +866,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           project: nextProject,
           selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
         });
-        invalidatePreview();
+        const displayOnlyUpdate = updates.fill_opacity !== undefined
+          && updates.name === undefined
+          && updates.enabled === undefined
+          && updates.visible === undefined
+          && updates.color_tag === undefined;
+        if (!displayOnlyUpdate) invalidatePreview();
         await refreshUndo();
       }
       return true;

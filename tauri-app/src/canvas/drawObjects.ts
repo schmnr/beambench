@@ -63,7 +63,7 @@ export function drawShape(
       ctx.beginPath();
       ctx.roundRect(topLeft.x, topLeft.y, w, h, r);
       if (filled) {
-        ctx.fillStyle = color + 'B0';
+        ctx.fillStyle = color;
         ctx.fill();
       }
       ctx.stroke();
@@ -110,7 +110,7 @@ export function drawShape(
       );
       ctx.closePath();
       if (filled) {
-        ctx.fillStyle = color + 'B0';
+        ctx.fillStyle = color;
         ctx.fill();
       }
       ctx.stroke();
@@ -118,7 +118,7 @@ export function drawShape(
       ctx.beginPath();
       ctx.rect(topLeft.x, topLeft.y, w, h);
       if (filled) {
-        ctx.fillStyle = color + 'B0';
+        ctx.fillStyle = color;
         ctx.fill();
       }
       ctx.stroke();
@@ -127,7 +127,7 @@ export function drawShape(
     ctx.beginPath();
     ctx.ellipse(topLeft.x + w / 2, topLeft.y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
     if (filled) {
-      ctx.fillStyle = color + 'B0';
+      ctx.fillStyle = color;
       ctx.fill();
     }
     ctx.stroke();
@@ -191,7 +191,7 @@ export function drawText(
     }
 
     if (filled) {
-      ctx.fillStyle = color + 'B0';
+      ctx.fillStyle = color;
       ctx.fill();
     }
     ctx.stroke();
@@ -400,7 +400,7 @@ export function drawVectorPath(
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     if (filled && hasClosedSubpath) {
-      ctx.fillStyle = color + 'B0';
+      ctx.fillStyle = color;
       ctx.fill(screenPath);
     }
     ctx.stroke(screenPath);
@@ -421,7 +421,7 @@ export function drawVectorPath(
         drawPathCommandsToContext(ctx, subpath.commands, mapPt, true);
       }
     }
-    ctx.fillStyle = color + 'B0';
+    ctx.fillStyle = color;
     ctx.fill('evenodd');
   }
 
@@ -494,7 +494,7 @@ export function drawEditableVectorPath(
     for (const path of paths) {
       if (path.closed) drawPath(path);
     }
-    ctx.fillStyle = color + 'B0';
+    ctx.fillStyle = color;
     ctx.fill('evenodd');
   }
 
@@ -664,6 +664,7 @@ export function drawBarcode(
   color: string,
   vp: ViewportParams,
   barcodePathCache?: Map<string, string>,
+  filled = true,
 ): void {
   if (obj.data.type !== 'barcode') return;
 
@@ -741,8 +742,10 @@ export function drawBarcode(
       }
     }
 
-    ctx.fillStyle = color + 'B0';
-    ctx.fill();
+    if (filled) {
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
     ctx.stroke();
     if (showText) {
       const topLeft = worldToScreen({ x: obj.bounds.min.x, y: obj.bounds.max.y - textWorldHeight }, vp);
@@ -949,7 +952,7 @@ function drawPathShape(
   ctx.closePath();
 
   if (filled) {
-    ctx.fillStyle = color + 'B0';
+    ctx.fillStyle = color;
     ctx.fill();
   }
 
@@ -1423,6 +1426,7 @@ export function drawObject(
   isToolLayer?: boolean,
   barcodePathCache?: Map<string, string>,
   imageErrorCache?: Map<string, string>,
+  useLayerAppearance = false,
 ): void {
   const color = layer.color_tag;
 
@@ -1452,7 +1456,7 @@ export function drawObject(
       drawRasterImage(ctx, obj, color, vp, imageCache, imageErrorCache);
       break;
     case 'barcode':
-      drawBarcode(ctx, obj, color, vp, barcodePathCache);
+      drawBarcode(ctx, obj, color, vp, barcodePathCache, useLayerAppearance ? filled : true);
       break;
     case 'group':
       // Groups are flattened in rendering — children are drawn individually

@@ -374,6 +374,34 @@ describe('LayerList', () => {
     expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
   });
 
+  it('shows layer opacity for filled operations and persists slider changes', () => {
+    const layer = makeLayer({ id: 'l1', operation: 'fill', fill_opacity: 0.65 });
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [] }),
+      selectedLayerId: 'l1',
+      updateLayer: updateLayerSpy,
+    });
+
+    render(<LayerList />);
+
+    const opacity = screen.getByTestId('layer-fill-opacity') as HTMLInputElement;
+    expect(opacity.value).toBe('65');
+    fireEvent.change(opacity, { target: { value: '40' } });
+    expect(updateLayerSpy).toHaveBeenCalledWith('l1', { fill_opacity: 0.4 });
+  });
+
+  it('does not show layer opacity for wireframe operations', () => {
+    useProjectStore.setState({
+      project: makeProject({ layers: [makeLayer({ id: 'l1', operation: 'line' })], objects: [] }),
+      selectedLayerId: 'l1',
+    });
+
+    render(<LayerList />);
+
+    expect(screen.queryByTestId('layer-fill-opacity-control')).toBeNull();
+  });
+
   it('show toggle surfaces backend failures', async () => {
     const pushSpy = vi.fn();
     useNotificationStore.setState({ push: pushSpy });

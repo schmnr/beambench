@@ -241,6 +241,7 @@ async fn update_layer(
             enabled: body.0.enabled,
             visible: body.0.visible,
             color_tag: body.0.color_tag,
+            fill_opacity: body.0.fill_opacity,
             ..Default::default()
         },
     )

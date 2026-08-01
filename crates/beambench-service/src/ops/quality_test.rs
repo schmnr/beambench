@@ -218,6 +218,7 @@ pub fn build_synthetic_project(
             color_tag: ColorTag(LABEL_COLOR.to_string()),
             visible: true,
             is_tool_layer: false,
+            fill_opacity: 1.0,
             entries: vec![label_entry],
         };
         layers.push(labels_layer);
@@ -415,6 +416,7 @@ fn generate_material_test(
             color_tag: ColorTag(SAMPLE_COLOR.to_string()),
             visible: true,
             is_tool_layer: false,
+            fill_opacity: 1.0,
             entries: vec![cell.entry],
         });
         sample_objects.push(object);
@@ -430,6 +432,7 @@ fn generate_material_test(
             color_tag: ColorTag(LABEL_COLOR.to_string()),
             visible: true,
             is_tool_layer: false,
+            fill_opacity: 1.0,
             entries: vec![material_border_entry(&settings.border_entry)],
         });
         sample_objects.push(make_outline_rect(
@@ -633,6 +636,7 @@ fn generate_focus_test(
             color_tag: ColorTag(SAMPLE_COLOR.to_string()),
             visible: true,
             is_tool_layer: false,
+            fill_opacity: 1.0,
             entries: vec![entry],
         });
         sample_objects.push(make_horizontal_line(layer_id, 0.0, y, line_len, i as i32));
@@ -691,6 +695,7 @@ fn generate_interval_test(
             color_tag: ColorTag(SAMPLE_COLOR.to_string()),
             visible: true,
             is_tool_layer: false,
+            fill_opacity: 1.0,
             entries: vec![entry],
         });
         sample_objects.push(make_filled_rect(layer_id, x, y, cw, ch, i as i32));

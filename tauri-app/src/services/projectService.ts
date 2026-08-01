@@ -54,6 +54,7 @@ function decorateLayer(layer: Layer): Layer {
   const entries = layer.entries ?? [];
   return {
     ...layer,
+    fill_opacity: Math.min(1, Math.max(0, layer.fill_opacity ?? 1)),
     entries: entries.length > 0 ? entries : [primaryEntryOf(layer)],
   };
 }

@@ -1092,6 +1092,63 @@ describe('CanvasRenderer', () => {
     expect(fillSpy2.mock.calls.length).toBeGreaterThan(fillCountWithout);
   });
 
+  it('uses each layer operation for Design canvas wireframe and fill appearance', () => {
+    const testObj = makeProjectObject({
+      id: 'obj1',
+      layer_id: 'layer1',
+      data: { type: 'shape', kind: 'rectangle', corner_radius: 0, width: 40, height: 40 },
+    });
+
+    const lineCtx = createMockCtx();
+    const lineFill = vi.fn();
+    lineCtx.fill = lineFill;
+    new CanvasRenderer(lineCtx).render({
+      ...baseParams,
+      objects: [testObj],
+      layers: [makeLayer({ id: 'layer1', operation: 'line' })],
+      filledRendering: true,
+      useLayerAppearance: true,
+    });
+
+    expect(lineFill).not.toHaveBeenCalled();
+
+    for (const operation of ['fill', 'offset_fill', 'image'] as const) {
+      const fillCtx = createMockCtx();
+      const fillDraw = vi.fn();
+      fillCtx.fill = fillDraw;
+      new CanvasRenderer(fillCtx).render({
+        ...baseParams,
+        objects: [testObj],
+        layers: [makeLayer({ id: 'layer1', operation })],
+        filledRendering: false,
+        useLayerAppearance: true,
+      });
+      expect(fillDraw, `${operation} should render filled`).toHaveBeenCalled();
+    }
+  });
+
+  it('applies saved opacity to filled Design layers', () => {
+    const opacityCtx = createMockCtx();
+    const alphaValues: number[] = [];
+    let currentAlpha = 1;
+    Object.defineProperty(opacityCtx, 'globalAlpha', {
+      get: () => currentAlpha,
+      set: (value: number) => {
+        currentAlpha = value;
+        alphaValues.push(value);
+      },
+    });
+
+    new CanvasRenderer(opacityCtx).render({
+      ...baseParams,
+      objects: [makeProjectObject({ id: 'obj1', layer_id: 'layer1' })],
+      layers: [makeLayer({ id: 'layer1', operation: 'fill', fill_opacity: 0.4 })],
+      useLayerAppearance: true,
+    });
+
+    expect(alphaValues).toContain(0.4);
+  });
+
   // --- F7: Locked objects tests ---
 
   it('locked objects get dimmed selection with no handles', () => {
