@@ -158,7 +158,8 @@ describe('TransformSection — position/size', () => {
     expect(centerButton.querySelector('.lucide-focus')).not.toBeNull();
     expect(fitSelectionButton.className).toContain('h-7');
     expect(fitSelectionButton.className).toContain('w-7');
-    expect(fitSelectionButton.querySelector('.lucide-scan-search')).not.toBeNull();
+    expect(fitSelectionButton.querySelector('.lucide-search')).not.toBeNull();
+    expect(fitSelectionButton.querySelector('.lucide-focus')).toBeNull();
     expect(centerButton.compareDocumentPosition(fitSelectionButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(fitSelectionButton.compareDocumentPosition(firstAnchor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

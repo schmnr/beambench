@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
-import { Focus, Link2, Lock, ScanSearch, Unlink2, Unlock } from 'lucide-react';
+import { Focus, Link2, Lock, Search, Unlink2, Unlock } from 'lucide-react';
 import { NumberStepper } from '../shared/NumberStepper';
 import type { AnchorPoint, TransformLocks } from '../../types/project';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -532,7 +532,7 @@ export function TransformSection() {
               title={t('toolbars.main.fit_selection')}
               className="flex h-7 w-7 items-center justify-center rounded-lg border border-bb-border bg-bb-bg text-bb-text-muted transition-colors hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:border-bb-border disabled:hover:bg-bb-bg"
             >
-              <ScanSearch size={17} />
+              <Search size={17} />
             </button>
           </div>
           <button
