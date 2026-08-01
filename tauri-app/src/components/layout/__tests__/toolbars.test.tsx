@@ -58,7 +58,7 @@ describe('MainToolbar', () => {
     expect(screen.getByTitle('Camera Overlay').className).toContain('bg-bb-accent/15');
   });
 
-  it('places the editable grid spacing between Grid and Snap', () => {
+  it('places the grid spacing menu between Grid and Snap and offers common sizes', () => {
     const updateSettings = vi.fn().mockResolvedValue(undefined);
     useAppStore.setState({
       settings: makeAppSettings({ display_unit: 'mm', grid_spacing_mm: 10 }),
@@ -68,18 +68,45 @@ describe('MainToolbar', () => {
     render(<MainToolbar />);
 
     const grid = screen.getByTitle('Grid');
-    const spacing = screen.getByRole('spinbutton', { name: 'Grid spacing (mm)' });
+    const spacing = screen.getByTestId('toolbar-grid-spacing-trigger');
     const snap = screen.getByTitle('Snap');
 
     expect(grid.compareDocumentPosition(spacing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(spacing.compareDocumentPosition(snap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    fireEvent.focus(spacing);
-    fireEvent.change(spacing, { target: { value: '5' } });
-    expect(useUiStore.getState().gridSpacingMm).toBe(5);
-    fireEvent.blur(spacing);
+    expect(spacing.textContent).toContain('10 mm');
+    fireEvent.click(spacing);
 
+    const input = screen.getByRole('spinbutton', { name: 'Grid spacing (mm)' });
+    expect(input).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Grid spacing: 5 mm' }));
+    expect(useUiStore.getState().gridSpacingMm).toBe(5);
     expect(updateSettings).toHaveBeenCalledWith({ grid_spacing_mm: 5 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grid spacing: +1 mm' }));
+    expect(useUiStore.getState().gridSpacingMm).toBe(6);
+    expect(spacing.textContent).toContain('6 mm');
+
+    fireEvent.change(input, { target: { value: '2.5' } });
+    fireEvent.blur(input);
+    expect(useUiStore.getState().gridSpacingMm).toBe(2.5);
+    expect(updateSettings).toHaveBeenLastCalledWith({ grid_spacing_mm: 2.5 });
+  });
+
+  it('offers common inch presets when inches are the active display unit', () => {
+    const updateSettings = vi.fn().mockResolvedValue(undefined);
+    useAppStore.setState({
+      settings: makeAppSettings({ display_unit: 'inches', grid_spacing_mm: 12.7 }),
+      updateSettings,
+    });
+    useUiStore.setState({ gridSpacingMm: 12.7 });
+    render(<MainToolbar />);
+
+    fireEvent.click(screen.getByTestId('toolbar-grid-spacing-trigger'));
+    fireEvent.click(screen.getByRole('button', { name: 'Grid spacing: 0.25 in' }));
+
+    expect(useUiStore.getState().gridSpacingMm).toBeCloseTo(6.35);
+    expect(updateSettings).toHaveBeenCalledWith({ grid_spacing_mm: 6.35 });
   });
 
   it('Import button uses the selected project layer', () => {
