@@ -254,7 +254,7 @@ describe('LayerList', () => {
     expect(labels[1].textContent).toBe('C00');
   });
 
-  it('output toggle circle works', () => {
+  it('uses a pressed lightning icon to control layer output', () => {
     const layer = makeLayer({ id: 'l1', enabled: true });
     useProjectStore.setState({
       project: makeProject({ layers: [layer], objects: [] }),
@@ -266,6 +266,8 @@ describe('LayerList', () => {
     render(<LayerList />);
 
     const outputToggle = screen.getByTestId('output-toggle');
+    expect(outputToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(outputToggle.querySelector('.lucide-zap')).not.toBeNull();
     fireEvent.click(outputToggle);
 
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { enabled: false });
@@ -352,7 +354,7 @@ describe('LayerList', () => {
     expect(useProjectStore.getState().selectedObjectIds).toEqual([object.id]);
   });
 
-  it('show toggle circle works', async () => {
+  it('uses a pressed eye icon to control layer visibility', async () => {
     const layer = makeLayer({ id: 'l1', visible: true });
     const setLayerVisibleSpy = vi.spyOn(projectService, 'setLayerVisible').mockResolvedValue(true);
     const loadProjectSpy = vi.spyOn(useProjectStore.getState(), 'loadProject').mockResolvedValue(undefined);
@@ -363,6 +365,8 @@ describe('LayerList', () => {
     render(<LayerList />);
 
     const showToggle = screen.getByTestId('show-toggle');
+    expect(showToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(showToggle.querySelector('.lucide-eye')).not.toBeNull();
     fireEvent.click(showToggle);
     await waitFor(() => {
       expect(setLayerVisibleSpy).toHaveBeenCalledWith('l1', false);

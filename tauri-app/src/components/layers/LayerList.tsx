@@ -3,16 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { projectService } from '../../services/projectService';
 import { SubLayerStack } from '../properties/SubLayerStack';
-import { CheckSquare, Lock, ClipboardCopy, ClipboardPaste, Trash2 } from 'lucide-react';
+import { CheckSquare, Eye, EyeOff, Lock, ClipboardCopy, ClipboardPaste, Trash2, Zap, ZapOff } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { TextInput } from '../shared/TextInput';
-import { ToggleSwitch } from '../shared/ToggleSwitch';
+import { IconToggleButton } from '../shared/IconToggleButton';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { INSPECTOR_CARD_CLASS, INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
-
-const SHOW_TOGGLE_ACTIVE_COLOR = 'bg-bb-accent';
 
 export function LayerList() {
   const { t } = useTranslation();
@@ -218,24 +216,29 @@ export function LayerList() {
             </div>
             <div className="flex items-center gap-5">
               {!activeLayer.is_tool_layer && (
-                <label className="flex items-center gap-1.5 text-xs text-bb-text-muted">
+                <div className="flex items-center gap-1.5 text-xs text-bb-text-muted">
                   {t('panels.layers.header.output')}
-                  <ToggleSwitch
+                  <IconToggleButton
                     active={activeLayer.enabled}
+                    label={t('panels.layers.header.output')}
+                    icon={<Zap size={16} />}
+                    inactiveIcon={<ZapOff size={16} />}
                     onClick={() => updateLayer(activeLayer.id, { enabled: !activeLayer.enabled })}
                     testId="output-toggle"
                   />
-                </label>
+                </div>
               )}
-              <label className="flex items-center gap-1.5 text-xs text-bb-text-muted">
+              <div className="flex items-center gap-1.5 text-xs text-bb-text-muted">
                 {t('panels.layers.header.show')}
-                <ToggleSwitch
+                <IconToggleButton
                   active={activeLayer.visible !== false}
-                  activeColor={SHOW_TOGGLE_ACTIVE_COLOR}
+                  label={t('panels.layers.header.show')}
+                  icon={<Eye size={16} />}
+                  inactiveIcon={<EyeOff size={16} />}
                   onClick={() => void handleToggleVisible(activeLayer.id, activeLayer.visible === false)}
                   testId="show-toggle"
                 />
-              </label>
+              </div>
             </div>
           </div>
 

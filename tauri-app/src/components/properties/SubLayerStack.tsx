@@ -16,6 +16,7 @@ import { NumberInput } from '../shared/NumberInput';
 import { RangeInput } from '../shared/RangeInput';
 import { Toggle } from '../shared/Toggle';
 import { ToggleSwitch } from '../shared/ToggleSwitch';
+import { IconToggleButton } from '../shared/IconToggleButton';
 import { effectiveLineIntervalMm } from '../../types/rasterSettings';
 // M4: defaults moved to a dedicated module with a SYNC-WITH-RUST contract; the user-facing
 // Reset to Defaults action routes through the backend (projectStore.resetCutEntryToDefaults).
@@ -440,21 +441,13 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 />
                 <div className="flex min-h-6 items-center justify-between text-xs">
                   <span className="text-bb-text-muted">{t('panels.sub_layer_stack.air_assist')}</span>
-                  <button
-                    type="button"
+                  <IconToggleButton
+                    active={entry.air_assist}
+                    label={t('panels.sub_layer_stack.air_assist')}
+                    icon={<Wind size={16} />}
                     onClick={() => void updateCutEntry(layer.id, entry.id, { air_assist: !entry.air_assist })}
-                    aria-label={t('panels.sub_layer_stack.air_assist')}
-                    aria-pressed={entry.air_assist}
-                    title={t('panels.sub_layer_stack.air_assist')}
-                    data-testid={`sub-layer-air-assist-${entry.id}`}
-                    className={`flex h-7 w-7 items-center justify-center rounded-lg border outline-none transition-colors focus-visible:ring-1 focus-visible:ring-bb-accent ${
-                      entry.air_assist
-                        ? 'border-bb-accent/50 bg-bb-accent/15 text-bb-accent hover:bg-bb-accent/20'
-                        : 'border-bb-border bg-bb-bg text-bb-text-muted hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text'
-                    }`}
-                  >
-                    <Wind size={16} />
-                  </button>
+                    testId={`sub-layer-air-assist-${entry.id}`}
+                  />
                 </div>
                 {showZOffset && (
                   <NumberInput
