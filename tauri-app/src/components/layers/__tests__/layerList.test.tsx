@@ -374,7 +374,7 @@ describe('LayerList', () => {
     expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
   });
 
-  it('shows layer opacity for filled operations and persists slider changes', () => {
+  it('shows localized layer opacity for filled operations and persists a completed slider change', () => {
     const layer = makeLayer({ id: 'l1', operation: 'fill', fill_opacity: 0.65 });
     const updateLayerSpy = vi.fn().mockResolvedValue(true);
     useProjectStore.setState({
@@ -386,8 +386,12 @@ describe('LayerList', () => {
     render(<LayerList />);
 
     const opacity = screen.getByTestId('layer-fill-opacity') as HTMLInputElement;
+    expect(screen.getByText('Opacity (%)')).toBeDefined();
     expect(opacity.value).toBe('65');
     fireEvent.change(opacity, { target: { value: '40' } });
+    expect(opacity.value).toBe('40');
+    expect(updateLayerSpy).not.toHaveBeenCalled();
+    fireEvent.pointerUp(opacity);
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { fill_opacity: 0.4 });
   });
 

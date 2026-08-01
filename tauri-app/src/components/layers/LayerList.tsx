@@ -31,6 +31,7 @@ export function LayerList() {
   const loadProject = useProjectStore((s) => s.loadProject);
   const [colorPicker, setColorPicker] = useState<{ x: number; y: number } | null>(null);
   const [layerNameDraft, setLayerNameDraft] = useState('');
+  const [fillOpacityPercentDraft, setFillOpacityPercentDraft] = useState(100);
 
   const selectedLayer = layers.find((l) => l.id === selectedLayerId) ?? null;
   const activeLayer = selectedLayer ?? layers[0] ?? null;
@@ -42,12 +43,26 @@ export function LayerList() {
     setLayerNameDraft(activeLayer?.name ?? '');
   }, [activeLayer?.id, activeLayer?.name]);
 
+  useEffect(() => {
+    setFillOpacityPercentDraft(Math.round(activeLayer ? layerFillOpacity(activeLayer) * 100 : 100));
+  }, [activeLayer?.id, activeLayer?.fill_opacity]);
+
   const commitLayerName = async () => {
     if (!activeLayer || layerNameDraft === activeLayer.name) return;
     const updated = await updateLayer(activeLayer.id, { name: layerNameDraft });
     if (!updated) {
       const currentLayer = useProjectStore.getState().project?.layers.find((layer) => layer.id === activeLayer.id);
       setLayerNameDraft(currentLayer?.name ?? activeLayer.name);
+    }
+  };
+
+  const commitFillOpacity = async (value: number) => {
+    if (!activeLayer) return;
+    const layerId = activeLayer.id;
+    const updated = await updateLayer(layerId, { fill_opacity: value / 100 });
+    if (!updated && useProjectStore.getState().selectedLayerId === layerId) {
+      const currentLayer = useProjectStore.getState().project?.layers.find((layer) => layer.id === layerId);
+      setFillOpacityPercentDraft(Math.round(currentLayer ? layerFillOpacity(currentLayer) * 100 : 100));
     }
   };
 
@@ -248,12 +263,13 @@ export function LayerList() {
           {usesFilledAppearance && (
             <div className="mt-3" data-testid="layer-fill-opacity-control">
               <RangeInput
-                label={`${t('panels.camera.opacity')} (%)`}
-                value={Math.round(layerFillOpacity(activeLayer) * 100)}
+                label={`${t('panels.machine.camera.opacity')} (%)`}
+                value={fillOpacityPercentDraft}
                 min={0}
                 max={100}
                 step={1}
-                onChange={(value) => void updateLayer(activeLayer.id, { fill_opacity: value / 100 })}
+                onChange={setFillOpacityPercentDraft}
+                onCommit={(value) => void commitFillOpacity(value)}
                 testId="layer-fill-opacity"
               />
             </div>

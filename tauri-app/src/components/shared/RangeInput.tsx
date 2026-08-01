@@ -1,9 +1,11 @@
+import { useRef } from 'react';
 import { NumberInput } from './NumberInput';
 
 interface RangeInputProps {
   label: string;
   value: number;
   onChange: (value: number) => void;
+  onCommit?: (value: number) => void;
   min: number;
   max: number;
   step?: number;
@@ -24,6 +26,7 @@ export function RangeInput({
   label,
   value,
   onChange,
+  onCommit,
   min,
   max,
   step = 1,
@@ -31,12 +34,28 @@ export function RangeInput({
   inputWidthClassName,
   testId,
 }: RangeInputProps) {
+  const commitPendingRef = useRef(false);
+
+  const markChanged = (nextValue: number) => {
+    commitPendingRef.current = true;
+    onChange(nextValue);
+  };
+
+  const commitIfPending = (nextValue: number) => {
+    if (!onCommit || !commitPendingRef.current) return;
+    commitPendingRef.current = false;
+    onCommit(nextValue);
+  };
+
   return (
     <div className="flex flex-col gap-1.5">
       <NumberInput
         label={label}
         value={value}
-        onChange={onChange}
+        onChange={(nextValue) => {
+          markChanged(nextValue);
+          commitIfPending(nextValue);
+        }}
         min={min}
         max={max}
         step={step}
@@ -49,7 +68,20 @@ export function RangeInput({
         max={max}
         step={step}
         value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={(event) => markChanged(Number(event.target.value))}
+        onPointerUp={(event) => commitIfPending(Number(event.currentTarget.value))}
+        onKeyUp={(event) => {
+          if (
+            event.key.startsWith('Arrow')
+            || event.key === 'Home'
+            || event.key === 'End'
+            || event.key === 'PageUp'
+            || event.key === 'PageDown'
+          ) {
+            commitIfPending(Number(event.currentTarget.value));
+          }
+        }}
+        onBlur={(event) => commitIfPending(Number(event.currentTarget.value))}
         disabled={disabled}
         aria-label={label}
         className="bb-range w-full disabled:cursor-not-allowed disabled:opacity-50"
