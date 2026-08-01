@@ -334,6 +334,14 @@ describe('MainToolbar', () => {
 });
 
 describe('CreationToolbar', () => {
+  it('uses a dedicated archive-style vector for the library launcher', () => {
+    render(<CreationToolbar />);
+
+    const libraryButton = screen.getByTitle('Library');
+    expect(libraryButton.querySelector('[data-icon="library-archive"]')).not.toBeNull();
+    expect(libraryButton.querySelector('[data-lucide="layout-grid"]')).toBeNull();
+  });
+
   it('renders standalone tool buttons and shapes submenu', () => {
     render(<CreationToolbar />);
     // Standalone buttons always visible
