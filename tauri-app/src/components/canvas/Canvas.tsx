@@ -1641,9 +1641,11 @@ export function Canvas() {
 
   useEffect(() => {
     if (activeTool !== 'warp') return;
-    TOOL_INSTANCES.warp.reset();
+    const warpTool = TOOL_INSTANCES.warp as WarpTool;
+    warpTool.reset();
+    warpTool.prepareForSelection(buildToolContext());
     requestRender();
-  }, [activeTool, meshDeformMode, requestRender]);
+  }, [activeTool, meshDeformMode, selectedObjectIds, project, buildToolContext, requestRender]);
 
   useEffect(() => {
     if (workspaceMode === 'run' || activeTool !== 'node') return;

@@ -165,10 +165,15 @@ export class SelectionMeshDeformTool implements CanvasTool {
     }
   }
 
-  onMouseUp(_e: CanvasMouseEvent, ctx: ToolContext): void {
+  onMouseUp(e: CanvasMouseEvent, ctx: ToolContext): void {
     if (this.state.type !== 'dragging') return;
 
-    const { moved, mode, originalHandles } = this.state;
+    const { mode, originalHandles, handleIndex, startWorld } = this.state;
+    const finalPoint = { x: e.snappedX, y: e.snappedY };
+    const moved = this.state.moved || !samePoint(finalPoint, startWorld);
+    if (moved) {
+      this.setHandle(handleIndex, finalPoint, { horizontal: e.shiftKey, vertical: e.altKey });
+    }
     const ids = collectEditableSelection(ctx);
     const sourceBounds = this.sourceBounds;
     const handles = this.handles.map((handle) => ({ ...handle }));
@@ -237,6 +242,10 @@ export class SelectionMeshDeformTool implements CanvasTool {
         hovered: this.hoveredIndex === index,
       })),
     };
+  }
+
+  prepareForSelection(ctx: ToolContext): boolean {
+    return this.syncGrid(ctx);
   }
 
   reset(): void {

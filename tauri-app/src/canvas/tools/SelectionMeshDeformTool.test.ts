@@ -120,7 +120,7 @@ describe('SelectionMeshDeformTool', () => {
       ctx,
     );
     tool.onMouseMove(makeMouseEvent({ snappedX: 20, snappedY: 0 }), ctx);
-    tool.onMouseUp(makeMouseEvent(), ctx);
+    tool.onMouseUp(makeMouseEvent({ snappedX: 20, snappedY: 0 }), ctx);
     await flushToolPromises();
 
     expect(vectorService.meshDeformSelection).toHaveBeenCalledWith(
@@ -176,10 +176,10 @@ describe('SelectionMeshDeformTool', () => {
     tool.onMouseDown(makeMouseEvent({
       screenX: topRight.x,
       screenY: topRight.y,
-      snappedX: 25,
-      snappedY: 25,
+      snappedX: 10,
+      snappedY: 0,
     }), ctx);
-    tool.onMouseUp(makeMouseEvent(), ctx);
+    tool.onMouseUp(makeMouseEvent({ snappedX: 10, snappedY: 0 }), ctx);
 
     const overlay = tool.getOverlay();
     if (overlay.type !== 'mesh-deform') throw new Error('expected mesh overlay');
@@ -226,13 +226,44 @@ describe('SelectionMeshDeformTool', () => {
     const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
     tool.onMouseDown(makeMouseEvent({ screenX: topRight.x, screenY: topRight.y, snappedX: 10, snappedY: 0 }), ctx);
     tool.onMouseMove(makeMouseEvent({ snappedX: 15, snappedY: 0 }), ctx);
-    tool.onMouseUp(makeMouseEvent(), ctx);
+    tool.onMouseUp(makeMouseEvent({ snappedX: 15, snappedY: 0 }), ctx);
     await flushToolPromises();
 
     expect(vectorService.meshDeformSelection).toHaveBeenCalledWith(
       ['child-a', 'child-b'],
       { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
       expect.any(Array),
+      2,
+      true,
+    );
+  });
+
+  it('prepares its visible control grid as soon as the tool is activated', () => {
+    const ctx = makeToolContext();
+    useUiStore.setState({ meshDeformMode: 'mesh' });
+    const tool = new WarpTool();
+
+    expect(tool.getOverlay()).toEqual({ type: 'none' });
+    expect(tool.prepareForSelection(ctx)).toBe(true);
+    expect(tool.getOverlay()).toMatchObject({ type: 'mesh-deform', gridSize: 4 });
+  });
+
+  it('applies the pointer-up position even when the final pointer move was throttled', async () => {
+    const ctx = makeToolContext();
+    useUiStore.setState({ meshDeformMode: 'warp' });
+    vi.spyOn(useUndoStore.getState(), 'refresh').mockResolvedValue(undefined);
+    const tool = new WarpTool();
+    tool.prepareForSelection(ctx);
+
+    const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
+    tool.onMouseDown(makeMouseEvent({ screenX: topRight.x, screenY: topRight.y, snappedX: 10, snappedY: 0 }), ctx);
+    tool.onMouseUp(makeMouseEvent({ snappedX: 15, snappedY: 2 }), ctx);
+    await flushToolPromises();
+
+    expect(vectorService.meshDeformSelection).toHaveBeenCalledWith(
+      ['obj'],
+      { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
+      expect.arrayContaining([{ x: 15, y: 2 }]),
       2,
       true,
     );
