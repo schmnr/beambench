@@ -45,6 +45,19 @@ impl SubPath {
             closed: false,
         }
     }
+
+    /// Returns true when this contour contains geometry that can be drawn.
+    /// A MoveTo (with or without Close) is only an isolated node, not a segment.
+    pub fn has_drawable_segment(&self) -> bool {
+        self.commands.iter().any(|command| {
+            matches!(
+                command,
+                PathCommand::LineTo { .. }
+                    | PathCommand::QuadTo { .. }
+                    | PathCommand::CubicTo { .. }
+            )
+        })
+    }
 }
 
 impl Default for SubPath {
@@ -408,6 +421,14 @@ impl VecPath {
     pub fn command_count(&self) -> usize {
         self.subpaths.iter().map(|sp| sp.commands.len()).sum()
     }
+
+    /// Remove contours that contain no drawable segments, such as a lone
+    /// MoveTo left behind after deleting the final connected segment.
+    pub fn prune_orphan_subpaths(&mut self) -> usize {
+        let previous_len = self.subpaths.len();
+        self.subpaths.retain(SubPath::has_drawable_segment);
+        previous_len - self.subpaths.len()
+    }
 }
 
 impl Default for VecPath {
@@ -709,6 +730,29 @@ mod tests {
         assert_eq!(path.subpaths.len(), 2);
         assert!(path.subpaths[0].closed);
         assert!(!path.subpaths[1].closed);
+    }
+
+    #[test]
+    fn prune_orphan_subpaths_removes_only_isolated_nodes() {
+        let mut path = VecPath::parse_svg_d(
+            "M100 100 Z M0 0 L10 0 M20 20 Q25 30 30 20 M40 40 C45 50 55 50 60 40",
+        );
+
+        assert_eq!(path.prune_orphan_subpaths(), 1);
+        assert_eq!(path.subpaths.len(), 3);
+        assert_eq!(
+            path.to_svg_d(),
+            "M0 0 L10 0 M20 20 Q25 30 30 20 M40 40 C45 50 55 50 60 40"
+        );
+    }
+
+    #[test]
+    fn prune_orphan_subpaths_preserves_a_single_open_segment() {
+        let mut path = VecPath::parse_svg_d("M0 0 L10 10");
+
+        assert_eq!(path.prune_orphan_subpaths(), 0);
+        assert_eq!(path.subpaths.len(), 1);
+        assert!(!path.subpaths[0].closed);
     }
 
     #[test]

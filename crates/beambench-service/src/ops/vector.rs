@@ -198,7 +198,11 @@ fn lock_err(name: &str, e: impl std::fmt::Display) -> ServiceError {
 
 fn require_vector_path(obj: &ProjectObject) -> ServiceResult<VecPath> {
     match &obj.data {
-        ObjectData::VectorPath { path_data, .. } => Ok(VecPath::parse_svg_d(path_data)),
+        ObjectData::VectorPath { path_data, .. } => {
+            let mut path = VecPath::parse_svg_d(path_data);
+            path.prune_orphan_subpaths();
+            Ok(path)
+        }
         ObjectData::VirtualClone { .. } => Err(ServiceError::invalid_input(
             "VirtualClone must be resolved before accessing geometry",
         )),
@@ -247,6 +251,8 @@ fn write_vec_path_to_object(
     vec_path: &VecPath,
     ruler_guide_axis: Option<GuideAxis>,
 ) {
+    let mut vec_path = vec_path.clone();
+    vec_path.prune_orphan_subpaths();
     let new_bounds = vec_path
         .visual_bounds()
         .unwrap_or(Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
@@ -406,23 +412,8 @@ fn remove_selected_nodes_from_path(
             })
             .collect();
     }
-    prune_degenerate_subpaths(&mut path);
+    path.prune_orphan_subpaths();
     Ok(path)
-}
-
-fn command_draws_segment(command: &PathCommand) -> bool {
-    matches!(
-        command,
-        PathCommand::LineTo { .. } | PathCommand::QuadTo { .. } | PathCommand::CubicTo { .. }
-    )
-}
-
-fn subpath_has_drawable_segment(subpath: &SubPath) -> bool {
-    subpath.commands.iter().any(command_draws_segment)
-}
-
-fn prune_degenerate_subpaths(vec_path: &mut VecPath) {
-    vec_path.subpaths.retain(subpath_has_drawable_segment);
 }
 
 #[derive(Debug, Clone)]
@@ -2377,7 +2368,7 @@ pub fn delete_node(ctx: &ServiceContext, input: DeleteNodeInput) -> ServiceResul
     if !node_edit::delete_node(&mut vec_path, node_id) {
         return Err(ServiceError::invalid_input("Cannot delete this node"));
     }
-    prune_degenerate_subpaths(&mut vec_path);
+    vec_path.prune_orphan_subpaths();
     if vec_path.subpaths.is_empty() {
         return Err(ServiceError::invalid_input(
             "Cannot delete every node; delete the object instead",
@@ -2485,7 +2476,7 @@ pub fn delete_nodes(ctx: &ServiceContext, input: DeleteNodesInput) -> ServiceRes
             })
             .collect();
     }
-    prune_degenerate_subpaths(&mut vec_path);
+    vec_path.prune_orphan_subpaths();
     if vec_path.subpaths.is_empty() {
         return Err(ServiceError::invalid_input(
             "Cannot delete every node; delete the object instead",
@@ -2697,21 +2688,10 @@ pub fn delete_segment(ctx: &ServiceContext, input: SegmentOpInput) -> ServiceRes
     ctx.push_project_undo_snapshot(project)
         .map_err(ServiceError::internal)?;
 
-    let new_bounds = vec_path
-        .visual_bounds()
-        .unwrap_or(Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
-    let closed = vec_path.subpaths.iter().any(|sp| sp.closed);
-
     let obj = project
         .find_object_mut(input.object_id)
         .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    obj.data = ObjectData::VectorPath {
-        path_data: vec_path.to_svg_d(),
-        closed,
-        ruler_guide_axis: None,
-    };
-    obj.bounds = new_bounds;
-    obj.tabs.clear();
+    write_vec_path_to_object(obj, &vec_path, None);
     let result = obj.clone();
     project.dirty = true;
 
@@ -2757,21 +2737,10 @@ pub fn break_path_at_node(
     ctx.push_project_undo_snapshot(project)
         .map_err(ServiceError::internal)?;
 
-    let new_bounds = vec_path
-        .visual_bounds()
-        .unwrap_or(Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
-    let closed = vec_path.subpaths.iter().any(|sp| sp.closed);
-
     let obj = project
         .find_object_mut(input.object_id)
         .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    obj.data = ObjectData::VectorPath {
-        path_data: vec_path.to_svg_d(),
-        closed,
-        ruler_guide_axis: None,
-    };
-    obj.bounds = new_bounds;
-    obj.tabs.clear();
+    write_vec_path_to_object(obj, &vec_path, None);
     let result = obj.clone();
     project.dirty = true;
 
@@ -4647,7 +4616,9 @@ mod tests {
             &ctx,
             SubpathOpInput {
                 object_id,
-                subpath_idx: 1,
+                // The service removes the legacy ghost before exposing/editing
+                // node indices, so the visible contour is now subpath zero.
+                subpath_idx: 0,
             },
         )
         .unwrap();

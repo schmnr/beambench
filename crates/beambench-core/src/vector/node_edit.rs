@@ -1246,12 +1246,7 @@ pub fn toggle_path_closed(path: &mut VecPath, subpath_idx: usize) -> bool {
     let Some(subpath) = path.subpaths.get_mut(subpath_idx) else {
         return false;
     };
-    if !subpath.commands.iter().any(|command| {
-        matches!(
-            command,
-            PathCommand::LineTo { .. } | PathCommand::QuadTo { .. } | PathCommand::CubicTo { .. }
-        )
-    }) {
+    if !subpath.has_drawable_segment() {
         return false;
     }
 
@@ -1268,16 +1263,7 @@ pub fn toggle_path_closed(path: &mut VecPath, subpath_idx: usize) -> bool {
         subpath.closed = true;
     }
     // Repair legacy node edits that left behind MoveTo/Close-only contours.
-    path.subpaths.retain(|candidate| {
-        candidate.commands.iter().any(|command| {
-            matches!(
-                command,
-                PathCommand::LineTo { .. }
-                    | PathCommand::QuadTo { .. }
-                    | PathCommand::CubicTo { .. }
-            )
-        })
-    });
+    path.prune_orphan_subpaths();
     true
 }
 

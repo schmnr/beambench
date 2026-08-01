@@ -42,7 +42,10 @@ pub fn object_to_vecpath(data: &ObjectData) -> Option<VecPath> {
             corner_radii,
         )),
         ObjectData::VectorPath { path_data, .. } => {
-            let parsed = VecPath::parse_svg_d(path_data);
+            let mut parsed = VecPath::parse_svg_d(path_data);
+            // Isolated nodes produce no laser motion and must not distort the
+            // bounds used to map geometry into the object's world bounds.
+            parsed.prune_orphan_subpaths();
             if let Some(bbox) = parsed.visual_bounds() {
                 if bbox.min.x.abs() > 1e-9 || bbox.min.y.abs() > 1e-9 {
                     let normalize = Transform2D::translate(-bbox.min.x, -bbox.min.y);
@@ -924,6 +927,23 @@ mod tests {
         };
         let path = object_to_vecpath(&data).unwrap();
         let bounds = path.bounds().unwrap();
+        assert!(bounds.min.x.abs() < 0.001);
+        assert!(bounds.min.y.abs() < 0.001);
+        assert!((bounds.max.x - 100.0).abs() < 0.001);
+        assert!((bounds.max.y - 100.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn object_to_vecpath_ignores_orphan_nodes_when_normalizing() {
+        let data = ObjectData::VectorPath {
+            path_data: "M1000 1000 Z M50 100 L150 200".to_string(),
+            closed: true,
+            ruler_guide_axis: None,
+        };
+
+        let path = object_to_vecpath(&data).unwrap();
+        assert_eq!(path.subpaths.len(), 1);
+        let bounds = path.visual_bounds().unwrap();
         assert!(bounds.min.x.abs() < 0.001);
         assert!(bounds.min.y.abs() < 0.001);
         assert!((bounds.max.x - 100.0).abs() < 0.001);
