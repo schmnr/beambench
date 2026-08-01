@@ -1114,6 +1114,27 @@ pub fn convert_to_path(
     Ok(result)
 }
 
+fn group_contains_any(
+    project: &Project,
+    group_id: ObjectId,
+    target_ids: &HashSet<ObjectId>,
+    visiting: &mut HashSet<ObjectId>,
+) -> bool {
+    if !visiting.insert(group_id) {
+        return false;
+    }
+    let Some(group) = project.find_object(group_id) else {
+        return false;
+    };
+    let ObjectData::Group { children } = &group.data else {
+        return false;
+    };
+    children.iter().any(|child_id| {
+        target_ids.contains(child_id)
+            || group_contains_any(project, *child_id, target_ids, visiting)
+    })
+}
+
 pub fn mesh_deform_selection(
     ctx: &ServiceContext,
     input: MeshDeformSelectionInput,
@@ -1179,6 +1200,29 @@ pub fn mesh_deform_selection(
         }
         updated_ids.push(object_id);
     }
+
+    // Mesh deformation operates on editable leaves, while the UI may have a
+    // parent SVG group selected. Refresh every group from its descendants and
+    // return the group objects too so the frontend selection bounds immediately
+    // match the deformed geometry.
+    let deformed_ids = updated_ids.iter().copied().collect::<HashSet<_>>();
+    let group_ids = project
+        .objects
+        .iter()
+        .filter_map(|object| {
+            matches!(object.data, ObjectData::Group { .. })
+                .then(|| {
+                    let mut visiting = HashSet::new();
+                    group_contains_any(project, object.id, &deformed_ids, &mut visiting)
+                        .then_some(object.id)
+                })
+                .flatten()
+        })
+        .collect::<Vec<_>>();
+    for group_id in &group_ids {
+        beambench_core::operations::recompute_group_bounds(project, *group_id);
+    }
+    updated_ids.extend(group_ids);
 
     project.dirty = true;
     let updated: Vec<ProjectObject> = updated_ids
@@ -4019,6 +4063,54 @@ mod tests {
         assert!(result[0].transform.is_identity());
         assert!(result[0].bounds.max.x > 34.9);
         assert_eq!(result[0].bounds.min.x, 15.0);
+    }
+
+    #[test]
+    fn mesh_deform_selection_refreshes_parent_group_bounds() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Grouped Warp");
+        let layer = Layer::new("C00 (Line)", OperationType::Line);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+
+        let child_a = rect_object("Left", layer_id, 0.0, 0.0, 10.0, 10.0);
+        let child_b = rect_object("Right", layer_id, 10.0, 0.0, 10.0, 10.0);
+        let child_a_id = child_a.id;
+        let child_b_id = child_b.id;
+        let group = ProjectObject::new(
+            "Imported SVG",
+            layer_id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(20.0, 10.0)),
+            ObjectData::Group {
+                children: vec![child_a_id, child_b_id],
+            },
+        );
+        let group_id = group.id;
+        project.add_object(child_a);
+        project.add_object(child_b);
+        project.add_object(group);
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let result = mesh_deform_selection(
+            &ctx,
+            MeshDeformSelectionInput {
+                object_ids: vec![child_a_id, child_b_id],
+                source_bounds: Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(20.0, 10.0)),
+                handles: vec![
+                    Point2D::new(0.0, 0.0),
+                    Point2D::new(30.0, 0.0),
+                    Point2D::new(0.0, 10.0),
+                    Point2D::new(20.0, 10.0),
+                ],
+                grid_size: 2,
+                perspective: true,
+            },
+        )
+        .unwrap();
+
+        let updated_group = result.iter().find(|object| object.id == group_id).unwrap();
+        assert!(updated_group.bounds.max.x > 29.9);
+        assert_eq!(updated_group.bounds.min.x, 0.0);
     }
 
     #[test]

@@ -36,6 +36,7 @@ import {
   imageObjectHasSourcePath,
   isBooleanCompatible,
   isClosedVectorCompatible,
+  isMeshDeformCompatible,
   pickLastSelectedVectorGuide,
   resolveEffectiveData,
 } from './selectionContext';
@@ -324,11 +325,7 @@ export async function executeAppCommand(
   const selectedPathObject = selectedObjects.find((object) => isVectorType(effectiveType(object))) ?? null;
   const selectedMaskObjects = selectedObjects.filter((object) => isVectorType(effectiveType(object)));
   const deformCompatibleSelection = selectedObjects.length > 0
-    && selectedObjects.every((object) => {
-      const type = effectiveType(object);
-      return type === 'vector_path' || type === 'shape' || type === 'text'
-        || type === 'polygon' || type === 'star' || type === 'raster_image' || type === 'barcode';
-    });
+    && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
 
   if (shouldIgnoreNativeFocusGuardedCommand(commandId, context)) return;
   if (setWindowViewStyle(commandId as AppCommandId)) return;
@@ -1034,11 +1031,7 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const canCropImage = selectedObjects.length === 2
     && Boolean(selectedRasterObject && selectedPathObject && selectedRasterObject.id !== selectedPathObject.id);
   const deformCompatibleSelection = selectedObjects.length > 0
-    && selectedObjects.every((object) => {
-      const type = effectiveType(object);
-      return type === 'vector_path' || type === 'shape' || type === 'text'
-        || type === 'polygon' || type === 'star' || type === 'raster_image' || type === 'barcode';
-    });
+    && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
   const canAlign = selectedIds.length >= 2 && selectedObjects.some((object) => !object.locked);
   const canDistribute = selectedIds.length >= 3 && selectedObjects.some((object) => !object.locked);
   const canMoveTogether = selectedIds.length >= 2 && selectedObjects.some((object) => !object.locked);

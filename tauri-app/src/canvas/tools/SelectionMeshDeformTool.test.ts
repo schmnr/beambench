@@ -186,4 +186,55 @@ describe('SelectionMeshDeformTool', () => {
     expect(overlay.handles[1]).toMatchObject({ worldX: 10, worldY: 0 });
     expect(vectorService.meshDeformSelection).not.toHaveBeenCalled();
   });
+
+  it('warps an imported SVG group by deforming its editable leaf objects', async () => {
+    const childA = makeProjectObject({
+      id: 'child-a',
+      bounds: { min: { x: 0, y: 0 }, max: { x: 5, y: 10 } },
+      layer_id: 'layer1',
+      data: { type: 'vector_path', path_data: 'M 0 0 L 5 0 L 5 10 Z', closed: true },
+    });
+    const childB = makeProjectObject({
+      id: 'child-b',
+      bounds: { min: { x: 5, y: 0 }, max: { x: 10, y: 10 } },
+      layer_id: 'layer1',
+      data: { type: 'shape', kind: 'rectangle', width: 5, height: 10, corner_radius: 0 },
+    });
+    const group = makeProjectObject({
+      id: 'svg-group',
+      bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
+      layer_id: 'layer1',
+      data: { type: 'group', children: ['child-a', 'child-b'] },
+    });
+    const ctx = makeToolContext({
+      objects: [group, childA, childB],
+      selectedObjectIds: ['svg-group'],
+    });
+    useProjectStore.setState({
+      project: makeProject({ objects: [group, childA, childB] }),
+      selectedObjectIds: ['svg-group'],
+    });
+    useUiStore.setState({ meshDeformMode: 'warp' });
+    vi.spyOn(useUndoStore.getState(), 'refresh').mockResolvedValue(undefined);
+    vi.mocked(vectorService.meshDeformSelection).mockResolvedValue([childA, childB, group]);
+    const tool = new WarpTool();
+
+    tool.onMouseMove(makeMouseEvent(), ctx);
+    const overlay = tool.getOverlay();
+    expect(overlay).toMatchObject({ type: 'mesh-deform', gridSize: 2 });
+
+    const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
+    tool.onMouseDown(makeMouseEvent({ screenX: topRight.x, screenY: topRight.y, snappedX: 10, snappedY: 0 }), ctx);
+    tool.onMouseMove(makeMouseEvent({ snappedX: 15, snappedY: 0 }), ctx);
+    tool.onMouseUp(makeMouseEvent(), ctx);
+    await flushToolPromises();
+
+    expect(vectorService.meshDeformSelection).toHaveBeenCalledWith(
+      ['child-a', 'child-b'],
+      { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
+      expect.any(Array),
+      2,
+      true,
+    );
+  });
 });

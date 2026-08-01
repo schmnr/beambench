@@ -197,7 +197,7 @@ fn transformed_bounds(object: &crate::object::ProjectObject) -> Bounds {
     }
 }
 
-fn recompute_group_bounds(project: &mut Project, group_id: ObjectId) {
+pub fn recompute_group_bounds(project: &mut Project, group_id: ObjectId) {
     let children = project
         .objects
         .iter()

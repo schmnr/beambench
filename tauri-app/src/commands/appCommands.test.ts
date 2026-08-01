@@ -359,6 +359,26 @@ describe('app command bridge', () => {
     expect(useUiStore.getState().meshDeformMode).toBe('mesh');
   });
 
+  it('activates Warp for an imported SVG group with compatible children', async () => {
+    const child = makeProjectObject({
+      id: 'path-child',
+      data: { type: 'vector_path' as const, path_data: 'M 0 0 L 10 0 L 10 10 Z', closed: true },
+    });
+    const group = makeProjectObject({
+      id: 'svg-group',
+      data: { type: 'group' as const, children: ['path-child'] },
+    });
+    useProjectStore.setState({
+      project: makeProject({ objects: [group, child] }),
+      selectedObjectIds: ['svg-group'],
+    });
+
+    await executeAppCommand(APP_COMMANDS.TOOLS_WARP_SELECTION);
+
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(useUiStore.getState().meshDeformMode).toBe('warp');
+  });
+
   it('routes native preference commands to dialog launchers', async () => {
     const openImportPreferences = vi.fn();
     const openExportPreferences = vi.fn();

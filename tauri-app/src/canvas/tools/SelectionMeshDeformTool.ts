@@ -33,23 +33,42 @@ type ToolState =
       moved: boolean;
     };
 
-function isCompatibleObject(object: ProjectObject, allObjects: ProjectObject[]): boolean {
+function collectEditableLeaves(
+  object: ProjectObject,
+  allObjects: ProjectObject[],
+  ids: string[],
+  seen: Set<string>,
+): boolean {
+  if (seen.has(object.id)) return true;
+  seen.add(object.id);
+  if (object.locked || !object.visible) return false;
+
   const data = resolveEffectiveData(object, allObjects);
-  return data !== null && COMPATIBLE_TYPES.has(data.type);
+  if (!data) return false;
+  if (data.type === 'group') {
+    if (data.children.length === 0) return false;
+    return data.children.every((childId) => {
+      const child = allObjects.find((candidate) => candidate.id === childId);
+      return child !== undefined && collectEditableLeaves(child, allObjects, ids, seen);
+    });
+  }
+  if (!COMPATIBLE_TYPES.has(data.type)) return false;
+  ids.push(object.id);
+  return true;
 }
 
 function collectEditableSelection(ctx: ToolContext): string[] | null {
   if (ctx.selectedObjectIds.length === 0) return null;
 
   const ids: string[] = [];
+  const seen = new Set<string>();
   for (const id of ctx.selectedObjectIds) {
     const object = ctx.objects.find((candidate) => candidate.id === id);
-    if (!object || object.locked || !isCompatibleObject(object, ctx.objects)) {
+    if (!object || !collectEditableLeaves(object, ctx.objects, ids, seen)) {
       return null;
     }
-    ids.push(id);
   }
-  return ids;
+  return ids.length > 0 ? ids : null;
 }
 
 function combinedSelectionBounds(ctx: ToolContext, ids: string[]): Bounds | null {
