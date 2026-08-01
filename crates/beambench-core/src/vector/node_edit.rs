@@ -31,10 +31,22 @@ pub enum NodeType {
     Corner,
 }
 
+/// Draw command that reaches a node. The frontend needs this distinction to
+/// render and hit-test imported quadratic curves with their true equation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IncomingSegmentKind {
+    Move,
+    Line,
+    Quadratic,
+    Cubic,
+}
+
 /// A node in an editable path, with its position and optional handles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PathNode {
     pub id: NodeId,
+    pub incoming_segment: IncomingSegmentKind,
     pub position: Point2D,
     pub handle_in: Option<Point2D>,
     pub handle_out: Option<Point2D>,
@@ -92,6 +104,11 @@ impl EditablePath {
                                 subpath_idx: sp_idx,
                                 command_idx: cmd_idx,
                             },
+                            incoming_segment: match cmd {
+                                PathCommand::MoveTo { .. } => IncomingSegmentKind::Move,
+                                PathCommand::LineTo { .. } => IncomingSegmentKind::Line,
+                                _ => unreachable!(),
+                            },
                             position: Point2D::new(x, y),
                             handle_in,
                             handle_out,
@@ -107,6 +124,7 @@ impl EditablePath {
                                 subpath_idx: sp_idx,
                                 command_idx: cmd_idx,
                             },
+                            incoming_segment: IncomingSegmentKind::Quadratic,
                             position: Point2D::new(x, y),
                             handle_in,
                             handle_out,
@@ -123,6 +141,7 @@ impl EditablePath {
                                 subpath_idx: sp_idx,
                                 command_idx: cmd_idx,
                             },
+                            incoming_segment: IncomingSegmentKind::Cubic,
                             position: Point2D::new(x, y),
                             handle_in,
                             handle_out,
@@ -149,6 +168,7 @@ impl EditablePath {
                     if last_node.handle_in.is_some() {
                         nodes[0].handle_in = last_node.handle_in;
                     }
+                    nodes[0].incoming_segment = last_node.incoming_segment;
                     nodes[0].node_type = classify_node_type(
                         nodes[0].handle_in,
                         nodes[0].handle_out,
@@ -1254,6 +1274,14 @@ mod tests {
         assert_eq!(editable.len(), 1);
         assert_eq!(editable[0].nodes.len(), 3); // M, L, L (Close doesn't create a node)
         assert!(editable[0].closed);
+        assert_eq!(
+            editable[0].nodes[0].incoming_segment,
+            IncomingSegmentKind::Move
+        );
+        assert_eq!(
+            editable[0].nodes[1].incoming_segment,
+            IncomingSegmentKind::Line
+        );
     }
 
     #[test]
@@ -1263,6 +1291,20 @@ mod tests {
         assert_eq!(editable[0].nodes.len(), 2); // M and C endpoint
         // The cubic endpoint should have an incoming handle
         assert!(editable[0].nodes[1].handle_in.is_some());
+        assert_eq!(
+            editable[0].nodes[1].incoming_segment,
+            IncomingSegmentKind::Cubic
+        );
+    }
+
+    #[test]
+    fn editable_path_identifies_quadratic_segments() {
+        let path = VecPath::parse_svg_d("M0 0 Q5 10 10 0");
+        let editable = EditablePath::from_vecpath(&path);
+        assert_eq!(
+            editable[0].nodes[1].incoming_segment,
+            IncomingSegmentKind::Quadratic
+        );
     }
 
     #[test]
@@ -1647,6 +1689,11 @@ mod tests {
             Some(Point2D::new(22.4, 0.0))
         );
         assert_eq!(editable[0].nodes[0].node_type, NodeType::Smooth);
+        assert_eq!(
+            editable[0].nodes[0].incoming_segment,
+            IncomingSegmentKind::Cubic,
+            "merged closing node should retain the command that reaches it"
+        );
     }
 
     #[test]

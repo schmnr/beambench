@@ -999,6 +999,36 @@ describe('NodeTool', () => {
     expect(vectorService.insertNode).toHaveBeenCalledWith('path1', 0, 1, 0.5);
   });
 
+  it('hit-tests imported quadratic segments using their true curve', () => {
+    const obj = makeVectorPathObj('path1', { min: { x: 0, y: 0 }, max: { x: 10, y: 5 } });
+    const ctx = makeToolContext({ selectedObjectIds: ['path1'], objects: [obj], vp: originVp });
+    // @ts-expect-error private state setup
+    tool.objectId = 'path1';
+    // @ts-expect-error private state setup
+    tool.objectBounds = obj.bounds;
+    // @ts-expect-error private state setup
+    tool.pathBBox = { minX: 0, minY: 0, maxX: 10, maxY: 5, width: 10, height: 5 };
+    // @ts-expect-error private state setup
+    tool.editablePaths = [{
+      closed: false,
+      nodes: [
+        { id: { subpath_idx: 0, command_idx: 0 }, incoming_segment: 'move', position: { x: 0, y: 0 }, handle_in: null, handle_out: { x: 5, y: 10 }, node_type: 'corner' },
+        { id: { subpath_idx: 0, command_idx: 1 }, incoming_segment: 'quadratic', position: { x: 10, y: 0 }, handle_in: { x: 5, y: 10 }, handle_out: null, node_type: 'corner' },
+      ],
+    }];
+    uiState.nodeSubMode = 'insert';
+    const screen = worldToScreen({ x: 5, y: 5 }, originVp);
+
+    tool.onMouseDown(makeMouseEvent({ screenX: screen.x, screenY: screen.y, worldX: 5, worldY: 5 }), ctx);
+
+    expect(vectorService.insertNode).toHaveBeenCalledWith(
+      'path1',
+      0,
+      1,
+      expect.closeTo(0.5, 1),
+    );
+  });
+
   it('midpoint toolbar one-click action still uses the cached hovered segment', () => {
     const obj = primeStraightPathTool(tool);
     const ctx = makeToolContext({ selectedObjectIds: ['path1'], objects: [obj], vp: originVp });

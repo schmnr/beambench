@@ -669,8 +669,17 @@ export function drawHoveredSegment(
     ctx.beginPath();
     ctx.moveTo(prevScreen.x, prevScreen.y);
 
+    const isQuadratic = currNode.incoming_segment === 'quadratic';
     const hasHandles = currNode.handle_in !== null || prevNode.handle_out !== null;
-    if (hasHandles) {
+    if (isQuadratic) {
+      const control = currNode.handle_in ?? prevNode.handle_out;
+      if (control) {
+        const controlScreen = worldToScreen(mapPos(control), vp);
+        ctx.quadraticCurveTo(controlScreen.x, controlScreen.y, currScreen.x, currScreen.y);
+      } else {
+        ctx.lineTo(currScreen.x, currScreen.y);
+      }
+    } else if (hasHandles) {
       const c1 = prevNode.handle_out ? worldToScreen(mapPos(prevNode.handle_out), vp) : prevScreen;
       const c2 = currNode.handle_in ? worldToScreen(mapPos(currNode.handle_in), vp) : currScreen;
       ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, currScreen.x, currScreen.y);
@@ -685,7 +694,17 @@ export function drawHoveredSegment(
     // Draw preview dot at parameter t
     const u = 1 - t;
     let dotX: number, dotY: number;
-    if (hasHandles) {
+    if (isQuadratic) {
+      const control = currNode.handle_in ?? prevNode.handle_out;
+      if (control) {
+        const q = worldToScreen(mapPos(control), vp);
+        dotX = u * u * prevScreen.x + 2 * u * t * q.x + t * t * currScreen.x;
+        dotY = u * u * prevScreen.y + 2 * u * t * q.y + t * t * currScreen.y;
+      } else {
+        dotX = prevScreen.x + (currScreen.x - prevScreen.x) * t;
+        dotY = prevScreen.y + (currScreen.y - prevScreen.y) * t;
+      }
+    } else if (hasHandles) {
       const c1 = prevNode.handle_out ? worldToScreen(mapPos(prevNode.handle_out), vp) : prevScreen;
       const c2 = currNode.handle_in ? worldToScreen(mapPos(currNode.handle_in), vp) : currScreen;
       dotX = u * u * u * prevScreen.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * currScreen.x;

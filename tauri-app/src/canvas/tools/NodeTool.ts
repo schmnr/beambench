@@ -1516,7 +1516,16 @@ export class NodeTool implements CanvasTool {
     const p0 = this.nodeToWorld(prevNode.position);
     const p3 = this.nodeToWorld(currNode.position);
     const u = 1 - hovered.t;
-    if (currNode.handle_in || prevNode.handle_out) {
+    if (currNode.incoming_segment === 'quadratic') {
+      const control = currNode.handle_in ?? prevNode.handle_out;
+      if (control) {
+        const q = this.nodeToWorld(control);
+        return {
+          x: u * u * p0.x + 2 * u * hovered.t * q.x + hovered.t * hovered.t * p3.x,
+          y: u * u * p0.y + 2 * u * hovered.t * q.y + hovered.t * hovered.t * p3.y,
+        };
+      }
+    } else if (currNode.handle_in || prevNode.handle_out) {
       const c1 = prevNode.handle_out ? this.nodeToWorld(prevNode.handle_out) : p0;
       const c2 = currNode.handle_in ? this.nodeToWorld(currNode.handle_in) : p3;
       return {
@@ -2385,9 +2394,22 @@ export class NodeTool implements CanvasTool {
         const prevScreen = worldToScreen(this.nodeToWorld(prevNode.position), ctx.vp);
         const currScreen = worldToScreen(this.nodeToWorld(currNode.position), ctx.vp);
 
+        const isQuadratic = currNode.incoming_segment === 'quadratic';
         const hasHandles = currNode.handle_in !== null || prevNode.handle_out !== null;
 
-        if (hasHandles) {
+        if (isQuadratic) {
+          const control = currNode.handle_in ?? prevNode.handle_out;
+          if (control) {
+            const controlScreen = worldToScreen(this.nodeToWorld(control), ctx.vp);
+            const result = this.nearestPointOnQuadratic(
+              screenPt,
+              prevScreen,
+              controlScreen,
+              currScreen,
+            );
+            consider(currNode.id, result.t, result.dist);
+          }
+        } else if (hasHandles) {
           const p0 = prevScreen;
           const p1 = prevNode.handle_out
             ? worldToScreen(this.nodeToWorld(prevNode.handle_out), ctx.vp)
@@ -2417,9 +2439,22 @@ export class NodeTool implements CanvasTool {
           command_idx: lastNode.id.command_idx + 1,
         };
 
+        const isQuadratic = firstNode.incoming_segment === 'quadratic';
         const hasHandles = firstNode.handle_in !== null || lastNode.handle_out !== null;
 
-        if (hasHandles) {
+        if (isQuadratic) {
+          const control = firstNode.handle_in ?? lastNode.handle_out;
+          if (control) {
+            const controlScreen = worldToScreen(this.nodeToWorld(control), ctx.vp);
+            const result = this.nearestPointOnQuadratic(
+              screenPt,
+              lastScreen,
+              controlScreen,
+              firstScreen,
+            );
+            consider(closeNodeId, result.t, result.dist);
+          }
+        } else if (hasHandles) {
           const p0 = lastScreen;
           const p1 = lastNode.handle_out
             ? worldToScreen(this.nodeToWorld(lastNode.handle_out), ctx.vp)
@@ -2500,6 +2535,49 @@ export class NodeTool implements CanvasTool {
     return { dist: finalDist, t: finalT };
   }
 
+  private nearestPointOnQuadratic(
+    pt: Point2D,
+    p0: Point2D,
+    p1: Point2D,
+    p2: Point2D,
+  ): { dist: number; t: number } {
+    let bestT = 0;
+    let bestDist = Infinity;
+    const steps = 20;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const pos = this.evalQuadratic(p0, p1, p2, t);
+      const dist = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestT = t;
+      }
+    }
+    let lo = Math.max(0, bestT - 1 / steps);
+    let hi = Math.min(1, bestT + 1 / steps);
+    for (let iteration = 0; iteration < 10; iteration++) {
+      const tA = (2 * lo + hi) / 3;
+      const tB = (lo + 2 * hi) / 3;
+      const a = this.evalQuadratic(p0, p1, p2, tA);
+      const b = this.evalQuadratic(p0, p1, p2, tB);
+      const distA = Math.hypot(pt.x - a.x, pt.y - a.y);
+      const distB = Math.hypot(pt.x - b.x, pt.y - b.y);
+      if (distA < distB) hi = tB;
+      else lo = tA;
+    }
+    const t = (lo + hi) / 2;
+    const pos = this.evalQuadratic(p0, p1, p2, t);
+    return { t, dist: Math.hypot(pt.x - pos.x, pt.y - pos.y) };
+  }
+
+  private evalQuadratic(p0: Point2D, p1: Point2D, p2: Point2D, t: number): Point2D {
+    const u = 1 - t;
+    return {
+      x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+      y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y,
+    };
+  }
+
   private evalCubic(p0: Point2D, p1: Point2D, p2: Point2D, p3: Point2D, t: number): Point2D {
     const u = 1 - t;
     return {
@@ -2551,11 +2629,13 @@ export class NodeTool implements CanvasTool {
     };
 
     const includeSegment = (prev: EditablePath['nodes'][number], curr: EditablePath['nodes'][number]) => {
-      if (prev.handle_out && curr.handle_in) {
-        includeCubic(prev.position, prev.handle_out, curr.handle_in, curr.position);
-      } else if (prev.handle_out || curr.handle_in) {
-        const control = prev.handle_out ?? curr.handle_in;
+      if (curr.incoming_segment === 'quadratic') {
+        const control = curr.handle_in ?? prev.handle_out;
         if (control) includeQuadratic(prev.position, control, curr.position);
+      } else if (prev.handle_out || curr.handle_in) {
+        const c1 = prev.handle_out ?? prev.position;
+        const c2 = curr.handle_in ?? curr.position;
+        includeCubic(prev.position, c1, c2, curr.position);
       } else {
         include(prev.position);
         include(curr.position);

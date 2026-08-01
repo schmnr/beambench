@@ -3321,6 +3321,28 @@ struct TrimTarget {
     cutters: Vec<(Vec<Point2D>, bool)>,
 }
 
+/// Even-odd containment for a flattened closed subpath. This lets the Trim
+/// tool use a click inside either side of a knife cut, while retaining the
+/// near-edge interaction for open paths and traditional CAD trim.
+fn point_in_closed_polyline(point: Point2D, points: &[Point2D]) -> bool {
+    if points.len() < 3 {
+        return false;
+    }
+    let mut inside = false;
+    let mut previous = points.len() - 1;
+    for current in 0..points.len() {
+        let a = points[current];
+        let b = points[previous];
+        if ((a.y > point.y) != (b.y > point.y))
+            && (point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x)
+        {
+            inside = !inside;
+        }
+        previous = current;
+    }
+    inside
+}
+
 /// Find the best trim target for a click point.
 /// Shared by both preview_trim() and trim_at_intersection().
 fn find_trim_target(
@@ -3390,32 +3412,42 @@ fn find_trim_target(
         distance: f64,
     }
 
-    let mut hits: Vec<EdgeHit> = Vec::new();
+    let mut edge_hits: Vec<EdgeHit> = Vec::new();
+    let mut interior_hits: Vec<EdgeHit> = Vec::new();
     for (ci, cand) in candidates.iter().enumerate() {
         for (si, (pts, closed)) in cand.polylines.iter().enumerate() {
             if let Some((_sp_idx, dist, _arc)) =
                 trim_core::nearest_edge(click_pt, &[(pts.clone(), *closed)])
                 && dist <= edge_threshold_mm
             {
-                hits.push(EdgeHit {
+                edge_hits.push(EdgeHit {
                     candidate_idx: ci,
                     subpath_idx: si,
                     distance: dist,
+                });
+            } else if *closed && point_in_closed_polyline(click_pt, pts) {
+                interior_hits.push(EdgeHit {
+                    candidate_idx: ci,
+                    subpath_idx: si,
+                    distance: f64::INFINITY,
                 });
             }
         }
     }
 
-    hits.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+    edge_hits.sort_by(|a, b| a.distance.total_cmp(&b.distance));
+    // Preserve precise edge-trim precedence. Interior hits are the knife
+    // workflow and are considered only after any explicit near-edge target.
+    edge_hits.extend(interior_hits);
 
-    if hits.is_empty() {
+    if edge_hits.is_empty() {
         return Err(ServiceError::not_found(
-            "No path edges found near click point",
+            "No closed shape or path edge found at click point",
         ));
     }
 
     // Find first candidate with intersections
-    for hit in &hits {
+    for hit in &edge_hits {
         let target_cand = &candidates[hit.candidate_idx];
 
         let mut cutters: Vec<(Vec<Point2D>, bool)> = Vec::new();
@@ -3456,6 +3488,87 @@ fn find_trim_target(
     ))
 }
 
+fn trim_result_closes_clicked_region(
+    target: &TrimTarget,
+    result: &trim_core::TrimResult,
+    region_click: Point2D,
+) -> bool {
+    match trim_core::heal_trim_results(&result.pieces, &result.cut_points, 0.1) {
+        trim_core::HealOutcome::HealedClosed(_) => true,
+        trim_core::HealOutcome::Ambiguous(_) => false,
+        trim_core::HealOutcome::HealedOpen(path) => {
+            let (Some(left_hit), Some(right_hit)) = (&result.left_hit, &result.right_hit) else {
+                return false;
+            };
+            let Some(main_subpath) = path.subpaths.iter().find(|subpath| !subpath.closed) else {
+                return false;
+            };
+            trim_core::close_with_cutter_boundary(
+                main_subpath,
+                &target.cutters,
+                left_hit,
+                right_hit,
+                region_click,
+            )
+            .is_some()
+        }
+    }
+}
+
+fn opposite_target_arc_click(target: &TrimTarget, region_click: Point2D) -> Option<Point2D> {
+    let subpath = target.world_path.subpaths.get(target.subpath_idx)?;
+    if !subpath.closed {
+        return None;
+    }
+    let bracket = trim_core::find_trim_bracket(subpath, &target.cutters, region_click)?;
+    let removed_len = if bracket.right_dist >= bracket.left_dist {
+        bracket.right_dist - bracket.left_dist
+    } else {
+        bracket.total_len - bracket.left_dist + bracket.right_dist
+    };
+    let opposite_len = bracket.total_len - removed_len;
+    if opposite_len <= DEFAULT_TOLERANCE_MM {
+        return None;
+    }
+    let opposite_mid = (bracket.right_dist + opposite_len * 0.5) % bracket.total_len;
+    Some(trim_core::arc_distance_to_point(
+        &bracket.flat_points,
+        opposite_mid,
+    ))
+}
+
+/// Interior clicks describe a region, while the trim core describes a
+/// perimeter segment. Test both possible target arcs and retain the one whose
+/// healed contour excludes the region the user clicked.
+fn resolve_trim_click_point(target: &TrimTarget, region_click: Point2D, heal: bool) -> Point2D {
+    if !heal {
+        return region_click;
+    }
+    let primary = trim_core::trim_at_intersection(
+        &target.world_path,
+        target.subpath_idx,
+        &target.cutters,
+        region_click,
+    );
+    if trim_result_closes_clicked_region(target, &primary, region_click) {
+        return region_click;
+    }
+    let Some(opposite_click) = opposite_target_arc_click(target, region_click) else {
+        return region_click;
+    };
+    let opposite = trim_core::trim_at_intersection(
+        &target.world_path,
+        target.subpath_idx,
+        &target.cutters,
+        opposite_click,
+    );
+    if trim_result_closes_clicked_region(target, &opposite, region_click) {
+        opposite_click
+    } else {
+        region_click
+    }
+}
+
 /// Preview the trim segment (read-only).
 pub fn preview_trim(
     ctx: &ServiceContext,
@@ -3469,11 +3582,12 @@ pub fn preview_trim(
     };
 
     let click_pt = Point2D::new(click_x, click_y);
+    let trim_click_pt = resolve_trim_click_point(&target, click_pt, true);
     let result = trim_core::preview_trim_segment(
         &target.world_path,
         target.subpath_idx,
         &target.cutters,
-        click_pt,
+        trim_click_pt,
     );
 
     Ok(result.map(|pts| TrimPreview {
@@ -3493,11 +3607,12 @@ pub fn trim_at_intersection(
     let target = find_trim_target(ctx, click_x, click_y, edge_threshold_mm)?;
 
     let click_pt = Point2D::new(click_x, click_y);
+    let trim_click_pt = resolve_trim_click_point(&target, click_pt, heal);
     let trim_result = trim_core::trim_at_intersection(
         &target.world_path,
         target.subpath_idx,
         &target.cutters,
-        click_pt,
+        trim_click_pt,
     );
 
     if trim_result.pieces.is_empty() {
@@ -5502,6 +5617,90 @@ mod tests {
         project.add_object(line_b);
         *ctx.project.lock().unwrap() = Some(project);
         (ctx, layer_id)
+    }
+
+    fn knife_trim_context(path_data: &str, bounds: Bounds) -> ServiceContext {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Knife trim");
+        let layer = Layer::new("Work", OperationType::Cut);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+        project.add_object(ProjectObject::new(
+            "Rectangle",
+            layer_id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+            ObjectData::VectorPath {
+                path_data: "M0 0 L10 0 L10 10 L0 10 Z".to_string(),
+                closed: true,
+                ruler_guide_axis: None,
+            },
+        ));
+        project.add_object(ProjectObject::new(
+            "Knife",
+            layer_id,
+            bounds,
+            ObjectData::VectorPath {
+                path_data: path_data.to_string(),
+                closed: false,
+                ruler_guide_axis: None,
+            },
+        ));
+        *ctx.project.lock().unwrap() = Some(project);
+        ctx
+    }
+
+    #[test]
+    fn trim_inside_closed_shape_removes_clicked_side_and_closes_along_open_line() {
+        let ctx = knife_trim_context(
+            "M5 -5 L5 15",
+            Bounds::new(Point2D::new(5.0, -5.0), Point2D::new(5.0, 15.0)),
+        );
+
+        let result = trim_at_intersection(&ctx, 8.0, 5.0, 0.5, true)
+            .expect("inside-region knife trim should succeed");
+
+        assert!(!result.open_result);
+        assert!(!result.heal_failed);
+        assert_eq!(result.objects.len(), 1);
+        let ObjectData::VectorPath { closed, .. } = &result.objects[0].data else {
+            panic!("trim result should be a vector path");
+        };
+        assert!(*closed);
+        assert!(
+            result.objects[0].bounds.max.x <= 5.0 + DEFAULT_TOLERANCE_MM,
+            "clicked right side should be removed"
+        );
+    }
+
+    #[test]
+    fn trim_preview_works_from_inside_closed_shape() {
+        let ctx = knife_trim_context(
+            "M5 -5 L5 15",
+            Bounds::new(Point2D::new(5.0, -5.0), Point2D::new(5.0, 15.0)),
+        );
+
+        let preview = preview_trim(&ctx, 8.0, 5.0, 0.5)
+            .expect("inside-region preview should succeed")
+            .expect("inside-region preview should resolve a removable segment");
+        assert!(preview.segment_points.len() >= 2);
+    }
+
+    #[test]
+    fn trim_diagonal_knife_removes_the_clicked_region() {
+        let ctx = knife_trim_context(
+            "M-2 8 L12 2",
+            Bounds::new(Point2D::new(-2.0, 2.0), Point2D::new(12.0, 8.0)),
+        );
+
+        let result = trim_at_intersection(&ctx, 5.0, 2.0, 0.5, true)
+            .expect("diagonal inside-region knife trim should succeed");
+
+        assert!(!result.open_result);
+        assert_eq!(result.objects.len(), 1);
+        assert!(
+            result.objects[0].bounds.min.y > 2.0,
+            "clicked upper region should be removed"
+        );
     }
 
     #[test]

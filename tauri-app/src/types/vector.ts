@@ -60,6 +60,8 @@ export type NodeType = 'smooth' | 'corner';
 
 export interface PathNode {
   id: NodeId;
+  /** Draw command that reaches this node, supplied by the native editable-path adapter. */
+  incoming_segment?: 'move' | 'line' | 'quadratic' | 'cubic';
   position: Point2D;
   handle_in: Point2D | null;
   handle_out: Point2D | null;

@@ -465,4 +465,34 @@ describe('drawHoveredSegment', () => {
     expect(ctx.lineTo).toHaveBeenCalledWith(200, 200);
     expect(ctx.moveTo).not.toHaveBeenCalledWith(0, 20);
   });
+
+  it('draws quadratic hover geometry and a true midpoint preview', () => {
+    const ctx = {
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      quadraticCurveTo: vi.fn(),
+      bezierCurveTo: vi.fn(),
+      stroke: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+    const paths: EditablePath[] = [{
+      closed: false,
+      nodes: [
+        { id: { subpath_idx: 0, command_idx: 0 }, incoming_segment: 'move', position: { x: 0, y: 0 }, handle_in: null, handle_out: { x: 5, y: 10 }, node_type: 'corner' },
+        { id: { subpath_idx: 0, command_idx: 1 }, incoming_segment: 'quadratic', position: { x: 10, y: 0 }, handle_in: { x: 5, y: 10 }, handle_out: null, node_type: 'corner' },
+      ],
+    }];
+    const vp = { offset: { x: 0, y: 0 }, zoom: 100, canvasWidth: 0, canvasHeight: 0 };
+
+    drawHoveredSegment(ctx, paths, { subpath_idx: 0, command_idx: 1 }, 0.5, vp);
+
+    expect(ctx.quadraticCurveTo).toHaveBeenCalledWith(10, 20, 20, 0);
+    expect(ctx.bezierCurveTo).not.toHaveBeenCalled();
+    expect(ctx.arc).toHaveBeenLastCalledWith(10, 10, 4, 0, Math.PI * 2);
+  });
 });
