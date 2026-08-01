@@ -5,7 +5,6 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import type { ObjectData, TextLayoutMode } from '../../types/project';
-import { INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
 import { TextControls, type TextControlValue } from './TextControls';
 import { applyTextLayoutMode, clearTextGuidePath } from './textLayoutMode';
 import {
@@ -126,41 +125,52 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
   ) : null;
 
   return (
-    <div className="flex flex-col gap-2" data-testid="text-properties-panel">
-      <div className="flex items-center justify-between gap-2">
-        <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.text_properties.title')}</div>
+    <section
+      className="overflow-hidden rounded-lg border border-bb-border bg-bb-bg/40"
+      data-testid="text-properties-panel"
+    >
+      <div
+        className="flex h-9 w-full items-center gap-2 border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-bb-surface/30 px-3"
+        data-testid="text-properties-header"
+      >
+        <Type size={14} className="shrink-0 text-bb-accent" />
+        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-bb-text-dim">
+          {t('panels.text_properties.title')}
+        </div>
         <button
           type="button"
           onClick={() => useUiStore.getState().beginTextEditSession(objectId, 'double-click')}
-          className="flex h-6 items-center gap-1 rounded border border-bb-control-border bg-bb-input px-2 text-[10px] text-bb-text hover:bg-bb-hover"
+          className="ml-auto flex h-6 items-center gap-1 rounded border border-bb-control-border bg-bb-input px-2 text-[10px] text-bb-text hover:bg-bb-hover"
         >
           <Type size={12} />
           {t('panels.text_properties.edit_on_canvas')}
         </button>
       </div>
 
-      <TextContentEditor
-        label={t('panels.text_properties.content')}
-        value={pendingContent ?? data.content}
-        onCommit={(content) => void updateObjectData(objectId, { ...data, content, variable_text: undefined })}
-      />
+      <div className="flex flex-col gap-2.5 p-3">
+        <TextContentEditor
+          label={t('panels.text_properties.content')}
+          value={pendingContent ?? data.content}
+          onCommit={(content) => void updateObjectData(objectId, { ...data, content, variable_text: undefined })}
+        />
 
-      {(data.missing_font || missingGlyphs.length > 0) ? (
-        <div className="rounded border border-bb-warning-border bg-bb-warning-bg px-2 py-1.5 text-[11px] leading-4 text-bb-warning-fg">
-          {data.missing_font
-            ? t('toolbars.properties.font_missing', { font: data.font_family })
-            : t('toolbars.properties.missing_glyphs', { glyphs: missingGlyphs.join(' ') })}
-        </div>
-      ) : null}
+        {(data.missing_font || missingGlyphs.length > 0) ? (
+          <div className="rounded border border-bb-warning-border bg-bb-warning-bg px-2 py-1.5 text-[11px] leading-4 text-bb-warning-fg">
+            {data.missing_font
+              ? t('toolbars.properties.font_missing', { font: data.font_family })
+              : t('toolbars.properties.missing_glyphs', { glyphs: missingGlyphs.join(' ') })}
+          </div>
+        ) : null}
 
-      <TextControls
-        value={controlValue}
-        onPatch={patchData}
-        onLayoutChange={(layoutMode) => {
-          void applyTextLayoutMode(objectId, data, layoutMode as TextLayoutMode, { bendRadiusFallback: 50 });
-        }}
-        pathControls={pathControls}
-      />
-    </div>
+        <TextControls
+          value={controlValue}
+          onPatch={patchData}
+          onLayoutChange={(layoutMode) => {
+            void applyTextLayoutMode(objectId, data, layoutMode as TextLayoutMode, { bendRadiusFallback: 50 });
+          }}
+          pathControls={pathControls}
+        />
+      </div>
+    </section>
   );
 }

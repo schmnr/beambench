@@ -65,6 +65,15 @@ afterEach(() => {
 });
 
 describe('TextPropertiesPanel', () => {
+  it('uses the contextual tool title treatment', () => {
+    render(<TextPropertiesPanel objectId="t1" data={makeTextData()} />);
+
+    const header = screen.getByTestId('text-properties-header');
+    expect(header.className).toContain('bg-gradient-to-r');
+    expect(header.className).toContain('from-bb-accent/10');
+    expect(header.className).toContain('to-bb-surface/30');
+  });
+
   it('bold toggle commits updated text data', () => {
     const updateObjectData = vi.fn();
     useProjectStore.setState({ updateObjectData });
