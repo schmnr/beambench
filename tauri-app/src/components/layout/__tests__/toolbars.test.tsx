@@ -97,14 +97,13 @@ describe('MainToolbar', () => {
     expect(importFiles).toHaveBeenCalledWith(project.layers[0].id);
   });
 
-  it('zoom fit options live in the fit dropdown', () => {
+  it('keeps Fit Page as a direct viewport action and removes Fit Selection from the top toolbar', () => {
     useProjectStore.setState({ project: makeProject() });
 
     render(<MainToolbar />);
-    fireEvent.click(screen.getByTitle('Zoom to fit'));
-
-    expect(screen.getByText('Fit Page')).toBeTruthy();
-    expect(screen.getByText('Fit Selection')).toBeTruthy();
+    expect(screen.getByTitle('Fit Page')).toBeTruthy();
+    expect(screen.queryByTitle('Zoom to fit')).toBeNull();
+    expect(screen.queryByTitle('Fit Selection')).toBeNull();
   });
 
   it('Undo disabled when canUndo false', () => {

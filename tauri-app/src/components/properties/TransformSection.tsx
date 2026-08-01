@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
-import { Focus, Link2, Lock, Unlink2, Unlock } from 'lucide-react';
+import { Focus, Link2, Lock, ScanSearch, Unlink2, Unlock } from 'lucide-react';
 import { NumberStepper } from '../shared/NumberStepper';
 import type { AnchorPoint, TransformLocks } from '../../types/project';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -25,6 +25,9 @@ import {
 } from '../shared/transformFields';
 import { INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
 import { computeVisualBoundsWorld, getCombinedBounds } from '../../canvas/alignment';
+import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
+import { zoomToFitBounds } from '../../canvas/ViewportTransform';
+import { useUiStore } from '../../stores/uiStore';
 
 const DISPLAY_UNIT_MM = 'mm' as const;
 const DISPLAY_UNIT_INCHES = 'inches' as const;
@@ -140,6 +143,7 @@ export function TransformSection() {
   const nudgeObjects = useProjectStore((s) => s.nudgeObjects);
   const moveObjectsTo = useProjectStore((s) => s.moveObjectsTo);
   const updateObjectTransformState = useProjectStore((s) => s.updateObjectTransformState);
+  const zoomToFit = useUiStore((s) => s.zoomToFit);
 
   const settings = useAppStore((s) => s.settings);
   const displayUnit = (settings?.display_unit === DISPLAY_UNIT_INCHES
@@ -450,6 +454,14 @@ export function TransformSection() {
     void moveObjectsTo(selectedObjectIds, targetX, targetY);
   };
 
+  const handleFitSelection = () => {
+    if (!visualBounds) return;
+    const viewport = getCanvasViewportSize();
+    if (!viewport) return;
+    const result = zoomToFitBounds(visualBounds, viewport.width, viewport.height);
+    zoomToFit(result.offset, result.zoom);
+  };
+
   const toggleUnit = () => {
     const newUnit: DisplayUnit = displayUnit === DISPLAY_UNIT_MM ? DISPLAY_UNIT_INCHES : DISPLAY_UNIT_MM;
     const cur = useAppStore.getState().settings;
@@ -501,16 +513,28 @@ export function TransformSection() {
           {t('panels.properties.transform')}
         </span>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleCenterOnPage}
-            disabled={disabled || selectedObjects.some((object) => object.locked)}
-            aria-label={t('toolbars.main.center_on_page')}
-            title={t('toolbars.main.center_on_page')}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-bb-border bg-bb-bg text-bb-text-muted transition-colors hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:border-bb-border disabled:hover:bg-bb-bg"
-          >
-            <Focus size={17} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleCenterOnPage}
+              disabled={disabled || selectedObjects.some((object) => object.locked)}
+              aria-label={t('toolbars.main.center_on_page')}
+              title={t('toolbars.main.center_on_page')}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-bb-border bg-bb-bg text-bb-text-muted transition-colors hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:border-bb-border disabled:hover:bg-bb-bg"
+            >
+              <Focus size={17} />
+            </button>
+            <button
+              type="button"
+              onClick={handleFitSelection}
+              disabled={disabled}
+              aria-label={t('toolbars.main.fit_selection')}
+              title={t('toolbars.main.fit_selection')}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-bb-border bg-bb-bg text-bb-text-muted transition-colors hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:border-bb-border disabled:hover:bg-bb-bg"
+            >
+              <ScanSearch size={17} />
+            </button>
+          </div>
           <button
             type="button"
             onClick={toggleAllTransformLocks}

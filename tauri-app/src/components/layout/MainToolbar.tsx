@@ -14,7 +14,6 @@ import {
   notifyObjectLocked,
 } from '../../utils/transformLocks';
 import { zoomToFitBounds } from '../../canvas/ViewportTransform';
-import { computeVisualBoundsWorld } from '../../canvas/alignment';
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 import { ROTARY_SETUP_OPEN_EVENT } from '../../rotaryEvents';
@@ -213,7 +212,6 @@ export function MainToolbar() {
   const toggleOverlayVisible = useCameraStore((s) => s.toggleOverlayVisible);
 
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
-  const [showZoomMenu, setShowZoomMenu] = useState(false);
   const [deviceSettingsInitialTab, setDeviceSettingsInitialTab] = useState<
     typeof CONNECTION_SETTINGS_TAB | typeof MACHINE_SETTINGS_TAB
   >(CONNECTION_SETTINGS_TAB);
@@ -287,28 +285,6 @@ export function MainToolbar() {
       size.width,
       size.height,
     );
-    zoomToFit(result.offset, result.zoom);
-  };
-
-  const handleZoomToSelection = () => {
-    if (!project || selectedObjectIds.length === 0) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const id of selectedObjectIds) {
-      const obj = project.objects.find((o) => o.id === id);
-      if (obj) {
-        // Transform-aware bounds: raw obj.bounds ignores rotation/shear and
-        // zooms to the wrong region for rotated objects (matches drawSelection).
-        const vb = computeVisualBoundsWorld(obj, project.objects);
-        minX = Math.min(minX, vb.min.x);
-        minY = Math.min(minY, vb.min.y);
-        maxX = Math.max(maxX, vb.max.x);
-        maxY = Math.max(maxY, vb.max.y);
-      }
-    }
-    if (!isFinite(minX)) return;
-    const size = getCanvasViewportSize();
-    if (!size) return;
-    const result = zoomToFitBounds({ min: { x: minX, y: minY }, max: { x: maxX, y: maxY } }, size.width, size.height);
     zoomToFit(result.offset, result.zoom);
   };
 
@@ -394,35 +370,12 @@ export function MainToolbar() {
       {/* Zoom group */}
       <IconButton icon={<ZoomOut size={sz} />} label={t('toolbars.main.zoom_out')} onClick={zoomOutFn} />
       <IconButton icon={<ZoomIn size={sz} />} label={t('toolbars.main.zoom_in')} onClick={zoomInFn} />
-      <div className="relative">
-        <IconButton
-          icon={<Maximize2 size={sz} />}
-          label={t('status.zoom_to_fit')}
-          onClick={() => setShowZoomMenu((v) => !v)}
-          active={showZoomMenu}
-        />
-        {showZoomMenu && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setShowZoomMenu(false)} />
-            <div className="absolute left-0 top-full z-50 mt-1 min-w-44 rounded-lg border border-bb-border bg-bb-panel py-1 shadow-lg">
-              <button
-                className="block w-full px-3 py-1.5 text-left text-xs text-bb-text hover:bg-bb-hover disabled:text-bb-text-disabled disabled:hover:bg-transparent"
-                onClick={() => { handleZoomToPage(); setShowZoomMenu(false); }}
-                disabled={!project}
-              >
-                {t('toolbars.main.fit_page')}
-              </button>
-              <button
-                className="block w-full px-3 py-1.5 text-left text-xs text-bb-text hover:bg-bb-hover disabled:text-bb-text-disabled disabled:hover:bg-transparent"
-                onClick={() => { handleZoomToSelection(); setShowZoomMenu(false); }}
-                disabled={!hasSelection}
-              >
-                {t('toolbars.main.fit_selection')}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      <IconButton
+        icon={<Maximize2 size={sz} />}
+        label={t('toolbars.main.fit_page')}
+        onClick={handleZoomToPage}
+        disabled={!project}
+      />
       <Separator />
 
       {/* Grid/Snap */}

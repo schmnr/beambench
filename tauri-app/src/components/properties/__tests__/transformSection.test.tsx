@@ -3,8 +3,10 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { TransformSection } from '../TransformSection';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useAppStore } from '../../../stores/appStore';
+import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { makeAppSettings, makeLayer, makeProject as makeProjectFixture, makeProjectObject, makeTransformLocks } from '../../../test-utils/projectFixtures';
+import { clearCanvasViewportSize, setCanvasViewportSize } from '../../../canvas/canvasViewportRegistry';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn((cmd: string) => {
@@ -54,11 +56,14 @@ const typeAndCommit = (input: Element, value: string) => {
 
 const initialState = useProjectStore.getState();
 const initialAppState = useAppStore.getState();
+const initialUiState = useUiStore.getState();
 
 afterEach(() => {
   cleanup();
   useProjectStore.setState(initialState, true);
   useAppStore.setState(initialAppState, true);
+  useUiStore.setState(initialUiState, true);
+  clearCanvasViewportSize();
 });
 
 describe('TransformSection — position/size', () => {
@@ -141,16 +146,38 @@ describe('TransformSection — position/size', () => {
     expect(anchorButtons.length).toBe(9);
   });
 
-  it('places the Focus-style Center on Page action before the anchor grid', () => {
+  it('places Fit Selection beside Center on Page before the anchor grid', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
     render(<TransformSection />);
 
     const centerButton = screen.getByRole('button', { name: 'Center on Page' });
+    const fitSelectionButton = screen.getByRole('button', { name: 'Fit Selection' });
     const firstAnchor = screen.getByRole('button', { name: 'Top left' });
     expect(centerButton.className).toContain('h-7');
     expect(centerButton.className).toContain('w-7');
     expect(centerButton.querySelector('.lucide-focus')).not.toBeNull();
-    expect(centerButton.compareDocumentPosition(firstAnchor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(fitSelectionButton.className).toContain('h-7');
+    expect(fitSelectionButton.className).toContain('w-7');
+    expect(fitSelectionButton.querySelector('.lucide-scan-search')).not.toBeNull();
+    expect(centerButton.compareDocumentPosition(fitSelectionButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(fitSelectionButton.compareDocumentPosition(firstAnchor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('fits the visual selection bounds from the Transform header', () => {
+    const zoomToFit = vi.fn();
+    const project = makeProject();
+    project.objects[0].transform = { a: 1, b: 0.4, c: 0.5, d: 1, tx: 0, ty: 0 };
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ zoomToFit });
+    setCanvasViewportSize({ width: 1000, height: 600 });
+
+    render(<TransformSection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fit Selection' }));
+
+    expect(zoomToFit).toHaveBeenCalledWith(
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      expect.any(Number),
+    );
   });
 
   it('toggles every transform lock from the header and changes its icon', () => {
