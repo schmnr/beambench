@@ -261,6 +261,8 @@ interface UiStoreState {
 
   // Node editing info (displayed in StatusBar)
   nodeEditNodeCount: number;
+  /** Active node-edit object when its loaded geometry contains an open subpath. */
+  nodeEditOpenPathObjectId: string | null;
   nodeSubMode: NodeSubMode;
 
   // Inline text editing — when non-null, the text overlay is shown for this object
@@ -370,6 +372,7 @@ interface UiStoreState {
 
   // Node editing actions
   setNodeEditNodeCount: (count: number) => void;
+  setNodeEditOpenPathObjectId: (objectId: string | null) => void;
   setNodeSubMode: (mode: NodeSubMode) => void;
 }
 
@@ -592,6 +595,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   lastShapeSubTool: 'rect',
   showNotesDialog: false,
   nodeEditNodeCount: 0,
+  nodeEditOpenPathObjectId: null,
   nodeSubMode: 'select' as NodeSubMode,
   textEditObjectId: null,
   textEditClickPos: null,
@@ -1526,6 +1530,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setMoveWindowJogFeedRateMmMin: (feedRateMmMin) => set({ moveWindowJogFeedRateMmMin: Math.max(1, feedRateMmMin) }),
   setLastShapeSubTool: (id) => set({ lastShapeSubTool: id }),
   setNodeEditNodeCount: (count) => set({ nodeEditNodeCount: count }),
+  setNodeEditOpenPathObjectId: (objectId) => set({ nodeEditOpenPathObjectId: objectId }),
   setNodeSubMode: (mode) => set({ nodeSubMode: mode }),
   setPendingStartPoint: (objectId) => set({ pendingStartPointObjectId: objectId }),
   setPendingGuidePathText: (objectId) => set({ pendingGuidePathTextId: objectId }),

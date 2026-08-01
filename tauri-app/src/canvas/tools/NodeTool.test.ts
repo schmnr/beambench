@@ -53,6 +53,7 @@ const uiState = {
   nudgeStepFineMm: 1,
   nudgeStepCoarseMm: 20,
   setNodeEditNodeCount: vi.fn(),
+  setNodeEditOpenPathObjectId: vi.fn(),
   setNodeSubMode: vi.fn(),
 };
 
@@ -385,6 +386,23 @@ describe('NodeTool', () => {
 
     expect(vectorService.getEditablePath).toHaveBeenCalledWith('path1');
     expect(tool.getOverlay()).toMatchObject({ type: 'node-edit', objectId: 'path1' });
+    expect(uiState.setNodeEditOpenPathObjectId).toHaveBeenCalledWith(null);
+  });
+
+  it('reports open subpaths from the loaded node geometry', async () => {
+    vi.mocked(vectorService.getEditablePath).mockResolvedValueOnce([
+      { closed: true, nodes: [] },
+      makeLineEditablePath(1, { x: 0, y: 0 }, { x: 10, y: 0 }),
+    ]);
+    const obj = makeVectorPathObj('path1', { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    const ctx = makeToolContext({
+      selectedObjectIds: ['path1'],
+      objects: [obj],
+    });
+
+    await tool.prepareForSelection(ctx);
+
+    expect(uiState.setNodeEditOpenPathObjectId).toHaveBeenCalledWith('path1');
   });
 
   it('maps editable nodes from the freshly loaded path when frontend path data is stale after a move', async () => {
@@ -667,7 +685,10 @@ describe('NodeTool', () => {
     // @ts-expect-error accessing private field
     tool.objectId = 'path1';
     // @ts-expect-error accessing private field
-    tool.editablePaths = [{ closed: false, nodes: [] }, { closed: false, nodes: [] }];
+    tool.editablePaths = [
+      makeLineEditablePath(0, { x: 0, y: 0 }, { x: 10, y: 0 }),
+      makeLineEditablePath(1, { x: 20, y: 0 }, { x: 30, y: 0 }),
+    ];
     // @ts-expect-error accessing private field
     tool.activeSubpathIdx = 1;
 
@@ -713,7 +734,7 @@ describe('NodeTool', () => {
     // @ts-expect-error accessing private field
     tool.editablePaths = [
       { closed: true, nodes: [] },
-      { closed: false, nodes: [] },
+      makeLineEditablePath(1, { x: 20, y: 0 }, { x: 30, y: 0 }),
     ];
     // @ts-expect-error accessing private field
     tool.activeSubpathIdx = 0;
@@ -733,7 +754,7 @@ describe('NodeTool', () => {
     // @ts-expect-error accessing private field
     tool.objectId = 'path1';
     // @ts-expect-error accessing private field
-    tool.editablePaths = [{ closed: false, nodes: [] }];
+    tool.editablePaths = [makeLineEditablePath(0, { x: 0, y: 0 }, { x: 10, y: 0 })];
     uiState.nodeSubMode = 'close_open';
 
     const ctx = makeToolContext();
@@ -951,7 +972,7 @@ describe('NodeTool', () => {
     // @ts-expect-error accessing private field
     tool.objectId = 'path1';
     // @ts-expect-error accessing private field
-    tool.editablePaths = [{ closed: false, nodes: [] }];
+    tool.editablePaths = [makeLineEditablePath(0, { x: 0, y: 0 }, { x: 10, y: 0 })];
     uiState.nodeSubMode = 'close_open';
 
     const ctx = makeToolContext();

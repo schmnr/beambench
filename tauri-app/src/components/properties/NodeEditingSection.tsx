@@ -208,6 +208,7 @@ export function NodeEditingSection() {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const nodeSubMode = useUiStore((state) => state.nodeSubMode);
+  const nodeEditOpenPathObjectId = useUiStore((state) => state.nodeEditOpenPathObjectId);
   const setNodeSubMode = useUiStore((state) => state.setNodeSubMode);
   const project = useProjectStore((state) => state.project);
   const selectedObjectIds = useProjectStore((state) => state.selectedObjectIds);
@@ -216,7 +217,7 @@ export function NodeEditingSection() {
     : null;
   const activeMode = NODE_MODES.find((mode) => mode.mode === nodeSubMode) ?? NODE_MODES[0];
   const canClosePath = selectedObject?.data.type === 'vector_path'
-    && !selectedObject.data.closed
+    && nodeEditOpenPathObjectId === selectedObject.id
     && !selectedObject.locked;
 
   return (

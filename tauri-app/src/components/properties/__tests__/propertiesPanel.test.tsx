@@ -125,7 +125,7 @@ describe('PropertiesPanel', () => {
     const immediateAction = vi.fn();
     window.addEventListener('bb:node-immediate-action', immediateAction);
     useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
-    useUiStore.setState({ activeTool: 'node' });
+    useUiStore.setState({ activeTool: 'node', nodeEditOpenPathObjectId: 'obj1' });
 
     render(<PropertiesPanel />);
 
@@ -136,6 +136,18 @@ describe('PropertiesPanel', () => {
     expect((immediateAction.mock.calls[0][0] as CustomEvent).detail).toBe('close_open');
 
     window.removeEventListener('bb:node-immediate-action', immediateAction);
+  });
+
+  it('uses loaded subpath state instead of the coarse object closed flag', () => {
+    const project = makeProject({
+      data: { type: 'vector_path' as const, path_data: 'M0 0L10 0Z M20 0L30 10', closed: true },
+    });
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'node', nodeEditOpenPathObjectId: 'obj1' });
+
+    render(<PropertiesPanel />);
+
+    expect((screen.getByRole('button', { name: 'Close Path' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('shows next-text settings when the text tool is active without a selection', () => {

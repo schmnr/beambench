@@ -728,6 +728,7 @@ export class NodeTool implements CanvasTool {
     this.localNodeDirty = false;
     useUiStore.getState().setNodeSubMode('select');
     useUiStore.getState().setNodeEditNodeCount(0);
+    useUiStore.getState().setNodeEditOpenPathObjectId(null);
   }
 
   /** Get the total number of editable nodes */
@@ -962,6 +963,9 @@ export class NodeTool implements CanvasTool {
       if (requestId !== this.loadRequestId) return;
       this.objectId = objId;
       this.editablePaths = paths;
+      useUiStore.getState().setNodeEditOpenPathObjectId(
+        paths.some((path) => !path.closed && path.nodes.length >= 2) ? objId : null,
+      );
       this.state = { type: 'idle' };
       const nextSelection = this.normalizeSelectionForPaths(
         paths,
@@ -2288,7 +2292,7 @@ export class NodeTool implements CanvasTool {
     const path = this.editablePaths.find(
       (candidate) => candidate.nodes.some((node) => node.id.subpath_idx === subpathIdx),
     ) ?? this.editablePaths[subpathIdx];
-    return Boolean(path && !path.closed);
+    return Boolean(path && !path.closed && path.nodes.length >= 2);
   }
 
   private handleAutoJoinClick(ctx: ToolContext): void {

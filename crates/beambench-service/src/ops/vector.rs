@@ -4625,6 +4625,47 @@ mod tests {
     }
 
     #[test]
+    fn close_path_repairs_legacy_ghost_contour_and_closes_visible_triangle() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Close triangle");
+        let layer_id = project.ensure_default_layer();
+        let object = ProjectObject::new(
+            "Path",
+            layer_id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(20.0, 20.0)),
+            ObjectData::VectorPath {
+                path_data: "M20 20 Z M0 0 L10 0 L5 10".to_string(),
+                closed: true,
+                ruler_guide_axis: None,
+            },
+        );
+        let object_id = object.id;
+        project.add_object(object);
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let updated = toggle_path_closed(
+            &ctx,
+            SubpathOpInput {
+                object_id,
+                subpath_idx: 1,
+            },
+        )
+        .unwrap();
+
+        let ObjectData::VectorPath {
+            path_data, closed, ..
+        } = updated.data
+        else {
+            panic!("expected vector path");
+        };
+        let repaired = VecPath::parse_svg_d(&path_data);
+        assert!(closed);
+        assert_eq!(repaired.subpaths.len(), 1);
+        assert!(repaired.subpaths[0].closed);
+        assert_eq!(EditablePath::from_vecpath(&repaired)[0].nodes.len(), 3);
+    }
+
+    #[test]
     fn update_nodes_batch_moves_multiple_targets() {
         let ctx = ServiceContext::new();
         let mut project = Project::new("Batch Nodes");

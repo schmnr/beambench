@@ -1116,17 +1116,26 @@ pub fn delete_segment(path: &mut VecPath, node_id: NodeId) -> bool {
         second_cmds.extend(rest_cmds);
 
         let sp_idx = node_id.subpath_idx;
-        path.subpaths[sp_idx] = SubPath {
-            commands: first_cmds,
-            closed: false,
-        };
-        path.subpaths.insert(
-            sp_idx + 1,
-            SubPath {
+        let mut replacements = Vec::with_capacity(2);
+        if first_cmds.len() > 1 {
+            replacements.push(SubPath {
+                commands: first_cmds,
+                closed: false,
+            });
+        }
+        if second_cmds.len() > 1 {
+            replacements.push(SubPath {
                 commands: second_cmds,
                 closed: false,
-            },
-        );
+            });
+        }
+        // Deleting the only segment would leave nothing but isolated MoveTo
+        // commands. Reject it instead of creating ghost subpaths that can later
+        // be marked closed and block the real contour from being closed.
+        if replacements.is_empty() {
+            return false;
+        }
+        path.subpaths.splice(sp_idx..=sp_idx, replacements);
         true
     }
 }
@@ -1237,6 +1246,14 @@ pub fn toggle_path_closed(path: &mut VecPath, subpath_idx: usize) -> bool {
     let Some(subpath) = path.subpaths.get_mut(subpath_idx) else {
         return false;
     };
+    if !subpath.commands.iter().any(|command| {
+        matches!(
+            command,
+            PathCommand::LineTo { .. } | PathCommand::QuadTo { .. } | PathCommand::CubicTo { .. }
+        )
+    }) {
+        return false;
+    }
 
     if subpath.closed {
         subpath
@@ -1250,6 +1267,17 @@ pub fn toggle_path_closed(path: &mut VecPath, subpath_idx: usize) -> bool {
         subpath.commands.push(PathCommand::Close);
         subpath.closed = true;
     }
+    // Repair legacy node edits that left behind MoveTo/Close-only contours.
+    path.subpaths.retain(|candidate| {
+        candidate.commands.iter().any(|command| {
+            matches!(
+                command,
+                PathCommand::LineTo { .. }
+                    | PathCommand::QuadTo { .. }
+                    | PathCommand::CubicTo { .. }
+            )
+        })
+    });
     true
 }
 
@@ -1997,6 +2025,31 @@ mod tests {
     }
 
     #[test]
+    fn delete_terminal_segment_does_not_leave_a_move_only_subpath() {
+        let mut path = VecPath::parse_svg_d("M0 0 L10 0 L20 0");
+        let node_id = NodeId {
+            subpath_idx: 0,
+            command_idx: 2,
+        };
+        assert!(delete_segment(&mut path, node_id));
+        assert_eq!(path.subpaths.len(), 1);
+        assert_eq!(path.subpaths[0].commands.len(), 2);
+        assert_eq!(path.to_svg_d(), "M0 0 L10 0");
+    }
+
+    #[test]
+    fn delete_only_segment_is_rejected_without_creating_ghost_paths() {
+        let mut path = VecPath::parse_svg_d("M0 0 L10 0");
+        let original = path.clone();
+        let node_id = NodeId {
+            subpath_idx: 0,
+            command_idx: 1,
+        };
+        assert!(!delete_segment(&mut path, node_id));
+        assert_eq!(path, original);
+    }
+
+    #[test]
     fn delete_segment_rejects_moveto() {
         let mut path = VecPath::parse_svg_d("M0 0 L10 10");
         let node_id = NodeId {
@@ -2114,6 +2167,22 @@ mod tests {
                 .iter()
                 .any(|c| matches!(c, PathCommand::Close))
         );
+    }
+
+    #[test]
+    fn toggle_open_path_prunes_legacy_move_only_siblings() {
+        let mut path = VecPath::parse_svg_d("M20 20 Z M0 0 L10 0 L5 10");
+        assert!(toggle_path_closed(&mut path, 1));
+        assert_eq!(path.subpaths.len(), 1);
+        assert!(path.subpaths[0].closed);
+        assert_eq!(EditablePath::from_vecpath(&path)[0].nodes.len(), 3);
+    }
+
+    #[test]
+    fn toggle_rejects_a_move_only_subpath() {
+        let mut path = VecPath::parse_svg_d("M20 20 Z");
+        assert!(!toggle_path_closed(&mut path, 0));
+        assert_eq!(path.subpaths.len(), 1);
     }
 
     #[test]
