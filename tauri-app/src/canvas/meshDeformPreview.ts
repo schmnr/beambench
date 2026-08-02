@@ -11,7 +11,18 @@ import {
 
 // Full contour fidelity matters more than maximum frame rate for artwork in the
 // normal SVG complexity range. Only truly extreme selections are sampled.
-const MAX_PREVIEW_POINTS = 64_000;
+const MAX_PREVIEW_POINTS = 96_000;
+export const THROTTLED_MESH_PREVIEW_FRAME_INTERVAL_MS = 1000 / 30;
+
+/** Hysteresis keeps the preview from rapidly switching between 60 and 30 FPS. */
+export function adaptiveMeshPreviewFrameInterval(
+  currentIntervalMs: number,
+  averageRenderDurationMs: number,
+): number {
+  if (averageRenderDurationMs > 18) return THROTTLED_MESH_PREVIEW_FRAME_INTERVAL_MS;
+  if (averageRenderDurationMs < 12) return 0;
+  return currentIntervalMs;
+}
 
 export interface MeshDeformPreviewPath {
   points: Point2D[];

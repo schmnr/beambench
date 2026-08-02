@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { makeProjectObject } from '../test-utils/projectFixtures';
 import {
+  adaptiveMeshPreviewFrameInterval,
   buildMeshDeformPreviewObjects,
   mapMeshDeformPoint,
+  THROTTLED_MESH_PREVIEW_FRAME_INTERVAL_MS,
 } from './meshDeformPreview';
 
 describe('mesh deform live preview', () => {
@@ -58,7 +60,7 @@ describe('mesh deform live preview', () => {
   });
 
   it('uses a bounded sample for extremely dense paths', () => {
-    const segments = Array.from({ length: 120_000 }, (_, index) => `L ${index + 1} ${index % 100}`).join(' ');
+    const segments = Array.from({ length: 150_000 }, (_, index) => `L ${index + 1} ${index % 100}`).join(' ');
     const object = makeProjectObject({
       id: 'dense',
       bounds: { min: { x: 0, y: 0 }, max: { x: 300, y: 100 } },
@@ -68,7 +70,14 @@ describe('mesh deform live preview', () => {
     const previews = buildMeshDeformPreviewObjects([object], ['dense']);
     const pointCount = previews[0].paths.reduce((sum, path) => sum + path.points.length, 0);
 
-    expect(pointCount).toBeLessThanOrEqual(64_002);
-    expect(pointCount).toBeGreaterThan(50_000);
+    expect(pointCount).toBeLessThanOrEqual(96_002);
+    expect(pointCount).toBeGreaterThan(70_000);
+  });
+
+  it('throttles only after sustained expensive preview frames', () => {
+    expect(adaptiveMeshPreviewFrameInterval(0, 20)).toBe(THROTTLED_MESH_PREVIEW_FRAME_INTERVAL_MS);
+    expect(adaptiveMeshPreviewFrameInterval(THROTTLED_MESH_PREVIEW_FRAME_INTERVAL_MS, 15))
+      .toBe(THROTTLED_MESH_PREVIEW_FRAME_INTERVAL_MS);
+    expect(adaptiveMeshPreviewFrameInterval(THROTTLED_MESH_PREVIEW_FRAME_INTERVAL_MS, 8)).toBe(0);
   });
 });

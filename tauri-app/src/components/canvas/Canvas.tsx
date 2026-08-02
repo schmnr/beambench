@@ -81,6 +81,7 @@ import {
   getVectorPathCommandCount,
   getVectorPathCommandCountForObject,
 } from '../../canvas/drawObjects';
+import { adaptiveMeshPreviewFrameInterval } from '../../canvas/meshDeformPreview';
 import { machineToCanvasPoint } from '../../utils/workspaceCoordinates';
 import type { SimilarityTransform } from '../../types/camera';
 import type { Point2D } from '../../types/project';
@@ -146,6 +147,9 @@ export function Canvas() {
   const overlayRendererRef = useRef<CanvasRenderer | null>(null);
   const sceneRafRef = useRef<number>(0);
   const overlayRafRef = useRef<number>(0);
+  const overlayLastRenderAtRef = useRef(0);
+  const meshPreviewRenderAverageRef = useRef(0);
+  const meshPreviewFrameIntervalRef = useRef(0);
   const pointerMoveRafRef = useRef<number>(0);
   const pendingPointerMoveRef = useRef<MouseEventLike | null>(null);
   const isPanningRef = useRef(false);
@@ -710,6 +714,8 @@ export function Canvas() {
         ? persistentTabMarkers.filter((m) => m.objectId !== selectedObjectIds[0])
         : persistentTabMarkers;
 
+    const effectiveOverlay = buildEffectiveOverlay();
+    const renderStartedAt = performance.now();
     renderer.renderToolOverlay({
       workspace: project.workspace,
       objects: project.objects,
@@ -718,7 +724,7 @@ export function Canvas() {
       vp,
       gridVisible,
       gridSpacingMm,
-      toolOverlay: buildEffectiveOverlay(),
+      toolOverlay: effectiveOverlay,
       previewData: previewData,
       showPreview,
       theme,
@@ -737,6 +743,22 @@ export function Canvas() {
       flashedLayerId,
       interactionState,
     });
+    const renderDuration = performance.now() - renderStartedAt;
+    overlayLastRenderAtRef.current = performance.now();
+    if (effectiveOverlay.type === 'mesh-deform' && effectiveOverlay.previewActive) {
+      const previousAverage = meshPreviewRenderAverageRef.current;
+      const average = previousAverage > 0
+        ? previousAverage * 0.8 + renderDuration * 0.2
+        : renderDuration;
+      meshPreviewRenderAverageRef.current = average;
+      meshPreviewFrameIntervalRef.current = adaptiveMeshPreviewFrameInterval(
+        meshPreviewFrameIntervalRef.current,
+        average,
+      );
+    } else {
+      meshPreviewRenderAverageRef.current = 0;
+      meshPreviewFrameIntervalRef.current = 0;
+    }
   }, [
     project,
     selectedObjectIds,
@@ -792,7 +814,16 @@ export function Canvas() {
 
   const requestOverlayRender = useCallback(() => {
     cancelAnimationFrame(overlayRafRef.current);
-    overlayRafRef.current = requestAnimationFrame(() => renderToolOverlay());
+    const renderWhenReady = (timestamp: number) => {
+      const interval = meshPreviewFrameIntervalRef.current;
+      if (interval > 0 && timestamp - overlayLastRenderAtRef.current < interval) {
+        overlayRafRef.current = requestAnimationFrame(renderWhenReady);
+        return;
+      }
+      overlayRafRef.current = 0;
+      renderToolOverlay();
+    };
+    overlayRafRef.current = requestAnimationFrame(renderWhenReady);
   }, [renderToolOverlay]);
 
   // Selection dash animation (marching ants).
