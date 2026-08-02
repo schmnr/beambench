@@ -967,6 +967,7 @@ export function Canvas() {
         statusMsgRef.current = msg;
       },
       requestRender,
+      requestOverlayRender,
     };
   }, [
     vp,
@@ -988,6 +989,7 @@ export function Canvas() {
     updateObjectBoundsBatch,
     setCursorWorldPos,
     requestRender,
+    requestOverlayRender,
   ]);
 
   const processPointerMove = useCallback(

@@ -149,7 +149,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
       moved: false,
     };
     ctx.setStatusMessage(i18n.t('canvas_status.mesh_release_apply', { label: this.labelForMode(mode) }));
-    ctx.requestRender();
+    this.requestOverlayRender(ctx);
   }
 
   onMouseMove(e: CanvasMouseEvent, ctx: ToolContext): void {
@@ -160,14 +160,14 @@ export class SelectionMeshDeformTool implements CanvasTool {
       this.state.moved = true;
       const next = this.draggedHandlePoint(e, this.state);
       this.setHandle(this.state.handleIndex, next, { horizontal: e.shiftKey, vertical: e.altKey });
-      ctx.requestRender();
+      this.requestOverlayRender(ctx);
       return;
     }
 
     const hit = this.hitTestHandle({ x: e.screenX, y: e.screenY }, ctx);
     if (hit !== this.hoveredIndex) {
       this.hoveredIndex = hit;
-      ctx.requestRender();
+      this.requestOverlayRender(ctx);
     }
   }
 
@@ -187,13 +187,13 @@ export class SelectionMeshDeformTool implements CanvasTool {
 
     this.state = { type: 'idle' };
     this.activeIndex = null;
-    ctx.requestRender();
+    this.requestOverlayRender(ctx);
 
     if (mode !== this.currentMode()) {
       this.handles = originalHandles.map((handle) => ({ ...handle }));
       this.selectionKey = null;
       ctx.setStatusMessage('');
-      ctx.requestRender();
+      this.requestOverlayRender(ctx);
       return;
     }
 
@@ -212,12 +212,12 @@ export class SelectionMeshDeformTool implements CanvasTool {
       this.state = { type: 'idle' };
       this.activeIndex = null;
       ctx.setStatusMessage('');
-      ctx.requestRender();
+      this.requestOverlayRender(ctx);
       return;
     }
     this.reset();
     ctx.setStatusMessage('');
-    ctx.requestRender();
+    this.requestOverlayRender(ctx);
   }
 
   onDoubleClick(e: CanvasMouseEvent, ctx: ToolContext): void {
@@ -229,7 +229,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
     this.setHandle(hit, originalGrid[hit], { horizontal: e.shiftKey, vertical: e.altKey });
     this.activeIndex = null;
     this.hoveredIndex = hit;
-    ctx.requestRender();
+    this.requestOverlayRender(ctx);
   }
 
   getCursor(): string {
@@ -419,7 +419,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
       await useUndoStore.getState().refresh();
       this.reset();
       ctx.setStatusMessage('');
-      ctx.requestRender();
+      this.requestOverlayRender(ctx);
     } catch (error) {
       const message = String(error);
       ctx.setStatusMessage(message);
@@ -429,6 +429,10 @@ export class SelectionMeshDeformTool implements CanvasTool {
 
   private currentMode(): MeshDeformMode {
     return useUiStore.getState().meshDeformMode;
+  }
+
+  private requestOverlayRender(ctx: ToolContext): void {
+    (ctx.requestOverlayRender ?? ctx.requestRender)();
   }
 
   private gridSizeForMode(mode: MeshDeformMode): number {

@@ -521,7 +521,7 @@ pub fn scale_path_to_bounds(
 }
 
 #[tauri::command]
-pub fn mesh_deform_selection(
+pub async fn mesh_deform_selection(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
     source_bounds: Bounds,
@@ -529,21 +529,22 @@ pub fn mesh_deform_selection(
     grid_size: usize,
     perspective: bool,
 ) -> Result<Vec<ProjectObject>, String> {
+    let svc = svc.inner().clone();
     let object_ids = object_ids
         .iter()
         .map(|id| parse_id(id))
         .collect::<Result<Vec<_>, _>>()?;
-    vector::mesh_deform_selection(
-        &svc,
-        vector::MeshDeformSelectionInput {
-            object_ids,
-            source_bounds,
-            handles,
-            grid_size,
-            perspective,
-        },
-    )
-    .map_err(Into::into)
+    let input = vector::MeshDeformSelectionInput {
+        object_ids,
+        source_bounds,
+        handles,
+        grid_size,
+        perspective,
+    };
+    tokio::task::spawn_blocking(move || vector::mesh_deform_selection(&svc, input))
+        .await
+        .map_err(|e| format!("Warp task failed: {e}"))?
+        .map_err(Into::into)
 }
 
 #[tauri::command]

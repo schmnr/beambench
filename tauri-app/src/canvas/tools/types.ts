@@ -50,6 +50,8 @@ export interface ToolContext {
   setCursorWorldPos: (pos: Point2D | null) => void;
   setStatusMessage: (msg: string) => void;
   requestRender: () => void;
+  /** Repaint transient handles/guides without redrawing project geometry. */
+  requestOverlayRender?: () => void;
 }
 
 export interface CanvasTool {

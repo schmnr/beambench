@@ -68,6 +68,7 @@ function makeToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
     setCursorWorldPos: vi.fn(),
     setStatusMessage: vi.fn(),
     requestRender: vi.fn(),
+    requestOverlayRender: vi.fn(),
     ...overrides,
   };
 }
@@ -148,6 +149,30 @@ describe('SelectionMeshDeformTool', () => {
     expect(overlay).toMatchObject({ type: 'mesh-deform', gridSize: 4 });
     if (overlay.type !== 'mesh-deform') throw new Error('expected mesh overlay');
     expect(overlay.handles).toHaveLength(16);
+  });
+
+  it('repaints only the lightweight overlay while dragging', () => {
+    const ctx = makeToolContext();
+    useUiStore.setState({ meshDeformMode: 'warp' });
+    const tool = new WarpTool();
+    tool.prepareForSelection(ctx);
+    const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
+
+    tool.onMouseDown(makeMouseEvent({
+      screenX: topRight.x,
+      screenY: topRight.y,
+      snappedX: 10,
+      snappedY: 0,
+    }), ctx);
+    tool.onMouseMove(makeMouseEvent({
+      screenX: topRight.x + 20,
+      screenY: topRight.y + 20,
+      snappedX: 15,
+      snappedY: 5,
+    }), ctx);
+
+    expect(ctx.requestOverlayRender).toHaveBeenCalled();
+    expect(ctx.requestRender).not.toHaveBeenCalled();
   });
 
   it('switches modes without changing tools', () => {
