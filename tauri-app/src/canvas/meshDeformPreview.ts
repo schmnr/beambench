@@ -9,7 +9,9 @@ import {
   type PathCommand,
 } from './drawObjects';
 
-const MAX_PREVIEW_POINTS = 12_000;
+// Full contour fidelity matters more than maximum frame rate for artwork in the
+// normal SVG complexity range. Only truly extreme selections are sampled.
+const MAX_PREVIEW_POINTS = 64_000;
 
 export interface MeshDeformPreviewPath {
   points: Point2D[];

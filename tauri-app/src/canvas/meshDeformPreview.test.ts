@@ -58,7 +58,7 @@ describe('mesh deform live preview', () => {
   });
 
   it('uses a bounded sample for extremely dense paths', () => {
-    const segments = Array.from({ length: 30_000 }, (_, index) => `L ${index + 1} ${index % 100}`).join(' ');
+    const segments = Array.from({ length: 120_000 }, (_, index) => `L ${index + 1} ${index % 100}`).join(' ');
     const object = makeProjectObject({
       id: 'dense',
       bounds: { min: { x: 0, y: 0 }, max: { x: 300, y: 100 } },
@@ -68,7 +68,7 @@ describe('mesh deform live preview', () => {
     const previews = buildMeshDeformPreviewObjects([object], ['dense']);
     const pointCount = previews[0].paths.reduce((sum, path) => sum + path.points.length, 0);
 
-    expect(pointCount).toBeLessThanOrEqual(12_002);
-    expect(pointCount).toBeGreaterThan(5_000);
+    expect(pointCount).toBeLessThanOrEqual(64_002);
+    expect(pointCount).toBeGreaterThan(50_000);
   });
 });
