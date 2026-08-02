@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { PANEL_REGISTRY, getPanelById, getDefaultLayout } from '../panelRegistry';
 
 describe('panelRegistry', () => {
-  it('has 11 registered panels', () => {
-    expect(PANEL_REGISTRY).toHaveLength(11);
+  it('has 10 registered panels', () => {
+    expect(PANEL_REGISTRY).toHaveLength(10);
   });
 
   it('all panel ids are unique', () => {
@@ -39,7 +39,6 @@ describe('panelRegistry', () => {
       'move',
       'console',
       'macros',
-      'measurement',
       'laser',
       'material',
       'camera',

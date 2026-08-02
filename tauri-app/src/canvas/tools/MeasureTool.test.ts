@@ -4,7 +4,10 @@ import type { CanvasMouseEvent, ToolContext } from './types';
 import type { ViewportParams } from '../ViewportTransform';
 import { worldToScreen } from '../ViewportTransform';
 import { useMeasurementStore } from '../../stores/measurementStore';
+import { useUiStore } from '../../stores/uiStore';
 import { makeProjectObject } from '../../test-utils/projectFixtures';
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 
 const defaultVp: ViewportParams = {
   offset: { x: 0, y: 0 },
@@ -67,16 +70,23 @@ function eventAtWorld(point: { x: number; y: number }, overrides: Partial<Canvas
   });
 }
 
+function click(tool: MeasureTool, event: CanvasMouseEvent, ctx: ToolContext) {
+  tool.onMouseDown(event, ctx);
+  tool.onMouseUp(event, ctx);
+}
+
 describe('MeasureTool', () => {
   let tool: MeasureTool;
 
   beforeEach(() => {
     tool = new MeasureTool();
+    useMeasurementStore.setState({ mode: 'linear' });
     useMeasurementStore.getState().clear();
+    useUiStore.setState({ activeTool: 'measure', workspaceMode: 'design' });
     vi.clearAllMocks();
   });
 
-  it('sets hover measurement for visible geometry and nearest segment', () => {
+  it('keeps hover inspection separate from the persistent result', () => {
     const object = makeProjectObject({
       id: 'rect-1',
       name: 'Measured Rect',
@@ -86,140 +96,167 @@ describe('MeasureTool', () => {
 
     tool.onMouseMove(eventAtWorld({ x: 10, y: 0 }), ctx);
 
-    const state = useMeasurementStore.getState().state;
-    expect(state.type).toBe('hover');
-    if (state.type === 'hover') {
-      expect(state.objectId).toBe('rect-1');
-      expect(state.objectMetrics.widthMm).toBeCloseTo(20);
-      expect(state.objectMetrics.heightMm).toBeCloseTo(10);
-      expect(state.objectMetrics.areaMm2).toBeCloseTo(200);
-      expect(state.segment?.lengthMm).toBeCloseTo(20);
-    }
-
-    const overlay = tool.getOverlay();
-    expect(overlay.type).toBe('measure-inspection');
-    if (overlay.type === 'measure-inspection') {
-      expect(overlay.hoverObjectId).toBe('rect-1');
-      expect(overlay.hoverSegment?.lengthMm).toBeCloseTo(20);
-    }
+    const hover = useMeasurementStore.getState().hover;
+    expect(hover?.objectId).toBe('rect-1');
+    expect(hover?.objectMetrics.areaMm2).toBeCloseTo(200);
+    expect(hover?.segment?.lengthMm).toBeCloseTo(20);
+    expect(useMeasurementStore.getState().result).toBeNull();
   });
 
-  it('ignores objects on hidden layers', () => {
-    const object = makeProjectObject({
-      id: 'hidden-layer-object',
-      bounds: { min: { x: 0, y: 0 }, max: { x: 20, y: 10 } },
-    });
-    const ctx = makeToolContext({
-      objects: [object],
-      layers: [{ id: 'layer-1', enabled: true, visible: false }],
-    });
-
-    tool.onMouseMove(eventAtWorld({ x: 10, y: 0 }), ctx);
-
-    expect(useMeasurementStore.getState().state.type).toBe('idle');
-  });
-
-  it('measures locked but visible objects on hover', () => {
-    const object = makeProjectObject({
-      id: 'locked-rect',
+  it('ignores hidden geometry but measures locked visible objects', () => {
+    const hidden = makeProjectObject({ id: 'hidden', visible: false });
+    const locked = makeProjectObject({
+      id: 'locked',
       locked: true,
       bounds: { min: { x: 0, y: 0 }, max: { x: 20, y: 10 } },
     });
-    const ctx = makeToolContext({ objects: [object] });
+    const ctx = makeToolContext({ objects: [hidden, locked] });
 
     tool.onMouseMove(eventAtWorld({ x: 10, y: 0 }), ctx);
 
-    const state = useMeasurementStore.getState().state;
-    expect(state.type).toBe('hover');
-    if (state.type === 'hover') {
-      expect(state.objectId).toBe('locked-rect');
-      expect(state.objectMetrics.widthMm).toBeCloseTo(20);
-    }
+    expect(useMeasurementStore.getState().hover?.objectId).toBe('locked');
   });
 
-  it('tracks drag distance and angle through the measurement store', () => {
+  it('persists a click-drag measurement after mouse release', () => {
     const ctx = makeToolContext();
 
     tool.onMouseDown(eventAtWorld({ x: 0, y: 0 }), ctx);
     tool.onMouseMove(eventAtWorld({ x: 30, y: 40 }), ctx);
+    expect(useMeasurementStore.getState().draft?.lengthMm).toBeCloseTo(50);
+    tool.onMouseUp(eventAtWorld({ x: 30, y: 40 }), ctx);
 
-    const state = useMeasurementStore.getState().state;
-    expect(state.type).toBe('drag');
-    if (state.type === 'drag') {
-      expect(state.lengthMm).toBeCloseTo(50);
-      expect(state.angleDeg).toBeCloseTo(53.13, 2);
+    const result = useMeasurementStore.getState().result;
+    expect(result?.kind).toBe('linear');
+    if (result?.kind === 'linear') {
+      expect(result.lengthMm).toBeCloseTo(50);
+      expect(result.angleDeg).toBeCloseTo(53.13, 2);
     }
-
-    const overlay = tool.getOverlay();
-    expect(overlay.type).toBe('measure-inspection');
-    if (overlay.type === 'measure-inspection') {
-      expect(overlay.drag?.lengthMm).toBeCloseTo(50);
-    }
+    expect(useMeasurementStore.getState().draft).toBeNull();
   });
 
-  it('uses snapped drag endpoints instead of raw cursor coordinates', () => {
+  it('supports click-first-point then click-second-point', () => {
+    const ctx = makeToolContext();
+
+    click(tool, eventAtWorld({ x: 5, y: 5 }), ctx);
+    expect(useMeasurementStore.getState().pending).toEqual({ kind: 'linear', start: { x: 5, y: 5 } });
+    tool.onMouseMove(eventAtWorld({ x: 15, y: 5 }), ctx);
+    expect(useMeasurementStore.getState().draft?.lengthMm).toBeCloseTo(10);
+    click(tool, eventAtWorld({ x: 15, y: 5 }), ctx);
+
+    const result = useMeasurementStore.getState().result;
+    expect(result?.kind).toBe('linear');
+    if (result?.kind === 'linear') expect(result.lengthMm).toBeCloseTo(10);
+  });
+
+  it('uses snapped endpoints and Shift constrains to 45-degree increments', () => {
     const ctx = makeToolContext();
 
     tool.onMouseDown(eventAtWorld({ x: 1.3, y: 1.2 }, { snappedX: 0, snappedY: 0 }), ctx);
-    tool.onMouseMove(eventAtWorld({ x: 9.7, y: 0.4 }, { snappedX: 10, snappedY: 0 }), ctx);
+    tool.onMouseMove(eventAtWorld({ x: 13, y: 3 }, { snappedX: 13, snappedY: 3, shiftKey: true }), ctx);
+    tool.onMouseUp(eventAtWorld({ x: 13, y: 3 }, { snappedX: 13, snappedY: 3, shiftKey: true }), ctx);
 
-    const state = useMeasurementStore.getState().state;
-    expect(state.type).toBe('drag');
-    if (state.type === 'drag') {
-      expect(state.start).toEqual({ x: 0, y: 0 });
-      expect(state.end).toEqual({ x: 10, y: 0 });
-      expect(state.lengthMm).toBeCloseTo(10);
+    const result = useMeasurementStore.getState().result;
+    expect(result?.kind).toBe('linear');
+    if (result?.kind === 'linear') {
+      expect(result.start).toEqual({ x: 0, y: 0 });
+      expect(result.end.y).toBeCloseTo(0);
+      expect(result.angleDeg).toBeCloseTo(0);
     }
   });
 
-  it('shift constrains drag to the nearest 45-degree angle', () => {
-    const ctx = makeToolContext();
+  it('measures the angle between two clicked segments', () => {
+    const horizontal = makeProjectObject({
+      id: 'horizontal',
+      bounds: { min: { x: 0, y: 0 }, max: { x: 20, y: 10 } },
+    });
+    const vertical = makeProjectObject({
+      id: 'vertical',
+      bounds: { min: { x: 30, y: 0 }, max: { x: 40, y: 20 } },
+    });
+    const ctx = makeToolContext({ objects: [horizontal, vertical] });
+    useMeasurementStore.getState().setMode('angle');
 
-    tool.onMouseDown(eventAtWorld({ x: 0, y: 0 }), ctx);
-    tool.onMouseMove(eventAtWorld({ x: 13, y: 3 }, { shiftKey: true }), ctx);
+    click(tool, eventAtWorld({ x: 10, y: 0 }), ctx);
+    expect(useMeasurementStore.getState().pending?.kind).toBe('angle');
+    click(tool, eventAtWorld({ x: 30, y: 10 }), ctx);
 
-    const state = useMeasurementStore.getState().state;
-    expect(state.type).toBe('drag');
-    if (state.type === 'drag') {
-      expect(state.end.y).toBeCloseTo(0);
-      expect(state.angleDeg).toBeCloseTo(0);
+    const result = useMeasurementStore.getState().result;
+    expect(result?.kind).toBe('angle');
+    if (result?.kind === 'angle') expect(result.angleDeg).toBeCloseTo(90);
+  });
+
+  it('reports radius and diameter for an ellipse object', () => {
+    const circle = makeProjectObject({
+      id: 'circle',
+      data: { type: 'shape', kind: 'ellipse', width: 20, height: 20, corner_radius: 0 },
+      bounds: { min: { x: 0, y: 0 }, max: { x: 20, y: 20 } },
+    });
+    const ctx = makeToolContext({ objects: [circle] });
+    useMeasurementStore.getState().setMode('radius');
+
+    click(tool, eventAtWorld({ x: 10, y: 10 }), ctx);
+
+    const result = useMeasurementStore.getState().result;
+    expect(result?.kind).toBe('radius');
+    if (result?.kind === 'radius') {
+      expect(result.radiusXmm).toBeCloseTo(10);
+      expect(result.diameterXmm).toBeCloseTo(20);
+      expect(result.circular).toBe(true);
     }
   });
 
-  it('clears a non-zero drag on mouse up', () => {
-    const ctx = makeToolContext();
+  it('measures the closest gap between two objects', () => {
+    const first = makeProjectObject({
+      id: 'first',
+      name: 'First',
+      bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
+    });
+    const second = makeProjectObject({
+      id: 'second',
+      name: 'Second',
+      bounds: { min: { x: 20, y: 0 }, max: { x: 30, y: 10 } },
+    });
+    const ctx = makeToolContext({ objects: [first, second] });
+    useMeasurementStore.getState().setMode('gap');
 
+    click(tool, eventAtWorld({ x: 5, y: 5 }), ctx);
+    click(tool, eventAtWorld({ x: 25, y: 5 }), ctx);
+
+    const result = useMeasurementStore.getState().result;
+    expect(result?.kind).toBe('gap');
+    if (result?.kind === 'gap') {
+      expect(result.lengthMm).toBeCloseTo(10);
+      expect(result.horizontalGapMm).toBeCloseTo(10);
+      expect(result.verticalGapMm).toBeCloseTo(0);
+    }
+  });
+
+  it('Escape clears a result first, then returns to Select', () => {
+    const ctx = makeToolContext();
     tool.onMouseDown(eventAtWorld({ x: 0, y: 0 }), ctx);
     tool.onMouseMove(eventAtWorld({ x: 10, y: 0 }), ctx);
     tool.onMouseUp(eventAtWorld({ x: 10, y: 0 }), ctx);
 
-    expect(useMeasurementStore.getState().state.type).toBe('idle');
+    tool.onKeyDown?.(new KeyboardEvent('keydown', { key: 'Escape' }), ctx);
+    expect(useMeasurementStore.getState().result).toBeNull();
+    expect(useUiStore.getState().activeTool).toBe('measure');
+
+    tool.onKeyDown?.(new KeyboardEvent('keydown', { key: 'Escape' }), ctx);
+    expect(useUiStore.getState().activeTool).toBe('select');
   });
 
-  it('zero-distance click resolves back to hover under the cursor', () => {
-    const object = makeProjectObject({
-      id: 'rect-1',
-      bounds: { min: { x: 0, y: 0 }, max: { x: 20, y: 10 } },
-    });
-    const ctx = makeToolContext({ objects: [object] });
-    const event = eventAtWorld({ x: 10, y: 0 });
-
-    tool.onMouseDown(event, ctx);
-    tool.onMouseUp(event, ctx);
-
-    const state = useMeasurementStore.getState().state;
-    expect(state.type).toBe('hover');
-    if (state.type === 'hover') {
-      expect(state.objectId).toBe('rect-1');
-    }
-  });
-
-  it('reset clears measurement state', () => {
+  it('reset clears transient and persistent measurement state', () => {
     const ctx = makeToolContext();
     tool.onMouseDown(eventAtWorld({ x: 0, y: 0 }), ctx);
+    tool.onMouseMove(eventAtWorld({ x: 10, y: 0 }), ctx);
+    tool.onMouseUp(eventAtWorld({ x: 10, y: 0 }), ctx);
 
     tool.reset();
 
-    expect(useMeasurementStore.getState().state.type).toBe('idle');
+    const state = useMeasurementStore.getState();
+    expect(state.hover).toBeNull();
+    expect(state.draft).toBeNull();
+    expect(state.pending).toBeNull();
+    expect(state.result).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import { usePreviewStore } from '../../stores/previewStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { useAppStore } from '../../stores/appStore';
 import { useCameraStore } from '../../stores/cameraStore';
+import { useMeasurementStore } from '../../stores/measurementStore';
 import { vectorService } from '../../services/vectorService';
 import { remapPersistentTabMarker, type PersistentTabMarkerSnapshot } from '../../canvas/tabMarkerPreview';
 import { projectService } from '../../services/projectService';
@@ -842,6 +843,11 @@ export function Canvas() {
     overlayRafRef.current = requestAnimationFrame(renderWhenReady);
   }, [renderToolOverlay]);
 
+  useEffect(
+    () => useMeasurementStore.subscribe(() => requestOverlayRender()),
+    [requestOverlayRender],
+  );
+
   // Selection dash animation (marching ants).
   useEffect(() => {
     if (selectedObjectIds.length === 0 || settings?.reduce_motion || hasHeavySelection) {
@@ -925,6 +931,7 @@ export function Canvas() {
         snapToObjects: snapToObjects || activeTool === 'measure',
         snapThresholdPx: settings?.snap_threshold_px ?? null,
         preferredTargetKey: geometrySnapMemoryRef.current,
+        snapToWorkspace: activeTool === 'measure',
       });
       geometrySnapMemoryRef.current = snapResult.nextPreferredTargetKey;
 

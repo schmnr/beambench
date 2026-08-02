@@ -47,7 +47,7 @@ export function StatusBar() {
   const project = useProjectStore((s) => s.project);
 
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
-  const measurement = useMeasurementStore((s) => s.state);
+  const measurement = useMeasurementStore((s) => s);
 
   const jobProgress = useMachineStore((s) => s.jobProgress);
 
@@ -97,13 +97,25 @@ export function StatusBar() {
 
   const measurementStatus = (() => {
     if (activeTool !== 'measure') return null;
-    if (measurement.type === 'drag') {
-      return `dx: ${formatPos(measurement.dxMm)} ${unitLabel}  dy: ${formatPos(measurement.dyMm)} ${unitLabel}  len: ${formatPos(measurement.lengthMm)} ${unitLabel}  angle: ${measurement.angleDeg.toFixed(1)}°`;
+    const linear = measurement.draft
+      ?? (measurement.result?.kind === 'linear' || measurement.result?.kind === 'gap'
+        ? measurement.result
+        : null);
+    if (linear) {
+      return `dx: ${formatPos(linear.dxMm)} ${unitLabel}  dy: ${formatPos(linear.dyMm)} ${unitLabel}  len: ${formatPos(linear.lengthMm)} ${unitLabel}  angle: ${linear.angleDeg.toFixed(1)}°`;
     }
-    if (measurement.type === 'hover') {
-      const objectSummary = `w: ${formatPos(measurement.objectMetrics.widthMm)} ${unitLabel}  h: ${formatPos(measurement.objectMetrics.heightMm)} ${unitLabel}  area: ${formatArea(measurement.objectMetrics.areaMm2)}`;
-      if (measurement.segment) {
-        return `${objectSummary}  seg: ${formatPos(measurement.segment.lengthMm)} ${unitLabel} @ ${measurement.segment.angleDeg.toFixed(1)}°`;
+    if (measurement.result?.kind === 'angle') {
+      return `angle: ${measurement.result.angleDeg.toFixed(1)}°`;
+    }
+    if (measurement.result?.kind === 'radius') {
+      return measurement.result.circular
+        ? `radius: ${formatPos(measurement.result.radiusXmm)} ${unitLabel}  diameter: ${formatPos(measurement.result.diameterXmm)} ${unitLabel}`
+        : `rx: ${formatPos(measurement.result.radiusXmm)} ${unitLabel}  ry: ${formatPos(measurement.result.radiusYmm)} ${unitLabel}`;
+    }
+    if (measurement.hover) {
+      const objectSummary = `w: ${formatPos(measurement.hover.objectMetrics.widthMm)} ${unitLabel}  h: ${formatPos(measurement.hover.objectMetrics.heightMm)} ${unitLabel}  area: ${formatArea(measurement.hover.objectMetrics.areaMm2)}`;
+      if (measurement.hover.segment) {
+        return `${objectSummary}  seg: ${formatPos(measurement.hover.segment.lengthMm)} ${unitLabel} @ ${measurement.hover.segment.angleDeg.toFixed(1)}°`;
       }
       return objectSummary;
     }

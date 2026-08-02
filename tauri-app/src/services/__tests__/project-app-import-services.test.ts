@@ -463,7 +463,7 @@ describe('appService methods', () => {
           'top-right': { panel_ids: ['laser'], active_tab: 'laser' },
           'middle-right': { panel_ids: ['camera', 'macros', 'console'], active_tab: 'camera' },
         },
-        run_hidden_panel_ids: ['cuts_layers', 'properties', 'measurement', 'material', 'art_library', 'connection_diagnostics'],
+        run_hidden_panel_ids: ['cuts_layers', 'properties', 'material', 'art_library', 'connection_diagnostics'],
         run_upper_split_ratio: 0.58,
         column_split_ratios: {
           design_left: [1, 0, 0],

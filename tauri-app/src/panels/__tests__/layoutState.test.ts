@@ -18,7 +18,6 @@ describe('layoutState', () => {
       'move',
       'console',
       'macros',
-      'measurement',
       'laser',
       'material',
       'camera',

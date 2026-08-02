@@ -148,7 +148,7 @@ describe('DnD Integration — full workflows through store actions', () => {
   });
 
   it('registry has 11 panels total', () => {
-    expect(PANEL_REGISTRY).toHaveLength(11);
+    expect(PANEL_REGISTRY).toHaveLength(10);
   });
 
   it('float → dock at specific index → appears at that position', () => {

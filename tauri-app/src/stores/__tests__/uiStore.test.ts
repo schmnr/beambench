@@ -79,31 +79,26 @@ describe('uiStore', () => {
     expect(useUiStore.getState().activeTool).toBe('select');
   });
 
-  it('shows and persists the Measurement panel when Measure is activated or re-activated', () => {
-    const persistLayout = vi.spyOn(appService, 'persistLayout').mockImplementation(() => undefined);
+  it('activates Measure without creating a standalone dock panel', () => {
+    const panelLayout = createDefaultLayout();
     useUiStore.setState({
-      activeTool: 'measure',
+      activeTool: 'select',
       sidePanelsVisible: false,
-      panelLayout: {
-        ...createDefaultLayout(),
-        sidePanelsVisible: false,
-      },
+      panelLayout,
     });
 
     useUiStore.getState().setActiveTool('measure');
 
     const state = useUiStore.getState();
     expect(state.activeTool).toBe('measure');
-    expect(state.sidePanelsVisible).toBe(true);
-    expect(state.panelLayout.hiddenPanelIds).not.toContain('measurement');
-    expect(state.panelLayout.zones['top-right'].panelIds).toContain('measurement');
-    expect(state.panelLayout.zones['top-right'].activeTab).toBe('measurement');
-    expect(persistLayout).toHaveBeenCalledWith(state.panelLayout);
+    expect(state.sidePanelsVisible).toBe(false);
+    expect(state.panelLayout).toEqual(panelLayout);
   });
 
   it('clears measurement state when switching away from Measure', () => {
     useUiStore.setState({ activeTool: 'measure' });
-    useMeasurementStore.getState().setDrag({
+    useMeasurementStore.getState().setResult({
+      kind: 'linear',
       start: { x: 0, y: 0 },
       end: { x: 10, y: 0 },
       dxMm: 10,
@@ -114,7 +109,7 @@ describe('uiStore', () => {
 
     useUiStore.getState().setActiveTool('select');
 
-    expect(useMeasurementStore.getState().state.type).toBe('idle');
+    expect(useMeasurementStore.getState().result).toBeNull();
   });
 
   it('changes viewStyle', () => {

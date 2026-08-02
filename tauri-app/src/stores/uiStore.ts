@@ -497,68 +497,6 @@ function collapseWorkspaceZone(workspace: WorkspacePanelLayout, zone: PhysicalDo
   };
 }
 
-function showMeasurementPanel(
-  layout: PanelLayoutState,
-  nextFloatingZIndex: number,
-): { layout: PanelLayoutState; nextFloatingZIndex: number } {
-  const panelId = 'measurement';
-  const hiddenPanelIds = layout.hiddenPanelIds.filter((id) => id !== panelId);
-  const floatingPanels = layout.floatingPanels;
-  const floatingPanel = floatingPanels.find((panel) => panel.panelId === panelId);
-  if (floatingPanel) {
-    return {
-      layout: {
-        ...layout,
-        sidePanelsVisible: true,
-        hiddenPanelIds,
-        floatingPanels: floatingPanels.map((panel) =>
-          panel.panelId === panelId ? { ...panel, zIndex: nextFloatingZIndex } : panel,
-        ),
-      },
-      nextFloatingZIndex: nextFloatingZIndex + 1,
-    };
-  }
-
-  const existingZoneKey = (Object.keys(layout.zones) as PhysicalDockZone[]).find((zoneKey) =>
-    layout.zones[zoneKey].panelIds.includes(panelId),
-  );
-  if (existingZoneKey) {
-    return {
-      layout: {
-        ...layout,
-        sidePanelsVisible: true,
-        hiddenPanelIds,
-        zones: {
-          ...layout.zones,
-          [existingZoneKey]: {
-            ...layout.zones[existingZoneKey],
-            activeTab: panelId,
-          },
-        },
-      },
-      nextFloatingZIndex,
-    };
-  }
-
-  const targetZone: PhysicalDockZone = 'top-right';
-  return {
-    layout: {
-      ...layout,
-      sidePanelsVisible: true,
-      hiddenPanelIds,
-      zones: {
-        ...layout.zones,
-        [targetZone]: {
-          ...layout.zones[targetZone],
-          panelIds: [...layout.zones[targetZone].panelIds, panelId],
-          activeTab: panelId,
-        },
-      },
-    },
-    nextFloatingZIndex,
-  };
-}
-
 export const useUiStore = create<UiStoreState>((set) => ({
   panelLayout: createDefaultLayout(),
   nextFloatingZIndex: 1,
@@ -1300,13 +1238,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
       useMeasurementStore.getState().clear();
     }
     if (!hasPendingTextEdit()) {
-      set((s) => {
-        const panelUpdate = tool === 'measure'
-          ? showMeasurementPanel(s.panelLayout, s.nextFloatingZIndex)
-          : { layout: s.panelLayout, nextFloatingZIndex: s.nextFloatingZIndex };
-        if (tool === 'measure') {
-          appService.persistLayout(panelUpdate.layout);
-        }
+      set(() => {
         return {
           activeTool: tool,
           modifierPropertiesSession: null,
@@ -1316,9 +1248,6 @@ export const useUiStore = create<UiStoreState>((set) => ({
           // re-selects the tool that is already active (most often Select).
           pendingStartPointObjectId: null,
           ...EMPTY_TEXT_EDIT_STATE,
-          panelLayout: panelUpdate.layout,
-          sidePanelsVisible: panelUpdate.layout.sidePanelsVisible,
-          nextFloatingZIndex: panelUpdate.nextFloatingZIndex,
         };
       });
       if (shouldDelete && prevId) {
@@ -1328,22 +1257,13 @@ export const useUiStore = create<UiStoreState>((set) => ({
     }
     void (async () => {
       if (await commitPendingTextEdit()) {
-        set((s) => {
-          const panelUpdate = tool === 'measure'
-            ? showMeasurementPanel(s.panelLayout, s.nextFloatingZIndex)
-            : { layout: s.panelLayout, nextFloatingZIndex: s.nextFloatingZIndex };
-          if (tool === 'measure') {
-            appService.persistLayout(panelUpdate.layout);
-          }
+        set(() => {
           return {
             activeTool: tool,
             modifierPropertiesSession: null,
             nodeSubMode: 'select' as NodeSubMode,
             pendingStartPointObjectId: null,
             ...EMPTY_TEXT_EDIT_STATE,
-            panelLayout: panelUpdate.layout,
-            sidePanelsVisible: panelUpdate.layout.sidePanelsVisible,
-            nextFloatingZIndex: panelUpdate.nextFloatingZIndex,
           };
         });
         if (shouldDelete && prevId) {

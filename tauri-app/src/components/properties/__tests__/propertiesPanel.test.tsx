@@ -3,6 +3,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { PropertiesPanel } from '../PropertiesPanel';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
+import { useMeasurementStore } from '../../../stores/measurementStore';
 import { makeLayer, makeProject as makeProjectFixture, makeProjectObject, makeStarObjectData, makeTextObjectData } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -39,9 +40,44 @@ afterEach(() => {
   cleanup();
   useProjectStore.setState(initialState, true);
   useUiStore.setState(initialUiState, true);
+  useMeasurementStore.getState().clear();
+  useMeasurementStore.setState({ mode: 'linear' });
 });
 
 describe('PropertiesPanel', () => {
+  it('shows contextual Measure modes even when nothing is selected', () => {
+    useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
+    useUiStore.setState({ activeTool: 'measure' });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByTestId('measurement-properties-section')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Linear' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Gap' }));
+    expect(useMeasurementStore.getState().mode).toBe('gap');
+    expect(screen.getByText('Click two objects to measure their closest gap')).toBeDefined();
+  });
+
+  it('shows persistent measurement results and clears them from Properties', () => {
+    useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
+    useUiStore.setState({ activeTool: 'measure' });
+    useMeasurementStore.getState().setResult({
+      kind: 'linear',
+      start: { x: 0, y: 0 },
+      end: { x: 30, y: 40 },
+      dxMm: 30,
+      dyMm: 40,
+      lengthMm: 50,
+      angleDeg: 53.13,
+    });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByTestId('measurement-results').textContent).toContain('50.00 mm');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear measurement' }));
+    expect(useMeasurementStore.getState().result).toBeNull();
+  });
+
   it('shows one Warp tool with 4-point and 16-point modes in Properties', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
     useUiStore.setState({ activeTool: 'warp', meshDeformMode: 'warp' });

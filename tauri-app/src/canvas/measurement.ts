@@ -12,6 +12,7 @@ import {
 } from './drawObjects';
 
 export const MEASURE_SEGMENT_HIT_TOLERANCE_PX = 8;
+export type MeasurementMode = 'linear' | 'angle' | 'radius' | 'gap';
 
 export interface MeasurementSegmentMetrics {
   start: Point2D;
@@ -53,6 +54,52 @@ export interface MeasurementDragMetrics {
   angleDeg: number;
 }
 
+export interface MeasurementLinearResult extends MeasurementDragMetrics {
+  kind: 'linear';
+}
+
+export interface MeasurementAngleResult {
+  kind: 'angle';
+  first: MeasurementSegmentMetrics;
+  second: MeasurementSegmentMetrics;
+  angleDeg: number;
+  labelPoint: Point2D;
+}
+
+export interface MeasurementRadiusResult {
+  kind: 'radius';
+  objectId: string;
+  objectName: string;
+  center: Point2D;
+  edgePoint: Point2D;
+  radiusXmm: number;
+  radiusYmm: number;
+  diameterXmm: number;
+  diameterYmm: number;
+  circular: boolean;
+}
+
+export interface MeasurementGapResult extends MeasurementDragMetrics {
+  kind: 'gap';
+  firstObjectId: string;
+  firstObjectName: string;
+  secondObjectId: string;
+  secondObjectName: string;
+  horizontalGapMm: number;
+  verticalGapMm: number;
+}
+
+export type MeasurementResult =
+  | MeasurementLinearResult
+  | MeasurementAngleResult
+  | MeasurementRadiusResult
+  | MeasurementGapResult;
+
+export type MeasurementPending =
+  | { kind: 'linear'; start: Point2D }
+  | { kind: 'angle'; objectId: string; segment: MeasurementSegmentMetrics }
+  | { kind: 'gap'; objectId: string; objectName: string };
+
 function boundsWidth(bounds: Bounds): number {
   return bounds.max.x - bounds.min.x;
 }
@@ -83,6 +130,63 @@ export function buildDragMeasurement(start: Point2D, end: Point2D): MeasurementD
     dyMm,
     lengthMm: Math.hypot(dxMm, dyMm),
     angleDeg: angleDeg(start, end),
+  };
+}
+
+export function buildLinearMeasurement(start: Point2D, end: Point2D): MeasurementLinearResult {
+  return { kind: 'linear', ...buildDragMeasurement(start, end) };
+}
+
+export function buildAngleMeasurement(
+  first: MeasurementSegmentMetrics,
+  second: MeasurementSegmentMetrics,
+): MeasurementAngleResult {
+  const firstAngle = Math.atan2(first.dyMm, first.dxMm);
+  const secondAngle = Math.atan2(second.dyMm, second.dxMm);
+  let difference = Math.abs((secondAngle - firstAngle) * (180 / Math.PI)) % 360;
+  if (difference > 180) difference = 360 - difference;
+  return {
+    kind: 'angle',
+    first,
+    second,
+    angleDeg: difference,
+    labelPoint: {
+      x: (first.start.x + first.end.x + second.start.x + second.end.x) / 4,
+      y: (first.start.y + first.end.y + second.start.y + second.end.y) / 4,
+    },
+  };
+}
+
+export function buildRadiusMeasurement(object: ProjectObject): MeasurementRadiusResult | null {
+  if (object.data.type !== 'shape' || object.data.kind !== 'ellipse') return null;
+  const center = {
+    x: (object.bounds.min.x + object.bounds.max.x) / 2,
+    y: (object.bounds.min.y + object.bounds.max.y) / 2,
+  };
+  const localRadiusX = boundsWidth(object.bounds) / 2;
+  const localRadiusY = boundsHeight(object.bounds) / 2;
+  const radiusXmm = localRadiusX * Math.hypot(object.transform.a, object.transform.b);
+  const radiusYmm = localRadiusY * Math.hypot(object.transform.c, object.transform.d);
+  const worldCenter = {
+    x: center.x + object.transform.tx,
+    y: center.y + object.transform.ty,
+  };
+  const edgePoint = {
+    x: worldCenter.x + object.transform.a * localRadiusX,
+    y: worldCenter.y + object.transform.b * localRadiusX,
+  };
+  const scale = Math.max(radiusXmm, radiusYmm, 1);
+  return {
+    kind: 'radius',
+    objectId: object.id,
+    objectName: object.name,
+    center: worldCenter,
+    edgePoint,
+    radiusXmm,
+    radiusYmm,
+    diameterXmm: radiusXmm * 2,
+    diameterYmm: radiusYmm * 2,
+    circular: Math.abs(radiusXmm - radiusYmm) <= scale * 1e-4,
   };
 }
 
@@ -271,6 +375,129 @@ export function buildObjectMeasurementMetrics(
     },
     closed: closedState(object),
     areaMm2: primitiveAreaMm2(object, segments),
+  };
+}
+
+function boundsSegments(bounds: Bounds): SnapSegment[] {
+  const points = [
+    { x: bounds.min.x, y: bounds.min.y },
+    { x: bounds.max.x, y: bounds.min.y },
+    { x: bounds.max.x, y: bounds.max.y },
+    { x: bounds.min.x, y: bounds.max.y },
+  ];
+  return points.map((start, index) => ({
+    start,
+    end: points[(index + 1) % points.length],
+    key: `bounds:${index}`,
+    isGuide: false,
+  }));
+}
+
+function sampledSegments(segments: SnapSegment[], maxSegments = 700): SnapSegment[] {
+  if (segments.length <= maxSegments) return segments;
+  const step = segments.length / maxSegments;
+  return Array.from({ length: maxSegments }, (_, index) => segments[Math.floor(index * step)]);
+}
+
+function closestPointOnWorldSegment(point: Point2D, start: Point2D, end: Point2D): Point2D {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= 1e-12) return start;
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return { x: start.x + dx * t, y: start.y + dy * t };
+}
+
+function worldSegmentIntersection(
+  first: SnapSegment,
+  second: SnapSegment,
+): Point2D | null {
+  const firstDx = first.end.x - first.start.x;
+  const firstDy = first.end.y - first.start.y;
+  const secondDx = second.end.x - second.start.x;
+  const secondDy = second.end.y - second.start.y;
+  const denominator = firstDx * secondDy - firstDy * secondDx;
+  if (Math.abs(denominator) <= 1e-12) return null;
+  const offsetX = second.start.x - first.start.x;
+  const offsetY = second.start.y - first.start.y;
+  const firstT = (offsetX * secondDy - offsetY * secondDx) / denominator;
+  const secondT = (offsetX * firstDy - offsetY * firstDx) / denominator;
+  if (firstT < 0 || firstT > 1 || secondT < 0 || secondT > 1) return null;
+  return {
+    x: first.start.x + firstT * firstDx,
+    y: first.start.y + firstT * firstDy,
+  };
+}
+
+function axisGap(firstMin: number, firstMax: number, secondMin: number, secondMax: number): number {
+  if (firstMax < secondMin) return secondMin - firstMax;
+  if (secondMax < firstMin) return firstMin - secondMax;
+  return 0;
+}
+
+export function buildGapMeasurement(
+  first: ProjectObject,
+  second: ProjectObject,
+  allObjects?: ProjectObject[],
+): MeasurementGapResult | null {
+  if (first.id === second.id) return null;
+  const firstBounds = computeVisualBoundsWorld(first, allObjects);
+  const secondBounds = computeVisualBoundsWorld(second, allObjects);
+  const firstCenter = {
+    x: (firstBounds.min.x + firstBounds.max.x) / 2,
+    y: (firstBounds.min.y + firstBounds.max.y) / 2,
+  };
+  const secondCenter = {
+    x: (secondBounds.min.x + secondBounds.max.x) / 2,
+    y: (secondBounds.min.y + secondBounds.max.y) / 2,
+  };
+  const firstGeometrySegments = getObjectSnapSegments(first, allObjects);
+  const secondGeometrySegments = getObjectSnapSegments(second, allObjects);
+  const firstSegments = sampledSegments(
+    firstGeometrySegments.length > 0 ? firstGeometrySegments : boundsSegments(firstBounds),
+  );
+  const secondSegments = sampledSegments(
+    secondGeometrySegments.length > 0 ? secondGeometrySegments : boundsSegments(secondBounds),
+  );
+
+  let bestStart = firstCenter;
+  let bestEnd = secondCenter;
+  let bestDistance = distance(bestStart, bestEnd);
+  const consider = (start: Point2D, end: Point2D) => {
+    const candidateDistance = distance(start, end);
+    if (candidateDistance < bestDistance) {
+      bestDistance = candidateDistance;
+      bestStart = start;
+      bestEnd = end;
+    }
+  };
+
+  for (const firstSegment of firstSegments) {
+    for (const secondSegment of secondSegments) {
+      const intersection = worldSegmentIntersection(firstSegment, secondSegment);
+      if (intersection) {
+        bestStart = intersection;
+        bestEnd = intersection;
+        bestDistance = 0;
+        break;
+      }
+      consider(firstSegment.start, closestPointOnWorldSegment(firstSegment.start, secondSegment.start, secondSegment.end));
+      consider(firstSegment.end, closestPointOnWorldSegment(firstSegment.end, secondSegment.start, secondSegment.end));
+      consider(closestPointOnWorldSegment(secondSegment.start, firstSegment.start, firstSegment.end), secondSegment.start);
+      consider(closestPointOnWorldSegment(secondSegment.end, firstSegment.start, firstSegment.end), secondSegment.end);
+    }
+    if (bestDistance === 0) break;
+  }
+
+  return {
+    kind: 'gap',
+    firstObjectId: first.id,
+    firstObjectName: first.name,
+    secondObjectId: second.id,
+    secondObjectName: second.name,
+    ...buildDragMeasurement(bestStart, bestEnd),
+    horizontalGapMm: axisGap(firstBounds.min.x, firstBounds.max.x, secondBounds.min.x, secondBounds.max.x),
+    verticalGapMm: axisGap(firstBounds.min.y, firstBounds.max.y, secondBounds.min.y, secondBounds.max.y),
   };
 }
 

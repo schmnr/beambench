@@ -153,7 +153,8 @@ describe('StatusBar', () => {
       selectedObjectIds: ['o1'],
     });
     useUiStore.setState({ activeTool: 'measure' });
-    useMeasurementStore.getState().setDrag({
+    useMeasurementStore.getState().setResult({
+      kind: 'linear',
       start: { x: 0, y: 0 },
       end: { x: 30, y: 40 },
       dxMm: 30,

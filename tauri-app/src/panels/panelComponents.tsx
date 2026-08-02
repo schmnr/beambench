@@ -13,7 +13,6 @@ import { MaterialLibrary } from '../components/machine/MaterialLibrary';
 import { CameraContent } from '../components/machine/CameraContent';
 import { ArtLibraryPanel } from '../components/panels/ArtLibraryPanel';
 import { ConnectionDiagnosticsPanel } from '../components/panels/ConnectionDiagnosticsPanel';
-import { MeasurementPanel } from '../components/panels/MeasurementPanel';
 import { INSPECTOR_CARD_CLASS } from '../components/shared/panelAppearance';
 import { getPanelTypeId } from './panelRegistry';
 
@@ -81,7 +80,6 @@ export const PANEL_COMPONENTS: Record<string, ComponentType> = {
   console: ConsoleContent,
   macros: MacrosContent,
   properties: PropertiesContent,
-  measurement: MeasurementPanel,
   laser: LaserContent,
   material: MaterialLibrary,
   camera: CameraPanelContent,

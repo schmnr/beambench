@@ -64,7 +64,12 @@ import {
   cameraOverlayCanvasTransform,
   type CameraOverlayRenderParams,
 } from './cameraOverlay';
-import type { MeasurementDragMetrics, MeasurementSegmentMetrics } from './measurement';
+import type {
+  MeasurementDragMetrics,
+  MeasurementPending,
+  MeasurementResult,
+  MeasurementSegmentMetrics,
+} from './measurement';
 
 export type ToolOverlay =
   | { type: 'none' }
@@ -116,7 +121,9 @@ export type ToolOverlay =
       type: 'measure-inspection';
       hoverObjectId?: string;
       hoverSegment?: MeasurementSegmentMetrics | null;
-      drag?: MeasurementDragMetrics;
+      draft?: MeasurementDragMetrics | null;
+      result?: MeasurementResult | null;
+      pending?: MeasurementPending | null;
     }
   | { type: 'trim-preview'; segmentScreenPoints: Point2D[] }
   | {
@@ -1260,24 +1267,24 @@ export class CanvasRenderer {
     theme: CanvasTheme,
   ): void {
     const { objects, layers, vp } = params;
-    if (overlay.hoverObjectId) {
-      const object = objects.find((candidate) => candidate.id === overlay.hoverObjectId);
+    const drawHighlightedObject = (objectId: string, color: string, alpha: number) => {
+      const object = objects.find((candidate) => candidate.id === objectId);
       if (object) {
         const sourceLayer = layers.find((layer) => layer.id === object.layer_id);
         const highlightLayer: Layer = sourceLayer
-          ? { ...sourceLayer, color_tag: MEASURE_OBJECT_STROKE, is_tool_layer: false }
+          ? { ...sourceLayer, color_tag: color, is_tool_layer: false }
           : {
               id: 'measure-highlight',
               name: 'Measure Highlight',
               entries: [],
               enabled: true,
               order_index: 0,
-              color_tag: MEASURE_OBJECT_STROKE,
+              color_tag: color,
               visible: true,
               is_tool_layer: false,
             };
         ctx.save();
-        ctx.globalAlpha = 0.95;
+        ctx.globalAlpha = alpha;
         drawObject(
           ctx,
           object,
@@ -1292,6 +1299,13 @@ export class CanvasRenderer {
         );
         ctx.restore();
       }
+    };
+
+    if (overlay.pending?.kind === 'gap') {
+      drawHighlightedObject(overlay.pending.objectId, '#ffd43b', 0.95);
+    }
+    if (overlay.hoverObjectId) {
+      drawHighlightedObject(overlay.hoverObjectId, MEASURE_OBJECT_STROKE, 0.95);
     }
 
     if (overlay.hoverSegment) {
@@ -1313,16 +1327,141 @@ export class CanvasRenderer {
       ctx.restore();
     }
 
-    if (overlay.drag) {
+    if (overlay.pending?.kind === 'angle') {
+      this.drawMeasurementSegment(ctx, overlay.pending.segment, vp, '#ffd43b', 3);
+    }
+
+    if (overlay.pending?.kind === 'linear' && !overlay.draft) {
+      const point = worldToScreen(overlay.pending.start, vp);
+      ctx.save();
+      ctx.fillStyle = '#ffd43b';
+      ctx.strokeStyle = 'rgba(12, 15, 19, 0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (overlay.draft) {
       drawMeasureLine(
         ctx,
-        worldToScreen(overlay.drag.start, vp),
-        worldToScreen(overlay.drag.end, vp),
-        overlay.drag.lengthMm,
-        overlay.drag.angleDeg,
+        worldToScreen(overlay.draft.start, vp),
+        worldToScreen(overlay.draft.end, vp),
+        overlay.draft.lengthMm,
+        overlay.draft.angleDeg,
         displayUnit,
       );
     }
+
+    if (overlay.result) {
+      this.drawMeasurementResult(ctx, overlay.result, vp, displayUnit);
+    }
+  }
+
+  private drawMeasurementSegment(
+    ctx: CanvasRenderingContext2D,
+    segment: MeasurementSegmentMetrics,
+    vp: ViewportParams,
+    color: string,
+    lineWidth = 2,
+  ): void {
+    const start = worldToScreen(segment.start, vp);
+    const end = worldToScreen(segment.end, vp);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+    for (const point of [start, end]) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  private drawMeasurementLabel(
+    ctx: CanvasRenderingContext2D,
+    screenPoint: Point2D,
+    label: string,
+  ): void {
+    ctx.save();
+    ctx.font = '600 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const width = ctx.measureText(label).width + 12;
+    const height = 22;
+    ctx.fillStyle = 'rgba(12, 15, 19, 0.92)';
+    ctx.strokeStyle = '#ffd43b';
+    ctx.lineWidth = 1;
+    ctx.fillRect(screenPoint.x - width / 2, screenPoint.y - height / 2, width, height);
+    ctx.strokeRect(screenPoint.x - width / 2, screenPoint.y - height / 2, width, height);
+    ctx.fillStyle = '#ffd43b';
+    ctx.fillText(label, screenPoint.x, screenPoint.y + 0.5);
+    ctx.restore();
+  }
+
+  private drawMeasurementResult(
+    ctx: CanvasRenderingContext2D,
+    result: MeasurementResult,
+    vp: ViewportParams,
+    displayUnit: 'mm' | 'inches',
+  ): void {
+    const formatLength = (valueMm: number) => {
+      if (displayUnit === 'inches') return `${(valueMm / 25.4).toFixed(3)} in`;
+      return `${valueMm.toFixed(2)} mm`;
+    };
+
+    if (result.kind === 'linear' || result.kind === 'gap') {
+      drawMeasureLine(
+        ctx,
+        worldToScreen(result.start, vp),
+        worldToScreen(result.end, vp),
+        result.lengthMm,
+        result.angleDeg,
+        displayUnit,
+      );
+      return;
+    }
+
+    if (result.kind === 'angle') {
+      this.drawMeasurementSegment(ctx, result.first, vp, '#ffd43b', 2.5);
+      this.drawMeasurementSegment(ctx, result.second, vp, '#ffd43b', 2.5);
+      this.drawMeasurementLabel(
+        ctx,
+        worldToScreen(result.labelPoint, vp),
+        `${result.angleDeg.toFixed(1)}°`,
+      );
+      return;
+    }
+
+    const center = worldToScreen(result.center, vp);
+    const edge = worldToScreen(result.edgePoint, vp);
+    ctx.save();
+    ctx.strokeStyle = '#ffd43b';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath();
+    ctx.moveTo(center.x, center.y);
+    ctx.lineTo(edge.x, edge.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (const point of [center, edge]) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffd43b';
+      ctx.fill();
+    }
+    ctx.restore();
+    const label = result.circular
+      ? `R ${formatLength(result.radiusXmm)}  Ø ${formatLength(result.diameterXmm)}`
+      : `Rx ${formatLength(result.radiusXmm)}  Ry ${formatLength(result.radiusYmm)}`;
+    this.drawMeasurementLabel(ctx, { x: (center.x + edge.x) / 2, y: (center.y + edge.y) / 2 - 12 }, label);
   }
 
   private drawBaseSceneContents(
