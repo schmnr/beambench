@@ -51,7 +51,7 @@ afterEach(() => {
   reactStateMock.pendingFrameUpdaters.length = 0;
 });
 
-function renderFrame() {
+function renderFrame(onRequestClose?: () => void) {
   render(
     <MovableResizableDialogFrame
       title="Test dialog"
@@ -61,6 +61,7 @@ function renderFrame() {
       initialHeight={240}
       minWidth={160}
       minHeight={120}
+      onRequestClose={onRequestClose}
       footer={<button type="button">Done</button>}
     >
       <div>Dialog body</div>
@@ -125,5 +126,18 @@ describe('MovableResizableDialogFrame', () => {
     expect(nextFrame).toBeDefined();
     expect(nextFrame!.width).toBe(startFrame.width + 60);
     expect(nextFrame!.height).toBe(startFrame.height + 40);
+  });
+
+  it('consumes Escape so it does not reach the canvas behind the dialog', () => {
+    const onRequestClose = vi.fn();
+    const backgroundKeyDown = vi.fn();
+    window.addEventListener('keydown', backgroundKeyDown);
+    renderFrame(onRequestClose);
+
+    fireEvent.keyDown(screen.getByTestId('test-dialog-backdrop'), { key: 'Escape' });
+
+    expect(onRequestClose).toHaveBeenCalledTimes(1);
+    expect(backgroundKeyDown).not.toHaveBeenCalled();
+    window.removeEventListener('keydown', backgroundKeyDown);
   });
 });

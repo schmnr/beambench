@@ -605,6 +605,14 @@ describe('importService methods', () => {
     });
   });
 
+  it('cancelTraceImagePreview supersedes in-flight backend work', async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+
+    await importService.cancelTraceImagePreview(9);
+
+    expect(invoke).toHaveBeenCalledWith('cancel_trace_image_preview', { requestId: 9 });
+  });
+
   it('adjustImagePreview accepts only backend raster mode literals', async () => {
     vi.mocked(invoke).mockResolvedValue({ png_base64: '', width: 10, height: 10 });
     const mode: RasterMode = 'halftone';

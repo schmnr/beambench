@@ -102,6 +102,10 @@ export const importService = {
     );
   },
 
+  async cancelTraceImagePreview(requestId: number): Promise<void> {
+    return invoke<void>('cancel_trace_image_preview', { requestId });
+  },
+
   async traceImage(
     objectId: string, threshold = 128, cutoff = 0, turdsize = 2,
     alphamax = 1.0, opttolerance = 0.2, traceAlpha = false, sketchTrace = false, deleteSource = false,

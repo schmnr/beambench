@@ -184,6 +184,8 @@ export function MovableResizableDialogFrame({
       }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
           onRequestClose?.();
         }
       }}

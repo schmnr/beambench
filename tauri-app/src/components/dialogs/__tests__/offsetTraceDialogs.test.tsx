@@ -666,6 +666,80 @@ describe('TraceImageDialog', () => {
     previewSpy.mockRestore();
   });
 
+  it('uses preview request IDs that continue increasing after the dialog is reopened', async () => {
+    vi.useFakeTimers();
+    const previewSpy = vi.spyOn(importService, 'traceImagePreview').mockResolvedValue({
+      paths: [], source_width: 100, source_height: 100,
+    });
+
+    const firstDialog = render(<TraceImageDialog objectId="obj-1" onClose={vi.fn()} />);
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => { await Promise.resolve(); });
+    const firstRequestId = previewSpy.mock.calls[0][8];
+    firstDialog.unmount();
+
+    render(<TraceImageDialog objectId="obj-1" onClose={vi.fn()} />);
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => { await Promise.resolve(); });
+    const secondRequestId = previewSpy.mock.calls[1][8];
+
+    expect(secondRequestId).toBeGreaterThan(firstRequestId);
+
+    previewSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('shows preview failures with a working retry action', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const previewSpy = vi.spyOn(importService, 'traceImagePreview').mockImplementation(() => {
+      calls += 1;
+      return calls === 1
+        ? Promise.reject(new Error('preview failed'))
+        : Promise.resolve({ paths: ['M0 0L10 10'], source_width: 100, source_height: 100 });
+    });
+
+    render(<TraceImageDialog objectId="obj-1" onClose={vi.fn()} />);
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByRole('alert').textContent).toContain('preview failed');
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByText('1 path found')).toBeDefined();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    previewSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('prevents duplicate trace submissions while tracing is in progress', async () => {
+    let resolveTrace: ((objects: ReturnType<typeof makeProjectObject>[]) => void) | null = null;
+    const traceSpy = vi.spyOn(importService, 'traceImage').mockImplementation(() => (
+      new Promise((resolve) => { resolveTrace = resolve; })
+    ));
+    vi.spyOn(useProjectStore.getState(), 'loadProject').mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    render(<TraceImageDialog objectId="obj-1" onClose={onClose} />);
+
+    const submit = screen.getByTestId('trace-submit');
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(traceSpy).toHaveBeenCalledTimes(1);
+    expect(submit.hasAttribute('disabled')).toBe(true);
+
+    await act(async () => {
+      resolveTrace!([]);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+
+    traceSpy.mockRestore();
+  });
+
   it('left-dragging in the preview commits a boundary for preview and submit', async () => {
     vi.useFakeTimers();
     const boundary = { x: 25, y: 25, width: 50, height: 50 };
@@ -803,6 +877,14 @@ describe('TraceImageDialog', () => {
     await act(async () => { vi.advanceTimersByTime(500); });
     await act(async () => { await Promise.resolve(); });
     expect(screen.getByText('1 path found')).toBeDefined();
+
+    const frame = screen.getByTestId('trace-preview-frame');
+    const dialog = screen.getByRole('dialog');
+    await act(async () => {
+      fireEvent.mouseDown(frame, { button: 0, clientX: 0.25, clientY: 0.25 });
+      fireEvent.mouseMove(dialog, { clientX: 0.75, clientY: 0.75 });
+      fireEvent.mouseUp(dialog);
+    });
 
     fireEvent.click(screen.getByTestId('trace-clear-boundary'));
 

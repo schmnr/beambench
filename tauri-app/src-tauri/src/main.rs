@@ -371,6 +371,7 @@ fn main() {
             commands::import::import_eps_file,
             commands::import::import_gcode_file,
             commands::import::trace_image_preview,
+            commands::import::cancel_trace_image_preview,
             commands::import::trace_image,
             commands::import::refresh_image,
             commands::import::replace_image,

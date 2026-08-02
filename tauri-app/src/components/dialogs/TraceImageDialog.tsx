@@ -1,14 +1,26 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  Check,
+  Crop,
+  Eye,
+  EyeOff,
+  LoaderCircle,
+  Minus,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  ScanLine,
+  X,
+} from 'lucide-react';
 import { importService, type TraceBoundaryPx } from '../../services/importService';
 import { useProjectStore } from '../../stores/projectStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { measureCanvasPerf } from '../../canvas/canvasPerf';
 import { parsePathData, type PathCommand } from '../../canvas/drawObjects';
-import { NumberStepper } from '../shared/NumberStepper';
-import { Toggle } from '../shared/Toggle';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { RangeInput } from '../shared/RangeInput';
+import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
 
 interface TraceImageDialogProps {
   objectId: string;
@@ -21,6 +33,20 @@ interface ParsedTracePath {
 }
 
 type ImagePoint = { x: number; y: number };
+
+// The backend compares preview request IDs across dialog lifetimes. A counter
+// scoped to the component would restart at 1 after reopening and every new
+// preview would then be rejected as stale.
+let tracePreviewRequestSequence = Date.now() * 1000;
+
+function nextTracePreviewRequestId(): number {
+  tracePreviewRequestSequence += 1;
+  return tracePreviewRequestSequence;
+}
+
+function errorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 function extractTraceNodes(commands: ReadonlyArray<PathCommand>): Array<{ x: number; y: number }> {
   const nodes: Array<{ x: number; y: number }> = [];
@@ -168,7 +194,11 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
   // Preview state
   const [previewData, setPreviewData] = useState<{ paths: ParsedTracePath[]; sourceWidth: number; sourceHeight: number } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [sourceBlobUrl, setSourceBlobUrl] = useState<string | null>(null);
+  const [sourceRefreshToken, setSourceRefreshToken] = useState(0);
   const [previewViewport, setPreviewViewport] = useState({ width: 460, height: 320 });
   const [sourceImageLoaded, setSourceImageLoaded] = useState(false);
   const [boundary, setBoundary] = useState<TraceBoundaryPx | null>(null);
@@ -180,20 +210,15 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewFrameRef = useRef<HTMLDivElement>(null);
   const sourceImageRef = useRef<HTMLImageElement | null>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, true);
-
-  // Dialog window state
-  const [dialogPos, setDialogPos] = useState<{ x: number; y: number } | null>(null);
-  const [dialogSize, setDialogSize] = useState<{ w: number; h: number } | null>(null);
-  const headerDragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
-  const resizeDragRef = useRef<{ startX: number; startY: number; origW: number; origH: number } | null>(null);
 
   // Preview zoom/pan state
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const previewPanDragRef = useRef<{ startX: number; startY: number; origPanX: number; origPanY: number } | null>(null);
-  const boundaryDragRef = useRef<{ start: ImagePoint; current: ImagePoint } | null>(null);
+  const boundaryDragRef = useRef<{
+    start: ImagePoint;
+    current: ImagePoint;
+  } | null>(null);
   const spacePressedRef = useRef(false);
   const [spacePanning, setSpacePanning] = useState(false);
 
@@ -211,8 +236,21 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
 
   useEffect(() => {
     if (!assetKey) return;
-    useProjectStore.getState().loadAssetData(assetKey).then(setSourceBlobUrl);
-  }, [assetKey]);
+    let active = true;
+    setSourceError(null);
+    useProjectStore.getState().loadAssetData(assetKey)
+      .then((url) => {
+        if (active) setSourceBlobUrl(url);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setSourceBlobUrl(null);
+        setSourceError(t('dialog.trace_image.trace_failed', { detail: errorDetail(error) }));
+      });
+    return () => {
+      active = false;
+    };
+  }, [assetKey, sourceRefreshToken, t]);
 
   useEffect(() => {
     if (!sourceBlobUrl) {
@@ -232,6 +270,7 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
       if (!active) return;
       sourceImageRef.current = null;
       setSourceImageLoaded(false);
+      setSourceError(t('dialog.trace_image.trace_failed', { detail: t('dialog.preview.generation_failed') }));
     };
     img.src = sourceBlobUrl;
 
@@ -241,7 +280,7 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
         sourceImageRef.current = null;
       }
     };
-  }, [sourceBlobUrl]);
+  }, [sourceBlobUrl, t]);
 
   const sourceWidth = previewData?.sourceWidth
     ?? (object?.data.type === 'raster_image' ? (object.data as { original_width_px: number }).original_width_px : 0);
@@ -264,10 +303,10 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
     };
   }, [actualScale, pan.x, pan.y, previewViewport.height, previewViewport.width, sourceHeight, sourceWidth]);
 
-  // Escape key and Space+drag panning state
+  // Space+drag panning state. Escape is owned by the shared dialog frame so
+  // it cannot bubble through and clear the canvas selection after closing.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
       if (e.code === 'Space' && !e.repeat) {
         const target = e.target as HTMLElement | null;
         // Number inputs don't accept spaces, so Space can still mean "pan" while one is focused
@@ -292,7 +331,7 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [onClose]);
+  }, []);
 
   useLayoutEffect(() => {
     const frame = previewFrameRef.current;
@@ -320,23 +359,14 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
     return () => observer.disconnect();
   }, []);
 
-  const clampDialogSize = useCallback((width: number, height: number) => ({
-    w: Math.max(520, Math.min(window.innerWidth - 24, width)),
-    h: Math.max(620, Math.min(window.innerHeight - 24, height)),
-  }), []);
-
-  const clampDialogPos = useCallback((x: number, y: number, size: { w: number; h: number } | null) => {
-    const width = size?.w ?? 560;
-    const height = size?.h ?? 760;
-    return {
-      x: Math.max(12, Math.min(window.innerWidth - width - 12, x)),
-      y: Math.max(12, Math.min(window.innerHeight - height - 12, y)),
-    };
-  }, []);
-
   // Debounced preview
   useEffect(() => {
-    const myId = ++requestIdRef.current;
+    const myId = nextTracePreviewRequestId();
+    requestIdRef.current = myId;
+    setPreviewError(null);
+    // Supersede any expensive in-flight preview immediately instead of
+    // allowing it to run for the full debounce interval.
+    void importService.cancelTraceImagePreview(myId).catch(() => undefined);
     const timer = setTimeout(() => {
       setPreviewLoading(true);
       importService.traceImagePreview(objectId, threshold, cutoff, turdsize, alphamax, opttolerance, traceAlpha, sketchTrace, myId, boundary)
@@ -347,16 +377,24 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
             sourceWidth: data.source_width,
             sourceHeight: data.source_height,
           });
+          setPreviewError(null);
           setPreviewLoading(false);
         })
-        .catch(() => {
-          setPreviewLoading(false);
+        .catch((error) => {
           if (myId !== requestIdRef.current) return;
+          setPreviewLoading(false);
           setPreviewData(null);
+          setPreviewError(t('dialog.trace_image.trace_failed', { detail: errorDetail(error) }));
         });
     }, 500);
     return () => clearTimeout(timer);
-  }, [objectId, threshold, cutoff, turdsize, alphamax, opttolerance, traceAlpha, sketchTrace, boundary, previewRefreshToken]);
+  }, [objectId, threshold, cutoff, turdsize, alphamax, opttolerance, traceAlpha, sketchTrace, boundary, previewRefreshToken, t]);
+
+  useEffect(() => () => {
+    const cancelId = nextTracePreviewRequestId();
+    requestIdRef.current = cancelId;
+    void importService.cancelTraceImagePreview(cancelId).catch(() => undefined);
+  }, []);
 
   // Render preview canvas
   const renderPreview = useCallback(() => {
@@ -391,7 +429,8 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
         ctx.restore();
       }
 
-      ctx.strokeStyle = '#e040fb';
+      const accentChannels = getComputedStyle(canvas).getPropertyValue('--bb-accent').trim();
+      ctx.strokeStyle = accentChannels ? `rgb(${accentChannels})` : '#22d3ee';
       ctx.lineWidth = 1.5 / contentScale;
       for (const path of paths) {
         let cached = path2DCacheRef.current.get(path.commands);
@@ -451,6 +490,8 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
   const oneToOneZoom = fitScale > 0 ? 1 / fitScale : 1;
 
   const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const committedBoundary = boundaryDragRef.current
         ? normalizeBoundaryPx(
@@ -485,6 +526,7 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
       onClose();
     } catch (error) {
       useNotificationStore.getState().push(t('dialog.trace_image.trace_failed', { detail: String(error) }), 'error');
+      setSubmitting(false);
     }
   };
 
@@ -549,7 +591,10 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
     if (!start) return;
     e.preventDefault();
     e.stopPropagation();
-    boundaryDragRef.current = { start, current: start };
+    boundaryDragRef.current = {
+      start,
+      current: start,
+    };
     setDraftBoundary(null);
   }, [clientToImagePoint, pan.x, pan.y]);
 
@@ -572,14 +617,18 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
 
     const handleWindowMouseUp = () => {
       if (boundaryDragRef.current) {
-        const nextBoundary = normalizeBoundaryPx(
-          boundaryDragRef.current.start,
-          boundaryDragRef.current.current,
-          sourceWidth,
-          sourceHeight,
-        );
-        committedBoundaryRef.current = nextBoundary;
-        setBoundary(nextBoundary);
+        // A click should not erase an existing crop. Commit only after the
+        // pointer has selected at least one source-image pixel.
+        if (distance(boundaryDragRef.current.start, boundaryDragRef.current.current) >= 1) {
+          const nextBoundary = normalizeBoundaryPx(
+            boundaryDragRef.current.start,
+            boundaryDragRef.current.current,
+            sourceWidth,
+            sourceHeight,
+          );
+          committedBoundaryRef.current = nextBoundary;
+          setBoundary(nextBoundary);
+        }
         setDraftBoundary(null);
         boundaryDragRef.current = null;
       }
@@ -594,214 +643,364 @@ export function TraceImageDialog({ objectId, onClose }: TraceImageDialogProps) {
     };
   }, [clientToImagePoint, sourceHeight, sourceWidth]);
 
-  const inputCls = "w-[70px] px-1.5 py-0.5 bg-bb-bg border border-bb-border rounded text-xs text-bb-text text-right focus:outline-none focus:border-bb-accent";
-  const toggleBtnCls = (active: boolean) =>
-    `px-2 py-1 rounded border text-xs ${active ? 'border-bb-accent text-bb-accent bg-bb-accent/10' : 'border-bb-border text-bb-text-muted hover:bg-bb-hover'}`;
+  const closeDialog = () => {
+    if (!submitting) onClose();
+  };
+
+  const resetTraceSettings = () => {
+    setThreshold(128);
+    setCutoff(0);
+    setTurdsize(2);
+    setAlphamax(1);
+    setOpttolerance(0.2);
+    setTraceAlpha(false);
+    setSketchTrace(false);
+  };
+
+  const retryPreview = () => {
+    setSourceBlobUrl(null);
+    setSourceRefreshToken((token) => token + 1);
+    setPreviewRefreshToken((token) => token + 1);
+  };
+
+  const hasBoundary = Boolean(boundary || draftBoundary);
+  const visibleError = previewError ?? sourceError;
 
   return createPortal(
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="trace-dialog-title"
-         className="fixed inset-0 bg-black/50 z-50"
-         style={{ display: 'flex', alignItems: dialogPos ? 'flex-start' : 'center', justifyContent: dialogPos ? 'flex-start' : 'center' }}
-         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-         onMouseMove={(e) => {
-           if (headerDragRef.current) {
-             const next = clampDialogPos(
-               headerDragRef.current.origX + e.clientX - headerDragRef.current.startX,
-               headerDragRef.current.origY + e.clientY - headerDragRef.current.startY,
-               dialogSize,
-             );
-             setDialogPos(next);
-           }
-           if (resizeDragRef.current) {
-             const nextSize = clampDialogSize(
-               resizeDragRef.current.origW + e.clientX - resizeDragRef.current.startX,
-               resizeDragRef.current.origH + e.clientY - resizeDragRef.current.startY,
-             );
-             setDialogSize(nextSize);
-             setDialogPos((currentPos) => {
-               if (!currentPos) return currentPos;
-               return clampDialogPos(currentPos.x, currentPos.y, nextSize);
-             });
-           }
-           if (previewPanDragRef.current) {
-             setPan({
-               x: previewPanDragRef.current.origPanX + e.clientX - previewPanDragRef.current.startX,
-               y: previewPanDragRef.current.origPanY + e.clientY - previewPanDragRef.current.startY,
-             });
-           }
-           if (boundaryDragRef.current) {
-             const current = clientToImagePoint(e.clientX, e.clientY);
-             if (current) {
-               boundaryDragRef.current.current = current;
-               setDraftBoundary(normalizeBoundaryPx(boundaryDragRef.current.start, current, sourceWidth, sourceHeight));
-             }
-           }
-         }}
-         onMouseUp={() => {
-           if (boundaryDragRef.current) {
-             const nextBoundary = normalizeBoundaryPx(
-               boundaryDragRef.current.start,
-               boundaryDragRef.current.current,
-               sourceWidth,
-               sourceHeight,
-             );
-             committedBoundaryRef.current = nextBoundary;
-             setBoundary(nextBoundary);
-             setDraftBoundary(null);
-             boundaryDragRef.current = null;
-           }
-           headerDragRef.current = null;
-           resizeDragRef.current = null;
-           previewPanDragRef.current = null;
-         }}>
-      <div
-        className="bg-bb-panel border border-bb-border rounded-lg shadow-xl flex flex-col relative"
-        style={{
-          ...(dialogPos ? { position: 'absolute', left: dialogPos.x, top: dialogPos.y } : {}),
-          ...(dialogSize ? dialogSize : { width: 560, height: 760 }),
-          maxWidth: 'calc(100vw - 24px)',
-          maxHeight: 'calc(100vh - 24px)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="flex items-center justify-center h-6 cursor-grab active:cursor-grabbing select-none shrink-0 rounded-t-lg hover:bg-bb-bg/50"
-          data-testid="trace-dialog-drag-handle"
-          onMouseDown={(e) => {
-            const rect = e.currentTarget.closest('[class*="bg-bb-panel"]')?.getBoundingClientRect();
-            if (!rect) return;
-            const size = dialogSize ?? { w: rect.width, h: rect.height };
-            headerDragRef.current = {
-              startX: e.clientX,
-              startY: e.clientY,
-              origX: dialogPos?.x ?? rect.left,
-              origY: dialogPos?.y ?? rect.top,
-            };
-            if (!dialogPos) setDialogPos(clampDialogPos(rect.left, rect.top, size));
-            if (!dialogSize) setDialogSize(size);
-          }}
-          title={t('dialog.trace_image.drag_to_move')}
+    <MovableResizableDialogFrame
+      title={t('dialog.trace_image.title')}
+      titleId="trace-dialog-title"
+      testId="trace-dialog"
+      initialWidth={940}
+      initialHeight={680}
+      minWidth={720}
+      minHeight={500}
+      zIndexClassName="z-[9750]"
+      backdropClassName="bg-black/50"
+      closeOnBackdropClick={!submitting}
+      onRequestClose={closeDialog}
+      headerActions={(
+        <button
+          type="button"
+          onClick={closeDialog}
+          disabled={submitting}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-bb-muted transition-colors hover:border-bb-border hover:bg-bb-hover hover:text-bb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={t('common.close')}
         >
-          <div className="w-10 h-1 rounded-full bg-bb-text-muted/30" />
-        </div>
-
-        <div className="flex flex-col gap-3 p-5 pt-0 flex-1 min-h-0 overflow-hidden">
-          <h2 id="trace-dialog-title" className="text-sm font-semibold text-bb-text">{t('dialog.trace_image.title')}</h2>
-
-          <div className="flex flex-col gap-2 flex-1 min-h-0">
-            <div className="flex items-center gap-2 text-xs">
-              {previewData && (
-                <p className="text-bb-text-dim">
-                  {t('dialog.trace_image.paths_found', { count: previewData.paths.length })}
-                </p>
-              )}
-              <div className="flex-1" />
-              <span className="text-bb-text-dim" data-testid="trace-zoom-label">{actualZoomPercent}%</span>
-              <button type="button" onClick={() => adjustZoom(zoom / 1.2)} className={toggleBtnCls(false)} data-testid="trace-zoom-out">-</button>
-              <button type="button" onClick={resetView} className={toggleBtnCls(Math.abs(zoom - 1) < 1e-6 && Math.abs(pan.x) < 1e-6 && Math.abs(pan.y) < 1e-6)} data-testid="trace-zoom-reset">
-                {t('dialog.trace_image.fit')}
-              </button>
-              <button type="button" onClick={() => adjustZoom(oneToOneZoom)} className={toggleBtnCls(Math.abs(actualScale - 1) < 1e-3)} data-testid="trace-zoom-100">
-                100%
-              </button>
-              <button type="button" onClick={() => adjustZoom(zoom * 1.2)} className={toggleBtnCls(false)} data-testid="trace-zoom-in">+</button>
-            </div>
-
-            {/* Preview area with checkerboard background */}
-            <div
-              ref={previewFrameRef}
-              className={`relative border border-bb-border rounded overflow-hidden flex-1 min-h-[300px] ${previewPanDragRef.current ? 'cursor-grabbing' : spacePanning ? 'cursor-grab' : 'cursor-crosshair'}`}
-              style={{
-                backgroundImage: 'linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)',
-                backgroundSize: '16px 16px',
-                backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
-                backgroundColor: '#a0a0a0',
-              }}
-              onWheel={handlePreviewWheel}
-              onMouseDown={handlePreviewMouseDown}
-              data-testid="trace-preview-frame"
+          <X size={16} />
+        </button>
+      )}
+      footer={(
+        <div className="flex items-center justify-between gap-3 bg-bb-surface px-4 py-3">
+          <TraceOption
+            checked={deleteSource}
+            onChange={setDeleteSource}
+            label={t('dialog.trace_image.delete_source')}
+            disabled={submitting}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={closeDialog}
+              disabled={submitting}
+              className="h-9 rounded-lg border border-bb-border bg-bb-bg px-3 text-xs font-medium text-bb-text transition-colors hover:border-bb-accent/40 hover:bg-bb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <canvas
-                ref={canvasRef}
-                width={canvasWidth}
-                height={canvasHeight}
-                className="relative w-full h-full"
-                data-testid="trace-preview-canvas"
-              />
-              {previewLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <span className="text-xs text-bb-text-muted animate-pulse">{t('dialog.trace_image.tracing')}</span>
-                </div>
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              data-testid="trace-submit"
+              onClick={() => void handleSubmit()}
+              disabled={submitting}
+              className="flex h-9 min-w-28 items-center justify-center gap-2 rounded-lg bg-bb-accent px-4 text-xs font-semibold text-bb-on-accent transition-colors hover:bg-bb-accent-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting && <LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" />}
+              {submitting ? t('dialog.trace_image.tracing') : t('common.ok')}
+            </button>
+          </div>
+        </div>
+      )}
+    >
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <section className="flex min-w-0 flex-1 flex-col p-3 pr-2">
+          <div className="mb-2 flex min-h-9 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2 text-xs text-bb-text-dim" aria-live="polite">
+              <ScanLine size={14} className="shrink-0 text-bb-accent" />
+              {previewLoading ? (
+                <span>{t('dialog.trace_image.tracing')}</span>
+              ) : previewData ? (
+                <span className="truncate">{t('dialog.trace_image.paths_found', { count: previewData.paths.length })}</span>
+              ) : (
+                <span>{t('menus.view.preview')}</span>
               )}
+              {hasBoundary && <Crop size={13} className="shrink-0 text-bb-accent" />}
             </div>
-            <p className="text-[11px] text-bb-text-dim">{t('dialog.trace_image.pan_hint')}</p>
-          </div>
-
-          {/* Controls — two-column grid */}
-          <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 items-center text-xs shrink-0">
-            <span className="text-bb-text-muted">{t('dialog.trace_image.cutoff')}</span>
-            <NumberStepper value={cutoff} onChange={(e) => setCutoff(Number(e.target.value))} min={0} max={255} step={1} className={inputCls} />
-
-            <span className="text-bb-text-muted">{t('dialog.trace_image.threshold')}</span>
-            <NumberStepper value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} min={0} max={255} step={1} className={inputCls} data-testid="trace-threshold" />
-
-            <span className="text-bb-text-muted">{t('dialog.trace_image.ignore_less_than')}</span>
-            <NumberStepper value={turdsize} onChange={(e) => setTurdsize(Math.max(0, Number(e.target.value)))} min={0} max={100} step={1} className={inputCls} />
-
-            <span className="text-bb-text-muted">{t('dialog.trace_image.smoothness')}</span>
-            <NumberStepper value={alphamax} onChange={(e) => setAlphamax(Number(e.target.value))} min={0} max={1.334} step={0.001} className={inputCls} />
-
-            <span className="text-bb-text-muted">{t('dialog.trace_image.optimize')}</span>
-            <NumberStepper value={opttolerance} onChange={(e) => setOpttolerance(Number(e.target.value))} min={0} max={2} step={0.01} className={inputCls} />
-          </div>
-
-          <div className="flex items-center gap-4 text-xs shrink-0">
-            <Toggle label={t('dialog.trace_image.trace_transparency')} checked={traceAlpha} onChange={setTraceAlpha} />
-            <Toggle label={t('dialog.trace_image.sketch_trace')} checked={sketchTrace} onChange={setSketchTrace} />
-          </div>
-
-          <div className="flex items-center gap-2 text-xs flex-wrap shrink-0">
-            <button onClick={() => setFadeImage(!fadeImage)} className={toggleBtnCls(fadeImage)}>
-              {t('dialog.trace_image.fade_image')}
+            <div className="flex-1" />
+            <span className="w-12 text-right text-xs tabular-nums text-bb-text-dim" data-testid="trace-zoom-label">
+              {actualZoomPercent}%
+            </span>
+            <TraceIconButton
+              icon={<Minus size={14} />}
+              label={t('menus.view.zoom_out')}
+              onClick={() => adjustZoom(zoom / 1.2)}
+              testId="trace-zoom-out"
+            />
+            <button
+              type="button"
+              onClick={resetView}
+              aria-pressed={Math.abs(zoom - 1) < 1e-6 && Math.abs(pan.x) < 1e-6 && Math.abs(pan.y) < 1e-6}
+              className="h-8 rounded-lg border border-bb-border bg-bb-bg px-2.5 text-xs text-bb-text transition-colors hover:border-bb-accent/40 hover:bg-bb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent aria-pressed:border-bb-accent/50 aria-pressed:bg-bb-accent/10"
+              data-testid="trace-zoom-reset"
+            >
+              {t('dialog.trace_image.fit')}
             </button>
-            <button onClick={() => setShowPoints(!showPoints)} className={toggleBtnCls(showPoints)}>
-              {t('dialog.trace_image.show_points')}
+            <button
+              type="button"
+              onClick={() => adjustZoom(oneToOneZoom)}
+              aria-pressed={Math.abs(actualScale - 1) < 1e-3}
+              className="h-8 rounded-lg border border-bb-border bg-bb-bg px-2.5 text-xs tabular-nums text-bb-text transition-colors hover:border-bb-accent/40 hover:bg-bb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent aria-pressed:border-bb-accent/50 aria-pressed:bg-bb-accent/10"
+              data-testid="trace-zoom-100"
+            >
+              100%
             </button>
-            <button onClick={clearBoundary} className={toggleBtnCls(Boolean(boundary || draftBoundary))} data-testid="trace-clear-boundary">
+            <TraceIconButton
+              icon={<Plus size={14} />}
+              label={t('menus.view.zoom_in')}
+              onClick={() => adjustZoom(zoom * 1.2)}
+              testId="trace-zoom-in"
+            />
+          </div>
+
+          <div
+            ref={previewFrameRef}
+            className={`relative min-h-0 flex-1 overflow-hidden rounded-xl border border-bb-accent/35 shadow-inner ${previewPanDragRef.current ? 'cursor-grabbing' : spacePanning ? 'cursor-grab' : 'cursor-crosshair'}`}
+            style={{
+              backgroundImage: 'linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)',
+              backgroundSize: '16px 16px',
+              backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
+              backgroundColor: '#a0a0a0',
+            }}
+            onWheel={handlePreviewWheel}
+            onMouseDown={handlePreviewMouseDown}
+            data-testid="trace-preview-frame"
+          >
+            <canvas
+              ref={canvasRef}
+              width={canvasWidth}
+              height={canvasHeight}
+              className="relative h-full w-full"
+              data-testid="trace-preview-canvas"
+            />
+            {previewLoading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/30 backdrop-blur-[1px]">
+                <LoaderCircle size={20} className="animate-spin text-bb-accent motion-reduce:animate-none" />
+                <span className="text-xs text-bb-text">{t('dialog.trace_image.tracing')}</span>
+              </div>
+            )}
+            {visibleError && !previewLoading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/50 px-8 text-center" role="alert">
+                <span className="max-w-md text-xs text-bb-error-fg">{visibleError}</span>
+                <button
+                  type="button"
+                  onClick={retryPreview}
+                  className="flex h-8 items-center gap-1.5 rounded-lg border border-bb-border bg-bb-panel px-2.5 text-xs text-bb-text transition-colors hover:border-bb-accent/40 hover:bg-bb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent"
+                >
+                  <RefreshCw size={13} />
+                  {t('dialog.preview.refresh')}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+            <TraceOption
+              checked={fadeImage}
+              onChange={setFadeImage}
+              label={t('dialog.trace_image.fade_image')}
+              icon={fadeImage ? <EyeOff size={12} /> : <Eye size={12} />}
+            />
+            <TraceOption
+              checked={showPoints}
+              onChange={setShowPoints}
+              label={t('dialog.trace_image.show_points')}
+            />
+            <button
+              type="button"
+              onClick={clearBoundary}
+              disabled={!hasBoundary}
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-bb-border bg-bb-bg px-2.5 text-bb-text-muted transition-colors hover:border-bb-accent/30 hover:bg-bb-hover hover:text-bb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-not-allowed disabled:opacity-45"
+              data-testid="trace-clear-boundary"
+            >
+              <Crop size={12} />
               {t('dialog.trace_image.clear_boundary')}
             </button>
-            <div className="flex-1" />
-            <Toggle label={t('dialog.trace_image.delete_source')} checked={deleteSource} onChange={setDeleteSource} />
+            <span className="ml-auto text-[11px] text-bb-text-dim">{t('dialog.trace_image.pan_hint')}</span>
           </div>
+        </section>
 
-          <div className="flex justify-end gap-2 pt-1 border-t border-bb-border shrink-0">
-            <button onClick={onClose} className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text">{t('common.cancel')}</button>
-            <button data-testid="trace-submit" onClick={() => void handleSubmit()} className="px-4 py-1.5 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent">{t('common.ok')}</button>
+        <aside className="w-[292px] shrink-0 overflow-y-auto border-l border-bb-border bg-bb-surface">
+          <div className="flex h-9 items-center justify-between border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-bb-surface/30 px-3">
+            <div className="flex items-center gap-2">
+              <ScanLine size={14} className="text-bb-accent" />
+              <span className="text-xs font-medium text-bb-text">{t('menus.edit.settings')}</span>
+            </div>
+            <button
+              type="button"
+              onClick={resetTraceSettings}
+              disabled={submitting}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-bb-text-muted transition-colors hover:bg-bb-hover hover:text-bb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={t('panels.variable_text.reset')}
+              title={t('panels.variable_text.reset')}
+            >
+              <RotateCcw size={13} />
+            </button>
           </div>
-        </div>
+          <div className="flex flex-col gap-4 p-3">
+            <RangeInput
+              label={t('dialog.trace_image.threshold')}
+              value={threshold}
+              onChange={(value) => setThreshold(Math.max(cutoff, value))}
+              min={cutoff}
+              max={255}
+              step={1}
+              disabled={submitting}
+              testId="trace-threshold"
+            />
+            <RangeInput
+              label={t('dialog.trace_image.cutoff')}
+              value={cutoff}
+              onChange={(value) => setCutoff(Math.min(threshold, value))}
+              min={0}
+              max={threshold}
+              step={1}
+              disabled={submitting}
+            />
+            <RangeInput
+              label={t('dialog.trace_image.ignore_less_than')}
+              value={turdsize}
+              onChange={(value) => setTurdsize(Math.max(0, Math.round(value)))}
+              min={0}
+              max={100}
+              step={1}
+              disabled={submitting}
+            />
+            <RangeInput
+              label={t('dialog.trace_image.smoothness')}
+              value={alphamax}
+              onChange={setAlphamax}
+              min={0}
+              max={1.334}
+              step={0.01}
+              disabled={submitting}
+            />
+            <RangeInput
+              label={t('dialog.trace_image.optimize')}
+              value={opttolerance}
+              onChange={setOpttolerance}
+              min={0}
+              max={2}
+              step={0.01}
+              disabled={submitting}
+            />
 
-        <div className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize group"
-          data-testid="trace-dialog-resize-handle"
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            const rect = e.currentTarget.closest('[class*="bg-bb-panel"]')?.getBoundingClientRect();
-            if (!rect) return;
-            resizeDragRef.current = {
-              startX: e.clientX,
-              startY: e.clientY,
-              origW: dialogSize?.w ?? rect.width,
-              origH: dialogSize?.h ?? rect.height,
-            };
-            if (!dialogPos) setDialogPos(clampDialogPos(rect.left, rect.top, { w: rect.width, h: rect.height }));
-            if (!dialogSize) setDialogSize({ w: rect.width, h: rect.height });
-          }}
-        >
-          <svg viewBox="0 0 16 16" className="w-full h-full text-bb-text-muted/60 group-hover:text-bb-text-muted">
-            <path d="M14 6L6 14M14 10L10 14M14 14L14 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-          </svg>
-        </div>
+            <div className="border-t border-bb-border pt-3">
+              <div className="flex flex-col gap-1.5">
+                <TraceOption
+                  checked={traceAlpha}
+                  onChange={setTraceAlpha}
+                  label={t('dialog.trace_image.trace_transparency')}
+                  fullWidth
+                  disabled={submitting}
+                />
+                <TraceOption
+                  checked={sketchTrace}
+                  onChange={setSketchTrace}
+                  label={t('dialog.trace_image.sketch_trace')}
+                  fullWidth
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
-    </div>,
-    document.body
+    </MovableResizableDialogFrame>,
+    document.body,
+  );
+}
+
+function TraceIconButton({
+  icon,
+  label,
+  onClick,
+  testId,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      data-testid={testId}
+      className="flex h-8 w-8 items-center justify-center rounded-lg border border-bb-border bg-bb-bg text-bb-text-muted transition-colors hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent"
+    >
+      {icon}
+    </button>
+  );
+}
+
+function TraceOption({
+  checked,
+  onChange,
+  label,
+  icon,
+  disabled = false,
+  fullWidth = false,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  fullWidth?: boolean;
+}) {
+  return (
+    <label
+      className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs transition-colors ${
+        fullWidth ? 'w-full justify-between' : ''
+      } ${
+        disabled
+          ? 'cursor-not-allowed border-bb-border bg-bb-bg text-bb-text-disabled opacity-60'
+          : checked
+            ? 'cursor-pointer border-bb-accent/45 bg-bb-accent/10 text-bb-text'
+            : 'cursor-pointer border-bb-border bg-bb-bg text-bb-text-muted hover:border-bb-accent/30 hover:bg-bb-hover'
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        disabled={disabled}
+        className="sr-only"
+      />
+      <span className="flex min-w-0 items-center gap-1.5">
+        {icon}
+        <span className="truncate">{label}</span>
+      </span>
+      <span
+        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
+          checked
+            ? 'border-bb-accent bg-bb-accent text-bb-on-accent'
+            : 'border-bb-control-border bg-bb-input'
+        }`}
+      >
+        {checked ? <Check size={10} strokeWidth={3} /> : null}
+      </span>
+    </label>
   );
 }

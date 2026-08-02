@@ -539,6 +539,12 @@ pub async fn trace_image_preview(
 }
 
 #[tauri::command]
+pub fn cancel_trace_image_preview(svc: State<'_, Arc<ServiceContext>>, request_id: u64) {
+    svc.latest_trace_preview_request_id
+        .fetch_max(request_id, std::sync::atomic::Ordering::AcqRel);
+}
+
+#[tauri::command]
 pub async fn trace_image(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
