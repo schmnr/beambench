@@ -162,6 +162,7 @@ pub mod command {
 
     pub const WINDOW_SIDE_PANELS: &str = "window.side_panels";
     pub const WINDOW_PREVIEW: &str = "window.preview";
+    pub const WINDOW_REFRESH_PREVIEW: &str = "window.refresh_preview";
     pub const WINDOW_ZOOM_TO_PAGE: &str = "window.zoom_to_page";
     pub const WINDOW_ZOOM_IN: &str = "window.zoom_in";
     pub const WINDOW_ZOOM_OUT: &str = "window.zoom_out";
@@ -239,9 +240,6 @@ pub enum NativeMenuEntry {
     Submenu {
         title: &'static str,
         entries: &'static [NativeMenuEntry],
-    },
-    Label {
-        title: &'static str,
     },
     RecentProjects,
     Separator,
@@ -572,6 +570,87 @@ const TOOLS_DRAW_SHAPE_MENU: &[NativeMenuEntry] = &[
     },
 ];
 
+const TOOLS_BOOLEAN_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Command {
+        id: command::TOOLS_BOOLEAN_WELD,
+        title: "Weld Shapes",
+        accelerator: Some("CmdOrCtrl+W"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_BOOLEAN_UNION,
+        title: "Boolean Union",
+        accelerator: Some("Alt++"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_BOOLEAN_SUBTRACT,
+        title: "Boolean Subtract",
+        accelerator: Some("Alt+-"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_BOOLEAN_INTERSECTION,
+        title: "Boolean Intersection",
+        accelerator: Some("Alt+*"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_BOOLEAN_ASSISTANT,
+        title: "Boolean Assistant",
+        accelerator: Some("CmdOrCtrl+B"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_CUT_SHAPES,
+        title: "Cut Shapes",
+        accelerator: Some("Alt+Shift+C"),
+        enabled: false,
+    },
+];
+
+const TOOLS_IMAGE_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Command {
+        id: command::TOOLS_ADJUST_IMAGE,
+        title: "Adjust Image",
+        accelerator: Some("Alt+I"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_TRACE_IMAGE,
+        title: "Trace Image",
+        accelerator: Some("Alt+T"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_APPLY_MASK_TO_IMAGE,
+        title: "Apply Mask to Image",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_CROP_IMAGE,
+        title: "Crop Image",
+        accelerator: None,
+        enabled: false,
+    },
+];
+
+const TOOLS_TRANSFORM_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Command {
+        id: command::TOOLS_WARP_SELECTION,
+        title: "Warp Selection (4 Points)",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::TOOLS_DEFORM_SELECTION,
+        title: "Deform Selection (16 Points)",
+        accelerator: None,
+        enabled: false,
+    },
+];
+
 const TOOLS_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::TOOLS_SELECT,
@@ -614,12 +693,6 @@ const TOOLS_MENU: &[NativeMenuEntry] = &[
         enabled: false,
     },
     NativeMenuEntry::Command {
-        id: command::TOOLS_POSITION_LASER,
-        title: "Position Laser",
-        accelerator: Some("CmdOrCtrl+Shift+L"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
         id: command::TOOLS_MEASURE,
         title: "Measure",
         accelerator: Some("CmdOrCtrl+M"),
@@ -637,53 +710,10 @@ const TOOLS_MENU: &[NativeMenuEntry] = &[
         accelerator: Some("Alt+O"),
         enabled: false,
     },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_BOOLEAN_WELD,
-        title: "Weld Shapes",
-        accelerator: Some("CmdOrCtrl+W"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_BOOLEAN_UNION,
-        title: "Boolean Union",
-        accelerator: Some("Alt++"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_BOOLEAN_SUBTRACT,
-        title: "Boolean Subtract",
-        accelerator: Some("Alt+-"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_BOOLEAN_INTERSECTION,
-        title: "Boolean Intersection",
-        accelerator: Some("Alt+*"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_BOOLEAN_ASSISTANT,
-        title: "Boolean Assistant",
-        accelerator: Some("CmdOrCtrl+B"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_CUT_SHAPES,
-        title: "Cut Shapes",
-        accelerator: Some("Alt+Shift+C"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_ADJUST_IMAGE,
-        title: "Adjust Image",
-        accelerator: Some("Alt+I"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_TRACE_IMAGE,
-        title: "Trace Image",
-        accelerator: Some("Alt+T"),
-        enabled: false,
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Submenu {
+        title: "Boolean Operations",
+        entries: TOOLS_BOOLEAN_MENU,
     },
     NativeMenuEntry::Command {
         id: command::TOOLS_APPLY_PATH_TO_TEXT,
@@ -691,29 +721,13 @@ const TOOLS_MENU: &[NativeMenuEntry] = &[
         accelerator: None,
         enabled: false,
     },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_APPLY_MASK_TO_IMAGE,
-        title: "Apply Mask to Image",
-        accelerator: None,
-        enabled: false,
+    NativeMenuEntry::Submenu {
+        title: "Image Options",
+        entries: TOOLS_IMAGE_MENU,
     },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_CROP_IMAGE,
-        title: "Crop Image",
-        accelerator: None,
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_WARP_SELECTION,
-        title: "Warp Selection (4 Points)",
-        accelerator: None,
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::TOOLS_DEFORM_SELECTION,
-        title: "Deform Selection (16 Points)",
-        accelerator: None,
-        enabled: false,
+    NativeMenuEntry::Submenu {
+        title: "Transform",
+        entries: TOOLS_TRANSFORM_MENU,
     },
 ];
 
@@ -801,22 +815,7 @@ const ARRANGE_DISTRIBUTE_MENU: &[NativeMenuEntry] = &[
     },
 ];
 
-const ARRANGE_UNGROUP_MENU: &[NativeMenuEntry] = &[
-    NativeMenuEntry::Command {
-        id: command::ARRANGE_UNGROUP,
-        title: "Ungroup",
-        accelerator: Some("CmdOrCtrl+U"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::ARRANGE_AUTO_GROUP,
-        title: "Auto-Group",
-        accelerator: None,
-        enabled: false,
-    },
-];
-
-const ARRANGE_FLIP_MENU: &[NativeMenuEntry] = &[
+const ARRANGE_TRANSFORM_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::ARRANGE_FLIP_HORIZONTAL,
         title: "Flip Horizontal",
@@ -829,9 +828,12 @@ const ARRANGE_FLIP_MENU: &[NativeMenuEntry] = &[
         accelerator: Some("CmdOrCtrl+Shift+V"),
         enabled: false,
     },
-];
-
-const ARRANGE_ROTATE_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Command {
+        id: command::ARRANGE_MIRROR_ACROSS_LINE,
+        title: "Mirror Across Line",
+        accelerator: Some("CmdOrCtrl+Shift+M"),
+        enabled: false,
+    },
     NativeMenuEntry::Command {
         id: command::ARRANGE_ROTATE_CW,
         title: "Rotate 90° Clockwise",
@@ -842,6 +844,12 @@ const ARRANGE_ROTATE_MENU: &[NativeMenuEntry] = &[
         id: command::ARRANGE_ROTATE_CCW,
         title: "Rotate 90° Counter-Clockwise",
         accelerator: Some("Comma"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::ARRANGE_TWO_POINT_ROTATE_SCALE,
+        title: "Two-Point Rotate / Scale",
+        accelerator: Some("CmdOrCtrl+2"),
         enabled: false,
     },
 ];
@@ -1018,10 +1026,6 @@ const ARRANGE_MOVE_LASER_MENU: &[NativeMenuEntry] = &[
         accelerator: None,
         enabled: false,
     },
-    NativeMenuEntry::Submenu {
-        title: "Jog Laser",
-        entries: ARRANGE_JOG_LASER_MENU,
-    },
 ];
 
 const ARRANGE_DRAW_ORDER_MENU: &[NativeMenuEntry] = &[
@@ -1058,30 +1062,22 @@ const ARRANGE_MENU: &[NativeMenuEntry] = &[
         accelerator: Some("CmdOrCtrl+G"),
         enabled: false,
     },
-    NativeMenuEntry::Submenu {
+    NativeMenuEntry::Command {
+        id: command::ARRANGE_UNGROUP,
         title: "Ungroup",
-        entries: ARRANGE_UNGROUP_MENU,
+        accelerator: Some("CmdOrCtrl+U"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::ARRANGE_AUTO_GROUP,
+        title: "Auto-Group",
+        accelerator: None,
+        enabled: false,
     },
     NativeMenuEntry::Separator,
     NativeMenuEntry::Submenu {
-        title: "Flip Horizontal / Vertical",
-        entries: ARRANGE_FLIP_MENU,
-    },
-    NativeMenuEntry::Command {
-        id: command::ARRANGE_MIRROR_ACROSS_LINE,
-        title: "Mirror Across Line",
-        accelerator: Some("CmdOrCtrl+Shift+M"),
-        enabled: false,
-    },
-    NativeMenuEntry::Submenu {
-        title: "Rotate 90° Clockwise / Counter-Clockwise",
-        entries: ARRANGE_ROTATE_MENU,
-    },
-    NativeMenuEntry::Command {
-        id: command::ARRANGE_TWO_POINT_ROTATE_SCALE,
-        title: "Two-Point Rotate / Scale",
-        accelerator: Some("CmdOrCtrl+2"),
-        enabled: false,
+        title: "Transform",
+        entries: ARRANGE_TRANSFORM_MENU,
     },
     NativeMenuEntry::Separator,
     NativeMenuEntry::Submenu {
@@ -1106,10 +1102,6 @@ const ARRANGE_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Submenu {
         title: "Move Selected Objects",
         entries: ARRANGE_MOVE_SELECTED_MENU,
-    },
-    NativeMenuEntry::Submenu {
-        title: "Move Laser to Selection",
-        entries: ARRANGE_MOVE_LASER_MENU,
     },
     NativeMenuEntry::Separator,
     NativeMenuEntry::Command {
@@ -1157,6 +1149,21 @@ const ARRANGE_MENU: &[NativeMenuEntry] = &[
 
 const LASER_TOOLS_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
+        id: command::TOOLS_POSITION_LASER,
+        title: "Position Laser",
+        accelerator: Some("CmdOrCtrl+Shift+L"),
+        enabled: false,
+    },
+    NativeMenuEntry::Submenu {
+        title: "Move Laser to Selection",
+        entries: ARRANGE_MOVE_LASER_MENU,
+    },
+    NativeMenuEntry::Submenu {
+        title: "Jog Laser",
+        entries: ARRANGE_JOG_LASER_MENU,
+    },
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Command {
         id: command::LASER_SAVE_MACHINE_FILES,
         title: "Save Machine Files",
         accelerator: Some("Alt+Shift+L"),
@@ -1183,49 +1190,7 @@ const LASER_TOOLS_MENU: &[NativeMenuEntry] = &[
     },
 ];
 
-const WINDOW_MENU: &[NativeMenuEntry] = &[
-    NativeMenuEntry::Command {
-        id: command::WINDOW_RESET_LAYOUT,
-        title: "Reset to Default Layout",
-        accelerator: None,
-        enabled: true,
-    },
-    NativeMenuEntry::Separator,
-    NativeMenuEntry::Check {
-        id: command::WINDOW_PREVIEW,
-        title: "Preview",
-        accelerator: Some("Alt+P"),
-        enabled: false,
-        checked: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::WINDOW_ZOOM_TO_PAGE,
-        title: "Zoom to Page",
-        accelerator: Some("CmdOrCtrl+0"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::WINDOW_ZOOM_IN,
-        title: "Zoom In",
-        accelerator: Some("CmdOrCtrl+="),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::WINDOW_ZOOM_OUT,
-        title: "Zoom Out",
-        accelerator: Some("CmdOrCtrl+-"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::WINDOW_FRAME_SELECTION,
-        title: "Frame Selection",
-        accelerator: Some("CmdOrCtrl+Shift+A"),
-        enabled: false,
-    },
-    NativeMenuEntry::Separator,
-    NativeMenuEntry::Label {
-        title: "Artwork Display:",
-    },
+const WINDOW_ARTWORK_DISPLAY_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Check {
         id: command::WINDOW_ARTWORK_DISPLAY_BY_LAYER,
         title: "By Layer Operation",
@@ -1261,42 +1226,15 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
         accelerator: Some("Alt+Shift+W"),
         enabled: true,
     },
-    NativeMenuEntry::Separator,
-    NativeMenuEntry::Check {
-        id: command::WINDOW_SIDE_PANELS,
-        title: "Toggle Side Panels",
-        accelerator: Some("F12"),
-        enabled: true,
-        checked: true,
-    },
-    NativeMenuEntry::Separator,
+];
+
+const WINDOW_PANELS_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_ART_LIBRARY,
         title: "Art Library",
         accelerator: None,
         enabled: true,
         checked: false,
-    },
-    NativeMenuEntry::Check {
-        id: command::WINDOW_TOOLBAR_ARRANGE,
-        title: "Arrange",
-        accelerator: None,
-        enabled: true,
-        checked: true,
-    },
-    NativeMenuEntry::Check {
-        id: command::WINDOW_TOOLBAR_ARRANGE_LONG,
-        title: "Arrange (Long)",
-        accelerator: None,
-        enabled: true,
-        checked: false,
-    },
-    NativeMenuEntry::Check {
-        id: command::WINDOW_TOOLBAR_MODIFIERS,
-        title: "Modifiers",
-        accelerator: None,
-        enabled: true,
-        checked: true,
     },
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_CAMERA_CONTROL,
@@ -1321,21 +1259,14 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
     },
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_CUTS_LAYERS,
-        title: "Cuts / Layers",
-        accelerator: None,
-        enabled: true,
-        checked: true,
-    },
-    NativeMenuEntry::Check {
-        id: command::WINDOW_TOOLBAR_DOCKING,
-        title: "Docking",
+        title: "Layers",
         accelerator: None,
         enabled: true,
         checked: true,
     },
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_LASER,
-        title: "Laser",
+        title: "Laser Control",
         accelerator: None,
         enabled: true,
         checked: true,
@@ -1343,13 +1274,6 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_MATERIAL_LIBRARY,
         title: "Material Library",
-        accelerator: None,
-        enabled: true,
-        checked: true,
-    },
-    NativeMenuEntry::Check {
-        id: command::WINDOW_TOOLBAR_MAIN,
-        title: "Main",
         accelerator: None,
         enabled: true,
         checked: true,
@@ -1370,7 +1294,45 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
     },
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_SHAPE_PROPERTIES,
-        title: "Shape Properties",
+        title: "Properties",
+        accelerator: None,
+        enabled: true,
+        checked: true,
+    },
+];
+
+const WINDOW_TOOLBARS_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Check {
+        id: command::WINDOW_TOOLBAR_ARRANGE,
+        title: "Arrange",
+        accelerator: None,
+        enabled: true,
+        checked: true,
+    },
+    NativeMenuEntry::Check {
+        id: command::WINDOW_TOOLBAR_ARRANGE_LONG,
+        title: "Arrange (Long)",
+        accelerator: None,
+        enabled: true,
+        checked: false,
+    },
+    NativeMenuEntry::Check {
+        id: command::WINDOW_TOOLBAR_MODIFIERS,
+        title: "Modifiers",
+        accelerator: None,
+        enabled: true,
+        checked: true,
+    },
+    NativeMenuEntry::Check {
+        id: command::WINDOW_TOOLBAR_DOCKING,
+        title: "Docking",
+        accelerator: None,
+        enabled: true,
+        checked: true,
+    },
+    NativeMenuEntry::Check {
+        id: command::WINDOW_TOOLBAR_MAIN,
+        title: "Main",
         accelerator: None,
         enabled: true,
         checked: true,
@@ -1381,6 +1343,75 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
         accelerator: None,
         enabled: true,
         checked: true,
+    },
+];
+
+const WINDOW_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Command {
+        id: command::WINDOW_RESET_LAYOUT,
+        title: "Reset to Default Layout",
+        accelerator: None,
+        enabled: true,
+    },
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Check {
+        id: command::WINDOW_PREVIEW,
+        title: "Preview",
+        accelerator: Some("Alt+P"),
+        enabled: false,
+        checked: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::WINDOW_REFRESH_PREVIEW,
+        title: "Refresh Preview",
+        accelerator: Some("Shift+P"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::WINDOW_ZOOM_TO_PAGE,
+        title: "Zoom to Page",
+        accelerator: Some("CmdOrCtrl+0"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::WINDOW_ZOOM_IN,
+        title: "Zoom In",
+        accelerator: Some("CmdOrCtrl+="),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::WINDOW_ZOOM_OUT,
+        title: "Zoom Out",
+        accelerator: Some("CmdOrCtrl+-"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::WINDOW_FRAME_SELECTION,
+        title: "Frame Selection",
+        accelerator: Some("CmdOrCtrl+Shift+A"),
+        enabled: false,
+    },
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Submenu {
+        title: "Artwork Display",
+        entries: WINDOW_ARTWORK_DISPLAY_MENU,
+    },
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Check {
+        id: command::WINDOW_SIDE_PANELS,
+        title: "Toggle Side Panels",
+        accelerator: Some("F12"),
+        enabled: true,
+        checked: true,
+    },
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Submenu {
+        title: "Panels",
+        entries: WINDOW_PANELS_MENU,
+    },
+    NativeMenuEntry::Submenu {
+        title: "Toolbar",
+        entries: WINDOW_TOOLBARS_MENU,
     },
 ];
 
@@ -1989,17 +2020,6 @@ fn append_entries(
                 append_entries(app, &child, entries, handles, labels)?;
                 submenu.append(&child)?;
             }
-            NativeMenuEntry::Label { title } => {
-                let resolved = labels.resolve(title);
-                let item = MenuItem::with_id(
-                    app,
-                    format!("native-menu-label:{title}"),
-                    &resolved,
-                    false,
-                    None::<&str>,
-                )?;
-                submenu.append(&item)?;
-            }
             NativeMenuEntry::RecentProjects => {
                 let recent_title = labels.resolve("Recent Projects");
                 let child = Submenu::new(app, &recent_title, true)?;
@@ -2132,9 +2152,7 @@ fn collect_command_ids(entries: &[NativeMenuEntry], ids: &mut HashSet<&'static s
                 ids.insert(*id);
             }
             NativeMenuEntry::Submenu { entries, .. } => collect_command_ids(entries, ids),
-            NativeMenuEntry::Label { .. }
-            | NativeMenuEntry::RecentProjects
-            | NativeMenuEntry::Separator => {}
+            NativeMenuEntry::RecentProjects | NativeMenuEntry::Separator => {}
         }
     }
 }
@@ -2338,7 +2356,6 @@ mod tests {
                 NativeMenuEntry::Submenu { title, entries } => {
                     snapshot_entries(format!("{parent_path} > {title}"), entries, rows);
                 }
-                NativeMenuEntry::Label { .. } => {}
                 NativeMenuEntry::RecentProjects => rows.push(MenuSnapshotRow {
                     menu_path: format!("{parent_path} > Recent Projects > No Recent Projects"),
                     command_id: command::FILE_RECENT_EMPTY,
@@ -2534,32 +2551,33 @@ mod tests {
             arrange_rows,
             vec![
                 ("Arrange > Group".to_string(), command::ARRANGE_GROUP),
-                ("Arrange > Ungroup > Ungroup".to_string(), command::ARRANGE_UNGROUP),
-                ("Arrange > Ungroup > Auto-Group".to_string(), command::ARRANGE_AUTO_GROUP),
+                ("Arrange > Ungroup".to_string(), command::ARRANGE_UNGROUP),
                 (
-                    "Arrange > Flip Horizontal / Vertical > Flip Horizontal".to_string(),
+                    "Arrange > Auto-Group".to_string(),
+                    command::ARRANGE_AUTO_GROUP
+                ),
+                (
+                    "Arrange > Transform > Flip Horizontal".to_string(),
                     command::ARRANGE_FLIP_HORIZONTAL,
                 ),
                 (
-                    "Arrange > Flip Horizontal / Vertical > Flip Vertical".to_string(),
+                    "Arrange > Transform > Flip Vertical".to_string(),
                     command::ARRANGE_FLIP_VERTICAL,
                 ),
                 (
-                    "Arrange > Mirror Across Line".to_string(),
+                    "Arrange > Transform > Mirror Across Line".to_string(),
                     command::ARRANGE_MIRROR_ACROSS_LINE,
                 ),
                 (
-                    "Arrange > Rotate 90° Clockwise / Counter-Clockwise > Rotate 90° Clockwise"
-                        .to_string(),
+                    "Arrange > Transform > Rotate 90° Clockwise".to_string(),
                     command::ARRANGE_ROTATE_CW,
                 ),
                 (
-                    "Arrange > Rotate 90° Clockwise / Counter-Clockwise > Rotate 90° Counter-Clockwise"
-                        .to_string(),
+                    "Arrange > Transform > Rotate 90° Counter-Clockwise".to_string(),
                     command::ARRANGE_ROTATE_CCW,
                 ),
                 (
-                    "Arrange > Two-Point Rotate / Scale".to_string(),
+                    "Arrange > Transform > Two-Point Rotate / Scale".to_string(),
                     command::ARRANGE_TWO_POINT_ROTATE_SCALE,
                 ),
                 (
@@ -2614,11 +2632,26 @@ mod tests {
                     "Arrange > Distribute > Move V Together".to_string(),
                     command::ARRANGE_MOVE_V_TOGETHER,
                 ),
-                ("Arrange > Nest Selected".to_string(), command::ARRANGE_NEST_SELECTED),
-                ("Arrange > Dock > Dock Left".to_string(), command::ARRANGE_DOCK_LEFT),
-                ("Arrange > Dock > Dock Right".to_string(), command::ARRANGE_DOCK_RIGHT),
-                ("Arrange > Dock > Dock Up".to_string(), command::ARRANGE_DOCK_UP),
-                ("Arrange > Dock > Dock Down".to_string(), command::ARRANGE_DOCK_DOWN),
+                (
+                    "Arrange > Nest Selected".to_string(),
+                    command::ARRANGE_NEST_SELECTED
+                ),
+                (
+                    "Arrange > Dock > Dock Left".to_string(),
+                    command::ARRANGE_DOCK_LEFT
+                ),
+                (
+                    "Arrange > Dock > Dock Right".to_string(),
+                    command::ARRANGE_DOCK_RIGHT
+                ),
+                (
+                    "Arrange > Dock > Dock Up".to_string(),
+                    command::ARRANGE_DOCK_UP
+                ),
+                (
+                    "Arrange > Dock > Dock Down".to_string(),
+                    command::ARRANGE_DOCK_DOWN
+                ),
                 (
                     "Arrange > Move Selected Objects > Move to Laser Position".to_string(),
                     command::ARRANGE_MOVE_TO_LASER_POSITION,
@@ -2660,65 +2693,9 @@ mod tests {
                     command::ARRANGE_MOVE_TO_BOTTOM,
                 ),
                 (
-                    "Arrange > Move Laser to Selection > Move Laser to Selection Center"
-                        .to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_CENTER,
+                    "Arrange > Grid Array".to_string(),
+                    command::ARRANGE_GRID_ARRAY
                 ),
-                (
-                    "Arrange > Move Laser to Selection > Move Laser to Upper Left of Selection"
-                        .to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Move Laser to Upper Right of Selection"
-                        .to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Move Laser to Lower Left of Selection"
-                        .to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Move Laser to Lower Right of Selection"
-                        .to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Move Laser to Left of Selection".to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_LEFT,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Move Laser to Right of Selection"
-                        .to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Move Laser to Top of Selection".to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_TOP,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Move Laser to Bottom of Selection"
-                        .to_string(),
-                    command::ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Jog Laser > Jog Laser Left".to_string(),
-                    command::ARRANGE_JOG_LASER_LEFT,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Jog Laser > Jog Laser Right".to_string(),
-                    command::ARRANGE_JOG_LASER_RIGHT,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Jog Laser > Jog Laser Up".to_string(),
-                    command::ARRANGE_JOG_LASER_UP,
-                ),
-                (
-                    "Arrange > Move Laser to Selection > Jog Laser > Jog Laser Down".to_string(),
-                    command::ARRANGE_JOG_LASER_DOWN,
-                ),
-                ("Arrange > Grid Array".to_string(), command::ARRANGE_GRID_ARRAY),
                 (
                     "Arrange > Circular Array".to_string(),
                     command::ARRANGE_CIRCULAR_ARRAY,
@@ -2768,6 +2745,81 @@ mod tests {
             .collect();
 
         assert_eq!(tools_rows, tools_menu_contract_rows());
+    }
+
+    #[test]
+    fn native_menu_laser_tools_keeps_machine_movement_together() {
+        let laser_rows: Vec<_> = menu_snapshot()
+            .into_iter()
+            .filter(|row| row.menu_path.starts_with("Laser Tools > "))
+            .map(|row| (row.menu_path, row.command_id))
+            .collect();
+
+        assert_eq!(
+            laser_rows,
+            vec![
+                ("Laser Tools > Position Laser".to_string(), command::TOOLS_POSITION_LASER),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Selection Center".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_CENTER,
+                ),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Upper Left of Selection".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT,
+                ),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Upper Right of Selection".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT,
+                ),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Lower Left of Selection".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT,
+                ),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Lower Right of Selection".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT,
+                ),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Left of Selection".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_LEFT,
+                ),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Right of Selection".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT,
+                ),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Top of Selection".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_TOP,
+                ),
+                (
+                    "Laser Tools > Move Laser to Selection > Move Laser to Bottom of Selection".to_string(),
+                    command::ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM,
+                ),
+                (
+                    "Laser Tools > Jog Laser > Jog Laser Left".to_string(),
+                    command::ARRANGE_JOG_LASER_LEFT,
+                ),
+                (
+                    "Laser Tools > Jog Laser > Jog Laser Right".to_string(),
+                    command::ARRANGE_JOG_LASER_RIGHT,
+                ),
+                (
+                    "Laser Tools > Jog Laser > Jog Laser Up".to_string(),
+                    command::ARRANGE_JOG_LASER_UP,
+                ),
+                (
+                    "Laser Tools > Jog Laser > Jog Laser Down".to_string(),
+                    command::ARRANGE_JOG_LASER_DOWN,
+                ),
+                (
+                    "Laser Tools > Save Machine Files".to_string(),
+                    command::LASER_SAVE_MACHINE_FILES,
+                ),
+                ("Laser Tools > Material Test...".to_string(), command::LASER_MATERIAL_TEST),
+                ("Laser Tools > Focus Test...".to_string(), command::LASER_FOCUS_TEST),
+                ("Laser Tools > Interval Test...".to_string(), command::LASER_INTERVAL_TEST),
+            ]
+        );
     }
 
     #[test]
@@ -2864,6 +2916,12 @@ mod tests {
                     Some(false)
                 ),
                 (
+                    "Window > Refresh Preview".to_string(),
+                    command::WINDOW_REFRESH_PREVIEW,
+                    None,
+                    None
+                ),
+                (
                     "Window > Zoom to Page".to_string(),
                     command::WINDOW_ZOOM_TO_PAGE,
                     None,
@@ -2888,31 +2946,31 @@ mod tests {
                     None
                 ),
                 (
-                    "Window > By Layer Operation".to_string(),
+                    "Window > Artwork Display > By Layer Operation".to_string(),
                     command::WINDOW_ARTWORK_DISPLAY_BY_LAYER,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Wireframe Override".to_string(),
+                    "Window > Artwork Display > Wireframe Override".to_string(),
                     command::WINDOW_ARTWORK_DISPLAY_WIREFRAME,
                     None,
                     Some(false)
                 ),
                 (
-                    "Window > Filled Override".to_string(),
+                    "Window > Artwork Display > Filled Override".to_string(),
                     command::WINDOW_ARTWORK_DISPLAY_FILLED,
                     None,
                     Some(false)
                 ),
                 (
-                    "Window > Smooth Edges".to_string(),
+                    "Window > Artwork Display > Smooth Edges".to_string(),
                     command::WINDOW_SMOOTH_EDGES,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Toggle Operation / Wireframe".to_string(),
+                    "Window > Artwork Display > Toggle Operation / Wireframe".to_string(),
                     command::WINDOW_TOGGLE_OPERATION_WIREFRAME,
                     Some("Alt+Shift+W"),
                     None
@@ -2924,97 +2982,97 @@ mod tests {
                     Some(true)
                 ),
                 (
-                    "Window > Art Library".to_string(),
+                    "Window > Panels > Art Library".to_string(),
                     command::WINDOW_PANEL_ART_LIBRARY,
                     None,
                     Some(false)
                 ),
                 (
-                    "Window > Arrange".to_string(),
-                    command::WINDOW_TOOLBAR_ARRANGE,
-                    None,
-                    Some(true)
-                ),
-                (
-                    "Window > Arrange (Long)".to_string(),
-                    command::WINDOW_TOOLBAR_ARRANGE_LONG,
-                    None,
-                    Some(false)
-                ),
-                (
-                    "Window > Modifiers".to_string(),
-                    command::WINDOW_TOOLBAR_MODIFIERS,
-                    None,
-                    Some(true)
-                ),
-                (
-                    "Window > Camera Control".to_string(),
+                    "Window > Panels > Camera Control".to_string(),
                     command::WINDOW_PANEL_CAMERA_CONTROL,
                     None,
                     Some(false)
                 ),
                 (
-                    "Window > Console".to_string(),
+                    "Window > Panels > Console".to_string(),
                     command::WINDOW_PANEL_CONSOLE,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Macros".to_string(),
+                    "Window > Panels > Macros".to_string(),
                     command::WINDOW_PANEL_MACROS,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Cuts / Layers".to_string(),
+                    "Window > Panels > Layers".to_string(),
                     command::WINDOW_PANEL_CUTS_LAYERS,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Docking".to_string(),
-                    command::WINDOW_TOOLBAR_DOCKING,
-                    None,
-                    Some(true)
-                ),
-                (
-                    "Window > Laser".to_string(),
+                    "Window > Panels > Laser Control".to_string(),
                     command::WINDOW_PANEL_LASER,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Material Library".to_string(),
+                    "Window > Panels > Material Library".to_string(),
                     command::WINDOW_PANEL_MATERIAL_LIBRARY,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Main".to_string(),
-                    command::WINDOW_TOOLBAR_MAIN,
-                    None,
-                    Some(true)
-                ),
-                (
-                    "Window > Move".to_string(),
+                    "Window > Panels > Move".to_string(),
                     command::WINDOW_PANEL_MOVE,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Project Notes".to_string(),
+                    "Window > Panels > Project Notes".to_string(),
                     command::WINDOW_PANEL_NOTES,
                     None,
                     Some(false)
                 ),
                 (
-                    "Window > Shape Properties".to_string(),
+                    "Window > Panels > Properties".to_string(),
                     command::WINDOW_PANEL_SHAPE_PROPERTIES,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Tools".to_string(),
+                    "Window > Toolbar > Arrange".to_string(),
+                    command::WINDOW_TOOLBAR_ARRANGE,
+                    None,
+                    Some(true)
+                ),
+                (
+                    "Window > Toolbar > Arrange (Long)".to_string(),
+                    command::WINDOW_TOOLBAR_ARRANGE_LONG,
+                    None,
+                    Some(false)
+                ),
+                (
+                    "Window > Toolbar > Modifiers".to_string(),
+                    command::WINDOW_TOOLBAR_MODIFIERS,
+                    None,
+                    Some(true)
+                ),
+                (
+                    "Window > Toolbar > Docking".to_string(),
+                    command::WINDOW_TOOLBAR_DOCKING,
+                    None,
+                    Some(true)
+                ),
+                (
+                    "Window > Toolbar > Main".to_string(),
+                    command::WINDOW_TOOLBAR_MAIN,
+                    None,
+                    Some(true)
+                ),
+                (
+                    "Window > Toolbar > Tools".to_string(),
                     command::WINDOW_TOOLBAR_TOOLS,
                     None,
                     Some(true)

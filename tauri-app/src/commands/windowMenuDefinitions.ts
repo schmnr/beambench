@@ -13,12 +13,12 @@ export const WINDOW_PANEL_MENU_ITEMS = [
   { label: 'Camera Control', commandId: APP_COMMANDS.WINDOW_PANEL_CAMERA_CONTROL, panelId: 'camera' },
   { label: 'Console', commandId: APP_COMMANDS.WINDOW_PANEL_CONSOLE, panelId: 'console' },
   { label: 'Macros', commandId: APP_COMMANDS.WINDOW_PANEL_MACROS, panelId: 'macros' },
-  { label: 'Cuts / Layers', commandId: APP_COMMANDS.WINDOW_PANEL_CUTS_LAYERS, panelId: 'cuts_layers' },
+  { label: 'Layers', commandId: APP_COMMANDS.WINDOW_PANEL_CUTS_LAYERS, panelId: 'cuts_layers' },
   { label: 'Laser Control', commandId: APP_COMMANDS.WINDOW_PANEL_LASER, panelId: 'laser' },
   { label: 'Material Library', commandId: APP_COMMANDS.WINDOW_PANEL_MATERIAL_LIBRARY, panelId: 'material' },
   { label: 'Move', commandId: APP_COMMANDS.WINDOW_PANEL_MOVE, panelId: 'move' },
   { label: 'Project Notes', commandId: APP_COMMANDS.WINDOW_PANEL_NOTES, panelId: 'notes' },
-  { label: 'Shape Properties', commandId: APP_COMMANDS.WINDOW_PANEL_SHAPE_PROPERTIES, panelId: 'properties' },
+  { label: 'Properties', commandId: APP_COMMANDS.WINDOW_PANEL_SHAPE_PROPERTIES, panelId: 'properties' },
 ] as const satisfies ReadonlyArray<{ label: string; commandId: AppCommandId; panelId: string }>;
 
 export const WINDOW_TOOLBAR_MENU_ITEMS = [
@@ -30,28 +30,10 @@ export const WINDOW_TOOLBAR_MENU_ITEMS = [
   { label: 'Tools', commandId: APP_COMMANDS.WINDOW_TOOLBAR_TOOLS, toolbarId: 'tools' },
 ] as const satisfies ReadonlyArray<{ label: string; commandId: AppCommandId; toolbarId: ToolbarId }>;
 
-export const WINDOW_PANEL_TOOLBAR_MENU_ITEMS = [
-  WINDOW_PANEL_MENU_ITEMS[0],
-  WINDOW_TOOLBAR_MENU_ITEMS[0],
-  WINDOW_TOOLBAR_MENU_ITEMS[1],
-  WINDOW_TOOLBAR_MENU_ITEMS[2],
-  WINDOW_PANEL_MENU_ITEMS[1],
-  WINDOW_PANEL_MENU_ITEMS[2],
-  WINDOW_PANEL_MENU_ITEMS[3],
-  WINDOW_PANEL_MENU_ITEMS[4],
-  WINDOW_TOOLBAR_MENU_ITEMS[3],
-  WINDOW_PANEL_MENU_ITEMS[5],
-  WINDOW_PANEL_MENU_ITEMS[6],
-  WINDOW_TOOLBAR_MENU_ITEMS[4],
-  WINDOW_PANEL_MENU_ITEMS[7],
-  WINDOW_PANEL_MENU_ITEMS[8],
-  WINDOW_PANEL_MENU_ITEMS[9],
-  WINDOW_TOOLBAR_MENU_ITEMS[5],
-] as const;
-
 export const WINDOW_MENU_COMMAND_ORDER = [
   APP_COMMANDS.WINDOW_RESET_LAYOUT,
   APP_COMMANDS.WINDOW_PREVIEW,
+  APP_COMMANDS.WINDOW_REFRESH_PREVIEW,
   APP_COMMANDS.WINDOW_ZOOM_TO_PAGE,
   APP_COMMANDS.WINDOW_ZOOM_IN,
   APP_COMMANDS.WINDOW_ZOOM_OUT,
@@ -60,7 +42,8 @@ export const WINDOW_MENU_COMMAND_ORDER = [
   APP_COMMANDS.WINDOW_SMOOTH_EDGES,
   APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME,
   APP_COMMANDS.WINDOW_SIDE_PANELS,
-  ...WINDOW_PANEL_TOOLBAR_MENU_ITEMS.map((item) => item.commandId),
+  ...WINDOW_PANEL_MENU_ITEMS.map((item) => item.commandId),
+  ...WINDOW_TOOLBAR_MENU_ITEMS.map((item) => item.commandId),
 ] as const satisfies ReadonlyArray<AppCommandId>;
 
 export const WINDOW_ARTWORK_DISPLAY_BY_COMMAND = Object.fromEntries(

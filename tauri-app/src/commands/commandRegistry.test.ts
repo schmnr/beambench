@@ -96,7 +96,7 @@ describe('command registry product ids', () => {
     expect(shortcutFor('Edit Nodes')).toBe('Ctrl/Cmd+`');
     expect(shortcutFor('Add Tabs')).toBe('Ctrl/Cmd+Tab');
     expect(shortcutFor('Edit Text')).toBe('Ctrl/Cmd+T');
-    expect(shortcutFor('Position Laser')).toBe('Ctrl/Cmd+Shift+L');
+    expect(getEffectiveHotkey(APP_COMMANDS.TOOLS_POSITION_LASER, {})).toBe('Ctrl+Shift+l');
     expect(shortcutFor('Measure')).toBe('Ctrl/Cmd+M');
     expect(shortcutFor('Offset Shapes')).toBe('Alt/Option+O');
     expect(shortcutFor('Weld Shapes')).toBe('Ctrl/Cmd+W');

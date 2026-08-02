@@ -233,15 +233,16 @@ describe('MenuBar', () => {
     expect(screen.queryByText('Exclude')).toBeNull();
   });
 
-  it('enables Position Laser in the Tools menu only in Run mode', () => {
+  it('keeps Position Laser in Laser Tools and enables it only for an idle Run connection', () => {
     setProjectWithSelection();
     render(<MenuBar />);
-    fireEvent.click(screen.getByText('Tools'));
+    fireEvent.click(screen.getByText('Laser Tools'));
     expect(screen.getByText('Position Laser').closest('button')?.disabled).toBe(true);
 
-    fireEvent.click(screen.getByText('Tools'));
+    fireEvent.click(screen.getByText('Laser Tools'));
     useUiStore.getState().setWorkspaceMode('run');
-    fireEvent.click(screen.getByText('Tools'));
+    setMachineReady();
+    fireEvent.click(screen.getByText('Laser Tools'));
     expect(screen.getByText('Position Laser').closest('button')?.disabled).toBe(false);
   });
 
@@ -250,7 +251,12 @@ describe('MenuBar', () => {
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Tools'));
 
-    expect(openedMenuLabels().filter((label) => label !== 'Draw Shape')).toEqual(
+    expect(openedMenuLabels().filter((label) => ![
+      'Draw Shape',
+      'Boolean Operations',
+      'Image Options',
+      'Transform',
+    ].includes(label))).toEqual(
       TOOLS_MENU_CONTRACT.map((item) => item.label),
     );
   });
@@ -288,9 +294,9 @@ describe('MenuBar', () => {
 
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Tools'));
-    const item = screen.getByRole('button', { name: /Apply Mask to Image/ });
+    const item = screen.getByText('Apply Mask to Image').closest('button');
 
-    expect(item.hasAttribute('disabled')).toBe(true);
+    expect(item?.hasAttribute('disabled')).toBe(true);
     expect(assignImageMask).not.toHaveBeenCalled();
   });
 
@@ -445,13 +451,11 @@ describe('MenuBar', () => {
     expect(openedMenuLabels()).toEqual([
       'Group',
       'Ungroup',
-      'Ungroup',
       'Auto-Group',
-      'Flip Horizontal / Vertical',
+      'Transform',
       'Flip Horizontal',
       'Flip Vertical',
       'Mirror Across Line',
-      'Rotate 90° Clockwise / Counter-Clockwise',
       'Rotate 90° Clockwise',
       'Rotate 90° Counter-Clockwise',
       'Two-Point Rotate / Scale',
@@ -487,21 +491,6 @@ describe('MenuBar', () => {
       'Move to Right',
       'Move to Top',
       'Move to Bottom',
-      'Move Laser to Selection',
-      'Move Laser to Selection Center',
-      'Move Laser to Upper Left of Selection',
-      'Move Laser to Upper Right of Selection',
-      'Move Laser to Lower Left of Selection',
-      'Move Laser to Lower Right of Selection',
-      'Move Laser to Left of Selection',
-      'Move Laser to Right of Selection',
-      'Move Laser to Top of Selection',
-      'Move Laser to Bottom of Selection',
-      'Jog Laser',
-      'Jog Laser Left',
-      'Jog Laser Right',
-      'Jog Laser Up',
-      'Jog Laser Down',
       'Grid Array',
       'Circular Array',
       'Copy Along Path',
@@ -553,6 +542,10 @@ describe('MenuBar', () => {
     expect(screen.getByText('Move V Together')).toBeDefined();
     expect(screen.getByText('Dock')).toBeDefined();
     expect(screen.getByText('Move Selected Objects')).toBeDefined();
+    expect(screen.queryByText('Move Laser to Selection')).toBeNull();
+
+    fireEvent.click(screen.getByText('Arrange'));
+    fireEvent.click(screen.getByText('Laser Tools'));
     expect(screen.getByText('Move Laser to Selection')).toBeDefined();
   });
 
@@ -807,7 +800,7 @@ describe('MenuBar', () => {
 
     const labels = Array.from(menu?.querySelectorAll('button') ?? [])
       .map((button) => button.querySelector('span')?.textContent?.replace('\u2713', '').trim())
-      .filter(Boolean);
+      .filter((label) => label && !['Artwork Display:', 'Panels', 'Toolbar'].includes(label));
     const expectedLabels = WINDOW_MENU_COMMAND_ORDER.map((commandId) => {
       if (commandId === APP_COMMANDS.WINDOW_SIDE_PANELS) return 'Toggle Side Panels';
       return getCommand(commandId)?.label;
@@ -822,7 +815,8 @@ describe('MenuBar', () => {
     expect(screen.getByText('Smooth Edges')).toBeDefined();
     expect(screen.getByText('Camera Control')).toBeDefined();
     expect(screen.getByText('Project Notes')).toBeDefined();
-    expect(screen.getByText('Shape Properties')).toBeDefined();
+    expect(screen.getByText('Layers')).toBeDefined();
+    expect(screen.getByText('Properties')).toBeDefined();
     expect(screen.queryByText('Variable Text')).toBeNull();
     expect(screen.queryByText('File List')).toBeNull();
     expect(screen.queryByText('Modes')).toBeNull();

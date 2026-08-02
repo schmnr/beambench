@@ -33,6 +33,7 @@ import { NestDialog } from '../dialogs/NestDialog';
 import {
   createSelectionContext,
   isClosedVectorCompatible,
+  isMeshDeformCompatible,
   orderSelectedObjects,
   pickLastSelectedVectorGuide,
   resolveEffectiveData,
@@ -43,8 +44,9 @@ const MODIFIER_GRID_ARRAY = 'grid_array' as const;
 const MODIFIER_CIRCULAR_ARRAY = 'circular_array' as const;
 import { findAutoGroupCandidates } from '../../utils/autoGroupCandidates';
 import {
-  WINDOW_PANEL_TOOLBAR_MENU_ITEMS,
   WINDOW_ARTWORK_DISPLAY_ITEMS,
+  WINDOW_PANEL_MENU_ITEMS,
+  WINDOW_TOOLBAR_MENU_ITEMS,
 } from '../../commands/windowMenuDefinitions';
 
 const EMPTY_RECENT_FILES: RecentFile[] = [];
@@ -411,9 +413,9 @@ export function MenuBar() {
   const selectedPathObject = selectedObjects.find((o) => isEffectiveVectorType(effectiveType(o))) ?? null;
   const selectedMaskObjects = selectedObjects.filter((o) => isEffectiveVectorType(effectiveType(o)));
   const copyAlongGuideObject = pickLastSelectedVectorGuide(selectedObjectIds, allObjects);
-  const canApplyPathToText = selectedObjects.length === 2 && Boolean(selectedTextObject && selectedPathObject && selectedTextObject.id !== selectedPathObject.id);
-  const canCropImage = selectedObjects.length === 2 && Boolean(selectedRasterObject && selectedPathObject && selectedRasterObject.id !== selectedPathObject.id);
-  const canApplyMaskToImage = Boolean(selectedRasterObject)
+  const canApplyPathToText = unlockedSelection && selectedObjects.length === 2 && Boolean(selectedTextObject && selectedPathObject && selectedTextObject.id !== selectedPathObject.id);
+  const canCropImage = unlockedSelection && selectedObjects.length === 2 && Boolean(selectedRasterObject && selectedPathObject && selectedRasterObject.id !== selectedPathObject.id);
+  const canApplyMaskToImage = unlockedSelection && Boolean(selectedRasterObject)
     && selectedMaskObjects.length > 0
     && selectedMaskObjects.every((o) =>
       o.id !== selectedRasterObject?.id && isClosedVectorCompatible(o, allObjects)
@@ -431,6 +433,11 @@ export function MenuBar() {
     && selectedObjects.some((o) => o.id !== copyAlongGuideObject?.id);
   const canJoin = selectedObjectIds.length >= 2 && !booleanPending
     && selectedObjects.every((o) => !o.locked && isEffectiveVectorType(effectiveType(o)));
+  const canDeform = unlockedSelection
+    && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
+  const canPositionLaser = workspaceMode === 'run'
+    && sessionState === 'ready'
+    && machineStatus?.run_state === 'idle';
   return (
     <div
       ref={menuRef}
@@ -732,7 +739,7 @@ export function MenuBar() {
           {ml("Tools")}
         </button>
         {openMenu === 'tools' && (
-          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[240px] z-50 max-h-[70vh] overflow-y-auto">
+          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[240px] z-50">
             <MenuItem
               label={ml("Select")}
               shortcut="Esc"
@@ -742,10 +749,10 @@ export function MenuBar() {
             <MenuItem
               label={ml("Draw Lines")}
               shortcut="Ctrl+L"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_LINE); }}
             />
-            <MenuSubmenu label={ml("Draw Shape")} disabled={!project}>
+            <MenuSubmenu label={ml("Draw Shape")} disabled={workspaceMode !== 'design' || !project}>
               <MenuItem label={ml("Rectangle")} shortcut="Ctrl+R" onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_RECTANGLE); }} />
               <MenuItem label={ml("Ellipse")} shortcut="Ctrl+E" onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_ELLIPSE); }} />
               <MenuItem label={ml("Triangle")} onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TRIANGLE); }} />
@@ -758,32 +765,26 @@ export function MenuBar() {
             <MenuItem
               label={ml("Edit Nodes")}
               shortcut="Ctrl+`"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_NODE); }}
             />
             <MenuItem
               label={ml("Trim Shapes")}
               shortcut="Ctrl+K"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TRIM); }}
             />
             <MenuItem
               label={ml("Add Tabs")}
               shortcut="Ctrl+Tab"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TABS); }}
             />
             <MenuItem
               label={ml("Edit Text")}
               shortcut="Ctrl+T"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TEXT); }}
-            />
-            <MenuItem
-              label={ml("Position Laser")}
-              shortcut="Ctrl+Shift+L"
-              disabled={!project || workspaceMode !== 'run'}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_POSITION_LASER); }}
             />
             <MenuItem
               label={ml("Measure")}
@@ -793,88 +794,95 @@ export function MenuBar() {
             />
             <MenuItem
               label={ml("Create Bar Code")}
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BARCODE); }}
             />
             <MenuItem
               label={ml("Offset Shapes")}
               shortcut="Alt+O"
-              disabled={!unlockedSelection}
+              disabled={workspaceMode !== 'design' || !unlockedSelection}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_OFFSET); }}
             />
-            <MenuItem
-              label={ml("Weld Shapes")}
-              shortcut="Ctrl+W"
-              disabled={!selCtx.canWeld || booleanPending}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_WELD); }}
-            />
-            <MenuItem
-              label={ml("Boolean Union")}
-              shortcut="Alt++"
-              disabled={!selCtx.canWeld || booleanPending}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_UNION); }}
-            />
-            <MenuItem
-              label={ml("Boolean Subtract")}
-              shortcut="Alt+-"
-              disabled={!selCtx.canWeld || booleanPending}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT); }}
-            />
-            <MenuItem
-              label={ml("Boolean Intersection")}
-              shortcut="Alt+*"
-              disabled={!selCtx.canWeld || booleanPending}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION); }}
-            />
-            <MenuItem
-              label={ml("Boolean Assistant")}
-              shortcut="Ctrl+B"
-              disabled={!canBoolean}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT); }}
-            />
-            <MenuItem
-              label={ml("Cut Shapes")}
-              shortcut="Alt+Shift+C"
-              disabled={!canJoin}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_CUT_SHAPES); }}
-            />
-            <MenuItem
-              label={ml("Adjust Image")}
-              shortcut="Alt+I"
-              disabled={!canReplaceImage}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_ADJUST_IMAGE); }}
-            />
-            <MenuItem
-              label={ml("Trace Image")}
-              shortcut="Alt+T"
-              disabled={!canReplaceImage}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TRACE_IMAGE); }}
-            />
+            <div className="border-t border-bb-border my-1" />
+            <MenuSubmenu label={ml("Boolean Operations")} disabled={workspaceMode !== 'design'}>
+              <MenuItem
+                label={ml("Weld Shapes")}
+                shortcut="Ctrl+W"
+                disabled={!selCtx.canWeld || booleanPending}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_WELD); }}
+              />
+              <MenuItem
+                label={ml("Boolean Union")}
+                shortcut="Alt++"
+                disabled={!selCtx.canWeld || booleanPending}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_UNION); }}
+              />
+              <MenuItem
+                label={ml("Boolean Subtract")}
+                shortcut="Alt+-"
+                disabled={!selCtx.canWeld || booleanPending}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT); }}
+              />
+              <MenuItem
+                label={ml("Boolean Intersection")}
+                shortcut="Alt+*"
+                disabled={!selCtx.canWeld || booleanPending}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION); }}
+              />
+              <MenuItem
+                label={ml("Boolean Assistant")}
+                shortcut="Ctrl+B"
+                disabled={!canBoolean}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT); }}
+              />
+              <MenuItem
+                label={ml("Cut Shapes")}
+                shortcut="Alt+Shift+C"
+                disabled={!canJoin}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_CUT_SHAPES); }}
+              />
+            </MenuSubmenu>
             <MenuItem
               label={ml("Apply Path to Text")}
-              disabled={!canApplyPathToText}
+              disabled={workspaceMode !== 'design' || !canApplyPathToText}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_APPLY_PATH_TO_TEXT); }}
             />
-            <MenuItem
-              label={ml("Apply Mask to Image")}
-              disabled={!canApplyMaskToImage}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_APPLY_MASK_TO_IMAGE); }}
-            />
-            <MenuItem
-              label={ml("Crop Image")}
-              disabled={!canCropImage}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_CROP_IMAGE); }}
-            />
-            <MenuItem
-              label={ml("Warp Selection (4 Points)")}
-              disabled={!hasSelection}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_WARP_SELECTION); }}
-            />
-            <MenuItem
-              label={ml("Deform Selection (16 Points)")}
-              disabled={!hasSelection}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_DEFORM_SELECTION); }}
-            />
+            <MenuSubmenu label={ml("Image Options")} disabled={workspaceMode !== 'design'}>
+              <MenuItem
+                label={ml("Adjust Image")}
+                shortcut="Alt+I"
+                disabled={!canReplaceImage}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_ADJUST_IMAGE); }}
+              />
+              <MenuItem
+                label={ml("Trace Image")}
+                shortcut="Alt+T"
+                disabled={!canReplaceImage}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TRACE_IMAGE); }}
+              />
+              <MenuItem
+                label={ml("Apply Mask to Image")}
+                disabled={!canApplyMaskToImage}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_APPLY_MASK_TO_IMAGE); }}
+              />
+              <MenuItem
+                label={ml("Crop Image")}
+                disabled={!canCropImage}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_CROP_IMAGE); }}
+              />
+            </MenuSubmenu>
+            <MenuSubmenu label={ml("Transform")} disabled={workspaceMode !== 'design'}>
+              <MenuItem
+                label={ml("Warp Selection (4 Points)")}
+                disabled={!canDeform}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_WARP_SELECTION); }}
+              />
+              <MenuItem
+                label={ml("Deform Selection (16 Points)")}
+                disabled={!canDeform}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_DEFORM_SELECTION); }}
+              />
+            </MenuSubmenu>
           </div>
         )}
       </div>
@@ -889,29 +897,25 @@ export function MenuBar() {
         </button>
         {openMenu === 'arrange' && (
           <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[340px] z-50">
-            <MenuItem label={ml("Group")} shortcut="Ctrl+G" disabled={!canGroup} onClick={handleGroup} />
-            <MenuSubmenu label={ml("Ungroup")}>
-              <MenuItem label={ml("Ungroup")} shortcut="Ctrl+U" disabled={!canUngroup} onClick={handleUngroup} />
-              <MenuItem label={ml("Auto-Group")} disabled={!canAutoGroup} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_AUTO_GROUP); }} />
-            </MenuSubmenu>
+            <MenuItem label={ml("Group")} shortcut="Ctrl+G" disabled={workspaceMode !== 'design' || !canGroup} onClick={handleGroup} />
+            <MenuItem label={ml("Ungroup")} shortcut="Ctrl+U" disabled={workspaceMode !== 'design' || !canUngroup} onClick={handleUngroup} />
+            <MenuItem label={ml("Auto-Group")} disabled={workspaceMode !== 'design' || !unlockedSelection || !canAutoGroup} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_AUTO_GROUP); }} />
             <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Flip Horizontal / Vertical")}>
+            <MenuSubmenu label={ml("Transform")} disabled={workspaceMode !== 'design'}>
               <MenuItem label={ml("Flip Horizontal")} shortcut="Ctrl+Shift+H" disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL); }} />
               <MenuItem label={ml("Flip Vertical")} shortcut="Ctrl+Shift+V" disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_FLIP_VERTICAL); }} />
-            </MenuSubmenu>
-            <MenuItem
-              label={ml("Mirror Across Line")}
-              shortcut="Ctrl+Shift+M"
-              disabled={!canMirrorAcrossLine}
-              onClick={() => { void handleMirrorAcrossLine(); }}
-            />
-            <MenuSubmenu label={ml("Rotate 90° Clockwise / Counter-Clockwise")}>
+              <MenuItem
+                label={ml("Mirror Across Line")}
+                shortcut="Ctrl+Shift+M"
+                disabled={!canMirrorAcrossLine}
+                onClick={() => { void handleMirrorAcrossLine(); }}
+              />
               <MenuItem label={ml("Rotate 90° Clockwise")} shortcut="." disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_ROTATE_CW); }} />
               <MenuItem label={ml("Rotate 90° Counter-Clockwise")} shortcut="," disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_ROTATE_CCW); }} />
+              <MenuItem label={ml("Two-Point Rotate / Scale")} shortcut="Ctrl+2" disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE); }} />
             </MenuSubmenu>
-            <MenuItem label={ml("Two-Point Rotate / Scale")} shortcut="Ctrl+2" disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE); }} />
             <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Align")}>
+            <MenuSubmenu label={ml("Align")} disabled={workspaceMode !== 'design'}>
               <MenuItem label={ml("Align Centers")} disabled={!canAlign} onClick={() => handleAlign('centers_xy')} />
               <MenuItem label={ml("Align Vertical Centers")} shortcut="Alt+PgUp" disabled={!canAlign} onClick={() => handleAlign('centers_v')} />
               <MenuItem label={ml("Align Horizontal Centers")} shortcut="Alt+PgDn" disabled={!canAlign} onClick={() => handleAlign('centers_h')} />
@@ -920,7 +924,7 @@ export function MenuBar() {
               <MenuItem label={ml("Align Bottom")} shortcut="Alt+Down" disabled={!canAlign} onClick={() => handleAlign('bottom')} />
               <MenuItem label={ml("Align Top")} shortcut="Alt+Up" disabled={!canAlign} onClick={() => handleAlign('top')} />
             </MenuSubmenu>
-            <MenuSubmenu label={ml("Distribute")}>
+            <MenuSubmenu label={ml("Distribute")} disabled={workspaceMode !== 'design'}>
               <MenuItem label={ml("Distribute V-Spaced")} disabled={!canDistribute} onClick={() => handleDistribute('v_spaced')} />
               <MenuItem label={ml("Distribute V-Centered")} disabled={!canDistribute} onClick={() => handleDistribute('v_centered')} />
               <MenuItem label={ml("Distribute H-Spaced")} disabled={!canDistribute} onClick={() => handleDistribute('h_spaced')} />
@@ -929,14 +933,14 @@ export function MenuBar() {
               <MenuItem label={ml("Move V Together")} shortcut="Alt+Shift+V" disabled={!canMoveTogether} onClick={() => { void handleMoveTogether('vertical'); }} />
             </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
-            <MenuItem label={ml("Nest Selected")} disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_NEST_SELECTED); }} />
-            <MenuSubmenu label={ml("Dock")} disabled={!canDock}>
+            <MenuItem label={ml("Nest Selected")} disabled={workspaceMode !== 'design' || !unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_NEST_SELECTED); }} />
+            <MenuSubmenu label={ml("Dock")} disabled={workspaceMode !== 'design' || !canDock}>
               <MenuItem label={ml("Dock Left")} disabled={!canDock} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_DOCK_LEFT); }} />
               <MenuItem label={ml("Dock Right")} disabled={!canDock} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_DOCK_RIGHT); }} />
               <MenuItem label={ml("Dock Up")} disabled={!canDock} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_DOCK_UP); }} />
               <MenuItem label={ml("Dock Down")} disabled={!canDock} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_DOCK_DOWN); }} />
             </MenuSubmenu>
-            <MenuSubmenu label={ml("Move Selected Objects")} disabled={!canMoveSelected}>
+            <MenuSubmenu label={ml("Move Selected Objects")} disabled={workspaceMode !== 'design' || !canMoveSelected}>
               <MenuItem label={ml("Move to Laser Position")} disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_LASER_POSITION); }} />
               <MenuItem label={ml("Move to Page Center")} shortcut="P" disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_PAGE_CENTER); }} />
               <MenuItem label={ml("Move to Upper Left")} disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_UPPER_LEFT); }} />
@@ -948,27 +952,10 @@ export function MenuBar() {
               <MenuItem label={ml("Move to Top")} disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_TOP); }} />
               <MenuItem label={ml("Move to Bottom")} disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_BOTTOM); }} />
             </MenuSubmenu>
-            <MenuSubmenu label={ml("Move Laser to Selection")} disabled={!canMoveLaserToSelection}>
-              <MenuItem label={ml("Move Laser to Selection Center")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_CENTER); }} />
-              <MenuItem label={ml("Move Laser to Upper Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT); }} />
-              <MenuItem label={ml("Move Laser to Upper Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT); }} />
-              <MenuItem label={ml("Move Laser to Lower Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT); }} />
-              <MenuItem label={ml("Move Laser to Lower Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT); }} />
-              <MenuItem label={ml("Move Laser to Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LEFT); }} />
-              <MenuItem label={ml("Move Laser to Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT); }} />
-              <MenuItem label={ml("Move Laser to Top of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_TOP); }} />
-              <MenuItem label={ml("Move Laser to Bottom of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM); }} />
-              <MenuSubmenu label={ml("Jog Laser")}>
-                <MenuItem label={ml("Jog Laser Left")} shortcut="Alt+Ctrl+[" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_LEFT); }} />
-                <MenuItem label={ml("Jog Laser Right")} shortcut="Alt+Ctrl+]" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT); }} />
-                <MenuItem label={ml("Jog Laser Up")} shortcut="Ctrl+Shift+]" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_UP); }} />
-                <MenuItem label={ml("Jog Laser Down")} shortcut="Ctrl+Shift+[" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_DOWN); }} />
-              </MenuSubmenu>
-            </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
             <MenuItem
               label={ml("Grid Array")}
-              disabled={!unlockedSelection}
+              disabled={workspaceMode !== 'design' || !unlockedSelection}
               onClick={() => {
                 setOpenMenu(null);
                 useUiStore.getState().openModifierProperties(MODIFIER_GRID_ARRAY, selectedObjectIds);
@@ -976,7 +963,7 @@ export function MenuBar() {
             />
             <MenuItem
               label={ml("Circular Array")}
-              disabled={!unlockedSelection}
+              disabled={workspaceMode !== 'design' || !unlockedSelection}
               onClick={() => {
                 setOpenMenu(null);
                 useUiStore.getState().openModifierProperties(MODIFIER_CIRCULAR_ARRAY, selectedObjectIds);
@@ -984,30 +971,30 @@ export function MenuBar() {
             />
             <MenuItem
               label={ml("Copy Along Path")}
-              disabled={!canCopyAlongPath}
+              disabled={workspaceMode !== 'design' || !unlockedSelection || !canCopyAlongPath}
               onClick={handleCopyAlongPath}
             />
             <MenuItem
               label={ml("Break Apart")}
               shortcut="Alt+B"
-              disabled={!canBreakApart}
+              disabled={workspaceMode !== 'design' || !canBreakApart}
               onClick={() => { setOpenMenu(null); void breakApart(selectedObjectIds[0]); }}
             />
             <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Push in Draw Order")}>
-              <MenuItem label={ml("Bring Forward")} shortcut="PgUp" disabled={selectedObjectIds.length !== 1} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'forward'); }} />
-              <MenuItem label={ml("Send Backward")} shortcut="PgDn" disabled={selectedObjectIds.length !== 1} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'backward'); }} />
-              <MenuItem label={ml("Bring to Front")} shortcut="Ctrl+PgUp" disabled={selectedObjectIds.length !== 1} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'front'); }} />
-              <MenuItem label={ml("Send to Back")} shortcut="Ctrl+PgDn" disabled={selectedObjectIds.length !== 1} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'back'); }} />
+            <MenuSubmenu label={ml("Push in Draw Order")} disabled={workspaceMode !== 'design'}>
+              <MenuItem label={ml("Bring Forward")} shortcut="PgUp" disabled={selectedObjectIds.length !== 1 || !unlockedSelection} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'forward'); }} />
+              <MenuItem label={ml("Send Backward")} shortcut="PgDn" disabled={selectedObjectIds.length !== 1 || !unlockedSelection} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'backward'); }} />
+              <MenuItem label={ml("Bring to Front")} shortcut="Ctrl+PgUp" disabled={selectedObjectIds.length !== 1 || !unlockedSelection} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'front'); }} />
+              <MenuItem label={ml("Send to Back")} shortcut="Ctrl+PgDn" disabled={selectedObjectIds.length !== 1 || !unlockedSelection} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'back'); }} />
             </MenuSubmenu>
             <MenuItem
               label={ml("Lock Selected Shapes")}
-              disabled={unlockedSelectedObjectIds.length === 0}
+              disabled={workspaceMode !== 'design' || unlockedSelectedObjectIds.length === 0}
               onClick={() => { setOpenMenu(null); void lockObjects(unlockedSelectedObjectIds); }}
             />
             <MenuItem
               label={ml("Unlock Selected Shapes")}
-              disabled={lockedSelectedObjectIds.length === 0}
+              disabled={workspaceMode !== 'design' || lockedSelectedObjectIds.length === 0}
               onClick={() => { setOpenMenu(null); void unlockObjects(lockedSelectedObjectIds); }}
             />
           </div>
@@ -1105,9 +1092,33 @@ export function MenuBar() {
         {openMenu === 'laserTools' && (
           <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[180px] z-50">
             <MenuItem
+              label={ml("Position Laser")}
+              shortcut="Ctrl+Shift+L"
+              disabled={!project || !canPositionLaser}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_POSITION_LASER); }}
+            />
+            <MenuSubmenu label={ml("Move Laser to Selection")} disabled={!canPositionLaser || !canMoveLaserToSelection}>
+              <MenuItem label={ml("Move Laser to Selection Center")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_CENTER); }} />
+              <MenuItem label={ml("Move Laser to Upper Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT); }} />
+              <MenuItem label={ml("Move Laser to Upper Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT); }} />
+              <MenuItem label={ml("Move Laser to Lower Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT); }} />
+              <MenuItem label={ml("Move Laser to Lower Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT); }} />
+              <MenuItem label={ml("Move Laser to Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LEFT); }} />
+              <MenuItem label={ml("Move Laser to Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT); }} />
+              <MenuItem label={ml("Move Laser to Top of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_TOP); }} />
+              <MenuItem label={ml("Move Laser to Bottom of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM); }} />
+            </MenuSubmenu>
+            <MenuSubmenu label={ml("Jog Laser")} disabled={!canPositionLaser}>
+              <MenuItem label={ml("Jog Laser Left")} shortcut="Alt+Ctrl+[" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_LEFT); }} />
+              <MenuItem label={ml("Jog Laser Right")} shortcut="Alt+Ctrl+]" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT); }} />
+              <MenuItem label={ml("Jog Laser Up")} shortcut="Ctrl+Shift+]" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_UP); }} />
+              <MenuItem label={ml("Jog Laser Down")} shortcut="Ctrl+Shift+[" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_DOWN); }} />
+            </MenuSubmenu>
+            <div className="border-t border-bb-border my-1" />
+            <MenuItem
               label={ml("Save Machine Files")}
               shortcut="Alt+Shift+L"
-              disabled={!project || previewState !== 'current'}
+              disabled={!project || previewState === 'generating'}
               onClick={handleSaveMachineFiles}
             />
             <div className="border-t border-bb-border my-1" />
@@ -1165,6 +1176,15 @@ export function MenuBar() {
               }}
             />
             <MenuItem
+              label={ml("Refresh Preview")}
+              shortcut="Shift+P"
+              disabled={!project || previewState === 'generating'}
+              onClick={() => {
+                setOpenMenu(null);
+                void executeAppCommand(APP_COMMANDS.WINDOW_REFRESH_PREVIEW);
+              }}
+            />
+            <MenuItem
               label={ml("Zoom to Page")}
               shortcut="Ctrl+0"
               disabled={!project}
@@ -1201,34 +1221,36 @@ export function MenuBar() {
               }}
             />
             <div className="border-t border-bb-border my-1" />
-            <MenuLabel label={ml("Artwork Display:")} />
-            {WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => (
+            <MenuSubmenu label={ml("Artwork Display")}>
+              {WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => (
+                <MenuCheckItem
+                  key={item.commandId}
+                  label={mlDynamic(item.label)}
+                  checked={artworkDisplayMode === item.mode}
+                  onClick={() => {
+                    setOpenMenu(null);
+                    void executeAppCommand(item.commandId);
+                  }}
+                />
+              ))}
+              <div className="border-t border-bb-border my-1" />
               <MenuCheckItem
-                key={item.commandId}
-                label={mlDynamic(item.label)}
-                checked={artworkDisplayMode === item.mode}
+                label={ml("Smooth Edges")}
+                checked={smoothEdges}
                 onClick={() => {
                   setOpenMenu(null);
-                  void executeAppCommand(item.commandId);
+                  void executeAppCommand(APP_COMMANDS.WINDOW_SMOOTH_EDGES);
                 }}
               />
-            ))}
-            <MenuCheckItem
-              label={ml("Smooth Edges")}
-              checked={smoothEdges}
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.WINDOW_SMOOTH_EDGES);
-              }}
-            />
-            <MenuItem
-              label={ml("Toggle Operation / Wireframe")}
-              shortcut="Alt+Shift+W"
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME);
-              }}
-            />
+              <MenuItem
+                label={ml("Toggle Operation / Wireframe")}
+                shortcut="Alt+Shift+W"
+                onClick={() => {
+                  setOpenMenu(null);
+                  void executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME);
+                }}
+              />
+            </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
             <MenuCheckItem
               label={ml("Toggle Side Panels")}
@@ -1239,23 +1261,32 @@ export function MenuBar() {
                 void executeAppCommand(APP_COMMANDS.WINDOW_SIDE_PANELS);
               }}
             />
-            <div className="border-t border-bb-border my-1" />
-            {WINDOW_PANEL_TOOLBAR_MENU_ITEMS.map((item) => {
-              const checked = 'panelId' in item
-                ? !hiddenPanelIds.includes(item.panelId)
-                : toolbarVisibility[item.toolbarId];
-              return (
+            <MenuSubmenu label={ml("Panels")}>
+              {WINDOW_PANEL_MENU_ITEMS.map((item) => (
                 <MenuCheckItem
                   key={item.commandId}
                   label={mlDynamic(item.label)}
-                  checked={checked}
+                  checked={!hiddenPanelIds.includes(item.panelId)}
                   onClick={() => {
                     setOpenMenu(null);
                     void executeAppCommand(item.commandId);
                   }}
                 />
-              );
-            })}
+              ))}
+            </MenuSubmenu>
+            <MenuSubmenu label={ml("Toolbar")}>
+              {WINDOW_TOOLBAR_MENU_ITEMS.map((item) => (
+                <MenuCheckItem
+                  key={item.commandId}
+                  label={mlDynamic(item.label)}
+                  checked={toolbarVisibility[item.toolbarId]}
+                  onClick={() => {
+                    setOpenMenu(null);
+                    void executeAppCommand(item.commandId);
+                  }}
+                />
+              ))}
+            </MenuSubmenu>
           </div>
         )}
       </div>
@@ -1564,14 +1595,6 @@ function MenuItem({
       <span>{label}</span>
       {shortcut && <span className="text-bb-text-dim text-xs ml-4">{shortcut}</span>}
     </button>
-  );
-}
-
-function MenuLabel({ label }: { label: string }) {
-  return (
-    <div className="px-3 py-1 text-sm text-bb-text-dim cursor-default select-none">
-      {label}
-    </div>
   );
 }
 

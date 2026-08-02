@@ -12,6 +12,7 @@ import {
 import { persistenceService } from '../services/persistenceService';
 import { appService } from '../services/appService';
 import { useProjectStore } from '../stores/projectStore';
+import { useMachineStore } from '../stores/machineStore';
 import { usePreviewStore } from '../stores/previewStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUndoStore } from '../stores/undoStore';
@@ -22,6 +23,7 @@ import { DEFAULT_TOOLBAR_VISIBILITY } from '../panels';
 import i18n, { SUPPORTED_LOCALES } from '../i18n';
 
 const initialProjectState = useProjectStore.getState();
+const initialMachineState = useMachineStore.getState();
 const initialPreviewState = usePreviewStore.getState();
 const initialUiState = useUiStore.getState();
 const initialUndoState = useUndoStore.getState();
@@ -30,6 +32,7 @@ const initialAppState = useAppStore.getState();
 afterEach(() => {
   vi.restoreAllMocks();
   useProjectStore.setState(initialProjectState, true);
+  useMachineStore.setState(initialMachineState, true);
   usePreviewStore.setState(initialPreviewState, true);
   useUiStore.setState(initialUiState, true);
   useUndoStore.setState(initialUndoState, true);
@@ -139,7 +142,65 @@ describe('app command bridge', () => {
 
     expect(positionLaserState()?.enabled).toBe(false);
     useUiStore.getState().setWorkspaceMode('run');
+    useMachineStore.setState({
+      sessionState: 'ready',
+      machineStatus: {
+        run_state: 'idle',
+        machine_position: { x: 0, y: 0, z: 0 },
+        work_position: { x: 0, y: 0, z: 0 },
+        feed_rate: 0,
+        spindle_speed: 0,
+        feed_override: 100,
+        spindle_override: 100,
+        rapid_override: 100,
+        pin_states: '',
+      },
+    });
     expect(positionLaserState()?.enabled).toBe(true);
+  });
+
+  it('blocks design tools and object arrangement while Run mode is active', async () => {
+    const project = makeProject();
+    const alignObjects = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: [project.objects[0].id],
+      alignObjects,
+    } as never);
+    useUiStore.setState({ workspaceMode: 'run', activeTool: 'select' });
+
+    const state = getAppCommandState();
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.TOOLS_RECTANGLE,
+      enabled: false,
+    }));
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.ARRANGE_ALIGN_LEFT,
+      enabled: false,
+    }));
+
+    await executeAppCommand(APP_COMMANDS.TOOLS_RECTANGLE);
+    await executeAppCommand(APP_COMMANDS.ARRANGE_ALIGN_LEFT);
+
+    expect(useUiStore.getState().activeTool).toBe('select');
+    expect(alignObjects).not.toHaveBeenCalled();
+  });
+
+  it('generates a stale preview before saving machine files', async () => {
+    const exportGcode = vi.fn().mockResolvedValue(undefined);
+    const generatePreview = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({ project: makeProject(), exportGcode } as never);
+    usePreviewStore.setState({ state: 'stale', generatePreview });
+
+    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.FILE_SAVE_MACHINE_FILES,
+      enabled: true,
+    }));
+
+    await executeAppCommand(APP_COMMANDS.FILE_SAVE_MACHINE_FILES);
+
+    expect(generatePreview).toHaveBeenCalledOnce();
+    expect(exportGcode).toHaveBeenCalledOnce();
   });
 
   it('localizes native menu dynamic titles from the active i18n language', async () => {
@@ -391,6 +452,32 @@ describe('app command bridge', () => {
     expect(useUiStore.getState().meshDeformMode).toBe('mesh');
   });
 
+  it('disables mutating Tools commands when any required object is locked', () => {
+    const first = makeProjectObject({
+      id: 'path-1',
+      data: { type: 'vector_path' as const, path_data: 'M 0 0 L 10 0 L 10 10 Z', closed: true },
+    });
+    const second = makeProjectObject({
+      id: 'path-2',
+      locked: true,
+      data: { type: 'vector_path' as const, path_data: 'M 2 2 L 8 2 L 8 8 Z', closed: true },
+    });
+    useProjectStore.setState({
+      project: makeProject({ objects: [first, second] }),
+      selectedObjectIds: ['path-1', 'path-2'],
+    });
+
+    const state = getAppCommandState();
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.TOOLS_BOOLEAN_UNION,
+      enabled: false,
+    }));
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.TOOLS_CUT_SHAPES,
+      enabled: false,
+    }));
+  });
+
   it('activates Warp for an imported SVG group with compatible children', async () => {
     const child = makeProjectObject({
       id: 'path-child',
@@ -487,7 +574,7 @@ describe('app command bridge', () => {
 
     useProjectStore.setState({ selectedObjectIds: ['outer', 'child', 'peer'] });
     expect(stateItem(APP_COMMANDS.ARRANGE_DISTRIBUTE_H_CENTERED)).toMatchObject({ enabled: true });
-    expect(stateItem(APP_COMMANDS.ARRANGE_AUTO_GROUP)).toMatchObject({ enabled: true });
+    expect(stateItem(APP_COMMANDS.ARRANGE_AUTO_GROUP)).toMatchObject({ enabled: false });
 
     useProjectStore.setState({
       project: makeProject({ objects: objects.map((object) => ({ ...object, locked: true })) }),
