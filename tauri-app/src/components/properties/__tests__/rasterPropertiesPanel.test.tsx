@@ -3,19 +3,28 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { RasterPropertiesPanel } from '../RasterPropertiesPanel';
 import { useProjectStore } from '../../../stores/projectStore';
 import { makeLayer, makeProject, makeProjectObject } from '../../../test-utils/projectFixtures';
+import { APP_COMMANDS } from '../../../commands/appCommandIds';
+
+const { executeAppCommandMock } = vi.hoisted(() => ({
+  executeAppCommandMock: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
+vi.mock('../../../commands/appCommands', () => ({
+  executeAppCommand: executeAppCommandMock,
+}));
 
 const initialState = useProjectStore.getState();
 
 afterEach(() => {
   cleanup();
+  executeAppCommandMock.mockClear();
   useProjectStore.setState(initialState, true);
 });
 
 describe('RasterPropertiesPanel', () => {
-  it('renders sharpen and edge enhance controls', () => {
+  it('opens image adjustment and tracing workflows without duplicating their controls', () => {
     const data = {
       type: 'raster_image' as const,
       asset_key: 'img_1',
@@ -37,8 +46,14 @@ describe('RasterPropertiesPanel', () => {
     };
 
     render(<RasterPropertiesPanel objectId="obj1" data={data} />);
-    expect(screen.getByText('Sharpen')).toBeDefined();
-    expect(screen.getByText('Edge Enhance')).toBeDefined();
+    expect(screen.queryByText('Masks: 0')).toBeNull();
+    expect(screen.queryByText('Brightness')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adjust Image' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trace Image' }));
+
+    expect(executeAppCommandMock).toHaveBeenNthCalledWith(1, APP_COMMANDS.TOOLS_ADJUST_IMAGE);
+    expect(executeAppCommandMock).toHaveBeenNthCalledWith(2, APP_COMMANDS.TOOLS_TRACE_IMAGE);
   });
 
   it('renders masks and calls polarity/remove actions', () => {

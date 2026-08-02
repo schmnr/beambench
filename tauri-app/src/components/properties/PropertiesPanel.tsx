@@ -403,7 +403,6 @@ export function PropertiesPanel() {
         <RasterPropertiesPanel
           objectId={selectedObject.id}
           data={selectedObject.data}
-          passThrough={project?.layers.find((l) => l.id === selectedObject.layer_id)?.entries[0]?.raster_settings?.pass_through ?? false}
         />
       )}
 
