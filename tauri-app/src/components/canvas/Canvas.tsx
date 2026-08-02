@@ -1349,11 +1349,24 @@ export function Canvas() {
     [processPointerMove],
   );
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      pendingPointerMoveRef.current = null;
+  const flushPointerMove = useCallback(() => {
+    if (pointerMoveRafRef.current) {
       cancelAnimationFrame(pointerMoveRafRef.current);
       pointerMoveRafRef.current = 0;
+    }
+    const pending = pendingPointerMoveRef.current;
+    pendingPointerMoveRef.current = null;
+    if (pending) {
+      processPointerMove(pending);
+    }
+  }, [processPointerMove]);
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      // WebKit can defer every pointermove in a short drag until the same
+      // animation frame as pointerup. Commit that final move before releasing
+      // the tool gesture; dropping it makes Warp appear completely inert.
+      flushPointerMove();
       if (isPanningRef.current) {
         isPanningRef.current = false;
         pointerDragCandidateRef.current = null;
@@ -1407,6 +1420,7 @@ export function Canvas() {
       project,
       requestRender,
       scheduleInteractionStop,
+      flushPointerMove,
     ],
   );
 
