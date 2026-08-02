@@ -25,8 +25,8 @@ export interface OffsetPreviewPath {
   closed: boolean;
 }
 
-/** Result of a non-mutating offset preview. `source_all_open` is true only when
- *  the whole selection is open paths (the only case that yields preview paths). */
+/** Result of a non-mutating offset preview. `source_all_open` selects
+ *  side-oriented labels for selections made entirely from open paths. */
 export interface OffsetPreview {
   paths: OffsetPreviewPath[];
   source_all_open: boolean;

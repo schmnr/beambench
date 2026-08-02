@@ -1273,7 +1273,8 @@ pub struct OffsetPreviewPath {
 }
 
 /// Non-mutating offset preview. `source_all_open` reports whether the collected
-/// geometry was entirely open paths (the only case that yields a preview).
+/// geometry was entirely open paths so the frontend can use side-oriented
+/// labels for those paths.
 #[derive(Serialize)]
 pub struct OffsetPreview {
     pub paths: Vec<OffsetPreviewPath>,
@@ -1281,13 +1282,14 @@ pub struct OffsetPreview {
 }
 
 #[tauri::command]
-pub fn preview_offset_shapes(
+pub async fn preview_offset_shapes(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
     distance: f64,
     direction: String,
     corner_style: Option<String>,
 ) -> Result<OffsetPreview, String> {
+    let svc = svc.inner().clone();
     let oids: Vec<ObjectId> = object_ids
         .iter()
         .map(|id| parse_id(id))
@@ -1304,13 +1306,20 @@ pub fn preview_offset_shapes(
         _ => beambench_core::vector::offset::CornerStyle::Miter,
     };
 
-    preview_offset_shapes_inner(&svc, &oids, distance, dir, corner)
+    // Closed offsets use Clipper2 and can be expensive for node-dense artwork.
+    // Keep that exact Apply-equivalent computation off the UI thread so the
+    // properties controls remain responsive while the preview updates.
+    tokio::task::spawn_blocking(move || {
+        preview_offset_shapes_inner(&svc, &oids, distance, dir, corner)
+    })
+    .await
+    .map_err(|e| format!("Offset preview task failed: {e}"))?
 }
 
 /// Core logic for `preview_offset_shapes`, separated from the Tauri command
 /// wrapper so it can be tested without `State<>`. Reads the project, never
-/// mutates it, and skips the Clipper2 closed buffer entirely for closed/mixed
-/// selections (preview is scoped to all-open selections).
+/// mutates it, and uses the same geometry function as Apply so the canvas ghost
+/// is an accurate preview for open, closed, and mixed selections.
 fn preview_offset_shapes_inner(
     svc: &ServiceContext,
     oids: &[ObjectId],
@@ -1323,16 +1332,21 @@ fn preview_offset_shapes_inner(
 
     let split = collect_and_split(project, oids)?;
 
-    // Scope: only all-open selections get a preview. Bail before the heavy
-    // stage for closed/mixed/empty selections so Clipper2 never runs here.
-    if !split.closed_subpaths.is_empty() || split.open_subpaths.is_empty() {
+    if split.closed_subpaths.is_empty() && split.open_subpaths.is_empty() {
         return Ok(OffsetPreview {
             paths: vec![],
             source_all_open: false,
         });
     }
 
-    let results = compute_offset_from_split(&split.open_subpaths, &[], distance, dir, corner);
+    let source_all_open = split.closed_subpaths.is_empty() && !split.open_subpaths.is_empty();
+    let results = compute_offset_from_split(
+        &split.open_subpaths,
+        &split.closed_subpaths,
+        distance,
+        dir,
+        corner,
+    );
 
     let mut paths = Vec::new();
     for path in &results {
@@ -1355,7 +1369,7 @@ fn preview_offset_shapes_inner(
 
     Ok(OffsetPreview {
         paths,
-        source_all_open: true,
+        source_all_open,
     })
 }
 
@@ -5004,7 +5018,7 @@ mod tests {
     }
 
     #[test]
-    fn preview_offset_closed_selection_skips_compute() {
+    fn preview_offset_closed_selection_matches_apply_geometry() {
         let (mut project, layer_id) = test_project();
         let rect_id = add_rect(&mut project, layer_id, 0.0, 0.0, 10.0, 10.0);
         let svc = svc_with_project(project);
@@ -5020,13 +5034,24 @@ mod tests {
 
         assert!(!preview.source_all_open);
         assert!(
-            preview.paths.is_empty(),
-            "closed selection must not produce a preview"
+            !preview.paths.is_empty(),
+            "closed selection needs a live preview"
+        );
+        assert!(preview.paths.iter().all(|path| path.closed));
+        let preview_min_x = preview
+            .paths
+            .iter()
+            .flat_map(|path| path.points.iter())
+            .map(|point| point.x)
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            (preview_min_x + 2.0).abs() < 1e-6,
+            "outward preview should extend to x=-2, got {preview_min_x}"
         );
     }
 
     #[test]
-    fn preview_offset_mixed_selection_skips_compute() {
+    fn preview_offset_mixed_selection_includes_open_and_closed_results() {
         let (mut project, layer_id) = test_project();
         let line_id = add_line(&mut project, layer_id, 0.0, 0.0, 10.0, 0.0);
         let rect_id = add_rect(&mut project, layer_id, 0.0, 0.0, 10.0, 10.0);
@@ -5041,9 +5066,15 @@ mod tests {
         )
         .unwrap();
 
-        // A closed member disqualifies the whole selection from preview.
         assert!(!preview.source_all_open);
-        assert!(preview.paths.is_empty());
+        assert!(
+            preview.paths.iter().any(|path| path.closed),
+            "mixed preview should include the closed offset"
+        );
+        assert!(
+            preview.paths.iter().any(|path| !path.closed),
+            "mixed preview should include the open offset"
+        );
     }
 
     #[test]

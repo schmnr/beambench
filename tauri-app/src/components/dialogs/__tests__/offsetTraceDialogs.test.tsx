@@ -228,6 +228,30 @@ describe('OffsetDialog', () => {
     spy.mockRestore();
   });
 
+  it('publishes a closed-shape ghost while keeping direction labels', async () => {
+    const paths = [{
+      points: [
+        { x: -1, y: -1 },
+        { x: 11, y: -1 },
+        { x: 11, y: 11 },
+        { x: -1, y: 11 },
+      ],
+      closed: true,
+    }];
+    const spy = vi.spyOn(vectorService, 'previewOffsetShapes').mockResolvedValue({
+      paths,
+      source_all_open: false,
+    });
+    render(<OffsetDialog objectIds={['rectangle-1']} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(useUiStore.getState().offsetPreview).toEqual(paths);
+    });
+    expect(screen.getByText('Direction')).toBeDefined();
+    expect(screen.queryByText('Side')).toBeNull();
+    spy.mockRestore();
+  });
+
   it('does not publish a one-sided ghost while auto-defaulting open selections to Both sides', async () => {
     const oneSided = [{ points: [{ x: 0, y: -2 }, { x: 10, y: -2 }], closed: false }];
     const bothSides = [
