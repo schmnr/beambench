@@ -181,6 +181,7 @@ pub mod command {
     pub const WINDOW_PANEL_LASER: &str = "window.panel.laser";
     pub const WINDOW_PANEL_MATERIAL_LIBRARY: &str = "window.panel.material_library";
     pub const WINDOW_PANEL_MOVE: &str = "window.panel.move";
+    pub const WINDOW_PANEL_NOTES: &str = "window.panel.notes";
     pub const WINDOW_PANEL_SHAPE_PROPERTIES: &str = "window.panel.shape_properties";
     pub const WINDOW_TOOLBAR_ARRANGE: &str = "window.toolbar.arrange";
     pub const WINDOW_TOOLBAR_ARRANGE_LONG: &str = "window.toolbar.arrange_long";
@@ -1353,6 +1354,13 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
         accelerator: None,
         enabled: true,
         checked: true,
+    },
+    NativeMenuEntry::Check {
+        id: command::WINDOW_PANEL_NOTES,
+        title: "Project Notes",
+        accelerator: None,
+        enabled: true,
+        checked: false,
     },
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_SHAPE_PROPERTIES,
@@ -2984,6 +2992,12 @@ mod tests {
                     command::WINDOW_PANEL_MOVE,
                     None,
                     Some(true)
+                ),
+                (
+                    "Window > Project Notes".to_string(),
+                    command::WINDOW_PANEL_NOTES,
+                    None,
+                    Some(false)
                 ),
                 (
                     "Window > Shape Properties".to_string(),

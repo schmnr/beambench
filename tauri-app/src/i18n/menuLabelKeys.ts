@@ -196,6 +196,7 @@ export const MENU_LABEL_KEYS = {
   'Laser Control': 'menus.window.laser',
   'Material Library': 'menus.window.material_library',
   Move: 'menus.window.move',
+  'Project Notes': 'dialog.notes.title',
   'Shape Properties': 'menus.window.shape_properties',
   'Arrange (Long)': 'menus.window.arrange_long',
   Modifiers: 'menus.window.modifiers',

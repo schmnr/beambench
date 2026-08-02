@@ -151,8 +151,6 @@ describe('app command bridge', () => {
         project,
         selectedObjectIds: [project.objects[0].id],
       });
-      useUiStore.setState({ showNotesDialog: true });
-
       const state = getAppCommandState();
       expect(state.items).toContainEqual(expect.objectContaining({
         id: APP_COMMANDS.FILE_EXPORT,
@@ -165,6 +163,18 @@ describe('app command bridge', () => {
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
+  });
+
+  it('opens Project Notes in the bottom dock', async () => {
+    useProjectStore.setState({ project: makeProject() });
+
+    await executeAppCommand(APP_COMMANDS.FILE_NOTES);
+
+    const layout = useUiStore.getState().panelLayout;
+    expect(layout.zones.bottom.panelIds).toContain('notes');
+    expect(layout.zones.bottom.activeTab).toBe('notes');
+    expect(layout.hiddenPanelIds).not.toContain('notes');
+    expect(layout.bottomPanelHeight).toBe(220);
   });
 
   it('routes Laser Tools test commands to their dialogs', async () => {
@@ -433,7 +443,7 @@ describe('app command bridge', () => {
       smoothEdges: false,
       panelLayout: {
         ...useUiStore.getState().panelLayout,
-        hiddenPanelIds: ['console'],
+        hiddenPanelIds: ['console', 'notes'],
         toolbarVisibility: { ...DEFAULT_TOOLBAR_VISIBILITY, arrangeLong: true, docking: false },
       },
     });
@@ -448,6 +458,7 @@ describe('app command bridge', () => {
     expect(stateItem(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_BY_LAYER)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_SMOOTH_EDGES)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_PANEL_CONSOLE)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.WINDOW_PANEL_NOTES)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_TOOLBAR_ARRANGE_LONG)).toMatchObject({ checked: true });
     expect(stateItem(APP_COMMANDS.WINDOW_TOOLBAR_DOCKING)).toMatchObject({ checked: false });
 

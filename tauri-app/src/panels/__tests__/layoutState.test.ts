@@ -11,7 +11,7 @@ import type { FloatingPanelState } from '../layoutState';
 describe('layoutState', () => {
   it('createDefaultLayout has correct defaults', () => {
     const layout = createDefaultLayout();
-    expect(layout.layoutVersion).toBe(5);
+    expect(layout.layoutVersion).toBe(6);
     expect(layout.upperSplitRatio).toBe(DEFAULT_UPPER_SPLIT_RATIO);
     expect(layout.rightPanelWidth).toBe(DEFAULT_RIGHT_PANEL_WIDTH);
     expect(layout.hiddenPanelIds).toEqual([
@@ -23,6 +23,7 @@ describe('layoutState', () => {
       'camera',
       'art_library',
       'connection_diagnostics',
+      'notes',
     ]);
     expect(layout.toolbarVisibility).toEqual(DEFAULT_TOOLBAR_VISIBILITY);
   });

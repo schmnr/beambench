@@ -199,7 +199,6 @@ const INTENTIONAL_RAW_COLORS: Readonly<Record<string, readonly string[]>> = {
   './components/dialogs/DockDialog.tsx': ['bg-black/50'],
   './components/dialogs/FeedbackReportDialog.tsx': ['bg-black/35'],
   './components/dialogs/NestDialog.tsx': ['bg-black/50'],
-  './components/dialogs/NotesDialog.tsx': ['bg-black/50'],
   './components/dialogs/OffsetDialog.tsx': ['bg-black/50'],
   './components/dialogs/PreviewWindow.tsx': ['bg-black/40', 'bg-black/50'],
   './components/dialogs/ResizeSlotsDialog.tsx': ['bg-black/50'],

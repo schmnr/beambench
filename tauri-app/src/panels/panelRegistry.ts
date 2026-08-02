@@ -89,6 +89,7 @@ export const PANEL_REGISTRY: PanelDefinition[] = [
   { id: 'camera', title: 'Camera', titleKey: 'panels.registry.camera', defaultZone: 'floating', defaultVisible: false, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 420, h: 400 }, minFloatSize: { w: 320, h: 300 } },
   { id: 'art_library', title: 'Art Library', titleKey: 'panels.registry.art_library', defaultZone: 'middle-right', defaultVisible: false, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 420, h: 400 }, minFloatSize: { w: 300, h: 250 } },
   { id: 'connection_diagnostics', title: 'Connection Diagnostics', titleKey: 'panels.registry.connection_diagnostics', defaultZone: 'middle-right', defaultVisible: false, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 520, h: 420 }, minFloatSize: { w: 360, h: 260 } },
+  { id: 'notes', title: 'Project Notes', titleKey: 'dialog.notes.title', defaultZone: 'bottom', defaultVisible: false, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 520, h: 260 }, minFloatSize: { w: 320, h: 180 } },
 ];
 
 export function getPanelById(id: string): PanelDefinition | undefined {

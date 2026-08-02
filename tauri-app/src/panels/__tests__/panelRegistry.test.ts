@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { PANEL_REGISTRY, getPanelById, getDefaultLayout } from '../panelRegistry';
 
 describe('panelRegistry', () => {
-  it('has 10 registered panels', () => {
-    expect(PANEL_REGISTRY).toHaveLength(10);
+  it('has 11 registered panels', () => {
+    expect(PANEL_REGISTRY).toHaveLength(11);
   });
 
   it('all panel ids are unique', () => {
@@ -44,6 +44,7 @@ describe('panelRegistry', () => {
       'camera',
       'art_library',
       'connection_diagnostics',
+      'notes',
     ]);
   });
 
@@ -69,6 +70,15 @@ describe('panelRegistry', () => {
   it('bottom zone starts empty (color palette retired for layer tabs)', () => {
     const layout = getDefaultLayout();
     expect(layout.zones['bottom'].panelIds).toEqual([]);
+  });
+
+  it('registers Project Notes as a bottom-dock panel', () => {
+    expect(getPanelById('notes')).toMatchObject({
+      defaultZone: 'bottom',
+      defaultVisible: false,
+      supportsClose: true,
+      supportsFloat: true,
+    });
   });
 
   it('all panels have supportsFloat defined', () => {

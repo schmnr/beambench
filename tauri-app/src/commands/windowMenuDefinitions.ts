@@ -17,6 +17,7 @@ export const WINDOW_PANEL_MENU_ITEMS = [
   { label: 'Laser Control', commandId: APP_COMMANDS.WINDOW_PANEL_LASER, panelId: 'laser' },
   { label: 'Material Library', commandId: APP_COMMANDS.WINDOW_PANEL_MATERIAL_LIBRARY, panelId: 'material' },
   { label: 'Move', commandId: APP_COMMANDS.WINDOW_PANEL_MOVE, panelId: 'move' },
+  { label: 'Project Notes', commandId: APP_COMMANDS.WINDOW_PANEL_NOTES, panelId: 'notes' },
   { label: 'Shape Properties', commandId: APP_COMMANDS.WINDOW_PANEL_SHAPE_PROPERTIES, panelId: 'properties' },
 ] as const satisfies ReadonlyArray<{ label: string; commandId: AppCommandId; panelId: string }>;
 
@@ -44,6 +45,7 @@ export const WINDOW_PANEL_TOOLBAR_MENU_ITEMS = [
   WINDOW_TOOLBAR_MENU_ITEMS[4],
   WINDOW_PANEL_MENU_ITEMS[7],
   WINDOW_PANEL_MENU_ITEMS[8],
+  WINDOW_PANEL_MENU_ITEMS[9],
   WINDOW_TOOLBAR_MENU_ITEMS[5],
 ] as const;
 

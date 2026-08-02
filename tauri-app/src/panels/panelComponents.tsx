@@ -13,6 +13,7 @@ import { MaterialLibrary } from '../components/machine/MaterialLibrary';
 import { CameraContent } from '../components/machine/CameraContent';
 import { ArtLibraryPanel } from '../components/panels/ArtLibraryPanel';
 import { ConnectionDiagnosticsPanel } from '../components/panels/ConnectionDiagnosticsPanel';
+import { ProjectNotesPanel } from '../components/panels/ProjectNotesPanel';
 import { INSPECTOR_CARD_CLASS } from '../components/shared/panelAppearance';
 import { getPanelTypeId } from './panelRegistry';
 
@@ -85,6 +86,7 @@ export const PANEL_COMPONENTS: Record<string, ComponentType> = {
   camera: CameraPanelContent,
   art_library: ArtLibraryContent,
   connection_diagnostics: ConnectionDiagnosticsPanel,
+  notes: ProjectNotesPanel,
 };
 
 export function getPanelComponent(panelInstanceId: string): ComponentType | null {

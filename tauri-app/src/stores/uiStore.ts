@@ -253,11 +253,6 @@ interface UiStoreState {
   lastShapeSubTool: string;
   setLastShapeSubTool: (id: string) => void;
 
-  // App-level dialogs whose state must be visible to native menu state sync
-  showNotesDialog: boolean;
-  setShowNotesDialog: (show: boolean) => void;
-  toggleNotesDialog: () => void;
-
   // Node editing info (displayed in StatusBar)
   nodeEditNodeCount: number;
   /** Active node-edit object when its loaded geometry contains an open subpath. */
@@ -395,8 +390,15 @@ const FLASH_DURATION_MS = 600;
 const DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT = 220;
 const BOTTOM_DOCK_COLLAPSE_THRESHOLD = 32;
 
-function revealPhysicalDock(layout: PanelLayoutState, zone: PhysicalDockZone): PanelLayoutState {
-  if (zone !== 'bottom' || layout.bottomPanelHeight >= BOTTOM_DOCK_COLLAPSE_THRESHOLD) return layout;
+function revealPhysicalDock(
+  layout: PanelLayoutState,
+  zone: PhysicalDockZone,
+  ensureUsableHeight = false,
+): PanelLayoutState {
+  const minimumHeight = ensureUsableHeight
+    ? DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT
+    : BOTTOM_DOCK_COLLAPSE_THRESHOLD;
+  if (zone !== 'bottom' || layout.bottomPanelHeight >= minimumHeight) return layout;
   return { ...layout, bottomPanelHeight: DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT };
 }
 
@@ -538,7 +540,6 @@ export const useUiStore = create<UiStoreState>((set) => ({
   moveWindowJogDistanceMm: 10,
   moveWindowJogFeedRateMmMin: 1000,
   lastShapeSubTool: 'rect',
-  showNotesDialog: false,
   nodeEditNodeCount: 0,
   nodeEditOpenPathObjectId: null,
   nodeSubMode: 'select' as NodeSubMode,
@@ -558,9 +559,6 @@ export const useUiStore = create<UiStoreState>((set) => ({
       sidePanelsVisible: sanitized.sidePanelsVisible,
     });
   },
-
-  setShowNotesDialog: (show) => set({ showNotesDialog: show }),
-  toggleNotesDialog: () => set((s) => ({ showNotesDialog: !s.showNotesDialog })),
 
   setZoneActiveTab: (zone, tabId) =>
     set((s) => {
@@ -584,6 +582,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
         ...workspace,
         hiddenPanelIds: isHidden ? hidden.filter((id) => id !== panelId) : hidden,
       };
+      let activatedDockZone: PhysicalDockZone | null = null;
       const floatingIndex = nextWorkspace.floatingPanels.findIndex((fp) => fp.panelId === panelId);
       if (floatingIndex >= 0) {
         const nextZ = s.nextFloatingZIndex;
@@ -620,6 +619,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
               [targetZone]: { ...zone, panelIds: [...zone.panelIds, panelId], activeTab: panelId },
             };
             nextWorkspace = revealWorkspaceZone(nextWorkspace, targetZone);
+            activatedDockZone = targetZone;
           }
         } else {
           const zone = nextWorkspace.zones[existingZoneKey];
@@ -628,10 +628,14 @@ export const useUiStore = create<UiStoreState>((set) => ({
             [existingZoneKey]: { ...zone, activeTab: panelId },
           };
           nextWorkspace = revealWorkspaceZone(nextWorkspace, existingZoneKey);
+          activatedDockZone = existingZoneKey;
         }
       }
 
-      const newLayout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
+      let newLayout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
+      if (activatedDockZone) {
+        newLayout = revealPhysicalDock(newLayout, activatedDockZone, panelId === 'notes');
+      }
       appService.persistLayout(newLayout);
       return { panelLayout: newLayout };
     }),
@@ -646,6 +650,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
       // Keep floating entries on hide — position/size is preserved in floatingPanels.
       // FloatingPanelLayer filters out hidden panels before rendering.
       let nextWorkspace: WorkspacePanelLayout = { ...workspace, hiddenPanelIds: newHidden };
+      let activatedDockZone: PhysicalDockZone | null = null;
 
       if (isHidden) {
         // Showing: if the panel is already in floatingPanels, unhide it and bring to front
@@ -689,6 +694,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
                 [targetZone]: { ...zone, panelIds: [...zone.panelIds, panelId], activeTab: panelId },
               };
               nextWorkspace = revealWorkspaceZone(nextWorkspace, targetZone);
+              activatedDockZone = targetZone;
             }
           } else {
             const zone = nextWorkspace.zones[existingZoneKey];
@@ -697,6 +703,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
               [existingZoneKey]: { ...zone, activeTab: panelId },
             };
             nextWorkspace = revealWorkspaceZone(nextWorkspace, existingZoneKey);
+            activatedDockZone = existingZoneKey;
           }
         }
       }
@@ -717,7 +724,10 @@ export const useUiStore = create<UiStoreState>((set) => ({
         ...nextWorkspace,
         zones: newZones,
       };
-      const layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
+      let layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
+      if (activatedDockZone) {
+        layout = revealPhysicalDock(layout, activatedDockZone, panelId === 'notes');
+      }
       appService.persistLayout(layout);
       return {
         panelLayout: layout,

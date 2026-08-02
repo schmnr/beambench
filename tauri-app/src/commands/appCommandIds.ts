@@ -172,6 +172,7 @@ export const APP_COMMANDS = {
   WINDOW_PANEL_LASER: 'window.panel.laser',
   WINDOW_PANEL_MATERIAL_LIBRARY: 'window.panel.material_library',
   WINDOW_PANEL_MOVE: 'window.panel.move',
+  WINDOW_PANEL_NOTES: 'window.panel.notes',
   WINDOW_PANEL_SHAPE_PROPERTIES: 'window.panel.shape_properties',
   WINDOW_TOOLBAR_ARRANGE: 'window.toolbar.arrange',
   WINDOW_TOOLBAR_ARRANGE_LONG: 'window.toolbar.arrange_long',

@@ -441,7 +441,7 @@ describe('appService methods', () => {
 
     expect(invoke).toHaveBeenCalledWith('update_app_settings', {
       panelLayout: {
-        layout_version: 5,
+        layout_version: 6,
         zones: {
           'top-left': { panel_ids: [], active_tab: '' },
           'middle-left': { panel_ids: [], active_tab: '' },
@@ -463,7 +463,7 @@ describe('appService methods', () => {
           'top-right': { panel_ids: ['laser'], active_tab: 'laser' },
           'middle-right': { panel_ids: ['camera', 'macros', 'console'], active_tab: 'camera' },
         },
-        run_hidden_panel_ids: ['cuts_layers', 'properties', 'material', 'art_library', 'connection_diagnostics'],
+        run_hidden_panel_ids: ['cuts_layers', 'properties', 'material', 'art_library', 'connection_diagnostics', 'notes'],
         run_upper_split_ratio: 0.58,
         column_split_ratios: {
           design_left: [1, 0, 0],

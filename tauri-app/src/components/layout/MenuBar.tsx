@@ -87,10 +87,12 @@ export function MenuBar() {
   const sidePanelsVisible = useUiStore((s) => s.sidePanelsVisible);
   const toggleSidePanels = useUiStore((s) => s.toggleSidePanels);
   const hasClipboard = useUiStore((s) => s.hasClipboard);
-  const hiddenPanelIds = useUiStore((s) => s.panelLayout.hiddenPanelIds);
-  const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
-  const toggleNotesDialog = useUiStore((s) => s.toggleNotesDialog);
+  const panelLayout = useUiStore((s) => s.panelLayout);
+  const toolbarVisibility = panelLayout.toolbarVisibility;
   const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const hiddenPanelIds = workspaceMode === 'run'
+    ? panelLayout.runHiddenPanelIds
+    : panelLayout.hiddenPanelIds;
   const recentFiles = useAppStore((s) => s.settings?.recent_files) ?? EMPTY_RECENT_FILES;
   const displayLanguage = useAppStore((s) => s.settings?.display_language ?? 'en');
   const fetchSettings = useAppStore((s) => s.fetchSettings);
@@ -531,7 +533,7 @@ export function MenuBar() {
               disabled={!project}
               onClick={() => {
                 setOpenMenu(null);
-                toggleNotesDialog();
+                void executeAppCommand(APP_COMMANDS.FILE_NOTES);
               }}
             />
             <div className="border-t border-bb-border my-1" />

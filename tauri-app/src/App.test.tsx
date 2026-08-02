@@ -490,9 +490,11 @@ describe('App bootstrap', () => {
 
     await waitFor(() => {
       const layout = useUiStore.getState().panelLayout;
-      expect(layout.layoutVersion).toBe(5);
+      expect(layout.layoutVersion).toBe(6);
       expect(layout.runZones['top-left']).toEqual({ panelIds: ['move'], activeTab: 'move' });
       expect(layout.runHiddenPanelIds).not.toContain('move');
+      expect(layout.hiddenPanelIds).toContain('notes');
+      expect(layout.runHiddenPanelIds).toContain('notes');
     });
   });
 

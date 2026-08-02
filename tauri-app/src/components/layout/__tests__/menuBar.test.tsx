@@ -802,6 +802,7 @@ describe('MenuBar', () => {
     expect(screen.getByText('Filled Override')).toBeDefined();
     expect(screen.getByText('Smooth Edges')).toBeDefined();
     expect(screen.getByText('Camera Control')).toBeDefined();
+    expect(screen.getByText('Project Notes')).toBeDefined();
     expect(screen.getByText('Shape Properties')).toBeDefined();
     expect(screen.queryByText('Variable Text')).toBeNull();
     expect(screen.queryByText('File List')).toBeNull();

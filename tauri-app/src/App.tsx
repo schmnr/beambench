@@ -4,7 +4,6 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { AppShell } from './components/layout/AppShell';
 import { ToastContainer } from './components/shared/ToastContainer';
 import { RecoveryDialog } from './components/settings/RecoveryDialog';
-import { NotesDialog } from './components/dialogs/NotesDialog';
 import { PreviewWindow } from './components/dialogs/PreviewWindow';
 import { AboutDialog } from './components/settings/AboutDialog';
 import { UpdateDialog } from './components/settings/UpdateDialog';
@@ -232,9 +231,12 @@ function NativeMenuBridge({ dialogActions }: { dialogActions: AppCommandDialogAc
   const sidePanelsVisible = useUiStore((s) => s.sidePanelsVisible);
   const artworkDisplayMode = useUiStore((s) => s.artworkDisplayMode);
   const smoothEdges = useUiStore((s) => s.smoothEdges);
-  const hiddenPanelIds = useUiStore((s) => s.panelLayout.hiddenPanelIds);
-  const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
-  const showNotesDialog = useUiStore((s) => s.showNotesDialog);
+  const panelLayout = useUiStore((s) => s.panelLayout);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const hiddenPanelIds = workspaceMode === 'run'
+    ? panelLayout.runHiddenPanelIds
+    : panelLayout.hiddenPanelIds;
+  const toolbarVisibility = panelLayout.toolbarVisibility;
   const textEditObjectId = useUiStore((s) => s.textEditObjectId);
   const showPreview = usePreviewStore((s) => s.showPreview);
   const previewWindowOpen = usePreviewStore((s) => s.previewWindowOpen);
@@ -359,10 +361,10 @@ function NativeMenuBridge({ dialogActions }: { dialogActions: AppCommandDialogAc
     recentFilesKey,
     selectedObjectIds,
     showPreview,
-    showNotesDialog,
     sidePanelsVisible,
     textEditObjectId,
     toolbarVisibilityKey,
+    workspaceMode,
     artworkDisplayMode,
     smoothEdges,
     displayLanguage,
@@ -510,8 +512,6 @@ function App() {
   // dismiss flag lets recoveries stay in state so they can re-surface (e.g.
   // on re-mount or next startup) without being purged like Discard All.
   const [recoveryDismissed, setRecoveryDismissed] = useState(false);
-  const showNotesDialog = useUiStore((s) => s.showNotesDialog);
-  const setShowNotesDialog = useUiStore((s) => s.setShowNotesDialog);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showHotkeyEditorDialog, setShowHotkeyEditorDialog] = useState(false);
@@ -769,8 +769,27 @@ function App() {
         };
         const floatingPanels = restoreFloatingPanels(pl.floating_panels ?? []);
         const runFloatingPanels = restoreFloatingPanels(pl.run_floating_panels ?? []);
+        let hiddenPanelIds = pl.hidden_panel_ids.filter(knownPanel);
         let runHiddenPanelIds = (pl.run_hidden_panel_ids ?? defaults.runHiddenPanelIds)
           .filter(knownPanel);
+
+        // v6 adds Project Notes as a dockable panel. Existing layouts should
+        // keep their current workspace until the user opens Notes from File or
+        // Window; when opened, its registered default places it in the bottom dock.
+        if (savedLayoutVersion < 6) {
+          const notesAssignedInDesign = Object.values(designZones).some(
+            (zone) => zone.panelIds.includes('notes'),
+          ) || floatingPanels.some((panel) => panel.panelId === 'notes');
+          const notesAssignedInRun = Object.values(runZones).some(
+            (zone) => zone.panelIds.includes('notes'),
+          ) || runFloatingPanels.some((panel) => panel.panelId === 'notes');
+          if (!notesAssignedInDesign && !hiddenPanelIds.includes('notes')) {
+            hiddenPanelIds = [...hiddenPanelIds, 'notes'];
+          }
+          if (!notesAssignedInRun && !runHiddenPanelIds.includes('notes')) {
+            runHiddenPanelIds = [...runHiddenPanelIds, 'notes'];
+          }
+        }
 
         // Before panels became fully dockable, Run's Move panel lived outside
         // the saved dock zones and was therefore persisted as hidden. The v4
@@ -799,7 +818,7 @@ function App() {
         useUiStore.getState().setPanelLayout({
           layoutVersion: PANEL_LAYOUT_VERSION,
           zones: designZones,
-          hiddenPanelIds: pl.hidden_panel_ids.filter(knownPanel),
+          hiddenPanelIds,
           floatingPanels,
           upperSplitRatio: legacyColumnLayout ? defaults.upperSplitRatio : pl.upper_split_ratio,
           columnRatios: legacyColumnLayout ? {
@@ -1285,7 +1304,7 @@ function App() {
         void executeAppCommand(APP_COMMANDS.FILE_IMPORT);
       } else if (ctrl && alt && e.key === 'n' && !isInput) {
         e.preventDefault();
-        useUiStore.getState().toggleNotesDialog();
+        void executeAppCommand(APP_COMMANDS.FILE_NOTES);
       } else if (ctrl && !shift && !alt && (e.key === 'P' || e.key === 'p') && !isInput) {
         e.preventDefault();
         void executeAppCommand(APP_COMMANDS.FILE_PRINT, nativeMenuDialogActions, { source: 'shortcut' });
@@ -1665,9 +1684,6 @@ function App() {
           onDiscardAll={handleDiscardAll}
           onClose={() => setRecoveryDismissed(true)}
         />
-      )}
-      {showNotesDialog && (
-        <NotesDialog onClose={() => setShowNotesDialog(false)} />
       )}
       {showAboutDialog && (
         <AboutDialog onClose={() => setShowAboutDialog(false)} />

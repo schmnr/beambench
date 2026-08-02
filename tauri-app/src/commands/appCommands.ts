@@ -411,7 +411,7 @@ export async function executeAppCommand(
       return;
     }
     case APP_COMMANDS.FILE_NOTES:
-      ui.toggleNotesDialog();
+      if (ps.project) ui.showPanel('notes');
       return;
     case APP_COMMANDS.FILE_PREFS_EDIT_HOTKEYS:
       // Shelved for beta. Keep the command id stable while the editor is hidden.
