@@ -10,6 +10,10 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { useUiStore, type MeshDeformMode } from '../../stores/uiStore';
 import { resolveEffectiveData } from '../../commands/selectionContext';
+import {
+  buildMeshDeformPreviewObjects,
+  type MeshDeformPreviewObject,
+} from '../meshDeformPreview';
 import i18n from '../../i18n';
 
 const HANDLE_HIT_PX = 18;
@@ -115,6 +119,9 @@ export class SelectionMeshDeformTool implements CanvasTool {
   private selectionKey: string | null = null;
   private sourceBounds: Bounds | null = null;
   private handles: Point2D[] = [];
+  private previewObjects: MeshDeformPreviewObject[] = [];
+  private livePreviewActive = false;
+  private applying = false;
   private hoveredIndex: number | null = null;
   private activeIndex: number | null = null;
 
@@ -123,7 +130,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
   }
 
   onMouseDown(e: CanvasMouseEvent, ctx: ToolContext): void {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || this.applying) return;
     if (!this.syncGrid(ctx)) {
       this.reportUnavailable(ctx);
       return;
@@ -160,7 +167,12 @@ export class SelectionMeshDeformTool implements CanvasTool {
       this.state.moved = true;
       const next = this.draggedHandlePoint(e, this.state);
       this.setHandle(this.state.handleIndex, next, { horizontal: e.shiftKey, vertical: e.altKey });
-      this.requestOverlayRender(ctx);
+      if (!this.livePreviewActive) {
+        this.livePreviewActive = true;
+        ctx.requestRender();
+      } else {
+        this.requestOverlayRender(ctx);
+      }
       return;
     }
 
@@ -180,6 +192,10 @@ export class SelectionMeshDeformTool implements CanvasTool {
     if (moved) {
       const finalPoint = this.draggedHandlePoint(e, drag);
       this.setHandle(handleIndex, finalPoint, { horizontal: e.shiftKey, vertical: e.altKey });
+      if (!this.livePreviewActive) {
+        this.livePreviewActive = true;
+        ctx.requestRender();
+      }
     }
     const ids = collectEditableSelection(ctx);
     const sourceBounds = this.sourceBounds;
@@ -192,16 +208,22 @@ export class SelectionMeshDeformTool implements CanvasTool {
     if (mode !== this.currentMode()) {
       this.handles = originalHandles.map((handle) => ({ ...handle }));
       this.selectionKey = null;
+      this.livePreviewActive = false;
       ctx.setStatusMessage('');
-      this.requestOverlayRender(ctx);
+      ctx.requestRender();
       return;
     }
 
     if (!moved || !ids || !sourceBounds) {
+      if (this.livePreviewActive) {
+        this.livePreviewActive = false;
+        ctx.requestRender();
+      }
       ctx.setStatusMessage('');
       return;
     }
 
+    this.applying = true;
     void this.applyDeform(ids, sourceBounds, handles, mode, ctx);
   }
 
@@ -211,8 +233,11 @@ export class SelectionMeshDeformTool implements CanvasTool {
       this.handles = this.state.originalHandles.map((handle) => ({ ...handle }));
       this.state = { type: 'idle' };
       this.activeIndex = null;
+      const hadLivePreview = this.livePreviewActive;
+      this.livePreviewActive = false;
       ctx.setStatusMessage('');
-      this.requestOverlayRender(ctx);
+      if (hadLivePreview) ctx.requestRender();
+      else this.requestOverlayRender(ctx);
       return;
     }
     this.reset();
@@ -242,6 +267,9 @@ export class SelectionMeshDeformTool implements CanvasTool {
     return {
       type: 'mesh-deform',
       gridSize: this.activeGridSize(),
+      sourceBounds: this.sourceBounds ?? undefined,
+      previewActive: this.livePreviewActive,
+      previewObjects: this.previewObjects,
       handles: this.handles.map<MeshHandle>((handle, index) => ({
         worldX: handle.x,
         worldY: handle.y,
@@ -260,6 +288,9 @@ export class SelectionMeshDeformTool implements CanvasTool {
     this.selectionKey = null;
     this.sourceBounds = null;
     this.handles = [];
+    this.previewObjects = [];
+    this.livePreviewActive = false;
+    this.applying = false;
     this.hoveredIndex = null;
     this.activeIndex = null;
   }
@@ -290,6 +321,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
     this.selectionKey = key;
     this.sourceBounds = bounds;
     this.handles = buildGrid(bounds, gridSize);
+    this.previewObjects = buildMeshDeformPreviewObjects(ctx.objects, ids);
     this.hoveredIndex = null;
     this.activeIndex = null;
     return true;
@@ -405,6 +437,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
         mode === 'warp',
       );
       const updatedMap = new Map(updated.map((object) => [object.id, object]));
+      this.reset();
       useProjectStore.setState((state) => {
         if (!state.project) return state;
         return {
@@ -417,13 +450,15 @@ export class SelectionMeshDeformTool implements CanvasTool {
       });
       usePreviewStore.getState().invalidate();
       await useUndoStore.getState().refresh();
-      this.reset();
       ctx.setStatusMessage('');
       this.requestOverlayRender(ctx);
     } catch (error) {
       const message = String(error);
+      this.livePreviewActive = false;
+      this.applying = false;
       ctx.setStatusMessage(message);
       useNotificationStore.getState().push(message, 'error');
+      ctx.requestRender();
     }
   }
 

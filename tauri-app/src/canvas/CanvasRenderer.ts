@@ -53,6 +53,10 @@ import { measureCanvasPerf } from './canvasPerf';
 import { lengthUnitLabel, mmToDisplay, roundDisplayLength } from '../utils/lengthUnits';
 import { layerFillOpacity, layerUsesFilledAppearance } from '../utils/layerAppearance';
 import {
+  mapMeshDeformPoint,
+  type MeshDeformPreviewObject,
+} from './meshDeformPreview';
+import {
   CAMERA_OVERLAY_HANDLE_SIZE_PX,
   mapCameraPixelThroughWarp,
   cameraOverlayScreenHandleGeometry,
@@ -151,6 +155,9 @@ export type ToolOverlay =
   | {
       type: 'mesh-deform';
       gridSize: number;
+      sourceBounds?: import('../types/project').Bounds;
+      previewActive?: boolean;
+      previewObjects?: MeshDeformPreviewObject[];
       handles: {
         worldX: number;
         worldY: number;
@@ -1511,9 +1518,15 @@ export class CanvasRenderer {
     // 6. Objects (layer stack first, then z-order within each visible layer)
     const layerMap = new Map(layers.map((l) => [l.id, l]));
     const skipId = params.skipObjectId;
+    const meshPreviewObjectIds = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
+      ? new Set(toolOverlay.previewObjects
+          ?.filter((preview) => !preview.outlineOnly)
+          .map((preview) => preview.objectId) ?? [])
+      : null;
     const visibleObjects = sortObjectsForLayerStack(objects
       .filter((obj) => {
         if (!obj.visible) return false;
+        if (meshPreviewObjectIds?.has(obj.id)) return false;
         if (skipId && obj.id === skipId) return false;
         const layer = layerMap.get(obj.layer_id);
         if (layer && previewedLayerIds.has(layer.id)) return false;
@@ -1656,9 +1669,9 @@ export class CanvasRenderer {
     }
 
     // 6. Selection highlights and handles (skip object being text-edited)
-    const selectedObjects = objects.filter(
-      (o) => selectedObjectIds.includes(o.id) && o.id !== skipId,
-    );
+    const selectedObjects = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
+      ? []
+      : objects.filter((o) => selectedObjectIds.includes(o.id) && o.id !== skipId);
     if (selectedObjects.length > 0) {
       const selectionLocks = toolOverlay.type === 'mesh-deform'
         ? { move_enabled: false, size_enabled: false, rotate_enabled: false, shear_enabled: false }
@@ -1839,15 +1852,17 @@ export class CanvasRenderer {
         );
         break;
       case 'mesh-deform':
-        drawMeshDeformOverlay(
-          ctx,
-          toolOverlay.handles.map((handle) => ({
-            screen: worldToScreen({ x: handle.worldX, y: handle.worldY }, vp),
-            active: handle.active,
-            hovered: handle.hovered,
-          })),
-          toolOverlay.gridSize,
-        );
+        if (!toolOverlay.previewActive) {
+          drawMeshDeformOverlay(
+            ctx,
+            toolOverlay.handles.map((handle) => ({
+              screen: worldToScreen({ x: handle.worldX, y: handle.worldY }, vp),
+              active: handle.active,
+              hovered: handle.hovered,
+            })),
+            toolOverlay.gridSize,
+          );
+        }
         break;
       case 'camera-overlay-adjust':
         this.drawCameraOverlayAdjustHandles(
@@ -1916,9 +1931,16 @@ export class CanvasRenderer {
       ctx.imageSmoothingEnabled = params.antialiasing !== false;
       const layerMap = new Map(layers.map((l) => [l.id, l]));
       const skipId = params.skipObjectId;
+      const meshPreviewObjectIds = params.toolOverlay.type === 'mesh-deform'
+        && params.toolOverlay.previewActive
+        ? new Set(params.toolOverlay.previewObjects
+            ?.filter((preview) => !preview.outlineOnly)
+            .map((preview) => preview.objectId) ?? [])
+        : null;
       const visibleObjects = sortObjectsForLayerStack(objects
         .filter((obj) => {
           if (!obj.visible) return false;
+          if (meshPreviewObjectIds?.has(obj.id)) return false;
           if (skipId && obj.id === skipId) return false;
           const layer = layerMap.get(obj.layer_id);
           if (layer && previewedLayerIds.has(layer.id)) return false;
@@ -1973,11 +1995,13 @@ export class CanvasRenderer {
         ctx.clearRect(0, 0, vp.canvasWidth, vp.canvasHeight);
       }
 
-      const selectedObjects = objects.filter(
-        (o) => selectedObjectIds.includes(o.id)
-          && o.id !== skipId
-          && isObjectVisibleInLayerStack(o, params.layers),
-      );
+      const selectedObjects = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
+        ? []
+        : objects.filter(
+            (o) => selectedObjectIds.includes(o.id)
+              && o.id !== skipId
+              && isObjectVisibleInLayerStack(o, params.layers),
+          );
       if (selectedObjects.length > 0) {
         const selectionLocks = toolOverlay.type === 'mesh-deform'
           ? { move_enabled: false, size_enabled: false, rotate_enabled: false, shear_enabled: false }
@@ -2135,6 +2159,7 @@ export class CanvasRenderer {
         );
         break;
       case 'mesh-deform':
+        this.drawMeshDeformLivePreview(ctx, toolOverlay, params);
         drawMeshDeformOverlay(
           ctx,
           toolOverlay.handles.map((handle) => ({
@@ -2168,6 +2193,65 @@ export class CanvasRenderer {
         );
       }
     });
+  }
+
+  private drawMeshDeformLivePreview(
+    ctx: CanvasRenderingContext2D,
+    overlay: Extract<ToolOverlay, { type: 'mesh-deform' }>,
+    params: RenderParams,
+  ): void {
+    if (
+      !overlay.previewActive
+      || !overlay.sourceBounds
+      || !overlay.previewObjects
+      || overlay.previewObjects.length === 0
+    ) return;
+
+    const layerMap = new Map(params.layers.map((layer) => [layer.id, layer]));
+    const handles = overlay.handles.map((handle) => ({ x: handle.worldX, y: handle.worldY }));
+    for (const preview of overlay.previewObjects) {
+      const layer = layerMap.get(preview.layerId);
+      if (!layer || layer.visible === false) continue;
+      const path = new Path2D();
+      for (const sourcePath of preview.paths) {
+        if (sourcePath.points.length < 2) continue;
+        const first = worldToScreen(mapMeshDeformPoint(
+          sourcePath.points[0],
+          overlay.sourceBounds,
+          handles,
+          overlay.gridSize,
+          overlay.gridSize === 2,
+        ), params.vp);
+        path.moveTo(first.x, first.y);
+        for (let index = 1; index < sourcePath.points.length; index++) {
+          const screen = worldToScreen(mapMeshDeformPoint(
+            sourcePath.points[index],
+            overlay.sourceBounds,
+            handles,
+            overlay.gridSize,
+            overlay.gridSize === 2,
+          ), params.vp);
+          path.lineTo(screen.x, screen.y);
+        }
+        if (sourcePath.closed) path.closePath();
+      }
+
+      const filled = !preview.outlineOnly
+        && (params.useLayerAppearance
+          ? layerUsesFilledAppearance(layer)
+          : params.filledRendering === true);
+      ctx.save();
+      ctx.strokeStyle = layer.color_tag;
+      ctx.fillStyle = layer.color_tag;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = layer.enabled === false ? 0.3 : 1;
+      if (filled) {
+        ctx.globalAlpha *= params.useLayerAppearance ? layerFillOpacity(layer) : 1;
+        ctx.fill(path, 'evenodd');
+      }
+      ctx.stroke(path);
+      ctx.restore();
+    }
   }
 
   private drawPreviewBadge(

@@ -151,7 +151,7 @@ describe('SelectionMeshDeformTool', () => {
     expect(overlay.handles).toHaveLength(16);
   });
 
-  it('repaints only the lightweight overlay while dragging', () => {
+  it('starts the live preview once, then repaints only the lightweight overlay', () => {
     const ctx = makeToolContext();
     useUiStore.setState({ meshDeformMode: 'warp' });
     const tool = new WarpTool();
@@ -169,6 +169,21 @@ describe('SelectionMeshDeformTool', () => {
       screenY: topRight.y + 20,
       snappedX: 15,
       snappedY: 5,
+    }), ctx);
+
+    expect(ctx.requestRender).toHaveBeenCalledTimes(1);
+    const overlay = tool.getOverlay();
+    if (overlay.type !== 'mesh-deform') throw new Error('expected mesh overlay');
+    expect(overlay.previewActive).toBe(true);
+    expect(overlay.previewObjects?.[0].paths[0].points.length).toBeGreaterThan(1);
+
+    vi.mocked(ctx.requestRender).mockClear();
+    vi.mocked(ctx.requestOverlayRender!).mockClear();
+    tool.onMouseMove(makeMouseEvent({
+      screenX: topRight.x + 24,
+      screenY: topRight.y + 24,
+      snappedX: 16,
+      snappedY: 6,
     }), ctx);
 
     expect(ctx.requestOverlayRender).toHaveBeenCalled();
