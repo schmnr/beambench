@@ -242,12 +242,12 @@
       "shape_properties": "Formegenskaper",
       "text_options": "Textalternativ",
       "toggle_side_panels": "Växla sidopaneler",
-      "toggle_wireframe_filled": "Växla Wireframe / Fylld",
-      "view_style": "Visa stil:",
-      "view_style_filled_coarse": "Fylld / Grov",
-      "view_style_filled_smooth": "Fylld / Smidig",
-      "view_style_wireframe_coarse": "Trådram / Grov",
-      "view_style_wireframe_smooth": "Wireframe / Slät",
+      "toggle_wireframe_filled": "Växla åtgärd / trådram",
+      "view_style": "Grafikvisning:",
+      "view_style_filled_coarse": "Tvinga fylld visning",
+      "view_style_filled_smooth": "Jämna kanter",
+      "view_style_wireframe_coarse": "Efter lageråtgärd",
+      "view_style_wireframe_smooth": "Tvinga trådram",
       "zoom_to_page": "Zooma till sidan"
     },
     "help": {

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useMemo, useState, type DragEvent as ReactDragEvent } from 'react';
 import { useProjectStore } from '../../stores/projectStore';
-import { renderOptionsFromViewStyle, useUiStore, type ToolType } from '../../stores/uiStore';
+import { renderOptionsFromArtworkDisplayMode, useUiStore, type ToolType } from '../../stores/uiStore';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { useAppStore } from '../../stores/appStore';
@@ -76,7 +76,6 @@ import { registerToolInstances } from '../layout/CreationToolbar';
 import {
   resolveWorkspaceCanvasTool,
   tracksObjectDragInteraction,
-  usesLayerOperationAppearance,
 } from '../../canvas/workspaceCanvasTool';
 import type { StartPointMode } from '../../types/vector';
 import { resolveCanvasPointerSnap } from '../../canvas/pointerSnap';
@@ -204,7 +203,8 @@ export function Canvas() {
   const activeTool = useUiStore((s) => s.activeTool);
   const zoom = useUiStore((s) => s.zoom);
   const viewportOffset = useUiStore((s) => s.viewportOffset);
-  const viewStyle = useUiStore((s) => s.viewStyle);
+  const artworkDisplayMode = useUiStore((s) => s.artworkDisplayMode);
+  const smoothEdges = useUiStore((s) => s.smoothEdges);
   const workspaceMode = useUiStore((s) => s.workspaceMode);
   const gridVisible = useUiStore((s) => s.gridVisible);
   const snapEnabled = useUiStore((s) => s.snapToGrid);
@@ -244,7 +244,8 @@ export function Canvas() {
   const tool = TOOL_INSTANCES[resolveWorkspaceCanvasTool(workspaceMode, activeTool)];
 
   const theme = settings?.dark_mode ? DARK_THEME : LIGHT_THEME;
-  const { antialiasing, filledRendering } = renderOptionsFromViewStyle(viewStyle);
+  const { useLayerAppearance, filledRendering } = renderOptionsFromArtworkDisplayMode(artworkDisplayMode);
+  const antialiasing = smoothEdges;
 
   // In inch mode the visible grid uses chooseInchInterval, so snap must match
   const displayUnit = settings?.display_unit === 'inches' ? 'inches' : 'mm';
@@ -673,10 +674,9 @@ export function Canvas() {
       theme,
       antialiasing,
       filledRendering,
-      // Design and Run must show the same operation-aware geometry. Run stays
-      // read-only, but Fill/Offset Fill layers still need their true compound
-      // appearance (including holes) rather than falling back to a global view style.
-      useLayerAppearance: usesLayerOperationAppearance(workspaceMode),
+      // Display overrides are editor-only. The default mode follows layer
+      // operations in both Design and Run, including compound-fill holes.
+      useLayerAppearance,
       previewState,
       previewManualRefreshRequired: manualRefreshRequired,
       selectionDashOffset: dashOffsetRef.current,
@@ -702,6 +702,7 @@ export function Canvas() {
     theme,
     antialiasing,
     filledRendering,
+    useLayerAppearance,
     previewState,
     manualRefreshRequired,
     showLastPosition,
@@ -747,7 +748,7 @@ export function Canvas() {
       theme,
       antialiasing,
       filledRendering,
-      useLayerAppearance: usesLayerOperationAppearance(workspaceMode),
+      useLayerAppearance,
       previewState,
       previewManualRefreshRequired: manualRefreshRequired,
       selectionDashOffset: dashOffsetRef.current,
@@ -789,6 +790,7 @@ export function Canvas() {
     theme,
     antialiasing,
     filledRendering,
+    useLayerAppearance,
     previewState,
     manualRefreshRequired,
     showLastPosition,

@@ -2,9 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   DEFAULT_DOCK_SETTINGS,
   DEFAULT_NEST_SETTINGS,
-  renderOptionsFromViewStyle,
+  renderOptionsFromArtworkDisplayMode,
   useUiStore,
-  viewStyleFromRenderOptions,
 } from '../uiStore';
 import { createDefaultLayout, DEFAULT_TOOLBAR_VISIBILITY } from '../../panels';
 import { appService } from '../../services/appService';
@@ -18,7 +17,8 @@ describe('uiStore', () => {
       panelLayout: createDefaultLayout(),
       nextFloatingZIndex: 1,
       activeTool: 'select',
-      viewStyle: 'wireframe_smooth',
+      artworkDisplayMode: 'by_layer',
+      smoothEdges: true,
       sidePanelsVisible: true,
       workspaceMode: 'design',
       cameraWindowOpen: false,
@@ -112,38 +112,39 @@ describe('uiStore', () => {
     expect(useMeasurementStore.getState().result).toBeNull();
   });
 
-  it('changes viewStyle', () => {
-    useUiStore.getState().setViewStyle('filled_smooth');
-    expect(useUiStore.getState().viewStyle).toBe('filled_smooth');
+  it('changes artwork display mode independently of smoothing', () => {
+    useUiStore.getState().setArtworkDisplayMode('filled');
+    expect(useUiStore.getState().artworkDisplayMode).toBe('filled');
+    expect(useUiStore.getState().smoothEdges).toBe(true);
 
-    useUiStore.getState().setViewStyle('wireframe_coarse');
-    expect(useUiStore.getState().viewStyle).toBe('wireframe_coarse');
+    useUiStore.getState().setSmoothEdges(false);
+    expect(useUiStore.getState().artworkDisplayMode).toBe('filled');
+    expect(useUiStore.getState().smoothEdges).toBe(false);
   });
 
-  it('maps view styles to canvas render options', () => {
-    expect(renderOptionsFromViewStyle('wireframe_coarse')).toEqual({
-      antialiasing: false,
+  it('maps artwork display modes to canvas render options', () => {
+    expect(renderOptionsFromArtworkDisplayMode('by_layer')).toEqual({
+      useLayerAppearance: true,
       filledRendering: false,
     });
-    expect(renderOptionsFromViewStyle('wireframe_smooth')).toEqual({
-      antialiasing: true,
+    expect(renderOptionsFromArtworkDisplayMode('wireframe')).toEqual({
+      useLayerAppearance: false,
       filledRendering: false,
     });
-    expect(renderOptionsFromViewStyle('filled_coarse')).toEqual({
-      antialiasing: false,
-      filledRendering: true,
-    });
-    expect(renderOptionsFromViewStyle('filled_smooth')).toEqual({
-      antialiasing: true,
+    expect(renderOptionsFromArtworkDisplayMode('filled')).toEqual({
+      useLayerAppearance: false,
       filledRendering: true,
     });
   });
 
-  it('maps persisted render options to view styles', () => {
-    expect(viewStyleFromRenderOptions({ antialiasing: false, filledRendering: false })).toBe('wireframe_coarse');
-    expect(viewStyleFromRenderOptions({ antialiasing: true, filledRendering: false })).toBe('wireframe_smooth');
-    expect(viewStyleFromRenderOptions({ antialiasing: false, filledRendering: true })).toBe('filled_coarse');
-    expect(viewStyleFromRenderOptions({ antialiasing: true, filledRendering: true })).toBe('filled_smooth');
+  it('toggles between operation-aware and wireframe display', () => {
+    useUiStore.getState().toggleOperationWireframe();
+    expect(useUiStore.getState().artworkDisplayMode).toBe('wireframe');
+    useUiStore.getState().toggleOperationWireframe();
+    expect(useUiStore.getState().artworkDisplayMode).toBe('by_layer');
+    useUiStore.getState().setArtworkDisplayMode('filled');
+    useUiStore.getState().toggleOperationWireframe();
+    expect(useUiStore.getState().artworkDisplayMode).toBe('wireframe');
   });
 
   it('toggles sidePanelsVisible', () => {
@@ -158,7 +159,8 @@ describe('uiStore', () => {
 
   it('has correct defaults', () => {
     const state = useUiStore.getState();
-    expect(state.viewStyle).toBe('wireframe_smooth');
+    expect(state.artworkDisplayMode).toBe('by_layer');
+    expect(state.smoothEdges).toBe(true);
     expect(state.sidePanelsVisible).toBe(true);
     expect(state.activeTool).toBe('select');
     expect(state.panelLayout.toolbarVisibility).toEqual(DEFAULT_TOOLBAR_VISIBILITY);

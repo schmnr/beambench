@@ -242,12 +242,12 @@
       "shape_properties": "Właściwości kształtu",
       "text_options": "Opcje tekstowe",
       "toggle_side_panels": "Przełącz panele boczne",
-      "toggle_wireframe_filled": "Przełącz Model szkieletowy / Wypełniony",
-      "view_style": "Styl widoku:",
-      "view_style_filled_coarse": "Wypełnione / Grube",
-      "view_style_filled_smooth": "Wypełnione / Gładkie",
-      "view_style_wireframe_coarse": "Model szkieletowy / Zgrubny",
-      "view_style_wireframe_smooth": "Model szkieletowy / gładki",
+      "toggle_wireframe_filled": "Przełącz operację / szkielet",
+      "view_style": "Wyświetlanie grafiki:",
+      "view_style_filled_coarse": "Wymuś wypełnienie",
+      "view_style_filled_smooth": "Gładkie krawędzie",
+      "view_style_wireframe_coarse": "Według operacji warstwy",
+      "view_style_wireframe_smooth": "Wymuś szkielet",
       "zoom_to_page": "Powiększ do strony"
     },
     "help": {

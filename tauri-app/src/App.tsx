@@ -229,7 +229,8 @@ function NativeMenuBridge({ dialogActions }: { dialogActions: AppCommandDialogAc
   const canRedo = useUndoStore((s) => s.canRedo);
   const hasClipboard = useUiStore((s) => s.hasClipboard);
   const sidePanelsVisible = useUiStore((s) => s.sidePanelsVisible);
-  const viewStyle = useUiStore((s) => s.viewStyle);
+  const artworkDisplayMode = useUiStore((s) => s.artworkDisplayMode);
+  const smoothEdges = useUiStore((s) => s.smoothEdges);
   const hiddenPanelIds = useUiStore((s) => s.panelLayout.hiddenPanelIds);
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
   const showNotesDialog = useUiStore((s) => s.showNotesDialog);
@@ -361,7 +362,8 @@ function NativeMenuBridge({ dialogActions }: { dialogActions: AppCommandDialogAc
     sidePanelsVisible,
     textEditObjectId,
     toolbarVisibilityKey,
-    viewStyle,
+    artworkDisplayMode,
+    smoothEdges,
     displayLanguage,
   ]);
 
@@ -1671,10 +1673,10 @@ function App() {
           void ps.offsetShapes(ps.selectedObjectIds, 1, 'outward');
         }
       }
-      // --- Toggle Wireframe/Filled (Alt+Shift+W) ---
+      // --- Toggle Operation/Wireframe display (Alt+Shift+W) ---
       else if (alt && shift && (e.key === 'w' || e.key === 'W') && !ctrl && !isInput) {
         e.preventDefault();
-        ui.toggleFilledRendering();
+        void executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME, nativeMenuDialogActions, { source: 'shortcut' });
       }
       // --- Boolean Assistant (Ctrl+B / Cmd+B) ---
       else if (ctrl && !shift && (e.key === 'b' || e.key === 'B') && !isInput) {

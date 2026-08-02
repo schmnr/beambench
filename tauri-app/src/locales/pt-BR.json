@@ -242,12 +242,12 @@
       "shape_properties": "Propriedades da forma",
       "text_options": "Opções de texto",
       "toggle_side_panels": "Alternar painéis laterais",
-      "toggle_wireframe_filled": "Alternar Wireframe / Preenchido",
-      "view_style": "Estilo de visualização:",
-      "view_style_filled_coarse": "Preenchido / Grosso",
-      "view_style_filled_smooth": "Preenchido / Suave",
-      "view_style_wireframe_coarse": "Estrutura de arame/grossa",
-      "view_style_wireframe_smooth": "Estrutura de arame / Suave",
+      "toggle_wireframe_filled": "Alternar operação / estrutura",
+      "view_style": "Exibição da arte:",
+      "view_style_filled_coarse": "Forçar preenchimento",
+      "view_style_filled_smooth": "Bordas suaves",
+      "view_style_wireframe_coarse": "Conforme a operação da camada",
+      "view_style_wireframe_smooth": "Forçar estrutura de arame",
       "zoom_to_page": "Zoom na página"
     },
     "help": {

@@ -242,12 +242,12 @@
       "shape_properties": "Proprietà della forma",
       "text_options": "Opzioni di testo",
       "toggle_side_panels": "Attiva/disattiva i pannelli laterali",
-      "toggle_wireframe_filled": "Attiva/disattiva Wireframe/riempito",
-      "view_style": "Visualizza stile:",
-      "view_style_filled_coarse": "Pieno / Grossolano",
-      "view_style_filled_smooth": "Pieno/Liscio",
-      "view_style_wireframe_coarse": "Wireframe/grossolana",
-      "view_style_wireframe_smooth": "Wireframe/Liscio",
+      "toggle_wireframe_filled": "Alterna operazione / wireframe",
+      "view_style": "Visualizzazione grafica:",
+      "view_style_filled_coarse": "Forza riempimento",
+      "view_style_filled_smooth": "Bordi smussati",
+      "view_style_wireframe_coarse": "In base all’operazione livello",
+      "view_style_wireframe_smooth": "Forza wireframe",
       "zoom_to_page": "Zoom sulla pagina"
     },
     "help": {

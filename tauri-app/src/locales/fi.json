@@ -242,12 +242,12 @@
       "shape_properties": "Muodon ominaisuudet",
       "text_options": "Tekstiasetukset",
       "toggle_side_panels": "Vaihda sivupaneelit",
-      "toggle_wireframe_filled": "Vaihda vaijerikehys / täytetty",
-      "view_style": "Näytä tyyli:",
-      "view_style_filled_coarse": "Täytetty / karkea",
-      "view_style_filled_smooth": "Täytetty / sileä",
-      "view_style_wireframe_coarse": "Rautalanka / karkea",
-      "view_style_wireframe_smooth": "Rautalanka/Smooth",
+      "toggle_wireframe_filled": "Vaihda toiminto / rautalanka",
+      "view_style": "Grafiikan näyttö:",
+      "view_style_filled_coarse": "Pakota täyttö",
+      "view_style_filled_smooth": "Sileät reunat",
+      "view_style_wireframe_coarse": "Kerrostoiminnon mukaan",
+      "view_style_wireframe_smooth": "Pakota rautalanka",
       "zoom_to_page": "Zoomaa sivulle"
     },
     "help": {

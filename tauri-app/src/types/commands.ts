@@ -51,6 +51,7 @@ export interface ExportSettings {
 }
 
 export type UiTheme = 'system' | 'light' | 'dark';
+export type ArtworkDisplayMode = 'by_layer' | 'wireframe' | 'filled';
 
 /** User-configurable application settings. */
 export interface AppSettings {
@@ -67,6 +68,8 @@ export interface AppSettings {
   ui_theme: UiTheme;
   dark_mode: boolean;
   antialiasing: boolean;
+  artwork_display_mode?: ArtworkDisplayMode;
+  /** Legacy settings-file field; canvas rendering uses artwork_display_mode. */
   filled_rendering: boolean;
   reduce_motion: boolean;
   show_palette_labels: boolean;

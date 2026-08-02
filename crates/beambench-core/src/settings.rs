@@ -55,6 +55,22 @@ pub enum UiTheme {
     Dark,
 }
 
+/// How artwork is represented on the interactive canvas.
+///
+/// This changes only the editor display. Generated toolpaths and preview
+/// output always follow the layer operation.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtworkDisplayMode {
+    /// Line layers remain wireframe while fill-like layers render filled.
+    #[default]
+    ByLayer,
+    /// Draw every vector object as an outline for easier editing.
+    Wireframe,
+    /// Draw every closed vector object filled for geometry inspection.
+    Filled,
+}
+
 /// State of a single dock zone (list of panel IDs and active tab).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZoneState {
@@ -264,8 +280,12 @@ pub struct AppSettings {
     pub ui_theme: UiTheme,
     #[serde(default)]
     pub dark_mode: bool,
-    #[serde(default)]
+    #[serde(default = "default_true_settings")]
     pub antialiasing: bool,
+    #[serde(default)]
+    pub artwork_display_mode: ArtworkDisplayMode,
+    /// Legacy preference retained for settings-file compatibility. Canvas
+    /// rendering now uses `artwork_display_mode` instead.
     #[serde(default)]
     pub filled_rendering: bool,
     #[serde(default)]
@@ -404,7 +424,8 @@ impl Default for AppSettings {
             api_localhost_only: true,
             ui_theme: UiTheme::Dark,
             dark_mode: false,
-            antialiasing: false,
+            antialiasing: true,
+            artwork_display_mode: ArtworkDisplayMode::ByLayer,
             filled_rendering: false,
             reduce_motion: false,
             show_palette_labels: false,
@@ -529,6 +550,8 @@ mod tests {
         assert!(s.skipped_update_version.is_empty());
         assert_eq!(s.ui_theme, UiTheme::Dark);
         assert!(!s.dark_mode, "workspace background remains independent");
+        assert!(s.antialiasing, "smooth edges should ship enabled");
+        assert_eq!(s.artwork_display_mode, ArtworkDisplayMode::ByLayer);
     }
 
     #[test]
@@ -571,6 +594,23 @@ mod tests {
             let json = serde_json::to_string(&settings).unwrap();
             let restored: AppSettings = serde_json::from_str(&json).unwrap();
             assert_eq!(restored.ui_theme, ui_theme);
+        }
+    }
+
+    #[test]
+    fn artwork_display_mode_roundtrips_all_variants() {
+        for mode in [
+            ArtworkDisplayMode::ByLayer,
+            ArtworkDisplayMode::Wireframe,
+            ArtworkDisplayMode::Filled,
+        ] {
+            let settings = AppSettings {
+                artwork_display_mode: mode,
+                ..Default::default()
+            };
+            let json = serde_json::to_string(&settings).unwrap();
+            let restored: AppSettings = serde_json::from_str(&json).unwrap();
+            assert_eq!(restored.artwork_display_mode, mode);
         }
     }
 
@@ -762,7 +802,8 @@ mod tests {
         let json = r#"{"display_unit":"mm","autosave_enabled":true,"autosave_interval_secs":120}"#;
         let restored: AppSettings = serde_json::from_str(json).unwrap();
         assert!(!restored.dark_mode);
-        assert!(!restored.antialiasing);
+        assert!(restored.antialiasing);
+        assert_eq!(restored.artwork_display_mode, ArtworkDisplayMode::ByLayer);
         assert!(!restored.filled_rendering);
         assert!(!restored.reduce_motion);
         assert!(!restored.show_palette_labels);

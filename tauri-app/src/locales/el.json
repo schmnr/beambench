@@ -242,12 +242,12 @@
       "shape_properties": "Ιδιότητες σχήματος",
       "text_options": "Επιλογές κειμένου",
       "toggle_side_panels": "Εναλλαγή πλευρικών πλαισίων",
-      "toggle_wireframe_filled": "Εναλλαγή Wireframe / Filled",
-      "view_style": "Προβολή στυλ:",
-      "view_style_filled_coarse": "Γεμισμένο / Χοντρό",
-      "view_style_filled_smooth": "Γεμιστά / Λεία",
-      "view_style_wireframe_coarse": "Wireframe / Coarse",
-      "view_style_wireframe_smooth": "Wireframe / Smooth",
+      "toggle_wireframe_filled": "Εναλλαγή λειτουργίας / περιγράμματος",
+      "view_style": "Προβολή γραφικών:",
+      "view_style_filled_coarse": "Παράκαμψη γεμίσματος",
+      "view_style_filled_smooth": "Ομαλές ακμές",
+      "view_style_wireframe_coarse": "Ανά λειτουργία στρώσης",
+      "view_style_wireframe_smooth": "Παράκαμψη περιγράμματος",
       "zoom_to_page": "Μεγέθυνση στη σελίδα"
     },
     "help": {

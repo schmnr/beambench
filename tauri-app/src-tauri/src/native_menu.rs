@@ -174,11 +174,12 @@ pub mod command {
     pub const WINDOW_ZOOM_IN: &str = "window.zoom_in";
     pub const WINDOW_ZOOM_OUT: &str = "window.zoom_out";
     pub const WINDOW_FRAME_SELECTION: &str = "window.frame_selection";
-    pub const WINDOW_VIEW_STYLE_WIREFRAME_COARSE: &str = "window.view_style.wireframe_coarse";
-    pub const WINDOW_VIEW_STYLE_WIREFRAME_SMOOTH: &str = "window.view_style.wireframe_smooth";
-    pub const WINDOW_VIEW_STYLE_FILLED_COARSE: &str = "window.view_style.filled_coarse";
-    pub const WINDOW_VIEW_STYLE_FILLED_SMOOTH: &str = "window.view_style.filled_smooth";
-    pub const WINDOW_TOGGLE_WIREFRAME_FILLED: &str = "window.toggle_wireframe_filled";
+    pub const WINDOW_ARTWORK_DISPLAY_BY_LAYER: &str = "window.artwork_display.by_layer";
+    pub const WINDOW_ARTWORK_DISPLAY_WIREFRAME: &str = "window.artwork_display.wireframe";
+    pub const WINDOW_ARTWORK_DISPLAY_FILLED: &str = "window.artwork_display.filled";
+    pub const WINDOW_SMOOTH_EDGES: &str = "window.smooth_edges";
+    // Preserve the old command ID so saved custom shortcuts remain valid.
+    pub const WINDOW_TOGGLE_OPERATION_WIREFRAME: &str = "window.toggle_wireframe_filled";
     pub const WINDOW_PANEL_ART_LIBRARY: &str = "window.panel.art_library";
     pub const WINDOW_PANEL_CAMERA_CONTROL: &str = "window.panel.camera";
     pub const WINDOW_PANEL_CONSOLE: &str = "window.panel.console";
@@ -1279,39 +1280,40 @@ const WINDOW_MENU: &[NativeMenuEntry] = &[
     },
     NativeMenuEntry::Separator,
     NativeMenuEntry::Label {
-        title: "View Style:",
+        title: "Artwork Display:",
     },
     NativeMenuEntry::Check {
-        id: command::WINDOW_VIEW_STYLE_WIREFRAME_COARSE,
-        title: "Wireframe / Coarse",
-        accelerator: None,
-        enabled: true,
-        checked: false,
-    },
-    NativeMenuEntry::Check {
-        id: command::WINDOW_VIEW_STYLE_WIREFRAME_SMOOTH,
-        title: "Wireframe / Smooth",
+        id: command::WINDOW_ARTWORK_DISPLAY_BY_LAYER,
+        title: "By Layer Operation",
         accelerator: None,
         enabled: true,
         checked: true,
     },
     NativeMenuEntry::Check {
-        id: command::WINDOW_VIEW_STYLE_FILLED_COARSE,
-        title: "Filled / Coarse",
+        id: command::WINDOW_ARTWORK_DISPLAY_WIREFRAME,
+        title: "Wireframe Override",
         accelerator: None,
         enabled: true,
         checked: false,
     },
     NativeMenuEntry::Check {
-        id: command::WINDOW_VIEW_STYLE_FILLED_SMOOTH,
-        title: "Filled / Smooth",
+        id: command::WINDOW_ARTWORK_DISPLAY_FILLED,
+        title: "Filled Override",
         accelerator: None,
         enabled: true,
         checked: false,
     },
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Check {
+        id: command::WINDOW_SMOOTH_EDGES,
+        title: "Smooth Edges",
+        accelerator: None,
+        enabled: true,
+        checked: true,
+    },
     NativeMenuEntry::Command {
-        id: command::WINDOW_TOGGLE_WIREFRAME_FILLED,
-        title: "Toggle Wireframe / Filled",
+        id: command::WINDOW_TOGGLE_OPERATION_WIREFRAME,
+        title: "Toggle Operation / Wireframe",
         accelerator: Some("Alt+Shift+W"),
         enabled: true,
     },
@@ -2981,32 +2983,32 @@ mod tests {
                     None
                 ),
                 (
-                    "Window > Wireframe / Coarse".to_string(),
-                    command::WINDOW_VIEW_STYLE_WIREFRAME_COARSE,
-                    None,
-                    Some(false)
-                ),
-                (
-                    "Window > Wireframe / Smooth".to_string(),
-                    command::WINDOW_VIEW_STYLE_WIREFRAME_SMOOTH,
+                    "Window > By Layer Operation".to_string(),
+                    command::WINDOW_ARTWORK_DISPLAY_BY_LAYER,
                     None,
                     Some(true)
                 ),
                 (
-                    "Window > Filled / Coarse".to_string(),
-                    command::WINDOW_VIEW_STYLE_FILLED_COARSE,
+                    "Window > Wireframe Override".to_string(),
+                    command::WINDOW_ARTWORK_DISPLAY_WIREFRAME,
                     None,
                     Some(false)
                 ),
                 (
-                    "Window > Filled / Smooth".to_string(),
-                    command::WINDOW_VIEW_STYLE_FILLED_SMOOTH,
+                    "Window > Filled Override".to_string(),
+                    command::WINDOW_ARTWORK_DISPLAY_FILLED,
                     None,
                     Some(false)
                 ),
                 (
-                    "Window > Toggle Wireframe / Filled".to_string(),
-                    command::WINDOW_TOGGLE_WIREFRAME_FILLED,
+                    "Window > Smooth Edges".to_string(),
+                    command::WINDOW_SMOOTH_EDGES,
+                    None,
+                    Some(true)
+                ),
+                (
+                    "Window > Toggle Operation / Wireframe".to_string(),
+                    command::WINDOW_TOGGLE_OPERATION_WIREFRAME,
                     Some("Alt+Shift+W"),
                     None
                 ),

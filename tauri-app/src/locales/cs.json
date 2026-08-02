@@ -242,12 +242,12 @@
       "shape_properties": "Vlastnosti tvaru",
       "text_options": "Možnosti textu",
       "toggle_side_panels": "Přepnout boční panely",
-      "toggle_wireframe_filled": "Přepnout Wireframe / Filled",
-      "view_style": "Styl zobrazení:",
-      "view_style_filled_coarse": "Plněné / Hrubé",
-      "view_style_filled_smooth": "Plněné / hladké",
-      "view_style_wireframe_coarse": "Drátový model / Hrubý",
-      "view_style_wireframe_smooth": "Drátový model / Hladký",
+      "toggle_wireframe_filled": "Přepnout operace / drátový model",
+      "view_style": "Zobrazení kresby:",
+      "view_style_filled_coarse": "Vynutit výplň",
+      "view_style_filled_smooth": "Hladké hrany",
+      "view_style_wireframe_coarse": "Podle operace vrstvy",
+      "view_style_wireframe_smooth": "Vynutit drátový model",
       "zoom_to_page": "Přiblížit na stránku"
     },
     "help": {

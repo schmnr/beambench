@@ -119,7 +119,7 @@ describe('appStore.updateSettings', () => {
   it('hydrates persisted grid, nudge, and render settings into UI state', async () => {
     vi.mocked(appService.updateSettings).mockResolvedValue(makeSettings({
       antialiasing: true,
-      filled_rendering: true,
+      artwork_display_mode: 'filled',
       grid_spacing_mm: 2.5,
       nudge_step_mm: 0.5,
       nudge_step_fine_mm: 0.05,
@@ -134,7 +134,8 @@ describe('appStore.updateSettings', () => {
     expect(ui.nudgeStepMm).toBe(0.5);
     expect(ui.nudgeStepFineMm).toBe(0.05);
     expect(ui.nudgeStepCoarseMm).toBe(5);
-    expect(ui.viewStyle).toBe('filled_smooth');
+    expect(ui.artworkDisplayMode).toBe('filled');
+    expect(ui.smoothEdges).toBe(true);
   });
 
   it('reconciles the authoritative theme after asynchronous settings hydration', async () => {

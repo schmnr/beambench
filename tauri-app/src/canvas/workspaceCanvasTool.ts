@@ -22,12 +22,3 @@ export function tracksObjectDragInteraction(
   return workspaceMode === 'design'
     && resolveWorkspaceCanvasTool(workspaceMode, activeTool) === 'select';
 }
-
-/**
- * Workspace mode changes editing permissions, not artwork appearance. Both
- * canvases must render Line as wireframe and fill-like operations as their
- * true compound fill so switching to Run never changes visible geometry.
- */
-export function usesLayerOperationAppearance(_workspaceMode: 'design' | 'run'): boolean {
-  return true;
-}

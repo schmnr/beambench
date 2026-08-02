@@ -43,7 +43,7 @@ const MODIFIER_CIRCULAR_ARRAY = 'circular_array' as const;
 import { findAutoGroupCandidates } from '../../utils/autoGroupCandidates';
 import {
   WINDOW_PANEL_TOOLBAR_MENU_ITEMS,
-  WINDOW_VIEW_STYLE_ITEMS,
+  WINDOW_ARTWORK_DISPLAY_ITEMS,
 } from '../../commands/windowMenuDefinitions';
 
 const EMPTY_RECENT_FILES: RecentFile[] = [];
@@ -129,7 +129,8 @@ export function MenuBar() {
   const snapToObjects = useUiStore((s) => s.snapToObjects);
   const togglePreview = usePreviewStore((s) => s.togglePreview);
   const previewWindowOpen = usePreviewStore((s) => s.previewWindowOpen);
-  const viewStyle = useUiStore((s) => s.viewStyle);
+  const artworkDisplayMode = useUiStore((s) => s.artworkDisplayMode);
+  const smoothEdges = useUiStore((s) => s.smoothEdges);
 
   const canUndo = useUndoStore((s) => s.canUndo);
   const canRedo = useUndoStore((s) => s.canRedo);
@@ -1389,24 +1390,32 @@ export function MenuBar() {
               }}
             />
             <div className="border-t border-bb-border my-1" />
-            <MenuLabel label={ml("View Style:")} />
-            {WINDOW_VIEW_STYLE_ITEMS.map((item) => (
+            <MenuLabel label={ml("Artwork Display:")} />
+            {WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => (
               <MenuCheckItem
                 key={item.commandId}
                 label={mlDynamic(item.label)}
-                checked={viewStyle === item.viewStyle}
+                checked={artworkDisplayMode === item.mode}
                 onClick={() => {
                   setOpenMenu(null);
                   void executeAppCommand(item.commandId);
                 }}
               />
             ))}
+            <MenuCheckItem
+              label={ml("Smooth Edges")}
+              checked={smoothEdges}
+              onClick={() => {
+                setOpenMenu(null);
+                void executeAppCommand(APP_COMMANDS.WINDOW_SMOOTH_EDGES);
+              }}
+            />
             <MenuItem
-              label={ml("Toggle Wireframe / Filled")}
+              label={ml("Toggle Operation / Wireframe")}
               shortcut="Alt+Shift+W"
               onClick={() => {
                 setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED);
+                void executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME);
               }}
             />
             <div className="border-t border-bb-border my-1" />

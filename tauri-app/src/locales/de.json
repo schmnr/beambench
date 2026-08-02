@@ -242,12 +242,12 @@
       "shape_properties": "Formeigenschaften",
       "text_options": "Textoptionen",
       "toggle_side_panels": "Seitenwände umschalten",
-      "toggle_wireframe_filled": "Schalten Sie Drahtmodell / Gefüllt um",
-      "view_style": "Ansichtsstil:",
-      "view_style_filled_coarse": "Gefüllt / Grob",
-      "view_style_filled_smooth": "Gefüllt / Glatt",
-      "view_style_wireframe_coarse": "Drahtmodell / Grob",
-      "view_style_wireframe_smooth": "Drahtmodell / Glatt",
+      "toggle_wireframe_filled": "Operation / Drahtmodell umschalten",
+      "view_style": "Grafikdarstellung:",
+      "view_style_filled_coarse": "Füllung erzwingen",
+      "view_style_filled_smooth": "Glatte Kanten",
+      "view_style_wireframe_coarse": "Nach Ebenenoperation",
+      "view_style_wireframe_smooth": "Drahtmodell erzwingen",
       "zoom_to_page": "Auf Seite zoomen"
     },
     "help": {

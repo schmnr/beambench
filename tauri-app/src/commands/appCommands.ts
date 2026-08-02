@@ -7,7 +7,7 @@ import { wrapBackendError } from '../i18n/errors';
 import { useAppStore } from '../stores/appStore';
 import { usePreviewStore } from '../stores/previewStore';
 import { useProjectStore } from '../stores/projectStore';
-import { renderOptionsFromViewStyle, useUiStore, type ToolType, type ViewStyle } from '../stores/uiStore';
+import { useUiStore, type ArtworkDisplayMode, type ToolType } from '../stores/uiStore';
 import { useUndoStore } from '../stores/undoStore';
 import { guardUnsavedChanges } from '../stores/unsavedGuardStore';
 import { useMachineStore } from '../stores/machineStore';
@@ -48,8 +48,8 @@ import {
   WINDOW_PANEL_MENU_ITEMS,
   WINDOW_TOOLBAR_BY_COMMAND,
   WINDOW_TOOLBAR_MENU_ITEMS,
-  WINDOW_VIEW_STYLE_BY_COMMAND,
-  WINDOW_VIEW_STYLE_ITEMS,
+  WINDOW_ARTWORK_DISPLAY_BY_COMMAND,
+  WINDOW_ARTWORK_DISPLAY_ITEMS,
 } from './windowMenuDefinitions';
 
 export const QUICK_HELP_DOCS_URL = 'https://beambench.com/docs';
@@ -225,19 +225,17 @@ function frameSelection(): void {
   }
 }
 
-async function persistViewStyle(viewStyle: ViewStyle): Promise<void> {
-  const renderOptions = renderOptionsFromViewStyle(viewStyle);
+async function persistArtworkDisplayMode(mode: ArtworkDisplayMode): Promise<void> {
   await runCommand(() => useAppStore.getState().updateSettings({
-    antialiasing: renderOptions.antialiasing,
-    filled_rendering: renderOptions.filledRendering,
+    artwork_display_mode: mode,
   }));
 }
 
-function setWindowViewStyle(commandId: AppCommandId): boolean {
-  const viewStyle = WINDOW_VIEW_STYLE_BY_COMMAND[commandId];
-  if (!viewStyle) return false;
-  useUiStore.getState().setViewStyle(viewStyle);
-  void persistViewStyle(viewStyle);
+function setWindowArtworkDisplay(commandId: AppCommandId): boolean {
+  const mode = WINDOW_ARTWORK_DISPLAY_BY_COMMAND[commandId];
+  if (!mode) return false;
+  useUiStore.getState().setArtworkDisplayMode(mode);
+  void persistArtworkDisplayMode(mode);
   return true;
 }
 
@@ -328,7 +326,7 @@ export async function executeAppCommand(
     && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
 
   if (shouldIgnoreNativeFocusGuardedCommand(commandId, context)) return;
-  if (setWindowViewStyle(commandId as AppCommandId)) return;
+  if (setWindowArtworkDisplay(commandId as AppCommandId)) return;
   if (toggleWindowPanel(commandId as AppCommandId)) return;
   if (toggleWindowToolbar(commandId as AppCommandId)) return;
 
@@ -966,9 +964,15 @@ export async function executeAppCommand(
     case APP_COMMANDS.WINDOW_FRAME_SELECTION:
       frameSelection();
       return;
-    case APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED:
-      ui.toggleFilledRendering();
-      await persistViewStyle(useUiStore.getState().viewStyle);
+    case APP_COMMANDS.WINDOW_SMOOTH_EDGES: {
+      const enabled = !ui.smoothEdges;
+      ui.setSmoothEdges(enabled);
+      await runCommand(() => useAppStore.getState().updateSettings({ antialiasing: enabled }));
+      return;
+    }
+    case APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME:
+      ui.toggleOperationWireframe();
+      await persistArtworkDisplayMode(useUiStore.getState().artworkDisplayMode);
       return;
     case APP_COMMANDS.WINDOW_RESET_LAYOUT:
       ui.resetLayout();
@@ -1037,10 +1041,10 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const canMoveTogether = selectedIds.length >= 2 && selectedObjects.some((object) => !object.locked);
   const canAutoGroup = selectedIds.length >= 2 && findAutoGroupCandidates(ps.project, selectedIds).length > 0;
   const accel = (id: AppCommandId) => nativeAcceleratorForCommand(id, customHotkeys);
-  const viewStyleItems = WINDOW_VIEW_STYLE_ITEMS.map((item) => ({
+  const artworkDisplayItems = WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => ({
     id: item.commandId,
     enabled: true,
-    checked: ui.viewStyle === item.viewStyle,
+    checked: ui.artworkDisplayMode === item.mode,
   }));
   const activePanelLayout = getWorkspacePanelLayout(ui.panelLayout, ui.workspaceMode);
   const panelItems = WINDOW_PANEL_MENU_ITEMS.map((item) => ({
@@ -1235,11 +1239,16 @@ export function getAppCommandState(): NativeMenuStateUpdate {
       { id: APP_COMMANDS.WINDOW_ZOOM_IN, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.WINDOW_ZOOM_IN) },
       { id: APP_COMMANDS.WINDOW_ZOOM_OUT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.WINDOW_ZOOM_OUT) },
       { id: APP_COMMANDS.WINDOW_FRAME_SELECTION, enabled: hasSelection, accelerator: accel(APP_COMMANDS.WINDOW_FRAME_SELECTION) },
-      ...viewStyleItems,
+      ...artworkDisplayItems,
       {
-        id: APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED,
+        id: APP_COMMANDS.WINDOW_SMOOTH_EDGES,
         enabled: true,
-        accelerator: accel(APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED),
+        checked: ui.smoothEdges,
+      },
+      {
+        id: APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME,
+        enabled: true,
+        accelerator: accel(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME),
       },
       ...panelItems,
       ...toolbarItems,

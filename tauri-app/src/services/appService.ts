@@ -16,6 +16,7 @@ export interface AppSettingsUpdate {
   ui_theme?: AppSettings['ui_theme'];
   dark_mode?: boolean;
   antialiasing?: boolean;
+  artwork_display_mode?: AppSettings['artwork_display_mode'];
   filled_rendering?: boolean;
   reduce_motion?: boolean;
   show_palette_labels?: boolean;

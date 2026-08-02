@@ -495,7 +495,8 @@ describe('app command bridge', () => {
     usePreviewStore.setState({ previewWindowOpen: true });
     useUiStore.setState({
       sidePanelsVisible: false,
-      viewStyle: 'filled_coarse',
+      artworkDisplayMode: 'filled',
+      smoothEdges: false,
       panelLayout: {
         ...useUiStore.getState().panelLayout,
         hiddenPanelIds: ['console'],
@@ -509,8 +510,9 @@ describe('app command bridge', () => {
     expect(stateItem(APP_COMMANDS.WINDOW_ZOOM_TO_PAGE)).toMatchObject({ enabled: true });
     expect(stateItem(APP_COMMANDS.WINDOW_FRAME_SELECTION)).toMatchObject({ enabled: false });
     expect(stateItem(APP_COMMANDS.WINDOW_SIDE_PANELS)).toMatchObject({ checked: false });
-    expect(stateItem(APP_COMMANDS.WINDOW_VIEW_STYLE_FILLED_COARSE)).toMatchObject({ checked: true });
-    expect(stateItem(APP_COMMANDS.WINDOW_VIEW_STYLE_WIREFRAME_SMOOTH)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_FILLED)).toMatchObject({ checked: true });
+    expect(stateItem(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_BY_LAYER)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.WINDOW_SMOOTH_EDGES)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_PANEL_CONSOLE)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_TOOLBAR_ARRANGE_LONG)).toMatchObject({ checked: true });
     expect(stateItem(APP_COMMANDS.WINDOW_TOOLBAR_DOCKING)).toMatchObject({ checked: false });
@@ -555,28 +557,33 @@ describe('app command bridge', () => {
   it('executes Window view and toolbar toggles through app commands', async () => {
     const updateSettings = vi.spyOn(appService, 'updateSettings').mockImplementation(async (updates) => makeAppSettings({
       antialiasing: updates.antialiasing ?? false,
-      filled_rendering: updates.filled_rendering ?? false,
+      artwork_display_mode: updates.artwork_display_mode ?? 'by_layer',
     }));
     useUiStore.setState({
-      viewStyle: 'wireframe_smooth',
+      artworkDisplayMode: 'by_layer',
+      smoothEdges: true,
       panelLayout: {
         ...useUiStore.getState().panelLayout,
         toolbarVisibility: { ...DEFAULT_TOOLBAR_VISIBILITY },
       },
     });
 
-    await executeAppCommand(APP_COMMANDS.WINDOW_VIEW_STYLE_FILLED_SMOOTH);
-    expect(useUiStore.getState().viewStyle).toBe('filled_smooth');
+    await executeAppCommand(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_FILLED);
+    expect(useUiStore.getState().artworkDisplayMode).toBe('filled');
     expect(updateSettings).toHaveBeenNthCalledWith(1, {
-      antialiasing: true,
-      filled_rendering: true,
+      artwork_display_mode: 'filled',
     });
 
-    await executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED);
-    expect(useUiStore.getState().viewStyle).toBe('wireframe_smooth');
+    await executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME);
+    expect(useUiStore.getState().artworkDisplayMode).toBe('wireframe');
     expect(updateSettings).toHaveBeenNthCalledWith(2, {
-      antialiasing: true,
-      filled_rendering: false,
+      artwork_display_mode: 'wireframe',
+    });
+
+    await executeAppCommand(APP_COMMANDS.WINDOW_SMOOTH_EDGES);
+    expect(useUiStore.getState().smoothEdges).toBe(false);
+    expect(updateSettings).toHaveBeenNthCalledWith(3, {
+      antialiasing: false,
     });
 
     await executeAppCommand(APP_COMMANDS.WINDOW_TOOLBAR_DOCKING);

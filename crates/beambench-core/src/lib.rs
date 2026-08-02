@@ -98,8 +98,8 @@ pub use quality_test::{
     QualityTestOrdering, QualityTestRequest, QualityTestSettings, QualityTestWarning,
 };
 pub use settings::{
-    AppSettings, CursorSize, DisplayUnit, IconSize, ImagePreset, SavedPosition, SpeedTimeUnit,
-    UiTheme,
+    AppSettings, ArtworkDisplayMode, CursorSize, DisplayUnit, IconSize, ImagePreset, SavedPosition,
+    SpeedTimeUnit, UiTheme,
 };
 pub use text_path::{apply_path_to_text, apply_path_to_text_with_options};
 pub use trace::{TraceConfig, trace_image, trace_image_preview_fast};

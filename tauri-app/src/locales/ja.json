@@ -242,12 +242,12 @@
       "shape_properties": "形状のプロパティ",
       "text_options": "テキストオプション",
       "toggle_side_panels": "サイドパネルの切り替え",
-      "toggle_wireframe_filled": "ワイヤーフレーム/塗りつぶしを切り替え",
-      "view_style": "ビュースタイル:",
-      "view_style_filled_coarse": "塗りつぶし/粗め",
-      "view_style_filled_smooth": "満たされた/滑らかな",
-      "view_style_wireframe_coarse": "ワイヤーフレーム / 粗い",
-      "view_style_wireframe_smooth": "ワイヤーフレーム / スムーズ",
+      "toggle_wireframe_filled": "レイヤー操作 / ワイヤーフレームを切り替え",
+      "view_style": "アートワーク表示:",
+      "view_style_filled_coarse": "塗りつぶしを優先",
+      "view_style_filled_smooth": "滑らかなエッジ",
+      "view_style_wireframe_coarse": "レイヤー操作に従う",
+      "view_style_wireframe_smooth": "ワイヤーフレームを優先",
       "zoom_to_page": "ページにズーム"
     },
     "help": {

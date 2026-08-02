@@ -242,12 +242,12 @@
       "shape_properties": "Propriétés de la forme",
       "text_options": "Options de texte",
       "toggle_side_panels": "Basculer les panneaux latéraux",
-      "toggle_wireframe_filled": "Basculer Filaire / Rempli",
-      "view_style": "Style d'affichage :",
-      "view_style_filled_coarse": "Rempli / Grossier",
-      "view_style_filled_smooth": "Rempli / Lisse",
-      "view_style_wireframe_coarse": "Filaire / Grossier",
-      "view_style_wireframe_smooth": "Filaire / Lisse",
+      "toggle_wireframe_filled": "Basculer opération / filaire",
+      "view_style": "Affichage du dessin :",
+      "view_style_filled_coarse": "Forcer le remplissage",
+      "view_style_filled_smooth": "Bords lissés",
+      "view_style_wireframe_coarse": "Selon l’opération du calque",
+      "view_style_wireframe_smooth": "Forcer le filaire",
       "zoom_to_page": "Zoomer sur la page"
     },
     "help": {

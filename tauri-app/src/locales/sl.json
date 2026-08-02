@@ -242,12 +242,12 @@
       "shape_properties": "Lastnosti oblike",
       "text_options": "Možnosti besedila",
       "toggle_side_panels": "Preklopi stranske plošče",
-      "toggle_wireframe_filled": "Preklopi Wireframe/Filled",
-      "view_style": "Ogled sloga:",
-      "view_style_filled_coarse": "Polnjeno/grobo",
-      "view_style_filled_smooth": "Polnjeno / gladko",
-      "view_style_wireframe_coarse": "Žični okvir / grobo",
-      "view_style_wireframe_smooth": "Žični okvir / gladek",
+      "toggle_wireframe_filled": "Preklopi operacijo / žični okvir",
+      "view_style": "Prikaz grafike:",
+      "view_style_filled_coarse": "Vsili polnilo",
+      "view_style_filled_smooth": "Gladki robovi",
+      "view_style_wireframe_coarse": "Glede na operacijo plasti",
+      "view_style_wireframe_smooth": "Vsili žični okvir",
       "zoom_to_page": "Povečaj na stran"
     },
     "help": {

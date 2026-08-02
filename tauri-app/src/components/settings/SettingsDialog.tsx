@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../stores/appStore';
 import { NumberStepper } from '../shared/NumberStepper';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
-import type { AppSettings, UiTheme } from '../../types/commands';
+import type { AppSettings, ArtworkDisplayMode, UiTheme } from '../../types/commands';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
 import { FileInput, Monitor, Ruler, Save, Settings2 } from 'lucide-react';
 import {
@@ -29,7 +29,7 @@ type SettingsDraft = {
   uiTheme: UiTheme;
   darkMode: boolean;
   antialiasing: boolean;
-  filledRendering: boolean;
+  artworkDisplayMode: ArtworkDisplayMode;
   reduceMotion: boolean;
   clickTolerance: number;
   snapThreshold: number;
@@ -53,7 +53,7 @@ const SETTINGS_DRAFT_KEYS = [
   'uiTheme',
   'darkMode',
   'antialiasing',
-  'filledRendering',
+  'artworkDisplayMode',
   'reduceMotion',
   'clickTolerance',
   'snapThreshold',
@@ -80,8 +80,8 @@ function createDraft(settings: AppSettings): SettingsDraft {
     apiLocalhostOnly: settings.api_localhost_only,
     uiTheme: settings.ui_theme ?? 'dark',
     darkMode: settings.dark_mode ?? false,
-    antialiasing: settings.antialiasing ?? false,
-    filledRendering: settings.filled_rendering ?? false,
+    antialiasing: settings.antialiasing ?? true,
+    artworkDisplayMode: settings.artwork_display_mode ?? 'by_layer',
     reduceMotion: settings.reduce_motion ?? false,
     clickTolerance: settings.click_tolerance_px ?? 5,
     snapThreshold: settings.snap_threshold_px ?? 5,
@@ -105,8 +105,8 @@ const FALLBACK_DRAFT: SettingsDraft = {
   apiLocalhostOnly: false,
   uiTheme: 'dark',
   darkMode: false,
-  antialiasing: false,
-  filledRendering: false,
+  antialiasing: true,
+  artworkDisplayMode: 'by_layer',
   reduceMotion: false,
   clickTolerance: 5,
   snapThreshold: 5,
@@ -291,7 +291,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         ui_theme: draft.uiTheme,
         dark_mode: draft.darkMode,
         antialiasing: draft.antialiasing,
-        filled_rendering: draft.filledRendering,
+        artwork_display_mode: draft.artworkDisplayMode,
         reduce_motion: draft.reduceMotion,
         click_tolerance_px: draft.clickTolerance,
         snap_threshold_px: draft.snapThreshold,
@@ -555,12 +555,22 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     onChange={(v) => updateDraft('antialiasing', v)}
                     testId="toggle-antialiasing"
                   />
-                  <SwitchRow
-                    label={t('dialog.settings.filled_rendering')}
-                    checked={content.filledRendering}
-                    onChange={(v) => updateDraft('filledRendering', v)}
-                    testId="toggle-filled-rendering"
-                  />
+                  <div className="flex min-h-12 items-start justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2">
+                    <label htmlFor="settings-artwork-display" className="self-center text-sm text-bb-text">
+                      {t('menus.window.view_style')}
+                    </label>
+                    <select
+                      id="settings-artwork-display"
+                      data-testid="select-artwork-display"
+                      value={content.artworkDisplayMode}
+                      onChange={(event) => updateDraft('artworkDisplayMode', event.target.value as ArtworkDisplayMode)}
+                      className={`${dialogControlClassName} shrink-0`}
+                    >
+                      <option value="by_layer">{t('menus.window.view_style_wireframe_coarse')}</option>
+                      <option value="wireframe">{t('menus.window.view_style_wireframe_smooth')}</option>
+                      <option value="filled">{t('menus.window.view_style_filled_coarse')}</option>
+                    </select>
+                  </div>
                   <SwitchRow
                     label={t('dialog.settings.reduce_motion')}
                     checked={content.reduceMotion}

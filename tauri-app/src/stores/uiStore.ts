@@ -55,24 +55,18 @@ export type NodeSubMode =
   | 'insert_midpoint' | 'align' | 'trim' | 'extend'
   | 'close_open' | 'auto_join';
 
-export type ViewStyle = 'wireframe_coarse' | 'wireframe_smooth' | 'filled_coarse' | 'filled_smooth';
+export type ArtworkDisplayMode = 'by_layer' | 'wireframe' | 'filled';
 
-export interface ViewStyleRenderOptions {
-  antialiasing: boolean;
+export interface ArtworkDisplayRenderOptions {
+  useLayerAppearance: boolean;
   filledRendering: boolean;
 }
 
-export function renderOptionsFromViewStyle(style: ViewStyle): ViewStyleRenderOptions {
+export function renderOptionsFromArtworkDisplayMode(mode: ArtworkDisplayMode): ArtworkDisplayRenderOptions {
   return {
-    antialiasing: style.endsWith('_smooth'),
-    filledRendering: style.startsWith('filled_'),
+    useLayerAppearance: mode === 'by_layer',
+    filledRendering: mode === 'filled',
   };
-}
-
-export function viewStyleFromRenderOptions(options: Partial<ViewStyleRenderOptions>): ViewStyle {
-  const fillMode = options.filledRendering ? 'filled' : 'wireframe';
-  const smoothing = options.antialiasing ? 'smooth' : 'coarse';
-  return `${fillMode}_${smoothing}` as ViewStyle;
 }
 
 /** Defaults applied when the Text tool creates a new text object. */
@@ -180,8 +174,9 @@ interface UiStoreState {
   // Cursor
   cursorWorldPos: Point2D | null;
 
-  // View style
-  viewStyle: ViewStyle;
+  // Canvas display
+  artworkDisplayMode: ArtworkDisplayMode;
+  smoothEdges: boolean;
 
   // Side panels
   sidePanelsVisible: boolean;
@@ -362,9 +357,10 @@ interface UiStoreState {
   // Cursor actions
   setCursorWorldPos: (pos: Point2D | null) => void;
 
-  // View style actions
-  setViewStyle: (style: ViewStyle) => void;
-  toggleFilledRendering: () => void;
+  // Canvas display actions
+  setArtworkDisplayMode: (mode: ArtworkDisplayMode) => void;
+  setSmoothEdges: (enabled: boolean) => void;
+  toggleOperationWireframe: () => void;
 
   // Side panels actions
   toggleSidePanels: () => void;
@@ -515,7 +511,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
   nudgeStepFineMm: 1,
   nudgeStepCoarseMm: 20,
 
-  viewStyle: 'wireframe_smooth',
+  artworkDisplayMode: 'by_layer',
+  smoothEdges: true,
   sidePanelsVisible: true,
   libraryDrawerOpen: false,
   libraryDrawerTab: 'art' as const,
@@ -1302,12 +1299,11 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   setCursorWorldPos: (pos) => set({ cursorWorldPos: pos }),
 
-  setViewStyle: (style) => set({ viewStyle: style }),
-  toggleFilledRendering: () =>
+  setArtworkDisplayMode: (mode) => set({ artworkDisplayMode: mode }),
+  setSmoothEdges: (enabled) => set({ smoothEdges: enabled }),
+  toggleOperationWireframe: () =>
     set((s) => {
-      const isFilled = s.viewStyle.startsWith('filled_');
-      const suffix = s.viewStyle.includes('_smooth') ? '_smooth' : '_coarse';
-      return { viewStyle: (isFilled ? `wireframe${suffix}` : `filled${suffix}`) as ViewStyle };
+      return { artworkDisplayMode: s.artworkDisplayMode === 'wireframe' ? 'by_layer' : 'wireframe' };
     }),
   toggleLibraryDrawer: () => set((s) => ({ libraryDrawerOpen: !s.libraryDrawerOpen })),
   setWorkspaceMode: (mode) => set((s) => ({

@@ -242,12 +242,12 @@
       "shape_properties": "모양 속성",
       "text_options": "텍스트 옵션",
       "toggle_side_panels": "측면 패널 전환",
-      "toggle_wireframe_filled": "와이어프레임 전환 / 채워짐",
-      "view_style": "뷰 스타일:",
-      "view_style_filled_coarse": "채워진 / 거친",
-      "view_style_filled_smooth": "채워짐 / 매끄러움",
-      "view_style_wireframe_coarse": "와이어프레임 / 일반",
-      "view_style_wireframe_smooth": "와이어프레임 / 스무스",
+      "toggle_wireframe_filled": "레이어 작업 / 와이어프레임 전환",
+      "view_style": "아트워크 표시:",
+      "view_style_filled_coarse": "채움 우선",
+      "view_style_filled_smooth": "부드러운 가장자리",
+      "view_style_wireframe_coarse": "레이어 작업에 따름",
+      "view_style_wireframe_smooth": "와이어프레임 우선",
       "zoom_to_page": "페이지 확대"
     },
     "help": {

@@ -9,7 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useNotificationStore } from '../stores/notificationStore';
 import { makeLayer, makeProjectObject } from '../test-utils/projectFixtures';
 import { resetTransformedPath2DProbeForTests } from './drawObjects';
-import { renderOptionsFromViewStyle } from '../stores/uiStore';
+import { renderOptionsFromArtworkDisplayMode } from '../stores/uiStore';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -1283,23 +1283,19 @@ describe('CanvasRenderer', () => {
     expect(hasToolDash).toBe(true);
   });
 
-  // --- View style rendering settings derivation test ---
+  // --- Artwork display rendering settings derivation test ---
 
-  it('rendering settings derive from view style', () => {
-    expect(renderOptionsFromViewStyle('wireframe_coarse')).toEqual({
-      antialiasing: false,
+  it('rendering settings derive from artwork display mode', () => {
+    expect(renderOptionsFromArtworkDisplayMode('by_layer')).toEqual({
+      useLayerAppearance: true,
       filledRendering: false,
     });
-    expect(renderOptionsFromViewStyle('wireframe_smooth')).toEqual({
-      antialiasing: true,
+    expect(renderOptionsFromArtworkDisplayMode('wireframe')).toEqual({
+      useLayerAppearance: false,
       filledRendering: false,
     });
-    expect(renderOptionsFromViewStyle('filled_coarse')).toEqual({
-      antialiasing: false,
-      filledRendering: true,
-    });
-    expect(renderOptionsFromViewStyle('filled_smooth')).toEqual({
-      antialiasing: true,
+    expect(renderOptionsFromArtworkDisplayMode('filled')).toEqual({
+      useLayerAppearance: false,
       filledRendering: true,
     });
   });

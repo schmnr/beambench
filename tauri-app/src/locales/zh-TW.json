@@ -242,12 +242,12 @@
       "shape_properties": "形狀屬性",
       "text_options": "文字選項",
       "toggle_side_panels": "切換側面板",
-      "toggle_wireframe_filled": "切換線框/填充",
-      "view_style": "查看樣式：",
-      "view_style_filled_coarse": "填充/粗粒",
-      "view_style_filled_smooth": "填充/光滑",
-      "view_style_wireframe_coarse": "線框/粗略",
-      "view_style_wireframe_smooth": "線框/平滑",
+      "toggle_wireframe_filled": "切換圖層操作/線框",
+      "view_style": "圖稿顯示：",
+      "view_style_filled_coarse": "強制填充",
+      "view_style_filled_smooth": "平滑邊緣",
+      "view_style_wireframe_coarse": "依圖層操作",
+      "view_style_wireframe_smooth": "強制線框",
       "zoom_to_page": "縮放至頁面"
     },
     "help": {

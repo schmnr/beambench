@@ -19,7 +19,7 @@ function hydrateSettingsIntoUi(settings: AppSettings, seq: number = settingsMuta
   if (seq !== settingsMutationSeq) return;
   uiThemeController.sync(settings.ui_theme ?? 'dark');
 
-  void import('./uiStore').then(({ useUiStore, viewStyleFromRenderOptions }) => {
+  void import('./uiStore').then(({ useUiStore }) => {
     if (seq !== settingsMutationSeq) return;
 
     const ui = useUiStore.getState();
@@ -29,10 +29,8 @@ function hydrateSettingsIntoUi(settings: AppSettings, seq: number = settingsMuta
       fine: settings.nudge_step_fine_mm,
       coarse: settings.nudge_step_coarse_mm,
     });
-    ui.setViewStyle(viewStyleFromRenderOptions({
-      antialiasing: settings.antialiasing,
-      filledRendering: settings.filled_rendering,
-    }));
+    ui.setArtworkDisplayMode(settings.artwork_display_mode ?? 'by_layer');
+    ui.setSmoothEdges(settings.antialiasing ?? true);
   });
 }
 

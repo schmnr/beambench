@@ -917,9 +917,12 @@ describe('MenuBar', () => {
     });
 
     expect(labels).toEqual(expectedLabels);
-    expect(menu?.textContent).toContain('View Style:');
+    expect(menu?.textContent).toContain('Artwork Display:');
     expect(screen.getByText('Toggle Side Panels')).toBeDefined();
-    expect(screen.getByText('Wireframe / Smooth')).toBeDefined();
+    expect(screen.getByText('By Layer Operation')).toBeDefined();
+    expect(screen.getByText('Wireframe Override')).toBeDefined();
+    expect(screen.getByText('Filled Override')).toBeDefined();
+    expect(screen.getByText('Smooth Edges')).toBeDefined();
     expect(screen.getByText('Camera Control')).toBeDefined();
     expect(screen.getByText('Shape Properties')).toBeDefined();
     expect(screen.queryByText('Variable Text')).toBeNull();

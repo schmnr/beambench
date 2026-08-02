@@ -242,12 +242,12 @@
       "shape_properties": "形状属性",
       "text_options": "文本选项",
       "toggle_side_panels": "切换侧面板",
-      "toggle_wireframe_filled": "切换线框/填充",
-      "view_style": "查看样式：",
-      "view_style_filled_coarse": "填充/粗粒",
-      "view_style_filled_smooth": "填充/光滑",
-      "view_style_wireframe_coarse": "线框/粗略",
-      "view_style_wireframe_smooth": "线框/平滑",
+      "toggle_wireframe_filled": "切换图层操作/线框",
+      "view_style": "图稿显示：",
+      "view_style_filled_coarse": "强制填充",
+      "view_style_filled_smooth": "平滑边缘",
+      "view_style_wireframe_coarse": "按图层操作",
+      "view_style_wireframe_smooth": "强制线框",
       "zoom_to_page": "缩放至页面"
     },
     "help": {

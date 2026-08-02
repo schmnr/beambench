@@ -155,7 +155,7 @@ describe('command registry product ids', () => {
     expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_PREVIEW, {})).toBe('Alt+p');
     expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_ZOOM_TO_PAGE, {})).toBe('Ctrl+0');
     expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_FRAME_SELECTION, {})).toBe('Ctrl+Shift+a');
-    expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED, {})).toBe('Shift+Alt+w');
+    expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME, {})).toBe('Shift+Alt+w');
   });
 
   it('registers Laser Tools test commands for native menu dispatch', () => {

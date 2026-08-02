@@ -4,7 +4,8 @@ use std::path::Path;
 use beambench_core::diagnostics::{self, DiagnosticsBundle};
 use beambench_core::settings::{ExportSettings, PanelLayout};
 use beambench_core::{
-    AppSettings, AppStatus, BuildInfo, CursorSize, DisplayUnit, IconSize, SpeedTimeUnit, UiTheme,
+    AppSettings, AppStatus, ArtworkDisplayMode, BuildInfo, CursorSize, DisplayUnit, IconSize,
+    SpeedTimeUnit, UiTheme,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -26,6 +27,7 @@ pub struct UpdateAppSettingsInput {
     pub ui_theme: Option<UiTheme>,
     pub dark_mode: Option<bool>,
     pub antialiasing: Option<bool>,
+    pub artwork_display_mode: Option<ArtworkDisplayMode>,
     pub filled_rendering: Option<bool>,
     pub reduce_motion: Option<bool>,
     pub show_palette_labels: Option<bool>,
@@ -126,6 +128,9 @@ pub fn apply_app_settings_update(
     }
     if let Some(v) = input.antialiasing {
         next_settings.antialiasing = v;
+    }
+    if let Some(v) = input.artwork_display_mode {
+        next_settings.artwork_display_mode = v;
     }
     if let Some(v) = input.filled_rendering {
         next_settings.filled_rendering = v;
@@ -412,6 +417,27 @@ mod tests {
 
         assert_eq!(updated.ui_theme, UiTheme::System);
         assert!(updated.dark_mode);
+    }
+
+    #[test]
+    fn artwork_display_mode_updates_independently_of_smoothing() {
+        let current = AppSettings {
+            antialiasing: true,
+            artwork_display_mode: ArtworkDisplayMode::ByLayer,
+            ..Default::default()
+        };
+
+        let updated = apply_app_settings_update(
+            &current,
+            UpdateAppSettingsInput {
+                artwork_display_mode: Some(ArtworkDisplayMode::Wireframe),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(updated.artwork_display_mode, ArtworkDisplayMode::Wireframe);
+        assert!(updated.antialiasing);
     }
 
     #[test]

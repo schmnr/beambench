@@ -242,12 +242,12 @@
       "shape_properties": "Şekil Özellikleri",
       "text_options": "Metin Seçenekleri",
       "toggle_side_panels": "Yan Panelleri Değiştir",
-      "toggle_wireframe_filled": "Tel Çerçeveyi / Doldurmayı Değiştir",
-      "view_style": "Görünüm Stili:",
-      "view_style_filled_coarse": "Dolu / Kaba",
-      "view_style_filled_smooth": "Dolu / Pürüzsüz",
-      "view_style_wireframe_coarse": "Tel Kafes / Kaba",
-      "view_style_wireframe_smooth": "Tel Çerçeve / Pürüzsüz",
+      "toggle_wireframe_filled": "İşlem / tel çerçeve arasında geçiş yap",
+      "view_style": "Çizim görünümü:",
+      "view_style_filled_coarse": "Dolgulu görünümü zorla",
+      "view_style_filled_smooth": "Pürüzsüz kenarlar",
+      "view_style_wireframe_coarse": "Katman işlemine göre",
+      "view_style_wireframe_smooth": "Tel çerçeveyi zorla",
       "zoom_to_page": "Sayfayı Yakınlaştır"
     },
     "help": {

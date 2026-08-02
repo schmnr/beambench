@@ -242,12 +242,12 @@
       "shape_properties": "Propiedades de forma",
       "text_options": "Opciones de texto",
       "toggle_side_panels": "Alternar paneles laterales",
-      "toggle_wireframe_filled": "Alternar estructura alámbrica/relleno",
-      "view_style": "Estilo de vista:",
-      "view_style_filled_coarse": "Relleno / Grueso",
-      "view_style_filled_smooth": "Relleno / Liso",
-      "view_style_wireframe_coarse": "Estructura alámbrica/gruesa",
-      "view_style_wireframe_smooth": "Estructura alámbrica/lisa",
+      "toggle_wireframe_filled": "Alternar operación / contorno",
+      "view_style": "Visualización del diseño:",
+      "view_style_filled_coarse": "Forzar relleno",
+      "view_style_filled_smooth": "Bordes suaves",
+      "view_style_wireframe_coarse": "Según operación de capa",
+      "view_style_wireframe_smooth": "Forzar contorno",
       "zoom_to_page": "Acercar a la página"
     },
     "help": {

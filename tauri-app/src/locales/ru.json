@@ -242,12 +242,12 @@
       "shape_properties": "Свойства формы",
       "text_options": "Параметры текста",
       "toggle_side_panels": "Переключить боковые панели",
-      "toggle_wireframe_filled": "Переключить Каркас/Заливка",
-      "view_style": "Стиль просмотра:",
-      "view_style_filled_coarse": "Заполненный/грубый",
-      "view_style_filled_smooth": "Заполненный/гладкий",
-      "view_style_wireframe_coarse": "Каркасный/грубый",
-      "view_style_wireframe_smooth": "Каркасный/Гладкий",
+      "toggle_wireframe_filled": "Переключить операцию / каркас",
+      "view_style": "Отображение графики:",
+      "view_style_filled_coarse": "Принудительная заливка",
+      "view_style_filled_smooth": "Сглаженные края",
+      "view_style_wireframe_coarse": "По операции слоя",
+      "view_style_wireframe_smooth": "Принудительный каркас",
       "zoom_to_page": "Увеличить масштаб страницы"
     },
     "help": {

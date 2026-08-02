@@ -1,13 +1,12 @@
 import { APP_COMMANDS, type AppCommandId } from './appCommandIds';
 import type { ToolbarId } from '../panels';
-import type { ViewStyle } from '../stores/uiStore';
+import type { ArtworkDisplayMode } from '../stores/uiStore';
 
-export const WINDOW_VIEW_STYLE_ITEMS = [
-  { label: 'Wireframe / Coarse', commandId: APP_COMMANDS.WINDOW_VIEW_STYLE_WIREFRAME_COARSE, viewStyle: 'wireframe_coarse' },
-  { label: 'Wireframe / Smooth', commandId: APP_COMMANDS.WINDOW_VIEW_STYLE_WIREFRAME_SMOOTH, viewStyle: 'wireframe_smooth' },
-  { label: 'Filled / Coarse', commandId: APP_COMMANDS.WINDOW_VIEW_STYLE_FILLED_COARSE, viewStyle: 'filled_coarse' },
-  { label: 'Filled / Smooth', commandId: APP_COMMANDS.WINDOW_VIEW_STYLE_FILLED_SMOOTH, viewStyle: 'filled_smooth' },
-] as const satisfies ReadonlyArray<{ label: string; commandId: AppCommandId; viewStyle: ViewStyle }>;
+export const WINDOW_ARTWORK_DISPLAY_ITEMS = [
+  { label: 'By Layer Operation', commandId: APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_BY_LAYER, mode: 'by_layer' },
+  { label: 'Wireframe Override', commandId: APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_WIREFRAME, mode: 'wireframe' },
+  { label: 'Filled Override', commandId: APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_FILLED, mode: 'filled' },
+] as const satisfies ReadonlyArray<{ label: string; commandId: AppCommandId; mode: ArtworkDisplayMode }>;
 
 export const WINDOW_PANEL_MENU_ITEMS = [
   { label: 'Art Library', commandId: APP_COMMANDS.WINDOW_PANEL_ART_LIBRARY, panelId: 'art_library' },
@@ -55,15 +54,16 @@ export const WINDOW_MENU_COMMAND_ORDER = [
   APP_COMMANDS.WINDOW_ZOOM_IN,
   APP_COMMANDS.WINDOW_ZOOM_OUT,
   APP_COMMANDS.WINDOW_FRAME_SELECTION,
-  ...WINDOW_VIEW_STYLE_ITEMS.map((item) => item.commandId),
-  APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED,
+  ...WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => item.commandId),
+  APP_COMMANDS.WINDOW_SMOOTH_EDGES,
+  APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME,
   APP_COMMANDS.WINDOW_SIDE_PANELS,
   ...WINDOW_PANEL_TOOLBAR_MENU_ITEMS.map((item) => item.commandId),
 ] as const satisfies ReadonlyArray<AppCommandId>;
 
-export const WINDOW_VIEW_STYLE_BY_COMMAND = Object.fromEntries(
-  WINDOW_VIEW_STYLE_ITEMS.map((item) => [item.commandId, item.viewStyle]),
-) as Partial<Record<AppCommandId, ViewStyle>>;
+export const WINDOW_ARTWORK_DISPLAY_BY_COMMAND = Object.fromEntries(
+  WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => [item.commandId, item.mode]),
+) as Partial<Record<AppCommandId, ArtworkDisplayMode>>;
 
 export const WINDOW_PANEL_BY_COMMAND = Object.fromEntries(
   WINDOW_PANEL_MENU_ITEMS.map((item) => [item.commandId, item.panelId]),

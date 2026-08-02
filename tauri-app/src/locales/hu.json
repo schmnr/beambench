@@ -242,12 +242,12 @@
       "shape_properties": "Alakzat tulajdonságai",
       "text_options": "Szöveg opciók",
       "toggle_side_panels": "Oldalpanelek váltása",
-      "toggle_wireframe_filled": "Váltás Drótváz / Kitöltött",
-      "view_style": "Megtekintési stílus:",
-      "view_style_filled_coarse": "Töltött / Durva",
-      "view_style_filled_smooth": "Töltött / Sima",
-      "view_style_wireframe_coarse": "Drótváz / Durva",
-      "view_style_wireframe_smooth": "Drótváz / Sima",
+      "toggle_wireframe_filled": "Művelet / drótváz váltása",
+      "view_style": "Grafika megjelenítése:",
+      "view_style_filled_coarse": "Kitöltés felülbírálása",
+      "view_style_filled_smooth": "Sima élek",
+      "view_style_wireframe_coarse": "Rétegművelet szerint",
+      "view_style_wireframe_smooth": "Drótváz felülbírálása",
       "zoom_to_page": "Nagyítás az oldalra"
     },
     "help": {

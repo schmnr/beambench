@@ -242,12 +242,12 @@
       "shape_properties": "Vormeigenschappen",
       "text_options": "Tekstopties",
       "toggle_side_panels": "Schakel zijpanelen in",
-      "toggle_wireframe_filled": "Schakel Draadframe / Gevuld in",
-      "view_style": "Bekijk stijl:",
-      "view_style_filled_coarse": "Gevuld / Grof",
-      "view_style_filled_smooth": "Gevuld / Glad",
-      "view_style_wireframe_coarse": "Draadframe / Grof",
-      "view_style_wireframe_smooth": "Draadframe / Glad",
+      "toggle_wireframe_filled": "Bewerking / draadframe wisselen",
+      "view_style": "Weergave van illustratie:",
+      "view_style_filled_coarse": "Gevulde weergave forceren",
+      "view_style_filled_smooth": "Gladde randen",
+      "view_style_wireframe_coarse": "Volgens laagbewerking",
+      "view_style_wireframe_smooth": "Draadframe forceren",
       "zoom_to_page": "Zoom naar pagina"
     },
     "help": {
