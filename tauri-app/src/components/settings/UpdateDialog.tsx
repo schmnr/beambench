@@ -1,9 +1,11 @@
-import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useMachineStore } from '../../stores/machineStore';
 import { useUpdateStore } from '../../stores/updateStore';
 import { getUpdateInstallBlocker } from '../../services/updateService';
+import { Download } from 'lucide-react';
+import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
+import { DIALOG_TONE, DialogButton, DialogFooter, DialogNotice, DialogSectionHeader } from '../shared/DialogPrimitives';
 
 function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`;
@@ -13,7 +15,6 @@ function formatBytes(value: number): string {
 
 export function UpdateDialog() {
   const { t, i18n } = useTranslation();
-  const overlayRef = useRef<HTMLDivElement>(null);
   const update = useUpdateStore((s) => s.availableUpdate);
   const status = useUpdateStore((s) => s.status);
   const progress = useUpdateStore((s) => s.progress);
@@ -31,47 +32,54 @@ export function UpdateDialog() {
   const canInstall = Boolean(update) && !installBlocker && !isBusy;
   const percent = progress?.percent ?? null;
 
-  useEffect(() => {
-    overlayRef.current?.focus();
-  }, []);
-
   if (!update) return null;
 
   return createPortal(
-    <div
-      ref={overlayRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="update-dialog-title"
-      tabIndex={-1}
-      className="fixed inset-0 z-[9000] flex items-center justify-center bg-black/50"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && !isBusy) closeDialog();
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isBusy) closeDialog();
-      }}
-    >
-      <div className="w-[460px] max-w-[calc(100vw-2rem)] rounded-lg border border-bb-border bg-bb-panel p-6 shadow-xl">
-        <h2 id="update-dialog-title" className="mb-2 text-lg font-semibold text-bb-text">
-          {t('dialog.update.title_template', { version: update.version })}
-        </h2>
-        <div className="mb-4 text-sm text-bb-text-muted">
+    <MovableResizableDialogFrame
+      title={t('dialog.update.title_template', { version: update.version })}
+      titleId="update-dialog-title"
+      testId="update-dialog"
+      initialWidth={520}
+      initialHeight={520}
+      minWidth={440}
+      minHeight={420}
+      onRequestClose={isBusy ? undefined : closeDialog}
+      closeOnBackdropClick={!isBusy}
+      zIndexClassName="z-[9000]"
+      headerActions={(
+        <span className="rounded-full border border-bb-border bg-bb-bg/70 px-2 py-0.5 text-[11px] text-bb-text-muted">
           {t('dialog.update.installed', { version: update.currentVersion })}
-          {update.date ? <span className="ml-2">{t('dialog.update.published', { date: new Date(update.date).toLocaleDateString(i18n.language) })}</span> : null}
-        </div>
+        </span>
+      )}
+      footer={(
+        <DialogFooter>
+          <DialogButton tone={DIALOG_TONE.quiet} onClick={() => void snoozeAvailableUpdate()} disabled={isBusy}>{t('dialog.update.not_now')}</DialogButton>
+          <DialogButton tone={DIALOG_TONE.secondary} onClick={() => void skipAvailableUpdate()} disabled={isBusy}>{t('dialog.update.skip_version')}</DialogButton>
+          <DialogButton tone={DIALOG_TONE.primary} icon={<Download size={13} />} onClick={() => void installAvailableUpdate()} disabled={!canInstall}>
+            {status === 'downloading' ? t('dialog.update.downloading') : status === 'installing' ? t('dialog.update.installing') : t('dialog.update.install_button')}
+          </DialogButton>
+        </DialogFooter>
+      )}
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto bg-bb-bg/20">
+        <DialogSectionHeader
+          icon={<Download size={14} />}
+          title={t('dialog.update.title_template', { version: update.version })}
+          description={update.date ? t('dialog.update.published', { date: new Date(update.date).toLocaleDateString(i18n.language) }) : undefined}
+        />
+        <div className="space-y-4 p-4">
 
         {update.body ? (
-          <div className="mb-4 max-h-36 overflow-y-auto whitespace-pre-wrap rounded border border-bb-border bg-bb-surface p-3 text-sm text-bb-text">
+          <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-bb-border bg-bb-panel p-3 text-sm leading-6 text-bb-text">
             {update.body}
           </div>
         ) : (
-          <div className="mb-4 text-sm text-bb-text-muted">{t('dialog.update.no_notes')}</div>
+          <div className="text-sm text-bb-text-muted">{t('dialog.update.no_notes')}</div>
         )}
 
         {progress ? (
-          <div className="mb-4 space-y-2">
-            <div className="h-2 overflow-hidden rounded bg-bb-border">
+          <div className="space-y-2 rounded-xl border border-bb-border bg-bb-panel p-3">
+            <div className="h-2 overflow-hidden rounded-full bg-bb-border">
               <div
                 className="h-full bg-bb-accent transition-[width]"
                 style={{ width: `${percent ?? 0}%` }}
@@ -88,42 +96,16 @@ export function UpdateDialog() {
         ) : null}
 
         {installBlocker ? (
-          <div role="status" className="mb-4 rounded border border-bb-warning-border bg-bb-warning-bg p-3 text-sm text-bb-warning-fg">
-            {installBlocker}
-          </div>
+          <DialogNotice tone={DIALOG_TONE.warning}>{installBlocker}</DialogNotice>
         ) : null}
 
         {error ? (
-          <div role="alert" className="mb-4 rounded border border-bb-error-border bg-bb-error-bg p-3 text-sm text-bb-error-fg">
-            {error}
-          </div>
+          <DialogNotice tone={DIALOG_TONE.error} role="alert">{error}</DialogNotice>
         ) : null}
 
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            onClick={() => void snoozeAvailableUpdate()}
-            disabled={isBusy}
-            className="rounded border border-bb-border bg-bb-surface px-3 py-1.5 text-sm text-bb-text-muted hover:bg-bb-hover disabled:opacity-50"
-          >
-            {t('dialog.update.not_now')}
-          </button>
-          <button
-            onClick={() => void skipAvailableUpdate()}
-            disabled={isBusy}
-            className="rounded border border-bb-border bg-bb-surface px-3 py-1.5 text-sm text-bb-text-muted hover:bg-bb-hover disabled:opacity-50"
-          >
-            {t('dialog.update.skip_version')}
-          </button>
-          <button
-            onClick={() => void installAvailableUpdate()}
-            disabled={!canInstall}
-            className="rounded bg-bb-accent px-4 py-1.5 text-sm font-medium text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-50"
-          >
-            {status === 'downloading' ? t('dialog.update.downloading') : status === 'installing' ? t('dialog.update.installing') : t('dialog.update.install_button')}
-          </button>
         </div>
       </div>
-    </div>,
+    </MovableResizableDialogFrame>,
     document.body,
   );
 }

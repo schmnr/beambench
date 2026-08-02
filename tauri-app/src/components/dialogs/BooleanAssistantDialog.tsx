@@ -7,7 +7,9 @@ import { useNotificationStore } from '../../stores/notificationStore';
 import { vectorService } from '../../services/vectorService';
 import type { Bounds, ProjectObject } from '../../types/project';
 import type { BooleanAssistantOperation, BooleanAssistantPreview } from '../../types/vector';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Combine } from 'lucide-react';
+import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
+import { DIALOG_TONE, DialogButton, DialogFooter, DialogSectionHeader } from '../shared/DialogPrimitives';
 
 interface BooleanAssistantDialogProps {
   objectIds: string[];
@@ -72,8 +74,6 @@ export function BooleanAssistantDialog({ objectIds, onClose }: BooleanAssistantD
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initialProjectIdRef = useRef(projectId);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, true);
 
   const activeObjectIds = useMemo(
     () => (operation === 'weld' ? objectIds : objectIds.slice(0, 2)),
@@ -81,14 +81,6 @@ export function BooleanAssistantDialog({ objectIds, onClose }: BooleanAssistantD
   );
   const resultPath = resultPathData(preview?.result ?? null);
   const canCommit = resultPath.length > 0 && !loading && !error && !booleanPending;
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
 
   useEffect(() => {
     if (projectId !== initialProjectIdRef.current) {
@@ -149,30 +141,53 @@ export function BooleanAssistantDialog({ objectIds, onClose }: BooleanAssistantD
   };
 
   return createPortal(
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="boolean-assistant-title"
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    <MovableResizableDialogFrame
+      title={t('dialog.boolean_assistant.title')}
+      titleId="boolean-assistant-title"
+      testId="boolean-assistant-dialog"
+      initialWidth={580}
+      initialHeight={520}
+      minWidth={500}
+      minHeight={440}
+      onRequestClose={onClose}
+      closeOnBackdropClick
+      headerActions={(
+        <span className="rounded-full border border-bb-border bg-bb-bg/70 px-2 py-0.5 text-[11px] text-bb-text-muted">
+          {t('dialog.boolean_assistant.shapes_count', { count: activeObjectIds.length })}
+        </span>
+      )}
+      footer={(
+        <DialogFooter
+          leading={(
+            <div className="max-w-[320px] truncate text-[11px] text-bb-text-muted">
+              {operation === 'subtract'
+                ? t('dialog.boolean_assistant.subtract_template', {
+                    first: preview?.sources[0]?.name ?? t('dialog.boolean_assistant.first_shape'),
+                    second: preview?.sources[1]?.name ?? t('dialog.boolean_assistant.second_shape'),
+                  })
+                : operationOptions.find((option) => option.value === operation)?.label}
+            </div>
+          )}
+        >
+          <DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t('common.cancel')}</DialogButton>
+          <DialogButton tone={DIALOG_TONE.primary} data-testid="boolean-assistant-apply" disabled={!canCommit} onClick={() => void handleCommit()}>
+            {t('common.apply')}
+          </DialogButton>
+        </DialogFooter>
+      )}
     >
-      <div className="bg-bb-panel border border-bb-border rounded-lg shadow-xl p-4 w-[520px] max-w-[calc(100vw-2rem)]">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <h2 id="boolean-assistant-title" className="text-sm font-semibold text-bb-text">{t('dialog.boolean_assistant.title')}</h2>
-          <span className="text-[11px] text-bb-text-muted">{t('dialog.boolean_assistant.shapes_count', { count: activeObjectIds.length })}</span>
-        </div>
-
-        <div className="grid grid-cols-5 gap-1 mb-3" role="group" aria-label={t('dialog.boolean_assistant.title')}>
+      <div className="flex min-h-0 flex-1 flex-col bg-bb-bg/20">
+        <DialogSectionHeader icon={<Combine size={14} />} title={t('dialog.boolean_assistant.title')} />
+        <div className="grid grid-cols-5 gap-1 border-b border-bb-border bg-bb-panel p-3" role="group" aria-label={t('dialog.boolean_assistant.title')}>
           {operationOptions.map((option) => (
             <button
               key={option.value}
               type="button"
               onClick={() => setOperation(option.value)}
-              className={`px-2 py-1.5 text-xs font-medium rounded border ${
+              className={`h-8 rounded-lg border px-2 text-xs font-medium transition-colors ${
                 operation === option.value
-                  ? 'bg-bb-accent text-bb-on-accent border-bb-accent'
-                  : 'bg-bb-bg text-bb-text border-bb-border hover:bg-bb-hover'
+                  ? 'border-bb-accent/45 bg-bb-accent/10 text-bb-text'
+                  : 'border-bb-border bg-bb-bg text-bb-text-muted hover:border-bb-accent/30 hover:bg-bb-hover hover:text-bb-text'
               }`}
             >
               {option.label}
@@ -180,10 +195,10 @@ export function BooleanAssistantDialog({ objectIds, onClose }: BooleanAssistantD
           ))}
         </div>
 
-        <div className="border border-bb-border bg-bb-bg rounded min-h-[260px] overflow-hidden relative">
+        <div className="relative m-3 min-h-0 flex-1 overflow-hidden rounded-xl border border-bb-accent/30 bg-bb-bg shadow-inner">
           {preview && resultPath && (
             <svg
-              className="w-full h-[260px]"
+              className="h-full w-full"
               viewBox={previewViewBox(preview)}
               preserveAspectRatio="xMidYMid meet"
               data-testid="boolean-assistant-preview"
@@ -226,35 +241,8 @@ export function BooleanAssistantDialog({ objectIds, onClose }: BooleanAssistantD
           )}
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="min-w-0 text-[11px] text-bb-text-muted truncate">
-            {operation === 'subtract'
-              ? t('dialog.boolean_assistant.subtract_template', {
-                  first: preview?.sources[0]?.name ?? t('dialog.boolean_assistant.first_shape'),
-                  second: preview?.sources[1]?.name ?? t('dialog.boolean_assistant.second_shape'),
-                })
-              : operationOptions.find((option) => option.value === operation)?.label}
-          </div>
-          <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text">
-              {t('common.cancel')}
-            </button>
-            <button
-              data-testid="boolean-assistant-apply"
-              disabled={!canCommit}
-              onClick={() => void handleCommit()}
-              className={`px-3 py-1 text-xs font-medium rounded ${
-                canCommit
-                  ? 'bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent'
-                  : 'bg-bb-surface text-bb-text-muted cursor-not-allowed'
-              }`}
-            >
-              {t('common.apply')}
-            </button>
-          </div>
-        </div>
       </div>
-    </div>,
+    </MovableResizableDialogFrame>,
     document.body,
   );
 }

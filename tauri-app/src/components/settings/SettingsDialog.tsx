@@ -6,6 +6,17 @@ import { NumberStepper } from '../shared/NumberStepper';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
 import type { AppSettings, UiTheme } from '../../types/commands';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
+import { FileInput, Monitor, Ruler, Save, Settings2 } from 'lucide-react';
+import {
+  DialogButton,
+  DialogFooter,
+  DialogNotice,
+  DialogSectionHeader,
+  DialogTabs,
+  DIALOG_TAB_ORIENTATION,
+  DIALOG_TONE,
+  dialogControlClassName,
+} from '../shared/DialogPrimitives';
 
 type SettingsDraft = {
   displayUnit: 'mm' | 'inches';
@@ -57,8 +68,6 @@ const SETTINGS_DRAFT_KEYS = [
 
 type SettingsDraftKey = (typeof SETTINGS_DRAFT_KEYS)[number];
 type TabId = 'general' | 'units_grid' | 'display' | 'file_import';
-
-const TAB_IDS: TabId[] = ['general', 'units_grid', 'display', 'file_import'];
 
 function createDraft(settings: AppSettings): SettingsDraft {
   return {
@@ -121,7 +130,7 @@ function SwitchRow(props: {
   const controlId = props.testId ? `${props.testId}-control` : generatedId;
   const descriptionId = props.description ? `${controlId}-description` : undefined;
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2 transition-colors hover:bg-bb-surface/55">
       <div>
         <label htmlFor={controlId} className="text-sm text-bb-text">{props.label}</label>
         {props.description && (
@@ -133,8 +142,8 @@ function SwitchRow(props: {
       <button
         id={controlId}
         data-testid={props.testId}
-        className={`relative h-5 w-10 shrink-0 rounded-full transition-colors ${
-          props.checked ? 'bg-bb-accent' : 'bg-bb-border'
+        className={`relative h-5 w-10 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent ${
+          props.checked ? 'border-bb-accent bg-bb-accent' : 'border-bb-control-border bg-bb-input'
         }`}
         onClick={() => props.onChange(!props.checked)}
         role="switch"
@@ -161,7 +170,7 @@ function NumberRow(props: {
   testId?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2 transition-colors hover:bg-bb-surface/55">
       <label className="text-sm text-bb-text">{props.label}</label>
       <NumberStepper
         data-testid={props.testId}
@@ -170,7 +179,7 @@ function NumberRow(props: {
         min={props.min}
         max={props.max}
         step={props.step}
-        className="w-24 rounded border border-bb-control-border bg-bb-surface px-2 py-1 text-right text-sm text-bb-text"
+        className={`${dialogControlClassName} w-24 text-right tabular-nums`}
       />
     </div>
   );
@@ -188,6 +197,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const speedUnits: ReadonlyArray<[ 'minutes' | 'seconds', string ]> = [
     ['minutes', t('dialog.settings.speed_minutes_short')],
     ['seconds', t('dialog.settings.speed_seconds_short')],
+  ];
+  const tabs = [
+    { id: 'general' as const, label: t('dialog.settings.tab.general'), icon: <Settings2 size={14} /> },
+    { id: 'units_grid' as const, label: t('dialog.settings.tab.units_grid'), icon: <Ruler size={14} /> },
+    { id: 'display' as const, label: t('dialog.settings.tab.display'), icon: <Monitor size={14} /> },
+    { id: 'file_import' as const, label: t('dialog.settings.tab.file_import'), icon: <FileInput size={14} /> },
   ];
   const [draft, setDraft] = useState<SettingsDraft | null>(() => (settings ? createDraft(settings) : null));
   const [activeTab, setActiveTab] = useState<TabId>('general');
@@ -308,79 +323,60 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         minHeight={520}
         onRequestClose={onClose}
         closeOnBackdropClick
-        footer={
-          <div className="space-y-3 px-5 py-4">
-            {saveError && (
-              <div role="alert" className="text-sm text-bb-error-fg">
-                {saveError}
+        footer={(
+          <div>
+            {(saveError || conflictFields.length > 0) && (
+              <div className="space-y-2 border-b border-bb-border px-4 py-3">
+                {saveError && <DialogNotice tone={DIALOG_TONE.error} role="alert">{saveError}</DialogNotice>}
+                {conflictFields.length > 0 && (
+                  <DialogNotice
+                    tone={DIALOG_TONE.warning}
+                    role="alert"
+                    testId="settings-sync-warning"
+                    actions={(
+                      <>
+                        <DialogButton tone={DIALOG_TONE.quiet} onClick={() => resolveConflicts('latest')}>
+                          {t('dialog.settings.use_latest')}
+                        </DialogButton>
+                        <DialogButton tone={DIALOG_TONE.secondary} onClick={() => resolveConflicts('mine')}>
+                          {t('dialog.settings.keep_mine')}
+                        </DialogButton>
+                      </>
+                    )}
+                  >
+                    {t('dialog.settings.conflict_warning')}
+                  </DialogNotice>
+                )}
               </div>
             )}
-
-            {conflictFields.length > 0 && (
-              <div
-                role="alert"
-                data-testid="settings-sync-warning"
-                className="space-y-2 rounded border border-bb-warning-border bg-bb-warning-bg p-2 text-sm text-bb-warning-fg"
-              >
-                <div>{t('dialog.settings.conflict_warning')}</div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    className="rounded border border-bb-warning-border px-2 py-1 text-xs hover:bg-bb-hover"
-                    onClick={() => resolveConflicts('latest')}
-                  >
-                    {t('dialog.settings.use_latest')}
-                  </button>
-                  <button
-                    className="rounded bg-bb-warning px-2 py-1 text-xs font-medium text-bb-on-warning hover:bg-bb-warning-hover"
-                    onClick={() => resolveConflicts('mine')}
-                  >
-                    {t('dialog.settings.keep_mine')}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={onClose}
-                className="rounded border border-bb-border bg-bb-surface px-4 py-1.5 text-sm text-bb-text-muted hover:bg-bb-hover"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
+            <DialogFooter>
+              <DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t('common.cancel')}</DialogButton>
+              <DialogButton
+                tone={DIALOG_TONE.primary}
+                icon={<Save size={13} />}
                 onClick={() => void handleSave()}
                 disabled={!ready || isSaving || conflictFields.length > 0}
-                className="rounded bg-bb-accent px-4 py-1.5 text-sm text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-50"
               >
                 {t('common.save')}
-              </button>
-            </div>
+              </DialogButton>
+            </DialogFooter>
           </div>
-        }
+        )}
       >
         {!ready ? (
           <div className="px-5 py-8 text-sm text-bb-text-muted">{t('dialog.settings.loading')}</div>
         ) : (
-          <div className="flex min-h-0 flex-1">
-            <div className="w-44 shrink-0 border-r border-bb-border p-2" role="tablist" aria-orientation="vertical">
-              {TAB_IDS.map((id) => (
-                <button
-                  key={id}
-                  className={`mb-1 w-full rounded px-3 py-2 text-left text-sm ${
-                    activeTab === id
-                      ? 'bg-bb-accent text-bb-on-accent'
-                      : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
-                  }`}
-                  onClick={() => setActiveTab(id)}
-                  role="tab"
-                  aria-selected={activeTab === id}
-                >
-                  {t(`dialog.settings.tab.${id}`)}
-                </button>
-              ))}
+          <div className="flex min-h-0 flex-1 bg-bb-bg/20">
+            <div className="w-48 shrink-0 border-r border-bb-border bg-bb-surface/30">
+              <DialogTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} orientation={DIALOG_TAB_ORIENTATION.vertical} />
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-bb-panel">
+              <DialogSectionHeader
+                icon={tabs.find((tab) => tab.id === activeTab)?.icon}
+                title={tabs.find((tab) => tab.id === activeTab)?.label}
+              />
+              <div className="p-5">
               {activeTab === 'general' && (
                 <div className="space-y-4">
                   <SwitchRow
@@ -431,7 +427,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
               {activeTab === 'units_grid' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2">
                     <label className="text-sm text-bb-text">{t('dialog.settings.display_unit')}</label>
                     <div className="flex gap-1">
                       {displayUnits.map((unit) => (
@@ -439,8 +435,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                           key={unit}
                           className={`rounded px-3 py-1 text-xs ${
                             content.displayUnit === unit
-                              ? 'bg-bb-accent text-bb-on-accent'
-                              : 'border border-bb-border bg-bb-surface text-bb-text-muted hover:bg-bb-hover'
+                              ? 'border border-bb-accent/45 bg-bb-accent/10 text-bb-text'
+                              : 'border border-bb-border bg-bb-bg text-bb-text-muted hover:border-bb-accent/30 hover:bg-bb-hover'
                           }`}
                           onClick={() => updateDraft('displayUnit', unit)}
                         >
@@ -449,7 +445,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2">
                     <label className="text-sm text-bb-text">{t('dialog.settings.speed_time_unit')}</label>
                     <div className="flex gap-1">
                       {speedUnits.map(([unit, label]) => (
@@ -457,8 +453,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                           key={unit}
                           className={`rounded px-3 py-1 text-xs ${
                             content.speedTimeUnit === unit
-                              ? 'bg-bb-accent text-bb-on-accent'
-                              : 'border border-bb-border bg-bb-surface text-bb-text-muted hover:bg-bb-hover'
+                              ? 'border border-bb-accent/45 bg-bb-accent/10 text-bb-text'
+                              : 'border border-bb-border bg-bb-bg text-bb-text-muted hover:border-bb-accent/30 hover:bg-bb-hover'
                           }`}
                           onClick={() => updateDraft('speedTimeUnit', unit)}
                         >
@@ -517,7 +513,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
               {activeTab === 'display' && (
                 <div className="space-y-4">
-                  <fieldset className="space-y-2">
+                  <fieldset className="space-y-2 rounded-xl border border-bb-border bg-bb-surface/20 p-3">
                     <legend className="text-sm font-semibold text-bb-text">
                       {t('dialog.settings.appearance')}
                     </legend>
@@ -539,7 +535,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                         aria-describedby="settings-ui-theme-help"
                         value={content.uiTheme}
                         onChange={(event) => updateDraft('uiTheme', event.target.value as UiTheme)}
-                        className="shrink-0 rounded border border-bb-control-border bg-bb-surface px-2 py-1 text-sm text-bb-text"
+                        className={`${dialogControlClassName} shrink-0`}
                       >
                         <option value="system">{t('dialog.settings.theme_system')}</option>
                         <option value="light">{t('dialog.settings.theme_light')}</option>
@@ -571,13 +567,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     onChange={(v) => updateDraft('reduceMotion', v)}
                     testId="toggle-reduce-motion"
                   />
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2">
                     <label className="text-sm text-bb-text">{t('dialog.settings.scroll_wheel')}</label>
                     <select
                       data-testid="select-scroll-behavior"
                       value={content.scrollZoom ? 'zoom' : 'pan'}
                       onChange={(e) => updateDraft('scrollZoom', e.target.value === 'zoom')}
-                      className="rounded border border-bb-control-border bg-bb-surface px-2 py-1 text-sm text-bb-text"
+                      className={dialogControlClassName}
                     >
                       <option value="zoom">{t('dialog.settings.scroll_zoom')}</option>
                       <option value="pan">{t('dialog.settings.scroll_pan')}</option>
@@ -596,7 +592,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   />
                 </div>
               )}
-
+              </div>
             </div>
           </div>
         )}

@@ -27,7 +27,7 @@ export function TextArea({
         rows={rows}
         aria-describedby={describedBy}
         spellCheck={!monospace}
-        className={`w-full resize-y rounded border border-bb-control-border bg-bb-input px-1.5 py-1 text-xs text-bb-text focus:border-bb-accent focus:outline-none disabled:opacity-60 ${monospace ? 'font-mono' : ''}`}
+        className={`w-full resize-y rounded-lg border border-bb-control-border bg-bb-input px-2 py-1.5 text-xs text-bb-text transition-colors focus:border-bb-accent focus:outline-none focus:ring-1 focus:ring-bb-accent/25 disabled:cursor-not-allowed disabled:opacity-50 ${monospace ? 'font-mono' : ''}`}
       />
     </label>
   );

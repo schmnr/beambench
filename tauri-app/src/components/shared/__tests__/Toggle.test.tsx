@@ -20,7 +20,7 @@ describe('Toggle', () => {
     const hitTarget = checkbox.closest('label');
 
     expect(hitTarget).not.toBeNull();
-    expect(hitTarget?.classList.contains('min-h-6')).toBe(true);
+    expect(hitTarget?.classList.contains('min-h-8')).toBe(true);
     expect(hitTarget?.classList.contains('w-full')).toBe(true);
     expect(hitTarget?.firstElementChild?.textContent).toBe('Enable Dot Width Correction');
 

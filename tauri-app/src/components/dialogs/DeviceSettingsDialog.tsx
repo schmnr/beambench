@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useMachineStore } from '../../stores/machineStore';
@@ -52,6 +52,15 @@ import { useAppStore } from '../../stores/appStore';
 import { SERIAL_BAUD_RATE_OPTIONS } from '../../constants/serial';
 import { lihuiyuUsbDeviceId, lihuiyuUsbDeviceLabel } from '../../utils/lihuiyuUsb';
 import { wrapBackendError } from '../../i18n/errors';
+import { Cable, Cpu, HardDrive, Radar, Settings2, SlidersHorizontal } from 'lucide-react';
+import {
+  DialogButton,
+  DialogFooter,
+  DialogNotice,
+  DialogSectionHeader,
+  DialogTabs,
+  DIALOG_TONE,
+} from '../shared/DialogPrimitives';
 
 interface DeviceSettingsDialogProps {
   onClose: () => void;
@@ -135,13 +144,13 @@ export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: Dev
     onClose();
   };
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: 'connection', label: t('dialog.device_settings.tab_connection') },
-    { id: 'machine', label: t('dialog.device_settings.tab_machine') },
-    { id: 'grbl', label: t('dialog.device_settings.tab_grbl') },
-    { id: 'controller', label: t('dialog.device_settings.tab_controller') },
-    { id: 'discovery', label: t('dialog.device_settings.tab_discovery') },
-    { id: 'profiles', label: t('dialog.device_settings.tab_profiles') },
+  const tabs: { id: TabId; label: string; icon: ReactNode }[] = [
+    { id: 'connection', label: t('dialog.device_settings.tab_connection'), icon: <Cable size={14} /> },
+    { id: 'machine', label: t('dialog.device_settings.tab_machine'), icon: <Settings2 size={14} /> },
+    { id: 'grbl', label: t('dialog.device_settings.tab_grbl'), icon: <SlidersHorizontal size={14} /> },
+    { id: 'controller', label: t('dialog.device_settings.tab_controller'), icon: <Cpu size={14} /> },
+    { id: 'discovery', label: t('dialog.device_settings.tab_discovery'), icon: <Radar size={14} /> },
+    { id: 'profiles', label: t('dialog.device_settings.tab_profiles'), icon: <HardDrive size={14} /> },
   ];
 
   return createPortal(
@@ -155,74 +164,46 @@ export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: Dev
       minHeight={520}
       onRequestClose={handleRequestClose}
       closeOnBackdropClick
-      footer={
-        <div className="flex justify-end px-4 py-3">
-          <button
-            onClick={handleRequestClose}
-            className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text transition-colors"
-          >
-            {t('common.close')}
-          </button>
-        </div>
-      }
+      footer={<DialogFooter><DialogButton tone={DIALOG_TONE.secondary} onClick={handleRequestClose}>{t('common.close')}</DialogButton></DialogFooter>}
     >
-      <div className="flex min-h-0 flex-1 flex-col p-4">
+      <div className="flex min-h-0 flex-1 flex-col bg-bb-bg/20">
         {closePromptVisible && machineCloseGuard && (
-          <div className="mb-3 rounded border border-bb-warning-border bg-bb-warning-bg p-3 text-xs text-bb-text">
-            <div className="mb-2 text-bb-warning-fg">
+          <div className="px-4 pt-3">
+            <DialogNotice
+              tone={DIALOG_TONE.warning}
+              role="alert"
+              actions={(
+                <>
+                  <DialogButton tone={DIALOG_TONE.quiet} onClick={() => setClosePromptVisible(false)}>{t('dialog.device_settings.keep_editing')}</DialogButton>
+                  <DialogButton tone={DIALOG_TONE.danger} onClick={handleDiscardAndClose}>{t('dialog.device_settings.discard')}</DialogButton>
+                  <DialogButton tone={DIALOG_TONE.primary} onClick={() => void handleSaveAndClose()}>{t('dialog.device_settings.save_and_close')}</DialogButton>
+                </>
+              )}
+            >
               {t('dialog.device_settings.save_before_closing')}
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                className="rounded border border-bb-border px-2 py-1 text-bb-text-muted hover:bg-bb-hover"
-                onClick={() => setClosePromptVisible(false)}
-              >
-                {t('dialog.device_settings.keep_editing')}
-              </button>
-              <button
-                className="rounded border border-bb-error-border px-2 py-1 text-bb-error-fg hover:bg-bb-error-bg"
-                onClick={handleDiscardAndClose}
-              >
-                {t('dialog.device_settings.discard')}
-              </button>
-              <button
-                className="rounded bg-bb-accent px-2 py-1 text-bb-on-accent hover:bg-bb-accent-hover"
-                onClick={() => void handleSaveAndClose()}
-              >
-                {t('dialog.device_settings.save_and_close')}
-              </button>
-            </div>
+            </DialogNotice>
           </div>
         )}
-        <div className="flex shrink-0 gap-1 border-b border-bb-border mb-3" data-testid="tab-bar" role="tablist">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              data-testid={`tab-${tab.id}`}
-              onClick={() => setActiveTab(tab.id)}
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              className={`px-3 py-1.5 text-xs font-medium rounded-t transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-bb-bg text-bb-text border border-b-0 border-bb-border -mb-px'
-                  : 'text-bb-text-muted hover:text-bb-text'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <DialogTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
         <div
-          className="scrollbar-safe-edge min-h-0 flex-1 overflow-y-auto"
+          className="scrollbar-safe-edge min-h-0 flex-1 overflow-y-auto bg-bb-panel p-4"
           data-testid="device-settings-scroll-region"
         >
-          <ConnectionTab active={activeTab === 'connection'} />
-          <MachineTab active={activeTab === 'machine'} onCloseGuardChange={setMachineCloseGuard} />
-          {activeTab === 'grbl' && <GrblTab />}
-          {activeTab === 'controller' && <ControllerTab />}
-          {activeTab === 'discovery' && <DiscoveryTab />}
-          {activeTab === 'profiles' && <ProfilesTab />}
+          <div className="mx-auto max-w-3xl overflow-hidden rounded-xl border border-bb-border bg-bb-panel">
+            <DialogSectionHeader
+              icon={tabs.find((tab) => tab.id === activeTab)?.icon}
+              title={tabs.find((tab) => tab.id === activeTab)?.label}
+            />
+            <div className="p-4">
+              <ConnectionTab active={activeTab === 'connection'} />
+              <MachineTab active={activeTab === 'machine'} onCloseGuardChange={setMachineCloseGuard} />
+              {activeTab === 'grbl' && <GrblTab />}
+              {activeTab === 'controller' && <ControllerTab />}
+              {activeTab === 'discovery' && <DiscoveryTab />}
+              {activeTab === 'profiles' && <ProfilesTab />}
+            </div>
+          </div>
         </div>
       </div>
     </MovableResizableDialogFrame>,

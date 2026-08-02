@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
 import { useNotificationStore } from '../../stores/notificationStore';
 import type { BuildInfo } from '../../types/commands';
+import { DIALOG_TONE, DialogButton, DialogFooter, DialogSectionHeader } from '../shared/DialogPrimitives';
+import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
 
 const FACEBOOK_GROUP_URL = 'https://www.facebook.com/groups/beambench';
 const CRAFTGINEER_URL = 'https://craftgineer.com';
@@ -48,15 +50,10 @@ function buildVersionInfoText(
 export function AboutDialog({ onClose }: { onClose: () => void }) {
   const { t, i18n } = useTranslation();
   const status = useAppStore((s) => s.status);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const [build, setBuild] = useState<BuildInfo | null>(null);
   const pushNotification = useNotificationStore((s) => s.push);
   const version = status?.version ?? t('common.unknown');
   const unknownLabel = t('common.unknown');
-
-  useEffect(() => {
-    overlayRef.current?.focus();
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,21 +88,20 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   };
 
   return createPortal(
-    <div
-      ref={overlayRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="about-dialog-title"
-      tabIndex={-1}
-      className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <MovableResizableDialogFrame
+      title={APP_BRAND_NAME}
+      titleId="about-dialog-title"
+      testId="about-dialog"
+      initialWidth={480}
+      initialHeight={680}
+      minWidth={420}
+      minHeight={520}
+      onRequestClose={onClose}
+      closeOnBackdropClick
+      zIndexClassName="z-[9000]"
+      footer={<DialogFooter><DialogButton tone={DIALOG_TONE.primary} onClick={onClose}>{t('common.close')}</DialogButton></DialogFooter>}
     >
-      <div className="bg-bb-panel border border-bb-border rounded-lg shadow-xl w-[440px] max-h-[90vh] overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-bb-bg/20">
         {/* Identity */}
         <div className="flex flex-col items-center pt-7 pb-5 px-6">
           <img
@@ -115,10 +111,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             draggable={false}
           />
           <div className="flex items-center gap-2">
-            <h2
-              id="about-dialog-title"
-              className="text-xl font-semibold text-bb-text leading-none"
-            >
+            <h2 className="text-xl font-semibold text-bb-text leading-none">
               {APP_BRAND_NAME}
             </h2>
             <span className="text-[10px] font-bold tracking-wider text-bb-accent border border-bb-accent rounded px-1.5 py-0.5 uppercase">
@@ -131,10 +124,9 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Version & build */}
-        <div className="px-6 pb-4">
-          <div className="text-xs font-medium text-bb-accent uppercase tracking-wider mb-2">
-            {t('dialog.about.version_section')}
-          </div>
+        <div className="border-t border-bb-border">
+          <DialogSectionHeader title={t('dialog.about.version_section')} />
+          <div className="px-6 py-4">
           <div className="font-mono text-sm text-bb-text">
             {version}
           </div>
@@ -155,21 +147,21 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           </p>
           <button
             onClick={handleCopyVersion}
-            className="mt-3 text-xs px-3 py-1.5 bg-bb-surface border border-bb-border text-bb-text rounded hover:bg-bb-hover transition-colors"
+            className="mt-3 h-8 rounded-lg border border-bb-border bg-bb-surface px-3 text-xs text-bb-text transition-colors hover:border-bb-accent/30 hover:bg-bb-hover"
           >
             {t('dialog.about.copy_version')}
           </button>
+          </div>
         </div>
 
         {/* Get involved */}
-        <div className="px-6 pb-5 border-t border-bb-border pt-4">
-          <div className="text-xs font-medium text-bb-accent uppercase tracking-wider mb-3">
-            {t('dialog.about.get_involved_section')}
-          </div>
+        <div className="border-t border-bb-border">
+          <DialogSectionHeader title={t('dialog.about.get_involved_section')} />
+          <div className="px-6 py-4">
 
           <button
             onClick={() => openExternal(FACEBOOK_GROUP_URL)}
-            className="w-full text-left px-3 py-2.5 bg-bb-surface border border-bb-border rounded hover:bg-bb-hover transition-colors mb-3 group"
+            className="group mb-3 w-full rounded-lg border border-bb-border bg-bb-surface px-3 py-2.5 text-left transition-colors hover:border-bb-accent/30 hover:bg-bb-hover"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -188,7 +180,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
 
           <button
             onClick={() => openExternal(CRAFTGINEER_URL)}
-            className="w-full text-left px-3 py-2.5 bg-bb-surface border border-bb-border rounded hover:bg-bb-hover transition-colors group"
+            className="group w-full rounded-lg border border-bb-border bg-bb-surface px-3 py-2.5 text-left transition-colors hover:border-bb-accent/30 hover:bg-bb-hover"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -204,13 +196,13 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
               </span>
             </div>
           </button>
+          </div>
         </div>
 
         {/* Free-software and third-party notices */}
-        <div className="px-6 pb-5 border-t border-bb-border pt-4">
-          <div className="text-xs font-medium text-bb-accent uppercase tracking-wider mb-2">
-            {t('dialog.about.free_software_section')}
-          </div>
+        <div className="border-t border-bb-border">
+          <DialogSectionHeader title={t('dialog.about.free_software_section')} />
+          <div className="px-6 py-4">
           <p className="text-xs text-bb-text-muted leading-relaxed">
             {t('dialog.about.gpl_summary')}
           </p>
@@ -220,36 +212,27 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           <div className="flex flex-wrap gap-2 mt-3">
             <button
               onClick={() => openExternal(SOURCE_CODE_URL)}
-              className="text-xs px-3 py-1.5 bg-bb-surface border border-bb-border text-bb-text rounded hover:bg-bb-hover transition-colors"
+              className="h-8 rounded-lg border border-bb-border bg-bb-surface px-3 text-xs text-bb-text transition-colors hover:border-bb-accent/30 hover:bg-bb-hover"
             >
               {t('dialog.about.source_code')} ↗
             </button>
             <button
               onClick={() => openExternal(GPL_LICENSE_URL)}
-              className="text-xs px-3 py-1.5 bg-bb-surface border border-bb-border text-bb-text rounded hover:bg-bb-hover transition-colors"
+              className="h-8 rounded-lg border border-bb-border bg-bb-surface px-3 text-xs text-bb-text transition-colors hover:border-bb-accent/30 hover:bg-bb-hover"
             >
               {t('dialog.about.gpl_license')} ↗
             </button>
             <button
               onClick={() => openExternal(POTRACE_URL)}
-              className="text-xs px-3 py-1.5 bg-bb-surface border border-bb-border text-bb-text rounded hover:bg-bb-hover transition-colors"
+              className="h-8 rounded-lg border border-bb-border bg-bb-surface px-3 text-xs text-bb-text transition-colors hover:border-bb-accent/30 hover:bg-bb-hover"
             >
               {t('dialog.about.potrace_link')} ↗
             </button>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end px-6 pb-5 pt-2 border-t border-bb-border">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-bb-accent text-bb-on-accent rounded text-sm hover:bg-bb-accent-hover"
-          >
-            {t('common.close')}
-          </button>
+          </div>
         </div>
       </div>
-    </div>,
+    </MovableResizableDialogFrame>,
     document.body,
   );
 }

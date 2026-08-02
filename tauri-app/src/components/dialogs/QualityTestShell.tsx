@@ -27,6 +27,8 @@ import {
 import type { Layer, Workspace } from '../../types/project';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
 import { PreviewWindow } from './PreviewWindow';
+import { Eye, FileDown, Frame, Layers3, Pause, Play, Square, TriangleAlert } from 'lucide-react';
+import { DIALOG_TONE, DialogButton, DialogFooter, DialogNotice } from '../shared/DialogPrimitives';
 
 const QT_LAYER_PALETTE = ['#ff6b6b', '#4dabf7', '#69db7c', '#ffd43b', '#9775fa', '#f783ac'];
 
@@ -348,151 +350,146 @@ export function QualityTestShell({
         minWidth={frameSize.minWidth}
         minHeight={frameSize.minHeight}
         onRequestClose={onClose}
-        footer={
-          <div className="flex flex-wrap justify-end gap-2 px-4 py-3">
-            <button
-              onClick={onClose}
-              className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text"
-            >
-              {t('common.close')}
-            </button>
-            <button
+        footer={(
+          <DialogFooter
+            leading={<DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t('common.close')}</DialogButton>}
+          >
+            <DialogButton
+              icon={<Eye size={13} />}
               data-testid={`qt-${toolKind}-preview`}
               onClick={() => void runPreview()}
               disabled={outputDisabled}
-              className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text disabled:opacity-50"
             >
               {busy === 'preview' ? t('dialog.quality_test.generating') : t('dialog.quality_test.preview')}
-            </button>
-            {createOnCanvas && (
-              <button
-                data-testid={`qt-${toolKind}-create-canvas`}
-                onClick={() => void runCreateOnCanvas()}
-                disabled={busy !== null}
-                className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text disabled:opacity-50"
-              >
-                {busy === 'canvas' ? t('dialog.quality_test.creating') : t('dialog.quality_test.create_on_canvas')}
-              </button>
-            )}
-            <button
-              data-testid={`qt-${toolKind}-frame`}
-              onClick={() => void runFrame()}
-              disabled={liveDisabled}
-              className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text disabled:opacity-50"
-            >
-              {t('dialog.quality_test.frame')}
-            </button>
-            {isRunning ? (
-              <>
-                <button
-                  data-testid={`qt-${toolKind}-pause`}
-                  onClick={() => void runPause()}
-                  disabled={busy !== null}
-                  className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text disabled:opacity-50"
-                >
-                  {busy === 'pause' ? t('dialog.quality_test.pausing') : t('dialog.quality_test.pause')}
-                </button>
-                <button
-                  data-testid={`qt-${toolKind}-stop`}
-                  onClick={() => void runStop()}
-                  disabled={busy !== null}
-                  className="px-3 py-1 text-xs font-medium rounded bg-bb-error/80 hover:bg-bb-error text-bb-text disabled:opacity-50"
-                >
-                  {busy === 'stop' ? t('dialog.quality_test.stopping') : t('dialog.quality_test.stop')}
-                </button>
-              </>
-            ) : isPaused ? (
-              <>
-                <button
-                  data-testid={`qt-${toolKind}-resume`}
-                  onClick={() => void runResume()}
-                  disabled={busy !== null}
-                  className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent disabled:opacity-50"
-                >
-                  {busy === 'resume' ? t('dialog.quality_test.resuming') : t('dialog.quality_test.resume')}
-                </button>
-                <button
-                  data-testid={`qt-${toolKind}-stop`}
-                  onClick={() => void runStop()}
-                  disabled={busy !== null}
-                  className="px-3 py-1 text-xs font-medium rounded bg-bb-error/80 hover:bg-bb-error text-bb-text disabled:opacity-50"
-                >
-                  {busy === 'stop' ? t('dialog.quality_test.stopping') : t('dialog.quality_test.stop')}
-                </button>
-              </>
-            ) : isPreparing ? (
-              <button
-                data-testid={`qt-${toolKind}-stop`}
-                onClick={() => void runStop()}
-                disabled={busy !== null}
-                className="px-3 py-1 text-xs font-medium rounded bg-bb-error/80 hover:bg-bb-error text-bb-text disabled:opacity-50"
-              >
-                {busy === 'stop' ? t('dialog.quality_test.stopping') : t('dialog.quality_test.stop')}
-              </button>
-            ) : (
-              <button
-                data-testid={`qt-${toolKind}-start`}
-                onClick={() => void runStart()}
-                disabled={liveDisabled}
-                className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent disabled:opacity-50"
-              >
-                {busy === 'start' ? t('dialog.quality_test.starting') : t('dialog.quality_test.start')}
-              </button>
-            )}
-            <button
+            </DialogButton>
+            <DialogButton
+              icon={<FileDown size={13} />}
               data-testid={`qt-${toolKind}-save`}
               onClick={() => void runSave()}
               disabled={outputDisabled}
-              className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text disabled:opacity-50"
             >
               {t('dialog.quality_test.save_gcode')}
-            </button>
-          </div>
-        }
+            </DialogButton>
+            {createOnCanvas && (
+              <DialogButton
+                icon={<Layers3 size={13} />}
+                data-testid={`qt-${toolKind}-create-canvas`}
+                onClick={() => void runCreateOnCanvas()}
+                disabled={busy !== null}
+              >
+                {busy === 'canvas' ? t('dialog.quality_test.creating') : t('dialog.quality_test.create_on_canvas')}
+              </DialogButton>
+            )}
+            <DialogButton
+              icon={<Frame size={13} />}
+              data-testid={`qt-${toolKind}-frame`}
+              onClick={() => void runFrame()}
+              disabled={liveDisabled}
+            >
+              {t('dialog.quality_test.frame')}
+            </DialogButton>
+            {isRunning ? (
+              <>
+                <DialogButton
+                  icon={<Pause size={13} />}
+                  data-testid={`qt-${toolKind}-pause`}
+                  onClick={() => void runPause()}
+                  disabled={busy !== null}
+                >
+                  {busy === 'pause' ? t('dialog.quality_test.pausing') : t('dialog.quality_test.pause')}
+                </DialogButton>
+                <DialogButton
+                  tone={DIALOG_TONE.danger}
+                  icon={<Square size={12} />}
+                  data-testid={`qt-${toolKind}-stop`}
+                  onClick={() => void runStop()}
+                  disabled={busy !== null}
+                >
+                  {busy === 'stop' ? t('dialog.quality_test.stopping') : t('dialog.quality_test.stop')}
+                </DialogButton>
+              </>
+            ) : isPaused ? (
+              <>
+                <DialogButton
+                  tone={DIALOG_TONE.primary}
+                  icon={<Play size={13} />}
+                  data-testid={`qt-${toolKind}-resume`}
+                  onClick={() => void runResume()}
+                  disabled={busy !== null}
+                >
+                  {busy === 'resume' ? t('dialog.quality_test.resuming') : t('dialog.quality_test.resume')}
+                </DialogButton>
+                <DialogButton
+                  tone={DIALOG_TONE.danger}
+                  icon={<Square size={12} />}
+                  data-testid={`qt-${toolKind}-stop`}
+                  onClick={() => void runStop()}
+                  disabled={busy !== null}
+                >
+                  {busy === 'stop' ? t('dialog.quality_test.stopping') : t('dialog.quality_test.stop')}
+                </DialogButton>
+              </>
+            ) : isPreparing ? (
+              <DialogButton
+                tone={DIALOG_TONE.danger}
+                icon={<Square size={12} />}
+                data-testid={`qt-${toolKind}-stop`}
+                onClick={() => void runStop()}
+                disabled={busy !== null}
+              >
+                {busy === 'stop' ? t('dialog.quality_test.stopping') : t('dialog.quality_test.stop')}
+              </DialogButton>
+            ) : (
+              <DialogButton
+                tone={DIALOG_TONE.primary}
+                icon={<Play size={13} />}
+                data-testid={`qt-${toolKind}-start`}
+                onClick={() => void runStart()}
+                disabled={liveDisabled}
+              >
+                {busy === 'start' ? t('dialog.quality_test.starting') : t('dialog.quality_test.start')}
+              </DialogButton>
+            )}
+          </DialogFooter>
+        )}
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-bb-bg/20 px-4 py-3">
         {!activeProfile && (
-          <div
-            className="text-xs text-bb-warning-fg bg-bb-warning-bg border border-bb-warning-border rounded px-2 py-1 mb-2"
-            role="status"
-          >
-            {t('dialog.quality_test.no_active_profile')}
+          <div className="mb-3">
+            <DialogNotice tone={DIALOG_TONE.warning} icon={<TriangleAlert size={14} />}>
+              {t('dialog.quality_test.no_active_profile')}
+            </DialogNotice>
           </div>
         )}
-        <div className="space-y-2 mb-3">{children}</div>
+        <div className="mb-3 space-y-2 rounded-xl border border-bb-border bg-bb-panel p-3">{children}</div>
 
         {previewResp && previewResp.warnings.length > 0 && (
-          <div className="text-xs text-bb-warning-fg bg-bb-warning-bg border border-bb-warning-border rounded px-2 py-1 mb-2 space-y-1">
-            {previewResp.warnings.map((w, i) => (
-              <div key={`${i}-${(w as QualityTestWarning).kind}`}>
-                {formatQualityTestWarning(w)}
+          <div className="mb-2">
+            <DialogNotice tone={DIALOG_TONE.warning} icon={<TriangleAlert size={14} />}>
+              <div className="space-y-1">
+                {previewResp.warnings.map((w, i) => (
+                  <div key={`${i}-${(w as QualityTestWarning).kind}`}>{formatQualityTestWarning(w)}</div>
+                ))}
               </div>
-            ))}
+            </DialogNotice>
           </div>
         )}
         {(outputGate || liveGate) && (
-          <div
-            className="text-xs text-bb-text-muted bg-bb-bg/40 border border-bb-border rounded px-2 py-1 mb-2"
-            role="status"
-            data-testid={`qt-${toolKind}-live-gate`}
-          >
-            {t('dialog.quality_test.actions_disabled', {
-              action: outputGate ? t('dialog.quality_test.quality_test_actions') : t('dialog.quality_test.frame_and_start'),
-              reason: outputGate ?? liveGate,
-            })}
+          <div className="mb-2">
+            <DialogNotice testId={`qt-${toolKind}-live-gate`}>
+              {t('dialog.quality_test.actions_disabled', {
+                action: outputGate ? t('dialog.quality_test.quality_test_actions') : t('dialog.quality_test.frame_and_start'),
+                reason: outputGate ?? liveGate,
+              })}
+            </DialogNotice>
           </div>
         )}
         {errorText && (
-          <div
-            className="text-xs text-bb-error bg-bb-error/10 border border-bb-error/40 rounded px-2 py-1 mb-2"
-            role="alert"
-          >
-            {errorText}
-          </div>
+          <div className="mb-2"><DialogNotice tone={DIALOG_TONE.error} role="alert">{errorText}</DialogNotice></div>
         )}
         {previewResp && (
           <div
-            className="text-xs text-bb-text-muted mb-2 flex items-center justify-between"
+            className="mb-2 flex items-center justify-between rounded-lg border border-bb-accent/25 bg-bb-accent/8 px-3 py-2 text-xs text-bb-text-muted"
             data-testid={`qt-${toolKind}-preview-stats`}
           >
             <span>

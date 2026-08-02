@@ -22,7 +22,7 @@ export function Toggle({
 }: ToggleProps) {
   return (
     <label
-      className={`flex min-h-6 items-center justify-between gap-2 text-xs ${
+      className={`flex min-h-8 items-center justify-between gap-3 text-xs ${
         disabled ? 'cursor-not-allowed' : 'cursor-pointer'
       } ${className}`}
     >
@@ -32,7 +32,7 @@ export function Toggle({
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
         disabled={disabled}
-        className="h-3 w-3 shrink-0 accent-bb-accent"
+        className="h-3.5 w-3.5 shrink-0 accent-bb-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent"
       />
     </label>
   );

@@ -214,7 +214,7 @@ export function MovableResizableDialogFrame({
         aria-modal="true"
         aria-labelledby={titleId}
         data-testid={testId}
-        className="absolute flex min-h-0 flex-col overflow-hidden rounded-lg border border-bb-border bg-bb-panel shadow-2xl"
+        className="absolute flex min-h-0 flex-col overflow-hidden rounded-xl border border-bb-border bg-bb-panel shadow-2xl ring-1 ring-black/10"
         style={{
           left: frame.left,
           top: frame.top,
@@ -223,11 +223,11 @@ export function MovableResizableDialogFrame({
         }}
       >
         <div
-          className="flex cursor-move select-none items-center justify-between gap-3 border-b border-bb-border px-5 py-3"
+          className="relative flex min-h-12 cursor-move select-none items-center justify-between gap-3 overflow-hidden border-b border-bb-border bg-gradient-to-r from-bb-accent/10 via-bb-panel to-bb-panel px-5 py-3 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-bb-accent/55 after:via-bb-accent/15 after:to-transparent"
           data-testid={testId ? `${testId}-drag-handle` : undefined}
           onMouseDown={startDrag}
         >
-          <h2 id={titleId} className="text-sm font-semibold text-bb-text">
+          <h2 id={titleId} className="relative text-sm font-semibold tracking-[0.01em] text-bb-text">
             {title}
           </h2>
           {headerActions && (
@@ -240,7 +240,7 @@ export function MovableResizableDialogFrame({
           )}
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-        <div className="border-t border-bb-border">{footer}</div>
+        <div className="border-t border-bb-border bg-bb-surface/25">{footer}</div>
         <div
           className="absolute bottom-0 right-0 h-5 w-5 cursor-nwse-resize"
           data-testid={testId ? `${testId}-resize-handle` : undefined}

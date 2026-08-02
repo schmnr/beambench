@@ -10,7 +10,9 @@ import { useAppStore } from '../../stores/appStore';
 import { NumberInput } from '../shared/NumberInput';
 import { Toggle } from '../shared/Toggle';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Boxes } from 'lucide-react';
+import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
+import { DIALOG_TONE, DialogButton, DialogFooter, DialogSection } from '../shared/DialogPrimitives';
 
 interface NestDialogProps {
   objectIds: string[];
@@ -27,10 +29,6 @@ export function NestDialog({ objectIds, onClose }: NestDialogProps) {
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
   const initialProjectIdRef = useRef(projectId);
   const safeObjectIds = useMemo(() => [...objectIds], [objectIds]);
-  // The Nest button below has autoFocus; the trap detects focus already inside
-  // the dialog and leaves it there.
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, true);
 
   const runNest = useCallback(async () => {
     const currentProject = useProjectStore.getState().project;
@@ -56,7 +54,6 @@ export function NestDialog({ objectIds, onClose }: NestDialogProps) {
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
         event.preventDefault();
         void runNest();
@@ -73,21 +70,28 @@ export function NestDialog({ objectIds, onClose }: NestDialogProps) {
   }, [projectId, onClose]);
 
   return createPortal(
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="nest-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <MovableResizableDialogFrame
+      title={t('dialog.nest.title')}
+      titleId="nest-dialog-title"
+      testId="nest-dialog"
+      initialWidth={420}
+      initialHeight={360}
+      minWidth={380}
+      minHeight={320}
+      onRequestClose={onClose}
+      closeOnBackdropClick
+      footer={(
+        <DialogFooter>
+          <DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t('common.cancel')}</DialogButton>
+          <DialogButton tone={DIALOG_TONE.primary} autoFocus disabled={nestingInProgress} onClick={() => { void runNest(); }}>
+            {t('dialog.nest.button')}
+          </DialogButton>
+        </DialogFooter>
+      )}
     >
-      <div className="w-[360px] max-w-[90vw] rounded-lg border border-bb-border bg-bb-panel p-4 shadow-xl">
-        <h2 id="nest-dialog-title" className="mb-3 text-sm font-semibold text-bb-text">
-          {t('dialog.nest.title')}
-        </h2>
-        <div className="space-y-3">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-bb-bg/20 p-4">
+        <DialogSection icon={<Boxes size={14} />} title={t('dialog.nest.title')}>
+          <div className="space-y-3">
           <NumberInput
             label={labelWithUnit(t('dialog.nest.min_spacing'), lengthUnitLabel(displayUnit))}
             value={roundDisplayLength(mmToDisplay(settings.paddingMm, displayUnit), displayUnit)}
@@ -110,27 +114,10 @@ export function NestDialog({ objectIds, onClose }: NestDialogProps) {
             checked={settings.allowMirror}
             onChange={(checked) => setSettings((current) => ({ ...current, allowMirror: checked }))}
           />
-        </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded bg-bb-bg px-3 py-1.5 text-xs font-medium text-bb-text hover:bg-bb-hover"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            autoFocus
-            disabled={nestingInProgress}
-            onClick={() => { void runNest(); }}
-            className="rounded bg-bb-accent px-3 py-1.5 text-xs font-medium text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-60"
-          >
-            {t('dialog.nest.button')}
-          </button>
-        </div>
+          </div>
+        </DialogSection>
       </div>
-    </div>,
+    </MovableResizableDialogFrame>,
     document.body,
   );
 }
