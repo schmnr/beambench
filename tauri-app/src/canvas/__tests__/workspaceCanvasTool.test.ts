@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveWorkspaceCanvasTool, tracksObjectDragInteraction } from '../workspaceCanvasTool';
+import {
+  resolveWorkspaceCanvasTool,
+  tracksObjectDragInteraction,
+  usesLayerOperationAppearance,
+} from '../workspaceCanvasTool';
 
 describe('resolveWorkspaceCanvasTool', () => {
   it('keeps Design tools available but rejects Laser Position', () => {
@@ -19,5 +23,10 @@ describe('resolveWorkspaceCanvasTool', () => {
     expect(tracksObjectDragInteraction('design', 'warp')).toBe(false);
     expect(tracksObjectDragInteraction('design', 'node')).toBe(false);
     expect(tracksObjectDragInteraction('run', 'select')).toBe(false);
+  });
+
+  it('keeps operation-aware fill appearance in both Design and Run', () => {
+    expect(usesLayerOperationAppearance('design')).toBe(true);
+    expect(usesLayerOperationAppearance('run')).toBe(true);
   });
 });

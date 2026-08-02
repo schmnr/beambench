@@ -75,6 +75,7 @@ import { registerToolInstances } from '../layout/CreationToolbar';
 import {
   resolveWorkspaceCanvasTool,
   tracksObjectDragInteraction,
+  usesLayerOperationAppearance,
 } from '../../canvas/workspaceCanvasTool';
 import type { StartPointMode } from '../../types/vector';
 import { resolveCanvasPointerSnap } from '../../canvas/pointerSnap';
@@ -667,7 +668,10 @@ export function Canvas() {
       theme,
       antialiasing,
       filledRendering,
-      useLayerAppearance: workspaceMode === 'design',
+      // Design and Run must show the same operation-aware geometry. Run stays
+      // read-only, but Fill/Offset Fill layers still need their true compound
+      // appearance (including holes) rather than falling back to a global view style.
+      useLayerAppearance: usesLayerOperationAppearance(workspaceMode),
       previewState,
       previewManualRefreshRequired: manualRefreshRequired,
       selectionDashOffset: dashOffsetRef.current,
@@ -738,7 +742,7 @@ export function Canvas() {
       theme,
       antialiasing,
       filledRendering,
-      useLayerAppearance: workspaceMode === 'design',
+      useLayerAppearance: usesLayerOperationAppearance(workspaceMode),
       previewState,
       previewManualRefreshRequired: manualRefreshRequired,
       selectionDashOffset: dashOffsetRef.current,

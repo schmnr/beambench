@@ -308,6 +308,15 @@ export function drawRasterRunStripes(
   const thickness = emphasizeVisibleRuns
     ? Math.min(1.8, Math.max(0.9, effectiveIntervalPx * 0.8))
     : Math.min(1.25, Math.max(0.5, effectiveIntervalPx * 0.42));
+  const scanlineGroups: RasterRunExtent[][] = [];
+  for (const strip of visibleStrips) {
+    const lastGroup = scanlineGroups[scanlineGroups.length - 1];
+    if (lastGroup && Math.abs(lastGroup[0].y_mm - strip.y_mm) < 1e-9) {
+      lastGroup.push(strip);
+    } else {
+      scanlineGroups.push([strip]);
+    }
+  }
 
   ctx.save();
 
@@ -356,8 +365,64 @@ export function drawRasterRunStripes(
     ctx.lineCap = 'butt';
 
     let lastUnderlayCoord = Number.NEGATIVE_INFINITY;
-    for (let i = 0; i < visibleStrips.length; i += stride) {
-      const strip = visibleStrips[i];
+    for (let i = 0; i < scanlineGroups.length; i += stride) {
+      const scanline = scanlineGroups[i];
+      const firstStrip = scanline[0];
+      const firstStart = plannerStripPointToWorld(firstStrip.y_mm, firstStrip.start_x_mm, {
+        scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
+        scanAngleDeg: region.scan_angle_deg,
+        scanOrigin: region.scan_origin,
+      });
+      const firstScreen = worldToScreen(firstStart, vp);
+      const coord = region.scan_axis === 'vertical' ? firstScreen.x : firstScreen.y;
+      if (Math.abs(coord - lastUnderlayCoord) < 0.45) {
+        continue;
+      }
+      lastUnderlayCoord = coord;
+      for (const strip of scanline) {
+        const start = plannerStripPointToWorld(strip.y_mm, strip.start_x_mm, {
+          scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
+          scanAngleDeg: region.scan_angle_deg,
+          scanOrigin: region.scan_origin,
+        });
+        const end = plannerStripPointToWorld(strip.y_mm, strip.end_x_mm, {
+          scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
+          scanAngleDeg: region.scan_angle_deg,
+          scanOrigin: region.scan_origin,
+        });
+        const s = worldToScreen(start, vp);
+        const e = worldToScreen(end, vp);
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(e.x, e.y);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = thickness;
+    ctx.lineCap = 'butt';
+  }
+
+  let lastScreenCoord = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < scanlineGroups.length; i += stride) {
+    const scanline = scanlineGroups[i];
+    const firstStrip = scanline[0];
+    const firstStart = plannerStripPointToWorld(firstStrip.y_mm, firstStrip.start_x_mm, {
+      scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
+      scanAngleDeg: region.scan_angle_deg,
+      scanOrigin: region.scan_origin,
+    });
+    const firstScreen = worldToScreen(firstStart, vp);
+    const coord = region.scan_axis === 'vertical' ? firstScreen.x : firstScreen.y;
+    const minScreenGap = emphasizeVisibleRuns ? 0.45 : 0.85;
+    if (Math.abs(coord - lastScreenCoord) < minScreenGap) {
+      continue;
+    }
+    lastScreenCoord = coord;
+    for (const strip of scanline) {
       const start = plannerStripPointToWorld(strip.y_mm, strip.start_x_mm, {
         scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
         scanAngleDeg: region.scan_angle_deg,
@@ -370,49 +435,11 @@ export function drawRasterRunStripes(
       });
       const s = worldToScreen(start, vp);
       const e = worldToScreen(end, vp);
-      const coord = region.scan_axis === 'vertical' ? s.x : s.y;
-      if (Math.abs(coord - lastUnderlayCoord) < 0.45) {
-        continue;
-      }
-      lastUnderlayCoord = coord;
       ctx.beginPath();
       ctx.moveTo(s.x, s.y);
       ctx.lineTo(e.x, e.y);
       ctx.stroke();
     }
-    ctx.restore();
-
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = 0.9;
-    ctx.lineWidth = thickness;
-    ctx.lineCap = 'butt';
-  }
-
-  let lastScreenCoord = Number.NEGATIVE_INFINITY;
-  for (let i = 0; i < visibleStrips.length; i += stride) {
-    const strip = visibleStrips[i];
-    const start = plannerStripPointToWorld(strip.y_mm, strip.start_x_mm, {
-      scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
-      scanAngleDeg: region.scan_angle_deg,
-      scanOrigin: region.scan_origin,
-    });
-    const end = plannerStripPointToWorld(strip.y_mm, strip.end_x_mm, {
-      scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
-      scanAngleDeg: region.scan_angle_deg,
-      scanOrigin: region.scan_origin,
-    });
-    const s = worldToScreen(start, vp);
-    const e = worldToScreen(end, vp);
-    const coord = region.scan_axis === 'vertical' ? s.x : s.y;
-    const minScreenGap = emphasizeVisibleRuns ? 0.45 : 0.85;
-    if (Math.abs(coord - lastScreenCoord) < minScreenGap) {
-      continue;
-    }
-    lastScreenCoord = coord;
-    ctx.beginPath();
-    ctx.moveTo(s.x, s.y);
-    ctx.lineTo(e.x, e.y);
-    ctx.stroke();
   }
 
   ctx.restore();
