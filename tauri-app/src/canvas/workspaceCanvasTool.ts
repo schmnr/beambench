@@ -13,3 +13,12 @@ export function resolveWorkspaceCanvasTool(
   }
   return activeTool === 'laser_position' ? 'select' : activeTool;
 }
+
+/** Only Select performs the normal object-drag interaction optimization. */
+export function tracksObjectDragInteraction(
+  workspaceMode: 'design' | 'run',
+  activeTool: ToolType,
+): boolean {
+  return workspaceMode === 'design'
+    && resolveWorkspaceCanvasTool(workspaceMode, activeTool) === 'select';
+}

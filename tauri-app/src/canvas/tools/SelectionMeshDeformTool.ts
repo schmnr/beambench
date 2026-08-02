@@ -118,6 +118,10 @@ export class SelectionMeshDeformTool implements CanvasTool {
   private hoveredIndex: number | null = null;
   private activeIndex: number | null = null;
 
+  isDragging(): boolean {
+    return this.state.type === 'dragging';
+  }
+
   onMouseDown(e: CanvasMouseEvent, ctx: ToolContext): void {
     if (e.button !== 0) return;
     if (!this.syncGrid(ctx)) {

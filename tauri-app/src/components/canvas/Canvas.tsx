@@ -71,7 +71,10 @@ import { AdjustImageDialog } from '../dialogs/AdjustImageDialog';
 import { commitPendingTextEdit, getPendingContent, updatePendingContent } from '../../canvas/textEditSession';
 import { beginTextEditFromDoubleClick } from '../../canvas/textDoubleClick';
 import { registerToolInstances } from '../layout/CreationToolbar';
-import { resolveWorkspaceCanvasTool } from '../../canvas/workspaceCanvasTool';
+import {
+  resolveWorkspaceCanvasTool,
+  tracksObjectDragInteraction,
+} from '../../canvas/workspaceCanvasTool';
 import type { StartPointMode } from '../../types/vector';
 import { resolveCanvasPointerSnap } from '../../canvas/pointerSnap';
 import {
@@ -1176,13 +1179,16 @@ export function Canvas() {
           return;
         }
 
-        pointerDragCandidateRef.current = liveWorkspaceMode === 'run'
-          ? null
-          : {
+        pointerDragCandidateRef.current = tracksObjectDragInteraction(
+          liveWorkspaceMode,
+          useUiStore.getState().activeTool,
+        )
+          ? {
               x: e.clientX,
               y: e.clientY,
               objectIds: [...selectedObjectIds],
-            };
+            }
+          : null;
 
         // Intercept click for Set Start Point pick mode
         const pendingId = useUiStore.getState().pendingStartPointObjectId;
@@ -1656,6 +1662,9 @@ export function Canvas() {
   useEffect(() => {
     if (activeTool !== 'warp') return;
     const warpTool = TOOL_INSTANCES.warp as WarpTool;
+    // A slow pointer drag can trigger unrelated canvas rerenders. Never let
+    // those effects discard the live mesh gesture before pointer-up commits it.
+    if (warpTool.isDragging()) return;
     warpTool.reset();
     warpTool.prepareForSelection(buildToolContext());
     requestRender();
