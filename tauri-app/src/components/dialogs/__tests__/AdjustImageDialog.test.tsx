@@ -402,4 +402,20 @@ describe('AdjustImageDialog', () => {
     expect(screen.queryByPlaceholderText('Name')).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('keeps settings scrolling and preview zoom from reaching the canvas behind the dialog', () => {
+    const backgroundWheel = vi.fn();
+    render(
+      <div onWheel={backgroundWheel}>
+        <AdjustImageDialog objectId="img1" onClose={vi.fn()} />
+      </div>,
+    );
+
+    fireEvent.wheel(screen.getByText('Image Settings'), { deltaY: 120 });
+    expect(backgroundWheel).not.toHaveBeenCalled();
+
+    fireEvent.wheel(screen.getByTestId('adjust-original-preview'), { deltaY: -120 });
+    expect(screen.getByText('115%')).toBeDefined();
+    expect(backgroundWheel).not.toHaveBeenCalled();
+  });
 });

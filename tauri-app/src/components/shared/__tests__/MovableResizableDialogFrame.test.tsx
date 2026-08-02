@@ -154,4 +154,15 @@ describe('MovableResizableDialogFrame', () => {
     expect(backgroundKeyDown).not.toHaveBeenCalled();
     window.removeEventListener('keydown', backgroundKeyDown);
   });
+
+  it('keeps wheel events from reaching the workspace behind the dialog', () => {
+    const backgroundWheel = vi.fn();
+    window.addEventListener('wheel', backgroundWheel);
+    renderFrame();
+
+    fireEvent.wheel(screen.getByText('Dialog body'), { deltaY: 120 });
+
+    expect(backgroundWheel).not.toHaveBeenCalled();
+    window.removeEventListener('wheel', backgroundWheel);
+  });
 });

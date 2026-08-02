@@ -195,6 +195,7 @@ export function MovableResizableDialogFrame({
       data-testid={testId ? `${testId}-backdrop` : undefined}
       data-bb-dialog-frame
       tabIndex={-1}
+      onWheel={(event) => event.stopPropagation()}
       onClick={(event) => {
         if (closeOnBackdropClick && event.target === event.currentTarget) {
           onRequestClose?.();

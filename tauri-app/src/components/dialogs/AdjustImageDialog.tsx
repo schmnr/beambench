@@ -403,6 +403,7 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
   const handleWheel = useCallback(
     (event: ReactWheelEvent) => {
       event.preventDefault();
+      event.stopPropagation();
       adjustZoom(zoom * (event.deltaY < 0 ? 1.15 : 1 / 1.15));
     },
     [adjustZoom, zoom],
