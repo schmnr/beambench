@@ -12,7 +12,8 @@ import { useUiStore, type MeshDeformMode } from '../../stores/uiStore';
 import { resolveEffectiveData } from '../../commands/selectionContext';
 import i18n from '../../i18n';
 
-const HANDLE_HIT_PX = 10;
+const HANDLE_HIT_PX = 18;
+const DRAG_START_PX = 3;
 const COMPATIBLE_TYPES = new Set(['vector_path', 'shape', 'text', 'polygon', 'star', 'raster_image', 'barcode']);
 
 type MeshHandle = {
@@ -28,6 +29,8 @@ type ToolState =
       type: 'dragging';
       handleIndex: number;
       startWorld: Point2D;
+      startPointerScreen: Point2D;
+      startPointerSnapped: Point2D;
       originalHandles: Point2D[];
       mode: MeshDeformMode;
       moved: boolean;
@@ -106,10 +109,6 @@ function buildGrid(bounds: Bounds, gridSize: number): Point2D[] {
   return handles;
 }
 
-function samePoint(a: Point2D, b: Point2D): boolean {
-  return Math.hypot(a.x - b.x, a.y - b.y) <= 1e-6;
-}
-
 export class SelectionMeshDeformTool implements CanvasTool {
   name = 'warp';
   private state: ToolState = { type: 'idle' };
@@ -139,6 +138,8 @@ export class SelectionMeshDeformTool implements CanvasTool {
       type: 'dragging',
       handleIndex: hit,
       startWorld: { x: this.handles[hit].x, y: this.handles[hit].y },
+      startPointerScreen: { x: e.screenX, y: e.screenY },
+      startPointerSnapped: { x: e.snappedX, y: e.snappedY },
       originalHandles: this.handles.map((handle) => ({ ...handle })),
       mode,
       moved: false,
@@ -151,8 +152,9 @@ export class SelectionMeshDeformTool implements CanvasTool {
     if (!this.syncGrid(ctx)) return;
 
     if (this.state.type === 'dragging') {
-      const next = { x: e.snappedX, y: e.snappedY };
-      this.state.moved = this.state.moved || !samePoint(next, this.state.startWorld);
+      if (!this.state.moved && !this.hasPassedDragThreshold(e, this.state)) return;
+      this.state.moved = true;
+      const next = this.draggedHandlePoint(e, this.state);
       this.setHandle(this.state.handleIndex, next, { horizontal: e.shiftKey, vertical: e.altKey });
       ctx.requestRender();
       return;
@@ -168,10 +170,11 @@ export class SelectionMeshDeformTool implements CanvasTool {
   onMouseUp(e: CanvasMouseEvent, ctx: ToolContext): void {
     if (this.state.type !== 'dragging') return;
 
-    const { mode, originalHandles, handleIndex, startWorld } = this.state;
-    const finalPoint = { x: e.snappedX, y: e.snappedY };
-    const moved = this.state.moved || !samePoint(finalPoint, startWorld);
+    const drag = this.state;
+    const { mode, originalHandles, handleIndex } = drag;
+    const moved = drag.moved || this.hasPassedDragThreshold(e, drag);
     if (moved) {
+      const finalPoint = this.draggedHandlePoint(e, drag);
       this.setHandle(handleIndex, finalPoint, { horizontal: e.shiftKey, vertical: e.altKey });
     }
     const ids = collectEditableSelection(ctx);
@@ -302,6 +305,26 @@ export class SelectionMeshDeformTool implements CanvasTool {
     }
 
     return bestIndex;
+  }
+
+  private hasPassedDragThreshold(
+    event: CanvasMouseEvent,
+    drag: Extract<ToolState, { type: 'dragging' }>,
+  ): boolean {
+    return Math.hypot(
+      event.screenX - drag.startPointerScreen.x,
+      event.screenY - drag.startPointerScreen.y,
+    ) >= DRAG_START_PX;
+  }
+
+  private draggedHandlePoint(
+    event: CanvasMouseEvent,
+    drag: Extract<ToolState, { type: 'dragging' }>,
+  ): Point2D {
+    return {
+      x: drag.startWorld.x + (event.snappedX - drag.startPointerSnapped.x),
+      y: drag.startWorld.y + (event.snappedY - drag.startPointerSnapped.y),
+    };
   }
 
   private setHandle(

@@ -235,7 +235,7 @@ export function drawMeshDeformOverlay(
 
   ctx.setLineDash([]);
   for (const handle of handles) {
-    const size = handle.active || handle.hovered ? HANDLE_SIZE + 3 : HANDLE_SIZE + 1;
+    const size = handle.active || handle.hovered ? HANDLE_SIZE + 6 : HANDLE_SIZE + 3;
     const half = size / 2;
     ctx.fillStyle = handle.active
       ? 'rgb(34, 192, 238)'

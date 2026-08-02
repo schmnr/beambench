@@ -119,8 +119,8 @@ describe('SelectionMeshDeformTool', () => {
       }),
       ctx,
     );
-    tool.onMouseMove(makeMouseEvent({ snappedX: 20, snappedY: 0 }), ctx);
-    tool.onMouseUp(makeMouseEvent({ snappedX: 20, snappedY: 0 }), ctx);
+    tool.onMouseMove(makeMouseEvent({ screenX: topRight.x + 20, screenY: topRight.y, snappedX: 20, snappedY: 0 }), ctx);
+    tool.onMouseUp(makeMouseEvent({ screenX: topRight.x + 20, screenY: topRight.y, snappedX: 20, snappedY: 0 }), ctx);
     await flushToolPromises();
 
     expect(vectorService.meshDeformSelection).toHaveBeenCalledWith(
@@ -179,12 +179,100 @@ describe('SelectionMeshDeformTool', () => {
       snappedX: 10,
       snappedY: 0,
     }), ctx);
-    tool.onMouseUp(makeMouseEvent({ snappedX: 10, snappedY: 0 }), ctx);
+    tool.onMouseUp(makeMouseEvent({
+      screenX: topRight.x,
+      screenY: topRight.y,
+      snappedX: 10,
+      snappedY: 0,
+    }), ctx);
 
     const overlay = tool.getOverlay();
     if (overlay.type !== 'mesh-deform') throw new Error('expected mesh overlay');
     expect(overlay.handles[1]).toMatchObject({ worldX: 10, worldY: 0 });
     expect(vectorService.meshDeformSelection).not.toHaveBeenCalled();
+  });
+
+  it('allows an easy off-center grab without jumping or treating a click as a drag', () => {
+    const ctx = makeToolContext();
+    const tool = new WarpTool();
+    useUiStore.setState({ meshDeformMode: 'warp' });
+    tool.prepareForSelection(ctx);
+    const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
+
+    tool.onMouseDown(makeMouseEvent({
+      screenX: topRight.x + 16,
+      screenY: topRight.y + 6,
+      worldX: 14,
+      worldY: 1.5,
+      snappedX: 14,
+      snappedY: 1.5,
+    }), ctx);
+    tool.onMouseMove(makeMouseEvent({
+      screenX: topRight.x + 17,
+      screenY: topRight.y + 6,
+      worldX: 14.25,
+      worldY: 1.5,
+      snappedX: 14.25,
+      snappedY: 1.5,
+    }), ctx);
+    tool.onMouseUp(makeMouseEvent({
+      screenX: topRight.x + 17,
+      screenY: topRight.y + 6,
+      worldX: 14.25,
+      worldY: 1.5,
+      snappedX: 14.25,
+      snappedY: 1.5,
+    }), ctx);
+
+    const overlay = tool.getOverlay();
+    if (overlay.type !== 'mesh-deform') throw new Error('expected mesh overlay');
+    expect(overlay.handles[1]).toMatchObject({ worldX: 10, worldY: 0 });
+    expect(vectorService.meshDeformSelection).not.toHaveBeenCalled();
+  });
+
+  it('preserves the grab offset once an off-center drag starts', async () => {
+    const ctx = makeToolContext();
+    useProjectStore.setState({
+      project: makeProject({ objects: ctx.objects }),
+      selectedObjectIds: ['obj'],
+    });
+    useUiStore.setState({ meshDeformMode: 'warp' });
+    vi.spyOn(useUndoStore.getState(), 'refresh').mockResolvedValue(undefined);
+    const tool = new WarpTool();
+    tool.prepareForSelection(ctx);
+    const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
+
+    tool.onMouseDown(makeMouseEvent({
+      screenX: topRight.x + 8,
+      screenY: topRight.y,
+      worldX: 12,
+      snappedX: 12,
+    }), ctx);
+    tool.onMouseMove(makeMouseEvent({
+      screenX: topRight.x + 28,
+      screenY: topRight.y + 12,
+      worldX: 17,
+      worldY: 3,
+      snappedX: 17,
+      snappedY: 3,
+    }), ctx);
+    tool.onMouseUp(makeMouseEvent({
+      screenX: topRight.x + 28,
+      screenY: topRight.y + 12,
+      worldX: 17,
+      worldY: 3,
+      snappedX: 17,
+      snappedY: 3,
+    }), ctx);
+    await flushToolPromises();
+
+    expect(vectorService.meshDeformSelection).toHaveBeenCalledWith(
+      ['obj'],
+      expect.any(Object),
+      expect.arrayContaining([{ x: 15, y: 3 }]),
+      2,
+      true,
+    );
   });
 
   it('warps an imported SVG group by deforming its editable leaf objects', async () => {
@@ -225,8 +313,8 @@ describe('SelectionMeshDeformTool', () => {
 
     const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
     tool.onMouseDown(makeMouseEvent({ screenX: topRight.x, screenY: topRight.y, snappedX: 10, snappedY: 0 }), ctx);
-    tool.onMouseMove(makeMouseEvent({ snappedX: 15, snappedY: 0 }), ctx);
-    tool.onMouseUp(makeMouseEvent({ snappedX: 15, snappedY: 0 }), ctx);
+    tool.onMouseMove(makeMouseEvent({ screenX: topRight.x + 10, screenY: topRight.y, snappedX: 15, snappedY: 0 }), ctx);
+    tool.onMouseUp(makeMouseEvent({ screenX: topRight.x + 10, screenY: topRight.y, snappedX: 15, snappedY: 0 }), ctx);
     await flushToolPromises();
 
     expect(vectorService.meshDeformSelection).toHaveBeenCalledWith(
@@ -257,7 +345,7 @@ describe('SelectionMeshDeformTool', () => {
 
     const topRight = worldToScreen({ x: 10, y: 0 }, defaultVp);
     tool.onMouseDown(makeMouseEvent({ screenX: topRight.x, screenY: topRight.y, snappedX: 10, snappedY: 0 }), ctx);
-    tool.onMouseUp(makeMouseEvent({ snappedX: 15, snappedY: 2 }), ctx);
+    tool.onMouseUp(makeMouseEvent({ screenX: topRight.x + 10, screenY: topRight.y + 4, snappedX: 15, snappedY: 2 }), ctx);
     await flushToolPromises();
 
     expect(vectorService.meshDeformSelection).toHaveBeenCalledWith(
