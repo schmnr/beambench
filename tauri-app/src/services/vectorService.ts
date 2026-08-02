@@ -365,6 +365,9 @@ export const vectorService = {
   removeTab: (objectId: string, worldX: number, worldY: number): Promise<ProjectObject> =>
     invoke('remove_tab', { objectId, worldX, worldY }),
 
+  clearTabs: (objectId: string): Promise<ProjectObject> =>
+    invoke('clear_tabs', { objectId }),
+
   resolveTabMarkers: (objectId: string): Promise<{ subpathIndex: number; position: number; worldX: number; worldY: number }[]> =>
     invoke('resolve_tab_markers', { objectId }),
 

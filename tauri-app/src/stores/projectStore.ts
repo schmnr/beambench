@@ -613,6 +613,7 @@ interface ProjectStoreState {
   addTabs: (objectId: string, count: number, widthMm: number) => Promise<void>;
   placeTab: (objectId: string, worldX: number, worldY: number) => Promise<void>;
   removeTab: (objectId: string, worldX: number, worldY: number) => Promise<void>;
+  clearTabs: (objectId: string) => Promise<void>;
   applyRadius: (objectId: string, radiusMm: number) => Promise<void>;
   applyCornerRadius: (
     objectId: string,
@@ -3359,6 +3360,26 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   removeTab: async (objectId, worldX, worldY) => {
     try {
       const updated = await vectorService.removeTab(objectId, worldX, worldY);
+      const { project } = get();
+      if (project) {
+        set({
+          project: {
+            ...project,
+            objects: project.objects.map((o) => (o.id === objectId ? updated : o)),
+            dirty: true,
+          },
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    }
+  },
+
+  clearTabs: async (objectId) => {
+    try {
+      const updated = await vectorService.clearTabs(objectId);
       const { project } = get();
       if (project) {
         set({

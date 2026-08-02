@@ -580,7 +580,6 @@ fn refit_vector_path_to_bounds(obj: &mut crate::object::ProjectObject, new_bound
         };
     }
     obj.bounds = *new_bounds;
-    obj.tabs.clear();
 }
 
 /// Reorder an object within the current z-order stack.
@@ -1372,6 +1371,10 @@ mod tests {
             ruler_guide_axis: None,
         };
         obj.bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0));
+        obj.tabs.push(crate::object::TabAnchor {
+            subpath_index: 0,
+            position: 0.25,
+        });
         project.objects.push(obj);
 
         let new_bounds = Bounds::new(Point2D::new(5.0, 5.0), Point2D::new(25.0, 15.0));
@@ -1394,8 +1397,37 @@ mod tests {
         } else {
             panic!("Expected VectorPath");
         }
-        // Tabs should be cleared
-        assert!(obj.tabs.is_empty());
+        // Bounds-only transforms preserve normalized anchors because the
+        // path topology and subpath ordering have not changed.
+        assert_eq!(obj.tabs.len(), 1);
+        assert_eq!(obj.tabs[0].subpath_index, 0);
+        assert!((obj.tabs[0].position - 0.25).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn update_object_bounds_batch_preserves_tabs_when_moving_vector_path() {
+        let mut project = make_test_project();
+        let id = ObjectId::new();
+        let mut obj = make_test_object(id);
+        obj.data = ObjectData::VectorPath {
+            path_data: "M0 0 L10 0 L10 10 L0 10 Z".into(),
+            closed: true,
+            ruler_guide_axis: None,
+        };
+        obj.bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0));
+        obj.tabs.push(crate::object::TabAnchor {
+            subpath_index: 0,
+            position: 0.625,
+        });
+        project.objects.push(obj);
+
+        let moved_bounds = Bounds::new(Point2D::new(30.0, 40.0), Point2D::new(40.0, 50.0));
+        update_object_bounds_batch(&mut project, &[(id, moved_bounds)]);
+
+        let moved = project.find_object(id).unwrap();
+        assert_eq!(moved.tabs.len(), 1);
+        assert_eq!(moved.tabs[0].subpath_index, 0);
+        assert!((moved.tabs[0].position - 0.625).abs() < f64::EPSILON);
     }
 
     #[test]

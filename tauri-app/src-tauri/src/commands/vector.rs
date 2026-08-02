@@ -4126,6 +4126,34 @@ pub fn remove_tab(
     remove_tab_inner(&svc, parse_id(&object_id)?, world_x, world_y)
 }
 
+#[tauri::command]
+pub fn clear_tabs(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+) -> Result<ProjectObject, String> {
+    clear_tabs_inner(&svc, parse_id(&object_id)?)
+}
+
+fn clear_tabs_inner(svc: &ServiceContext, oid: ObjectId) -> Result<ProjectObject, String> {
+    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+    let project = guard.as_mut().ok_or("No project open")?;
+    let source = project.find_object(oid).ok_or("Object not found")?.clone();
+    if source.tabs.is_empty() {
+        return Ok(source);
+    }
+
+    svc.push_project_undo_snapshot(project)
+        .map_err(|e| e.to_string())?;
+    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+    let obj = project.find_object_mut(oid).ok_or("Object not found")?;
+    obj.tabs.clear();
+    let result = obj.clone();
+    project.dirty = true;
+    drop(guard);
+    planning::invalidate_plan_cache(svc).map_err(String::from)?;
+    Ok(result)
+}
+
 fn remove_tab_inner(
     svc: &ServiceContext,
     oid: ObjectId,
@@ -5832,6 +5860,36 @@ mod tests {
             1
         );
         assert!(!svc.undo_state().unwrap().can_undo);
+    }
+
+    #[test]
+    fn clear_tabs_removes_all_anchors_with_one_undo_step() {
+        let (mut project, layer_id) = test_project();
+        let object_id = add_vecpath(
+            &mut project,
+            layer_id,
+            "closed",
+            "M0 0 L10 0 L10 10 L0 10 Z",
+        );
+        let obj = project.find_object_mut(object_id).unwrap();
+        obj.tabs.push(beambench_core::object::TabAnchor {
+            subpath_index: 0,
+            position: 0.2,
+        });
+        obj.tabs.push(beambench_core::object::TabAnchor {
+            subpath_index: 0,
+            position: 0.7,
+        });
+        let svc = svc_with_project(project);
+
+        let updated = clear_tabs_inner(&svc, object_id).unwrap();
+
+        assert!(updated.tabs.is_empty());
+        assert!(svc.undo_state().unwrap().can_undo);
+        let guard = svc.project.lock().unwrap();
+        let project = guard.as_ref().unwrap();
+        assert!(project.find_object(object_id).unwrap().tabs.is_empty());
+        assert!(project.dirty);
     }
 
     #[test]

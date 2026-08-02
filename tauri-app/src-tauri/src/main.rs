@@ -456,6 +456,7 @@ fn main() {
             commands::vector::add_tabs,
             commands::vector::place_tab,
             commands::vector::remove_tab,
+            commands::vector::clear_tabs,
             commands::vector::resolve_tab_markers,
             commands::vector::trim_shape,
             commands::vector::preview_trim_segment,

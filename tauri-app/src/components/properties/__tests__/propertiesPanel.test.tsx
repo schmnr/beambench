@@ -136,6 +136,42 @@ describe('PropertiesPanel', () => {
     expect(screen.getByText('Click corner to apply radius fillet')).toBeDefined();
   });
 
+  it('shows tab width and clears placed tabs from the contextual tool section', async () => {
+    const updateCutEntry = vi.fn().mockResolvedValue(true);
+    const clearTabs = vi.fn().mockResolvedValue(undefined);
+    const project = makeProject({
+      tabs: [
+        { subpath_index: 0, position: 0.2 },
+        { subpath_index: 0, position: 0.7 },
+      ],
+    });
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: ['obj1'],
+      updateCutEntry,
+      clearTabs,
+    });
+    useUiStore.setState({ activeTool: 'tabs' });
+
+    render(<PropertiesPanel />);
+
+    const section = screen.getByTestId('tab-properties-section');
+    expect(section.textContent).toContain('Tabs: 2');
+    const widthInput = section.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(widthInput.value).toBe('3');
+    fireEvent.change(widthInput, { target: { value: '4.5' } });
+    expect(updateCutEntry).toHaveBeenCalledWith(
+      'l1',
+      project.layers[0].entries[0].id,
+      expect.objectContaining({
+        vector_settings: expect.objectContaining({ tab_width_mm: 4.5 }),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(clearTabs).toHaveBeenCalledWith('obj1'));
+  });
+
   it('enables Close Path only for an editable open vector and dispatches the one-shot action', () => {
     const project = makeProject({
       data: { type: 'vector_path' as const, path_data: 'M0 0L10 10', closed: false },

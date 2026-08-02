@@ -151,6 +151,12 @@ describe('vectorService methods', () => {
     expect(invoke).toHaveBeenCalledWith('add_tabs', { objectId: 'obj-1', count: 4, widthMm: 2.5 });
   });
 
+  it('clearTabs invokes the non-destructive tab reset command', async () => {
+    vi.mocked(invoke).mockResolvedValue({});
+    await vectorService.clearTabs('obj-1');
+    expect(invoke).toHaveBeenCalledWith('clear_tabs', { objectId: 'obj-1' });
+  });
+
   it('cropImage invokes the raster crop command', async () => {
     vi.mocked(invoke).mockResolvedValue({});
     await vectorService.cropImage('image-1', 'mask-1');
