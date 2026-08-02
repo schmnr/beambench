@@ -24,6 +24,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
   beginPath: vi.fn(),
   moveTo: vi.fn(),
   lineTo: vi.fn(),
+  arc: vi.fn(),
   stroke: vi.fn(),
   fill: vi.fn(),
   save: vi.fn(),
@@ -193,7 +194,7 @@ describe('PreviewWindow', () => {
     expect(screen.getByText('Playback: 4:05:06 / 4:05:06')).toBeDefined();
   });
 
-  it('does not re-jump to the end when preview options change duration', () => {
+  it('keeps the job duration and scrubber position when travel visibility changes', () => {
     const onClose = vi.fn();
     const layers = [makeLayer({ id: 'layer-1', operation: 'cut', color_tag: '#ff0000' })];
     const workspace = makeWorkspace();
@@ -241,7 +242,7 @@ describe('PreviewWindow', () => {
 
     fireEvent.click(screen.getByLabelText('Show Travel'));
 
-    expect(screen.getByText('Playback: 0:00 / 0:10')).toBeDefined();
+    expect(screen.getByText('Playback: 0:00 / 1:10')).toBeDefined();
   });
 
   it('suppresses the local generating overlay when the global offset-fill dialog is visible', () => {

@@ -134,6 +134,7 @@ export function PreviewWindow({
     startY: number;
     origOffset: { x: number; y: number };
   } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showTravel, setShowTravel] = useState(true);
   const [showBurnProgress, setShowBurnProgress] = useState(true);
@@ -160,19 +161,12 @@ export function PreviewWindow({
     );
   }, [layers]);
 
-  // Build timeline from data.
-  // When showTravel is off, travel segments get zero duration so playback
-  // doesn't stall on invisible time and stepping skips them naturally.
+  // Build the real job timeline once. Show Travel is a visual overlay toggle;
+  // hiding it must not change the job duration or remap the scrubber position.
   const timeline = useMemo<AnimationTimeline | null>(() => {
     if (!data) return null;
-    return buildTimeline(
-      data,
-      layerColors,
-      DEFAULT_RAPID_SPEED_MM_MIN,
-      !showTravel,
-      layerOperations,
-    );
-  }, [data, layerColors, showTravel, layerOperations]);
+    return buildTimeline(data, layerColors, DEFAULT_RAPID_SPEED_MM_MIN, false, layerOperations);
+  }, [data, layerColors, layerOperations]);
 
   const playbackDuration = timeline?.playbackDuration ?? 0;
 
@@ -309,12 +303,13 @@ export function PreviewWindow({
   useEffect(() => {
     bitmapCacheRef.current?.clear();
     pausePlayback();
+    dragRef.current = null;
+    setIsPanning(false);
     setVpOverride(null);
   }, [data?.plan_id, pausePlayback]);
 
-  // A new preview opens at the completed state.
-  // Duration can change when options like "Show Travel" change, so the plan-id
-  // ref is load-bearing: option toggles must not re-jump playback to the end.
+  // A new preview opens at the completed state. The plan-id ref is load-bearing:
+  // visual option toggles must not re-jump playback to the end.
   useEffect(() => {
     const planId = data?.plan_id ?? null;
     if (!planId) {
@@ -551,7 +546,7 @@ export function PreviewWindow({
           <canvas
             ref={canvasRef}
             className="w-full h-full"
-            style={{ display: 'block', cursor: dragRef.current ? 'grabbing' : 'grab' }}
+            style={{ display: 'block', cursor: isPanning ? 'grabbing' : 'grab' }}
             onWheel={(e) => {
               e.preventDefault();
               // Compute the current viewport so we zoom around the mouse
@@ -597,6 +592,7 @@ export function PreviewWindow({
                 startY: e.clientY,
                 origOffset: { ...cur.offset },
               };
+              setIsPanning(true);
             }}
             onMouseMove={(e) => {
               if (!dragRef.current) return;
@@ -621,9 +617,11 @@ export function PreviewWindow({
             }}
             onMouseUp={() => {
               dragRef.current = null;
+              setIsPanning(false);
             }}
             onMouseLeave={() => {
               dragRef.current = null;
+              setIsPanning(false);
             }}
             onDoubleClick={() => setVpOverride(null)}
           />
