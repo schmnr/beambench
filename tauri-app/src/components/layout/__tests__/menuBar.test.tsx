@@ -370,54 +370,71 @@ describe('MenuBar', () => {
     expect(screen.getByRole('button', { name: 'Refresh Image' }).hasAttribute('disabled')).toBe(false);
   });
 
-  it('Edit menu follows the product order', () => {
-    setProjectWithSelection(['img1']);
+  it('Edit menu groups selection and cleanup commands behind submenus', () => {
+    setProjectWithSelection(['path1']);
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Edit'));
 
     expect(openedMenuLabels()).toEqual([
       'Undo',
       'Redo',
-      'Select All',
-      'Invert Selection',
       'Cut',
       'Copy',
-      'Duplicate',
       'Paste',
       'Paste in Place',
+      'Duplicate',
       'Delete',
+      'Select',
+      'Select All',
+      'Invert Selection',
+      'Select Open Shapes',
+      'Select Open Shapes Set to Fill',
+      'Select All Shapes in Current Layer',
+      'Select Contained Shapes',
+      'Select Shapes Smaller Than Selected',
       'Convert to Path',
       'Convert to Bitmap',
+      'Cleanup',
       'Close Path',
       'Close Selected Paths With Tolerance',
       'Auto-Join Selected Shapes',
       'Close & Join',
       'Optimize Selected Shapes',
       'Delete Duplicates',
-      'Select Open Shapes',
-      'Select Open Shapes Set to Fill',
-      'Select All Shapes in Current Layer',
-      'Select Contained Shapes',
-      'Select Shapes Smaller Than Selected',
       'Image Options',
-      'Refresh Image',
-      'Replace Image',
-      'Replace Image to Fit',
       'Settings',
     ]);
   });
 
-  it('Edit menu disables Paste while the object clipboard is empty', () => {
+  it('Edit menu keeps Paste available for system clipboard data', () => {
     setProjectWithSelection();
     useUiStore.setState({ hasClipboard: false });
 
     const { rerender } = render(<MenuBar />);
     fireEvent.click(screen.getByText('Edit'));
-    expect(openedMenuButton('Paste').disabled).toBe(true);
+    expect(openedMenuButton('Paste').disabled).toBe(false);
+    expect(openedMenuButton('Paste in Place').disabled).toBe(true);
 
     useUiStore.setState({ hasClipboard: true });
     rerender(<MenuBar />);
     expect(openedMenuButton('Paste').disabled).toBe(false);
+    expect(openedMenuButton('Paste in Place').disabled).toBe(false);
+  });
+
+  it('keeps non-destructive Edit commands available in Run mode', () => {
+    setProjectWithSelection(['path1']);
+    useUiStore.setState({ workspaceMode: 'run', hasClipboard: true });
+
+    render(<MenuBar />);
+    fireEvent.click(screen.getByText('Edit'));
+
+    expect(openedMenuButton('Copy').disabled).toBe(false);
+    expect(openedMenuButton('Select').disabled).toBe(false);
+    expect(openedMenuButton('Cut').disabled).toBe(true);
+    expect(openedMenuButton('Paste').disabled).toBe(true);
+    expect(openedMenuButton('Delete').disabled).toBe(true);
+    expect(openedMenuButton('Convert to Path').disabled).toBe(true);
+    expect(openedMenuButton('Cleanup').disabled).toBe(true);
   });
 
   it('Arrange menu follows the product order', () => {
@@ -600,6 +617,7 @@ describe('MenuBar', () => {
     setProjectWithSelection(['img1']);
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByText('Cleanup'));
     expect(screen.getByRole('button', { name: /Close Path/ }).hasAttribute('disabled')).toBe(true);
   });
 
@@ -698,6 +716,7 @@ describe('MenuBar', () => {
     setProjectWithSelection(['clone1', 'path2']);
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByText('Cleanup'));
     expect(screen.getByRole('button', { name: 'Close & Join' }).hasAttribute('disabled')).toBe(false);
   });
 

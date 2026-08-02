@@ -388,6 +388,39 @@ describe('projectStore — new actions', () => {
     expect(useProjectStore.getState().selectedObjectIds).toEqual(['group1', 'obj2']);
   });
 
+  it('selectAllObjects includes visible tool-layer objects', () => {
+    const project = makeProject({
+      layers: [
+        makeLayer({ id: 'layer1', is_tool_layer: false }),
+        makeLayer({ id: 'tool', is_tool_layer: true }),
+      ],
+      objects: [
+        makeProjectObject({ id: 'art', layer_id: 'layer1', z_index: 0 }),
+        makeProjectObject({ id: 'tool-object', layer_id: 'tool', z_index: 1 }),
+      ],
+    });
+    useProjectStore.setState({ project, selectedObjectIds: [] });
+
+    useProjectStore.getState().selectAllObjects();
+
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['tool-object', 'art']);
+  });
+
+  it('invertObjectSelection replaces the selection and ignores hidden objects', () => {
+    const project = makeProject({
+      objects: [
+        makeProjectObject({ id: 'visible-a', layer_id: 'layer1', z_index: 0 }),
+        makeProjectObject({ id: 'visible-b', layer_id: 'layer1', z_index: 1 }),
+        makeProjectObject({ id: 'hidden', layer_id: 'layer1', z_index: 2, visible: false }),
+      ],
+    });
+    useProjectStore.setState({ project, selectedObjectIds: ['visible-a'] });
+
+    useProjectStore.getState().invertObjectSelection();
+
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['visible-b']);
+  });
+
   it('nudgeObjects expands a selected group to its children', async () => {
     const project = makeProject();
     const group = makeProjectObject({

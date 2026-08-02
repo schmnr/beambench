@@ -41,6 +41,7 @@ export const MENU_LABEL_KEYS = {
   'Select All Shapes in Current Layer': 'menus.edit.select_all_shapes_in_current_layer',
   'Select Contained Shapes': 'menus.edit.select_contained_shapes',
   'Select Shapes Smaller Than Selected': 'menus.edit.select_shapes_smaller_than_selected',
+  Cleanup: 'panels.machine.laser.cleanup',
   'Image Options': 'menus.edit.image_options',
   'Refresh Image': 'menus.edit.refresh_image',
   'Replace Image': 'menus.edit.replace_image',

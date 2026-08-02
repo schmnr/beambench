@@ -137,6 +137,28 @@ const NATIVE_FOCUS_GUARDED_COMMANDS = new Set<string>([
   APP_COMMANDS.WINDOW_PREVIEW,
 ]);
 
+const DESIGN_ONLY_EDIT_COMMANDS = new Set<string>([
+  APP_COMMANDS.EDIT_UNDO,
+  APP_COMMANDS.EDIT_REDO,
+  APP_COMMANDS.EDIT_CUT,
+  APP_COMMANDS.EDIT_PASTE,
+  APP_COMMANDS.EDIT_PASTE_IN_PLACE,
+  APP_COMMANDS.EDIT_DUPLICATE,
+  APP_COMMANDS.EDIT_DELETE,
+  APP_COMMANDS.EDIT_CONVERT_TO_PATH,
+  APP_COMMANDS.EDIT_CONVERT_TO_BITMAP,
+  APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH,
+  APP_COMMANDS.EDIT_CLOSE_PATH,
+  APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE,
+  APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES,
+  APP_COMMANDS.EDIT_CLOSE_AND_JOIN,
+  APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES,
+  APP_COMMANDS.EDIT_DELETE_DUPLICATES,
+  APP_COMMANDS.EDIT_IMAGE_REFRESH,
+  APP_COMMANDS.EDIT_IMAGE_REPLACE,
+  APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT,
+]);
+
 function activeElementAcceptsTextInput(): boolean {
   if (typeof document === 'undefined') return false;
   const active = document.activeElement as HTMLElement | null;
@@ -164,7 +186,7 @@ function selectedRasterImageId(): string | null {
   const selected = selectedIds
     .map((id) => objects.find((object) => object.id === id) ?? null)
     .filter((object): object is (typeof objects)[number] => object !== null);
-  return selected.length === 1 && resolveEffectiveData(selected[0], objects)?.type === 'raster_image'
+  return selected.length === 1 && selected[0].data.type === 'raster_image'
     ? selected[0].id
     : null;
 }
@@ -309,6 +331,8 @@ export async function executeAppCommand(
   const effectiveType = (object: (typeof selectedObjects)[number]) => resolveEffectiveData(object, allObjects)?.type;
   const isVectorType = (type: string | undefined) =>
     type === 'vector_path' || type === 'shape' || type === 'polygon' || type === 'star';
+  const isConvertibleVectorType = (type: string | undefined) =>
+    isVectorType(type) || type === 'text';
   const selectedTextObject = selectedObjects.find((object) => effectiveType(object) === 'text') ?? null;
   const selectedRasterObject = selectedObjects.find((object) => effectiveType(object) === 'raster_image') ?? null;
   const selectedPathObject = selectedObjects.find((object) => isVectorType(effectiveType(object))) ?? null;
@@ -317,6 +341,7 @@ export async function executeAppCommand(
     && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
 
   if (shouldIgnoreNativeFocusGuardedCommand(commandId, context)) return;
+  if (ui.workspaceMode !== 'design' && DESIGN_ONLY_EDIT_COMMANDS.has(commandId)) return;
   if (setWindowArtworkDisplay(commandId as AppCommandId)) return;
   if (toggleWindowPanel(commandId as AppCommandId)) return;
   if (toggleWindowToolbar(commandId as AppCommandId)) return;
@@ -435,10 +460,7 @@ export async function executeAppCommand(
       ps.selectAllObjects();
       return;
     case APP_COMMANDS.EDIT_INVERT_SELECTION: {
-      const project = ps.project;
-      if (!project) return;
-      const selected = new Set(selectedIds);
-      ps.selectObjects(project.objects.map((object) => object.id).filter((id) => !selected.has(id)));
+      if (ui.activeTool !== 'node') ps.invertObjectSelection();
       return;
     }
     case APP_COMMANDS.EDIT_CUT:
@@ -485,10 +507,14 @@ export async function executeAppCommand(
       dialogActions.openSettings?.();
       return;
     case APP_COMMANDS.EDIT_CONVERT_TO_PATH:
-      if (selectedIds.length === 1) await runCommand(() => ps.convertToPath(selectedIds[0]));
+      if (selectedObjects.length === 1 && unlockedSelection && isConvertibleVectorType(effectiveType(selectedObjects[0]))) {
+        await runCommand(() => ps.convertToPath(selectedIds[0]));
+      }
       return;
     case APP_COMMANDS.EDIT_CONVERT_TO_BITMAP:
-      if (selectedIds.length === 1) await runCommand(() => ps.convertToBitmap(selectedIds[0], 300));
+      if (selectedObjects.length === 1 && unlockedSelection && isConvertibleVectorType(effectiveType(selectedObjects[0]))) {
+        await runCommand(() => ps.convertToBitmap(selectedIds[0], 300));
+      }
       return;
     case APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH:
       if (ui.activeTool === 'node') {
@@ -496,12 +522,12 @@ export async function executeAppCommand(
       }
       return;
     case APP_COMMANDS.EDIT_CLOSE_PATH:
-      if (selectedIds.length > 0) {
+      if (selectedIds.length > 0 && unlockedSelection) {
         for (const objectId of selectedIds) await runCommand(() => ps.closePath(objectId));
       }
       return;
     case APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE:
-      if (selectedIds.length > 0) dialogActions.openCloseSelectedPathsWithTolerance?.(selectedIds);
+      if (selectedIds.length > 0 && unlockedSelection) dialogActions.openCloseSelectedPathsWithTolerance?.(selectedIds);
       return;
     case APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES:
       if (unlockedSelection) await runCommand(() => ps.autoJoinShapes(selectedIds, 0.05));
@@ -534,17 +560,17 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.EDIT_IMAGE_REFRESH: {
       const objectId = selectedRasterImageId();
-      if (objectId) await runCommand(() => ps.refreshImage(objectId));
+      if (objectId && unlockedSelection) await runCommand(() => ps.refreshImage(objectId));
       return;
     }
     case APP_COMMANDS.EDIT_IMAGE_REPLACE: {
       const objectId = selectedRasterImageId();
-      if (objectId) await runCommand(() => ps.replaceImage(objectId));
+      if (objectId && unlockedSelection) await runCommand(() => ps.replaceImage(objectId));
       return;
     }
     case APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT: {
       const objectId = selectedRasterImageId();
-      if (objectId) await runCommand(() => ps.replaceImageToFit(objectId));
+      if (objectId && unlockedSelection) await runCommand(() => ps.replaceImageToFit(objectId));
       return;
     }
     case APP_COMMANDS.ARRANGE_GROUP:
@@ -967,6 +993,7 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const recentFiles = useAppStore.getState().settings?.recent_files ?? [];
   const customHotkeys = useAppStore.getState().settings?.custom_hotkeys ?? {};
   const projectLoaded = ps.project !== null;
+  const designMode = ui.workspaceMode === 'design';
   const selectedIds = ps.selectedObjectIds;
   const selectedObjects = ps.project?.objects.filter((object) => selectedIds.includes(object.id)) ?? [];
   const hasSelection = selectedIds.length > 0;
@@ -975,8 +1002,10 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const hasUnlockedSelection = selectedObjects.some((object) => !object.locked);
   const singleSelection = selectedObjects.length === 1 ? selectedObjects[0] : null;
   const allObjects = ps.project?.objects ?? [];
-  const rasterSelected = singleSelection !== null
-    && resolveEffectiveData(singleSelection, allObjects)?.type === 'raster_image';
+  // Image editing/replacement acts on an owned raster asset. A virtual clone
+  // resolves visually to a raster but does not own an asset that these
+  // commands can replace, refresh, trace, or adjust.
+  const rasterSelected = singleSelection?.data.type === 'raster_image';
   const refreshableRasterSelected = imageObjectHasSourcePath(singleSelection, ps.project?.assets ?? []);
   const vectorSelection = selectedObjects.length > 0
     && selectedObjects.every((object) => {
@@ -990,7 +1019,7 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const selectedRasterObject = selectedObjects.find((object) => effectiveType(object) === 'raster_image') ?? null;
   const selectedPathObject = selectedObjects.find((object) => isVectorType(effectiveType(object))) ?? null;
   const selectedMaskObjects = selectedObjects.filter((object) => isVectorType(effectiveType(object)));
-  const singleVectorSelection = singleSelection !== null && vectorSelection;
+  const singleVectorSelection = singleSelection !== null && unlockedSelection && vectorSelection;
   const singleClosedVectorCompatibleSelection =
     singleSelection !== null && isClosedVectorCompatible(singleSelection, allObjects);
   const booleanCompatibleSelection = selectedObjects.length >= 2
@@ -1058,39 +1087,39 @@ export function getAppCommandState(): NativeMenuStateUpdate {
       { id: APP_COMMANDS.FILE_PRINT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_PRINT) },
       { id: APP_COMMANDS.FILE_IMPORT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_IMPORT) },
       { id: APP_COMMANDS.FILE_NOTES, enabled: projectLoaded, title: i18n.t('menus.file.project_notes') },
-      { id: APP_COMMANDS.EDIT_UNDO, enabled: undo.canUndo, accelerator: accel(APP_COMMANDS.EDIT_UNDO) },
-      { id: APP_COMMANDS.EDIT_REDO, enabled: undo.canRedo, accelerator: accel(APP_COMMANDS.EDIT_REDO) },
+      { id: APP_COMMANDS.EDIT_UNDO, enabled: designMode && undo.canUndo, accelerator: accel(APP_COMMANDS.EDIT_UNDO) },
+      { id: APP_COMMANDS.EDIT_REDO, enabled: designMode && undo.canRedo, accelerator: accel(APP_COMMANDS.EDIT_REDO) },
       { id: APP_COMMANDS.EDIT_SELECT_ALL, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_SELECT_ALL) },
-      { id: APP_COMMANDS.EDIT_INVERT_SELECTION, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_INVERT_SELECTION) },
-      { id: APP_COMMANDS.EDIT_CUT, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_CUT) },
+      { id: APP_COMMANDS.EDIT_INVERT_SELECTION, enabled: projectLoaded && ui.activeTool !== 'node', accelerator: accel(APP_COMMANDS.EDIT_INVERT_SELECTION) },
+      { id: APP_COMMANDS.EDIT_CUT, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_CUT) },
       { id: APP_COMMANDS.EDIT_COPY, enabled: hasSelection, accelerator: accel(APP_COMMANDS.EDIT_COPY) },
       // Paste must stay enabled whenever a project is open: the system
       // clipboard may hold an image/SVG the app can't detect synchronously,
       // and on macOS a disabled native menu item swallows Cmd+V entirely.
       // The handler falls through to the system clipboard when the in-app
       // clipboard is empty. Paste In Place is in-app-clipboard only.
-      { id: APP_COMMANDS.EDIT_PASTE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_PASTE) },
-      { id: APP_COMMANDS.EDIT_PASTE_IN_PLACE, enabled: projectLoaded && ui.hasClipboard, accelerator: accel(APP_COMMANDS.EDIT_PASTE_IN_PLACE) },
-      { id: APP_COMMANDS.EDIT_DUPLICATE, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_DUPLICATE) },
-      { id: APP_COMMANDS.EDIT_DELETE, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_DELETE) },
+      { id: APP_COMMANDS.EDIT_PASTE, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_PASTE) },
+      { id: APP_COMMANDS.EDIT_PASTE_IN_PLACE, enabled: designMode && projectLoaded && ui.activeTool !== 'node' && ui.hasClipboard, accelerator: accel(APP_COMMANDS.EDIT_PASTE_IN_PLACE) },
+      { id: APP_COMMANDS.EDIT_DUPLICATE, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_DUPLICATE) },
+      { id: APP_COMMANDS.EDIT_DELETE, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_DELETE) },
       { id: APP_COMMANDS.EDIT_SETTINGS, enabled: true },
-      { id: APP_COMMANDS.EDIT_CONVERT_TO_PATH, enabled: singleVectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_PATH) },
-      { id: APP_COMMANDS.EDIT_CONVERT_TO_BITMAP, enabled: singleSelection !== null, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP) },
-      { id: APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH, enabled: ui.activeTool === 'node' && singleVectorSelection },
-      { id: APP_COMMANDS.EDIT_CLOSE_PATH, enabled: vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CLOSE_PATH) },
-      { id: APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE, enabled: vectorSelection },
-      { id: APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES, enabled: vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES) },
-      { id: APP_COMMANDS.EDIT_CLOSE_AND_JOIN, enabled: selectedObjects.length >= 2 && vectorSelection },
-      { id: APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES, enabled: vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES) },
-      { id: APP_COMMANDS.EDIT_DELETE_DUPLICATES, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_DELETE_DUPLICATES) },
+      { id: APP_COMMANDS.EDIT_CONVERT_TO_PATH, enabled: designMode && singleVectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_PATH) },
+      { id: APP_COMMANDS.EDIT_CONVERT_TO_BITMAP, enabled: designMode && singleVectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP) },
+      { id: APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH, enabled: designMode && ui.activeTool === 'node' && singleVectorSelection },
+      { id: APP_COMMANDS.EDIT_CLOSE_PATH, enabled: designMode && unlockedSelection && vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CLOSE_PATH) },
+      { id: APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE, enabled: designMode && unlockedSelection && vectorSelection },
+      { id: APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES, enabled: designMode && unlockedSelection && vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES) },
+      { id: APP_COMMANDS.EDIT_CLOSE_AND_JOIN, enabled: designMode && unlockedSelection && selectedObjects.length >= 2 && vectorSelection },
+      { id: APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES, enabled: designMode && unlockedSelection && vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES) },
+      { id: APP_COMMANDS.EDIT_DELETE_DUPLICATES, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_DELETE_DUPLICATES) },
       { id: APP_COMMANDS.EDIT_SELECT_OPEN_SHAPES, enabled: projectLoaded },
       { id: APP_COMMANDS.EDIT_SELECT_OPEN_SHAPES_SET_TO_FILL, enabled: projectLoaded },
       { id: APP_COMMANDS.EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER, enabled: projectLoaded && ps.selectedLayerId !== null },
       { id: APP_COMMANDS.EDIT_SELECT_CONTAINED_SHAPES, enabled: singleClosedVectorCompatibleSelection },
       { id: APP_COMMANDS.EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED, enabled: hasSelection },
-      { id: APP_COMMANDS.EDIT_IMAGE_REFRESH, enabled: refreshableRasterSelected },
-      { id: APP_COMMANDS.EDIT_IMAGE_REPLACE, enabled: rasterSelected },
-      { id: APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT, enabled: rasterSelected },
+      { id: APP_COMMANDS.EDIT_IMAGE_REFRESH, enabled: designMode && unlockedSelection && refreshableRasterSelected },
+      { id: APP_COMMANDS.EDIT_IMAGE_REPLACE, enabled: designMode && unlockedSelection && rasterSelected },
+      { id: APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT, enabled: designMode && unlockedSelection && rasterSelected },
       { id: APP_COMMANDS.ARRANGE_GROUP, enabled: selectedObjects.length >= 2 && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_GROUP) },
       {
         id: APP_COMMANDS.ARRANGE_UNGROUP,

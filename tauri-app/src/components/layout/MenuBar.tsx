@@ -59,27 +59,12 @@ export function MenuBar() {
   const project = useProjectStore((s) => s.project);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
-  const removeObjects = useProjectStore((s) => s.removeObjects);
-  const selectAllObjects = useProjectStore((s) => s.selectAllObjects);
-  const duplicateObjects = useProjectStore((s) => s.duplicateObjects);
   const groupObjects = useProjectStore((s) => s.groupObjects);
   const ungroupObjects = useProjectStore((s) => s.ungroupObjects);
   const lockObjects = useProjectStore((s) => s.lockObjects);
   const unlockObjects = useProjectStore((s) => s.unlockObjects);
   const pushDrawOrder = useProjectStore((s) => s.pushDrawOrder);
-  const autoJoinShapes = useProjectStore((s) => s.autoJoinShapes);
-  const optimizeShapes = useProjectStore((s) => s.optimizeShapes);
-  const selectOpenShapes = useProjectStore((s) => s.selectOpenShapes);
-  const selectOpenShapesSetToFill = useProjectStore((s) => s.selectOpenShapesSetToFill);
-  const selectAllShapesInCurrentLayer = useProjectStore((s) => s.selectAllShapesInCurrentLayer);
-  const selectContainedShapes = useProjectStore((s) => s.selectContainedShapes);
-  const selectShapesSmallerThanSelected = useProjectStore((s) => s.selectShapesSmallerThanSelected);
-  const convertToPath = useProjectStore((s) => s.convertToPath);
   const breakApart = useProjectStore((s) => s.breakApart);
-  const closePath = useProjectStore((s) => s.closePath);
-  const refreshImage = useProjectStore((s) => s.refreshImage);
-  const replaceImage = useProjectStore((s) => s.replaceImage);
-  const replaceImageToFit = useProjectStore((s) => s.replaceImageToFit);
   const moveObjectsTogether = useProjectStore((s) => s.moveObjectsTogether);
   const alignObjects = useProjectStore((s) => s.alignObjects);
   const distributeObjects = useProjectStore((s) => s.distributeObjects);
@@ -90,6 +75,7 @@ export function MenuBar() {
   const panelLayout = useUiStore((s) => s.panelLayout);
   const toolbarVisibility = panelLayout.toolbarVisibility;
   const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const activeTool = useUiStore((s) => s.activeTool);
   const hiddenPanelIds = workspaceMode === 'run'
     ? panelLayout.runHiddenPanelIds
     : panelLayout.hiddenPanelIds;
@@ -131,8 +117,6 @@ export function MenuBar() {
 
   const canUndo = useUndoStore((s) => s.canUndo);
   const canRedo = useUndoStore((s) => s.canRedo);
-  const undo = useUndoStore((s) => s.undo);
-  const redo = useUndoStore((s) => s.redo);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -296,35 +280,6 @@ export function MenuBar() {
     setShowDeviceSettingsDialog(true);
   };
 
-  const handleUndo = async () => {
-    setOpenMenu(null);
-    await undo();
-  };
-
-  const handleRedo = async () => {
-    setOpenMenu(null);
-    await redo();
-  };
-
-  const handleDeleteSelected = () => {
-    setOpenMenu(null);
-    if (selectedObjectIds.length > 0) {
-      void removeObjects([...selectedObjectIds]);
-    }
-  };
-
-  const handleDuplicateSelected = () => {
-    setOpenMenu(null);
-    if (selectedObjectIds.length > 0) {
-      void duplicateObjects(selectedObjectIds);
-    }
-  };
-
-  const handleSelectAll = () => {
-    setOpenMenu(null);
-    selectAllObjects();
-  };
-
   const handleGroup = async () => {
     setOpenMenu(null);
     if (selectedObjectIds.length >= 2) {
@@ -466,7 +421,8 @@ export function MenuBar() {
   // Replace Image swaps the owned raster asset on a concrete
   // RasterImage only; clones don't own the asset so the backend
   // rejects them.
-  const canReplaceImage = singleSelectedObject?.data.type === 'raster_image';
+  const canReplaceImage = singleSelectedObject?.data.type === 'raster_image'
+    && !singleSelectedObject.locked;
   const canRefreshImage = selCtx.canRefreshImage;
   const canSelectContainedShapes = selCtx.canSelectContainedShapes;
   const canConvertToBitmap = canConvertToBitmapCtx;
@@ -581,152 +537,94 @@ export function MenuBar() {
           {ml("Edit")}
         </button>
         {openMenu === 'edit' && (
-          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[180px] z-50 max-h-[70vh] overflow-y-auto">
-            <MenuItem label={ml("Undo")} shortcut="Ctrl+Z" disabled={!canUndo} onClick={handleUndo} />
-            <MenuItem label={ml("Redo")} shortcut="Ctrl+Shift+Z" disabled={!canRedo} onClick={handleRedo} />
-            <div className="border-t border-bb-border my-1" />
-            <MenuItem label={ml("Select All")} shortcut="Ctrl+A" disabled={!project} onClick={handleSelectAll} />
-            <MenuItem
-              label={ml("Invert Selection")}
-              shortcut="Ctrl+Shift+I"
-              disabled={!project}
-              onClick={() => {
-                setOpenMenu(null);
-                if (project) {
-                  const allIds = project.objects.map((o) => o.id);
-                  const sel = new Set(selectedObjectIds);
-                  useProjectStore.getState().selectObjects(allIds.filter((id) => !sel.has(id)));
-                }
-              }}
-            />
+          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[220px] z-50">
+            <MenuItem label={ml("Undo")} shortcut="Ctrl+Z" disabled={workspaceMode !== 'design' || !canUndo} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_UNDO); }} />
+            <MenuItem label={ml("Redo")} shortcut="Ctrl+Shift+Z" disabled={workspaceMode !== 'design' || !canRedo} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_REDO); }} />
             <div className="border-t border-bb-border my-1" />
             <MenuItem
               label={ml("Cut")}
               shortcut="Ctrl+X"
-              disabled={!canMutate}
-              onClick={() => { setOpenMenu(null); void executeAppCommand(APP_COMMANDS.EDIT_CUT); }}
+              disabled={workspaceMode !== 'design' || !canMutate}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CUT); }}
             />
             <MenuItem
               label={ml("Copy")}
               shortcut="Ctrl+C"
               disabled={!hasSelection}
-              onClick={() => { setOpenMenu(null); void executeAppCommand(APP_COMMANDS.EDIT_COPY); }}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_COPY); }}
             />
-            <MenuItem label={ml("Duplicate")} shortcut="Ctrl+D" disabled={!canMutate} onClick={handleDuplicateSelected} />
             <MenuItem
               label={ml("Paste")}
               shortcut="Ctrl+V"
-              disabled={!project || !hasClipboard}
-              onClick={() => { setOpenMenu(null); void executeAppCommand(APP_COMMANDS.EDIT_PASTE); }}
+              disabled={workspaceMode !== 'design' || !project}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_PASTE); }}
             />
             <MenuItem
               label={ml("Paste in Place")}
               shortcut="Alt+V"
-              disabled={!project || !hasClipboard}
-              onClick={() => { setOpenMenu(null); void executeAppCommand(APP_COMMANDS.EDIT_PASTE_IN_PLACE); }}
+              disabled={workspaceMode !== 'design' || !project || activeTool === 'node' || !hasClipboard}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_PASTE_IN_PLACE); }}
             />
+            <MenuItem label={ml("Duplicate")} shortcut="Ctrl+D" disabled={workspaceMode !== 'design' || !canMutate} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_DUPLICATE); }} />
             <MenuItem
               label={ml("Delete")}
               shortcut="Del"
-              disabled={!canMutate}
-              onClick={handleDeleteSelected}
+              disabled={workspaceMode !== 'design' || !canMutate}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_DELETE); }}
             />
+            <div className="border-t border-bb-border my-1" />
+            <MenuSubmenu label={ml("Select")} disabled={!project}>
+              <MenuItem label={ml("Select All")} shortcut="Ctrl+A" onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_ALL); }} />
+              <MenuItem
+                label={ml("Invert Selection")}
+                shortcut="Ctrl+Shift+I"
+                disabled={activeTool === 'node'}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_INVERT_SELECTION); }}
+              />
+              <div className="border-t border-bb-border my-1" />
+              <MenuItem label={ml("Select Open Shapes")} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_OPEN_SHAPES); }} />
+              <MenuItem label={ml("Select Open Shapes Set to Fill")} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_OPEN_SHAPES_SET_TO_FILL); }} />
+              <MenuItem
+                label={ml("Select All Shapes in Current Layer")}
+                disabled={!selectedLayerId}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER); }}
+              />
+              <MenuItem
+                label={ml("Select Contained Shapes")}
+                disabled={!canSelectContainedShapes}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_CONTAINED_SHAPES); }}
+              />
+              <MenuItem
+                label={ml("Select Shapes Smaller Than Selected")}
+                disabled={!hasSelection}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED); }}
+              />
+            </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
             <MenuItem
               label={ml("Convert to Path")}
               shortcut="Ctrl+Shift+C"
-              disabled={!canConvertToPath}
-              onClick={() => {
-                setOpenMenu(null);
-                void convertToPath(selectedObjectIds[0]);
-              }}
+              disabled={workspaceMode !== 'design' || !canConvertToPath}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CONVERT_TO_PATH); }}
             />
             <MenuItem
               label={ml("Convert to Bitmap")}
               shortcut="Ctrl+Shift+B"
-              disabled={!canConvertToBitmap}
+              disabled={workspaceMode !== 'design' || !canConvertToBitmap}
               onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP); }}
             />
-            <div className="border-t border-bb-border my-1" />
-            <MenuItem
-              label={ml("Close Path")}
-              disabled={!canClosePath}
-              onClick={() => {
-                setOpenMenu(null);
-                void Promise.all(selectedObjectIds.map((id) => closePath(id)));
-              }}
-            />
-            <MenuItem
-              label={ml("Close Selected Paths With Tolerance")}
-              disabled={!canClosePath}
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE);
-              }}
-            />
-            <MenuItem
-              label={ml("Auto-Join Selected Shapes")}
-              shortcut="Alt+J"
-              disabled={!canClosePath}
-              onClick={() => {
-                setOpenMenu(null);
-                void autoJoinShapes(selectedObjectIds, 0.05);
-              }}
-            />
-            <MenuItem
-              label={ml("Close & Join")}
-              disabled={!canJoin}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CLOSE_AND_JOIN); }}
-            />
-            <MenuItem
-              label={ml("Optimize Selected Shapes")}
-              shortcut="Alt+Shift+O"
-              disabled={!canClosePath}
-              onClick={() => {
-                setOpenMenu(null);
-                void optimizeShapes(selectedObjectIds);
-              }}
-            />
-            <MenuItem
-              label={ml("Delete Duplicates")}
-              shortcut="Alt+D"
-              disabled={!project}
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.EDIT_DELETE_DUPLICATES, undefined, { source: 'menu' });
-              }}
-            />
-            <div className="border-t border-bb-border my-1" />
-            <MenuItem
-              label={ml("Select Open Shapes")}
-              disabled={!project}
-              onClick={() => { setOpenMenu(null); void selectOpenShapes(); }}
-            />
-            <MenuItem
-              label={ml("Select Open Shapes Set to Fill")}
-              disabled={!project}
-              onClick={() => { setOpenMenu(null); void selectOpenShapesSetToFill(); }}
-            />
-            <MenuItem
-              label={ml("Select All Shapes in Current Layer")}
-              disabled={!selectedLayerId}
-              onClick={() => { setOpenMenu(null); void selectAllShapesInCurrentLayer(); }}
-            />
-            <MenuItem
-              label={ml("Select Contained Shapes")}
-              disabled={!canSelectContainedShapes}
-              onClick={() => { setOpenMenu(null); void selectContainedShapes(); }}
-            />
-            <MenuItem
-              label={ml("Select Shapes Smaller Than Selected")}
-              disabled={!hasSelection}
-              onClick={() => { setOpenMenu(null); void selectShapesSmallerThanSelected(); }}
-            />
-            <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Image Options")} disabled={!canReplaceImage}>
-              <MenuItem label={ml("Refresh Image")} disabled={!canRefreshImage} onClick={() => { setOpenMenu(null); if (singleSelectedObject) void refreshImage(singleSelectedObject.id); }} />
-              <MenuItem label={ml("Replace Image")} onClick={() => { setOpenMenu(null); if (singleSelectedObject) void replaceImage(singleSelectedObject.id); }} />
-              <MenuItem label={ml("Replace Image to Fit")} onClick={() => { setOpenMenu(null); if (singleSelectedObject) void replaceImageToFit(singleSelectedObject.id); }} />
+            <MenuSubmenu label={ml("Cleanup")} disabled={workspaceMode !== 'design' || !project}>
+              <MenuItem label={ml("Close Path")} disabled={!canClosePath} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CLOSE_PATH); }} />
+              <MenuItem label={ml("Close Selected Paths With Tolerance")} disabled={!canClosePath} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE); }} />
+              <MenuItem label={ml("Auto-Join Selected Shapes")} shortcut="Alt+J" disabled={!canClosePath} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES); }} />
+              <MenuItem label={ml("Close & Join")} disabled={!canJoin} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CLOSE_AND_JOIN); }} />
+              <MenuItem label={ml("Optimize Selected Shapes")} shortcut="Alt+Shift+O" disabled={!canClosePath} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES); }} />
+              <MenuItem label={ml("Delete Duplicates")} shortcut="Alt+D" onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_DELETE_DUPLICATES); }} />
+            </MenuSubmenu>
+            <MenuSubmenu label={ml("Image Options")} disabled={workspaceMode !== 'design' || !canReplaceImage}>
+              <MenuItem label={ml("Refresh Image")} disabled={!canRefreshImage} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_IMAGE_REFRESH); }} />
+              <MenuItem label={ml("Replace Image")} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_IMAGE_REPLACE); }} />
+              <MenuItem label={ml("Replace Image to Fit")} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT); }} />
             </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
             <MenuItem

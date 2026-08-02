@@ -38,7 +38,6 @@ pub mod command {
     pub const EDIT_SETTINGS: &str = "edit.settings";
     pub const EDIT_CONVERT_TO_PATH: &str = "edit.convert_to_path";
     pub const EDIT_CONVERT_TO_BITMAP: &str = "edit.convert_to_bitmap";
-    pub const EDIT_EXTRACT_NODES_TO_PATH: &str = "edit.extract_nodes_to_path";
     pub const EDIT_CLOSE_PATH: &str = "edit.close_path";
     pub const EDIT_AUTO_JOIN_SELECTED_SHAPES: &str = "edit.auto_join_selected_shapes";
     pub const EDIT_CLOSE_AND_JOIN: &str = "edit.close_and_join";
@@ -351,20 +350,7 @@ const EDIT_IMAGE_OPTIONS_MENU: &[NativeMenuEntry] = &[
     },
 ];
 
-const EDIT_MENU: &[NativeMenuEntry] = &[
-    NativeMenuEntry::Command {
-        id: command::EDIT_UNDO,
-        title: "Undo",
-        accelerator: Some("CmdOrCtrl+Z"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::EDIT_REDO,
-        title: "Redo",
-        accelerator: Some("CmdOrCtrl+Shift+Z"),
-        enabled: false,
-    },
-    NativeMenuEntry::Separator,
+const EDIT_SELECT_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::EDIT_SELECT_ALL,
         title: "Select All",
@@ -379,61 +365,38 @@ const EDIT_MENU: &[NativeMenuEntry] = &[
     },
     NativeMenuEntry::Separator,
     NativeMenuEntry::Command {
-        id: command::EDIT_CUT,
-        title: "Cut",
-        accelerator: Some("CmdOrCtrl+X"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::EDIT_COPY,
-        title: "Copy",
-        accelerator: Some("CmdOrCtrl+C"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::EDIT_DUPLICATE,
-        title: "Duplicate",
-        accelerator: Some("CmdOrCtrl+D"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::EDIT_PASTE,
-        title: "Paste",
-        accelerator: Some("CmdOrCtrl+V"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::EDIT_PASTE_IN_PLACE,
-        title: "Paste in Place",
-        accelerator: Some("Alt+V"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::EDIT_DELETE,
-        title: "Delete",
-        accelerator: Some("Backspace"),
-        enabled: false,
-    },
-    NativeMenuEntry::Separator,
-    NativeMenuEntry::Command {
-        id: command::EDIT_CONVERT_TO_PATH,
-        title: "Convert to Path",
-        accelerator: Some("CmdOrCtrl+Shift+C"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::EDIT_CONVERT_TO_BITMAP,
-        title: "Convert to Bitmap",
-        accelerator: Some("CmdOrCtrl+Shift+B"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::EDIT_EXTRACT_NODES_TO_PATH,
-        title: "Extract Selected Nodes to New Path",
+        id: command::EDIT_SELECT_OPEN_SHAPES,
+        title: "Select Open Shapes",
         accelerator: None,
         enabled: false,
     },
-    NativeMenuEntry::Separator,
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_OPEN_SHAPES_SET_TO_FILL,
+        title: "Select Open Shapes Set to Fill",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER,
+        title: "Select All Shapes in Current Layer",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_CONTAINED_SHAPES,
+        title: "Select Contained Shapes",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED,
+        title: "Select Shapes Smaller Than Selected",
+        accelerator: None,
+        enabled: false,
+    },
+];
+
+const EDIT_CLEANUP_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::EDIT_CLOSE_PATH,
         title: "Close Path",
@@ -470,36 +433,79 @@ const EDIT_MENU: &[NativeMenuEntry] = &[
         accelerator: Some("Alt+D"),
         enabled: false,
     },
+];
+
+const EDIT_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Command {
+        id: command::EDIT_UNDO,
+        title: "Undo",
+        accelerator: Some("CmdOrCtrl+Z"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_REDO,
+        title: "Redo",
+        accelerator: Some("CmdOrCtrl+Shift+Z"),
+        enabled: false,
+    },
     NativeMenuEntry::Separator,
     NativeMenuEntry::Command {
-        id: command::EDIT_SELECT_OPEN_SHAPES,
-        title: "Select Open Shapes",
-        accelerator: None,
+        id: command::EDIT_CUT,
+        title: "Cut",
+        accelerator: Some("CmdOrCtrl+X"),
         enabled: false,
     },
     NativeMenuEntry::Command {
-        id: command::EDIT_SELECT_OPEN_SHAPES_SET_TO_FILL,
-        title: "Select Open Shapes Set to Fill",
-        accelerator: None,
+        id: command::EDIT_COPY,
+        title: "Copy",
+        accelerator: Some("CmdOrCtrl+C"),
         enabled: false,
     },
     NativeMenuEntry::Command {
-        id: command::EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER,
-        title: "Select All Shapes in Current Layer",
-        accelerator: None,
+        id: command::EDIT_PASTE,
+        title: "Paste",
+        accelerator: Some("CmdOrCtrl+V"),
         enabled: false,
     },
     NativeMenuEntry::Command {
-        id: command::EDIT_SELECT_CONTAINED_SHAPES,
-        title: "Select Contained Shapes",
-        accelerator: None,
+        id: command::EDIT_PASTE_IN_PLACE,
+        title: "Paste in Place",
+        accelerator: Some("Alt+V"),
         enabled: false,
     },
     NativeMenuEntry::Command {
-        id: command::EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED,
-        title: "Select Shapes Smaller Than Selected",
-        accelerator: None,
+        id: command::EDIT_DUPLICATE,
+        title: "Duplicate",
+        accelerator: Some("CmdOrCtrl+D"),
         enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_DELETE,
+        title: "Delete",
+        accelerator: Some("Backspace"),
+        enabled: false,
+    },
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Submenu {
+        title: "Select",
+        entries: EDIT_SELECT_MENU,
+    },
+    NativeMenuEntry::Separator,
+    NativeMenuEntry::Command {
+        id: command::EDIT_CONVERT_TO_PATH,
+        title: "Convert to Path",
+        accelerator: Some("CmdOrCtrl+Shift+C"),
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_CONVERT_TO_BITMAP,
+        title: "Convert to Bitmap",
+        accelerator: Some("CmdOrCtrl+Shift+B"),
+        enabled: false,
+    },
+    NativeMenuEntry::Submenu {
+        title: "Cleanup",
+        entries: EDIT_CLEANUP_MENU,
     },
     NativeMenuEntry::Separator,
     NativeMenuEntry::Submenu {
@@ -2430,20 +2436,43 @@ mod tests {
             vec![
                 ("Edit > Undo".to_string(), command::EDIT_UNDO),
                 ("Edit > Redo".to_string(), command::EDIT_REDO),
-                ("Edit > Select All".to_string(), command::EDIT_SELECT_ALL),
-                (
-                    "Edit > Invert Selection".to_string(),
-                    command::EDIT_INVERT_SELECTION,
-                ),
                 ("Edit > Cut".to_string(), command::EDIT_CUT),
                 ("Edit > Copy".to_string(), command::EDIT_COPY),
-                ("Edit > Duplicate".to_string(), command::EDIT_DUPLICATE),
                 ("Edit > Paste".to_string(), command::EDIT_PASTE),
                 (
                     "Edit > Paste in Place".to_string(),
                     command::EDIT_PASTE_IN_PLACE,
                 ),
+                ("Edit > Duplicate".to_string(), command::EDIT_DUPLICATE),
                 ("Edit > Delete".to_string(), command::EDIT_DELETE),
+                (
+                    "Edit > Select > Select All".to_string(),
+                    command::EDIT_SELECT_ALL,
+                ),
+                (
+                    "Edit > Select > Invert Selection".to_string(),
+                    command::EDIT_INVERT_SELECTION,
+                ),
+                (
+                    "Edit > Select > Select Open Shapes".to_string(),
+                    command::EDIT_SELECT_OPEN_SHAPES,
+                ),
+                (
+                    "Edit > Select > Select Open Shapes Set to Fill".to_string(),
+                    command::EDIT_SELECT_OPEN_SHAPES_SET_TO_FILL,
+                ),
+                (
+                    "Edit > Select > Select All Shapes in Current Layer".to_string(),
+                    command::EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER,
+                ),
+                (
+                    "Edit > Select > Select Contained Shapes".to_string(),
+                    command::EDIT_SELECT_CONTAINED_SHAPES,
+                ),
+                (
+                    "Edit > Select > Select Shapes Smaller Than Selected".to_string(),
+                    command::EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED,
+                ),
                 (
                     "Edit > Convert to Path".to_string(),
                     command::EDIT_CONVERT_TO_PATH,
@@ -2453,49 +2482,28 @@ mod tests {
                     command::EDIT_CONVERT_TO_BITMAP,
                 ),
                 (
-                    "Edit > Extract Selected Nodes to New Path".to_string(),
-                    command::EDIT_EXTRACT_NODES_TO_PATH,
+                    "Edit > Cleanup > Close Path".to_string(),
+                    command::EDIT_CLOSE_PATH,
                 ),
-                ("Edit > Close Path".to_string(), command::EDIT_CLOSE_PATH),
                 (
-                    "Edit > Close Selected Paths With Tolerance".to_string(),
+                    "Edit > Cleanup > Close Selected Paths With Tolerance".to_string(),
                     command::EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE,
                 ),
                 (
-                    "Edit > Auto-Join Selected Shapes".to_string(),
+                    "Edit > Cleanup > Auto-Join Selected Shapes".to_string(),
                     command::EDIT_AUTO_JOIN_SELECTED_SHAPES,
                 ),
                 (
-                    "Edit > Close & Join".to_string(),
+                    "Edit > Cleanup > Close & Join".to_string(),
                     command::EDIT_CLOSE_AND_JOIN,
                 ),
                 (
-                    "Edit > Optimize Selected Shapes".to_string(),
+                    "Edit > Cleanup > Optimize Selected Shapes".to_string(),
                     command::EDIT_OPTIMIZE_SELECTED_SHAPES,
                 ),
                 (
-                    "Edit > Delete Duplicates".to_string(),
+                    "Edit > Cleanup > Delete Duplicates".to_string(),
                     command::EDIT_DELETE_DUPLICATES,
-                ),
-                (
-                    "Edit > Select Open Shapes".to_string(),
-                    command::EDIT_SELECT_OPEN_SHAPES,
-                ),
-                (
-                    "Edit > Select Open Shapes Set to Fill".to_string(),
-                    command::EDIT_SELECT_OPEN_SHAPES_SET_TO_FILL,
-                ),
-                (
-                    "Edit > Select All Shapes in Current Layer".to_string(),
-                    command::EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER,
-                ),
-                (
-                    "Edit > Select Contained Shapes".to_string(),
-                    command::EDIT_SELECT_CONTAINED_SHAPES,
-                ),
-                (
-                    "Edit > Select Shapes Smaller Than Selected".to_string(),
-                    command::EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED,
                 ),
                 (
                     "Edit > Image Options > Refresh Image".to_string(),

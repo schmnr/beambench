@@ -450,6 +450,7 @@ interface ProjectStoreState {
   nudgeObjects: (objectIds: string[], dx: number, dy: number) => Promise<void>;
   selectObjects: (objectIds: string[]) => void;
   selectAllObjects: () => void;
+  invertObjectSelection: () => void;
   toggleObjectSelection: (objectId: string) => void;
   duplicateObject: (objectId: string) => Promise<void>;
   duplicateObjectInPlace: (objectId: string) => Promise<void>;
@@ -1673,13 +1674,25 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const { project } = get();
     if (project) {
       const objectIds = orderBatchForDrawOrderAnchor(
-        normalizeArrangementSelection(project, project.objects.map((o) => o.id)),
+        normalizeSelectionMembers(project, project.objects.map((o) => o.id)),
         project.objects,
       );
       set((state) => ({
         selectedObjectIds: mergeSelectionAddOrder(state.selectedObjectIds, objectIds),
       }));
     }
+  },
+
+  invertObjectSelection: () => {
+    const { project, selectedObjectIds } = get();
+    if (!project) return;
+
+    const selected = new Set(selectedObjectIds);
+    const selectableIds = orderBatchForDrawOrderAnchor(
+      normalizeSelectionMembers(project, project.objects.map((object) => object.id)),
+      project.objects,
+    );
+    set({ selectedObjectIds: selectableIds.filter((id) => !selected.has(id)) });
   },
 
   toggleObjectSelection: (objectId) => {
@@ -2783,7 +2796,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           project,
           selectedObjectIds: mergeSelectionAddOrder(
             state.selectedObjectIds,
-            orderBatchForDrawOrderAnchor(ids, project.objects),
+            orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects),
           ),
         }));
       }
@@ -2801,7 +2814,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           project,
           selectedObjectIds: mergeSelectionAddOrder(
             state.selectedObjectIds,
-            orderBatchForDrawOrderAnchor(ids, project.objects),
+            orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects),
           ),
         }));
       }
@@ -2816,7 +2829,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       if (!layerId) return;
       const ids = await projectService.selectAllInLayer(layerId);
       const project = get().project;
-      const orderedIds = project ? orderBatchForDrawOrderAnchor(ids, project.objects) : ids;
+      const orderedIds = project
+        ? orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects)
+        : ids;
       set((state) => ({
         selectedObjectIds: mergeSelectionAddOrder(state.selectedObjectIds, orderedIds),
       }));
@@ -2831,7 +2846,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       if (selectedIds.length !== 1) return;
       const ids = await projectService.selectContainedShapes(selectedIds[0]);
       const project = get().project;
-      const orderedIds = project ? orderBatchForDrawOrderAnchor(ids, project.objects) : ids;
+      const orderedIds = project
+        ? orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects)
+        : ids;
       set((state) => ({
         selectedObjectIds: mergeSelectionAddOrder(state.selectedObjectIds, orderedIds),
       }));
@@ -2851,7 +2868,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           project,
           selectedObjectIds: mergeSelectionAddOrder(
             state.selectedObjectIds,
-            orderBatchForDrawOrderAnchor(ids, project.objects),
+            orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects),
           ),
         }));
       }

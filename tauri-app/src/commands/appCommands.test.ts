@@ -220,6 +220,44 @@ describe('app command bridge', () => {
     }));
   });
 
+  it('inverts object selection instead of adding the inverse to the current selection', async () => {
+    const first = makeProjectObject({ id: 'first', z_index: 0 });
+    const second = makeProjectObject({ id: 'second', z_index: 1 });
+    const hidden = makeProjectObject({ id: 'hidden', z_index: 2, visible: false });
+    useProjectStore.setState({
+      project: makeProject({ objects: [first, second, hidden] }),
+      selectedObjectIds: ['first'],
+    });
+
+    await executeAppCommand(APP_COMMANDS.EDIT_INVERT_SELECTION);
+
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['second']);
+  });
+
+  it('disables and blocks destructive Edit commands in Run mode', async () => {
+    const project = makeProject();
+    const removeObjects = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: [project.objects[0].id],
+      removeObjects,
+    } as never);
+    useUiStore.setState({ workspaceMode: 'run' });
+
+    const state = getAppCommandState();
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.EDIT_DELETE,
+      enabled: false,
+    }));
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.EDIT_COPY,
+      enabled: true,
+    }));
+
+    await executeAppCommand(APP_COMMANDS.EDIT_DELETE);
+    expect(removeObjects).not.toHaveBeenCalled();
+  });
+
   it('enables Refresh Image only when the selected raster asset has source_path', () => {
     const base = makeProject().objects[0];
     const raster = {
@@ -256,6 +294,36 @@ describe('app command bridge', () => {
     expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
       id: APP_COMMANDS.EDIT_IMAGE_REFRESH,
       enabled: true,
+    }));
+  });
+
+  it('does not offer vector conversion or image replacement for incompatible selections', async () => {
+    const raster = makeProjectObject({
+      id: 'img-1',
+      data: { type: 'raster_image' as const, asset_key: 'asset-1', original_width_px: 100, original_height_px: 100 },
+    });
+    const convertToBitmap = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeProject({ objects: [raster] }),
+      selectedObjectIds: ['img-1'],
+      convertToBitmap,
+    } as never);
+
+    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.EDIT_CONVERT_TO_BITMAP,
+      enabled: false,
+    }));
+
+    await executeAppCommand(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP);
+    expect(convertToBitmap).not.toHaveBeenCalled();
+
+    useProjectStore.setState({
+      project: makeProject({ objects: [{ ...raster, locked: true }] }),
+      selectedObjectIds: ['img-1'],
+    });
+    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.EDIT_IMAGE_REPLACE,
+      enabled: false,
     }));
   });
 
