@@ -100,7 +100,11 @@ export type ToolOverlay =
     }
   | { type: 'snap-guides'; guides: { axis: 'x' | 'y'; value: number }[] }
   | { type: 'ruler-guide-preview'; axis: 'horizontal' | 'vertical'; value: number }
-  | { type: 'offset-preview'; paths: { points: Point2D[]; closed: boolean }[] }
+  | {
+      type: 'offset-preview';
+      paths: { points: Point2D[]; closed: boolean }[];
+      translation?: Point2D | null;
+    }
   | {
       type: 'measure-line';
       startScreen: Point2D;
@@ -1880,7 +1884,7 @@ export class CanvasRenderer {
         );
         break;
       case 'offset-preview':
-        this.drawOffsetPreview(ctx, toolOverlay.paths, vp);
+        this.drawOffsetPreview(ctx, toolOverlay.paths, vp, toolOverlay.translation);
         break;
       case 'measure-line':
         drawMeasureLine(
@@ -2187,7 +2191,7 @@ export class CanvasRenderer {
         );
         break;
       case 'offset-preview':
-        this.drawOffsetPreview(ctx, toolOverlay.paths, vp);
+        this.drawOffsetPreview(ctx, toolOverlay.paths, vp, toolOverlay.translation);
         break;
       case 'measure-line':
         drawMeasureLine(
@@ -2482,6 +2486,7 @@ export class CanvasRenderer {
     ctx: CanvasRenderingContext2D,
     paths: { points: Point2D[]; closed: boolean }[],
     vp: ViewportParams,
+    translation?: Point2D | null,
   ): void {
     ctx.save();
     ctx.strokeStyle = '#38bdf8';
@@ -2492,10 +2497,18 @@ export class CanvasRenderer {
     for (const path of paths) {
       if (path.points.length < 2) continue;
       ctx.beginPath();
-      const first = worldToScreen(path.points[0], vp);
+      const translateX = translation?.x ?? 0;
+      const translateY = translation?.y ?? 0;
+      const first = worldToScreen({
+        x: path.points[0].x + translateX,
+        y: path.points[0].y + translateY,
+      }, vp);
       ctx.moveTo(first.x, first.y);
       for (let i = 1; i < path.points.length; i++) {
-        const p = worldToScreen(path.points[i], vp);
+        const p = worldToScreen({
+          x: path.points[i].x + translateX,
+          y: path.points[i].y + translateY,
+        }, vp);
         ctx.lineTo(p.x, p.y);
       }
       if (path.closed) ctx.closePath();

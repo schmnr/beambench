@@ -14,6 +14,7 @@ import type { OffsetCornerStyle, OffsetDirection } from '../../types/vector';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { Layers3 } from 'lucide-react';
 import { ContextualToolActions, ContextualToolSection } from '../properties/ContextualToolSection';
+import { createOffsetPreviewSourceFrame } from '../../canvas/offsetPreview';
 
 const OFFSET_SUBMIT_TEST_ID = 'offset-submit';
 const PROPERTIES_PRESENTATION = 'properties' as const;
@@ -27,6 +28,10 @@ interface OffsetDialogProps {
 export function OffsetDialog({ objectIds, onClose, presentation = 'dialog' }: OffsetDialogProps) {
   const { t } = useTranslation();
   const projectId = useProjectStore((s) => s.project?.metadata.project_id ?? null);
+  // Object-array identity changes after a committed move/resize/rotate/shear.
+  // Watching it keeps the native, world-space ghost anchored to the current
+  // source geometry instead of the position where the panel first opened.
+  const projectObjects = useProjectStore((s) => s.project?.objects ?? null);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
   const setOffsetPreview = useUiStore((s) => s.setOffsetPreview);
   const [distance, setDistance] = useState(1);
@@ -47,6 +52,7 @@ export function OffsetDialog({ objectIds, onClose, presentation = 'dialog' }: Of
   // Apply the Both-sides default at most once, and never over a user's choice.
   const userChangedDirectionRef = useRef(false);
   const appliedOpenDefaultRef = useRef(false);
+  const previewObjectsRef = useRef(projectObjects);
   useFocusTrap(dialogRef, presentation === 'dialog');
 
   const objectIdsKey = objectIds.join(',');
@@ -96,9 +102,26 @@ export function OffsetDialog({ objectIds, onClose, presentation = 'dialog' }: Of
       return;
     }
 
+    const sourceGeometryChanged = previewObjectsRef.current !== projectObjects;
+    previewObjectsRef.current = projectObjects;
+    if (sourceGeometryChanged) {
+      // A world-space ghost from before a transform is misleading. Remove it
+      // while the replacement is computed, and skip the normal control-change
+      // debounce so it snaps back onto the transformed source immediately.
+      setOffsetPreview(null);
+      immediateRunRef.current = true;
+    }
+
     let cancelled = false;
     const run = async () => {
       const seq = ++previewReqRef.current;
+      // Capture the frontend frame that corresponds to the native geometry at
+      // request time. The canvas can then translate the returned world-space
+      // ghost along with an optimistic object drag before mouse-up commits it.
+      const sourceFrame = createOffsetPreviewSourceFrame(
+        useProjectStore.getState().project?.objects ?? [],
+        ids,
+      );
       try {
         const preview = await vectorService.previewOffsetShapes(ids, distance, direction, cornerStyle);
         if (cancelled || seq !== previewReqRef.current) return; // stale response
@@ -117,7 +140,7 @@ export function OffsetDialog({ objectIds, onClose, presentation = 'dialog' }: Of
           setDirection('both');
           return;
         }
-        setOffsetPreview(preview.paths.length > 0 ? preview.paths : null);
+        setOffsetPreview(preview.paths.length > 0 ? preview.paths : null, sourceFrame);
       } catch {
         if (cancelled || seq !== previewReqRef.current) return; // stale failure
         // Unknown topology on error: drop the ghost and fall back to the
@@ -134,7 +157,7 @@ export function OffsetDialog({ objectIds, onClose, presentation = 'dialog' }: Of
     }
     const timer = setTimeout(() => void run(), 120);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [objectIdsKey, distance, direction, cornerStyle, setOffsetPreview]);
+  }, [objectIdsKey, projectObjects, distance, direction, cornerStyle, setOffsetPreview]);
 
   const handleSubmit = async () => {
     const currentProject = useProjectStore.getState().project;

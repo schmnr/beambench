@@ -84,6 +84,7 @@ import {
   getVectorPathCommandCountForObject,
 } from '../../canvas/drawObjects';
 import { adaptiveMeshPreviewFrameInterval } from '../../canvas/meshDeformPreview';
+import { offsetPreviewTranslation } from '../../canvas/offsetPreview';
 import { machineToCanvasPoint } from '../../utils/workspaceCoordinates';
 import type { SimilarityTransform } from '../../types/camera';
 import type { Point2D } from '../../types/project';
@@ -218,6 +219,7 @@ export function Canvas() {
   // Offset dialog live preview (dashed ghost). Subscribe with a selector so the
   // dirty-flag canvas repaints when the dialog sets/clears it.
   const offsetPreview = useUiStore((s) => s.offsetPreview);
+  const offsetPreviewSourceFrame = useUiStore((s) => s.offsetPreviewSourceFrame);
   // Cursor feedback must update immediately when the text panel switches
   // between Point and Box mode. TextTool reads the same value in getCursor().
   const textBoxModeActive = useUiStore((s) => (s.textDefaults.max_width ?? 0) > 0);
@@ -616,6 +618,7 @@ export function Canvas() {
       effectiveOverlay = {
         type: 'offset-preview' as const,
         paths: offsetPreview,
+        translation: offsetPreviewTranslation(offsetPreviewSourceFrame, project?.objects ?? []),
       };
     }
 
@@ -638,6 +641,7 @@ export function Canvas() {
     cameraOverlayTransform,
     cameraOverlayWidthPx,
     offsetPreview,
+    offsetPreviewSourceFrame,
     project,
     rulerGuidePreview,
     startPointVertices,

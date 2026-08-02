@@ -252,6 +252,59 @@ describe('OffsetDialog', () => {
     spy.mockRestore();
   });
 
+  it('regenerates the ghost after the source object moves', async () => {
+    const initialProject = makeProject({
+      metadata: {
+        project_id: 'offset-move-project',
+        project_name: 'Offset move',
+        format_version: '1',
+        app_version: 'test',
+        created_at: '',
+        modified_at: '',
+      },
+      objects: [makeProjectObject({
+        id: 'rectangle-1',
+        bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
+      })],
+    });
+    useProjectStore.setState({ project: initialProject });
+
+    const initialPaths = [{
+      points: [{ x: -1, y: -1 }, { x: 11, y: -1 }, { x: 11, y: 11 }],
+      closed: true,
+    }];
+    const movedPaths = [{
+      points: [{ x: 19, y: 9 }, { x: 31, y: 9 }, { x: 31, y: 21 }],
+      closed: true,
+    }];
+    const spy = vi.spyOn(vectorService, 'previewOffsetShapes')
+      .mockResolvedValueOnce({ paths: initialPaths, source_all_open: false })
+      .mockResolvedValueOnce({ paths: movedPaths, source_all_open: false });
+    render(<OffsetDialog objectIds={['rectangle-1']} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(useUiStore.getState().offsetPreview).toEqual(initialPaths);
+    });
+
+    act(() => {
+      useProjectStore.setState({
+        project: {
+          ...initialProject,
+          objects: initialProject.objects.map((object) => ({
+            ...object,
+            bounds: { min: { x: 20, y: 10 }, max: { x: 30, y: 20 } },
+          })),
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(useUiStore.getState().offsetPreview).toEqual(movedPaths);
+    });
+    spy.mockRestore();
+  });
+
   it('does not publish a one-sided ghost while auto-defaulting open selections to Both sides', async () => {
     const oneSided = [{ points: [{ x: 0, y: -2 }, { x: 10, y: -2 }], closed: false }];
     const bothSides = [

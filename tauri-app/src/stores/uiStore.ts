@@ -11,6 +11,7 @@ import type {
   TextTransformStyle,
 } from '../types/project';
 import type { OffsetPreviewPath } from '../types/vector';
+import type { OffsetPreviewSourceFrame } from '../canvas/offsetPreview';
 import type {
   ColumnSplitRatios,
   PanelColumnSide,
@@ -293,7 +294,11 @@ interface UiStoreState {
   // Offset dialog live preview — dashed ghost paths (world coords) rendered on
   // the canvas while the Offset dialog is open. Null when no preview is active.
   offsetPreview: OffsetPreviewPath[] | null;
-  setOffsetPreview: (paths: OffsetPreviewPath[] | null) => void;
+  offsetPreviewSourceFrame: OffsetPreviewSourceFrame | null;
+  setOffsetPreview: (
+    paths: OffsetPreviewPath[] | null,
+    sourceFrame?: OffsetPreviewSourceFrame | null,
+  ) => void;
 
   // Panel layout actions
   setPanelLayout: (layout: PanelLayoutState) => void;
@@ -609,6 +614,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   pendingStartPointObjectId: null,
   pendingGuidePathTextId: null,
   offsetPreview: null,
+  offsetPreviewSourceFrame: null,
 
   setPanelLayout: (layout) => {
     const sanitized = sanitizePanelLayout(layout);
@@ -1541,7 +1547,10 @@ export const useUiStore = create<UiStoreState>((set) => ({
   setNodeSubMode: (mode) => set({ nodeSubMode: mode }),
   setPendingStartPoint: (objectId) => set({ pendingStartPointObjectId: objectId }),
   setPendingGuidePathText: (objectId) => set({ pendingGuidePathTextId: objectId }),
-  setOffsetPreview: (paths) => set({ offsetPreview: paths }),
+  setOffsetPreview: (paths, sourceFrame = null) => set({
+    offsetPreview: paths,
+    offsetPreviewSourceFrame: paths ? sourceFrame : null,
+  }),
 }));
 
 // Convenience getters derived from panelLayout

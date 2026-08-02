@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CanvasRenderer } from '../CanvasRenderer';
+import { worldToScreen } from '../ViewportTransform';
 
 vi.mock('../drawWorkspace', () => ({
   drawBed: vi.fn(),
@@ -9,12 +10,13 @@ vi.mock('../drawWorkspace', () => ({
 }));
 
 /** Minimal 2D context that records stroke calls and no-ops everything else. */
-function mockContext(counters: { strokes: number }): CanvasRenderingContext2D {
+function mockContext(counters: { strokes: number; moves?: Array<[number, number]> }): CanvasRenderingContext2D {
   const target: Record<string, unknown> = { canvas: {}, globalAlpha: 1 };
   return new Proxy(target, {
     get(obj, prop) {
       if (prop in obj) return obj[prop as string];
       if (prop === 'stroke') return vi.fn(() => { counters.strokes += 1; });
+      if (prop === 'moveTo') return vi.fn((x: number, y: number) => { counters.moves?.push([x, y]); });
       return vi.fn();
     },
     set(obj, prop, value) {
@@ -72,5 +74,20 @@ describe('CanvasRenderer offset preview overlay', () => {
       }) as never),
     ).not.toThrow();
     expect(counters.strokes).toBe(0);
+  });
+
+  it('translates the ghost along with a live source-object drag', () => {
+    const counters = { strokes: 0, moves: [] as Array<[number, number]> };
+    const ctx = mockContext(counters);
+    const renderer = new CanvasRenderer(ctx);
+
+    renderer.renderToolOverlay(baseParams({
+      type: 'offset-preview',
+      paths: [{ points: [{ x: 2, y: 3 }, { x: 4, y: 3 }], closed: false }],
+      translation: { x: 5, y: -2 },
+    }) as never);
+
+    const translatedStart = worldToScreen({ x: 7, y: 1 }, vp);
+    expect(counters.moves).toContainEqual([translatedStart.x, translatedStart.y]);
   });
 });
