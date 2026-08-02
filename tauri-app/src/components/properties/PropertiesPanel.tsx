@@ -19,6 +19,8 @@ import { WarpPropertiesSection } from './WarpPropertiesSection';
 import { TabPropertiesSection } from './TabPropertiesSection';
 import { createSelectionContext, isBooleanCompatible } from '../../commands/selectionContext';
 import { IconButton } from '../shared/IconButton';
+import { IconToggleButton } from '../shared/IconToggleButton';
+import { Eye, EyeOff } from 'lucide-react';
 import {
   ExcludeIcon,
   IntersectIcon,
@@ -277,6 +279,17 @@ export function PropertiesPanel() {
         value={selectedObject.name}
         onChange={(name) => updateObject(selectedObject.id, { name })}
       />
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-bb-text-muted">{t('panels.layers.header.show')}</span>
+        <IconToggleButton
+          active={selectedObject.visible !== false}
+          label={t('panels.layers.header.show')}
+          icon={<Eye size={16} />}
+          inactiveIcon={<EyeOff size={16} />}
+          onClick={() => void setObjectsVisible([selectedObject.id], selectedObject.visible === false)}
+          testId="object-show-toggle"
+        />
+      </div>
       <RangeInput
         label={t('panels.properties.power_scale_percent')}
         value={powerScalePercent}

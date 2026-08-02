@@ -505,6 +505,25 @@ describe('PropertiesPanel', () => {
     expect(screen.queryByTestId('batch-locked')).toBeNull();
   });
 
+  it('exposes object visibility without adding an object output control', () => {
+    const setObjectsVisible = vi.fn();
+    useProjectStore.setState({
+      project: makeProject(),
+      selectedObjectIds: ['obj1'],
+      setObjectsVisible,
+    });
+
+    render(<PropertiesPanel />);
+    const showToggle = screen.getByTestId('object-show-toggle');
+
+    expect(showToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(showToggle.querySelector('.lucide-eye')).not.toBeNull();
+    expect(screen.queryByText('Output')).toBeNull();
+
+    fireEvent.click(showToggle);
+    expect(setObjectsVisible).toHaveBeenCalledWith(['obj1'], false);
+  });
+
   it('shows Group and Align actions for a multi-selection', () => {
     const base = makeProject();
     const project = {
