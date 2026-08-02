@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "將首選項重設為預設值？將保留機器設定檔、最近的檔案、已儲存的位置、API 設定和匯出路徑。",
       "save_background_capture": "保存背景捕獲",
       "save_processed_bitmap": "儲存處理後的點陣圖",
-      "show_notes": "顯示註釋"
+      "show_notes": "顯示註釋",
+      "project_notes": "專案備註...",
+      "print": "列印...",
+      "export_processed_image": "匯出處理後的影像..."
     },
     "edit": {
       "label": "編輯",
@@ -1107,6 +1110,19 @@
       "title": "未儲存的變更",
       "message": "專案中有未儲存的變更。要在繼續前儲存嗎？",
       "discard": "不要儲存"
+    },
+    "print": {
+      "title": "列印",
+      "output": "列印輸出",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "色彩",
+      "black": "黑色",
+      "layer_colors": "圖層色彩",
+      "appearance": "圖稿外觀",
+      "by_operation": "依圖層操作",
+      "outlines": "僅輪廓",
+      "print": "列印...",
+      "preparing": "準備中..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "圖稿"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "視窗",
     "side_panels": "側邊面板",

@@ -14,7 +14,6 @@ import { useWelcomeStore } from './stores/welcomeStore';
 import { suppressProfileEvent } from './stores/machineStore';
 import { previewService } from './services/previewService';
 import { persistenceService } from './services/persistenceService';
-import { printService } from './services/printService';
 import { appService } from './services/appService';
 import { feedbackService } from './services/feedbackService';
 import { machineService } from './services/machineService';
@@ -1170,17 +1169,14 @@ describe('Keyboard shortcuts', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('Ctrl+P and Ctrl+Shift+P trigger black and color print commands', async () => {
-    const printProject = vi.spyOn(printService, 'printProject').mockResolvedValue(undefined);
+  it('Ctrl+P opens the consolidated print dialog', async () => {
     useProjectStore.setState({ project: makeProject() });
 
     await renderApp();
     await dispatchKeyDown(window, { key: 'p', ctrlKey: true });
-    await dispatchKeyDown(window, { key: 'P', ctrlKey: true, shiftKey: true });
 
     await waitFor(() => {
-      expect(printProject).toHaveBeenNthCalledWith(1, 'black');
-      expect(printProject).toHaveBeenNthCalledWith(2, 'color');
+      expect(screen.getByRole('dialog', { name: 'Print' })).toBeDefined();
     });
   });
 

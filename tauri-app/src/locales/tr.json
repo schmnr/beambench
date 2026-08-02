@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Tercihler varsayılanlara sıfırlansın mı? Makine profilleri, son dosyalar, kayıtlı konumlar, API ayarları ve dışa aktarma yolları korunacaktır.",
       "save_background_capture": "Arka Plan Yakalamayı Kaydet",
       "save_processed_bitmap": "İşlenmiş Bitmap'i Kaydet",
-      "show_notes": "Notları Göster"
+      "show_notes": "Notları Göster",
+      "project_notes": "Proje Notları...",
+      "print": "Yazdır...",
+      "export_processed_image": "İşlenmiş Görüntüyü Dışa Aktar..."
     },
     "edit": {
       "label": "Düzen",
@@ -1107,6 +1110,19 @@
       "title": "Kaydedilmemiş değişiklikler",
       "message": "Projenizde kaydedilmemiş değişiklikler var. Devam etmeden önce kaydedilsin mi?",
       "discard": "Kaydetme"
+    },
+    "print": {
+      "title": "Yazdır",
+      "output": "Yazdırma Çıktısı",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Renk",
+      "black": "Siyah",
+      "layer_colors": "Katman Renkleri",
+      "appearance": "Çizim Görünümü",
+      "by_operation": "Katman İşlemine Göre",
+      "outlines": "Yalnızca Ana Hatlar",
+      "print": "Yazdır...",
+      "preparing": "Hazırlanıyor..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafik"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Pencereler",
     "side_panels": "Yan paneller",

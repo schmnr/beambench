@@ -14,7 +14,6 @@ pub mod command {
     pub const APP_QUIT: &str = "app.quit";
 
     pub const FILE_NEW: &str = "file.new";
-    pub const FILE_NEW_WINDOW: &str = "file.new_window";
     pub const FILE_OPEN_RECENT: &str = "file.open_recent";
     pub const FILE_RECENT_EMPTY: &str = "file.recent.empty";
     pub const FILE_OPEN: &str = "file.open";
@@ -23,14 +22,8 @@ pub mod command {
     pub const FILE_SAVE: &str = "file.save";
     pub const FILE_SAVE_AS: &str = "file.save_as";
     pub const FILE_EXPORT: &str = "file.export";
-    pub const FILE_PREFS_IMPORT: &str = "file.preferences.import";
-    pub const FILE_PREFS_EXPORT: &str = "file.preferences.export";
-    pub const FILE_PREFS_OPEN_FOLDER: &str = "file.preferences.open_folder";
-    pub const FILE_PREFS_RESET_DEFAULTS: &str = "file.preferences.reset_defaults";
-    pub const FILE_PRINT_BLACK: &str = "file.print_black";
-    pub const FILE_PRINT_COLORS: &str = "file.print_colors";
-    pub const FILE_SAVE_PROCESSED_BITMAP: &str = "file.save_processed_bitmap";
-    pub const FILE_SAVE_BACKGROUND_CAPTURE: &str = "file.save_background_capture";
+    // Stable value retained from the former black-only print command.
+    pub const FILE_PRINT: &str = "file.print_black";
 
     pub const EDIT_UNDO: &str = "edit.undo";
     pub const EDIT_REDO: &str = "edit.redo";
@@ -282,44 +275,11 @@ const APP_MENU: &[NativeMenuEntry] = &[
     },
 ];
 
-const FILE_PREFERENCES_MENU: &[NativeMenuEntry] = &[
-    NativeMenuEntry::Command {
-        id: command::FILE_PREFS_IMPORT,
-        title: "Import Prefs",
-        accelerator: None,
-        enabled: true,
-    },
-    NativeMenuEntry::Command {
-        id: command::FILE_PREFS_EXPORT,
-        title: "Export Prefs",
-        accelerator: None,
-        enabled: true,
-    },
-    NativeMenuEntry::Command {
-        id: command::FILE_PREFS_OPEN_FOLDER,
-        title: "Open Prefs Folder",
-        accelerator: None,
-        enabled: true,
-    },
-    NativeMenuEntry::Command {
-        id: command::FILE_PREFS_RESET_DEFAULTS,
-        title: "Reset Prefs to Defaults",
-        accelerator: None,
-        enabled: true,
-    },
-];
-
 const FILE_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::FILE_NEW,
         title: "New",
         accelerator: Some("CmdOrCtrl+N"),
-        enabled: true,
-    },
-    NativeMenuEntry::Command {
-        id: command::FILE_NEW_WINDOW,
-        title: "New Window",
-        accelerator: None,
         enabled: true,
     },
     NativeMenuEntry::RecentProjects,
@@ -337,7 +297,7 @@ const FILE_MENU: &[NativeMenuEntry] = &[
     },
     NativeMenuEntry::Command {
         id: command::FILE_NOTES,
-        title: "Show Notes",
+        title: "Project Notes...",
         accelerator: Some("CmdOrCtrl+Alt+N"),
         enabled: false,
     },
@@ -361,33 +321,10 @@ const FILE_MENU: &[NativeMenuEntry] = &[
         enabled: false,
     },
     NativeMenuEntry::Separator,
-    NativeMenuEntry::Submenu {
-        title: "Preferences",
-        entries: FILE_PREFERENCES_MENU,
-    },
-    NativeMenuEntry::Separator,
     NativeMenuEntry::Command {
-        id: command::FILE_PRINT_BLACK,
-        title: "Print (black only)",
+        id: command::FILE_PRINT,
+        title: "Print...",
         accelerator: Some("CmdOrCtrl+P"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::FILE_PRINT_COLORS,
-        title: "Print (keep colors)",
-        accelerator: Some("CmdOrCtrl+Shift+P"),
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::FILE_SAVE_PROCESSED_BITMAP,
-        title: "Save Processed Bitmap",
-        accelerator: None,
-        enabled: false,
-    },
-    NativeMenuEntry::Command {
-        id: command::FILE_SAVE_BACKGROUND_CAPTURE,
-        title: "Save Background Capture",
-        accelerator: None,
         enabled: false,
     },
 ];
@@ -2426,12 +2363,6 @@ mod tests {
                     true
                 ),
                 (
-                    "File > New Window".to_string(),
-                    command::FILE_NEW_WINDOW,
-                    None,
-                    true
-                ),
-                (
                     "File > Recent Projects > No Recent Projects".to_string(),
                     command::FILE_RECENT_EMPTY,
                     None,
@@ -2450,7 +2381,7 @@ mod tests {
                     true
                 ),
                 (
-                    "File > Show Notes".to_string(),
+                    "File > Project Notes...".to_string(),
                     command::FILE_NOTES,
                     None,
                     false
@@ -2469,50 +2400,8 @@ mod tests {
                     false
                 ),
                 (
-                    "File > Preferences > Import Prefs".to_string(),
-                    command::FILE_PREFS_IMPORT,
-                    None,
-                    true
-                ),
-                (
-                    "File > Preferences > Export Prefs".to_string(),
-                    command::FILE_PREFS_EXPORT,
-                    None,
-                    true
-                ),
-                (
-                    "File > Preferences > Open Prefs Folder".to_string(),
-                    command::FILE_PREFS_OPEN_FOLDER,
-                    None,
-                    true
-                ),
-                (
-                    "File > Preferences > Reset Prefs to Defaults".to_string(),
-                    command::FILE_PREFS_RESET_DEFAULTS,
-                    None,
-                    true
-                ),
-                (
-                    "File > Print (black only)".to_string(),
-                    command::FILE_PRINT_BLACK,
-                    None,
-                    false
-                ),
-                (
-                    "File > Print (keep colors)".to_string(),
-                    command::FILE_PRINT_COLORS,
-                    None,
-                    false
-                ),
-                (
-                    "File > Save Processed Bitmap".to_string(),
-                    command::FILE_SAVE_PROCESSED_BITMAP,
-                    None,
-                    false
-                ),
-                (
-                    "File > Save Background Capture".to_string(),
-                    command::FILE_SAVE_BACKGROUND_CAPTURE,
+                    "File > Print...".to_string(),
+                    command::FILE_PRINT,
                     None,
                     false
                 ),

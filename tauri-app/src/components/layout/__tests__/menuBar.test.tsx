@@ -10,7 +10,6 @@ import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { previewService } from '../../../services/previewService';
 import { persistenceService } from '../../../services/persistenceService';
-import { printService } from '../../../services/printService';
 import { appService } from '../../../services/appService';
 import { projectService } from '../../../services/projectService';
 import { makeAppSettings, makeLayer, makeProject as makeProjectFixture, makeProjectObject, makeTextObjectData } from '../../../test-utils/projectFixtures';
@@ -171,7 +170,7 @@ describe('MenuBar', () => {
     setProjectWithSelection();
     render(<MenuBar />);
     fireEvent.click(screen.getByText('File'));
-    expect(screen.getByText('Show Notes')).toBeDefined();
+    expect(screen.getByText('Project Notes...')).toBeDefined();
   });
 
   it('File menu Import uses the same selected-layer behavior as the toolbar button', async () => {
@@ -191,20 +190,6 @@ describe('MenuBar', () => {
 
     await waitFor(() => {
       expect(importFiles).toHaveBeenCalledWith(project.layers[0].id);
-    });
-  });
-
-  it('File menu New Window opens a second app window', async () => {
-    const openNewWindow = vi.spyOn(appService, 'openNewWindow').mockResolvedValue('main-test');
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    const newWindowItem = screen.getByRole('button', { name: 'New Window' });
-    expect(newWindowItem.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(newWindowItem);
-
-    await waitFor(() => {
-      expect(openNewWindow).toHaveBeenCalledOnce();
     });
   });
 
@@ -727,39 +712,13 @@ describe('MenuBar', () => {
     expect(exportArtwork).toHaveBeenCalled();
   });
 
-  it('wires File print menu items to print modes', () => {
-    const printProject = vi.spyOn(printService, 'printProject').mockResolvedValue(undefined);
+  it('opens the consolidated print dialog from File', () => {
     setProjectWithSelection();
 
     render(<MenuBar />);
     fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Print (black only)'));
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Print (keep colors)'));
-
-    expect(printProject).toHaveBeenNthCalledWith(1, 'black');
-    expect(printProject).toHaveBeenNthCalledWith(2, 'color');
-  });
-
-  it('enables Save Processed Bitmap for a raster selection', () => {
-    const saveProcessedBitmap = vi.spyOn(persistenceService, 'saveProcessedBitmap').mockResolvedValue('/tmp/processed.png');
-    setProjectWithSelection(['img1']);
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    const item = screen.getByRole('button', { name: 'Save Processed Bitmap' });
-    expect(item.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(item);
-
-    expect(saveProcessedBitmap).toHaveBeenCalledWith('img1');
-  });
-
-  it('disables Save Processed Bitmap for non-raster selections', () => {
-    setProjectWithSelection(['txt1']);
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    expect(screen.getByRole('button', { name: 'Save Processed Bitmap' }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByText('Print...'));
+    expect(screen.getByRole('dialog', { name: 'Print' })).toBeDefined();
   });
 
   it('shows the expected File submenu structure', () => {
@@ -767,17 +726,17 @@ describe('MenuBar', () => {
     render(<MenuBar />);
     fireEvent.click(screen.getByText('File'));
 
-    expect(screen.getByText('New Window')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'New Window' }).hasAttribute('disabled')).toBe(false);
     expect(screen.getByText('Recent Projects')).toBeDefined();
-    expect(screen.getByText('Preferences')).toBeDefined();
-    expect(screen.getByText('Import Prefs')).toBeDefined();
-    expect(screen.getByText('Export Prefs')).toBeDefined();
-    expect(screen.getByText('Reset Prefs to Defaults')).toBeDefined();
+    expect(screen.queryByText('New Window')).toBeNull();
+    expect(screen.queryByText('Preferences')).toBeNull();
+    expect(screen.queryByText('Import Prefs')).toBeNull();
+    expect(screen.queryByText('Export Prefs')).toBeNull();
+    expect(screen.queryByText('Reset Prefs to Defaults')).toBeNull();
     expect(screen.queryByText('Bundles')).toBeNull();
     expect(screen.queryByText('Import Bundles')).toBeNull();
-    expect(screen.getByText('Print (black only)')).toBeDefined();
-    expect(screen.getByText('Save Background Capture')).toBeDefined();
+    expect(screen.getByText('Print...')).toBeDefined();
+    expect(screen.queryByText('Save Background Capture')).toBeNull();
+    expect(screen.queryByText('Save Processed Bitmap')).toBeNull();
   });
 
   it('Edit Settings opens the live preferences dialog', () => {
@@ -785,87 +744,6 @@ describe('MenuBar', () => {
     fireEvent.click(screen.getByText('Edit'));
     fireEvent.click(screen.getByText('Settings'));
     expect(screen.getByRole('dialog', { name: 'Preferences' })).toBeDefined();
-  });
-
-  it('File Preferences export writes a .bbprefs file', async () => {
-    vi.mocked(save).mockResolvedValue('/tmp/beam-bench.bbprefs');
-    vi.mocked(invoke).mockImplementation(async (command: string) => {
-      if (command === 'get_app_settings') return makeAppSettings();
-      if (command === 'export_preferences') return '/tmp/beam-bench.bbprefs';
-      return null;
-    });
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Export Prefs'));
-
-    await waitFor(() => {
-      expect(save).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Export Preferences',
-        defaultPath: 'beam-bench.bbprefs',
-      }));
-      expect(invoke).toHaveBeenCalledWith('export_preferences', { path: '/tmp/beam-bench.bbprefs' });
-    });
-  });
-
-  it('File Preferences reset restores backend defaults after confirmation', async () => {
-    vi.mocked(invoke).mockImplementation(async (command: string) => {
-      if (command === 'get_app_settings') return makeAppSettings();
-      if (command === 'reset_preferences') return makeAppSettings({ autosave_enabled: false });
-      return null;
-    });
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Reset Prefs to Defaults'));
-
-    const dialog = screen.getByRole('dialog', { name: 'Reset Prefs to Defaults' });
-    expect(dialog).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
-
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith('reset_preferences');
-    });
-  });
-
-  it('File Preferences reset cancel closes the dialog without resetting', async () => {
-    vi.mocked(invoke).mockImplementation(async (command: string) => {
-      if (command === 'get_app_settings') return makeAppSettings();
-      return null;
-    });
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Reset Prefs to Defaults'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Reset Prefs to Defaults' })).toBeNull();
-    });
-    expect(invoke).not.toHaveBeenCalledWith('reset_preferences');
-  });
-
-  it('File Preferences hides the shelved hotkey editor', () => {
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    expect(screen.queryByText('Edit Hotkeys...')).toBeNull();
-    expect(screen.queryByRole('dialog', { name: 'Edit Hotkeys' })).toBeNull();
-  });
-
-  it('opens File submenus from the keyboard', () => {
-    setProjectWithSelection();
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-
-    const preferences = screen.getByRole('button', { name: /Preferences/ });
-    expect(preferences.getAttribute('aria-expanded')).toBe('false');
-
-    fireEvent.keyDown(preferences, { key: 'Enter' });
-    expect(preferences.getAttribute('aria-expanded')).toBe('true');
-
-    fireEvent.keyDown(preferences, { key: 'Escape' });
-    expect(preferences.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('lists every supported locale in the Language menu', () => {

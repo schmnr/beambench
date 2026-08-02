@@ -2,10 +2,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import i18n from '../i18n';
 import { appService } from './appService';
-import { exportCanvasScreenshot, type CanvasScreenshotFormat } from './canvasScreenshotExportService';
 import { isMacPlatform } from '../utils/platform';
 import type { ArtworkExportFormat, ExportSettings } from '../types/commands';
 import type { Project } from '../types/project';
+
+type BitmapExportFormat = 'png' | 'jpg' | 'bmp';
 
 const ARTWORK_EXPORTERS: Record<ArtworkExportFormat, {
   filterName: string;
@@ -21,7 +22,7 @@ const ARTWORK_EXPORTERS: Record<ArtworkExportFormat, {
   bmp: { filterName: 'BMP file (*.bmp)', extension: 'bmp' },
 };
 
-const BACKEND_ARTWORK_EXPORT_COMMANDS: Record<Exclude<ArtworkExportFormat, CanvasScreenshotFormat>, string> = {
+const BACKEND_ARTWORK_EXPORT_COMMANDS: Record<Exclude<ArtworkExportFormat, BitmapExportFormat>, string> = {
   svg: 'export_svg',
   dxf: 'export_dxf',
   pdf: 'export_pdf',
@@ -58,7 +59,7 @@ function isUnifiedArtworkExportFormat(format: string): format is ArtworkExportFo
   return (ARTWORK_EXPORT_PICKER_ORDER as string[]).includes(format);
 }
 
-function isCanvasScreenshotFormat(format: ArtworkExportFormat): format is CanvasScreenshotFormat {
+function isBitmapExportFormat(format: ArtworkExportFormat): format is BitmapExportFormat {
   return format === 'png' || format === 'jpg' || format === 'bmp';
 }
 
@@ -314,8 +315,14 @@ export const persistenceService = {
     if (selected === null) { throw new Error('Export cancelled'); }
 
     const { path, format } = inferArtworkFormat(selected, settings.last_format);
-    const result = isCanvasScreenshotFormat(format)
-      ? await exportCanvasScreenshot(path, format)
+    const result = isBitmapExportFormat(format)
+      ? await invoke<string>('export_bitmap_document', {
+        path,
+        format,
+        selectionOnly,
+        selectedIds,
+        pixelsPerMm: 4,
+      })
       : await invoke<string>(BACKEND_ARTWORK_EXPORT_COMMANDS[format], {
         path,
         selectionOnly,
@@ -335,7 +342,7 @@ export const persistenceService = {
 
   async saveProcessedBitmap(objectId: string): Promise<string> {
     const selected = await save({
-      title: i18n.t('file_dialogs.save_processed_bitmap_title'),
+      title: i18n.t('menus.file.export_processed_image'),
       defaultPath: 'processed.png',
       filters: [{ name: i18n.t('file_dialogs.filter_png_image'), extensions: ['png'] }],
     });

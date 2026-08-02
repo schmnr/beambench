@@ -54,8 +54,9 @@ pub use export_dxf::export_dxf;
 pub use export_eps::{export_ai, export_eps};
 pub use export_pdf::export_pdf;
 pub use export_print::{
-    PrintDocument, PrintMode, render_print_document, render_print_document_with_selection,
-    render_print_png,
+    PrintAppearance, PrintDocument, PrintMode, render_print_document,
+    render_print_document_with_options, render_print_document_with_selection, render_print_png,
+    render_print_png_with_options,
 };
 pub use export_svg::export_svg;
 pub use import::{ImportError, import_image, import_svg};

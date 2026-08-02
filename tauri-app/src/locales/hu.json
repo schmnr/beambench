@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Visszaállítja a beállításokat az alapértelmezett értékekre? A gépprofilok, a legutóbbi fájlok, a mentett pozíciók, az API-beállítások és az exportálási útvonalak megmaradnak.",
       "save_background_capture": "Background Capture mentése",
       "save_processed_bitmap": "Mentse a feldolgozott bitképet",
-      "show_notes": "Jegyzetek megjelenítése"
+      "show_notes": "Jegyzetek megjelenítése",
+      "project_notes": "Projektjegyzetek...",
+      "print": "Nyomtatás...",
+      "export_processed_image": "Feldolgozott kép exportálása..."
     },
     "edit": {
       "label": "Szerkesztés",
@@ -1107,6 +1110,19 @@
       "title": "Nem mentett módosítások",
       "message": "A projekt nem mentett módosításokat tartalmaz. Menti őket a folytatás előtt?",
       "discard": "Ne mentse"
+    },
+    "print": {
+      "title": "Nyomtatás",
+      "output": "Nyomtatási kimenet",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Szín",
+      "black": "Fekete",
+      "layer_colors": "Rétegszínek",
+      "appearance": "Grafika megjelenése",
+      "by_operation": "Rétegművelet szerint",
+      "outlines": "Csak körvonalak",
+      "print": "Nyomtatás...",
+      "preparing": "Előkészítés..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafika"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Ablakok",
     "side_panels": "Oldalsó panelek",

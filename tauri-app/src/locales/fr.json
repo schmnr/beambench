@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Réinitialiser les préférences aux valeurs par défaut ? Les profils de machine, les fichiers récents, les positions enregistrées, les paramètres API et les chemins d'exportation seront conservés.",
       "save_background_capture": "Enregistrer la capture en arrière-plan",
       "save_processed_bitmap": "Enregistrer le bitmap traité",
-      "show_notes": "Afficher les notes"
+      "show_notes": "Afficher les notes",
+      "project_notes": "Notes du projet...",
+      "print": "Imprimer...",
+      "export_processed_image": "Exporter l’image traitée..."
     },
     "edit": {
       "label": "Édition",
@@ -1107,6 +1110,19 @@
       "title": "Modifications non enregistrées",
       "message": "Votre projet contient des modifications non enregistrées. Les enregistrer avant de continuer ?",
       "discard": "Ne pas enregistrer"
+    },
+    "print": {
+      "title": "Imprimer",
+      "output": "Sortie d’impression",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Couleur",
+      "black": "Noir",
+      "layer_colors": "Couleurs des calques",
+      "appearance": "Aspect du dessin",
+      "by_operation": "Selon l’opération du calque",
+      "outlines": "Contours uniquement",
+      "print": "Imprimer...",
+      "preparing": "Préparation..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Illustration"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Fenêtres",
     "side_panels": "Panneaux latéraux",

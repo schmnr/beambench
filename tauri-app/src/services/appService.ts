@@ -114,10 +114,6 @@ export const appService = {
     return invoke<AppSettings>('get_app_settings');
   },
 
-  async openNewWindow(): Promise<string> {
-    return invoke<string>('open_new_window');
-  },
-
   /**
    * Set the unsaved-changes confirmation flag and close the window from the
    * backend. Used after the user picks Save or Don't Save.

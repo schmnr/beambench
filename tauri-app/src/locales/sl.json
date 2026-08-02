@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Ponastaviti nastavitve na privzete? Profili stroja, nedavne datoteke, shranjeni položaji, nastavitve API-ja in izvozne poti bodo ohranjeni.",
       "save_background_capture": "Shrani zajem ozadja",
       "save_processed_bitmap": "Shrani obdelano bitno sliko",
-      "show_notes": "Prikaži opombe"
+      "show_notes": "Prikaži opombe",
+      "project_notes": "Opombe projekta...",
+      "print": "Natisni...",
+      "export_processed_image": "Izvozi obdelano sliko..."
     },
     "edit": {
       "label": "Uredi",
@@ -1107,6 +1110,19 @@
       "title": "Neshranjene spremembe",
       "message": "Projekt vsebuje neshranjene spremembe. Ali jih želite shraniti, preden nadaljujete?",
       "discard": "Ne shrani"
+    },
+    "print": {
+      "title": "Natisni",
+      "output": "Izhod tiskanja",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Barva",
+      "black": "Črna",
+      "layer_colors": "Barve plasti",
+      "appearance": "Videz grafike",
+      "by_operation": "Po operaciji plasti",
+      "outlines": "Samo obrisi",
+      "print": "Natisni...",
+      "preparing": "Priprava..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafika"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Okna",
     "side_panels": "Stranski podokna",

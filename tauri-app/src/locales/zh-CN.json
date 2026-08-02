@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "将首选项重置为默认值？将保留机器配置文件、最近的文件、保存的位置、API 设置和导出路径。",
       "save_background_capture": "保存背景捕获",
       "save_processed_bitmap": "保存处理后的位图",
-      "show_notes": "显示注释"
+      "show_notes": "显示注释",
+      "project_notes": "项目备注...",
+      "print": "打印...",
+      "export_processed_image": "导出处理后的图像..."
     },
     "edit": {
       "label": "编辑",
@@ -1107,6 +1110,19 @@
       "title": "未保存的更改",
       "message": "项目中有未保存的更改。是否在继续前保存？",
       "discard": "不保存"
+    },
+    "print": {
+      "title": "打印",
+      "output": "打印输出",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "颜色",
+      "black": "黑色",
+      "layer_colors": "图层颜色",
+      "appearance": "图稿外观",
+      "by_operation": "按图层操作",
+      "outlines": "仅轮廓",
+      "print": "打印...",
+      "preparing": "正在准备..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "图稿"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "窗口",
     "side_panels": "侧边面板",

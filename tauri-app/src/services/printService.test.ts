@@ -41,7 +41,10 @@ describe('printService', () => {
 
     await printService.printProject('black');
 
-    expect(invoke).toHaveBeenNthCalledWith(1, 'render_print_document', { mode: 'black' });
+    expect(invoke).toHaveBeenNthCalledWith(1, 'render_print_document', {
+      mode: 'black',
+      appearance: 'operation',
+    });
     expect(invoke).toHaveBeenNthCalledWith(2, 'print_current_webview');
     expect(document.getElementById(PRINT_ROOT_ID)?.querySelector('svg')).not.toBeNull();
     expect(window.print).not.toHaveBeenCalled();
@@ -65,7 +68,10 @@ describe('printService', () => {
 
     await printService.printProject('color');
 
-    expect(invoke).toHaveBeenNthCalledWith(1, 'render_print_document', { mode: 'color' });
+    expect(invoke).toHaveBeenNthCalledWith(1, 'render_print_document', {
+      mode: 'color',
+      appearance: 'operation',
+    });
     expect(window.print).toHaveBeenCalledOnce();
     window.dispatchEvent(new Event('afterprint'));
   });

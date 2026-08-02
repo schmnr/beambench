@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Vil du nulstille indstillinger til standardindstillinger? Maskinprofiler, seneste filer, gemte positioner, API-indstillinger og eksportstier bevares.",
       "save_background_capture": "Gem baggrundsoptagelse",
       "save_processed_bitmap": "Gem behandlet bitmap",
-      "show_notes": "Vis noter"
+      "show_notes": "Vis noter",
+      "project_notes": "Projektnoter...",
+      "print": "Udskriv...",
+      "export_processed_image": "Eksportér behandlet billede..."
     },
     "edit": {
       "label": "Rediger",
@@ -1107,6 +1110,19 @@
       "title": "Ikke-gemte ændringer",
       "message": "Dit projekt har ikke-gemte ændringer. Vil du gemme dem, før du fortsætter?",
       "discard": "Gem ikke"
+    },
+    "print": {
+      "title": "Udskriv",
+      "output": "Udskriftsresultat",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Farve",
+      "black": "Sort",
+      "layer_colors": "Lagfarver",
+      "appearance": "Motivets udseende",
+      "by_operation": "Efter laghandling",
+      "outlines": "Kun konturer",
+      "print": "Udskriv...",
+      "preparing": "Forbereder..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafik"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Vinduer",
     "side_panels": "Sidepaneler",

@@ -1,14 +1,17 @@
 //! Print document rendering for the File menu print commands.
 
+use std::collections::HashSet;
+
 use base64::{Engine as _, engine::general_purpose};
-use beambench_common::Transform2D;
 use beambench_common::path::VecPath;
+use beambench_common::{Bounds, Point2D, Transform2D};
 use image::ImageEncoder;
 
 use crate::export_bitmap::processed_bitmap_png_for_object;
+use crate::layer::{Layer, OperationType};
 use crate::object::{ObjectData, ObjectId, ProjectObject};
 use crate::project::Project;
-use crate::vector::{bake_transform, convert::object_to_world_vecpath};
+use crate::vector::convert::object_to_world_vecpath;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrintMode {
@@ -16,15 +19,24 @@ pub enum PrintMode {
     Color,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum PrintAppearance {
+    #[default]
+    Operation,
+    Outline,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct PrintDocument {
     pub title: String,
     pub svg: String,
+    pub width_mm: f64,
+    pub height_mm: f64,
 }
 
 /// Render the current workspace as a print-ready SVG.
 pub fn render_print_document(project: &Project, mode: PrintMode) -> Result<PrintDocument, String> {
-    render_print_document_with_selection(project, mode, false, &[])
+    render_print_document_with_options(project, mode, PrintAppearance::Operation, false, &[], false)
 }
 
 /// Render the current workspace or selected objects as a visual SVG.
@@ -37,28 +49,58 @@ pub fn render_print_document_with_selection(
     selection_only: bool,
     selected_ids: &[ObjectId],
 ) -> Result<PrintDocument, String> {
-    let width = project.workspace.bed_width_mm;
-    let height = project.workspace.bed_height_mm;
+    render_print_document_with_options(
+        project,
+        mode,
+        PrintAppearance::Operation,
+        selection_only,
+        selected_ids,
+        selection_only,
+    )
+}
+
+pub fn render_print_document_with_options(
+    project: &Project,
+    mode: PrintMode,
+    appearance: PrintAppearance,
+    selection_only: bool,
+    selected_ids: &[ObjectId],
+    crop_to_content: bool,
+) -> Result<PrintDocument, String> {
+    let objects: Vec<_> = printable_objects(project)
+        .into_iter()
+        .filter(|obj| !selection_only || selected_ids.contains(&obj.id))
+        .filter(|obj| obj.visible)
+        .filter(|obj| {
+            project
+                .find_layer(obj.layer_id)
+                .is_some_and(|layer| layer.visible)
+        })
+        .collect();
+    let bounds = if crop_to_content {
+        content_bounds(&objects).unwrap_or_else(|| workspace_bounds(project))
+    } else {
+        workspace_bounds(project)
+    };
+    let width = bounds.width().max(0.01);
+    let height = bounds.height().max(0.01);
     let mut svg = String::new();
     let title = project.metadata.project_name.clone();
 
     svg.push_str(&format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{}mm" height="{}mm" viewBox="0 0 {} {}">"#,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{}mm" height="{}mm" viewBox="{} {} {} {}">"#,
         fmt_num(width),
         fmt_num(height),
+        fmt_num(bounds.min.x),
+        fmt_num(bounds.min.y),
         fmt_num(width),
         fmt_num(height),
     ));
     svg.push('\n');
     svg.push_str(&format!("  <title>{}</title>\n", escape_text(&title)));
 
-    for obj in printable_objects(project) {
-        if selection_only && !selected_ids.contains(&obj.id) {
-            continue;
-        }
-        if !obj.visible {
-            continue;
-        }
+    let mut emitted_filled_layers = HashSet::new();
+    for obj in &objects {
         let Some(layer) = project
             .find_layer(obj.layer_id)
             .filter(|layer| layer.visible)
@@ -67,36 +109,51 @@ pub fn render_print_document_with_selection(
         };
         let color = print_color(mode, &layer.color_tag.0);
 
+        if appearance == PrintAppearance::Operation
+            && layer_uses_filled_appearance(layer)
+            && !matches!(obj.data, ObjectData::RasterImage { .. })
+        {
+            if emitted_filled_layers.insert(layer.id) {
+                let mut paths = Vec::new();
+                for layer_object in objects
+                    .iter()
+                    .filter(|candidate| candidate.layer_id == layer.id)
+                {
+                    if let Some(path) = object_world_path(layer_object)? {
+                        paths.push(path.to_svg_d());
+                    }
+                }
+                if !paths.is_empty() {
+                    svg.push_str(&format!(
+                        r#"  <path d="{}" fill="{}" fill-rule="evenodd" fill-opacity="{}" stroke="none"/>"#,
+                        escape_attr(&paths.join(" ")),
+                        color,
+                        fmt_num(layer.fill_opacity.clamp(0.0, 1.0)),
+                    ));
+                    svg.push('\n');
+                }
+            }
+            continue;
+        }
+
         match &obj.data {
             ObjectData::RasterImage { .. } => {
                 if let Some(image) = raster_image_svg(project, &obj)? {
                     svg.push_str(&image);
                 }
             }
-            ObjectData::Barcode {
-                barcode_type,
-                data,
-                width,
-                height,
-                options,
-            } => {
-                let path = crate::barcode_gen::generate_barcode_with_options(
-                    *barcode_type,
-                    data,
-                    *width,
-                    *height,
-                    options,
-                )
-                .map(|path| map_local_path_to_object_world(path, &obj))?;
-                svg.push_str(&format!(
-                    r#"  <path d="{}" fill="{}" stroke="none"/>"#,
-                    escape_attr(&path.to_svg_d()),
-                    color,
-                ));
-                svg.push('\n');
+            ObjectData::Barcode { .. } => {
+                if let Some(path) = object_world_path(obj)? {
+                    svg.push_str(&format!(
+                        r#"  <path d="{}" fill="{}" stroke="none"/>"#,
+                        escape_attr(&path.to_svg_d()),
+                        color,
+                    ));
+                    svg.push('\n');
+                }
             }
             _ => {
-                if let Some(path) = object_to_world_vecpath(&obj) {
+                if let Some(path) = object_world_path(obj)? {
                     svg.push_str(&format!(
                         r#"  <path d="{}" fill="none" stroke="{}" stroke-width="0.1"/>"#,
                         escape_attr(&path.to_svg_d()),
@@ -109,7 +166,12 @@ pub fn render_print_document_with_selection(
     }
 
     svg.push_str("</svg>\n");
-    Ok(PrintDocument { title, svg })
+    Ok(PrintDocument {
+        title,
+        svg,
+        width_mm: width,
+        height_mm: height,
+    })
 }
 
 /// Render the current workspace or selected objects as PNG bytes.
@@ -120,16 +182,100 @@ pub fn render_print_png(
     selected_ids: &[ObjectId],
     pixels_per_mm: f64,
 ) -> Result<Vec<u8>, String> {
+    render_print_png_with_options(
+        project,
+        mode,
+        PrintAppearance::Operation,
+        selection_only,
+        selected_ids,
+        selection_only,
+        pixels_per_mm,
+    )
+}
+
+pub fn render_print_png_with_options(
+    project: &Project,
+    mode: PrintMode,
+    appearance: PrintAppearance,
+    selection_only: bool,
+    selected_ids: &[ObjectId],
+    crop_to_content: bool,
+    pixels_per_mm: f64,
+) -> Result<Vec<u8>, String> {
     let pixels_per_mm = if pixels_per_mm.is_finite() && pixels_per_mm > 0.0 {
         pixels_per_mm
     } else {
         4.0
     };
-    let width_px = ((project.workspace.bed_width_mm * pixels_per_mm).round() as u32).max(1);
-    let height_px = ((project.workspace.bed_height_mm * pixels_per_mm).round() as u32).max(1);
-    let document =
-        render_print_document_with_selection(project, mode, selection_only, selected_ids)?;
+    let document = render_print_document_with_options(
+        project,
+        mode,
+        appearance,
+        selection_only,
+        selected_ids,
+        crop_to_content,
+    )?;
+    let width_px = ((document.width_mm * pixels_per_mm).round() as u32).max(1);
+    let height_px = ((document.height_mm * pixels_per_mm).round() as u32).max(1);
     render_svg_document_to_png(&document.svg, width_px, height_px)
+}
+
+fn workspace_bounds(project: &Project) -> Bounds {
+    Bounds::new(
+        Point2D::zero(),
+        Point2D::new(
+            project.workspace.bed_width_mm,
+            project.workspace.bed_height_mm,
+        ),
+    )
+}
+
+fn content_bounds(objects: &[ProjectObject]) -> Option<Bounds> {
+    let mut combined: Option<Bounds> = None;
+    for object in objects {
+        let center = Point2D::new(
+            (object.bounds.min.x + object.bounds.max.x) / 2.0,
+            (object.bounds.min.y + object.bounds.max.y) / 2.0,
+        );
+        let corners = [
+            object.bounds.min,
+            Point2D::new(object.bounds.max.x, object.bounds.min.y),
+            object.bounds.max,
+            Point2D::new(object.bounds.min.x, object.bounds.max.y),
+        ];
+        let mut min = Point2D::new(f64::INFINITY, f64::INFINITY);
+        let mut max = Point2D::new(f64::NEG_INFINITY, f64::NEG_INFINITY);
+        for corner in corners {
+            let point = object.transform.apply_around_center(&corner, &center);
+            min.x = min.x.min(point.x);
+            min.y = min.y.min(point.y);
+            max.x = max.x.max(point.x);
+            max.y = max.y.max(point.y);
+        }
+        let object_bounds = Bounds::new(min, max);
+        combined = Some(combined.map_or(object_bounds, |bounds| bounds.union(&object_bounds)));
+    }
+    combined.map(|bounds| {
+        const PADDING_MM: f64 = 1.0;
+        Bounds::new(
+            Point2D::new(bounds.min.x - PADDING_MM, bounds.min.y - PADDING_MM),
+            Point2D::new(bounds.max.x + PADDING_MM, bounds.max.y + PADDING_MM),
+        )
+    })
+}
+
+fn layer_uses_filled_appearance(layer: &Layer) -> bool {
+    !layer.is_tool_layer
+        && layer.entries.iter().any(|entry| {
+            matches!(
+                entry.operation,
+                OperationType::Image | OperationType::Fill | OperationType::OffsetFill
+            )
+        })
+}
+
+fn object_world_path(obj: &ProjectObject) -> Result<Option<VecPath>, String> {
+    Ok(object_to_world_vecpath(obj))
 }
 
 fn render_svg_document_to_png(svg: &str, width_px: u32, height_px: u32) -> Result<Vec<u8>, String> {
@@ -200,7 +346,7 @@ fn raster_image_svg(project: &Project, obj: &ProjectObject) -> Result<Option<Str
     }
     let bytes = processed_bitmap_png_for_object(project, obj)?;
     let data = general_purpose::STANDARD.encode(bytes);
-    let transform = svg_transform_attr(&obj.transform);
+    let transform = svg_transform_attr_around_bounds_center(&obj.transform, &obj.bounds);
     Ok(Some(
         format!(
             r#"  <image x="{}" y="{}" width="{}" height="{}" href="data:image/png;base64,{}" preserveAspectRatio="none"{}/>"#,
@@ -214,51 +360,22 @@ fn raster_image_svg(project: &Project, obj: &ProjectObject) -> Result<Option<Str
     ))
 }
 
-fn map_local_path_to_object_world(path: VecPath, obj: &ProjectObject) -> VecPath {
-    let Some(intrinsic) = path.visual_bounds().or_else(|| path.bounds()) else {
-        return path;
-    };
-    let old_w = intrinsic.max.x - intrinsic.min.x;
-    let old_h = intrinsic.max.y - intrinsic.min.y;
-    let new_w = obj.bounds.max.x - obj.bounds.min.x;
-    let new_h = obj.bounds.max.y - obj.bounds.min.y;
-
-    let sx = if old_w > 0.0 { new_w / old_w } else { 1.0 };
-    let sy = if old_h > 0.0 { new_h / old_h } else { 1.0 };
-    let tx = obj.bounds.min.x - intrinsic.min.x * sx;
-    let ty = obj.bounds.min.y - intrinsic.min.y * sy;
-
-    let mapped = bake_transform(
-        &path,
-        &Transform2D {
-            a: sx,
-            b: 0.0,
-            c: 0.0,
-            d: sy,
-            tx,
-            ty,
-        },
-    );
-
-    if obj.transform.is_identity() {
-        mapped
-    } else {
-        bake_transform(&mapped, &obj.transform)
-    }
-}
-
-fn svg_transform_attr(transform: &Transform2D) -> String {
+fn svg_transform_attr_around_bounds_center(transform: &Transform2D, bounds: &Bounds) -> String {
     if transform.is_identity() {
         String::new()
     } else {
+        let center_x = (bounds.min.x + bounds.max.x) / 2.0;
+        let center_y = (bounds.min.y + bounds.max.y) / 2.0;
+        let tx = transform.tx + center_x - transform.a * center_x - transform.c * center_y;
+        let ty = transform.ty + center_y - transform.b * center_x - transform.d * center_y;
         format!(
             r#" transform="matrix({} {} {} {} {} {})""#,
             fmt_num(transform.a),
             fmt_num(transform.b),
             fmt_num(transform.c),
             fmt_num(transform.d),
-            fmt_num(transform.tx),
-            fmt_num(transform.ty),
+            fmt_num(tx),
+            fmt_num(ty),
         )
     }
 }
@@ -346,6 +463,62 @@ mod tests {
         let doc = render_print_document(&project, PrintMode::Color).unwrap();
 
         assert!(doc.svg.contains(r##"stroke="#00AAFF""##));
+    }
+
+    #[test]
+    fn operation_appearance_combines_fill_layer_paths_with_even_odd_rule() {
+        let mut project = test_project();
+        let mut layer = Layer::new("Fill", OperationType::Fill);
+        layer.color_tag = ColorTag("#FF0000".to_string());
+        let layer_id = layer.id;
+        project.add_layer(layer);
+        project.add_object(rect("outer", layer_id, 10.0));
+        project.add_object(rect("inner", layer_id, 15.0));
+
+        let doc = render_print_document(&project, PrintMode::Color).unwrap();
+
+        assert_eq!(doc.svg.matches("<path ").count(), 1);
+        assert!(doc.svg.contains(r#"fill-rule="evenodd""#));
+        assert!(doc.svg.contains(r##"fill="#FF0000""##));
+        assert!(!doc.svg.contains("fill=\"none\""));
+    }
+
+    #[test]
+    fn outline_appearance_keeps_fill_layer_as_wireframe() {
+        let mut project = test_project();
+        let layer = Layer::new("Fill", OperationType::Fill);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+        project.add_object(rect("rect", layer_id, 10.0));
+
+        let doc = render_print_document_with_options(
+            &project,
+            PrintMode::Black,
+            PrintAppearance::Outline,
+            false,
+            &[],
+            false,
+        )
+        .unwrap();
+
+        assert!(doc.svg.contains(r#"fill="none""#));
+        assert!(doc.svg.contains(r##"stroke="#000000""##));
+    }
+
+    #[test]
+    fn selection_render_crops_to_selected_content() {
+        let mut project = test_project();
+        let layer_id = project.ensure_default_layer();
+        let selected_id = project.add_object(rect("selected", layer_id, 10.0)).id;
+        project.add_object(rect("other", layer_id, 100.0));
+
+        let doc =
+            render_print_document_with_selection(&project, PrintMode::Black, true, &[selected_id])
+                .unwrap();
+
+        assert_eq!(doc.width_mm, 22.0);
+        assert_eq!(doc.height_mm, 22.0);
+        assert!(doc.svg.contains(r#"viewBox="9 9 22 22""#));
     }
 
     #[test]

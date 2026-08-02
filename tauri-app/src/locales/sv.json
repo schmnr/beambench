@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Återställa inställningarna till standardinställningarna? Maskinprofiler, senaste filer, sparade positioner, API-inställningar och exportvägar kommer att behållas.",
       "save_background_capture": "Spara bakgrundsfångst",
       "save_processed_bitmap": "Spara bearbetad bitmapp",
-      "show_notes": "Visa anteckningar"
+      "show_notes": "Visa anteckningar",
+      "project_notes": "Projektanteckningar...",
+      "print": "Skriv ut...",
+      "export_processed_image": "Exportera bearbetad bild..."
     },
     "edit": {
       "label": "Redigera",
@@ -1107,6 +1110,19 @@
       "title": "Osparade ändringar",
       "message": "Ditt projekt har osparade ändringar. Vill du spara dem innan du fortsätter?",
       "discard": "Spara inte"
+    },
+    "print": {
+      "title": "Skriv ut",
+      "output": "Utskrift",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Färg",
+      "black": "Svart",
+      "layer_colors": "Lagerfärger",
+      "appearance": "Motivets utseende",
+      "by_operation": "Efter lageråtgärd",
+      "outlines": "Endast konturer",
+      "print": "Skriv ut...",
+      "preparing": "Förbereder..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafik"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Fönster",
     "side_panels": "Sidopaneler",

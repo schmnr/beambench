@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "設定をデフォルトにリセットしますか?マシン プロファイル、最近のファイル、保存された位置、API 設定、およびエクスポート パスが保持されます。",
       "save_background_capture": "バックグラウンドキャプチャを保存",
       "save_processed_bitmap": "処理されたビットマップを保存する",
-      "show_notes": "メモを表示"
+      "show_notes": "メモを表示",
+      "project_notes": "プロジェクトノート...",
+      "print": "印刷...",
+      "export_processed_image": "処理済み画像を書き出す..."
     },
     "edit": {
       "label": "編集",
@@ -1107,6 +1110,19 @@
       "title": "未保存の変更",
       "message": "プロジェクトに未保存の変更があります。続行する前に保存しますか？",
       "discard": "保存しない"
+    },
+    "print": {
+      "title": "印刷",
+      "output": "印刷出力",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "カラー",
+      "black": "黒",
+      "layer_colors": "レイヤーの色",
+      "appearance": "アートワークの表示",
+      "by_operation": "レイヤー処理に従う",
+      "outlines": "輪郭線のみ",
+      "print": "印刷...",
+      "preparing": "準備中..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "アートワーク"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "ウィンドウ",
     "side_panels": "サイドパネル",

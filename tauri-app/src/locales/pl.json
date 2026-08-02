@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Zresetować preferencje do ustawień domyślnych? Profile maszyn, ostatnie pliki, zapisane pozycje, ustawienia API i ścieżki eksportu zostaną zachowane.",
       "save_background_capture": "Zapisz przechwytywanie w tle",
       "save_processed_bitmap": "Zapisz przetworzoną mapę bitową",
-      "show_notes": "Pokaż notatki"
+      "show_notes": "Pokaż notatki",
+      "project_notes": "Notatki projektu...",
+      "print": "Drukuj...",
+      "export_processed_image": "Eksportuj przetworzony obraz..."
     },
     "edit": {
       "label": "Edycja",
@@ -1107,6 +1110,19 @@
       "title": "Niezapisane zmiany",
       "message": "Projekt zawiera niezapisane zmiany. Zapisać je przed kontynuowaniem?",
       "discard": "Nie zapisuj"
+    },
+    "print": {
+      "title": "Drukuj",
+      "output": "Wynik drukowania",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Kolor",
+      "black": "Czarny",
+      "layer_colors": "Kolory warstw",
+      "appearance": "Wygląd grafiki",
+      "by_operation": "Według operacji warstwy",
+      "outlines": "Tylko kontury",
+      "print": "Drukuj...",
+      "preparing": "Przygotowywanie..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafika"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Okna",
     "side_panels": "Panele boczne",

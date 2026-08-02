@@ -4,7 +4,6 @@ export const APP_COMMANDS = {
   APP_QUIT: 'app.quit',
 
   FILE_NEW: 'file.new',
-  FILE_NEW_WINDOW: 'file.new_window',
   FILE_OPEN_RECENT: 'file.open_recent',
   FILE_OPEN: 'file.open',
   FILE_IMPORT: 'file.import',
@@ -12,15 +11,11 @@ export const APP_COMMANDS = {
   FILE_SAVE: 'file.save',
   FILE_SAVE_AS: 'file.save_as',
   FILE_EXPORT: 'file.export',
-  FILE_PREFS_IMPORT: 'file.preferences.import',
-  FILE_PREFS_EXPORT: 'file.preferences.export',
-  FILE_PREFS_OPEN_FOLDER: 'file.preferences.open_folder',
-  FILE_PREFS_RESET_DEFAULTS: 'file.preferences.reset_defaults',
   FILE_PREFS_EDIT_HOTKEYS: 'file.preferences.edit_hotkeys',
-  FILE_PRINT_BLACK: 'file.print_black',
-  FILE_PRINT_COLORS: 'file.print_colors',
+  // Keep the former black-print command value so saved custom shortcuts
+  // continue to open the consolidated Print dialog.
+  FILE_PRINT: 'file.print_black',
   FILE_SAVE_PROCESSED_BITMAP: 'file.save_processed_bitmap',
-  FILE_SAVE_BACKGROUND_CAPTURE: 'file.save_background_capture',
 
   EDIT_UNDO: 'edit.undo',
   EDIT_REDO: 'edit.redo',

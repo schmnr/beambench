@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Einstellungen auf Standard zurücksetzen? Maschinenprofile, aktuelle Dateien, gespeicherte Positionen, API-Einstellungen und Exportpfade bleiben erhalten.",
       "save_background_capture": "Hintergrundaufnahme speichern",
       "save_processed_bitmap": "Verarbeitete Bitmap speichern",
-      "show_notes": "Notizen anzeigen"
+      "show_notes": "Notizen anzeigen",
+      "project_notes": "Projektnotizen...",
+      "print": "Drucken...",
+      "export_processed_image": "Bearbeitetes Bild exportieren..."
     },
     "edit": {
       "label": "Bearbeiten",
@@ -1107,6 +1110,19 @@
       "title": "Ungespeicherte Änderungen",
       "message": "Ihr Projekt enthält ungespeicherte Änderungen. Vor dem Fortfahren speichern?",
       "discard": "Nicht speichern"
+    },
+    "print": {
+      "title": "Drucken",
+      "output": "Druckausgabe",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Farbe",
+      "black": "Schwarz",
+      "layer_colors": "Ebenenfarben",
+      "appearance": "Darstellung der Grafik",
+      "by_operation": "Nach Ebenenoperation",
+      "outlines": "Nur Konturen",
+      "print": "Drucken...",
+      "preparing": "Wird vorbereitet..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafik"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Fenster",
     "side_panels": "Seitenleisten",

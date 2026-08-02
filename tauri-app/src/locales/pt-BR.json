@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Redefinir as preferências para os padrões? Perfis de máquinas, arquivos recentes, posições salvas, configurações de API e caminhos de exportação serão mantidos.",
       "save_background_capture": "Salvar captura de plano de fundo",
       "save_processed_bitmap": "Salvar bitmap processado",
-      "show_notes": "Mostrar notas"
+      "show_notes": "Mostrar notas",
+      "project_notes": "Notas do projeto...",
+      "print": "Imprimir...",
+      "export_processed_image": "Exportar imagem processada..."
     },
     "edit": {
       "label": "Editar",
@@ -1107,6 +1110,19 @@
       "title": "Alterações não salvas",
       "message": "Seu projeto tem alterações não salvas. Salvar antes de continuar?",
       "discard": "Não salvar"
+    },
+    "print": {
+      "title": "Imprimir",
+      "output": "Saída de impressão",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Cor",
+      "black": "Preto",
+      "layer_colors": "Cores das camadas",
+      "appearance": "Aparência da arte",
+      "by_operation": "Por operação da camada",
+      "outlines": "Somente contornos",
+      "print": "Imprimir...",
+      "preparing": "Preparando..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Arte"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Janelas",
     "side_panels": "Painéis laterais",

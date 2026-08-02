@@ -30,12 +30,7 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.FILE_SAVE, label: 'Save', group: 'File', defaultHotkey: 'Ctrl+s', editable: false },
   { id: APP_COMMANDS.FILE_SAVE_AS, label: 'Save As', group: 'File', defaultHotkey: 'Ctrl+Shift+s', editable: false },
   { id: APP_COMMANDS.FILE_EXPORT, label: 'Export', group: 'File', defaultHotkey: 'Alt+x', editable: true },
-  { id: APP_COMMANDS.FILE_PRINT_BLACK, label: 'Print Black', group: 'File', defaultHotkey: 'Ctrl+p', editable: true },
-  { id: APP_COMMANDS.FILE_PRINT_COLORS, label: 'Print Colors', group: 'File', defaultHotkey: 'Ctrl+Shift+p', editable: true },
-  { id: APP_COMMANDS.FILE_PREFS_IMPORT, label: 'Import Prefs', group: 'Preferences', editable: false },
-  { id: APP_COMMANDS.FILE_PREFS_EXPORT, label: 'Export Prefs', group: 'Preferences', editable: false },
-  { id: APP_COMMANDS.FILE_PREFS_OPEN_FOLDER, label: 'Open Prefs Folder', group: 'Preferences', editable: false },
-  { id: APP_COMMANDS.FILE_PREFS_RESET_DEFAULTS, label: 'Reset Prefs to Defaults', group: 'Preferences', editable: false },
+  { id: APP_COMMANDS.FILE_PRINT, label: 'Print...', group: 'File', defaultHotkey: 'Ctrl+p', editable: true },
   { id: APP_COMMANDS.FILE_PREFS_EDIT_HOTKEYS, label: 'Edit Hotkeys', group: 'Preferences', editable: false },
   { id: APP_COMMANDS.APP_QUIT, label: 'Quit', group: 'App', defaultHotkey: 'Ctrl+q', editable: false },
   { id: APP_COMMANDS.EDIT_UNDO, label: 'Undo', group: 'Edit', defaultHotkey: 'Ctrl+z', editable: true },
@@ -192,8 +187,7 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
 ];
 
 const COMMAND_LABEL_KEY_OVERRIDES: Partial<Record<AppCommandId, string>> = {
-  [APP_COMMANDS.FILE_PRINT_BLACK]: 'menus.file.print_black',
-  [APP_COMMANDS.FILE_PRINT_COLORS]: 'menus.file.print_colors',
+  [APP_COMMANDS.FILE_PRINT]: 'menus.file.print',
   [APP_COMMANDS.FILE_PREFS_EDIT_HOTKEYS]: 'dialog.hotkey_editor.title',
   [APP_COMMANDS.APP_QUIT]: 'menus.app.quit',
   [APP_COMMANDS.LASER_MATERIAL_TEST]: 'dialog.material_test.title',

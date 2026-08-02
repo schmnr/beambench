@@ -22,6 +22,7 @@ import { NestDialog } from './components/dialogs/NestDialog';
 import { MaterialTestDialog } from './components/dialogs/MaterialTestDialog';
 import { FocusTestDialog } from './components/dialogs/FocusTestDialog';
 import { IntervalTestDialog } from './components/dialogs/IntervalTestDialog';
+import { PrintDialog } from './components/dialogs/PrintDialog';
 import { FeedbackErrorBoundary } from './components/dialogs/FeedbackErrorBoundary';
 import { FeedbackReportDialog } from './components/dialogs/FeedbackReportDialog';
 import { useAppStore } from './stores/appStore';
@@ -491,56 +492,6 @@ function NestingOverlay() {
   );
 }
 
-function ResetPreferencesDialog({
-  onCancel,
-  onConfirm,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="reset-preferences-title"
-      className="fixed inset-0 z-[9500] flex items-center justify-center bg-black/20"
-      onClick={onCancel}
-    >
-      <div
-        className="w-[420px] max-w-[90vw] rounded-xl border border-bb-border bg-bb-panel shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-6 py-5 flex flex-col gap-4">
-          <h2 id="reset-preferences-title" className="text-sm font-semibold text-bb-text">
-            {i18n.t('menus.file.reset_preferences')}
-          </h2>
-          <p className="text-sm text-bb-text-muted">
-            {i18n.t('menus.file.reset_preferences_confirm')}
-          </p>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              data-testid="reset-preferences-cancel"
-              onClick={onCancel}
-              className="rounded border border-bb-border px-3 py-1.5 text-xs font-medium text-bb-text hover:bg-bb-hover"
-            >
-              {i18n.t('common.cancel')}
-            </button>
-            <button
-              type="button"
-              data-testid="reset-preferences-confirm"
-              onClick={onConfirm}
-              className="rounded bg-bb-accent px-3 py-1.5 text-xs font-semibold text-bb-on-accent hover:bg-bb-accent-hover"
-            >
-              {i18n.t('common.ok')}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function App() {
   const fetchStatus = useAppStore((s) => s.fetchStatus);
   const fetchSettings = useAppStore((s) => s.fetchSettings);
@@ -574,7 +525,7 @@ function App() {
   const [feedbackDialog, setFeedbackDialog] = useState<FeedbackReportOpenDetail | null>(null);
   const startupCrashPromptChecked = useRef(false);
   const [showMaterialTestDialog, setShowMaterialTestDialog] = useState(false);
-  const [showResetPreferencesDialog, setShowResetPreferencesDialog] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showFocusTestDialog, setShowFocusTestDialog] = useState(false);
   const [showIntervalTestDialog, setShowIntervalTestDialog] = useState(false);
   const deleteDuplicatesResolveRef = useRef<((confirmed: boolean) => void) | null>(null);
@@ -591,40 +542,6 @@ function App() {
         console.error('[Beam Bench] Failed to unregister camera agent bridge', error);
       });
     };
-  }, []);
-
-  const handleExportPreferences = useCallback(() => {
-    void runShortcutAsync(async () => {
-      const path = await appService.pickPreferencesExportPath();
-      await appService.exportPreferences(path);
-      useNotificationStore.getState().push(i18n.t('notifications.preferences_exported'), 'success');
-    });
-  }, []);
-
-  const handleImportPreferences = useCallback(() => {
-    void runShortcutAsync(async () => {
-      const path = await appService.pickPreferencesImportPath();
-      const settings = await appService.importPreferences(path);
-      useAppStore.getState().applySettings(settings);
-      useNotificationStore.getState().push(i18n.t('notifications.preferences_imported'), 'success');
-    });
-  }, []);
-
-  const handleResetPreferences = useCallback(() => {
-    setShowResetPreferencesDialog(true);
-  }, []);
-
-  const confirmResetPreferences = useCallback(() => {
-    setShowResetPreferencesDialog(false);
-    void runShortcutAsync(async () => {
-      const settings = await appService.resetPreferences();
-      useAppStore.getState().applySettings(settings);
-      useNotificationStore.getState().push(i18n.t('notifications.preferences_reset'), 'success');
-    });
-  }, []);
-
-  const handleOpenPreferencesFolder = useCallback(() => {
-    void runShortcutAsync(() => appService.openPreferencesFolder());
   }, []);
 
   const resolveDeleteDuplicatesDialog = useCallback((confirmed: boolean) => {
@@ -651,10 +568,7 @@ function App() {
   const nativeMenuDialogActions = useMemo<AppCommandDialogActions>(() => ({
     openAbout: () => setShowAboutDialog(true),
     openSettings: () => setShowSettingsDialog(true),
-    openImportPreferences: handleImportPreferences,
-    openExportPreferences: handleExportPreferences,
-    openPreferencesFolder: handleOpenPreferencesFolder,
-    resetPreferences: handleResetPreferences,
+    openPrint: () => setShowPrintDialog(true),
     openHotkeyEditor: () => setShowHotkeyEditorDialog(true),
     openTraceImage: (objectId: string) => setTraceDialogObjectId(objectId),
     openAdjustImage: (objectId: string) => setAdjustDialogObjectId(objectId),
@@ -677,10 +591,6 @@ function App() {
     }),
   }), [
     confirmDeleteDuplicates,
-    handleExportPreferences,
-    handleImportPreferences,
-    handleOpenPreferencesFolder,
-    handleResetPreferences,
   ]);
 
   useEffect(
@@ -1360,7 +1270,7 @@ function App() {
       // --- File shortcuts ---
       else if (ctrl && e.key === 'n' && !alt && !isInput) {
         e.preventDefault();
-        ps.createProject('Untitled Project');
+        void executeAppCommand(APP_COMMANDS.FILE_NEW);
       } else if (ctrl && e.key === 's' && !shift && !isInput) {
         e.preventDefault();
         void executeAppCommand(APP_COMMANDS.FILE_SAVE);
@@ -1376,12 +1286,9 @@ function App() {
       } else if (ctrl && alt && e.key === 'n' && !isInput) {
         e.preventDefault();
         useUiStore.getState().toggleNotesDialog();
-      } else if (ctrl && shift && !alt && (e.key === 'P' || e.key === 'p') && !isInput) {
-        e.preventDefault();
-        void runShortcutAsync(() => executeAppCommand(APP_COMMANDS.FILE_PRINT_COLORS, {}, { source: 'shortcut' }));
       } else if (ctrl && !shift && !alt && (e.key === 'P' || e.key === 'p') && !isInput) {
         e.preventDefault();
-        void runShortcutAsync(() => executeAppCommand(APP_COMMANDS.FILE_PRINT_BLACK, {}, { source: 'shortcut' }));
+        void executeAppCommand(APP_COMMANDS.FILE_PRINT, nativeMenuDialogActions, { source: 'shortcut' });
       } else if (ctrl && e.key === 'q' && !isInput) {
         e.preventDefault();
         void appService.requestWindowClose();
@@ -1805,11 +1712,8 @@ function App() {
       {showMaterialTestDialog && (
         <MaterialTestDialog onClose={() => setShowMaterialTestDialog(false)} />
       )}
-      {showResetPreferencesDialog && (
-        <ResetPreferencesDialog
-          onCancel={() => setShowResetPreferencesDialog(false)}
-          onConfirm={confirmResetPreferences}
-        />
+      {showPrintDialog && (
+        <PrintDialog onClose={() => setShowPrintDialog(false)} />
       )}
       {showFocusTestDialog && (
         <FocusTestDialog onClose={() => setShowFocusTestDialog(false)} />

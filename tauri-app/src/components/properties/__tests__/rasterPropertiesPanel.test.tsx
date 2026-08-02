@@ -51,9 +51,11 @@ describe('RasterPropertiesPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Adjust Image' }));
     fireEvent.click(screen.getByRole('button', { name: 'Trace Image' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Export Processed Image...' }));
 
     expect(executeAppCommandMock).toHaveBeenNthCalledWith(1, APP_COMMANDS.TOOLS_ADJUST_IMAGE);
     expect(executeAppCommandMock).toHaveBeenNthCalledWith(2, APP_COMMANDS.TOOLS_TRACE_IMAGE);
+    expect(executeAppCommandMock).toHaveBeenNthCalledWith(3, APP_COMMANDS.FILE_SAVE_PROCESSED_BITMAP);
   });
 
   it('renders masks and calls polarity/remove actions', () => {

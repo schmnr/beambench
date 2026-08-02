@@ -14,7 +14,7 @@ use beambench_service::ops::preferences::{
     reset_preferences_to_defaults as reset_preferences_to_defaults_op,
 };
 use beambench_service::persist;
-use tauri::{State, WebviewWindow, WebviewWindowBuilder};
+use tauri::{State, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
@@ -161,64 +161,6 @@ pub fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), Strin
 #[tauri::command]
 pub fn get_app_settings(svc: State<'_, Arc<ServiceContext>>) -> Result<AppSettings, String> {
     app::get_app_settings(&svc).map_err(Into::into)
-}
-
-#[tauri::command]
-pub async fn open_new_window(
-    app: tauri::AppHandle,
-    window: WebviewWindow,
-    svc: State<'_, Arc<ServiceContext>>,
-) -> Result<String, String> {
-    let config = app
-        .config()
-        .app
-        .windows
-        .first()
-        .cloned()
-        .ok_or_else(|| "No application window configuration found".to_string())?;
-    let label = format!("main-{}", uuid::Uuid::new_v4().simple());
-
-    let ui_theme = svc
-        .settings
-        .lock()
-        .map_err(|e| format!("Failed to lock settings: {e}"))?
-        .ui_theme;
-    let system_theme = if ui_theme == UiTheme::System {
-        window.theme().ok()
-    } else {
-        None
-    };
-
-    let mut builder = WebviewWindowBuilder::new(&app, label.clone(), config.url.clone())
-        .title(config.title.clone())
-        .inner_size(config.width, config.height)
-        .resizable(config.resizable)
-        .fullscreen(config.fullscreen)
-        .visible(config.visible)
-        .theme(crate::theme::native_theme(ui_theme))
-        .background_color(crate::theme::background_color(ui_theme, system_theme));
-
-    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-        builder = builder.min_inner_size(min_width, min_height);
-    }
-
-    if let Ok(position) = window.outer_position() {
-        let scale_factor = window.scale_factor().unwrap_or(1.0);
-        builder = builder.position(
-            position.x as f64 / scale_factor + 32.0,
-            position.y as f64 / scale_factor + 32.0,
-        );
-    } else if let (Some(x), Some(y)) = (config.x, config.y) {
-        builder = builder.position(x + 32.0, y + 32.0);
-    } else {
-        builder = builder.center();
-    }
-
-    builder
-        .build()
-        .map_err(|e| format!("Failed to open new window: {e}"))?;
-
-    Ok(label)
 }
 
 #[allow(clippy::too_many_arguments)]

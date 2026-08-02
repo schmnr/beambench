@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Voorkeuren terugzetten naar standaardwaarden? Machineprofielen, recente bestanden, opgeslagen posities, API-instellingen en exportpaden blijven behouden.",
       "save_background_capture": "Achtergrondopname opslaan",
       "save_processed_bitmap": "Bewaar verwerkte bitmap",
-      "show_notes": "Toon notities"
+      "show_notes": "Toon notities",
+      "project_notes": "Projectnotities...",
+      "print": "Afdrukken...",
+      "export_processed_image": "Verwerkte afbeelding exporteren..."
     },
     "edit": {
       "label": "Bewerken",
@@ -1107,6 +1110,19 @@
       "title": "Niet-opgeslagen wijzigingen",
       "message": "Je project bevat niet-opgeslagen wijzigingen. Opslaan voordat je doorgaat?",
       "discard": "Niet opslaan"
+    },
+    "print": {
+      "title": "Afdrukken",
+      "output": "Afdrukuitvoer",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Kleur",
+      "black": "Zwart",
+      "layer_colors": "Laagkleuren",
+      "appearance": "Weergave van illustratie",
+      "by_operation": "Per laagbewerking",
+      "outlines": "Alleen contouren",
+      "print": "Afdrukken...",
+      "preparing": "Voorbereiden..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Illustratie"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Vensters",
     "side_panels": "Zijpanelen",

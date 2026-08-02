@@ -27,6 +27,7 @@ import { BarcodeDialog } from '../dialogs/BarcodeDialog';
 import { MaterialTestDialog } from '../dialogs/MaterialTestDialog';
 import { FocusTestDialog } from '../dialogs/FocusTestDialog';
 import { IntervalTestDialog } from '../dialogs/IntervalTestDialog';
+import { PrintDialog } from '../dialogs/PrintDialog';
 import { CopyAlongPathDialog } from '../dialogs/CopyAlongPathDialog';
 import { NestDialog } from '../dialogs/NestDialog';
 import {
@@ -54,11 +55,6 @@ const CHECK_MARK = '\u2713';
 
 export function MenuBar() {
   const { t } = useTranslation();
-  const createProject = useProjectStore((s) => s.createProject);
-  const openProject = useProjectStore((s) => s.openProject);
-  const openProjectFromPath = useProjectStore((s) => s.openProjectFromPath);
-  const saveProject = useProjectStore((s) => s.saveProject);
-  const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const importFiles = useProjectStore((s) => s.importFiles);
   const project = useProjectStore((s) => s.project);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
@@ -93,7 +89,6 @@ export function MenuBar() {
   const hasClipboard = useUiStore((s) => s.hasClipboard);
   const hiddenPanelIds = useUiStore((s) => s.panelLayout.hiddenPanelIds);
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
-  const showNotesDialog = useUiStore((s) => s.showNotesDialog);
   const toggleNotesDialog = useUiStore((s) => s.toggleNotesDialog);
   const workspaceMode = useUiStore((s) => s.workspaceMode);
   const recentFiles = useAppStore((s) => s.settings?.recent_files) ?? EMPTY_RECENT_FILES;
@@ -149,7 +144,7 @@ export function MenuBar() {
   const [adjustDialogObjectId, setAdjustDialogObjectId] = useState<string | null>(null);
   const [barcodeDialogLayerId, setBarcodeDialogLayerId] = useState<string | null>(null);
   const [showMaterialTestDialog, setShowMaterialTestDialog] = useState(false);
-  const [showResetPreferencesConfirm, setShowResetPreferencesConfirm] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showFocusTestDialog, setShowFocusTestDialog] = useState(false);
   const [showIntervalTestDialog, setShowIntervalTestDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -204,54 +199,6 @@ export function MenuBar() {
   const handleSaveMachineFiles = async () => {
     setOpenMenu(null);
     await executeAppCommand(APP_COMMANDS.FILE_SAVE_MACHINE_FILES);
-  };
-
-  const handleSaveProcessedBitmap = async () => {
-    setOpenMenu(null);
-    await executeAppCommand(APP_COMMANDS.FILE_SAVE_PROCESSED_BITMAP);
-  };
-
-  const handlePrint = async (mode: 'black' | 'color') => {
-    setOpenMenu(null);
-    await executeAppCommand(mode === 'black' ? APP_COMMANDS.FILE_PRINT_BLACK : APP_COMMANDS.FILE_PRINT_COLORS);
-  };
-
-  const handleImportPreferences = async () => {
-    setOpenMenu(null);
-    await runMenuAsync(async () => {
-      const path = await appService.pickPreferencesImportPath();
-      const settings = await appService.importPreferences(path);
-      useAppStore.getState().applySettings(settings);
-      useNotificationStore.getState().push(t('menus.file.preferences_imported'), 'success');
-    });
-  };
-
-  const handleExportPreferences = async () => {
-    setOpenMenu(null);
-    await runMenuAsync(async () => {
-      const path = await appService.pickPreferencesExportPath();
-      await appService.exportPreferences(path);
-      useNotificationStore.getState().push(t('menus.file.preferences_exported'), 'success');
-    });
-  };
-
-  const handleOpenPreferencesFolder = async () => {
-    setOpenMenu(null);
-    await runMenuAsync(() => appService.openPreferencesFolder());
-  };
-
-  const handleResetPreferences = () => {
-    setOpenMenu(null);
-    setShowResetPreferencesConfirm(true);
-  };
-
-  const handleResetPreferencesConfirm = async () => {
-    setShowResetPreferencesConfirm(false);
-    await runMenuAsync(async () => {
-      const settings = await appService.resetPreferences();
-      useAppStore.getState().applySettings(settings);
-      useNotificationStore.getState().push(t('menus.file.preferences_reset'), 'success');
-    });
   };
 
   const handleConnect = () => {
@@ -427,6 +374,7 @@ export function MenuBar() {
   };
 
   const menuCommandDialogs: AppCommandDialogActions = {
+    openPrint: () => setShowPrintDialog(true),
     openTraceImage: setTraceDialogObjectId,
     openAdjustImage: setAdjustDialogObjectId,
     openBarcode: setBarcodeDialogLayerId,
@@ -445,9 +393,7 @@ export function MenuBar() {
 
   const handleOpenRecent = (path: string) => {
     setOpenMenu(null);
-    void openProjectFromPath(path).finally(() => {
-      void fetchSettings();
-    });
+    void executeAppCommand(APP_COMMANDS.FILE_OPEN_RECENT, menuCommandDialogs, { filePath: path, source: 'menu' });
   };
 
   const isConnected = sessionState === 'ready' || sessionState === 'running' || sessionState === 'paused' || sessionState === 'alarm';
@@ -549,14 +495,7 @@ export function MenuBar() {
               shortcut="Ctrl+N"
               onClick={() => {
                 setOpenMenu(null);
-                createProject(t('menus.file.untitled_project'));
-              }}
-            />
-            <MenuItem
-              label={ml("New Window")}
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.FILE_NEW_WINDOW);
+                void executeAppCommand(APP_COMMANDS.FILE_NEW, menuCommandDialogs, { source: 'menu' });
               }}
             />
             <MenuSubmenu label={ml("Recent Projects")}>
@@ -577,9 +516,7 @@ export function MenuBar() {
               shortcut="Ctrl+O"
               onClick={() => {
                 setOpenMenu(null);
-                void openProject().finally(() => {
-                  void fetchSettings();
-                });
+                void executeAppCommand(APP_COMMANDS.FILE_OPEN, menuCommandDialogs, { source: 'menu' });
               }}
             />
             <MenuItem
@@ -589,7 +526,7 @@ export function MenuBar() {
               onClick={handleImport}
             />
             <MenuItem
-              label={showNotesDialog ? ml("Hide Notes") : ml("Show Notes")}
+              label={ml("Project Notes...")}
               shortcut="Ctrl+Alt+N"
               disabled={!project}
               onClick={() => {
@@ -604,9 +541,7 @@ export function MenuBar() {
               disabled={!project}
               onClick={() => {
                 setOpenMenu(null);
-                void saveProject().finally(() => {
-                  void fetchSettings();
-                });
+                void executeAppCommand(APP_COMMANDS.FILE_SAVE, menuCommandDialogs, { source: 'menu' });
               }}
             />
             <MenuItem
@@ -615,9 +550,7 @@ export function MenuBar() {
               disabled={!project}
               onClick={() => {
                 setOpenMenu(null);
-                void saveProjectAs().finally(() => {
-                  void fetchSettings();
-                });
+                void executeAppCommand(APP_COMMANDS.FILE_SAVE_AS, menuCommandDialogs, { source: 'menu' });
               }}
             />
             <MenuItem
@@ -627,34 +560,12 @@ export function MenuBar() {
               onClick={handleExportArtwork}
             />
             <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Preferences")}>
-              <MenuItem label={ml("Import Prefs")} onClick={() => { void handleImportPreferences(); }} />
-              <MenuItem label={ml("Export Prefs")} onClick={() => { void handleExportPreferences(); }} />
-              <MenuItem label={ml("Open Prefs Folder")} onClick={() => { void handleOpenPreferencesFolder(); }} />
-              <MenuItem
-                label={ml("Reset Prefs to Defaults")}
-                onClick={handleResetPreferences}
-              />
-            </MenuSubmenu>
-            <div className="border-t border-bb-border my-1" />
             <MenuItem
-              label={ml("Print (black only)")}
+              label={ml("Print...")}
               shortcut="Ctrl+P"
               disabled={!project}
-              onClick={() => { void handlePrint('black'); }}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.FILE_PRINT); }}
             />
-            <MenuItem
-              label={ml("Print (keep colors)")}
-              shortcut="Ctrl+Shift+P"
-              disabled={!project}
-              onClick={() => { void handlePrint('color'); }}
-            />
-            <MenuItem
-              label={ml("Save Processed Bitmap")}
-              disabled={!selCtx.canSaveProcessedBitmap}
-              onClick={handleSaveProcessedBitmap}
-            />
-            <MenuItem label={ml("Save Background Capture")} disabled onClick={noop} />
           </div>
         )}
       </div>
@@ -1593,40 +1504,8 @@ export function MenuBar() {
       {showIntervalTestDialog && (
         <IntervalTestDialog onClose={() => setShowIntervalTestDialog(false)} />
       )}
-
-      {showResetPreferencesConfirm && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={ml("Reset Prefs to Defaults")}
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowResetPreferencesConfirm(false);
-          }}
-        >
-          <div className="w-full max-w-sm rounded border border-bb-border bg-bb-panel p-4 shadow-xl">
-            <div className="mb-3 text-xs font-medium uppercase tracking-wider text-bb-accent">
-              {ml("Reset Prefs to Defaults")}
-            </div>
-            <p className="text-sm text-bb-text">{t('menus.file.reset_preferences_confirm')}</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                className="rounded border border-bb-border bg-bb-surface px-3 py-1.5 text-sm text-bb-text transition hover:bg-bb-hover"
-                onClick={() => setShowResetPreferencesConfirm(false)}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="rounded border border-bb-accent/60 bg-bb-accent/20 px-3 py-1.5 text-sm text-bb-text transition hover:bg-bb-accent/30"
-                onClick={() => { void handleResetPreferencesConfirm(); }}
-              >
-                {t('common.ok')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showPrintDialog && (
+        <PrintDialog onClose={() => setShowPrintDialog(false)} />
       )}
     </div>
   );

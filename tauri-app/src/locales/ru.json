@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Сбросить настройки по умолчанию? Профили машин, последние файлы, сохраненные позиции, настройки API и пути экспорта будут сохранены.",
       "save_background_capture": "Сохранить фоновый снимок",
       "save_processed_bitmap": "Сохранить обработанное растровое изображение",
-      "show_notes": "Показать заметки"
+      "show_notes": "Показать заметки",
+      "project_notes": "Заметки проекта...",
+      "print": "Печать...",
+      "export_processed_image": "Экспортировать обработанное изображение..."
     },
     "edit": {
       "label": "Правка",
@@ -1107,6 +1110,19 @@
       "title": "Несохранённые изменения",
       "message": "В проекте есть несохранённые изменения. Сохранить их перед продолжением?",
       "discard": "Не сохранять"
+    },
+    "print": {
+      "title": "Печать",
+      "output": "Результат печати",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Цвет",
+      "black": "Чёрный",
+      "layer_colors": "Цвета слоёв",
+      "appearance": "Вид изображения",
+      "by_operation": "По операции слоя",
+      "outlines": "Только контуры",
+      "print": "Печать...",
+      "preparing": "Подготовка..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Графика"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Окна",
     "side_panels": "Боковые панели",

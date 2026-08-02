@@ -272,7 +272,7 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
       ? [{ id: 'adjust-image', label: t('context_menu.adjust_image'), onClick: () => callbacks?.onAdjustImage?.() } as ContextMenuEntry]
       : []),
     ...(ctx.canSaveProcessedBitmap
-      ? [{ id: 'save-processed-bitmap', label: t('context_menu.save_processed_bitmap'), onClick: () => callbacks?.onSaveProcessedBitmap?.() } as ContextMenuEntry]
+      ? [{ id: 'save-processed-bitmap', label: t('menus.file.export_processed_image'), onClick: () => callbacks?.onSaveProcessedBitmap?.() } as ContextMenuEntry]
       : []),
     ...(ctx.canUseAsImageMask
       ? [{

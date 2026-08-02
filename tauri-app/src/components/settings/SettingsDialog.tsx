@@ -2,11 +2,14 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../stores/appStore';
+import { useNotificationStore } from '../../stores/notificationStore';
+import { appService } from '../../services/appService';
+import { wrapBackendError } from '../../i18n/errors';
 import { NumberStepper } from '../shared/NumberStepper';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
 import type { AppSettings, ArtworkDisplayMode, UiTheme } from '../../types/commands';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
-import { FileInput, Monitor, Ruler, Save, Settings2 } from 'lucide-react';
+import { Download, FileInput, FolderOpen, Monitor, RotateCcw, Ruler, Save, Settings2, Upload } from 'lucide-react';
 import {
   DialogButton,
   DialogFooter,
@@ -208,6 +211,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [dataAction, setDataAction] = useState<'import' | 'export' | 'folder' | 'reset' | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [conflictFields, setConflictFields] = useState<SettingsDraftKey[]>([]);
   const dirtyFieldsRef = useRef<Set<SettingsDraftKey>>(new Set());
   const baseDraftRef = useRef<SettingsDraft | null>(draft);
@@ -310,6 +316,55 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       setIsSaving(false);
     }
   };
+
+  const replaceDraftFromSettings = (nextSettings: AppSettings) => {
+    const nextDraft = createDraft(nextSettings);
+    useAppStore.getState().applySettings(nextSettings);
+    setDraft(nextDraft);
+    baseDraftRef.current = nextDraft;
+    dirtyFieldsRef.current.clear();
+    setConflictFields([]);
+    setSaveError(null);
+  };
+
+  const runDataAction = async (
+    action: Exclude<typeof dataAction, null>,
+    task: typeof appService.openPreferencesFolder,
+  ) => {
+    try {
+      setDataAction(action);
+      setDataError(null);
+      await task();
+    } catch (error) {
+      if (!String(error).toLowerCase().includes('cancelled')) {
+        setDataError(wrapBackendError(String(error)));
+      }
+    } finally {
+      setDataAction(null);
+    }
+  };
+
+  const importPreferences = () => runDataAction('import', async () => {
+    const path = await appService.pickPreferencesImportPath();
+    const imported = await appService.importPreferences(path);
+    replaceDraftFromSettings(imported);
+    useNotificationStore.getState().push(t('notifications.preferences_imported'), 'success');
+  });
+
+  const exportPreferences = () => runDataAction('export', async () => {
+    const path = await appService.pickPreferencesExportPath();
+    await appService.exportPreferences(path);
+    useNotificationStore.getState().push(t('notifications.preferences_exported'), 'success');
+  });
+
+  const openPreferencesFolder = () => runDataAction('folder', () => appService.openPreferencesFolder());
+
+  const resetPreferences = () => runDataAction('reset', async () => {
+    const reset = await appService.resetPreferences();
+    replaceDraftFromSettings(reset);
+    setConfirmReset(false);
+    useNotificationStore.getState().push(t('notifications.preferences_reset'), 'success');
+  });
 
   return createPortal(
     <>
@@ -600,6 +655,68 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     onChange={(v) => updateDraft('allowImportingToToolLayers', v)}
                     testId="toggle-allow-import-tool-layers"
                   />
+                  <div className="overflow-hidden rounded-xl border border-bb-border bg-bb-surface/20">
+                    <div className="border-b border-bb-border bg-gradient-to-r from-bb-accent/10 via-bb-surface/45 to-transparent px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-bb-text">
+                      {t('menus.file.preferences')}
+                    </div>
+                    <div className="space-y-2 p-3">
+                      {dataError && (
+                        <DialogNotice tone={DIALOG_TONE.error} role="alert">{dataError}</DialogNotice>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <DialogButton
+                          icon={<Upload size={13} />}
+                          disabled={dataAction !== null}
+                          onClick={() => { void importPreferences(); }}
+                        >
+                          {t('menus.file.import_preferences')}
+                        </DialogButton>
+                        <DialogButton
+                          icon={<Download size={13} />}
+                          disabled={dataAction !== null}
+                          onClick={() => { void exportPreferences(); }}
+                        >
+                          {t('menus.file.export_preferences')}
+                        </DialogButton>
+                        <DialogButton
+                          icon={<FolderOpen size={13} />}
+                          className="col-span-2"
+                          disabled={dataAction !== null}
+                          onClick={() => { void openPreferencesFolder(); }}
+                        >
+                          {t('menus.file.open_preferences_folder')}
+                        </DialogButton>
+                      </div>
+                      {confirmReset ? (
+                        <DialogNotice
+                          tone={DIALOG_TONE.warning}
+                          role="alert"
+                          actions={(
+                            <>
+                              <DialogButton tone={DIALOG_TONE.quiet} onClick={() => setConfirmReset(false)}>
+                                {t('common.cancel')}
+                              </DialogButton>
+                              <DialogButton tone={DIALOG_TONE.danger} disabled={dataAction !== null} onClick={() => { void resetPreferences(); }}>
+                                {t('common.ok')}
+                              </DialogButton>
+                            </>
+                          )}
+                        >
+                          {t('menus.file.reset_preferences_confirm')}
+                        </DialogNotice>
+                      ) : (
+                        <DialogButton
+                          tone={DIALOG_TONE.danger}
+                          icon={<RotateCcw size={13} />}
+                          className="w-full"
+                          disabled={dataAction !== null}
+                          onClick={() => setConfirmReset(true)}
+                        >
+                          {t('menus.file.reset_preferences')}
+                        </DialogButton>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
               </div>

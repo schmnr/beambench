@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ScanLine, SlidersHorizontal } from 'lucide-react';
+import { ImageDown, ScanLine, SlidersHorizontal } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { executeAppCommand } from '../../commands/appCommands';
 import { APP_COMMANDS } from '../../commands/appCommandIds';
@@ -38,6 +38,14 @@ export function RasterPropertiesPanel({ objectId, data }: RasterPropertiesPanelP
         >
           <ScanLine size={14} className="shrink-0 text-bb-accent" />
           {t('menus.tools.trace_image')}
+        </button>
+        <button
+          type="button"
+          className="col-span-2 flex h-8 items-center justify-center gap-1.5 rounded-lg border border-bb-border bg-bb-surface px-2 text-[11px] font-medium text-bb-text outline-none transition-colors hover:bg-bb-hover focus-visible:ring-1 focus-visible:ring-bb-accent"
+          onClick={() => void executeAppCommand(APP_COMMANDS.FILE_SAVE_PROCESSED_BITMAP)}
+        >
+          <ImageDown size={14} className="shrink-0 text-bb-accent" />
+          {t('menus.file.export_processed_image')}
         </button>
       </div>
       {masks.length > 0 && (

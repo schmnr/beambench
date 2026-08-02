@@ -54,6 +54,7 @@
       "new": "New",
       "new_window": "New Window",
       "import": "Import",
+      "project_notes": "Project Notes...",
       "show_notes": "Show Notes",
       "hide_notes": "Hide Notes",
       "save": "Save",
@@ -67,7 +68,9 @@
       "reset_preferences": "Reset Prefs to Defaults",
       "print_black": "Print (black only)",
       "print_colors": "Print (keep colors)",
+      "print": "Print...",
       "save_processed_bitmap": "Save Processed Bitmap",
+      "export_processed_image": "Export Processed Image...",
       "save_background_capture": "Save Background Capture",
       "untitled_project": "Untitled Project",
       "preferences_imported": "Preferences imported.",
@@ -322,6 +325,19 @@
     "notes": {
       "title": "Project Notes",
       "placeholder": "Add notes about this project..."
+    },
+    "print": {
+      "title": "Print",
+      "output": "Print Output",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Color",
+      "black": "Black",
+      "layer_colors": "Layer Colors",
+      "appearance": "Artwork Appearance",
+      "by_operation": "By Layer Operation",
+      "outlines": "Outlines Only",
+      "print": "Print...",
+      "preparing": "Preparing..."
     },
     "offset": {
       "title": "Offset Shapes",

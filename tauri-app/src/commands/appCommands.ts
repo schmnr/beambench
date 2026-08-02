@@ -1,6 +1,5 @@
 import { appService } from '../services/appService';
 import { persistenceService } from '../services/persistenceService';
-import { printService, type PrintMode } from '../services/printService';
 import { useNotificationStore } from '../stores/notificationStore';
 import i18n, { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../i18n';
 import { wrapBackendError } from '../i18n/errors';
@@ -58,10 +57,7 @@ export interface AppCommandDialogActions {
   openAbout?: () => void;
   openSettings?: () => void;
   openNotes?: () => void;
-  openImportPreferences?: () => void;
-  openExportPreferences?: () => void;
-  openPreferencesFolder?: () => void;
-  resetPreferences?: () => void;
+  openPrint?: () => void;
   openHotkeyEditor?: () => void;
   openTraceImage?: (objectId: string) => void;
   openAdjustImage?: (objectId: string) => void;
@@ -268,11 +264,6 @@ function exportArtworkFromCurrentSelection(): Promise<string> {
   });
 }
 
-function printCurrentProject(mode: PrintMode): Promise<void> {
-  if (!useProjectStore.getState().project) return Promise.resolve();
-  return printService.printProject(mode);
-}
-
 async function runCommand(action: () => Promise<unknown> | unknown): Promise<void> {
   try {
     await action();
@@ -357,11 +348,8 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.FILE_NEW:
       guardUnsavedChanges(() => {
-        ps.createProject('Untitled Project');
+        ps.createProject(i18n.t('menus.file.untitled_project'));
       });
-      return;
-    case APP_COMMANDS.FILE_NEW_WINDOW:
-      await runCommand(() => appService.openNewWindow());
       return;
     case APP_COMMANDS.FILE_OPEN_RECENT:
       if (context.filePath) {
@@ -410,11 +398,8 @@ export async function executeAppCommand(
     case APP_COMMANDS.LASER_INTERVAL_TEST:
       dialogActions.openIntervalTest?.();
       return;
-    case APP_COMMANDS.FILE_PRINT_BLACK:
-      await runCommand(() => printCurrentProject('black'));
-      return;
-    case APP_COMMANDS.FILE_PRINT_COLORS:
-      await runCommand(() => printCurrentProject('color'));
+    case APP_COMMANDS.FILE_PRINT:
+      if (ps.project) dialogActions.openPrint?.();
       return;
     case APP_COMMANDS.FILE_IMPORT: {
       await runCommand(async () => {
@@ -428,18 +413,6 @@ export async function executeAppCommand(
     case APP_COMMANDS.FILE_NOTES:
       ui.toggleNotesDialog();
       return;
-    case APP_COMMANDS.FILE_PREFS_IMPORT:
-      dialogActions.openImportPreferences?.();
-      return;
-    case APP_COMMANDS.FILE_PREFS_EXPORT:
-      dialogActions.openExportPreferences?.();
-      return;
-    case APP_COMMANDS.FILE_PREFS_OPEN_FOLDER:
-      dialogActions.openPreferencesFolder?.();
-      return;
-    case APP_COMMANDS.FILE_PREFS_RESET_DEFAULTS:
-      dialogActions.resetPreferences?.();
-      return;
     case APP_COMMANDS.FILE_PREFS_EDIT_HOTKEYS:
       // Shelved for beta. Keep the command id stable while the editor is hidden.
       return;
@@ -448,8 +421,6 @@ export async function executeAppCommand(
       if (objectId) await runCommand(() => persistenceService.saveProcessedBitmap(objectId));
       return;
     }
-    case APP_COMMANDS.FILE_SAVE_BACKGROUND_CAPTURE:
-      return;
     case APP_COMMANDS.EDIT_UNDO:
       useUndoStore.getState().undo();
       return;
@@ -1069,11 +1040,6 @@ export function getAppCommandState(): NativeMenuStateUpdate {
     recentFiles: recentFiles.map((file) => ({ name: file.name, path: file.path })),
     items: [
       ...nativeAcceleratorUpdates(customHotkeys),
-      { id: APP_COMMANDS.FILE_PREFS_IMPORT, enabled: true },
-      { id: APP_COMMANDS.FILE_PREFS_EXPORT, enabled: true },
-      { id: APP_COMMANDS.FILE_PREFS_OPEN_FOLDER, enabled: true },
-      { id: APP_COMMANDS.FILE_PREFS_RESET_DEFAULTS, enabled: true },
-      { id: APP_COMMANDS.FILE_NEW_WINDOW, enabled: true },
       { id: APP_COMMANDS.FILE_SAVE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_SAVE) },
       { id: APP_COMMANDS.FILE_SAVE_AS, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_SAVE_AS) },
       {
@@ -1089,11 +1055,9 @@ export function getAppCommandState(): NativeMenuStateUpdate {
         enabled: projectLoaded && preview.state === 'current',
         accelerator: accel(APP_COMMANDS.FILE_SAVE_MACHINE_FILES),
       },
-      { id: APP_COMMANDS.FILE_PRINT_BLACK, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_PRINT_BLACK) },
-      { id: APP_COMMANDS.FILE_PRINT_COLORS, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_PRINT_COLORS) },
-      { id: APP_COMMANDS.FILE_SAVE_PROCESSED_BITMAP, enabled: rasterSelected },
+      { id: APP_COMMANDS.FILE_PRINT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_PRINT) },
       { id: APP_COMMANDS.FILE_IMPORT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_IMPORT) },
-      { id: APP_COMMANDS.FILE_NOTES, enabled: projectLoaded, title: i18n.t(ui.showNotesDialog ? 'menus.file.hide_notes' : 'menus.file.show_notes') },
+      { id: APP_COMMANDS.FILE_NOTES, enabled: projectLoaded, title: i18n.t('menus.file.project_notes') },
       { id: APP_COMMANDS.EDIT_UNDO, enabled: undo.canUndo, accelerator: accel(APP_COMMANDS.EDIT_UNDO) },
       { id: APP_COMMANDS.EDIT_REDO, enabled: undo.canRedo, accelerator: accel(APP_COMMANDS.EDIT_REDO) },
       { id: APP_COMMANDS.EDIT_SELECT_ALL, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_SELECT_ALL) },

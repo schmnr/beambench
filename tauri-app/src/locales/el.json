@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Επαναφορά των προτιμήσεων στις προεπιλογές; Τα προφίλ μηχανήματος, τα πρόσφατα αρχεία, οι αποθηκευμένες θέσεις, οι ρυθμίσεις API και οι διαδρομές εξαγωγής θα διατηρηθούν.",
       "save_background_capture": "Αποθήκευση λήψης φόντου",
       "save_processed_bitmap": "Αποθήκευση επεξεργασμένου Bitmap",
-      "show_notes": "Εμφάνιση σημειώσεων"
+      "show_notes": "Εμφάνιση σημειώσεων",
+      "project_notes": "Σημειώσεις έργου...",
+      "print": "Εκτύπωση...",
+      "export_processed_image": "Εξαγωγή επεξεργασμένης εικόνας..."
     },
     "edit": {
       "label": "Επεξεργασία",
@@ -1107,6 +1110,19 @@
       "title": "Μη αποθηκευμένες αλλαγές",
       "message": "Το έργο σας έχει μη αποθηκευμένες αλλαγές. Να αποθηκευτούν πριν συνεχίσετε;",
       "discard": "Χωρίς αποθήκευση"
+    },
+    "print": {
+      "title": "Εκτύπωση",
+      "output": "Έξοδος εκτύπωσης",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Χρώμα",
+      "black": "Μαύρο",
+      "layer_colors": "Χρώματα επιπέδων",
+      "appearance": "Εμφάνιση σχεδίου",
+      "by_operation": "Κατά λειτουργία επιπέδου",
+      "outlines": "Μόνο περιγράμματα",
+      "print": "Εκτύπωση...",
+      "preparing": "Προετοιμασία..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Γραφικό"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Παράθυρα",
     "side_panels": "Πλαϊνά πάνελ",

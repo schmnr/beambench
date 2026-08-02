@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Palautetaanko asetukset oletusasetuksiin? Koneprofiilit, viimeisimmät tiedostot, tallennetut sijainnit, API-asetukset ja vientipolut säilytetään.",
       "save_background_capture": "Tallenna taustakuva",
       "save_processed_bitmap": "Tallenna käsitelty bittikartta",
-      "show_notes": "Näytä muistiinpanot"
+      "show_notes": "Näytä muistiinpanot",
+      "project_notes": "Projektin muistiinpanot...",
+      "print": "Tulosta...",
+      "export_processed_image": "Vie käsitelty kuva..."
     },
     "edit": {
       "label": "Muokkaa",
@@ -1107,6 +1110,19 @@
       "title": "Tallentamattomat muutokset",
       "message": "Projektissasi on tallentamattomia muutoksia. Tallennetaanko ne ennen jatkamista?",
       "discard": "Älä tallenna"
+    },
+    "print": {
+      "title": "Tulosta",
+      "output": "Tulostuksen tulos",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Väri",
+      "black": "Musta",
+      "layer_colors": "Tasojen värit",
+      "appearance": "Kuvituksen ulkoasu",
+      "by_operation": "Tason toiminnon mukaan",
+      "outlines": "Vain ääriviivat",
+      "print": "Tulosta...",
+      "preparing": "Valmistellaan..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Kuvitus"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Ikkunat",
     "side_panels": "Sivupaneelit",

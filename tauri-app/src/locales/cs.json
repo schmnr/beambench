@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Obnovit předvolby na výchozí? Profily stroje, poslední soubory, uložené pozice, nastavení API a exportní cesty budou zachovány.",
       "save_background_capture": "Uložit zachycení pozadí",
       "save_processed_bitmap": "Uložit zpracovanou bitmapu",
-      "show_notes": "Zobrazit poznámky"
+      "show_notes": "Zobrazit poznámky",
+      "project_notes": "Poznámky k projektu...",
+      "print": "Tisk...",
+      "export_processed_image": "Exportovat zpracovaný obrázek..."
     },
     "edit": {
       "label": "Úpravy",
@@ -1107,6 +1110,19 @@
       "title": "Neuložené změny",
       "message": "Váš projekt obsahuje neuložené změny. Uložit je před pokračováním?",
       "discard": "Neukládat"
+    },
+    "print": {
+      "title": "Tisk",
+      "output": "Výstup tisku",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Barva",
+      "black": "Černá",
+      "layer_colors": "Barvy vrstev",
+      "appearance": "Vzhled kresby",
+      "by_operation": "Podle operace vrstvy",
+      "outlines": "Pouze obrysy",
+      "print": "Tisk...",
+      "preparing": "Příprava..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafika"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Okna",
     "side_panels": "Boční panely",

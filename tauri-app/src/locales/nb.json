@@ -73,7 +73,10 @@
       "reset_preferences_confirm": "Vil du tilbakestille innstillingene til standardinnstillingene? Maskinprofiler, nylige filer, lagrede posisjoner, API-innstillinger og eksportbaner beholdes.",
       "save_background_capture": "Lagre bakgrunnsopptak",
       "save_processed_bitmap": "Lagre behandlet bitmap",
-      "show_notes": "Vis notater"
+      "show_notes": "Vis notater",
+      "project_notes": "Prosjektnotater...",
+      "print": "Skriv ut...",
+      "export_processed_image": "Eksporter behandlet bilde..."
     },
     "edit": {
       "label": "Rediger",
@@ -1107,6 +1110,19 @@
       "title": "Ulagrede endringer",
       "message": "Prosjektet har ulagrede endringer. Vil du lagre dem før du fortsetter?",
       "discard": "Ikke lagre"
+    },
+    "print": {
+      "title": "Skriv ut",
+      "output": "Utskrift",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Farge",
+      "black": "Svart",
+      "layer_colors": "Lagfarger",
+      "appearance": "Motivets utseende",
+      "by_operation": "Etter lagoperasjon",
+      "outlines": "Bare konturer",
+      "print": "Skriv ut...",
+      "preparing": "Forbereder..."
     }
   },
   "toolbars": {
@@ -2257,7 +2273,9 @@
       "filter_artwork": "Grafikk"
     }
   },
-  "warp_tool": { "title": "Warp" },
+  "warp_tool": {
+    "title": "Warp"
+  },
   "context_menu": {
     "windows": "Vinduer",
     "side_panels": "Sidepaneler",

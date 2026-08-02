@@ -10,7 +10,6 @@ import {
   setAppCommandDialogActions,
 } from './appCommands';
 import { persistenceService } from '../services/persistenceService';
-import { printService } from '../services/printService';
 import { appService } from '../services/appService';
 import { useProjectStore } from '../stores/projectStore';
 import { usePreviewStore } from '../stores/previewStore';
@@ -57,24 +56,14 @@ describe('app command bridge', () => {
     });
   });
 
-  it('executes print commands with the requested print mode', async () => {
+  it('opens the consolidated print dialog', async () => {
     const project = makeProject();
     useProjectStore.setState({ project });
-    const printProject = vi.spyOn(printService, 'printProject').mockResolvedValue(undefined);
+    const openPrint = vi.fn();
 
-    await executeAppCommand(APP_COMMANDS.FILE_PRINT_BLACK);
-    await executeAppCommand(APP_COMMANDS.FILE_PRINT_COLORS);
+    await executeAppCommand(APP_COMMANDS.FILE_PRINT, { openPrint });
 
-    expect(printProject).toHaveBeenNthCalledWith(1, 'black');
-    expect(printProject).toHaveBeenNthCalledWith(2, 'color');
-  });
-
-  it('executes New Window through the app service', async () => {
-    const openNewWindow = vi.spyOn(appService, 'openNewWindow').mockResolvedValue('main-test');
-
-    await executeAppCommand(APP_COMMANDS.FILE_NEW_WINDOW);
-
-    expect(openNewWindow).toHaveBeenCalledOnce();
+    expect(openPrint).toHaveBeenCalledOnce();
   });
 
   it('quits through the Tauri window close, not the browser window.close', async () => {
@@ -137,11 +126,7 @@ describe('app command bridge', () => {
       enabled: true,
     }));
     expect(state.items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_PRINT_BLACK,
-      enabled: true,
-    }));
-    expect(state.items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_PRINT_COLORS,
+      id: APP_COMMANDS.FILE_PRINT,
       enabled: true,
     }));
   });
@@ -175,7 +160,7 @@ describe('app command bridge', () => {
       }));
       expect(state.items).toContainEqual(expect.objectContaining({
         id: APP_COMMANDS.FILE_NOTES,
-        title: i18n.t('menus.file.hide_notes'),
+        title: i18n.t('menus.file.project_notes'),
       }));
     } finally {
       await i18n.changeLanguage(previousLanguage);
@@ -221,29 +206,6 @@ describe('app command bridge', () => {
     }));
     expect(populatedState.items).toContainEqual(expect.objectContaining({
       id: APP_COMMANDS.EDIT_PASTE_IN_PLACE,
-      enabled: true,
-    }));
-  });
-
-  it('enables Save Processed Bitmap for clone-backed raster selections', () => {
-    const base = makeProject().objects[0];
-    const raster = {
-      ...base,
-      id: 'img-1',
-      data: { type: 'raster_image' as const, asset_key: 'asset-1', original_width_px: 100, original_height_px: 100 },
-    };
-    const clone = {
-      ...base,
-      id: 'clone-1',
-      data: { type: 'virtual_clone' as const, source_id: 'img-1' },
-    };
-    useProjectStore.setState({
-      project: makeProject({ objects: [raster, clone] }),
-      selectedObjectIds: ['clone-1'],
-    });
-
-    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_SAVE_PROCESSED_BITMAP,
       enabled: true,
     }));
   });
@@ -327,16 +289,8 @@ describe('app command bridge', () => {
       enabled: false,
     }));
     expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_PRINT_BLACK,
+      id: APP_COMMANDS.FILE_PRINT,
       enabled: false,
-    }));
-    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_PRINT_COLORS,
-      enabled: false,
-    }));
-    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_NEW_WINDOW,
-      enabled: true,
     }));
   });
 
@@ -377,26 +331,6 @@ describe('app command bridge', () => {
 
     expect(useUiStore.getState().activeTool).toBe('warp');
     expect(useUiStore.getState().meshDeformMode).toBe('warp');
-  });
-
-  it('routes native preference commands to dialog launchers', async () => {
-    const openImportPreferences = vi.fn();
-    const openExportPreferences = vi.fn();
-    const openPreferencesFolder = vi.fn();
-    const resetPreferences = vi.fn();
-    const openHotkeyEditor = vi.fn();
-
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_IMPORT, { openImportPreferences });
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_EXPORT, { openExportPreferences });
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_OPEN_FOLDER, { openPreferencesFolder });
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_RESET_DEFAULTS, { resetPreferences });
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_EDIT_HOTKEYS, { openHotkeyEditor });
-
-    expect(openImportPreferences).toHaveBeenCalledOnce();
-    expect(openExportPreferences).toHaveBeenCalledOnce();
-    expect(openPreferencesFolder).toHaveBeenCalledOnce();
-    expect(resetPreferences).toHaveBeenCalledOnce();
-    expect(openHotkeyEditor).not.toHaveBeenCalled();
   });
 
   it('routes App Preferences and Edit Settings to the same settings dialog action', async () => {

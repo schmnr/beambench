@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { invoke } from '@tauri-apps/api/core';
 import { SettingsDialog } from '../SettingsDialog';
 import { useAppStore } from '../../../stores/appStore';
 import type { AppSettings } from '../../../types/commands';
@@ -244,6 +245,27 @@ describe('SettingsDialog', () => {
 
     expect(screen.queryByText('Hotkeys')).toBeNull();
     expect(screen.queryByText('Edit Hotkeys')).toBeNull();
+  });
+
+  it('keeps preference-file management in the File & Import settings tab', async () => {
+    useAppStore.setState({ settings: makeSettings() });
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === 'reset_preferences') return makeSettings({ autosave_enabled: false });
+      return null;
+    });
+
+    render(<SettingsDialog onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('File & Import'));
+
+    expect(screen.getByRole('button', { name: 'Import Prefs' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Export Prefs' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Open Prefs Folder' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Prefs to Defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('reset_preferences');
+    });
   });
 
   it('saves backed file and import fields', async () => {
