@@ -638,13 +638,23 @@ describe('importService methods', () => {
       halftoneAngleDeg: 15,
       newsprintAngleDeg: 45,
       newsprintFrequency: 10,
+      requestId: 41,
     });
 
     expect(invoke).toHaveBeenCalledWith('adjust_image_preview', expect.objectContaining({
       objectId: 'obj-1',
       mode: 'halftone',
       dpi: 254,
+      requestId: 41,
     }));
+  });
+
+  it('cancelAdjustImagePreview supersedes in-flight backend work', async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+
+    await importService.cancelAdjustImagePreview(42);
+
+    expect(invoke).toHaveBeenCalledWith('cancel_adjust_image_preview', { requestId: 42 });
   });
 
   it('replaceImage treats dialog cancel as a no-op', async () => {

@@ -377,6 +377,7 @@ fn main() {
             commands::import::replace_image,
             commands::import::replace_image_to_fit,
             commands::import::adjust_image_preview,
+            commands::import::cancel_adjust_image_preview,
             commands::import::auto_adjust_image,
             commands::import::render_dither_sample,
             // Persistence

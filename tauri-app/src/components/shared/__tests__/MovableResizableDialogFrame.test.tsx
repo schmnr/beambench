@@ -140,4 +140,18 @@ describe('MovableResizableDialogFrame', () => {
     expect(backgroundKeyDown).not.toHaveBeenCalled();
     window.removeEventListener('keydown', backgroundKeyDown);
   });
+
+  it('still owns Escape when focus falls back to the document body', () => {
+    const onRequestClose = vi.fn();
+    const backgroundKeyDown = vi.fn();
+    window.addEventListener('keydown', backgroundKeyDown);
+    renderFrame(onRequestClose);
+
+    document.body.focus();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    expect(onRequestClose).toHaveBeenCalledTimes(1);
+    expect(backgroundKeyDown).not.toHaveBeenCalled();
+    window.removeEventListener('keydown', backgroundKeyDown);
+  });
 });

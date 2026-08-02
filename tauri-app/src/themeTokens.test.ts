@@ -189,7 +189,7 @@ describe('theme tokens', () => {
 
 const INTENTIONAL_RAW_COLORS: Readonly<Record<string, readonly string[]>> = {
   './App.tsx': ['bg-black/20'],
-  './components/dialogs/AdjustImageDialog.tsx': ['bg-black/20', 'bg-black/50'],
+  './components/dialogs/AdjustImageDialog.tsx': ['bg-black/30', 'bg-black/50'],
   './components/dialogs/BarcodeDialog.tsx': ['bg-black/50'],
   './components/dialogs/BooleanAssistantDialog.tsx': ['bg-black/50'],
   './components/dialogs/CameraAlignmentDialog.tsx': ['bg-black/50', 'bg-black/60', 'border-white'],

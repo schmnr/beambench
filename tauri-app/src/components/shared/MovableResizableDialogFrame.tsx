@@ -87,6 +87,23 @@ export function MovableResizableDialogFrame({
     backdropRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (!onRequestClose) return;
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const dialogFrames = document.querySelectorAll<HTMLElement>('[data-bb-dialog-frame]');
+      if (dialogFrames.item(dialogFrames.length - 1) !== backdropRef.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onRequestClose();
+    };
+    // A control can disappear while focused (for example, when cancelling an
+    // inline name field), which moves focus to <body>. Keep Escape owned by the
+    // active dialog even when the key event can no longer bubble from inside it.
+    document.addEventListener('keydown', handleDocumentKeyDown);
+    return () => document.removeEventListener('keydown', handleDocumentKeyDown);
+  }, [onRequestClose]);
+
   // Runs after the backdrop-focus effect above, so the backdrop keeps initial
   // focus (Escape works immediately) while Tab cycling stays inside the dialog.
   useFocusTrap(backdropRef, true);
@@ -176,6 +193,7 @@ export function MovableResizableDialogFrame({
       ref={backdropRef}
       className={`fixed inset-0 ${zIndexClassName} ${backdropClassName}`}
       data-testid={testId ? `${testId}-backdrop` : undefined}
+      data-bb-dialog-frame
       tabIndex={-1}
       onClick={(event) => {
         if (closeOnBackdropClick && event.target === event.currentTarget) {

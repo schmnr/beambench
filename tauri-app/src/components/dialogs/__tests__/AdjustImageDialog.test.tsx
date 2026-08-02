@@ -11,6 +11,7 @@ vi.mock('../../../services/importService', () => ({
   importService: {
     getImagePresets: vi.fn().mockResolvedValue([]),
     adjustImagePreview: vi.fn().mockResolvedValue({ png_base64: '', width: 1, height: 1 }),
+    cancelAdjustImagePreview: vi.fn().mockResolvedValue(undefined),
     autoAdjustImage: vi.fn().mockResolvedValue({ brightness: 0, contrast: 0, gamma: 1, sharpen: 0 }),
     saveImagePreset: vi.fn(),
     deleteImagePreset: vi.fn(),
@@ -48,6 +49,8 @@ describe('AdjustImageDialog', () => {
         overscan_mm: 0,
         passes: 1,
         line_interval_mm: 0.2,
+        crosshatch: true,
+        flood_fill: true,
         pass_through: false,
         halftone_cells_per_inch: 20,
         halftone_angle_deg: 30,
@@ -92,7 +95,7 @@ describe('AdjustImageDialog', () => {
       }),
       updateObjectData: vi.fn().mockResolvedValue(undefined),
       loadProject: vi.fn().mockResolvedValue(undefined),
-      loadAssetData: vi.fn().mockResolvedValue(null),
+      loadAssetData: vi.fn().mockResolvedValue('blob:test-image'),
     });
   });
 
@@ -123,7 +126,7 @@ describe('AdjustImageDialog', () => {
     const onClose = vi.fn();
     render(<AdjustImageDialog objectId="img1" onClose={onClose} />);
 
-    fireEvent.click(screen.getByText('Reset All'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset All' }));
     fireEvent.click(screen.getByRole('button', { name: 'OK' }));
 
     await waitFor(() => {
@@ -153,6 +156,8 @@ describe('AdjustImageDialog', () => {
         mode: 'grayscale',
         invert: false,
         line_interval_mm: 0.1,
+        crosshatch: true,
+        flood_fill: true,
         halftone_cells_per_inch: 10,
         halftone_angle_deg: 0,
         newsprint_angle_deg: 45,
@@ -226,7 +231,7 @@ describe('AdjustImageDialog', () => {
     fireEvent.change(screen.getByTestId('adjust-enhance-radius'), { target: { value: '1.5' } });
     fireEvent.change(screen.getByTestId('adjust-enhance-amount'), { target: { value: '2.1' } });
     fireEvent.change(screen.getByTestId('adjust-enhance-denoise'), { target: { value: '1.1' } });
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Preset A' } });
     fireEvent.click(screen.getByTestId('adjust-save-preset-confirm'));
 
@@ -253,16 +258,8 @@ describe('AdjustImageDialog', () => {
     fireEvent.change(screen.getByTestId('adjust-enhance-denoise'), { target: { value: '0.2' } });
     fireEvent.change(screen.getByTestId('adjust-saturation'), { target: { value: '1' } });
     fireEvent.change(screen.getByTestId('adjust-sharpen'), { target: { value: '0' } });
-    fireEvent.click(
-      ((screen.getByText('Invert').nextElementSibling as HTMLElement).querySelector(
-        'input'
-      ) as HTMLInputElement)
-    );
-    fireEvent.click(
-      ((screen.getByText('Edge Enhance').nextElementSibling as HTMLElement).querySelector(
-        'input'
-      ) as HTMLInputElement)
-    );
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Invert' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Edge Enhance' }));
 
     fireEvent.change(screen.getByTestId('adjust-preset-select'), { target: { value: 'Preset A' } });
 
@@ -271,16 +268,8 @@ describe('AdjustImageDialog', () => {
       expect(Number((screen.getByTestId('adjust-enhance-denoise') as HTMLInputElement).value)).toBe(1.1);
       expect(Number((screen.getByTestId('adjust-saturation') as HTMLInputElement).value)).toBe(1.4);
       expect(Number((screen.getByTestId('adjust-sharpen') as HTMLInputElement).value)).toBe(0.75);
-      expect(
-        ((screen.getByText('Invert').nextElementSibling as HTMLElement).querySelector(
-          'input'
-        ) as HTMLInputElement).checked
-      ).toBe(true);
-      expect(
-        ((screen.getByText('Edge Enhance').nextElementSibling as HTMLElement).querySelector(
-          'input'
-        ) as HTMLInputElement).checked
-      ).toBe(true);
+      expect((screen.getByRole('checkbox', { name: 'Invert' }) as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByRole('checkbox', { name: 'Edge Enhance' }) as HTMLInputElement).checked).toBe(true);
     });
   });
 
@@ -291,12 +280,12 @@ describe('AdjustImageDialog', () => {
 
     render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Preset A' } });
     fireEvent.keyDown(screen.getByPlaceholderText('Name'), { key: 'Enter' });
 
     await waitFor(() => {
-      expect(push).toHaveBeenCalledWith('Operation failed: Error: save failed', 'error');
+      expect(push).toHaveBeenCalledWith('Operation failed: save failed', 'error');
       expect(screen.getByPlaceholderText('Name')).toBeDefined();
     });
   });
@@ -308,12 +297,12 @@ describe('AdjustImageDialog', () => {
 
     render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Preset A' } });
     fireEvent.click(screen.getByTestId('adjust-save-preset-confirm'));
 
     await waitFor(() => {
-      expect(push).toHaveBeenCalledWith('Operation failed: Error: save failed', 'error');
+      expect(push).toHaveBeenCalledWith('Operation failed: save failed', 'error');
       expect(screen.getByPlaceholderText('Name')).toBeDefined();
     });
   });
@@ -345,11 +334,72 @@ describe('AdjustImageDialog', () => {
       expect(screen.getByTestId('adjust-preset-select')).toBeDefined();
     });
     fireEvent.change(screen.getByTestId('adjust-preset-select'), { target: { value: 'Preset A' } });
-    fireEvent.click(screen.getByText('Delete'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {
-      expect(push).toHaveBeenCalledWith('Operation failed: Error: delete failed', 'error');
+      expect(push).toHaveBeenCalledWith('Operation failed: delete failed', 'error');
       expect((screen.getByTestId('adjust-preset-select') as HTMLSelectElement).value).toBe('Preset A');
     });
+  });
+
+  it('shows preview failures inline and retries without closing the dialog', async () => {
+    mockedImportService.adjustImagePreview
+      .mockRejectedValueOnce(new Error('preview failed'))
+      .mockResolvedValueOnce({ png_base64: '', width: 2, height: 2 });
+
+    render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
+
+    expect((await screen.findByRole('alert')).textContent).toContain('preview failed');
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+
+    await waitFor(() => {
+      expect(mockedImportService.adjustImagePreview).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('keeps preview request ids increasing across dialog reopen', async () => {
+    const first = render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
+
+    await waitFor(() => expect(mockedImportService.adjustImagePreview).toHaveBeenCalledTimes(1));
+    const firstRequestId = mockedImportService.adjustImagePreview.mock.calls[0][0].requestId;
+    first.unmount();
+
+    render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
+    await waitFor(() => expect(mockedImportService.adjustImagePreview).toHaveBeenCalledTimes(2));
+    const secondRequestId = mockedImportService.adjustImagePreview.mock.calls[1][0].requestId;
+
+    expect(secondRequestId).toBeGreaterThan(firstRequestId);
+    expect(mockedImportService.cancelAdjustImagePreview).toHaveBeenCalled();
+  });
+
+  it('prevents duplicate applies while the atomic save is pending', async () => {
+    let resolveApply: (() => void) | undefined;
+    mockedProjectService.applyAdjustImageDialog.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { resolveApply = resolve; }),
+    );
+    const onClose = vi.fn();
+    render(<AdjustImageDialog objectId="img1" onClose={onClose} />);
+
+    const submit = screen.getByTestId('adjust-submit');
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(mockedProjectService.applyAdjustImageDialog).toHaveBeenCalledTimes(1);
+    expect((submit as HTMLButtonElement).disabled).toBe(true);
+
+    resolveApply?.();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it('Escape cancels preset naming without closing Adjust Image', () => {
+    const onClose = vi.fn();
+    render(<AdjustImageDialog objectId="img1" onClose={onClose} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const nameInput = screen.getByPlaceholderText('Name');
+    fireEvent.keyDown(nameInput, { key: 'Escape' });
+
+    expect(screen.queryByPlaceholderText('Name')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

@@ -132,8 +132,13 @@ export const importService = {
     mode: RasterMode; dpi: number; negative: boolean; passThrough: boolean;
     halftoneCellsPerInch: number; halftoneAngleDeg: number;
     newsprintAngleDeg: number; newsprintFrequency: number;
+    requestId: number;
   }): Promise<{ png_base64: string; width: number; height: number }> {
     return invoke<{ png_base64: string; width: number; height: number }>('adjust_image_preview', params);
+  },
+
+  async cancelAdjustImagePreview(requestId: number): Promise<void> {
+    return invoke<void>('cancel_adjust_image_preview', { requestId });
   },
 
   async autoAdjustImage(objectId: string): Promise<{ brightness: number; contrast: number; gamma: number; sharpen: number }> {
