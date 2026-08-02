@@ -8,6 +8,7 @@ import type { PreviewState } from '../stores/previewStore';
 import { drawBed, drawGrid, drawOrigin, drawRulers } from './drawWorkspace';
 import {
   applyTransform,
+  appendObjectScreenFillPath,
   buildObjectScreenMaskPath,
   drawObject,
   drawRasterImage,
@@ -759,6 +760,51 @@ export class CanvasRenderer {
     };
   }
 
+  private drawLayerCompoundFill(
+    ctx: CanvasRenderingContext2D,
+    layer: Layer,
+    layerObjects: ProjectObject[],
+    allObjects: ProjectObject[],
+    vp: ViewportParams,
+    fillOpacity: number,
+    toolOverlay: ToolOverlay,
+  ): Set<string> {
+    // The active node path is in-flight geometry rather than project geometry.
+    // Keep the layer on its existing per-object rendering during that edit so
+    // the compound pass never flashes stale contours under the live path.
+    if (
+      layerObjects.length < 2
+      || (toolOverlay.type === 'node-edit'
+        && layerObjects.some((object) => object.id === toolOverlay.objectId))
+    ) {
+      return new Set();
+    }
+
+    const compoundObjectIds = new Set<string>();
+    ctx.save();
+    if (layer.enabled === false) ctx.globalAlpha *= 0.3;
+    ctx.globalAlpha *= fillOpacity;
+    if (layer.is_tool_layer === true) ctx.globalAlpha *= 0.6;
+    ctx.fillStyle = layer.color_tag;
+    ctx.beginPath();
+
+    for (const object of layerObjects) {
+      const resolved = this.resolveConcreteObject(object, allObjects);
+      if (!resolved || this.isObjectCulled(resolved, vp)) continue;
+      if (appendObjectScreenFillPath(ctx, resolved, vp)) {
+        compoundObjectIds.add(object.id);
+      }
+    }
+
+    if (compoundObjectIds.size >= 2) {
+      ctx.fill('evenodd');
+    } else {
+      compoundObjectIds.clear();
+    }
+    ctx.restore();
+    return compoundObjectIds;
+  }
+
   private buildRasterMaskRenderContext(
     obj: ProjectObject,
     allObjects: ProjectObject[],
@@ -1305,6 +1351,13 @@ export class CanvasRenderer {
     drawOrigin(ctx, workspace, vp);
 
     const layerMap = new Map(layers.map((l) => [l.id, l]));
+    const objectsByLayer = new Map<string, ProjectObject[]>();
+    for (const object of visibleObjects) {
+      const layerObjects = objectsByLayer.get(object.layer_id);
+      if (layerObjects) layerObjects.push(object);
+      else objectsByLayer.set(object.layer_id, [object]);
+    }
+    const compoundFillIdsByLayer = new Map<string, Set<string>>();
 
     for (const obj of visibleObjects) {
       const layer = layerMap.get(obj.layer_id);
@@ -1315,6 +1368,22 @@ export class CanvasRenderer {
         ? layerUsesFilledAppearance(layer)
         : params.filledRendering === true;
       const fillOpacity = params.useLayerAppearance && filled ? layerFillOpacity(layer) : 1;
+      let compoundFillIds = compoundFillIdsByLayer.get(layer.id);
+      if (!compoundFillIds) {
+        compoundFillIds = filled
+          ? this.drawLayerCompoundFill(
+              ctx,
+              layer,
+              objectsByLayer.get(layer.id) ?? [],
+              objects,
+              vp,
+              fillOpacity,
+              toolOverlay,
+            )
+          : new Set();
+        compoundFillIdsByLayer.set(layer.id, compoundFillIds);
+      }
+      const objectFilled = filled && !compoundFillIds.has(obj.id);
 
       if (obj.data.type === 'virtual_clone') {
         const cloneData = obj.data;
@@ -1344,7 +1413,7 @@ export class CanvasRenderer {
           const usedProxy =
             resolved.data.type === 'vector_path' &&
             this.shouldUseVectorProxy(resolved, params.interactionState) &&
-            this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, filled);
+            this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, objectFilled);
           if (!usedProxy) {
             this.drawObjectWithRasterMasks(
               ctx,
@@ -1353,7 +1422,7 @@ export class CanvasRenderer {
               vp,
               objects,
               theme,
-              filled,
+              objectFilled,
               isToolLayer,
               params.useLayerAppearance === true,
             );
@@ -1388,7 +1457,7 @@ export class CanvasRenderer {
           layer.color_tag,
           vp,
           toolOverlay.nodeToWorld,
-          filled,
+          objectFilled,
         );
         if (needsLayerContext) {
           ctx.restore();
@@ -1406,7 +1475,7 @@ export class CanvasRenderer {
         const usedProxy =
           obj.data.type === 'vector_path' &&
           this.shouldUseVectorProxy(obj, params.interactionState) &&
-          this.drawVectorProxy(ctx, obj, layer.color_tag, vp, filled);
+          this.drawVectorProxy(ctx, obj, layer.color_tag, vp, objectFilled);
         if (!usedProxy) {
           this.drawObjectWithRasterMasks(
             ctx,
@@ -1415,7 +1484,7 @@ export class CanvasRenderer {
             vp,
             objects,
             theme,
-            filled,
+            objectFilled,
             isToolLayer,
             params.useLayerAppearance === true,
           );
@@ -1532,6 +1601,13 @@ export class CanvasRenderer {
         if (layer && previewedLayerIds.has(layer.id)) return false;
         return layer?.visible !== false; // Show OFF hides completely
       }), layers);
+    const objectsByLayer = new Map<string, ProjectObject[]>();
+    for (const object of visibleObjects) {
+      const layerObjects = objectsByLayer.get(object.layer_id);
+      if (layerObjects) layerObjects.push(object);
+      else objectsByLayer.set(object.layer_id, [object]);
+    }
+    const compoundFillIdsByLayer = new Map<string, Set<string>>();
 
     for (const obj of visibleObjects) {
       const layer = layerMap.get(obj.layer_id);
@@ -1542,6 +1618,22 @@ export class CanvasRenderer {
           ? layerUsesFilledAppearance(layer)
           : params.filledRendering === true;
         const fillOpacity = params.useLayerAppearance && filled ? layerFillOpacity(layer) : 1;
+        let compoundFillIds = compoundFillIdsByLayer.get(layer.id);
+        if (!compoundFillIds) {
+          compoundFillIds = filled
+            ? this.drawLayerCompoundFill(
+                ctx,
+                layer,
+                objectsByLayer.get(layer.id) ?? [],
+                objects,
+                vp,
+                fillOpacity,
+                toolOverlay,
+              )
+            : new Set();
+          compoundFillIdsByLayer.set(layer.id, compoundFillIds);
+        }
+        const objectFilled = filled && !compoundFillIds.has(obj.id);
 
         // Resolve VirtualClone: follow chain to find real source geometry
         if (obj.data.type === 'virtual_clone') {
@@ -1573,7 +1665,7 @@ export class CanvasRenderer {
             const usedProxy =
               resolved.data.type === 'vector_path' &&
               this.shouldUseVectorProxy(resolved, params.interactionState) &&
-              this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, filled);
+              this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, objectFilled);
             if (!usedProxy) {
               this.drawObjectWithRasterMasks(
                 ctx,
@@ -1582,7 +1674,7 @@ export class CanvasRenderer {
                 vp,
                 objects,
                 theme,
-                filled,
+                objectFilled,
                 isToolLayer,
                 params.useLayerAppearance === true,
               );
@@ -1620,7 +1712,7 @@ export class CanvasRenderer {
             layer.color_tag,
             vp,
             toolOverlay.nodeToWorld,
-            filled,
+            objectFilled,
           );
           if (needsLayerContext) {
             ctx.restore();
@@ -1638,7 +1730,7 @@ export class CanvasRenderer {
           const usedProxy =
             obj.data.type === 'vector_path' &&
             this.shouldUseVectorProxy(obj, params.interactionState) &&
-            this.drawVectorProxy(ctx, obj, layer.color_tag, vp, filled);
+            this.drawVectorProxy(ctx, obj, layer.color_tag, vp, objectFilled);
           if (!usedProxy) {
             this.drawObjectWithRasterMasks(
               ctx,
@@ -1647,7 +1739,7 @@ export class CanvasRenderer {
               vp,
               objects,
               theme,
-              filled,
+              objectFilled,
               isToolLayer,
               params.useLayerAppearance === true,
             );

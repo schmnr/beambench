@@ -1002,7 +1002,12 @@ function getTransformedObjectScreenAabb(obj: ProjectObject, vp: ViewportParams):
   };
 }
 
-function addScreenPointsToPath(path: Path2D, points: { x: number; y: number }[]): boolean {
+type ScreenPathSink = Pick<
+  Path2D,
+  'moveTo' | 'lineTo' | 'quadraticCurveTo' | 'bezierCurveTo' | 'closePath'
+>;
+
+function addScreenPointsToPath(path: ScreenPathSink, points: { x: number; y: number }[]): boolean {
   if (points.length < 3) return false;
   path.moveTo(points[0].x, points[0].y);
   for (let i = 1; i < points.length; i++) {
@@ -1012,7 +1017,7 @@ function addScreenPointsToPath(path: Path2D, points: { x: number; y: number }[])
   return true;
 }
 
-function addBoundsRectToScreenPath(path: Path2D, obj: ProjectObject, vp: ViewportParams): boolean {
+function addBoundsRectToScreenPath(path: ScreenPathSink, obj: ProjectObject, vp: ViewportParams): boolean {
   return addScreenPointsToPath(path, [
     objectWorldToScreen(obj.bounds.min, obj, vp),
     objectWorldToScreen({ x: obj.bounds.max.x, y: obj.bounds.min.y }, obj, vp),
@@ -1021,7 +1026,12 @@ function addBoundsRectToScreenPath(path: Path2D, obj: ProjectObject, vp: Viewpor
   ]);
 }
 
-function addRoundedRectToScreenPath(path: Path2D, obj: ProjectObject, vp: ViewportParams, radiusMm: number): boolean {
+function addRoundedRectToScreenPath(
+  path: ScreenPathSink,
+  obj: ProjectObject,
+  vp: ViewportParams,
+  radiusMm: number,
+): boolean {
   const minX = obj.bounds.min.x;
   const minY = obj.bounds.min.y;
   const maxX = obj.bounds.max.x;
@@ -1053,7 +1063,7 @@ function addRoundedRectToScreenPath(path: Path2D, obj: ProjectObject, vp: Viewpo
   return addScreenPointsToPath(path, points);
 }
 
-function addEllipseToScreenPath(path: Path2D, obj: ProjectObject, vp: ViewportParams): boolean {
+function addEllipseToScreenPath(path: ScreenPathSink, obj: ProjectObject, vp: ViewportParams): boolean {
   const points: { x: number; y: number }[] = [];
   const cx = (obj.bounds.min.x + obj.bounds.max.x) / 2;
   const cy = (obj.bounds.min.y + obj.bounds.max.y) / 2;
@@ -1068,7 +1078,7 @@ function addEllipseToScreenPath(path: Path2D, obj: ProjectObject, vp: ViewportPa
 }
 
 function addVectorCommandsToScreenPath(
-  path: Path2D,
+  path: ScreenPathSink,
   commands: PathCommand[],
   bbox: PathBBox,
   obj: ProjectObject,
@@ -1122,7 +1132,7 @@ function addVectorCommandsToScreenPath(
 }
 
 function addShapeCommandsToScreenPath(
-  path: Path2D,
+  path: ScreenPathSink,
   obj: ProjectObject,
   vp: ViewportParams,
   cmds: ShapeCmd[],
@@ -1175,23 +1185,41 @@ function addShapeCommandsToScreenPath(
   return true;
 }
 
-export function buildObjectScreenMaskPath(obj: ProjectObject, vp: ViewportParams): Path2D | null {
-  if (typeof Path2D === 'undefined') return null;
-  const path = new Path2D();
+/**
+ * Append the closed contours of an object to a screen-space path. Callers can
+ * fill several objects in a single `evenodd` pass so nested objects on the
+ * same Fill layer become holes, matching the generated laser job.
+ */
+export function appendObjectScreenFillPath(
+  path: ScreenPathSink,
+  obj: ProjectObject,
+  vp: ViewportParams,
+): boolean {
   switch (obj.data.type) {
     case 'shape':
       if (obj.data.kind === 'ellipse') {
-        return addEllipseToScreenPath(path, obj, vp) ? path : null;
+        return addEllipseToScreenPath(path, obj, vp);
       }
       if (obj.data.corner_radius > 0) {
-        return addRoundedRectToScreenPath(path, obj, vp, obj.data.corner_radius) ? path : null;
+        return addRoundedRectToScreenPath(path, obj, vp, obj.data.corner_radius);
       }
-      return addBoundsRectToScreenPath(path, obj, vp) ? path : null;
+      return addBoundsRectToScreenPath(path, obj, vp);
     case 'vector_path': {
-      if (!obj.data.closed) return null;
       const info = getVectorPathRenderInfoForObject(obj);
-      if (!info) return null;
-      return addVectorCommandsToScreenPath(path, info.commands, info.bbox, obj, vp, true) ? path : null;
+      if (!info) return false;
+      let drew = false;
+      for (const subpath of getPathSubpathRenderStates(info.commands)) {
+        if (!subpath.closed) continue;
+        drew = addVectorCommandsToScreenPath(
+          path,
+          subpath.commands,
+          info.bbox,
+          obj,
+          vp,
+          true,
+        ) || drew;
+      }
+      return drew;
     }
     case 'polygon': {
       const points = buildPolygonPoints(obj.data.sides, obj.data.radius);
@@ -1200,7 +1228,7 @@ export function buildObjectScreenMaskPath(obj: ProjectObject, vp: ViewportParams
           ? { type: 'move' as const, x: point.x, y: point.y }
           : { type: 'line' as const, x: point.x, y: point.y },
       );
-      return addShapeCommandsToScreenPath(path, obj, vp, cmds) ? path : null;
+      return addShapeCommandsToScreenPath(path, obj, vp, cmds);
     }
     case 'star': {
       const cmds = buildStarPath(
@@ -1212,11 +1240,72 @@ export function buildObjectScreenMaskPath(obj: ProjectObject, vp: ViewportParams
         obj.data.corner_radius ?? 0,
         obj.data.corner_radii,
       );
-      return addShapeCommandsToScreenPath(path, obj, vp, cmds) ? path : null;
+      return addShapeCommandsToScreenPath(path, obj, vp, cmds);
+    }
+    case 'text': {
+      if (!obj.data.resolved_path_data) return false;
+      const commands = parsePathData(obj.data.resolved_path_data);
+      const toScreen = (x: number, y: number) => objectWorldToScreen(
+        { x: obj.bounds.min.x + x, y: obj.bounds.min.y + y },
+        obj,
+        vp,
+      );
+      let drew = false;
+      for (const subpath of getPathSubpathRenderStates(commands)) {
+        if (!subpath.closed || subpath.commands.length === 0) continue;
+        for (const command of subpath.commands) {
+          switch (command.type) {
+            case 'M': {
+              const point = toScreen(command.x, command.y);
+              path.moveTo(point.x, point.y);
+              drew = true;
+              break;
+            }
+            case 'L': {
+              const point = toScreen(command.x, command.y);
+              path.lineTo(point.x, point.y);
+              break;
+            }
+            case 'Q': {
+              const control = toScreen(command.x1!, command.y1!);
+              const point = toScreen(command.x, command.y);
+              path.quadraticCurveTo(control.x, control.y, point.x, point.y);
+              break;
+            }
+            case 'C': {
+              const control1 = toScreen(command.x1!, command.y1!);
+              const control2 = toScreen(command.x2!, command.y2!);
+              const point = toScreen(command.x, command.y);
+              path.bezierCurveTo(
+                control1.x,
+                control1.y,
+                control2.x,
+                control2.y,
+                point.x,
+                point.y,
+              );
+              break;
+            }
+            case 'Z':
+              path.closePath();
+              break;
+          }
+        }
+        if (subpath.commands[subpath.commands.length - 1]?.type !== 'Z') {
+          path.closePath();
+        }
+      }
+      return drew;
     }
     default:
-      return null;
+      return false;
   }
+}
+
+export function buildObjectScreenMaskPath(obj: ProjectObject, vp: ViewportParams): Path2D | null {
+  if (typeof Path2D === 'undefined') return null;
+  const path = new Path2D();
+  return appendObjectScreenFillPath(path, obj, vp) ? path : null;
 }
 
 export function buildPolygonPoints(sides: number, radius: number): { x: number; y: number }[] {

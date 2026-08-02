@@ -49,7 +49,6 @@ use beambench_core::vector::normalize::normalize_object;
 use beambench_core::vector::offset::signed_area;
 use beambench_core::vector::{
     OFFSET_FILL_BOOLEAN_TOLERANCE_MM, normalize_subject_evenodd_with_tolerance, optimize_path,
-    weld_shapes,
 };
 use clipper2::{EndType, JoinType, Milli, Paths};
 // process_raster is called via beambench_raster::process_raster_with_cache
@@ -489,6 +488,76 @@ fn bounds_from_polylines(polylines: &[Polyline]) -> Option<Bounds> {
         Point2D::new(min_x, min_y),
         Point2D::new(max_x, max_y),
     ))
+}
+
+fn bounds_overlap(a: &Bounds, b: &Bounds) -> bool {
+    a.min.x <= b.max.x && a.max.x >= b.min.x && a.min.y <= b.max.y && a.max.y >= b.min.y
+}
+
+/// Group Fill objects only when their geometry can interact under even-odd
+/// parity. This preserves same-layer holes and overlaps without allocating one
+/// enormous raster for artwork that is spread across the entire workspace.
+fn fill_polyline_batches(object_polylines: Vec<Vec<Polyline>>) -> Vec<Vec<Polyline>> {
+    let geometries: Vec<(Vec<Polyline>, Bounds)> = object_polylines
+        .into_iter()
+        .filter_map(|polylines| bounds_from_polylines(&polylines).map(|bounds| (polylines, bounds)))
+        .collect();
+    if geometries.len() <= 1 {
+        return geometries
+            .into_iter()
+            .map(|(polylines, _)| polylines)
+            .collect();
+    }
+
+    fn find(parents: &mut [usize], index: usize) -> usize {
+        if parents[index] != index {
+            parents[index] = find(parents, parents[index]);
+        }
+        parents[index]
+    }
+
+    fn union(parents: &mut [usize], left: usize, right: usize) {
+        let left_root = find(parents, left);
+        let right_root = find(parents, right);
+        if left_root != right_root {
+            parents[right_root] = left_root;
+        }
+    }
+
+    let mut parents: Vec<usize> = (0..geometries.len()).collect();
+    let mut ordered: Vec<usize> = (0..geometries.len()).collect();
+    ordered.sort_by(|left, right| {
+        geometries[*left]
+            .1
+            .min
+            .x
+            .partial_cmp(&geometries[*right].1.min.x)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let mut active: Vec<usize> = Vec::new();
+    for index in ordered {
+        let current_bounds = &geometries[index].1;
+        active.retain(|active_index| geometries[*active_index].1.max.x >= current_bounds.min.x);
+        for &active_index in &active {
+            if bounds_overlap(current_bounds, &geometries[active_index].1) {
+                union(&mut parents, index, active_index);
+            }
+        }
+        active.push(index);
+    }
+
+    let mut batch_indices: HashMap<usize, usize> = HashMap::new();
+    let mut batches: Vec<Vec<Polyline>> = Vec::new();
+    for (index, (polylines, _)) in geometries.into_iter().enumerate() {
+        let root = find(&mut parents, index);
+        let batch_index = *batch_indices.entry(root).or_insert_with(|| {
+            batches.push(Vec::new());
+            batches.len() - 1
+        });
+        batches[batch_index].extend(polylines);
+    }
+    batches
 }
 
 fn polylines_to_vecpath(polylines: &[Polyline]) -> VecPath {
@@ -2803,10 +2872,11 @@ fn build_plan_inner(
                         passes,
                     );
                 } else if layer.primary_entry().operation == OperationType::Fill {
-                    // Fill: rasterize each object independently so preview and planning
-                    // preserve per-object scan areas and overscan.
-                    // Nested contours within a single normalized object are still
-                    // composed so compound shapes retain their internal hole/island topology.
+                    // Fill uses even-odd parity across geometry on the same layer.
+                    // Objects whose bounds interact are composited together so a nested
+                    // contour becomes a hole and overlapping contours toggle the fill.
+                    // Spatially separate objects remain separate raster batches to avoid
+                    // allocating a workspace-sized bitmap for distant artwork.
                     let raster_settings = layer.primary_entry().raster_settings.as_ref();
                     let line_interval = raster_settings.map(|s| s.line_interval_mm).unwrap_or(0.1);
                     let bidirectional = raster_settings.map(|s| s.bidirectional).unwrap_or(true)
@@ -2833,6 +2903,7 @@ fn build_plan_inner(
                         raw_angle_passes
                     };
 
+                    let mut fill_object_polylines = Vec::new();
                     for obj in &vector_objects {
                         let Some(normalized) = normalize_object(obj) else {
                             warnings.push(PlanWarning {
@@ -2854,25 +2925,19 @@ fn build_plan_inner(
                             continue;
                         }
 
-                        // Detect nested polylines within this object. These are re-added
-                        // after union so rasterize_fill's even-odd rule creates
-                        // holes/islands for compound geometry, but different project
-                        // objects remain separate fill regions.
-                        let (original_depths, _original_analyses) =
-                            compute_all_nesting_depths(&original_polylines);
-                        let nested_indices: Vec<usize> = (0..original_polylines.len())
-                            .filter(|&i| original_depths[i] > 0)
-                            .collect();
+                        fill_object_polylines.push(original_polylines);
+                    }
 
+                    for original_polylines in fill_polyline_batches(fill_object_polylines) {
                         let vecpaths: Vec<VecPath> =
                             original_polylines.iter().map(polyline_to_vecpath).collect();
-                        let welded = weld_shapes(&vecpaths);
-                        let mut composited_polylines =
-                            flatten_vecpath(&welded, DEFAULT_TOLERANCE_MM);
-
-                        for &idx in &nested_indices {
-                            composited_polylines.push(original_polylines[idx].clone());
-                        }
+                        let composite = normalize_subject_evenodd_with_tolerance(
+                            &vecpaths,
+                            DEFAULT_TOLERANCE_MM,
+                            DEFAULT_TOLERANCE_MM,
+                        );
+                        let composited_polylines =
+                            flatten_vecpath(&composite, DEFAULT_TOLERANCE_MM);
 
                         let Some(composite_bounds) = bounds_from_polylines(&composited_polylines)
                         else {
@@ -8002,7 +8067,7 @@ mod tests {
     }
 
     #[test]
-    fn fill_overlapping_shapes_stay_separate_objects() {
+    fn fill_overlapping_shapes_use_evenodd_compound_region() {
         let mut project = create_test_project();
 
         let mut layer = Layer::new("Fill", OperationType::Fill);
@@ -8047,13 +8112,19 @@ mod tests {
 
         assert_eq!(
             raster_segments.len(),
-            2,
-            "Fill should rasterize overlapping objects as separate regions"
+            1,
+            "Overlapping objects on one Fill layer should share one raster region"
+        );
+        assert!(
+            raster_segments[0]
+                .iter()
+                .any(|scanline| scanline.runs.len() == 2),
+            "The overlap should toggle off under even-odd fill"
         );
     }
 
     #[test]
-    fn fill_three_nested_objects_stay_separate_regions() {
+    fn fill_three_nested_objects_create_hole_and_island() {
         let mut project = create_test_project();
 
         let mut layer = Layer::new("Fill", OperationType::Fill);
@@ -8108,8 +8179,51 @@ mod tests {
             .collect();
         assert_eq!(
             raster_segments.len(),
-            3,
-            "Nested Fill objects should rasterize as three separate regions"
+            1,
+            "Nested objects on one Fill layer should share one raster region"
+        );
+        assert!(
+            raster_segments[0]
+                .iter()
+                .any(|scanline| scanline.runs.len() == 3),
+            "Three nested contours should burn the outer ring and center island"
+        );
+    }
+
+    #[test]
+    fn fill_distant_shapes_keep_separate_raster_batches() {
+        let mut project = create_test_project();
+
+        let mut layer = Layer::new("Fill", OperationType::Fill);
+        if let Some(ref mut rs) = layer.primary_entry_mut().raster_settings {
+            rs.line_interval_mm = 1.0;
+        }
+        let layer_id = layer.id;
+        project.layers.push(layer);
+
+        for (name, min_x) in [("left", 0.0), ("right", 100.0)] {
+            project.objects.push(ProjectObject::new(
+                name,
+                layer_id,
+                Bounds::new(Point2D::new(min_x, 0.0), Point2D::new(min_x + 20.0, 20.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 20.0,
+                    height: 20.0,
+                    corner_radius: 0.0,
+                },
+            ));
+        }
+
+        let plan = build_plan(&project).expect("distant Fill shapes should succeed");
+        let raster_segment_count = plan
+            .segments
+            .iter()
+            .filter(|segment| matches!(segment, PlanSegment::Raster { .. }))
+            .count();
+        assert_eq!(
+            raster_segment_count, 2,
+            "Distant shapes should avoid a single workspace-spanning raster"
         );
     }
 

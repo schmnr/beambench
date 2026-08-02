@@ -1127,6 +1127,35 @@ describe('CanvasRenderer', () => {
     }
   });
 
+  it('fills separate objects on one layer as a single even-odd compound region', () => {
+    const compoundCtx = createMockCtx();
+    const fillDraw = vi.fn();
+    compoundCtx.fill = fillDraw;
+    const layer = makeLayer({ id: 'fill-layer', operation: 'fill', color_tag: '#ef4444' });
+    const outer = makeProjectObject({
+      id: 'outer',
+      layer_id: layer.id,
+      bounds: { min: { x: 10, y: 10 }, max: { x: 80, y: 80 } },
+      data: { type: 'shape', kind: 'ellipse', corner_radius: 0, width: 70, height: 70 },
+    });
+    const inner = makeProjectObject({
+      id: 'inner',
+      layer_id: layer.id,
+      bounds: { min: { x: 30, y: 30 }, max: { x: 60, y: 60 } },
+      data: { type: 'shape', kind: 'ellipse', corner_radius: 0, width: 30, height: 30 },
+    });
+
+    new CanvasRenderer(compoundCtx).render({
+      ...baseParams,
+      objects: [outer, inner],
+      layers: [layer],
+      useLayerAppearance: true,
+    });
+
+    expect(fillDraw).toHaveBeenCalledTimes(1);
+    expect(fillDraw).toHaveBeenCalledWith('evenodd');
+  });
+
   it('applies saved opacity to filled Design layers', () => {
     const opacityCtx = createMockCtx();
     const alphaValues: number[] = [];
