@@ -6,6 +6,7 @@ import { useUndoStore } from '../../stores/undoStore';
 import { useAppStore } from '../../stores/appStore';
 import { useCameraStore } from '../../stores/cameraStore';
 import { vectorService } from '../../services/vectorService';
+import { remapPersistentTabMarker, type PersistentTabMarkerSnapshot } from '../../canvas/tabMarkerPreview';
 import { projectService } from '../../services/projectService';
 import { cameraFrameAssetUrl, verifyCameraFrameTempScope } from '../../services/cameraFrameAsset';
 import { registerCanvasScreenshotProvider } from '../../services/canvasScreenshotExportService';
@@ -259,7 +260,7 @@ export function Canvas() {
 
   // Always-visible persistent tab markers (must be before render callback which reads it)
   const [persistentTabMarkers, setPersistentTabMarkers] = useState<
-    { worldX: number; worldY: number; objectId: string }[]
+    PersistentTabMarkerSnapshot[]
   >([]);
   const [rulerGuidePreview, setRulerGuidePreview] = useState<
     { axis: 'horizontal' | 'vertical'; value: number } | null
@@ -709,10 +710,17 @@ export function Canvas() {
     if (!renderer || !project) return;
     if (!prepareCanvas(overlayCanvasRef.current)) return;
 
-    const filteredTabMarkers =
+    const filteredTabMarkerSnapshots =
       activeTool === 'tabs' && selectedObjectIds[0]
         ? persistentTabMarkers.filter((m) => m.objectId !== selectedObjectIds[0])
         : persistentTabMarkers;
+    const objectsById = new Map(project.objects.map((object) => [object.id, object]));
+    const filteredTabMarkers = filteredTabMarkerSnapshots.map((marker) => {
+      const object = objectsById.get(marker.objectId);
+      return object
+        ? remapPersistentTabMarker(marker, object.bounds, object.transform)
+        : { worldX: marker.worldX, worldY: marker.worldY };
+    });
 
     const effectiveOverlay = buildEffectiveOverlay();
     const renderStartedAt = performance.now();
@@ -1758,9 +1766,22 @@ export function Canvas() {
       tabbedIds.map((id) =>
         vectorService
           .resolveTabMarkers(id)
-          .then((markers) =>
-            markers.map((m) => ({ worldX: m.worldX, worldY: m.worldY, objectId: id })),
-          ),
+          .then((markers) => {
+            const object = project.objects.find((candidate) => candidate.id === id);
+            if (!object) return [];
+            const resolvedBounds = {
+              min: { ...object.bounds.min },
+              max: { ...object.bounds.max },
+            };
+            const resolvedTransform = { ...object.transform };
+            return markers.map((m) => ({
+              worldX: m.worldX,
+              worldY: m.worldY,
+              objectId: id,
+              resolvedBounds,
+              resolvedTransform,
+            }));
+          }),
       ),
     ).then((results) => {
       if (!cancelled) setPersistentTabMarkers(results.flat());
