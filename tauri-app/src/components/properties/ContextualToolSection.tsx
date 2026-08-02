@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -22,11 +22,29 @@ export function ContextualToolSection({
   testId,
 }: ContextualToolSectionProps) {
   const [expanded, setExpanded] = useState(true);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Contextual controls are appended after the object's regular properties and
+  // can otherwise open below the visible part of a long inspector. Reveal the
+  // section whenever a new tool workflow mounts (or replaces another one).
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section || typeof section.scrollIntoView !== 'function') return;
+    const frame = window.requestAnimationFrame(() => {
+      section.scrollIntoView({
+        behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start',
+        inline: 'nearest',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [testId]);
 
   return (
     <section
+      ref={sectionRef}
       data-testid={testId}
-      className="overflow-hidden rounded-lg border border-bb-border bg-bb-bg/40"
+      className="scroll-mt-2 overflow-hidden rounded-lg border border-bb-border bg-bb-bg/40"
     >
       <button
         type="button"

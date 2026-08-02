@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { NodeImmediateAction } from '../../canvas/tools/NodeTool';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore, type NodeSubMode } from '../../stores/uiStore';
+import { ContextualToolSection } from './ContextualToolSection';
 
 const ICON_SIZE = 18;
 
@@ -206,7 +206,6 @@ function dispatchImmediateAction(action: NodeImmediateAction) {
 
 export function NodeEditingSection() {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(true);
   const nodeSubMode = useUiStore((state) => state.nodeSubMode);
   const nodeEditOpenPathObjectId = useUiStore((state) => state.nodeEditOpenPathObjectId);
   const setNodeSubMode = useUiStore((state) => state.setNodeSubMode);
@@ -221,81 +220,60 @@ export function NodeEditingSection() {
     && !selectedObject.locked;
 
   return (
-    <section
-      data-testid="node-editing-section"
-      className="overflow-hidden rounded-lg border border-bb-border bg-bb-bg/40"
+    <ContextualToolSection
+      title={t('toolbars.creation.node_edit')}
+      icon={<NodeGlyph />}
+      testId="node-editing-section"
     >
-      <button
-        type="button"
-        aria-expanded={expanded}
-        aria-label={t('toolbars.creation.node_edit')}
-        onClick={() => setExpanded((current) => !current)}
-        className={`flex h-9 w-full items-center gap-2 px-3 text-left outline-none transition-colors hover:bg-bb-hover focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-bb-accent ${
-          expanded ? 'border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-bb-surface/30' : 'bg-bb-surface/30'
-        }`}
-      >
-        <span className="text-bb-accent"><NodeGlyph /></span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-bb-text-dim">
-          {t('toolbars.creation.node_edit')}
-        </span>
-        {expanded
-          ? <ChevronDown className="ml-auto h-3.5 w-3.5 text-bb-text-dim" />
-          : <ChevronRight className="ml-auto h-3.5 w-3.5 text-bb-text-dim" />}
-      </button>
-
-      {expanded && (
-        <div className="flex flex-col gap-2.5 p-3">
-          <div className="flex flex-wrap gap-1.5" role="toolbar" aria-label={t('toolbars.creation.node_edit')}>
-            {NODE_MODE_GROUPS.map((group) => (
-              <div
-                key={group[0].mode}
-                className="flex overflow-hidden rounded-lg border border-bb-border bg-bb-surface/70"
-              >
-                {group.map((mode, index) => {
-                  const label = t(mode.labelKey);
-                  const active = nodeSubMode === mode.mode;
-                  return (
-                    <button
-                      key={mode.mode}
-                      type="button"
-                      aria-label={label}
-                      aria-pressed={active}
-                      title={label}
-                      onClick={() => setNodeSubMode(mode.mode)}
-                      className={`flex h-[34px] w-[38px] items-center justify-center outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-bb-accent ${
-                        index > 0 ? 'border-l border-bb-border' : ''
-                      } ${
-                        active
-                          ? 'bg-bb-accent/15 text-bb-accent'
-                          : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
-                      }`}
-                    >
-                      {mode.icon}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+      <div className="flex flex-wrap gap-1.5" role="toolbar" aria-label={t('toolbars.creation.node_edit')}>
+        {NODE_MODE_GROUPS.map((group) => (
+          <div
+            key={group[0].mode}
+            className="flex overflow-hidden rounded-lg border border-bb-border bg-bb-surface/70"
+          >
+            {group.map((mode, index) => {
+              const label = t(mode.labelKey);
+              const active = nodeSubMode === mode.mode;
+              return (
+                <button
+                  key={mode.mode}
+                  type="button"
+                  aria-label={label}
+                  aria-pressed={active}
+                  title={label}
+                  onClick={() => setNodeSubMode(mode.mode)}
+                  className={`flex h-[34px] w-[38px] items-center justify-center outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-bb-accent ${
+                    index > 0 ? 'border-l border-bb-border' : ''
+                  } ${
+                    active
+                      ? 'bg-bb-accent/15 text-bb-accent'
+                      : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
+                  }`}
+                >
+                  {mode.icon}
+                </button>
+              );
+            })}
           </div>
+        ))}
+      </div>
 
-          <div className="flex items-center gap-2.5 rounded-lg border border-bb-border bg-bb-panel px-2.5 py-2">
-            <span className="shrink-0 text-bb-text-muted">{activeMode.icon}</span>
-            <span className="text-[11px] font-semibold text-bb-text">{t(activeMode.labelKey)}</span>
-          </div>
+      <div className="flex items-center gap-2.5 rounded-lg border border-bb-border bg-bb-panel px-2.5 py-2">
+        <span className="shrink-0 text-bb-text-muted">{activeMode.icon}</span>
+        <span className="text-[11px] font-semibold text-bb-text">{t(activeMode.labelKey)}</span>
+      </div>
 
-          <div className="border-t border-bb-border pt-2.5">
-            <button
-              type="button"
-              disabled={!canClosePath}
-              onClick={() => dispatchImmediateAction('close_open')}
-              className="flex h-8 w-full items-center justify-start gap-2 rounded-lg border border-bb-border bg-bb-surface px-2 text-[11px] font-medium text-bb-text outline-none transition-colors hover:bg-bb-hover focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:bg-bb-surface"
-            >
-              <ClosePathIcon />
-              {t('toolbars.node_sub.close_path')}
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
+      <div className="border-t border-bb-border pt-2.5">
+        <button
+          type="button"
+          disabled={!canClosePath}
+          onClick={() => dispatchImmediateAction('close_open')}
+          className="flex h-8 w-full items-center justify-start gap-2 rounded-lg border border-bb-border bg-bb-surface px-2 text-[11px] font-medium text-bb-text outline-none transition-colors hover:bg-bb-hover focus-visible:ring-1 focus-visible:ring-bb-accent disabled:cursor-default disabled:text-bb-text-disabled disabled:hover:bg-bb-surface"
+        >
+          <ClosePathIcon />
+          {t('toolbars.node_sub.close_path')}
+        </button>
+      </div>
+    </ContextualToolSection>
   );
 }
