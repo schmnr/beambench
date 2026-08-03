@@ -65,6 +65,30 @@ function makeSettings(overrides: Partial<AppSettings> = {}): AppSettings {
   };
 }
 
+function makePersistedDesignLayout(panelIds: string[]): NonNullable<AppSettings['panel_layout']> {
+  const emptyZone = { panel_ids: [] as string[], active_tab: '' };
+  return {
+    layout_version: 8,
+    zones: {
+      'top-left': emptyZone,
+      'middle-left': emptyZone,
+      'bottom-left': emptyZone,
+      'top-right': { panel_ids: panelIds, active_tab: panelIds[0] ?? '' },
+      'middle-right': emptyZone,
+      'bottom-right': emptyZone,
+      left: emptyZone,
+      bottom: emptyZone,
+    },
+    hidden_panel_ids: [],
+    upper_split_ratio: 1,
+    right_panel_width: 440,
+    left_panel_width: 280,
+    bottom_panel_height: 36,
+    side_panels_visible: true,
+    floating_panels: [],
+  };
+}
+
 function makeAppEvent<T>(type: string, payload: T): AppEvent<T> {
   return {
     type,
@@ -490,17 +514,45 @@ describe('App bootstrap', () => {
 
     await waitFor(() => {
       const layout = useUiStore.getState().panelLayout;
-      expect(layout.layoutVersion).toBe(8);
+      expect(layout.layoutVersion).toBe(9);
       expect(layout.runZones['top-left']).toEqual({ panelIds: ['move'], activeTab: 'move' });
       expect(layout.runHiddenPanelIds).not.toContain('move');
       expect(layout.hiddenPanelIds).toContain('notes');
       expect(layout.runHiddenPanelIds).toContain('notes');
       expect(layout.zones['top-left']).toEqual({ panelIds: [], activeTab: '' });
       expect(layout.zones['middle-right']).toEqual({
-        panelIds: ['cuts_layers', 'outliner', 'properties'],
+        panelIds: ['cuts_layers', 'properties', 'outliner'],
         activeTab: 'cuts_layers',
       });
       expect(layout.runHiddenPanelIds).toContain('outliner');
+    });
+  });
+
+  it('updates the previous untouched Design tab order to the v9 default', async () => {
+    vi.spyOn(appService, 'getSettings').mockResolvedValue(makeSettings({
+      panel_layout: makePersistedDesignLayout(['cuts_layers', 'outliner', 'properties']),
+    }));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(useUiStore.getState().panelLayout.zones['top-right'].panelIds).toEqual([
+        'cuts_layers', 'properties', 'outliner',
+      ]);
+    });
+  });
+
+  it('preserves a customized Design tab order during the v9 migration', async () => {
+    vi.spyOn(appService, 'getSettings').mockResolvedValue(makeSettings({
+      panel_layout: makePersistedDesignLayout(['outliner', 'cuts_layers', 'properties']),
+    }));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(useUiStore.getState().panelLayout.zones['top-right'].panelIds).toEqual([
+        'outliner', 'cuts_layers', 'properties',
+      ]);
     });
   });
 

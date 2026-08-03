@@ -832,6 +832,27 @@ function App() {
           }
         }
 
+        // v9 changes only the previous untouched Design default tab order.
+        // Any other order or panel composition is a customized workspace and
+        // must remain exactly as the user arranged it.
+        if (savedLayoutVersion < 9) {
+          const previousDefaultOrder = ['cuts_layers', 'outliner', 'properties'];
+          const defaultZone = (Object.keys(designZones) as PhysicalDockZone[]).find((zone) => {
+            const ids = designZones[zone].panelIds;
+            return ids.length === previousDefaultOrder.length
+              && ids.every((id, index) => id === previousDefaultOrder[index]);
+          });
+          if (defaultZone) {
+            designZones = {
+              ...designZones,
+              [defaultZone]: {
+                ...designZones[defaultZone],
+                panelIds: ['cuts_layers', 'properties', 'outliner'],
+              },
+            };
+          }
+        }
+
         // Before panels became fully dockable, Run's Move panel lived outside
         // the saved dock zones and was therefore persisted as hidden. The v4
         // migration carried that stale state forward, leaving Run with no left

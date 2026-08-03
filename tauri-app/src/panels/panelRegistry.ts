@@ -60,7 +60,7 @@ const DESIGN_DEFAULT_ZONES: Record<PhysicalDockZone, string[]> = {
   'top-left': [],
   'middle-left': [],
   'bottom-left': [],
-  'top-right': ['cuts_layers', 'outliner', 'properties'],
+  'top-right': ['cuts_layers', 'properties', 'outliner'],
   'middle-right': [],
   'bottom-right': [],
   left: [],

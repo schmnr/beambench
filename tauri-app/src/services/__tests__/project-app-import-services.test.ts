@@ -453,7 +453,7 @@ describe('appService methods', () => {
 
     expect(invoke).toHaveBeenCalledWith('update_app_settings', {
       panelLayout: {
-        layout_version: 8,
+        layout_version: 9,
         zones: {
           'top-left': { panel_ids: [], active_tab: '' },
           'middle-left': { panel_ids: [], active_tab: '' },

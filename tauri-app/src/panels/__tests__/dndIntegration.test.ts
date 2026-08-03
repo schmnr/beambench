@@ -20,7 +20,7 @@ describe('DnD Integration — full workflows through store actions', () => {
     const lowerIds = panelLayout.zones['middle-right'].panelIds;
     const leftIds = panelLayout.zones['left'].panelIds;
     const bottomIds = panelLayout.zones['bottom'].panelIds;
-    expect(upperIds).toEqual(['cuts_layers', 'outliner', 'properties']);
+    expect(upperIds).toEqual(['cuts_layers', 'properties', 'outliner']);
     expect(lowerIds).toHaveLength(0);
     expect(leftIds).toHaveLength(0);
     expect(bottomIds).toHaveLength(0);
@@ -75,8 +75,8 @@ describe('DnD Integration — full workflows through store actions', () => {
   it('reorder tabs within zone → order changes', () => {
     const before = useUiStore.getState().panelLayout.zones['top-right'].panelIds;
     expect(before[0]).toBe('cuts_layers');
-    expect(before[1]).toBe('outliner');
-    expect(before[2]).toBe('properties');
+    expect(before[1]).toBe('properties');
+    expect(before[2]).toBe('outliner');
 
     useUiStore.getState().reorderPanelInZone('properties', 'top-right', 0);
 
@@ -116,7 +116,7 @@ describe('DnD Integration — full workflows through store actions', () => {
     const { panelLayout, nextFloatingZIndex } = useUiStore.getState();
     expect(panelLayout.floatingPanels).toHaveLength(0);
     expect(nextFloatingZIndex).toBe(1);
-    expect(panelLayout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'outliner', 'properties']);
+    expect(panelLayout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'properties', 'outliner']);
   });
 
   it('two floating panels → bringToFront gives correct z-order', () => {
