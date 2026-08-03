@@ -631,6 +631,9 @@
       "error_layer_unavailable": "La boîte de dialogue Code-barres s'est fermée car sa couche cible n'est plus disponible."
     },
     "adjust_image": {
+      "invert_display_help": "Aperçu uniquement. L’image enregistrée et la sortie laser ne sont pas modifiées.",
+      "invert_adjustment_help": "L’inversion est enregistrée avec cette image et appliquée avant le traitement raster du calque.",
+      "negative_image_help": "Image négative inverse la sortie du calque. Si Inverser ci-dessus est également activé, les deux inversions peuvent s’annuler.",
       "title": "Ajuster l'image",
       "drag_to_move": "Faites glisser pour déplacer",
       "original": "Originale",
@@ -789,6 +792,7 @@
       "pan_hint": "Faites glisser pour sélectionner une zone de vectorisation. Maintenez la barre d'espace et faites glisser pour vous déplacer."
     },
     "preview": {
+      "options_help": "Déplacement indique un mouvement laser éteint. Progression montre la gravure terminée. Le surbalayage montre l’accélération raster au-delà du motif. Ombrage par puissance et Inverser n’affectent que cet affichage.",
       "title": "Fenêtre d'aperçu",
       "stale_refresh_required": "Obsolète – actualisation requise",
       "stale": "périmé",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Détacher le panneau"
     },
     "outliner": {
+      "help": "Faites glisser pour réorganiser ou déplacer. Double-cliquez pour renommer. Les objets masqués restent ici afin de pouvoir les restaurer.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Transformation",
+      "visibility_help": "Les objets masqués sont exclus du travail. Restaurez-les dans l’Outliner.",
+      "power_scale_help": "Multiplie la puissance du calque pour cet objet sans modifier le calque.",
+      "cut_priority_help": "Les valeurs les plus faibles sont exécutées en premier lorsque l’optimisation par priorité est activée.",
       "objects_selected": "{count} objets sélectionnés",
       "layer": "Calque",
       "mixed": "Mixte",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Les calques d’outil servent de guides et ne produisent jamais de sortie laser.",
+      "output_show_help": "Sortie inclut ce calque dans le travail laser. Voir modifie uniquement l’affichage de la zone de travail.",
+      "opacity_help": "Aperçu de la zone de travail uniquement. Cela ne modifie ni la puissance laser ni le traitement de l’image.",
       "delete_layer": "Supprimer le calque",
       "add_layer": "Ajouter un calque",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Angle"
     },
     "art_library": {
+      "drag_help": "Faites glisser l’illustration sur la zone de travail. Utilisez × pour la supprimer de la bibliothèque.",
       "no_libraries": "Aucune bibliothèque chargée.",
       "search": "Rechercher...",
       "icon_size": "Taille des icônes :",

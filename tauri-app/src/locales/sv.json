@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Streckkodsdialogrutan stängdes eftersom dess mållager inte längre är tillgängligt."
     },
     "adjust_image": {
+      "invert_display_help": "Endast förhandsvisning. Den sparade bilden och laserutmatningen ändras inte.",
+      "invert_adjustment_help": "Invertering sparas med bilden och utförs före lagrets rasterbearbetning.",
+      "negative_image_help": "Negativ bild inverterar lagrets utmatning. Om Invertera ovan också är aktiverat kan de två inverteringarna ta ut varandra.",
       "title": "Justera bild",
       "drag_to_move": "Dra för att flytta",
       "original": "Original",
@@ -789,6 +792,7 @@
       "pan_hint": "Dra för att välja ett kalkeringsområde. Håll ned mellanslag och dra för att panorera."
     },
     "preview": {
+      "options_help": "Förflyttning är rörelse med lasern avstängd. Förlopp visar slutförd bränning. Överskanning visar rasteracceleration utanför motivet. Skuggning efter effekt och Invertera påverkar bara denna vy.",
       "title": "Förhandsgranskningsfönster",
       "stale_refresh_required": "Inaktuell - uppdatering krävs",
       "stale": "Inaktuella",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Frigör panel"
     },
     "outliner": {
+      "help": "Dra för att ändra ordning eller flytta. Dubbelklicka för att byta namn. Dolda objekt finns kvar här så att du kan återställa dem.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Omforma",
+      "visibility_help": "Dolda objekt utesluts från jobbet. Återställ dem i Outliner.",
+      "power_scale_help": "Multiplicerar lagereffekten för detta objekt utan att ändra lagret.",
+      "cut_priority_help": "Lägre värden körs tidigare när prioritetsoptimering är aktiverad.",
       "objects_selected": "{count} objekt markerade",
       "layer": "Lager",
       "mixed": "Blandat",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Verktygslager fungerar som hjälplinjer och ger aldrig laserutmatning.",
+      "output_show_help": "Ut tar med detta lager i laserjobbet. Visa ändrar bara arbetsytans vy.",
+      "opacity_help": "Endast förhandsvisning på arbetsytan. Detta ändrar inte lasereffekt eller bildbearbetning.",
       "delete_layer": "Ta bort lager",
       "add_layer": "Lägg till lager",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Vinkel"
     },
     "art_library": {
+      "drag_help": "Dra grafik till arbetsytan. Använd × för att ta bort den från biblioteket.",
       "no_libraries": "Inga bibliotek inlästa.",
       "search": "Sök...",
       "icon_size": "Ikonstorlek:",

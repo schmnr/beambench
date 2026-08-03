@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Het streepjescodedialoogvenster is gesloten omdat de doellaag ervan niet langer beschikbaar is."
     },
     "adjust_image": {
+      "invert_display_help": "Alleen voorvertoning. De opgeslagen afbeelding en laseruitvoer blijven ongewijzigd.",
+      "invert_adjustment_help": "Omkeren wordt bij deze afbeelding opgeslagen en uitgevoerd vóór de rasterverwerking van de laag.",
+      "negative_image_help": "Negatief beeld keert de laaguitvoer om. Als Omkeren hierboven ook aan staat, kunnen de twee omkeringen elkaar opheffen.",
       "title": "Afbeelding aanpassen",
       "drag_to_move": "Sleep om te verplaatsen",
       "original": "Origineel",
@@ -789,6 +792,7 @@
       "pan_hint": "Sleep om een overtrekgebied te selecteren. Houd de spatiebalk ingedrukt en sleep om te verschuiven."
     },
     "preview": {
+      "options_help": "Verplaatsing is beweging met de laser uit. Voortgang toont de voltooide bewerking. Overscan toont rasterversnelling buiten de afbeelding. Arceren op vermogen en Omkeren beïnvloeden alleen deze weergave.",
       "title": "Voorbeeldvenster",
       "stale_refresh_required": "Verouderd - vernieuwen vereist",
       "stale": "Oud",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Paneel losmaken"
     },
     "outliner": {
+      "help": "Sleep om te herschikken of te verplaatsen. Dubbelklik om de naam te wijzigen. Verborgen objecten blijven hier zodat u ze kunt herstellen.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Transformeren",
+      "visibility_help": "Verborgen objecten worden van de taak uitgesloten. Herstel ze in de Outliner.",
+      "power_scale_help": "Vermenigvuldigt het laagvermogen voor dit object zonder de laag te wijzigen.",
+      "cut_priority_help": "Lagere waarden worden eerder uitgevoerd wanneer prioriteitsoptimalisatie is ingeschakeld.",
       "objects_selected": "{count} objecten geselecteerd",
       "layer": "Laag",
       "mixed": "Gemengd",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Hulplagen dienen als hulplijnen en produceren nooit laseruitvoer.",
+      "output_show_help": "Uit neemt deze laag op in de lasertaak. Toon verandert alleen de canvasweergave.",
+      "opacity_help": "Alleen canvasvoorvertoning. Dit verandert het laservermogen of de beeldverwerking niet.",
       "delete_layer": "Laag verwijderen",
       "add_layer": "Laag toevoegen",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Hoek"
     },
     "art_library": {
+      "drag_help": "Sleep illustraties naar het canvas. Gebruik × om ze uit de bibliotheek te verwijderen.",
       "no_libraries": "Geen bibliotheken geladen.",
       "search": "Zoeken...",
       "icon_size": "Pictogramgrootte:",

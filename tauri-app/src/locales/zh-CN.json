@@ -631,6 +631,9 @@
       "error_layer_unavailable": "条形码对话框已关闭，因为其目标图层不再可用。"
     },
     "adjust_image": {
+      "invert_display_help": "仅用于预览。保存的图像和激光输出不会改变。",
+      "invert_adjustment_help": "“反转”会随此图像保存，并在图层的栅格处理之前应用。",
+      "negative_image_help": "“负片图像”会反转图层输出。如果上方的“反转”也已开启，两次反转可能会相互抵消。",
       "title": "调整图像",
       "drag_to_move": "拖动移动",
       "original": "原创",
@@ -789,6 +792,7 @@
       "pan_hint": "拖动以选择描摹区域。按住空格键并拖动可平移视图。"
     },
     "preview": {
+      "options_help": "“行程”表示激光关闭时的移动。“进度”显示已完成的加工。“过扫描”显示图稿范围外的栅格加速段。“按功率着色”和“反转”只影响此处的显示。",
       "title": "预览窗口",
       "stale_refresh_required": "陈旧 - 需要刷新",
       "stale": "陈旧的",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "浮动面板"
     },
     "outliner": {
+      "help": "拖动可重新排序或移动。双击可重命名。隐藏的对象会保留在这里，以便恢复。",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "变换",
+      "visibility_help": "隐藏的对象不会包含在任务中。可在 Outliner 中恢复。",
+      "power_scale_help": "在不更改图层的情况下，按比例调整此对象的图层功率。",
+      "cut_priority_help": "启用优先级优化时，数值越小越先运行。",
       "objects_selected": "已选择 {count} 个对象",
       "layer": "图层",
       "mixed": "混合",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "工具图层仅用作辅助线，不会产生激光输出。",
+      "output_show_help": "开启“输出”会将此图层包含在激光任务中。“显示”只改变画布视图。",
+      "opacity_help": "仅用于画布预览。不会改变激光功率或图像处理。",
       "delete_layer": "删除图层",
       "add_layer": "添加图层",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "角度"
     },
     "art_library": {
+      "drag_help": "将图稿拖到画布上。使用 × 可将其从图库中删除。",
       "no_libraries": "未加载任何库。",
       "search": "搜索...",
       "icon_size": "图标大小：",

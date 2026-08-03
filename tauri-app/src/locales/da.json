@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Stregkodedialogen lukket, fordi dens mållag ikke længere er tilgængeligt."
     },
     "adjust_image": {
+      "invert_display_help": "Kun forhåndsvisning. Det gemte billede og laseroutputtet ændres ikke.",
+      "invert_adjustment_help": "Invertering gemmes med dette billede og udføres før lagets rasterbehandling.",
+      "negative_image_help": "Negativt billede inverterer lagets output. Hvis Inverter ovenfor også er slået til, kan de to inverteringer ophæve hinanden.",
       "title": "Juster billede",
       "drag_to_move": "Træk for at flytte",
       "original": "Original",
@@ -789,6 +792,7 @@
       "pan_hint": "Træk for at vælge et sporingsområde. Hold mellemrumstasten nede, og træk for at panorere."
     },
     "preview": {
+      "options_help": "Flytning er bevægelse med laseren slukket. Fremskridt viser den udførte brænding. Overscan viser rasteracceleration uden for motivet. Skygge efter effekt og Inverter påvirker kun denne visning.",
       "title": "Forhåndsvisningsvindue",
       "stale_refresh_required": "Forældet - opdatering påkrævet",
       "stale": "Forældet",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Frigør panel"
     },
     "outliner": {
+      "help": "Træk for at ændre rækkefølge eller flytte. Dobbeltklik for at omdøbe. Skjulte objekter bliver her, så du kan gendanne dem.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Transformation",
+      "visibility_help": "Skjulte objekter udelades fra jobbet. Gendan dem i Outliner.",
+      "power_scale_help": "Ganger dette objekts lageffekt uden at ændre laget.",
+      "cut_priority_help": "Lavere værdier køres tidligere, når prioritetsoptimering er aktiveret.",
       "objects_selected": "{count} objekter valgt",
       "layer": "Lag",
       "mixed": "Blandet",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Værktøjslag er hjælpelag og giver aldrig laseroutput.",
+      "output_show_help": "Ud medtager dette lag i laserjobbet. Vis ændrer kun visningen på lærredet.",
+      "opacity_help": "Kun forhåndsvisning på lærredet. Dette ændrer ikke lasereffekt eller billedbehandling.",
       "delete_layer": "Slet lag",
       "add_layer": "Tilføj lag",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Vinkel"
     },
     "art_library": {
+      "drag_help": "Træk grafik ind på lærredet. Brug × til at slette den fra biblioteket.",
       "no_libraries": "Ingen biblioteker indlæst.",
       "search": "Søg...",
       "icon_size": "Ikonstørrelse:",

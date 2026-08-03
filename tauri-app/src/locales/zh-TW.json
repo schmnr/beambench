@@ -631,6 +631,9 @@
       "error_layer_unavailable": "條碼對話方塊已關閉，因為其目標圖層不再可用。"
     },
     "adjust_image": {
+      "invert_display_help": "僅用於預覽。儲存的影像和雷射輸出不會改變。",
+      "invert_adjustment_help": "「反轉」會隨此影像儲存，並在圖層的點陣處理之前套用。",
+      "negative_image_help": "「負片影像」會反轉圖層輸出。如果上方的「反轉」也已開啟，兩次反轉可能會互相抵消。",
       "title": "調整影像",
       "drag_to_move": "拖曳移動",
       "original": "原創",
@@ -789,6 +792,7 @@
       "pan_hint": "拖曳以選取描圖區域。按住空白鍵並拖曳可平移檢視。"
     },
     "preview": {
+      "options_help": "「行程」表示雷射關閉時的移動。「進度」顯示已完成的加工。「過掃描」顯示圖稿範圍外的點陣加速區段。「依功率著色」和「反轉」只影響此處的顯示。",
       "title": "預覽視窗",
       "stale_refresh_required": "陳舊 - 需要刷新",
       "stale": "陳舊的",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "浮動面板"
     },
     "outliner": {
+      "help": "拖曳可重新排序或移動。按兩下可重新命名。隱藏的物件會保留在這裡，以便還原。",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "變形",
+      "visibility_help": "隱藏的物件不會包含在工作中。可在 Outliner 中還原。",
+      "power_scale_help": "在不更改圖層的情況下，按比例調整此物件的圖層功率。",
+      "cut_priority_help": "啟用優先順序最佳化時，數值越小越先執行。",
       "objects_selected": "已選取 {count} 個物件",
       "layer": "圖層",
       "mixed": "混合",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "工具圖層僅用作輔助線，不會產生雷射輸出。",
+      "output_show_help": "開啟「輸出」會將此圖層包含在雷射工作中。「顯示」只改變畫布檢視。",
+      "opacity_help": "僅用於畫布預覽。不會改變雷射功率或影像處理。",
       "delete_layer": "刪除圖層",
       "add_layer": "新增圖層",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "角度"
     },
     "art_library": {
+      "drag_help": "將圖稿拖到畫布上。使用 × 可將其從圖庫中刪除。",
       "no_libraries": "未載入任何資料庫。",
       "search": "搜尋...",
       "icon_size": "圖示大小：",

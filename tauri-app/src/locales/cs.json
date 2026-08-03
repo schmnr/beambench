@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Dialogové okno čárového kódu bylo uzavřeno, protože jeho cílová vrstva již není k dispozici."
     },
     "adjust_image": {
+      "invert_display_help": "Pouze náhled. Uložený obrázek ani laserový výstup se nezmění.",
+      "invert_adjustment_help": "Inverze se uloží s tímto obrázkem a provede se před rastrovým zpracováním vrstvy.",
+      "negative_image_help": "Negativní obrázek invertuje výstup vrstvy. Pokud je zapnutá i výše uvedená Inverze, mohou se obě inverze navzájem zrušit.",
       "title": "Upravit obrázek",
       "drag_to_move": "Přetažením se přesunete",
       "original": "Původní",
@@ -789,6 +792,7 @@
       "pan_hint": "Tažením vyberte oblast vektorizace. Podržte mezerník a tažením posouvejte."
     },
     "preview": {
+      "options_help": "Přesuny jsou pohyby s vypnutým laserem. Průběh ukazuje dokončené pálení. Přesah ukazuje zrychlování rastru za hranicemi grafiky. Stínování podle výkonu a Inverze ovlivňují pouze toto zobrazení.",
       "title": "Okno náhledu",
       "stale_refresh_required": "Zastaralé – je vyžadováno obnovení",
       "stale": "Zatuchlý",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Uvolnit panel"
     },
     "outliner": {
+      "help": "Přetažením změňte pořadí nebo umístění. Dvojitým kliknutím přejmenujte. Skryté objekty zde zůstávají, abyste je mohli obnovit.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Transformace",
+      "visibility_help": "Skryté objekty jsou z úlohy vyloučeny. Obnovte je v Outlineru.",
+      "power_scale_help": "Násobí výkon vrstvy tohoto objektu, aniž by změnila vrstvu.",
+      "cut_priority_help": "Nižší hodnoty se provedou dříve, pokud je zapnuta optimalizace podle priority.",
       "objects_selected": "Vybráno {count} objektů",
       "layer": "Vrstva",
       "mixed": "Smíšené",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Nástrojové vrstvy slouží jako vodítka a nikdy nevytvářejí laserový výstup.",
+      "output_show_help": "Výstup zahrne tuto vrstvu do laserové úlohy. Zobrazení mění pouze vzhled plátna.",
+      "opacity_help": "Pouze náhled na plátně. Nemění výkon laseru ani zpracování obrázku.",
       "delete_layer": "Smazat vrstvu",
       "add_layer": "Přidat vrstvu",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Úhel"
     },
     "art_library": {
+      "drag_help": "Přetáhněte grafiku na plátno. Pomocí × ji z knihovny odstraníte.",
       "no_libraries": "Nejsou načteny žádné knihovny.",
       "search": "Hledat...",
       "icon_size": "Velikost ikon:",

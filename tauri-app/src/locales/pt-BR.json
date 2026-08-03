@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Caixa de diálogo de código de barras fechada porque sua camada de destino não está mais disponível."
     },
     "adjust_image": {
+      "invert_display_help": "Apenas visualização. A imagem salva e a saída do laser não são alteradas.",
+      "invert_adjustment_help": "A inversão é salva com esta imagem e aplicada antes do processamento raster da camada.",
+      "negative_image_help": "Imagem negativa inverte a saída da camada. Se Inverter acima também estiver ativado, as duas inversões podem se anular.",
       "title": "Ajustar imagem",
       "drag_to_move": "Arraste para mover",
       "original": "Originais",
@@ -789,6 +792,7 @@
       "pan_hint": "Arraste para selecionar uma área de traçado. Segure a barra de espaço e arraste para mover a visualização."
     },
     "preview": {
+      "options_help": "Deslocamento é o movimento com o laser desligado. Progresso mostra a gravação concluída. Overscan mostra a aceleração raster além da arte. Sombrear por potência e Inverter afetam apenas esta visualização.",
       "title": "Janela de visualização",
       "stale_refresh_required": "Obsoleto - atualização necessária",
       "stale": "Obsoleto",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Desacoplar painel"
     },
     "outliner": {
+      "help": "Arraste para reordenar ou mover. Clique duas vezes para renomear. Os objetos ocultos permanecem aqui para que você possa restaurá-los.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Transformar",
+      "visibility_help": "Objetos ocultos são excluídos do trabalho. Restaure-os no Outliner.",
+      "power_scale_help": "Multiplica a potência da camada para este objeto sem alterar a camada.",
+      "cut_priority_help": "Valores menores são executados primeiro quando a otimização por prioridade está ativada.",
       "objects_selected": "{count} objetos selecionados",
       "layer": "Camada",
       "mixed": "Misto",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Camadas de ferramenta funcionam como guias e nunca produzem saída do laser.",
+      "output_show_help": "Saída inclui esta camada no trabalho do laser. Exibir altera apenas a visualização da tela.",
+      "opacity_help": "Apenas visualização da tela. Isso não altera a potência do laser nem o processamento da imagem.",
       "delete_layer": "Excluir camada",
       "add_layer": "Adicionar camada",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Ângulo"
     },
     "art_library": {
+      "drag_help": "Arraste a arte para a tela. Use × para excluí-la da biblioteca.",
       "no_libraries": "Nenhuma biblioteca carregada.",
       "search": "Pesquisar...",
       "icon_size": "Tamanho do ícone:",

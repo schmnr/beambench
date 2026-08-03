@@ -631,6 +631,9 @@
       "error_layer_unavailable": "A vonalkód párbeszédpanel bezárult, mert a célréteg már nem érhető el."
     },
     "adjust_image": {
+      "invert_display_help": "Csak előnézet. A mentett kép és a lézerkimenet nem változik.",
+      "invert_adjustment_help": "Az invertálás ezzel a képpel együtt mentődik, és a réteg raszterfeldolgozása előtt fut le.",
+      "negative_image_help": "A Negatív kép megfordítja a réteg kimenetét. Ha a fenti Invertálás is be van kapcsolva, a két invertálás kiolthatja egymást.",
       "title": "Kép beállítása",
       "drag_to_move": "Húzza a mozgatáshoz",
       "original": "Eredeti",
@@ -789,6 +792,7 @@
       "pan_hint": "Húzással jelölje ki a vektorizálandó területet. Tartsa lenyomva a szóközt, és húzással mozgassa a nézetet."
     },
     "preview": {
+      "options_help": "Az Útvonal a kikapcsolt lézerrel végzett mozgást jelzi. Az Előrehaladás az elkészült égetést mutatja. Az Overscan a grafikán túli rasztergyorsítást mutatja. A Teljesítmény szerinti árnyalás és az Invertálás csak ezt a nézetet érinti.",
       "title": "Előnézet ablak",
       "stale_refresh_required": "Elavult – frissítés szükséges",
       "stale": "Állott",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Panel leválasztása"
     },
     "outliner": {
+      "help": "Húzással átrendezheti vagy mozgathatja. Dupla kattintással átnevezheti. A rejtett objektumok itt maradnak, hogy visszaállíthassa őket.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Átalakítás",
+      "visibility_help": "A rejtett objektumok kimaradnak a feladatból. Az Outlinerben állíthatja vissza őket.",
+      "power_scale_help": "Megszorozza az objektum rétegének teljesítményét a réteg módosítása nélkül.",
+      "cut_priority_help": "Az alacsonyabb értékek futnak előbb, ha a prioritásoptimalizálás engedélyezve van.",
       "objects_selected": "{count} objektum kijelölve",
       "layer": "Réteg",
       "mixed": "Vegyes",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "A segédrétegek vezetőként szolgálnak, és soha nem adnak lézerkimenetet.",
+      "output_show_help": "A Kimenet beilleszti ezt a réteget a lézerfeladatba. A Mutat csak a vászon nézetét módosítja.",
+      "opacity_help": "Csak vászonelőnézet. Ez nem módosítja a lézerteljesítményt vagy a képfeldolgozást.",
       "delete_layer": "Réteg törlése",
       "add_layer": "Réteg hozzáadása",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Szög"
     },
     "art_library": {
+      "drag_help": "Húzza a grafikát a vászonra. A × gombbal törölheti a könyvtárból.",
       "no_libraries": "Nincsenek betöltött könyvtárak.",
       "search": "Keresés...",
       "icon_size": "Ikonméret:",

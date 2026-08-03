@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Das Barcode-Dialogfeld wurde geschlossen, da die Zielebene nicht mehr verfügbar ist."
     },
     "adjust_image": {
+      "invert_display_help": "Nur Vorschau. Das gespeicherte Bild und die Laserausgabe bleiben unverändert.",
+      "invert_adjustment_help": "Invertieren wird mit diesem Bild gespeichert und vor der Rasterverarbeitung der Ebene angewendet.",
+      "negative_image_help": "Negatives Bild invertiert die Ebenenausgabe. Ist Invertieren oben ebenfalls aktiv, können sich beide Invertierungen aufheben.",
       "title": "Bild anpassen",
       "drag_to_move": "Zum Verschieben ziehen",
       "original": "Original",
@@ -789,6 +792,7 @@
       "pan_hint": "Ziehen, um einen Bereich zum Nachzeichnen auszuwählen. Leertaste halten und ziehen, um zu verschieben."
     },
     "preview": {
+      "options_help": "Leerfahrten sind Bewegungen bei ausgeschaltetem Laser. Fortschritt zeigt die bereits ausgeführte Bearbeitung. Overscan zeigt die Rasterbeschleunigung außerhalb des Motivs. Leistungsschattierung und Invertieren betreffen nur diese Anzeige.",
       "title": "Vorschaufenster",
       "stale_refresh_required": "Veraltet – Aktualisierung erforderlich",
       "stale": "Abgestanden",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Bereich lösen"
     },
     "outliner": {
+      "help": "Ziehen zum Sortieren oder Verschieben. Doppelklicken zum Umbenennen. Ausgeblendete Objekte bleiben hier, damit sie wieder eingeblendet werden können.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Transformieren",
+      "visibility_help": "Ausgeblendete Objekte werden vom Auftrag ausgeschlossen. Im Outliner können sie wieder eingeblendet werden.",
+      "power_scale_help": "Multipliziert die Ebenenleistung für dieses Objekt, ohne die Ebene zu ändern.",
+      "cut_priority_help": "Niedrigere Werte werden früher ausgeführt, wenn die Prioritätsoptimierung aktiviert ist.",
       "objects_selected": "{count} Objekte ausgewählt",
       "layer": "Ebene",
       "mixed": "Gemischt",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Werkzeugebenen dienen als Hilfslinien und erzeugen niemals eine Laserausgabe.",
+      "output_show_help": "Ausgabe nimmt diese Ebene in den Laserauftrag auf. Anzeigen ändert nur die Darstellung auf der Arbeitsfläche.",
+      "opacity_help": "Nur Vorschau auf der Arbeitsfläche. Laserleistung und Bildverarbeitung werden nicht verändert.",
       "delete_layer": "Ebene löschen",
       "add_layer": "Ebene hinzufügen",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Winkel"
     },
     "art_library": {
+      "drag_help": "Grafik auf die Arbeitsfläche ziehen. Mit × aus der Bibliothek löschen.",
       "no_libraries": "Keine Bibliotheken geladen.",
       "search": "Suchen...",
       "icon_size": "Symbolgröße:",

@@ -631,6 +631,9 @@
       "error_layer_unavailable": "El cuadro de diálogo de código de barras se cerró porque su capa de destino ya no está disponible."
     },
     "adjust_image": {
+      "invert_display_help": "Solo vista previa. La imagen guardada y la salida del láser no cambian.",
+      "invert_adjustment_help": "La inversión se guarda con esta imagen y se aplica antes del procesamiento ráster de la capa.",
+      "negative_image_help": "Imagen negativa invierte la salida de la capa. Si Invertir también está activado arriba, ambas inversiones pueden anularse.",
       "title": "Ajustar imagen",
       "drag_to_move": "Arrastra para mover",
       "original": "Originales",
@@ -789,6 +792,7 @@
       "pan_hint": "Arrastra para seleccionar un área de trazado. Mantén pulsada la barra espaciadora y arrastra para desplazarte."
     },
     "preview": {
+      "options_help": "Recorrido es el movimiento con el láser apagado. Progreso muestra el grabado completado. La sobreexploración muestra la aceleración ráster fuera del diseño. Sombrear por potencia e Invertir solo afectan a esta vista.",
       "title": "Ventana de vista previa",
       "stale_refresh_required": "Obsoleto: se requiere actualización",
       "stale": "rancio",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Desacoplar panel"
     },
     "outliner": {
+      "help": "Arrastra para reordenar o mover. Haz doble clic para cambiar el nombre. Los objetos ocultos permanecen aquí para que puedas restaurarlos.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Transformar",
+      "visibility_help": "Los objetos ocultos se excluyen del trabajo. Restáuralos en el Outliner.",
+      "power_scale_help": "Multiplica la potencia de la capa para este objeto sin modificar la capa.",
+      "cut_priority_help": "Los valores más bajos se ejecutan antes cuando está activada la optimización por prioridad.",
       "objects_selected": "{count} objetos seleccionados",
       "layer": "Capa",
       "mixed": "Mixto",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Las capas de herramienta sirven de guía y nunca producen salida láser.",
+      "output_show_help": "Salida incluye esta capa en el trabajo láser. Ver solo cambia la vista del lienzo.",
+      "opacity_help": "Solo vista previa del lienzo. No cambia la potencia del láser ni el procesamiento de la imagen.",
       "delete_layer": "Eliminar capa",
       "add_layer": "Añadir capa",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Ángulo"
     },
     "art_library": {
+      "drag_help": "Arrastra el diseño al lienzo. Usa × para eliminarlo de la biblioteca.",
       "no_libraries": "No hay bibliotecas cargadas.",
       "search": "Buscar...",
       "icon_size": "Tamaño de icono:",

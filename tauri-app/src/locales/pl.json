@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Okno dialogowe kodu kreskowego zostało zamknięte, ponieważ jego warstwa docelowa nie jest już dostępna."
     },
     "adjust_image": {
+      "invert_display_help": "Tylko podgląd. Zapisany obraz i wyjście lasera pozostają bez zmian.",
+      "invert_adjustment_help": "Odwrócenie jest zapisywane z tym obrazem i wykonywane przed przetwarzaniem rastrowym warstwy.",
+      "negative_image_help": "Obraz negatywowy odwraca wyjście warstwy. Jeśli powyższe Odwróć jest również włączone, oba odwrócenia mogą się wzajemnie anulować.",
       "title": "Dostosuj obraz",
       "drag_to_move": "Przeciągnij, aby przenieść",
       "original": "Oryginał",
@@ -789,6 +792,7 @@
       "pan_hint": "Przeciągnij, aby zaznaczyć obszar wektoryzacji. Przytrzymaj spację i przeciągnij, aby przesunąć widok."
     },
     "preview": {
+      "options_help": "Przejazd to ruch z wyłączonym laserem. Postęp pokazuje ukończone wypalanie. Overscan pokazuje przyspieszenie rastra poza grafiką. Cieniowanie według mocy i Odwróć wpływają tylko na ten widok.",
       "title": "Okno podglądu",
       "stale_refresh_required": "Nieaktualne - wymagane odświeżenie",
       "stale": "Nieświeży",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Odłącz panel"
     },
     "outliner": {
+      "help": "Przeciągnij, aby zmienić kolejność lub położenie. Kliknij dwukrotnie, aby zmienić nazwę. Ukryte obiekty pozostają tutaj, aby można je było przywrócić.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Przekształcanie",
+      "visibility_help": "Ukryte obiekty są wykluczone z zadania. Przywróć je w Outlinerze.",
+      "power_scale_help": "Mnoży moc warstwy dla tego obiektu bez zmiany warstwy.",
+      "cut_priority_help": "Niższe wartości są wykonywane wcześniej, gdy włączona jest optymalizacja według priorytetu.",
       "objects_selected": "Wybrano {count} obiekty",
       "layer": "Warstwa",
       "mixed": "Mieszane",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Warstwy narzędziowe są prowadnicami i nigdy nie generują wyjścia lasera.",
+      "output_show_help": "Wyjście uwzględnia tę warstwę w zadaniu lasera. Pokaż zmienia tylko widok obszaru roboczego.",
+      "opacity_help": "Tylko podgląd obszaru roboczego. Nie zmienia mocy lasera ani przetwarzania obrazu.",
       "delete_layer": "Usuń warstwę",
       "add_layer": "Dodaj warstwę",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Kąt"
     },
     "art_library": {
+      "drag_help": "Przeciągnij grafikę na obszar roboczy. Użyj ×, aby usunąć ją z biblioteki.",
       "no_libraries": "Nie wczytano bibliotek.",
       "search": "Szukaj...",
       "icon_size": "Rozmiar ikon:",

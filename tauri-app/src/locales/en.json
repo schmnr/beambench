@@ -713,6 +713,9 @@
       "potrace_link": "Potrace"
     },
     "adjust_image": {
+      "invert_display_help": "Preview only. The saved image and laser output are unchanged.",
+      "invert_adjustment_help": "Invert is saved with this image and runs before the layer’s raster processing.",
+      "negative_image_help": "Negative Image inverts the layer output. If Invert above is also on, the two inversions can cancel.",
       "title": "Adjust Image",
       "drag_to_move": "Drag to move",
       "original": "Original",
@@ -871,6 +874,7 @@
       "pan_hint": "Drag to select a trace area. Hold Space and drag to pan."
     },
     "preview": {
+      "options_help": "Travel is laser-off motion. Progress shows completed burn. Overscan shows raster acceleration beyond the artwork. Shade by Power and Invert affect only this display.",
       "title": "Preview Window",
       "stale_refresh_required": "Stale - refresh required",
       "stale": "Stale",
@@ -1426,6 +1430,7 @@
       "angle": "Angle"
     },
     "art_library": {
+      "drag_help": "Drag artwork onto the canvas. Use × to delete it from the library.",
       "no_libraries": "No libraries loaded.",
       "search": "Search...",
       "icon_size": "Icon Size:",
@@ -1492,6 +1497,7 @@
       "generate_batch": "Generate Batch"
     },
     "outliner": {
+      "help": "Drag to reorder or move. Double-click to rename. Hidden objects stay here so you can restore them.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1571,6 +1577,9 @@
     },
     "properties": {
       "transform": "Transform",
+      "visibility_help": "Hidden objects are excluded from the job. Restore them in the Outliner.",
+      "power_scale_help": "Multiplies this object’s layer power without changing the layer.",
+      "cut_priority_help": "Lower values run earlier when Priority optimization is enabled.",
       "objects_selected": "{count} objects selected",
       "layer": "Layer",
       "mixed": "Mixed",
@@ -1765,6 +1774,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Tool layers are guides and never produce laser output.",
+      "output_show_help": "Out includes this layer in the laser job. Show changes only the canvas view.",
+      "opacity_help": "Canvas preview only. This does not change laser power or image processing.",
       "delete_layer": "Delete layer",
       "add_layer": "Add layer",
       "header": {

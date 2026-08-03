@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Barkod iletişim kutusu, hedef katmanı artık mevcut olmadığından kapatıldı."
     },
     "adjust_image": {
+      "invert_display_help": "Yalnızca önizleme. Kaydedilen görüntü ve lazer çıktısı değişmez.",
+      "invert_adjustment_help": "Ters çevirme bu görüntüyle birlikte kaydedilir ve katmanın raster işlemesinden önce uygulanır.",
+      "negative_image_help": "Negatif Görüntü katman çıktısını ters çevirir. Yukarıdaki Ters Çevir de açıksa iki ters çevirme birbirini iptal edebilir.",
       "title": "Görüntüyü Ayarla",
       "drag_to_move": "Taşımak için sürükleyin",
       "original": "Orijinal",
@@ -789,6 +792,7 @@
       "pan_hint": "İzleme alanı seçmek için sürükleyin. Görünümü kaydırmak için boşluk tuşunu basılı tutup sürükleyin."
     },
     "preview": {
+      "options_help": "Hareket, lazer kapalıyken yapılan harekettir. İlerleme tamamlanan yakmayı gösterir. Aşırı Tarama, çalışmanın dışındaki raster hızlanmasını gösterir. Güce Göre Gölge ve Ters Çevir yalnızca bu görünümü etkiler.",
       "title": "Önizleme Penceresi",
       "stale_refresh_required": "Eski - yenileme gerekli",
       "stale": "Bayat",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Paneli ayır"
     },
     "outliner": {
+      "help": "Yeniden sıralamak veya taşımak için sürükleyin. Yeniden adlandırmak için çift tıklayın. Gizli nesneler geri yükleyebilmeniz için burada kalır.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Dönüştür",
+      "visibility_help": "Gizli nesneler işten çıkarılır. Outliner'da geri yükleyin.",
+      "power_scale_help": "Katmanı değiştirmeden bu nesnenin katman gücünü çarpar.",
+      "cut_priority_help": "Öncelik optimizasyonu etkinken düşük değerler daha önce çalışır.",
       "objects_selected": "{count} nesne seçildi",
       "layer": "Katman",
       "mixed": "Karışık",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Araç katmanları kılavuzdur ve hiçbir zaman lazer çıktısı üretmez.",
+      "output_show_help": "Çıkış bu katmanı lazer işine dahil eder. Göster yalnızca tuval görünümünü değiştirir.",
+      "opacity_help": "Yalnızca tuval önizlemesi. Lazer gücünü veya görüntü işlemeyi değiştirmez.",
       "delete_layer": "Katmanı sil",
       "add_layer": "Katman ekle",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Açı"
     },
     "art_library": {
+      "drag_help": "Çalışmayı tuvale sürükleyin. Kitaplıktan silmek için × kullanın.",
       "no_libraries": "Yüklü kitaplık yok.",
       "search": "Ara...",
       "icon_size": "Simge boyutu:",

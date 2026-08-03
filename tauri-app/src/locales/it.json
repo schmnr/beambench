@@ -631,6 +631,9 @@
       "error_layer_unavailable": "La finestra di dialogo del codice a barre è chiusa perché il suo livello di destinazione non è più disponibile."
     },
     "adjust_image": {
+      "invert_display_help": "Solo anteprima. L’immagine salvata e l’uscita laser non vengono modificate.",
+      "invert_adjustment_help": "L’inversione viene salvata con questa immagine e applicata prima dell’elaborazione raster del livello.",
+      "negative_image_help": "Immagine negativa inverte l’uscita del livello. Se anche Inverti sopra è attivo, le due inversioni possono annullarsi.",
       "title": "Regola l'immagine",
       "drag_to_move": "Trascina per muoverti",
       "original": "Originale",
@@ -789,6 +792,7 @@
       "pan_hint": "Trascina per selezionare un'area da ricalcare. Tieni premuta la barra spaziatrice e trascina per spostarti."
     },
     "preview": {
+      "options_help": "Spostamento indica il movimento con laser spento. Avanzamento mostra la lavorazione completata. La sovrascansione mostra l’accelerazione raster oltre il disegno. Ombreggia per potenza e Inverti modificano solo questa vista.",
       "title": "Finestra di anteprima",
       "stale_refresh_required": "Non aggiornato: è necessario aggiornare",
       "stale": "Stanco",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Sgancia pannello"
     },
     "outliner": {
+      "help": "Trascina per riordinare o spostare. Fai doppio clic per rinominare. Gli oggetti nascosti restano qui per poterli ripristinare.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Trasforma",
+      "visibility_help": "Gli oggetti nascosti sono esclusi dal lavoro. Ripristinali nell’Outliner.",
+      "power_scale_help": "Moltiplica la potenza del livello per questo oggetto senza modificare il livello.",
+      "cut_priority_help": "I valori più bassi vengono eseguiti prima quando è attiva l’ottimizzazione per priorità.",
       "objects_selected": "{count} oggetti selezionati",
       "layer": "Livello",
       "mixed": "Misto",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "I livelli strumento fungono da guide e non producono mai un’uscita laser.",
+      "output_show_help": "Uscita include questo livello nel lavoro laser. Mostra modifica solo la vista dell’area di lavoro.",
+      "opacity_help": "Solo anteprima dell’area di lavoro. Non modifica la potenza laser né l’elaborazione dell’immagine.",
       "delete_layer": "Elimina livello",
       "add_layer": "Aggiungi livello",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Angolo"
     },
     "art_library": {
+      "drag_help": "Trascina la grafica nell’area di lavoro. Usa × per eliminarla dalla libreria.",
       "no_libraries": "Nessuna libreria caricata.",
       "search": "Cerca...",
       "icon_size": "Dimensione icone:",

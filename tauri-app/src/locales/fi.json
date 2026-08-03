@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Viivakoodivalintaikkuna suljettiin, koska sen kohdetaso ei ole enää käytettävissä."
     },
     "adjust_image": {
+      "invert_display_help": "Vain esikatselu. Tallennettu kuva ja laserin tulostus eivät muutu.",
+      "invert_adjustment_help": "Käänteisyys tallennetaan tämän kuvan mukana ja suoritetaan ennen tason rasterikäsittelyä.",
+      "negative_image_help": "Negatiivinen kuva kääntää tason tulostuksen. Jos myös yllä oleva Käänteinen on käytössä, käännöt voivat kumota toisensa.",
       "title": "Säädä kuvaa",
       "drag_to_move": "Siirrä vetämällä",
       "original": "Alkuperäinen",
@@ -789,6 +792,7 @@
       "pan_hint": "Valitse jäljitysalue vetämällä. Panoroi pitämällä välilyöntiä pohjassa ja vetämällä."
     },
     "preview": {
+      "options_help": "Siirtymä on liikettä laser sammutettuna. Edistyminen näyttää valmiin työstön. Ylipyyhkäisy näyttää rasterikiihdytyksen kuvan ulkopuolella. Tehon mukaan varjostus ja Käänteinen vaikuttavat vain tähän näkymään.",
       "title": "Esikatseluikkuna",
       "stale_refresh_required": "Vanhentunut - päivitys vaaditaan",
       "stale": "Vanhentunut",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Irrota paneeli"
     },
     "outliner": {
+      "help": "Vedä järjestääksesi uudelleen tai siirtääksesi. Kaksoisnapsauta nimetäksesi uudelleen. Piilotetut objektit säilyvät täällä, jotta voit palauttaa ne.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Muunna",
+      "visibility_help": "Piilotetut objektit jätetään pois työstä. Palauta ne Outlinerissa.",
+      "power_scale_help": "Kertoo tämän objektin tason tehon muuttamatta tasoa.",
+      "cut_priority_help": "Pienemmät arvot suoritetaan ensin, kun prioriteettioptimointi on käytössä.",
       "objects_selected": "{count} objektia valittu",
       "layer": "Taso",
       "mixed": "Sekalainen",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Työkalutasot ovat apuviivoja eivätkä koskaan tuota laserin tulostusta.",
+      "output_show_help": "Tulostus sisällyttää tämän tason laserajoon. Näytä muuttaa vain piirtoalueen näkymää.",
+      "opacity_help": "Vain piirtoalueen esikatselu. Tämä ei muuta laserin tehoa tai kuvankäsittelyä.",
       "delete_layer": "Poista taso",
       "add_layer": "Lisää taso",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Kulma"
     },
     "art_library": {
+      "drag_help": "Vedä grafiikka piirtoalueelle. Poista se kirjastosta painamalla ×.",
       "no_libraries": "Ei ladattuja kirjastoja.",
       "search": "Hae...",
       "icon_size": "Kuvakekoko:",

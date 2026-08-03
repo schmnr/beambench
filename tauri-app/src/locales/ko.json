@@ -631,6 +631,9 @@
       "error_layer_unavailable": "대상 레이어를 더 이상 사용할 수 없기 때문에 바코드 대화 상자가 닫혔습니다."
     },
     "adjust_image": {
+      "invert_display_help": "미리보기 전용입니다. 저장된 이미지와 레이저 출력은 변경되지 않습니다.",
+      "invert_adjustment_help": "반전은 이 이미지에 저장되며 레이어의 래스터 처리 전에 적용됩니다.",
+      "negative_image_help": "네거티브 이미지는 레이어 출력을 반전합니다. 위의 반전도 켜져 있으면 두 반전이 서로 상쇄될 수 있습니다.",
       "title": "이미지 조정",
       "drag_to_move": "이동하려면 드래그하세요.",
       "original": "원본",
@@ -789,6 +792,7 @@
       "pan_hint": "드래그하여 트레이스 영역을 선택하세요. 스페이스 바를 누른 채 드래그하면 화면을 이동할 수 있습니다."
     },
     "preview": {
+      "options_help": "이동은 레이저가 꺼진 상태의 움직임입니다. 진행 상황은 완료된 가공을 표시합니다. 오버스캔은 아트워크 바깥의 래스터 가속 구간을 표시합니다. 파워별 음영과 반전은 이 화면에만 영향을 줍니다.",
       "title": "미리보기 창",
       "stale_refresh_required": "오래됨 - 새로고침 필요",
       "stale": "부실",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "패널 분리"
     },
     "outliner": {
+      "help": "드래그하여 순서를 바꾸거나 이동하세요. 두 번 클릭하여 이름을 바꾸세요. 숨긴 객체는 복원할 수 있도록 여기에 남아 있습니다.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "변형",
+      "visibility_help": "숨긴 객체는 작업에서 제외됩니다. Outliner에서 복원하세요.",
+      "power_scale_help": "레이어를 변경하지 않고 이 객체의 레이어 파워를 배율 조정합니다.",
+      "cut_priority_help": "우선순위 최적화가 켜져 있으면 값이 낮을수록 먼저 실행됩니다.",
       "objects_selected": "{count}개 객체 선택됨",
       "layer": "레이어",
       "mixed": "혼합",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "도구 레이어는 가이드로만 사용되며 레이저 출력을 생성하지 않습니다.",
+      "output_show_help": "출력을 켜면 이 레이어가 레이저 작업에 포함됩니다. 표시는 캔버스 보기만 변경합니다.",
+      "opacity_help": "캔버스 미리보기 전용입니다. 레이저 파워나 이미지 처리는 변경되지 않습니다.",
       "delete_layer": "레이어 삭제",
       "add_layer": "레이어 추가",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "각도"
     },
     "art_library": {
+      "drag_help": "아트워크를 캔버스로 드래그하세요. ×를 사용해 라이브러리에서 삭제할 수 있습니다.",
       "no_libraries": "로드된 라이브러리가 없습니다.",
       "search": "검색...",
       "icon_size": "아이콘 크기:",

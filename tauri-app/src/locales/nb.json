@@ -631,6 +631,9 @@
       "error_layer_unavailable": "Strekkodedialogen lukket fordi mållaget ikke lenger er tilgjengelig."
     },
     "adjust_image": {
+      "invert_display_help": "Bare forhåndsvisning. Det lagrede bildet og laserutgangen endres ikke.",
+      "invert_adjustment_help": "Invertering lagres med dette bildet og utføres før lagets rasterbehandling.",
+      "negative_image_help": "Negativt bilde inverterer lagets utgang. Hvis Inverter ovenfor også er på, kan de to inverteringene oppheve hverandre.",
       "title": "Juster bildet",
       "drag_to_move": "Dra for å flytte",
       "original": "Original",
@@ -789,6 +792,7 @@
       "pan_hint": "Dra for å velge et sporingsområde. Hold inne mellomromstasten og dra for å panorere."
     },
     "preview": {
+      "options_help": "Forflytning er bevegelse med laseren av. Fremdrift viser fullført brenning. Overskanning viser rasterakselerasjon utenfor motivet. Skyggelegging etter effekt og Inverter påvirker bare denne visningen.",
       "title": "Forhåndsvisningsvindu",
       "stale_refresh_required": "Foreldet – oppdatering kreves",
       "stale": "Foreldet",
@@ -1377,6 +1381,7 @@
       "float_tooltip": "Løsne panel"
     },
     "outliner": {
+      "help": "Dra for å endre rekkefølge eller flytte. Dobbeltklikk for å gi nytt navn. Skjulte objekter blir her, slik at du kan gjenopprette dem.",
       "summary": "{layers} layers · {objects} objects",
       "empty_layer": "No objects",
       "expand_layer": "Expand layer",
@@ -1456,6 +1461,9 @@
     },
     "properties": {
       "transform": "Transformering",
+      "visibility_help": "Skjulte objekter utelates fra jobben. Gjenopprett dem i Outliner.",
+      "power_scale_help": "Multipliserer lageffekten for dette objektet uten å endre laget.",
+      "cut_priority_help": "Lavere verdier kjøres tidligere når prioritetsoptimalisering er aktivert.",
       "objects_selected": "{count} objekter valgt",
       "layer": "Lag",
       "mixed": "Blandet",
@@ -1650,6 +1658,9 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Verktøylag er hjelpelag og gir aldri laserutgang.",
+      "output_show_help": "Ut tar med dette laget i laserjobben. Vis endrer bare lerretsvisningen.",
+      "opacity_help": "Bare forhåndsvisning på lerretet. Dette endrer ikke lasereffekt eller bildebehandling.",
       "delete_layer": "Slett lag",
       "add_layer": "Legg til lag",
       "header": {
@@ -2256,6 +2267,7 @@
       "angle": "Vinkel"
     },
     "art_library": {
+      "drag_help": "Dra grafikk til lerretet. Bruk × for å slette den fra biblioteket.",
       "no_libraries": "Ingen biblioteker lastet.",
       "search": "Søk...",
       "icon_size": "Ikonstørrelse:",
