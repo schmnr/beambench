@@ -856,6 +856,20 @@ function App() {
           0,
         );
         const sidePanelsVisible = pl.side_panels_visible ?? true;
+        if (
+          useProjectStore.getState().selectedObjectIds.length === 0
+          && !hiddenPanelIds.includes('cuts_layers')
+        ) {
+          const layersZone = (Object.keys(designZones) as PhysicalDockZone[]).find(
+            (zone) => designZones[zone].panelIds.includes('cuts_layers'),
+          );
+          if (layersZone) {
+            designZones = {
+              ...designZones,
+              [layersZone]: { ...designZones[layersZone], activeTab: 'cuts_layers' },
+            };
+          }
+        }
         useUiStore.getState().setPanelLayout({
           layoutVersion: PANEL_LAYOUT_VERSION,
           zones: designZones,

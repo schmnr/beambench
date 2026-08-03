@@ -498,7 +498,7 @@ describe('App bootstrap', () => {
       expect(layout.zones['top-left']).toEqual({ panelIds: [], activeTab: '' });
       expect(layout.zones['middle-right']).toEqual({
         panelIds: ['cuts_layers', 'outliner', 'properties'],
-        activeTab: 'properties',
+        activeTab: 'cuts_layers',
       });
       expect(layout.runHiddenPanelIds).toContain('outliner');
     });
