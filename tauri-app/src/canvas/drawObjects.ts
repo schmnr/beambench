@@ -526,6 +526,63 @@ export function drawRasterImage(
   drawRasterImageContent(ctx, obj, color, vp, imageCache, imageErrorCache);
 }
 
+const RASTER_LAYER_TINT_CACHE_SEPARATOR = '\u0000layer-tint:';
+
+function buildLayerTintCanvas(
+  source: HTMLImageElement | HTMLCanvasElement,
+  color: string,
+): HTMLCanvasElement | null {
+  const width = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+  const height = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+  if (width <= 0 || height <= 0) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const tintCtx = canvas.getContext('2d');
+  if (!tintCtx) return null;
+
+  tintCtx.drawImage(source, 0, 0, width, height);
+  try {
+    const imageData = tintCtx.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
+    for (let index = 0; index < pixels.length; index += 4) {
+      const luminance = 0.299 * pixels[index]
+        + 0.587 * pixels[index + 1]
+        + 0.114 * pixels[index + 2];
+      pixels[index] = 255;
+      pixels[index + 1] = 255;
+      pixels[index + 2] = 255;
+      pixels[index + 3] = Math.round(pixels[index + 3] * (1 - luminance / 255));
+    }
+    tintCtx.putImageData(imageData, 0, 0);
+    tintCtx.globalCompositeOperation = 'source-in';
+    tintCtx.fillStyle = color;
+    tintCtx.fillRect(0, 0, width, height);
+    tintCtx.globalCompositeOperation = 'source-over';
+    return canvas;
+  } catch {
+    // Local project assets should always be readable. If a platform blocks
+    // pixel access, retain the stable grayscale positioning proxy instead.
+    return null;
+  }
+}
+
+function layerTintedRaster(
+  imageCache: Map<string, HTMLImageElement | HTMLCanvasElement>,
+  assetKey: string,
+  source: HTMLImageElement | HTMLCanvasElement,
+  color: string,
+): HTMLCanvasElement | null {
+  const tintKey = `${assetKey}${RASTER_LAYER_TINT_CACHE_SEPARATOR}${color.toLowerCase()}`;
+  const cachedTint = imageCache.get(tintKey);
+  if (cachedTint instanceof HTMLCanvasElement) return cachedTint;
+
+  const tinted = buildLayerTintCanvas(source, color);
+  if (tinted) imageCache.set(tintKey, tinted);
+  return tinted;
+}
+
 function drawRasterImageContent(
   ctx: CanvasRenderingContext2D,
   obj: ProjectObject,
@@ -543,16 +600,18 @@ function drawRasterImageContent(
   ctx.save();
   applyTransform(ctx, obj.transform, vp, obj.bounds);
 
-  // Main canvas shows a grayscale positioning proxy. The cache entry is a
-  // pre-baked grayscale `HTMLCanvasElement` once loading is complete; before
-  // then it's still the raw `HTMLImageElement` and we treat that as "not
-  // ready yet" so we don't briefly flash the color source.
+  // The main canvas uses the cached grayscale positioning proxy as a burn
+  // mask tinted with the layer color. Dark pixels carry the strongest color,
+  // midtones fade toward the canvas, and white pixels remain transparent.
   const cached = imageCache?.get(obj.data.asset_key);
   const loadError = imageErrorCache?.get(obj.data.asset_key);
   const loadedImageFallback =
     cached instanceof HTMLImageElement && cached.complete && cached.naturalWidth > 0 && cached.naturalHeight > 0;
   if (cached instanceof HTMLCanvasElement || loadedImageFallback) {
-    ctx.drawImage(cached, topLeft.x, topLeft.y, w, h);
+    const tinted = imageCache
+      ? layerTintedRaster(imageCache, obj.data.asset_key, cached, color)
+      : null;
+    ctx.drawImage(tinted ?? cached, topLeft.x, topLeft.y, w, h);
   } else if (loadError) {
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 1;

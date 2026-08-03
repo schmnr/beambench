@@ -287,9 +287,9 @@ const DEFAULT_LAYER_COLORS = [
 
 /**
  * Cached raster image. During load this is the raw `HTMLImageElement`.
- * After load it is replaced with a pre-grayscaled `HTMLCanvasElement` so
- * the main canvas renders a grayscale positioning proxy without having to
- * rely on runtime `ctx.filter` (which has been flaky on some WebKit builds).
+ * After load it is replaced with a pre-grayscaled `HTMLCanvasElement` used
+ * as the stable source for the main canvas's layer-colored burn tint. This
+ * avoids runtime `ctx.filter`, which has been flaky on some WebKit builds.
  */
 export type CachedRasterImage = HTMLImageElement | HTMLCanvasElement;
 
@@ -396,7 +396,8 @@ export class CanvasRenderer {
   /**
    * Ensure an image is loaded for the given asset key. The cached entry is
    * upgraded from an `HTMLImageElement` (during load) to a pre-grayscaled
-   * `HTMLCanvasElement` once the source image finishes decoding.
+   * `HTMLCanvasElement` once the source image finishes decoding. Layer-color
+   * tint variants are cached lazily by the object renderer.
    */
   ensureImage(assetKey: string, blobUrl: string): void {
     if (this.imageCache.has(assetKey)) return;

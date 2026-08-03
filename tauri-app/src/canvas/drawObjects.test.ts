@@ -85,7 +85,14 @@ function createRasterMockCtx(operations: string[] = []): MockCanvasContext {
     clip: vi.fn(),
     fill: vi.fn(() => operations.push(`fill:${composite}`)),
     drawImage: vi.fn(() => operations.push(`drawImage:${composite}`)),
-    getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4) })),
+    getImageData: vi.fn(() => ({
+      data: new Uint8ClampedArray([
+        0, 0, 0, 255,
+        128, 128, 128, 255,
+        255, 255, 255, 255,
+      ]),
+    })),
+    putImageData: vi.fn(),
   } as unknown as MockCanvasContext;
   Object.defineProperty(ctx, 'globalCompositeOperation', {
     get: () => composite,
@@ -301,6 +308,31 @@ describe('drawRasterImage image masks', () => {
 
     expect(ctx.drawImage).toHaveBeenCalledTimes(1);
     expect(ctx.fillText).not.toHaveBeenCalledWith('Loading...', expect.any(Number), expect.any(Number));
+  });
+
+  it('renders loaded rasters as a luminance-preserving layer-color tint', () => {
+    const ctx = createRasterMockCtx();
+    const imageCache = new Map<string, HTMLImageElement | HTMLCanvasElement>([['asset-1', makeLoadedImage()]]);
+
+    withMockedCanvases((contexts) => {
+      drawRasterImage(ctx, makeRasterObject(), '#e11d48', vp, imageCache, undefined, null);
+
+      expect(contexts).toHaveLength(1);
+      const tintContext = contexts[0];
+      const tintedImageData = (tintContext.putImageData as ReturnType<typeof vi.fn>).mock.calls[0][0] as ImageData;
+      expect(Array.from(tintedImageData.data)).toEqual([
+        255, 255, 255, 255,
+        255, 255, 255, 127,
+        255, 255, 255, 0,
+      ]);
+      expect(tintContext.fillStyle).toBe('#e11d48');
+      expect(tintContext.operations).toEqual(expect.arrayContaining([
+        'composite:source-in',
+        'composite:source-over',
+      ]));
+      expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+      expect(imageCache.size).toBe(2);
+    });
   });
 
   it('uses offscreen compositing for masked loading placeholders', () => {
