@@ -289,6 +289,7 @@ describe('LayerList', () => {
     const outputToggle = screen.getByTestId('output-toggle');
     expect(outputToggle.getAttribute('aria-pressed')).toBe('true');
     expect(outputToggle.querySelector('.lucide-zap')).not.toBeNull();
+    expect(screen.getByTestId('layer-output-show-help').textContent).toContain('Out includes this layer in the laser job');
     fireEvent.click(outputToggle);
 
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { enabled: false });
@@ -408,6 +409,7 @@ describe('LayerList', () => {
 
     const opacity = screen.getByTestId('layer-fill-opacity') as HTMLInputElement;
     expect(screen.getByText('Opacity (%)')).toBeDefined();
+    expect(screen.getByText(/Canvas preview only/)).toBeDefined();
     expect(opacity.value).toBe('65');
     fireEvent.change(opacity, { target: { value: '40' } });
     expect(opacity.value).toBe('40');

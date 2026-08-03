@@ -44,6 +44,7 @@ describe('OutlinerPanel', () => {
     render(<OutlinerPanel />);
 
     expect(screen.getByText('2 layers · 4 objects')).toBeDefined();
+    expect(screen.getByTestId('outliner-help').textContent).toContain('Double-click to rename');
     expect(screen.getByText('C00')).toBeDefined();
     expect(screen.queryByText('C00 (Line)')).toBeNull();
     expect(screen.getByTestId('outliner-mode-line')).toBeDefined();

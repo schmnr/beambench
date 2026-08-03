@@ -15,3 +15,6 @@ export const INSPECTOR_TITLE_BAR_LABEL_CLASS =
 
 export const INSPECTOR_TITLE_BAR_ICON_CLASS =
   'shrink-0 text-bb-accent';
+
+export const INSPECTOR_HELP_TEXT_CLASS =
+  'text-[10px] leading-4 text-bb-text-dim';

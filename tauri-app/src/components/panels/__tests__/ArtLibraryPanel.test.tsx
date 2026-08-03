@@ -154,6 +154,7 @@ describe('ArtLibraryPanel', () => {
     expect(screen.getByPlaceholderText('Search...')).toBeDefined();
     expect(screen.getByTestId('art-library-icon-size')).toBeDefined();
     expect(screen.getByTestId('art-library-icon-size-readout').textContent).toBe('128 x 128');
+    expect(screen.getByTestId('art-library-help').textContent).toContain('Drag artwork onto the canvas');
     expect(screen.getByText('Art Library')).toBeDefined();
     expect(screen.getByText('Graphic')).toBeDefined();
     expect(screen.queryByText('No graphic selected')).toBeNull();

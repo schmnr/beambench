@@ -43,6 +43,7 @@ import type { RasterAdjustments, RasterMode, RasterSettings } from '../../types/
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
 import { NumberInput } from '../shared/NumberInput';
 import { RangeInput } from '../shared/RangeInput';
+import { INSPECTOR_HELP_TEXT_CLASS } from '../shared/panelAppearance';
 
 interface AdjustImageDialogProps {
   objectId: string;
@@ -812,6 +813,11 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
               icon={<EyeOff size={12} />}
             />
           </div>
+          <div className={`mt-1 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="invert-display-help">
+            {t('dialog.adjust_image.invert_display_help', {
+              defaultValue: 'Preview only. The saved image and laser output are unchanged.',
+            })}
+          </div>
         </section>
 
         <aside className="w-[330px] shrink-0 overflow-y-auto border-l border-bb-border bg-bb-surface">
@@ -947,6 +953,11 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
                       <OptionChip label={t('dialog.adjust_image.invert')} checked={invertAdjust} onChange={setInvertAdjust} disabled={busy} fullWidth />
                       <OptionChip label={t('dialog.adjust_image.edge_enhance')} checked={edgeEnhance} onChange={setEdgeEnhance} disabled={busy} fullWidth />
                     </div>
+                    <div className={INSPECTOR_HELP_TEXT_CLASS}>
+                      {t('dialog.adjust_image.invert_adjustment_help', {
+                        defaultValue: 'Invert is saved with this image and runs before the layer’s raster processing.',
+                      })}
+                    </div>
                   </>
                 )}
                 <RangeInput label={t('dialog.adjust_image.enhance_radius')} value={enhanceRadius} onChange={setEnhanceRadius} min={0} max={10} step={0.1} disabled={busy} testId="adjust-enhance-radius" />
@@ -976,6 +987,11 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
                   </select>
                 </label>
                 <OptionChip label={t('dialog.adjust_image.negative_image')} checked={negative} onChange={setNegative} disabled={busy} fullWidth />
+                <div className={INSPECTOR_HELP_TEXT_CLASS}>
+                  {t('dialog.adjust_image.negative_image_help', {
+                    defaultValue: 'Negative Image inverts the layer output. If Invert above is also on, the two inversions can cancel.',
+                  })}
+                </div>
                 {mode === 'halftone' && (
                   <>
                     <NumberInput label={t('dialog.adjust_image.cells_per_inch')} value={halftoneCpi} onChange={(value) => setHalftoneCpi(Math.round(value))} min={1} max={100} step={1} disabled={busy} inputWidthClassName={numberInputWidthClassName} />

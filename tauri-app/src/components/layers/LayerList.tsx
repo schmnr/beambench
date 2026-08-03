@@ -13,6 +13,7 @@ import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
 import {
   INSPECTOR_CARD_CLASS,
+  INSPECTOR_HELP_TEXT_CLASS,
   INSPECTOR_SECTION_HEADER_CLASS,
   INSPECTOR_TITLE_BAR_CLASS,
   INSPECTOR_TITLE_BAR_ICON_CLASS,
@@ -270,6 +271,16 @@ export function LayerList() {
             </div>
           </div>
 
+          <div className={`mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="layer-output-show-help">
+            {activeLayer.is_tool_layer
+              ? t('panels.layers.tool_layer_help', {
+                defaultValue: 'Tool layers are guides and never produce laser output.',
+              })
+              : t('panels.layers.output_show_help', {
+                defaultValue: 'Out includes this layer in the laser job. Show changes only the canvas view.',
+              })}
+          </div>
+
           {usesFilledAppearance && (
             <div className="mt-3" data-testid="layer-fill-opacity-control">
               <RangeInput
@@ -282,6 +293,11 @@ export function LayerList() {
                 onCommit={(value) => void commitFillOpacity(value)}
                 testId="layer-fill-opacity"
               />
+              <div className={`mt-1 ${INSPECTOR_HELP_TEXT_CLASS}`}>
+                {t('panels.layers.opacity_help', {
+                  defaultValue: 'Canvas preview only. This does not change laser power or image processing.',
+                })}
+              </div>
             </div>
           )}
 

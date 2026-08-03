@@ -10,6 +10,7 @@ import type { ContextMenuEntry } from '../shared/ContextMenu';
 import { IconButton } from '../shared/IconButton';
 import { ART_LIBRARY_DRAG_MIME, encodeArtLibraryDragData } from '../shared/artLibraryDragData';
 import { rangeTrackBackground } from '../shared/RangeInput';
+import { INSPECTOR_HELP_TEXT_CLASS } from '../shared/panelAppearance';
 
 const inputClass =
   'px-2 py-1 rounded border border-bb-border bg-bb-surface text-xs text-bb-text placeholder:text-bb-text-dim focus:outline-none focus:border-bb-accent';
@@ -476,6 +477,12 @@ export function ArtLibraryPanel() {
                   {iconSize} x {iconSize}
                 </div>
               </div>
+            </div>
+
+            <div className={INSPECTOR_HELP_TEXT_CLASS} data-testid="art-library-help">
+              {t('panels.art_library.drag_help', {
+                defaultValue: 'Drag artwork onto the canvas. Use × to delete it from the library.',
+              })}
             </div>
 
             {currentLibrary?.save_error ? (

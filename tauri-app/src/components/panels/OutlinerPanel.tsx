@@ -22,7 +22,7 @@ import {
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import type { Layer, Project, ProjectObject } from '../../types/project';
-import { INSPECTOR_CARD_CLASS } from '../shared/panelAppearance';
+import { INSPECTOR_CARD_CLASS, INSPECTOR_HELP_TEXT_CLASS } from '../shared/panelAppearance';
 import {
   displayLayerName,
   layerOperation,
@@ -384,6 +384,13 @@ export function OutlinerPanel() {
           {t('panels.outliner.summary', { layers: project.layers.length, objects: project.objects.length })}
         </span>
       </div>
+      {editable && (
+        <div className={`border-b border-bb-border px-3 py-2 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="outliner-help">
+          {t('panels.outliner.help', {
+            defaultValue: 'Drag to reorder or move. Double-click to rename. Hidden objects stay here so you can restore them.',
+          })}
+        </div>
+      )}
       <div className="py-1" role="tree" aria-label={t('panels.registry.outliner')}>
         {project.layers.map((layer) => {
           const objects = topLevelObjectsForLayer(project, layer.id);

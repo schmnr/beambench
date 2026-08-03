@@ -111,6 +111,10 @@ describe('AdjustImageDialog', () => {
     });
     render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
 
+    expect(screen.getByTestId('invert-display-help').textContent).toContain('Preview only');
+    expect(screen.getByText(/runs before the layer/)).toBeDefined();
+    expect(screen.getByText(/two inversions can cancel/)).toBeDefined();
+
     fireEvent.click(screen.getByTestId('adjust-auto'));
 
     await waitFor(() => {

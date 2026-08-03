@@ -32,6 +32,7 @@ import {
 import {
   INSPECTOR_CARD_CLASS,
   INSPECTOR_EMPTY_CLASS,
+  INSPECTOR_HELP_TEXT_CLASS,
   INSPECTOR_SECTION_HEADER_CLASS,
 } from '../shared/panelAppearance';
 
@@ -98,6 +99,11 @@ export function PropertiesPanel() {
             />
             {t('panels.properties.visible')}
           </label>
+        </div>
+        <div className={INSPECTOR_HELP_TEXT_CLASS}>
+          {t('panels.properties.visibility_help', {
+            defaultValue: 'Hidden objects are excluded from the job. Restore them in the Outliner.',
+          })}
         </div>
 
         <SelectionArrangeSection />
@@ -305,6 +311,11 @@ export function PropertiesPanel() {
           testId="object-show-toggle"
         />
       </div>
+      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="object-visibility-help">
+        {t('panels.properties.visibility_help', {
+          defaultValue: 'Hidden objects are excluded from the job. Restore them in the Outliner.',
+        })}
+      </div>
       <RangeInput
         label={t('panels.properties.power_scale_percent')}
         value={powerScalePercent}
@@ -314,6 +325,11 @@ export function PropertiesPanel() {
         max={100}
         testId="properties-power-scale-slider"
       />
+      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`}>
+        {t('panels.properties.power_scale_help', {
+          defaultValue: 'Multiplies this object’s layer power without changing the layer.',
+        })}
+      </div>
 
       <NumberInput
         label={t('panels.properties.cut_priority')}
@@ -323,6 +339,11 @@ export function PropertiesPanel() {
         min={-99}
         max={99}
       />
+      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`}>
+        {t('panels.properties.cut_priority_help', {
+          defaultValue: 'Lower values run earlier when Priority optimization is enabled.',
+        })}
+      </div>
 
       <SelectionArrangeSection />
 

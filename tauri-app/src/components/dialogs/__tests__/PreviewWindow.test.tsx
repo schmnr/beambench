@@ -116,6 +116,7 @@ describe('PreviewWindow', () => {
 
     expect(screen.getByTestId('preview-window-drag-handle')).toBeDefined();
     expect(screen.getByTestId('preview-window-resize-handle')).toBeDefined();
+    expect(screen.getByTestId('preview-options-help').textContent).toContain('Travel is laser-off motion');
     expect(screen.getByText('Playback: 0:10 / 0:10')).toBeDefined();
 
     fireEvent.click(screen.getByTitle('Play'));

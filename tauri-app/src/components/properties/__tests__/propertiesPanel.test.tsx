@@ -293,6 +293,9 @@ describe('PropertiesPanel', () => {
     render(<PropertiesPanel />);
 
     expect(screen.getByTestId('properties-card').className).toContain('border-bb-accent/40');
+    expect(screen.getByTestId('object-visibility-help').textContent).toContain('excluded from the job');
+    expect(screen.getByText(/Multiplies this object/)).toBeDefined();
+    expect(screen.getByText(/Lower values run earlier/)).toBeDefined();
     const powerSlider = screen.getByTestId('properties-power-scale-slider') as HTMLInputElement;
     expect(powerSlider.type).toBe('range');
     expect(powerSlider.value).toBe('50');

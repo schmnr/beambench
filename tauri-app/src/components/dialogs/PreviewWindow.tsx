@@ -29,6 +29,7 @@ import { PreviewBitmapCache } from '../../canvas/previewBitmapCache';
 import type { PreviewState } from '../../stores/previewStore';
 import { useAppStore } from '../../stores/appStore';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
+import { INSPECTOR_HELP_TEXT_CLASS } from '../shared/panelAppearance';
 
 // Default layer colors (same as CanvasRenderer)
 const DEFAULT_LAYER_COLORS = [
@@ -482,32 +483,39 @@ export function PreviewWindow({
         </>
       }
       footer={
-        <div className="flex flex-wrap gap-1.5 bg-bb-surface px-3 py-2 text-xs text-bb-muted">
-          <PreviewOption
-            checked={showTravel}
-            onChange={setShowTravel}
-            label={t('dialog.preview.show_travel')}
-          />
-          <PreviewOption
-            checked={showBurnProgress}
-            onChange={setShowBurnProgress}
-            label={t('dialog.preview.show_progress')}
-          />
-          <PreviewOption
-            checked={showOverscan}
-            onChange={setShowOverscan}
-            label={t('dialog.preview.show_overscan')}
-          />
-          <PreviewOption
-            checked={shadeByPower}
-            onChange={setShadeByPower}
-            label={t('dialog.preview.shade_by_power')}
-          />
-          <PreviewOption
-            checked={invertView}
-            onChange={setInvertView}
-            label={t('dialog.preview.invert')}
-          />
+        <div className="flex flex-col gap-1.5 bg-bb-surface px-3 py-2 text-xs text-bb-muted">
+          <div className="flex flex-wrap gap-1.5">
+            <PreviewOption
+              checked={showTravel}
+              onChange={setShowTravel}
+              label={t('dialog.preview.show_travel')}
+            />
+            <PreviewOption
+              checked={showBurnProgress}
+              onChange={setShowBurnProgress}
+              label={t('dialog.preview.show_progress')}
+            />
+            <PreviewOption
+              checked={showOverscan}
+              onChange={setShowOverscan}
+              label={t('dialog.preview.show_overscan')}
+            />
+            <PreviewOption
+              checked={shadeByPower}
+              onChange={setShadeByPower}
+              label={t('dialog.preview.shade_by_power')}
+            />
+            <PreviewOption
+              checked={invertView}
+              onChange={setInvertView}
+              label={t('dialog.preview.invert')}
+            />
+          </div>
+          <div className={INSPECTOR_HELP_TEXT_CLASS} data-testid="preview-options-help">
+            {t('dialog.preview.options_help', {
+              defaultValue: 'Travel is laser-off motion. Progress shows completed burn. Overscan shows raster acceleration beyond the artwork. Shade by Power and Invert affect only this display.',
+            })}
+          </div>
         </div>
       }
     >
