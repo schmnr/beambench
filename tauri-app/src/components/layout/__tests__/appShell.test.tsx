@@ -80,6 +80,38 @@ describe('AppShell workspace modes', () => {
     expect(useUiStore.getState().panelLayout.zones['top-right'].activeTab).toBe('properties');
   });
 
+  it('defaults to Layers when there is no object selection', () => {
+    useUiStore.getState().setZoneActiveTab('top-right', 'properties');
+
+    render(<AppShell />);
+
+    expect(useUiStore.getState().panelLayout.zones['top-right'].activeTab).toBe('cuts_layers');
+  });
+
+  it('returns to Layers when the object selection is cleared', () => {
+    useProjectStore.setState({ selectedObjectIds: ['obj-1'] });
+    useUiStore.getState().setZoneActiveTab('top-right', 'properties');
+    render(<AppShell />);
+
+    act(() => useProjectStore.setState({ selectedObjectIds: [] }));
+
+    expect(useUiStore.getState().panelLayout.zones['top-right'].activeTab).toBe('cuts_layers');
+  });
+
+  it('finds Layers after the user moves it to another dock', () => {
+    useProjectStore.setState({ selectedObjectIds: ['obj-1'] });
+    useUiStore.getState().dockPanel('console', 'middle-right');
+    useUiStore.getState().movePanelBetweenZones('cuts_layers', 'top-right', 'middle-right');
+    useUiStore.getState().setZoneActiveTab('middle-right', 'console');
+    render(<AppShell />);
+
+    act(() => useProjectStore.setState({ selectedObjectIds: [] }));
+
+    const layout = useUiStore.getState().panelLayout;
+    expect(layout.zones['middle-right'].activeTab).toBe('cuts_layers');
+    expect(layout.zones['top-right'].activeTab).toBe('properties');
+  });
+
   it('finds Properties after the user moves it to another dock', () => {
     useUiStore.getState().dockPanel('console', 'middle-right');
     useUiStore.getState().movePanelBetweenZones('properties', 'top-right', 'middle-right');

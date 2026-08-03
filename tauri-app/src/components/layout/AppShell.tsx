@@ -29,6 +29,7 @@ import {
 
 const LEFT_COLUMN = 'left' as const;
 const RIGHT_COLUMN = 'right' as const;
+const LAYERS_PANEL_ID = 'cuts_layers';
 const PROPERTIES_PANEL_ID = 'properties';
 const DESIGN_WORKSPACE = 'design';
 
@@ -121,11 +122,15 @@ export function AppShell() {
     : leftPanelWidth;
 
   useEffect(() => {
-    if (workspaceMode !== DESIGN_WORKSPACE || selectionKey.length === 0) return;
+    if (workspaceMode !== DESIGN_WORKSPACE) return;
     const ui = useUiStore.getState();
     const workspace = getWorkspacePanelLayout(ui.panelLayout, ui.workspaceMode);
-    if (!workspace.hiddenPanelIds.includes(PROPERTIES_PANEL_ID)) {
-      ui.showPanel(PROPERTIES_PANEL_ID);
+    const targetPanelId = selectionKey.length > 0 ? PROPERTIES_PANEL_ID : LAYERS_PANEL_ID;
+    const panelIsPlaced = Object.values(workspace.zones).some(
+      (zone) => zone.panelIds.includes(targetPanelId),
+    ) || workspace.floatingPanels.some((panel) => panel.panelId === targetPanelId);
+    if (panelIsPlaced && !workspace.hiddenPanelIds.includes(targetPanelId)) {
+      ui.showPanel(targetPanelId);
     }
   }, [selectionKey, workspaceMode]);
 
