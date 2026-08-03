@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
-import { Focus, Link2, Lock, Search, Unlink2, Unlock } from 'lucide-react';
+import { Focus, Link2, Lock, Move, Search, Unlink2, Unlock } from 'lucide-react';
 import { NumberStepper } from '../shared/NumberStepper';
 import type { AnchorPoint, TransformLocks } from '../../types/project';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -23,7 +23,11 @@ import {
   anchorLabelKeys,
   useBufferedNumericField,
 } from '../shared/transformFields';
-import { INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
+import {
+  INSPECTOR_TITLE_BAR_CLASS,
+  INSPECTOR_TITLE_BAR_ICON_CLASS,
+  INSPECTOR_TITLE_BAR_LABEL_CLASS,
+} from '../shared/panelAppearance';
 import { computeVisualBoundsWorld, getCombinedBounds } from '../../canvas/alignment';
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
 import { zoomToFitBounds } from '../../canvas/ViewportTransform';
@@ -508,11 +512,12 @@ export function TransformSection() {
   return (
     <div className="border-b border-bb-border pb-3 mb-1" data-testid="transform-section">
       {/* Header: label, anchor grid, unit toggle */}
-      <div className="flex items-center justify-between py-2">
-        <span className={INSPECTOR_SECTION_HEADER_CLASS}>
+      <div className={`${INSPECTOR_TITLE_BAR_CLASS} -mx-3 -mt-2.5 mb-3`} data-testid="transform-title-bar">
+        <Move size={14} className={INSPECTOR_TITLE_BAR_ICON_CLASS} />
+        <span className={INSPECTOR_TITLE_BAR_LABEL_CLASS}>
           {t('panels.properties.transform')}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center gap-1">
             <button
               type="button"

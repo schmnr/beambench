@@ -2,6 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import {
+  INSPECTOR_TITLE_BAR_CLASS,
+  INSPECTOR_TITLE_BAR_ICON_CLASS,
+  INSPECTOR_TITLE_BAR_LABEL_CLASS,
+} from '../shared/panelAppearance';
 
 interface ContextualToolSectionProps {
   title: string;
@@ -51,12 +56,10 @@ export function ContextualToolSection({
         aria-expanded={expanded}
         aria-label={title}
         onClick={() => setExpanded((current) => !current)}
-        className={`flex h-9 w-full items-center gap-2 px-3 text-left outline-none transition-colors hover:bg-bb-hover focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-bb-accent ${
-          expanded ? 'border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-bb-surface/30' : 'bg-bb-surface/30'
-        }`}
+        className={`${INSPECTOR_TITLE_BAR_CLASS} text-left outline-none transition-[filter] hover:brightness-110 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-bb-accent`}
       >
-        <span className="text-bb-accent">{icon}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-bb-text-dim">
+        <span className={INSPECTOR_TITLE_BAR_ICON_CLASS}>{icon}</span>
+        <span className={INSPECTOR_TITLE_BAR_LABEL_CLASS}>
           {title}
         </span>
         {expanded

@@ -77,6 +77,16 @@ describe('TransformSection — position/size', () => {
     expect(screen.getAllByRole('spinbutton').length).toBe(7);
   });
 
+  it('uses the shared inspector title treatment', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    render(<TransformSection />);
+
+    const titleBar = screen.getByTestId('transform-title-bar');
+    expect(titleBar.className).toContain('bg-gradient-to-r');
+    expect(titleBar.className).toContain('from-bb-accent/10');
+    expect(titleBar.className).toContain('to-bb-surface/30');
+  });
+
   it('displays correct values from selected object bounds', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
     render(<TransformSection />);

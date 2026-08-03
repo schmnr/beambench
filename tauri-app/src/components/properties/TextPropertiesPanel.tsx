@@ -11,6 +11,11 @@ import {
   getPendingContentForObject,
   subscribePendingTextEdit,
 } from '../../canvas/textEditSession';
+import {
+  INSPECTOR_TITLE_BAR_CLASS,
+  INSPECTOR_TITLE_BAR_ICON_CLASS,
+  INSPECTOR_TITLE_BAR_LABEL_CLASS,
+} from '../shared/panelAppearance';
 
 interface TextPropertiesPanelProps {
   objectId: string;
@@ -130,11 +135,11 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
       data-testid="text-properties-panel"
     >
       <div
-        className="flex h-9 w-full items-center gap-2 border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-bb-surface/30 px-3"
+        className={INSPECTOR_TITLE_BAR_CLASS}
         data-testid="text-properties-header"
       >
-        <Type size={14} className="shrink-0 text-bb-accent" />
-        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-bb-text-dim">
+        <Type size={14} className={INSPECTOR_TITLE_BAR_ICON_CLASS} />
+        <div className={INSPECTOR_TITLE_BAR_LABEL_CLASS}>
           {t('panels.text_properties.title')}
         </div>
         <button

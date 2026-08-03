@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { projectService } from '../../services/projectService';
 import { SubLayerStack } from '../properties/SubLayerStack';
-import { CheckSquare, Eye, EyeOff, Lock, ClipboardCopy, ClipboardPaste, Trash2, Zap, ZapOff } from 'lucide-react';
+import { CheckSquare, Eye, EyeOff, Layers3, Lock, ClipboardCopy, ClipboardPaste, Trash2, Zap, ZapOff } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { TextInput } from '../shared/TextInput';
 import { RangeInput } from '../shared/RangeInput';
@@ -11,7 +11,13 @@ import { IconToggleButton } from '../shared/IconToggleButton';
 import { PALETTE_COLORS } from '../../constants/palette';
 import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
-import { INSPECTOR_CARD_CLASS, INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
+import {
+  INSPECTOR_CARD_CLASS,
+  INSPECTOR_SECTION_HEADER_CLASS,
+  INSPECTOR_TITLE_BAR_CLASS,
+  INSPECTOR_TITLE_BAR_ICON_CLASS,
+  INSPECTOR_TITLE_BAR_LABEL_CLASS,
+} from '../shared/panelAppearance';
 import { layerFillOpacity, layerUsesFilledAppearance } from '../../utils/layerAppearance';
 import { displayLayerName } from './layerNaming';
 
@@ -106,12 +112,12 @@ export function LayerList() {
       {/* ── LAYER ─────────────────────────────────────────────── */}
       {activeLayer && (
         <div className={INSPECTOR_CARD_CLASS} data-testid="layer-block">
-          <div className="px-3 py-2.5">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className={INSPECTOR_SECTION_HEADER_CLASS}>
+          <div className={INSPECTOR_TITLE_BAR_CLASS} data-testid="layer-title-bar">
+            <Layers3 size={14} className={INSPECTOR_TITLE_BAR_ICON_CLASS} />
+            <span className={INSPECTOR_TITLE_BAR_LABEL_CLASS}>
               {t('panels.properties.layer')}
             </span>
-            <div className="flex shrink-0 items-center gap-0.5" data-testid="layer-header-actions">
+            <div className="ml-auto flex shrink-0 items-center gap-0.5" data-testid="layer-header-actions">
               <button
                 type="button"
                 data-testid="select-all-on-layer"
@@ -210,6 +216,7 @@ export function LayerList() {
             </div>
           </div>
 
+          <div className="px-3 py-2.5">
           <TextInput
             label={t('panels.properties.name')}
             value={layerNameDraft}

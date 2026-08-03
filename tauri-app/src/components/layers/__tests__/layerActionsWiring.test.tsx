@@ -41,6 +41,17 @@ describe('layer card action buttons', () => {
     expect(headerActions.contains(screen.getByTestId('delete-layer'))).toBe(true);
   });
 
+  it('uses the shared inspector title treatment', () => {
+    const { layer, obj } = setup();
+    useProjectStore.setState({ project: makeProject({ layers: [layer], objects: [obj] }) });
+    render(<LayerList />);
+
+    const titleBar = screen.getByTestId('layer-title-bar');
+    expect(titleBar.className).toContain('bg-gradient-to-r');
+    expect(titleBar.className).toContain('from-bb-accent/10');
+    expect(titleBar.className).toContain('to-bb-surface/30');
+  });
+
   it('select-all selects the layer objects', () => {
     const { layer, obj } = setup();
     const selectObjects = vi.fn();

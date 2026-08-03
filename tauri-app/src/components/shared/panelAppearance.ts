@@ -6,3 +6,12 @@ export const INSPECTOR_EMPTY_CLASS =
 
 export const INSPECTOR_SECTION_HEADER_CLASS =
   'text-[10px] font-semibold uppercase tracking-wider text-bb-text-dim';
+
+export const INSPECTOR_TITLE_BAR_CLASS =
+  'flex min-h-9 w-full items-center gap-2 border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-bb-surface/30 px-3';
+
+export const INSPECTOR_TITLE_BAR_LABEL_CLASS =
+  'text-[10px] font-semibold uppercase tracking-[0.16em] text-bb-text-dim';
+
+export const INSPECTOR_TITLE_BAR_ICON_CLASS =
+  'shrink-0 text-bb-accent';
