@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CanvasRenderer } from './CanvasRenderer';
+import { CanvasRenderer, sortObjectsForLayerStack } from './CanvasRenderer';
 import type { RenderParams } from './CanvasRenderer';
 import type { PreviewData } from '../types/preview';
 import { DARK_THEME, LIGHT_THEME } from './constants';
@@ -9,7 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useNotificationStore } from '../stores/notificationStore';
 import { makeLayer, makeProjectObject } from '../test-utils/projectFixtures';
 import { resetTransformedPath2DProbeForTests } from './drawObjects';
-import { renderOptionsFromViewStyle } from '../stores/uiStore';
+import { renderOptionsFromArtworkDisplayMode } from '../stores/uiStore';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -147,6 +147,25 @@ describe('CanvasRenderer', () => {
     vi.mocked(invoke).mockReset();
   });
 
+  it('draws later layer tabs behind earlier tabs while preserving z-order within a layer', () => {
+    const foregroundLayer = makeLayer({ id: 'foreground', order_index: 0 });
+    const backgroundLayer = makeLayer({ id: 'background', order_index: 1 });
+    const foregroundLow = makeProjectObject({ id: 'foreground-low', layer_id: foregroundLayer.id, z_index: 1 });
+    const foregroundHigh = makeProjectObject({ id: 'foreground-high', layer_id: foregroundLayer.id, z_index: 2 });
+    const backgroundHigh = makeProjectObject({ id: 'background-high', layer_id: backgroundLayer.id, z_index: 99 });
+
+    const ordered = sortObjectsForLayerStack(
+      [foregroundHigh, backgroundHigh, foregroundLow],
+      [foregroundLayer, backgroundLayer],
+    );
+
+    expect(ordered.map((object) => object.id)).toEqual([
+      'background-high',
+      'foreground-low',
+      'foreground-high',
+    ]);
+  });
+
   it('renders without errors when no preview data', () => {
     expect(() => renderer.render(baseParams)).not.toThrow();
     expect(ctx.fillRect).toHaveBeenCalled(); // Background cleared
@@ -228,6 +247,23 @@ describe('CanvasRenderer', () => {
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
 
+  it('shows live width and height while a text box is being dragged', () => {
+    vi.mocked(ctx.measureText).mockReturnValue({ width: 64 } as TextMetrics);
+
+    renderer.renderToolOverlay({
+      ...baseParams,
+      displayUnit: 'mm',
+      toolOverlay: {
+        type: 'text-box-preview',
+        startWorld: { x: 10, y: 20 },
+        endWorld: { x: 70, y: 50 },
+      },
+    });
+
+    expect(ctx.strokeRect).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith('60 × 30 mm', expect.any(Number), expect.any(Number));
+  });
+
   it('renders selection highlights on the overlay without repainting the base scene background', () => {
     const selected: ProjectObject = makeProjectObject({
       id: 'selected',
@@ -258,6 +294,52 @@ describe('CanvasRenderer', () => {
       baseParams.vp.canvasHeight,
     );
     expect(ctx.strokeRect).toHaveBeenCalled();
+  });
+
+  it('does not render selection handles for hidden objects or hidden layers', () => {
+    const hiddenObject = makeProjectObject({
+      id: 'hidden-object',
+      visible: false,
+      layer_id: 'visible-layer',
+    });
+    const layerHiddenObject = makeProjectObject({
+      id: 'layer-hidden-object',
+      visible: true,
+      layer_id: 'hidden-layer',
+    });
+
+    renderer.renderToolOverlay({
+      ...baseParams,
+      objects: [hiddenObject, layerHiddenObject],
+      selectedObjectIds: ['hidden-object', 'layer-hidden-object'],
+      layers: [
+        makeLayer({ id: 'visible-layer', visible: true }),
+        makeLayer({ id: 'hidden-layer', visible: false }),
+      ],
+    });
+
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+    vi.mocked(ctx.strokeRect).mockClear();
+
+    renderer.render({
+      ...baseParams,
+      objects: [hiddenObject, layerHiddenObject],
+      selectedObjectIds: ['hidden-object', 'layer-hidden-object'],
+      layers: [
+        makeLayer({ id: 'visible-layer', visible: true }),
+        makeLayer({ id: 'hidden-layer', visible: false }),
+      ],
+    });
+
+    // The only rectangle is the workspace boundary; no selection box is
+    // painted for either hidden selection.
+    expect(ctx.strokeRect).toHaveBeenCalledTimes(1);
+    expect(ctx.strokeRect).toHaveBeenCalledWith(
+      0,
+      0,
+      baseParams.vp.canvasWidth,
+      baseParams.vp.canvasHeight,
+    );
   });
 
   it('redraws only a bounded dirty region for base-scene object movement', () => {
@@ -1031,6 +1113,92 @@ describe('CanvasRenderer', () => {
     expect(fillSpy2.mock.calls.length).toBeGreaterThan(fillCountWithout);
   });
 
+  it('uses each layer operation for Design canvas wireframe and fill appearance', () => {
+    const testObj = makeProjectObject({
+      id: 'obj1',
+      layer_id: 'layer1',
+      data: { type: 'shape', kind: 'rectangle', corner_radius: 0, width: 40, height: 40 },
+    });
+
+    const lineCtx = createMockCtx();
+    const lineFill = vi.fn();
+    lineCtx.fill = lineFill;
+    new CanvasRenderer(lineCtx).render({
+      ...baseParams,
+      objects: [testObj],
+      layers: [makeLayer({ id: 'layer1', operation: 'line' })],
+      filledRendering: true,
+      useLayerAppearance: true,
+    });
+
+    expect(lineFill).not.toHaveBeenCalled();
+
+    for (const operation of ['fill', 'offset_fill', 'image'] as const) {
+      const fillCtx = createMockCtx();
+      const fillDraw = vi.fn();
+      fillCtx.fill = fillDraw;
+      new CanvasRenderer(fillCtx).render({
+        ...baseParams,
+        objects: [testObj],
+        layers: [makeLayer({ id: 'layer1', operation })],
+        filledRendering: false,
+        useLayerAppearance: true,
+      });
+      expect(fillDraw, `${operation} should render filled`).toHaveBeenCalled();
+    }
+  });
+
+  it('fills separate objects on one layer as a single even-odd compound region', () => {
+    const compoundCtx = createMockCtx();
+    const fillDraw = vi.fn();
+    compoundCtx.fill = fillDraw;
+    const layer = makeLayer({ id: 'fill-layer', operation: 'fill', color_tag: '#ef4444' });
+    const outer = makeProjectObject({
+      id: 'outer',
+      layer_id: layer.id,
+      bounds: { min: { x: 10, y: 10 }, max: { x: 80, y: 80 } },
+      data: { type: 'shape', kind: 'ellipse', corner_radius: 0, width: 70, height: 70 },
+    });
+    const inner = makeProjectObject({
+      id: 'inner',
+      layer_id: layer.id,
+      bounds: { min: { x: 30, y: 30 }, max: { x: 60, y: 60 } },
+      data: { type: 'shape', kind: 'ellipse', corner_radius: 0, width: 30, height: 30 },
+    });
+
+    new CanvasRenderer(compoundCtx).render({
+      ...baseParams,
+      objects: [outer, inner],
+      layers: [layer],
+      useLayerAppearance: true,
+    });
+
+    expect(fillDraw).toHaveBeenCalledTimes(1);
+    expect(fillDraw).toHaveBeenCalledWith('evenodd');
+  });
+
+  it('applies saved opacity to filled Design layers', () => {
+    const opacityCtx = createMockCtx();
+    const alphaValues: number[] = [];
+    let currentAlpha = 1;
+    Object.defineProperty(opacityCtx, 'globalAlpha', {
+      get: () => currentAlpha,
+      set: (value: number) => {
+        currentAlpha = value;
+        alphaValues.push(value);
+      },
+    });
+
+    new CanvasRenderer(opacityCtx).render({
+      ...baseParams,
+      objects: [makeProjectObject({ id: 'obj1', layer_id: 'layer1' })],
+      layers: [makeLayer({ id: 'layer1', operation: 'fill', fill_opacity: 0.4 })],
+      useLayerAppearance: true,
+    });
+
+    expect(alphaValues).toContain(0.4);
+  });
+
   // --- F7: Locked objects tests ---
 
   it('locked objects get dimmed selection with no handles', () => {
@@ -1136,23 +1304,19 @@ describe('CanvasRenderer', () => {
     expect(hasToolDash).toBe(true);
   });
 
-  // --- View style rendering settings derivation test ---
+  // --- Artwork display rendering settings derivation test ---
 
-  it('rendering settings derive from view style', () => {
-    expect(renderOptionsFromViewStyle('wireframe_coarse')).toEqual({
-      antialiasing: false,
+  it('rendering settings derive from artwork display mode', () => {
+    expect(renderOptionsFromArtworkDisplayMode('by_layer')).toEqual({
+      useLayerAppearance: true,
       filledRendering: false,
     });
-    expect(renderOptionsFromViewStyle('wireframe_smooth')).toEqual({
-      antialiasing: true,
+    expect(renderOptionsFromArtworkDisplayMode('wireframe')).toEqual({
+      useLayerAppearance: false,
       filledRendering: false,
     });
-    expect(renderOptionsFromViewStyle('filled_coarse')).toEqual({
-      antialiasing: false,
-      filledRendering: true,
-    });
-    expect(renderOptionsFromViewStyle('filled_smooth')).toEqual({
-      antialiasing: true,
+    expect(renderOptionsFromArtworkDisplayMode('filled')).toEqual({
+      useLayerAppearance: false,
       filledRendering: true,
     });
   });

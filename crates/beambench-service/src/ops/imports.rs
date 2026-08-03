@@ -1916,6 +1916,8 @@ pub fn trace_image_preview(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdjustImagePreviewInput {
     pub object_id: ObjectId,
+    /// Frontend-owned monotonic id. `None` keeps non-interactive callers compatible.
+    pub preview_request_id: Option<u64>,
     // Per-object adjustments
     pub brightness: f64,
     pub contrast: f64,
@@ -1944,6 +1946,21 @@ pub struct AdjustImagePreviewOutput {
     pub png_base64: String,
     pub width: u32,
     pub height: u32,
+}
+
+fn ensure_adjust_preview_request_current(
+    ctx: &ServiceContext,
+    request_id: Option<u64>,
+) -> ServiceResult<()> {
+    let Some(request_id) = request_id else {
+        return Ok(());
+    };
+    if ctx.latest_adjust_preview_request_id.load(Ordering::Acquire) == request_id {
+        return Ok(());
+    }
+    Err(ServiceError::stale_revision(
+        "Image adjustment preview superseded by a newer request",
+    ))
 }
 
 /// Suggested slider values from `auto_adjust_image`.
@@ -2012,6 +2029,8 @@ pub fn adjust_image_preview(
     use beambench_raster::RasterProcessingParams;
     use image::{ImageEncoder, codecs::png::PngEncoder};
 
+    ensure_adjust_preview_request_current(ctx, input.preview_request_id)?;
+
     // 1. Lock project read-only, find source raster object
     let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let project = project_guard
@@ -2041,6 +2060,7 @@ pub fn adjust_image_preview(
         .ok_or_else(|| ServiceError::not_found("Image asset data not found"))?;
 
     drop(project_guard);
+    ensure_adjust_preview_request_current(ctx, input.preview_request_id)?;
 
     // 3. Build RasterProcessingParams from input overrides
     let adjustments = RasterAdjustments {
@@ -2099,10 +2119,12 @@ pub fn adjust_image_preview(
         let result =
             beambench_raster::process_raster_with_cache(params, Some(&ctx.scaled_image_cache))
                 .map_err(|e| ServiceError::internal(e.to_string()))?;
+        ensure_adjust_preview_request_current(ctx, input.preview_request_id)?;
         let arc = std::sync::Arc::new(result);
         ctx.preview_cache.insert(cache_key, arc.clone());
         arc
     };
+    ensure_adjust_preview_request_current(ctx, input.preview_request_id)?;
     let processed = &*processed_arc;
 
     let pw = processed.width_px;
@@ -2126,12 +2148,14 @@ pub fn adjust_image_preview(
         }
         beambench_raster::types::RasterPixelFormat::Grayscale8 => processed.data.clone(),
     };
+    ensure_adjust_preview_request_current(ctx, input.preview_request_id)?;
 
     // 6. PNG-encode
     let mut png_buf = Vec::new();
     PngEncoder::new(std::io::Cursor::new(&mut png_buf))
         .write_image(&gray_pixels, pw, ph, image::ExtendedColorType::L8)
         .map_err(|e| ServiceError::internal(format!("PNG encode failed: {e}")))?;
+    ensure_adjust_preview_request_current(ctx, input.preview_request_id)?;
 
     // 7. Base64 encode and return
     let png_base64 = base64::engine::general_purpose::STANDARD.encode(&png_buf);

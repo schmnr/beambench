@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
-import { getPanelById, PANEL_COMPONENTS, type PhysicalDockZone } from '../../panels';
+import { getPanelById, getPanelComponent, getWorkspacePanelLayout, type PhysicalDockZone } from '../../panels';
 import { FloatingPanel } from './FloatingPanel';
 import { ContextMenu, type ContextMenuEntry } from '../shared/ContextMenu';
 import { buildPanelTabMenuItems } from '../panels/panelTabMenuItems';
@@ -17,17 +17,20 @@ const CLOSED: MenuState = { visible: false, x: 0, y: 0, items: [] };
 
 /** Dock zone to fall back to when re-docking a panel whose default zone is floating. */
 function resolveDockFallback(defaultZone: string): string {
-  return defaultZone === 'floating' ? 'upper-right' : defaultZone;
+  return defaultZone === 'floating' ? 'top-right' : defaultZone;
 }
 
 export function FloatingPanelLayer() {
   const { t } = useTranslation();
-  const floatingPanels = useUiStore((s) => s.panelLayout.floatingPanels);
-  const hiddenPanelIds = useUiStore((s) => s.panelLayout.hiddenPanelIds);
+  const panelLayout = useUiStore((s) => s.panelLayout);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const workspaceLayout = getWorkspacePanelLayout(panelLayout, workspaceMode);
+  const floatingPanels = workspaceLayout.floatingPanels;
+  const hiddenPanelIds = workspaceLayout.hiddenPanelIds;
   const moveFloatingPanel = useUiStore((s) => s.moveFloatingPanel);
   const resizeFloatingPanel = useUiStore((s) => s.resizeFloatingPanel);
   const bringToFront = useUiStore((s) => s.bringToFront);
-  const closeFloatingPanel = useUiStore((s) => s.closeFloatingPanel);
+  const removePanelInstance = useUiStore((s) => s.removePanelInstance);
   const dockPanel = useUiStore((s) => s.dockPanel);
 
   const [menuState, setMenuState] = useState<MenuState>(CLOSED);
@@ -35,28 +38,26 @@ export function FloatingPanelLayer() {
 
   const handleTitleContextMenu = useCallback((panelId: string, e: React.MouseEvent) => {
     const state = useUiStore.getState();
-    const fp = state.panelLayout.floatingPanels.find((f) => f.panelId === panelId);
+    const activeLayout = getWorkspacePanelLayout(state.panelLayout, state.workspaceMode);
+    const fp = activeLayout.floatingPanels.find((f) => f.panelId === panelId);
 
     const items = buildPanelTabMenuItems(t, {
       panelId,
       mode: 'floating',
-      hiddenPanelIds: state.panelLayout.hiddenPanelIds,
       sidePanelsVisible: state.sidePanelsVisible,
       onFloat: () => {}, // already floating
       onDock: (id) => {
         const panelDef = getPanelById(id);
-        const fallback = panelDef?.defaultZone === 'floating' ? 'upper-right' : panelDef?.defaultZone ?? 'upper-right';
+        const fallback = panelDef?.defaultZone === 'floating' ? 'top-right' : panelDef?.defaultZone ?? 'top-right';
         useUiStore.getState().dockPanel(id, (fp?.originZone ?? fallback) as PhysicalDockZone, fp?.originIndex);
       },
       onClose: (id) => {
-        useUiStore.getState().closeFloatingPanel(id);
+        useUiStore.getState().removePanelInstance(id);
       },
-      onTogglePanel: (id) => {
-        if (id === 'camera') {
-          useUiStore.getState().toggleCameraWindow();
-        } else {
-          useUiStore.getState().togglePanelVisibility(id);
-        }
+      onAddPanel: (id) => {
+        const panelDef = getPanelById(id);
+        const target = resolveDockFallback(panelDef?.defaultZone ?? 'top-right') as PhysicalDockZone;
+        useUiStore.getState().addPanelInstance(id, target);
       },
       onToggleSidePanels: () => {
         useUiStore.getState().toggleSidePanels();
@@ -74,7 +75,7 @@ export function FloatingPanelLayer() {
       {visibleFloating.map((fp) => {
         const def = getPanelById(fp.panelId);
         if (!def) return null;
-        const PanelContent = PANEL_COMPONENTS[fp.panelId];
+        const PanelContent = getPanelComponent(fp.panelId);
         if (!PanelContent) return null;
         const dockFallbackZone = resolveDockFallback(def.defaultZone);
 
@@ -82,7 +83,9 @@ export function FloatingPanelLayer() {
           <FloatingPanel
             key={fp.panelId}
             panelId={fp.panelId}
-            title={def.titleKey ? t(def.titleKey) : def.title}
+            title={`${def.titleKey ? t(def.titleKey) : def.title}${
+              fp.panelId.includes('::') ? ` ${fp.panelId.split('::').slice(-1)[0]}` : ''
+            }`}
             x={fp.x}
             y={fp.y}
             width={fp.width}
@@ -90,7 +93,7 @@ export function FloatingPanelLayer() {
             zIndex={fp.zIndex}
             minWidth={def.minFloatSize?.w}
             minHeight={def.minFloatSize?.h}
-            onClose={() => closeFloatingPanel(fp.panelId)}
+            onClose={() => removePanelInstance(fp.panelId)}
             onDock={() => {
               dockPanel(fp.panelId, (fp.originZone ?? dockFallbackZone) as PhysicalDockZone, fp.originIndex);
             }}

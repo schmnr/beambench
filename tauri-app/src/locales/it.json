@@ -62,7 +62,6 @@
       "export_selection": "Esporta selezione",
       "hide_notes": "Nascondi note",
       "import_preferences": "Importa preferenze",
-      "new_window": "Nuova finestra",
       "open_preferences_folder": "Apri la cartella Preferenze",
       "preferences_exported": "Preferenze esportate.",
       "preferences_imported": "Preferenze importate.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Ripristinare le preferenze ai valori predefiniti? Verranno conservati i profili della macchina, i file recenti, le posizioni salvate, le impostazioni API e i percorsi di esportazione.",
       "save_background_capture": "Salva acquisizione dello sfondo",
       "save_processed_bitmap": "Salva bitmap elaborata",
-      "show_notes": "Mostra note"
+      "show_notes": "Mostra note",
+      "project_notes": "Note del progetto...",
+      "print": "Stampa...",
+      "export_processed_image": "Esporta immagine elaborata..."
     },
     "edit": {
       "label": "Modifica",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Unisci automaticamente le forme selezionate",
       "close_and_join": "Chiudi e partecipa",
       "convert_to_bitmap": "Converti in bitmap",
+      "extract_selected_nodes_to_path": "Estrai i nodi selezionati in un nuovo tracciato",
       "duplicate": "Duplicato",
       "image_options": "Opzioni immagine",
       "invert_selection": "Inverti selezione",
@@ -241,12 +244,12 @@
       "shape_properties": "Proprietà della forma",
       "text_options": "Opzioni di testo",
       "toggle_side_panels": "Attiva/disattiva i pannelli laterali",
-      "toggle_wireframe_filled": "Attiva/disattiva Wireframe/riempito",
-      "view_style": "Visualizza stile:",
-      "view_style_filled_coarse": "Pieno / Grossolano",
-      "view_style_filled_smooth": "Pieno/Liscio",
-      "view_style_wireframe_coarse": "Wireframe/grossolana",
-      "view_style_wireframe_smooth": "Wireframe/Liscio",
+      "toggle_wireframe_filled": "Alterna operazione / wireframe",
+      "view_style": "Visualizzazione grafica:",
+      "view_style_filled_coarse": "Forza riempimento",
+      "view_style_filled_smooth": "Bordi smussati",
+      "view_style_wireframe_coarse": "In base all’operazione livello",
+      "view_style_wireframe_smooth": "Forza wireframe",
       "zoom_to_page": "Zoom sulla pagina"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Rotellina del mouse",
       "scroll_zoom": "Zoom",
       "scroll_pan": "Panoramica",
-      "allow_import_tool_layers": "Consenti importazione su livelli strumento",
-      "include_tool_layers_job_bounds": "Includi livelli strumento nei limiti del lavoro"
+      "allow_import_tool_layers": "Consenti importazione su livelli strumento"
     },
     "about": {
       "tagline": "Fatto dai maker per i maker.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "La finestra di dialogo del codice a barre è chiusa perché il suo livello di destinazione non è più disponibile."
     },
     "adjust_image": {
+      "invert_display_help": "Solo anteprima. L’immagine salvata e l’uscita laser non vengono modificate.",
+      "invert_adjustment_help": "L’inversione viene salvata con questa immagine e applicata prima dell’elaborazione raster del livello.",
+      "negative_image_help": "Immagine negativa inverte l’uscita del livello. Se anche Inverti sopra è attivo, le due inversioni possono annullarsi.",
       "title": "Regola l'immagine",
       "drag_to_move": "Trascina per muoverti",
       "original": "Originale",
@@ -701,6 +706,7 @@
       "include_project_file": "Includi file di progetto",
       "include_project_file_help": "Disattivato per impostazione predefinita. Questo invia la geometria .lzrproj effettiva e i dati raster.",
       "job_compatibility_help": "Non è stato ancora inviato nulla. Questo rapporto contiene la versione di Beam Bench, il sistema operativo, la famiglia del controller, impostazioni della macchina non identificative e i totali del lavoro completato. Esclude disegni, G-code, nomi di file, traffico seriale, registri, percorsi dei dispositivi, ID dei profili e file di progetto.",
+      "privacy_policy": "Leggi l’informativa sulla privacy",
       "what_gets_sent": "Cosa viene inviato",
       "loading": "Caricamento...",
       "submitting_report": "Invio del rapporto a Beam Bench...",
@@ -784,6 +790,7 @@
       "pan_hint": "Trascina per selezionare un'area da ricalcare. Tieni premuta la barra spaziatrice e trascina per spostarti."
     },
     "preview": {
+      "options_help": "Spostamento indica il movimento con laser spento. Avanzamento mostra la lavorazione completata. La sovrascansione mostra l’accelerazione raster oltre il disegno. Ombreggia per potenza e Inverti modificano solo questa vista.",
       "title": "Finestra di anteprima",
       "stale_refresh_required": "Non aggiornato: è necessario aggiornare",
       "stale": "Stanco",
@@ -1105,10 +1112,27 @@
       "title": "Modifiche non salvate",
       "message": "Il progetto contiene modifiche non salvate. Salvarle prima di continuare?",
       "discard": "Non salvare"
+    },
+    "print": {
+      "title": "Stampa",
+      "output": "Risultato di stampa",
+      "description": "Scegli come dovrebbe apparire il progetto, quindi continua nella finestra di dialogo di stampa del sistema.",
+      "color": "Colore",
+      "black": "Nero",
+      "layer_colors": "Colori dei livelli",
+      "appearance": "Aspetto del disegno",
+      "by_operation": "Per operazione del livello",
+      "outlines": "Solo contorni",
+      "print": "Stampa...",
+      "preparing": "Preparazione..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Design",
+      "mode_run": "Esegui",
+      "mode_design_hint": "Design: disegna e disponi il tuo progetto",
+      "mode_run_hint": "Esegui: invia il lavoro al tuo laser",
       "new": "Nuovo",
       "untitled_project": "Progetto senza titolo",
       "open": "Aprire",
@@ -1193,13 +1217,16 @@
       "close_path": "Chiudi percorso",
       "auto_join_paths": "Unione automatica dei percorsi",
       "insert_midpoint": "Inserisci punto medio (M)",
-      "align_to_angle": "Allinea all'angolo (A)"
+      "align_to_angle": "Allinea all'angolo (A)",
+      "extend_to_intersection": "Estendi fino all'intersezione (E)"
     },
     "transform_toggles": {
       "move": "Mossa",
       "size": "Misurare",
       "rotate": "Ruotare",
-      "shear": "Taglio"
+      "shear": "Taglio",
+      "lock_all": "Blocca tutte le trasformazioni",
+      "unlock_all": "Sblocca tutte le trasformazioni"
     },
     "properties": {
       "position_x": "Pos. X",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Nessun progetto",
-      "nothing_selected": "Niente selezionato"
+      "nothing_selected": "Seleziona un oggetto per modificarne le proprietà"
+    },
+    "library": {
+      "title": "Libreria"
     },
     "floating": {
       "dock_tooltip": "Aggancia pannello",
       "close_tooltip": "Chiudi pannello",
       "float_tooltip": "Sgancia pannello"
     },
+    "outliner": {
+      "help": "Trascina per riordinare o spostare. Fai doppio clic per rinominare. Gli oggetti nascosti restano qui per poterli ripristinare.",
+      "summary": "{layers} livelli · {objects} oggetti",
+      "empty_layer": "Nessun oggetto",
+      "expand_layer": "Espandi il livello",
+      "collapse_layer": "Comprimi livello",
+      "expand_group": "Espandi gruppo",
+      "collapse_group": "Comprimi gruppo",
+      "show_layer": "Mostra livello",
+      "hide_layer": "Nascondi livello",
+      "show_object": "Mostra oggetto",
+      "hide_object": "Nascondi oggetto",
+      "lock_object": "Blocca oggetto",
+      "unlock_object": "Sblocca oggetto"
+    },
     "registry": {
-      "cuts_layers": "Tagli / Livelli",
+      "outliner": "Delineatore",
+      "cuts_layers": "Strati",
       "move": "Sposta",
       "console": "Console",
       "macros": "Macro",
-      "properties": "Proprietà forma",
+      "properties": "Proprietà",
       "measurement": "Misurazione",
       "laser": "Laser Control",
       "material": "Libreria materiali",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Un sottolivello"
     },
     "properties": {
+      "transform": "Trasforma",
+      "visibility_help": "Gli oggetti nascosti sono esclusi dal lavoro. Ripristinali nell’Outliner.",
+      "power_scale_help": "Moltiplica la potenza del livello per questo oggetto senza modificare il livello.",
+      "cut_priority_help": "I valori più bassi vengono eseguiti prima quando è attiva l’ottimizzazione per priorità.",
       "objects_selected": "{count} oggetti selezionati",
       "layer": "Livello",
       "mixed": "Misto",
@@ -1421,7 +1471,7 @@
       "union": "Unione",
       "subtract": "Sottrarre",
       "intersection": "Intersezione",
-      "nothing_selected": "Nessuna selezione",
+      "nothing_selected": "Seleziona un oggetto per modificarne le proprietà",
       "name": "Nome",
       "power_scale_percent": "Scala potenza %",
       "cut_priority": "Priorità taglio",
@@ -1484,15 +1534,63 @@
       "h_space": "Spaz. H",
       "v_space": "Spaz. V",
       "path_offset": "Offset percorso",
+      "baseline_offset": "Offset linea di base",
+      "direction_normal": "Normale",
+      "direction_reverse": "Inversa",
+      "strength": "Intensità",
+      "arc_span": "Ampiezza arco",
+      "circle_position": "Posizione sul cerchio",
+      "circle_side": "Lato del cerchio",
+      "circle_top": "In alto",
+      "circle_bottom": "In basso",
+      "circle_outside": "Esterno",
+      "circle_inside": "Interno",
       "bend_radius": "Raggio curva",
       "align_left": "Sinistra",
       "align_center": "Centro",
       "align_right": "Destra",
       "align_top": "Alto",
       "align_middle": "Medio",
-      "align_bottom": "Basso"
+      "align_bottom": "Basso",
+      "tool_title": "Strumento di testo",
+      "creation_hint": "Scegli Punta per fare clic e digitare oppure Casella per trascinare una regione di avvolgimento.",
+      "edit_text": "Modifica testo",
+      "edit_on_canvas": "Modifica su tela",
+      "search_fonts": "Cerca caratteri",
+      "recent_fonts": "Recente",
+      "favorite_fonts": "Preferiti",
+      "all_fonts": "Tutti i caratteri",
+      "no_fonts_found": "Nessun carattere trovato",
+      "favorite_font": "Carattere preferito",
+      "unfavorite_font": "Rimuovi preferito",
+      "style": "Stile",
+      "style_regular": "Regolare",
+      "style_bold_italic": "Grassetto corsivo",
+      "typography": "Tipografia",
+      "alignment_spacing": "Allineamento e spaziatura",
+      "text_box": "Tipo di testo",
+      "width_mode": "Modalità",
+      "auto_width": "Punto",
+      "fixed_width": "Scatola",
+      "width": "Larghezza della scatola",
+      "squeeze_to_fit": "Stringere per adattarlo",
+      "advanced_shape": "Forma di testo avanzata",
+      "transform": "Busta",
+      "transform_none": "Nessuno",
+      "transform_arch": "Arco",
+      "transform_rise": "Alzati",
+      "transform_wave": "Onda",
+      "transform_flag": "Bandiera",
+      "transform_angle": "Angolo",
+      "transform_circle": "Cerchio",
+      "curve": "Curva",
+      "laser_output": "Uscita laser",
+      "convert_hint": "Converti in tracciato congela i caratteri in una geometria di taglio modificabile.",
+      "tracking": "Monitoraggio",
+      "line_spacing": "Interlinea"
     },
     "sub_layer_stack": {
+      "title": "Sottolivelli",
       "operation_tool": "Strumento",
       "operation_image": "Immagine",
       "operation_fill": "Riempimento",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Offset verso esterno",
       "max_sub_layers_title": "Raggiunto il massimo di 11 sottolivelli",
       "add_sub_layer_title": "Aggiungi sottolivello",
-      "add_sub_layer": "+ Aggiungi sottolivello"
+      "add_sub_layer": "+ Aggiungi sottolivello",
+      "order_hint": "I sottolivelli vengono eseguiti in ordine, dall’alto verso il basso."
     },
     "cut_settings": {
       "title": "Impostazioni di taglio",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "I livelli strumento fungono da guide e non producono mai un’uscita laser.",
+      "output_show_help": "Uscita include questo livello nel lavoro laser. Mostra modifica solo la vista dell’area di lavoro.",
+      "opacity_help": "Solo anteprima dell’area di lavoro. Non modifica la potenza laser né l’elaborazione dell’immagine.",
+      "delete_layer": "Elimina livello",
+      "add_layer": "Aggiungi livello",
       "header": {
         "index": "#",
         "layer": "Livello",
@@ -1587,8 +1691,6 @@
         "multi": "Multiplo"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Includi i livelli strumento nei limiti del lavoro",
-      "exclude_tool_layers_from_job_bounds": "Escludi i livelli strumento dai limiti del lavoro",
       "frame": "Cornice",
       "move_up": "Sposta su",
       "move_down": "Sposta giù",
@@ -1635,7 +1737,8 @@
         "on_ms": "On (ms)",
         "off_ms": "Off (ms)",
         "kerf_mm": "Offset kerf"
-      }
+      },
+      "settings_copied": "Impostazioni livello copiate"
     },
     "move": {
       "step_mm": "Passo",
@@ -2168,9 +2271,40 @@
       "end": "Fine",
       "midpoint": "Punto medio",
       "difference": "Differenza",
-      "angle": "Angolo"
+      "angle": "Angolo",
+      "mode_linear": "Lineare",
+      "mode_angle": "Angolo",
+      "mode_radius": "Raggio",
+      "mode_gap": "Divario",
+      "minimum_gap": "Divario minimo",
+      "horizontal": "Orizzontale",
+      "vertical": "Verticale",
+      "horizontal_gap": "Divario orizzontale",
+      "vertical_gap": "Divario verticale",
+      "first_segment": "Primo segmento",
+      "second_segment": "Secondo segmento",
+      "radius": "Raggio",
+      "diameter": "Diametro",
+      "radius_x": "Raggio X",
+      "radius_y": "Raggio Y",
+      "diameter_x": "Diametro X",
+      "diameter_y": "Diametro Y",
+      "linear_second_hint": "Fare clic sul secondo punto",
+      "angle_second_hint": "Fare clic su un secondo segmento",
+      "gap_second_hint": "Fare clic sul secondo oggetto",
+      "angle_hint": "Fare clic su due segmenti per misurare il loro angolo",
+      "radius_hint": "Fare clic su un cerchio o un'ellisse",
+      "gap_hint": "Fare clic su due oggetti per misurare la distanza più vicina",
+      "linear_hint": "Fare clic e trascinare oppure fare clic su due punti",
+      "title": "Misurare",
+      "modes": "Modalità di misurazione",
+      "copy_value": "Copia valore",
+      "copied": "Copiato",
+      "clear_measurement": "Misurazione chiara",
+      "keyboard_hint": "Shift vincola gli angoli. Escape si cancella, quindi torna a Seleziona."
     },
     "art_library": {
+      "drag_help": "Trascina la grafica nell’area di lavoro. Usa × per eliminarla dalla libreria.",
       "no_libraries": "Nessuna libreria caricata.",
       "search": "Cerca...",
       "icon_size": "Dimensione icone:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Libreria grafica Beam Bench",
       "filter_artwork": "Grafica"
     }
+  },
+  "warp_tool": {
+    "title": "Deformazione",
+    "four_points": "4 punti",
+    "sixteen_points": "16 punti"
   },
   "context_menu": {
     "windows": "Finestre",

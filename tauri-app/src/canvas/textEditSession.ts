@@ -9,21 +9,37 @@ interface PendingEdit {
 
 let pendingEdit: PendingEdit | null = null;
 let commitPromise: Promise<boolean> | null = null;
+const pendingEditListeners = new Set<() => void>();
+
+function notifyPendingEditListeners(): void {
+  for (const listener of pendingEditListeners) listener();
+}
+
+/** Subscribe UI surfaces that mirror the active inline text draft. */
+export function subscribePendingTextEdit(listener: () => void): () => void {
+  pendingEditListeners.add(listener);
+  return () => pendingEditListeners.delete(listener);
+}
 
 /** Called by TextEditOverlay on mount. */
 export function setPendingEdit(objectId: string, initialContent: string): void {
   if (pendingEdit?.objectId === objectId) return;
   pendingEdit = { objectId, content: initialContent, initialContent };
+  notifyPendingEditListeners();
 }
 
 /** Called by TextEditOverlay on every keystroke. */
 export function updatePendingContent(content: string): void {
-  if (pendingEdit) pendingEdit.content = content;
+  if (pendingEdit) {
+    pendingEdit.content = content;
+    notifyPendingEditListeners();
+  }
 }
 
 /** Clear pending edit tracking (on unmount). */
 export function clearPendingEdit(): void {
   pendingEdit = null;
+  notifyPendingEditListeners();
 }
 
 export function hasPendingTextEdit(): boolean {
@@ -36,6 +52,7 @@ export function releasePendingEdit(objectId?: string): void {
   if (objectId && pendingEdit.objectId !== objectId) return;
   if (pendingEdit.content === pendingEdit.initialContent) {
     pendingEdit = null;
+    notifyPendingEditListeners();
   }
 }
 
@@ -57,6 +74,7 @@ export async function commitPendingTextEdit(): Promise<boolean> {
   const { objectId, content, initialContent } = currentEdit;
   if (content === initialContent) {
     pendingEdit = null;
+    notifyPendingEditListeners();
     return true;
   }
 
@@ -64,6 +82,7 @@ export async function commitPendingTextEdit(): Promise<boolean> {
   const obj = project?.objects?.find((o: ProjectObject) => o.id === objectId);
   if (!obj || obj.data.type !== 'text') {
     pendingEdit = null;
+    notifyPendingEditListeners();
     return true;
   }
   const textData = obj.data;
@@ -83,6 +102,7 @@ export async function commitPendingTextEdit(): Promise<boolean> {
 
     if (pendingEdit.content === content) {
       pendingEdit = null;
+      notifyPendingEditListeners();
       return true;
     }
 
@@ -90,6 +110,7 @@ export async function commitPendingTextEdit(): Promise<boolean> {
       ...pendingEdit,
       initialContent: content,
     };
+    notifyPendingEditListeners();
     return false;
   })();
 
@@ -112,6 +133,7 @@ export function getPendingContentForObject(objectId: string): string | null {
 /** Discard pending edit without saving (for Escape / cancel). */
 export function discardPendingTextEdit(): void {
   pendingEdit = null;
+  notifyPendingEditListeners();
 }
 
 /**

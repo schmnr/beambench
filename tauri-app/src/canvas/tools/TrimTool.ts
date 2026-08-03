@@ -7,6 +7,9 @@ import { usePreviewStore } from '../../stores/previewStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { wrapBackendError } from '../../i18n/errors';
 
+/** Forgiving screen-space target radius; remains constant at every zoom. */
+export const TRIM_HIT_RADIUS_PX = 10;
+
 export class TrimTool implements CanvasTool {
   name = 'trim';
   private previewWorldPoints: [number, number][] | null = null;
@@ -18,7 +21,7 @@ export class TrimTool implements CanvasTool {
     // Clear preview immediately on click
     this.clearPreview(ctx);
 
-    const thresholdMm = screenToWorldDist(5, ctx.vp.zoom);
+    const thresholdMm = screenToWorldDist(TRIM_HIT_RADIUS_PX, ctx.vp.zoom);
     const heal = !e.altKey;
 
     void (async () => {
@@ -57,7 +60,7 @@ export class TrimTool implements CanvasTool {
 
   private fetchPreview(worldX: number, worldY: number, ctx: ToolContext): void {
     const seq = ++this.requestSeq;
-    const thresholdMm = screenToWorldDist(5, ctx.vp.zoom);
+    const thresholdMm = screenToWorldDist(TRIM_HIT_RADIUS_PX, ctx.vp.zoom);
     void (async () => {
       try {
         const result = await vectorService.previewTrimSegment(worldX, worldY, thresholdMm);

@@ -9,7 +9,9 @@ import type {
   GridSpacingMode,
   HandleType,
   NodeBatchUpdate,
+  NodeClipboardCopy,
   NodeId,
+  NodePasteResult,
   NormalizedVector,
   OffsetCornerStyle,
   OffsetDirection,
@@ -54,6 +56,19 @@ export const vectorService = {
 
   getEditablePath: (objectId: string): Promise<EditablePath[]> =>
     invoke('get_editable_path', { objectId }),
+
+  copyNodes: (objectId: string, nodeIds: NodeId[]): Promise<NodeClipboardCopy> =>
+    invoke('copy_nodes', { objectId, nodeIds }),
+
+  pasteNodes: (
+    objectId: string,
+    copiedPathJson: string,
+    offsetMm = 5,
+  ): Promise<NodePasteResult> =>
+    invoke('paste_nodes', { objectId, copiedPathJson, offsetMm }),
+
+  extractNodesToPath: (objectId: string, nodeIds: NodeId[]): Promise<ProjectObject> =>
+    invoke('extract_nodes_to_path', { objectId, nodeIds }),
 
   updateNode: (
     objectId: string,
@@ -157,6 +172,18 @@ export const vectorService = {
 
   booleanWeld: (objectIds: string[]): Promise<ProjectObject> =>
     invoke('boolean_weld', { objectIds }),
+
+  booleanUnionMany: (objectIds: string[]): Promise<ProjectObject> =>
+    invoke('boolean_union_many', { objectIds }),
+
+  booleanIntersectionMany: (objectIds: string[]): Promise<ProjectObject> =>
+    invoke('boolean_intersection_many', { objectIds }),
+
+  booleanExcludeMany: (objectIds: string[]): Promise<ProjectObject> =>
+    invoke('boolean_exclude_many', { objectIds }),
+
+  booleanSubtractMany: (objectIds: string[]): Promise<ProjectObject> =>
+    invoke('boolean_subtract_many', { objectIds }),
 
   offsetShapes: (
     objectIds: string[],
@@ -337,6 +364,9 @@ export const vectorService = {
 
   removeTab: (objectId: string, worldX: number, worldY: number): Promise<ProjectObject> =>
     invoke('remove_tab', { objectId, worldX, worldY }),
+
+  clearTabs: (objectId: string): Promise<ProjectObject> =>
+    invoke('clear_tabs', { objectId }),
 
   resolveTabMarkers: (objectId: string): Promise<{ subpathIndex: number; position: number; worldX: number; worldY: number }[]> =>
     invoke('resolve_tab_markers', { objectId }),

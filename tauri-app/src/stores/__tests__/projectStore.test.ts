@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useProjectStore } from '../projectStore';
 import { useNotificationStore } from '../notificationStore';
+import { useUiStore } from '../uiStore';
 
 const previewInvalidate = vi.fn();
 const previewClear = vi.fn();
@@ -19,6 +20,7 @@ vi.mock('../../services/projectService', () => ({
     addObject: vi.fn(),
     addObjectAtomic: vi.fn(),
     updateObject: vi.fn(),
+    updateObjectTransformState: vi.fn(),
     updateObjectData: vi.fn(),
     resizeShapeObject: vi.fn(),
     removeObject: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock('../../services/projectService', () => ({
     dockObjects: vi.fn(),
     resizeSlots: vi.fn(),
     reassignLayer: vi.fn(),
+    moveObjectsInOutliner: vi.fn(),
     countDuplicates: vi.fn(),
     deleteDuplicates: vi.fn(),
     autoJoinShapes: vi.fn(),
@@ -68,6 +71,10 @@ vi.mock('../../services/vectorService', () => ({
     booleanExclude: vi.fn(),
     booleanIntersection: vi.fn(),
     booleanWeld: vi.fn(),
+    booleanUnionMany: vi.fn(),
+    booleanIntersectionMany: vi.fn(),
+    booleanExcludeMany: vi.fn(),
+    booleanSubtractMany: vi.fn(),
     groupObjects: vi.fn(),
     autoGroupObjects: vi.fn(),
     ungroupObjects: vi.fn(),
@@ -141,7 +148,12 @@ import { persistenceService } from '../../services/persistenceService';
 import { previewService } from '../../services/previewService';
 import type { ObjectData, Project, ProjectOptimization } from '../../types/project';
 import { DEFAULT_PROJECT_OPTIMIZATION } from '../../types/project';
-import { makeLayer, makeProject as makeProjectFixture, makeProjectObject } from '../../test-utils/projectFixtures';
+import {
+  makeLayer,
+  makeProject as makeProjectFixture,
+  makeProjectObject,
+  makeTransformLocks,
+} from '../../test-utils/projectFixtures';
 
 const mockedProject = projectService as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const mockedVector = vectorService as unknown as Record<string, ReturnType<typeof vi.fn>>;
@@ -261,6 +273,38 @@ describe('projectStore — new actions', () => {
       error: null,
     });
     useNotificationStore.setState({ notifications: [] });
+    useUiStore.setState({ workspaceMode: 'design', activeTool: 'select' });
+  });
+
+  it('blocks layer creation while the Run workspace is active', async () => {
+    useUiStore.getState().setWorkspaceMode('run');
+
+    await useProjectStore.getState().addLayer('C01', 'line');
+
+    expect(mockedProject.addLayer).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().project?.layers).toHaveLength(1);
+  });
+
+  it('blocks object creation while the Run workspace is active', async () => {
+    useUiStore.getState().setWorkspaceMode('run');
+
+    const created = await useProjectStore.getState().addObject(
+      'Rectangle',
+      'layer1',
+      {
+        type: 'shape',
+        kind: 'rectangle',
+        width: 10,
+        height: 10,
+        corner_radius: 0,
+      },
+      { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
+    );
+
+    expect(created).toBeNull();
+    expect(mockedProject.addObject).not.toHaveBeenCalled();
+    expect(mockedProject.addObjectAtomic).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().project?.objects).toHaveLength(2);
   });
 
   it('preserves ordered selection and moves deselect/reselect to the anchor end', () => {
@@ -343,6 +387,39 @@ describe('projectStore — new actions', () => {
     useProjectStore.getState().selectAllObjects();
 
     expect(useProjectStore.getState().selectedObjectIds).toEqual(['group1', 'obj2']);
+  });
+
+  it('selectAllObjects includes visible tool-layer objects', () => {
+    const project = makeProject({
+      layers: [
+        makeLayer({ id: 'layer1', is_tool_layer: false }),
+        makeLayer({ id: 'tool', is_tool_layer: true }),
+      ],
+      objects: [
+        makeProjectObject({ id: 'art', layer_id: 'layer1', z_index: 0 }),
+        makeProjectObject({ id: 'tool-object', layer_id: 'tool', z_index: 1 }),
+      ],
+    });
+    useProjectStore.setState({ project, selectedObjectIds: [] });
+
+    useProjectStore.getState().selectAllObjects();
+
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['tool-object', 'art']);
+  });
+
+  it('invertObjectSelection replaces the selection and ignores hidden objects', () => {
+    const project = makeProject({
+      objects: [
+        makeProjectObject({ id: 'visible-a', layer_id: 'layer1', z_index: 0 }),
+        makeProjectObject({ id: 'visible-b', layer_id: 'layer1', z_index: 1 }),
+        makeProjectObject({ id: 'hidden', layer_id: 'layer1', z_index: 2, visible: false }),
+      ],
+    });
+    useProjectStore.setState({ project, selectedObjectIds: ['visible-a'] });
+
+    useProjectStore.getState().invertObjectSelection();
+
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['visible-b']);
   });
 
   it('nudgeObjects expands a selected group to its children', async () => {
@@ -524,17 +601,19 @@ describe('projectStore — new actions', () => {
     expect(useProjectStore.getState().project?.dirty).toBe(true);
   });
 
-  it('setObjectsVisible calls batch service and reloads project', async () => {
+  it('setObjectsVisible hides an object without losing the reversible Properties selection', async () => {
     const reloaded = makeProject();
     reloaded.objects[0].visible = false;
     mockedProject.setObjectsVisible.mockResolvedValue(undefined);
     mockedProject.getProject.mockResolvedValue(reloaded);
+    useProjectStore.setState({ selectedObjectIds: ['obj1'] });
 
     await useProjectStore.getState().setObjectsVisible(['obj1'], false);
 
     expect(mockedProject.setObjectsVisible).toHaveBeenCalledWith(['obj1'], false);
     expect(mockedProject.getProject).toHaveBeenCalled();
     expect(useProjectStore.getState().project?.objects[0].visible).toBe(false);
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['obj1']);
   });
 
   it('updateObjectBoundsBatch refetches committed path data and bounds on success', async () => {
@@ -783,16 +862,13 @@ describe('projectStore — new actions', () => {
     );
   });
 
-  it('resizeSlots refuses scale-locked projects before calling the service', async () => {
+  it('resizeSlots refuses scale-locked objects before calling the service', async () => {
     useProjectStore.setState({
       project: makeProject({
-        transform_locks: {
-          move_enabled: true,
-          size_enabled: false,
-          rotate_enabled: true,
-          shear_enabled: true,
-        },
-        objects: [makeProjectObject({ id: 'obj-1' })],
+        objects: [makeProjectObject({
+          id: 'obj-1',
+          transform_locks: makeTransformLocks({ size_enabled: false }),
+        })],
       }),
       selectedObjectIds: ['obj-1'],
     });
@@ -842,6 +918,19 @@ describe('projectStore — new actions', () => {
     ).resolves.toBe(false);
 
     expect(useProjectStore.getState().error).toBe('Rename failed');
+  });
+
+  it('updates display-only layer opacity without invalidating the toolpath preview', async () => {
+    const layer = useProjectStore.getState().project!.layers[0];
+    mockedProject.updateLayer.mockResolvedValue({ ...layer, fill_opacity: 0.4 });
+
+    await expect(
+      useProjectStore.getState().updateLayer(layer.id, { fill_opacity: 0.4 }),
+    ).resolves.toBe(true);
+
+    expect(useProjectStore.getState().project?.layers[0].fill_opacity).toBe(0.4);
+    expect(previewInvalidate).not.toHaveBeenCalled();
+    expect(undoRefresh).toHaveBeenCalledOnce();
   });
 
   it('loadAssetData caches blob URLs and revokes them when the project closes', async () => {
@@ -1275,7 +1364,7 @@ describe('projectStore — new actions', () => {
       expect.any(Object),
       expect.any(Object),
       expect.objectContaining({
-        name: 'C00 (Line)',
+        name: 'C00',
         operation: 'line',
       }),
     );
@@ -1503,6 +1592,18 @@ describe('projectStore — new actions', () => {
 
     expect(useProjectStore.getState().selectedLayerId).toBe('layer1');
     expect(useProjectStore.getState().selectedObjectIds).toEqual(['obj1']);
+  });
+
+  it('loadProject clears selections that became hidden with their layer', async () => {
+    const project = makeProject();
+    project.layers[0].visible = false;
+    useProjectStore.setState({ selectedLayerId: 'layer1', selectedObjectIds: ['obj1'] });
+    mockedProject.getProject.mockResolvedValue(project);
+
+    await useProjectStore.getState().loadProject();
+
+    expect(useProjectStore.getState().selectedLayerId).toBe('layer1');
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
   });
 
   it('loadProject can invalidate preview for mutation-driven reloads', async () => {
@@ -2446,6 +2547,36 @@ describe('projectStore — new actions', () => {
     expect(useProjectStore.getState().selectedLayerId).toBe('layer2');
   });
 
+  it('moveObjectsInOutliner reloads the atomic layer and stack change', async () => {
+    const before = makeProject();
+    const targetLayer = makeLayer({ id: 'layer2', name: 'L2', order_index: 1, color_tag: '#00ff00' });
+    before.layers.push(targetLayer);
+    const after = {
+      ...before,
+      objects: before.objects.map((object) => object.id === 'obj1'
+        ? { ...object, layer_id: 'layer2', z_index: 3 }
+        : object),
+    };
+    mockedProject.moveObjectsInOutliner.mockResolvedValue(undefined);
+    mockedProject.getProject.mockResolvedValue(after);
+    useProjectStore.setState({
+      project: before,
+      selectedLayerId: 'layer1',
+      selectedObjectIds: ['obj1'],
+    });
+
+    const moved = await useProjectStore.getState().moveObjectsInOutliner(
+      ['obj1'],
+      'layer2',
+      null,
+    );
+
+    expect(moved).toBe(true);
+    expect(mockedProject.moveObjectsInOutliner).toHaveBeenCalledWith(['obj1'], 'layer2', null);
+    expect(useProjectStore.getState().selectedLayerId).toBe('layer2');
+    expect(useProjectStore.getState().project?.objects[0].z_index).toBe(3);
+  });
+
   it('offsetShapes rethrows error after notification', async () => {
     mockedVector.offsetShapes.mockRejectedValue(new Error('offset failed'));
 
@@ -2706,12 +2837,14 @@ describe('projectStore — new actions', () => {
     expect(useNotificationStore.getState().notifications[0]?.message).toContain('Object is locked');
   });
 
-  it('copyAlongPath refuses scale-locked projects when scaling is enabled', async () => {
+  it('copyAlongPath refuses scale-locked objects when scaling is enabled', async () => {
     useProjectStore.setState({
       project: makeProject({
-        transform_locks: { move_enabled: true, size_enabled: false, rotate_enabled: true, shear_enabled: true },
         objects: [
-          ...makeProject().objects,
+          ...makeProject().objects.map((object) => ({
+            ...object,
+            transform_locks: makeTransformLocks({ size_enabled: false }),
+          })),
           makeProjectObject({
             id: 'guide-1',
             bounds: { min: { x: 0, y: 20 }, max: { x: 100, y: 25 } },

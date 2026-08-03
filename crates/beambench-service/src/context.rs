@@ -206,6 +206,8 @@ pub struct ServiceContext {
     pub trace_preview_source_cache: Mutex<TracePreviewSourceCache>,
     /// Latest frontend-owned trace preview request id used for cooperative cancellation.
     pub latest_trace_preview_request_id: AtomicU64,
+    /// Latest frontend-owned image-adjustment preview id used to discard obsolete work.
+    pub latest_adjust_preview_request_id: AtomicU64,
     /// Latest frontend-owned plan/preview request id used for cooperative cancellation.
     pub latest_planning_request_id: Arc<AtomicU64>,
     /// Serializes agent design transactions so two apply/dry-run requests cannot
@@ -263,6 +265,7 @@ impl ServiceContext {
             scaled_image_cache: Arc::new(beambench_raster::cache::ScaledImageCache::new(16)),
             trace_preview_source_cache: Mutex::new(TracePreviewSourceCache::default()),
             latest_trace_preview_request_id: AtomicU64::new(0),
+            latest_adjust_preview_request_id: AtomicU64::new(0),
             latest_planning_request_id: Arc::new(AtomicU64::new(0)),
             design_transaction_lock: Mutex::new(()),
             agent_selection: Mutex::new(None),
@@ -314,6 +317,7 @@ impl ServiceContext {
             scaled_image_cache: Arc::new(beambench_raster::cache::ScaledImageCache::new(16)),
             trace_preview_source_cache: Mutex::new(TracePreviewSourceCache::default()),
             latest_trace_preview_request_id: AtomicU64::new(0),
+            latest_adjust_preview_request_id: AtomicU64::new(0),
             latest_planning_request_id: Arc::new(AtomicU64::new(0)),
             design_transaction_lock: Mutex::new(()),
             agent_selection: Mutex::new(None),

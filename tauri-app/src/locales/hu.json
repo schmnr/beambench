@@ -62,7 +62,6 @@
       "export_selection": "Kiválasztás exportálása",
       "hide_notes": "Jegyzetek elrejtése",
       "import_preferences": "Importálási beállítások",
-      "new_window": "Új ablak",
       "open_preferences_folder": "Nyissa meg a Prefs mappát",
       "preferences_exported": "A beállítások exportálva.",
       "preferences_imported": "Beállítások importálva.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Visszaállítja a beállításokat az alapértelmezett értékekre? A gépprofilok, a legutóbbi fájlok, a mentett pozíciók, az API-beállítások és az exportálási útvonalak megmaradnak.",
       "save_background_capture": "Background Capture mentése",
       "save_processed_bitmap": "Mentse a feldolgozott bitképet",
-      "show_notes": "Jegyzetek megjelenítése"
+      "show_notes": "Jegyzetek megjelenítése",
+      "project_notes": "Projektjegyzetek...",
+      "print": "Nyomtatás...",
+      "export_processed_image": "Feldolgozott kép exportálása..."
     },
     "edit": {
       "label": "Szerkesztés",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Automatikus csatlakozás a kiválasztott alakzatokhoz",
       "close_and_join": "Bezárás és csatlakozás",
       "convert_to_bitmap": "Konvertálás bittérképre",
+      "extract_selected_nodes_to_path": "Kijelölt csomópontok kibontása új útvonalba",
       "duplicate": "Megkettőzés",
       "image_options": "Képbeállítások",
       "invert_selection": "Kijelölés megfordítása",
@@ -241,12 +244,12 @@
       "shape_properties": "Alakzat tulajdonságai",
       "text_options": "Szöveg opciók",
       "toggle_side_panels": "Oldalpanelek váltása",
-      "toggle_wireframe_filled": "Váltás Drótváz / Kitöltött",
-      "view_style": "Megtekintési stílus:",
-      "view_style_filled_coarse": "Töltött / Durva",
-      "view_style_filled_smooth": "Töltött / Sima",
-      "view_style_wireframe_coarse": "Drótváz / Durva",
-      "view_style_wireframe_smooth": "Drótváz / Sima",
+      "toggle_wireframe_filled": "Művelet / drótváz váltása",
+      "view_style": "Grafika megjelenítése:",
+      "view_style_filled_coarse": "Kitöltés felülbírálása",
+      "view_style_filled_smooth": "Sima élek",
+      "view_style_wireframe_coarse": "Rétegművelet szerint",
+      "view_style_wireframe_smooth": "Drótváz felülbírálása",
       "zoom_to_page": "Nagyítás az oldalra"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Görgő",
       "scroll_zoom": "Nagyítás",
       "scroll_pan": "Mozgatás",
-      "allow_import_tool_layers": "Importálás engedélyezése szerszámrétegekre",
-      "include_tool_layers_job_bounds": "Szerszámrétegek belevétele a munka határaiba"
+      "allow_import_tool_layers": "Importálás engedélyezése szerszámrétegekre"
     },
     "about": {
       "tagline": "Makereknek, maker módra.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "A vonalkód párbeszédpanel bezárult, mert a célréteg már nem érhető el."
     },
     "adjust_image": {
+      "invert_display_help": "Csak előnézet. A mentett kép és a lézerkimenet nem változik.",
+      "invert_adjustment_help": "Az invertálás ezzel a képpel együtt mentődik, és a réteg raszterfeldolgozása előtt fut le.",
+      "negative_image_help": "A Negatív kép megfordítja a réteg kimenetét. Ha a fenti Invertálás is be van kapcsolva, a két invertálás kiolthatja egymást.",
       "title": "Kép beállítása",
       "drag_to_move": "Húzza a mozgatáshoz",
       "original": "Eredeti",
@@ -701,6 +706,7 @@
       "include_project_file": "Tartalmazza a projektfájlt",
       "include_project_file_help": "Alapértelmezés szerint ki. Ez elküldi a tényleges .lzrproj geometriai és raszteres adatokat.",
       "job_compatibility_help": "Még semmi sem lett elküldve. A jelentés tartalmazza a Beam Bench verzióját, az operációs rendszert, a vezérlőcsaládot, a gép nem azonosító jellegű beállításait és a befejezett feladat összesített adatait. Nem tartalmaz terveket, G-code-ot, fájlneveket, soros kommunikációt, naplókat, eszközútvonalakat, profilazonosítókat vagy projektfájlokat.",
+      "privacy_policy": "Adatvédelmi szabályzat megtekintése",
       "what_gets_sent": "Mit küldenek",
       "loading": "Betöltés...",
       "submitting_report": "Jelentés elküldése a Beam Benchnek...",
@@ -784,6 +790,7 @@
       "pan_hint": "Húzással jelölje ki a vektorizálandó területet. Tartsa lenyomva a szóközt, és húzással mozgassa a nézetet."
     },
     "preview": {
+      "options_help": "Az Útvonal a kikapcsolt lézerrel végzett mozgást jelzi. Az Előrehaladás az elkészült égetést mutatja. Az Overscan a grafikán túli rasztergyorsítást mutatja. A Teljesítmény szerinti árnyalás és az Invertálás csak ezt a nézetet érinti.",
       "title": "Előnézet ablak",
       "stale_refresh_required": "Elavult – frissítés szükséges",
       "stale": "Állott",
@@ -1105,10 +1112,27 @@
       "title": "Nem mentett módosítások",
       "message": "A projekt nem mentett módosításokat tartalmaz. Menti őket a folytatás előtt?",
       "discard": "Ne mentse"
+    },
+    "print": {
+      "title": "Nyomtatás",
+      "output": "Nyomtatási kimenet",
+      "description": "Válassza ki, hogyan jelenjen meg a projekt, majd folytassa a rendszernyomtatási párbeszédpanelen.",
+      "color": "Szín",
+      "black": "Fekete",
+      "layer_colors": "Rétegszínek",
+      "appearance": "Grafika megjelenése",
+      "by_operation": "Rétegművelet szerint",
+      "outlines": "Csak körvonalak",
+      "print": "Nyomtatás...",
+      "preparing": "Előkészítés..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Tervezés",
+      "mode_run": "Futtatás",
+      "mode_design_hint": "Tervezés: rajzolja és rendezze el a projektet",
+      "mode_run_hint": "Futtatás: küldje a munkát a lézerre",
       "new": "Új",
       "untitled_project": "Cím nélküli projekt",
       "open": "Nyissa meg",
@@ -1193,13 +1217,16 @@
       "close_path": "Útvonal bezárása",
       "auto_join_paths": "Útvonalak automatikus csatlakozása",
       "insert_midpoint": "Középpont beszúrása (M)",
-      "align_to_angle": "Igazítás a szöghez (A)"
+      "align_to_angle": "Igazítás a szöghez (A)",
+      "extend_to_intersection": "Meghosszabbítás a metszésig (E)"
     },
     "transform_toggles": {
       "move": "Mozgás",
       "size": "Méret",
       "rotate": "Forgatás",
-      "shear": "Nyírás"
+      "shear": "Nyírás",
+      "lock_all": "Minden átalakítás zárolása",
+      "unlock_all": "Minden átalakítás feloldása"
     },
     "properties": {
       "position_x": "X poz.",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Nincs projekt",
-      "nothing_selected": "Nincs kijelölve semmi"
+      "nothing_selected": "Válasszon ki egy objektumot a tulajdonságai szerkesztéséhez"
+    },
+    "library": {
+      "title": "Könyvtár"
     },
     "floating": {
       "dock_tooltip": "Panel dokkolása",
       "close_tooltip": "Panel bezárása",
       "float_tooltip": "Panel leválasztása"
     },
+    "outliner": {
+      "help": "Húzással átrendezheti vagy mozgathatja. Dupla kattintással átnevezheti. A rejtett objektumok itt maradnak, hogy visszaállíthassa őket.",
+      "summary": "{layers} réteg · {objects} objektum",
+      "empty_layer": "Nincsenek tárgyak",
+      "expand_layer": "Réteg kibontása",
+      "collapse_layer": "Réteg összecsukása",
+      "expand_group": "Csoport bővítése",
+      "collapse_group": "Csoport összecsukása",
+      "show_layer": "Réteg megjelenítése",
+      "hide_layer": "Réteg elrejtése",
+      "show_object": "Objektum megjelenítése",
+      "hide_object": "Objektum elrejtése",
+      "lock_object": "Objektum zárolása",
+      "unlock_object": "Oldja fel az objektumot"
+    },
     "registry": {
-      "cuts_layers": "Vágások / Rétegek",
+      "outliner": "Körvonalazó",
+      "cuts_layers": "Rétegek",
       "move": "Mozgatás",
       "console": "Konzol",
       "macros": "Makrók",
-      "properties": "Alakzat tulajdonságai",
+      "properties": "Tulajdonságok",
       "measurement": "Mérés",
       "laser": "Laser Control",
       "material": "Anyagkönyvtár",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Egy alréteg"
     },
     "properties": {
+      "transform": "Átalakítás",
+      "visibility_help": "A rejtett objektumok kimaradnak a feladatból. Az Outlinerben állíthatja vissza őket.",
+      "power_scale_help": "Megszorozza az objektum rétegének teljesítményét a réteg módosítása nélkül.",
+      "cut_priority_help": "Az alacsonyabb értékek futnak előbb, ha a prioritásoptimalizálás engedélyezve van.",
       "objects_selected": "{count} objektum kijelölve",
       "layer": "Réteg",
       "mixed": "Vegyes",
@@ -1421,7 +1471,7 @@
       "union": "Unió",
       "subtract": "Kivonás",
       "intersection": "Metszet",
-      "nothing_selected": "Nincs kijelölés",
+      "nothing_selected": "Válasszon ki egy objektumot a tulajdonságai szerkesztéséhez",
       "name": "Név",
       "power_scale_percent": "Teljesítményskála %",
       "cut_priority": "Vágási prioritás",
@@ -1484,15 +1534,63 @@
       "h_space": "H-köz",
       "v_space": "V-köz",
       "path_offset": "Útvonaleltolás",
+      "baseline_offset": "Alapvonal eltolása",
+      "direction_normal": "Normál",
+      "direction_reverse": "Fordított",
+      "strength": "Erősség",
+      "arc_span": "Ív kiterjedése",
+      "circle_position": "Körpozíció",
+      "circle_side": "Kör oldala",
+      "circle_top": "Fent",
+      "circle_bottom": "Lent",
+      "circle_outside": "Kívül",
+      "circle_inside": "Belül",
       "bend_radius": "Hajlítási sugár",
       "align_left": "Bal",
       "align_center": "Közép",
       "align_right": "Jobb",
       "align_top": "Fent",
       "align_middle": "Közép",
-      "align_bottom": "Lent"
+      "align_bottom": "Lent",
+      "tool_title": "Szöveg eszköz",
+      "creation_hint": "Válassza a Mutasd lehetőséget a kattintáshoz és gépeléshez, vagy a Box lehetőséget a burkolási terület húzásához.",
+      "edit_text": "Szöveg szerkesztése",
+      "edit_on_canvas": "Szerkesztés vászonra",
+      "search_fonts": "Keresés a betűtípusok között",
+      "recent_fonts": "Legutóbbi",
+      "favorite_fonts": "Kedvencek",
+      "all_fonts": "Minden betűtípus",
+      "no_fonts_found": "Nem található betűtípus",
+      "favorite_font": "Kedvenc betűtípus",
+      "unfavorite_font": "Kedvenc eltávolítása",
+      "style": "Stílus",
+      "style_regular": "Rendszeres",
+      "style_bold_italic": "Félkövér dőlt",
+      "typography": "Tipográfia",
+      "alignment_spacing": "Igazítás és térköz",
+      "text_box": "Szöveg típusa",
+      "width_mode": "mód",
+      "auto_width": "Pont",
+      "fixed_width": "Doboz",
+      "width": "Doboz szélessége",
+      "squeeze_to_fit": "Nyomja össze, hogy illeszkedjen",
+      "advanced_shape": "Speciális szövegforma",
+      "transform": "Boríték",
+      "transform_none": "Egyik sem",
+      "transform_arch": "Arch",
+      "transform_rise": "Emelkedj fel",
+      "transform_wave": "Hullám",
+      "transform_flag": "Flag",
+      "transform_angle": "Szög",
+      "transform_circle": "Kör",
+      "curve": "Görbe",
+      "laser_output": "Lézer kimenet",
+      "convert_hint": "A Convert to Path funkció a betűket szerkeszthető vágott geometriába rögzíti.",
+      "tracking": "Követés",
+      "line_spacing": "Sorköz"
     },
     "sub_layer_stack": {
+      "title": "Alrétegek",
       "operation_tool": "Eszköz",
       "operation_image": "Kép",
       "operation_fill": "Kitöltés",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Eltolás kifelé",
       "max_sub_layers_title": "Elérte a 11 alréteges maximumot",
       "add_sub_layer_title": "Alréteg hozzáadása",
-      "add_sub_layer": "+ Alréteg hozzáadása"
+      "add_sub_layer": "+ Alréteg hozzáadása",
+      "order_hint": "Az alrétegek sorrendben futnak, fentről lefelé."
     },
     "cut_settings": {
       "title": "Vágási beállítások",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "A segédrétegek vezetőként szolgálnak, és soha nem adnak lézerkimenetet.",
+      "output_show_help": "A Kimenet beilleszti ezt a réteget a lézerfeladatba. A Mutat csak a vászon nézetét módosítja.",
+      "opacity_help": "Csak vászonelőnézet. Ez nem módosítja a lézerteljesítményt vagy a képfeldolgozást.",
+      "delete_layer": "Réteg törlése",
+      "add_layer": "Réteg hozzáadása",
       "header": {
         "index": "#",
         "layer": "Réteg",
@@ -1587,8 +1691,6 @@
         "multi": "Több"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Szerszámrétegek bevonása a munka határaiba",
-      "exclude_tool_layers_from_job_bounds": "Szerszámrétegek kizárása a munka határaiból",
       "frame": "Keret",
       "move_up": "Mozgatás fel",
       "move_down": "Mozgatás le",
@@ -1635,7 +1737,8 @@
         "on_ms": "Be (ms)",
         "off_ms": "Ki (ms)",
         "kerf_mm": "Kerf eltolás"
-      }
+      },
+      "settings_copied": "Rétegbeállítások másolva"
     },
     "move": {
       "step_mm": "Lépés",
@@ -2168,9 +2271,40 @@
       "end": "Vég",
       "midpoint": "Felezőpont",
       "difference": "Különbség",
-      "angle": "Szög"
+      "angle": "Szög",
+      "mode_linear": "Lineáris",
+      "mode_angle": "Szög",
+      "mode_radius": "Sugár",
+      "mode_gap": "Gap",
+      "minimum_gap": "Minimális rés",
+      "horizontal": "Vízszintes",
+      "vertical": "Függőleges",
+      "horizontal_gap": "Vízszintes rés",
+      "vertical_gap": "Függőleges rés",
+      "first_segment": "Első szegmens",
+      "second_segment": "Második szegmens",
+      "radius": "Sugár",
+      "diameter": "Átmérő",
+      "radius_x": "X sugár",
+      "radius_y": "Sugár Y",
+      "diameter_x": "Átmérő X",
+      "diameter_y": "Átmérő Y",
+      "linear_second_hint": "Kattintson a második pontra",
+      "angle_second_hint": "Kattintson egy második szegmensre",
+      "gap_second_hint": "Kattintson a második objektumra",
+      "angle_hint": "Kattintson két szegmensre a szögük méréséhez",
+      "radius_hint": "Kattintson egy körre vagy ellipszisre",
+      "gap_hint": "Kattintson két objektumra a legközelebbi távolság megméréséhez",
+      "linear_hint": "Kattintás-húzás, vagy kattintson két pontra",
+      "title": "Mérje meg",
+      "modes": "Mérési módok",
+      "copy_value": "Másolja az értéket",
+      "copied": "Másolva",
+      "clear_measurement": "Tiszta mérés",
+      "keyboard_hint": "A Shift korlátozza a szögeket. A Escape törli, majd visszatér a Kiválasztáshoz."
     },
     "art_library": {
+      "drag_help": "Húzza a grafikát a vászonra. A × gombbal törölheti a könyvtárból.",
       "no_libraries": "Nincsenek betöltött könyvtárak.",
       "search": "Keresés...",
       "icon_size": "Ikonméret:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench grafikakönyvtár",
       "filter_artwork": "Grafika"
     }
+  },
+  "warp_tool": {
+    "title": "Warp",
+    "four_points": "4 pont",
+    "sixteen_points": "16 pont"
   },
   "context_menu": {
     "windows": "Ablakok",

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackReportDialog } from '../FeedbackReportDialog';
 import { feedbackService } from '../../../services/feedbackService';
+import { appService } from '../../../services/appService';
 import type { DiagnosticBundleV1 } from '../../../types/feedback';
 
 vi.mock('../../../services/feedbackService', () => ({
@@ -11,6 +12,12 @@ vi.mock('../../../services/feedbackService', () => ({
     submitReport: vi.fn(),
     revealReport: vi.fn(),
     getConnectionDiagnostics: vi.fn(),
+  },
+}));
+
+vi.mock('../../../services/appService', () => ({
+  appService: {
+    openExternalUrl: vi.fn(),
   },
 }));
 
@@ -66,6 +73,7 @@ const sampleBundle: DiagnosticBundleV1 = {
 };
 
 beforeEach(() => {
+  vi.mocked(appService.openExternalUrl).mockResolvedValue(undefined);
   vi.mocked(feedbackService.previewReport).mockResolvedValue(sampleBundle);
   vi.mocked(feedbackService.saveReport).mockResolvedValue({
     path: '/tmp/beambench-report-bug.json',
@@ -210,6 +218,11 @@ describe('FeedbackReportDialog', () => {
     expect(screen.getByText('Share Job Compatibility Result')).toBeDefined();
     expect(screen.getByText(/Nothing has been sent yet/)).toBeDefined();
     expect(screen.queryByLabelText('Include project file')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Read the privacy policy' }));
+    expect(appService.openExternalUrl).toHaveBeenCalledWith(
+      'https://beambench.com/privacy#post-job-feedback',
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Send to Beam Bench' }));
     await waitFor(() => expect(feedbackService.submitReport).toHaveBeenCalledWith(

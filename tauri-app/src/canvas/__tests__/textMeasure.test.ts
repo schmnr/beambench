@@ -109,9 +109,12 @@ describe('getCaretIndexFromClick', () => {
     expect(getCaretIndexFromClick({ x: 50, y: 10 }, obj, defaultVp)).toBeNull();
   });
 
-  it('returns null for text with max_width > 0', () => {
+  it('places a caret in wrapped text with max_width > 0', () => {
     const obj = makeTextObj({ max_width: 50 });
-    expect(getCaretIndexFromClick({ x: 50, y: 10 }, obj, defaultVp)).toBeNull();
+    const result = getCaretIndexFromClick({ x: 50, y: 10 }, obj, defaultVp);
+    expect(result).not.toBeNull();
+    expect(result).toBeGreaterThanOrEqual(0);
+    expect(result).toBeLessThanOrEqual(5);
   });
 
   it('returns 0 when clicking before first character', () => {

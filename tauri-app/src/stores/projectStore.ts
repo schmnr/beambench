@@ -54,14 +54,20 @@ import {
 } from './layerFamilyResolver';
 import { objectContentKind } from '../commands/selectionContext';
 import { buildRulerGuideGeometry, normalizeProjectRulerGuides } from '../utils/rulerGuides';
-import { expandArrangementSelectionMembers, expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers, resolveArrangementAnchorId } from '../utils/arrangementSelection';
+import { expandArrangementSelectionMembers, expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers, resolveArrangementAnchorId, topLevelArrangementObjectId } from '../utils/arrangementSelection';
 import { findAutoGroupCandidates } from '../utils/autoGroupCandidates';
-import { isTransformLocked, notifyObjectLocked, notifyTransformLocked } from '../utils/transformLocks';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyObjectLocked,
+  notifyTransformLocked,
+} from '../utils/transformLocks';
 import { parsePathData, computePathBBox, mapPathCoordToBounds } from '../canvas/drawObjects';
 import { applyAroundCenter, getCombinedBounds, resolveCloneForGeometry } from '../canvas/alignment';
 
 const invalidatePreview = () => usePreviewStore.getState().invalidate();
 const notifyError = (msg: string) => useNotificationStore.getState().push(wrapBackendError(msg), 'error');
+const projectCreationBlocked = () => useUiStore.getState().workspaceMode === 'run';
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 const TOOL1_COLOR = PALETTE_COLORS.find((entry) => entry.name === 'Tool 1')?.hex ?? '#DA0B3F';
 
@@ -115,6 +121,7 @@ function decorateLayer(layer: Layer): Layer {
   const entries = layer.entries ?? [];
   return {
     ...layer,
+    fill_opacity: Math.min(1, Math.max(0, layer.fill_opacity ?? 1)),
     entries: entries.length > 0 ? entries : [primaryEntryOf(layer)],
   };
 }
@@ -181,15 +188,16 @@ function canArrangeObjects(project: Project, objectIds: string[]): boolean {
     notifyObjectLocked();
     return false;
   }
-  if (isTransformLocked(project.transform_locks, 'position')) {
+  if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'position')) {
     notifyTransformLocked('position');
     return false;
   }
   return true;
 }
 
-function canPositionObjects(project: Project): boolean {
-  if (isTransformLocked(project.transform_locks, 'position')) {
+function canPositionObjects(project: Project, objectIds: string[]): boolean {
+  const selectedObjects = project.objects.filter((object) => objectIds.includes(object.id));
+  if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'position')) {
     notifyTransformLocked('position');
     return false;
   }
@@ -202,7 +210,7 @@ function canScaleObjects(project: Project, objectIds: string[]): boolean {
     notifyObjectLocked();
     return false;
   }
-  if (isTransformLocked(project.transform_locks, 'scale')) {
+  if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'scale')) {
     notifyTransformLocked('scale');
     return false;
   }
@@ -221,11 +229,12 @@ function canCopyAlongPathObjects(
     notifyObjectLocked();
     return false;
   }
-  if (isTransformLocked(project.transform_locks, 'position')) {
+  const locks = effectiveTransformLocks(involvedObjects);
+  if (isTransformLocked(locks, 'position')) {
     notifyTransformLocked('position');
     return false;
   }
-  if (scaleCopies && isTransformLocked(project.transform_locks, 'scale')) {
+  if (scaleCopies && isTransformLocked(locks, 'scale')) {
     notifyTransformLocked('scale');
     return false;
   }
@@ -419,17 +428,29 @@ interface ProjectStoreState {
       transform?: Transform2D;
       bounds?: Bounds;
       lock_aspect_ratio?: boolean;
+      transform_locks?: TransformLocks;
       power_scale?: number;
       priority?: number;
     },
   ) => Promise<boolean>;
+  updateObjectTransformState: (
+    objectIds: string[],
+    updates: {
+      transformLocks?: TransformLocks;
+      transformLockKey?: keyof TransformLocks;
+      transformEnabled?: boolean;
+      lockAspectRatio?: boolean;
+    },
+  ) => Promise<boolean>;
   updateObjectData: (objectId: string, data: ObjectData) => Promise<boolean>;
+  resizeTextArea: (objectId: string, bounds: Bounds) => Promise<boolean>;
   resizeShapeObject: (objectId: string, bounds: Bounds) => Promise<boolean>;
   removeObject: (objectId: string) => Promise<void>;
   removeObjects: (objectIds: string[]) => Promise<boolean>;
   nudgeObjects: (objectIds: string[], dx: number, dy: number) => Promise<void>;
   selectObjects: (objectIds: string[]) => void;
   selectAllObjects: () => void;
+  invertObjectSelection: () => void;
   toggleObjectSelection: (objectId: string) => void;
   duplicateObject: (objectId: string) => Promise<void>;
   duplicateObjectInPlace: (objectId: string) => Promise<void>;
@@ -506,6 +527,11 @@ interface ProjectStoreState {
   moveObjectsTogether: (axis: MoveTogetherAxis) => Promise<void>;
   dockObjects: (objectIds: string[], direction: DockDirection, options: DockOptions) => Promise<boolean>;
   reassignLayer: (objectIds: string[], layerId: string) => Promise<boolean>;
+  moveObjectsInOutliner: (
+    objectIds: string[],
+    targetLayerId: string,
+    beforeObjectId: string | null,
+  ) => Promise<boolean>;
   countDuplicates: (objectIds: string[]) => Promise<number>;
   deleteDuplicates: (objectIds: string[]) => Promise<void>;
   autoJoinShapes: (objectIds: string[], toleranceMm: number) => Promise<void>;
@@ -531,6 +557,10 @@ interface ProjectStoreState {
   // Boolean / vector ops
   booleanIntersection: (objectIdA: string, objectIdB: string) => Promise<void>;
   booleanWeld: (objectIds: string[]) => Promise<void>;
+  booleanUnionMany: (objectIds: string[]) => Promise<void>;
+  booleanIntersectionMany: (objectIds: string[]) => Promise<void>;
+  booleanExcludeMany: (objectIds: string[]) => Promise<void>;
+  booleanSubtractMany: (objectIds: string[]) => Promise<void>;
   cutShapes: (objectIds: string[]) => Promise<void>;
   closeAndJoin: (
     objectIds: string[],
@@ -589,6 +619,7 @@ interface ProjectStoreState {
   addTabs: (objectId: string, count: number, widthMm: number) => Promise<void>;
   placeTab: (objectId: string, worldX: number, worldY: number) => Promise<void>;
   removeTab: (objectId: string, worldX: number, worldY: number) => Promise<void>;
+  clearTabs: (objectId: string) => Promise<void>;
   applyRadius: (objectId: string, radiusMm: number) => Promise<void>;
   applyCornerRadius: (
     objectId: string,
@@ -682,6 +713,27 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       usePreviewStore.getState().clearPreview();
       // M4: clipboard is project-scoped; clear on project switch.
       useUiStore.getState().setLayerSettingsClipboard(null);
+      // New projects start with one ready-to-use layer so the layer tab
+      // strip is never empty.
+      const fresh = get().project;
+      if (fresh && fresh.layers.length === 0) {
+        const firstColor = PALETTE_COLORS.find((c) => !c.is_tool_layer);
+        if (firstColor) {
+          const out = resolveDestinationLayer({
+            project: fresh,
+            requestedLayerId: null,
+            pendingColor: firstColor.hex,
+            selectedLayerId: null,
+            contentKind: 'non_raster',
+          });
+          if (out.kind === 'needs_create') {
+            await get().addLayer(out.suggestedName, out.operation);
+            const layers = get().project?.layers ?? [];
+            const created = layers[layers.length - 1];
+            if (created) await get().updateLayer(created.id, { color_tag: out.colorTag });
+          }
+        }
+      }
     } catch (e) {
       const msg = String(e);
       set({ error: msg, loading: false });
@@ -737,7 +789,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         pendingPaletteColor: null,
         selectedLayerId: resolveSelectedLayerId(project, previousSelectedLayerId),
         selectedObjectIds: project
-          ? previousSelectedObjectIds.filter((id) => project.objects.some((obj) => obj.id === id))
+          ? normalizeSelectionMembers(project, previousSelectedObjectIds)
           : [],
       });
       if (options?.invalidatePreview) {
@@ -775,6 +827,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   addLayer: async (name, operation) => {
+    if (projectCreationBlocked()) return;
     try {
       const layer = decorateLayer(await projectService.addLayer(name, operation));
       const { project } = get();
@@ -804,20 +857,28 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         ...(updates.enabled !== undefined ? { enabled: updates.enabled } : {}),
         ...(updates.visible !== undefined ? { visible: updates.visible } : {}),
         ...(updates.color_tag !== undefined ? { color_tag: updates.color_tag } : {}),
+        ...(updates.fill_opacity !== undefined ? { fill_opacity: updates.fill_opacity } : {}),
       });
       if (JSON.stringify(candidate) === JSON.stringify(layer)) {
         return false;
       }
       const updatedLayer = decorateLayer(await projectService.updateLayer(layerId, updates));
       if (project) {
+        const nextProject = {
+          ...project,
+          layers: project.layers.map((l) => (l.id === layerId ? updatedLayer! : l)),
+          dirty: true,
+        };
         set({
-          project: {
-              ...project,
-              layers: project.layers.map((l) => (l.id === layerId ? updatedLayer! : l)),
-              dirty: true,
-          },
+          project: nextProject,
+          selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
         });
-        invalidatePreview();
+        const displayOnlyUpdate = updates.fill_opacity !== undefined
+          && updates.name === undefined
+          && updates.enabled === undefined
+          && updates.visible === undefined
+          && updates.color_tag === undefined;
+        if (!displayOnlyUpdate) invalidatePreview();
         await refreshUndo();
       }
       return true;
@@ -986,7 +1047,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const layers = await projectService.reorderLayer(layerId, newIndex);
       const { project } = get();
       if (project) {
-        set({ project: { ...project, layers: layers.map(decorateLayer), dirty: true } });
+        const nextProject = { ...project, layers: layers.map(decorateLayer), dirty: true };
+        set({
+          project: nextProject,
+          selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
+        });
         invalidatePreview();
         await refreshUndo();
       }
@@ -1096,7 +1161,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const layers = await projectService.setAllLayersVisible(mode);
       const { project } = get();
       if (project) {
-        set({ project: { ...project, layers: layers.map(decorateLayer), dirty: true } });
+        const nextProject = { ...project, layers: layers.map(decorateLayer), dirty: true };
+        set({
+          project: nextProject,
+          selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
+        });
         invalidatePreview();
         await refreshUndo();
       }
@@ -1124,6 +1193,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   addObject: async (name, layerId, objectData, bounds) => {
+    if (projectCreationBlocked()) return null;
     try {
       // Classify the new object's content type so the layer-family
       // resolver can route it to the correct sibling (image vs
@@ -1381,6 +1451,30 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     }
   },
 
+  updateObjectTransformState: async (objectIds, updates) => {
+    try {
+      const updated = await projectService.updateObjectTransformState(objectIds, updates);
+      const updatedById = new Map(updated.map((object) => [object.id, object]));
+      const { project } = get();
+      if (project) {
+        set({
+          project: {
+            ...project,
+            objects: project.objects.map((object) => updatedById.get(object.id) ?? object),
+            dirty: true,
+          },
+        });
+        await refreshUndo();
+      }
+      return true;
+    } catch (e) {
+      const msg = String(e);
+      set({ error: msg });
+      notifyError(msg);
+      return false;
+    }
+  },
+
   updateObjectData: async (objectId, data) => {
     try {
       const updated = await projectService.updateObjectData(objectId, data);
@@ -1401,6 +1495,30 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
+      return false;
+    }
+  },
+
+  resizeTextArea: async (objectId, bounds) => {
+    try {
+      const updated = await projectService.resizeTextArea(objectId, bounds);
+      const { project } = get();
+      if (project) {
+        set({
+          project: {
+            ...project,
+            objects: project.objects.map((object) => object.id === objectId ? updated : object),
+            dirty: true,
+          },
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+      return true;
+    } catch (error) {
+      const message = String(error);
+      set({ error: message });
+      notifyError(message);
       return false;
     }
   },
@@ -1561,13 +1679,25 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const { project } = get();
     if (project) {
       const objectIds = orderBatchForDrawOrderAnchor(
-        normalizeArrangementSelection(project, project.objects.map((o) => o.id)),
+        normalizeSelectionMembers(project, project.objects.map((o) => o.id)),
         project.objects,
       );
       set((state) => ({
         selectedObjectIds: mergeSelectionAddOrder(state.selectedObjectIds, objectIds),
       }));
     }
+  },
+
+  invertObjectSelection: () => {
+    const { project, selectedObjectIds } = get();
+    if (!project) return;
+
+    const selected = new Set(selectedObjectIds);
+    const selectableIds = orderBatchForDrawOrderAnchor(
+      normalizeSelectionMembers(project, project.objects.map((object) => object.id)),
+      project.objects,
+    );
+    set({ selectedObjectIds: selectableIds.filter((id) => !selected.has(id)) });
   },
 
   toggleObjectSelection: (objectId) => {
@@ -1681,7 +1811,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       if (objectIds.length < 2) return;
       const currentProject = get().project;
-      if (!currentProject || !canPositionObjects(currentProject)) return;
+      if (!currentProject || !canPositionObjects(currentProject, objectIds)) return;
       const normalizedIds = normalizeArrangementSelection(currentProject, objectIds);
       if (normalizedIds.length < 2) return;
       const resolvedAnchor = anchorObjectId ?? resolveArrangementAnchorId(currentProject, objectIds);
@@ -1711,7 +1841,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       if (objectIds.length < 3) return;
       const currentProject = get().project;
-      if (!currentProject || !canPositionObjects(currentProject)) return;
+      if (!currentProject || !canPositionObjects(currentProject, objectIds)) return;
       const normalizedIds = normalizeArrangementSelection(currentProject, objectIds);
       if (normalizedIds.length < 3) return;
       const updatedObjects = await projectService.distributeObjects(normalizedIds, direction);
@@ -2360,7 +2490,21 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       await projectService.setObjectsVisible(objectIds, visible);
       const project = await projectService.getProject();
-      if (project) set({ project: { ...project, dirty: true } });
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        const previousSelection = get().selectedObjectIds;
+        set({
+          project: nextProject,
+          // Keep objects selected when the Properties eye hides them so that
+          // the same control remains available to show them again. Hidden
+          // objects are still excluded from canvas hit-testing and selection
+          // rendering; choosing anything else naturally replaces this
+          // contextual selection.
+          selectedObjectIds: visible
+            ? normalizeSelectionMembers(nextProject, previousSelection)
+            : previousSelection.filter((id) => nextProject.objects.some((object) => object.id === id)),
+        });
+      }
       invalidatePreview();
       await refreshUndo();
     } catch (e) {
@@ -2540,7 +2684,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const current = get();
     const project = current.project;
     if (!project) return;
-    if (!canPositionObjects(project)) return;
+    if (!canPositionObjects(project, current.selectedObjectIds)) return;
     const normalizedIds = normalizeArrangementSelection(project, current.selectedObjectIds);
     if (normalizedIds.length < 2) return;
     const anchorObjectId = resolveArrangementAnchorId(project, current.selectedObjectIds) ?? normalizedIds[normalizedIds.length - 1];
@@ -2609,6 +2753,32 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     }
   },
 
+  moveObjectsInOutliner: async (objectIds, targetLayerId, beforeObjectId) => {
+    const current = get();
+    if (!current.project || objectIds.length === 0) return false;
+    const rootIds = [...new Set(objectIds
+      .filter((objectId) => current.project?.objects.some((object) => object.id === objectId))
+      .map((objectId) => topLevelArrangementObjectId(current.project!, objectId)))];
+    if (rootIds.length === 0) return false;
+    try {
+      await projectService.moveObjectsInOutliner(rootIds, targetLayerId, beforeObjectId);
+      const project = await projectService.getProject();
+      if (project) {
+        set({
+          project: decorateProject({ ...project, dirty: true })!,
+          selectedLayerId: targetLayerId,
+          selectedObjectIds: rootIds,
+        });
+      }
+      invalidatePreview();
+      await refreshUndo();
+      return true;
+    } catch (error) {
+      notifyError(String(error));
+      return false;
+    }
+  },
+
   countDuplicates: async (objectIds) => {
     try {
       return await projectService.countDuplicates(objectIds);
@@ -2665,7 +2835,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           project,
           selectedObjectIds: mergeSelectionAddOrder(
             state.selectedObjectIds,
-            orderBatchForDrawOrderAnchor(ids, project.objects),
+            orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects),
           ),
         }));
       }
@@ -2683,7 +2853,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           project,
           selectedObjectIds: mergeSelectionAddOrder(
             state.selectedObjectIds,
-            orderBatchForDrawOrderAnchor(ids, project.objects),
+            orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects),
           ),
         }));
       }
@@ -2698,7 +2868,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       if (!layerId) return;
       const ids = await projectService.selectAllInLayer(layerId);
       const project = get().project;
-      const orderedIds = project ? orderBatchForDrawOrderAnchor(ids, project.objects) : ids;
+      const orderedIds = project
+        ? orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects)
+        : ids;
       set((state) => ({
         selectedObjectIds: mergeSelectionAddOrder(state.selectedObjectIds, orderedIds),
       }));
@@ -2713,7 +2885,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       if (selectedIds.length !== 1) return;
       const ids = await projectService.selectContainedShapes(selectedIds[0]);
       const project = get().project;
-      const orderedIds = project ? orderBatchForDrawOrderAnchor(ids, project.objects) : ids;
+      const orderedIds = project
+        ? orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects)
+        : ids;
       set((state) => ({
         selectedObjectIds: mergeSelectionAddOrder(state.selectedObjectIds, orderedIds),
       }));
@@ -2733,7 +2907,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           project,
           selectedObjectIds: mergeSelectionAddOrder(
             state.selectedObjectIds,
-            orderBatchForDrawOrderAnchor(ids, project.objects),
+            orderBatchForDrawOrderAnchor(normalizeSelectionMembers(project, ids), project.objects),
           ),
         }));
       }
@@ -2923,6 +3097,98 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
             [newObj.id],
             newObj.layer_id,
           ),
+          selectedObjectIds: [newObj.id],
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    } finally {
+      set({ booleanPending: false });
+    }
+  },
+
+  booleanUnionMany: async (objectIds) => {
+    if (get().booleanPending) return;
+    set({ booleanPending: true });
+    try {
+      const newObj = await vectorService.booleanUnionMany(objectIds);
+      const project = await projectService.getProject();
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedLayerId: resolveSelectedLayerForObjects(nextProject, [newObj.id], newObj.layer_id),
+          selectedObjectIds: [newObj.id],
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    } finally {
+      set({ booleanPending: false });
+    }
+  },
+
+  booleanIntersectionMany: async (objectIds) => {
+    if (get().booleanPending) return;
+    set({ booleanPending: true });
+    try {
+      const newObj = await vectorService.booleanIntersectionMany(objectIds);
+      const project = await projectService.getProject();
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedLayerId: resolveSelectedLayerForObjects(nextProject, [newObj.id], newObj.layer_id),
+          selectedObjectIds: [newObj.id],
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    } finally {
+      set({ booleanPending: false });
+    }
+  },
+
+  booleanExcludeMany: async (objectIds) => {
+    if (get().booleanPending) return;
+    set({ booleanPending: true });
+    try {
+      const newObj = await vectorService.booleanExcludeMany(objectIds);
+      const project = await projectService.getProject();
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedLayerId: resolveSelectedLayerForObjects(nextProject, [newObj.id], newObj.layer_id),
+          selectedObjectIds: [newObj.id],
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    } finally {
+      set({ booleanPending: false });
+    }
+  },
+
+  booleanSubtractMany: async (objectIds) => {
+    if (get().booleanPending) return;
+    set({ booleanPending: true });
+    try {
+      const newObj = await vectorService.booleanSubtractMany(objectIds);
+      const project = await projectService.getProject();
+      if (project) {
+        const nextProject = decorateProject({ ...project, dirty: true })!;
+        set({
+          project: nextProject,
+          selectedLayerId: resolveSelectedLayerForObjects(nextProject, [newObj.id], newObj.layer_id),
           selectedObjectIds: [newObj.id],
         });
         invalidatePreview();
@@ -3150,6 +3416,26 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   removeTab: async (objectId, worldX, worldY) => {
     try {
       const updated = await vectorService.removeTab(objectId, worldX, worldY);
+      const { project } = get();
+      if (project) {
+        set({
+          project: {
+            ...project,
+            objects: project.objects.map((o) => (o.id === objectId ? updated : o)),
+            dirty: true,
+          },
+        });
+        invalidatePreview();
+        await refreshUndo();
+      }
+    } catch (e) {
+      notifyError(String(e));
+    }
+  },
+
+  clearTabs: async (objectId) => {
+    try {
+      const updated = await vectorService.clearTabs(objectId);
       const { project } = get();
       if (project) {
         set({

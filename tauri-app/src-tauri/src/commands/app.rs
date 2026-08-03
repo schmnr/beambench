@@ -14,7 +14,7 @@ use beambench_service::ops::preferences::{
     reset_preferences_to_defaults as reset_preferences_to_defaults_op,
 };
 use beambench_service::persist;
-use tauri::{State, WebviewWindow, WebviewWindowBuilder};
+use tauri::{State, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
@@ -163,64 +163,6 @@ pub fn get_app_settings(svc: State<'_, Arc<ServiceContext>>) -> Result<AppSettin
     app::get_app_settings(&svc).map_err(Into::into)
 }
 
-#[tauri::command]
-pub async fn open_new_window(
-    app: tauri::AppHandle,
-    window: WebviewWindow,
-    svc: State<'_, Arc<ServiceContext>>,
-) -> Result<String, String> {
-    let config = app
-        .config()
-        .app
-        .windows
-        .first()
-        .cloned()
-        .ok_or_else(|| "No application window configuration found".to_string())?;
-    let label = format!("main-{}", uuid::Uuid::new_v4().simple());
-
-    let ui_theme = svc
-        .settings
-        .lock()
-        .map_err(|e| format!("Failed to lock settings: {e}"))?
-        .ui_theme;
-    let system_theme = if ui_theme == UiTheme::System {
-        window.theme().ok()
-    } else {
-        None
-    };
-
-    let mut builder = WebviewWindowBuilder::new(&app, label.clone(), config.url.clone())
-        .title(config.title.clone())
-        .inner_size(config.width, config.height)
-        .resizable(config.resizable)
-        .fullscreen(config.fullscreen)
-        .visible(config.visible)
-        .theme(crate::theme::native_theme(ui_theme))
-        .background_color(crate::theme::background_color(ui_theme, system_theme));
-
-    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-        builder = builder.min_inner_size(min_width, min_height);
-    }
-
-    if let Ok(position) = window.outer_position() {
-        let scale_factor = window.scale_factor().unwrap_or(1.0);
-        builder = builder.position(
-            position.x as f64 / scale_factor + 32.0,
-            position.y as f64 / scale_factor + 32.0,
-        );
-    } else if let (Some(x), Some(y)) = (config.x, config.y) {
-        builder = builder.position(x + 32.0, y + 32.0);
-    } else {
-        builder = builder.center();
-    }
-
-    builder
-        .build()
-        .map_err(|e| format!("Failed to open new window: {e}"))?;
-
-    Ok(label)
-}
-
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn update_app_settings(
@@ -235,6 +177,7 @@ pub fn update_app_settings(
     ui_theme: Option<UiTheme>,
     dark_mode: Option<bool>,
     antialiasing: Option<bool>,
+    artwork_display_mode: Option<beambench_core::ArtworkDisplayMode>,
     filled_rendering: Option<bool>,
     reduce_motion: Option<bool>,
     show_palette_labels: Option<bool>,
@@ -252,7 +195,6 @@ pub fn update_app_settings(
     last_radius_mm: Option<f64>,
     export_settings: Option<ExportSettings>,
     allow_importing_to_tool_layers: Option<bool>,
-    include_tool_layers_in_job_bounds: Option<bool>,
     check_for_updates_on_startup: Option<bool>,
     update_snoozed_until: Option<String>,
     skipped_update_version: Option<String>,
@@ -272,6 +214,7 @@ pub fn update_app_settings(
             ui_theme,
             dark_mode,
             antialiasing,
+            artwork_display_mode,
             filled_rendering,
             reduce_motion,
             show_palette_labels,
@@ -289,7 +232,6 @@ pub fn update_app_settings(
             last_radius_mm,
             export_settings,
             allow_importing_to_tool_layers,
-            include_tool_layers_in_job_bounds,
             check_for_updates_on_startup,
             update_snoozed_until,
             skipped_update_version,
@@ -349,6 +291,7 @@ pub fn update_display_settings(
     ui_theme: Option<UiTheme>,
     dark_mode: Option<bool>,
     antialiasing: Option<bool>,
+    artwork_display_mode: Option<beambench_core::ArtworkDisplayMode>,
     filled_rendering: Option<bool>,
     reduce_motion: Option<bool>,
     show_palette_labels: Option<bool>,
@@ -365,6 +308,7 @@ pub fn update_display_settings(
             ui_theme,
             dark_mode,
             antialiasing,
+            artwork_display_mode,
             filled_rendering,
             reduce_motion,
             show_palette_labels,

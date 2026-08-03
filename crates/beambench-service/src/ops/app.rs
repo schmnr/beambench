@@ -4,7 +4,8 @@ use std::path::Path;
 use beambench_core::diagnostics::{self, DiagnosticsBundle};
 use beambench_core::settings::{ExportSettings, PanelLayout};
 use beambench_core::{
-    AppSettings, AppStatus, BuildInfo, CursorSize, DisplayUnit, IconSize, SpeedTimeUnit, UiTheme,
+    AppSettings, AppStatus, ArtworkDisplayMode, BuildInfo, CursorSize, DisplayUnit, IconSize,
+    SpeedTimeUnit, UiTheme,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -26,6 +27,7 @@ pub struct UpdateAppSettingsInput {
     pub ui_theme: Option<UiTheme>,
     pub dark_mode: Option<bool>,
     pub antialiasing: Option<bool>,
+    pub artwork_display_mode: Option<ArtworkDisplayMode>,
     pub filled_rendering: Option<bool>,
     pub reduce_motion: Option<bool>,
     pub show_palette_labels: Option<bool>,
@@ -43,7 +45,6 @@ pub struct UpdateAppSettingsInput {
     pub last_radius_mm: Option<f64>,
     pub export_settings: Option<ExportSettings>,
     pub allow_importing_to_tool_layers: Option<bool>,
-    pub include_tool_layers_in_job_bounds: Option<bool>,
     pub check_for_updates_on_startup: Option<bool>,
     pub update_snoozed_until: Option<String>,
     pub skipped_update_version: Option<String>,
@@ -127,6 +128,9 @@ pub fn apply_app_settings_update(
     if let Some(v) = input.antialiasing {
         next_settings.antialiasing = v;
     }
+    if let Some(v) = input.artwork_display_mode {
+        next_settings.artwork_display_mode = v;
+    }
     if let Some(v) = input.filled_rendering {
         next_settings.filled_rendering = v;
     }
@@ -177,9 +181,6 @@ pub fn apply_app_settings_update(
     }
     if let Some(v) = input.allow_importing_to_tool_layers {
         next_settings.allow_importing_to_tool_layers = v;
-    }
-    if let Some(v) = input.include_tool_layers_in_job_bounds {
-        next_settings.include_tool_layers_in_job_bounds = v;
     }
     if let Some(v) = input.check_for_updates_on_startup {
         next_settings.check_for_updates_on_startup = v;
@@ -415,6 +416,27 @@ mod tests {
     }
 
     #[test]
+    fn artwork_display_mode_updates_independently_of_smoothing() {
+        let current = AppSettings {
+            antialiasing: true,
+            artwork_display_mode: ArtworkDisplayMode::ByLayer,
+            ..Default::default()
+        };
+
+        let updated = apply_app_settings_update(
+            &current,
+            UpdateAppSettingsInput {
+                artwork_display_mode: Some(ArtworkDisplayMode::Wireframe),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(updated.artwork_display_mode, ArtworkDisplayMode::Wireframe);
+        assert!(updated.antialiasing);
+    }
+
+    #[test]
     fn update_app_settings_does_not_partially_apply_on_error() {
         let _guard = PersistTestGuard::new();
         let ctx = ServiceContext::new();
@@ -462,9 +484,15 @@ mod tests {
         );
 
         let layout = PanelLayout {
+            layout_version: 3,
             zones,
             hidden_panel_ids: vec!["macros".to_string()],
             upper_split_ratio: 0.65,
+            run_zones: HashMap::new(),
+            run_hidden_panel_ids: vec![],
+            run_floating_panels: vec![],
+            run_upper_split_ratio: 0.58,
+            column_split_ratios: HashMap::new(),
             right_panel_width: 400.0,
             floating_panels: vec![],
             left_panel_width: 280.0,

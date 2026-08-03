@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import { StatusBar } from '../StatusBar';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useAppStore } from '../../../stores/appStore';
@@ -7,7 +7,6 @@ import { useUiStore } from '../../../stores/uiStore';
 import { useMeasurementStore } from '../../../stores/measurementStore';
 import { useMachineStore } from '../../../stores/machineStore';
 import { makeProject, makeProjectObject } from '../../../test-utils/projectFixtures';
-import { ROTARY_SETUP_OPEN_EVENT } from '../../../rotaryEvents';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -96,21 +95,28 @@ describe('StatusBar', () => {
     expect(screen.queryByTestId('selection-bounds')).toBeNull();
   });
 
-  it('opens rotary setup from the status bar and marks an active rotary profile', () => {
-    useMachineStore.setState({
-      activeProfileId: 'rotary-profile',
-      profiles: [{ id: 'rotary-profile', rotary_enabled: true }] as never,
+  it('does not duplicate workspace and machine controls in the status bar', () => {
+    useProjectStore.setState({
+      project: makeProject({
+        metadata: {
+          format_version: '1',
+          app_version: '0.1.0',
+          project_id: 'p1',
+          project_name: 'Status Bar Duplicate',
+          created_at: '',
+          modified_at: '',
+        },
+      }),
     });
-    const onOpen = vi.fn();
-    window.addEventListener(ROTARY_SETUP_OPEN_EVENT, onOpen);
+    useMachineStore.setState({ sessionState: 'ready' });
 
     render(<StatusBar />);
-    const button = screen.getByRole('button', { name: 'Rotary' });
-    expect(button.title).toContain('active');
-    fireEvent.click(button);
 
-    expect(onOpen).toHaveBeenCalledTimes(1);
-    window.removeEventListener(ROTARY_SETUP_OPEN_EVENT, onOpen);
+    for (const label of ['Move', 'Size', 'Rotate', 'Shear', 'Rotary', 'P&C', 'Grid', 'Snap']) {
+      expect(screen.queryByRole('button', { name: label })).toBeNull();
+    }
+    expect(screen.queryByText('Status Bar Duplicate')).toBeNull();
+    expect(screen.queryByText('Ready')).toBeNull();
   });
 
   it('distinguishes node segment trim from the standalone trim tool', () => {
@@ -119,6 +125,20 @@ describe('StatusBar', () => {
     render(<StatusBar />);
 
     expect(screen.getByText('Click a node-edit segment to trim that segment to intersections')).toBeDefined();
+  });
+
+  it('explains the drag gesture while text Box mode is active', () => {
+    useUiStore.setState({
+      activeTool: 'text',
+      textDefaults: {
+        ...useUiStore.getState().textDefaults,
+        max_width: 100,
+      },
+    });
+
+    render(<StatusBar />);
+
+    expect(screen.getByText('Choose Point to click and type, or Box to drag a wrapping region.')).toBeDefined();
   });
 
   it('shows measurement status instead of selection bounds while measuring', () => {
@@ -133,7 +153,8 @@ describe('StatusBar', () => {
       selectedObjectIds: ['o1'],
     });
     useUiStore.setState({ activeTool: 'measure' });
-    useMeasurementStore.getState().setDrag({
+    useMeasurementStore.getState().setResult({
+      kind: 'linear',
       start: { x: 0, y: 0 },
       end: { x: 30, y: 40 },
       dxMm: 30,

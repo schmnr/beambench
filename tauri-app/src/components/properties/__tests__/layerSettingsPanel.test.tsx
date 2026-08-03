@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { LayerSettingsPanel } from '../LayerSettingsPanel';
 import { useProjectStore } from '../../../stores/projectStore';
 import {
@@ -20,6 +20,48 @@ afterEach(() => {
 });
 
 describe('LayerSettingsPanel', () => {
+  it('keeps output and reset controls available for a single cut entry', () => {
+    const layer = makeLayer({ id: 'l1' });
+    layer.entries[0].output_enabled = false;
+    const updateCutEntry = vi.fn();
+    const resetCutEntryToDefaults = vi.fn();
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [], assets: [] }),
+      selectedLayerId: 'l1',
+      updateCutEntry,
+      resetCutEntryToDefaults,
+    });
+
+    render(<LayerSettingsPanel />);
+
+    const output = screen.getByRole('button', { name: 'Output' });
+    expect(output.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(output);
+    expect(updateCutEntry).toHaveBeenCalledWith('l1', 'entry-1', { output_enabled: true });
+
+    fireEvent.click(screen.getByTitle('Reset this sub-layer to built-in defaults for its operation'));
+    expect(resetCutEntryToDefaults).toHaveBeenCalledWith('l1', 'entry-1');
+  });
+
+  it('uses a pressed wind icon for air assist instead of a switch', () => {
+    const layer = makeLayer({ id: 'l1', air_assist: true });
+    const updateCutEntry = vi.fn();
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [], assets: [] }),
+      selectedLayerId: 'l1',
+      updateCutEntry,
+    });
+
+    render(<LayerSettingsPanel />);
+
+    const airAssist = screen.getByRole('button', { name: 'Air Assist' });
+    expect(airAssist.getAttribute('aria-pressed')).toBe('true');
+    expect(airAssist.querySelector('.lucide-wind')).not.toBeNull();
+
+    fireEvent.click(airAssist);
+    expect(updateCutEntry).toHaveBeenCalledWith('l1', 'entry-1', { air_assist: false });
+  });
+
   it('hosts the shared sub-layer stack and exposes raster mode options when expanded', () => {
     const layer = makeLayer({
       id: 'l1',
@@ -35,7 +77,6 @@ describe('LayerSettingsPanel', () => {
     render(<LayerSettingsPanel />);
 
     expect(screen.getByDisplayValue('Image Layer')).toBeDefined();
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
 
     const modeSelect = screen.getAllByRole('combobox')[1];
     const options = Array.from(modeSelect.querySelectorAll('option')).map((option) =>
@@ -71,7 +112,6 @@ describe('LayerSettingsPanel', () => {
 
     render(<LayerSettingsPanel />);
 
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
 
     expect(screen.getByTestId('offset-fill-mode-graphic')).toBeDefined();
     expect(screen.getByText('Line Interval (mm)')).toBeDefined();

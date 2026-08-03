@@ -85,8 +85,7 @@ describe('TraceImageDialog pan while zoomed', () => {
     await waitFor(() => expect(traceSpy).toHaveBeenCalled(), { timeout: 3000 });
     await waitFor(() => expect(mockCtx.stroke).toHaveBeenCalled(), { timeout: 3000 });
 
-    const thresholdInput = screen.getByTestId('trace-threshold').querySelector('input')
-      ?? screen.getByTestId('trace-threshold');
+    const thresholdInput = screen.getByRole('spinbutton', { name: 'Threshold' });
     (thresholdInput as HTMLElement).focus();
 
     const frame = screen.getByTestId('trace-preview-frame');

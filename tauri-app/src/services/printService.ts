@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
 export type PrintMode = 'black' | 'color';
+export type PrintAppearance = 'operation' | 'outline';
 
 interface PrintDocumentResponse {
   title: string;
@@ -141,8 +142,8 @@ async function printSvgDocument(document: PrintDocumentResponse): Promise<void> 
 }
 
 export const printService = {
-  async printProject(mode: PrintMode): Promise<void> {
-    const document = await invoke<PrintDocumentResponse>('render_print_document', { mode });
+  async printProject(mode: PrintMode, appearance: PrintAppearance = 'operation'): Promise<void> {
+    const document = await invoke<PrintDocumentResponse>('render_print_document', { mode, appearance });
     await printSvgDocument(document);
   },
 };

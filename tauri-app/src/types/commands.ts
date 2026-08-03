@@ -51,6 +51,7 @@ export interface ExportSettings {
 }
 
 export type UiTheme = 'system' | 'light' | 'dark';
+export type ArtworkDisplayMode = 'by_layer' | 'wireframe' | 'filled';
 
 /** User-configurable application settings. */
 export interface AppSettings {
@@ -67,6 +68,8 @@ export interface AppSettings {
   ui_theme: UiTheme;
   dark_mode: boolean;
   antialiasing: boolean;
+  artwork_display_mode?: ArtworkDisplayMode;
+  /** Legacy settings-file field; canvas rendering uses artwork_display_mode. */
   filled_rendering: boolean;
   reduce_motion: boolean;
   show_palette_labels: boolean;
@@ -81,9 +84,24 @@ export interface AppSettings {
   scroll_zoom: boolean;
   debug_log_enabled: boolean;
   panel_layout: {
+    layout_version?: number;
     zones: Record<string, { panel_ids: string[]; active_tab: string }>;
     hidden_panel_ids: string[];
     upper_split_ratio: number;
+    run_zones?: Record<string, { panel_ids: string[]; active_tab: string }>;
+    run_hidden_panel_ids?: string[];
+    run_upper_split_ratio?: number;
+    column_split_ratios?: Record<string, number[]>;
+    run_floating_panels?: Array<{
+      panel_id: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      z_index: number;
+      origin_zone: string | null;
+      origin_index: number | null;
+    }>;
     right_panel_width: number;
     left_panel_width: number;
     bottom_panel_height: number;
@@ -106,7 +124,6 @@ export interface AppSettings {
   custom_hotkeys: Record<string, string>;
   export_settings: ExportSettings;
   allow_importing_to_tool_layers?: boolean;
-  include_tool_layers_in_job_bounds?: boolean;
   check_for_updates_on_startup?: boolean;
   update_snoozed_until?: string;
   skipped_update_version?: string;

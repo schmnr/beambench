@@ -62,7 +62,6 @@
       "export_selection": "Exportera urval",
       "hide_notes": "Dölj anteckningar",
       "import_preferences": "Importera Prefs",
-      "new_window": "Nytt fönster",
       "open_preferences_folder": "Öppna Prefs-mappen",
       "preferences_exported": "Inställningar exporterade.",
       "preferences_imported": "Inställningar importerade.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Återställa inställningarna till standardinställningarna? Maskinprofiler, senaste filer, sparade positioner, API-inställningar och exportvägar kommer att behållas.",
       "save_background_capture": "Spara bakgrundsfångst",
       "save_processed_bitmap": "Spara bearbetad bitmapp",
-      "show_notes": "Visa anteckningar"
+      "show_notes": "Visa anteckningar",
+      "project_notes": "Projektanteckningar...",
+      "print": "Skriv ut...",
+      "export_processed_image": "Exportera bearbetad bild..."
     },
     "edit": {
       "label": "Redigera",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Automatiskt sammanfoga valda former",
       "close_and_join": "Stäng & gå med",
       "convert_to_bitmap": "Konvertera till bitmapp",
+      "extract_selected_nodes_to_path": "Extrahera valda noder till ny bana",
       "duplicate": "Duplicera",
       "image_options": "Bildalternativ",
       "invert_selection": "Invertera urval",
@@ -241,12 +244,12 @@
       "shape_properties": "Formegenskaper",
       "text_options": "Textalternativ",
       "toggle_side_panels": "Växla sidopaneler",
-      "toggle_wireframe_filled": "Växla Wireframe / Fylld",
-      "view_style": "Visa stil:",
-      "view_style_filled_coarse": "Fylld / Grov",
-      "view_style_filled_smooth": "Fylld / Smidig",
-      "view_style_wireframe_coarse": "Trådram / Grov",
-      "view_style_wireframe_smooth": "Wireframe / Slät",
+      "toggle_wireframe_filled": "Växla åtgärd / trådram",
+      "view_style": "Grafikvisning:",
+      "view_style_filled_coarse": "Tvinga fylld visning",
+      "view_style_filled_smooth": "Jämna kanter",
+      "view_style_wireframe_coarse": "Efter lageråtgärd",
+      "view_style_wireframe_smooth": "Tvinga trådram",
       "zoom_to_page": "Zooma till sidan"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Rullhjul",
       "scroll_zoom": "Zooma",
       "scroll_pan": "Panorera",
-      "allow_import_tool_layers": "Tillåt import till verktygslager",
-      "include_tool_layers_job_bounds": "Inkludera verktygslager i jobbets gränser"
+      "allow_import_tool_layers": "Tillåt import till verktygslager"
     },
     "about": {
       "tagline": "Gjord av makers för makers.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "Streckkodsdialogrutan stängdes eftersom dess mållager inte längre är tillgängligt."
     },
     "adjust_image": {
+      "invert_display_help": "Endast förhandsvisning. Den sparade bilden och laserutmatningen ändras inte.",
+      "invert_adjustment_help": "Invertering sparas med bilden och utförs före lagrets rasterbearbetning.",
+      "negative_image_help": "Negativ bild inverterar lagrets utmatning. Om Invertera ovan också är aktiverat kan de två inverteringarna ta ut varandra.",
       "title": "Justera bild",
       "drag_to_move": "Dra för att flytta",
       "original": "Original",
@@ -701,6 +706,7 @@
       "include_project_file": "Inkludera projektfil",
       "include_project_file_help": "Av som standard. Detta skickar den faktiska .lzrproj-geometrin och rasterdata.",
       "job_compatibility_help": "Ingenting har skickats ännu. Rapporten innehåller Beam Bench-version, operativsystem, styrenhetsfamilj, icke-identifierande maskininställningar och summeringar för det slutförda jobbet. Den utesluter design, G-code, filnamn, seriell trafik, loggar, enhetssökvägar, profil-ID:n och projektfiler.",
+      "privacy_policy": "Läs integritetspolicyn",
       "what_gets_sent": "Vad som skickas",
       "loading": "Laddar...",
       "submitting_report": "Skickar rapport till Beam Bench...",
@@ -784,6 +790,7 @@
       "pan_hint": "Dra för att välja ett kalkeringsområde. Håll ned mellanslag och dra för att panorera."
     },
     "preview": {
+      "options_help": "Förflyttning är rörelse med lasern avstängd. Förlopp visar slutförd bränning. Överskanning visar rasteracceleration utanför motivet. Skuggning efter effekt och Invertera påverkar bara denna vy.",
       "title": "Förhandsgranskningsfönster",
       "stale_refresh_required": "Inaktuell - uppdatering krävs",
       "stale": "Inaktuella",
@@ -1105,10 +1112,27 @@
       "title": "Osparade ändringar",
       "message": "Ditt projekt har osparade ändringar. Vill du spara dem innan du fortsätter?",
       "discard": "Spara inte"
+    },
+    "print": {
+      "title": "Skriv ut",
+      "output": "Utskrift",
+      "description": "Välj hur projektet ska se ut och fortsätt sedan i dialogrutan för utskrift av systemet.",
+      "color": "Färg",
+      "black": "Svart",
+      "layer_colors": "Lagerfärger",
+      "appearance": "Motivets utseende",
+      "by_operation": "Efter lageråtgärd",
+      "outlines": "Endast konturer",
+      "print": "Skriv ut...",
+      "preparing": "Förbereder..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Design",
+      "mode_run": "Kör",
+      "mode_design_hint": "Design: rita och ordna ditt projekt",
+      "mode_run_hint": "Kör: skicka jobbet till din laser",
       "new": "Nytt",
       "untitled_project": "Namnlöst projekt",
       "open": "Öppna",
@@ -1193,13 +1217,16 @@
       "close_path": "Stäng sökväg",
       "auto_join_paths": "Automatiska anslutningsvägar",
       "insert_midpoint": "Infoga mittpunkt (M)",
-      "align_to_angle": "Rikta in till vinkel (A)"
+      "align_to_angle": "Rikta in till vinkel (A)",
+      "extend_to_intersection": "Förläng till skärning (E)"
     },
     "transform_toggles": {
       "move": "Flytta",
       "size": "Storlek",
       "rotate": "Rotera",
-      "shear": "Skärning"
+      "shear": "Skärning",
+      "lock_all": "Lås alla transformeringar",
+      "unlock_all": "Lås upp alla transformeringar"
     },
     "properties": {
       "position_x": "X-pos",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Inget projekt",
-      "nothing_selected": "Inget markerat"
+      "nothing_selected": "Välj ett objekt för att redigera dess egenskaper"
+    },
+    "library": {
+      "title": "Bibliotek"
     },
     "floating": {
       "dock_tooltip": "Docka panel",
       "close_tooltip": "Stäng panel",
       "float_tooltip": "Frigör panel"
     },
+    "outliner": {
+      "help": "Dra för att ändra ordning eller flytta. Dubbelklicka för att byta namn. Dolda objekt finns kvar här så att du kan återställa dem.",
+      "summary": "{layers} lager · {objects} objekt",
+      "empty_layer": "Inga föremål",
+      "expand_layer": "Expandera lagret",
+      "collapse_layer": "Komprimera lagret",
+      "expand_group": "Utöka gruppen",
+      "collapse_group": "Kollaps grupp",
+      "show_layer": "Visa lager",
+      "hide_layer": "Dölj lager",
+      "show_object": "Visa objekt",
+      "hide_object": "Dölj objekt",
+      "lock_object": "Lås objekt",
+      "unlock_object": "Lås upp objekt"
+    },
     "registry": {
-      "cuts_layers": "Snitt / Lager",
+      "outliner": "Outliner",
+      "cuts_layers": "Lager",
       "move": "Flytta",
       "console": "Konsol",
       "macros": "Makron",
-      "properties": "Formegenskaper",
+      "properties": "Egenskaper",
       "measurement": "Mätning",
       "laser": "Laser Control",
       "material": "Materialbibliotek",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Ett underlager"
     },
     "properties": {
+      "transform": "Omforma",
+      "visibility_help": "Dolda objekt utesluts från jobbet. Återställ dem i Outliner.",
+      "power_scale_help": "Multiplicerar lagereffekten för detta objekt utan att ändra lagret.",
+      "cut_priority_help": "Lägre värden körs tidigare när prioritetsoptimering är aktiverad.",
       "objects_selected": "{count} objekt markerade",
       "layer": "Lager",
       "mixed": "Blandat",
@@ -1421,7 +1471,7 @@
       "union": "unionen",
       "subtract": "Subtrahera",
       "intersection": "Skärning",
-      "nothing_selected": "Inget markerat",
+      "nothing_selected": "Välj ett objekt för att redigera dess egenskaper",
       "name": "Namn",
       "power_scale_percent": "Effektskala %",
       "cut_priority": "Skärprioritet",
@@ -1484,15 +1534,63 @@
       "h_space": "H-avst.",
       "v_space": "V-avst.",
       "path_offset": "Banförskjutning",
+      "baseline_offset": "Baslinjeförskjutning",
+      "direction_normal": "Normal",
+      "direction_reverse": "Omvänd",
+      "strength": "Styrka",
+      "arc_span": "Bågomfång",
+      "circle_position": "Cirkelposition",
+      "circle_side": "Cirkelsida",
+      "circle_top": "Överst",
+      "circle_bottom": "Nederst",
+      "circle_outside": "Utsida",
+      "circle_inside": "Insida",
       "bend_radius": "Böjradie",
       "align_left": "Vänster",
       "align_center": "Centrera",
       "align_right": "Höger",
       "align_top": "Överst",
       "align_middle": "Mitten",
-      "align_bottom": "Nederst"
+      "align_bottom": "Nederst",
+      "tool_title": "Textverktyg",
+      "creation_hint": "Välj Peka för att klicka och skriv, eller Box för att dra en radbrytningsområde.",
+      "edit_text": "Redigera text",
+      "edit_on_canvas": "Redigera på duk",
+      "search_fonts": "Sök teckensnitt",
+      "recent_fonts": "Nyligen",
+      "favorite_fonts": "Favoriter",
+      "all_fonts": "Alla typsnitt",
+      "no_fonts_found": "Inga teckensnitt hittades",
+      "favorite_font": "Favorit typsnitt",
+      "unfavorite_font": "Ta bort favorit",
+      "style": "Stil",
+      "style_regular": "Vanligt",
+      "style_bold_italic": "Fet kursiv stil",
+      "typography": "Typografi",
+      "alignment_spacing": "Uppriktning & avstånd",
+      "text_box": "Texttyp",
+      "width_mode": "Läge",
+      "auto_width": "Peka",
+      "fixed_width": "Box",
+      "width": "Box bredd",
+      "squeeze_to_fit": "Kläm för att passa",
+      "advanced_shape": "Avancerad textform",
+      "transform": "Kuvert",
+      "transform_none": "Inga",
+      "transform_arch": "Arch",
+      "transform_rise": "Stig upp",
+      "transform_wave": "Våga",
+      "transform_flag": "Flagga",
+      "transform_angle": "Vinkel",
+      "transform_circle": "Cirkel",
+      "curve": "Kurva",
+      "laser_output": "Laserutgång",
+      "convert_hint": "Konvertera till sökväg fryser bokstäverna till redigerbar utskuren geometri.",
+      "tracking": "Spårning",
+      "line_spacing": "Radavstånd"
     },
     "sub_layer_stack": {
+      "title": "Underlager",
       "operation_tool": "Verktyg",
       "operation_image": "Bild",
       "operation_fill": "Fyllning",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Offset utåt",
       "max_sub_layers_title": "Max 11 underlager nått",
       "add_sub_layer_title": "Lägg till underlager",
-      "add_sub_layer": "+ Lägg till underlager"
+      "add_sub_layer": "+ Lägg till underlager",
+      "order_hint": "Underlager körs i ordning, uppifrån och ned."
     },
     "cut_settings": {
       "title": "Skärinställningar",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Verktygslager fungerar som hjälplinjer och ger aldrig laserutmatning.",
+      "output_show_help": "Ut tar med detta lager i laserjobbet. Visa ändrar bara arbetsytans vy.",
+      "opacity_help": "Endast förhandsvisning på arbetsytan. Detta ändrar inte lasereffekt eller bildbearbetning.",
+      "delete_layer": "Ta bort lager",
+      "add_layer": "Lägg till lager",
       "header": {
         "index": "#",
         "layer": "Lager",
@@ -1587,8 +1691,6 @@
         "multi": "Flera"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Inkludera verktygslager i jobbgränser",
-      "exclude_tool_layers_from_job_bounds": "Exkludera verktygslager från jobbgränser",
       "frame": "Ram",
       "move_up": "Flytta upp",
       "move_down": "Flytta ned",
@@ -1635,7 +1737,8 @@
         "on_ms": "På (ms)",
         "off_ms": "Av (ms)",
         "kerf_mm": "Kerf-förskjutning"
-      }
+      },
+      "settings_copied": "Lagerinställningar kopierade"
     },
     "move": {
       "step_mm": "Steg",
@@ -2168,9 +2271,40 @@
       "end": "Slut",
       "midpoint": "Mittpunkt",
       "difference": "Skillnad",
-      "angle": "Vinkel"
+      "angle": "Vinkel",
+      "mode_linear": "Linjär",
+      "mode_angle": "Vinkel",
+      "mode_radius": "Radie",
+      "mode_gap": "Gap",
+      "minimum_gap": "Minsta mellanrum",
+      "horizontal": "Horisontell",
+      "vertical": "Vertikal",
+      "horizontal_gap": "Horisontellt mellanrum",
+      "vertical_gap": "Vertikal mellanrum",
+      "first_segment": "Första segmentet",
+      "second_segment": "Andra segmentet",
+      "radius": "Radie",
+      "diameter": "Diameter",
+      "radius_x": "Radie X",
+      "radius_y": "Radie Y",
+      "diameter_x": "Diameter X",
+      "diameter_y": "Diameter Y",
+      "linear_second_hint": "Klicka på den andra punkten",
+      "angle_second_hint": "Klicka på ett andra segment",
+      "gap_second_hint": "Klicka på det andra objektet",
+      "angle_hint": "Klicka på två segment för att mäta deras vinkel",
+      "radius_hint": "Klicka på en cirkel eller ellips",
+      "gap_hint": "Klicka på två objekt för att mäta deras närmaste mellanrum",
+      "linear_hint": "Klicka-dra eller klicka på två punkter",
+      "title": "Mät",
+      "modes": "Mätlägen",
+      "copy_value": "Kopieringsvärde",
+      "copied": "Kopierade",
+      "clear_measurement": "Tydlig mätning",
+      "keyboard_hint": "Shift begränsar vinklar. Escape rensas och återgår sedan till Välj."
     },
     "art_library": {
+      "drag_help": "Dra grafik till arbetsytan. Använd × för att ta bort den från biblioteket.",
       "no_libraries": "Inga bibliotek inlästa.",
       "search": "Sök...",
       "icon_size": "Ikonstorlek:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench grafikbibliotek",
       "filter_artwork": "Grafik"
     }
+  },
+  "warp_tool": {
+    "title": "Varp",
+    "four_points": "4 poäng",
+    "sixteen_points": "16 poäng"
   },
   "context_menu": {
     "windows": "Fönster",

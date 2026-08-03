@@ -55,6 +55,22 @@ pub enum UiTheme {
     Dark,
 }
 
+/// How artwork is represented on the interactive canvas.
+///
+/// This changes only the editor display. Generated toolpaths and preview
+/// output always follow the layer operation.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtworkDisplayMode {
+    /// Line layers remain wireframe while fill-like layers render filled.
+    #[default]
+    ByLayer,
+    /// Draw every vector object as an outline for easier editing.
+    Wireframe,
+    /// Draw every closed vector object filled for geometry inspection.
+    Filled,
+}
+
 /// State of a single dock zone (list of panel IDs and active tab).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZoneState {
@@ -82,9 +98,21 @@ pub struct FloatingPanelState {
 /// Persistent panel layout configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PanelLayout {
+    #[serde(default)]
+    pub layout_version: u32,
     pub zones: HashMap<String, ZoneState>,
     pub hidden_panel_ids: Vec<String>,
     pub upper_split_ratio: f64,
+    #[serde(default)]
+    pub run_zones: HashMap<String, ZoneState>,
+    #[serde(default)]
+    pub run_hidden_panel_ids: Vec<String>,
+    #[serde(default)]
+    pub run_floating_panels: Vec<FloatingPanelState>,
+    #[serde(default = "default_run_upper_split_ratio")]
+    pub run_upper_split_ratio: f64,
+    #[serde(default)]
+    pub column_split_ratios: HashMap<String, Vec<f64>>,
     pub right_panel_width: f64,
     #[serde(default)]
     pub floating_panels: Vec<FloatingPanelState>,
@@ -96,6 +124,10 @@ pub struct PanelLayout {
     pub side_panels_visible: bool,
     #[serde(default = "default_toolbar_visibility")]
     pub toolbar_visibility: HashMap<String, bool>,
+}
+
+fn default_run_upper_split_ratio() -> f64 {
+    0.58
 }
 
 /// A saved machine position (name + coordinates).
@@ -248,8 +280,12 @@ pub struct AppSettings {
     pub ui_theme: UiTheme,
     #[serde(default)]
     pub dark_mode: bool,
-    #[serde(default)]
+    #[serde(default = "default_true_settings")]
     pub antialiasing: bool,
+    #[serde(default)]
+    pub artwork_display_mode: ArtworkDisplayMode,
+    /// Legacy preference retained for settings-file compatibility. Canvas
+    /// rendering now uses `artwork_display_mode` instead.
     #[serde(default)]
     pub filled_rendering: bool,
     #[serde(default)]
@@ -290,8 +326,6 @@ pub struct AppSettings {
     pub export_settings: ExportSettings,
     #[serde(default)]
     pub allow_importing_to_tool_layers: bool,
-    #[serde(default = "default_true_settings")]
-    pub include_tool_layers_in_job_bounds: bool,
     #[serde(default = "default_true_settings")]
     pub check_for_updates_on_startup: bool,
     #[serde(default)]
@@ -388,7 +422,8 @@ impl Default for AppSettings {
             api_localhost_only: true,
             ui_theme: UiTheme::Dark,
             dark_mode: false,
-            antialiasing: false,
+            antialiasing: true,
+            artwork_display_mode: ArtworkDisplayMode::ByLayer,
             filled_rendering: false,
             reduce_motion: false,
             show_palette_labels: false,
@@ -409,7 +444,6 @@ impl Default for AppSettings {
             custom_hotkeys: HashMap::new(),
             export_settings: ExportSettings::default(),
             allow_importing_to_tool_layers: false,
-            include_tool_layers_in_job_bounds: true,
             check_for_updates_on_startup: true,
             update_snoozed_until: String::new(),
             skipped_update_version: String::new(),
@@ -513,6 +547,8 @@ mod tests {
         assert!(s.skipped_update_version.is_empty());
         assert_eq!(s.ui_theme, UiTheme::Dark);
         assert!(!s.dark_mode, "workspace background remains independent");
+        assert!(s.antialiasing, "smooth edges should ship enabled");
+        assert_eq!(s.artwork_display_mode, ArtworkDisplayMode::ByLayer);
     }
 
     #[test]
@@ -555,6 +591,23 @@ mod tests {
             let json = serde_json::to_string(&settings).unwrap();
             let restored: AppSettings = serde_json::from_str(&json).unwrap();
             assert_eq!(restored.ui_theme, ui_theme);
+        }
+    }
+
+    #[test]
+    fn artwork_display_mode_roundtrips_all_variants() {
+        for mode in [
+            ArtworkDisplayMode::ByLayer,
+            ArtworkDisplayMode::Wireframe,
+            ArtworkDisplayMode::Filled,
+        ] {
+            let settings = AppSettings {
+                artwork_display_mode: mode,
+                ..Default::default()
+            };
+            let json = serde_json::to_string(&settings).unwrap();
+            let restored: AppSettings = serde_json::from_str(&json).unwrap();
+            assert_eq!(restored.artwork_display_mode, mode);
         }
     }
 
@@ -746,7 +799,8 @@ mod tests {
         let json = r#"{"display_unit":"mm","autosave_enabled":true,"autosave_interval_secs":120}"#;
         let restored: AppSettings = serde_json::from_str(json).unwrap();
         assert!(!restored.dark_mode);
-        assert!(!restored.antialiasing);
+        assert!(restored.antialiasing);
+        assert_eq!(restored.artwork_display_mode, ArtworkDisplayMode::ByLayer);
         assert!(!restored.filled_rendering);
         assert!(!restored.reduce_motion);
         assert!(!restored.show_palette_labels);
@@ -813,9 +867,15 @@ mod tests {
             },
         );
         s.panel_layout = Some(PanelLayout {
+            layout_version: 3,
             zones,
             hidden_panel_ids: vec!["macros".to_string()],
             upper_split_ratio: 0.7,
+            run_zones: HashMap::new(),
+            run_hidden_panel_ids: vec![],
+            run_floating_panels: vec![],
+            run_upper_split_ratio: 0.58,
+            column_split_ratios: HashMap::new(),
             right_panel_width: 400.0,
             floating_panels: vec![],
             left_panel_width: 280.0,
@@ -869,9 +929,15 @@ mod tests {
             },
         );
         s.panel_layout = Some(PanelLayout {
+            layout_version: 3,
             zones,
             hidden_panel_ids: vec![],
             upper_split_ratio: 0.6,
+            run_zones: HashMap::new(),
+            run_hidden_panel_ids: vec![],
+            run_floating_panels: vec![],
+            run_upper_split_ratio: 0.58,
+            column_split_ratios: HashMap::new(),
             right_panel_width: 384.0,
             floating_panels: vec![
                 FloatingPanelState {

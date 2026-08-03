@@ -103,7 +103,7 @@ mod tests {
         assert_eq!(adj.brightness, 0.0);
         assert_eq!(adj.contrast, 0.0);
         assert_eq!(adj.gamma, 1.0);
-        assert_eq!(adj.invert, false);
+        assert!(!adj.invert);
         assert_eq!(adj.threshold, 128);
         assert_eq!(adj.saturation, 1.0);
     }
@@ -213,7 +213,7 @@ mod tests {
         assert_eq!(adj.brightness, 0.1);
         assert_eq!(adj.contrast, 0.2);
         assert_eq!(adj.gamma, 1.2);
-        assert_eq!(adj.invert, false);
+        assert!(!adj.invert);
         assert_eq!(adj.threshold, 100);
     }
 
@@ -242,7 +242,7 @@ mod tests {
         }"#;
         let adj: RasterAdjustments = serde_json::from_str(json).unwrap();
         assert_eq!(adj.sharpen, 0.0);
-        assert_eq!(adj.edge_enhance, false);
+        assert!(!adj.edge_enhance);
     }
 
     #[test]

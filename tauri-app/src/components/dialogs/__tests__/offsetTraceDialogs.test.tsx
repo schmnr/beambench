@@ -228,6 +228,83 @@ describe('OffsetDialog', () => {
     spy.mockRestore();
   });
 
+  it('publishes a closed-shape ghost while keeping direction labels', async () => {
+    const paths = [{
+      points: [
+        { x: -1, y: -1 },
+        { x: 11, y: -1 },
+        { x: 11, y: 11 },
+        { x: -1, y: 11 },
+      ],
+      closed: true,
+    }];
+    const spy = vi.spyOn(vectorService, 'previewOffsetShapes').mockResolvedValue({
+      paths,
+      source_all_open: false,
+    });
+    render(<OffsetDialog objectIds={['rectangle-1']} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(useUiStore.getState().offsetPreview).toEqual(paths);
+    });
+    expect(screen.getByText('Direction')).toBeDefined();
+    expect(screen.queryByText('Side')).toBeNull();
+    spy.mockRestore();
+  });
+
+  it('regenerates the ghost after the source object moves', async () => {
+    const initialProject = makeProject({
+      metadata: {
+        project_id: 'offset-move-project',
+        project_name: 'Offset move',
+        format_version: '1',
+        app_version: 'test',
+        created_at: '',
+        modified_at: '',
+      },
+      objects: [makeProjectObject({
+        id: 'rectangle-1',
+        bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } },
+      })],
+    });
+    useProjectStore.setState({ project: initialProject });
+
+    const initialPaths = [{
+      points: [{ x: -1, y: -1 }, { x: 11, y: -1 }, { x: 11, y: 11 }],
+      closed: true,
+    }];
+    const movedPaths = [{
+      points: [{ x: 19, y: 9 }, { x: 31, y: 9 }, { x: 31, y: 21 }],
+      closed: true,
+    }];
+    const spy = vi.spyOn(vectorService, 'previewOffsetShapes')
+      .mockResolvedValueOnce({ paths: initialPaths, source_all_open: false })
+      .mockResolvedValueOnce({ paths: movedPaths, source_all_open: false });
+    render(<OffsetDialog objectIds={['rectangle-1']} onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(useUiStore.getState().offsetPreview).toEqual(initialPaths);
+    });
+
+    act(() => {
+      useProjectStore.setState({
+        project: {
+          ...initialProject,
+          objects: initialProject.objects.map((object) => ({
+            ...object,
+            bounds: { min: { x: 20, y: 10 }, max: { x: 30, y: 20 } },
+          })),
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(useUiStore.getState().offsetPreview).toEqual(movedPaths);
+    });
+    spy.mockRestore();
+  });
+
   it('does not publish a one-sided ghost while auto-defaulting open selections to Both sides', async () => {
     const oneSided = [{ points: [{ x: 0, y: -2 }, { x: 10, y: -2 }], closed: false }];
     const bothSides = [
@@ -589,6 +666,80 @@ describe('TraceImageDialog', () => {
     previewSpy.mockRestore();
   });
 
+  it('uses preview request IDs that continue increasing after the dialog is reopened', async () => {
+    vi.useFakeTimers();
+    const previewSpy = vi.spyOn(importService, 'traceImagePreview').mockResolvedValue({
+      paths: [], source_width: 100, source_height: 100,
+    });
+
+    const firstDialog = render(<TraceImageDialog objectId="obj-1" onClose={vi.fn()} />);
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => { await Promise.resolve(); });
+    const firstRequestId = previewSpy.mock.calls[0][8];
+    firstDialog.unmount();
+
+    render(<TraceImageDialog objectId="obj-1" onClose={vi.fn()} />);
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => { await Promise.resolve(); });
+    const secondRequestId = previewSpy.mock.calls[1][8];
+
+    expect(secondRequestId).toBeGreaterThan(firstRequestId);
+
+    previewSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('shows preview failures with a working retry action', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const previewSpy = vi.spyOn(importService, 'traceImagePreview').mockImplementation(() => {
+      calls += 1;
+      return calls === 1
+        ? Promise.reject(new Error('preview failed'))
+        : Promise.resolve({ paths: ['M0 0L10 10'], source_width: 100, source_height: 100 });
+    });
+
+    render(<TraceImageDialog objectId="obj-1" onClose={vi.fn()} />);
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByRole('alert').textContent).toContain('preview failed');
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByText('1 path found')).toBeDefined();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    previewSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('prevents duplicate trace submissions while tracing is in progress', async () => {
+    let resolveTrace: ((objects: ReturnType<typeof makeProjectObject>[]) => void) | null = null;
+    const traceSpy = vi.spyOn(importService, 'traceImage').mockImplementation(() => (
+      new Promise((resolve) => { resolveTrace = resolve; })
+    ));
+    vi.spyOn(useProjectStore.getState(), 'loadProject').mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    render(<TraceImageDialog objectId="obj-1" onClose={onClose} />);
+
+    const submit = screen.getByTestId('trace-submit');
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(traceSpy).toHaveBeenCalledTimes(1);
+    expect(submit.hasAttribute('disabled')).toBe(true);
+
+    await act(async () => {
+      resolveTrace!([]);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+
+    traceSpy.mockRestore();
+  });
+
   it('left-dragging in the preview commits a boundary for preview and submit', async () => {
     vi.useFakeTimers();
     const boundary = { x: 25, y: 25, width: 50, height: 50 };
@@ -727,6 +878,14 @@ describe('TraceImageDialog', () => {
     await act(async () => { await Promise.resolve(); });
     expect(screen.getByText('1 path found')).toBeDefined();
 
+    const frame = screen.getByTestId('trace-preview-frame');
+    const dialog = screen.getByRole('dialog');
+    await act(async () => {
+      fireEvent.mouseDown(frame, { button: 0, clientX: 0.25, clientY: 0.25 });
+      fireEvent.mouseMove(dialog, { clientX: 0.75, clientY: 0.75 });
+      fireEvent.mouseUp(dialog);
+    });
+
     fireEvent.click(screen.getByTestId('trace-clear-boundary'));
 
     expect(screen.queryByText('1 path found')).toBeNull();
@@ -805,7 +964,7 @@ describe('TraceImageDialog', () => {
 
     // Toggle Trace Transparency ON
     const toggle = screen.getByText('Trace Transparency');
-    fireEvent.click(toggle.previousElementSibling as Element); // click the checkbox input
+    fireEvent.click(toggle.closest('label')!.querySelector('input') as Element); // click the checkbox input
 
     fireEvent.click(screen.getByTestId('trace-submit'));
 
@@ -823,7 +982,7 @@ describe('TraceImageDialog', () => {
 
     // Toggle Sketch Trace ON
     const toggle = screen.getByText('Sketch Trace');
-    fireEvent.click(toggle.previousElementSibling as Element);
+    fireEvent.click(toggle.closest('label')!.querySelector('input') as Element);
 
     fireEvent.click(screen.getByTestId('trace-submit'));
 
@@ -841,7 +1000,7 @@ describe('TraceImageDialog', () => {
 
     // Delete image is checked by default — toggle it OFF
     const toggle = screen.getByText('Delete image after trace');
-    fireEvent.click(toggle.previousElementSibling as Element);
+    fireEvent.click(toggle.closest('label')!.querySelector('input') as Element);
 
     fireEvent.click(screen.getByTestId('trace-submit'));
 
@@ -868,7 +1027,7 @@ describe('TraceImageDialog', () => {
     // Toggle Trace Transparency ON
     const toggle = screen.getByText('Trace Transparency');
     await act(async () => {
-      fireEvent.click(toggle.previousElementSibling as Element);
+      fireEvent.click(toggle.closest('label')!.querySelector('input') as Element);
     });
 
     // Wait for debounced preview with updated param

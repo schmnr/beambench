@@ -4,7 +4,9 @@ import { PreviewWindow } from '../PreviewWindow';
 import { makeLayer, makeWorkspace } from '../../../test-utils/projectFixtures';
 import type { PreviewData } from '../../../types/preview';
 
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockReturnValue(new Promise(() => {})),
+}));
 
 class MockResizeObserver {
   observe = vi.fn();
@@ -22,6 +24,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
   beginPath: vi.fn(),
   moveTo: vi.fn(),
   lineTo: vi.fn(),
+  arc: vi.fn(),
   stroke: vi.fn(),
   fill: vi.fn(),
   save: vi.fn(),
@@ -48,17 +51,24 @@ function buildPreviewData(
     plan_id: planId,
     revision_hash: `${planId}-rev`,
     bounds: { min: { x: 0, y: 0 }, max: { x: durationSecs, y: 10 } },
-    layers: [{
-      layer_id: 'layer-1',
-      vector_paths: [{
-        points: [{ x: 0, y: 0 }, { x: durationSecs, y: 0 }],
-        closed: false,
-        power_percent: 50,
-        speed_mm_min: 60,
-        sequence: 1,
-      }],
-      raster_regions: [],
-    }],
+    layers: [
+      {
+        layer_id: 'layer-1',
+        vector_paths: [
+          {
+            points: [
+              { x: 0, y: 0 },
+              { x: durationSecs, y: 0 },
+            ],
+            closed: false,
+            power_percent: 50,
+            speed_mm_min: 60,
+            sequence: 1,
+          },
+        ],
+        raster_regions: [],
+      },
+    ],
     travel_moves: [],
     frame: null,
     stats: {
@@ -106,6 +116,7 @@ describe('PreviewWindow', () => {
 
     expect(screen.getByTestId('preview-window-drag-handle')).toBeDefined();
     expect(screen.getByTestId('preview-window-resize-handle')).toBeDefined();
+    expect(screen.getByTestId('preview-options-help').textContent).toContain('Travel is laser-off motion');
     expect(screen.getByText('Playback: 0:10 / 0:10')).toBeDefined();
 
     fireEvent.click(screen.getByTitle('Play'));
@@ -125,6 +136,49 @@ describe('PreviewWindow', () => {
     expect(screen.getByTitle('Play')).toBeDefined();
   });
 
+  it('stops playback immediately from the primary pause control', () => {
+    render(
+      <PreviewWindow
+        data={buildPreviewData('pause-plan', 10)}
+        previewState="current"
+        layers={[makeLayer({ id: 'layer-1', operation: 'cut', color_tag: '#ff0000' })]}
+        workspace={makeWorkspace()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const transport = screen.getByTestId('preview-play-pause');
+    fireEvent.click(transport);
+    expect(transport.getAttribute('title')).toBe('Pause');
+    expect(transport.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(transport);
+    expect(transport.getAttribute('title')).toBe('Play');
+    expect(transport.getAttribute('aria-pressed')).toBe('false');
+    expect(window.cancelAnimationFrame).toHaveBeenCalled();
+  });
+
+  it('toggles playback with Space without hijacking form controls', () => {
+    render(
+      <PreviewWindow
+        data={buildPreviewData('keyboard-plan', 10)}
+        previewState="current"
+        layers={[makeLayer({ id: 'layer-1', operation: 'cut', color_tag: '#ff0000' })]}
+        workspace={makeWorkspace()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: ' ', code: 'Space' });
+    expect(screen.getByTestId('preview-play-pause').getAttribute('title')).toBe('Pause');
+
+    fireEvent.keyDown(window, { key: ' ', code: 'Space' });
+    expect(screen.getByTestId('preview-play-pause').getAttribute('title')).toBe('Play');
+
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: ' ', code: 'Space' });
+    expect(screen.getByTestId('preview-play-pause').getAttribute('title')).toBe('Play');
+  });
+
   it('formats long preview totals and playback positions as hours', () => {
     const layers = [makeLayer({ id: 'layer-1', operation: 'cut', color_tag: '#ff0000' })];
     render(
@@ -141,27 +195,36 @@ describe('PreviewWindow', () => {
     expect(screen.getByText('Playback: 4:05:06 / 4:05:06')).toBeDefined();
   });
 
-  it('does not re-jump to the end when preview options change duration', () => {
+  it('keeps the job duration and scrubber position when travel visibility changes', () => {
     const onClose = vi.fn();
     const layers = [makeLayer({ id: 'layer-1', operation: 'cut', color_tag: '#ff0000' })];
     const workspace = makeWorkspace();
     const data = buildPreviewData('plan-with-travel', 70, {
-      travel_moves: [{
-        from: { x: 0, y: 0 },
-        to: { x: 10000, y: 0 },
-        sequence: 0,
-      }],
-      layers: [{
-        layer_id: 'layer-1',
-        vector_paths: [{
-          points: [{ x: 0, y: 0 }, { x: 10, y: 0 }],
-          closed: false,
-          power_percent: 50,
-          speed_mm_min: 60,
-          sequence: 1,
-        }],
-        raster_regions: [],
-      }],
+      travel_moves: [
+        {
+          from: { x: 0, y: 0 },
+          to: { x: 10000, y: 0 },
+          sequence: 0,
+        },
+      ],
+      layers: [
+        {
+          layer_id: 'layer-1',
+          vector_paths: [
+            {
+              points: [
+                { x: 0, y: 0 },
+                { x: 10, y: 0 },
+              ],
+              closed: false,
+              power_percent: 50,
+              speed_mm_min: 60,
+              sequence: 1,
+            },
+          ],
+          raster_regions: [],
+        },
+      ],
     });
 
     render(
@@ -180,7 +243,7 @@ describe('PreviewWindow', () => {
 
     fireEvent.click(screen.getByLabelText('Show Travel'));
 
-    expect(screen.getByText('Playback: 0:00 / 0:10')).toBeDefined();
+    expect(screen.getByText('Playback: 0:00 / 1:10')).toBeDefined();
   });
 
   it('suppresses the local generating overlay when the global offset-fill dialog is visible', () => {

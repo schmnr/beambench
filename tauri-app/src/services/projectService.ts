@@ -54,6 +54,7 @@ function decorateLayer(layer: Layer): Layer {
   const entries = layer.entries ?? [];
   return {
     ...layer,
+    fill_opacity: Math.min(1, Math.max(0, layer.fill_opacity ?? 1)),
     entries: entries.length > 0 ? entries : [primaryEntryOf(layer)],
   };
 }
@@ -237,6 +238,7 @@ export const projectService = {
       transform?: Transform2D;
       bounds?: Bounds;
       lock_aspect_ratio?: boolean;
+      transform_locks?: TransformLocks;
       power_scale?: number;
       priority?: number;
     },
@@ -247,8 +249,30 @@ export const projectService = {
     });
   },
 
+  async updateObjectTransformState(
+    objectIds: string[],
+    updates: {
+      transformLocks?: TransformLocks;
+      transformLockKey?: keyof TransformLocks;
+      transformEnabled?: boolean;
+      lockAspectRatio?: boolean;
+    },
+  ): Promise<ProjectObject[]> {
+    return invoke<ProjectObject[]>('update_object_transform_state', {
+      objectIds,
+      transformLocks: updates.transformLocks,
+      transformLockKey: updates.transformLockKey,
+      transformEnabled: updates.transformEnabled,
+      lockAspectRatio: updates.lockAspectRatio,
+    });
+  },
+
   async updateObjectData(objectId: string, data: ObjectData): Promise<ProjectObject> {
     return invoke<ProjectObject>('update_object_data', { objectId, data });
+  },
+
+  async resizeTextArea(objectId: string, bounds: Bounds): Promise<ProjectObject> {
+    return invoke<ProjectObject>('resize_text_area', { objectId, bounds });
   },
 
   async advanceAutoVariableText(): Promise<ProjectObject[]> {
@@ -553,6 +577,18 @@ export const projectService = {
 
   async reassignLayer(objectIds: string[], layerId: string): Promise<void> {
     return invoke<void>('reassign_layer', { objectIds, targetLayerId: layerId });
+  },
+
+  async moveObjectsInOutliner(
+    objectIds: string[],
+    targetLayerId: string,
+    beforeObjectId: string | null,
+  ): Promise<void> {
+    return invoke<void>('move_objects_in_outliner', {
+      objectIds,
+      targetLayerId,
+      beforeObjectId,
+    });
   },
 
   async selectOpenShapes(): Promise<string[]> {

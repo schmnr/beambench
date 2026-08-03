@@ -4,36 +4,36 @@ interface ToggleProps {
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   className?: string;
+  /** Kept for call-site compatibility; label-first is now the default layout. */
   labelFirst?: boolean;
 }
 
+/**
+ * Checkbox row: label on the left, control on the right — the panel-row
+ * convention everywhere. (The old default centered the pair, which left
+ * checkboxes floating mid-panel.)
+ */
 export function Toggle({
   label,
   checked,
   onChange,
   disabled,
   className = '',
-  labelFirst = false,
 }: ToggleProps) {
-  const labelText = label && <span className="text-bb-text-muted">{label}</span>;
-
   return (
     <label
-      className={`flex min-h-6 min-w-6 shrink-0 items-center gap-1.5 text-xs ${
-        labelFirst ? 'justify-between' : 'justify-center'
-      } ${
+      className={`flex min-h-8 items-center justify-between gap-3 text-xs ${
         disabled ? 'cursor-not-allowed' : 'cursor-pointer'
       } ${className}`}
     >
-      {labelFirst && labelText}
+      {label ? <span className="text-bb-text-muted">{label}</span> : <span />}
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
         disabled={disabled}
-        className="h-3 w-3 shrink-0 accent-bb-accent"
+        className="h-3.5 w-3.5 shrink-0 accent-bb-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent"
       />
-      {!labelFirst && labelText}
     </label>
   );
 }

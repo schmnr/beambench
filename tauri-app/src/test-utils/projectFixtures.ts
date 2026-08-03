@@ -156,6 +156,7 @@ export function makeLayer(overrides: LayerFixtureOverrides = {}): Layer {
     color_tag: '#000000',
     visible: true,
     is_tool_layer: isToolLayer,
+    fill_opacity: 1,
     ...overrides,
   };
 }
@@ -325,7 +326,6 @@ export function makeAppSettings(overrides: Partial<AppSettings> = {}): AppSettin
       filename_stem: null,
     },
     allow_importing_to_tool_layers: false,
-    include_tool_layers_in_job_bounds: true,
     ...overrides,
   };
 }

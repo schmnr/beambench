@@ -2,9 +2,7 @@ import type { Point2D } from '../types/project';
 import type { RasterRunExtent } from '../types/preview';
 import type { ViewportParams } from './ViewportTransform';
 import { worldToScreen, worldToScreenDist, worldBoundsToScreenRect } from './ViewportTransform';
-import {
-  DEFAULT_RAPID_SPEED_MM_MIN,
-} from './previewTimeline';
+import { DEFAULT_RAPID_SPEED_MM_MIN } from './previewTimeline';
 import {
   applyRasterBitmapTransform,
   drawPerRunOverscanMarkers,
@@ -19,12 +17,14 @@ import type {
   FrameSegment,
 } from './previewTimeline';
 import type { PreviewBitmapCache } from './previewBitmapCache';
+import { computeRasterMotionProgress, type RasterTravelTrace } from './rasterPreviewMotion';
 
 // Style constants
 const TRAVEL_DASH = [4, 4];
 const FRAME_DASH = [6, 3];
 const HEAD_DOT_RADIUS = 4;
 const HEAD_DOT_COLOR = '#ff4444';
+const PROGRESS_EPSILON = 1e-9;
 
 export interface InterpolateResult {
   partialPoints: Point2D[];
@@ -35,10 +35,7 @@ export interface InterpolateResult {
  * Walk along a polyline by cumulative length to find the cutoff at `fraction` (0..1).
  * Returns partial points up to the cutoff and the exact head position.
  */
-export function interpolatePolyline(
-  points: Point2D[],
-  fraction: number,
-): InterpolateResult {
+export function interpolatePolyline(points: Point2D[], fraction: number): InterpolateResult {
   if (points.length === 0) {
     return { partialPoints: [], headPos: { x: 0, y: 0 } };
   }
@@ -151,12 +148,9 @@ export function computeRasterHeadPos(
   const withinLine = lineProgress - currentLine;
 
   // Advance-axis position: fixed per line (stepped, not smooth).
-  const lineAdv = lc > 1
-    ? advMin + (currentLine / (lc - 1)) * advExtent
-    : advMin + advExtent * 0.5;
-  const nextLineAdv = lc > 1 && currentLine < lc - 1
-    ? advMin + ((currentLine + 1) / (lc - 1)) * advExtent
-    : lineAdv;
+  const lineAdv = lc > 1 ? advMin + (currentLine / (lc - 1)) * advExtent : advMin + advExtent * 0.5;
+  const nextLineAdv =
+    lc > 1 && currentLine < lc - 1 ? advMin + ((currentLine + 1) / (lc - 1)) * advExtent : lineAdv;
 
   let scanPos: number;
   let advPos: number;
@@ -166,9 +160,7 @@ export function computeRasterHeadPos(
   if (directionMode === 'bidirectional') {
     // Even lines: scanMin → scanMax, odd lines: scanMax → scanMin.
     const isForward = currentLine % 2 === 0;
-    scanPos = isForward
-      ? scanMin + withinLine * scanExtent
-      : scanMax - withinLine * scanExtent;
+    scanPos = isForward ? scanMin + withinLine * scanExtent : scanMax - withinLine * scanExtent;
     advPos = lineAdv;
   } else {
     // Unidirectional: scan LTR then rapid return (except last line).
@@ -176,16 +168,14 @@ export function computeRasterHeadPos(
 
     if (withinLine <= effectiveScanFrac) {
       // Scan phase: head sweeps from scanMin to scanMax.
-      const phaseFrac = effectiveScanFrac > 0
-        ? withinLine / effectiveScanFrac : 1;
+      const phaseFrac = effectiveScanFrac > 0 ? withinLine / effectiveScanFrac : 1;
       scanPos = scanMin + phaseFrac * scanExtent;
       advPos = lineAdv;
     } else {
       // Return phase: head rapids from scanMax back to scanMin,
       // advancing to the next line simultaneously.
       const returnFrac = 1 - effectiveScanFrac;
-      const phaseFrac = returnFrac > 0
-        ? (withinLine - effectiveScanFrac) / returnFrac : 1;
+      const phaseFrac = returnFrac > 0 ? (withinLine - effectiveScanFrac) / returnFrac : 1;
       scanPos = scanMax - phaseFrac * scanExtent;
       advPos = lineAdv + phaseFrac * (nextLineAdv - lineAdv);
     }
@@ -216,14 +206,13 @@ export function interpolateRasterRuns(
   transform:
     | boolean
     | {
-      scanAxis?: 'horizontal' | 'vertical';
-      scanAngleDeg?: number;
-      scanOrigin?: Point2D;
-    } = false,
+        scanAxis?: 'horizontal' | 'vertical';
+        scanAngleDeg?: number;
+        scanOrigin?: Point2D;
+      } = false,
 ): RasterRunProgress {
-  const scanAxis = typeof transform === 'boolean'
-    ? (transform ? 'vertical' : 'horizontal')
-    : transform.scanAxis;
+  const scanAxis =
+    typeof transform === 'boolean' ? (transform ? 'vertical' : 'horizontal') : transform.scanAxis;
   const scanAngleDeg = typeof transform === 'boolean' ? 0 : transform.scanAngleDeg;
   const scanOrigin = typeof transform === 'boolean' ? undefined : transform.scanOrigin;
   const originHead: Point2D = { x: 0, y: 0 };
@@ -270,7 +259,12 @@ export function interpolateRasterRuns(
         scanAngleDeg,
         scanOrigin,
       });
-      return { visibleRuns: visible, lastRunPartialFrac: frac, headPos, lastCompleteIndex: lastComplete };
+      return {
+        visibleRuns: visible,
+        lastRunPartialFrac: frac,
+        headPos,
+        lastCompleteIndex: lastComplete,
+      };
     }
 
     accumulated += len;
@@ -331,11 +325,9 @@ export function drawAnimatedPreview(
         });
         break;
       case 'travel':
-        if (options.showTravel) {
-          drawTravelSegment(ctx, seg, currentTime, vp, options, (pos) => {
-            headPos = pos;
-          });
-        }
+        drawTravelSegment(ctx, seg, currentTime, vp, options, (pos) => {
+          headPos = pos;
+        });
         break;
       case 'frame':
         drawFrameSegment(ctx, seg, currentTime, vp, options, (pos) => {
@@ -371,41 +363,43 @@ function drawTravelSegment(
   const from = worldToScreen(seg.from, vp);
   const to = worldToScreen(seg.to, vp);
 
-  const travelColor = options.invertView
-    ? 'rgba(200, 200, 200, 0.35)'
-    : 'rgba(128, 128, 128, 0.35)';
+  const travelColor = options.invertView ? 'rgba(110, 210, 255, 0.75)' : 'rgba(20, 120, 190, 0.7)';
   ctx.strokeStyle = travelColor;
-  ctx.lineWidth = 0.75;
+  ctx.lineWidth = 1.25;
   ctx.setLineDash(TRAVEL_DASH);
 
   if (isComplete) {
-    ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
-    ctx.stroke();
-    setHead(seg.to);
-  } else if (isInProgress) {
-    if (options.showBurnProgress) {
-      // Partial travel line with head tracking
-      const duration = seg.endTime - seg.startTime;
-      const fraction = duration > 0 ? (currentTime - seg.startTime) / duration : 1;
-      const mid = {
-        x: seg.from.x + (seg.to.x - seg.from.x) * fraction,
-        y: seg.from.y + (seg.to.y - seg.from.y) * fraction,
-      };
-      const midScreen = worldToScreen(mid, vp);
-      ctx.beginPath();
-      ctx.moveTo(from.x, from.y);
-      ctx.lineTo(midScreen.x, midScreen.y);
-      ctx.stroke();
-      setHead(mid);
-    } else {
-      // Draw full travel line without partial cutoff
+    if (options.showTravel) {
       ctx.beginPath();
       ctx.moveTo(from.x, from.y);
       ctx.lineTo(to.x, to.y);
       ctx.stroke();
     }
+    setHead(seg.to);
+  } else if (isInProgress) {
+    const duration = seg.endTime - seg.startTime;
+    const fraction = duration > 0 ? (currentTime - seg.startTime) / duration : 1;
+    const mid = {
+      x: seg.from.x + (seg.to.x - seg.from.x) * fraction,
+      y: seg.from.y + (seg.to.y - seg.from.y) * fraction,
+    };
+    if (options.showTravel) {
+      if (options.showBurnProgress) {
+        // Partial travel line with head tracking
+        const midScreen = worldToScreen(mid, vp);
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(midScreen.x, midScreen.y);
+        ctx.stroke();
+      } else {
+        // Draw full travel line without partial cutoff
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+      }
+    }
+    setHead(mid);
   }
 
   ctx.setLineDash([]);
@@ -424,9 +418,7 @@ function drawFrameSegment(
   const isComplete = seg.endTime <= currentTime;
   const isInProgress = !isComplete && seg.startTime <= currentTime;
 
-  const frameColor = options.invertView
-    ? 'rgba(0, 200, 200, 0.6)'
-    : 'rgba(0, 160, 160, 0.5)';
+  const frameColor = options.invertView ? 'rgba(0, 200, 200, 0.6)' : 'rgba(0, 160, 160, 0.5)';
   ctx.strokeStyle = frameColor;
   ctx.lineWidth = 1.5;
   ctx.setLineDash(FRAME_DASH);
@@ -440,6 +432,7 @@ function drawFrameSegment(
       ctx.lineTo(p.x, p.y);
     }
     ctx.stroke();
+    setHead(seg.path[seg.path.length - 1]);
   } else if (isInProgress) {
     if (options.showBurnProgress) {
       // Partial frame path with head tracking
@@ -473,6 +466,28 @@ function drawFrameSegment(
   }
 
   ctx.setLineDash([]);
+}
+
+function drawRasterTravelTraces(
+  ctx: CanvasRenderingContext2D,
+  traces: RasterTravelTrace[],
+  vp: ViewportParams,
+  invertView: boolean,
+): void {
+  if (traces.length === 0) return;
+  ctx.save();
+  ctx.strokeStyle = invertView ? 'rgba(110, 210, 255, 0.75)' : 'rgba(20, 120, 190, 0.7)';
+  ctx.lineWidth = 1.25;
+  ctx.setLineDash(TRAVEL_DASH);
+  ctx.beginPath();
+  for (const trace of traces) {
+    const from = worldToScreen(trace.from, vp);
+    const to = worldToScreen(trace.to, vp);
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawVectorSegment(
@@ -509,6 +524,7 @@ function drawVectorSegment(
     }
     if (seg.closed) ctx.closePath();
     ctx.stroke();
+    setHead(seg.points[seg.points.length - 1]);
   } else if (isInProgress) {
     if (options.showBurnProgress) {
       // Draw partial path with head tracking
@@ -563,7 +579,7 @@ function drawRasterSegment(
   const rect = worldBoundsToScreenRect(seg.bounds, vp);
   const { x, y, w, h } = rect;
 
-  const burnColor = options.invertView ? '#ffffff' : (seg.layerColor || '#000000');
+  const burnColor = options.invertView ? '#ffffff' : seg.layerColor || '#000000';
   const os = seg.overscanMm;
   const isVertical = seg.scanAxis === 'vertical';
 
@@ -579,10 +595,13 @@ function drawRasterSegment(
     const burnMaxY = seg.bounds.max.y - os;
     const burnH = Math.max(0, burnMaxY - burnMinY);
     hasOverscan = burnH > 0;
-    burnRect = worldBoundsToScreenRect({
-      min: { x: seg.bounds.min.x, y: burnMinY },
-      max: { x: seg.bounds.max.x, y: burnMaxY },
-    }, vp);
+    burnRect = worldBoundsToScreenRect(
+      {
+        min: { x: seg.bounds.min.x, y: burnMinY },
+        max: { x: seg.bounds.max.x, y: burnMaxY },
+      },
+      vp,
+    );
     burnScreenW = burnRect.w;
     burnScreenH = burnRect.h;
     osScreenDist = worldToScreenDist(os, vp.zoom);
@@ -591,10 +610,13 @@ function drawRasterSegment(
     const burnMaxX = seg.bounds.max.x - os;
     const burnW = Math.max(0, burnMaxX - burnMinX);
     hasOverscan = burnW > 0;
-    burnRect = worldBoundsToScreenRect({
-      min: { x: burnMinX, y: seg.bounds.min.y },
-      max: { x: burnMaxX, y: seg.bounds.max.y },
-    }, vp);
+    burnRect = worldBoundsToScreenRect(
+      {
+        min: { x: burnMinX, y: seg.bounds.min.y },
+        max: { x: burnMaxX, y: seg.bounds.max.y },
+      },
+      vp,
+    );
     burnScreenW = burnRect.w;
     burnScreenH = burnRect.h;
     osScreenDist = worldToScreenDist(os, vp.zoom);
@@ -618,18 +640,28 @@ function drawRasterSegment(
   // Overscan is defined by the full scan row, not by each internal burn island.
   // Using grayscale sub-runs here produces false pink bands between nearby
   // features inside the same row.
-  const overscanRuns = seg.scanlineExtents && seg.scanlineExtents.length > 0
-    ? seg.scanlineExtents
-    : runs.length > 0
-      ? runs
-      : (seg.overscanRunExtents ?? []);
+  const overscanRuns =
+    seg.scanlineExtents && seg.scanlineExtents.length > 0
+      ? seg.scanlineExtents
+      : runs.length > 0
+        ? runs
+        : (seg.overscanRunExtents ?? []);
+  const duration = seg.endTime - seg.startTime;
+  const rawProgress = isComplete ? 1 : duration > 0 ? (currentTime - seg.startTime) / duration : 1;
+  const displayProgress = isInProgress && !options.showBurnProgress ? 1 : rawProgress;
+  const rasterMotion = computeRasterMotionProgress(seg, displayProgress, options.showTravel);
+
+  if (options.showTravel && rasterMotion && rasterMotion.travelTraces.length > 0) {
+    drawRasterTravelTraces(ctx, rasterMotion.travelTraces, vp, options.invertView);
+  }
   const sequence = seg.sequence ?? -1;
   const canUseBitmap = !!(
-    bitmap
-    && localOrigin
-    && localW > 0
-    && localH > 0
-    && sequence >= 0
+    bitmap &&
+    localOrigin &&
+    localW > 0 &&
+    localH > 0 &&
+    runs.length > 0 &&
+    sequence >= 0
   );
   const preferTintedBitmapPreview = seg.preferRunPreview && canUseBitmap;
   const useOutlinedRunPreview = !preferTintedBitmapPreview && hasOutlines && runs.length > 0;
@@ -640,13 +672,18 @@ function drawRasterSegment(
     let visibleRuns = runs;
 
     if (isInProgress && options.showBurnProgress) {
-      const duration = seg.endTime - seg.startTime;
-      const progress = duration > 0 ? (currentTime - seg.startTime) / duration : 1;
-      interp = interpolateRasterRuns(runs, progress, {
-        scanAxis: seg.scanAxis,
-        scanAngleDeg: seg.scanAngleDeg,
-        scanOrigin: seg.scanOrigin,
-      });
+      interp = rasterMotion
+        ? {
+            visibleRuns: rasterMotion.visibleRuns,
+            lastRunPartialFrac: 0,
+            headPos: rasterMotion.headPos,
+            lastCompleteIndex: rasterMotion.lastCompleteIndex,
+          }
+        : interpolateRasterRuns(runs, rawProgress, {
+            scanAxis: seg.scanAxis,
+            scanAngleDeg: seg.scanAngleDeg,
+            scanOrigin: seg.scanOrigin,
+          });
       visibleRuns = interp.visibleRuns;
       headPosWorld = interp.headPos;
     } else if (isComplete) {
@@ -673,7 +710,8 @@ function drawRasterSegment(
 
     if (options.showOverscan && hasOverscan && osScreenDist > 0) {
       if (isInProgress && options.showBurnProgress) {
-        if (interp && interp.visibleRuns.length > 0) {
+        const progressOverscanRuns = rasterMotion?.visibleOverscanRuns ?? interp?.visibleRuns ?? [];
+        if (progressOverscanRuns.length > 0) {
           drawPerRunOverscanMarkers(
             ctx,
             {
@@ -683,9 +721,9 @@ function drawRasterSegment(
               scan_origin: seg.scanOrigin,
               overscan_mm: seg.overscanMm,
             },
-            interp.visibleRuns,
+            progressOverscanRuns,
             vp,
-            false,
+            rasterMotion?.lastOverscanRowComplete ?? false,
           );
         }
       } else {
@@ -698,7 +736,7 @@ function drawRasterSegment(
             scan_origin: seg.scanOrigin,
             overscan_mm: seg.overscanMm,
           },
-          runs,
+          overscanRuns,
           vp,
           true,
         );
@@ -722,30 +760,22 @@ function drawRasterSegment(
   if (canUseBitmap) {
     const img = bitmapCache.ensurePreviewBitmap(sequence, bitmap!.png_bytes);
     if (img && img.complete && img.naturalWidth > 0) {
-      const mask = bitmapCache.ensureBurnedMask(
-        sequence,
-        bitmap!.width_px,
-        bitmap!.height_px,
-      );
+      const mask = bitmapCache.ensureBurnedMask(sequence, bitmap!.width_px, bitmap!.height_px);
       const maskCtx = mask.getContext('2d');
       if (maskCtx) {
-        let progress = 1;
+        const progress = displayProgress;
         let headPosWorld: Point2D | null = null;
         let interp: RasterRunProgress | null = null;
-
-        if (isInProgress) {
-          const duration = seg.endTime - seg.startTime;
-          progress = duration > 0 ? (currentTime - seg.startTime) / duration : 1;
-        }
 
         // Incremental painting: each burned-mask canvas carries a
         // dataset attribute tracking the highest run index painted so
         // far. Only new runs since the last frame are drawn in, unless
         // progress moved backwards (scrubbing) in which case we reset.
         const PAINTED_KEY = 'bbPaintedCount';
-        const prevCount = parseInt(
-          (mask as HTMLCanvasElement).dataset[PAINTED_KEY] ?? '-1',
-          10,
+        const prevCount = parseInt((mask as HTMLCanvasElement).dataset[PAINTED_KEY] ?? '-1', 10);
+        const PAINTED_PROGRESS_KEY = 'bbPaintedProgress';
+        const prevProgress = parseFloat(
+          (mask as HTMLCanvasElement).dataset[PAINTED_PROGRESS_KEY] ?? '-1',
         );
 
         if (isComplete || progress >= 1) {
@@ -756,16 +786,24 @@ function drawRasterSegment(
             maskCtx.drawImage(img, 0, 0);
             (mask as HTMLCanvasElement).dataset[PAINTED_KEY] = String(runs.length - 1);
           }
+          (mask as HTMLCanvasElement).dataset[PAINTED_PROGRESS_KEY] = '1';
           headPosWorld = seg.endPoint ?? { x: seg.bounds.max.x, y: seg.bounds.max.y };
         } else {
-          interp = interpolateRasterRuns(runs, progress, {
-            scanAxis: seg.scanAxis,
-            scanAngleDeg: seg.scanAngleDeg,
-            scanOrigin: seg.scanOrigin,
-          });
+          interp = rasterMotion
+            ? {
+                visibleRuns: rasterMotion.visibleRuns,
+                lastRunPartialFrac: 0,
+                headPos: rasterMotion.headPos,
+                lastCompleteIndex: rasterMotion.lastCompleteIndex,
+              }
+            : interpolateRasterRuns(runs, progress, {
+                scanAxis: seg.scanAxis,
+                scanAngleDeg: seg.scanAngleDeg,
+                scanOrigin: seg.scanOrigin,
+              });
           const lastComplete = interp.lastCompleteIndex;
 
-          if (lastComplete < prevCount) {
+          if (lastComplete < prevCount || progress < prevProgress - PROGRESS_EPSILON) {
             // Backwards scrub — reset and repaint fresh.
             maskCtx.clearRect(0, 0, mask.width, mask.height);
             for (let i = 0; i <= lastComplete; i++) {
@@ -795,10 +833,12 @@ function drawRasterSegment(
             }
           }
           (mask as HTMLCanvasElement).dataset[PAINTED_KEY] = String(lastComplete);
+          (mask as HTMLCanvasElement).dataset[PAINTED_PROGRESS_KEY] = String(progress);
 
           // Active (partial) run: paint its slice up to cutoff.
           const partial = interp.visibleRuns[interp.visibleRuns.length - 1];
-          if (partial && lastComplete + 1 < runs.length) {
+          const hasPartialRun = interp.visibleRuns.length > lastComplete + 1;
+          if (partial && hasPartialRun && lastComplete + 1 < runs.length) {
             paintRunRectToMask(
               maskCtx,
               img,
@@ -818,10 +858,12 @@ function drawRasterSegment(
         if (options.showOverscan && hasOverscan && osScreenDist > 0) {
           const usePerRunOverscan = overscanRuns.length > 0;
           if (isInProgress && options.showBurnProgress) {
-            if (interp && interp.visibleRuns.length > 0) {
-              const progressRuns = overscanRuns.length === runs.length
-                ? interp.visibleRuns
-                : overscanRuns.slice(0, interp.visibleRuns.length);
+            const progressRuns =
+              rasterMotion?.visibleOverscanRuns ??
+              (overscanRuns.length === runs.length
+                ? (interp?.visibleRuns ?? [])
+                : overscanRuns.slice(0, Math.ceil(progress * overscanRuns.length)));
+            if (progressRuns.length > 0) {
               drawPerRunOverscanMarkers(
                 ctx,
                 {
@@ -833,7 +875,7 @@ function drawRasterSegment(
                 },
                 progressRuns,
                 vp,
-                false,
+                rasterMotion?.lastOverscanRowComplete ?? false,
               );
             }
           } else if (usePerRunOverscan) {
@@ -863,9 +905,20 @@ function drawRasterSegment(
           }
         }
 
-        const displayMask = preferTintedBitmapPreview
-          ? tintBurnedMask(bitmapCache, sequence, mask, bitmap!.width_px, bitmap!.height_px, burnColor)
-          : mask;
+        // On the dark inverted canvas, reverse the grayscale bitmap so high
+        // power remains bright and low power remains dim. A white tint alone
+        // cannot do this because multiplying by white leaves dark pixels dark.
+        const displayMask =
+          preferTintedBitmapPreview && !options.invertView
+            ? tintBurnedMask(
+                bitmapCache,
+                sequence,
+                mask,
+                bitmap!.width_px,
+                bitmap!.height_px,
+                burnColor,
+              )
+            : mask;
 
         // Composite the burned mask onto the main canvas with the same
         // local->world transform as the static bitmap path. The mask is the
@@ -883,6 +936,9 @@ function drawRasterSegment(
           localH,
           scale,
         );
+        if (options.invertView) {
+          ctx.filter = 'invert(1)';
+        }
         ctx.drawImage(displayMask, localOrigin!.x, localOrigin!.y, localW, localH);
         ctx.restore();
 
@@ -926,8 +982,7 @@ function drawRasterSegment(
     }
     setHead(seg.endPoint ?? { x: seg.bounds.max.x, y: seg.bounds.max.y });
   } else {
-    const duration = seg.endTime - seg.startTime;
-    const progress = duration > 0 ? (currentTime - seg.startTime) / duration : 1;
+    const progress = displayProgress;
     const geoHead = computeRasterHeadPos(
       seg.bounds,
       seg.lineCount,
@@ -976,7 +1031,7 @@ function drawRasterSegment(
       );
     }
 
-    setHead(geoHead);
+    setHead(rasterMotion?.headPos ?? geoHead);
   }
 
   ctx.globalAlpha = 1;

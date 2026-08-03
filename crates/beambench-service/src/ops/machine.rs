@@ -74,6 +74,8 @@ const FIRE_DEADMAN_POLL: Duration = Duration::from_millis(100);
 const TERMINAL_JOB_CONSOLE_LIMIT: usize = 120;
 const CONTROLLER_CONNECTION_CHALLENGE_TTL: Duration = Duration::from_secs(120);
 const CONTROLLER_COMPATIBILITY_STATUS_TIMEOUT: Duration = Duration::from_secs(1);
+const CONTROLLER_SETTINGS_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
+const CONTROLLER_QUERY_POLL_INTERVAL: Duration = Duration::from_millis(20);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SerialControllerProtocol {
@@ -1185,7 +1187,21 @@ fn finish_grbl_connection(
         }
     }
 
-    if !controller_info_already_queried {
+    if session.session_state() != SessionState::Alarm && query_settings {
+        ctx.push_connection_event(
+            "settings_query",
+            Some(port_name.to_string()),
+            baud_rate,
+            Some("Requesting GRBL settings".to_string()),
+            None,
+        );
+        request_grbl_settings_and_wait(&mut session)?;
+    }
+
+    // Settings are safety-critical for preflight, so complete that transaction
+    // before issuing this optional informational query. This also prevents a
+    // delayed `$I` acknowledgement from being mistaken for the end of `$$`.
+    if session.session_state() != SessionState::Alarm && !controller_info_already_queried {
         ctx.push_connection_event(
             "controller_info_query",
             Some(port_name.to_string()),
@@ -1198,32 +1214,7 @@ fn finish_grbl_connection(
         let _ = session.poll();
     }
 
-    if session.session_state() != SessionState::Alarm && query_settings {
-        ctx.push_connection_event(
-            "settings_query",
-            Some(port_name.to_string()),
-            baud_rate,
-            Some("Requesting GRBL settings".to_string()),
-            None,
-        );
-        session
-            .request_settings()
-            .map_err(|e| ServiceError::machine(e.to_string()))?;
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        let _ = session.poll();
-        if session.last_status().run_state != MachineRunState::Alarm {
-            session
-                .mark_ready()
-                .map_err(|e| ServiceError::machine(e.to_string()))?;
-            ctx.push_connection_event(
-                "ready",
-                Some(port_name.to_string()),
-                baud_rate,
-                Some("GRBL session is ready".to_string()),
-                None,
-            );
-        }
-    } else if session.session_state() != SessionState::Alarm {
+    if session.session_state() != SessionState::Alarm {
         session
             .mark_ready()
             .map_err(|e| ServiceError::machine(e.to_string()))?;
@@ -1231,12 +1222,62 @@ fn finish_grbl_connection(
             "ready",
             Some(port_name.to_string()),
             baud_rate,
-            Some("GRBL-compatible session is ready".to_string()),
+            Some(if query_settings {
+                "GRBL session is ready".to_string()
+            } else {
+                "GRBL-compatible session is ready".to_string()
+            }),
             None,
         );
     }
 
     Ok(session)
+}
+
+/// Request a complete GRBL settings dump and do not expose the session as
+/// ready until the controller terminates that response with `ok`.
+///
+/// A fixed sleep is insufficient here: some controllers need longer to emit
+/// their full `$$` response. Preflight treats a missing `$22`/`$32` as false,
+/// so reading the settings cache before the terminal acknowledgement creates
+/// a misleading configuration error even when the controller is configured
+/// correctly.
+fn request_grbl_settings_and_wait(session: &mut GrblSession) -> ServiceResult<()> {
+    session
+        .request_settings()
+        .map_err(|e| ServiceError::machine(e.to_string()))?;
+
+    let deadline = Instant::now() + CONTROLLER_SETTINGS_QUERY_TIMEOUT;
+    let mut saw_setting = false;
+    loop {
+        let responses = session
+            .poll()
+            .map_err(|e| ServiceError::machine(e.to_string()))?;
+        for response in responses {
+            match response {
+                GrblResponse::Setting(_, _) => saw_setting = true,
+                GrblResponse::Ok if saw_setting => return Ok(()),
+                GrblResponse::Error(code) => {
+                    return Err(ServiceError::machine(format!(
+                        "Controller rejected the GRBL settings query with error:{code}"
+                    )));
+                }
+                GrblResponse::Alarm(code) => {
+                    return Err(ServiceError::machine(format!(
+                        "Controller entered alarm {code} while reading GRBL settings"
+                    )));
+                }
+                _ => {}
+            }
+        }
+
+        if Instant::now() >= deadline {
+            return Err(ServiceError::machine(
+                "Timed out waiting for the complete GRBL settings response",
+            ));
+        }
+        std::thread::sleep(CONTROLLER_QUERY_POLL_INTERVAL);
+    }
 }
 
 fn connect_grbl(
@@ -3925,30 +3966,15 @@ fn frame_objects(
     Vec<beambench_core::ProjectObject>,
 )> {
     let project = planning::current_project(ctx)?;
-    let include_tool_bounds = ctx
-        .settings
-        .lock()
-        .map_err(|e| lock_err("settings", e))?
-        .include_tool_layers_in_job_bounds;
 
     let (bounds_objects, physical_objects): (Vec<_>, Vec<_>) = if selected_object_ids.is_empty() {
-        let visible_unlocked: Vec<_> = project
+        let frameable: Vec<_> = project
             .objects
             .iter()
-            .filter(|o| o.visible && !o.locked)
+            .filter(|o| o.visible && !o.locked && !object_layer_is_tool(&project, o))
             .cloned()
             .collect();
-        let bounds = visible_unlocked
-            .iter()
-            .filter(|o| include_tool_bounds || !object_layer_is_tool(&project, o))
-            .cloned()
-            .collect();
-        let physical = visible_unlocked
-            .iter()
-            .filter(|o| !object_layer_is_tool(&project, o))
-            .cloned()
-            .collect();
-        (bounds, physical)
+        (frameable.clone(), frameable)
     } else {
         let selected: Vec<_> = project
             .objects
@@ -5997,6 +6023,13 @@ mod tests {
         session.poll().unwrap();
         assert_eq!(session.session_state(), SessionState::Validating);
         handle.enqueue_response("<Idle|MPos:0.000,0.000,0.000|FS:0,0>");
+        let settings_handle = handle.clone();
+        let settings_producer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(20));
+            settings_handle.enqueue_response("$22=1");
+            settings_handle.enqueue_response("$32=1");
+            settings_handle.enqueue_response("ok");
+        });
 
         let probe = GrblFamilyIdentityProbeResult {
             identity: GrblFamilyIdentity {
@@ -6048,6 +6081,7 @@ mod tests {
             },
         )
         .unwrap();
+        settings_producer.join().unwrap();
 
         assert!(matches!(
             result,
@@ -6092,6 +6126,13 @@ mod tests {
         session.poll().unwrap();
         assert_eq!(session.session_state(), SessionState::Validating);
         handle.enqueue_response("<Idle|MPos:0.000,0.000,0.000|FS:0,0|FW:grblHAL>");
+        let settings_handle = handle.clone();
+        let settings_producer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(20));
+            settings_handle.enqueue_response("$22=1");
+            settings_handle.enqueue_response("$32=1");
+            settings_handle.enqueue_response("ok");
+        });
 
         let probe = GrblFamilyIdentityProbeResult {
             identity: GrblFamilyIdentity {
@@ -6143,6 +6184,7 @@ mod tests {
             },
         )
         .unwrap();
+        settings_producer.join().unwrap();
 
         assert!(matches!(
             result,
@@ -6636,6 +6678,39 @@ mod tests {
         fn port_name(&self) -> &str {
             "delayed-ack"
         }
+    }
+
+    #[test]
+    fn grbl_settings_query_waits_for_delayed_dump_completion() {
+        let mut transport = MockSerialTransport::new("delayed-settings");
+        transport.enqueue_response("Grbl 1.1h ['$' for help]");
+        let handle = transport.handle();
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+        session.poll().unwrap();
+
+        // A stale acknowledgement followed by only part of the dump must not
+        // complete the transaction. The setting needed by preflight arrives
+        // later, just like the field report that required a manual `$$`.
+        handle.enqueue_response("ok");
+        handle.enqueue_response("$22=1");
+        let delayed = handle.clone();
+        let producer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(60));
+            delayed.enqueue_response("$32=1");
+            delayed.enqueue_response("ok");
+        });
+
+        request_grbl_settings_and_wait(&mut session).unwrap();
+        producer.join().unwrap();
+
+        assert_eq!(session.settings().get(22), Some(1.0));
+        assert_eq!(session.settings().get(32), Some(1.0));
+        assert_eq!(
+            session.get_console_log(10)[0].content,
+            "ok",
+            "the terminal acknowledgement must be consumed before returning"
+        );
     }
 
     #[derive(Default)]
@@ -7852,7 +7927,7 @@ mod tests {
     }
 
     #[test]
-    fn frame_objects_uses_tool_layers_for_bounds_not_physical_motion() {
+    fn frame_objects_ignores_tool_layers_for_whole_job_frame() {
         use beambench_core::{Layer, OperationType};
 
         let ctx = ServiceContext::new();
@@ -7895,7 +7970,7 @@ mod tests {
 
         let (bounds_objects, physical_objects) = frame_objects(&ctx, &[]).unwrap();
 
-        assert_eq!(bounds_objects.len(), 2);
+        assert_eq!(bounds_objects.len(), 1);
         assert_eq!(physical_objects.len(), 1);
         assert_eq!(physical_objects[0].layer_id, line_layer_id);
     }
@@ -7934,14 +8009,10 @@ mod tests {
     }
 
     #[test]
-    fn frame_objects_tool_only_with_tool_bounds_disabled_fails_cleanly() {
+    fn frame_objects_tool_only_project_fails_cleanly() {
         use beambench_core::{Layer, OperationType};
 
         let ctx = ServiceContext::new();
-        ctx.settings
-            .lock()
-            .unwrap()
-            .include_tool_layers_in_job_bounds = false;
         let mut project = Project::new("Tool Only Frame");
         project.layers.clear();
         let mut tool_layer = Layer::new("T1", OperationType::Line);

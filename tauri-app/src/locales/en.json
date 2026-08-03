@@ -52,8 +52,8 @@
       "label": "File",
       "open": "Open",
       "new": "New",
-      "new_window": "New Window",
       "import": "Import",
+      "project_notes": "Project Notes...",
       "show_notes": "Show Notes",
       "hide_notes": "Hide Notes",
       "save": "Save",
@@ -67,7 +67,9 @@
       "reset_preferences": "Reset Prefs to Defaults",
       "print_black": "Print (black only)",
       "print_colors": "Print (keep colors)",
+      "print": "Print...",
       "save_processed_bitmap": "Save Processed Bitmap",
+      "export_processed_image": "Export Processed Image...",
       "save_background_capture": "Save Background Capture",
       "untitled_project": "Untitled Project",
       "preferences_imported": "Preferences imported.",
@@ -89,6 +91,7 @@
       "delete": "Delete",
       "convert_to_path": "Convert to Path",
       "convert_to_bitmap": "Convert to Bitmap",
+      "extract_selected_nodes_to_path": "Extract Selected Nodes to New Path",
       "close_path": "Close Path",
       "close_selected_paths_with_tolerance": "Close Selected Paths With Tolerance",
       "auto_join_selected_shapes": "Auto-Join Selected Shapes",
@@ -225,12 +228,12 @@
       "reset_to_default_layout": "Reset to Default Layout",
       "zoom_to_page": "Zoom to Page",
       "frame_selection": "Frame Selection",
-      "view_style": "View Style:",
-      "view_style_wireframe_coarse": "Wireframe / Coarse",
-      "view_style_wireframe_smooth": "Wireframe / Smooth",
-      "view_style_filled_coarse": "Filled / Coarse",
-      "view_style_filled_smooth": "Filled / Smooth",
-      "toggle_wireframe_filled": "Toggle Wireframe / Filled",
+      "view_style": "Artwork Display:",
+      "view_style_wireframe_coarse": "By Layer Operation",
+      "view_style_wireframe_smooth": "Wireframe Override",
+      "view_style_filled_coarse": "Filled Override",
+      "view_style_filled_smooth": "Smooth Edges",
+      "toggle_wireframe_filled": "Toggle Operation / Wireframe",
       "toggle_side_panels": "Toggle Side Panels",
       "art_library": "Art Library",
       "camera_control": "Camera Control",
@@ -321,6 +324,19 @@
     "notes": {
       "title": "Project Notes",
       "placeholder": "Add notes about this project..."
+    },
+    "print": {
+      "title": "Print",
+      "output": "Print Output",
+      "description": "Choose how the project should appear, then continue in the system print dialog.",
+      "color": "Color",
+      "black": "Black",
+      "layer_colors": "Layer Colors",
+      "appearance": "Artwork Appearance",
+      "by_operation": "By Layer Operation",
+      "outlines": "Outlines Only",
+      "print": "Print...",
+      "preparing": "Preparing..."
     },
     "offset": {
       "title": "Offset Shapes",
@@ -663,14 +679,13 @@
       "theme_system": "System",
       "theme_light": "Light",
       "theme_dark": "Dark",
-      "antialiasing": "Antialiasing",
+      "antialiasing": "Smooth edges",
       "filled_rendering": "Filled rendering",
       "reduce_motion": "Reduce motion",
       "scroll_wheel": "Scroll wheel",
       "scroll_zoom": "Zoom",
       "scroll_pan": "Pan",
-      "allow_import_tool_layers": "Allow importing to tool layers",
-      "include_tool_layers_job_bounds": "Include tool layers in job bounds"
+      "allow_import_tool_layers": "Allow importing to tool layers"
     },
     "about": {
       "tagline": "Built by makers for makers.",
@@ -696,6 +711,9 @@
       "potrace_link": "Potrace"
     },
     "adjust_image": {
+      "invert_display_help": "Preview only. The saved image and laser output are unchanged.",
+      "invert_adjustment_help": "Invert is saved with this image and runs before the layer’s raster processing.",
+      "negative_image_help": "Negative Image inverts the layer output. If Invert above is also on, the two inversions can cancel.",
       "title": "Adjust Image",
       "drag_to_move": "Drag to move",
       "original": "Original",
@@ -770,6 +788,7 @@
       "include_project_file": "Include project file",
       "include_project_file_help": "Off by default. This sends the actual .lzrproj geometry and raster data.",
       "job_compatibility_help": "Nothing has been sent yet. This report contains the Beam Bench version, operating system, controller family, non-identifying machine settings, and completed-job totals. It excludes artwork, G-code, filenames, serial traffic, logs, device paths, profile IDs, and project files.",
+      "privacy_policy": "Read the privacy policy",
       "what_gets_sent": "What gets sent",
       "loading": "Loading...",
       "submitting_report": "Submitting report to Beam Bench...",
@@ -853,6 +872,7 @@
       "pan_hint": "Drag to select a trace area. Hold Space and drag to pan."
     },
     "preview": {
+      "options_help": "Travel is laser-off motion. Progress shows completed burn. Overscan shows raster acceleration beyond the artwork. Shade by Power and Invert affect only this display.",
       "title": "Preview Window",
       "stale_refresh_required": "Stale - refresh required",
       "stale": "Stale",
@@ -1109,6 +1129,10 @@
   },
   "toolbars": {
     "main": {
+      "mode_design": "Design",
+      "mode_run": "Run",
+      "mode_design_hint": "Design: draw and arrange your project",
+      "mode_run_hint": "Run: send the job to your laser",
       "new": "New",
       "untitled_project": "Untitled Project",
       "open": "Open",
@@ -1193,13 +1217,16 @@
       "close_path": "Close Path",
       "auto_join_paths": "Auto-Join Paths",
       "insert_midpoint": "Insert Midpoint (M)",
-      "align_to_angle": "Align to Angle (A)"
+      "align_to_angle": "Align to Angle (A)",
+      "extend_to_intersection": "Extend to Intersection (E)"
     },
     "transform_toggles": {
       "move": "Move",
       "size": "Size",
       "rotate": "Rotate",
-      "shear": "Shear"
+      "shear": "Shear",
+      "lock_all": "Lock all transforms",
+      "unlock_all": "Unlock all transforms"
     },
     "properties": {
       "position_x": "X Pos",
@@ -1341,7 +1368,10 @@
   "panels": {
     "empty": {
       "no_project": "No project",
-      "nothing_selected": "Nothing selected"
+      "nothing_selected": "Select an object to edit its properties"
+    },
+    "library": {
+      "title": "Library"
     },
     "floating": {
       "dock_tooltip": "Dock panel",
@@ -1395,9 +1425,40 @@
       "end": "End",
       "midpoint": "Midpoint",
       "difference": "Difference",
-      "angle": "Angle"
+      "angle": "Angle",
+      "mode_linear": "Linear",
+      "mode_angle": "Angle",
+      "mode_radius": "Radius",
+      "mode_gap": "Gap",
+      "minimum_gap": "Minimum gap",
+      "horizontal": "Horizontal",
+      "vertical": "Vertical",
+      "horizontal_gap": "Horizontal gap",
+      "vertical_gap": "Vertical gap",
+      "first_segment": "First segment",
+      "second_segment": "Second segment",
+      "radius": "Radius",
+      "diameter": "Diameter",
+      "radius_x": "Radius X",
+      "radius_y": "Radius Y",
+      "diameter_x": "Diameter X",
+      "diameter_y": "Diameter Y",
+      "linear_second_hint": "Click the second point",
+      "angle_second_hint": "Click a second segment",
+      "gap_second_hint": "Click the second object",
+      "angle_hint": "Click two segments to measure their angle",
+      "radius_hint": "Click a circle or ellipse",
+      "gap_hint": "Click two objects to measure their closest gap",
+      "linear_hint": "Click-drag, or click two points",
+      "title": "Measure",
+      "modes": "Measurement modes",
+      "copy_value": "Copy value",
+      "copied": "Copied",
+      "clear_measurement": "Clear measurement",
+      "keyboard_hint": "Shift constrains angles. Escape clears, then returns to Select."
     },
     "art_library": {
+      "drag_help": "Drag artwork onto the canvas. Use × to delete it from the library.",
       "no_libraries": "No libraries loaded.",
       "search": "Search...",
       "icon_size": "Icon Size:",
@@ -1463,12 +1524,28 @@
       "generating": "Generating…",
       "generate_batch": "Generate Batch"
     },
+    "outliner": {
+      "help": "Drag to reorder or move. Double-click to rename. Hidden objects stay here so you can restore them.",
+      "summary": "{layers} layers · {objects} objects",
+      "empty_layer": "No objects",
+      "expand_layer": "Expand layer",
+      "collapse_layer": "Collapse layer",
+      "expand_group": "Expand group",
+      "collapse_group": "Collapse group",
+      "show_layer": "Show layer",
+      "hide_layer": "Hide layer",
+      "show_object": "Show object",
+      "hide_object": "Hide object",
+      "lock_object": "Lock object",
+      "unlock_object": "Unlock object"
+    },
     "registry": {
-      "cuts_layers": "Cuts / Layers",
+      "outliner": "Outliner",
+      "cuts_layers": "Layers",
       "move": "Move",
       "console": "Console",
       "macros": "Macros",
-      "properties": "Shape Properties",
+      "properties": "Properties",
       "measurement": "Measurement",
       "laser": "Laser Control",
       "material": "Material Library",
@@ -1527,6 +1604,10 @@
       "single_sub_layer": "Single sub-layer"
     },
     "properties": {
+      "transform": "Transform",
+      "visibility_help": "Hidden objects are excluded from the job. Restore them in the Outliner.",
+      "power_scale_help": "Multiplies this object’s layer power without changing the layer.",
+      "cut_priority_help": "Lower values run earlier when Priority optimization is enabled.",
       "objects_selected": "{count} objects selected",
       "layer": "Layer",
       "mixed": "Mixed",
@@ -1536,7 +1617,7 @@
       "union": "Union",
       "subtract": "Subtract",
       "intersection": "Intersection",
-      "nothing_selected": "Nothing selected",
+      "nothing_selected": "Select an object to edit its properties",
       "name": "Name",
       "power_scale_percent": "Power Scale %",
       "cut_priority": "Cut Priority",
@@ -1576,12 +1657,28 @@
     },
     "text_properties": {
       "title": "Text",
+      "tool_title": "Text tool",
+      "creation_hint": "Choose Point to click and type, or Box to drag a wrapping region.",
       "content": "Content",
+      "edit_text": "Edit text",
+      "edit_on_canvas": "Edit on canvas",
       "font": "Font",
+      "search_fonts": "Search fonts",
+      "recent_fonts": "Recent",
+      "favorite_fonts": "Favorites",
+      "all_fonts": "All fonts",
+      "no_fonts_found": "No fonts found",
+      "favorite_font": "Favorite font",
+      "unfavorite_font": "Remove favorite",
       "font_sans_serif": "Sans-serif",
       "font_serif": "Serif",
       "font_monospace": "Monospace",
       "size_mm": "Size",
+      "style": "Style",
+      "style_regular": "Regular",
+      "style_bold_italic": "Bold italic",
+      "typography": "Typography",
+      "alignment_spacing": "Alignment & spacing",
       "align": "Align",
       "v_align": "V Align",
       "layout": "Layout",
@@ -1591,6 +1688,24 @@
       "bold": "Bold",
       "italic": "Italic",
       "uppercase": "Uppercase",
+      "text_box": "Text type",
+      "width_mode": "Mode",
+      "auto_width": "Point",
+      "fixed_width": "Box",
+      "width": "Box width",
+      "squeeze_to_fit": "Squeeze to fit",
+      "advanced_shape": "Advanced text shape",
+      "transform": "Envelope",
+      "transform_none": "None",
+      "transform_arch": "Arch",
+      "transform_rise": "Rise",
+      "transform_wave": "Wave",
+      "transform_flag": "Flag",
+      "transform_angle": "Angle",
+      "transform_circle": "Circle",
+      "curve": "Curve",
+      "laser_output": "Laser output",
+      "convert_hint": "Convert to Path freezes the lettering into editable cut geometry.",
       "weld": "Weld",
       "max_width": "Max Width",
       "squeeze": "Squeeze",
@@ -1598,7 +1713,20 @@
       "rtl": "RTL",
       "h_space": "HSpace",
       "v_space": "VSpace",
+      "tracking": "Tracking",
+      "line_spacing": "Line spacing",
       "path_offset": "Path Offset",
+      "baseline_offset": "Baseline Offset",
+      "direction_normal": "Normal",
+      "direction_reverse": "Reverse",
+      "strength": "Strength",
+      "arc_span": "Arc Span",
+      "circle_position": "Circle Position",
+      "circle_side": "Circle Side",
+      "circle_top": "Top",
+      "circle_bottom": "Bottom",
+      "circle_outside": "Outside",
+      "circle_inside": "Inside",
       "bend_radius": "Bend Radius",
       "align_left": "Left",
       "align_center": "Center",
@@ -1608,6 +1736,7 @@
       "align_bottom": "Bottom"
     },
     "sub_layer_stack": {
+      "title": "Sub-layers",
       "operation_tool": "Tool",
       "operation_image": "Image",
       "operation_fill": "Fill",
@@ -1657,7 +1786,8 @@
       "offset_outward": "Offset Outward",
       "max_sub_layers_title": "Maximum of 11 sub-layers reached",
       "add_sub_layer_title": "Add sub-layer",
-      "add_sub_layer": "+ Add sub-layer"
+      "add_sub_layer": "+ Add sub-layer",
+      "order_hint": "Sub-layers run in order, top to bottom."
     },
     "cut_settings": {
       "title": "Cut Settings",
@@ -1683,6 +1813,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Tool layers are guides and never produce laser output.",
+      "output_show_help": "Out includes this layer in the laser job. Show changes only the canvas view.",
+      "opacity_help": "Canvas preview only. This does not change laser power or image processing.",
+      "delete_layer": "Delete layer",
+      "add_layer": "Add layer",
       "header": {
         "index": "#",
         "layer": "Layer",
@@ -1702,8 +1837,6 @@
         "multi": "Multi"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Include tool layers in job bounds",
-      "exclude_tool_layers_from_job_bounds": "Exclude tool layers from job bounds",
       "frame": "Frame",
       "move_up": "Move up",
       "move_down": "Move down",
@@ -1750,7 +1883,8 @@
         "on_ms": "On (ms)",
         "off_ms": "Off (ms)",
         "kerf_mm": "Kerf Offset"
-      }
+      },
+      "settings_copied": "Layer settings copied"
     },
     "move": {
       "step_mm": "Step",
@@ -2203,6 +2337,11 @@
       }
     }
   },
+  "warp_tool": {
+    "title": "Warp",
+    "four_points": "4 points",
+    "sixteen_points": "16 points"
+  },
   "context_menu": {
     "windows": "Windows",
     "side_panels": "Side Panels",
@@ -2279,10 +2418,10 @@
     "diagnostics_saved": "Diagnostics saved to {path}",
     "import_failed": "Import failed: {detail}",
     "lock": {
-      "position": "Position is locked for this project",
-      "scale": "Scale is locked for this project",
-      "rotation": "Rotation is locked for this project",
-      "shear": "Shear is locked for this project"
+      "position": "Position is locked for the selection",
+      "scale": "Scale is locked for the selection",
+      "rotation": "Rotation is locked for the selection",
+      "shear": "Shear is locked for the selection"
     },
     "update": {
       "up_to_date": "Beam Bench is up to date.",

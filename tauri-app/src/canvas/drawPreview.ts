@@ -32,12 +32,7 @@ export function fillNormalizedRect(
   w: number,
   h: number,
 ): void {
-  ctx.fillRect(
-    Math.min(x, x + w),
-    Math.min(y, y + h),
-    Math.abs(w),
-    Math.abs(h),
-  );
+  ctx.fillRect(Math.min(x, x + w), Math.min(y, y + h), Math.abs(w), Math.abs(h));
 }
 
 export function applyRasterBitmapTransform(
@@ -138,22 +133,20 @@ export function drawRasterPreview(
     const localW = region.local_width_mm ?? 0;
     const localH = region.local_height_mm ?? 0;
     const sequence = region.sequence ?? -1;
-    const useOutlinedRunPreview = hasOutlines
-      && !!region.run_extents
-      && region.run_extents.length > 0;
+    const useOutlinedRunPreview =
+      hasOutlines && !!region.run_extents && region.run_extents.length > 0;
     // Overscan is a scanline-level behavior: the head overscans before the
     // first energized pixel of the row and after the last one. For image
     // rows with internal laser-off gaps, using sub-run extents paints fake
     // "overscan bands" between islands. Prefer planner row extents here.
-    const overscanRuns = region.scanline_extents && region.scanline_extents.length > 0
-      ? region.scanline_extents
-      : region.run_extents && region.run_extents.length > 0
-        ? region.run_extents
-        : region.overscan_run_extents;
+    const overscanRuns =
+      region.scanline_extents && region.scanline_extents.length > 0
+        ? region.scanline_extents
+        : region.run_extents && region.run_extents.length > 0
+          ? region.run_extents
+          : region.overscan_run_extents;
     const overscanMm = region.overscan_mm ?? 0;
-    const usePerRunOverscan = overscanMm > 0
-      && !!overscanRuns
-      && overscanRuns.length > 0;
+    const usePerRunOverscan = overscanMm > 0 && !!overscanRuns && overscanRuns.length > 0;
 
     // Draw overscan behind the burn preview, not on top of it.
     // For bitmap rasters this avoids the old "pink stripes invert the image"
@@ -178,13 +171,7 @@ export function drawRasterPreview(
     if (useOutlinedRunPreview) {
       drawRasterRunStripes(ctx, region, region.run_extents!, burnColor, vp);
       bitmapDrawn = true;
-    } else if (
-      bitmap
-      && localOrigin
-      && localW > 0
-      && localH > 0
-      && sequence >= 0
-    ) {
+    } else if (bitmap && localOrigin && localW > 0 && localH > 0 && sequence >= 0) {
       const img = bitmapCache.ensurePreviewBitmap(sequence, bitmap.png_bytes);
       if (img && img.complete && img.naturalWidth > 0) {
         // The bitmap is the planner's exact burn footprint (transparent
@@ -261,11 +248,11 @@ export function drawRasterPreview(
     // the primary overscan pass above, fall back to on-top markers so the
     // region still communicates overscan during decode/loading.
     if (
-      !bitmapDrawn
-      && !usePerRunOverscan
-      && (region.overscan_mm ?? 0) > 0
-      && overscanRuns
-      && overscanRuns.length > 0
+      !bitmapDrawn &&
+      !usePerRunOverscan &&
+      (region.overscan_mm ?? 0) > 0 &&
+      overscanRuns &&
+      overscanRuns.length > 0
     ) {
       drawPerRunOverscanMarkers(ctx, region, overscanRuns, vp, true);
     }
@@ -308,6 +295,15 @@ export function drawRasterRunStripes(
   const thickness = emphasizeVisibleRuns
     ? Math.min(1.8, Math.max(0.9, effectiveIntervalPx * 0.8))
     : Math.min(1.25, Math.max(0.5, effectiveIntervalPx * 0.42));
+  const scanlineGroups: RasterRunExtent[][] = [];
+  for (const strip of visibleStrips) {
+    const lastGroup = scanlineGroups[scanlineGroups.length - 1];
+    if (lastGroup && Math.abs(lastGroup[0].y_mm - strip.y_mm) < 1e-9) {
+      lastGroup.push(strip);
+    } else {
+      scanlineGroups.push([strip]);
+    }
+  }
 
   ctx.save();
 
@@ -356,8 +352,64 @@ export function drawRasterRunStripes(
     ctx.lineCap = 'butt';
 
     let lastUnderlayCoord = Number.NEGATIVE_INFINITY;
-    for (let i = 0; i < visibleStrips.length; i += stride) {
-      const strip = visibleStrips[i];
+    for (let i = 0; i < scanlineGroups.length; i += stride) {
+      const scanline = scanlineGroups[i];
+      const firstStrip = scanline[0];
+      const firstStart = plannerStripPointToWorld(firstStrip.y_mm, firstStrip.start_x_mm, {
+        scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
+        scanAngleDeg: region.scan_angle_deg,
+        scanOrigin: region.scan_origin,
+      });
+      const firstScreen = worldToScreen(firstStart, vp);
+      const coord = region.scan_axis === 'vertical' ? firstScreen.x : firstScreen.y;
+      if (Math.abs(coord - lastUnderlayCoord) < 0.45) {
+        continue;
+      }
+      lastUnderlayCoord = coord;
+      for (const strip of scanline) {
+        const start = plannerStripPointToWorld(strip.y_mm, strip.start_x_mm, {
+          scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
+          scanAngleDeg: region.scan_angle_deg,
+          scanOrigin: region.scan_origin,
+        });
+        const end = plannerStripPointToWorld(strip.y_mm, strip.end_x_mm, {
+          scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
+          scanAngleDeg: region.scan_angle_deg,
+          scanOrigin: region.scan_origin,
+        });
+        const s = worldToScreen(start, vp);
+        const e = worldToScreen(end, vp);
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(e.x, e.y);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = thickness;
+    ctx.lineCap = 'butt';
+  }
+
+  let lastScreenCoord = Number.NEGATIVE_INFINITY;
+  for (let i = 0; i < scanlineGroups.length; i += stride) {
+    const scanline = scanlineGroups[i];
+    const firstStrip = scanline[0];
+    const firstStart = plannerStripPointToWorld(firstStrip.y_mm, firstStrip.start_x_mm, {
+      scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
+      scanAngleDeg: region.scan_angle_deg,
+      scanOrigin: region.scan_origin,
+    });
+    const firstScreen = worldToScreen(firstStart, vp);
+    const coord = region.scan_axis === 'vertical' ? firstScreen.x : firstScreen.y;
+    const minScreenGap = emphasizeVisibleRuns ? 0.45 : 0.85;
+    if (Math.abs(coord - lastScreenCoord) < minScreenGap) {
+      continue;
+    }
+    lastScreenCoord = coord;
+    for (const strip of scanline) {
       const start = plannerStripPointToWorld(strip.y_mm, strip.start_x_mm, {
         scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
         scanAngleDeg: region.scan_angle_deg,
@@ -370,49 +422,11 @@ export function drawRasterRunStripes(
       });
       const s = worldToScreen(start, vp);
       const e = worldToScreen(end, vp);
-      const coord = region.scan_axis === 'vertical' ? s.x : s.y;
-      if (Math.abs(coord - lastUnderlayCoord) < 0.45) {
-        continue;
-      }
-      lastUnderlayCoord = coord;
       ctx.beginPath();
       ctx.moveTo(s.x, s.y);
       ctx.lineTo(e.x, e.y);
       ctx.stroke();
     }
-    ctx.restore();
-
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = 0.9;
-    ctx.lineWidth = thickness;
-    ctx.lineCap = 'butt';
-  }
-
-  let lastScreenCoord = Number.NEGATIVE_INFINITY;
-  for (let i = 0; i < visibleStrips.length; i += stride) {
-    const strip = visibleStrips[i];
-    const start = plannerStripPointToWorld(strip.y_mm, strip.start_x_mm, {
-      scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
-      scanAngleDeg: region.scan_angle_deg,
-      scanOrigin: region.scan_origin,
-    });
-    const end = plannerStripPointToWorld(strip.y_mm, strip.end_x_mm, {
-      scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
-      scanAngleDeg: region.scan_angle_deg,
-      scanOrigin: region.scan_origin,
-    });
-    const s = worldToScreen(start, vp);
-    const e = worldToScreen(end, vp);
-    const coord = region.scan_axis === 'vertical' ? s.x : s.y;
-    const minScreenGap = emphasizeVisibleRuns ? 0.45 : 0.85;
-    if (Math.abs(coord - lastScreenCoord) < minScreenGap) {
-      continue;
-    }
-    lastScreenCoord = coord;
-    ctx.beginPath();
-    ctx.moveTo(s.x, s.y);
-    ctx.lineTo(e.x, e.y);
-    ctx.stroke();
   }
 
   ctx.restore();
@@ -459,8 +473,7 @@ export function drawPerRunOverscanMarkers(
   const overscanMm = region.overscan_mm ?? 0;
   if (overscanMm <= 0 || visibleStrips.length === 0) return;
 
-  const isRotated = !isCardinalAngle(region.scan_angle_deg)
-    && !!region.scan_origin;
+  const isRotated = !isCardinalAngle(region.scan_angle_deg) && !!region.scan_origin;
   const isVertical = region.scan_axis === 'vertical';
   const lineInterval = worldToScreenDist(region.line_interval_mm, vp.zoom);
   const thickness = Math.max(1, lineInterval * 0.6);
@@ -475,19 +488,26 @@ export function drawPerRunOverscanMarkers(
     const strip = visibleStrips[i];
     const isLast = i === visibleStrips.length - 1;
     const showLeadOut = isRegionComplete || !isLast;
+    const direction = strip.direction === 'right_to_left' ? -1 : 1;
+    const stripMin = Math.min(strip.start_x_mm, strip.end_x_mm);
+    const stripMax = Math.max(strip.start_x_mm, strip.end_x_mm);
+    const burnStart = direction > 0 ? stripMin : stripMax;
+    const burnEnd = direction > 0 ? stripMax : stripMin;
+    const leadInStart = burnStart - direction * overscanMm;
+    const leadOutEnd = burnEnd + direction * overscanMm;
 
     if (isRotated && region.scan_origin) {
-      const leadInStart = plannerStripPointToWorld(strip.y_mm, strip.start_x_mm - overscanMm, {
+      const leadInStartWorld = plannerStripPointToWorld(strip.y_mm, leadInStart, {
         scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
         scanAngleDeg: region.scan_angle_deg,
         scanOrigin: region.scan_origin,
       });
-      const leadInEnd = plannerStripPointToWorld(strip.y_mm, strip.start_x_mm, {
+      const leadInEnd = plannerStripPointToWorld(strip.y_mm, burnStart, {
         scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
         scanAngleDeg: region.scan_angle_deg,
         scanOrigin: region.scan_origin,
       });
-      const liStart = worldToScreen(leadInStart, vp);
+      const liStart = worldToScreen(leadInStartWorld, vp);
       const liEnd = worldToScreen(leadInEnd, vp);
       ctx.beginPath();
       ctx.moveTo(liStart.x, liStart.y);
@@ -495,18 +515,18 @@ export function drawPerRunOverscanMarkers(
       ctx.stroke();
 
       if (showLeadOut) {
-        const leadOutStart = plannerStripPointToWorld(strip.y_mm, strip.end_x_mm, {
+        const leadOutStart = plannerStripPointToWorld(strip.y_mm, burnEnd, {
           scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
           scanAngleDeg: region.scan_angle_deg,
           scanOrigin: region.scan_origin,
         });
-        const leadOutEnd = plannerStripPointToWorld(strip.y_mm, strip.end_x_mm + overscanMm, {
+        const leadOutEndWorld = plannerStripPointToWorld(strip.y_mm, leadOutEnd, {
           scanAxis: region.scan_axis === 'vertical' ? 'vertical' : 'horizontal',
           scanAngleDeg: region.scan_angle_deg,
           scanOrigin: region.scan_origin,
         });
         const loStart = worldToScreen(leadOutStart, vp);
-        const loEnd = worldToScreen(leadOutEnd, vp);
+        const loEnd = worldToScreen(leadOutEndWorld, vp);
         ctx.beginPath();
         ctx.moveTo(loStart.x, loStart.y);
         ctx.lineTo(loEnd.x, loEnd.y);
@@ -514,24 +534,24 @@ export function drawPerRunOverscanMarkers(
       }
     } else if (isVertical) {
       const cx = worldToScreen({ x: strip.y_mm, y: 0 }, vp).x;
-      const liStart = worldToScreen({ x: 0, y: strip.start_x_mm - overscanMm }, vp).y;
-      const liEnd = worldToScreen({ x: 0, y: strip.start_x_mm }, vp).y;
+      const liStart = worldToScreen({ x: 0, y: leadInStart }, vp).y;
+      const liEnd = worldToScreen({ x: 0, y: burnStart }, vp).y;
       fillNormalizedRect(ctx, cx - thickness / 2, liStart, thickness, liEnd - liStart);
 
       if (showLeadOut) {
-        const loStart = worldToScreen({ x: 0, y: strip.end_x_mm }, vp).y;
-        const loEnd = worldToScreen({ x: 0, y: strip.end_x_mm + overscanMm }, vp).y;
+        const loStart = worldToScreen({ x: 0, y: burnEnd }, vp).y;
+        const loEnd = worldToScreen({ x: 0, y: leadOutEnd }, vp).y;
         fillNormalizedRect(ctx, cx - thickness / 2, loStart, thickness, loEnd - loStart);
       }
     } else {
       const cy = worldToScreen({ x: 0, y: strip.y_mm }, vp).y;
-      const liStart = worldToScreen({ x: strip.start_x_mm - overscanMm, y: 0 }, vp).x;
-      const liEnd = worldToScreen({ x: strip.start_x_mm, y: 0 }, vp).x;
+      const liStart = worldToScreen({ x: leadInStart, y: 0 }, vp).x;
+      const liEnd = worldToScreen({ x: burnStart, y: 0 }, vp).x;
       fillNormalizedRect(ctx, liStart, cy - thickness / 2, liEnd - liStart, thickness);
 
       if (showLeadOut) {
-        const loStart = worldToScreen({ x: strip.end_x_mm, y: 0 }, vp).x;
-        const loEnd = worldToScreen({ x: strip.end_x_mm + overscanMm, y: 0 }, vp).x;
+        const loStart = worldToScreen({ x: burnEnd, y: 0 }, vp).x;
+        const loEnd = worldToScreen({ x: leadOutEnd, y: 0 }, vp).x;
         fillNormalizedRect(ctx, loStart, cy - thickness / 2, loEnd - loStart, thickness);
       }
     }
@@ -625,9 +645,15 @@ function drawArrow(
 
   ctx.beginPath();
   ctx.moveTo(midX + nx * ARROW_SIZE, midY + ny * ARROW_SIZE);
-  ctx.lineTo(midX - nx * ARROW_SIZE * 0.5 + ny * ARROW_SIZE * 0.5, midY - ny * ARROW_SIZE * 0.5 - nx * ARROW_SIZE * 0.5);
+  ctx.lineTo(
+    midX - nx * ARROW_SIZE * 0.5 + ny * ARROW_SIZE * 0.5,
+    midY - ny * ARROW_SIZE * 0.5 - nx * ARROW_SIZE * 0.5,
+  );
   ctx.moveTo(midX + nx * ARROW_SIZE, midY + ny * ARROW_SIZE);
-  ctx.lineTo(midX - nx * ARROW_SIZE * 0.5 - ny * ARROW_SIZE * 0.5, midY - ny * ARROW_SIZE * 0.5 + nx * ARROW_SIZE * 0.5);
+  ctx.lineTo(
+    midX - nx * ARROW_SIZE * 0.5 - ny * ARROW_SIZE * 0.5,
+    midY - ny * ARROW_SIZE * 0.5 + nx * ARROW_SIZE * 0.5,
+  );
   ctx.stroke();
 }
 
@@ -654,7 +680,7 @@ function drawHatching(
   for (let i = -maxDim; i < maxDim; i += spacing) {
     ctx.beginPath();
     const ox = -sin * i; // perpendicular offset x
-    const oy = cos * i;  // perpendicular offset y
+    const oy = cos * i; // perpendicular offset y
     const cx = x + w / 2 + ox;
     const cy = y + h / 2 + oy;
     ctx.moveTo(cx - cos * maxDim, cy - sin * maxDim);

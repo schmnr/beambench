@@ -1,4 +1,4 @@
-import type { PhysicalDockZone } from './panelRegistry';
+import type { PanelColumnSide, PhysicalDockZone } from './panelRegistry';
 import { getDefaultLayout } from './panelRegistry';
 
 export interface ZoneState {
@@ -17,11 +17,30 @@ export interface FloatingPanelState {
   originIndex?: number;
 }
 
-export interface PanelLayoutState {
+export type PanelWorkspaceMode = 'design' | 'run';
+export type ColumnSplitRatios = [number, number, number];
+export type WorkspaceColumnRatios = Record<PanelColumnSide, ColumnSplitRatios>;
+
+export interface WorkspacePanelLayout {
   zones: Record<PhysicalDockZone, ZoneState>;
   hiddenPanelIds: string[];
   floatingPanels: FloatingPanelState[];
-  upperSplitRatio: number;   // 0-1, default 0.6
+  upperSplitRatio: number;
+  columnRatios: WorkspaceColumnRatios;
+}
+
+export interface PanelLayoutState {
+  layoutVersion: number;
+  zones: Record<PhysicalDockZone, ZoneState>;
+  hiddenPanelIds: string[];
+  floatingPanels: FloatingPanelState[];
+  upperSplitRatio: number;   // 0-1; 1 collapses the lower Design dock
+  runZones: Record<PhysicalDockZone, ZoneState>;
+  runHiddenPanelIds: string[];
+  runFloatingPanels: FloatingPanelState[];
+  runUpperSplitRatio: number;
+  columnRatios: WorkspaceColumnRatios;
+  runColumnRatios: WorkspaceColumnRatios;
   rightPanelWidth: number;   // px, default 384
   leftPanelWidth: number;    // px, default 280
   bottomPanelHeight: number; // px, default 200
@@ -29,9 +48,65 @@ export interface PanelLayoutState {
   toolbarVisibility: ToolbarVisibility;
 }
 
-export const DEFAULT_UPPER_SPLIT_RATIO = 0.6;
+export function getWorkspacePanelLayout(
+  layout: PanelLayoutState,
+  workspace: PanelWorkspaceMode,
+): WorkspacePanelLayout {
+  return workspace === 'run'
+    ? {
+        zones: layout.runZones,
+        hiddenPanelIds: layout.runHiddenPanelIds,
+        floatingPanels: layout.runFloatingPanels,
+        upperSplitRatio: layout.runUpperSplitRatio,
+        columnRatios: layout.runColumnRatios,
+      }
+    : {
+        zones: layout.zones,
+        hiddenPanelIds: layout.hiddenPanelIds,
+        floatingPanels: layout.floatingPanels,
+        upperSplitRatio: layout.upperSplitRatio,
+        columnRatios: layout.columnRatios,
+      };
+}
+
+export function setWorkspacePanelLayout(
+  layout: PanelLayoutState,
+  workspace: PanelWorkspaceMode,
+  next: WorkspacePanelLayout,
+): PanelLayoutState {
+  return workspace === 'run'
+    ? {
+        ...layout,
+        runZones: next.zones,
+        runHiddenPanelIds: next.hiddenPanelIds,
+        runFloatingPanels: next.floatingPanels,
+        runUpperSplitRatio: next.upperSplitRatio,
+        runColumnRatios: next.columnRatios,
+      }
+    : {
+        ...layout,
+        zones: next.zones,
+        hiddenPanelIds: next.hiddenPanelIds,
+        floatingPanels: next.floatingPanels,
+        upperSplitRatio: next.upperSplitRatio,
+        columnRatios: next.columnRatios,
+      };
+}
+
+export const PANEL_LAYOUT_VERSION = 9;
+export const DEFAULT_UPPER_SPLIT_RATIO = 1;
+export const DEFAULT_RUN_UPPER_SPLIT_RATIO = 0.58;
+export const DEFAULT_DESIGN_COLUMN_RATIOS: WorkspaceColumnRatios = {
+  left: [1, 0, 0],
+  right: [1, 0, 0],
+};
+export const DEFAULT_RUN_COLUMN_RATIOS: WorkspaceColumnRatios = {
+  left: [1, 0, 0],
+  right: [0.58, 0.42, 0],
+};
 export const DEFAULT_RIGHT_PANEL_WIDTH = 440;
 export const DEFAULT_LEFT_PANEL_WIDTH = 280;
+export const DEFAULT_RUN_LEFT_PANEL_WIDTH = 360;
 export const DEFAULT_BOTTOM_PANEL_HEIGHT = 36;
 export const DEFAULT_TOOLBAR_VISIBILITY = {
   main: true,
@@ -64,10 +139,23 @@ export function normalizeToolbarVisibility(
 export function createDefaultLayout(): PanelLayoutState {
   const def = getDefaultLayout();
   return {
+    layoutVersion: PANEL_LAYOUT_VERSION,
     zones: def.zones,
     hiddenPanelIds: def.hiddenPanelIds,
     floatingPanels: [],
     upperSplitRatio: DEFAULT_UPPER_SPLIT_RATIO,
+    columnRatios: {
+      left: [...DEFAULT_DESIGN_COLUMN_RATIOS.left],
+      right: [...DEFAULT_DESIGN_COLUMN_RATIOS.right],
+    },
+    runZones: def.runZones,
+    runHiddenPanelIds: def.runHiddenPanelIds,
+    runFloatingPanels: [],
+    runUpperSplitRatio: DEFAULT_RUN_UPPER_SPLIT_RATIO,
+    runColumnRatios: {
+      left: [...DEFAULT_RUN_COLUMN_RATIOS.left],
+      right: [...DEFAULT_RUN_COLUMN_RATIOS.right],
+    },
     rightPanelWidth: DEFAULT_RIGHT_PANEL_WIDTH,
     leftPanelWidth: DEFAULT_LEFT_PANEL_WIDTH,
     bottomPanelHeight: DEFAULT_BOTTOM_PANEL_HEIGHT,

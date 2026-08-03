@@ -62,7 +62,6 @@
       "export_selection": "Seçimi Dışa Aktar",
       "hide_notes": "Notları Gizle",
       "import_preferences": "Tercihleri İçe Aktar",
-      "new_window": "Yeni Pencere",
       "open_preferences_folder": "Tercihler Klasörünü Aç",
       "preferences_exported": "Tercihler dışa aktarıldı.",
       "preferences_imported": "Tercihler içe aktarıldı.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Tercihler varsayılanlara sıfırlansın mı? Makine profilleri, son dosyalar, kayıtlı konumlar, API ayarları ve dışa aktarma yolları korunacaktır.",
       "save_background_capture": "Arka Plan Yakalamayı Kaydet",
       "save_processed_bitmap": "İşlenmiş Bitmap'i Kaydet",
-      "show_notes": "Notları Göster"
+      "show_notes": "Notları Göster",
+      "project_notes": "Proje Notları...",
+      "print": "Yazdır...",
+      "export_processed_image": "İşlenmiş Görüntüyü Dışa Aktar..."
     },
     "edit": {
       "label": "Düzen",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Seçili Şekilleri Otomatik Birleştir",
       "close_and_join": "Kapat ve Katıl",
       "convert_to_bitmap": "Bitmap'e Dönüştür",
+      "extract_selected_nodes_to_path": "Seçili düğümleri yeni yola çıkar",
       "duplicate": "Çoğalt",
       "image_options": "Görüntü Seçenekleri",
       "invert_selection": "Seçimi Ters Çevir",
@@ -241,12 +244,12 @@
       "shape_properties": "Şekil Özellikleri",
       "text_options": "Metin Seçenekleri",
       "toggle_side_panels": "Yan Panelleri Değiştir",
-      "toggle_wireframe_filled": "Tel Çerçeveyi / Doldurmayı Değiştir",
-      "view_style": "Görünüm Stili:",
-      "view_style_filled_coarse": "Dolu / Kaba",
-      "view_style_filled_smooth": "Dolu / Pürüzsüz",
-      "view_style_wireframe_coarse": "Tel Kafes / Kaba",
-      "view_style_wireframe_smooth": "Tel Çerçeve / Pürüzsüz",
+      "toggle_wireframe_filled": "İşlem / tel çerçeve arasında geçiş yap",
+      "view_style": "Çizim görünümü:",
+      "view_style_filled_coarse": "Dolgulu görünümü zorla",
+      "view_style_filled_smooth": "Pürüzsüz kenarlar",
+      "view_style_wireframe_coarse": "Katman işlemine göre",
+      "view_style_wireframe_smooth": "Tel çerçeveyi zorla",
       "zoom_to_page": "Sayfayı Yakınlaştır"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Fare tekerleği",
       "scroll_zoom": "Yakınlaştırma",
       "scroll_pan": "Kaydırma",
-      "allow_import_tool_layers": "Araç katmanlarına içe aktarmaya izin ver",
-      "include_tool_layers_job_bounds": "Araç katmanlarını iş sınırlarına dahil et"
+      "allow_import_tool_layers": "Araç katmanlarına içe aktarmaya izin ver"
     },
     "about": {
       "tagline": "Yapımcılar için yapımcılar tarafından.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "Barkod iletişim kutusu, hedef katmanı artık mevcut olmadığından kapatıldı."
     },
     "adjust_image": {
+      "invert_display_help": "Yalnızca önizleme. Kaydedilen görüntü ve lazer çıktısı değişmez.",
+      "invert_adjustment_help": "Ters çevirme bu görüntüyle birlikte kaydedilir ve katmanın raster işlemesinden önce uygulanır.",
+      "negative_image_help": "Negatif Görüntü katman çıktısını ters çevirir. Yukarıdaki Ters Çevir de açıksa iki ters çevirme birbirini iptal edebilir.",
       "title": "Görüntüyü Ayarla",
       "drag_to_move": "Taşımak için sürükleyin",
       "original": "Orijinal",
@@ -701,6 +706,7 @@
       "include_project_file": "Proje dosyasını ekle",
       "include_project_file_help": "Varsayılan olarak kapalıdır. Bu, gerçek .lzrproj geometrisini ve tarama verilerini gönderir.",
       "job_compatibility_help": "Henüz hiçbir şey gönderilmedi. Bu rapor Beam Bench sürümünü, işletim sistemini, kontrolcü ailesini, kimlik belirtmeyen makine ayarlarını ve tamamlanan işin toplamlarını içerir. Tasarımlar, G-code, dosya adları, seri iletişim, günlükler, cihaz yolları, profil kimlikleri ve proje dosyaları dahil edilmez.",
+      "privacy_policy": "Gizlilik politikasını okuyun",
       "what_gets_sent": "Neler gönderilir",
       "loading": "Yükleniyor...",
       "submitting_report": "Rapor Beam Bench'e gönderiliyor...",
@@ -784,6 +790,7 @@
       "pan_hint": "İzleme alanı seçmek için sürükleyin. Görünümü kaydırmak için boşluk tuşunu basılı tutup sürükleyin."
     },
     "preview": {
+      "options_help": "Hareket, lazer kapalıyken yapılan harekettir. İlerleme tamamlanan yakmayı gösterir. Aşırı Tarama, çalışmanın dışındaki raster hızlanmasını gösterir. Güce Göre Gölge ve Ters Çevir yalnızca bu görünümü etkiler.",
       "title": "Önizleme Penceresi",
       "stale_refresh_required": "Eski - yenileme gerekli",
       "stale": "Bayat",
@@ -1105,10 +1112,27 @@
       "title": "Kaydedilmemiş değişiklikler",
       "message": "Projenizde kaydedilmemiş değişiklikler var. Devam etmeden önce kaydedilsin mi?",
       "discard": "Kaydetme"
+    },
+    "print": {
+      "title": "Yazdır",
+      "output": "Yazdırma Çıktısı",
+      "description": "Projenin nasıl görünmesi gerektiğini seçin ve ardından sistem yazdırma iletişim kutusunda devam edin.",
+      "color": "Renk",
+      "black": "Siyah",
+      "layer_colors": "Katman Renkleri",
+      "appearance": "Çizim Görünümü",
+      "by_operation": "Katman İşlemine Göre",
+      "outlines": "Yalnızca Ana Hatlar",
+      "print": "Yazdır...",
+      "preparing": "Hazırlanıyor..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Tasarım",
+      "mode_run": "Çalıştır",
+      "mode_design_hint": "Tasarım: projeni çiz ve düzenle",
+      "mode_run_hint": "Çalıştır: işi lazerine gönder",
       "new": "Yeni",
       "untitled_project": "Başlıksız Proje",
       "open": "Açık",
@@ -1193,13 +1217,16 @@
       "close_path": "Yolu Kapat",
       "auto_join_paths": "Otomatik Katılma Yolları",
       "insert_midpoint": "Orta Nokta Ekle (M)",
-      "align_to_angle": "Açıya Hizala (A)"
+      "align_to_angle": "Açıya Hizala (A)",
+      "extend_to_intersection": "Kesişime Kadar Uzat (E)"
     },
     "transform_toggles": {
       "move": "Taşı",
       "size": "Boyut",
       "rotate": "Döndür",
-      "shear": "Kesme"
+      "shear": "Kesme",
+      "lock_all": "Tüm dönüşümleri kilitle",
+      "unlock_all": "Tüm dönüşümlerin kilidini aç"
     },
     "properties": {
       "position_x": "X Kon.",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Proje yok",
-      "nothing_selected": "Hiçbir şey seçili değil"
+      "nothing_selected": "Özelliklerini düzenlemek için bir nesne seçin"
+    },
+    "library": {
+      "title": "Kitaplık"
     },
     "floating": {
       "dock_tooltip": "Paneli yapıştır",
       "close_tooltip": "Paneli kapat",
       "float_tooltip": "Paneli ayır"
     },
+    "outliner": {
+      "help": "Yeniden sıralamak veya taşımak için sürükleyin. Yeniden adlandırmak için çift tıklayın. Gizli nesneler geri yükleyebilmeniz için burada kalır.",
+      "summary": "{layers} katman · {objects} nesne",
+      "empty_layer": "Nesne yok",
+      "expand_layer": "Katmanı genişlet",
+      "collapse_layer": "Katmanı daralt",
+      "expand_group": "Grubu genişlet",
+      "collapse_group": "Grubu daralt",
+      "show_layer": "Katmanı göster",
+      "hide_layer": "Katmanı gizle",
+      "show_object": "Nesneyi göster",
+      "hide_object": "Nesneyi gizle",
+      "lock_object": "Nesneyi kilitle",
+      "unlock_object": "Nesnenin kilidini aç"
+    },
     "registry": {
-      "cuts_layers": "Kesimler / Katmanlar",
+      "outliner": "Anahat",
+      "cuts_layers": "Katmanlar",
       "move": "Taşı",
       "console": "Konsol",
       "macros": "Makrolar",
-      "properties": "Şekil Özellikleri",
+      "properties": "Özellikler",
       "measurement": "Ölçüm",
       "laser": "Laser Control",
       "material": "Malzeme Kitaplığı",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Tek alt katman"
     },
     "properties": {
+      "transform": "Dönüştür",
+      "visibility_help": "Gizli nesneler işten çıkarılır. Outliner'da geri yükleyin.",
+      "power_scale_help": "Katmanı değiştirmeden bu nesnenin katman gücünü çarpar.",
+      "cut_priority_help": "Öncelik optimizasyonu etkinken düşük değerler daha önce çalışır.",
       "objects_selected": "{count} nesne seçildi",
       "layer": "Katman",
       "mixed": "Karışık",
@@ -1421,7 +1471,7 @@
       "union": "Birlik",
       "subtract": "Çıkar",
       "intersection": "Kesişim",
-      "nothing_selected": "Seçim yok",
+      "nothing_selected": "Özelliklerini düzenlemek için bir nesne seçin",
       "name": "Ad",
       "power_scale_percent": "Güç ölçeği %",
       "cut_priority": "Kesim önceliği",
@@ -1484,15 +1534,63 @@
       "h_space": "H aralık",
       "v_space": "V aralık",
       "path_offset": "Yol ofseti",
+      "baseline_offset": "Taban çizgisi ofseti",
+      "direction_normal": "Normal",
+      "direction_reverse": "Ters",
+      "strength": "Güç",
+      "arc_span": "Yay açıklığı",
+      "circle_position": "Çember konumu",
+      "circle_side": "Çember tarafı",
+      "circle_top": "Üst",
+      "circle_bottom": "Alt",
+      "circle_outside": "Dış",
+      "circle_inside": "İç",
       "bend_radius": "Bükme yarıçapı",
       "align_left": "Sol",
       "align_center": "Orta",
       "align_right": "Sağ",
       "align_top": "Üst",
       "align_middle": "Orta",
-      "align_bottom": "Alt"
+      "align_bottom": "Alt",
+      "tool_title": "Metin aracı",
+      "creation_hint": "Tıklatmak ve yazmak için Nokta'yı veya sarma bölgesini sürüklemek için Kutu'yu seçin.",
+      "edit_text": "Metni düzenle",
+      "edit_on_canvas": "Tuval üzerinde düzenle",
+      "search_fonts": "Yazı tiplerini arayın",
+      "recent_fonts": "Son",
+      "favorite_fonts": "Favoriler",
+      "all_fonts": "Tüm yazı tipleri",
+      "no_fonts_found": "Yazı tipi bulunamadı",
+      "favorite_font": "Favori yazı tipi",
+      "unfavorite_font": "Favoriyi kaldır",
+      "style": "Stil",
+      "style_regular": "Düzenli",
+      "style_bold_italic": "Kalın italik",
+      "typography": "Tipografi",
+      "alignment_spacing": "Hizalama ve aralık",
+      "text_box": "Metin türü",
+      "width_mode": "Mod",
+      "auto_width": "Nokta",
+      "fixed_width": "Kutu",
+      "width": "Kutu genişliği",
+      "squeeze_to_fit": "Sığdırmak için sıkıştırın",
+      "advanced_shape": "Gelişmiş metin şekli",
+      "transform": "Zarf",
+      "transform_none": "Yok",
+      "transform_arch": "Kemer",
+      "transform_rise": "Yüksel",
+      "transform_wave": "Dalga",
+      "transform_flag": "Bayrak",
+      "transform_angle": "Açı",
+      "transform_circle": "daire",
+      "curve": "Eğri",
+      "laser_output": "Lazer çıkışı",
+      "convert_hint": "Yola Dönüştür, harfleri düzenlenebilir kesim geometrisine dondurur.",
+      "tracking": "Takip",
+      "line_spacing": "Satır aralığı"
     },
     "sub_layer_stack": {
+      "title": "Alt katmanlar",
       "operation_tool": "Araç",
       "operation_image": "Görüntü",
       "operation_fill": "Dolgu",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Dışa ofset",
       "max_sub_layers_title": "En fazla 11 alt katmana ulaşıldı",
       "add_sub_layer_title": "Alt katman ekle",
-      "add_sub_layer": "+ Alt katman ekle"
+      "add_sub_layer": "+ Alt katman ekle",
+      "order_hint": "Alt katmanlar yukarıdan aşağıya sırayla çalışır."
     },
     "cut_settings": {
       "title": "Kesim ayarları",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Araç katmanları kılavuzdur ve hiçbir zaman lazer çıktısı üretmez.",
+      "output_show_help": "Çıkış bu katmanı lazer işine dahil eder. Göster yalnızca tuval görünümünü değiştirir.",
+      "opacity_help": "Yalnızca tuval önizlemesi. Lazer gücünü veya görüntü işlemeyi değiştirmez.",
+      "delete_layer": "Katmanı sil",
+      "add_layer": "Katman ekle",
       "header": {
         "index": "#",
         "layer": "Katman",
@@ -1587,8 +1691,6 @@
         "multi": "Çoklu"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Araç katmanlarını iş sınırlarına dahil et",
-      "exclude_tool_layers_from_job_bounds": "Araç katmanlarını iş sınırlarından hariç tut",
       "frame": "Çerçeve",
       "move_up": "Yukarı taşı",
       "move_down": "Aşağı taşı",
@@ -1635,7 +1737,8 @@
         "on_ms": "Açık (ms)",
         "off_ms": "Kapalı (ms)",
         "kerf_mm": "Kerf ofseti"
-      }
+      },
+      "settings_copied": "Katman ayarları kopyalandı"
     },
     "move": {
       "step_mm": "Adım",
@@ -2168,9 +2271,40 @@
       "end": "Bitiş",
       "midpoint": "Orta nokta",
       "difference": "Fark",
-      "angle": "Açı"
+      "angle": "Açı",
+      "mode_linear": "Doğrusal",
+      "mode_angle": "Açı",
+      "mode_radius": "Yarıçap",
+      "mode_gap": "Boşluk",
+      "minimum_gap": "Minimum boşluk",
+      "horizontal": "Yatay",
+      "vertical": "Dikey",
+      "horizontal_gap": "Yatay boşluk",
+      "vertical_gap": "Dikey boşluk",
+      "first_segment": "İlk bölüm",
+      "second_segment": "İkinci bölüm",
+      "radius": "Yarıçap",
+      "diameter": "Çap",
+      "radius_x": "Yarıçap X",
+      "radius_y": "Y Yarıçapı",
+      "diameter_x": "Çap X",
+      "diameter_y": "Y Çapı",
+      "linear_second_hint": "İkinci noktaya tıklayın",
+      "angle_second_hint": "İkinci bir segmenti tıklayın",
+      "gap_second_hint": "İkinci nesneye tıklayın",
+      "angle_hint": "Açılarını ölçmek için iki parçayı tıklayın",
+      "radius_hint": "Bir daireye veya elips'e tıklayın",
+      "gap_hint": "En yakın aralıklarını ölçmek için iki nesneye tıklayın",
+      "linear_hint": "Tıklayıp sürükleyin veya iki noktayı tıklayın",
+      "title": "Ölçü",
+      "modes": "Ölçüm modları",
+      "copy_value": "Değeri kopyala",
+      "copied": "Kopyalandı",
+      "clear_measurement": "Ölçümü temizle",
+      "keyboard_hint": "Shift açıları kısıtlar. Escape temizlenir ve ardından Seç'e geri döner."
     },
     "art_library": {
+      "drag_help": "Çalışmayı tuvale sürükleyin. Kitaplıktan silmek için × kullanın.",
       "no_libraries": "Yüklü kitaplık yok.",
       "search": "Ara...",
       "icon_size": "Simge boyutu:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench grafik kitaplığı",
       "filter_artwork": "Grafik"
     }
+  },
+  "warp_tool": {
+    "title": "Çözgü",
+    "four_points": "4 puan",
+    "sixteen_points": "16 puan"
   },
   "context_menu": {
     "windows": "Pencereler",

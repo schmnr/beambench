@@ -62,7 +62,6 @@
       "export_selection": "Exporter la sélection",
       "hide_notes": "Masquer les notes",
       "import_preferences": "Préférences d'importation",
-      "new_window": "Nouvelle fenêtre",
       "open_preferences_folder": "Ouvrir le dossier Préférences",
       "preferences_exported": "Préférences exportées.",
       "preferences_imported": "Préférences importées.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Réinitialiser les préférences aux valeurs par défaut ? Les profils de machine, les fichiers récents, les positions enregistrées, les paramètres API et les chemins d'exportation seront conservés.",
       "save_background_capture": "Enregistrer la capture en arrière-plan",
       "save_processed_bitmap": "Enregistrer le bitmap traité",
-      "show_notes": "Afficher les notes"
+      "show_notes": "Afficher les notes",
+      "project_notes": "Notes du projet...",
+      "print": "Imprimer...",
+      "export_processed_image": "Exporter l’image traitée..."
     },
     "edit": {
       "label": "Édition",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Joindre automatiquement les formes sélectionnées",
       "close_and_join": "Fermer et rejoindre",
       "convert_to_bitmap": "Convertir en bitmap",
+      "extract_selected_nodes_to_path": "Extraire les nœuds sélectionnés vers un nouveau chemin",
       "duplicate": "Dupliquer",
       "image_options": "Options d'images",
       "invert_selection": "Inverser la sélection",
@@ -241,12 +244,12 @@
       "shape_properties": "Propriétés de la forme",
       "text_options": "Options de texte",
       "toggle_side_panels": "Basculer les panneaux latéraux",
-      "toggle_wireframe_filled": "Basculer Filaire / Rempli",
-      "view_style": "Style d'affichage :",
-      "view_style_filled_coarse": "Rempli / Grossier",
-      "view_style_filled_smooth": "Rempli / Lisse",
-      "view_style_wireframe_coarse": "Filaire / Grossier",
-      "view_style_wireframe_smooth": "Filaire / Lisse",
+      "toggle_wireframe_filled": "Basculer opération / filaire",
+      "view_style": "Affichage du dessin :",
+      "view_style_filled_coarse": "Forcer le remplissage",
+      "view_style_filled_smooth": "Bords lissés",
+      "view_style_wireframe_coarse": "Selon l’opération du calque",
+      "view_style_wireframe_smooth": "Forcer le filaire",
       "zoom_to_page": "Zoomer sur la page"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Molette",
       "scroll_zoom": "Zoom",
       "scroll_pan": "Panoramique",
-      "allow_import_tool_layers": "Autoriser l'import vers les calques d'outil",
-      "include_tool_layers_job_bounds": "Inclure les calques d'outil dans les limites du travail"
+      "allow_import_tool_layers": "Autoriser l'import vers les calques d'outil"
     },
     "about": {
       "tagline": "Conçu par des makers pour des makers.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "La boîte de dialogue Code-barres s'est fermée car sa couche cible n'est plus disponible."
     },
     "adjust_image": {
+      "invert_display_help": "Aperçu uniquement. L’image enregistrée et la sortie laser ne sont pas modifiées.",
+      "invert_adjustment_help": "L’inversion est enregistrée avec cette image et appliquée avant le traitement raster du calque.",
+      "negative_image_help": "Image négative inverse la sortie du calque. Si Inverser ci-dessus est également activé, les deux inversions peuvent s’annuler.",
       "title": "Ajuster l'image",
       "drag_to_move": "Faites glisser pour déplacer",
       "original": "Originale",
@@ -701,6 +706,7 @@
       "include_project_file": "Inclure le fichier de projet",
       "include_project_file_help": "Désactivé par défaut. Cela envoie la géométrie .lzrproj et les données raster réelles.",
       "job_compatibility_help": "Rien n’a encore été envoyé. Ce rapport contient la version de Beam Bench, le système d’exploitation, la famille du contrôleur, les réglages machine non identifiants et les totaux de la tâche terminée. Il exclut les créations, le G-code, les noms de fichiers, le trafic série, les journaux, les chemins des appareils, les identifiants de profil et les fichiers de projet.",
+      "privacy_policy": "Lire la politique de confidentialité",
       "what_gets_sent": "Ce qui est envoyé",
       "loading": "Chargement...",
       "submitting_report": "Soumission du rapport à Beam Bench...",
@@ -784,6 +790,7 @@
       "pan_hint": "Faites glisser pour sélectionner une zone de vectorisation. Maintenez la barre d'espace et faites glisser pour vous déplacer."
     },
     "preview": {
+      "options_help": "Déplacement indique un mouvement laser éteint. Progression montre la gravure terminée. Le surbalayage montre l’accélération raster au-delà du motif. Ombrage par puissance et Inverser n’affectent que cet affichage.",
       "title": "Fenêtre d'aperçu",
       "stale_refresh_required": "Obsolète – actualisation requise",
       "stale": "périmé",
@@ -1105,10 +1112,27 @@
       "title": "Modifications non enregistrées",
       "message": "Votre projet contient des modifications non enregistrées. Les enregistrer avant de continuer ?",
       "discard": "Ne pas enregistrer"
+    },
+    "print": {
+      "title": "Imprimer",
+      "output": "Sortie d’impression",
+      "description": "Choisissez comment le projet doit apparaître, puis continuez dans la boîte de dialogue d'impression du système.",
+      "color": "Couleur",
+      "black": "Noir",
+      "layer_colors": "Couleurs des calques",
+      "appearance": "Aspect du dessin",
+      "by_operation": "Selon l’opération du calque",
+      "outlines": "Contours uniquement",
+      "print": "Imprimer...",
+      "preparing": "Préparation..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Conception",
+      "mode_run": "Exécution",
+      "mode_design_hint": "Conception : dessinez et organisez votre projet",
+      "mode_run_hint": "Exécution : envoyez le travail à votre laser",
       "new": "Nouveau",
       "untitled_project": "Projet sans titre",
       "open": "Ouvrir",
@@ -1193,13 +1217,16 @@
       "close_path": "Fermer le chemin",
       "auto_join_paths": "Chemins de jointure automatique",
       "insert_midpoint": "Insérer le milieu (M)",
-      "align_to_angle": "Aligner sur l'angle (A)"
+      "align_to_angle": "Aligner sur l'angle (A)",
+      "extend_to_intersection": "Prolonger jusqu'à l'intersection (E)"
     },
     "transform_toggles": {
       "move": "Se déplacer",
       "size": "Taille",
       "rotate": "Tourner",
-      "shear": "Tondre"
+      "shear": "Tondre",
+      "lock_all": "Verrouiller toutes les transformations",
+      "unlock_all": "Déverrouiller toutes les transformations"
     },
     "properties": {
       "position_x": "Pos. X",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Aucun projet",
-      "nothing_selected": "Aucune sélection"
+      "nothing_selected": "Sélectionnez un objet pour modifier ses propriétés"
+    },
+    "library": {
+      "title": "Bibliothèque"
     },
     "floating": {
       "dock_tooltip": "Ancrer le panneau",
       "close_tooltip": "Fermer le panneau",
       "float_tooltip": "Détacher le panneau"
     },
+    "outliner": {
+      "help": "Faites glisser pour réorganiser ou déplacer. Double-cliquez pour renommer. Les objets masqués restent ici afin de pouvoir les restaurer.",
+      "summary": "{layers} calques · {objects} objets",
+      "empty_layer": "Aucun objet",
+      "expand_layer": "Agrandir le calque",
+      "collapse_layer": "Réduire le calque",
+      "expand_group": "Agrandir le groupe",
+      "collapse_group": "Réduire le groupe",
+      "show_layer": "Afficher le calque",
+      "hide_layer": "Masquer le calque",
+      "show_object": "Afficher l'objet",
+      "hide_object": "Masquer l'objet",
+      "lock_object": "Verrouiller l'objet",
+      "unlock_object": "Déverrouiller l'objet"
+    },
     "registry": {
-      "cuts_layers": "Découpes / Calques",
+      "outliner": "Aperçu",
+      "cuts_layers": "Calques",
       "move": "Déplacer",
       "console": "Console",
       "macros": "Macros",
-      "properties": "Propriétés de forme",
+      "properties": "Propriétés",
       "measurement": "Mesure",
       "laser": "Laser Control",
       "material": "Bibliothèque de matériaux",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Un sous-calque"
     },
     "properties": {
+      "transform": "Transformation",
+      "visibility_help": "Les objets masqués sont exclus du travail. Restaurez-les dans l’Outliner.",
+      "power_scale_help": "Multiplie la puissance du calque pour cet objet sans modifier le calque.",
+      "cut_priority_help": "Les valeurs les plus faibles sont exécutées en premier lorsque l’optimisation par priorité est activée.",
       "objects_selected": "{count} objets sélectionnés",
       "layer": "Calque",
       "mixed": "Mixte",
@@ -1421,7 +1471,7 @@
       "union": "Union",
       "subtract": "Soustraire",
       "intersection": "Intersection",
-      "nothing_selected": "Aucune sélection",
+      "nothing_selected": "Sélectionnez un objet pour modifier ses propriétés",
       "name": "Nom",
       "power_scale_percent": "Échelle de puissance %",
       "cut_priority": "Priorité de coupe",
@@ -1484,15 +1534,63 @@
       "h_space": "Esp. H",
       "v_space": "Esp. V",
       "path_offset": "Décalage du chemin",
+      "baseline_offset": "Décalage de la ligne de base",
+      "direction_normal": "Normal",
+      "direction_reverse": "Inversé",
+      "strength": "Intensité",
+      "arc_span": "Étendue de l’arc",
+      "circle_position": "Position sur le cercle",
+      "circle_side": "Côté du cercle",
+      "circle_top": "Haut",
+      "circle_bottom": "Bas",
+      "circle_outside": "Extérieur",
+      "circle_inside": "Intérieur",
       "bend_radius": "Rayon de courbure",
       "align_left": "Gauche",
       "align_center": "Centre",
       "align_right": "Droite",
       "align_top": "Haut",
       "align_middle": "Milieu",
-      "align_bottom": "Bas"
+      "align_bottom": "Bas",
+      "tool_title": "Outil de texte",
+      "creation_hint": "Choisissez Point pour cliquer et taper, ou Boîte pour faire glisser une zone d'habillage.",
+      "edit_text": "Modifier le texte",
+      "edit_on_canvas": "Modifier sur toile",
+      "search_fonts": "Rechercher des polices",
+      "recent_fonts": "Récent",
+      "favorite_fonts": "Favoris",
+      "all_fonts": "Toutes les polices",
+      "no_fonts_found": "Aucune police trouvée",
+      "favorite_font": "Police préférée",
+      "unfavorite_font": "Supprimer le favori",
+      "style": "Style",
+      "style_regular": "Régulier",
+      "style_bold_italic": "Gras italique",
+      "typography": "Typographie",
+      "alignment_spacing": "Alignement et espacement",
+      "text_box": "Type de texte",
+      "width_mode": "Mode",
+      "auto_width": "Point",
+      "fixed_width": "Boîte",
+      "width": "Largeur de la boîte",
+      "squeeze_to_fit": "Presser pour s'adapter",
+      "advanced_shape": "Forme de texte avancée",
+      "transform": "Enveloppe",
+      "transform_none": "Aucun",
+      "transform_arch": "Arc",
+      "transform_rise": "Monter",
+      "transform_wave": "Vague",
+      "transform_flag": "Drapeau",
+      "transform_angle": "Angle",
+      "transform_circle": "Cercle",
+      "curve": "Courbe",
+      "laser_output": "Sortie laser",
+      "convert_hint": "Convertir en chemin fige le lettrage dans une géométrie de coupe modifiable.",
+      "tracking": "Suivi",
+      "line_spacing": "Espacement des lignes"
     },
     "sub_layer_stack": {
+      "title": "Sous-calques",
       "operation_tool": "Outil",
       "operation_image": "Image",
       "operation_fill": "Remplissage",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Décalage vers extérieur",
       "max_sub_layers_title": "Maximum de 11 sous-calques atteint",
       "add_sub_layer_title": "Ajouter un sous-calque",
-      "add_sub_layer": "+ Ajouter un sous-calque"
+      "add_sub_layer": "+ Ajouter un sous-calque",
+      "order_hint": "Les sous-calques s’exécutent dans l’ordre, de haut en bas."
     },
     "cut_settings": {
       "title": "Paramètres de coupe",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Les calques d’outil servent de guides et ne produisent jamais de sortie laser.",
+      "output_show_help": "Sortie inclut ce calque dans le travail laser. Voir modifie uniquement l’affichage de la zone de travail.",
+      "opacity_help": "Aperçu de la zone de travail uniquement. Cela ne modifie ni la puissance laser ni le traitement de l’image.",
+      "delete_layer": "Supprimer le calque",
+      "add_layer": "Ajouter un calque",
       "header": {
         "index": "#",
         "layer": "Calque",
@@ -1587,8 +1691,6 @@
         "multi": "Multiple"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Inclure les calques outil dans les limites du travail",
-      "exclude_tool_layers_from_job_bounds": "Exclure les calques outil des limites du travail",
       "frame": "Cadre",
       "move_up": "Monter",
       "move_down": "Descendre",
@@ -1635,7 +1737,8 @@
         "on_ms": "Activé (ms)",
         "off_ms": "Désactivé (ms)",
         "kerf_mm": "Décalage du trait"
-      }
+      },
+      "settings_copied": "Paramètres du calque copiés"
     },
     "move": {
       "step_mm": "Pas",
@@ -2168,9 +2271,40 @@
       "end": "Fin",
       "midpoint": "Milieu",
       "difference": "Différence",
-      "angle": "Angle"
+      "angle": "Angle",
+      "mode_linear": "Linéaire",
+      "mode_angle": "Angle",
+      "mode_radius": "Rayon",
+      "mode_gap": "Écart",
+      "minimum_gap": "Écart minimum",
+      "horizontal": "Horizontale",
+      "vertical": "Verticale",
+      "horizontal_gap": "Écart horizontal",
+      "vertical_gap": "Écart vertical",
+      "first_segment": "Premier segment",
+      "second_segment": "Deuxième segment",
+      "radius": "Rayon",
+      "diameter": "Diamètre",
+      "radius_x": "Rayon X",
+      "radius_y": "Rayon Y",
+      "diameter_x": "Diamètre X",
+      "diameter_y": "Diamètre Y",
+      "linear_second_hint": "Cliquez sur le deuxième point",
+      "angle_second_hint": "Cliquez sur un deuxième segment",
+      "gap_second_hint": "Cliquez sur le deuxième objet",
+      "angle_hint": "Cliquez sur deux segments pour mesurer leur angle",
+      "radius_hint": "Cliquez sur un cercle ou une ellipse",
+      "gap_hint": "Cliquez sur deux objets pour mesurer leur écart le plus proche",
+      "linear_hint": "Cliquez-glissez ou cliquez sur deux points",
+      "title": "Mesurer",
+      "modes": "Modes de mesure",
+      "copy_value": "Copier la valeur",
+      "copied": "Copié",
+      "clear_measurement": "Mesure claire",
+      "keyboard_hint": "Shift contraint les angles. Escape s'efface, puis revient à Sélectionner."
     },
     "art_library": {
+      "drag_help": "Faites glisser l’illustration sur la zone de travail. Utilisez × pour la supprimer de la bibliothèque.",
       "no_libraries": "Aucune bibliothèque chargée.",
       "search": "Rechercher...",
       "icon_size": "Taille des icônes :",
@@ -2202,6 +2336,11 @@
       "filter_library": "Bibliothèque graphique Beam Bench",
       "filter_artwork": "Illustration"
     }
+  },
+  "warp_tool": {
+    "title": "Déformation",
+    "four_points": "4 points",
+    "sixteen_points": "16 points"
   },
   "context_menu": {
     "windows": "Fenêtres",

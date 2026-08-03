@@ -404,6 +404,50 @@ describe('drawRasterPreview', () => {
     }
   });
 
+  it('keeps every disconnected burn island when low-zoom scanlines are decimated', () => {
+    const stripeCtx = createMockCtx();
+    const runs = [
+      { y_mm: 5, start_x_mm: 0, end_x_mm: 3, direction: 'left_to_right' as const },
+      { y_mm: 5, start_x_mm: 7, end_x_mm: 10, direction: 'left_to_right' as const },
+      { y_mm: 5.02, start_x_mm: 0, end_x_mm: 3, direction: 'right_to_left' as const },
+      { y_mm: 5.02, start_x_mm: 7, end_x_mm: 10, direction: 'right_to_left' as const },
+    ];
+    const region = makeRasterPreview({
+      line_interval_mm: 0.02,
+      run_extents: runs,
+      outlines: [
+        {
+          closed: true,
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 10 },
+            { x: 0, y: 10 },
+          ],
+        },
+        {
+          closed: true,
+          points: [
+            { x: 3, y: 3 },
+            { x: 7, y: 3 },
+            { x: 7, y: 7 },
+            { x: 3, y: 7 },
+          ],
+        },
+      ],
+    });
+
+    drawRasterRunStripes(stripeCtx, region, runs, '#000000', vp, {
+      showBaseTint: true,
+      emphasizeVisibleRuns: false,
+    });
+
+    // The low zoom selects only the first physical scanline, but both the
+    // left and right burn runs on that line must remain visible around the hole.
+    expect(stripeCtx.stroke).toHaveBeenCalledTimes(2);
+    expect(stripeCtx.clip).toHaveBeenCalledWith('evenodd');
+  });
+
   it('uses denser stroke coverage for emphasized run previews', () => {
     const standardCtx = createMockCtx();
     const emphasizedCtx = createMockCtx();

@@ -1,6 +1,8 @@
 use crate::variable_text::VariableTextConfig;
 use beambench_common::markers::{LayerMarker, ObjectMarker};
-use beambench_common::{BarcodeOptions, BarcodeType, Bounds, Id, RasterAdjustments, Transform2D};
+use beambench_common::{
+    BarcodeOptions, BarcodeType, Bounds, Id, RasterAdjustments, Transform2D, TransformLocks,
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -279,6 +281,9 @@ pub struct ProjectObject {
     pub data: ObjectData,
     #[serde(default)]
     pub lock_aspect_ratio: bool,
+    /// Per-object transform permissions. Older projects default to all enabled.
+    #[serde(default)]
+    pub transform_locks: TransformLocks,
     #[serde(default = "default_power_scale")]
     pub power_scale: f64,
     /// Cut order priority (lower values are cut first, default 0).
@@ -343,6 +348,7 @@ impl ProjectObject {
             z_index: 0,
             data,
             lock_aspect_ratio: false,
+            transform_locks: TransformLocks::default(),
             power_scale: 1.0,
             priority: 0,
             created_at: Utc::now(),
@@ -807,6 +813,7 @@ mod tests {
         }"#;
         let obj: ProjectObject = serde_json::from_str(json).unwrap();
         assert!(!obj.lock_aspect_ratio);
+        assert_eq!(obj.transform_locks, TransformLocks::default());
         assert!((obj.power_scale - 1.0).abs() < f64::EPSILON);
     }
 
@@ -825,9 +832,11 @@ mod tests {
         );
         obj.power_scale = 0.75;
         obj.lock_aspect_ratio = true;
+        obj.transform_locks.move_enabled = false;
         let json = serde_json::to_string(&obj).unwrap();
         let restored: ProjectObject = serde_json::from_str(&json).unwrap();
         assert!(restored.lock_aspect_ratio);
+        assert!(!restored.transform_locks.move_enabled);
         assert!((restored.power_scale - 0.75).abs() < f64::EPSILON);
     }
 

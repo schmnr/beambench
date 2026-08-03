@@ -62,7 +62,6 @@
       "export_selection": "Izvozi izbor",
       "hide_notes": "Skrij opombe",
       "import_preferences": "Uvozi nastavitve",
-      "new_window": "Novo okno",
       "open_preferences_folder": "Odpri mapo Prefs",
       "preferences_exported": "Nastavitve so izvožene.",
       "preferences_imported": "Nastavitve uvožene.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Ponastaviti nastavitve na privzete? Profili stroja, nedavne datoteke, shranjeni položaji, nastavitve API-ja in izvozne poti bodo ohranjeni.",
       "save_background_capture": "Shrani zajem ozadja",
       "save_processed_bitmap": "Shrani obdelano bitno sliko",
-      "show_notes": "Prikaži opombe"
+      "show_notes": "Prikaži opombe",
+      "project_notes": "Opombe projekta...",
+      "print": "Natisni...",
+      "export_processed_image": "Izvozi obdelano sliko..."
     },
     "edit": {
       "label": "Uredi",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Samodejno združi izbrane oblike",
       "close_and_join": "Zapri in se pridruži",
       "convert_to_bitmap": "Pretvori v bitno sliko",
+      "extract_selected_nodes_to_path": "Izloči izbrana vozlišča v novo pot",
       "duplicate": "Dvojnik",
       "image_options": "Možnosti slike",
       "invert_selection": "Obrni izbor",
@@ -241,12 +244,12 @@
       "shape_properties": "Lastnosti oblike",
       "text_options": "Možnosti besedila",
       "toggle_side_panels": "Preklopi stranske plošče",
-      "toggle_wireframe_filled": "Preklopi Wireframe/Filled",
-      "view_style": "Ogled sloga:",
-      "view_style_filled_coarse": "Polnjeno/grobo",
-      "view_style_filled_smooth": "Polnjeno / gladko",
-      "view_style_wireframe_coarse": "Žični okvir / grobo",
-      "view_style_wireframe_smooth": "Žični okvir / gladek",
+      "toggle_wireframe_filled": "Preklopi operacijo / žični okvir",
+      "view_style": "Prikaz grafike:",
+      "view_style_filled_coarse": "Vsili polnilo",
+      "view_style_filled_smooth": "Gladki robovi",
+      "view_style_wireframe_coarse": "Glede na operacijo plasti",
+      "view_style_wireframe_smooth": "Vsili žični okvir",
       "zoom_to_page": "Povečaj na stran"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Kolesce miške",
       "scroll_zoom": "Povečava",
       "scroll_pan": "Premikanje",
-      "allow_import_tool_layers": "Dovoli uvoz na orodne plasti",
-      "include_tool_layers_job_bounds": "Vključi orodne plasti v meje opravila"
+      "allow_import_tool_layers": "Dovoli uvoz na orodne plasti"
     },
     "about": {
       "tagline": "Naredili so ga makerji za makerje.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "Pogovorno okno črtne kode je zaprto, ker njegova ciljna plast ni več na voljo."
     },
     "adjust_image": {
+      "invert_display_help": "Samo predogled. Shranjena slika in laserski izhod ostaneta nespremenjena.",
+      "invert_adjustment_help": "Obrat se shrani s to sliko in izvede pred rastrsko obdelavo plasti.",
+      "negative_image_help": "Negativna slika obrne izhod plasti. Če je vklopljen tudi zgornji Obrni, se lahko oba obrata izničita.",
       "title": "Prilagodi sliko",
       "drag_to_move": "Povlecite za premikanje",
       "original": "Original",
@@ -701,6 +706,7 @@
       "include_project_file": "Vključi projektno datoteko",
       "include_project_file_help": "Privzeto izklopljeno. To pošlje dejansko geometrijo .lzrproj in rastrske podatke.",
       "job_compatibility_help": "Nič še ni bilo poslano. Poročilo vsebuje različico Beam Bench, operacijski sistem, družino krmilnika, neidentifikacijske nastavitve stroja in povzetek dokončanega opravila. Ne vsebuje načrtov, G-code, imen datotek, serijskega prometa, dnevnikov, poti naprav, ID-jev profilov ali projektnih datotek.",
+      "privacy_policy": "Preberite pravilnik o zasebnosti",
       "what_gets_sent": "Kaj se pošlje",
       "loading": "Nalaganje...",
       "submitting_report": "Pošiljanje poročila Beam Bench ...",
@@ -784,6 +790,7 @@
       "pan_hint": "Povlecite, da izberete območje sledenja. Držite preslednico in povlecite za premikanje."
     },
     "preview": {
+      "options_help": "Premik je gibanje z izklopljenim laserjem. Napredek prikazuje dokončano žganje. Overscan prikazuje rastrski pospešek zunaj grafike. Senčenje glede na moč in Obrni vplivata samo na ta prikaz.",
       "title": "Okno za predogled",
       "stale_refresh_required": "Zastarelo – potrebna je osvežitev",
       "stale": "Stale",
@@ -1105,10 +1112,27 @@
       "title": "Neshranjene spremembe",
       "message": "Projekt vsebuje neshranjene spremembe. Ali jih želite shraniti, preden nadaljujete?",
       "discard": "Ne shrani"
+    },
+    "print": {
+      "title": "Natisni",
+      "output": "Izhod tiskanja",
+      "description": "Izberite, kako naj bo projekt videti, nato nadaljujte v sistemskem pogovornem oknu za tiskanje.",
+      "color": "Barva",
+      "black": "Črna",
+      "layer_colors": "Barve plasti",
+      "appearance": "Videz grafike",
+      "by_operation": "Po operaciji plasti",
+      "outlines": "Samo obrisi",
+      "print": "Natisni...",
+      "preparing": "Priprava..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Oblikovanje",
+      "mode_run": "Zagon",
+      "mode_design_hint": "Oblikovanje: narišite in uredite svoj projekt",
+      "mode_run_hint": "Zagon: pošljite delo na laser",
       "new": "Novo",
       "untitled_project": "Projekt brez naslova",
       "open": "Odpri",
@@ -1193,13 +1217,16 @@
       "close_path": "Zapri pot",
       "auto_join_paths": "Samodejno združevanje poti",
       "insert_midpoint": "Vstavi sredino (M)",
-      "align_to_angle": "Poravnaj s kotom (A)"
+      "align_to_angle": "Poravnaj s kotom (A)",
+      "extend_to_intersection": "Podaljšaj do presečišča (E)"
     },
     "transform_toggles": {
       "move": "Premakni se",
       "size": "Velikost",
       "rotate": "Zasukaj",
-      "shear": "striženje"
+      "shear": "striženje",
+      "lock_all": "Zakleni vse transformacije",
+      "unlock_all": "Odkleni vse transformacije"
     },
     "properties": {
       "position_x": "Položaj X",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Ni projekta",
-      "nothing_selected": "Nič ni izbrano"
+      "nothing_selected": "Izberite predmet za urejanje njegovih lastnosti"
+    },
+    "library": {
+      "title": "Knjižnica"
     },
     "floating": {
       "dock_tooltip": "Zasidraj podokno",
       "close_tooltip": "Zapri podokno",
       "float_tooltip": "Odpni podokno"
     },
+    "outliner": {
+      "help": "Povlecite za prerazporeditev ali premik. Dvokliknite za preimenovanje. Skriti predmeti ostanejo tukaj, da jih lahko obnovite.",
+      "summary": "{layers} plasti · {objects} predmetov",
+      "empty_layer": "Brez predmetov",
+      "expand_layer": "Razširi plast",
+      "collapse_layer": "Strni plast",
+      "expand_group": "Razširi skupino",
+      "collapse_group": "Strni skupino",
+      "show_layer": "Pokaži plast",
+      "hide_layer": "Skrij plast",
+      "show_object": "Prikaži predmet",
+      "hide_object": "Skrij predmet",
+      "lock_object": "Zakleni predmet",
+      "unlock_object": "Odkleni predmet"
+    },
     "registry": {
-      "cuts_layers": "Rezi / Sloji",
+      "outliner": "Orisovalnik",
+      "cuts_layers": "Plasti",
       "move": "Premakni",
       "console": "Konzola",
       "macros": "Makri",
-      "properties": "Lastnosti oblike",
+      "properties": "Lastnosti",
       "measurement": "Merjenje",
       "laser": "Laser Control",
       "material": "Knjižnica materialov",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Ena podplast"
     },
     "properties": {
+      "transform": "Preoblikovanje",
+      "visibility_help": "Skriti predmeti so izključeni iz opravila. Obnovite jih v Outlinerju.",
+      "power_scale_help": "Pomnoži moč plasti za ta predmet, ne da bi spremenil plast.",
+      "cut_priority_help": "Nižje vrednosti se izvedejo prej, ko je omogočena optimizacija po prioriteti.",
       "objects_selected": "{count} predmetov izbranih",
       "layer": "Plast",
       "mixed": "Mešano",
@@ -1421,7 +1471,7 @@
       "union": "zveza",
       "subtract": "Odštej",
       "intersection": "Presek",
-      "nothing_selected": "Nič ni izbrano",
+      "nothing_selected": "Izberite predmet za urejanje njegovih lastnosti",
       "name": "Ime",
       "power_scale_percent": "Merilo moči %",
       "cut_priority": "Prioriteta reza",
@@ -1484,15 +1534,63 @@
       "h_space": "Razmik H",
       "v_space": "Razmik V",
       "path_offset": "Odmik poti",
+      "baseline_offset": "Odmik osnovne črte",
+      "direction_normal": "Običajna",
+      "direction_reverse": "Obrnjena",
+      "strength": "Jakost",
+      "arc_span": "Razpon loka",
+      "circle_position": "Položaj na krogu",
+      "circle_side": "Stran kroga",
+      "circle_top": "Zgoraj",
+      "circle_bottom": "Spodaj",
+      "circle_outside": "Zunaj",
+      "circle_inside": "Znotraj",
       "bend_radius": "Polmer upogiba",
       "align_left": "Levo",
       "align_center": "Sredina",
       "align_right": "Desno",
       "align_top": "Zgoraj",
       "align_middle": "Sredina",
-      "align_bottom": "Spodaj"
+      "align_bottom": "Spodaj",
+      "tool_title": "Orodje za besedilo",
+      "creation_hint": "Izberite Point, da kliknete in vnesete, ali Box, da povlečete območje ovijanja.",
+      "edit_text": "Uredi besedilo",
+      "edit_on_canvas": "Uredi na platnu",
+      "search_fonts": "Iskanje pisav",
+      "recent_fonts": "Nedavno",
+      "favorite_fonts": "Priljubljene",
+      "all_fonts": "Vse pisave",
+      "no_fonts_found": "Ni pisav",
+      "favorite_font": "Najljubša pisava",
+      "unfavorite_font": "Odstrani priljubljeno",
+      "style": "Slog",
+      "style_regular": "Redno",
+      "style_bold_italic": "Krepko poševno",
+      "typography": "Tipografija",
+      "alignment_spacing": "Poravnava in razmik",
+      "text_box": "Vrsta besedila",
+      "width_mode": "Način",
+      "auto_width": "točka",
+      "fixed_width": "Škatla",
+      "width": "Širina škatle",
+      "squeeze_to_fit": "Stisnite, da se prilega",
+      "advanced_shape": "Napredna oblika besedila",
+      "transform": "ovojnica",
+      "transform_none": "Noben",
+      "transform_arch": "Arh",
+      "transform_rise": "Vstani",
+      "transform_wave": "Valovanje",
+      "transform_flag": "Zastava",
+      "transform_angle": "Kot",
+      "transform_circle": "krog",
+      "curve": "Krivulja",
+      "laser_output": "Laserski izhod",
+      "convert_hint": "Pretvori v pot zamrzne črke v geometrijo izreza, ki jo je mogoče urejati.",
+      "tracking": "Sledenje",
+      "line_spacing": "Razmik med vrsticami"
     },
     "sub_layer_stack": {
+      "title": "Podplasti",
       "operation_tool": "Orodje",
       "operation_image": "Slika",
       "operation_fill": "Zapolnitev",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Odmik navzven",
       "max_sub_layers_title": "Doseženo je največ 11 podplasti",
       "add_sub_layer_title": "Dodaj podplast",
-      "add_sub_layer": "+ Dodaj podplast"
+      "add_sub_layer": "+ Dodaj podplast",
+      "order_hint": "Podplasti se izvajajo po vrsti, od zgoraj navzdol."
     },
     "cut_settings": {
       "title": "Nastavitve reza",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Orodne plasti služijo kot vodila in nikoli ne ustvarijo laserskega izhoda.",
+      "output_show_help": "Izhod vključi to plast v lasersko opravilo. Prikaz spremeni samo pogled platna.",
+      "opacity_help": "Samo predogled platna. To ne spremeni moči laserja ali obdelave slike.",
+      "delete_layer": "Izbriši plast",
+      "add_layer": "Dodaj plast",
       "header": {
         "index": "#",
         "layer": "Plast",
@@ -1587,8 +1691,6 @@
         "multi": "Več"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Vključi orodne plasti v meje opravila",
-      "exclude_tool_layers_from_job_bounds": "Izključi orodne plasti iz meja opravila",
       "frame": "Okvir",
       "move_up": "Premakni gor",
       "move_down": "Premakni dol",
@@ -1635,7 +1737,8 @@
         "on_ms": "Vkl. (ms)",
         "off_ms": "Izkl. (ms)",
         "kerf_mm": "Odmik kerfa"
-      }
+      },
+      "settings_copied": "Nastavitve plasti kopirane"
     },
     "move": {
       "step_mm": "Korak",
@@ -2168,9 +2271,40 @@
       "end": "Konec",
       "midpoint": "Sredina",
       "difference": "Razlika",
-      "angle": "Kot"
+      "angle": "Kot",
+      "mode_linear": "Linearno",
+      "mode_angle": "Kot",
+      "mode_radius": "Radij",
+      "mode_gap": "Gap",
+      "minimum_gap": "Najmanjša vrzel",
+      "horizontal": "Vodoravno",
+      "vertical": "Navpično",
+      "horizontal_gap": "Horizontalna vrzel",
+      "vertical_gap": "Navpična vrzel",
+      "first_segment": "Prvi segment",
+      "second_segment": "Drugi segment",
+      "radius": "Radij",
+      "diameter": "Premer",
+      "radius_x": "Radij X",
+      "radius_y": "Polmer Y",
+      "diameter_x": "Premer X",
+      "diameter_y": "Premer Y",
+      "linear_second_hint": "Kliknite drugo točko",
+      "angle_second_hint": "Kliknite drugi segment",
+      "gap_second_hint": "Kliknite drugi predmet",
+      "angle_hint": "Kliknite dva segmenta, da izmerite njun kot",
+      "radius_hint": "Kliknite krog ali elipso",
+      "gap_hint": "Kliknite dva predmeta, da izmerite njuno najbližjo vrzel",
+      "linear_hint": "Kliknite in povlecite ali kliknite dve točki",
+      "title": "Izmeri",
+      "modes": "Načini merjenja",
+      "copy_value": "Vrednost kopije",
+      "copied": "Kopirano",
+      "clear_measurement": "Jasna meritev",
+      "keyboard_hint": "Shift omejuje kote. Escape počisti, nato pa se vrne v Select."
     },
     "art_library": {
+      "drag_help": "Povlecite grafiko na platno. Z × jo izbrišete iz knjižnice.",
       "no_libraries": "Nobena knjižnica ni naložena.",
       "search": "Iskanje...",
       "icon_size": "Velikost ikon:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Knjižnica grafik Beam Bench",
       "filter_artwork": "Grafika"
     }
+  },
+  "warp_tool": {
+    "title": "Warp",
+    "four_points": "4 točke",
+    "sixteen_points": "16 točk"
   },
   "context_menu": {
     "windows": "Okna",

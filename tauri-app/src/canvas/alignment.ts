@@ -1450,6 +1450,7 @@ export function resolveGeometrySnap(
 ): GeometrySnapResult | null {
   let best: GeometrySnapResult | null = null;
   let preferred: GeometrySnapResult | null = null;
+  const nearbySegments: SnapSegment[] = [];
   const preferredThreshold = thresholdMm * (options.preferredReleaseMultiplier ?? 1.8);
   const excludedPoints = options.excludedPoints ?? [];
 
@@ -1478,6 +1479,9 @@ export function resolveGeometrySnap(
     for (const segment of segments) {
       const projected = projectPointToSegment(draggedPoint, segment.start, segment.end);
       const dist = distance(draggedPoint, projected);
+      if (dist <= thresholdMm * 2 && nearbySegments.length < 64) {
+        nearbySegments.push(segment);
+      }
       if (dist <= thresholdMm) {
         const candidate: GeometrySnapResult = {
           dx: projected.x - draggedPoint.x,
@@ -1523,6 +1527,27 @@ export function resolveGeometrySnap(
           };
         }
       }
+    }
+  }
+
+  for (let firstIndex = 0; firstIndex < nearbySegments.length; firstIndex += 1) {
+    for (let secondIndex = firstIndex + 1; secondIndex < nearbySegments.length; secondIndex += 1) {
+      const first = nearbySegments[firstIndex];
+      const second = nearbySegments[secondIndex];
+      if (first.key === second.key) continue;
+      const intersection = segmentIntersection(first.start, first.end, second.start, second.end);
+      if (!intersection) continue;
+      const intersectionDistance = distance(draggedPoint, intersection);
+      if (intersectionDistance > thresholdMm) continue;
+      best = chooseBetterSnap(best, {
+        dx: intersection.x - draggedPoint.x,
+        dy: intersection.y - draggedPoint.y,
+        guides: buildGuideLinesForTarget(intersection, 'point'),
+        snappedTo: intersection,
+        targetKey: `intersection:${first.key}:${second.key}`,
+        targetClass: 'point',
+        distance: intersectionDistance,
+      });
     }
   }
 

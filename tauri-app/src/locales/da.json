@@ -62,7 +62,6 @@
       "export_selection": "Eksporter udvalg",
       "hide_notes": "Skjul noter",
       "import_preferences": "Import præf",
-      "new_window": "Nyt vindue",
       "open_preferences_folder": "Åbn Prefs-mappe",
       "preferences_exported": "Præferencer eksporteret.",
       "preferences_imported": "Præferencer importeret.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Vil du nulstille indstillinger til standardindstillinger? Maskinprofiler, seneste filer, gemte positioner, API-indstillinger og eksportstier bevares.",
       "save_background_capture": "Gem baggrundsoptagelse",
       "save_processed_bitmap": "Gem behandlet bitmap",
-      "show_notes": "Vis noter"
+      "show_notes": "Vis noter",
+      "project_notes": "Projektnoter...",
+      "print": "Udskriv...",
+      "export_processed_image": "Eksportér behandlet billede..."
     },
     "edit": {
       "label": "Rediger",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Auto-sammenføj udvalgte former",
       "close_and_join": "Luk & Deltag",
       "convert_to_bitmap": "Konverter til bitmap",
+      "extract_selected_nodes_to_path": "Udtræk valgte noder til ny sti",
       "duplicate": "Duplikat",
       "image_options": "Billedindstillinger",
       "invert_selection": "Inverter markering",
@@ -241,12 +244,12 @@
       "shape_properties": "Formegenskaber",
       "text_options": "Tekstindstillinger",
       "toggle_side_panels": "Skift sidepaneler",
-      "toggle_wireframe_filled": "Skift Wireframe / Fyldt",
-      "view_style": "Vis stil:",
-      "view_style_filled_coarse": "Fyldt / Groft",
-      "view_style_filled_smooth": "Fyldt / Glat",
-      "view_style_wireframe_coarse": "Wireframe / Grov",
-      "view_style_wireframe_smooth": "Wireframe / Glat",
+      "toggle_wireframe_filled": "Skift handling / trådramme",
+      "view_style": "Grafikvisning:",
+      "view_style_filled_coarse": "Tving udfyldt",
+      "view_style_filled_smooth": "Glatte kanter",
+      "view_style_wireframe_coarse": "Efter laghandling",
+      "view_style_wireframe_smooth": "Tving trådramme",
       "zoom_to_page": "Zoom til side"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Rullehjul",
       "scroll_zoom": "Zoom",
       "scroll_pan": "Panorer",
-      "allow_import_tool_layers": "Tillad import til værktøjslag",
-      "include_tool_layers_job_bounds": "Inkludér værktøjslag i jobgrænser"
+      "allow_import_tool_layers": "Tillad import til værktøjslag"
     },
     "about": {
       "tagline": "Lavet af makere for makere.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "Stregkodedialogen lukket, fordi dens mållag ikke længere er tilgængeligt."
     },
     "adjust_image": {
+      "invert_display_help": "Kun forhåndsvisning. Det gemte billede og laseroutputtet ændres ikke.",
+      "invert_adjustment_help": "Invertering gemmes med dette billede og udføres før lagets rasterbehandling.",
+      "negative_image_help": "Negativt billede inverterer lagets output. Hvis Inverter ovenfor også er slået til, kan de to inverteringer ophæve hinanden.",
       "title": "Juster billede",
       "drag_to_move": "Træk for at flytte",
       "original": "Original",
@@ -701,6 +706,7 @@
       "include_project_file": "Inkluder projektfil",
       "include_project_file_help": "Fra som standard. Dette sender de faktiske .lzrproj-geometri og rasterdata.",
       "job_compatibility_help": "Der er ikke sendt noget endnu. Rapporten indeholder Beam Bench-version, operativsystem, controllerfamilie, ikke-identificerende maskinindstillinger og summer for det fuldførte job. Den udelader design, G-code, filnavne, seriel trafik, logfiler, enhedsstier, profil-id'er og projektfiler.",
+      "privacy_policy": "Læs privatlivspolitikken",
       "what_gets_sent": "Hvad bliver sendt",
       "loading": "Indlæser...",
       "submitting_report": "Indsender rapport til Beam Bench...",
@@ -784,6 +790,7 @@
       "pan_hint": "Træk for at vælge et sporingsområde. Hold mellemrumstasten nede, og træk for at panorere."
     },
     "preview": {
+      "options_help": "Flytning er bevægelse med laseren slukket. Fremskridt viser den udførte brænding. Overscan viser rasteracceleration uden for motivet. Skygge efter effekt og Inverter påvirker kun denne visning.",
       "title": "Forhåndsvisningsvindue",
       "stale_refresh_required": "Forældet - opdatering påkrævet",
       "stale": "Forældet",
@@ -1105,10 +1112,27 @@
       "title": "Ikke-gemte ændringer",
       "message": "Dit projekt har ikke-gemte ændringer. Vil du gemme dem, før du fortsætter?",
       "discard": "Gem ikke"
+    },
+    "print": {
+      "title": "Udskriv",
+      "output": "Udskriftsresultat",
+      "description": "Vælg, hvordan projektet skal se ud, og fortsæt derefter i systemudskrivningsdialogen.",
+      "color": "Farve",
+      "black": "Sort",
+      "layer_colors": "Lagfarver",
+      "appearance": "Motivets udseende",
+      "by_operation": "Efter laghandling",
+      "outlines": "Kun konturer",
+      "print": "Udskriv...",
+      "preparing": "Forbereder..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Design",
+      "mode_run": "Kør",
+      "mode_design_hint": "Design: tegn og arranger dit projekt",
+      "mode_run_hint": "Kør: send jobbet til din laser",
       "new": "Ny",
       "untitled_project": "Unavngivet projekt",
       "open": "Åbn",
@@ -1193,13 +1217,16 @@
       "close_path": "Luk sti",
       "auto_join_paths": "Auto-tilslutningsstier",
       "insert_midpoint": "Indsæt midtpunkt (M)",
-      "align_to_angle": "Juster til vinkel (A)"
+      "align_to_angle": "Juster til vinkel (A)",
+      "extend_to_intersection": "Forlæng til skæring (E)"
     },
     "transform_toggles": {
       "move": "Flyt",
       "size": "Størrelse",
       "rotate": "Roter",
-      "shear": "Forskydning"
+      "shear": "Forskydning",
+      "lock_all": "Lås alle transformeringer",
+      "unlock_all": "Lås alle transformeringer op"
     },
     "properties": {
       "position_x": "X-pos",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Intet projekt",
-      "nothing_selected": "Intet valgt"
+      "nothing_selected": "Vælg et objekt for at redigere dets egenskaber"
+    },
+    "library": {
+      "title": "Bibliotek"
     },
     "floating": {
       "dock_tooltip": "Fastgør panel",
       "close_tooltip": "Luk panel",
       "float_tooltip": "Frigør panel"
     },
+    "outliner": {
+      "help": "Træk for at ændre rækkefølge eller flytte. Dobbeltklik for at omdøbe. Skjulte objekter bliver her, så du kan gendanne dem.",
+      "summary": "{layers} lag · {objects} objekter",
+      "empty_layer": "Ingen genstande",
+      "expand_layer": "Udvid laget",
+      "collapse_layer": "Skjul lag sammen",
+      "expand_group": "Udvid gruppe",
+      "collapse_group": "Skjul gruppe",
+      "show_layer": "Vis lag",
+      "hide_layer": "Skjul lag",
+      "show_object": "Vis objekt",
+      "hide_object": "Skjul objekt",
+      "lock_object": "Lås objekt",
+      "unlock_object": "Lås objekt op"
+    },
     "registry": {
-      "cuts_layers": "Snit / Lag",
+      "outliner": "Outliner",
+      "cuts_layers": "Lag",
       "move": "Flyt",
       "console": "Konsol",
       "macros": "Makroer",
-      "properties": "Formegenskaber",
+      "properties": "Egenskaber",
       "measurement": "Måling",
       "laser": "Laser Control",
       "material": "Materialebibliotek",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Et underlag"
     },
     "properties": {
+      "transform": "Transformation",
+      "visibility_help": "Skjulte objekter udelades fra jobbet. Gendan dem i Outliner.",
+      "power_scale_help": "Ganger dette objekts lageffekt uden at ændre laget.",
+      "cut_priority_help": "Lavere værdier køres tidligere, når prioritetsoptimering er aktiveret.",
       "objects_selected": "{count} objekter valgt",
       "layer": "Lag",
       "mixed": "Blandet",
@@ -1421,7 +1471,7 @@
       "union": "Union",
       "subtract": "Træk fra",
       "intersection": "Skæring",
-      "nothing_selected": "Intet valgt",
+      "nothing_selected": "Vælg et objekt for at redigere dets egenskaber",
       "name": "Navn",
       "power_scale_percent": "Effektskala %",
       "cut_priority": "Skæreprioritet",
@@ -1484,15 +1534,63 @@
       "h_space": "H-afst.",
       "v_space": "V-afst.",
       "path_offset": "Stiforskydning",
+      "baseline_offset": "Grundlinjeforskydning",
+      "direction_normal": "Normal",
+      "direction_reverse": "Omvendt",
+      "strength": "Styrke",
+      "arc_span": "Buespænd",
+      "circle_position": "Cirkelplacering",
+      "circle_side": "Cirkelside",
+      "circle_top": "Top",
+      "circle_bottom": "Bund",
+      "circle_outside": "Udvendig",
+      "circle_inside": "Indvendig",
       "bend_radius": "Bøjeradius",
       "align_left": "Venstre",
       "align_center": "Centrer",
       "align_right": "Højre",
       "align_top": "Top",
       "align_middle": "Midte",
-      "align_bottom": "Bund"
+      "align_bottom": "Bund",
+      "tool_title": "Tekstværktøj",
+      "creation_hint": "Vælg Peg for at klikke og skriv, eller boks for at trække et ombrydningsområde.",
+      "edit_text": "Rediger tekst",
+      "edit_on_canvas": "Rediger på lærred",
+      "search_fonts": "Søg skrifttyper",
+      "recent_fonts": "Seneste",
+      "favorite_fonts": "Favoritter",
+      "all_fonts": "Alle skrifttyper",
+      "no_fonts_found": "Ingen skrifttyper fundet",
+      "favorite_font": "Yndlingsskrifttype",
+      "unfavorite_font": "Fjern favorit",
+      "style": "Stil",
+      "style_regular": "Regelmæssig",
+      "style_bold_italic": "Fed kursiv",
+      "typography": "Typografi",
+      "alignment_spacing": "Justering & afstand",
+      "text_box": "Teksttype",
+      "width_mode": "tilstand",
+      "auto_width": "Punkt",
+      "fixed_width": "æske",
+      "width": "Kassens bredde",
+      "squeeze_to_fit": "Klem for at passe",
+      "advanced_shape": "Avanceret tekstform",
+      "transform": "Konvolut",
+      "transform_none": "Ingen",
+      "transform_arch": "Arch",
+      "transform_rise": "Stig op",
+      "transform_wave": "bølge",
+      "transform_flag": "Flag",
+      "transform_angle": "Vinkel",
+      "transform_circle": "Cirkel",
+      "curve": "Kurve",
+      "laser_output": "Laser output",
+      "convert_hint": "Konverter til sti fryser bogstaverne til redigerbar skåret geometri.",
+      "tracking": "Sporing",
+      "line_spacing": "Linjeafstand"
     },
     "sub_layer_stack": {
+      "title": "Underlag",
       "operation_tool": "Værktøj",
       "operation_image": "Billede",
       "operation_fill": "Fyld",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Offset udad",
       "max_sub_layers_title": "Maksimum på 11 underlag nået",
       "add_sub_layer_title": "Tilføj underlag",
-      "add_sub_layer": "+ Tilføj underlag"
+      "add_sub_layer": "+ Tilføj underlag",
+      "order_hint": "Underlag køres i rækkefølge, oppefra og ned."
     },
     "cut_settings": {
       "title": "Skæreindstillinger",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Værktøjslag er hjælpelag og giver aldrig laseroutput.",
+      "output_show_help": "Ud medtager dette lag i laserjobbet. Vis ændrer kun visningen på lærredet.",
+      "opacity_help": "Kun forhåndsvisning på lærredet. Dette ændrer ikke lasereffekt eller billedbehandling.",
+      "delete_layer": "Slet lag",
+      "add_layer": "Tilføj lag",
       "header": {
         "index": "#",
         "layer": "Lag",
@@ -1587,8 +1691,6 @@
         "multi": "Flere"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Medtag værktøjslag i jobgrænser",
-      "exclude_tool_layers_from_job_bounds": "Udelad værktøjslag fra jobgrænser",
       "frame": "Ramme",
       "move_up": "Flyt op",
       "move_down": "Flyt ned",
@@ -1635,7 +1737,8 @@
         "on_ms": "Til (ms)",
         "off_ms": "Fra (ms)",
         "kerf_mm": "Kerf-forskydning"
-      }
+      },
+      "settings_copied": "Lagindstillinger kopieret"
     },
     "move": {
       "step_mm": "Trin",
@@ -2168,9 +2271,40 @@
       "end": "Slut",
       "midpoint": "Midtpunkt",
       "difference": "Forskel",
-      "angle": "Vinkel"
+      "angle": "Vinkel",
+      "mode_linear": "Lineær",
+      "mode_angle": "Vinkel",
+      "mode_radius": "Radius",
+      "mode_gap": "Gab",
+      "minimum_gap": "Minimum mellemrum",
+      "horizontal": "Vandret",
+      "vertical": "Lodret",
+      "horizontal_gap": "Vandret mellemrum",
+      "vertical_gap": "Lodret mellemrum",
+      "first_segment": "Første segment",
+      "second_segment": "Andet segment",
+      "radius": "Radius",
+      "diameter": "Diameter",
+      "radius_x": "Radius X",
+      "radius_y": "Radius Y",
+      "diameter_x": "Diameter X",
+      "diameter_y": "Diameter Y",
+      "linear_second_hint": "Klik på det andet punkt",
+      "angle_second_hint": "Klik på et andet segment",
+      "gap_second_hint": "Klik på det andet objekt",
+      "angle_hint": "Klik på to segmenter for at måle deres vinkel",
+      "radius_hint": "Klik på en cirkel eller ellipse",
+      "gap_hint": "Klik på to objekter for at måle deres nærmeste afstand",
+      "linear_hint": "Klik-træk, eller klik på to punkter",
+      "title": "Mål",
+      "modes": "Måletilstande",
+      "copy_value": "Kopiværdi",
+      "copied": "Kopieret",
+      "clear_measurement": "Klar måling",
+      "keyboard_hint": "Shift begrænser vinkler. Escape rydder og vender derefter tilbage til Vælg."
     },
     "art_library": {
+      "drag_help": "Træk grafik ind på lærredet. Brug × til at slette den fra biblioteket.",
       "no_libraries": "Ingen biblioteker indlæst.",
       "search": "Søg...",
       "icon_size": "Ikonstørrelse:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench grafikbibliotek",
       "filter_artwork": "Grafik"
     }
+  },
+  "warp_tool": {
+    "title": "Warp",
+    "four_points": "4 point",
+    "sixteen_points": "16 point"
   },
   "context_menu": {
     "windows": "Vinduer",

@@ -12,15 +12,26 @@ import { Toggle } from '../shared/Toggle';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
 import type { OffsetCornerStyle, OffsetDirection } from '../../types/vector';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Layers3 } from 'lucide-react';
+import { ContextualToolActions, ContextualToolSection } from '../properties/ContextualToolSection';
+import { createOffsetPreviewSourceFrame } from '../../canvas/offsetPreview';
+
+const OFFSET_SUBMIT_TEST_ID = 'offset-submit';
+const PROPERTIES_PRESENTATION = 'properties' as const;
 
 interface OffsetDialogProps {
   objectIds: string[];
   onClose: () => void;
+  presentation?: 'dialog' | 'properties';
 }
 
-export function OffsetDialog({ objectIds, onClose }: OffsetDialogProps) {
+export function OffsetDialog({ objectIds, onClose, presentation = 'dialog' }: OffsetDialogProps) {
   const { t } = useTranslation();
   const projectId = useProjectStore((s) => s.project?.metadata.project_id ?? null);
+  // Object-array identity changes after a committed move/resize/rotate/shear.
+  // Watching it keeps the native, world-space ghost anchored to the current
+  // source geometry instead of the position where the panel first opened.
+  const projectObjects = useProjectStore((s) => s.project?.objects ?? null);
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
   const setOffsetPreview = useUiStore((s) => s.setOffsetPreview);
   const [distance, setDistance] = useState(1);
@@ -41,7 +52,8 @@ export function OffsetDialog({ objectIds, onClose }: OffsetDialogProps) {
   // Apply the Both-sides default at most once, and never over a user's choice.
   const userChangedDirectionRef = useRef(false);
   const appliedOpenDefaultRef = useRef(false);
-  useFocusTrap(dialogRef, true);
+  const previewObjectsRef = useRef(projectObjects);
+  useFocusTrap(dialogRef, presentation === 'dialog');
 
   const objectIdsKey = objectIds.join(',');
 
@@ -90,9 +102,26 @@ export function OffsetDialog({ objectIds, onClose }: OffsetDialogProps) {
       return;
     }
 
+    const sourceGeometryChanged = previewObjectsRef.current !== projectObjects;
+    previewObjectsRef.current = projectObjects;
+    if (sourceGeometryChanged) {
+      // A world-space ghost from before a transform is misleading. Remove it
+      // while the replacement is computed, and skip the normal control-change
+      // debounce so it snaps back onto the transformed source immediately.
+      setOffsetPreview(null);
+      immediateRunRef.current = true;
+    }
+
     let cancelled = false;
     const run = async () => {
       const seq = ++previewReqRef.current;
+      // Capture the frontend frame that corresponds to the native geometry at
+      // request time. The canvas can then translate the returned world-space
+      // ghost along with an optimistic object drag before mouse-up commits it.
+      const sourceFrame = createOffsetPreviewSourceFrame(
+        useProjectStore.getState().project?.objects ?? [],
+        ids,
+      );
       try {
         const preview = await vectorService.previewOffsetShapes(ids, distance, direction, cornerStyle);
         if (cancelled || seq !== previewReqRef.current) return; // stale response
@@ -111,7 +140,7 @@ export function OffsetDialog({ objectIds, onClose }: OffsetDialogProps) {
           setDirection('both');
           return;
         }
-        setOffsetPreview(preview.paths.length > 0 ? preview.paths : null);
+        setOffsetPreview(preview.paths.length > 0 ? preview.paths : null, sourceFrame);
       } catch {
         if (cancelled || seq !== previewReqRef.current) return; // stale failure
         // Unknown topology on error: drop the ghost and fall back to the
@@ -128,7 +157,7 @@ export function OffsetDialog({ objectIds, onClose }: OffsetDialogProps) {
     }
     const timer = setTimeout(() => void run(), 120);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [objectIdsKey, distance, direction, cornerStyle, setOffsetPreview]);
+  }, [objectIdsKey, projectObjects, distance, direction, cornerStyle, setOffsetPreview]);
 
   const handleSubmit = async () => {
     const currentProject = useProjectStore.getState().project;
@@ -153,41 +182,73 @@ export function OffsetDialog({ objectIds, onClose }: OffsetDialogProps) {
     }
   };
 
-  return createPortal(
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dialog-title" className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-bb-panel border border-bb-border rounded-lg shadow-xl p-4 min-w-[320px]">
-        <h2 id="dialog-title" className="text-sm font-semibold text-bb-text mb-3">{t('dialog.offset.title')}</h2>
-        <div className="space-y-2">
-          <NumberInput
-            label={labelWithUnit(t('dialog.offset.distance'), lengthUnitLabel(displayUnit))}
-            value={roundDisplayLength(mmToDisplay(distance, displayUnit), displayUnit)}
-            onChange={(v) => setDistance(displayToMm(v, displayUnit))}
-            min={mmToDisplay(0.1, displayUnit)}
-            step={lengthStep(displayUnit, 0.5, 0.02)}
-          />
-          <Select
-            label={sourceAllOpen ? t('dialog.offset.side') : t('dialog.offset.direction')}
-            value={direction}
-            options={directionOptions}
-            onChange={(value) => {
-              userChangedDirectionRef.current = true;
-              setDirection(value as OffsetDirection);
-            }}
-          />
-          <Select
-            label={t('dialog.offset.corner_style')}
-            value={cornerStyle}
-            options={cornerOptions}
-            onChange={(value) => setCornerStyle(value as OffsetCornerStyle)}
-          />
-          <Toggle label={t('dialog.offset.delete_original')} checked={deleteOriginal} onChange={setDeleteOriginal} />
-        </div>
+  const controls = (
+    <>
+      <div className="space-y-2">
+        <NumberInput
+          label={labelWithUnit(t('dialog.offset.distance'), lengthUnitLabel(displayUnit))}
+          value={roundDisplayLength(mmToDisplay(distance, displayUnit), displayUnit)}
+          onChange={(v) => setDistance(displayToMm(v, displayUnit))}
+          min={mmToDisplay(0.1, displayUnit)}
+          step={lengthStep(displayUnit, 0.5, 0.02)}
+        />
+        <Select
+          label={sourceAllOpen ? t('dialog.offset.side') : t('dialog.offset.direction')}
+          value={direction}
+          options={directionOptions}
+          onChange={(value) => {
+            userChangedDirectionRef.current = true;
+            setDirection(value as OffsetDirection);
+          }}
+        />
+        <Select
+          label={t('dialog.offset.corner_style')}
+          value={cornerStyle}
+          options={cornerOptions}
+          onChange={(value) => setCornerStyle(value as OffsetCornerStyle)}
+        />
+        <Toggle label={t('dialog.offset.delete_original')} checked={deleteOriginal} onChange={setDeleteOriginal} />
+      </div>
+      {presentation === 'properties' ? (
+        <ContextualToolActions
+          onCancel={onClose}
+          onApply={() => void handleSubmit()}
+          cancelLabel={t('common.cancel')}
+          applyLabel={t('common.apply')}
+          applyTestId={OFFSET_SUBMIT_TEST_ID}
+        />
+      ) : (
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={onClose} className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text">{t('common.cancel')}</button>
           <button data-testid="offset-submit" onClick={() => void handleSubmit()} className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent">{t('common.apply')}</button>
         </div>
+      )}
+    </>
+  );
+
+  if (presentation === 'properties') {
+    return (
+      <ContextualToolSection
+        title={t('dialog.offset.title')}
+        icon={<Layers3 size={16} />}
+        testId="offset-properties-section"
+      >
+        {controls}
+      </ContextualToolSection>
+    );
+  }
+
+  return createPortal(
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dialog-title" className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-bb-panel border border-bb-border rounded-lg shadow-xl p-4 min-w-[320px]">
+        <h2 id="dialog-title" className="text-sm font-semibold text-bb-text mb-3">{t('dialog.offset.title')}</h2>
+        {controls}
       </div>
     </div>,
     document.body
   );
+}
+
+export function OffsetPropertiesSection({ objectIds, onClose }: Omit<OffsetDialogProps, 'presentation'>) {
+  return <OffsetDialog objectIds={objectIds} onClose={onClose} presentation={PROPERTIES_PRESENTATION} />;
 }

@@ -1,27 +1,43 @@
 import { describe, it, expect, vi } from 'vitest';
-import { drawAnimatedPreview, interpolatePolyline, interpolateRasterRuns, computeRasterHeadPos } from '../drawPreviewAnimated';
+import {
+  drawAnimatedPreview,
+  interpolatePolyline,
+  interpolateRasterRuns,
+  computeRasterHeadPos,
+} from '../drawPreviewAnimated';
 import type { Point2D } from '../../types/project';
 import type { RasterRunExtent } from '../../types/preview';
 import type { AnimationTimeline } from '../previewTimeline';
 import type { PreviewBitmapCache } from '../previewBitmapCache';
+import { worldToScreen } from '../ViewportTransform';
 
 describe('interpolatePolyline', () => {
   it('returns first point at fraction 0', () => {
-    const pts: Point2D[] = [{ x: 0, y: 0 }, { x: 10, y: 0 }];
+    const pts: Point2D[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ];
     const result = interpolatePolyline(pts, 0);
     expect(result.partialPoints).toHaveLength(1);
     expect(result.headPos).toEqual({ x: 0, y: 0 });
   });
 
   it('returns all points at fraction 1', () => {
-    const pts: Point2D[] = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }];
+    const pts: Point2D[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 20, y: 0 },
+    ];
     const result = interpolatePolyline(pts, 1);
     expect(result.partialPoints).toHaveLength(3);
     expect(result.headPos).toEqual({ x: 20, y: 0 });
   });
 
   it('returns midpoint at fraction 0.5 of a 2-point line', () => {
-    const pts: Point2D[] = [{ x: 0, y: 0 }, { x: 10, y: 0 }];
+    const pts: Point2D[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ];
     const result = interpolatePolyline(pts, 0.5);
     expect(result.partialPoints).toHaveLength(2);
     expect(result.headPos.x).toBeCloseTo(5, 5);
@@ -29,14 +45,20 @@ describe('interpolatePolyline', () => {
   });
 
   it('handles fraction > 1 as complete', () => {
-    const pts: Point2D[] = [{ x: 0, y: 0 }, { x: 10, y: 0 }];
+    const pts: Point2D[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ];
     const result = interpolatePolyline(pts, 1.5);
     expect(result.partialPoints).toHaveLength(2);
     expect(result.headPos).toEqual({ x: 10, y: 0 });
   });
 
   it('handles fraction < 0 as start', () => {
-    const pts: Point2D[] = [{ x: 5, y: 5 }, { x: 15, y: 5 }];
+    const pts: Point2D[] = [
+      { x: 5, y: 5 },
+      { x: 15, y: 5 },
+    ];
     const result = interpolatePolyline(pts, -0.5);
     expect(result.partialPoints).toHaveLength(1);
     expect(result.headPos).toEqual({ x: 5, y: 5 });
@@ -56,7 +78,11 @@ describe('interpolatePolyline', () => {
 
   it('interpolates correctly across multi-segment polyline', () => {
     // Three points: (0,0) -> (10,0) -> (10,10). Total length = 20
-    const pts: Point2D[] = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
+    const pts: Point2D[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+    ];
 
     // 25% = 5mm along first segment
     const r25 = interpolatePolyline(pts, 0.25);
@@ -72,7 +98,10 @@ describe('interpolatePolyline', () => {
   });
 
   it('handles zero-length segments', () => {
-    const pts: Point2D[] = [{ x: 5, y: 5 }, { x: 5, y: 5 }];
+    const pts: Point2D[] = [
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+    ];
     const result = interpolatePolyline(pts, 0.5);
     // Zero-length line: fraction of 0 total = start
     expect(result.partialPoints.length).toBeGreaterThanOrEqual(1);
@@ -108,6 +137,159 @@ function makeMockContext() {
     imageSmoothingEnabled: false,
   } as unknown as CanvasRenderingContext2D;
 }
+
+describe('animated preview option behavior', () => {
+  const viewport = {
+    offset: { x: 5, y: 0 },
+    zoom: 100,
+    canvasWidth: 100,
+    canvasHeight: 100,
+  };
+
+  const stats = {
+    total_distance_mm: 10,
+    estimated_duration_secs: 10,
+    segment_count: 1,
+    burn_distance_mm: 0,
+    travel_distance_mm: 10,
+    raster_line_count: 0,
+  };
+
+  it('hides travel traces without losing the moving head position', () => {
+    const timeline: AnimationTimeline = {
+      segments: [
+        {
+          type: 'travel',
+          from: { x: 0, y: 0 },
+          to: { x: 10, y: 0 },
+          startTime: 0,
+          endTime: 10,
+        },
+      ],
+      playbackDuration: 10,
+      stats,
+      jobBounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 1 } },
+    };
+    const ctx = makeMockContext();
+
+    drawAnimatedPreview(
+      ctx,
+      timeline,
+      5,
+      viewport,
+      {
+        showTravel: false,
+        showBurnProgress: true,
+        showOverscan: false,
+        shadeByPower: false,
+        invertView: false,
+      },
+      {} as PreviewBitmapCache,
+    );
+
+    expect(ctx.stroke).not.toHaveBeenCalled();
+    expect(ctx.arc).toHaveBeenCalledOnce();
+  });
+
+  it('draws the whole active vector when progress animation is hidden', () => {
+    const timeline: AnimationTimeline = {
+      segments: [
+        {
+          type: 'vector',
+          layerIndex: 0,
+          layerColor: '#000000',
+          points: [
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+          ],
+          closed: false,
+          startTime: 0,
+          endTime: 10,
+          speedMmMin: 60,
+          powerPercent: 50,
+        },
+      ],
+      playbackDuration: 10,
+      stats: { ...stats, burn_distance_mm: 10, travel_distance_mm: 0 },
+      jobBounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 1 } },
+    };
+    const ctx = makeMockContext();
+
+    drawAnimatedPreview(
+      ctx,
+      timeline,
+      2,
+      viewport,
+      {
+        showTravel: false,
+        showBurnProgress: false,
+        showOverscan: false,
+        shadeByPower: false,
+        invertView: false,
+      },
+      {} as PreviewBitmapCache,
+    );
+
+    const end = worldToScreen({ x: 10, y: 0 }, viewport);
+    expect(ctx.lineTo).toHaveBeenLastCalledWith(end.x, end.y);
+    expect(ctx.arc).not.toHaveBeenCalled();
+  });
+
+  it('clears a bitmap mask when scrubbing backward within the same raster run', () => {
+    const ctx = makeMockContext();
+    const burnedMask = document.createElement('canvas');
+    burnedMask.width = 10;
+    burnedMask.height = 1;
+    const burnedMaskCtx = { clearRect: vi.fn(), drawImage: vi.fn() };
+    vi.spyOn(burnedMask, 'getContext').mockReturnValue(
+      burnedMaskCtx as unknown as CanvasRenderingContext2D,
+    );
+    const bitmapCache = {
+      ensurePreviewBitmap: vi.fn(() => ({ complete: true, naturalWidth: 10 }) as HTMLImageElement),
+      ensureBurnedMask: vi.fn(() => burnedMask),
+    } as unknown as PreviewBitmapCache;
+    const timeline: AnimationTimeline = {
+      segments: [
+        {
+          type: 'raster',
+          layerIndex: 0,
+          layerColor: '#000000',
+          bounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 1 } },
+          lineCount: 1,
+          lineIntervalMm: 1,
+          overscanMm: 0,
+          speedMmMin: 60,
+          directionMode: 'bidirectional',
+          startTime: 0,
+          endTime: 10,
+          scanAxis: 'horizontal',
+          previewBitmap: { width_px: 10, height_px: 1, png_bytes: [1] },
+          localOriginMm: { x: 0, y: 0 },
+          localWidthMm: 10,
+          localHeightMm: 1,
+          runExtents: [{ y_mm: 0, start_x_mm: 0, end_x_mm: 10, direction: 'left_to_right' }],
+          scanlineExtents: [{ y_mm: 0, start_x_mm: 0, end_x_mm: 10, direction: 'left_to_right' }],
+          sequence: 1,
+        },
+      ],
+      playbackDuration: 10,
+      stats: { ...stats, burn_distance_mm: 10, travel_distance_mm: 0 },
+      jobBounds: { min: { x: 0, y: 0 }, max: { x: 10, y: 1 } },
+    };
+    const options = {
+      showTravel: false,
+      showBurnProgress: true,
+      showOverscan: false,
+      shadeByPower: false,
+      invertView: false,
+    };
+
+    drawAnimatedPreview(ctx, timeline, 8, viewport, options, bitmapCache);
+    drawAnimatedPreview(ctx, timeline, 7, viewport, options, bitmapCache);
+
+    expect(burnedMaskCtx.clearRect).toHaveBeenCalledOnce();
+  });
+});
 
 // --- interpolateRasterRuns tests ---
 
@@ -190,10 +372,7 @@ describe('interpolateRasterRuns', () => {
   });
 
   it('preserves strip power and y_mm in visible output', () => {
-    const runs = [
-      makeRun(1, 0, 5, 0.2),
-      makeRun(2, 0, 5, 0.8),
-    ];
+    const runs = [makeRun(1, 0, 5, 0.2), makeRun(2, 0, 5, 0.8)];
     const result = interpolateRasterRuns(runs, 1);
     expect(result.visibleRuns[0].y_mm).toBe(1);
     expect(result.visibleRuns[1].y_mm).toBe(2);
@@ -214,12 +393,7 @@ describe('interpolateRasterRuns', () => {
 
   it('many runs with different lengths weight correctly', () => {
     // 4 runs: 1mm, 2mm, 3mm, 4mm = 10mm total
-    const runs = [
-      makeRun(1, 0, 1),
-      makeRun(2, 0, 2),
-      makeRun(3, 0, 3),
-      makeRun(4, 0, 4),
-    ];
+    const runs = [makeRun(1, 0, 1), makeRun(2, 0, 2), makeRun(3, 0, 3), makeRun(4, 0, 4)];
     // progress 0.3 → target = 3mm → strip0 (1mm) + strip1 (2mm) = 3mm exactly
     const result = interpolateRasterRuns(runs, 0.3);
     expect(result.visibleRuns).toHaveLength(2);
@@ -285,7 +459,9 @@ describe('interpolateRasterRuns', () => {
       {} as PreviewBitmapCache,
     );
 
-    expect((ctx as unknown as { fillRect: ReturnType<typeof vi.fn> }).fillRect).not.toHaveBeenCalled();
+    expect(
+      (ctx as unknown as { fillRect: ReturnType<typeof vi.fn> }).fillRect,
+    ).not.toHaveBeenCalled();
   });
 
   it('fill-preferred raster playback uses scanline strokes without a solid grayscale base tint', () => {
@@ -364,7 +540,9 @@ describe('interpolateRasterRuns', () => {
       clearRect: vi.fn(),
       drawImage: vi.fn(),
     };
-    vi.spyOn(burnedMask, 'getContext').mockReturnValue(burnedMaskCtx as unknown as CanvasRenderingContext2D);
+    vi.spyOn(burnedMask, 'getContext').mockReturnValue(
+      burnedMaskCtx as unknown as CanvasRenderingContext2D,
+    );
     const tintedMask = document.createElement('canvas');
     tintedMask.width = 8;
     tintedMask.height = 8;
@@ -375,9 +553,11 @@ describe('interpolateRasterRuns', () => {
       globalCompositeOperation: 'source-over',
       fillStyle: '',
     };
-    vi.spyOn(tintedMask, 'getContext').mockReturnValue(tintedCtx as unknown as CanvasRenderingContext2D);
+    vi.spyOn(tintedMask, 'getContext').mockReturnValue(
+      tintedCtx as unknown as CanvasRenderingContext2D,
+    );
     const bitmapCache = {
-      ensurePreviewBitmap: vi.fn(() => ({ complete: true, naturalWidth: 8 } as HTMLImageElement)),
+      ensurePreviewBitmap: vi.fn(() => ({ complete: true, naturalWidth: 8 }) as HTMLImageElement),
       ensureBurnedMask: vi.fn(() => burnedMask),
       ensureTintedBurnedMask: vi.fn(() => tintedMask),
     } as unknown as PreviewBitmapCache;
@@ -454,13 +634,28 @@ describe('interpolateRasterRuns', () => {
 
     expect(bitmapCache.ensureTintedBurnedMask).toHaveBeenCalledWith(3, 8, 8);
     expect(tintedCtx.fillRect).toHaveBeenCalled();
-    expect((ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }).drawImage).toHaveBeenCalledWith(
-      tintedMask,
-      0,
-      0,
+    expect(
+      (ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }).drawImage,
+    ).toHaveBeenCalledWith(tintedMask, 0, 0, 10, 10);
+
+    vi.mocked(bitmapCache.ensureTintedBurnedMask).mockClear();
+    drawAnimatedPreview(
+      ctx,
+      timeline,
       10,
-      10,
+      vp,
+      {
+        showTravel: true,
+        showBurnProgress: false,
+        showOverscan: true,
+        shadeByPower: false,
+        invertView: true,
+      },
+      bitmapCache,
     );
+
+    expect(bitmapCache.ensureTintedBurnedMask).not.toHaveBeenCalled();
+    expect((ctx as unknown as { filter: string }).filter).toBe('invert(1)');
   });
 
   it('suppresses overscan markers when showOverscan is false', () => {
@@ -523,7 +718,9 @@ describe('interpolateRasterRuns', () => {
       {} as PreviewBitmapCache,
     );
 
-    expect((ctx as unknown as { fillRect: ReturnType<typeof vi.fn> }).fillRect).not.toHaveBeenCalled();
+    expect(
+      (ctx as unknown as { fillRect: ReturnType<typeof vi.fn> }).fillRect,
+    ).not.toHaveBeenCalled();
   });
 
   // --- Multi-run gap tests: head follows actual runs, not blank space ---
@@ -533,7 +730,7 @@ describe('interpolateRasterRuns', () => {
     //   Run A: x=0-40 (40mm), Run B: x=60-100 (40mm)
     // Total distance = 80mm.  Gap at x=40-60 is not traversed by head.
     const runs = [
-      makeRun(10, 0, 40),   // Run A
+      makeRun(10, 0, 40), // Run A
       makeRun(10, 60, 100), // Run B
     ];
 
@@ -554,8 +751,8 @@ describe('interpolateRasterRuns', () => {
   it('multi-run: head does not pass through blank space at any progress', () => {
     // Two runs with 20mm gap
     const runs = [
-      makeRun(5, 0, 10),   // 10mm
-      makeRun(5, 30, 50),  // 20mm
+      makeRun(5, 0, 10), // 10mm
+      makeRun(5, 30, 50), // 20mm
     ];
     // Total = 30mm. At any progress, head.x should be either in [0,10] or [30,50].
     for (let p = 0.01; p <= 1.0; p += 0.01) {
@@ -642,7 +839,7 @@ describe('computeRasterHeadPos (legacy, no tone runs)', () => {
     // 4 lines at Y = 0, 6.667, 13.333, 20 (evenly spaced by 1/3 of 20)
     // p=0.5 → lineProgress=2, currentLine=2 → lineAdv = (2/3)*20 = 13.333
     const head = computeRasterHeadPos(BOUNDS_10x20, 4, 'unidirectional', 0.5, undefined);
-    expect(head.y).toBeCloseTo(20 * 2 / 3, 3);
+    expect(head.y).toBeCloseTo((20 * 2) / 3, 3);
     expect(head.x).toBeCloseTo(0, 5); // withinLine=0 → start of line
   });
 
@@ -697,7 +894,14 @@ describe('computeRasterHeadPos (legacy, no tone runs)', () => {
     // line 0 cycle: withinLine = frac * 4 - 0. With scanFrac≈0.9091,
     // return starts at withinLine > 0.9091.
     // p = 0.24 → lineProgress=0.96 → line 0, withinLine=0.96 > 0.9091 → return phase
-    const headReturn = computeRasterHeadPos(BOUNDS_10x20, 4, 'unidirectional', 0.24, undefined, 1000);
+    const headReturn = computeRasterHeadPos(
+      BOUNDS_10x20,
+      4,
+      'unidirectional',
+      0.24,
+      undefined,
+      1000,
+    );
     // During return: head should be between scanMax (10) and scanMin (0), moving back
     expect(headReturn.x).toBeLessThan(10);
     expect(headReturn.x).toBeGreaterThan(0);
@@ -724,7 +928,7 @@ describe('computeRasterHeadPos (legacy, no tone runs)', () => {
     // advPos = advMin + (2/3)*advExtent = 0 + (2/3)*10 = 3.333 (X)
     // scanPos = scanMin = 0 (Y)
     const head = computeRasterHeadPos(BOUNDS_10x20, 4, 'unidirectional', 0.5, 'vertical');
-    expect(head.x).toBeCloseTo(10 * 2 / 3, 3);
+    expect(head.x).toBeCloseTo((10 * 2) / 3, 3);
     expect(head.y).toBeCloseTo(0, 5);
   });
 

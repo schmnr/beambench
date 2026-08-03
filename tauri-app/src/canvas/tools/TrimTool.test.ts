@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TrimTool } from './TrimTool';
+import { TRIM_HIT_RADIUS_PX, TrimTool } from './TrimTool';
 import type { CanvasMouseEvent, ToolContext } from './types';
 import type { ViewportParams } from '../ViewportTransform';
 
@@ -79,9 +79,10 @@ describe('TrimTool', () => {
     expect(invoke).toHaveBeenCalledWith('trim_shape', {
       clickX: 100,
       clickY: 100,
-      edgeThresholdMm: expect.any(Number),
+      edgeThresholdMm: 5,
       heal: true,
     });
+    expect(TRIM_HIT_RADIUS_PX).toBe(10);
   });
 
   it('alt+click sends heal=false', async () => {

@@ -918,6 +918,7 @@ fn adjust_preview_cache_hit_on_identical_second_call() {
 
     let input = AdjustImagePreviewInput {
         object_id: obj_id,
+        preview_request_id: None,
         brightness: 0.0,
         contrast: 0.0,
         gamma: 1.0,
@@ -962,6 +963,43 @@ fn adjust_preview_cache_hit_on_identical_second_call() {
 }
 
 #[test]
+fn stale_adjust_preview_request_returns_stale_revision_error() {
+    use std::sync::atomic::Ordering;
+
+    use super::imports::{AdjustImagePreviewInput, adjust_image_preview};
+
+    let (ctx, obj_id) = setup_raster_project();
+    ctx.latest_adjust_preview_request_id
+        .store(2, Ordering::Release);
+    let input = AdjustImagePreviewInput {
+        object_id: obj_id,
+        preview_request_id: Some(1),
+        brightness: 0.0,
+        contrast: 0.0,
+        gamma: 1.0,
+        invert: false,
+        threshold: 128,
+        saturation: 1.0,
+        sharpen: 0.0,
+        edge_enhance: false,
+        enhance_radius: 0.0,
+        enhance_amount: 0.0,
+        enhance_denoise: 0.0,
+        mode: "grayscale".to_string(),
+        dpi: 254,
+        negative: false,
+        pass_through: false,
+        halftone_cells_per_inch: 10,
+        halftone_angle_deg: 0.0,
+        newsprint_angle_deg: 45.0,
+        newsprint_frequency: 10.0,
+    };
+
+    let error = adjust_image_preview(&ctx, input).unwrap_err();
+    assert!(error.to_string().contains("superseded"));
+}
+
+#[test]
 fn plan_rebuild_reuses_cached_rasters() {
     use super::planning::generate_plan;
 
@@ -998,6 +1036,7 @@ fn staged_cache_reuses_decoded_image_across_brightness_changes() {
 
     let base_input = AdjustImagePreviewInput {
         object_id: obj_id,
+        preview_request_id: None,
         brightness: 0.0,
         contrast: 0.0,
         gamma: 1.0,
@@ -1045,6 +1084,7 @@ fn staged_cache_invalidates_on_saturation_change() {
 
     let base_input = AdjustImagePreviewInput {
         object_id: obj_id,
+        preview_request_id: None,
         brightness: 0.0,
         contrast: 0.0,
         gamma: 1.0,
@@ -1093,6 +1133,7 @@ fn preview_does_not_pollute_planner_cache() {
 
     let input = AdjustImagePreviewInput {
         object_id: obj_id,
+        preview_request_id: None,
         brightness: 0.3,
         contrast: 0.0,
         gamma: 1.0,

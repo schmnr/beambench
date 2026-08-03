@@ -83,7 +83,10 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   devices: [],
   selectedCameraId: null,
   overlayState: null,
-  overlayVisible: true,
+  // An overlay should become active only after the user shows one or a camera
+  // workflow produces a frame. Starting enabled makes the toolbar look active
+  // even when there is nothing available to render.
+  overlayVisible: false,
   overlayOpacity: 0.4,
   draftOverlayTransform: null,
   draftOverlayBaseTransform: null,

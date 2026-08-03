@@ -13,9 +13,12 @@ import { DRAG_THRESHOLD_PX, NODE_HIT_SIZE } from '../constants';
 import { resolveCanvasPointerSnap } from '../pointerSnap';
 import { hitTestPointAll } from '../hitTest';
 import { wrapBackendError } from '../../i18n/errors';
+import { pasteClipboardArtworkFromSystem } from '../../utils/systemClipboard';
+import { readNodeClipboard, writeNodeClipboard } from '../../utils/nodeClipboard';
 import i18n from '../../i18n';
 
 export type NodeImmediateAction = 'midpoint' | 'align' | 'trim' | 'extend' | 'close_open' | 'auto_join';
+export type NodeEditAction = 'copy' | 'cut' | 'paste' | 'extract' | 'delete' | 'select_all';
 
 type DragPointSnapshot = {
   target: NodeSelectionTarget;
@@ -58,6 +61,11 @@ type NodeToolState =
       currentScreen: Point2D;
       selectionMode: NodeSelectionModifierMode;
       crossing: boolean;
+    }
+  | {
+      type: 'lasso';
+      points: Point2D[];
+      selectionMode: NodeSelectionModifierMode;
     }
   | {
       type: 'dragging';
@@ -139,7 +147,14 @@ export class NodeTool implements CanvasTool {
 
     switch (subMode) {
       case 'select':
-        this.handleSelectMouseDown(screenPt, ctx, e.shiftKey, e.ctrlKey);
+        this.handleSelectMouseDown(
+          screenPt,
+          { x: e.worldX, y: e.worldY },
+          ctx,
+          e.shiftKey,
+          e.ctrlKey,
+          e.altKey,
+        );
         break;
       case 'insert':
         this.handleInsertClick(screenPt, ctx);
@@ -227,6 +242,15 @@ export class NodeTool implements CanvasTool {
     if (this.state.type === 'rubber-band') {
       this.state.currentScreen = screenPt;
       this.state.crossing = screenPt.x < this.state.startScreen.x;
+      ctx.requestRender();
+      return;
+    }
+
+    if (this.state.type === 'lasso') {
+      const last = this.state.points[this.state.points.length - 1];
+      if (!last || Math.hypot(screenPt.x - last.x, screenPt.y - last.y) >= 2) {
+        this.state.points.push(screenPt);
+      }
       ctx.requestRender();
       return;
     }
@@ -361,6 +385,26 @@ export class NodeTool implements CanvasTool {
         ctx.requestRender();
         return;
       }
+      case 'lasso': {
+        const { points, selectionMode } = this.state;
+        this.state = { type: 'idle' };
+        const start = points[0];
+        const moved = Boolean(start && points.some((point) =>
+          Math.hypot(point.x - start.x, point.y - start.y) > DRAG_THRESHOLD_PX,
+        ));
+        if (!moved) {
+          if (selectionMode === 'replace') this.selectOnly(null);
+          ctx.requestRender();
+          return;
+        }
+
+        this.applySelectionTargetsModifier(
+          this.nodeTargetsInScreenLasso(points, ctx),
+          selectionMode,
+        );
+        ctx.requestRender();
+        return;
+      }
       case 'dragging': {
         const objectId = this.objectId;
         const joinTarget = this.joinTargetNodeId;
@@ -418,6 +462,22 @@ export class NodeTool implements CanvasTool {
       this.selectTargets(this.allNodeTargets());
       ctx.requestRender();
       return;
+    }
+
+    if (e.metaKey || e.ctrlKey) {
+      const clipboardAction = ({ c: 'copy', x: 'cut', v: 'paste' } as const)[e.key.toLowerCase()];
+      if (clipboardAction) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.performNodeAction(clipboardAction, ctx);
+        return;
+      }
+      // Native/global command handling owns every other modified shortcut.
+      // Letting Cmd+S, Cmd+Z, etc. fall through to the single-letter node
+      // modes would mutate the path while the user was saving or undoing.
+      // Modified arrow keys are the exception: they are deliberate fine and
+      // ultra-fine node nudges handled below.
+      if (!e.key.startsWith('Arrow')) return;
     }
 
     // Sub-mode shortcuts — immediate action when a node is selected,
@@ -588,6 +648,7 @@ export class NodeTool implements CanvasTool {
       case 'dragging':
         return 'move';
       case 'rubber-band':
+      case 'lasso':
         return 'crosshair';
       default:
         switch (subMode) {
@@ -630,7 +691,8 @@ export class NodeTool implements CanvasTool {
         suspendPreview:
           this.state.type === 'dragging' ||
           this.state.type === 'maybe-drag' ||
-          this.state.type === 'rubber-band',
+          this.state.type === 'rubber-band' ||
+          this.state.type === 'lasso',
         hoveredSegment: this.hoveredSegment,
         hoveredEndpoint: this.hoveredEndpoint,
         joinTargetNodeId: this.joinTargetNodeId,
@@ -640,6 +702,9 @@ export class NodeTool implements CanvasTool {
               endScreen: this.state.currentScreen,
               crossing: this.state.crossing,
             }
+          : null,
+        selectionLasso: this.state.type === 'lasso'
+          ? { points: this.state.points }
           : null,
       };
     }
@@ -663,6 +728,7 @@ export class NodeTool implements CanvasTool {
     this.localNodeDirty = false;
     useUiStore.getState().setNodeSubMode('select');
     useUiStore.getState().setNodeEditNodeCount(0);
+    useUiStore.getState().setNodeEditOpenPathObjectId(null);
   }
 
   /** Get the total number of editable nodes */
@@ -705,6 +771,93 @@ export class NodeTool implements CanvasTool {
       case 'auto_join':
         this.handleAutoJoinClick(ctx);
     }
+  }
+
+  performNodeAction(action: NodeEditAction, ctx: ToolContext): void {
+    if (this.pendingNodeCommit) return;
+    const objectId = this.objectId;
+    const nodeIds = this.selectedNodeIds();
+
+    if (action === 'select_all') {
+      this.selectTargets(this.allNodeTargets());
+      ctx.requestRender();
+      return;
+    }
+
+    if (action !== 'paste' && (!objectId || nodeIds.length === 0)) {
+      ctx.setStatusMessage(i18n.t('canvas_status.select_vector_path_nodes'));
+      return;
+    }
+
+    if (action === 'delete') {
+      this.deleteSelectedNodes(ctx);
+      return;
+    }
+
+    if (action === 'copy') {
+      const commit = vectorService
+        .copyNodes(objectId!, nodeIds)
+        .then(writeNodeClipboard)
+        .catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+      this.trackNodeCommit(commit);
+      return;
+    }
+
+    if (action === 'cut') {
+      const commit = (async () => {
+        const copy = await vectorService.copyNodes(objectId!, nodeIds);
+        await writeNodeClipboard(copy);
+        if (this.isDeletingEveryEditableNode(nodeIds)) {
+          await useProjectStore.getState().removeObject(objectId!);
+          this.reset();
+        } else {
+          const updated = await vectorService.deleteNodes(objectId!, nodeIds);
+          this.applyUpdatedObject(updated);
+          this.selectOnly(null);
+          await useUndoStore.getState().refresh();
+          await this.loadEditablePath(objectId!, ctx);
+        }
+        ctx.requestRender();
+      })().catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+      this.trackNodeCommit(commit);
+      return;
+    }
+
+    if (action === 'extract') {
+      const commit = vectorService
+        .extractNodesToPath(objectId!, nodeIds)
+        .then(async (created) => {
+          this.reset();
+          await useProjectStore.getState().loadProject();
+          useProjectStore.getState().selectObjects([created.id]);
+          await useUndoStore.getState().refresh();
+          ctx.requestRender();
+        })
+        .catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+      this.trackNodeCommit(commit);
+      return;
+    }
+
+    const commit = (async () => {
+      const copiedPathJson = await readNodeClipboard();
+      if (!copiedPathJson || !objectId) {
+        await pasteClipboardArtworkFromSystem();
+        return;
+      }
+      const result = await vectorService.pasteNodes(objectId, copiedPathJson);
+      this.applyUpdatedObject(result.object);
+      await useUndoStore.getState().refresh();
+      await this.loadEditablePath(objectId, ctx);
+      const first = result.pastedSubpathStart;
+      const last = first + result.pastedSubpathCount;
+      this.selectTargets(this.editablePaths.flatMap((path) => {
+        const subpathIdx = path.nodes[0]?.id.subpath_idx;
+        if (subpathIdx === undefined || subpathIdx < first || subpathIdx >= last) return [];
+        return path.nodes.map((node) => ({ kind: 'node' as const, nodeId: node.id }));
+      }));
+      ctx.requestRender();
+    })().catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+    this.trackNodeCommit(commit);
   }
 
   // --- Private helpers ---
@@ -810,6 +963,9 @@ export class NodeTool implements CanvasTool {
       if (requestId !== this.loadRequestId) return;
       this.objectId = objId;
       this.editablePaths = paths;
+      useUiStore.getState().setNodeEditOpenPathObjectId(
+        paths.some((path) => !path.closed && path.nodes.length >= 2) ? objId : null,
+      );
       this.state = { type: 'idle' };
       const nextSelection = this.normalizeSelectionForPaths(
         paths,
@@ -1158,6 +1314,21 @@ export class NodeTool implements CanvasTool {
     );
   }
 
+  private nodeTargetsInScreenLasso(
+    points: Point2D[],
+    ctx: ToolContext,
+  ): NodeSelectionTarget[] {
+    if (points.length < 3) return [];
+
+    return this.editablePaths.flatMap((path) =>
+      path.nodes.flatMap((node) => {
+        const screenPos = worldToScreen(this.nodeToWorld(node.position), ctx.vp);
+        if (!this.pointInsidePolygon(screenPos, points, 1)) return [];
+        return [{ kind: 'node' as const, nodeId: node.id }];
+      }),
+    );
+  }
+
   private getTargetWorld(target: NodeSelectionTarget): Point2D | null {
     const node = this.findNode(target.nodeId);
     if (!node) return null;
@@ -1349,7 +1520,16 @@ export class NodeTool implements CanvasTool {
     const p0 = this.nodeToWorld(prevNode.position);
     const p3 = this.nodeToWorld(currNode.position);
     const u = 1 - hovered.t;
-    if (currNode.handle_in || prevNode.handle_out) {
+    if (currNode.incoming_segment === 'quadratic') {
+      const control = currNode.handle_in ?? prevNode.handle_out;
+      if (control) {
+        const q = this.nodeToWorld(control);
+        return {
+          x: u * u * p0.x + 2 * u * hovered.t * q.x + hovered.t * hovered.t * p3.x,
+          y: u * u * p0.y + 2 * u * hovered.t * q.y + hovered.t * hovered.t * p3.y,
+        };
+      }
+    } else if (currNode.handle_in || prevNode.handle_out) {
       const c1 = prevNode.handle_out ? this.nodeToWorld(prevNode.handle_out) : p0;
       const c2 = currNode.handle_in ? this.nodeToWorld(currNode.handle_in) : p3;
       return {
@@ -1732,7 +1912,14 @@ export class NodeTool implements CanvasTool {
 
   // --- Sub-mode handlers ---
 
-  private handleSelectMouseDown(screenPt: Point2D, ctx: ToolContext, shiftKey: boolean, ctrlKey: boolean): void {
+  private handleSelectMouseDown(
+    screenPt: Point2D,
+    worldPt: Point2D,
+    ctx: ToolContext,
+    shiftKey: boolean,
+    ctrlKey: boolean,
+    altKey: boolean,
+  ): void {
     const selectionMode = nodeSelectionModifierMode(shiftKey, ctrlKey);
     const handleHit = this.hitTestHandlesAny(screenPt, ctx);
     if (handleHit) {
@@ -1803,15 +1990,163 @@ export class NodeTool implements CanvasTool {
       return;
     }
 
+    if (selectionMode === 'replace') {
+      const islandDrag = this.selectedFilledIslandDrag(screenPt, ctx);
+      if (islandDrag) {
+        this.activeSubpathIdx = islandDrag.target.nodeId.subpath_idx;
+        this.state = {
+          type: 'maybe-drag',
+          target: islandDrag.target,
+          startScreen: screenPt,
+          startWorld: worldPt,
+          initialPoints: islandDrag.initialPoints,
+          excludedPoints: islandDrag.excludedPoints,
+        };
+        ctx.requestRender();
+        return;
+      }
+    }
+
     if (selectionMode === 'replace') this.selectOnly(null);
-    this.state = {
-      type: 'rubber-band',
-      startScreen: screenPt,
-      currentScreen: screenPt,
-      selectionMode,
-      crossing: false,
-    };
+    this.state = altKey
+      ? {
+          type: 'rubber-band',
+          startScreen: screenPt,
+          currentScreen: screenPt,
+          selectionMode,
+          crossing: false,
+        }
+      : {
+          type: 'lasso',
+          points: [screenPt],
+          selectionMode,
+        };
     ctx.requestRender();
+  }
+
+  private selectedFilledIslandDrag(
+    screenPt: Point2D,
+    ctx: ToolContext,
+  ): {
+    target: Extract<NodeSelectionTarget, { kind: 'node' }>;
+    initialPoints: DragPointSnapshot[];
+    excludedPoints: Point2D[];
+  } | null {
+    if (!this.objectId) return null;
+    const object = ctx.objects.find((candidate) => candidate.id === this.objectId);
+    const layerOperation = ctx.layers.find((layer) => layer.id === object?.layer_id)?.operation;
+    if (layerOperation !== 'fill' && layerOperation !== 'offset_fill') return null;
+
+    const selectedNodeKeys = new Set(this.selectedNodeIds().map((nodeId) => this.nodeKey(nodeId)));
+    const containingPaths = this.editablePaths.flatMap((path) => {
+      if (!path.closed || path.nodes.length < 3) return [];
+      const polygon = this.flattenEditablePathToScreen(path, ctx);
+      if (!this.pointInsidePolygon(screenPt, polygon)) return [];
+      return [{ path, polygon }];
+    });
+
+    // Node editing is rendered with the same even-odd fill rule, so an odd
+    // number of containing contours is material while an even count is a hole.
+    if (containingPaths.length % 2 === 0) return null;
+
+    const clicked = containingPaths.reduce((smallest, candidate) =>
+      Math.abs(this.polygonArea(candidate.polygon)) < Math.abs(this.polygonArea(smallest.polygon))
+        ? candidate
+        : smallest,
+    );
+    if (!clicked.path.nodes.every((node) => selectedNodeKeys.has(this.nodeKey(node.id)))) {
+      return null;
+    }
+
+    const targetNode = clicked.path.nodes.find((node) =>
+      this.primaryTarget?.kind === 'node'
+      && this.nodeKey(node.id) === this.nodeKey(this.primaryTarget.nodeId),
+    ) ?? clicked.path.nodes[0];
+    if (!targetNode) return null;
+
+    const initialPoints = this.buildSelectedDragPoints();
+    if (initialPoints.length === 0) return null;
+    return {
+      target: { kind: 'node', nodeId: targetNode.id },
+      initialPoints,
+      excludedPoints: initialPoints.map((snapshot) => snapshot.world),
+    };
+  }
+
+  private flattenEditablePathToScreen(path: EditablePath, ctx: ToolContext): Point2D[] {
+    const points: Point2D[] = [];
+    const append = (point: Point2D) => points.push(worldToScreen(this.nodeToWorld(point), ctx.vp));
+    const appendSegment = (
+      previous: EditablePath['nodes'][number],
+      current: EditablePath['nodes'][number],
+    ) => {
+      const p0 = previous.position;
+      const p3 = current.position;
+      const hasHandles = previous.handle_out !== null || current.handle_in !== null;
+      const steps = hasHandles ? 16 : 1;
+      for (let step = 1; step <= steps; step++) {
+        const t = step / steps;
+        const u = 1 - t;
+        if (hasHandles) {
+          const p1 = previous.handle_out ?? p0;
+          const p2 = current.handle_in ?? p3;
+          append({
+            x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+            y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+          });
+        } else {
+          append({ x: p0.x + (p3.x - p0.x) * t, y: p0.y + (p3.y - p0.y) * t });
+        }
+      }
+    };
+
+    const first = path.nodes[0];
+    if (!first) return points;
+    append(first.position);
+    for (let index = 1; index < path.nodes.length; index++) {
+      appendSegment(path.nodes[index - 1], path.nodes[index]);
+    }
+    if (path.closed && path.nodes.length > 1) {
+      appendSegment(path.nodes[path.nodes.length - 1], first);
+    }
+    return points;
+  }
+
+  private pointInsidePolygon(point: Point2D, polygon: Point2D[], edgeTolerance = 0): boolean {
+    if (polygon.length < 3) return false;
+    let inside = false;
+    for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
+      const start = polygon[previous];
+      const end = polygon[index];
+      if (edgeTolerance > 0) {
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const lengthSquared = dx * dx + dy * dy;
+        if (lengthSquared > 0) {
+          const t = Math.max(0, Math.min(1,
+            ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared,
+          ));
+          if (Math.hypot(
+            point.x - (start.x + t * dx),
+            point.y - (start.y + t * dy),
+          ) <= edgeTolerance) return true;
+        }
+      }
+      const crosses = (start.y > point.y) !== (end.y > point.y)
+        && point.x < ((end.x - start.x) * (point.y - start.y)) / (end.y - start.y) + start.x;
+      if (crosses) inside = !inside;
+    }
+    return inside;
+  }
+
+  private polygonArea(polygon: Point2D[]): number {
+    let area = 0;
+    for (let index = 0; index < polygon.length; index++) {
+      const current = polygon[index];
+      const next = polygon[(index + 1) % polygon.length];
+      area += current.x * next.y - next.x * current.y;
+    }
+    return area / 2;
   }
 
   private handleInsertClick(screenPt: Point2D, ctx: ToolContext): void {
@@ -1957,7 +2292,7 @@ export class NodeTool implements CanvasTool {
     const path = this.editablePaths.find(
       (candidate) => candidate.nodes.some((node) => node.id.subpath_idx === subpathIdx),
     ) ?? this.editablePaths[subpathIdx];
-    return Boolean(path && !path.closed);
+    return Boolean(path && !path.closed && path.nodes.length >= 2);
   }
 
   private handleAutoJoinClick(ctx: ToolContext): void {
@@ -2063,9 +2398,22 @@ export class NodeTool implements CanvasTool {
         const prevScreen = worldToScreen(this.nodeToWorld(prevNode.position), ctx.vp);
         const currScreen = worldToScreen(this.nodeToWorld(currNode.position), ctx.vp);
 
+        const isQuadratic = currNode.incoming_segment === 'quadratic';
         const hasHandles = currNode.handle_in !== null || prevNode.handle_out !== null;
 
-        if (hasHandles) {
+        if (isQuadratic) {
+          const control = currNode.handle_in ?? prevNode.handle_out;
+          if (control) {
+            const controlScreen = worldToScreen(this.nodeToWorld(control), ctx.vp);
+            const result = this.nearestPointOnQuadratic(
+              screenPt,
+              prevScreen,
+              controlScreen,
+              currScreen,
+            );
+            consider(currNode.id, result.t, result.dist);
+          }
+        } else if (hasHandles) {
           const p0 = prevScreen;
           const p1 = prevNode.handle_out
             ? worldToScreen(this.nodeToWorld(prevNode.handle_out), ctx.vp)
@@ -2095,9 +2443,22 @@ export class NodeTool implements CanvasTool {
           command_idx: lastNode.id.command_idx + 1,
         };
 
+        const isQuadratic = firstNode.incoming_segment === 'quadratic';
         const hasHandles = firstNode.handle_in !== null || lastNode.handle_out !== null;
 
-        if (hasHandles) {
+        if (isQuadratic) {
+          const control = firstNode.handle_in ?? lastNode.handle_out;
+          if (control) {
+            const controlScreen = worldToScreen(this.nodeToWorld(control), ctx.vp);
+            const result = this.nearestPointOnQuadratic(
+              screenPt,
+              lastScreen,
+              controlScreen,
+              firstScreen,
+            );
+            consider(closeNodeId, result.t, result.dist);
+          }
+        } else if (hasHandles) {
           const p0 = lastScreen;
           const p1 = lastNode.handle_out
             ? worldToScreen(this.nodeToWorld(lastNode.handle_out), ctx.vp)
@@ -2178,6 +2539,49 @@ export class NodeTool implements CanvasTool {
     return { dist: finalDist, t: finalT };
   }
 
+  private nearestPointOnQuadratic(
+    pt: Point2D,
+    p0: Point2D,
+    p1: Point2D,
+    p2: Point2D,
+  ): { dist: number; t: number } {
+    let bestT = 0;
+    let bestDist = Infinity;
+    const steps = 20;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const pos = this.evalQuadratic(p0, p1, p2, t);
+      const dist = Math.hypot(pt.x - pos.x, pt.y - pos.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestT = t;
+      }
+    }
+    let lo = Math.max(0, bestT - 1 / steps);
+    let hi = Math.min(1, bestT + 1 / steps);
+    for (let iteration = 0; iteration < 10; iteration++) {
+      const tA = (2 * lo + hi) / 3;
+      const tB = (lo + 2 * hi) / 3;
+      const a = this.evalQuadratic(p0, p1, p2, tA);
+      const b = this.evalQuadratic(p0, p1, p2, tB);
+      const distA = Math.hypot(pt.x - a.x, pt.y - a.y);
+      const distB = Math.hypot(pt.x - b.x, pt.y - b.y);
+      if (distA < distB) hi = tB;
+      else lo = tA;
+    }
+    const t = (lo + hi) / 2;
+    const pos = this.evalQuadratic(p0, p1, p2, t);
+    return { t, dist: Math.hypot(pt.x - pos.x, pt.y - pos.y) };
+  }
+
+  private evalQuadratic(p0: Point2D, p1: Point2D, p2: Point2D, t: number): Point2D {
+    const u = 1 - t;
+    return {
+      x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+      y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y,
+    };
+  }
+
   private evalCubic(p0: Point2D, p1: Point2D, p2: Point2D, p3: Point2D, t: number): Point2D {
     const u = 1 - t;
     return {
@@ -2229,11 +2633,13 @@ export class NodeTool implements CanvasTool {
     };
 
     const includeSegment = (prev: EditablePath['nodes'][number], curr: EditablePath['nodes'][number]) => {
-      if (prev.handle_out && curr.handle_in) {
-        includeCubic(prev.position, prev.handle_out, curr.handle_in, curr.position);
-      } else if (prev.handle_out || curr.handle_in) {
-        const control = prev.handle_out ?? curr.handle_in;
+      if (curr.incoming_segment === 'quadratic') {
+        const control = curr.handle_in ?? prev.handle_out;
         if (control) includeQuadratic(prev.position, control, curr.position);
+      } else if (prev.handle_out || curr.handle_in) {
+        const c1 = prev.handle_out ?? prev.position;
+        const c2 = curr.handle_in ?? curr.position;
+        includeCubic(prev.position, c1, c2, curr.position);
       } else {
         include(prev.position);
         include(curr.position);

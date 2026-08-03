@@ -1311,9 +1311,11 @@ fn point_at_arc_dist(pts: &[Point2D], dist: f64, closed: bool) -> Point2D {
 /// cutter polyline identified by the intersection hits. Uses rich metadata from
 /// intersection detection — no heuristic cutter rediscovery.
 ///
-/// Both hits must reference the **same closed cutter** and the resulting contour
-/// must pass geometric validation (no self-intersection, non-trivial area,
-/// click outside kept contour). Returns `None` for all ambiguous cases.
+/// Both hits must reference the same cutter. A closed cutter contributes either
+/// boundary arc; an open cutter contributes its unique segment between the two
+/// intersections, enabling line-as-knife trimming. The resulting contour must
+/// pass geometric validation (no self-intersection, non-trivial area, click
+/// outside kept contour). Returns `None` for all ambiguous cases.
 pub fn close_with_cutter_boundary(
     open_chain: &SubPath,
     cutter_polylines: &[(Vec<Point2D>, bool)],
@@ -1335,9 +1337,9 @@ pub fn close_with_cutter_boundary(
         _ => return None,
     };
 
-    // Cutter must be closed and exist
+    // The cutter may be open or closed, but must contain a usable segment.
     let (cutter_pts, cutter_closed) = cutter_polylines.get(cutter_idx)?;
-    if !cutter_closed || cutter_pts.len() < 3 {
+    if cutter_pts.len() < 2 {
         return None;
     }
 
@@ -1346,7 +1348,7 @@ pub fn close_with_cutter_boundary(
     let right_cutter_dist = right_hit.cutter_dist?;
 
     // Map hits to chain endpoints by proximity
-    let left_cutter_pt = point_at_arc_dist(cutter_pts, left_cutter_dist, true);
+    let left_cutter_pt = point_at_arc_dist(cutter_pts, left_cutter_dist, *cutter_closed);
 
     let left_to_start = dist_sq(left_cutter_pt, chain_start);
     let left_to_end = dist_sq(left_cutter_pt, chain_end);
@@ -1366,39 +1368,46 @@ pub fn close_with_cutter_boundary(
         (right_cutter_dist, left_cutter_dist)
     };
 
-    let total_cutter_len = compute_polyline_arc_length(cutter_pts, true);
+    let total_cutter_len = compute_polyline_arc_length(cutter_pts, *cutter_closed);
 
-    // Extract both candidate arcs (oriented chain_end → chain_start)
-    // Arc A (forward): end_cutter_dist → start_cutter_dist
-    let arc_a = extract_polyline_segment(
-        cutter_pts,
-        end_cutter_dist,
-        start_cutter_dist,
-        true,
-        total_cutter_len,
-    );
-    // Arc B (reverse): start_cutter_dist → end_cutter_dist, then reverse
-    let arc_b = extract_polyline_segment(
-        cutter_pts,
-        start_cutter_dist,
-        end_cutter_dist,
-        true,
-        total_cutter_len,
-    )
-    .map(|mut pts| {
-        pts.reverse();
-        pts
-    });
+    // Candidate boundaries are always oriented chain_end → chain_start.
+    let candidate_boundaries: Vec<Vec<Point2D>> = if *cutter_closed {
+        let arc_a = extract_polyline_segment(
+            cutter_pts,
+            end_cutter_dist,
+            start_cutter_dist,
+            true,
+            total_cutter_len,
+        );
+        let arc_b = extract_polyline_segment(
+            cutter_pts,
+            start_cutter_dist,
+            end_cutter_dist,
+            true,
+            total_cutter_len,
+        )
+        .map(|mut points| {
+            points.reverse();
+            points
+        });
+        [arc_a, arc_b].into_iter().flatten().collect()
+    } else {
+        let low = start_cutter_dist.min(end_cutter_dist);
+        let high = start_cutter_dist.max(end_cutter_dist);
+        let mut boundary =
+            extract_polyline_segment(cutter_pts, low, high, false, total_cutter_len)?;
+        if end_cutter_dist > start_cutter_dist {
+            boundary.reverse();
+        }
+        vec![boundary]
+    };
 
     let tolerance = DEFAULT_TOLERANCE_MM;
 
     // Build + validate each candidate
     let mut valid_candidates: Vec<SubPath> = Vec::new();
 
-    for arc_opt in [arc_a, arc_b] {
-        let Some(mut boundary) = arc_opt else {
-            continue;
-        };
+    for mut boundary in candidate_boundaries {
         if boundary.len() < 2 {
             continue;
         }
@@ -2220,7 +2229,7 @@ fn find_bracket_open(
 fn find_bracket_closed(
     hits: &[IntersectionHit],
     click_dist: f64,
-    total_len: f64,
+    _total_len: f64,
 ) -> (usize, usize) {
     if hits.len() == 1 {
         // Single intersection on a closed path — bracket wraps the entire path
@@ -2230,17 +2239,14 @@ fn find_bracket_closed(
     // Check each adjacent pair
     for i in 0..hits.len() {
         let left = hits[i].target_dist;
-        let right = if i + 1 < hits.len() {
-            hits[i + 1].target_dist
-        } else {
-            hits[0].target_dist + total_len // wrap-around
-        };
-
-        let contains = if right > left {
+        let contains = if i + 1 < hits.len() {
+            let right = hits[i + 1].target_dist;
             click_dist > left && click_dist < right
         } else {
-            // Wrap-around case
-            click_dist > left || click_dist < (right - total_len)
+            // The final bracket crosses the closed path's zero point. Compare
+            // against the first hit directly; adding total length makes this
+            // branch impossible for clicks near the start of the path.
+            click_dist > left || click_dist < hits[0].target_dist
         };
 
         if contains {
@@ -3861,39 +3867,50 @@ mod tests {
     }
 
     #[test]
-    fn close_with_cutter_boundary_skips_open_cutter() {
+    fn close_with_cutter_boundary_uses_open_cutter_as_knife_edge() {
         let open_chain = SubPath {
             commands: vec![
-                PathCommand::MoveTo { x: 0.0, y: 0.0 },
-                PathCommand::LineTo { x: 10.0, y: 0.0 },
+                PathCommand::MoveTo { x: 5.0, y: 0.0 },
+                PathCommand::LineTo { x: 0.0, y: 0.0 },
+                PathCommand::LineTo { x: 0.0, y: 10.0 },
+                PathCommand::LineTo { x: 5.0, y: 10.0 },
             ],
             closed: false,
         };
 
-        // Same rectangle but marked as open
-        let cutter_pts = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(10.0, 0.0),
-            Point2D::new(10.0, 6.0),
-            Point2D::new(0.0, 6.0),
-        ];
-        let cutters = vec![(cutter_pts.clone(), false)]; // open!
+        // Open vertical line crossing the original rectangle twice.
+        let cutter_pts = vec![Point2D::new(5.0, -5.0), Point2D::new(5.0, 15.0)];
+        let cutters = vec![(cutter_pts.clone(), false)];
 
         let left_hit = IntersectionHit {
             target_dist: 0.0,
             cutter_id: Some(0),
-            cutter_dist: Some(rect_cutter_arc_dist(&cutter_pts, Point2D::new(0.0, 0.0))),
+            cutter_dist: Some(
+                project_point_on_polyline_with_dist(Point2D::new(5.0, 0.0), &cutter_pts, false).1,
+            ),
         };
         let right_hit = IntersectionHit {
-            target_dist: 10.0,
+            target_dist: 20.0,
             cutter_id: Some(0),
-            cutter_dist: Some(rect_cutter_arc_dist(&cutter_pts, Point2D::new(10.0, 0.0))),
+            cutter_dist: Some(
+                project_point_on_polyline_with_dist(Point2D::new(5.0, 10.0), &cutter_pts, false).1,
+            ),
         };
-        let click = Point2D::new(5.0, 4.0);
+        let click = Point2D::new(8.0, 5.0);
 
         let result =
             close_with_cutter_boundary(&open_chain, &cutters, &left_hit, &right_hit, click);
-        assert!(result.is_none(), "Should return None for open cutter");
+        let result = result.expect("open cutter should close the kept side");
+        assert!(result.closed);
+        let (flat, _) = flatten_subpath_annotated(&result.commands, true, DEFAULT_TOLERANCE_MM);
+        assert!(
+            point_in_polygon(2.0, 5.0, &flat),
+            "left side should be kept"
+        );
+        assert!(
+            !point_in_polygon(click.x, click.y, &flat),
+            "clicked right side should be removed"
+        );
     }
 
     #[test]

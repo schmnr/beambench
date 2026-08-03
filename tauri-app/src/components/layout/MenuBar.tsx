@@ -20,9 +20,6 @@ import { MachineProfileDialog } from '../machine/MachineProfileDialog';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { AboutDialog } from '../settings/AboutDialog';
-import { GridArrayDialog } from '../dialogs/GridArrayDialog';
-import { CircularArrayDialog } from '../dialogs/CircularArrayDialog';
-import { OffsetDialog } from '../dialogs/OffsetDialog';
 import { BooleanAssistantDialog } from '../dialogs/BooleanAssistantDialog';
 import { TraceImageDialog } from '../dialogs/TraceImageDialog';
 import { AdjustImageDialog } from '../dialogs/AdjustImageDialog';
@@ -30,20 +27,26 @@ import { BarcodeDialog } from '../dialogs/BarcodeDialog';
 import { MaterialTestDialog } from '../dialogs/MaterialTestDialog';
 import { FocusTestDialog } from '../dialogs/FocusTestDialog';
 import { IntervalTestDialog } from '../dialogs/IntervalTestDialog';
+import { PrintDialog } from '../dialogs/PrintDialog';
 import { CopyAlongPathDialog } from '../dialogs/CopyAlongPathDialog';
 import { NestDialog } from '../dialogs/NestDialog';
 import {
   createSelectionContext,
   isClosedVectorCompatible,
+  isMeshDeformCompatible,
   orderSelectedObjects,
   pickLastSelectedVectorGuide,
   resolveEffectiveData,
 } from '../../commands/selectionContext';
 import type { RecentFile } from '../../types/commands';
+
+const MODIFIER_GRID_ARRAY = 'grid_array' as const;
+const MODIFIER_CIRCULAR_ARRAY = 'circular_array' as const;
 import { findAutoGroupCandidates } from '../../utils/autoGroupCandidates';
 import {
-  WINDOW_PANEL_TOOLBAR_MENU_ITEMS,
-  WINDOW_VIEW_STYLE_ITEMS,
+  WINDOW_ARTWORK_DISPLAY_ITEMS,
+  WINDOW_PANEL_MENU_ITEMS,
+  WINDOW_TOOLBAR_MENU_ITEMS,
 } from '../../commands/windowMenuDefinitions';
 
 const EMPTY_RECENT_FILES: RecentFile[] = [];
@@ -54,36 +57,16 @@ const CHECK_MARK = '\u2713';
 
 export function MenuBar() {
   const { t } = useTranslation();
-  const createProject = useProjectStore((s) => s.createProject);
-  const openProject = useProjectStore((s) => s.openProject);
-  const openProjectFromPath = useProjectStore((s) => s.openProjectFromPath);
-  const saveProject = useProjectStore((s) => s.saveProject);
-  const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const importFiles = useProjectStore((s) => s.importFiles);
   const project = useProjectStore((s) => s.project);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
-  const removeObjects = useProjectStore((s) => s.removeObjects);
-  const selectAllObjects = useProjectStore((s) => s.selectAllObjects);
-  const duplicateObjects = useProjectStore((s) => s.duplicateObjects);
   const groupObjects = useProjectStore((s) => s.groupObjects);
   const ungroupObjects = useProjectStore((s) => s.ungroupObjects);
   const lockObjects = useProjectStore((s) => s.lockObjects);
   const unlockObjects = useProjectStore((s) => s.unlockObjects);
   const pushDrawOrder = useProjectStore((s) => s.pushDrawOrder);
-  const autoJoinShapes = useProjectStore((s) => s.autoJoinShapes);
-  const optimizeShapes = useProjectStore((s) => s.optimizeShapes);
-  const selectOpenShapes = useProjectStore((s) => s.selectOpenShapes);
-  const selectOpenShapesSetToFill = useProjectStore((s) => s.selectOpenShapesSetToFill);
-  const selectAllShapesInCurrentLayer = useProjectStore((s) => s.selectAllShapesInCurrentLayer);
-  const selectContainedShapes = useProjectStore((s) => s.selectContainedShapes);
-  const selectShapesSmallerThanSelected = useProjectStore((s) => s.selectShapesSmallerThanSelected);
-  const convertToPath = useProjectStore((s) => s.convertToPath);
   const breakApart = useProjectStore((s) => s.breakApart);
-  const closePath = useProjectStore((s) => s.closePath);
-  const refreshImage = useProjectStore((s) => s.refreshImage);
-  const replaceImage = useProjectStore((s) => s.replaceImage);
-  const replaceImageToFit = useProjectStore((s) => s.replaceImageToFit);
   const moveObjectsTogether = useProjectStore((s) => s.moveObjectsTogether);
   const alignObjects = useProjectStore((s) => s.alignObjects);
   const distributeObjects = useProjectStore((s) => s.distributeObjects);
@@ -91,10 +74,13 @@ export function MenuBar() {
   const sidePanelsVisible = useUiStore((s) => s.sidePanelsVisible);
   const toggleSidePanels = useUiStore((s) => s.toggleSidePanels);
   const hasClipboard = useUiStore((s) => s.hasClipboard);
-  const hiddenPanelIds = useUiStore((s) => s.panelLayout.hiddenPanelIds);
-  const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
-  const showNotesDialog = useUiStore((s) => s.showNotesDialog);
-  const toggleNotesDialog = useUiStore((s) => s.toggleNotesDialog);
+  const panelLayout = useUiStore((s) => s.panelLayout);
+  const toolbarVisibility = panelLayout.toolbarVisibility;
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const activeTool = useUiStore((s) => s.activeTool);
+  const hiddenPanelIds = workspaceMode === 'run'
+    ? panelLayout.runHiddenPanelIds
+    : panelLayout.hiddenPanelIds;
   const recentFiles = useAppStore((s) => s.settings?.recent_files) ?? EMPTY_RECENT_FILES;
   const displayLanguage = useAppStore((s) => s.settings?.display_language ?? 'en');
   const fetchSettings = useAppStore((s) => s.fetchSettings);
@@ -128,29 +114,25 @@ export function MenuBar() {
   const snapToObjects = useUiStore((s) => s.snapToObjects);
   const togglePreview = usePreviewStore((s) => s.togglePreview);
   const previewWindowOpen = usePreviewStore((s) => s.previewWindowOpen);
-  const viewStyle = useUiStore((s) => s.viewStyle);
+  const artworkDisplayMode = useUiStore((s) => s.artworkDisplayMode);
+  const smoothEdges = useUiStore((s) => s.smoothEdges);
 
   const canUndo = useUndoStore((s) => s.canUndo);
   const canRedo = useUndoStore((s) => s.canRedo);
-  const undo = useUndoStore((s) => s.undo);
-  const redo = useUndoStore((s) => s.redo);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showDeviceSettingsDialog, setShowDeviceSettingsDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
-  const [gridArrayDialogObjectIds, setGridArrayDialogObjectIds] = useState<string[] | null>(null);
-  const [circularArrayDialogObjectIds, setCircularArrayDialogObjectIds] = useState<string[] | null>(null);
   const [copyAlongPathDialogState, setCopyAlongPathDialogState] = useState<{ objectIds: string[]; pathObjectId: string } | null>(null);
-  const [offsetDialogObjectIds, setOffsetDialogObjectIds] = useState<string[] | null>(null);
   const [nestDialogObjectIds, setNestDialogObjectIds] = useState<string[] | null>(null);
   const [booleanAssistantObjectIds, setBooleanAssistantObjectIds] = useState<string[] | null>(null);
   const [traceDialogObjectId, setTraceDialogObjectId] = useState<string | null>(null);
   const [adjustDialogObjectId, setAdjustDialogObjectId] = useState<string | null>(null);
   const [barcodeDialogLayerId, setBarcodeDialogLayerId] = useState<string | null>(null);
   const [showMaterialTestDialog, setShowMaterialTestDialog] = useState(false);
-  const [showResetPreferencesConfirm, setShowResetPreferencesConfirm] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showFocusTestDialog, setShowFocusTestDialog] = useState(false);
   const [showIntervalTestDialog, setShowIntervalTestDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -205,54 +187,6 @@ export function MenuBar() {
   const handleSaveMachineFiles = async () => {
     setOpenMenu(null);
     await executeAppCommand(APP_COMMANDS.FILE_SAVE_MACHINE_FILES);
-  };
-
-  const handleSaveProcessedBitmap = async () => {
-    setOpenMenu(null);
-    await executeAppCommand(APP_COMMANDS.FILE_SAVE_PROCESSED_BITMAP);
-  };
-
-  const handlePrint = async (mode: 'black' | 'color') => {
-    setOpenMenu(null);
-    await executeAppCommand(mode === 'black' ? APP_COMMANDS.FILE_PRINT_BLACK : APP_COMMANDS.FILE_PRINT_COLORS);
-  };
-
-  const handleImportPreferences = async () => {
-    setOpenMenu(null);
-    await runMenuAsync(async () => {
-      const path = await appService.pickPreferencesImportPath();
-      const settings = await appService.importPreferences(path);
-      useAppStore.getState().applySettings(settings);
-      useNotificationStore.getState().push(t('menus.file.preferences_imported'), 'success');
-    });
-  };
-
-  const handleExportPreferences = async () => {
-    setOpenMenu(null);
-    await runMenuAsync(async () => {
-      const path = await appService.pickPreferencesExportPath();
-      await appService.exportPreferences(path);
-      useNotificationStore.getState().push(t('menus.file.preferences_exported'), 'success');
-    });
-  };
-
-  const handleOpenPreferencesFolder = async () => {
-    setOpenMenu(null);
-    await runMenuAsync(() => appService.openPreferencesFolder());
-  };
-
-  const handleResetPreferences = () => {
-    setOpenMenu(null);
-    setShowResetPreferencesConfirm(true);
-  };
-
-  const handleResetPreferencesConfirm = async () => {
-    setShowResetPreferencesConfirm(false);
-    await runMenuAsync(async () => {
-      const settings = await appService.resetPreferences();
-      useAppStore.getState().applySettings(settings);
-      useNotificationStore.getState().push(t('menus.file.preferences_reset'), 'success');
-    });
   };
 
   const handleConnect = () => {
@@ -348,35 +282,6 @@ export function MenuBar() {
     setShowDeviceSettingsDialog(true);
   };
 
-  const handleUndo = async () => {
-    setOpenMenu(null);
-    await undo();
-  };
-
-  const handleRedo = async () => {
-    setOpenMenu(null);
-    await redo();
-  };
-
-  const handleDeleteSelected = () => {
-    setOpenMenu(null);
-    if (selectedObjectIds.length > 0) {
-      void removeObjects([...selectedObjectIds]);
-    }
-  };
-
-  const handleDuplicateSelected = () => {
-    setOpenMenu(null);
-    if (selectedObjectIds.length > 0) {
-      void duplicateObjects(selectedObjectIds);
-    }
-  };
-
-  const handleSelectAll = () => {
-    setOpenMenu(null);
-    selectAllObjects();
-  };
-
   const handleGroup = async () => {
     setOpenMenu(null);
     if (selectedObjectIds.length >= 2) {
@@ -428,13 +333,14 @@ export function MenuBar() {
   };
 
   const menuCommandDialogs: AppCommandDialogActions = {
+    openPrint: () => setShowPrintDialog(true),
     openTraceImage: setTraceDialogObjectId,
     openAdjustImage: setAdjustDialogObjectId,
     openBarcode: setBarcodeDialogLayerId,
-    openOffset: (objectIds) => setOffsetDialogObjectIds([...objectIds]),
+    openOffset: (objectIds) => useUiStore.getState().openModifierProperties('offset', objectIds),
     openBooleanAssistant: (objectIds) => setBooleanAssistantObjectIds([...objectIds]),
-    openGridArray: (objectIds) => setGridArrayDialogObjectIds([...objectIds]),
-    openCircularArray: (objectIds) => setCircularArrayDialogObjectIds([...objectIds]),
+    openGridArray: (objectIds) => useUiStore.getState().openModifierProperties('grid_array', objectIds),
+    openCircularArray: (objectIds) => useUiStore.getState().openModifierProperties('circular_array', objectIds),
     openCopyAlongPath: (objectIds, pathObjectId) => setCopyAlongPathDialogState({ objectIds: [...objectIds], pathObjectId }),
     openNest: (objectIds) => setNestDialogObjectIds([...objectIds]),
   };
@@ -446,9 +352,7 @@ export function MenuBar() {
 
   const handleOpenRecent = (path: string) => {
     setOpenMenu(null);
-    void openProjectFromPath(path).finally(() => {
-      void fetchSettings();
-    });
+    void executeAppCommand(APP_COMMANDS.FILE_OPEN_RECENT, menuCommandDialogs, { filePath: path, source: 'menu' });
   };
 
   const isConnected = sessionState === 'ready' || sessionState === 'running' || sessionState === 'paused' || sessionState === 'alarm';
@@ -509,9 +413,9 @@ export function MenuBar() {
   const selectedPathObject = selectedObjects.find((o) => isEffectiveVectorType(effectiveType(o))) ?? null;
   const selectedMaskObjects = selectedObjects.filter((o) => isEffectiveVectorType(effectiveType(o)));
   const copyAlongGuideObject = pickLastSelectedVectorGuide(selectedObjectIds, allObjects);
-  const canApplyPathToText = selectedObjects.length === 2 && Boolean(selectedTextObject && selectedPathObject && selectedTextObject.id !== selectedPathObject.id);
-  const canCropImage = selectedObjects.length === 2 && Boolean(selectedRasterObject && selectedPathObject && selectedRasterObject.id !== selectedPathObject.id);
-  const canApplyMaskToImage = Boolean(selectedRasterObject)
+  const canApplyPathToText = unlockedSelection && selectedObjects.length === 2 && Boolean(selectedTextObject && selectedPathObject && selectedTextObject.id !== selectedPathObject.id);
+  const canCropImage = unlockedSelection && selectedObjects.length === 2 && Boolean(selectedRasterObject && selectedPathObject && selectedRasterObject.id !== selectedPathObject.id);
+  const canApplyMaskToImage = unlockedSelection && Boolean(selectedRasterObject)
     && selectedMaskObjects.length > 0
     && selectedMaskObjects.every((o) =>
       o.id !== selectedRasterObject?.id && isClosedVectorCompatible(o, allObjects)
@@ -519,7 +423,8 @@ export function MenuBar() {
   // Replace Image swaps the owned raster asset on a concrete
   // RasterImage only; clones don't own the asset so the backend
   // rejects them.
-  const canReplaceImage = singleSelectedObject?.data.type === 'raster_image';
+  const canReplaceImage = singleSelectedObject?.data.type === 'raster_image'
+    && !singleSelectedObject.locked;
   const canRefreshImage = selCtx.canRefreshImage;
   const canSelectContainedShapes = selCtx.canSelectContainedShapes;
   const canConvertToBitmap = canConvertToBitmapCtx;
@@ -528,6 +433,11 @@ export function MenuBar() {
     && selectedObjects.some((o) => o.id !== copyAlongGuideObject?.id);
   const canJoin = selectedObjectIds.length >= 2 && !booleanPending
     && selectedObjects.every((o) => !o.locked && isEffectiveVectorType(effectiveType(o)));
+  const canDeform = unlockedSelection
+    && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
+  const canPositionLaser = workspaceMode === 'run'
+    && sessionState === 'ready'
+    && machineStatus?.run_state === 'idle';
   return (
     <div
       ref={menuRef}
@@ -550,14 +460,7 @@ export function MenuBar() {
               shortcut="Ctrl+N"
               onClick={() => {
                 setOpenMenu(null);
-                createProject(t('menus.file.untitled_project'));
-              }}
-            />
-            <MenuItem
-              label={ml("New Window")}
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.FILE_NEW_WINDOW);
+                void executeAppCommand(APP_COMMANDS.FILE_NEW, menuCommandDialogs, { source: 'menu' });
               }}
             />
             <MenuSubmenu label={ml("Recent Projects")}>
@@ -578,9 +481,7 @@ export function MenuBar() {
               shortcut="Ctrl+O"
               onClick={() => {
                 setOpenMenu(null);
-                void openProject().finally(() => {
-                  void fetchSettings();
-                });
+                void executeAppCommand(APP_COMMANDS.FILE_OPEN, menuCommandDialogs, { source: 'menu' });
               }}
             />
             <MenuItem
@@ -590,12 +491,12 @@ export function MenuBar() {
               onClick={handleImport}
             />
             <MenuItem
-              label={showNotesDialog ? ml("Hide Notes") : ml("Show Notes")}
+              label={ml("Project Notes...")}
               shortcut="Ctrl+Alt+N"
               disabled={!project}
               onClick={() => {
                 setOpenMenu(null);
-                toggleNotesDialog();
+                void executeAppCommand(APP_COMMANDS.FILE_NOTES);
               }}
             />
             <div className="border-t border-bb-border my-1" />
@@ -605,9 +506,7 @@ export function MenuBar() {
               disabled={!project}
               onClick={() => {
                 setOpenMenu(null);
-                void saveProject().finally(() => {
-                  void fetchSettings();
-                });
+                void executeAppCommand(APP_COMMANDS.FILE_SAVE, menuCommandDialogs, { source: 'menu' });
               }}
             />
             <MenuItem
@@ -616,9 +515,7 @@ export function MenuBar() {
               disabled={!project}
               onClick={() => {
                 setOpenMenu(null);
-                void saveProjectAs().finally(() => {
-                  void fetchSettings();
-                });
+                void executeAppCommand(APP_COMMANDS.FILE_SAVE_AS, menuCommandDialogs, { source: 'menu' });
               }}
             />
             <MenuItem
@@ -628,34 +525,12 @@ export function MenuBar() {
               onClick={handleExportArtwork}
             />
             <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Preferences")}>
-              <MenuItem label={ml("Import Prefs")} onClick={() => { void handleImportPreferences(); }} />
-              <MenuItem label={ml("Export Prefs")} onClick={() => { void handleExportPreferences(); }} />
-              <MenuItem label={ml("Open Prefs Folder")} onClick={() => { void handleOpenPreferencesFolder(); }} />
-              <MenuItem
-                label={ml("Reset Prefs to Defaults")}
-                onClick={handleResetPreferences}
-              />
-            </MenuSubmenu>
-            <div className="border-t border-bb-border my-1" />
             <MenuItem
-              label={ml("Print (black only)")}
+              label={ml("Print...")}
               shortcut="Ctrl+P"
               disabled={!project}
-              onClick={() => { void handlePrint('black'); }}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.FILE_PRINT); }}
             />
-            <MenuItem
-              label={ml("Print (keep colors)")}
-              shortcut="Ctrl+Shift+P"
-              disabled={!project}
-              onClick={() => { void handlePrint('color'); }}
-            />
-            <MenuItem
-              label={ml("Save Processed Bitmap")}
-              disabled={!selCtx.canSaveProcessedBitmap}
-              onClick={handleSaveProcessedBitmap}
-            />
-            <MenuItem label={ml("Save Background Capture")} disabled onClick={noop} />
           </div>
         )}
       </div>
@@ -669,152 +544,94 @@ export function MenuBar() {
           {ml("Edit")}
         </button>
         {openMenu === 'edit' && (
-          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[180px] z-50 max-h-[70vh] overflow-y-auto">
-            <MenuItem label={ml("Undo")} shortcut="Ctrl+Z" disabled={!canUndo} onClick={handleUndo} />
-            <MenuItem label={ml("Redo")} shortcut="Ctrl+Shift+Z" disabled={!canRedo} onClick={handleRedo} />
-            <div className="border-t border-bb-border my-1" />
-            <MenuItem label={ml("Select All")} shortcut="Ctrl+A" disabled={!project} onClick={handleSelectAll} />
-            <MenuItem
-              label={ml("Invert Selection")}
-              shortcut="Ctrl+Shift+I"
-              disabled={!project}
-              onClick={() => {
-                setOpenMenu(null);
-                if (project) {
-                  const allIds = project.objects.map((o) => o.id);
-                  const sel = new Set(selectedObjectIds);
-                  useProjectStore.getState().selectObjects(allIds.filter((id) => !sel.has(id)));
-                }
-              }}
-            />
+          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[220px] z-50">
+            <MenuItem label={ml("Undo")} shortcut="Ctrl+Z" disabled={workspaceMode !== 'design' || !canUndo} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_UNDO); }} />
+            <MenuItem label={ml("Redo")} shortcut="Ctrl+Shift+Z" disabled={workspaceMode !== 'design' || !canRedo} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_REDO); }} />
             <div className="border-t border-bb-border my-1" />
             <MenuItem
               label={ml("Cut")}
               shortcut="Ctrl+X"
-              disabled={!canMutate}
-              onClick={() => { setOpenMenu(null); void executeAppCommand(APP_COMMANDS.EDIT_CUT); }}
+              disabled={workspaceMode !== 'design' || !canMutate}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CUT); }}
             />
             <MenuItem
               label={ml("Copy")}
               shortcut="Ctrl+C"
               disabled={!hasSelection}
-              onClick={() => { setOpenMenu(null); void executeAppCommand(APP_COMMANDS.EDIT_COPY); }}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_COPY); }}
             />
-            <MenuItem label={ml("Duplicate")} shortcut="Ctrl+D" disabled={!canMutate} onClick={handleDuplicateSelected} />
             <MenuItem
               label={ml("Paste")}
               shortcut="Ctrl+V"
-              disabled={!project || !hasClipboard}
-              onClick={() => { setOpenMenu(null); void executeAppCommand(APP_COMMANDS.EDIT_PASTE); }}
+              disabled={workspaceMode !== 'design' || !project}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_PASTE); }}
             />
             <MenuItem
               label={ml("Paste in Place")}
               shortcut="Alt+V"
-              disabled={!project || !hasClipboard}
-              onClick={() => { setOpenMenu(null); void executeAppCommand(APP_COMMANDS.EDIT_PASTE_IN_PLACE); }}
+              disabled={workspaceMode !== 'design' || !project || activeTool === 'node' || !hasClipboard}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_PASTE_IN_PLACE); }}
             />
+            <MenuItem label={ml("Duplicate")} shortcut="Ctrl+D" disabled={workspaceMode !== 'design' || !canMutate} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_DUPLICATE); }} />
             <MenuItem
               label={ml("Delete")}
               shortcut="Del"
-              disabled={!canMutate}
-              onClick={handleDeleteSelected}
+              disabled={workspaceMode !== 'design' || !canMutate}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_DELETE); }}
             />
+            <div className="border-t border-bb-border my-1" />
+            <MenuSubmenu label={ml("Select")} disabled={!project}>
+              <MenuItem label={ml("Select All")} shortcut="Ctrl+A" onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_ALL); }} />
+              <MenuItem
+                label={ml("Invert Selection")}
+                shortcut="Ctrl+Shift+I"
+                disabled={activeTool === 'node'}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_INVERT_SELECTION); }}
+              />
+              <div className="border-t border-bb-border my-1" />
+              <MenuItem label={ml("Select Open Shapes")} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_OPEN_SHAPES); }} />
+              <MenuItem label={ml("Select Open Shapes Set to Fill")} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_OPEN_SHAPES_SET_TO_FILL); }} />
+              <MenuItem
+                label={ml("Select All Shapes in Current Layer")}
+                disabled={!selectedLayerId}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER); }}
+              />
+              <MenuItem
+                label={ml("Select Contained Shapes")}
+                disabled={!canSelectContainedShapes}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_CONTAINED_SHAPES); }}
+              />
+              <MenuItem
+                label={ml("Select Shapes Smaller Than Selected")}
+                disabled={!hasSelection}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED); }}
+              />
+            </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
             <MenuItem
               label={ml("Convert to Path")}
               shortcut="Ctrl+Shift+C"
-              disabled={!canConvertToPath}
-              onClick={() => {
-                setOpenMenu(null);
-                void convertToPath(selectedObjectIds[0]);
-              }}
+              disabled={workspaceMode !== 'design' || !canConvertToPath}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CONVERT_TO_PATH); }}
             />
             <MenuItem
               label={ml("Convert to Bitmap")}
               shortcut="Ctrl+Shift+B"
-              disabled={!canConvertToBitmap}
+              disabled={workspaceMode !== 'design' || !canConvertToBitmap}
               onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP); }}
             />
-            <div className="border-t border-bb-border my-1" />
-            <MenuItem
-              label={ml("Close Path")}
-              disabled={!canClosePath}
-              onClick={() => {
-                setOpenMenu(null);
-                void Promise.all(selectedObjectIds.map((id) => closePath(id)));
-              }}
-            />
-            <MenuItem
-              label={ml("Close Selected Paths With Tolerance")}
-              disabled={!canClosePath}
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE);
-              }}
-            />
-            <MenuItem
-              label={ml("Auto-Join Selected Shapes")}
-              shortcut="Alt+J"
-              disabled={!canClosePath}
-              onClick={() => {
-                setOpenMenu(null);
-                void autoJoinShapes(selectedObjectIds, 0.05);
-              }}
-            />
-            <MenuItem
-              label={ml("Close & Join")}
-              disabled={!canJoin}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CLOSE_AND_JOIN); }}
-            />
-            <MenuItem
-              label={ml("Optimize Selected Shapes")}
-              shortcut="Alt+Shift+O"
-              disabled={!canClosePath}
-              onClick={() => {
-                setOpenMenu(null);
-                void optimizeShapes(selectedObjectIds);
-              }}
-            />
-            <MenuItem
-              label={ml("Delete Duplicates")}
-              shortcut="Alt+D"
-              disabled={!project}
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.EDIT_DELETE_DUPLICATES, undefined, { source: 'menu' });
-              }}
-            />
-            <div className="border-t border-bb-border my-1" />
-            <MenuItem
-              label={ml("Select Open Shapes")}
-              disabled={!project}
-              onClick={() => { setOpenMenu(null); void selectOpenShapes(); }}
-            />
-            <MenuItem
-              label={ml("Select Open Shapes Set to Fill")}
-              disabled={!project}
-              onClick={() => { setOpenMenu(null); void selectOpenShapesSetToFill(); }}
-            />
-            <MenuItem
-              label={ml("Select All Shapes in Current Layer")}
-              disabled={!selectedLayerId}
-              onClick={() => { setOpenMenu(null); void selectAllShapesInCurrentLayer(); }}
-            />
-            <MenuItem
-              label={ml("Select Contained Shapes")}
-              disabled={!canSelectContainedShapes}
-              onClick={() => { setOpenMenu(null); void selectContainedShapes(); }}
-            />
-            <MenuItem
-              label={ml("Select Shapes Smaller Than Selected")}
-              disabled={!hasSelection}
-              onClick={() => { setOpenMenu(null); void selectShapesSmallerThanSelected(); }}
-            />
-            <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Image Options")} disabled={!canReplaceImage}>
-              <MenuItem label={ml("Refresh Image")} disabled={!canRefreshImage} onClick={() => { setOpenMenu(null); if (singleSelectedObject) void refreshImage(singleSelectedObject.id); }} />
-              <MenuItem label={ml("Replace Image")} onClick={() => { setOpenMenu(null); if (singleSelectedObject) void replaceImage(singleSelectedObject.id); }} />
-              <MenuItem label={ml("Replace Image to Fit")} onClick={() => { setOpenMenu(null); if (singleSelectedObject) void replaceImageToFit(singleSelectedObject.id); }} />
+            <MenuSubmenu label={ml("Cleanup")} disabled={workspaceMode !== 'design' || !project}>
+              <MenuItem label={ml("Close Path")} disabled={!canClosePath} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CLOSE_PATH); }} />
+              <MenuItem label={ml("Close Selected Paths With Tolerance")} disabled={!canClosePath} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE); }} />
+              <MenuItem label={ml("Auto-Join Selected Shapes")} shortcut="Alt+J" disabled={!canClosePath} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES); }} />
+              <MenuItem label={ml("Close & Join")} disabled={!canJoin} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_CLOSE_AND_JOIN); }} />
+              <MenuItem label={ml("Optimize Selected Shapes")} shortcut="Alt+Shift+O" disabled={!canClosePath} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES); }} />
+              <MenuItem label={ml("Delete Duplicates")} shortcut="Alt+D" onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_DELETE_DUPLICATES); }} />
+            </MenuSubmenu>
+            <MenuSubmenu label={ml("Image Options")} disabled={workspaceMode !== 'design' || !canReplaceImage}>
+              <MenuItem label={ml("Refresh Image")} disabled={!canRefreshImage} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_IMAGE_REFRESH); }} />
+              <MenuItem label={ml("Replace Image")} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_IMAGE_REPLACE); }} />
+              <MenuItem label={ml("Replace Image to Fit")} onClick={() => { void handleAppCommand(APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT); }} />
             </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
             <MenuItem
@@ -922,7 +739,7 @@ export function MenuBar() {
           {ml("Tools")}
         </button>
         {openMenu === 'tools' && (
-          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[240px] z-50 max-h-[70vh] overflow-y-auto">
+          <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[240px] z-50">
             <MenuItem
               label={ml("Select")}
               shortcut="Esc"
@@ -932,10 +749,10 @@ export function MenuBar() {
             <MenuItem
               label={ml("Draw Lines")}
               shortcut="Ctrl+L"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_LINE); }}
             />
-            <MenuSubmenu label={ml("Draw Shape")} disabled={!project}>
+            <MenuSubmenu label={ml("Draw Shape")} disabled={workspaceMode !== 'design' || !project}>
               <MenuItem label={ml("Rectangle")} shortcut="Ctrl+R" onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_RECTANGLE); }} />
               <MenuItem label={ml("Ellipse")} shortcut="Ctrl+E" onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_ELLIPSE); }} />
               <MenuItem label={ml("Triangle")} onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TRIANGLE); }} />
@@ -948,32 +765,26 @@ export function MenuBar() {
             <MenuItem
               label={ml("Edit Nodes")}
               shortcut="Ctrl+`"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_NODE); }}
             />
             <MenuItem
               label={ml("Trim Shapes")}
               shortcut="Ctrl+K"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TRIM); }}
             />
             <MenuItem
               label={ml("Add Tabs")}
               shortcut="Ctrl+Tab"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TABS); }}
             />
             <MenuItem
               label={ml("Edit Text")}
               shortcut="Ctrl+T"
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TEXT); }}
-            />
-            <MenuItem
-              label={ml("Position Laser")}
-              shortcut="Ctrl+Shift+L"
-              disabled={!project}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_POSITION_LASER); }}
             />
             <MenuItem
               label={ml("Measure")}
@@ -983,88 +794,95 @@ export function MenuBar() {
             />
             <MenuItem
               label={ml("Create Bar Code")}
-              disabled={!project}
+              disabled={workspaceMode !== 'design' || !project}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BARCODE); }}
             />
             <MenuItem
               label={ml("Offset Shapes")}
               shortcut="Alt+O"
-              disabled={!unlockedSelection}
+              disabled={workspaceMode !== 'design' || !unlockedSelection}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_OFFSET); }}
             />
-            <MenuItem
-              label={ml("Weld Shapes")}
-              shortcut="Ctrl+W"
-              disabled={!selCtx.canWeld || booleanPending}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_WELD); }}
-            />
-            <MenuItem
-              label={ml("Boolean Union")}
-              shortcut="Alt++"
-              disabled={!canBoolean}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_UNION); }}
-            />
-            <MenuItem
-              label={ml("Boolean Subtract")}
-              shortcut="Alt+-"
-              disabled={!canBoolean}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT); }}
-            />
-            <MenuItem
-              label={ml("Boolean Intersection")}
-              shortcut="Alt+*"
-              disabled={!canBoolean}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION); }}
-            />
-            <MenuItem
-              label={ml("Boolean Assistant")}
-              shortcut="Ctrl+B"
-              disabled={!canBoolean}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT); }}
-            />
-            <MenuItem
-              label={ml("Cut Shapes")}
-              shortcut="Alt+Shift+C"
-              disabled={!canJoin}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_CUT_SHAPES); }}
-            />
-            <MenuItem
-              label={ml("Adjust Image")}
-              shortcut="Alt+I"
-              disabled={!canReplaceImage}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_ADJUST_IMAGE); }}
-            />
-            <MenuItem
-              label={ml("Trace Image")}
-              shortcut="Alt+T"
-              disabled={!canReplaceImage}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TRACE_IMAGE); }}
-            />
+            <div className="border-t border-bb-border my-1" />
+            <MenuSubmenu label={ml("Boolean Operations")} disabled={workspaceMode !== 'design'}>
+              <MenuItem
+                label={ml("Weld Shapes")}
+                shortcut="Ctrl+W"
+                disabled={!selCtx.canWeld || booleanPending}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_WELD); }}
+              />
+              <MenuItem
+                label={ml("Boolean Union")}
+                shortcut="Alt++"
+                disabled={!selCtx.canWeld || booleanPending}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_UNION); }}
+              />
+              <MenuItem
+                label={ml("Boolean Subtract")}
+                shortcut="Alt+-"
+                disabled={!selCtx.canWeld || booleanPending}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT); }}
+              />
+              <MenuItem
+                label={ml("Boolean Intersection")}
+                shortcut="Alt+*"
+                disabled={!selCtx.canWeld || booleanPending}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION); }}
+              />
+              <MenuItem
+                label={ml("Boolean Assistant")}
+                shortcut="Ctrl+B"
+                disabled={!canBoolean}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT); }}
+              />
+              <MenuItem
+                label={ml("Cut Shapes")}
+                shortcut="Alt+Shift+C"
+                disabled={!canJoin}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_CUT_SHAPES); }}
+              />
+            </MenuSubmenu>
             <MenuItem
               label={ml("Apply Path to Text")}
-              disabled={!canApplyPathToText}
+              disabled={workspaceMode !== 'design' || !canApplyPathToText}
               onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_APPLY_PATH_TO_TEXT); }}
             />
-            <MenuItem
-              label={ml("Apply Mask to Image")}
-              disabled={!canApplyMaskToImage}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_APPLY_MASK_TO_IMAGE); }}
-            />
-            <MenuItem
-              label={ml("Crop Image")}
-              disabled={!canCropImage}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_CROP_IMAGE); }}
-            />
-            <MenuItem
-              label={ml("Warp Selection (4 Points)")}
-              disabled={!hasSelection}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_WARP_SELECTION); }}
-            />
-            <MenuItem
-              label={ml("Deform Selection (16 Points)")}
-              disabled={!hasSelection}
-              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_DEFORM_SELECTION); }}
-            />
+            <MenuSubmenu label={ml("Image Options")} disabled={workspaceMode !== 'design'}>
+              <MenuItem
+                label={ml("Adjust Image")}
+                shortcut="Alt+I"
+                disabled={!canReplaceImage}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_ADJUST_IMAGE); }}
+              />
+              <MenuItem
+                label={ml("Trace Image")}
+                shortcut="Alt+T"
+                disabled={!canReplaceImage}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_TRACE_IMAGE); }}
+              />
+              <MenuItem
+                label={ml("Apply Mask to Image")}
+                disabled={!canApplyMaskToImage}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_APPLY_MASK_TO_IMAGE); }}
+              />
+              <MenuItem
+                label={ml("Crop Image")}
+                disabled={!canCropImage}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_CROP_IMAGE); }}
+              />
+            </MenuSubmenu>
+            <MenuSubmenu label={ml("Transform")} disabled={workspaceMode !== 'design'}>
+              <MenuItem
+                label={ml("Warp Selection (4 Points)")}
+                disabled={!canDeform}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_WARP_SELECTION); }}
+              />
+              <MenuItem
+                label={ml("Deform Selection (16 Points)")}
+                disabled={!canDeform}
+                onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_DEFORM_SELECTION); }}
+              />
+            </MenuSubmenu>
           </div>
         )}
       </div>
@@ -1079,29 +897,25 @@ export function MenuBar() {
         </button>
         {openMenu === 'arrange' && (
           <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[340px] z-50">
-            <MenuItem label={ml("Group")} shortcut="Ctrl+G" disabled={!canGroup} onClick={handleGroup} />
-            <MenuSubmenu label={ml("Ungroup")}>
-              <MenuItem label={ml("Ungroup")} shortcut="Ctrl+U" disabled={!canUngroup} onClick={handleUngroup} />
-              <MenuItem label={ml("Auto-Group")} disabled={!canAutoGroup} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_AUTO_GROUP); }} />
-            </MenuSubmenu>
+            <MenuItem label={ml("Group")} shortcut="Ctrl+G" disabled={workspaceMode !== 'design' || !canGroup} onClick={handleGroup} />
+            <MenuItem label={ml("Ungroup")} shortcut="Ctrl+U" disabled={workspaceMode !== 'design' || !canUngroup} onClick={handleUngroup} />
+            <MenuItem label={ml("Auto-Group")} disabled={workspaceMode !== 'design' || !unlockedSelection || !canAutoGroup} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_AUTO_GROUP); }} />
             <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Flip Horizontal / Vertical")}>
+            <MenuSubmenu label={ml("Transform")} disabled={workspaceMode !== 'design'}>
               <MenuItem label={ml("Flip Horizontal")} shortcut="Ctrl+Shift+H" disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL); }} />
               <MenuItem label={ml("Flip Vertical")} shortcut="Ctrl+Shift+V" disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_FLIP_VERTICAL); }} />
-            </MenuSubmenu>
-            <MenuItem
-              label={ml("Mirror Across Line")}
-              shortcut="Ctrl+Shift+M"
-              disabled={!canMirrorAcrossLine}
-              onClick={() => { void handleMirrorAcrossLine(); }}
-            />
-            <MenuSubmenu label={ml("Rotate 90° Clockwise / Counter-Clockwise")}>
+              <MenuItem
+                label={ml("Mirror Across Line")}
+                shortcut="Ctrl+Shift+M"
+                disabled={!canMirrorAcrossLine}
+                onClick={() => { void handleMirrorAcrossLine(); }}
+              />
               <MenuItem label={ml("Rotate 90° Clockwise")} shortcut="." disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_ROTATE_CW); }} />
               <MenuItem label={ml("Rotate 90° Counter-Clockwise")} shortcut="," disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_ROTATE_CCW); }} />
+              <MenuItem label={ml("Two-Point Rotate / Scale")} shortcut="Ctrl+2" disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE); }} />
             </MenuSubmenu>
-            <MenuItem label={ml("Two-Point Rotate / Scale")} shortcut="Ctrl+2" disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE); }} />
             <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Align")}>
+            <MenuSubmenu label={ml("Align")} disabled={workspaceMode !== 'design'}>
               <MenuItem label={ml("Align Centers")} disabled={!canAlign} onClick={() => handleAlign('centers_xy')} />
               <MenuItem label={ml("Align Vertical Centers")} shortcut="Alt+PgUp" disabled={!canAlign} onClick={() => handleAlign('centers_v')} />
               <MenuItem label={ml("Align Horizontal Centers")} shortcut="Alt+PgDn" disabled={!canAlign} onClick={() => handleAlign('centers_h')} />
@@ -1110,7 +924,7 @@ export function MenuBar() {
               <MenuItem label={ml("Align Bottom")} shortcut="Alt+Down" disabled={!canAlign} onClick={() => handleAlign('bottom')} />
               <MenuItem label={ml("Align Top")} shortcut="Alt+Up" disabled={!canAlign} onClick={() => handleAlign('top')} />
             </MenuSubmenu>
-            <MenuSubmenu label={ml("Distribute")}>
+            <MenuSubmenu label={ml("Distribute")} disabled={workspaceMode !== 'design'}>
               <MenuItem label={ml("Distribute V-Spaced")} disabled={!canDistribute} onClick={() => handleDistribute('v_spaced')} />
               <MenuItem label={ml("Distribute V-Centered")} disabled={!canDistribute} onClick={() => handleDistribute('v_centered')} />
               <MenuItem label={ml("Distribute H-Spaced")} disabled={!canDistribute} onClick={() => handleDistribute('h_spaced')} />
@@ -1119,14 +933,14 @@ export function MenuBar() {
               <MenuItem label={ml("Move V Together")} shortcut="Alt+Shift+V" disabled={!canMoveTogether} onClick={() => { void handleMoveTogether('vertical'); }} />
             </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
-            <MenuItem label={ml("Nest Selected")} disabled={!unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_NEST_SELECTED); }} />
-            <MenuSubmenu label={ml("Dock")} disabled={!canDock}>
+            <MenuItem label={ml("Nest Selected")} disabled={workspaceMode !== 'design' || !unlockedSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_NEST_SELECTED); }} />
+            <MenuSubmenu label={ml("Dock")} disabled={workspaceMode !== 'design' || !canDock}>
               <MenuItem label={ml("Dock Left")} disabled={!canDock} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_DOCK_LEFT); }} />
               <MenuItem label={ml("Dock Right")} disabled={!canDock} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_DOCK_RIGHT); }} />
               <MenuItem label={ml("Dock Up")} disabled={!canDock} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_DOCK_UP); }} />
               <MenuItem label={ml("Dock Down")} disabled={!canDock} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_DOCK_DOWN); }} />
             </MenuSubmenu>
-            <MenuSubmenu label={ml("Move Selected Objects")} disabled={!canMoveSelected}>
+            <MenuSubmenu label={ml("Move Selected Objects")} disabled={workspaceMode !== 'design' || !canMoveSelected}>
               <MenuItem label={ml("Move to Laser Position")} disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_LASER_POSITION); }} />
               <MenuItem label={ml("Move to Page Center")} shortcut="P" disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_PAGE_CENTER); }} />
               <MenuItem label={ml("Move to Upper Left")} disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_UPPER_LEFT); }} />
@@ -1138,66 +952,49 @@ export function MenuBar() {
               <MenuItem label={ml("Move to Top")} disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_TOP); }} />
               <MenuItem label={ml("Move to Bottom")} disabled={!canMoveSelected} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_TO_BOTTOM); }} />
             </MenuSubmenu>
-            <MenuSubmenu label={ml("Move Laser to Selection")} disabled={!canMoveLaserToSelection}>
-              <MenuItem label={ml("Move Laser to Selection Center")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_CENTER); }} />
-              <MenuItem label={ml("Move Laser to Upper Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT); }} />
-              <MenuItem label={ml("Move Laser to Upper Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT); }} />
-              <MenuItem label={ml("Move Laser to Lower Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT); }} />
-              <MenuItem label={ml("Move Laser to Lower Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT); }} />
-              <MenuItem label={ml("Move Laser to Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LEFT); }} />
-              <MenuItem label={ml("Move Laser to Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT); }} />
-              <MenuItem label={ml("Move Laser to Top of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_TOP); }} />
-              <MenuItem label={ml("Move Laser to Bottom of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM); }} />
-              <MenuSubmenu label={ml("Jog Laser")}>
-                <MenuItem label={ml("Jog Laser Left")} shortcut="Alt+Ctrl+[" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_LEFT); }} />
-                <MenuItem label={ml("Jog Laser Right")} shortcut="Alt+Ctrl+]" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT); }} />
-                <MenuItem label={ml("Jog Laser Up")} shortcut="Ctrl+Shift+]" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_UP); }} />
-                <MenuItem label={ml("Jog Laser Down")} shortcut="Ctrl+Shift+[" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_DOWN); }} />
-              </MenuSubmenu>
-            </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
             <MenuItem
               label={ml("Grid Array")}
-              disabled={!unlockedSelection}
+              disabled={workspaceMode !== 'design' || !unlockedSelection}
               onClick={() => {
                 setOpenMenu(null);
-                setGridArrayDialogObjectIds([...selectedObjectIds]);
+                useUiStore.getState().openModifierProperties(MODIFIER_GRID_ARRAY, selectedObjectIds);
               }}
             />
             <MenuItem
               label={ml("Circular Array")}
-              disabled={!unlockedSelection}
+              disabled={workspaceMode !== 'design' || !unlockedSelection}
               onClick={() => {
                 setOpenMenu(null);
-                setCircularArrayDialogObjectIds([...selectedObjectIds]);
+                useUiStore.getState().openModifierProperties(MODIFIER_CIRCULAR_ARRAY, selectedObjectIds);
               }}
             />
             <MenuItem
               label={ml("Copy Along Path")}
-              disabled={!canCopyAlongPath}
+              disabled={workspaceMode !== 'design' || !unlockedSelection || !canCopyAlongPath}
               onClick={handleCopyAlongPath}
             />
             <MenuItem
               label={ml("Break Apart")}
               shortcut="Alt+B"
-              disabled={!canBreakApart}
+              disabled={workspaceMode !== 'design' || !canBreakApart}
               onClick={() => { setOpenMenu(null); void breakApart(selectedObjectIds[0]); }}
             />
             <div className="border-t border-bb-border my-1" />
-            <MenuSubmenu label={ml("Push in Draw Order")}>
-              <MenuItem label={ml("Bring Forward")} shortcut="PgUp" disabled={selectedObjectIds.length !== 1} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'forward'); }} />
-              <MenuItem label={ml("Send Backward")} shortcut="PgDn" disabled={selectedObjectIds.length !== 1} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'backward'); }} />
-              <MenuItem label={ml("Bring to Front")} shortcut="Ctrl+PgUp" disabled={selectedObjectIds.length !== 1} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'front'); }} />
-              <MenuItem label={ml("Send to Back")} shortcut="Ctrl+PgDn" disabled={selectedObjectIds.length !== 1} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'back'); }} />
+            <MenuSubmenu label={ml("Push in Draw Order")} disabled={workspaceMode !== 'design'}>
+              <MenuItem label={ml("Bring Forward")} shortcut="PgUp" disabled={selectedObjectIds.length !== 1 || !unlockedSelection} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'forward'); }} />
+              <MenuItem label={ml("Send Backward")} shortcut="PgDn" disabled={selectedObjectIds.length !== 1 || !unlockedSelection} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'backward'); }} />
+              <MenuItem label={ml("Bring to Front")} shortcut="Ctrl+PgUp" disabled={selectedObjectIds.length !== 1 || !unlockedSelection} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'front'); }} />
+              <MenuItem label={ml("Send to Back")} shortcut="Ctrl+PgDn" disabled={selectedObjectIds.length !== 1 || !unlockedSelection} onClick={() => { setOpenMenu(null); void pushDrawOrder(selectedObjectIds[0], 'back'); }} />
             </MenuSubmenu>
             <MenuItem
               label={ml("Lock Selected Shapes")}
-              disabled={unlockedSelectedObjectIds.length === 0}
+              disabled={workspaceMode !== 'design' || unlockedSelectedObjectIds.length === 0}
               onClick={() => { setOpenMenu(null); void lockObjects(unlockedSelectedObjectIds); }}
             />
             <MenuItem
               label={ml("Unlock Selected Shapes")}
-              disabled={lockedSelectedObjectIds.length === 0}
+              disabled={workspaceMode !== 'design' || lockedSelectedObjectIds.length === 0}
               onClick={() => { setOpenMenu(null); void unlockObjects(lockedSelectedObjectIds); }}
             />
           </div>
@@ -1295,9 +1092,33 @@ export function MenuBar() {
         {openMenu === 'laserTools' && (
           <div className="absolute top-full left-0 mt-0.5 bg-bb-panel border border-bb-border rounded shadow-lg py-1 min-w-[180px] z-50">
             <MenuItem
+              label={ml("Position Laser")}
+              shortcut="Ctrl+Shift+L"
+              disabled={!project || !canPositionLaser}
+              onClick={() => { void handleAppCommand(APP_COMMANDS.TOOLS_POSITION_LASER); }}
+            />
+            <MenuSubmenu label={ml("Move Laser to Selection")} disabled={!canPositionLaser || !canMoveLaserToSelection}>
+              <MenuItem label={ml("Move Laser to Selection Center")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_CENTER); }} />
+              <MenuItem label={ml("Move Laser to Upper Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT); }} />
+              <MenuItem label={ml("Move Laser to Upper Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT); }} />
+              <MenuItem label={ml("Move Laser to Lower Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT); }} />
+              <MenuItem label={ml("Move Laser to Lower Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT); }} />
+              <MenuItem label={ml("Move Laser to Left of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LEFT); }} />
+              <MenuItem label={ml("Move Laser to Right of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT); }} />
+              <MenuItem label={ml("Move Laser to Top of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_TOP); }} />
+              <MenuItem label={ml("Move Laser to Bottom of Selection")} disabled={!canMoveLaserToSelection} onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM); }} />
+            </MenuSubmenu>
+            <MenuSubmenu label={ml("Jog Laser")} disabled={!canPositionLaser}>
+              <MenuItem label={ml("Jog Laser Left")} shortcut="Alt+Ctrl+[" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_LEFT); }} />
+              <MenuItem label={ml("Jog Laser Right")} shortcut="Alt+Ctrl+]" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT); }} />
+              <MenuItem label={ml("Jog Laser Up")} shortcut="Ctrl+Shift+]" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_UP); }} />
+              <MenuItem label={ml("Jog Laser Down")} shortcut="Ctrl+Shift+[" onClick={() => { void handleAppCommand(APP_COMMANDS.ARRANGE_JOG_LASER_DOWN); }} />
+            </MenuSubmenu>
+            <div className="border-t border-bb-border my-1" />
+            <MenuItem
               label={ml("Save Machine Files")}
               shortcut="Alt+Shift+L"
-              disabled={!project || previewState !== 'current'}
+              disabled={!project || previewState === 'generating'}
               onClick={handleSaveMachineFiles}
             />
             <div className="border-t border-bb-border my-1" />
@@ -1355,6 +1176,15 @@ export function MenuBar() {
               }}
             />
             <MenuItem
+              label={ml("Refresh Preview")}
+              shortcut="Shift+P"
+              disabled={!project || previewState === 'generating'}
+              onClick={() => {
+                setOpenMenu(null);
+                void executeAppCommand(APP_COMMANDS.WINDOW_REFRESH_PREVIEW);
+              }}
+            />
+            <MenuItem
               label={ml("Zoom to Page")}
               shortcut="Ctrl+0"
               disabled={!project}
@@ -1391,26 +1221,36 @@ export function MenuBar() {
               }}
             />
             <div className="border-t border-bb-border my-1" />
-            <MenuLabel label={ml("View Style:")} />
-            {WINDOW_VIEW_STYLE_ITEMS.map((item) => (
+            <MenuSubmenu label={ml("Artwork Display")}>
+              {WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => (
+                <MenuCheckItem
+                  key={item.commandId}
+                  label={mlDynamic(item.label)}
+                  checked={artworkDisplayMode === item.mode}
+                  onClick={() => {
+                    setOpenMenu(null);
+                    void executeAppCommand(item.commandId);
+                  }}
+                />
+              ))}
+              <div className="border-t border-bb-border my-1" />
               <MenuCheckItem
-                key={item.commandId}
-                label={mlDynamic(item.label)}
-                checked={viewStyle === item.viewStyle}
+                label={ml("Smooth Edges")}
+                checked={smoothEdges}
                 onClick={() => {
                   setOpenMenu(null);
-                  void executeAppCommand(item.commandId);
+                  void executeAppCommand(APP_COMMANDS.WINDOW_SMOOTH_EDGES);
                 }}
               />
-            ))}
-            <MenuItem
-              label={ml("Toggle Wireframe / Filled")}
-              shortcut="Alt+Shift+W"
-              onClick={() => {
-                setOpenMenu(null);
-                void executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED);
-              }}
-            />
+              <MenuItem
+                label={ml("Toggle Operation / Wireframe")}
+                shortcut="Alt+Shift+W"
+                onClick={() => {
+                  setOpenMenu(null);
+                  void executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME);
+                }}
+              />
+            </MenuSubmenu>
             <div className="border-t border-bb-border my-1" />
             <MenuCheckItem
               label={ml("Toggle Side Panels")}
@@ -1421,23 +1261,32 @@ export function MenuBar() {
                 void executeAppCommand(APP_COMMANDS.WINDOW_SIDE_PANELS);
               }}
             />
-            <div className="border-t border-bb-border my-1" />
-            {WINDOW_PANEL_TOOLBAR_MENU_ITEMS.map((item) => {
-              const checked = 'panelId' in item
-                ? !hiddenPanelIds.includes(item.panelId)
-                : toolbarVisibility[item.toolbarId];
-              return (
+            <MenuSubmenu label={ml("Panels")}>
+              {WINDOW_PANEL_MENU_ITEMS.map((item) => (
                 <MenuCheckItem
                   key={item.commandId}
                   label={mlDynamic(item.label)}
-                  checked={checked}
+                  checked={!hiddenPanelIds.includes(item.panelId)}
                   onClick={() => {
                     setOpenMenu(null);
                     void executeAppCommand(item.commandId);
                   }}
                 />
-              );
-            })}
+              ))}
+            </MenuSubmenu>
+            <MenuSubmenu label={ml("Toolbar")}>
+              {WINDOW_TOOLBAR_MENU_ITEMS.map((item) => (
+                <MenuCheckItem
+                  key={item.commandId}
+                  label={mlDynamic(item.label)}
+                  checked={toolbarVisibility[item.toolbarId]}
+                  onClick={() => {
+                    setOpenMenu(null);
+                    void executeAppCommand(item.commandId);
+                  }}
+                />
+              ))}
+            </MenuSubmenu>
           </div>
         )}
       </div>
@@ -1543,24 +1392,12 @@ export function MenuBar() {
         <AboutDialog onClose={() => setShowAboutDialog(false)} />
       )}
 
-      {gridArrayDialogObjectIds && (
-        <GridArrayDialog objectIds={gridArrayDialogObjectIds} onClose={() => setGridArrayDialogObjectIds(null)} />
-      )}
-
-      {circularArrayDialogObjectIds && (
-        <CircularArrayDialog objectIds={circularArrayDialogObjectIds} onClose={() => setCircularArrayDialogObjectIds(null)} />
-      )}
-
       {copyAlongPathDialogState && (
         <CopyAlongPathDialog
           objectIds={copyAlongPathDialogState.objectIds}
           pathObjectId={copyAlongPathDialogState.pathObjectId}
           onClose={() => setCopyAlongPathDialogState(null)}
         />
-      )}
-
-      {offsetDialogObjectIds && (
-        <OffsetDialog objectIds={offsetDialogObjectIds} onClose={() => setOffsetDialogObjectIds(null)} />
       )}
 
       {nestDialogObjectIds && (
@@ -1598,40 +1435,8 @@ export function MenuBar() {
       {showIntervalTestDialog && (
         <IntervalTestDialog onClose={() => setShowIntervalTestDialog(false)} />
       )}
-
-      {showResetPreferencesConfirm && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={ml("Reset Prefs to Defaults")}
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowResetPreferencesConfirm(false);
-          }}
-        >
-          <div className="w-full max-w-sm rounded border border-bb-border bg-bb-panel p-4 shadow-xl">
-            <div className="mb-3 text-xs font-medium uppercase tracking-wider text-bb-accent">
-              {ml("Reset Prefs to Defaults")}
-            </div>
-            <p className="text-sm text-bb-text">{t('menus.file.reset_preferences_confirm')}</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                className="rounded border border-bb-border bg-bb-surface px-3 py-1.5 text-sm text-bb-text transition hover:bg-bb-hover"
-                onClick={() => setShowResetPreferencesConfirm(false)}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="rounded border border-bb-accent/60 bg-bb-accent/20 px-3 py-1.5 text-sm text-bb-text transition hover:bg-bb-accent/30"
-                onClick={() => { void handleResetPreferencesConfirm(); }}
-              >
-                {t('common.ok')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showPrintDialog && (
+        <PrintDialog onClose={() => setShowPrintDialog(false)} />
       )}
     </div>
   );
@@ -1790,14 +1595,6 @@ function MenuItem({
       <span>{label}</span>
       {shortcut && <span className="text-bb-text-dim text-xs ml-4">{shortcut}</span>}
     </button>
-  );
-}
-
-function MenuLabel({ label }: { label: string }) {
-  return (
-    <div className="px-3 py-1 text-sm text-bb-text-dim cursor-default select-none">
-      {label}
-    </div>
   );
 }
 

@@ -3,10 +3,11 @@ use std::path::PathBuf;
 
 use beambench_common::path::{PathCommand, VecPath};
 use beambench_common::{
-    Bounds, ColorTag, PALETTE_COLORS, Point2D, Transform2D, canonical_palette_color_tag,
+    Bounds, ColorTag, PALETTE_COLORS, Point2D, Transform2D, TransformLocks,
+    canonical_palette_color_tag,
 };
 use beambench_core::variable_text::{VariableTextConfig, advance_sequence_value};
-use beambench_core::vector::convert::object_to_world_vecpath_resolved;
+use beambench_core::vector::convert::{object_to_world_vecpath_resolved, text_uses_mapped_bounds};
 use beambench_core::vector::text_to_path::{
     intrinsic_text_bounds, refresh_text_object_cache, refresh_text_object_cache_with_guide,
 };
@@ -35,6 +36,7 @@ pub struct UpdateLayerInput {
     pub enabled: Option<bool>,
     pub visible: Option<bool>,
     pub color_tag: Option<String>,
+    pub fill_opacity: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -84,8 +86,18 @@ pub struct UpdateObjectInput {
     pub transform: Option<Transform2D>,
     pub bounds: Option<Bounds>,
     pub lock_aspect_ratio: Option<bool>,
+    pub transform_locks: Option<TransformLocks>,
     pub power_scale: Option<f64>,
     pub priority: Option<i32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpdateObjectTransformStateInput {
+    pub object_ids: Vec<ObjectId>,
+    pub transform_locks: Option<TransformLocks>,
+    pub transform_lock_key: Option<String>,
+    pub transform_enabled: Option<bool>,
+    pub lock_aspect_ratio: Option<bool>,
 }
 
 /// Per-copy input for batch generation: resolved text + full variable text config.
@@ -245,15 +257,11 @@ fn refresh_dependent_text_objects(project: &mut Project, guide_id: ObjectId) {
             .collect();
         for text_id in dependent_ids {
             if let Some(obj) = project.find_object_mut(text_id) {
-                let mapped_bounds = refresh_text_object_cache_with_guide(
+                refresh_text_object_cache_with_guide(
                     &mut obj.data,
                     &obj.bounds,
                     guide_vecpath.as_ref(),
                 );
-                if let Some(bounds) = mapped_bounds {
-                    obj.bounds = bounds;
-                    obj.transform = Transform2D::identity();
-                }
             }
         }
     }
@@ -293,6 +301,21 @@ fn rebuild_text_bounds_aligned(old: &Bounds, new_w: f64, new_h: f64, data: &Obje
         TextAlignmentV::Bottom => ay - new_h,
     };
     Bounds::new(Point2D::new(mx, my), Point2D::new(mx + new_w, my + new_h))
+}
+
+/// Width of a true, straight area-text frame. Point text and transformed/path
+/// text continue to size themselves from their generated geometry.
+fn straight_text_area_width(data: &ObjectData) -> Option<f64> {
+    match data {
+        ObjectData::Text {
+            max_width: Some(width),
+            layout_mode: TextLayoutMode::Straight,
+            on_path: false,
+            transform_style: beambench_core::TextTransformStyle::None,
+            ..
+        } if width.is_finite() && *width > 0.0 => Some(*width),
+        _ => None,
+    }
 }
 
 /// Adopt generated text geometry without baking placement into the object.
@@ -340,22 +363,14 @@ pub(crate) fn refresh_project_text_caches(project: &mut Project) {
     }
     let project_snapshot = project.clone();
     // Second pass: refresh caches, passing guide path where available.
+    // Bounds and transforms are persisted user state; loading, planning, and
+    // preview generation must never replace them with intrinsic cache bounds.
     for obj in &mut project.objects {
-        let mapped_bounds = if let Some(guide) = guide_paths.get(&obj.id) {
+        if let Some(guide) = guide_paths.get(&obj.id) {
             refresh_text_object_cache_with_project_context(&project_snapshot, obj, Some(guide))
         } else {
             refresh_text_object_cache_with_project_context(&project_snapshot, obj, None)
         };
-        if let Some(mb) = mapped_bounds {
-            // Preserve stored position, update size from geometry
-            let width = mb.width();
-            let height = mb.height();
-            obj.bounds = Bounds::new(
-                obj.bounds.min,
-                Point2D::new(obj.bounds.min.x + width, obj.bounds.min.y + height),
-            );
-            obj.transform = Transform2D::identity();
-        }
     }
 }
 
@@ -1468,6 +1483,11 @@ pub fn update_layer(
     layer_id: LayerId,
     input: UpdateLayerInput,
 ) -> ServiceResult<Layer> {
+    let display_only_update = input.fill_opacity.is_some()
+        && input.name.is_none()
+        && input.enabled.is_none()
+        && input.visible.is_none()
+        && input.color_tag.is_none();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let project = project_guard
         .as_mut()
@@ -1486,6 +1506,9 @@ pub fn update_layer(
     }
     if let Some(visible) = input.visible {
         candidate.visible = visible;
+    }
+    if let Some(fill_opacity) = input.fill_opacity {
+        candidate.fill_opacity = fill_opacity.clamp(0.0, 1.0);
     }
     if let Some(ref color) = input.color_tag {
         candidate.color_tag = ColorTag(canonical_palette_color_tag(color).to_string());
@@ -1513,7 +1536,9 @@ pub fn update_layer(
         .ok_or_else(|| ServiceError::internal("layer not found after mutation"))?
         .clone();
     drop(project_guard);
-    invalidate_plan(ctx)?;
+    if !display_only_update {
+        invalidate_plan(ctx)?;
+    }
     ctx.emit_event(
         "project.layer.updated",
         json!({
@@ -2189,6 +2214,82 @@ pub fn update_object(
     Ok(updated)
 }
 
+pub fn update_object_transform_state(
+    ctx: &ServiceContext,
+    input: UpdateObjectTransformStateInput,
+) -> ServiceResult<Vec<ProjectObject>> {
+    if input.object_ids.is_empty() {
+        return Err(ServiceError::invalid_input("No objects supplied"));
+    }
+    if input.transform_lock_key.is_some() != input.transform_enabled.is_some() {
+        return Err(ServiceError::invalid_input(
+            "Transform lock key and enabled state must be supplied together",
+        ));
+    }
+    if input.transform_locks.is_some() && input.transform_lock_key.is_some() {
+        return Err(ServiceError::invalid_input(
+            "Supply complete transform locks or one transform lock key, not both",
+        ));
+    }
+    if let Some(key) = input.transform_lock_key.as_deref()
+        && !matches!(
+            key,
+            "move_enabled" | "size_enabled" | "rotate_enabled" | "shear_enabled"
+        )
+    {
+        return Err(ServiceError::invalid_input("Unknown transform lock key"));
+    }
+    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    for object_id in &input.object_ids {
+        if project.find_object(*object_id).is_none() {
+            return Err(ServiceError::not_found("Object not found"));
+        }
+    }
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    let mut updated = Vec::with_capacity(input.object_ids.len());
+    for object_id in &input.object_ids {
+        let object = project
+            .find_object_mut(*object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        if let Some(locks) = input.transform_locks {
+            object.transform_locks = locks;
+        } else if let (Some(key), Some(enabled)) =
+            (input.transform_lock_key.as_deref(), input.transform_enabled)
+        {
+            match key {
+                "move_enabled" => object.transform_locks.move_enabled = enabled,
+                "size_enabled" => object.transform_locks.size_enabled = enabled,
+                "rotate_enabled" => object.transform_locks.rotate_enabled = enabled,
+                "shear_enabled" => object.transform_locks.shear_enabled = enabled,
+                _ => unreachable!("transform lock key was validated before mutation"),
+            }
+        }
+        if let Some(lock_aspect_ratio) = input.lock_aspect_ratio {
+            object.lock_aspect_ratio = lock_aspect_ratio;
+        }
+        updated.push(object.clone());
+    }
+    project.dirty = true;
+    drop(guard);
+
+    ctx.emit_event(
+        "project.objects.transform_state_updated",
+        json!({
+            "object_ids": input.object_ids,
+            "transform_locks": input.transform_locks,
+            "transform_lock_key": input.transform_lock_key,
+            "transform_enabled": input.transform_enabled,
+            "lock_aspect_ratio": input.lock_aspect_ratio,
+        }),
+    );
+    Ok(updated)
+}
+
 fn validate_update_object_patch_in_project(
     project: &Project,
     object_id: ObjectId,
@@ -2245,16 +2346,56 @@ fn apply_update_object_patch_in_project(
         if let Some(lock_aspect_ratio) = input.lock_aspect_ratio {
             obj.lock_aspect_ratio = lock_aspect_ratio;
         }
+        if let Some(transform_locks) = input.transform_locks {
+            obj.transform_locks = transform_locks;
+        }
         if let Some(power_scale) = input.power_scale {
             obj.power_scale = power_scale;
         }
         if let Some(data) = data {
             let placement_bounds = obj.bounds;
-            if let Some(intrinsic_bounds) = intrinsic_text_bounds(&data) {
+            let previous_mapped_scale = if text_uses_mapped_bounds(&current_data) {
+                intrinsic_text_bounds(&current_data).and_then(|intrinsic| {
+                    (intrinsic.width() > 1e-9 && intrinsic.height() > 1e-9).then_some((
+                        placement_bounds.width() / intrinsic.width(),
+                        placement_bounds.height() / intrinsic.height(),
+                    ))
+                })
+            } else {
+                None
+            };
+            let previous_area_width = straight_text_area_width(&current_data);
+            let next_area_width = straight_text_area_width(&data);
+            if let Some(area_width) = next_area_width {
+                // Area text owns a user-defined frame. Content/font changes must
+                // reflow inside it rather than replacing it with intrinsic glyph
+                // bounds. A width edit updates the frame; converting Point → Box
+                // starts with a useful four-line-high area.
+                if previous_area_width != Some(area_width)
+                    || (obj.bounds.width() - area_width).abs() > 1e-6
+                {
+                    let font_size = match &data {
+                        ObjectData::Text { font_size_mm, .. } => *font_size_mm,
+                        _ => 0.0,
+                    };
+                    let height = if previous_area_width.is_some() {
+                        obj.bounds.height()
+                    } else {
+                        obj.bounds.height().max(font_size * 4.0)
+                    };
+                    obj.bounds = rebuild_text_bounds_aligned(
+                        &obj.bounds,
+                        area_width,
+                        height.max(font_size.max(0.1)),
+                        &data,
+                    );
+                }
+            } else if let Some(intrinsic_bounds) = intrinsic_text_bounds(&data) {
                 let is_straight = match &data {
                     ObjectData::Text {
                         layout_mode,
                         on_path,
+                        transform_style,
                         ..
                     } => {
                         let effective = if *on_path && *layout_mode == TextLayoutMode::Straight {
@@ -2263,6 +2404,7 @@ fn apply_update_object_patch_in_project(
                             *layout_mode
                         };
                         effective == TextLayoutMode::Straight
+                            && *transform_style == beambench_core::TextTransformStyle::None
                     }
                     _ => false,
                 };
@@ -2284,13 +2426,24 @@ fn apply_update_object_patch_in_project(
                 guide.as_ref(),
             );
             if let Some(mb) = mapped_bounds {
-                apply_mapped_text_bounds(obj, &placement_bounds, &mb);
+                let scaled_bounds = if let Some((scale_x, scale_y)) = previous_mapped_scale {
+                    Bounds::new(
+                        mb.min,
+                        Point2D::new(
+                            mb.min.x + mb.width() * scale_x,
+                            mb.min.y + mb.height() * scale_y,
+                        ),
+                    )
+                } else {
+                    mb
+                };
+                apply_mapped_text_bounds(obj, &placement_bounds, &scaled_bounds);
             }
         }
         if let Some(bounds) = input.bounds {
             // Scale dimensional text properties proportionally to the bounds change.
-            // Only for straight text (not path/bend) — those geometries are determined
-            // by the guide curve or arc, not the bounding box.
+            // Only straight text scales typography properties. Advanced text
+            // treats the object bounds as a post-layout geometry transform.
             if let ObjectData::Text {
                 font_size_mm,
                 h_spacing,
@@ -2298,10 +2451,13 @@ fn apply_update_object_patch_in_project(
                 max_width,
                 layout_mode,
                 on_path,
+                transform_style,
                 ..
             } = &mut obj.data
             {
-                let is_straight = *layout_mode == TextLayoutMode::Straight && !*on_path;
+                let is_straight = *layout_mode == TextLayoutMode::Straight
+                    && !*on_path
+                    && *transform_style == beambench_core::TextTransformStyle::None;
                 if is_straight {
                     let old_w = obj.bounds.width();
                     let old_h = obj.bounds.height();
@@ -2324,10 +2480,7 @@ fn apply_update_object_patch_in_project(
                 }
             }
             obj.bounds = bounds;
-            // Re-resolve text cache so straight text reflows within new box dimensions.
-            // For path/bend text, geometry is determined by the guide/arc (not bounds), so
-            // we refresh the cache but preserve the user-positioned bounds — otherwise a
-            // simple drag would snap the object to the intrinsic geometry origin.
+            // Re-resolve the intrinsic cache while preserving the requested bounds.
             refresh_text_object_cache_with_project_context(&project_snapshot, obj, guide.as_ref());
         }
         if let Some(priority) = input.priority {
@@ -2442,6 +2595,62 @@ pub fn update_object_data(
         Some(data),
     )?;
     project.dirty = true;
+    drop(project_guard);
+    invalidate_plan(ctx)?;
+    ctx.emit_event(
+        "project.object.data_updated",
+        json!({
+            "object": events::object_summary(&updated),
+        }),
+    );
+    Ok(updated)
+}
+
+/// Resize a straight area-text frame without scaling its typography. Generic
+/// object resizing intentionally scales text; an area-frame resize only changes
+/// wrapping width and available height.
+pub fn resize_text_area(
+    ctx: &ServiceContext,
+    object_id: ObjectId,
+    bounds: Bounds,
+) -> ServiceResult<ProjectObject> {
+    let width = bounds.width();
+    let height = bounds.height();
+    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+        return Err(ServiceError::invalid_input(
+            "Text area width and height must be positive finite values",
+        ));
+    }
+
+    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = project_guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+
+    let current = project
+        .find_object(object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    if straight_text_area_width(&current.data).is_none() {
+        return Err(ServiceError::invalid_input(
+            "Object is not straight area text",
+        ));
+    }
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    let obj = project
+        .find_object_mut(object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    if let ObjectData::Text { max_width, .. } = &mut obj.data {
+        *max_width = Some(width);
+    }
+    obj.bounds = bounds;
+    refresh_text_object_cache(&mut obj.data, &obj.bounds);
+    project.dirty = true;
+    let updated = project
+        .find_object(object_id)
+        .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
+        .clone();
     drop(project_guard);
     invalidate_plan(ctx)?;
     ctx.emit_event(
@@ -2647,7 +2856,6 @@ pub fn remove_object(ctx: &ServiceContext, object_id: ObjectId) -> ServiceResult
         return Err(ServiceError::not_found("Object not found"));
     }
     unlink_guide_path_references(project, &[object_id]);
-    project.clean_empty_layers();
     drop(project_guard);
     invalidate_plan(ctx)?;
     ctx.emit_event(
@@ -2675,7 +2883,6 @@ pub fn remove_objects(ctx: &ServiceContext, object_ids: &[ObjectId]) -> ServiceR
         .map_err(ServiceError::internal)?;
     let removed = project.remove_objects(object_ids);
     unlink_guide_path_references(project, object_ids);
-    project.clean_empty_layers();
     drop(project_guard);
     invalidate_plan(ctx)?;
     ctx.emit_event(
@@ -3835,6 +4042,57 @@ mod tests {
         project
     }
 
+    #[test]
+    fn transform_state_updates_only_the_requested_object() {
+        let ctx = ServiceContext::new();
+        let mut project = sample_project();
+        let first_id = project.objects[0].id;
+        let layer_id = project.objects[0].layer_id;
+        let second = ProjectObject::new(
+            "Second Rect",
+            layer_id,
+            Bounds::new(Point2D::new(20.0, 0.0), Point2D::new(30.0, 10.0)),
+            ObjectData::Shape {
+                kind: ShapeKind::Rectangle,
+                width: 10.0,
+                height: 10.0,
+                corner_radius: 0.0,
+            },
+        );
+        let second_id = second.id;
+        project.add_object(second);
+        *ctx.project.lock().unwrap() = Some(project);
+
+        update_object_transform_state(
+            &ctx,
+            UpdateObjectTransformStateInput {
+                object_ids: vec![first_id],
+                transform_locks: None,
+                transform_lock_key: Some("move_enabled".to_string()),
+                transform_enabled: Some(false),
+                lock_aspect_ratio: None,
+            },
+        )
+        .unwrap();
+
+        let guard = ctx.project.lock().unwrap();
+        let project = guard.as_ref().unwrap();
+        assert!(
+            !project
+                .find_object(first_id)
+                .unwrap()
+                .transform_locks
+                .move_enabled
+        );
+        assert!(
+            project
+                .find_object(second_id)
+                .unwrap()
+                .transform_locks
+                .move_enabled
+        );
+    }
+
     /// Regression: enabling pass-through on a layer that holds a
     /// raster VirtualClone must resize the clone's bounds to native
     /// DPI, not just concrete RasterImage objects. The planner
@@ -4478,6 +4736,7 @@ mod tests {
         let mut project = Project::new("Paste Snapshot");
         let layer = Layer::new("Layer 1", OperationType::Cut);
         let layer_id = layer.id;
+        let layer_color = layer.color_tag.clone();
         project.add_layer(layer);
         let source = project
             .add_object(ProjectObject::new(
@@ -4506,7 +4765,7 @@ mod tests {
         let stored = ctx.project.lock().unwrap().clone().unwrap();
         assert!(stored.find_object(source_id).is_none());
         assert!(stored.find_object(pasted[0].id).is_some());
-        assert_eq!(stored.layers[0].color_tag, ColorTag("#000000".to_string()));
+        assert_eq!(stored.layers[0].color_tag, layer_color);
     }
 
     #[test]
@@ -4727,6 +4986,56 @@ mod tests {
         assert_eq!(updated.bounds.min, Point2D::new(10.0, 10.0));
         assert!(updated.bounds.width() > 40.0);
         assert!(updated.bounds.height() > 10.0);
+    }
+
+    #[test]
+    fn update_object_data_preserves_area_text_frame() {
+        let ctx = ServiceContext::new();
+        let (mut project, obj_id) = sample_text_project();
+        let expected = Bounds::new(Point2D::new(10.0, 10.0), Point2D::new(70.0, 50.0));
+        let obj = project.find_object_mut(obj_id).unwrap();
+        obj.bounds = expected;
+        if let ObjectData::Text { max_width, .. } = &mut obj.data {
+            *max_width = Some(60.0);
+        }
+        let mut updated_data = obj.data.clone();
+        if let ObjectData::Text { content, .. } = &mut updated_data {
+            *content = "A much longer sentence that wraps inside the area".to_string();
+        }
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let updated = update_object_data(&ctx, obj_id, updated_data).unwrap();
+
+        assert_eq!(updated.bounds, expected);
+        assert_eq!(straight_text_area_width(&updated.data), Some(60.0));
+    }
+
+    #[test]
+    fn resize_text_area_changes_frame_without_scaling_typography() {
+        let ctx = ServiceContext::new();
+        let (mut project, obj_id) = sample_text_project();
+        let obj = project.find_object_mut(obj_id).unwrap();
+        obj.bounds = Bounds::new(Point2D::new(10.0, 10.0), Point2D::new(70.0, 50.0));
+        if let ObjectData::Text { max_width, .. } = &mut obj.data {
+            *max_width = Some(60.0);
+        }
+        *ctx.project.lock().unwrap() = Some(project);
+        let resized_bounds = Bounds::new(Point2D::new(10.0, 10.0), Point2D::new(100.0, 80.0));
+
+        let updated = resize_text_area(&ctx, obj_id, resized_bounds).unwrap();
+
+        assert_eq!(updated.bounds, resized_bounds);
+        if let ObjectData::Text {
+            font_size_mm,
+            max_width,
+            ..
+        } = updated.data
+        {
+            assert_eq!(font_size_mm, 5.0);
+            assert_eq!(max_width, Some(90.0));
+        } else {
+            panic!("expected text");
+        }
     }
 
     // the Adjust Image dialog previously committed its two
@@ -4967,6 +5276,42 @@ mod tests {
         )
         .unwrap();
         assert!(updated.is_tool_layer);
+    }
+
+    #[test]
+    fn update_layer_clamps_design_fill_opacity() {
+        let ctx = ServiceContext::new();
+        create_project(&ctx, "Opacity Test").unwrap();
+        let layer = add_layer(
+            &ctx,
+            AddLayerInput {
+                name: "Fill".to_string(),
+                operation: OperationType::Fill,
+            },
+        )
+        .unwrap();
+
+        let transparent = update_layer(
+            &ctx,
+            layer.id,
+            UpdateLayerInput {
+                fill_opacity: Some(-0.5),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(transparent.fill_opacity, 0.0);
+
+        let opaque = update_layer(
+            &ctx,
+            layer.id,
+            UpdateLayerInput {
+                fill_opacity: Some(1.5),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(opaque.fill_opacity, 1.0);
     }
 
     #[test]
@@ -5214,6 +5559,37 @@ mod tests {
     }
 
     #[test]
+    fn remove_object_preserves_the_now_empty_layer() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Keep Empty Layer");
+        let layer = Layer::new("Prepared Cut", OperationType::Cut);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+        let object = project
+            .add_object(ProjectObject::new(
+                "Rect",
+                layer_id,
+                Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            ))
+            .clone();
+        *ctx.project.lock().unwrap() = Some(project);
+
+        remove_object(&ctx, object.id).unwrap();
+
+        let stored = ctx.project.lock().unwrap();
+        let stored = stored.as_ref().unwrap();
+        assert!(stored.objects.is_empty());
+        assert_eq!(stored.layers.len(), 1);
+        assert_eq!(stored.layers[0].id, layer_id);
+    }
+
+    #[test]
     fn remove_objects_batch_unlinks_guide_path_references() {
         let ctx = ServiceContext::new();
         let (mut project, text_id) = sample_text_project();
@@ -5251,6 +5627,54 @@ mod tests {
             }
             _ => panic!("expected text"),
         }
+    }
+
+    #[test]
+    fn remove_objects_preserves_layers_emptied_by_the_batch() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Keep Empty Layers");
+        let first_layer = Layer::new("First", OperationType::Cut);
+        let first_layer_id = first_layer.id;
+        let second_layer = Layer::new("Second", OperationType::Line);
+        let second_layer_id = second_layer.id;
+        project.add_layer(first_layer);
+        project.add_layer(second_layer);
+        let first_object = project
+            .add_object(ProjectObject::new(
+                "First Rect",
+                first_layer_id,
+                Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            ))
+            .id;
+        let second_object = project
+            .add_object(ProjectObject::new(
+                "Second Rect",
+                second_layer_id,
+                Bounds::new(Point2D::new(20.0, 0.0), Point2D::new(30.0, 10.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            ))
+            .id;
+        *ctx.project.lock().unwrap() = Some(project);
+
+        remove_objects(&ctx, &[first_object, second_object]).unwrap();
+
+        let stored = ctx.project.lock().unwrap();
+        let stored = stored.as_ref().unwrap();
+        assert!(stored.objects.is_empty());
+        assert_eq!(stored.layers.len(), 2);
+        assert_eq!(stored.layers[0].id, first_layer_id);
+        assert_eq!(stored.layers[1].id, second_layer_id);
     }
 
     #[test]
@@ -5537,6 +5961,44 @@ mod tests {
         assert_ne!(updated.bounds.height(), old_bounds.height());
         assert!(matches!(
             updated.data,
+            ObjectData::Text {
+                resolved_path_data: Some(_),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn project_cache_refresh_preserves_advanced_text_bounds_and_transform() {
+        let bounds = Bounds::new(Point2D::new(12.0, 34.0), Point2D::new(132.0, 79.0));
+        let (mut project, object_id) = make_straight_text_project(10.0, 0.0, 0.0, None, bounds);
+        let affine = Transform2D {
+            a: 0.9,
+            b: 0.35,
+            c: -0.2,
+            d: 1.1,
+            tx: 4.0,
+            ty: -7.0,
+        };
+        let object = project.find_object_mut(object_id).unwrap();
+        object.transform = affine;
+        if let ObjectData::Text {
+            transform_style,
+            transform_curve,
+            ..
+        } = &mut object.data
+        {
+            *transform_style = beambench_core::TextTransformStyle::Wave;
+            *transform_curve = 60.0;
+        }
+
+        refresh_project_text_caches(&mut project);
+
+        let refreshed = project.find_object(object_id).unwrap();
+        assert_eq!(refreshed.bounds, bounds);
+        assert_eq!(refreshed.transform, affine);
+        assert!(matches!(
+            refreshed.data,
             ObjectData::Text {
                 resolved_path_data: Some(_),
                 ..

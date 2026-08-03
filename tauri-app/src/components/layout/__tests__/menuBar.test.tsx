@@ -10,7 +10,6 @@ import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { previewService } from '../../../services/previewService';
 import { persistenceService } from '../../../services/persistenceService';
-import { printService } from '../../../services/printService';
 import { appService } from '../../../services/appService';
 import { projectService } from '../../../services/projectService';
 import { makeAppSettings, makeLayer, makeProject as makeProjectFixture, makeProjectObject, makeTextObjectData } from '../../../test-utils/projectFixtures';
@@ -171,7 +170,7 @@ describe('MenuBar', () => {
     setProjectWithSelection();
     render(<MenuBar />);
     fireEvent.click(screen.getByText('File'));
-    expect(screen.getByText('Show Notes')).toBeDefined();
+    expect(screen.getByText('Project Notes...')).toBeDefined();
   });
 
   it('File menu Import uses the same selected-layer behavior as the toolbar button', async () => {
@@ -191,20 +190,6 @@ describe('MenuBar', () => {
 
     await waitFor(() => {
       expect(importFiles).toHaveBeenCalledWith(project.layers[0].id);
-    });
-  });
-
-  it('File menu New Window opens a second app window', async () => {
-    const openNewWindow = vi.spyOn(appService, 'openNewWindow').mockResolvedValue('main-test');
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    const newWindowItem = screen.getByRole('button', { name: 'New Window' });
-    expect(newWindowItem.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(newWindowItem);
-
-    await waitFor(() => {
-      expect(openNewWindow).toHaveBeenCalledOnce();
     });
   });
 
@@ -248,12 +233,30 @@ describe('MenuBar', () => {
     expect(screen.queryByText('Exclude')).toBeNull();
   });
 
+  it('keeps Position Laser in Laser Tools and enables it only for an idle Run connection', () => {
+    setProjectWithSelection();
+    render(<MenuBar />);
+    fireEvent.click(screen.getByText('Laser Tools'));
+    expect(screen.getByText('Position Laser').closest('button')?.disabled).toBe(true);
+
+    fireEvent.click(screen.getByText('Laser Tools'));
+    useUiStore.getState().setWorkspaceMode('run');
+    setMachineReady();
+    fireEvent.click(screen.getByText('Laser Tools'));
+    expect(screen.getByText('Position Laser').closest('button')?.disabled).toBe(false);
+  });
+
   it('Tools menu command order matches the product contract', () => {
     setProjectWithSelection(['txt1', 'path1']);
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Tools'));
 
-    expect(openedMenuLabels().filter((label) => label !== 'Draw Shape')).toEqual(
+    expect(openedMenuLabels().filter((label) => ![
+      'Draw Shape',
+      'Boolean Operations',
+      'Image Options',
+      'Transform',
+    ].includes(label))).toEqual(
       TOOLS_MENU_CONTRACT.map((item) => item.label),
     );
   });
@@ -291,9 +294,9 @@ describe('MenuBar', () => {
 
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Tools'));
-    const item = screen.getByRole('button', { name: /Apply Mask to Image/ });
+    const item = screen.getByText('Apply Mask to Image').closest('button');
 
-    expect(item.hasAttribute('disabled')).toBe(true);
+    expect(item?.hasAttribute('disabled')).toBe(true);
     expect(assignImageMask).not.toHaveBeenCalled();
   });
 
@@ -373,54 +376,71 @@ describe('MenuBar', () => {
     expect(screen.getByRole('button', { name: 'Refresh Image' }).hasAttribute('disabled')).toBe(false);
   });
 
-  it('Edit menu follows the product order', () => {
-    setProjectWithSelection(['img1']);
+  it('Edit menu groups selection and cleanup commands behind submenus', () => {
+    setProjectWithSelection(['path1']);
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Edit'));
 
     expect(openedMenuLabels()).toEqual([
       'Undo',
       'Redo',
-      'Select All',
-      'Invert Selection',
       'Cut',
       'Copy',
-      'Duplicate',
       'Paste',
       'Paste in Place',
+      'Duplicate',
       'Delete',
+      'Select',
+      'Select All',
+      'Invert Selection',
+      'Select Open Shapes',
+      'Select Open Shapes Set to Fill',
+      'Select All Shapes in Current Layer',
+      'Select Contained Shapes',
+      'Select Shapes Smaller Than Selected',
       'Convert to Path',
       'Convert to Bitmap',
+      'Cleanup',
       'Close Path',
       'Close Selected Paths With Tolerance',
       'Auto-Join Selected Shapes',
       'Close & Join',
       'Optimize Selected Shapes',
       'Delete Duplicates',
-      'Select Open Shapes',
-      'Select Open Shapes Set to Fill',
-      'Select All Shapes in Current Layer',
-      'Select Contained Shapes',
-      'Select Shapes Smaller Than Selected',
       'Image Options',
-      'Refresh Image',
-      'Replace Image',
-      'Replace Image to Fit',
       'Settings',
     ]);
   });
 
-  it('Edit menu disables Paste while the object clipboard is empty', () => {
+  it('Edit menu keeps Paste available for system clipboard data', () => {
     setProjectWithSelection();
     useUiStore.setState({ hasClipboard: false });
 
     const { rerender } = render(<MenuBar />);
     fireEvent.click(screen.getByText('Edit'));
-    expect(openedMenuButton('Paste').disabled).toBe(true);
+    expect(openedMenuButton('Paste').disabled).toBe(false);
+    expect(openedMenuButton('Paste in Place').disabled).toBe(true);
 
     useUiStore.setState({ hasClipboard: true });
     rerender(<MenuBar />);
     expect(openedMenuButton('Paste').disabled).toBe(false);
+    expect(openedMenuButton('Paste in Place').disabled).toBe(false);
+  });
+
+  it('keeps non-destructive Edit commands available in Run mode', () => {
+    setProjectWithSelection(['path1']);
+    useUiStore.setState({ workspaceMode: 'run', hasClipboard: true });
+
+    render(<MenuBar />);
+    fireEvent.click(screen.getByText('Edit'));
+
+    expect(openedMenuButton('Copy').disabled).toBe(false);
+    expect(openedMenuButton('Select').disabled).toBe(false);
+    expect(openedMenuButton('Cut').disabled).toBe(true);
+    expect(openedMenuButton('Paste').disabled).toBe(true);
+    expect(openedMenuButton('Delete').disabled).toBe(true);
+    expect(openedMenuButton('Convert to Path').disabled).toBe(true);
+    expect(openedMenuButton('Cleanup').disabled).toBe(true);
   });
 
   it('Arrange menu follows the product order', () => {
@@ -431,13 +451,11 @@ describe('MenuBar', () => {
     expect(openedMenuLabels()).toEqual([
       'Group',
       'Ungroup',
-      'Ungroup',
       'Auto-Group',
-      'Flip Horizontal / Vertical',
+      'Transform',
       'Flip Horizontal',
       'Flip Vertical',
       'Mirror Across Line',
-      'Rotate 90° Clockwise / Counter-Clockwise',
       'Rotate 90° Clockwise',
       'Rotate 90° Counter-Clockwise',
       'Two-Point Rotate / Scale',
@@ -473,21 +491,6 @@ describe('MenuBar', () => {
       'Move to Right',
       'Move to Top',
       'Move to Bottom',
-      'Move Laser to Selection',
-      'Move Laser to Selection Center',
-      'Move Laser to Upper Left of Selection',
-      'Move Laser to Upper Right of Selection',
-      'Move Laser to Lower Left of Selection',
-      'Move Laser to Lower Right of Selection',
-      'Move Laser to Left of Selection',
-      'Move Laser to Right of Selection',
-      'Move Laser to Top of Selection',
-      'Move Laser to Bottom of Selection',
-      'Jog Laser',
-      'Jog Laser Left',
-      'Jog Laser Right',
-      'Jog Laser Up',
-      'Jog Laser Down',
       'Grid Array',
       'Circular Array',
       'Copy Along Path',
@@ -539,6 +542,10 @@ describe('MenuBar', () => {
     expect(screen.getByText('Move V Together')).toBeDefined();
     expect(screen.getByText('Dock')).toBeDefined();
     expect(screen.getByText('Move Selected Objects')).toBeDefined();
+    expect(screen.queryByText('Move Laser to Selection')).toBeNull();
+
+    fireEvent.click(screen.getByText('Arrange'));
+    fireEvent.click(screen.getByText('Laser Tools'));
     expect(screen.getByText('Move Laser to Selection')).toBeDefined();
   });
 
@@ -603,6 +610,7 @@ describe('MenuBar', () => {
     setProjectWithSelection(['img1']);
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByText('Cleanup'));
     expect(screen.getByRole('button', { name: /Close Path/ }).hasAttribute('disabled')).toBe(true);
   });
 
@@ -675,29 +683,33 @@ describe('MenuBar', () => {
     );
   });
 
-  it('captures the launch-time selection for Grid Array', () => {
-    const gridArray = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({ gridArray } as never);
+  it('captures the launch-time selection for the Grid Array Properties session', () => {
     setProjectWithSelection(['txt1', 'path1']);
 
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Arrange'));
     fireEvent.click(screen.getByText('Grid Array'));
 
+    expect(useUiStore.getState().modifierPropertiesSession).toEqual({
+      kind: 'grid_array',
+      objectIds: ['txt1', 'path1'],
+    });
+
     act(() => {
       useProjectStore.setState({ selectedObjectIds: ['path2'] });
     });
-    fireEvent.click(screen.getByTestId('grid-array-submit'));
 
-    expect(gridArray).toHaveBeenCalledWith(expect.objectContaining({
+    expect(useUiStore.getState().modifierPropertiesSession).toEqual({
+      kind: 'grid_array',
       objectIds: ['txt1', 'path1'],
-    }));
+    });
   });
 
   it('enables Close & Join for clone-backed vector selections', () => {
     setProjectWithSelection(['clone1', 'path2']);
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByText('Cleanup'));
     expect(screen.getByRole('button', { name: 'Close & Join' }).hasAttribute('disabled')).toBe(false);
   });
 
@@ -712,39 +724,13 @@ describe('MenuBar', () => {
     expect(exportArtwork).toHaveBeenCalled();
   });
 
-  it('wires File print menu items to print modes', () => {
-    const printProject = vi.spyOn(printService, 'printProject').mockResolvedValue(undefined);
+  it('opens the consolidated print dialog from File', () => {
     setProjectWithSelection();
 
     render(<MenuBar />);
     fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Print (black only)'));
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Print (keep colors)'));
-
-    expect(printProject).toHaveBeenNthCalledWith(1, 'black');
-    expect(printProject).toHaveBeenNthCalledWith(2, 'color');
-  });
-
-  it('enables Save Processed Bitmap for a raster selection', () => {
-    const saveProcessedBitmap = vi.spyOn(persistenceService, 'saveProcessedBitmap').mockResolvedValue('/tmp/processed.png');
-    setProjectWithSelection(['img1']);
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    const item = screen.getByRole('button', { name: 'Save Processed Bitmap' });
-    expect(item.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(item);
-
-    expect(saveProcessedBitmap).toHaveBeenCalledWith('img1');
-  });
-
-  it('disables Save Processed Bitmap for non-raster selections', () => {
-    setProjectWithSelection(['txt1']);
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    expect(screen.getByRole('button', { name: 'Save Processed Bitmap' }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByText('Print...'));
+    expect(screen.getByRole('dialog', { name: 'Print' })).toBeDefined();
   });
 
   it('shows the expected File submenu structure', () => {
@@ -752,17 +738,17 @@ describe('MenuBar', () => {
     render(<MenuBar />);
     fireEvent.click(screen.getByText('File'));
 
-    expect(screen.getByText('New Window')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'New Window' }).hasAttribute('disabled')).toBe(false);
     expect(screen.getByText('Recent Projects')).toBeDefined();
-    expect(screen.getByText('Preferences')).toBeDefined();
-    expect(screen.getByText('Import Prefs')).toBeDefined();
-    expect(screen.getByText('Export Prefs')).toBeDefined();
-    expect(screen.getByText('Reset Prefs to Defaults')).toBeDefined();
+    expect(screen.queryByText('New Window')).toBeNull();
+    expect(screen.queryByText('Preferences')).toBeNull();
+    expect(screen.queryByText('Import Prefs')).toBeNull();
+    expect(screen.queryByText('Export Prefs')).toBeNull();
+    expect(screen.queryByText('Reset Prefs to Defaults')).toBeNull();
     expect(screen.queryByText('Bundles')).toBeNull();
     expect(screen.queryByText('Import Bundles')).toBeNull();
-    expect(screen.getByText('Print (black only)')).toBeDefined();
-    expect(screen.getByText('Save Background Capture')).toBeDefined();
+    expect(screen.getByText('Print...')).toBeDefined();
+    expect(screen.queryByText('Save Background Capture')).toBeNull();
+    expect(screen.queryByText('Save Processed Bitmap')).toBeNull();
   });
 
   it('Edit Settings opens the live preferences dialog', () => {
@@ -770,87 +756,6 @@ describe('MenuBar', () => {
     fireEvent.click(screen.getByText('Edit'));
     fireEvent.click(screen.getByText('Settings'));
     expect(screen.getByRole('dialog', { name: 'Preferences' })).toBeDefined();
-  });
-
-  it('File Preferences export writes a .bbprefs file', async () => {
-    vi.mocked(save).mockResolvedValue('/tmp/beam-bench.bbprefs');
-    vi.mocked(invoke).mockImplementation(async (command: string) => {
-      if (command === 'get_app_settings') return makeAppSettings();
-      if (command === 'export_preferences') return '/tmp/beam-bench.bbprefs';
-      return null;
-    });
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Export Prefs'));
-
-    await waitFor(() => {
-      expect(save).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Export Preferences',
-        defaultPath: 'beam-bench.bbprefs',
-      }));
-      expect(invoke).toHaveBeenCalledWith('export_preferences', { path: '/tmp/beam-bench.bbprefs' });
-    });
-  });
-
-  it('File Preferences reset restores backend defaults after confirmation', async () => {
-    vi.mocked(invoke).mockImplementation(async (command: string) => {
-      if (command === 'get_app_settings') return makeAppSettings();
-      if (command === 'reset_preferences') return makeAppSettings({ autosave_enabled: false });
-      return null;
-    });
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Reset Prefs to Defaults'));
-
-    const dialog = screen.getByRole('dialog', { name: 'Reset Prefs to Defaults' });
-    expect(dialog).toBeDefined();
-    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
-
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith('reset_preferences');
-    });
-  });
-
-  it('File Preferences reset cancel closes the dialog without resetting', async () => {
-    vi.mocked(invoke).mockImplementation(async (command: string) => {
-      if (command === 'get_app_settings') return makeAppSettings();
-      return null;
-    });
-
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Reset Prefs to Defaults'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Reset Prefs to Defaults' })).toBeNull();
-    });
-    expect(invoke).not.toHaveBeenCalledWith('reset_preferences');
-  });
-
-  it('File Preferences hides the shelved hotkey editor', () => {
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-    expect(screen.queryByText('Edit Hotkeys...')).toBeNull();
-    expect(screen.queryByRole('dialog', { name: 'Edit Hotkeys' })).toBeNull();
-  });
-
-  it('opens File submenus from the keyboard', () => {
-    setProjectWithSelection();
-    render(<MenuBar />);
-    fireEvent.click(screen.getByText('File'));
-
-    const preferences = screen.getByRole('button', { name: /Preferences/ });
-    expect(preferences.getAttribute('aria-expanded')).toBe('false');
-
-    fireEvent.keyDown(preferences, { key: 'Enter' });
-    expect(preferences.getAttribute('aria-expanded')).toBe('true');
-
-    fireEvent.keyDown(preferences, { key: 'Escape' });
-    expect(preferences.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('lists every supported locale in the Language menu', () => {
@@ -895,18 +800,23 @@ describe('MenuBar', () => {
 
     const labels = Array.from(menu?.querySelectorAll('button') ?? [])
       .map((button) => button.querySelector('span')?.textContent?.replace('\u2713', '').trim())
-      .filter(Boolean);
+      .filter((label) => label && !['Artwork Display:', 'Panels', 'Toolbar'].includes(label));
     const expectedLabels = WINDOW_MENU_COMMAND_ORDER.map((commandId) => {
       if (commandId === APP_COMMANDS.WINDOW_SIDE_PANELS) return 'Toggle Side Panels';
       return getCommand(commandId)?.label;
     });
 
     expect(labels).toEqual(expectedLabels);
-    expect(menu?.textContent).toContain('View Style:');
+    expect(menu?.textContent).toContain('Artwork Display:');
     expect(screen.getByText('Toggle Side Panels')).toBeDefined();
-    expect(screen.getByText('Wireframe / Smooth')).toBeDefined();
+    expect(screen.getByText('By Layer Operation')).toBeDefined();
+    expect(screen.getByText('Wireframe Override')).toBeDefined();
+    expect(screen.getByText('Filled Override')).toBeDefined();
+    expect(screen.getByText('Smooth Edges')).toBeDefined();
     expect(screen.getByText('Camera Control')).toBeDefined();
-    expect(screen.getByText('Shape Properties')).toBeDefined();
+    expect(screen.getByText('Project Notes')).toBeDefined();
+    expect(screen.getByText('Layers')).toBeDefined();
+    expect(screen.getByText('Properties')).toBeDefined();
     expect(screen.queryByText('Variable Text')).toBeNull();
     expect(screen.queryByText('File List')).toBeNull();
     expect(screen.queryByText('Modes')).toBeNull();

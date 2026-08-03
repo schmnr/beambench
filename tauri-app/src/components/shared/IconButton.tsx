@@ -15,7 +15,7 @@ export function IconButton({ icon, label, onClick, disabled, active, size = 'md'
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`${dim} flex items-center justify-center rounded ${
+      className={`${dim} flex items-center justify-center rounded-lg ${
         active
           ? 'bg-bb-accent/15 border border-bb-accent/30 text-bb-text'
           : disabled

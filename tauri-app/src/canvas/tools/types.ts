@@ -26,6 +26,8 @@ export interface ToolContext {
   selectedLayerId: string | null;
   layers: { id: string; enabled: boolean; visible?: boolean; operation?: string }[];
   transformLocks?: TransformLocks;
+  /** Selection remains available, but project geometry must not be mutated. */
+  readOnly?: boolean;
   snapEnabled: boolean;
   snapToObjects: boolean;
   gridSpacingMm: number;
@@ -48,6 +50,8 @@ export interface ToolContext {
   setCursorWorldPos: (pos: Point2D | null) => void;
   setStatusMessage: (msg: string) => void;
   requestRender: () => void;
+  /** Repaint transient handles/guides without redrawing project geometry. */
+  requestOverlayRender?: () => void;
 }
 
 export interface CanvasTool {

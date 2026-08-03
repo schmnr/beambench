@@ -10,9 +10,9 @@ import {
   setAppCommandDialogActions,
 } from './appCommands';
 import { persistenceService } from '../services/persistenceService';
-import { printService } from '../services/printService';
 import { appService } from '../services/appService';
 import { useProjectStore } from '../stores/projectStore';
+import { useMachineStore } from '../stores/machineStore';
 import { usePreviewStore } from '../stores/previewStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUndoStore } from '../stores/undoStore';
@@ -23,6 +23,7 @@ import { DEFAULT_TOOLBAR_VISIBILITY } from '../panels';
 import i18n, { SUPPORTED_LOCALES } from '../i18n';
 
 const initialProjectState = useProjectStore.getState();
+const initialMachineState = useMachineStore.getState();
 const initialPreviewState = usePreviewStore.getState();
 const initialUiState = useUiStore.getState();
 const initialUndoState = useUndoStore.getState();
@@ -31,6 +32,7 @@ const initialAppState = useAppStore.getState();
 afterEach(() => {
   vi.restoreAllMocks();
   useProjectStore.setState(initialProjectState, true);
+  useMachineStore.setState(initialMachineState, true);
   usePreviewStore.setState(initialPreviewState, true);
   useUiStore.setState(initialUiState, true);
   useUndoStore.setState(initialUndoState, true);
@@ -57,24 +59,14 @@ describe('app command bridge', () => {
     });
   });
 
-  it('executes print commands with the requested print mode', async () => {
+  it('opens the consolidated print dialog', async () => {
     const project = makeProject();
     useProjectStore.setState({ project });
-    const printProject = vi.spyOn(printService, 'printProject').mockResolvedValue(undefined);
+    const openPrint = vi.fn();
 
-    await executeAppCommand(APP_COMMANDS.FILE_PRINT_BLACK);
-    await executeAppCommand(APP_COMMANDS.FILE_PRINT_COLORS);
+    await executeAppCommand(APP_COMMANDS.FILE_PRINT, { openPrint });
 
-    expect(printProject).toHaveBeenNthCalledWith(1, 'black');
-    expect(printProject).toHaveBeenNthCalledWith(2, 'color');
-  });
-
-  it('executes New Window through the app service', async () => {
-    const openNewWindow = vi.spyOn(appService, 'openNewWindow').mockResolvedValue('main-test');
-
-    await executeAppCommand(APP_COMMANDS.FILE_NEW_WINDOW);
-
-    expect(openNewWindow).toHaveBeenCalledOnce();
+    expect(openPrint).toHaveBeenCalledOnce();
   });
 
   it('quits through the Tauri window close, not the browser window.close', async () => {
@@ -137,13 +129,78 @@ describe('app command bridge', () => {
       enabled: true,
     }));
     expect(state.items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_PRINT_BLACK,
+      id: APP_COMMANDS.FILE_PRINT,
       enabled: true,
+    }));
+  });
+
+  it('enables the native Position Laser command only in Run mode', () => {
+    useProjectStore.setState({ project: makeProject() });
+    const positionLaserState = () => [...getAppCommandState().items].reverse().find(
+      (item) => item.id === APP_COMMANDS.TOOLS_POSITION_LASER,
+    );
+
+    expect(positionLaserState()?.enabled).toBe(false);
+    useUiStore.getState().setWorkspaceMode('run');
+    useMachineStore.setState({
+      sessionState: 'ready',
+      machineStatus: {
+        run_state: 'idle',
+        machine_position: { x: 0, y: 0, z: 0 },
+        work_position: { x: 0, y: 0, z: 0 },
+        feed_rate: 0,
+        spindle_speed: 0,
+        feed_override: 100,
+        spindle_override: 100,
+        rapid_override: 100,
+        pin_states: '',
+      },
+    });
+    expect(positionLaserState()?.enabled).toBe(true);
+  });
+
+  it('blocks design tools and object arrangement while Run mode is active', async () => {
+    const project = makeProject();
+    const alignObjects = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: [project.objects[0].id],
+      alignObjects,
+    } as never);
+    useUiStore.setState({ workspaceMode: 'run', activeTool: 'select' });
+
+    const state = getAppCommandState();
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.TOOLS_RECTANGLE,
+      enabled: false,
     }));
     expect(state.items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_PRINT_COLORS,
+      id: APP_COMMANDS.ARRANGE_ALIGN_LEFT,
+      enabled: false,
+    }));
+
+    await executeAppCommand(APP_COMMANDS.TOOLS_RECTANGLE);
+    await executeAppCommand(APP_COMMANDS.ARRANGE_ALIGN_LEFT);
+
+    expect(useUiStore.getState().activeTool).toBe('select');
+    expect(alignObjects).not.toHaveBeenCalled();
+  });
+
+  it('generates a stale preview before saving machine files', async () => {
+    const exportGcode = vi.fn().mockResolvedValue(undefined);
+    const generatePreview = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({ project: makeProject(), exportGcode } as never);
+    usePreviewStore.setState({ state: 'stale', generatePreview });
+
+    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.FILE_SAVE_MACHINE_FILES,
       enabled: true,
     }));
+
+    await executeAppCommand(APP_COMMANDS.FILE_SAVE_MACHINE_FILES);
+
+    expect(generatePreview).toHaveBeenCalledOnce();
+    expect(exportGcode).toHaveBeenCalledOnce();
   });
 
   it('localizes native menu dynamic titles from the active i18n language', async () => {
@@ -155,8 +212,6 @@ describe('app command bridge', () => {
         project,
         selectedObjectIds: [project.objects[0].id],
       });
-      useUiStore.setState({ showNotesDialog: true });
-
       const state = getAppCommandState();
       expect(state.items).toContainEqual(expect.objectContaining({
         id: APP_COMMANDS.FILE_EXPORT,
@@ -164,11 +219,23 @@ describe('app command bridge', () => {
       }));
       expect(state.items).toContainEqual(expect.objectContaining({
         id: APP_COMMANDS.FILE_NOTES,
-        title: i18n.t('menus.file.hide_notes'),
+        title: i18n.t('menus.file.project_notes'),
       }));
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
+  });
+
+  it('opens Project Notes in the bottom dock', async () => {
+    useProjectStore.setState({ project: makeProject() });
+
+    await executeAppCommand(APP_COMMANDS.FILE_NOTES);
+
+    const layout = useUiStore.getState().panelLayout;
+    expect(layout.zones.bottom.panelIds).toContain('notes');
+    expect(layout.zones.bottom.activeTab).toBe('notes');
+    expect(layout.hiddenPanelIds).not.toContain('notes');
+    expect(layout.bottomPanelHeight).toBe(220);
   });
 
   it('routes Laser Tools test commands to their dialogs', async () => {
@@ -214,27 +281,42 @@ describe('app command bridge', () => {
     }));
   });
 
-  it('enables Save Processed Bitmap for clone-backed raster selections', () => {
-    const base = makeProject().objects[0];
-    const raster = {
-      ...base,
-      id: 'img-1',
-      data: { type: 'raster_image' as const, asset_key: 'asset-1', original_width_px: 100, original_height_px: 100 },
-    };
-    const clone = {
-      ...base,
-      id: 'clone-1',
-      data: { type: 'virtual_clone' as const, source_id: 'img-1' },
-    };
+  it('inverts object selection instead of adding the inverse to the current selection', async () => {
+    const first = makeProjectObject({ id: 'first', z_index: 0 });
+    const second = makeProjectObject({ id: 'second', z_index: 1 });
+    const hidden = makeProjectObject({ id: 'hidden', z_index: 2, visible: false });
     useProjectStore.setState({
-      project: makeProject({ objects: [raster, clone] }),
-      selectedObjectIds: ['clone-1'],
+      project: makeProject({ objects: [first, second, hidden] }),
+      selectedObjectIds: ['first'],
     });
 
-    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_SAVE_PROCESSED_BITMAP,
+    await executeAppCommand(APP_COMMANDS.EDIT_INVERT_SELECTION);
+
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['second']);
+  });
+
+  it('disables and blocks destructive Edit commands in Run mode', async () => {
+    const project = makeProject();
+    const removeObjects = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: [project.objects[0].id],
+      removeObjects,
+    } as never);
+    useUiStore.setState({ workspaceMode: 'run' });
+
+    const state = getAppCommandState();
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.EDIT_DELETE,
+      enabled: false,
+    }));
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.EDIT_COPY,
       enabled: true,
     }));
+
+    await executeAppCommand(APP_COMMANDS.EDIT_DELETE);
+    expect(removeObjects).not.toHaveBeenCalled();
   });
 
   it('enables Refresh Image only when the selected raster asset has source_path', () => {
@@ -273,6 +355,36 @@ describe('app command bridge', () => {
     expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
       id: APP_COMMANDS.EDIT_IMAGE_REFRESH,
       enabled: true,
+    }));
+  });
+
+  it('does not offer vector conversion or image replacement for incompatible selections', async () => {
+    const raster = makeProjectObject({
+      id: 'img-1',
+      data: { type: 'raster_image' as const, asset_key: 'asset-1', original_width_px: 100, original_height_px: 100 },
+    });
+    const convertToBitmap = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeProject({ objects: [raster] }),
+      selectedObjectIds: ['img-1'],
+      convertToBitmap,
+    } as never);
+
+    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.EDIT_CONVERT_TO_BITMAP,
+      enabled: false,
+    }));
+
+    await executeAppCommand(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP);
+    expect(convertToBitmap).not.toHaveBeenCalled();
+
+    useProjectStore.setState({
+      project: makeProject({ objects: [{ ...raster, locked: true }] }),
+      selectedObjectIds: ['img-1'],
+    });
+    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.EDIT_IMAGE_REPLACE,
+      enabled: false,
     }));
   });
 
@@ -316,16 +428,8 @@ describe('app command bridge', () => {
       enabled: false,
     }));
     expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_PRINT_BLACK,
+      id: APP_COMMANDS.FILE_PRINT,
       enabled: false,
-    }));
-    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_PRINT_COLORS,
-      enabled: false,
-    }));
-    expect(getAppCommandState().items).toContainEqual(expect.objectContaining({
-      id: APP_COMMANDS.FILE_NEW_WINDOW,
-      enabled: true,
     }));
   });
 
@@ -340,30 +444,58 @@ describe('app command bridge', () => {
     });
 
     await executeAppCommand(APP_COMMANDS.TOOLS_WARP_SELECTION);
-    expect(useUiStore.getState().activeTool).toBe('warp_selection');
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(useUiStore.getState().meshDeformMode).toBe('warp');
 
     await executeAppCommand(APP_COMMANDS.TOOLS_DEFORM_SELECTION);
-    expect(useUiStore.getState().activeTool).toBe('deform_selection');
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(useUiStore.getState().meshDeformMode).toBe('mesh');
   });
 
-  it('routes native preference commands to dialog launchers', async () => {
-    const openImportPreferences = vi.fn();
-    const openExportPreferences = vi.fn();
-    const openPreferencesFolder = vi.fn();
-    const resetPreferences = vi.fn();
-    const openHotkeyEditor = vi.fn();
+  it('disables mutating Tools commands when any required object is locked', () => {
+    const first = makeProjectObject({
+      id: 'path-1',
+      data: { type: 'vector_path' as const, path_data: 'M 0 0 L 10 0 L 10 10 Z', closed: true },
+    });
+    const second = makeProjectObject({
+      id: 'path-2',
+      locked: true,
+      data: { type: 'vector_path' as const, path_data: 'M 2 2 L 8 2 L 8 8 Z', closed: true },
+    });
+    useProjectStore.setState({
+      project: makeProject({ objects: [first, second] }),
+      selectedObjectIds: ['path-1', 'path-2'],
+    });
 
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_IMPORT, { openImportPreferences });
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_EXPORT, { openExportPreferences });
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_OPEN_FOLDER, { openPreferencesFolder });
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_RESET_DEFAULTS, { resetPreferences });
-    await executeAppCommand(APP_COMMANDS.FILE_PREFS_EDIT_HOTKEYS, { openHotkeyEditor });
+    const state = getAppCommandState();
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.TOOLS_BOOLEAN_UNION,
+      enabled: false,
+    }));
+    expect(state.items).toContainEqual(expect.objectContaining({
+      id: APP_COMMANDS.TOOLS_CUT_SHAPES,
+      enabled: false,
+    }));
+  });
 
-    expect(openImportPreferences).toHaveBeenCalledOnce();
-    expect(openExportPreferences).toHaveBeenCalledOnce();
-    expect(openPreferencesFolder).toHaveBeenCalledOnce();
-    expect(resetPreferences).toHaveBeenCalledOnce();
-    expect(openHotkeyEditor).not.toHaveBeenCalled();
+  it('activates Warp for an imported SVG group with compatible children', async () => {
+    const child = makeProjectObject({
+      id: 'path-child',
+      data: { type: 'vector_path' as const, path_data: 'M 0 0 L 10 0 L 10 10 Z', closed: true },
+    });
+    const group = makeProjectObject({
+      id: 'svg-group',
+      data: { type: 'group' as const, children: ['path-child'] },
+    });
+    useProjectStore.setState({
+      project: makeProject({ objects: [group, child] }),
+      selectedObjectIds: ['svg-group'],
+    });
+
+    await executeAppCommand(APP_COMMANDS.TOOLS_WARP_SELECTION);
+
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(useUiStore.getState().meshDeformMode).toBe('warp');
   });
 
   it('routes App Preferences and Edit Settings to the same settings dialog action', async () => {
@@ -442,7 +574,7 @@ describe('app command bridge', () => {
 
     useProjectStore.setState({ selectedObjectIds: ['outer', 'child', 'peer'] });
     expect(stateItem(APP_COMMANDS.ARRANGE_DISTRIBUTE_H_CENTERED)).toMatchObject({ enabled: true });
-    expect(stateItem(APP_COMMANDS.ARRANGE_AUTO_GROUP)).toMatchObject({ enabled: true });
+    expect(stateItem(APP_COMMANDS.ARRANGE_AUTO_GROUP)).toMatchObject({ enabled: false });
 
     useProjectStore.setState({
       project: makeProject({ objects: objects.map((object) => ({ ...object, locked: true })) }),
@@ -462,10 +594,11 @@ describe('app command bridge', () => {
     usePreviewStore.setState({ previewWindowOpen: true });
     useUiStore.setState({
       sidePanelsVisible: false,
-      viewStyle: 'filled_coarse',
+      artworkDisplayMode: 'filled',
+      smoothEdges: false,
       panelLayout: {
         ...useUiStore.getState().panelLayout,
-        hiddenPanelIds: ['console'],
+        hiddenPanelIds: ['console', 'notes'],
         toolbarVisibility: { ...DEFAULT_TOOLBAR_VISIBILITY, arrangeLong: true, docking: false },
       },
     });
@@ -476,9 +609,12 @@ describe('app command bridge', () => {
     expect(stateItem(APP_COMMANDS.WINDOW_ZOOM_TO_PAGE)).toMatchObject({ enabled: true });
     expect(stateItem(APP_COMMANDS.WINDOW_FRAME_SELECTION)).toMatchObject({ enabled: false });
     expect(stateItem(APP_COMMANDS.WINDOW_SIDE_PANELS)).toMatchObject({ checked: false });
-    expect(stateItem(APP_COMMANDS.WINDOW_VIEW_STYLE_FILLED_COARSE)).toMatchObject({ checked: true });
-    expect(stateItem(APP_COMMANDS.WINDOW_VIEW_STYLE_WIREFRAME_SMOOTH)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_FILLED)).toMatchObject({ checked: true });
+    expect(stateItem(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_BY_LAYER)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.WINDOW_SMOOTH_EDGES)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_PANEL_CONSOLE)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.WINDOW_PANEL_NOTES)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.WINDOW_PANEL_OUTLINER)).toMatchObject({ checked: true });
     expect(stateItem(APP_COMMANDS.WINDOW_TOOLBAR_ARRANGE_LONG)).toMatchObject({ checked: true });
     expect(stateItem(APP_COMMANDS.WINDOW_TOOLBAR_DOCKING)).toMatchObject({ checked: false });
 
@@ -522,28 +658,33 @@ describe('app command bridge', () => {
   it('executes Window view and toolbar toggles through app commands', async () => {
     const updateSettings = vi.spyOn(appService, 'updateSettings').mockImplementation(async (updates) => makeAppSettings({
       antialiasing: updates.antialiasing ?? false,
-      filled_rendering: updates.filled_rendering ?? false,
+      artwork_display_mode: updates.artwork_display_mode ?? 'by_layer',
     }));
     useUiStore.setState({
-      viewStyle: 'wireframe_smooth',
+      artworkDisplayMode: 'by_layer',
+      smoothEdges: true,
       panelLayout: {
         ...useUiStore.getState().panelLayout,
         toolbarVisibility: { ...DEFAULT_TOOLBAR_VISIBILITY },
       },
     });
 
-    await executeAppCommand(APP_COMMANDS.WINDOW_VIEW_STYLE_FILLED_SMOOTH);
-    expect(useUiStore.getState().viewStyle).toBe('filled_smooth');
+    await executeAppCommand(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_FILLED);
+    expect(useUiStore.getState().artworkDisplayMode).toBe('filled');
     expect(updateSettings).toHaveBeenNthCalledWith(1, {
-      antialiasing: true,
-      filled_rendering: true,
+      artwork_display_mode: 'filled',
     });
 
-    await executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED);
-    expect(useUiStore.getState().viewStyle).toBe('wireframe_smooth');
+    await executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME);
+    expect(useUiStore.getState().artworkDisplayMode).toBe('wireframe');
     expect(updateSettings).toHaveBeenNthCalledWith(2, {
-      antialiasing: true,
-      filled_rendering: false,
+      artwork_display_mode: 'wireframe',
+    });
+
+    await executeAppCommand(APP_COMMANDS.WINDOW_SMOOTH_EDGES);
+    expect(useUiStore.getState().smoothEdges).toBe(false);
+    expect(updateSettings).toHaveBeenNthCalledWith(3, {
+      antialiasing: false,
     });
 
     await executeAppCommand(APP_COMMANDS.WINDOW_TOOLBAR_DOCKING);
@@ -870,6 +1011,30 @@ describe('app command bridge', () => {
       enabled: true,
       accelerator: 'F2',
     }));
+  });
+
+  it('routes native edit commands to node editing while the node tool is active', async () => {
+    const project = makeProject();
+    useProjectStore.setState({ project, selectedObjectIds: [project.objects[0].id] });
+    useUiStore.setState({ activeTool: 'node' });
+    const actions: string[] = [];
+    const listener = (event: Event) => {
+      actions.push((event as CustomEvent<string>).detail);
+    };
+    window.addEventListener('bb:node-edit-action', listener);
+
+    try {
+      await executeAppCommand(APP_COMMANDS.EDIT_SELECT_ALL);
+      await executeAppCommand(APP_COMMANDS.EDIT_COPY);
+      await executeAppCommand(APP_COMMANDS.EDIT_CUT);
+      await executeAppCommand(APP_COMMANDS.EDIT_PASTE);
+      await executeAppCommand(APP_COMMANDS.EDIT_DELETE);
+      await executeAppCommand(APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH);
+    } finally {
+      window.removeEventListener('bb:node-edit-action', listener);
+    }
+
+    expect(actions).toEqual(['select_all', 'copy', 'cut', 'paste', 'delete', 'extract']);
   });
 
   it('reports recent files for native submenu rebuilds', () => {

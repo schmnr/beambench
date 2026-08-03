@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::mpsc;
@@ -369,19 +370,80 @@ pub fn export_ai(
 pub fn render_print_document(
     svc: State<'_, Arc<ServiceContext>>,
     mode: String,
+    appearance: Option<String>,
 ) -> Result<PrintDocumentResponse, String> {
     let mode = match mode.as_str() {
         "black" => beambench_core::PrintMode::Black,
         "color" => beambench_core::PrintMode::Color,
         _ => return Err(format!("Unsupported print mode: {mode}")),
     };
+    let appearance = match appearance.as_deref().unwrap_or("operation") {
+        "operation" => beambench_core::PrintAppearance::Operation,
+        "outline" => beambench_core::PrintAppearance::Outline,
+        value => return Err(format!("Unsupported print appearance: {value}")),
+    };
     let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
     let project = guard.as_ref().ok_or("No project open")?;
-    let document = beambench_core::render_print_document(project, mode)?;
+    let document = beambench_core::render_print_document_with_options(
+        project,
+        mode,
+        appearance,
+        false,
+        &[],
+        false,
+    )?;
     Ok(PrintDocumentResponse {
         title: document.title,
         svg: document.svg,
     })
+}
+
+#[tauri::command]
+pub fn export_bitmap_document(
+    svc: State<'_, Arc<ServiceContext>>,
+    path: String,
+    format: String,
+    selection_only: bool,
+    selected_ids: Vec<String>,
+    pixels_per_mm: Option<f64>,
+) -> Result<String, String> {
+    let parsed_ids: Vec<ObjectId> = selected_ids
+        .iter()
+        .map(|id| parse_id(id))
+        .collect::<Result<Vec<_>, _>>()?;
+    let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+    let project = guard.as_ref().ok_or("No project open")?;
+    let png = beambench_core::render_print_png_with_options(
+        project,
+        beambench_core::PrintMode::Color,
+        beambench_core::PrintAppearance::Operation,
+        selection_only,
+        &parsed_ids,
+        selection_only,
+        pixels_per_mm.unwrap_or(4.0),
+    )?;
+
+    let bytes = match format.as_str() {
+        "png" => png,
+        "jpg" | "bmp" => {
+            let image = image::load_from_memory(&png)
+                .map_err(|error| format!("Failed to decode rendered bitmap: {error}"))?;
+            let image_format = if format == "jpg" {
+                image::ImageFormat::Jpeg
+            } else {
+                image::ImageFormat::Bmp
+            };
+            let mut output = Cursor::new(Vec::new());
+            image
+                .write_to(&mut output, image_format)
+                .map_err(|error| format!("Failed to encode {format} export: {error}"))?;
+            output.into_inner()
+        }
+        value => return Err(format!("Unsupported bitmap export format: {value}")),
+    };
+
+    std::fs::write(&path, bytes).map_err(|error| format!("Failed to write bitmap: {error}"))?;
+    Ok(path)
 }
 
 #[tauri::command]

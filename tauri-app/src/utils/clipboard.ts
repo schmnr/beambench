@@ -81,12 +81,24 @@ function selectedObjectSnapshots(objectIds: string[]): ObjectClipboard {
   return { objects, layers };
 }
 
-async function objectsForPaste(clip: ObjectClipboard): Promise<ProjectObject[]> {
+async function objectsForPaste(
+  clip: ObjectClipboard,
+  targetLayerId: string | null,
+): Promise<ProjectObject[]> {
   const objects = cloneObjects(clip.objects);
   const project = useProjectStore.getState().project;
-  if (!project || objects.length === 0 || clip.layers.length === 0) {
+  if (!project || objects.length === 0) {
     return objects;
   }
+
+  // Pasting into an explicitly selected layer follows normal editor behavior.
+  // The backend still routes incompatible content (for example raster artwork)
+  // to the nearest compatible counterpart when necessary.
+  if (targetLayerId && project.layers.some((layer) => layer.id === targetLayerId)) {
+    return objects.map((object) => ({ ...object, layer_id: targetLayerId }));
+  }
+
+  if (clip.layers.length === 0) return objects;
 
   const requiredLayerIds = new Set(objects.map((object) => object.layer_id));
   const layerIdMap = new Map<string, string>();
@@ -149,13 +161,15 @@ export function clipboardCopy(objectIds: string[]): void {
 export async function clipboardPaste(): Promise<void> {
   const clip = clipboard;
   if (!clip || clip.objects.length === 0) return;
-  await useProjectStore.getState().pasteObjects(await objectsForPaste(clip), false);
+  const store = useProjectStore.getState();
+  await store.pasteObjects(await objectsForPaste(clip, store.selectedLayerId), false);
 }
 
 export async function clipboardPasteInPlace(): Promise<void> {
   const clip = clipboard;
   if (!clip || clip.objects.length === 0) return;
-  await useProjectStore.getState().pasteObjects(await objectsForPaste(clip), true);
+  const store = useProjectStore.getState();
+  await store.pasteObjects(await objectsForPaste(clip, store.selectedLayerId), true);
 }
 
 export async function clipboardDuplicate(objectIds: string[]): Promise<void> {

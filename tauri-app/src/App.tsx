@@ -4,7 +4,6 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { AppShell } from './components/layout/AppShell';
 import { ToastContainer } from './components/shared/ToastContainer';
 import { RecoveryDialog } from './components/settings/RecoveryDialog';
-import { NotesDialog } from './components/dialogs/NotesDialog';
 import { PreviewWindow } from './components/dialogs/PreviewWindow';
 import { AboutDialog } from './components/settings/AboutDialog';
 import { UpdateDialog } from './components/settings/UpdateDialog';
@@ -13,7 +12,6 @@ import { SettingsDialog } from './components/settings/SettingsDialog';
 import { HotkeyEditorDialog } from './components/settings/HotkeyEditorDialog';
 import { TraceImageDialog } from './components/dialogs/TraceImageDialog';
 import { AdjustImageDialog } from './components/dialogs/AdjustImageDialog';
-import { OffsetDialog } from './components/dialogs/OffsetDialog';
 import { BooleanAssistantDialog } from './components/dialogs/BooleanAssistantDialog';
 import { BarcodeDialog } from './components/dialogs/BarcodeDialog';
 import { CloseSelectedPathsWithToleranceDialog } from './components/dialogs/CloseSelectedPathsWithToleranceDialog';
@@ -23,9 +21,9 @@ import { NestDialog } from './components/dialogs/NestDialog';
 import { MaterialTestDialog } from './components/dialogs/MaterialTestDialog';
 import { FocusTestDialog } from './components/dialogs/FocusTestDialog';
 import { IntervalTestDialog } from './components/dialogs/IntervalTestDialog';
+import { PrintDialog } from './components/dialogs/PrintDialog';
 import { FeedbackErrorBoundary } from './components/dialogs/FeedbackErrorBoundary';
 import { FeedbackReportDialog } from './components/dialogs/FeedbackReportDialog';
-import { PostJobCompatibilityDialog } from './components/dialogs/PostJobCompatibilityDialog';
 import { useAppStore } from './stores/appStore';
 import { useProjectStore } from './stores/projectStore';
 import { usePreviewStore } from './stores/previewStore';
@@ -50,7 +48,11 @@ import { captureBrowserCameraFrame } from './services/browserCameraCapture';
 import { exportCanvasScreenshot } from './services/canvasScreenshotExportService';
 import { getCanvasViewportSize } from './canvas/canvasViewportRegistry';
 import { zoomToFitBounds } from './canvas/ViewportTransform';
-import { isTransformLocked, notifyTransformLocked } from './utils/transformLocks';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyTransformLocked,
+} from './utils/transformLocks';
 import { matchesHotkey } from './utils/hotkeyMatch';
 import { createSelectionContext, isBooleanCompatible } from './commands/selectionContext';
 import {
@@ -66,8 +68,15 @@ import { APP_COMMANDS } from './commands/appCommandIds';
 import { defaultHotkeyIsOverriddenByEvent, findCommandForKeyboardEvent } from './commands/commandRegistry';
 import { appService } from './services/appService';
 import { feedbackService } from './services/feedbackService';
-import type { PhysicalDockZone } from './panels';
-import { normalizeToolbarVisibility } from './panels';
+import { machineService } from './services/machineService';
+import type { ColumnSplitRatios, PhysicalDockZone } from './panels';
+import {
+  COLUMN_ZONES,
+  createDefaultLayout,
+  normalizeToolbarVisibility,
+  getPanelById,
+  PANEL_LAYOUT_VERSION,
+} from './panels';
 import { discardRecoveryBatch } from './utils/recovery';
 import { lengthUnitLabel, mmToDisplay, roundDisplayLength } from './utils/lengthUnits';
 import {
@@ -90,6 +99,7 @@ import type { JobProgress } from './types/machine';
 import {
   postJobPromptFingerprint,
   recordPostJobPromptOutcome,
+  shouldOfferPostJobCompatibility,
   shouldShowPostJobPrompt,
 } from './utils/postJobCompatibilityPrompt';
 import { projectWindowTitle } from './utils/windowTitle';
@@ -121,23 +131,19 @@ interface CameraOverlayRenderRequestedPayload {
   };
 }
 
-interface PostJobCompatibilityPromptState {
-  fingerprint: string;
-  profileName?: string;
-}
-
 function isExportCancelledError(error: unknown): boolean {
   return String(error).toLowerCase().includes('cancelled');
 }
 
 function persistPostJobPromptOutcome(
   fingerprint: string,
-  outcome: 'completed' | 'problem' | 'not_now',
-): void {
+  outcome: 'offered' | 'completed',
+): boolean {
   try {
-    recordPostJobPromptOutcome(fingerprint, outcome, window.localStorage);
+    return recordPostJobPromptOutcome(fingerprint, outcome, window.localStorage);
   } catch {
     // Storage may be disabled; this preference is non-essential.
+    return false;
   }
 }
 
@@ -223,10 +229,14 @@ function NativeMenuBridge({ dialogActions }: { dialogActions: AppCommandDialogAc
   const canRedo = useUndoStore((s) => s.canRedo);
   const hasClipboard = useUiStore((s) => s.hasClipboard);
   const sidePanelsVisible = useUiStore((s) => s.sidePanelsVisible);
-  const viewStyle = useUiStore((s) => s.viewStyle);
-  const hiddenPanelIds = useUiStore((s) => s.panelLayout.hiddenPanelIds);
-  const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
-  const showNotesDialog = useUiStore((s) => s.showNotesDialog);
+  const artworkDisplayMode = useUiStore((s) => s.artworkDisplayMode);
+  const smoothEdges = useUiStore((s) => s.smoothEdges);
+  const panelLayout = useUiStore((s) => s.panelLayout);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const hiddenPanelIds = workspaceMode === 'run'
+    ? panelLayout.runHiddenPanelIds
+    : panelLayout.hiddenPanelIds;
+  const toolbarVisibility = panelLayout.toolbarVisibility;
   const textEditObjectId = useUiStore((s) => s.textEditObjectId);
   const showPreview = usePreviewStore((s) => s.showPreview);
   const previewWindowOpen = usePreviewStore((s) => s.previewWindowOpen);
@@ -351,11 +361,12 @@ function NativeMenuBridge({ dialogActions }: { dialogActions: AppCommandDialogAc
     recentFilesKey,
     selectedObjectIds,
     showPreview,
-    showNotesDialog,
     sidePanelsVisible,
     textEditObjectId,
     toolbarVisibilityKey,
-    viewStyle,
+    workspaceMode,
+    artworkDisplayMode,
+    smoothEdges,
     displayLanguage,
   ]);
 
@@ -483,56 +494,6 @@ function NestingOverlay() {
   );
 }
 
-function ResetPreferencesDialog({
-  onCancel,
-  onConfirm,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="reset-preferences-title"
-      className="fixed inset-0 z-[9500] flex items-center justify-center bg-black/20"
-      onClick={onCancel}
-    >
-      <div
-        className="w-[420px] max-w-[90vw] rounded-xl border border-bb-border bg-bb-panel shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-6 py-5 flex flex-col gap-4">
-          <h2 id="reset-preferences-title" className="text-sm font-semibold text-bb-text">
-            {i18n.t('menus.file.reset_preferences')}
-          </h2>
-          <p className="text-sm text-bb-text-muted">
-            {i18n.t('menus.file.reset_preferences_confirm')}
-          </p>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              data-testid="reset-preferences-cancel"
-              onClick={onCancel}
-              className="rounded border border-bb-border px-3 py-1.5 text-xs font-medium text-bb-text hover:bg-bb-hover"
-            >
-              {i18n.t('common.cancel')}
-            </button>
-            <button
-              type="button"
-              data-testid="reset-preferences-confirm"
-              onClick={onConfirm}
-              className="rounded bg-bb-accent px-3 py-1.5 text-xs font-semibold text-bb-on-accent hover:bg-bb-accent-hover"
-            >
-              {i18n.t('common.ok')}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function App() {
   const fetchStatus = useAppStore((s) => s.fetchStatus);
   const fetchSettings = useAppStore((s) => s.fetchSettings);
@@ -543,6 +504,7 @@ function App() {
   const updateDialogOpen = useUpdateStore((s) => s.dialogOpen);
   const runStartupUpdateCheck = useUpdateStore((s) => s.runStartupCheck);
   const welcomeDialogOpen = useWelcomeStore((s) => s.dialogOpen);
+  const projectBootstrapStartedRef = useRef(false);
 
   const [recoveries, setRecoveries] = useState<RecoveryInfo[]>([]);
   // dismissing the recovery dialog (X / backdrop) should hide it for
@@ -550,24 +512,20 @@ function App() {
   // dismiss flag lets recoveries stay in state so they can re-surface (e.g.
   // on re-mount or next startup) without being purged like Discard All.
   const [recoveryDismissed, setRecoveryDismissed] = useState(false);
-  const showNotesDialog = useUiStore((s) => s.showNotesDialog);
-  const setShowNotesDialog = useUiStore((s) => s.setShowNotesDialog);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showHotkeyEditorDialog, setShowHotkeyEditorDialog] = useState(false);
   const [traceDialogObjectId, setTraceDialogObjectId] = useState<string | null>(null);
   const [adjustDialogObjectId, setAdjustDialogObjectId] = useState<string | null>(null);
-  const [offsetDialogObjectIds, setOffsetDialogObjectIds] = useState<string[] | null>(null);
   const [booleanAssistantObjectIds, setBooleanAssistantObjectIds] = useState<string[] | null>(null);
   const [barcodeDialogLayerId, setBarcodeDialogLayerId] = useState<string | null>(null);
   const [nestDialogObjectIds, setNestDialogObjectIds] = useState<string[] | null>(null);
   const [closeToleranceObjectIds, setCloseToleranceObjectIds] = useState<string[] | null>(null);
   const [deleteDuplicatesCount, setDeleteDuplicatesCount] = useState<number | null>(null);
   const [feedbackDialog, setFeedbackDialog] = useState<FeedbackReportOpenDetail | null>(null);
-  const [postJobCompatibilityPrompt, setPostJobCompatibilityPrompt] = useState<PostJobCompatibilityPromptState | null>(null);
   const startupCrashPromptChecked = useRef(false);
   const [showMaterialTestDialog, setShowMaterialTestDialog] = useState(false);
-  const [showResetPreferencesDialog, setShowResetPreferencesDialog] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showFocusTestDialog, setShowFocusTestDialog] = useState(false);
   const [showIntervalTestDialog, setShowIntervalTestDialog] = useState(false);
   const deleteDuplicatesResolveRef = useRef<((confirmed: boolean) => void) | null>(null);
@@ -584,40 +542,6 @@ function App() {
         console.error('[Beam Bench] Failed to unregister camera agent bridge', error);
       });
     };
-  }, []);
-
-  const handleExportPreferences = useCallback(() => {
-    void runShortcutAsync(async () => {
-      const path = await appService.pickPreferencesExportPath();
-      await appService.exportPreferences(path);
-      useNotificationStore.getState().push(i18n.t('notifications.preferences_exported'), 'success');
-    });
-  }, []);
-
-  const handleImportPreferences = useCallback(() => {
-    void runShortcutAsync(async () => {
-      const path = await appService.pickPreferencesImportPath();
-      const settings = await appService.importPreferences(path);
-      useAppStore.getState().applySettings(settings);
-      useNotificationStore.getState().push(i18n.t('notifications.preferences_imported'), 'success');
-    });
-  }, []);
-
-  const handleResetPreferences = useCallback(() => {
-    setShowResetPreferencesDialog(true);
-  }, []);
-
-  const confirmResetPreferences = useCallback(() => {
-    setShowResetPreferencesDialog(false);
-    void runShortcutAsync(async () => {
-      const settings = await appService.resetPreferences();
-      useAppStore.getState().applySettings(settings);
-      useNotificationStore.getState().push(i18n.t('notifications.preferences_reset'), 'success');
-    });
-  }, []);
-
-  const handleOpenPreferencesFolder = useCallback(() => {
-    void runShortcutAsync(() => appService.openPreferencesFolder());
   }, []);
 
   const resolveDeleteDuplicatesDialog = useCallback((confirmed: boolean) => {
@@ -644,14 +568,13 @@ function App() {
   const nativeMenuDialogActions = useMemo<AppCommandDialogActions>(() => ({
     openAbout: () => setShowAboutDialog(true),
     openSettings: () => setShowSettingsDialog(true),
-    openImportPreferences: handleImportPreferences,
-    openExportPreferences: handleExportPreferences,
-    openPreferencesFolder: handleOpenPreferencesFolder,
-    resetPreferences: handleResetPreferences,
+    openPrint: () => setShowPrintDialog(true),
     openHotkeyEditor: () => setShowHotkeyEditorDialog(true),
     openTraceImage: (objectId: string) => setTraceDialogObjectId(objectId),
     openAdjustImage: (objectId: string) => setAdjustDialogObjectId(objectId),
-    openOffset: (objectIds: string[]) => setOffsetDialogObjectIds([...objectIds]),
+    openOffset: (objectIds: string[]) => useUiStore.getState().openModifierProperties('offset', objectIds),
+    openGridArray: (objectIds: string[]) => useUiStore.getState().openModifierProperties('grid_array', objectIds),
+    openCircularArray: (objectIds: string[]) => useUiStore.getState().openModifierProperties('circular_array', objectIds),
     openBooleanAssistant: (objectIds: string[]) => setBooleanAssistantObjectIds([...objectIds]),
     openBarcode: (layerId: string) => setBarcodeDialogLayerId(layerId),
     openNest: (objectIds: string[]) => setNestDialogObjectIds([...objectIds]),
@@ -668,10 +591,6 @@ function App() {
     }),
   }), [
     confirmDeleteDuplicates,
-    handleExportPreferences,
-    handleImportPreferences,
-    handleOpenPreferencesFolder,
-    handleResetPreferences,
   ]);
 
   useEffect(
@@ -763,29 +682,245 @@ function App() {
       });
       if (settings.panel_layout) {
         const pl = settings.panel_layout;
-        const floatingPanels = (pl.floating_panels ?? []).map((fp) => ({
-          panelId: fp.panel_id,
-          x: fp.x,
-          y: fp.y,
-          width: fp.width,
-          height: fp.height,
-          zIndex: fp.z_index,
-          originZone: fp.origin_zone ?? undefined,
-          originIndex: fp.origin_index ?? undefined,
-        }));
-        const maxZ = floatingPanels.reduce((max, fp) => Math.max(max, fp.zIndex), 0);
-        const restoredZones = Object.fromEntries(
-          Object.entries(pl.zones).map(([k, v]) => [k, { panelIds: v.panel_ids, activeTab: v.active_tab }])
-        ) as Record<PhysicalDockZone, { panelIds: string[]; activeTab: string }>;
-        // Ensure new zones exist for backward compat with old persisted layouts
-        if (!restoredZones['left']) restoredZones['left'] = { panelIds: [], activeTab: '' };
-        if (!restoredZones['bottom']) restoredZones['bottom'] = { panelIds: [], activeTab: '' };
+        if (
+          !pl.zones
+          || !Array.isArray(pl.hidden_panel_ids)
+          || !Array.isArray(pl.floating_panels)
+          || typeof pl.upper_split_ratio !== 'number'
+          || typeof pl.right_panel_width !== 'number'
+        ) {
+          throw new Error('Invalid persisted panel layout');
+        }
+        const defaults = createDefaultLayout();
+        // Drop panels that no longer exist (e.g. retired color_palette)
+        // from persisted layouts.
+        const knownPanel = (id: string) => getPanelById(id) !== undefined;
+        const restoreFloatingPanels = (panels: NonNullable<typeof pl.floating_panels>) =>
+          panels.filter((fp) => knownPanel(fp.panel_id)).map((fp) => ({
+            panelId: fp.panel_id,
+            // Clamp restored positions so the title bar is always reachable
+            // (saved on a larger window, or stranded by an old bug).
+            x: Math.max(0, Math.min(window.innerWidth - 100, fp.x)),
+            y: Math.max(0, Math.min(window.innerHeight - 40, fp.y)),
+            width: fp.width,
+            height: fp.height,
+            zIndex: fp.z_index,
+            originZone: fp.origin_zone ?? undefined,
+            originIndex: fp.origin_index ?? undefined,
+          }));
+        const restoreZones = (
+          persisted: Record<string, { panel_ids: string[]; active_tab: string }> | undefined,
+          fallback: typeof defaults.zones,
+        ) => {
+          const migrated: Record<string, { panel_ids: string[]; active_tab: string }> | undefined = persisted ? {
+            ...persisted,
+            'top-right': persisted['top-right'] ?? persisted['upper-right'],
+            'middle-right': persisted['middle-right'] ?? persisted['lower-right'],
+            'top-left': persisted['top-left'] ?? persisted.left,
+            'bottom-right': persisted['bottom-right'] ?? persisted.bottom,
+          } : undefined;
+          return Object.fromEntries(
+            (Object.keys(fallback) as PhysicalDockZone[]).map((zone) => {
+              const saved = migrated?.[zone];
+              if (!saved) return [zone, fallback[zone]];
+              const panelIds = saved.panel_ids.filter(knownPanel);
+              const activeTab = panelIds.includes(saved.active_tab) ? saved.active_tab : (panelIds[0] ?? '');
+              return [zone, { panelIds, activeTab }];
+            }),
+          ) as typeof defaults.zones;
+        };
+
+        const savedLayoutVersion = pl.layout_version ?? 0;
+        // Version 4 introduced the three-zone columns. Keep those split ratios
+        // intact while applying the narrower v5 repair below.
+        const legacyColumnLayout = savedLayoutVersion < 4;
+        let designZones = restoreZones(pl.zones, defaults.zones);
+        let runZones = !pl.run_zones || Object.keys(pl.run_zones).length === 0
+          ? defaults.runZones
+          : restoreZones(pl.run_zones, defaults.runZones);
+        const restoreColumnRatios = (
+          key: string,
+          fallback: ColumnSplitRatios,
+        ): ColumnSplitRatios => {
+          const saved = pl.column_split_ratios?.[key];
+          if (!saved || saved.length !== 3 || saved.some((ratio) => !Number.isFinite(ratio) || ratio < 0)) {
+            return [...fallback];
+          }
+          const total = saved.reduce((sum, ratio) => sum + ratio, 0);
+          if (total <= 0) return [...fallback];
+          return saved.map((ratio) => ratio / total) as ColumnSplitRatios;
+        };
+        const migrateColumnRatios = (
+          zones: typeof defaults.zones,
+          side: 'left' | 'right',
+          preferredFirst = 0.6,
+        ): ColumnSplitRatios => {
+          const occupied = COLUMN_ZONES[side].map((zone) => zones[zone].panelIds.length > 0);
+          const occupiedCount = occupied.filter(Boolean).length;
+          if (occupiedCount === 0) return [1, 0, 0];
+          if (occupiedCount === 1) return occupied.map((value) => value ? 1 : 0) as ColumnSplitRatios;
+          if (occupiedCount === 3) return [1 / 3, 1 / 3, 1 / 3];
+          const first = Math.max(0.2, Math.min(0.8, preferredFirst));
+          const second = 1 - first;
+          return occupied.map((value, index) => {
+            if (!value) return 0;
+            return occupied.findIndex(Boolean) === index ? first : second;
+          }) as ColumnSplitRatios;
+        };
+        const floatingPanels = restoreFloatingPanels(pl.floating_panels ?? []);
+        const runFloatingPanels = restoreFloatingPanels(pl.run_floating_panels ?? []);
+        let hiddenPanelIds = pl.hidden_panel_ids.filter(knownPanel);
+        let runHiddenPanelIds = (pl.run_hidden_panel_ids ?? defaults.runHiddenPanelIds)
+          .filter(knownPanel);
+
+        // v6 adds Project Notes as a dockable panel. Existing layouts should
+        // keep their current workspace until the user opens Notes from File or
+        // Window; when opened, its registered default places it in the bottom dock.
+        if (savedLayoutVersion < 6) {
+          const notesAssignedInDesign = Object.values(designZones).some(
+            (zone) => zone.panelIds.includes('notes'),
+          ) || floatingPanels.some((panel) => panel.panelId === 'notes');
+          const notesAssignedInRun = Object.values(runZones).some(
+            (zone) => zone.panelIds.includes('notes'),
+          ) || runFloatingPanels.some((panel) => panel.panelId === 'notes');
+          if (!notesAssignedInDesign && !hiddenPanelIds.includes('notes')) {
+            hiddenPanelIds = [...hiddenPanelIds, 'notes'];
+          }
+          if (!notesAssignedInRun && !runHiddenPanelIds.includes('notes')) {
+            runHiddenPanelIds = [...runHiddenPanelIds, 'notes'];
+          }
+        }
+
+        // v8 places the Design Outliner in the same right-side tab group as
+        // Layers and Properties. Move only the v7 default-left placement;
+        // explicitly floated or otherwise relocated Outliners stay put.
+        if (savedLayoutVersion < 8) {
+          const outlinerAssignedInDesign = Object.values(designZones).some(
+            (zone) => zone.panelIds.includes('outliner'),
+          ) || floatingPanels.some((panel) => panel.panelId === 'outliner');
+          const topLeft = designZones['top-left'];
+          const hasDefaultLeftOutliner = !floatingPanels.some((panel) => panel.panelId === 'outliner')
+            && topLeft.panelIds[0] === 'outliner'
+            && topLeft.activeTab === 'outliner';
+          if (!outlinerAssignedInDesign || hasDefaultLeftOutliner) {
+            const targetRightZone = COLUMN_ZONES.right.find(
+              (zone) => designZones[zone].panelIds.includes('cuts_layers'),
+            ) ?? COLUMN_ZONES.right.find(
+              (zone) => designZones[zone].panelIds.includes('properties'),
+            ) ?? 'top-right';
+            const rightPanelIds = designZones[targetRightZone].panelIds.filter((id) => id !== 'outliner');
+            const layersIndex = rightPanelIds.indexOf('cuts_layers');
+            const insertIndex = layersIndex >= 0 ? layersIndex + 1 : rightPanelIds.length;
+            rightPanelIds.splice(insertIndex, 0, 'outliner');
+            designZones = {
+              ...designZones,
+              'top-left': {
+                panelIds: topLeft.panelIds.filter((id) => id !== 'outliner'),
+                activeTab: topLeft.activeTab === 'outliner'
+                  ? (topLeft.panelIds.find((id) => id !== 'outliner') ?? '')
+                  : topLeft.activeTab,
+              },
+              [targetRightZone]: {
+                panelIds: rightPanelIds,
+                activeTab: designZones[targetRightZone].activeTab || 'cuts_layers',
+              },
+            };
+          }
+          hiddenPanelIds = hiddenPanelIds.filter((id) => id !== 'outliner');
+          if (!runHiddenPanelIds.includes('outliner')) {
+            runHiddenPanelIds = [...runHiddenPanelIds, 'outliner'];
+          }
+        }
+
+        // v9 changes only the previous untouched Design default tab order.
+        // Any other order or panel composition is a customized workspace and
+        // must remain exactly as the user arranged it.
+        if (savedLayoutVersion < 9) {
+          const previousDefaultOrder = ['cuts_layers', 'outliner', 'properties'];
+          const defaultZone = (Object.keys(designZones) as PhysicalDockZone[]).find((zone) => {
+            const ids = designZones[zone].panelIds;
+            return ids.length === previousDefaultOrder.length
+              && ids.every((id, index) => id === previousDefaultOrder[index]);
+          });
+          if (defaultZone) {
+            designZones = {
+              ...designZones,
+              [defaultZone]: {
+                ...designZones[defaultZone],
+                panelIds: ['cuts_layers', 'properties', 'outliner'],
+              },
+            };
+          }
+        }
+
+        // Before panels became fully dockable, Run's Move panel lived outside
+        // the saved dock zones and was therefore persisted as hidden. The v4
+        // migration carried that stale state forward, leaving Run with no left
+        // panel. Repair only layouts where Move is genuinely unassigned; a
+        // deliberately hidden or relocated Move tab remains untouched.
+        const runMoveAssigned = Object.values(runZones).some(
+          (zone) => zone.panelIds.includes('move'),
+        ) || runFloatingPanels.some((panel) => panel.panelId === 'move');
+        if (savedLayoutVersion < 5 && !runMoveAssigned) {
+          const topLeft = runZones['top-left'];
+          runZones = {
+            ...runZones,
+            'top-left': {
+              panelIds: ['move', ...topLeft.panelIds.filter((id) => id !== 'move')],
+              activeTab: 'move',
+            },
+          };
+          runHiddenPanelIds = runHiddenPanelIds.filter((id) => id !== 'move');
+        }
+        const maxZ = [...floatingPanels, ...runFloatingPanels].reduce(
+          (max, fp) => Math.max(max, fp.zIndex),
+          0,
+        );
         const sidePanelsVisible = pl.side_panels_visible ?? true;
+        if (
+          useProjectStore.getState().selectedObjectIds.length === 0
+          && !hiddenPanelIds.includes('cuts_layers')
+        ) {
+          const layersZone = (Object.keys(designZones) as PhysicalDockZone[]).find(
+            (zone) => designZones[zone].panelIds.includes('cuts_layers'),
+          );
+          if (layersZone) {
+            designZones = {
+              ...designZones,
+              [layersZone]: { ...designZones[layersZone], activeTab: 'cuts_layers' },
+            };
+          }
+        }
         useUiStore.getState().setPanelLayout({
-          zones: restoredZones,
-          hiddenPanelIds: pl.hidden_panel_ids,
+          layoutVersion: PANEL_LAYOUT_VERSION,
+          zones: designZones,
+          hiddenPanelIds,
           floatingPanels,
-          upperSplitRatio: pl.upper_split_ratio,
+          upperSplitRatio: legacyColumnLayout ? defaults.upperSplitRatio : pl.upper_split_ratio,
+          columnRatios: legacyColumnLayout ? {
+            left: migrateColumnRatios(designZones, 'left'),
+            right: migrateColumnRatios(designZones, 'right', pl.upper_split_ratio),
+          } : {
+            left: restoreColumnRatios('design_left', defaults.columnRatios.left),
+            right: restoreColumnRatios('design_right', defaults.columnRatios.right),
+          },
+          runZones,
+          runHiddenPanelIds,
+          runFloatingPanels,
+          runUpperSplitRatio: legacyColumnLayout
+            ? defaults.runUpperSplitRatio
+            : (pl.run_upper_split_ratio ?? defaults.runUpperSplitRatio),
+          runColumnRatios: legacyColumnLayout ? {
+            left: migrateColumnRatios(runZones, 'left'),
+            right: migrateColumnRatios(
+              runZones,
+              'right',
+              pl.run_upper_split_ratio ?? defaults.runUpperSplitRatio,
+            ),
+          } : {
+            left: restoreColumnRatios('run_left', defaults.runColumnRatios.left),
+            right: restoreColumnRatios('run_right', defaults.runColumnRatios.right),
+          },
           rightPanelWidth: pl.right_panel_width,
           leftPanelWidth: pl.left_panel_width ?? 280,
           bottomPanelHeight: pl.bottom_panel_height ?? 80,
@@ -808,11 +943,17 @@ function App() {
     // so the former `loadOptimizationSettings()` boot call is gone.
     void loadProfiles();
     void hydrateSession();
-    loadProject().then(() => {
-      if (!useProjectStore.getState().project) {
-        useProjectStore.getState().createProject('Untitled Project');
-      }
-    });
+    // React Strict Mode intentionally replays mount effects in development.
+    // Keep project initialization single-flight so two concurrent empty-project
+    // checks cannot each create their own default C00 layer.
+    if (!projectBootstrapStartedRef.current) {
+      projectBootstrapStartedRef.current = true;
+      void loadProject().then(() => {
+        if (!useProjectStore.getState().project) {
+          void useProjectStore.getState().createProject('Untitled Project');
+        }
+      });
+    }
 
     // Check for recovery files on startup
     persistenceService.checkRecovery().then((files) => {
@@ -970,22 +1111,43 @@ function App() {
     if (event.type === 'job.completed' && isJobProgressPayload(event.payload)) {
       const machineState = useMachineStore.getState();
       if (machineState.activeJobPurpose === 'job' && !machineState.connectionPreview) {
-        const activeProfile = Array.isArray(machineState.profiles)
-          ? machineState.profiles.find((profile) => profile.id === machineState.activeProfileId)
-          : undefined;
-        const selection = machineState.controllerSelection;
-        const controllerKey = selection.mode === 'known_driver' ? selection.driver : selection.mode;
-        const fingerprint = postJobPromptFingerprint(machineState.activeProfileId, controllerKey);
-        try {
-          if (fingerprint && shouldShowPostJobPrompt(fingerprint, window.localStorage)) {
-            setPostJobCompatibilityPrompt((current) => current ?? {
-              fingerprint,
-              profileName: activeProfile?.name,
-            });
+        void machineService.getMachineRuntimeState().then((runtime) => {
+          if (!shouldOfferPostJobCompatibility(runtime)) return;
+          const controllerKey = runtime.controller_driver ?? runtime.controller_model ?? 'unknown';
+          const fingerprint = postJobPromptFingerprint(machineState.activeProfileId, controllerKey);
+          try {
+            if (fingerprint && shouldShowPostJobPrompt(fingerprint, window.localStorage)) {
+              // Record the offer immediately so dismissing or ignoring the
+              // notification is permanent for this profile/controller pair.
+              if (!persistPostJobPromptOutcome(fingerprint, 'offered')) return;
+              useNotificationStore.getState().push(
+                i18n.t('feedback.post_job_question'),
+                'info',
+                {
+                  actionLabel: i18n.t('feedback.post_job_completed'),
+                  autoDismissMs: 10_000,
+                  onAction: () => {
+                    persistPostJobPromptOutcome(fingerprint, 'completed');
+                    setFeedbackDialog({
+                      kind: 'connectivity',
+                      presentation: 'job_compatibility',
+                      title: i18n.t('feedback.post_job_success_report_title'),
+                      sourceContext: {
+                        source: 'post_job_prompt',
+                        feature: 'job_compatibility_success',
+                      },
+                    });
+                  },
+                },
+              );
+            }
+          } catch {
+            // Privacy settings may disable localStorage; job completion still succeeds normally.
           }
-        } catch {
-          // Privacy settings may disable localStorage; job completion still succeeds normally.
-        }
+        }).catch(() => {
+          // Compatibility outreach is optional. Runtime metadata failures must
+          // never affect a completed job or create a generic prompt.
+        });
       }
     }
     if (
@@ -1185,7 +1347,7 @@ function App() {
         ps.project?.assets ?? [],
       );
       const blockTransform = (kind: 'position' | 'scale' | 'rotation') => {
-        if (isTransformLocked(ps.project?.transform_locks, kind)) {
+        if (isTransformLocked(effectiveTransformLocks(selectedObjects), kind)) {
           notifyTransformLocked(kind);
           return true;
         }
@@ -1203,7 +1365,7 @@ function App() {
       // --- File shortcuts ---
       else if (ctrl && e.key === 'n' && !alt && !isInput) {
         e.preventDefault();
-        ps.createProject('Untitled Project');
+        void executeAppCommand(APP_COMMANDS.FILE_NEW);
       } else if (ctrl && e.key === 's' && !shift && !isInput) {
         e.preventDefault();
         void executeAppCommand(APP_COMMANDS.FILE_SAVE);
@@ -1218,13 +1380,10 @@ function App() {
         void executeAppCommand(APP_COMMANDS.FILE_IMPORT);
       } else if (ctrl && alt && e.key === 'n' && !isInput) {
         e.preventDefault();
-        useUiStore.getState().toggleNotesDialog();
-      } else if (ctrl && shift && !alt && (e.key === 'P' || e.key === 'p') && !isInput) {
-        e.preventDefault();
-        void runShortcutAsync(() => executeAppCommand(APP_COMMANDS.FILE_PRINT_COLORS, {}, { source: 'shortcut' }));
+        void executeAppCommand(APP_COMMANDS.FILE_NOTES);
       } else if (ctrl && !shift && !alt && (e.key === 'P' || e.key === 'p') && !isInput) {
         e.preventDefault();
-        void runShortcutAsync(() => executeAppCommand(APP_COMMANDS.FILE_PRINT_BLACK, {}, { source: 'shortcut' }));
+        void executeAppCommand(APP_COMMANDS.FILE_PRINT, nativeMenuDialogActions, { source: 'shortcut' });
       } else if (ctrl && e.key === 'q' && !isInput) {
         e.preventDefault();
         void appService.requestWindowClose();
@@ -1451,24 +1610,36 @@ function App() {
         const objs = ps.project?.objects ?? [];
         const sel = ps.selectedObjectIds;
         const selObjs = objs.filter((o) => sel.includes(o.id));
-        if (sel.length === 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
-          void ps.booleanUnion(sel[0], sel[1]);
+        if (sel.length >= 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
+          if (sel.length === 2) {
+            void ps.booleanUnion(sel[0], sel[1]);
+          } else {
+            void ps.booleanUnionMany(sel);
+          }
         }
       } else if (alt && e.key === '-' && !ctrl && !isInput) {
         e.preventDefault();
         const objs = ps.project?.objects ?? [];
         const sel = ps.selectedObjectIds;
         const selObjs = objs.filter((o) => sel.includes(o.id));
-        if (sel.length === 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
-          void ps.booleanSubtract(sel[0], sel[1]);
+        if (sel.length >= 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
+          if (sel.length === 2) {
+            void ps.booleanSubtract(sel[0], sel[1]);
+          } else {
+            void ps.booleanSubtractMany(sel);
+          }
         }
       } else if (alt && e.key === '*' && !ctrl && !isInput) {
         e.preventDefault();
         const objs = ps.project?.objects ?? [];
         const sel = ps.selectedObjectIds;
         const selObjs = objs.filter((o) => sel.includes(o.id));
-        if (sel.length === 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
-          void ps.booleanIntersection(sel[0], sel[1]);
+        if (sel.length >= 2 && selObjs.every((o) => isBooleanCompatible(o, objs))) {
+          if (sel.length === 2) {
+            void ps.booleanIntersection(sel[0], sel[1]);
+          } else {
+            void ps.booleanIntersectionMany(sel);
+          }
         }
       } else if (ctrl && e.key === 'w' && !isInput) {
         e.preventDefault();
@@ -1504,10 +1675,10 @@ function App() {
           void ps.offsetShapes(ps.selectedObjectIds, 1, 'outward');
         }
       }
-      // --- Toggle Wireframe/Filled (Alt+Shift+W) ---
+      // --- Toggle Operation/Wireframe display (Alt+Shift+W) ---
       else if (alt && shift && (e.key === 'w' || e.key === 'W') && !ctrl && !isInput) {
         e.preventDefault();
-        ui.toggleFilledRendering();
+        void executeAppCommand(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME, nativeMenuDialogActions, { source: 'shortcut' });
       }
       // --- Boolean Assistant (Ctrl+B / Cmd+B) ---
       else if (ctrl && !shift && (e.key === 'b' || e.key === 'B') && !isInput) {
@@ -1590,9 +1761,6 @@ function App() {
           onClose={() => setRecoveryDismissed(true)}
         />
       )}
-      {showNotesDialog && (
-        <NotesDialog onClose={() => setShowNotesDialog(false)} />
-      )}
       {showAboutDialog && (
         <AboutDialog onClose={() => setShowAboutDialog(false)} />
       )}
@@ -1607,9 +1775,6 @@ function App() {
       )}
       {adjustDialogObjectId && (
         <AdjustImageDialog objectId={adjustDialogObjectId} onClose={() => setAdjustDialogObjectId(null)} />
-      )}
-      {offsetDialogObjectIds && (
-        <OffsetDialog objectIds={offsetDialogObjectIds} onClose={() => setOffsetDialogObjectIds(null)} />
       )}
       {booleanAssistantObjectIds && (
         <BooleanAssistantDialog
@@ -1639,11 +1804,8 @@ function App() {
       {showMaterialTestDialog && (
         <MaterialTestDialog onClose={() => setShowMaterialTestDialog(false)} />
       )}
-      {showResetPreferencesDialog && (
-        <ResetPreferencesDialog
-          onCancel={() => setShowResetPreferencesDialog(false)}
-          onConfirm={confirmResetPreferences}
-        />
+      {showPrintDialog && (
+        <PrintDialog onClose={() => setShowPrintDialog(false)} />
       )}
       {showFocusTestDialog && (
         <FocusTestDialog onClose={() => setShowFocusTestDialog(false)} />
@@ -1660,50 +1822,6 @@ function App() {
           notes={feedbackDialog.notes}
           sourceContext={feedbackDialog.sourceContext}
           onClose={() => setFeedbackDialog(null)}
-        />
-      )}
-      {postJobCompatibilityPrompt && !feedbackDialog && (
-        <PostJobCompatibilityDialog
-          profileName={postJobCompatibilityPrompt.profileName}
-          onNotNow={() => {
-            persistPostJobPromptOutcome(
-              postJobCompatibilityPrompt.fingerprint,
-              'not_now',
-            );
-            setPostJobCompatibilityPrompt(null);
-          }}
-          onCompleted={() => {
-            persistPostJobPromptOutcome(
-              postJobCompatibilityPrompt.fingerprint,
-              'completed',
-            );
-            setPostJobCompatibilityPrompt(null);
-            setFeedbackDialog({
-              kind: 'connectivity',
-              presentation: 'job_compatibility',
-              title: i18n.t('feedback.post_job_success_report_title'),
-              sourceContext: {
-                source: 'post_job_prompt',
-                feature: 'job_compatibility_success',
-              },
-            });
-          }}
-          onProblem={() => {
-            persistPostJobPromptOutcome(
-              postJobCompatibilityPrompt.fingerprint,
-              'problem',
-            );
-            setPostJobCompatibilityPrompt(null);
-            setFeedbackDialog({
-              kind: 'bug',
-              title: i18n.t('feedback.post_job_problem_report_title'),
-              description: '',
-              sourceContext: {
-                source: 'post_job_prompt',
-                feature: 'job_compatibility_problem',
-              },
-            });
-          }}
         />
       )}
       <PreviewGenerationDialog />

@@ -1,43 +1,24 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { FilePlus, Import, Trash2 } from 'lucide-react';
+import { CopyPlus, FolderOpen, Import, Plus, X } from 'lucide-react';
 
 import { useArtLibraryStore } from '../../stores/artLibraryStore';
 import { useProjectStore } from '../../stores/projectStore';
-import { useAppStore } from '../../stores/appStore';
-import {
-  lengthUnitLabel,
-  mmToDisplay,
-  roundDisplayLength,
-  type DisplayUnit,
-} from '../../utils/lengthUnits';
 import { ContextMenu } from '../shared/ContextMenu';
 import type { ContextMenuEntry } from '../shared/ContextMenu';
-import { PanelResizer } from '../layout/PanelResizer';
-import type { ArtLibraryItem, ArtLibrarySelectionSnapshot } from '../../types/artLibrary';
+import { IconButton } from '../shared/IconButton';
 import { ART_LIBRARY_DRAG_MIME, encodeArtLibraryDragData } from '../shared/artLibraryDragData';
+import { rangeTrackBackground } from '../shared/RangeInput';
+import { INSPECTOR_HELP_TEXT_CLASS } from '../shared/panelAppearance';
 
 const inputClass =
   'px-2 py-1 rounded border border-bb-border bg-bb-surface text-xs text-bb-text placeholder:text-bb-text-dim focus:outline-none focus:border-bb-accent';
-const detailMutedClass = 'text-[11px] text-bb-text-dim';
 const sectionHeaderClass = 'text-xs font-medium text-bb-accent uppercase tracking-wider';
 const ICON_SIZE_STORAGE_KEY = 'beam-bench.art-library.icon-size';
-const SIDEBAR_WIDTH_STORAGE_KEY = 'beam-bench.art-library.sidebar-width';
-const FOOTER_HEIGHT_STORAGE_KEY = 'beam-bench.art-library.footer-height';
-const ACTION_BAR_HEIGHT_STORAGE_KEY = 'beam-bench.art-library.action-bar-height';
 const DEFAULT_ICON_SIZE = 128;
 const MIN_ICON_SIZE = 96;
 const MAX_ICON_SIZE = 160;
-const DEFAULT_SIDEBAR_WIDTH = 170;
-const MIN_SIDEBAR_WIDTH = 120;
-const MAX_SIDEBAR_WIDTH = 340;
-const DEFAULT_FOOTER_HEIGHT = 34;
-const MIN_FOOTER_HEIGHT = 28;
-const MAX_FOOTER_HEIGHT = 160;
-const DEFAULT_ACTION_BAR_HEIGHT = 120;
-const MIN_ACTION_BAR_HEIGHT = 80;
-const MAX_ACTION_BAR_HEIGHT = 260;
 
 function getStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
   if (typeof window === 'undefined') return null;
@@ -62,56 +43,6 @@ function readStoredIconSize(): number {
   const raw = storage.getItem(ICON_SIZE_STORAGE_KEY);
   const parsed = raw ? Number(raw) : NaN;
   return Number.isFinite(parsed) ? clampIconSize(parsed) : DEFAULT_ICON_SIZE;
-}
-
-function readStoredSize(key: string, fallback: number, min: number, max: number): number {
-  const storage = getStorage();
-  if (!storage) return fallback;
-  const raw = storage.getItem(key);
-  const parsed = raw ? Number(raw) : NaN;
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(min, Math.min(max, Math.round(parsed)));
-}
-
-function decodeBase64Json<T>(data: string): T | null {
-  try {
-    return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)))) as T;
-  } catch {
-    return null;
-  }
-}
-
-function formatLength(mm: number, unit: DisplayUnit): string {
-  return `${roundDisplayLength(mmToDisplay(mm, unit), unit)} ${lengthUnitLabel(unit)}`;
-}
-
-function deriveItemSizeLabel(item: ArtLibraryItem, unit: DisplayUnit): string | null {
-  if (item.kind !== 'selection_snapshot') return null;
-  const snapshot = decodeBase64Json<ArtLibrarySelectionSnapshot>(item.data);
-  if (!snapshot || snapshot.objects.length === 0) return null;
-
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (const object of snapshot.objects) {
-    minX = Math.min(minX, object.bounds.min.x);
-    minY = Math.min(minY, object.bounds.min.y);
-    maxX = Math.max(maxX, object.bounds.max.x);
-    maxY = Math.max(maxY, object.bounds.max.y);
-  }
-  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
-  const width = maxX - minX;
-  const height = maxY - minY;
-  if (width <= 0 || height <= 0) return null;
-  return `${formatLength(width, unit)} x ${formatLength(height, unit)}`;
-}
-
-function describeItemTypeKey(item: ArtLibraryItem): string {
-  if (item.kind === 'selection_snapshot') return 'panels.art_library.graphic';
-  if (item.media_type.includes('svg')) return 'panels.art_library.vector_graphic';
-  if (item.media_type.startsWith('image/')) return 'panels.art_library.raster_graphic';
-  return 'panels.art_library.graphic';
 }
 
 type RenameDialogState =
@@ -188,8 +119,6 @@ export function ArtLibraryPanel() {
   const searchQuery = useArtLibraryStore((s) => s.searchQuery);
   const dragState = useArtLibraryStore((s) => s.dragState);
   const project = useProjectStore((s) => s.project);
-  const settings = useAppStore((s) => s.settings);
-  const displayUnit: DisplayUnit = settings?.display_unit === 'inches' ? 'inches' : 'mm';
   const loadLibraries = useArtLibraryStore((s) => s.loadLibraries);
   const createLibrary = useArtLibraryStore((s) => s.createLibrary);
   const loadLibrary = useArtLibraryStore((s) => s.loadLibrary);
@@ -207,7 +136,6 @@ export function ArtLibraryPanel() {
   const setSearchQuery = useArtLibraryStore((s) => s.setSearchQuery);
   const setDragState = useArtLibraryStore((s) => s.setDragState);
 
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -216,15 +144,6 @@ export function ArtLibraryPanel() {
   const [renameDialog, setRenameDialog] = useState<RenameDialogState | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
   const [iconSize, setIconSize] = useState<number>(readStoredIconSize);
-  const [sidebarWidth, setSidebarWidth] = useState<number>(() =>
-    readStoredSize(SIDEBAR_WIDTH_STORAGE_KEY, DEFAULT_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH),
-  );
-  const [footerHeight, setFooterHeight] = useState<number>(() =>
-    readStoredSize(FOOTER_HEIGHT_STORAGE_KEY, DEFAULT_FOOTER_HEIGHT, MIN_FOOTER_HEIGHT, MAX_FOOTER_HEIGHT),
-  );
-  const [actionBarHeight, setActionBarHeight] = useState<number>(() =>
-    readStoredSize(ACTION_BAR_HEIGHT_STORAGE_KEY, DEFAULT_ACTION_BAR_HEIGHT, MIN_ACTION_BAR_HEIGHT, MAX_ACTION_BAR_HEIGHT),
-  );
 
   useEffect(() => {
     void loadLibraries();
@@ -235,36 +154,6 @@ export function ArtLibraryPanel() {
     if (!storage) return;
     storage.setItem(ICON_SIZE_STORAGE_KEY, String(iconSize));
   }, [iconSize]);
-
-  useEffect(() => {
-    const storage = getStorage();
-    if (!storage) return;
-    storage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
-  }, [sidebarWidth]);
-
-  useEffect(() => {
-    const storage = getStorage();
-    if (!storage) return;
-    storage.setItem(FOOTER_HEIGHT_STORAGE_KEY, String(footerHeight));
-  }, [footerHeight]);
-
-  useEffect(() => {
-    const storage = getStorage();
-    if (!storage) return;
-    storage.setItem(ACTION_BAR_HEIGHT_STORAGE_KEY, String(actionBarHeight));
-  }, [actionBarHeight]);
-
-  const handleSidebarResize = (delta: number) => {
-    setSidebarWidth((w) => Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, w + delta)));
-  };
-
-  const handleFooterResize = (delta: number) => {
-    setFooterHeight((h) => Math.max(MIN_FOOTER_HEIGHT, Math.min(MAX_FOOTER_HEIGHT, h + delta)));
-  };
-
-  const handleActionBarResize = (delta: number) => {
-    setActionBarHeight((h) => Math.max(MIN_ACTION_BAR_HEIGHT, Math.min(MAX_ACTION_BAR_HEIGHT, h + delta)));
-  };
 
   const currentLibrary = libraries.find((library) => library.library_id === selectedLibraryId) ?? null;
 
@@ -280,14 +169,6 @@ export function ArtLibraryPanel() {
     );
   }, [currentLibrary, searchQuery]);
 
-  useEffect(() => {
-    if (selectedItemId && !currentLibrary?.items.some((item) => item.id === selectedItemId)) {
-      setSelectedItemId(null);
-    }
-  }, [currentLibrary, selectedItemId]);
-
-  const selectedItem = currentLibrary?.items.find((item) => item.id === selectedItemId) ?? null;
-  const selectedItemSize = selectedItem ? deriveItemSizeLabel(selectedItem, displayUnit) : null;
   const canInsertIntoProject = Boolean(project);
 
   async function handleNewLibrary() {
@@ -427,11 +308,28 @@ export function ArtLibraryPanel() {
   return (
     <div className="h-full min-h-0 overflow-hidden px-2 py-2 text-xs text-bb-text">
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5">
           <div
             className="flex min-h-0 flex-col rounded border border-bb-border bg-bb-surface"
-            style={{ width: sidebarWidth, flex: '0 0 auto' }}
+            style={{ height: 132, flex: '0 0 auto' }}
           >
+            <div className="flex h-9 shrink-0 items-center gap-1 border-b border-bb-border px-2">
+              <div className={`${sectionHeaderClass} min-w-0 flex-1 truncate`}>
+                {t('panels.registry.art_library')}
+              </div>
+              <IconButton
+                size="xs"
+                icon={<Plus size={17} />}
+                label={t('panels.art_library.new_library')}
+                onClick={() => void handleNewLibrary()}
+              />
+              <IconButton
+                size="xs"
+                icon={<FolderOpen size={17} />}
+                label={t('panels.art_library.load_library')}
+                onClick={() => void handleLoadLibrary()}
+              />
+            </div>
             <div className="min-h-0 flex-1 overflow-y-auto py-1" data-testid="art-library-list">
               {libraries.length === 0 ? (
                 <div className="px-3 py-3 text-sm text-bb-text-dim">{t('panels.art_library.no_libraries')}</div>
@@ -440,12 +338,9 @@ export function ArtLibraryPanel() {
                   const isActive = library.library_id === selectedLibraryId;
                   const isDragTarget = dragState?.targetLibraryId === library.library_id;
                   return (
-                    <button
-                      type="button"
+                    <div
                       key={library.library_id}
-                      title={library.path ?? library.name}
-                      className={`flex w-full flex-col items-start border-l-2 px-3 py-2 text-left transition ${isActive ? 'border-bb-accent bg-bb-accent/10 text-bb-text' : 'border-transparent hover:bg-bb-hover'} ${isDragTarget ? 'ring-1 ring-bb-accent ring-inset' : ''}`}
-                      onClick={() => setSelectedLibrary(library.library_id)}
+                      className={`group flex w-full items-center border-l-2 pr-1 transition ${isActive ? 'border-bb-accent bg-bb-accent/10 text-bb-text' : 'border-transparent hover:bg-bb-hover'} ${isDragTarget ? 'ring-1 ring-bb-accent ring-inset' : ''}`}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -508,29 +403,52 @@ export function ArtLibraryPanel() {
                         setDragState(null);
                       }}
                     >
-                      <span
-                        className="line-clamp-2 text-[12px] font-semibold leading-5"
-                        style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
+                      <button
+                        type="button"
+                        title={library.path ?? library.name}
+                        className="min-w-0 flex-1 px-3 py-1.5 text-left"
+                        onClick={() => setSelectedLibrary(library.library_id)}
                       >
-                        {library.name}
+                        <span className="block truncate text-[12px] font-semibold leading-5">
+                          {library.name}
+                        </span>
+                      </button>
+                      <span className={isActive ? 'opacity-80' : 'opacity-0 group-hover:opacity-70 group-focus-within:opacity-70'}>
+                        <IconButton
+                          size="xs"
+                          icon={<X size={15} />}
+                          label={`${t('panels.art_library.unload_library')}: ${library.name}`}
+                          disabled={!!library.save_error}
+                          onClick={() => void unloadLibrary(library.library_id)}
+                        />
                       </span>
-                    </button>
+                    </div>
                   );
                 })
               )}
             </div>
           </div>
 
-          <div className="mx-1.5 flex items-stretch">
-            <PanelResizer direction="left" onResize={handleSidebarResize} />
-          </div>
-
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+            <div className="flex h-8 shrink-0 items-center gap-1 px-1">
+              <div className={`${sectionHeaderClass} min-w-0 flex-1 truncate`}>
+                {t('panels.art_library.graphic')}
+              </div>
+              <IconButton
+                size="xs"
+                icon={<Import size={16} />}
+                label={t('context_menu.import')}
+                disabled={!currentLibrary || !!currentLibrary.save_error}
+                onClick={() => void handleAddFile()}
+              />
+              <IconButton
+                size="xs"
+                icon={<CopyPlus size={16} />}
+                label={t('panels.art_library.import_from_project')}
+                disabled={!currentLibrary || !!currentLibrary.save_error}
+                onClick={() => void handleAddSelection()}
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
@@ -549,7 +467,8 @@ export function ArtLibraryPanel() {
                   step={8}
                   value={iconSize}
                   onChange={(e) => setIconSize(clampIconSize(Number(e.target.value)))}
-                  className="h-2 min-w-0 flex-1 accent-bb-accent"
+                  className="bb-range min-w-0 flex-1"
+                  style={{ background: rangeTrackBackground(iconSize, MIN_ICON_SIZE, MAX_ICON_SIZE) }}
                 />
                 <div
                   data-testid="art-library-icon-size-readout"
@@ -558,6 +477,12 @@ export function ArtLibraryPanel() {
                   {iconSize} x {iconSize}
                 </div>
               </div>
+            </div>
+
+            <div className={INSPECTOR_HELP_TEXT_CLASS} data-testid="art-library-help">
+              {t('panels.art_library.drag_help', {
+                defaultValue: 'Drag artwork onto the canvas. Use × to delete it from the library.',
+              })}
             </div>
 
             {currentLibrary?.save_error ? (
@@ -588,24 +513,18 @@ export function ArtLibraryPanel() {
                   data-testid="art-library-browser-grid"
                 >
                   {filteredItems.map((item) => {
-                    const isSelected = selectedItemId === item.id;
                     const thumbBoxSize = iconSize;
                     return (
-                      <button
-                        type="button"
+                      <div
                         key={item.id}
                         draggable
+                        role="listitem"
+                        aria-label={item.name}
                         data-testid={`art-item-${item.id}`}
-                        className={`group flex flex-col items-center gap-2 rounded px-1 py-2 text-center transition ${isSelected ? 'bg-bb-accent/15 outline outline-1 outline-bb-accent/60' : 'hover:bg-bb-hover'}`}
-                        onClick={() => setSelectedItemId(item.id)}
-                        onDoubleClick={() => {
-                          if (!canInsertIntoProject) return;
-                          void insertToProject(currentLibrary.library_id, item.id);
-                        }}
+                        className="group relative flex flex-col items-center gap-2 rounded px-1 py-2 text-center transition hover:bg-bb-hover"
                         onContextMenu={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setSelectedItemId(item.id);
                           setContextMenu({
                             x: e.clientX,
                             y: e.clientY,
@@ -632,6 +551,28 @@ export function ArtLibraryPanel() {
                         }}
                         onDragEnd={() => setDragState(null)}
                       >
+                        <button
+                          type="button"
+                          draggable={false}
+                          data-testid={`art-item-delete-${item.id}`}
+                          aria-label={`${t('panels.art_library.delete_item')}: ${item.name}`}
+                          title={t('panels.art_library.delete_item')}
+                          className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-md border border-bb-border bg-bb-panel/90 text-bb-text-muted opacity-70 shadow-sm transition hover:bg-bb-error-bg hover:text-bb-error-fg hover:opacity-100 focus:opacity-100"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onDragStart={(e) => e.preventDefault()}
+                          onContextMenu={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteDialog({
+                              target: 'item',
+                              libraryId: currentLibrary.library_id,
+                              itemId: item.id,
+                              name: item.name,
+                            });
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
                         <div
                           className="flex items-center justify-center overflow-hidden rounded border border-bb-border bg-white"
                           style={{ width: thumbBoxSize, height: thumbBoxSize }}
@@ -654,123 +595,11 @@ export function ArtLibraryPanel() {
                         >
                           {item.name}
                         </span>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
               )}
-            </div>
-
-            <div className="my-1.5">
-              <PanelResizer direction="bottom" onResize={handleFooterResize} />
-            </div>
-
-            <div
-              className="overflow-y-auto rounded border border-bb-border bg-bb-surface px-2 py-1.5"
-              style={{ height: footerHeight, flex: '0 0 auto' }}
-            >
-              {selectedItem ? (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="text-[11px] font-medium text-bb-text">{selectedItem.name}</span>
-                  {selectedItemSize ? <span className={detailMutedClass}>{selectedItemSize}</span> : null}
-                  <span className={`${detailMutedClass} uppercase tracking-wider text-bb-accent`}>
-                    {t(describeItemTypeKey(selectedItem))}
-                  </span>
-                </div>
-              ) : (
-                <div className={detailMutedClass}>{t('panels.art_library.no_graphic_selected')}</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="my-1.5">
-          <PanelResizer direction="bottom" onResize={handleActionBarResize} />
-        </div>
-
-        <div
-          className="flex flex-wrap items-start gap-x-6 gap-y-2 overflow-y-auto px-1 pb-1 pt-1"
-          style={{ height: actionBarHeight, flex: '0 0 auto' }}
-        >
-          <div className="flex min-w-[168px] flex-col gap-1.5">
-            <div className={sectionHeaderClass}>{t('panels.registry.art_library')}</div>
-            <div className="grid grid-cols-2 gap-2">
-              <ActionButton
-                title={t('panels.art_library.new_library')}
-                testId="art-library-new"
-                icon={<FilePlus />}
-                onClick={() => void handleNewLibrary()}
-              >
-                {t('panels.art_library.new')}
-              </ActionButton>
-              <ActionButton
-                title={t('panels.art_library.load_library')}
-                testId="art-library-load"
-                onClick={() => void handleLoadLibrary()}
-              >
-                {t('panels.art_library.load')}
-              </ActionButton>
-              <ActionButton
-                title={t('panels.art_library.unload_library')}
-                testId="art-library-unload"
-                className="col-span-2 justify-self-center px-6"
-                disabled={!currentLibrary || !!currentLibrary.save_error}
-                onClick={() => {
-                  if (!currentLibrary) return;
-                  void unloadLibrary(currentLibrary.library_id);
-                }}
-              >
-                {t('panels.art_library.unload')}
-              </ActionButton>
-            </div>
-          </div>
-
-          <div className="flex min-w-[240px] flex-1 flex-col gap-1.5">
-            <div className={sectionHeaderClass}>{t('panels.art_library.graphic')}</div>
-            <div className="flex flex-wrap items-start gap-3">
-              <div className="grid min-w-[220px] flex-1 grid-rows-2 gap-2">
-                <ActionButton
-                  testId="art-library-add-to-project"
-                  disabled={!currentLibrary || !selectedItem || !canInsertIntoProject}
-                  onClick={() => {
-                    if (!currentLibrary || !selectedItem || !canInsertIntoProject) return;
-                    void insertToProject(currentLibrary.library_id, selectedItem.id);
-                  }}
-                >
-                  {t('panels.art_library.add_to_project')}
-                </ActionButton>
-                <ActionButton
-                  testId="art-library-import-from-project"
-                  disabled={!currentLibrary || !!currentLibrary.save_error}
-                  onClick={() => void handleAddSelection()}
-                >
-                  {t('panels.art_library.import_from_project')}
-                </ActionButton>
-              </div>
-
-              <div className="grid min-w-[135px] grid-rows-2 gap-2">
-                <ActionButton
-                  testId="art-library-import"
-                  icon={<Import />}
-                  disabled={!currentLibrary || !!currentLibrary.save_error}
-                  onClick={() => void handleAddFile()}
-                >
-                  {t('context_menu.import')}
-                </ActionButton>
-                <ActionButton
-                  testId="art-library-delete"
-                  icon={<Trash2 />}
-                  disabled={!currentLibrary || !selectedItem || !!currentLibrary.save_error}
-                  onClick={() => selectedItem && setDeleteDialog({
-                    target: 'item',
-                    libraryId: currentLibrary!.library_id,
-                    itemId: selectedItem.id,
-                    name: selectedItem.name,
-                  })}
-                >
-                  {t('context_menu.delete')}
-                </ActionButton>
-              </div>
             </div>
           </div>
         </div>

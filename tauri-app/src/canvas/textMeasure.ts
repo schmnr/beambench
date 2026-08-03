@@ -54,6 +54,63 @@ function getEffectiveLayout(d: { layout_mode?: string; on_path?: boolean; transf
   return mode;
 }
 
+interface CaretLine {
+  text: string;
+  sourceStart: number;
+}
+
+function measureLineWidth(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  letterSpacing: number,
+): number {
+  let width = 0;
+  for (const char of text) width += ctx.measureText(char).width;
+  return width + letterSpacing * Math.max(0, text.length - 1);
+}
+
+/** Mirror the backend's word wrapping closely enough to place the DOM caret. */
+function buildCaretLines(
+  content: string,
+  ctx: CanvasRenderingContext2D,
+  letterSpacing: number,
+  maxWidth: number | null,
+): CaretLine[] {
+  const result: CaretLine[] = [];
+  let sourceOffset = 0;
+  for (const rawLine of content.split('\n')) {
+    if (!maxWidth || measureLineWidth(ctx, rawLine, letterSpacing) <= maxWidth) {
+      result.push({ text: rawLine, sourceStart: sourceOffset });
+      sourceOffset += rawLine.length + 1;
+      continue;
+    }
+
+    const words = Array.from(rawLine.matchAll(/\S+/g));
+    if (words.length === 0) {
+      result.push({ text: '', sourceStart: sourceOffset });
+      sourceOffset += rawLine.length + 1;
+      continue;
+    }
+
+    let current = '';
+    let currentStart = sourceOffset + (words[0].index ?? 0);
+    for (const match of words) {
+      const word = match[0];
+      const candidate = current ? `${current} ${word}` : word;
+      if (!current || measureLineWidth(ctx, candidate, letterSpacing) <= maxWidth) {
+        current = candidate;
+      } else {
+        result.push({ text: current, sourceStart: currentStart });
+        current = word;
+        currentStart = sourceOffset + (match.index ?? 0);
+      }
+    }
+    result.push({ text: current, sourceStart: currentStart });
+    sourceOffset += rawLine.length + 1;
+  }
+  return result.length > 0 ? result : [{ text: '', sourceStart: 0 }];
+}
+
 /**
  * Convert a world-space click inside a text object into a caret index
  * (character offset into the content string, accounting for newlines).
@@ -81,22 +138,21 @@ export function getCaretIndexFromClick(
     effectiveClick = invPt;
   }
 
-  // max_width: Rust word-wraps lines exceeding max_width and applies squeeze
-  if (d.max_width != null && d.max_width > 0) return null;
-
   const ctx = getMeasureCtx();
   const fontSize = worldToScreenDist(d.font_size_mm, vp.zoom);
   const style = `${d.italic ? 'italic ' : ''}${d.bold ? 'bold ' : ''}`;
   ctx.font = `${style}${fontSize}px ${d.font_family}`;
 
-  const displayText = d.upper_case ? d.content.toUpperCase() : d.content;
-  const lines = displayText.split('\n');
-
   const topLeft = worldToScreen(obj.bounds.min, vp);
   const screenClick = worldToScreen(effectiveClick, vp);
-  const boundsW = worldToScreenDist(obj.bounds.max.x - obj.bounds.min.x, vp.zoom);
+  const maxWidthPx = d.max_width != null && d.max_width > 0
+    ? worldToScreenDist(d.max_width, vp.zoom)
+    : null;
+  const boundsW = maxWidthPx ?? worldToScreenDist(obj.bounds.max.x - obj.bounds.min.x, vp.zoom);
   const boundsH = worldToScreenDist(obj.bounds.max.y - obj.bounds.min.y, vp.zoom);
   const letterSpacing = d.h_spacing ? worldToScreenDist(d.h_spacing, vp.zoom) : 0;
+  const displayText = d.upper_case ? d.content.toUpperCase() : d.content;
+  const lines = buildCaretLines(displayText, ctx, letterSpacing, maxWidthPx);
   const lineHeight = fontSize + (d.v_spacing ? worldToScreenDist(d.v_spacing, vp.zoom) : 0);
   const totalTextH = lines.length > 1 ? fontSize + (lines.length - 1) * lineHeight : fontSize;
 
@@ -111,7 +167,7 @@ export function getCaretIndexFromClick(
   const lineIdx = Math.max(0, Math.min(lines.length - 1, Math.floor(relY / lineHeight)));
 
   // Measure character widths for that line (matches drawText per-char measurement)
-  const lineText = lines[lineIdx];
+  const lineText = lines[lineIdx].text;
   const charWidths: number[] = [];
   let naturalW = 0;
   for (const ch of lineText) {
@@ -136,13 +192,7 @@ export function getCaretIndexFromClick(
     cx += charWidths[i] + letterSpacing;
   }
 
-  // Convert (lineIdx, charInLine) → flat index into original content
-  const contentLines = d.content.split('\n');
-  let flatIndex = 0;
-  for (let i = 0; i < lineIdx && i < contentLines.length; i++) {
-    flatIndex += contentLines[i].length + 1; // +1 for the '\n'
-  }
-  flatIndex += Math.min(charInLine, contentLines[lineIdx]?.length ?? 0);
+  const flatIndex = lines[lineIdx].sourceStart + Math.min(charInLine, lineText.length);
 
   return Math.min(flatIndex, d.content.length);
 }

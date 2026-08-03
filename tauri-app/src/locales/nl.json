@@ -62,7 +62,6 @@
       "export_selection": "Selectie exporteren",
       "hide_notes": "Verberg notities",
       "import_preferences": "Importvoorkeuren",
-      "new_window": "Nieuw venster",
       "open_preferences_folder": "Open de map Voorkeuren",
       "preferences_exported": "Voorkeuren geëxporteerd.",
       "preferences_imported": "Voorkeuren geïmporteerd.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Voorkeuren terugzetten naar standaardwaarden? Machineprofielen, recente bestanden, opgeslagen posities, API-instellingen en exportpaden blijven behouden.",
       "save_background_capture": "Achtergrondopname opslaan",
       "save_processed_bitmap": "Bewaar verwerkte bitmap",
-      "show_notes": "Toon notities"
+      "show_notes": "Toon notities",
+      "project_notes": "Projectnotities...",
+      "print": "Afdrukken...",
+      "export_processed_image": "Verwerkte afbeelding exporteren..."
     },
     "edit": {
       "label": "Bewerken",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Automatisch samenvoegen van geselecteerde vormen",
       "close_and_join": "Sluiten en meedoen",
       "convert_to_bitmap": "Converteren naar bitmap",
+      "extract_selected_nodes_to_path": "Geselecteerde knooppunten naar nieuw pad extraheren",
       "duplicate": "Duplicaat",
       "image_options": "Afbeeldingsopties",
       "invert_selection": "Selectie omkeren",
@@ -241,12 +244,12 @@
       "shape_properties": "Vormeigenschappen",
       "text_options": "Tekstopties",
       "toggle_side_panels": "Schakel zijpanelen in",
-      "toggle_wireframe_filled": "Schakel Draadframe / Gevuld in",
-      "view_style": "Bekijk stijl:",
-      "view_style_filled_coarse": "Gevuld / Grof",
-      "view_style_filled_smooth": "Gevuld / Glad",
-      "view_style_wireframe_coarse": "Draadframe / Grof",
-      "view_style_wireframe_smooth": "Draadframe / Glad",
+      "toggle_wireframe_filled": "Bewerking / draadframe wisselen",
+      "view_style": "Weergave van illustratie:",
+      "view_style_filled_coarse": "Gevulde weergave forceren",
+      "view_style_filled_smooth": "Gladde randen",
+      "view_style_wireframe_coarse": "Volgens laagbewerking",
+      "view_style_wireframe_smooth": "Draadframe forceren",
       "zoom_to_page": "Zoom naar pagina"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Scrollwiel",
       "scroll_zoom": "Zoomen",
       "scroll_pan": "Pannen",
-      "allow_import_tool_layers": "Importeren naar gereedschapslagen toestaan",
-      "include_tool_layers_job_bounds": "Gereedschapslagen meenemen in opdrachtgrenzen"
+      "allow_import_tool_layers": "Importeren naar gereedschapslagen toestaan"
     },
     "about": {
       "tagline": "Gemaakt door makers voor makers.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "Het streepjescodedialoogvenster is gesloten omdat de doellaag ervan niet langer beschikbaar is."
     },
     "adjust_image": {
+      "invert_display_help": "Alleen voorvertoning. De opgeslagen afbeelding en laseruitvoer blijven ongewijzigd.",
+      "invert_adjustment_help": "Omkeren wordt bij deze afbeelding opgeslagen en uitgevoerd vóór de rasterverwerking van de laag.",
+      "negative_image_help": "Negatief beeld keert de laaguitvoer om. Als Omkeren hierboven ook aan staat, kunnen de twee omkeringen elkaar opheffen.",
       "title": "Afbeelding aanpassen",
       "drag_to_move": "Sleep om te verplaatsen",
       "original": "Origineel",
@@ -701,6 +706,7 @@
       "include_project_file": "Projectbestand toevoegen",
       "include_project_file_help": "Standaard uitgeschakeld. Hiermee worden de feitelijke .lzrproj-geometrie en rastergegevens verzonden.",
       "job_compatibility_help": "Er is nog niets verzonden. Dit rapport bevat de Beam Bench-versie, het besturingssysteem, de controllerfamilie, niet-identificerende machine-instellingen en totalen van de voltooide taak. Ontwerpen, G-code, bestandsnamen, serieel verkeer, logboeken, apparaatpaden, profiel-ID's en projectbestanden worden uitgesloten.",
+      "privacy_policy": "Privacybeleid lezen",
       "what_gets_sent": "Wat wordt verzonden",
       "loading": "Laden...",
       "submitting_report": "Rapport indienen bij Beam Bench...",
@@ -784,6 +790,7 @@
       "pan_hint": "Sleep om een overtrekgebied te selecteren. Houd de spatiebalk ingedrukt en sleep om te verschuiven."
     },
     "preview": {
+      "options_help": "Verplaatsing is beweging met de laser uit. Voortgang toont de voltooide bewerking. Overscan toont rasterversnelling buiten de afbeelding. Arceren op vermogen en Omkeren beïnvloeden alleen deze weergave.",
       "title": "Voorbeeldvenster",
       "stale_refresh_required": "Verouderd - vernieuwen vereist",
       "stale": "Oud",
@@ -1105,10 +1112,27 @@
       "title": "Niet-opgeslagen wijzigingen",
       "message": "Je project bevat niet-opgeslagen wijzigingen. Opslaan voordat je doorgaat?",
       "discard": "Niet opslaan"
+    },
+    "print": {
+      "title": "Afdrukken",
+      "output": "Afdrukuitvoer",
+      "description": "Kies hoe het project eruit moet zien en ga vervolgens verder in het systeemafdrukdialoogvenster.",
+      "color": "Kleur",
+      "black": "Zwart",
+      "layer_colors": "Laagkleuren",
+      "appearance": "Weergave van illustratie",
+      "by_operation": "Per laagbewerking",
+      "outlines": "Alleen contouren",
+      "print": "Afdrukken...",
+      "preparing": "Voorbereiden..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Ontwerp",
+      "mode_run": "Uitvoeren",
+      "mode_design_hint": "Ontwerp: teken en orden je project",
+      "mode_run_hint": "Uitvoeren: stuur de taak naar je laser",
       "new": "Nieuw",
       "untitled_project": "Naamloos project",
       "open": "Open",
@@ -1193,13 +1217,16 @@
       "close_path": "Sluit pad",
       "auto_join_paths": "Paden automatisch samenvoegen",
       "insert_midpoint": "Middelpunt invoegen (M)",
-      "align_to_angle": "Uitlijnen op hoek (A)"
+      "align_to_angle": "Uitlijnen op hoek (A)",
+      "extend_to_intersection": "Verlengen tot snijpunt (E)"
     },
     "transform_toggles": {
       "move": "Beweging",
       "size": "Maat",
       "rotate": "Draaien",
-      "shear": "Scheer"
+      "shear": "Scheer",
+      "lock_all": "Alle transformaties vergrendelen",
+      "unlock_all": "Alle transformaties ontgrendelen"
     },
     "properties": {
       "position_x": "X-pos",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Geen project",
-      "nothing_selected": "Niets geselecteerd"
+      "nothing_selected": "Selecteer een object om de eigenschappen te bewerken"
+    },
+    "library": {
+      "title": "Bibliotheek"
     },
     "floating": {
       "dock_tooltip": "Paneel vastzetten",
       "close_tooltip": "Paneel sluiten",
       "float_tooltip": "Paneel losmaken"
     },
+    "outliner": {
+      "help": "Sleep om te herschikken of te verplaatsen. Dubbelklik om de naam te wijzigen. Verborgen objecten blijven hier zodat u ze kunt herstellen.",
+      "summary": "{layers} lagen · {objects} objecten",
+      "empty_layer": "Geen voorwerpen",
+      "expand_layer": "Vouw de laag uit",
+      "collapse_layer": "Laag samenvouwen",
+      "expand_group": "Groep uitvouwen",
+      "collapse_group": "Groep samenvouwen",
+      "show_layer": "Laat laag zien",
+      "hide_layer": "Laag verbergen",
+      "show_object": "Object tonen",
+      "hide_object": "Object verbergen",
+      "lock_object": "Object vergrendelen",
+      "unlock_object": "Ontgrendel voorwerp"
+    },
     "registry": {
-      "cuts_layers": "Sneden / Lagen",
+      "outliner": "Omlijner",
+      "cuts_layers": "Lagen",
       "move": "Verplaatsen",
       "console": "Console",
       "macros": "Macro's",
-      "properties": "Vormeigenschappen",
+      "properties": "Eigenschappen",
       "measurement": "Meting",
       "laser": "Laser Control",
       "material": "Materiaalbibliotheek",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Eén sublaag"
     },
     "properties": {
+      "transform": "Transformeren",
+      "visibility_help": "Verborgen objecten worden van de taak uitgesloten. Herstel ze in de Outliner.",
+      "power_scale_help": "Vermenigvuldigt het laagvermogen voor dit object zonder de laag te wijzigen.",
+      "cut_priority_help": "Lagere waarden worden eerder uitgevoerd wanneer prioriteitsoptimalisatie is ingeschakeld.",
       "objects_selected": "{count} objecten geselecteerd",
       "layer": "Laag",
       "mixed": "Gemengd",
@@ -1421,7 +1471,7 @@
       "union": "Unie",
       "subtract": "Aftrekken",
       "intersection": "Doorsnede",
-      "nothing_selected": "Niets geselecteerd",
+      "nothing_selected": "Selecteer een object om de eigenschappen te bewerken",
       "name": "Naam",
       "power_scale_percent": "Vermogensschaal %",
       "cut_priority": "Snijprioriteit",
@@ -1484,15 +1534,63 @@
       "h_space": "H-afst.",
       "v_space": "V-afst.",
       "path_offset": "Padverschuiving",
+      "baseline_offset": "Basislijnverschuiving",
+      "direction_normal": "Normaal",
+      "direction_reverse": "Omgekeerd",
+      "strength": "Sterkte",
+      "arc_span": "Boogbereik",
+      "circle_position": "Positie op cirkel",
+      "circle_side": "Cirkelzijde",
+      "circle_top": "Boven",
+      "circle_bottom": "Onder",
+      "circle_outside": "Buitenkant",
+      "circle_inside": "Binnenkant",
       "bend_radius": "Buigradius",
       "align_left": "Links",
       "align_center": "Midden",
       "align_right": "Rechts",
       "align_top": "Boven",
       "align_middle": "Midden",
-      "align_bottom": "Onder"
+      "align_bottom": "Onder",
+      "tool_title": "Tekst hulpmiddel",
+      "creation_hint": "Kies Aanwijzen om te klikken en typen, of Kader om een omloopgebied te slepen.",
+      "edit_text": "Tekst bewerken",
+      "edit_on_canvas": "Bewerken op canvas",
+      "search_fonts": "Zoek lettertypen",
+      "recent_fonts": "Recent",
+      "favorite_fonts": "Favorieten",
+      "all_fonts": "Alle lettertypen",
+      "no_fonts_found": "Geen lettertypen gevonden",
+      "favorite_font": "Favoriete lettertype",
+      "unfavorite_font": "Favoriet verwijderen",
+      "style": "Stijl",
+      "style_regular": "Regelmatig",
+      "style_bold_italic": "Vet cursief",
+      "typography": "Typografie",
+      "alignment_spacing": "Uitlijning en afstand",
+      "text_box": "Teksttype",
+      "width_mode": "Modus",
+      "auto_width": "Punt",
+      "fixed_width": "Doos",
+      "width": "Breedte doos",
+      "squeeze_to_fit": "Knijp om te passen",
+      "advanced_shape": "Geavanceerde tekstvorm",
+      "transform": "Envelop",
+      "transform_none": "Geen",
+      "transform_arch": "Boog",
+      "transform_rise": "Sta op",
+      "transform_wave": "Golf",
+      "transform_flag": "Vlag",
+      "transform_angle": "Hoek",
+      "transform_circle": "Cirkel",
+      "curve": "Kromme",
+      "laser_output": "Laseruitvoer",
+      "convert_hint": "Converteren naar pad bevriest de letters in bewerkbare snijgeometrie.",
+      "tracking": "Volgen",
+      "line_spacing": "Regelafstand"
     },
     "sub_layer_stack": {
+      "title": "Sublagen",
       "operation_tool": "Gereedschap",
       "operation_image": "Afbeelding",
       "operation_fill": "Vulling",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Offset naar buiten",
       "max_sub_layers_title": "Maximum van 11 sublagen bereikt",
       "add_sub_layer_title": "Sublaag toevoegen",
-      "add_sub_layer": "+ Sublaag toevoegen"
+      "add_sub_layer": "+ Sublaag toevoegen",
+      "order_hint": "Sublagen worden op volgorde uitgevoerd, van boven naar beneden."
     },
     "cut_settings": {
       "title": "Snij-instellingen",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Hulplagen dienen als hulplijnen en produceren nooit laseruitvoer.",
+      "output_show_help": "Uit neemt deze laag op in de lasertaak. Toon verandert alleen de canvasweergave.",
+      "opacity_help": "Alleen canvasvoorvertoning. Dit verandert het laservermogen of de beeldverwerking niet.",
+      "delete_layer": "Laag verwijderen",
+      "add_layer": "Laag toevoegen",
       "header": {
         "index": "#",
         "layer": "Laag",
@@ -1587,8 +1691,6 @@
         "multi": "Meervoudig"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Gereedschapslagen meenemen in taakgrenzen",
-      "exclude_tool_layers_from_job_bounds": "Gereedschapslagen uitsluiten van taakgrenzen",
       "frame": "Frame",
       "move_up": "Omhoog",
       "move_down": "Omlaag",
@@ -1635,7 +1737,8 @@
         "on_ms": "Aan (ms)",
         "off_ms": "Uit (ms)",
         "kerf_mm": "Kerfverschuiving"
-      }
+      },
+      "settings_copied": "Laaginstellingen gekopieerd"
     },
     "move": {
       "step_mm": "Stap",
@@ -2168,9 +2271,40 @@
       "end": "Einde",
       "midpoint": "Middelpunt",
       "difference": "Verschil",
-      "angle": "Hoek"
+      "angle": "Hoek",
+      "mode_linear": "Lineair",
+      "mode_angle": "Hoek",
+      "mode_radius": "Straal",
+      "mode_gap": "Kloof",
+      "minimum_gap": "Minimale opening",
+      "horizontal": "Horizontaal",
+      "vertical": "Verticaal",
+      "horizontal_gap": "Horizontale opening",
+      "vertical_gap": "Verticale opening",
+      "first_segment": "Eerste segment",
+      "second_segment": "Tweede segment",
+      "radius": "Straal",
+      "diameter": "Diameter",
+      "radius_x": "Straal X",
+      "radius_y": "Straal Y",
+      "diameter_x": "Diameter X",
+      "diameter_y": "Diameter Y",
+      "linear_second_hint": "Klik op het tweede punt",
+      "angle_second_hint": "Klik op een tweede segment",
+      "gap_second_hint": "Klik op het tweede object",
+      "angle_hint": "Klik op twee segmenten om hun hoek te meten",
+      "radius_hint": "Klik op een cirkel of ellips",
+      "gap_hint": "Klik op twee objecten om hun kleinste opening te meten",
+      "linear_hint": "Klik en sleep of klik op twee punten",
+      "title": "Maatregel",
+      "modes": "Meetmodi",
+      "copy_value": "Kopieer waarde",
+      "copied": "Gekopieerd",
+      "clear_measurement": "Duidelijke meting",
+      "keyboard_hint": "Shift beperkt hoeken. Escape wordt gewist en keert vervolgens terug naar Select."
     },
     "art_library": {
+      "drag_help": "Sleep illustraties naar het canvas. Gebruik × om ze uit de bibliotheek te verwijderen.",
       "no_libraries": "Geen bibliotheken geladen.",
       "search": "Zoeken...",
       "icon_size": "Pictogramgrootte:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench grafiekbibliotheek",
       "filter_artwork": "Illustratie"
     }
+  },
+  "warp_tool": {
+    "title": "Verdraaien",
+    "four_points": "4 punten",
+    "sixteen_points": "16 punten"
   },
   "context_menu": {
     "windows": "Vensters",

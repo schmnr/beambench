@@ -62,7 +62,6 @@
       "export_selection": "导出选择",
       "hide_notes": "隐藏注释",
       "import_preferences": "导入首选项",
-      "new_window": "新窗口",
       "open_preferences_folder": "打开首选项文件夹",
       "preferences_exported": "导出的首选项。",
       "preferences_imported": "已导入首选项。",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "将首选项重置为默认值？将保留机器配置文件、最近的文件、保存的位置、API 设置和导出路径。",
       "save_background_capture": "保存背景捕获",
       "save_processed_bitmap": "保存处理后的位图",
-      "show_notes": "显示注释"
+      "show_notes": "显示注释",
+      "project_notes": "项目备注...",
+      "print": "打印...",
+      "export_processed_image": "导出处理后的图像..."
     },
     "edit": {
       "label": "编辑",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "自动连接选定的形状",
       "close_and_join": "关闭并加入",
       "convert_to_bitmap": "转换为位图",
+      "extract_selected_nodes_to_path": "将选定节点提取到新路径",
       "duplicate": "重复",
       "image_options": "图像选项",
       "invert_selection": "反转选择",
@@ -241,12 +244,12 @@
       "shape_properties": "形状属性",
       "text_options": "文本选项",
       "toggle_side_panels": "切换侧面板",
-      "toggle_wireframe_filled": "切换线框/填充",
-      "view_style": "查看样式：",
-      "view_style_filled_coarse": "填充/粗粒",
-      "view_style_filled_smooth": "填充/光滑",
-      "view_style_wireframe_coarse": "线框/粗略",
-      "view_style_wireframe_smooth": "线框/平滑",
+      "toggle_wireframe_filled": "切换图层操作/线框",
+      "view_style": "图稿显示：",
+      "view_style_filled_coarse": "强制填充",
+      "view_style_filled_smooth": "平滑边缘",
+      "view_style_wireframe_coarse": "按图层操作",
+      "view_style_wireframe_smooth": "强制线框",
       "zoom_to_page": "缩放至页面"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "滚轮",
       "scroll_zoom": "缩放",
       "scroll_pan": "平移",
-      "allow_import_tool_layers": "允许导入到工具图层",
-      "include_tool_layers_job_bounds": "在作业范围内包含工具图层"
+      "allow_import_tool_layers": "允许导入到工具图层"
     },
     "about": {
       "tagline": "由创客为创客打造。",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "条形码对话框已关闭，因为其目标图层不再可用。"
     },
     "adjust_image": {
+      "invert_display_help": "仅用于预览。保存的图像和激光输出不会改变。",
+      "invert_adjustment_help": "“反转”会随此图像保存，并在图层的栅格处理之前应用。",
+      "negative_image_help": "“负片图像”会反转图层输出。如果上方的“反转”也已开启，两次反转可能会相互抵消。",
       "title": "调整图像",
       "drag_to_move": "拖动移动",
       "original": "原创",
@@ -701,6 +706,7 @@
       "include_project_file": "包含项目文件",
       "include_project_file_help": "默认关闭。这会发送实际的 .lzrproj 几何图形和栅格数据。",
       "job_compatibility_help": "尚未发送任何内容。此报告包含 Beam Bench 版本、操作系统、控制器系列、无法识别身份的机器设置以及已完成作业的汇总数据。不包含设计图稿、G-code、文件名、串口通信、日志、设备路径、配置文件 ID 或项目文件。",
+      "privacy_policy": "阅读隐私政策",
       "what_gets_sent": "发送什么内容",
       "loading": "正在加载...",
       "submitting_report": "正在向 Beam Bench 提交报告...",
@@ -784,6 +790,7 @@
       "pan_hint": "拖动以选择描摹区域。按住空格键并拖动可平移视图。"
     },
     "preview": {
+      "options_help": "“行程”表示激光关闭时的移动。“进度”显示已完成的加工。“过扫描”显示图稿范围外的栅格加速段。“按功率着色”和“反转”只影响此处的显示。",
       "title": "预览窗口",
       "stale_refresh_required": "陈旧 - 需要刷新",
       "stale": "陈旧的",
@@ -1105,10 +1112,27 @@
       "title": "未保存的更改",
       "message": "项目中有未保存的更改。是否在继续前保存？",
       "discard": "不保存"
+    },
+    "print": {
+      "title": "打印",
+      "output": "打印输出",
+      "description": "选择项目的显示方式，然后在系统打印对话框中继续。",
+      "color": "颜色",
+      "black": "黑色",
+      "layer_colors": "图层颜色",
+      "appearance": "图稿外观",
+      "by_operation": "按图层操作",
+      "outlines": "仅轮廓",
+      "print": "打印...",
+      "preparing": "正在准备..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "设计",
+      "mode_run": "运行",
+      "mode_design_hint": "设计：绘制并排布您的项目",
+      "mode_run_hint": "运行：将作业发送到您的激光机",
       "new": "新",
       "untitled_project": "无标题项目",
       "open": "打开",
@@ -1193,13 +1217,16 @@
       "close_path": "关闭路径",
       "auto_join_paths": "自动连接路径",
       "insert_midpoint": "插入中点 (M)",
-      "align_to_angle": "对齐角度 (A)"
+      "align_to_angle": "对齐角度 (A)",
+      "extend_to_intersection": "延伸到交点 (E)"
     },
     "transform_toggles": {
       "move": "移动",
       "size": "尺寸",
       "rotate": "旋转",
-      "shear": "剪切"
+      "shear": "剪切",
+      "lock_all": "锁定所有变换",
+      "unlock_all": "解锁所有变换"
     },
     "properties": {
       "position_x": "X 位置",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "无项目",
-      "nothing_selected": "未选择任何内容"
+      "nothing_selected": "选择一个对象以编辑其属性"
+    },
+    "library": {
+      "title": "素材库"
     },
     "floating": {
       "dock_tooltip": "停靠面板",
       "close_tooltip": "关闭面板",
       "float_tooltip": "浮动面板"
     },
+    "outliner": {
+      "help": "拖动可重新排序或移动。双击可重命名。隐藏的对象会保留在这里，以便恢复。",
+      "summary": "{layers} 个图层 · {objects} 个对象",
+      "empty_layer": "没有物体",
+      "expand_layer": "展开层",
+      "collapse_layer": "塌陷层",
+      "expand_group": "展开组",
+      "collapse_group": "折叠组",
+      "show_layer": "显示图层",
+      "hide_layer": "隐藏层",
+      "show_object": "显示对象",
+      "hide_object": "隐藏对象",
+      "lock_object": "锁定对象",
+      "unlock_object": "解锁对象"
+    },
     "registry": {
-      "cuts_layers": "切割 / 图层",
+      "outliner": "大纲",
+      "cuts_layers": "层数",
       "move": "移动",
       "console": "控制台",
       "macros": "宏",
-      "properties": "形状属性",
+      "properties": "特性",
       "measurement": "测量",
       "laser": "Laser Control",
       "material": "材料库",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "单个子图层"
     },
     "properties": {
+      "transform": "变换",
+      "visibility_help": "隐藏的对象不会包含在任务中。可在 Outliner 中恢复。",
+      "power_scale_help": "在不更改图层的情况下，按比例调整此对象的图层功率。",
+      "cut_priority_help": "启用优先级优化时，数值越小越先运行。",
       "objects_selected": "已选择 {count} 个对象",
       "layer": "图层",
       "mixed": "混合",
@@ -1421,7 +1471,7 @@
       "union": "联盟",
       "subtract": "减去",
       "intersection": "相交",
-      "nothing_selected": "未选择任何对象",
+      "nothing_selected": "选择一个对象以编辑其属性",
       "name": "名称",
       "power_scale_percent": "功率缩放 %",
       "cut_priority": "切割优先级",
@@ -1484,15 +1534,63 @@
       "h_space": "水平间距",
       "v_space": "垂直间距",
       "path_offset": "路径偏移",
+      "baseline_offset": "基线偏移",
+      "direction_normal": "正向",
+      "direction_reverse": "反向",
+      "strength": "强度",
+      "arc_span": "圆弧跨度",
+      "circle_position": "圆上位置",
+      "circle_side": "圆弧侧面",
+      "circle_top": "顶部",
+      "circle_bottom": "底部",
+      "circle_outside": "外侧",
+      "circle_inside": "内侧",
       "bend_radius": "弯曲半径",
       "align_left": "左",
       "align_center": "居中",
       "align_right": "右",
       "align_top": "顶部",
       "align_middle": "中部",
-      "align_bottom": "底部"
+      "align_bottom": "底部",
+      "tool_title": "文本工具",
+      "creation_hint": "选择“点”进行单击并键入，或选择“框”来拖动环绕区域。",
+      "edit_text": "编辑文字",
+      "edit_on_canvas": "在画布上编辑",
+      "search_fonts": "搜索字体",
+      "recent_fonts": "最近的",
+      "favorite_fonts": "收藏夹",
+      "all_fonts": "所有字体",
+      "no_fonts_found": "没有找到字体",
+      "favorite_font": "最喜欢的字体",
+      "unfavorite_font": "删除收藏夹",
+      "style": "风格",
+      "style_regular": "常规的",
+      "style_bold_italic": "粗斜体",
+      "typography": "版式",
+      "alignment_spacing": "对齐和间距",
+      "text_box": "文本类型",
+      "width_mode": "模式",
+      "auto_width": "观点",
+      "fixed_width": "盒子",
+      "width": "箱体宽度",
+      "squeeze_to_fit": "挤压以适合",
+      "advanced_shape": "高级文字形状",
+      "transform": "信封",
+      "transform_none": "没有任何",
+      "transform_arch": "拱",
+      "transform_rise": "上升",
+      "transform_wave": "海浪",
+      "transform_flag": "旗帜",
+      "transform_angle": "角度",
+      "transform_circle": "圆圈",
+      "curve": "曲线",
+      "laser_output": "激光输出",
+      "convert_hint": "转换为路径将文字冻结为可编辑的剪切几何形状。",
+      "tracking": "追踪",
+      "line_spacing": "行距"
     },
     "sub_layer_stack": {
+      "title": "子图层",
       "operation_tool": "工具",
       "operation_image": "图像",
       "operation_fill": "填充",
@@ -1542,7 +1640,8 @@
       "offset_outward": "向外偏移",
       "max_sub_layers_title": "已达到 11 个子图层上限",
       "add_sub_layer_title": "添加子图层",
-      "add_sub_layer": "+ 添加子图层"
+      "add_sub_layer": "+ 添加子图层",
+      "order_hint": "子图层按从上到下的顺序执行。"
     },
     "cut_settings": {
       "title": "切割设置",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "工具图层仅用作辅助线，不会产生激光输出。",
+      "output_show_help": "开启“输出”会将此图层包含在激光任务中。“显示”只改变画布视图。",
+      "opacity_help": "仅用于画布预览。不会改变激光功率或图像处理。",
+      "delete_layer": "删除图层",
+      "add_layer": "添加图层",
       "header": {
         "index": "#",
         "layer": "图层",
@@ -1587,8 +1691,6 @@
         "multi": "多个"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "将工具图层包含在作业边界中",
-      "exclude_tool_layers_from_job_bounds": "从作业边界中排除工具图层",
       "frame": "框选",
       "move_up": "上移",
       "move_down": "下移",
@@ -1635,7 +1737,8 @@
         "on_ms": "开 (ms)",
         "off_ms": "关 (ms)",
         "kerf_mm": "割缝偏移"
-      }
+      },
+      "settings_copied": "已复制图层设置"
     },
     "move": {
       "step_mm": "步长",
@@ -2168,9 +2271,40 @@
       "end": "终点",
       "midpoint": "中点",
       "difference": "差值",
-      "angle": "角度"
+      "angle": "角度",
+      "mode_linear": "线性",
+      "mode_angle": "角度",
+      "mode_radius": "半径",
+      "mode_gap": "差距",
+      "minimum_gap": "最小间隙",
+      "horizontal": "水平的",
+      "vertical": "垂直的",
+      "horizontal_gap": "水平间隙",
+      "vertical_gap": "垂直间隙",
+      "first_segment": "第一段",
+      "second_segment": "第二段",
+      "radius": "半径",
+      "diameter": "直径",
+      "radius_x": "半径X",
+      "radius_y": "半径 Y",
+      "diameter_x": "直径X",
+      "diameter_y": "直径Y",
+      "linear_second_hint": "单击第二个点",
+      "angle_second_hint": "单击第二段",
+      "gap_second_hint": "单击第二个对象",
+      "angle_hint": "单击两个线段来测量它们的角度",
+      "radius_hint": "单击圆形或椭圆形",
+      "gap_hint": "单击两个对象以测量它们最近的间隙",
+      "linear_hint": "单击并拖动，或单击两个点",
+      "title": "措施",
+      "modes": "测量模式",
+      "copy_value": "复制值",
+      "copied": "已复制",
+      "clear_measurement": "清晰的测量",
+      "keyboard_hint": "Shift 约束角度。 Escape 清除，然后返回到选择。"
     },
     "art_library": {
+      "drag_help": "将图稿拖到画布上。使用 × 可将其从图库中删除。",
       "no_libraries": "未加载任何库。",
       "search": "搜索...",
       "icon_size": "图标大小：",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench 图库",
       "filter_artwork": "图稿"
     }
+  },
+  "warp_tool": {
+    "title": "经",
+    "four_points": "4分",
+    "sixteen_points": "16分"
   },
   "context_menu": {
     "windows": "窗口",

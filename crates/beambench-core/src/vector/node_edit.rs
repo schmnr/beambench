@@ -31,10 +31,22 @@ pub enum NodeType {
     Corner,
 }
 
+/// Draw command that reaches a node. The frontend needs this distinction to
+/// render and hit-test imported quadratic curves with their true equation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IncomingSegmentKind {
+    Move,
+    Line,
+    Quadratic,
+    Cubic,
+}
+
 /// A node in an editable path, with its position and optional handles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PathNode {
     pub id: NodeId,
+    pub incoming_segment: IncomingSegmentKind,
     pub position: Point2D,
     pub handle_in: Option<Point2D>,
     pub handle_out: Option<Point2D>,
@@ -92,6 +104,11 @@ impl EditablePath {
                                 subpath_idx: sp_idx,
                                 command_idx: cmd_idx,
                             },
+                            incoming_segment: match cmd {
+                                PathCommand::MoveTo { .. } => IncomingSegmentKind::Move,
+                                PathCommand::LineTo { .. } => IncomingSegmentKind::Line,
+                                _ => unreachable!(),
+                            },
                             position: Point2D::new(x, y),
                             handle_in,
                             handle_out,
@@ -107,6 +124,7 @@ impl EditablePath {
                                 subpath_idx: sp_idx,
                                 command_idx: cmd_idx,
                             },
+                            incoming_segment: IncomingSegmentKind::Quadratic,
                             position: Point2D::new(x, y),
                             handle_in,
                             handle_out,
@@ -123,6 +141,7 @@ impl EditablePath {
                                 subpath_idx: sp_idx,
                                 command_idx: cmd_idx,
                             },
+                            incoming_segment: IncomingSegmentKind::Cubic,
                             position: Point2D::new(x, y),
                             handle_in,
                             handle_out,
@@ -149,6 +168,7 @@ impl EditablePath {
                     if last_node.handle_in.is_some() {
                         nodes[0].handle_in = last_node.handle_in;
                     }
+                    nodes[0].incoming_segment = last_node.incoming_segment;
                     nodes[0].node_type = classify_node_type(
                         nodes[0].handle_in,
                         nodes[0].handle_out,
@@ -1096,17 +1116,26 @@ pub fn delete_segment(path: &mut VecPath, node_id: NodeId) -> bool {
         second_cmds.extend(rest_cmds);
 
         let sp_idx = node_id.subpath_idx;
-        path.subpaths[sp_idx] = SubPath {
-            commands: first_cmds,
-            closed: false,
-        };
-        path.subpaths.insert(
-            sp_idx + 1,
-            SubPath {
+        let mut replacements = Vec::with_capacity(2);
+        if first_cmds.len() > 1 {
+            replacements.push(SubPath {
+                commands: first_cmds,
+                closed: false,
+            });
+        }
+        if second_cmds.len() > 1 {
+            replacements.push(SubPath {
                 commands: second_cmds,
                 closed: false,
-            },
-        );
+            });
+        }
+        // Deleting the only segment would leave nothing but isolated MoveTo
+        // commands. Reject it instead of creating ghost subpaths that can later
+        // be marked closed and block the real contour from being closed.
+        if replacements.is_empty() {
+            return false;
+        }
+        path.subpaths.splice(sp_idx..=sp_idx, replacements);
         true
     }
 }
@@ -1217,6 +1246,9 @@ pub fn toggle_path_closed(path: &mut VecPath, subpath_idx: usize) -> bool {
     let Some(subpath) = path.subpaths.get_mut(subpath_idx) else {
         return false;
     };
+    if !subpath.has_drawable_segment() {
+        return false;
+    }
 
     if subpath.closed {
         subpath
@@ -1230,6 +1262,8 @@ pub fn toggle_path_closed(path: &mut VecPath, subpath_idx: usize) -> bool {
         subpath.commands.push(PathCommand::Close);
         subpath.closed = true;
     }
+    // Repair legacy node edits that left behind MoveTo/Close-only contours.
+    path.prune_orphan_subpaths();
     true
 }
 
@@ -1254,6 +1288,14 @@ mod tests {
         assert_eq!(editable.len(), 1);
         assert_eq!(editable[0].nodes.len(), 3); // M, L, L (Close doesn't create a node)
         assert!(editable[0].closed);
+        assert_eq!(
+            editable[0].nodes[0].incoming_segment,
+            IncomingSegmentKind::Move
+        );
+        assert_eq!(
+            editable[0].nodes[1].incoming_segment,
+            IncomingSegmentKind::Line
+        );
     }
 
     #[test]
@@ -1263,6 +1305,20 @@ mod tests {
         assert_eq!(editable[0].nodes.len(), 2); // M and C endpoint
         // The cubic endpoint should have an incoming handle
         assert!(editable[0].nodes[1].handle_in.is_some());
+        assert_eq!(
+            editable[0].nodes[1].incoming_segment,
+            IncomingSegmentKind::Cubic
+        );
+    }
+
+    #[test]
+    fn editable_path_identifies_quadratic_segments() {
+        let path = VecPath::parse_svg_d("M0 0 Q5 10 10 0");
+        let editable = EditablePath::from_vecpath(&path);
+        assert_eq!(
+            editable[0].nodes[1].incoming_segment,
+            IncomingSegmentKind::Quadratic
+        );
     }
 
     #[test]
@@ -1647,6 +1703,11 @@ mod tests {
             Some(Point2D::new(22.4, 0.0))
         );
         assert_eq!(editable[0].nodes[0].node_type, NodeType::Smooth);
+        assert_eq!(
+            editable[0].nodes[0].incoming_segment,
+            IncomingSegmentKind::Cubic,
+            "merged closing node should retain the command that reaches it"
+        );
     }
 
     #[test]
@@ -1950,6 +2011,31 @@ mod tests {
     }
 
     #[test]
+    fn delete_terminal_segment_does_not_leave_a_move_only_subpath() {
+        let mut path = VecPath::parse_svg_d("M0 0 L10 0 L20 0");
+        let node_id = NodeId {
+            subpath_idx: 0,
+            command_idx: 2,
+        };
+        assert!(delete_segment(&mut path, node_id));
+        assert_eq!(path.subpaths.len(), 1);
+        assert_eq!(path.subpaths[0].commands.len(), 2);
+        assert_eq!(path.to_svg_d(), "M0 0 L10 0");
+    }
+
+    #[test]
+    fn delete_only_segment_is_rejected_without_creating_ghost_paths() {
+        let mut path = VecPath::parse_svg_d("M0 0 L10 0");
+        let original = path.clone();
+        let node_id = NodeId {
+            subpath_idx: 0,
+            command_idx: 1,
+        };
+        assert!(!delete_segment(&mut path, node_id));
+        assert_eq!(path, original);
+    }
+
+    #[test]
     fn delete_segment_rejects_moveto() {
         let mut path = VecPath::parse_svg_d("M0 0 L10 10");
         let node_id = NodeId {
@@ -2067,6 +2153,22 @@ mod tests {
                 .iter()
                 .any(|c| matches!(c, PathCommand::Close))
         );
+    }
+
+    #[test]
+    fn toggle_open_path_prunes_legacy_move_only_siblings() {
+        let mut path = VecPath::parse_svg_d("M20 20 Z M0 0 L10 0 L5 10");
+        assert!(toggle_path_closed(&mut path, 1));
+        assert_eq!(path.subpaths.len(), 1);
+        assert!(path.subpaths[0].closed);
+        assert_eq!(EditablePath::from_vecpath(&path)[0].nodes.len(), 3);
+    }
+
+    #[test]
+    fn toggle_rejects_a_move_only_subpath() {
+        let mut path = VecPath::parse_svg_d("M20 20 Z");
+        assert!(!toggle_path_closed(&mut path, 0));
+        assert_eq!(path.subpaths.len(), 1);
     }
 
     #[test]

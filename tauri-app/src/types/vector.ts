@@ -25,8 +25,8 @@ export interface OffsetPreviewPath {
   closed: boolean;
 }
 
-/** Result of a non-mutating offset preview. `source_all_open` is true only when
- *  the whole selection is open paths (the only case that yields preview paths). */
+/** Result of a non-mutating offset preview. `source_all_open` selects
+ *  side-oriented labels for selections made entirely from open paths. */
 export interface OffsetPreview {
   paths: OffsetPreviewPath[];
   source_all_open: boolean;
@@ -60,6 +60,8 @@ export type NodeType = 'smooth' | 'corner';
 
 export interface PathNode {
   id: NodeId;
+  /** Draw command that reaches this node, supplied by the native editable-path adapter. */
+  incoming_segment?: 'move' | 'line' | 'quadratic' | 'cubic';
   position: Point2D;
   handle_in: Point2D | null;
   handle_out: Point2D | null;
@@ -69,6 +71,19 @@ export interface PathNode {
 export interface EditablePath {
   nodes: PathNode[];
   closed: boolean;
+}
+
+export interface NodeClipboardCopy {
+  pathJson: string;
+  pathData: string;
+  bounds: Bounds;
+  closed: boolean;
+}
+
+export interface NodePasteResult {
+  object: ProjectObject;
+  pastedSubpathStart: number;
+  pastedSubpathCount: number;
 }
 
 export interface NormalizedVector {

@@ -62,7 +62,6 @@
       "export_selection": "선택 내보내기",
       "hide_notes": "메모 숨기기",
       "import_preferences": "가져오기 기본 설정",
-      "new_window": "새 창",
       "open_preferences_folder": "환경 설정 폴더 열기",
       "preferences_exported": "환경설정을 내보냈습니다.",
       "preferences_imported": "환경설정을 가져왔습니다.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "환경설정을 기본값으로 재설정하시겠습니까? 컴퓨터 프로필, 최근 파일, 저장된 위치, API 설정 및 내보내기 경로가 유지됩니다.",
       "save_background_capture": "배경 캡처 저장",
       "save_processed_bitmap": "처리된 비트맵 저장",
-      "show_notes": "메모 표시"
+      "show_notes": "메모 표시",
+      "project_notes": "프로젝트 메모...",
+      "print": "인쇄...",
+      "export_processed_image": "처리된 이미지 내보내기..."
     },
     "edit": {
       "label": "편집",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "선택한 도형 자동 결합",
       "close_and_join": "닫기 및 가입",
       "convert_to_bitmap": "비트맵으로 변환",
+      "extract_selected_nodes_to_path": "선택한 노드를 새 경로로 추출",
       "duplicate": "중복",
       "image_options": "이미지 옵션",
       "invert_selection": "선택 반전",
@@ -241,12 +244,12 @@
       "shape_properties": "모양 속성",
       "text_options": "텍스트 옵션",
       "toggle_side_panels": "측면 패널 전환",
-      "toggle_wireframe_filled": "와이어프레임 전환 / 채워짐",
-      "view_style": "뷰 스타일:",
-      "view_style_filled_coarse": "채워진 / 거친",
-      "view_style_filled_smooth": "채워짐 / 매끄러움",
-      "view_style_wireframe_coarse": "와이어프레임 / 일반",
-      "view_style_wireframe_smooth": "와이어프레임 / 스무스",
+      "toggle_wireframe_filled": "레이어 작업 / 와이어프레임 전환",
+      "view_style": "아트워크 표시:",
+      "view_style_filled_coarse": "채움 우선",
+      "view_style_filled_smooth": "부드러운 가장자리",
+      "view_style_wireframe_coarse": "레이어 작업에 따름",
+      "view_style_wireframe_smooth": "와이어프레임 우선",
       "zoom_to_page": "페이지 확대"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "스크롤 휠",
       "scroll_zoom": "확대",
       "scroll_pan": "이동",
-      "allow_import_tool_layers": "도구 레이어로 가져오기 허용",
-      "include_tool_layers_job_bounds": "작업 범위에 도구 레이어 포함"
+      "allow_import_tool_layers": "도구 레이어로 가져오기 허용"
     },
     "about": {
       "tagline": "메이커가 만든 메이커를 위한 도구.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "대상 레이어를 더 이상 사용할 수 없기 때문에 바코드 대화 상자가 닫혔습니다."
     },
     "adjust_image": {
+      "invert_display_help": "미리보기 전용입니다. 저장된 이미지와 레이저 출력은 변경되지 않습니다.",
+      "invert_adjustment_help": "반전은 이 이미지에 저장되며 레이어의 래스터 처리 전에 적용됩니다.",
+      "negative_image_help": "네거티브 이미지는 레이어 출력을 반전합니다. 위의 반전도 켜져 있으면 두 반전이 서로 상쇄될 수 있습니다.",
       "title": "이미지 조정",
       "drag_to_move": "이동하려면 드래그하세요.",
       "original": "원본",
@@ -701,6 +706,7 @@
       "include_project_file": "프로젝트 파일 포함",
       "include_project_file_help": "기본적으로 꺼져 있습니다. 실제 .lzrproj 기하학과 래스터 데이터를 보냅니다.",
       "job_compatibility_help": "아직 아무것도 전송되지 않았습니다. 이 보고서에는 Beam Bench 버전, 운영 체제, 컨트롤러 제품군, 식별 불가능한 장비 설정 및 완료된 작업의 집계 정보가 포함됩니다. 디자인, G-code, 파일 이름, 직렬 통신, 로그, 장치 경로, 프로필 ID 및 프로젝트 파일은 제외됩니다.",
+      "privacy_policy": "개인정보 처리방침 읽기",
       "what_gets_sent": "전송되는 내용",
       "loading": "로드 중...",
       "submitting_report": "빔 벤치에 보고서를 제출하는 중...",
@@ -784,6 +790,7 @@
       "pan_hint": "드래그하여 트레이스 영역을 선택하세요. 스페이스 바를 누른 채 드래그하면 화면을 이동할 수 있습니다."
     },
     "preview": {
+      "options_help": "이동은 레이저가 꺼진 상태의 움직임입니다. 진행 상황은 완료된 가공을 표시합니다. 오버스캔은 아트워크 바깥의 래스터 가속 구간을 표시합니다. 파워별 음영과 반전은 이 화면에만 영향을 줍니다.",
       "title": "미리보기 창",
       "stale_refresh_required": "오래됨 - 새로고침 필요",
       "stale": "부실",
@@ -1105,10 +1112,27 @@
       "title": "저장되지 않은 변경 사항",
       "message": "프로젝트에 저장되지 않은 변경 사항이 있습니다. 계속하기 전에 저장하시겠습니까?",
       "discard": "저장 안 함"
+    },
+    "print": {
+      "title": "인쇄",
+      "output": "인쇄 출력",
+      "description": "프로젝트 표시 방법을 선택한 다음 시스템 인쇄 대화 상자에서 계속 진행하세요.",
+      "color": "색상",
+      "black": "검정",
+      "layer_colors": "레이어 색상",
+      "appearance": "아트워크 표시",
+      "by_operation": "레이어 작업별",
+      "outlines": "윤곽선만",
+      "print": "인쇄...",
+      "preparing": "준비 중..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "디자인",
+      "mode_run": "실행",
+      "mode_design_hint": "디자인: 프로젝트를 그리고 배치합니다",
+      "mode_run_hint": "실행: 작업을 레이저로 전송합니다",
       "new": "새로운",
       "untitled_project": "제목 없는 프로젝트",
       "open": "열기",
@@ -1193,13 +1217,16 @@
       "close_path": "경로 닫기",
       "auto_join_paths": "자동 조인 경로",
       "insert_midpoint": "중간점 삽입 (M)",
-      "align_to_angle": "각도에 맞춰 정렬 (A)"
+      "align_to_angle": "각도에 맞춰 정렬 (A)",
+      "extend_to_intersection": "교차점까지 연장 (E)"
     },
     "transform_toggles": {
       "move": "이동",
       "size": "크기",
       "rotate": "회전",
-      "shear": "전단"
+      "shear": "전단",
+      "lock_all": "모든 변형 잠금",
+      "unlock_all": "모든 변형 잠금 해제"
     },
     "properties": {
       "position_x": "X 위치",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "프로젝트 없음",
-      "nothing_selected": "선택된 항목 없음"
+      "nothing_selected": "개체를 선택하여 속성을 편집하세요"
+    },
+    "library": {
+      "title": "라이브러리"
     },
     "floating": {
       "dock_tooltip": "패널 도킹",
       "close_tooltip": "패널 닫기",
       "float_tooltip": "패널 분리"
     },
+    "outliner": {
+      "help": "드래그하여 순서를 바꾸거나 이동하세요. 두 번 클릭하여 이름을 바꾸세요. 숨긴 객체는 복원할 수 있도록 여기에 남아 있습니다.",
+      "summary": "{layers}개 레이어 · {objects}개 객체",
+      "empty_layer": "개체 없음",
+      "expand_layer": "레이어 확장",
+      "collapse_layer": "레이어 축소",
+      "expand_group": "그룹 펼치기",
+      "collapse_group": "그룹 축소",
+      "show_layer": "레이어 표시",
+      "hide_layer": "레이어 숨기기",
+      "show_object": "개체 표시",
+      "hide_object": "개체 숨기기",
+      "lock_object": "객체 잠금",
+      "unlock_object": "개체 잠금 해제"
+    },
     "registry": {
-      "cuts_layers": "컷 / 레이어",
+      "outliner": "아웃라이너",
+      "cuts_layers": "레이어",
       "move": "이동",
       "console": "콘솔",
       "macros": "매크로",
-      "properties": "도형 속성",
+      "properties": "속성",
       "measurement": "측정",
       "laser": "Laser Control",
       "material": "재료 라이브러리",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "단일 하위 레이어"
     },
     "properties": {
+      "transform": "변형",
+      "visibility_help": "숨긴 객체는 작업에서 제외됩니다. Outliner에서 복원하세요.",
+      "power_scale_help": "레이어를 변경하지 않고 이 객체의 레이어 파워를 배율 조정합니다.",
+      "cut_priority_help": "우선순위 최적화가 켜져 있으면 값이 낮을수록 먼저 실행됩니다.",
       "objects_selected": "{count}개 객체 선택됨",
       "layer": "레이어",
       "mixed": "혼합",
@@ -1421,7 +1471,7 @@
       "union": "연합",
       "subtract": "빼기",
       "intersection": "교차",
-      "nothing_selected": "선택 없음",
+      "nothing_selected": "개체를 선택하여 속성을 편집하세요",
       "name": "이름",
       "power_scale_percent": "파워 스케일 %",
       "cut_priority": "절단 우선순위",
@@ -1484,15 +1534,63 @@
       "h_space": "가로 간격",
       "v_space": "세로 간격",
       "path_offset": "경로 오프셋",
+      "baseline_offset": "기준선 오프셋",
+      "direction_normal": "정방향",
+      "direction_reverse": "역방향",
+      "strength": "강도",
+      "arc_span": "호 범위",
+      "circle_position": "원 위치",
+      "circle_side": "원 안팎",
+      "circle_top": "위",
+      "circle_bottom": "아래",
+      "circle_outside": "바깥쪽",
+      "circle_inside": "안쪽",
       "bend_radius": "굽힘 반경",
       "align_left": "왼쪽",
       "align_center": "가운데",
       "align_right": "오른쪽",
       "align_top": "위",
       "align_middle": "중간",
-      "align_bottom": "아래"
+      "align_bottom": "아래",
+      "tool_title": "텍스트 도구",
+      "creation_hint": "클릭하여 입력하려면 점을 선택하고, 둘러싸는 영역을 드래그하려면 상자를 선택하세요.",
+      "edit_text": "텍스트 편집",
+      "edit_on_canvas": "캔버스에서 편집",
+      "search_fonts": "글꼴 검색",
+      "recent_fonts": "최근",
+      "favorite_fonts": "즐겨찾기",
+      "all_fonts": "모든 글꼴",
+      "no_fonts_found": "글꼴을 찾을 수 없습니다.",
+      "favorite_font": "좋아하는 글꼴",
+      "unfavorite_font": "즐겨찾기 삭제",
+      "style": "스타일",
+      "style_regular": "레귤러",
+      "style_bold_italic": "굵은 이탤릭체",
+      "typography": "타이포그래피",
+      "alignment_spacing": "정렬 및 간격",
+      "text_box": "텍스트 유형",
+      "width_mode": "모드",
+      "auto_width": "포인트",
+      "fixed_width": "상자",
+      "width": "상자 너비",
+      "squeeze_to_fit": "꼭 맞게 짜주세요",
+      "advanced_shape": "고급 텍스트 모양",
+      "transform": "봉투",
+      "transform_none": "없음",
+      "transform_arch": "아치",
+      "transform_rise": "상승",
+      "transform_wave": "웨이브",
+      "transform_flag": "깃발",
+      "transform_angle": "각도",
+      "transform_circle": "서클",
+      "curve": "곡선",
+      "laser_output": "레이저 출력",
+      "convert_hint": "경로로 변환은 문자를 편집 가능한 절단 형상으로 고정합니다.",
+      "tracking": "추적",
+      "line_spacing": "줄 간격"
     },
     "sub_layer_stack": {
+      "title": "하위 레이어",
       "operation_tool": "도구",
       "operation_image": "이미지",
       "operation_fill": "채우기",
@@ -1542,7 +1640,8 @@
       "offset_outward": "바깥쪽 오프셋",
       "max_sub_layers_title": "최대 11개 하위 레이어에 도달했습니다",
       "add_sub_layer_title": "하위 레이어 추가",
-      "add_sub_layer": "+ 하위 레이어 추가"
+      "add_sub_layer": "+ 하위 레이어 추가",
+      "order_hint": "하위 레이어는 위에서 아래 순서로 실행됩니다."
     },
     "cut_settings": {
       "title": "컷 설정",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "도구 레이어는 가이드로만 사용되며 레이저 출력을 생성하지 않습니다.",
+      "output_show_help": "출력을 켜면 이 레이어가 레이저 작업에 포함됩니다. 표시는 캔버스 보기만 변경합니다.",
+      "opacity_help": "캔버스 미리보기 전용입니다. 레이저 파워나 이미지 처리는 변경되지 않습니다.",
+      "delete_layer": "레이어 삭제",
+      "add_layer": "레이어 추가",
       "header": {
         "index": "#",
         "layer": "레이어",
@@ -1587,8 +1691,6 @@
         "multi": "다중"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "도구 레이어를 작업 경계에 포함",
-      "exclude_tool_layers_from_job_bounds": "도구 레이어를 작업 경계에서 제외",
       "frame": "프레임",
       "move_up": "위로 이동",
       "move_down": "아래로 이동",
@@ -1635,7 +1737,8 @@
         "on_ms": "켜짐 (ms)",
         "off_ms": "꺼짐 (ms)",
         "kerf_mm": "커프 오프셋"
-      }
+      },
+      "settings_copied": "레이어 설정이 복사되었습니다"
     },
     "move": {
       "step_mm": "스텝",
@@ -2168,9 +2271,40 @@
       "end": "끝",
       "midpoint": "중점",
       "difference": "차이",
-      "angle": "각도"
+      "angle": "각도",
+      "mode_linear": "선형",
+      "mode_angle": "각도",
+      "mode_radius": "반경",
+      "mode_gap": "갭",
+      "minimum_gap": "최소 간격",
+      "horizontal": "수평",
+      "vertical": "수직",
+      "horizontal_gap": "수평 간격",
+      "vertical_gap": "수직 간격",
+      "first_segment": "첫 번째 세그먼트",
+      "second_segment": "두 번째 세그먼트",
+      "radius": "반경",
+      "diameter": "직경",
+      "radius_x": "반경 X",
+      "radius_y": "반경 Y",
+      "diameter_x": "직경 X",
+      "diameter_y": "직경 Y",
+      "linear_second_hint": "두 번째 점을 클릭하세요.",
+      "angle_second_hint": "두 번째 세그먼트를 클릭하세요.",
+      "gap_second_hint": "두 번째 개체를 클릭하세요.",
+      "angle_hint": "각도를 측정하려면 두 세그먼트를 클릭하세요.",
+      "radius_hint": "원이나 타원을 클릭하세요.",
+      "gap_hint": "두 개체를 클릭하여 가장 가까운 간격을 측정하세요.",
+      "linear_hint": "클릭한 채 드래그하거나 두 점을 클릭합니다.",
+      "title": "측정",
+      "modes": "측정 모드",
+      "copy_value": "값 복사",
+      "copied": "복사됨",
+      "clear_measurement": "명확한 측정",
+      "keyboard_hint": "Shift는 각도를 제한합니다. Escape가 지워진 다음 선택으로 돌아갑니다."
     },
     "art_library": {
+      "drag_help": "아트워크를 캔버스로 드래그하세요. ×를 사용해 라이브러리에서 삭제할 수 있습니다.",
       "no_libraries": "로드된 라이브러리가 없습니다.",
       "search": "검색...",
       "icon_size": "아이콘 크기:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench 아트 라이브러리",
       "filter_artwork": "아트워크"
     }
+  },
+  "warp_tool": {
+    "title": "워프",
+    "four_points": "4점",
+    "sixteen_points": "16점"
   },
   "context_menu": {
     "windows": "창",

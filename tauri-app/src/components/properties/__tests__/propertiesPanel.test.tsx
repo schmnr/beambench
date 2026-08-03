@@ -3,6 +3,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { PropertiesPanel } from '../PropertiesPanel';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
+import { useMeasurementStore } from '../../../stores/measurementStore';
 import { makeLayer, makeProject as makeProjectFixture, makeProjectObject, makeStarObjectData, makeTextObjectData } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -39,9 +40,217 @@ afterEach(() => {
   cleanup();
   useProjectStore.setState(initialState, true);
   useUiStore.setState(initialUiState, true);
+  useMeasurementStore.getState().clear();
+  useMeasurementStore.setState({ mode: 'linear' });
 });
 
 describe('PropertiesPanel', () => {
+  it('shows contextual Measure modes even when nothing is selected', () => {
+    useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
+    useUiStore.setState({ activeTool: 'measure' });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByTestId('measurement-properties-section')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Linear' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Gap' }));
+    expect(useMeasurementStore.getState().mode).toBe('gap');
+    expect(screen.getByText('Click two objects to measure their closest gap')).toBeDefined();
+  });
+
+  it('shows persistent measurement results and clears them from Properties', () => {
+    useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
+    useUiStore.setState({ activeTool: 'measure' });
+    useMeasurementStore.getState().setResult({
+      kind: 'linear',
+      start: { x: 0, y: 0 },
+      end: { x: 30, y: 40 },
+      dxMm: 30,
+      dyMm: 40,
+      lengthMm: 50,
+      angleDeg: 53.13,
+    });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByTestId('measurement-results').textContent).toContain('50.00 mm');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear measurement' }));
+    expect(useMeasurementStore.getState().result).toBeNull();
+  });
+
+  it('shows one Warp tool with 4-point and 16-point modes in Properties', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'warp', meshDeformMode: 'warp' });
+
+    render(<PropertiesPanel />);
+
+    const section = screen.getByTestId('warp-properties-section');
+    const fourPoint = screen.getByRole('button', { name: 'Warp Selection (4 Points)' });
+    const sixteenPoint = screen.getByRole('button', { name: 'Deform Selection (16 Points)' });
+    expect(fourPoint.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('properties-power-scale-slider').compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(sixteenPoint);
+    expect(useUiStore.getState().activeTool).toBe('warp');
+    expect(useUiStore.getState().meshDeformMode).toBe('mesh');
+    expect(sixteenPoint.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows NodeCraft-style node modes in Properties instead of a canvas-side toolbar', () => {
+    useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
+    useUiStore.setState({ activeTool: 'node', nodeSubMode: 'select' });
+
+    render(<PropertiesPanel />);
+
+    const section = screen.getByTestId('node-editing-section');
+    const modeLabels = [
+      'Select / Move (Esc)',
+      'Insert Node (I)',
+      'Insert Midpoint (M)',
+      'Break at Node (B)',
+      'Delete Node (D)',
+      'Delete Segment (X)',
+      'Convert to Line (L)',
+      'Convert to Smooth (S)',
+      'Convert to Corner (C)',
+      'Extend to Intersection (E)',
+    ];
+    modeLabels.forEach((label) => {
+      const button = screen.getByRole('button', { name: label });
+      expect(button.querySelector('svg')).not.toBeNull();
+    });
+    expect(section.querySelectorAll('[role="toolbar"] > div').length).toBe(5);
+    expect(screen.queryByRole('button', { name: 'Align to Angle (A)' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Insert Midpoint (M)' }));
+    expect(useUiStore.getState().nodeSubMode).toBe('insert_midpoint');
+    expect(screen.getByRole('button', { name: 'Insert Midpoint (M)' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Node Edit' }));
+    expect(screen.queryByRole('button', { name: 'Insert Node (I)' })).toBeNull();
+  });
+
+  it('places node editing after the selected object properties', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'node', nodeSubMode: 'select' });
+
+    render(<PropertiesPanel />);
+
+    const powerSlider = screen.getByTestId('properties-power-scale-slider');
+    const nodeEditing = screen.getByTestId('node-editing-section');
+    expect(powerSlider.compareDocumentPosition(nodeEditing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it.each([
+    ['offset', 'offset-properties-section'],
+    ['grid_array', 'grid-array-properties-section'],
+    ['circular_array', 'circular-array-properties-section'],
+  ] as const)('places the %s controls at the bottom of Properties', (kind, testId) => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({
+      activeTool: 'select',
+      modifierPropertiesSession: { kind, objectIds: ['obj1'] },
+    });
+
+    render(<PropertiesPanel />);
+
+    const powerSlider = screen.getByTestId('properties-power-scale-slider');
+    const modifierSection = screen.getByTestId(testId);
+    expect(powerSlider.compareDocumentPosition(modifierSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('places Radius controls at the bottom while the canvas tool is active', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'radius', radiusToolValue: 7.5 });
+
+    render(<PropertiesPanel />);
+
+    const powerSlider = screen.getByTestId('properties-power-scale-slider');
+    const radiusSection = screen.getByTestId('radius-properties-section');
+    expect(powerSlider.compareDocumentPosition(radiusSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText('Click corner to apply radius fillet')).toBeDefined();
+  });
+
+  it('shows tab width and clears placed tabs from the contextual tool section', async () => {
+    const updateCutEntry = vi.fn().mockResolvedValue(true);
+    const clearTabs = vi.fn().mockResolvedValue(undefined);
+    const project = makeProject({
+      tabs: [
+        { subpath_index: 0, position: 0.2 },
+        { subpath_index: 0, position: 0.7 },
+      ],
+    });
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: ['obj1'],
+      updateCutEntry,
+      clearTabs,
+    });
+    useUiStore.setState({ activeTool: 'tabs' });
+
+    render(<PropertiesPanel />);
+
+    const section = screen.getByTestId('tab-properties-section');
+    expect(section.textContent).toContain('Tabs: 2');
+    const widthInput = section.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(widthInput.value).toBe('3');
+    fireEvent.change(widthInput, { target: { value: '4.5' } });
+    expect(updateCutEntry).toHaveBeenCalledWith(
+      'l1',
+      project.layers[0].entries[0].id,
+      expect.objectContaining({
+        vector_settings: expect.objectContaining({ tab_width_mm: 4.5 }),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(clearTabs).toHaveBeenCalledWith('obj1'));
+  });
+
+  it('enables Close Path only for an editable open vector and dispatches the one-shot action', () => {
+    const project = makeProject({
+      data: { type: 'vector_path' as const, path_data: 'M0 0L10 10', closed: false },
+    });
+    const immediateAction = vi.fn();
+    window.addEventListener('bb:node-immediate-action', immediateAction);
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'node', nodeEditOpenPathObjectId: 'obj1' });
+
+    render(<PropertiesPanel />);
+
+    const closePath = screen.getByRole('button', { name: 'Close Path' }) as HTMLButtonElement;
+    expect(closePath.disabled).toBe(false);
+    fireEvent.click(closePath);
+    expect(immediateAction).toHaveBeenCalledOnce();
+    expect((immediateAction.mock.calls[0][0] as CustomEvent).detail).toBe('close_open');
+
+    window.removeEventListener('bb:node-immediate-action', immediateAction);
+  });
+
+  it('uses loaded subpath state instead of the coarse object closed flag', () => {
+    const project = makeProject({
+      data: { type: 'vector_path' as const, path_data: 'M0 0L10 0Z M20 0L30 10', closed: true },
+    });
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+    useUiStore.setState({ activeTool: 'node', nodeEditOpenPathObjectId: 'obj1' });
+
+    render(<PropertiesPanel />);
+
+    expect((screen.getByRole('button', { name: 'Close Path' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('shows next-text settings when the text tool is active without a selection', () => {
+    useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
+    useUiStore.setState({ activeTool: 'text' });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByTestId('text-defaults-card')).toBeDefined();
+    expect(screen.getByText('Choose Point to click and type, or Box to drag a wrapping region.')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Point' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('renders corner radius field for rectangle shapes', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
     render(<PropertiesPanel />);
@@ -67,10 +276,32 @@ describe('PropertiesPanel', () => {
     expect(screen.queryByText(/Position and numeric edits/)).toBeNull();
   });
 
-  it('renders Locked control for single-object properties', () => {
+  it('keeps the object lock control out of the property list', () => {
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
     render(<PropertiesPanel />);
-    expect(screen.getByText('Locked')).toBeDefined();
+    expect(screen.queryByText('Locked')).toBeNull();
+  });
+
+  it('uses the cyan inspector card and shared power slider', () => {
+    const updateObject = vi.fn();
+    useProjectStore.setState({
+      project: makeProject({ power_scale: 0.5 }),
+      selectedObjectIds: ['obj1'],
+      updateObject,
+    });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByTestId('properties-card').className).toContain('border-bb-accent/40');
+    expect(screen.getByTestId('object-visibility-help').textContent).toContain('excluded from the job');
+    expect(screen.getByText(/Multiplies this object/)).toBeDefined();
+    expect(screen.getByText(/Lower values run earlier/)).toBeDefined();
+    const powerSlider = screen.getByTestId('properties-power-scale-slider') as HTMLInputElement;
+    expect(powerSlider.type).toBe('range');
+    expect(powerSlider.value).toBe('50');
+
+    fireEvent.change(powerSlider, { target: { value: '65' } });
+    expect(updateObject).toHaveBeenCalledWith('obj1', { power_scale: 0.65 });
   });
 
   it('renders Sides input for polygon objects', () => {
@@ -144,13 +375,27 @@ describe('PropertiesPanel', () => {
     });
     useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
     render(<PropertiesPanel />);
-    expect(screen.getByText('Max Width')).toBeDefined();
-    expect(screen.getByText('Squeeze')).toBeDefined();
+    expect(screen.getByText(/Box width/)).toBeDefined();
+    expect(screen.getByText('Squeeze to fit')).toBeDefined();
     expect(screen.queryByText('Ignore Empty Vars')).toBeNull();
     expect(screen.getByText('RTL')).toBeDefined();
     expect(screen.queryByText('Path Offset')).toBeNull();
     expect(screen.queryByText('Bend Radius')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Font: sans-serif' }));
     expect(await screen.findByRole('option', { name: 'Noto Sans CJK SC' })).toBeDefined();
+  });
+
+  it('keeps the shared object flow before text-specific controls', () => {
+    const project = makeProject({ data: makeTextObjectData({ content: 'Hello' }) });
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+
+    render(<PropertiesPanel />);
+
+    const textPanel = screen.getByTestId('text-properties-panel');
+    const transformPanel = screen.getByTestId('transform-section');
+    const powerSlider = screen.getByTestId('properties-power-scale-slider');
+    expect(transformPanel.compareDocumentPosition(powerSlider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(powerSlider.compareDocumentPosition(textPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('loads system fonts in the text properties panel', async () => {
@@ -161,6 +406,7 @@ describe('PropertiesPanel', () => {
 
     render(<PropertiesPanel />);
 
+    fireEvent.click(screen.getByRole('button', { name: /^Font:/ }));
     expect(await screen.findByRole('option', { name: 'Noto Sans CJK SC' })).toBeDefined();
   });
 
@@ -173,24 +419,17 @@ describe('PropertiesPanel', () => {
     render(<PropertiesPanel />);
 
     expect(screen.getByText(/Missing glyphs: 中/)).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /^Font:/ }));
     expect(await screen.findByRole('option', { name: 'Noto Sans CJK SC' })).toBeDefined();
   });
 
-  it('routes shape width edits through resizeShapeObject', () => {
-    const resizeShapeObject = vi.fn().mockResolvedValue(true);
-    useProjectStore.setState({
-      project: makeProject(),
-      selectedObjectIds: ['obj1'],
-      resizeShapeObject,
-    });
+  it('does not duplicate the Transform section width and height controls', () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
 
     render(<PropertiesPanel />);
-    fireEvent.change(screen.getByLabelText('Width'), { target: { value: '80' } });
 
-    expect(resizeShapeObject).toHaveBeenCalledWith('obj1', {
-      min: { x: 10, y: 20 },
-      max: { x: 90, y: 70 },
-    });
+    expect(screen.queryByLabelText('Width')).toBeNull();
+    expect(screen.queryByLabelText('Height')).toBeNull();
   });
 
   it('Path layout enters guide-pick mode from the text properties panel', async () => {
@@ -227,7 +466,9 @@ describe('PropertiesPanel', () => {
     useUiStore.setState({ pendingGuidePathTextId: null });
 
     render(<PropertiesPanel />);
-    fireEvent.change(screen.getByLabelText('Layout'), { target: { value: 'path' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Shape' }), {
+      target: { value: 'path' },
+    });
 
     await waitFor(() => {
       expect(updateObjectData).toHaveBeenCalledWith(
@@ -255,7 +496,7 @@ describe('PropertiesPanel', () => {
     });
   });
 
-  it('routes multi-select layer changes through reassignLayer', () => {
+  it('does not duplicate layer assignment controls in object properties', () => {
     const base = makeProject();
     const project = {
       ...base,
@@ -276,16 +517,13 @@ describe('PropertiesPanel', () => {
         { ...base.objects[0], id: 'obj2', name: 'Rect2' },
       ],
     };
-    const reassignLayer = vi.fn();
-    useProjectStore.setState({ project, selectedObjectIds: ['obj1', 'obj2'], reassignLayer });
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1', 'obj2'] });
 
     render(<PropertiesPanel />);
-    fireEvent.change(screen.getByLabelText('Layer'), { target: { value: 'l2' } });
-
-    expect(reassignLayer).toHaveBeenCalledWith(['obj1', 'obj2'], 'l2');
+    expect(screen.queryByLabelText('Layer')).toBeNull();
   });
 
-  it('routes multi-select visibility and lock toggles through batch store actions', () => {
+  it('routes multi-select visibility through the batch store action', () => {
     const base = makeProject();
     const project = {
       ...base,
@@ -295,22 +533,291 @@ describe('PropertiesPanel', () => {
       ],
     };
     const setObjectsVisible = vi.fn();
-    const lockObjects = vi.fn();
-    const unlockObjects = vi.fn();
     useProjectStore.setState({
       project,
       selectedObjectIds: ['obj1', 'obj2'],
       setObjectsVisible,
-      lockObjects,
-      unlockObjects,
     });
 
     render(<PropertiesPanel />);
     fireEvent.click(screen.getByTestId('batch-visible'));
-    fireEvent.click(screen.getByTestId('batch-locked'));
 
     expect(setObjectsVisible).toHaveBeenCalledWith(['obj1', 'obj2'], true);
-    expect(lockObjects).toHaveBeenCalledWith(['obj1', 'obj2']);
-    expect(unlockObjects).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('batch-locked')).toBeNull();
+  });
+
+  it('exposes object visibility without adding an object output control', () => {
+    const setObjectsVisible = vi.fn();
+    useProjectStore.setState({
+      project: makeProject(),
+      selectedObjectIds: ['obj1'],
+      setObjectsVisible,
+    });
+
+    render(<PropertiesPanel />);
+    const showToggle = screen.getByTestId('object-show-toggle');
+
+    expect(showToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(showToggle.querySelector('.lucide-eye')).not.toBeNull();
+    expect(screen.queryByText('Output')).toBeNull();
+
+    fireEvent.click(showToggle);
+    expect(setObjectsVisible).toHaveBeenCalledWith(['obj1'], false);
+  });
+
+  it('shows Group and Align actions for a multi-selection', () => {
+    const base = makeProject();
+    const project = {
+      ...base,
+      objects: [
+        base.objects[0],
+        { ...base.objects[0], id: 'obj2', name: 'Rect2' },
+      ],
+    };
+    const groupObjects = vi.fn().mockResolvedValue(undefined);
+    const alignObjects = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: ['obj1', 'obj2'],
+      groupObjects,
+      alignObjects,
+    });
+
+    render(<PropertiesPanel />);
+    const groupButton = screen.getByRole('button', { name: 'Group' });
+    const ungroupButton = screen.getByRole('button', { name: 'Ungroup' });
+    expect(groupButton.className).toContain('w-7');
+    expect(ungroupButton.className).toContain('w-7');
+    expect((ungroupButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(groupButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Align Left' }));
+
+    expect(groupObjects).toHaveBeenCalledWith(['obj1', 'obj2']);
+    expect(alignObjects).toHaveBeenCalledWith(['obj1', 'obj2'], 'left');
+  });
+
+  it('shows the complete icon-based Boolean operation set and routes each action', () => {
+    const base = makeProject();
+    const project = {
+      ...base,
+      objects: [
+        base.objects[0],
+        { ...base.objects[0], id: 'obj2', name: 'Rect2' },
+      ],
+    };
+    const booleanWeld = vi.fn().mockResolvedValue(undefined);
+    const booleanUnion = vi.fn().mockResolvedValue(undefined);
+    const booleanSubtract = vi.fn().mockResolvedValue(undefined);
+    const booleanIntersection = vi.fn().mockResolvedValue(undefined);
+    const booleanExclude = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: ['obj1', 'obj2'],
+      booleanWeld,
+      booleanUnion,
+      booleanSubtract,
+      booleanIntersection,
+      booleanExclude,
+    });
+
+    render(<PropertiesPanel />);
+
+    const operationNames = ['Union', 'Subtract A − (B…)', 'Subtract B − (A…)', 'Intersect', 'Exclude'];
+    operationNames.forEach((name) => {
+      const button = screen.getByRole('button', { name });
+      expect(button.className).toContain('w-9');
+      expect(button.querySelector('svg')).not.toBeNull();
+      fireEvent.click(button);
+    });
+
+    expect(booleanWeld).not.toHaveBeenCalled();
+    expect(booleanUnion).toHaveBeenCalledWith('obj1', 'obj2');
+    expect(booleanSubtract).toHaveBeenNthCalledWith(1, 'obj1', 'obj2');
+    expect(booleanSubtract).toHaveBeenNthCalledWith(2, 'obj2', 'obj1');
+    expect(booleanIntersection).toHaveBeenCalledWith('obj1', 'obj2');
+    expect(booleanExclude).toHaveBeenCalledWith('obj1', 'obj2');
+  });
+
+  it('supports all boolean operations for three or more selected tool-layer shapes', () => {
+    const base = makeProject();
+    const toolLayer = makeLayer({
+      id: 'tool',
+      name: 'T1',
+      operation: 'tool',
+      color_tag: '#DA0B3F',
+      is_tool_layer: true,
+    });
+    const objects = ['obj1', 'obj2', 'obj3'].map((id, index) => makeProjectObject({
+      ...base.objects[0],
+      id,
+      name: `Circle ${index + 1}`,
+      layer_id: toolLayer.id,
+    }));
+    const booleanUnionMany = vi.fn().mockResolvedValue(undefined);
+    const booleanSubtractMany = vi.fn().mockResolvedValue(undefined);
+    const booleanIntersectionMany = vi.fn().mockResolvedValue(undefined);
+    const booleanExcludeMany = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: { ...base, layers: [toolLayer], objects },
+      selectedObjectIds: objects.map((object) => object.id),
+      booleanUnionMany,
+      booleanSubtractMany,
+      booleanIntersectionMany,
+      booleanExcludeMany,
+    });
+
+    render(<PropertiesPanel />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Union' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Subtract A − (B…)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Subtract B − (A…)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Intersect' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Exclude' }));
+
+    expect(booleanUnionMany).toHaveBeenCalledWith(['obj1', 'obj2', 'obj3']);
+    expect(booleanSubtractMany).toHaveBeenNthCalledWith(1, ['obj1', 'obj2', 'obj3']);
+    expect(booleanSubtractMany).toHaveBeenNthCalledWith(2, ['obj3', 'obj1', 'obj2']);
+    expect(booleanIntersectionMany).toHaveBeenCalledWith(['obj1', 'obj2', 'obj3']);
+    expect(booleanExcludeMany).toHaveBeenCalledWith(['obj1', 'obj2', 'obj3']);
+  });
+
+  it('offers inside and outside masks for an image selected with a closed shape', () => {
+    const base = makeProject();
+    const image = makeProjectObject({
+      id: 'image1',
+      name: 'Image',
+      layer_id: 'l1',
+      data: {
+        type: 'raster_image' as const,
+        asset_key: 'asset1',
+        original_width_px: 100,
+        original_height_px: 100,
+        masks: [],
+      },
+    });
+    const assignImageMask = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: { ...base, objects: [image, base.objects[0]] },
+      selectedObjectIds: ['image1', 'obj1'],
+      assignImageMask,
+    });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByTestId('image-mask-section')).toBeDefined();
+    expect(screen.queryByText('Boolean Operations')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Keep Inside' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep Outside' }));
+
+    expect(assignImageMask).toHaveBeenNthCalledWith(1, 'image1', ['obj1'], 'keep_inside');
+    expect(assignImageMask).toHaveBeenNthCalledWith(2, 'image1', ['obj1'], 'keep_outside');
+  });
+
+  it('explains why an open path cannot be used as an image mask', () => {
+    const base = makeProject({
+      data: { type: 'vector_path' as const, path_data: 'M0 0L10 10', closed: false },
+    });
+    const image = makeProjectObject({
+      id: 'image1',
+      name: 'Image',
+      layer_id: 'l1',
+      data: {
+        type: 'raster_image' as const,
+        asset_key: 'asset1',
+        original_width_px: 100,
+        original_height_px: 100,
+        masks: [],
+      },
+    });
+    useProjectStore.setState({
+      project: { ...base, objects: [image, base.objects[0]] },
+      selectedObjectIds: ['image1', 'obj1'],
+    });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.getByText('Image masks require closed vector shapes')).toBeDefined();
+    expect((screen.getByRole('button', { name: 'Keep Inside' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Keep Outside' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('only shows Distribute actions when at least three objects are selected', () => {
+    const base = makeProject();
+    const project = {
+      ...base,
+      objects: [
+        base.objects[0],
+        { ...base.objects[0], id: 'obj2', name: 'Rect2' },
+        { ...base.objects[0], id: 'obj3', name: 'Rect3' },
+      ],
+    };
+    const distributeObjects = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: ['obj1', 'obj2', 'obj3'],
+      distributeObjects,
+    });
+
+    render(<PropertiesPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Distribute H-Centered' }));
+
+    expect(distributeObjects).toHaveBeenCalledWith(['obj1', 'obj2', 'obj3'], 'h_centered');
+  });
+
+  it('shows Ungroup when a group object is selected', () => {
+    const project = makeProject({
+      data: { type: 'group' as const, children: ['child-a', 'child-b'] },
+    });
+    const ungroupObjects = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: ['obj1'],
+      ungroupObjects,
+    });
+
+    render(<PropertiesPanel />);
+    const groupButton = screen.getByRole('button', { name: 'Group' }) as HTMLButtonElement;
+    const ungroupButton = screen.getByRole('button', { name: 'Ungroup' }) as HTMLButtonElement;
+    expect(groupButton.disabled).toBe(true);
+    expect(ungroupButton.disabled).toBe(false);
+    fireEvent.click(ungroupButton);
+
+    expect(ungroupObjects).toHaveBeenCalledWith('obj1');
+  });
+
+  it('shows Break Apart as a compact action for a selected vector object', () => {
+    const project = makeProject({
+      data: {
+        type: 'vector_path' as const,
+        path_data: 'M 0 0 L 10 0 L 10 10 Z M 20 20 L 30 20 L 30 30 Z',
+        closed: true,
+      },
+    });
+    const breakApart = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'], breakApart });
+
+    render(<PropertiesPanel />);
+
+    const button = screen.getByRole('button', { name: 'Break Apart' });
+    expect(button.className).toContain('w-7');
+    fireEvent.click(button);
+    expect(breakApart).toHaveBeenCalledWith('obj1');
+  });
+
+  it('does not show Break Apart for raster objects', () => {
+    const project = makeProject({
+      data: {
+        type: 'raster_image' as const,
+        asset_key: 'asset-1',
+        original_width_px: 100,
+        original_height_px: 100,
+      },
+    });
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.queryByRole('button', { name: 'Break Apart' })).toBeNull();
   });
 });

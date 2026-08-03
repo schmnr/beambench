@@ -214,6 +214,8 @@ export interface Layer {
   color_tag: string;
   visible: boolean;
   is_tool_layer: boolean;
+  /** Design-only opacity for layers whose operation uses a filled appearance. */
+  fill_opacity?: number;
 }
 
 export interface LayerPatch {
@@ -221,6 +223,7 @@ export interface LayerPatch {
   enabled?: boolean;
   visible?: boolean;
   color_tag?: string;
+  fill_opacity?: number;
 }
 
 // --- Raster adjustments ---
@@ -340,6 +343,8 @@ export interface ProjectObject {
   z_index: number;
   data: ObjectData;
   lock_aspect_ratio: boolean;
+  /** Per-object transform permissions; absent only in legacy project data. */
+  transform_locks?: TransformLocks;
   power_scale: number;
   priority: number;
   created_at: string;

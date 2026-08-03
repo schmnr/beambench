@@ -5,7 +5,9 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { NumberInput } from '../shared/NumberInput';
 import { Toggle } from '../shared/Toggle';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Copy } from 'lucide-react';
+import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
+import { DIALOG_TONE, DialogButton, DialogFooter, DialogNotice, DialogSection } from '../shared/DialogPrimitives';
 
 interface CopyAlongPathDialogProps {
   objectIds: string[];
@@ -19,21 +21,11 @@ export function CopyAlongPathDialog({ objectIds, pathObjectId, onClose }: CopyAl
   const copyAlongPath = useProjectStore((s) => s.copyAlongPath);
   const initialProjectIdRef = useRef(projectId);
   const safeObjectIds = useMemo(() => [...objectIds], [objectIds]);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, true);
 
   const [count, setCount] = useState(6);
   const [rotateCopies, setRotateCopies] = useState(true);
   const [scaleCopies, setScaleCopies] = useState(false);
   const [finalScalePercent, setFinalScalePercent] = useState(100);
-
-  useEffect(() => {
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
 
   useEffect(() => {
     if (projectId !== initialProjectIdRef.current) {
@@ -68,21 +60,28 @@ export function CopyAlongPathDialog({ objectIds, pathObjectId, onClose }: CopyAl
   };
 
   return createPortal(
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="copy-along-path-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <MovableResizableDialogFrame
+      title={t('dialog.copy_along_path.title')}
+      titleId="copy-along-path-dialog-title"
+      testId="copy-along-path-dialog"
+      initialWidth={430}
+      initialHeight={390}
+      minWidth={380}
+      minHeight={340}
+      onRequestClose={onClose}
+      closeOnBackdropClick
+      footer={(
+        <DialogFooter>
+          <DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t('common.close')}</DialogButton>
+          <DialogButton tone={DIALOG_TONE.primary} onClick={() => void apply()} disabled={!isValid} data-testid="copy-along-path-submit">
+            {t('common.apply')}
+          </DialogButton>
+        </DialogFooter>
+      )}
     >
-      <div className="min-w-[360px] rounded-lg border border-bb-border bg-bb-panel p-4 shadow-xl">
-        <h2 id="copy-along-path-dialog-title" className="mb-3 text-sm font-semibold text-bb-text">
-          {t('dialog.copy_along_path.title')}
-        </h2>
-        <div className="space-y-2">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-bb-bg/20 p-4">
+        <DialogSection icon={<Copy size={14} />} title={t('dialog.copy_along_path.title')}>
+          <div className="space-y-3">
           <NumberInput
             label={t('dialog.copy_along_path.number_of_copies')}
             value={count}
@@ -109,30 +108,13 @@ export function CopyAlongPathDialog({ objectIds, pathObjectId, onClose }: CopyAl
             disabled={!scaleCopies}
             onChange={setFinalScalePercent}
           />
-        </div>
-        {!isValid && (
-          <div className="mt-3 rounded border border-bb-warning-border bg-bb-warning-bg px-2 py-1 text-xs text-bb-warning-fg">
-            {t('dialog.copy_along_path.validation_error')}
           </div>
+        </DialogSection>
+        {!isValid && (
+          <div className="mt-3"><DialogNotice tone={DIALOG_TONE.warning}>{t('dialog.copy_along_path.validation_error')}</DialogNotice></div>
         )}
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded bg-bb-bg px-3 py-1 text-xs font-medium text-bb-text hover:bg-bb-hover"
-          >
-            {t('common.close')}
-          </button>
-          <button
-            onClick={() => void apply()}
-            disabled={!isValid}
-            data-testid="copy-along-path-submit"
-            className="rounded bg-bb-accent px-3 py-1 text-xs font-medium text-bb-on-accent disabled:opacity-50"
-          >
-            {t('common.apply')}
-          </button>
-        </div>
       </div>
-    </div>,
+    </MovableResizableDialogFrame>,
     document.body,
   );
 }

@@ -27,7 +27,7 @@ describe('AboutDialog', () => {
     const onClose = vi.fn();
     render(<AboutDialog onClose={onClose} />);
 
-    fireEvent.click(screen.getByRole('dialog'));
+    fireEvent.click(screen.getByTestId('about-dialog-backdrop'));
 
     expect(onClose).toHaveBeenCalled();
   });

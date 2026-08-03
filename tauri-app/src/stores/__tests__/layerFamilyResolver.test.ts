@@ -150,7 +150,7 @@ describe('resolveDestinationLayer', () => {
         expect(out.copyFrom?.id).toBe('I');
         expect(out.copyFrom?.entries[0]?.speed_mm_min).toBe(400);
         expect(out.copyFrom?.entries[0]?.power_percent).toBe(30);
-        expect(out.suggestedName).toBe('C02 (Line)');
+        expect(out.suggestedName).toBe('C02');
       }
     });
 
@@ -184,7 +184,7 @@ describe('resolveDestinationLayer', () => {
       expect(out.kind).toBe('needs_create');
       if (out.kind === 'needs_create') {
         expect(out.operation).toBe('line');
-        expect(out.suggestedName).toBe('C03 (Line)');
+        expect(out.suggestedName).toBe('C03');
       }
     });
 
@@ -198,7 +198,7 @@ describe('resolveDestinationLayer', () => {
       }));
       expect(out.kind).toBe('needs_create');
       if (out.kind === 'needs_create') {
-        expect(out.suggestedName).toBe('Photo Pass (Line)');
+        expect(out.suggestedName).toBe('Photo Pass');
       }
     });
 

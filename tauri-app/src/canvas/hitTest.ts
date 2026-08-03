@@ -2,14 +2,15 @@ import type { ProjectObject, Point2D, TransformLocks } from '../types/project';
 import type { ViewportParams } from './ViewportTransform';
 import type { HandleId } from '../types/canvas';
 import { worldToScreen, screenToWorld, pxPerMm } from './ViewportTransform';
-import { getSelectionHandles } from './drawSelection';
+import { getSelectionFrameScreen, getSelectionHandles } from './drawSelection';
 import { HANDLE_HIT_SIZE, ROTATION_ARC_RADIUS } from './constants';
-import { parsePathData, mapPathCoordToBounds, buildPolygonPoints, buildStarPath, quadraticExtremumT, quadraticPoint, getVectorPathRenderInfoForObject } from './drawObjects';
+import { parsePathData, computePathBBox, mapPathCoordToBounds, textUsesMappedBounds, buildPolygonPoints, buildStarPath, quadraticExtremumT, quadraticPoint, getVectorPathRenderInfoForObject } from './drawObjects';
 import { applyInverseTransformToPoint, isIdentityTransform } from './textMeasure';
 import { applyAroundCenter, computeTransformedBoundsWorld, computeVisualBoundsWorld, getObjectSnapPoints, getRulerGuideAxis, mapLocalToBounds, resolveCloneForGeometry } from './alignment';
 import { queryPointCandidates, queryRectCandidates } from './sceneIndex';
 import { measureCanvasPerf } from './canvasPerf';
 import { useAppStore } from '../stores/appStore';
+import type { LayerStackLayer } from './layerStack';
 
 function clickTolerancePx(): number {
   return useAppStore.getState().settings?.click_tolerance_px ?? 5;
@@ -27,9 +28,10 @@ export function hitTestPoint(
   objects: ProjectObject[],
   vp: ViewportParams,
   includeLocked = false,
+  layers?: LayerStackLayer[],
 ): ProjectObject | null {
   return measureCanvasPerf('hit-test', () => {
-    const sorted = queryPointCandidates(screenPt, objects, vp, rulerGuideHitTolerancePx());
+    const sorted = queryPointCandidates(screenPt, objects, vp, rulerGuideHitTolerancePx(), layers);
 
     for (const obj of sorted) {
       if (!includeLocked && obj.locked) continue;
@@ -47,8 +49,9 @@ export function hitTestPointAll(
   objects: ProjectObject[],
   vp: ViewportParams,
   includeLocked = false,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
-  const sorted = queryPointCandidates(screenPt, objects, vp, rulerGuideHitTolerancePx());
+  const sorted = queryPointCandidates(screenPt, objects, vp, rulerGuideHitTolerancePx(), layers);
   const hits: ProjectObject[] = [];
   for (const obj of sorted) {
     if (!includeLocked && obj.locked) continue;
@@ -65,10 +68,11 @@ export function hitTestRect(
   objects: ProjectObject[],
   vp: ViewportParams,
   includeLocked = false,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
   const result: ProjectObject[] = [];
 
-  for (const obj of queryRectCandidates(screenRect, objects, vp)) {
+  for (const obj of queryRectCandidates(screenRect, objects, vp, layers)) {
     if (!includeLocked && obj.locked) continue;
 
     const vb = computeVisualBoundsWorld(obj, objects);
@@ -95,10 +99,11 @@ export function hitTestRectContained(
   objects: ProjectObject[],
   vp: ViewportParams,
   includeLocked = false,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
   const result: ProjectObject[] = [];
 
-  for (const obj of queryRectCandidates(screenRect, objects, vp)) {
+  for (const obj of queryRectCandidates(screenRect, objects, vp, layers)) {
     if (!includeLocked && obj.locked) continue;
 
     const vb = computeVisualBoundsWorld(obj, objects);
@@ -148,7 +153,10 @@ export function hitTestHandle(
   return null;
 }
 
-function isRotationHandleHit(screenPt: Point2D, handle: { id: HandleId; screenX: number; screenY: number }): boolean {
+function isRotationHandleHit(
+  screenPt: Point2D,
+  handle: { id: HandleId; screenX: number; screenY: number; rotationMidAngle?: number },
+): boolean {
   const dx = screenPt.x - handle.screenX;
   const dy = screenPt.y - handle.screenY;
 
@@ -167,7 +175,7 @@ function isRotationHandleHit(screenPt: Point2D, handle: { id: HandleId; screenX:
     return false;
   }
 
-  const midAngle = rotationHandleMidAngle(handle.id);
+  const midAngle = handle.rotationMidAngle ?? rotationHandleMidAngle(handle.id);
   if (midAngle == null) return false;
 
   const halfSweep = (110 / 2) * Math.PI / 180;
@@ -219,10 +227,18 @@ export function isPointInTextGlyphs(
 
   const commands = parsePathData(pathData);
   if (commands.length === 0) return true;
+  const pathBBox = computePathBBox(commands);
+  const mappedBounds = textUsesMappedBounds(obj.data);
+  const boundsW = obj.bounds.max.x - obj.bounds.min.x;
+  const boundsH = obj.bounds.max.y - obj.bounds.min.y;
 
   // Build Path2D in untransformed screen coords (bounds-relative → screen)
-  const localToScreen = (px: number, py: number) =>
-    worldToScreen({ x: obj.bounds.min.x + px, y: obj.bounds.min.y + py }, vp);
+  const localToScreen = (px: number, py: number) => worldToScreen(
+    mappedBounds
+      ? mapPathCoordToBounds(px, py, pathBBox, obj.bounds.min.x, obj.bounds.min.y, boundsW, boundsH)
+      : { x: obj.bounds.min.x + px, y: obj.bounds.min.y + py },
+    vp,
+  );
 
   const path = new Path2D();
   for (const cmd of commands) {
@@ -532,29 +548,28 @@ export function hitTestSelectionEdge(
   if (selectedObjects.length === 0) return null;
   if (transformLocks?.move_enabled === false) return null;
 
-  // Compute selection box from visual bounds
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const obj of selectedObjects) {
-    const vb = computeVisualBoundsWorld(obj, allObjects);
-    const tl = worldToScreen(vb.min, vp);
-    const br = worldToScreen(vb.max, vp);
-    minX = Math.min(minX, tl.x); minY = Math.min(minY, tl.y);
-    maxX = Math.max(maxX, br.x); maxY = Math.max(maxY, br.y);
-  }
-
+  const frame = getSelectionFrameScreen(selectedObjects, vp, allObjects);
+  if (!frame) return null;
   const edgeThreshold = clickTolerancePx();
-  const x = screenPt.x, y = screenPt.y;
-
-  // Check if near any edge of the selection box (but inside or very close)
-  const nearLeft = Math.abs(x - minX) <= edgeThreshold && y >= minY - edgeThreshold && y <= maxY + edgeThreshold;
-  const nearRight = Math.abs(x - maxX) <= edgeThreshold && y >= minY - edgeThreshold && y <= maxY + edgeThreshold;
-  const nearTop = Math.abs(y - minY) <= edgeThreshold && x >= minX - edgeThreshold && x <= maxX + edgeThreshold;
-  const nearBottom = Math.abs(y - maxY) <= edgeThreshold && x >= minX - edgeThreshold && x <= maxX + edgeThreshold;
-
-  if (nearLeft || nearRight || nearTop || nearBottom) {
+  const edges: Array<[Point2D, Point2D]> = [
+    [frame.nw, frame.ne],
+    [frame.ne, frame.se],
+    [frame.se, frame.sw],
+    [frame.sw, frame.nw],
+  ];
+  if (edges.some(([start, end]) => distanceToSegment(screenPt, start, end) <= edgeThreshold)) {
     return screenToWorld(screenPt, vp);
   }
   return null;
+}
+
+function distanceToSegment(point: Point2D, start: Point2D, end: Point2D): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy));
 }
 
 /** Hit-test snap points on selected objects for snap-point drag */

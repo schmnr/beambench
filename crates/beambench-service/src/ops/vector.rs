@@ -79,6 +79,42 @@ pub struct UpdateNodesBatchInput {
 }
 
 #[derive(Debug, Clone)]
+pub struct CopyNodesInput {
+    pub object_id: ObjectId,
+    pub node_ids: Vec<NodeId>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PasteNodesInput {
+    pub object_id: ObjectId,
+    pub copied_path_json: String,
+    pub offset_mm: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExtractNodesInput {
+    pub object_id: ObjectId,
+    pub node_ids: Vec<NodeId>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeClipboardCopy {
+    pub path_json: String,
+    pub path_data: String,
+    pub bounds: Bounds,
+    pub closed: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NodePasteResult {
+    pub object: ProjectObject,
+    pub pasted_subpath_start: usize,
+    pub pasted_subpath_count: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct DeleteNodeInput {
     pub object_id: ObjectId,
     pub subpath_idx: usize,
@@ -162,7 +198,11 @@ fn lock_err(name: &str, e: impl std::fmt::Display) -> ServiceError {
 
 fn require_vector_path(obj: &ProjectObject) -> ServiceResult<VecPath> {
     match &obj.data {
-        ObjectData::VectorPath { path_data, .. } => Ok(VecPath::parse_svg_d(path_data)),
+        ObjectData::VectorPath { path_data, .. } => {
+            let mut path = VecPath::parse_svg_d(path_data);
+            path.prune_orphan_subpaths();
+            Ok(path)
+        }
         ObjectData::VirtualClone { .. } => Err(ServiceError::invalid_input(
             "VirtualClone must be resolved before accessing geometry",
         )),
@@ -211,6 +251,8 @@ fn write_vec_path_to_object(
     vec_path: &VecPath,
     ruler_guide_axis: Option<GuideAxis>,
 ) {
+    let mut vec_path = vec_path.clone();
+    vec_path.prune_orphan_subpaths();
     let new_bounds = vec_path
         .visual_bounds()
         .unwrap_or(Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
@@ -228,19 +270,150 @@ fn command_has_editable_node(command: &PathCommand) -> bool {
     !matches!(command, PathCommand::Close)
 }
 
-fn command_draws_segment(command: &PathCommand) -> bool {
-    matches!(
-        command,
-        PathCommand::LineTo { .. } | PathCommand::QuadTo { .. } | PathCommand::CubicTo { .. }
-    )
+fn selected_node_path(
+    project: &Project,
+    object_id: ObjectId,
+    node_ids: &[NodeId],
+) -> ServiceResult<VecPath> {
+    if node_ids.is_empty() {
+        return Err(ServiceError::invalid_input("No nodes supplied"));
+    }
+    let object = project
+        .find_object(object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    let resolved = project.resolve_clone(object);
+    let effective = resolved.as_ref().unwrap_or(object);
+    let path = object_to_world_vecpath(effective)
+        .ok_or_else(|| ServiceError::invalid_input("Cannot copy nodes from this object"))?;
+    let editable = EditablePath::from_vecpath(&path);
+    let selected: HashSet<(usize, usize)> = node_ids
+        .iter()
+        .map(|id| (id.subpath_idx, id.command_idx))
+        .collect();
+    let mut copied = VecPath::new();
+
+    for (subpath_idx, subpath) in path.subpaths.iter().enumerate() {
+        let editable_ids: Vec<usize> = editable
+            .get(subpath_idx)
+            .map(|entry| entry.nodes.iter().map(|node| node.id.command_idx).collect())
+            .unwrap_or_default();
+        let selected_indices: Vec<usize> = editable_ids
+            .iter()
+            .copied()
+            .filter(|command_idx| selected.contains(&(subpath_idx, *command_idx)))
+            .collect();
+        if selected_indices.is_empty() {
+            continue;
+        }
+        if selected_indices.len() == editable_ids.len() {
+            copied.subpaths.push(subpath.clone());
+            continue;
+        }
+
+        let flush_run = |indices: &mut Vec<usize>, output: &mut VecPath| {
+            if indices.is_empty() {
+                return;
+            }
+            let Some(start) = subpath.commands.get(indices[0]).and_then(command_endpoint) else {
+                indices.clear();
+                return;
+            };
+            let mut commands = vec![PathCommand::MoveTo {
+                x: start.x,
+                y: start.y,
+            }];
+            for command_idx in indices.iter().skip(1) {
+                if let Some(command) = subpath.commands.get(*command_idx)
+                    && !matches!(command, PathCommand::MoveTo { .. } | PathCommand::Close)
+                {
+                    commands.push(*command);
+                }
+            }
+            output.subpaths.push(SubPath {
+                commands,
+                closed: false,
+            });
+            indices.clear();
+        };
+        let mut run = Vec::new();
+        for command_idx in selected_indices {
+            if run
+                .last()
+                .is_some_and(|previous| command_idx != *previous + 1)
+            {
+                flush_run(&mut run, &mut copied);
+            }
+            run.push(command_idx);
+        }
+        flush_run(&mut run, &mut copied);
+    }
+
+    if copied.subpaths.is_empty() {
+        return Err(ServiceError::invalid_input(
+            "The selected nodes could not be copied",
+        ));
+    }
+    Ok(copied)
 }
 
-fn subpath_has_drawable_segment(subpath: &SubPath) -> bool {
-    subpath.commands.iter().any(command_draws_segment)
-}
+fn remove_selected_nodes_from_path(
+    mut path: VecPath,
+    node_ids: &[NodeId],
+) -> ServiceResult<VecPath> {
+    let mut sorted = node_ids.to_vec();
+    sorted.sort_by(|a, b| {
+        b.subpath_idx
+            .cmp(&a.subpath_idx)
+            .then_with(|| b.command_idx.cmp(&a.command_idx))
+    });
+    sorted.dedup_by(|a, b| a.subpath_idx == b.subpath_idx && a.command_idx == b.command_idx);
+    let delete_keys: HashSet<(usize, usize)> = sorted
+        .iter()
+        .map(|node_id| (node_id.subpath_idx, node_id.command_idx))
+        .collect();
+    let fully_selected_subpaths: HashSet<usize> = path
+        .subpaths
+        .iter()
+        .enumerate()
+        .filter_map(|(subpath_idx, subpath)| {
+            let editable_command_idxs: Vec<usize> = subpath
+                .commands
+                .iter()
+                .enumerate()
+                .filter_map(|(command_idx, command)| {
+                    command_has_editable_node(command).then_some(command_idx)
+                })
+                .collect();
+            (!editable_command_idxs.is_empty()
+                && editable_command_idxs
+                    .iter()
+                    .all(|command_idx| delete_keys.contains(&(subpath_idx, *command_idx))))
+            .then_some(subpath_idx)
+        })
+        .collect();
 
-fn prune_degenerate_subpaths(vec_path: &mut VecPath) {
-    vec_path.subpaths.retain(subpath_has_drawable_segment);
+    for node_id in &sorted {
+        if fully_selected_subpaths.contains(&node_id.subpath_idx) {
+            continue;
+        }
+        if !node_edit::delete_node(&mut path, *node_id) {
+            return Err(ServiceError::invalid_input(
+                "Cannot extract one or more selected nodes",
+            ));
+        }
+    }
+    if !fully_selected_subpaths.is_empty() {
+        path.subpaths = path
+            .subpaths
+            .into_iter()
+            .enumerate()
+            .filter_map(|(idx, subpath)| {
+                (!fully_selected_subpaths.contains(&idx)).then_some(subpath)
+            })
+            .collect();
+    }
+    path.prune_orphan_subpaths();
+    Ok(path)
 }
 
 #[derive(Debug, Clone)]
@@ -941,6 +1114,27 @@ pub fn convert_to_path(
     Ok(result)
 }
 
+fn group_contains_any(
+    project: &Project,
+    group_id: ObjectId,
+    target_ids: &HashSet<ObjectId>,
+    visiting: &mut HashSet<ObjectId>,
+) -> bool {
+    if !visiting.insert(group_id) {
+        return false;
+    }
+    let Some(group) = project.find_object(group_id) else {
+        return false;
+    };
+    let ObjectData::Group { children } = &group.data else {
+        return false;
+    };
+    children.iter().any(|child_id| {
+        target_ids.contains(child_id)
+            || group_contains_any(project, *child_id, target_ids, visiting)
+    })
+}
+
 pub fn mesh_deform_selection(
     ctx: &ServiceContext,
     input: MeshDeformSelectionInput,
@@ -1006,6 +1200,29 @@ pub fn mesh_deform_selection(
         }
         updated_ids.push(object_id);
     }
+
+    // Mesh deformation operates on editable leaves, while the UI may have a
+    // parent SVG group selected. Refresh every group from its descendants and
+    // return the group objects too so the frontend selection bounds immediately
+    // match the deformed geometry.
+    let deformed_ids = updated_ids.iter().copied().collect::<HashSet<_>>();
+    let group_ids = project
+        .objects
+        .iter()
+        .filter_map(|object| {
+            matches!(object.data, ObjectData::Group { .. })
+                .then(|| {
+                    let mut visiting = HashSet::new();
+                    group_contains_any(project, object.id, &deformed_ids, &mut visiting)
+                        .then_some(object.id)
+                })
+                .flatten()
+        })
+        .collect::<Vec<_>>();
+    for group_id in &group_ids {
+        beambench_core::operations::recompute_group_bounds(project, *group_id);
+    }
+    updated_ids.extend(group_ids);
 
     project.dirty = true;
     let updated: Vec<ProjectObject> = updated_ids
@@ -1362,6 +1579,141 @@ pub fn boolean_exclude(
     boolean_binary_op(ctx, input, "Exclude", path_exclude)
 }
 
+fn intersect_shapes(paths: &[VecPath]) -> VecPath {
+    let Some(first) = paths.first() else {
+        return VecPath { subpaths: vec![] };
+    };
+    paths[1..].iter().fold(first.clone(), |result, path| {
+        path_intersection(&result, path)
+    })
+}
+
+fn exclude_shapes(paths: &[VecPath]) -> VecPath {
+    let Some(first) = paths.first() else {
+        return VecPath { subpaths: vec![] };
+    };
+    paths[1..]
+        .iter()
+        .fold(first.clone(), |result, path| path_exclude(&result, path))
+}
+
+/// Subtract the union of every later operand from the first operand.
+fn subtract_shapes(paths: &[VecPath]) -> VecPath {
+    let Some(subject) = paths.first() else {
+        return VecPath { subpaths: vec![] };
+    };
+    if paths.len() == 1 {
+        return subject.clone();
+    }
+    path_subtract(subject, &weld_shapes(&paths[1..]))
+}
+
+fn boolean_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+    op_name: &str,
+    op: fn(&[VecPath]) -> VecPath,
+) -> ServiceResult<ProjectObject> {
+    if input.object_ids.len() < 2 {
+        return Err(ServiceError::invalid_input(format!(
+            "{op_name} requires at least two objects"
+        )));
+    }
+
+    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    let result_obj = boolean_many_in_project(project, input.clone(), op_name, op)?;
+    project.dirty = true;
+
+    drop(guard);
+    planning::invalidate_plan_cache(ctx)?;
+    ctx.emit_event(
+        boolean_event_name(op_name),
+        json!({
+            "source_object_ids": input.object_ids,
+            "object": events::object_summary(&result_obj),
+        }),
+    );
+    Ok(result_obj)
+}
+
+fn boolean_many_in_project(
+    project: &mut Project,
+    input: BooleanWeldInput,
+    op_name: &str,
+    op: fn(&[VecPath]) -> VecPath,
+) -> ServiceResult<ProjectObject> {
+    let was_dirty = project.dirty;
+    if input.object_ids.len() < 2 {
+        return Err(ServiceError::invalid_input(format!(
+            "{op_name} requires at least two objects"
+        )));
+    }
+    for object_id in &input.object_ids {
+        project
+            .ensure_resolved(*object_id)
+            .map_err(ServiceError::internal)?;
+    }
+
+    let mut operands = Vec::new();
+    for object_id in &input.object_ids {
+        operands.push(resolve_boolean_operand(
+            project,
+            *object_id,
+            "Object not found",
+        )?);
+    }
+    let requested_layer_id = operands
+        .first()
+        .ok_or_else(|| {
+            ServiceError::invalid_input(format!("{op_name} requires at least two objects"))
+        })?
+        .layer_id;
+    let paths: Vec<VecPath> = operands
+        .iter()
+        .map(|operand| operand.path.clone())
+        .collect();
+    let delete_ids = dedupe_ids(operands.into_iter().flat_map(|operand| operand.delete_ids));
+    let result = op(&paths);
+    project.remove_objects(&delete_ids);
+    let result_obj = create_boolean_result(project, op_name, requested_layer_id, result)?;
+    project.dirty = was_dirty;
+    Ok(result_obj)
+}
+
+pub fn boolean_intersection_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+) -> ServiceResult<ProjectObject> {
+    boolean_many(ctx, input, "Intersection", intersect_shapes)
+}
+
+pub fn boolean_union_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+) -> ServiceResult<ProjectObject> {
+    boolean_many(ctx, input, "Union", weld_shapes)
+}
+
+pub fn boolean_exclude_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+) -> ServiceResult<ProjectObject> {
+    boolean_many(ctx, input, "Exclude", exclude_shapes)
+}
+
+pub fn boolean_subtract_many(
+    ctx: &ServiceContext,
+    input: BooleanWeldInput,
+) -> ServiceResult<ProjectObject> {
+    boolean_many(ctx, input, "Subtract", subtract_shapes)
+}
+
 pub fn boolean_weld(ctx: &ServiceContext, input: BooleanWeldInput) -> ServiceResult<ProjectObject> {
     if input.object_ids.len() < 2 {
         return Err(ServiceError::invalid_input(
@@ -1395,40 +1747,7 @@ pub(crate) fn boolean_weld_in_project(
     project: &mut Project,
     input: BooleanWeldInput,
 ) -> ServiceResult<ProjectObject> {
-    let was_dirty = project.dirty;
-    if input.object_ids.len() < 2 {
-        return Err(ServiceError::invalid_input(
-            "Weld requires at least two objects",
-        ));
-    }
-    for object_id in &input.object_ids {
-        project
-            .ensure_resolved(*object_id)
-            .map_err(ServiceError::internal)?;
-    }
-
-    let mut operands = Vec::new();
-    for object_id in &input.object_ids {
-        operands.push(resolve_boolean_operand(
-            project,
-            *object_id,
-            "Object not found",
-        )?);
-    }
-    let requested_layer_id = operands
-        .first()
-        .ok_or_else(|| ServiceError::invalid_input("Weld requires at least two objects"))?
-        .layer_id;
-    let paths: Vec<VecPath> = operands
-        .iter()
-        .map(|operand| operand.path.clone())
-        .collect();
-    let delete_ids = dedupe_ids(operands.into_iter().flat_map(|operand| operand.delete_ids));
-    let result = weld_shapes(&paths);
-    project.remove_objects(&delete_ids);
-    let result_obj = create_boolean_result(project, "Weld", requested_layer_id, result)?;
-    project.dirty = was_dirty;
-    Ok(result_obj)
+    boolean_many_in_project(project, input, "Weld", weld_shapes)
 }
 
 pub fn group_objects(
@@ -1724,6 +2043,175 @@ pub fn get_editable_path(
     Ok(EditablePath::from_vecpath(&vec_path))
 }
 
+pub fn copy_nodes(ctx: &ServiceContext, input: CopyNodesInput) -> ServiceResult<NodeClipboardCopy> {
+    let guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_ref()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    let copied = selected_node_path(project, input.object_id, &input.node_ids)?;
+    let bounds = copied
+        .visual_bounds()
+        .or_else(|| copied.bounds())
+        .unwrap_or_else(|| Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
+    Ok(NodeClipboardCopy {
+        path_json: serde_json::to_string(&copied)
+            .map_err(|error| ServiceError::internal(error.to_string()))?,
+        path_data: copied.to_svg_d(),
+        closed: copied.subpaths.iter().any(|subpath| subpath.closed),
+        bounds,
+    })
+}
+
+pub fn paste_nodes(ctx: &ServiceContext, input: PasteNodesInput) -> ServiceResult<NodePasteResult> {
+    if !input.offset_mm.is_finite() {
+        return Err(ServiceError::invalid_input("Paste offset must be finite"));
+    }
+    let copied: VecPath = serde_json::from_str(&input.copied_path_json)
+        .map_err(|error| ServiceError::invalid_input(format!("Invalid node clipboard: {error}")))?;
+    if copied.subpaths.is_empty() {
+        return Err(ServiceError::invalid_input("The node clipboard is empty"));
+    }
+
+    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    project
+        .ensure_resolved(input.object_id)
+        .map_err(ServiceError::internal)?;
+    path_ops_core::ensure_denormalized(
+        project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+    );
+    let object = project
+        .find_object(input.object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    let mut path = object_to_world_vecpath(object)
+        .ok_or_else(|| ServiceError::invalid_input("Cannot paste nodes into this object"))?;
+    let pasted = bake_transform(
+        &copied,
+        &Transform2D::translate(input.offset_mm, input.offset_mm),
+    );
+    let pasted_subpath_start = path.subpaths.len();
+    let pasted_subpath_count = pasted.subpaths.len();
+    path.subpaths.extend(pasted.subpaths);
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    let object = project
+        .find_object_mut(input.object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+    object.transform = Transform2D::identity();
+    object.start_point_edits.clear();
+    write_vec_path_to_object(object, &path, None);
+    let result = object.clone();
+    project.dirty = true;
+
+    drop(guard);
+    planning::invalidate_plan_cache(ctx)?;
+    ctx.emit_event(
+        "vector.nodes.pasted",
+        json!({
+            "object": events::object_summary(&result),
+            "pasted_subpath_start": pasted_subpath_start,
+            "pasted_subpath_count": pasted_subpath_count,
+        }),
+    );
+    Ok(NodePasteResult {
+        object: result,
+        pasted_subpath_start,
+        pasted_subpath_count,
+    })
+}
+
+pub fn extract_nodes_to_path(
+    ctx: &ServiceContext,
+    input: ExtractNodesInput,
+) -> ServiceResult<ProjectObject> {
+    if input.node_ids.is_empty() {
+        return Err(ServiceError::invalid_input("No nodes supplied"));
+    }
+    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    project
+        .ensure_resolved(input.object_id)
+        .map_err(ServiceError::internal)?;
+    path_ops_core::ensure_denormalized(
+        project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+    );
+    let copied = selected_node_path(project, input.object_id, &input.node_ids)?;
+    let source = project
+        .find_object(input.object_id)
+        .ok_or_else(|| ServiceError::not_found("Object not found"))?
+        .clone();
+    let source_path = require_vector_path(&source)?;
+    let remaining = remove_selected_nodes_from_path(source_path, &input.node_ids)?;
+
+    ctx.push_project_undo_snapshot(project)
+        .map_err(ServiceError::internal)?;
+    if remaining.subpaths.is_empty() {
+        project.remove_object(input.object_id);
+    } else {
+        let object = project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_vec_path_to_object(object, &remaining, None);
+    }
+
+    let layer_id = reroute_vector_result_layer(project, source.layer_id)?;
+    let bounds = copied
+        .visual_bounds()
+        .or_else(|| copied.bounds())
+        .unwrap_or_else(|| Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
+    let mut extracted = ProjectObject::new(
+        format!("{} Extracted", source.name),
+        layer_id,
+        bounds,
+        ObjectData::VectorPath {
+            path_data: copied.to_svg_d(),
+            closed: copied.subpaths.iter().any(|subpath| subpath.closed),
+            ruler_guide_axis: None,
+        },
+    );
+    extracted.visible = source.visible;
+    extracted.z_index = source.z_index.saturating_add(1);
+    extracted.power_scale = source.power_scale;
+    extracted.priority = source.priority;
+    let result = project.add_object(extracted).clone();
+    if remaining.subpaths.is_empty() {
+        for object in &mut project.objects {
+            if let ObjectData::Text {
+                guide_path_id: Some(guide_path_id),
+                ..
+            } = &mut object.data
+            {
+                if *guide_path_id == input.object_id {
+                    *guide_path_id = result.id;
+                }
+            }
+        }
+        crate::ops::project::refresh_project_text_caches(project);
+    }
+    project.dirty = true;
+
+    drop(guard);
+    planning::invalidate_plan_cache(ctx)?;
+    ctx.emit_event(
+        "vector.nodes.extracted",
+        json!({
+            "source_object_id": input.object_id,
+            "object": events::object_summary(&result),
+            "node_count": input.node_ids.len(),
+        }),
+    );
+    Ok(result)
+}
+
 pub fn update_node(ctx: &ServiceContext, input: UpdateNodeInput) -> ServiceResult<ProjectObject> {
     let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let project = guard
@@ -1938,7 +2426,7 @@ pub fn delete_node(ctx: &ServiceContext, input: DeleteNodeInput) -> ServiceResul
     if !node_edit::delete_node(&mut vec_path, node_id) {
         return Err(ServiceError::invalid_input("Cannot delete this node"));
     }
-    prune_degenerate_subpaths(&mut vec_path);
+    vec_path.prune_orphan_subpaths();
     if vec_path.subpaths.is_empty() {
         return Err(ServiceError::invalid_input(
             "Cannot delete every node; delete the object instead",
@@ -2046,7 +2534,7 @@ pub fn delete_nodes(ctx: &ServiceContext, input: DeleteNodesInput) -> ServiceRes
             })
             .collect();
     }
-    prune_degenerate_subpaths(&mut vec_path);
+    vec_path.prune_orphan_subpaths();
     if vec_path.subpaths.is_empty() {
         return Err(ServiceError::invalid_input(
             "Cannot delete every node; delete the object instead",
@@ -2258,21 +2746,10 @@ pub fn delete_segment(ctx: &ServiceContext, input: SegmentOpInput) -> ServiceRes
     ctx.push_project_undo_snapshot(project)
         .map_err(ServiceError::internal)?;
 
-    let new_bounds = vec_path
-        .visual_bounds()
-        .unwrap_or(Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
-    let closed = vec_path.subpaths.iter().any(|sp| sp.closed);
-
     let obj = project
         .find_object_mut(input.object_id)
         .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    obj.data = ObjectData::VectorPath {
-        path_data: vec_path.to_svg_d(),
-        closed,
-        ruler_guide_axis: None,
-    };
-    obj.bounds = new_bounds;
-    obj.tabs.clear();
+    write_vec_path_to_object(obj, &vec_path, None);
     let result = obj.clone();
     project.dirty = true;
 
@@ -2318,21 +2795,10 @@ pub fn break_path_at_node(
     ctx.push_project_undo_snapshot(project)
         .map_err(ServiceError::internal)?;
 
-    let new_bounds = vec_path
-        .visual_bounds()
-        .unwrap_or(Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
-    let closed = vec_path.subpaths.iter().any(|sp| sp.closed);
-
     let obj = project
         .find_object_mut(input.object_id)
         .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    obj.data = ObjectData::VectorPath {
-        path_data: vec_path.to_svg_d(),
-        closed,
-        ruler_guide_axis: None,
-    };
-    obj.bounds = new_bounds;
-    obj.tabs.clear();
+    write_vec_path_to_object(obj, &vec_path, None);
     let result = obj.clone();
     project.dirty = true;
 
@@ -2882,6 +3348,28 @@ struct TrimTarget {
     cutters: Vec<(Vec<Point2D>, bool)>,
 }
 
+/// Even-odd containment for a flattened closed subpath. This lets the Trim
+/// tool use a click inside either side of a knife cut, while retaining the
+/// near-edge interaction for open paths and traditional CAD trim.
+fn point_in_closed_polyline(point: Point2D, points: &[Point2D]) -> bool {
+    if points.len() < 3 {
+        return false;
+    }
+    let mut inside = false;
+    let mut previous = points.len() - 1;
+    for current in 0..points.len() {
+        let a = points[current];
+        let b = points[previous];
+        if ((a.y > point.y) != (b.y > point.y))
+            && (point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x)
+        {
+            inside = !inside;
+        }
+        previous = current;
+    }
+    inside
+}
+
 /// Find the best trim target for a click point.
 /// Shared by both preview_trim() and trim_at_intersection().
 fn find_trim_target(
@@ -2951,32 +3439,42 @@ fn find_trim_target(
         distance: f64,
     }
 
-    let mut hits: Vec<EdgeHit> = Vec::new();
+    let mut edge_hits: Vec<EdgeHit> = Vec::new();
+    let mut interior_hits: Vec<EdgeHit> = Vec::new();
     for (ci, cand) in candidates.iter().enumerate() {
         for (si, (pts, closed)) in cand.polylines.iter().enumerate() {
             if let Some((_sp_idx, dist, _arc)) =
                 trim_core::nearest_edge(click_pt, &[(pts.clone(), *closed)])
                 && dist <= edge_threshold_mm
             {
-                hits.push(EdgeHit {
+                edge_hits.push(EdgeHit {
                     candidate_idx: ci,
                     subpath_idx: si,
                     distance: dist,
+                });
+            } else if *closed && point_in_closed_polyline(click_pt, pts) {
+                interior_hits.push(EdgeHit {
+                    candidate_idx: ci,
+                    subpath_idx: si,
+                    distance: f64::INFINITY,
                 });
             }
         }
     }
 
-    hits.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+    edge_hits.sort_by(|a, b| a.distance.total_cmp(&b.distance));
+    // Preserve precise edge-trim precedence. Interior hits are the knife
+    // workflow and are considered only after any explicit near-edge target.
+    edge_hits.extend(interior_hits);
 
-    if hits.is_empty() {
+    if edge_hits.is_empty() {
         return Err(ServiceError::not_found(
-            "No path edges found near click point",
+            "No closed shape or path edge found at click point",
         ));
     }
 
     // Find first candidate with intersections
-    for hit in &hits {
+    for hit in &edge_hits {
         let target_cand = &candidates[hit.candidate_idx];
 
         let mut cutters: Vec<(Vec<Point2D>, bool)> = Vec::new();
@@ -3017,6 +3515,87 @@ fn find_trim_target(
     ))
 }
 
+fn trim_result_closes_clicked_region(
+    target: &TrimTarget,
+    result: &trim_core::TrimResult,
+    region_click: Point2D,
+) -> bool {
+    match trim_core::heal_trim_results(&result.pieces, &result.cut_points, 0.1) {
+        trim_core::HealOutcome::HealedClosed(_) => true,
+        trim_core::HealOutcome::Ambiguous(_) => false,
+        trim_core::HealOutcome::HealedOpen(path) => {
+            let (Some(left_hit), Some(right_hit)) = (&result.left_hit, &result.right_hit) else {
+                return false;
+            };
+            let Some(main_subpath) = path.subpaths.iter().find(|subpath| !subpath.closed) else {
+                return false;
+            };
+            trim_core::close_with_cutter_boundary(
+                main_subpath,
+                &target.cutters,
+                left_hit,
+                right_hit,
+                region_click,
+            )
+            .is_some()
+        }
+    }
+}
+
+fn opposite_target_arc_click(target: &TrimTarget, region_click: Point2D) -> Option<Point2D> {
+    let subpath = target.world_path.subpaths.get(target.subpath_idx)?;
+    if !subpath.closed {
+        return None;
+    }
+    let bracket = trim_core::find_trim_bracket(subpath, &target.cutters, region_click)?;
+    let removed_len = if bracket.right_dist >= bracket.left_dist {
+        bracket.right_dist - bracket.left_dist
+    } else {
+        bracket.total_len - bracket.left_dist + bracket.right_dist
+    };
+    let opposite_len = bracket.total_len - removed_len;
+    if opposite_len <= DEFAULT_TOLERANCE_MM {
+        return None;
+    }
+    let opposite_mid = (bracket.right_dist + opposite_len * 0.5) % bracket.total_len;
+    Some(trim_core::arc_distance_to_point(
+        &bracket.flat_points,
+        opposite_mid,
+    ))
+}
+
+/// Interior clicks describe a region, while the trim core describes a
+/// perimeter segment. Test both possible target arcs and retain the one whose
+/// healed contour excludes the region the user clicked.
+fn resolve_trim_click_point(target: &TrimTarget, region_click: Point2D, heal: bool) -> Point2D {
+    if !heal {
+        return region_click;
+    }
+    let primary = trim_core::trim_at_intersection(
+        &target.world_path,
+        target.subpath_idx,
+        &target.cutters,
+        region_click,
+    );
+    if trim_result_closes_clicked_region(target, &primary, region_click) {
+        return region_click;
+    }
+    let Some(opposite_click) = opposite_target_arc_click(target, region_click) else {
+        return region_click;
+    };
+    let opposite = trim_core::trim_at_intersection(
+        &target.world_path,
+        target.subpath_idx,
+        &target.cutters,
+        opposite_click,
+    );
+    if trim_result_closes_clicked_region(target, &opposite, region_click) {
+        opposite_click
+    } else {
+        region_click
+    }
+}
+
 /// Preview the trim segment (read-only).
 pub fn preview_trim(
     ctx: &ServiceContext,
@@ -3030,11 +3609,12 @@ pub fn preview_trim(
     };
 
     let click_pt = Point2D::new(click_x, click_y);
+    let trim_click_pt = resolve_trim_click_point(&target, click_pt, true);
     let result = trim_core::preview_trim_segment(
         &target.world_path,
         target.subpath_idx,
         &target.cutters,
-        click_pt,
+        trim_click_pt,
     );
 
     Ok(result.map(|pts| TrimPreview {
@@ -3054,11 +3634,12 @@ pub fn trim_at_intersection(
     let target = find_trim_target(ctx, click_x, click_y, edge_threshold_mm)?;
 
     let click_pt = Point2D::new(click_x, click_y);
+    let trim_click_pt = resolve_trim_click_point(&target, click_pt, heal);
     let trim_result = trim_core::trim_at_intersection(
         &target.world_path,
         target.subpath_idx,
         &target.cutters,
-        click_pt,
+        trim_click_pt,
     );
 
     if trim_result.pieces.is_empty() {
@@ -3327,6 +3908,41 @@ mod tests {
         (ctx, layer_id, id_a, id_b)
     }
 
+    fn sample_three_tool_shapes() -> (ServiceContext, beambench_core::LayerId, Vec<ObjectId>) {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Multi Boolean Tool Layer");
+        let mut layer = Layer::new("T1", OperationType::Tool);
+        layer.is_tool_layer = true;
+        let layer_id = layer.id;
+        project.add_layer(layer);
+
+        let bounds = [
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+            Bounds::new(Point2D::new(5.0, 0.0), Point2D::new(15.0, 10.0)),
+            Bounds::new(Point2D::new(7.0, 0.0), Point2D::new(12.0, 10.0)),
+        ];
+        let mut ids = Vec::new();
+        for (index, bounds) in bounds.into_iter().enumerate() {
+            let width = bounds.max.x - bounds.min.x;
+            let height = bounds.max.y - bounds.min.y;
+            let object = ProjectObject::new(
+                format!("Tool shape {}", index + 1),
+                layer_id,
+                bounds,
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width,
+                    height,
+                    corner_radius: 0.0,
+                },
+            );
+            ids.push(object.id);
+            project.add_object(object);
+        }
+        *ctx.project.lock().unwrap() = Some(project);
+        (ctx, layer_id, ids)
+    }
+
     fn rect_object(
         name: &str,
         layer_id: beambench_core::LayerId,
@@ -3464,6 +4080,54 @@ mod tests {
     }
 
     #[test]
+    fn mesh_deform_selection_refreshes_parent_group_bounds() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Grouped Warp");
+        let layer = Layer::new("C00 (Line)", OperationType::Line);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+
+        let child_a = rect_object("Left", layer_id, 0.0, 0.0, 10.0, 10.0);
+        let child_b = rect_object("Right", layer_id, 10.0, 0.0, 10.0, 10.0);
+        let child_a_id = child_a.id;
+        let child_b_id = child_b.id;
+        let group = ProjectObject::new(
+            "Imported SVG",
+            layer_id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(20.0, 10.0)),
+            ObjectData::Group {
+                children: vec![child_a_id, child_b_id],
+            },
+        );
+        let group_id = group.id;
+        project.add_object(child_a);
+        project.add_object(child_b);
+        project.add_object(group);
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let result = mesh_deform_selection(
+            &ctx,
+            MeshDeformSelectionInput {
+                object_ids: vec![child_a_id, child_b_id],
+                source_bounds: Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(20.0, 10.0)),
+                handles: vec![
+                    Point2D::new(0.0, 0.0),
+                    Point2D::new(30.0, 0.0),
+                    Point2D::new(0.0, 10.0),
+                    Point2D::new(20.0, 10.0),
+                ],
+                grid_size: 2,
+                perspective: true,
+            },
+        )
+        .unwrap();
+
+        let updated_group = result.iter().find(|object| object.id == group_id).unwrap();
+        assert!(updated_group.bounds.max.x > 29.9);
+        assert_eq!(updated_group.bounds.min.x, 0.0);
+    }
+
+    #[test]
     fn boolean_union_replaces_original_objects() {
         let (ctx, layer_id, id_a, id_b) = sample_project();
 
@@ -3483,6 +4147,53 @@ mod tests {
         assert!(project.find_object(id_a).is_none());
         assert!(project.find_object(id_b).is_none());
         assert!(project.find_object(result.id).is_some());
+    }
+
+    #[test]
+    fn multi_boolean_operations_work_atomically_on_tool_layers() {
+        let (ctx, layer_id, ids) = sample_three_tool_shapes();
+        let union = boolean_union_many(
+            &ctx,
+            BooleanWeldInput {
+                object_ids: ids.clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(union.layer_id, layer_id);
+        assert!(path_is_filled_evenodd(&result_vecpath(&union), 14.0, 5.0));
+
+        let (ctx, layer_id, ids) = sample_three_tool_shapes();
+        let intersection = boolean_intersection_many(
+            &ctx,
+            BooleanWeldInput {
+                object_ids: ids.clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(intersection.layer_id, layer_id);
+        let intersection_path = result_vecpath(&intersection);
+        assert!(path_is_filled_evenodd(&intersection_path, 8.0, 5.0));
+        assert!(!path_is_filled_evenodd(&intersection_path, 6.0, 5.0));
+
+        let (ctx, layer_id, ids) = sample_three_tool_shapes();
+        let exclude = boolean_exclude_many(
+            &ctx,
+            BooleanWeldInput {
+                object_ids: ids.clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(exclude.layer_id, layer_id);
+        let exclude_path = result_vecpath(&exclude);
+        assert!(path_is_filled_evenodd(&exclude_path, 8.0, 5.0));
+        assert!(!path_is_filled_evenodd(&exclude_path, 6.0, 5.0));
+
+        let (ctx, layer_id, ids) = sample_three_tool_shapes();
+        let subtract = boolean_subtract_many(&ctx, BooleanWeldInput { object_ids: ids }).unwrap();
+        assert_eq!(subtract.layer_id, layer_id);
+        let subtract_path = result_vecpath(&subtract);
+        assert!(path_is_filled_evenodd(&subtract_path, 2.0, 5.0));
+        assert!(!path_is_filled_evenodd(&subtract_path, 6.0, 5.0));
     }
 
     #[test]
@@ -3986,6 +4697,49 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(deleted.data, ObjectData::VectorPath { .. }));
+    }
+
+    #[test]
+    fn close_path_repairs_legacy_ghost_contour_and_closes_visible_triangle() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Close triangle");
+        let layer_id = project.ensure_default_layer();
+        let object = ProjectObject::new(
+            "Path",
+            layer_id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(20.0, 20.0)),
+            ObjectData::VectorPath {
+                path_data: "M20 20 Z M0 0 L10 0 L5 10".to_string(),
+                closed: true,
+                ruler_guide_axis: None,
+            },
+        );
+        let object_id = object.id;
+        project.add_object(object);
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let updated = toggle_path_closed(
+            &ctx,
+            SubpathOpInput {
+                object_id,
+                // The service removes the legacy ghost before exposing/editing
+                // node indices, so the visible contour is now subpath zero.
+                subpath_idx: 0,
+            },
+        )
+        .unwrap();
+
+        let ObjectData::VectorPath {
+            path_data, closed, ..
+        } = updated.data
+        else {
+            panic!("expected vector path");
+        };
+        let repaired = VecPath::parse_svg_d(&path_data);
+        assert!(closed);
+        assert_eq!(repaired.subpaths.len(), 1);
+        assert!(repaired.subpaths[0].closed);
+        assert_eq!(EditablePath::from_vecpath(&repaired)[0].nodes.len(), 3);
     }
 
     #[test]
@@ -4983,6 +5737,90 @@ mod tests {
         (ctx, layer_id)
     }
 
+    fn knife_trim_context(path_data: &str, bounds: Bounds) -> ServiceContext {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Knife trim");
+        let layer = Layer::new("Work", OperationType::Cut);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+        project.add_object(ProjectObject::new(
+            "Rectangle",
+            layer_id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+            ObjectData::VectorPath {
+                path_data: "M0 0 L10 0 L10 10 L0 10 Z".to_string(),
+                closed: true,
+                ruler_guide_axis: None,
+            },
+        ));
+        project.add_object(ProjectObject::new(
+            "Knife",
+            layer_id,
+            bounds,
+            ObjectData::VectorPath {
+                path_data: path_data.to_string(),
+                closed: false,
+                ruler_guide_axis: None,
+            },
+        ));
+        *ctx.project.lock().unwrap() = Some(project);
+        ctx
+    }
+
+    #[test]
+    fn trim_inside_closed_shape_removes_clicked_side_and_closes_along_open_line() {
+        let ctx = knife_trim_context(
+            "M5 -5 L5 15",
+            Bounds::new(Point2D::new(5.0, -5.0), Point2D::new(5.0, 15.0)),
+        );
+
+        let result = trim_at_intersection(&ctx, 8.0, 5.0, 0.5, true)
+            .expect("inside-region knife trim should succeed");
+
+        assert!(!result.open_result);
+        assert!(!result.heal_failed);
+        assert_eq!(result.objects.len(), 1);
+        let ObjectData::VectorPath { closed, .. } = &result.objects[0].data else {
+            panic!("trim result should be a vector path");
+        };
+        assert!(*closed);
+        assert!(
+            result.objects[0].bounds.max.x <= 5.0 + DEFAULT_TOLERANCE_MM,
+            "clicked right side should be removed"
+        );
+    }
+
+    #[test]
+    fn trim_preview_works_from_inside_closed_shape() {
+        let ctx = knife_trim_context(
+            "M5 -5 L5 15",
+            Bounds::new(Point2D::new(5.0, -5.0), Point2D::new(5.0, 15.0)),
+        );
+
+        let preview = preview_trim(&ctx, 8.0, 5.0, 0.5)
+            .expect("inside-region preview should succeed")
+            .expect("inside-region preview should resolve a removable segment");
+        assert!(preview.segment_points.len() >= 2);
+    }
+
+    #[test]
+    fn trim_diagonal_knife_removes_the_clicked_region() {
+        let ctx = knife_trim_context(
+            "M-2 8 L12 2",
+            Bounds::new(Point2D::new(-2.0, 2.0), Point2D::new(12.0, 8.0)),
+        );
+
+        let result = trim_at_intersection(&ctx, 5.0, 2.0, 0.5, true)
+            .expect("diagonal inside-region knife trim should succeed");
+
+        assert!(!result.open_result);
+        assert_eq!(result.objects.len(), 1);
+        assert!(
+            result.objects[0].bounds.min.y > 2.0,
+            "clicked upper region should be removed"
+        );
+    }
+
     #[test]
     fn trim_preserves_metadata() {
         let ctx = ServiceContext::new();
@@ -5557,5 +6395,174 @@ mod tests {
         } else {
             panic!("expected VectorPath");
         }
+    }
+
+    fn node_clipboard_project() -> (ServiceContext, ObjectId) {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Node Clipboard");
+        let layer = Layer::new("Work", OperationType::Cut);
+        let layer_id = layer.id;
+        project.add_layer(layer);
+        let path_data = "M 0 0 L 10 0 L 10 10 L 0 10 Z";
+        let path = VecPath::parse_svg_d(path_data);
+        let object = ProjectObject::new(
+            "Square",
+            layer_id,
+            path.visual_bounds().unwrap(),
+            ObjectData::VectorPath {
+                path_data: path_data.to_string(),
+                closed: true,
+                ruler_guide_axis: None,
+            },
+        );
+        let object_id = object.id;
+        project.add_object(object);
+        *ctx.project.lock().unwrap() = Some(project);
+        (ctx, object_id)
+    }
+
+    #[test]
+    fn copy_and_paste_nodes_use_world_space_and_one_native_mutation() {
+        let (ctx, object_id) = node_clipboard_project();
+        let copied = copy_nodes(
+            &ctx,
+            CopyNodesInput {
+                object_id,
+                node_ids: vec![
+                    NodeId {
+                        subpath_idx: 0,
+                        command_idx: 0,
+                    },
+                    NodeId {
+                        subpath_idx: 0,
+                        command_idx: 1,
+                    },
+                ],
+            },
+        )
+        .unwrap();
+        let copied_path: VecPath = serde_json::from_str(&copied.path_json).unwrap();
+        assert_eq!(copied_path.subpaths.len(), 1);
+        assert!(!copied_path.subpaths[0].closed);
+        assert_eq!(copied_path.subpaths[0].commands.len(), 2);
+
+        let pasted = paste_nodes(
+            &ctx,
+            PasteNodesInput {
+                object_id,
+                copied_path_json: copied.path_json,
+                offset_mm: 5.0,
+            },
+        )
+        .unwrap();
+        assert_eq!(pasted.pasted_subpath_start, 1);
+        assert_eq!(pasted.pasted_subpath_count, 1);
+        let ObjectData::VectorPath { path_data, .. } = pasted.object.data else {
+            panic!("expected VectorPath");
+        };
+        let path = VecPath::parse_svg_d(&path_data);
+        assert_eq!(path.subpaths.len(), 2);
+        assert_eq!(
+            command_endpoint(&path.subpaths[1].commands[0]),
+            Some(Point2D::new(5.0, 5.0)),
+        );
+    }
+
+    #[test]
+    fn extracting_a_complete_subpath_replaces_the_source_with_a_new_object() {
+        let (ctx, object_id) = node_clipboard_project();
+        let extracted = extract_nodes_to_path(
+            &ctx,
+            ExtractNodesInput {
+                object_id,
+                node_ids: (0..4)
+                    .map(|command_idx| NodeId {
+                        subpath_idx: 0,
+                        command_idx,
+                    })
+                    .collect(),
+            },
+        )
+        .unwrap();
+
+        let guard = ctx.project.lock().unwrap();
+        let project = guard.as_ref().unwrap();
+        assert!(project.find_object(object_id).is_none());
+        assert!(project.find_object(extracted.id).is_some());
+        assert!(matches!(
+            extracted.data,
+            ObjectData::VectorPath { closed: true, .. }
+        ));
+    }
+
+    #[test]
+    fn extracting_an_entire_text_guide_relinks_the_text_to_the_new_path() {
+        let (ctx, object_id) = node_clipboard_project();
+        let text_id = {
+            let mut guard = ctx.project.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            let layer_id = project.objects[0].layer_id;
+            let text = ProjectObject::new(
+                "Path text",
+                layer_id,
+                Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+                ObjectData::Text {
+                    content: "Hello".to_string(),
+                    font_family: "Arial".to_string(),
+                    font_size_mm: 10.0,
+                    alignment: beambench_core::TextAlignment::Left,
+                    alignment_v: beambench_core::TextAlignmentV::Top,
+                    bold: false,
+                    italic: false,
+                    upper_case: false,
+                    welded: false,
+                    h_spacing: 0.0,
+                    v_spacing: 0.0,
+                    on_path: true,
+                    path_offset: 0.0,
+                    distort: false,
+                    layout_mode: beambench_core::TextLayoutMode::Path,
+                    rtl: false,
+                    bend_radius: 0.0,
+                    transform_style: beambench_core::TextTransformStyle::None,
+                    transform_curve: 0.0,
+                    circle_placement: beambench_core::TextCirclePlacement::TopOutside,
+                    max_width: None,
+                    squeeze: false,
+                    ignore_empty_vars: false,
+                    resolved_font_source: None,
+                    resolved_font_key: None,
+                    resolved_path_data: None,
+                    missing_font: false,
+                    missing_glyphs: Vec::new(),
+                    guide_path_id: Some(object_id),
+                    variable_text: None,
+                },
+            );
+            let id = text.id;
+            project.add_object(text);
+            id
+        };
+
+        let extracted = extract_nodes_to_path(
+            &ctx,
+            ExtractNodesInput {
+                object_id,
+                node_ids: (0..4)
+                    .map(|command_idx| NodeId {
+                        subpath_idx: 0,
+                        command_idx,
+                    })
+                    .collect(),
+            },
+        )
+        .unwrap();
+
+        let guard = ctx.project.lock().unwrap();
+        let text = guard.as_ref().unwrap().find_object(text_id).unwrap();
+        let ObjectData::Text { guide_path_id, .. } = &text.data else {
+            panic!("expected text");
+        };
+        assert_eq!(*guide_path_id, Some(extracted.id));
     }
 }

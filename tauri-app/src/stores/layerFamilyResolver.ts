@@ -82,8 +82,8 @@ export interface NeedsBackendCreate {
    *  had any existing member. `null` if the family is empty or no
    *  target color could be determined. */
   copyFrom: Layer | null;
-  /** Human-readable name for the new layer. Follows the
-   *  "inherit the color label, add a suffix if needed" convention. */
+  /** Human-readable name for the new layer. Mode is represented by
+   *  the layer mode icon, so sibling names share a clean family label. */
   suggestedName: string;
 }
 
@@ -224,31 +224,15 @@ export function resolveDestinationLayer(input: ResolveInput): ResolveOutput {
   };
 }
 
-/** Name the new sibling layer consistently:
- *  - If the family already has a member, reuse its name + a mode
- *    suffix so the Cuts/Layers panel shows the pair clearly.
- *  - If the family is empty, use a generic name based on operation.
- */
+/** Name a new sibling with the clean family label. The UI's live mode
+ * icon differentiates Line, Fill, Offset Fill, and Image siblings. */
 function buildSiblingName(
   family: Layer[],
   colorTag: string,
-  operation: OperationType,
+  _operation: OperationType,
   _kind: ContentKind,
 ): string {
-  const base = familyBaseName(family, colorTag);
-  return `${base} (${operationLabel(operation)})`;
-}
-
-function operationLabel(op: OperationType): string {
-  switch (op) {
-    case 'tool': return 'Tool';
-    case 'image': return 'Image';
-    case 'line': return 'Line';
-    case 'cut': return 'Cut';
-    case 'score': return 'Score';
-    case 'fill': return 'Fill';
-    case 'offset_fill': return 'Offset Fill';
-  }
+  return familyBaseName(family, colorTag);
 }
 
 function stripModeSuffix(name: string): string {

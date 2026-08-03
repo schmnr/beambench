@@ -102,6 +102,10 @@ export const importService = {
     );
   },
 
+  async cancelTraceImagePreview(requestId: number): Promise<void> {
+    return invoke<void>('cancel_trace_image_preview', { requestId });
+  },
+
   async traceImage(
     objectId: string, threshold = 128, cutoff = 0, turdsize = 2,
     alphamax = 1.0, opttolerance = 0.2, traceAlpha = false, sketchTrace = false, deleteSource = false,
@@ -128,8 +132,13 @@ export const importService = {
     mode: RasterMode; dpi: number; negative: boolean; passThrough: boolean;
     halftoneCellsPerInch: number; halftoneAngleDeg: number;
     newsprintAngleDeg: number; newsprintFrequency: number;
+    requestId: number;
   }): Promise<{ png_base64: string; width: number; height: number }> {
     return invoke<{ png_base64: string; width: number; height: number }>('adjust_image_preview', params);
+  },
+
+  async cancelAdjustImagePreview(requestId: number): Promise<void> {
+    return invoke<void>('cancel_adjust_image_preview', { requestId });
   },
 
   async autoAdjustImage(objectId: string): Promise<{ brightness: number; contrast: number; gamma: number; sharpen: number }> {

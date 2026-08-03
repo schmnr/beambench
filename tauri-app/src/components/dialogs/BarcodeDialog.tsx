@@ -9,6 +9,9 @@ import { TextInput } from '../shared/TextInput';
 import { NumberInput } from '../shared/NumberInput';
 import { Select } from '../shared/Select';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
+import { QrCode } from 'lucide-react';
+import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
+import { DIALOG_TONE, DialogButton, DialogFooter, DialogSection } from '../shared/DialogPrimitives';
 
 interface BarcodeDialogProps {
   layerId: string;
@@ -85,12 +88,6 @@ export function BarcodeDialog({ layerId, onClose }: BarcodeDialogProps) {
   ];
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
-
-  useEffect(() => {
     if (projectId !== initialProjectIdRef.current) {
       onClose();
     }
@@ -156,19 +153,37 @@ export function BarcodeDialog({ layerId, onClose }: BarcodeDialogProps) {
   };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-labelledby="dialog-title" className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-bb-panel border border-bb-border rounded-lg shadow-xl p-4 min-w-[320px]">
-        <h2 id="dialog-title" className="text-sm font-semibold text-bb-text mb-3">{t('dialog.barcode.title')}</h2>
-        <div className="space-y-2">
+    <MovableResizableDialogFrame
+      title={t('dialog.barcode.title')}
+      titleId="barcode-dialog-title"
+      testId="barcode-dialog"
+      initialWidth={460}
+      initialHeight={520}
+      minWidth={400}
+      minHeight={400}
+      onRequestClose={onClose}
+      closeOnBackdropClick
+      footer={(
+        <DialogFooter>
+          <DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t('common.cancel')}</DialogButton>
+          <DialogButton tone={DIALOG_TONE.primary} data-testid="barcode-submit" onClick={() => void handleSubmit()} disabled={!payload.trim()}>
+            {t('dialog.barcode.create')}
+          </DialogButton>
+        </DialogFooter>
+      )}
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto bg-bb-bg/20 p-4">
+        <DialogSection icon={<QrCode size={14} />} title={t('dialog.barcode.title')}>
+          <div className="space-y-3">
 	          <Select label={t('dialog.barcode.type')} value={barcodeType} options={barcodeOptions} onChange={(value) => setBarcodeType(value as BarcodeType)} selectClassName="w-36" />
           {barcodeType === 'qr_code' && (
-            <div className="flex gap-1">
+            <div className="grid grid-cols-3 gap-1 rounded-lg bg-bb-bg p-1">
               {QR_PAYLOAD_MODES.map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => setQrPayloadMode(mode)}
-                  className={`px-2 py-1 rounded border text-xs ${qrPayloadMode === mode ? 'border-bb-accent text-bb-accent bg-bb-accent/10' : 'border-bb-border text-bb-text-muted hover:bg-bb-hover'}`}
+                  className={`h-8 rounded-md border text-xs font-medium transition-colors ${qrPayloadMode === mode ? 'border-bb-accent/45 bg-bb-accent/10 text-bb-text' : 'border-transparent text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'}`}
                 >
                   {qrModeLabels[mode]}
                 </button>
@@ -196,27 +211,24 @@ export function BarcodeDialog({ layerId, onClose }: BarcodeDialogProps) {
           <NumberInput label={labelWithUnit(t('dialog.barcode.width'), lengthUnitLabel(displayUnit))} value={roundDisplayLength(mmToDisplay(width, displayUnit), displayUnit)} onChange={(v) => setWidth(displayToMm(v, displayUnit))} min={mmToDisplay(5, displayUnit)} max={mmToDisplay(500, displayUnit)} step={lengthStep(displayUnit, 1, 0.05)} />
           <NumberInput label={labelWithUnit(t('dialog.barcode.height'), lengthUnitLabel(displayUnit))} value={roundDisplayLength(mmToDisplay(height, displayUnit), displayUnit)} onChange={(v) => setHeight(displayToMm(v, displayUnit))} min={mmToDisplay(5, displayUnit)} max={mmToDisplay(500, displayUnit)} step={lengthStep(displayUnit, 1, 0.05)} />
           {isOneDimensional(barcodeType) && (
-            <label className="flex items-center gap-2 text-xs text-bb-text-muted">
-              <input type="checkbox" checked={showText} onChange={(e) => setShowText(e.target.checked)} />
+            <label className="flex min-h-8 cursor-pointer items-center justify-between gap-2 rounded-lg bg-bb-surface/35 px-2 text-xs text-bb-text-muted">
               {t('dialog.barcode.show_text')}
+              <input className="accent-bb-accent" type="checkbox" checked={showText} onChange={(e) => setShowText(e.target.checked)} />
             </label>
           )}
           {barcodeType === 'qr_code' && (
             <Select label={t('dialog.barcode.qr_error')} value={qrErrorCorrection} options={qrEccOptions} onChange={(value) => setQrErrorCorrection(value as QrErrorCorrection)} selectClassName="w-36" />
           )}
           {barcodeType === 'data_matrix' && (
-            <label className="flex items-center gap-2 text-xs text-bb-text-muted">
-              <input type="checkbox" checked={dataMatrixForceSquare} onChange={(e) => setDataMatrixForceSquare(e.target.checked)} />
+            <label className="flex min-h-8 cursor-pointer items-center justify-between gap-2 rounded-lg bg-bb-surface/35 px-2 text-xs text-bb-text-muted">
               {t('dialog.barcode.force_square')}
+              <input className="accent-bb-accent" type="checkbox" checked={dataMatrixForceSquare} onChange={(e) => setDataMatrixForceSquare(e.target.checked)} />
             </label>
           )}
-        </div>
-        <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose} className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text">{t('common.cancel')}</button>
-          <button data-testid="barcode-submit" onClick={() => void handleSubmit()} disabled={!payload.trim()} className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent disabled:opacity-60">{t('dialog.barcode.create')}</button>
-        </div>
+          </div>
+        </DialogSection>
       </div>
-    </div>,
+    </MovableResizableDialogFrame>,
     document.body
   );
 }

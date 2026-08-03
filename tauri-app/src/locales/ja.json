@@ -62,7 +62,6 @@
       "export_selection": "選択内容をエクスポート",
       "hide_notes": "メモを隠す",
       "import_preferences": "インポート設定",
-      "new_window": "新しいウィンドウ",
       "open_preferences_folder": "設定フォルダーを開く",
       "preferences_exported": "設定がエクスポートされました。",
       "preferences_imported": "設定がインポートされました。",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "設定をデフォルトにリセットしますか?マシン プロファイル、最近のファイル、保存された位置、API 設定、およびエクスポート パスが保持されます。",
       "save_background_capture": "バックグラウンドキャプチャを保存",
       "save_processed_bitmap": "処理されたビットマップを保存する",
-      "show_notes": "メモを表示"
+      "show_notes": "メモを表示",
+      "project_notes": "プロジェクトノート...",
+      "print": "印刷...",
+      "export_processed_image": "処理済み画像を書き出す..."
     },
     "edit": {
       "label": "編集",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "選択した図形を自動結合",
       "close_and_join": "閉じて参加",
       "convert_to_bitmap": "ビットマップに変換",
+      "extract_selected_nodes_to_path": "選択したノードを新しいパスに抽出",
       "duplicate": "重複",
       "image_options": "画像オプション",
       "invert_selection": "選択範囲を反転",
@@ -241,12 +244,12 @@
       "shape_properties": "形状のプロパティ",
       "text_options": "テキストオプション",
       "toggle_side_panels": "サイドパネルの切り替え",
-      "toggle_wireframe_filled": "ワイヤーフレーム/塗りつぶしを切り替え",
-      "view_style": "ビュースタイル:",
-      "view_style_filled_coarse": "塗りつぶし/粗め",
-      "view_style_filled_smooth": "満たされた/滑らかな",
-      "view_style_wireframe_coarse": "ワイヤーフレーム / 粗い",
-      "view_style_wireframe_smooth": "ワイヤーフレーム / スムーズ",
+      "toggle_wireframe_filled": "レイヤー操作 / ワイヤーフレームを切り替え",
+      "view_style": "アートワーク表示:",
+      "view_style_filled_coarse": "塗りつぶしを優先",
+      "view_style_filled_smooth": "滑らかなエッジ",
+      "view_style_wireframe_coarse": "レイヤー操作に従う",
+      "view_style_wireframe_smooth": "ワイヤーフレームを優先",
       "zoom_to_page": "ページにズーム"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "スクロールホイール",
       "scroll_zoom": "ズーム",
       "scroll_pan": "パン",
-      "allow_import_tool_layers": "ツールレイヤーへのインポートを許可",
-      "include_tool_layers_job_bounds": "ジョブ範囲にツールレイヤーを含める"
+      "allow_import_tool_layers": "ツールレイヤーへのインポートを許可"
     },
     "about": {
       "tagline": "メイカーによる、メイカーのためのツール。",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "ターゲット レイヤが使用できないため、バーコード ダイアログが閉じました。"
     },
     "adjust_image": {
+      "invert_display_help": "プレビューのみです。保存された画像とレーザー出力は変更されません。",
+      "invert_adjustment_help": "反転はこの画像に保存され、レイヤーのラスタ処理より前に適用されます。",
+      "negative_image_help": "ネガ画像はレイヤー出力を反転します。上の反転も有効な場合、2 回の反転が互いに打ち消し合うことがあります。",
       "title": "画像を調整する",
       "drag_to_move": "ドラッグして移動します",
       "original": "オリジナル",
@@ -701,6 +706,7 @@
       "include_project_file": "プロジェクトファイルを含める",
       "include_project_file_help": "デフォルトではオフです。これにより、実際の .lzrproj ジオメトリとラスター データが送信されます。",
       "job_compatibility_help": "まだ何も送信されていません。このレポートには、Beam Bench のバージョン、オペレーティングシステム、コントローラーファミリー、個人を特定しないマシン設定、完了したジョブの集計値が含まれます。デザイン、G-code、ファイル名、シリアル通信、ログ、デバイスパス、プロファイル ID、プロジェクトファイルは含まれません。",
+      "privacy_policy": "プライバシーポリシーを読む",
       "what_gets_sent": "送信されるもの",
       "loading": "読み込み中...",
       "submitting_report": "Beam Bench にレポートを送信しています...",
@@ -784,6 +790,7 @@
       "pan_hint": "ドラッグでトレース範囲を選択します。スペースキーを押しながらドラッグすると表示位置を移動できます。"
     },
     "preview": {
+      "options_help": "移動はレーザーをオフにした状態の動きです。進行状況は完了した加工を示します。オーバースキャンはアートワークの外側でのラスタ加速を示します。パワー別シェーディングと反転はこの表示にのみ影響します。",
       "title": "プレビューウィンドウ",
       "stale_refresh_required": "古い - 更新が必要です",
       "stale": "古い",
@@ -1105,10 +1112,27 @@
       "title": "未保存の変更",
       "message": "プロジェクトに未保存の変更があります。続行する前に保存しますか？",
       "discard": "保存しない"
+    },
+    "print": {
+      "title": "印刷",
+      "output": "印刷出力",
+      "description": "プロジェクトの表示方法を選択し、システムの印刷ダイアログで続行します。",
+      "color": "カラー",
+      "black": "黒",
+      "layer_colors": "レイヤーの色",
+      "appearance": "アートワークの表示",
+      "by_operation": "レイヤー処理に従う",
+      "outlines": "輪郭線のみ",
+      "print": "印刷...",
+      "preparing": "準備中..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "デザイン",
+      "mode_run": "実行",
+      "mode_design_hint": "デザイン：プロジェクトを描いて配置する",
+      "mode_run_hint": "実行：ジョブをレーザーに送信する",
       "new": "新しい",
       "untitled_project": "無題のプロジェクト",
       "open": "開く",
@@ -1193,13 +1217,16 @@
       "close_path": "パスを閉じる",
       "auto_join_paths": "パスの自動結合",
       "insert_midpoint": "中点の挿入 (M)",
-      "align_to_angle": "角度に揃える (A)"
+      "align_to_angle": "角度に揃える (A)",
+      "extend_to_intersection": "交点まで延長 (E)"
     },
     "transform_toggles": {
       "move": "移動",
       "size": "サイズ",
       "rotate": "回転",
-      "shear": "せん断"
+      "shear": "せん断",
+      "lock_all": "すべての変形をロック",
+      "unlock_all": "すべての変形のロックを解除"
     },
     "properties": {
       "position_x": "X位置",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "プロジェクトなし",
-      "nothing_selected": "何も選択されていません"
+      "nothing_selected": "オブジェクトを選択してプロパティを編集"
+    },
+    "library": {
+      "title": "ライブラリ"
     },
     "floating": {
       "dock_tooltip": "パネルをドッキング",
       "close_tooltip": "パネルを閉じる",
       "float_tooltip": "パネルをフロート"
     },
+    "outliner": {
+      "help": "ドラッグして並べ替えまたは移動します。ダブルクリックして名前を変更します。非表示のオブジェクトは、復元できるようここに残ります。",
+      "summary": "{layers} レイヤー · {objects} オブジェクト",
+      "empty_layer": "オブジェクトがありません",
+      "expand_layer": "レイヤーを展開する",
+      "collapse_layer": "レイヤーを折りたたむ",
+      "expand_group": "グループを展開する",
+      "collapse_group": "グループを折りたたむ",
+      "show_layer": "レイヤーを表示",
+      "hide_layer": "レイヤーを非表示にする",
+      "show_object": "オブジェクトを表示",
+      "hide_object": "オブジェクトを非表示にする",
+      "lock_object": "ロックオブジェクト",
+      "unlock_object": "オブジェクトのロックを解除する"
+    },
     "registry": {
-      "cuts_layers": "カット / レイヤー",
+      "outliner": "アウトライナー",
+      "cuts_layers": "レイヤー",
       "move": "移動",
       "console": "コンソール",
       "macros": "マクロ",
-      "properties": "図形プロパティ",
+      "properties": "プロパティ",
       "measurement": "計測",
       "laser": "Laser Control",
       "material": "素材ライブラリ",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "単一サブレイヤー"
     },
     "properties": {
+      "transform": "変形",
+      "visibility_help": "非表示のオブジェクトはジョブから除外されます。Outliner で復元できます。",
+      "power_scale_help": "レイヤーを変更せずに、このオブジェクトのレイヤーパワーを倍率調整します。",
+      "cut_priority_help": "優先度の最適化が有効な場合、値が小さいほど先に実行されます。",
       "objects_selected": "{count} 個のオブジェクトを選択中",
       "layer": "レイヤー",
       "mixed": "混在",
@@ -1421,7 +1471,7 @@
       "union": "ユニオン",
       "subtract": "減算",
       "intersection": "交差",
-      "nothing_selected": "未選択",
+      "nothing_selected": "オブジェクトを選択してプロパティを編集",
       "name": "名前",
       "power_scale_percent": "パワースケール %",
       "cut_priority": "カット優先度",
@@ -1484,15 +1534,63 @@
       "h_space": "横間隔",
       "v_space": "縦間隔",
       "path_offset": "パスオフセット",
+      "baseline_offset": "ベースラインオフセット",
+      "direction_normal": "標準",
+      "direction_reverse": "反転",
+      "strength": "強度",
+      "arc_span": "円弧の範囲",
+      "circle_position": "円上の位置",
+      "circle_side": "円の内外",
+      "circle_top": "上",
+      "circle_bottom": "下",
+      "circle_outside": "外側",
+      "circle_inside": "内側",
       "bend_radius": "曲げ半径",
       "align_left": "左",
       "align_center": "中央",
       "align_right": "右",
       "align_top": "上",
       "align_middle": "中央",
-      "align_bottom": "下"
+      "align_bottom": "下",
+      "tool_title": "テキストツール",
+      "creation_hint": "[ポイント] をクリックして入力するか、[ボックス] を選択してラッピング領域をドラッグします。",
+      "edit_text": "テキストを編集する",
+      "edit_on_canvas": "キャンバス上で編集する",
+      "search_fonts": "フォントを検索する",
+      "recent_fonts": "最近の",
+      "favorite_fonts": "お気に入り",
+      "all_fonts": "すべてのフォント",
+      "no_fonts_found": "フォントが見つかりません",
+      "favorite_font": "お気に入りのフォント",
+      "unfavorite_font": "お気に入りを削除",
+      "style": "スタイル",
+      "style_regular": "レギュラー",
+      "style_bold_italic": "太字斜体",
+      "typography": "タイポグラフィー",
+      "alignment_spacing": "配置と間隔",
+      "text_box": "テキストタイプ",
+      "width_mode": "モード",
+      "auto_width": "ポイント",
+      "fixed_width": "ボックス",
+      "width": "ボックスの幅",
+      "squeeze_to_fit": "絞ってフィットさせる",
+      "advanced_shape": "高度なテキスト形状",
+      "transform": "封筒",
+      "transform_none": "なし",
+      "transform_arch": "アーチ",
+      "transform_rise": "上昇",
+      "transform_wave": "波",
+      "transform_flag": "旗",
+      "transform_angle": "角度",
+      "transform_circle": "サークル",
+      "curve": "曲線",
+      "laser_output": "レーザー出力",
+      "convert_hint": "パスに変換すると、レタリングが編集可能なカット ジオメトリに固定されます。",
+      "tracking": "追跡",
+      "line_spacing": "行間"
     },
     "sub_layer_stack": {
+      "title": "サブレイヤー",
       "operation_tool": "ツール",
       "operation_image": "画像",
       "operation_fill": "塗りつぶし",
@@ -1542,7 +1640,8 @@
       "offset_outward": "外側へオフセット",
       "max_sub_layers_title": "サブレイヤーは最大 11 個です",
       "add_sub_layer_title": "サブレイヤーを追加",
-      "add_sub_layer": "+ サブレイヤーを追加"
+      "add_sub_layer": "+ サブレイヤーを追加",
+      "order_hint": "サブレイヤーは上から下の順に実行されます。"
     },
     "cut_settings": {
       "title": "カット設定",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "ツールレイヤーはガイドとして使用され、レーザー出力には含まれません。",
+      "output_show_help": "出力をオンにすると、このレイヤーがレーザージョブに含まれます。表示はキャンバス表示だけを変更します。",
+      "opacity_help": "キャンバス上のプレビューのみです。レーザーパワーや画像処理は変更されません。",
+      "delete_layer": "レイヤーを削除",
+      "add_layer": "レイヤーを追加",
       "header": {
         "index": "#",
         "layer": "レイヤー",
@@ -1587,8 +1691,6 @@
         "multi": "複数"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "ツールレイヤーをジョブ境界に含める",
-      "exclude_tool_layers_from_job_bounds": "ツールレイヤーをジョブ境界から除外",
       "frame": "フレーム",
       "move_up": "上へ移動",
       "move_down": "下へ移動",
@@ -1635,7 +1737,8 @@
         "on_ms": "オン (ms)",
         "off_ms": "オフ (ms)",
         "kerf_mm": "カーフオフセット"
-      }
+      },
+      "settings_copied": "レイヤー設定をコピーしました"
     },
     "move": {
       "step_mm": "ステップ",
@@ -2168,9 +2271,40 @@
       "end": "終点",
       "midpoint": "中点",
       "difference": "差分",
-      "angle": "角度"
+      "angle": "角度",
+      "mode_linear": "リニア",
+      "mode_angle": "角度",
+      "mode_radius": "半径",
+      "mode_gap": "ギャップ",
+      "minimum_gap": "最小ギャップ",
+      "horizontal": "水平",
+      "vertical": "垂直",
+      "horizontal_gap": "横方向の隙間",
+      "vertical_gap": "縦方向の隙間",
+      "first_segment": "最初のセグメント",
+      "second_segment": "2番目のセグメント",
+      "radius": "半径",
+      "diameter": "直径",
+      "radius_x": "半径 X",
+      "radius_y": "半径 Y",
+      "diameter_x": "直径X",
+      "diameter_y": "直径Y",
+      "linear_second_hint": "2 番目の点をクリックします",
+      "angle_second_hint": "2 番目のセグメントをクリックします",
+      "gap_second_hint": "2 番目のオブジェクトをクリックします",
+      "angle_hint": "2 つのセグメントをクリックして角度を測定します",
+      "radius_hint": "円または楕円をクリックします",
+      "gap_hint": "2 つのオブジェクトをクリックして、それらの最も近いギャップを測定します",
+      "linear_hint": "クリックしてドラッグするか、2 点をクリックします",
+      "title": "測定する",
+      "modes": "測定モード",
+      "copy_value": "値をコピーする",
+      "copied": "コピーされました",
+      "clear_measurement": "明確な測定",
+      "keyboard_hint": "Shift は角度を拘束します。 Escape はクリアされ、選択に戻ります。"
     },
     "art_library": {
+      "drag_help": "アートワークをキャンバスにドラッグします。× でライブラリから削除できます。",
       "no_libraries": "ライブラリが読み込まれていません。",
       "search": "検索...",
       "icon_size": "アイコンサイズ:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench アートライブラリ",
       "filter_artwork": "アートワーク"
     }
+  },
+  "warp_tool": {
+    "title": "ワープ",
+    "four_points": "4点",
+    "sixteen_points": "16点"
   },
   "context_menu": {
     "windows": "ウィンドウ",

@@ -1,6 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+- Refreshed the complete Design and Run experience around customizable panel
+  docks, consistent inspector styling, clearer modes, and contextual controls
+  that stay close to the selected object or active tool.
+- Added the Outliner for navigating project structure, renaming objects and
+  groups, reordering layers, and moving artwork between layers.
+- Expanded professional text editing with point and box text, on-canvas editing,
+  font browsing, right-to-left layout, welding, text on a path, and Bend, Arch,
+  Rise, Wave, Flag, Angle, and Circle shapes with direction and placement
+  controls.
+- Expanded node editing, trimming, path cleanup, tabs, live offsets, and adaptive
+  four- and sixteen-point warp previews. Contextual tool controls now open in
+  Properties instead of separate popovers.
+- Rebuilt Preview, Trace Image, and Adjust Image workflows with consistent
+  controls, corrected playback and travel visualization, protected canvas wheel
+  input, and clearer image-processing behavior.
+- Added a practical Measure workflow for distance, angle, bounds, spacing, and
+  persistent measurements, with results and controls in Properties.
+- Updated Design rendering so line operations appear as wireframes while fill,
+  offset-fill, and image operations display as filled artwork using layer color
+  and preview opacity.
 
 - Double-clicking editable text now opens the inline editor regardless of the
   active canvas tool.
@@ -11,6 +32,32 @@
   place.
 - The Select tool hint now explains Shift-click multiple selection in every
   supported language.
+- Post-job compatibility requests now target Beta and Experimental
+  non-GRBL-family controllers. The old blocking prompt is replaced by a
+  one-time notification, while GRBL, FluidNC, and grblHAL jobs are no longer
+  prompted.
+- Design and Run now remember separate customizable panel arrangements. Tabs
+  can move between the left and right columns, and draggable top and bottom
+  seams let either column grow to as many as three stacked panel docks. Design
+  starts with Layers, Properties, and Outliner together on the right.
+- Locked artwork is treated consistently as edit protection and remains part
+  of both full-project and selected-only laser jobs. Use object visibility or
+  layer Output when artwork should not run.
+- Removed the retired New Window command and the obsolete option for including
+  non-output tool layers in job bounds. Existing settings files remain
+  compatible and safely ignore the retired preference.
+- Fixed layer-tab forward reordering, no-op layer renames, legacy mixed-layer
+  name collisions, modifier panels opened from inline text editing, and
+  dependent path text after extracting an entire guide path.
+- Delete Duplicates now preserves emptied layers, and single-entry layers keep
+  their per-entry Output and Reset controls.
+- Completed translations for the refreshed Text, Measure, Outliner, Print,
+  Warp, Layers, and Properties interfaces in every supported language.
+- Tabs across panel docks, the Library drawer, device settings, and application
+  settings now share the raised/recessed visual language introduced by the
+  layer tabs, with consistent active, inactive, hover, and keyboard-focus states.
+- Speed and passes now use the same direct slider controls as power, with up to
+  50 passes.
 
 ## 0.1.12
 
@@ -42,6 +89,11 @@
 
 ## 0.1.11
 
+- Added optional, consent-based compatibility feedback after a completed job.
+  Nothing is sent when the prompt appears. Successful-job reports are reduced
+  to non-identifying build, system, controller, machine-setting, and job-total
+  data, while problem reports open the normal previewable bug reporter. The
+  prompt and report flow are localized in every supported language.
 - Added corrected overhead-camera alignment. Four-point calibration now fixes
   perspective, while the recommended nine-point workflow also compensates for
   wide-angle lens distortion. Corrected overlays remain adjustable, saved

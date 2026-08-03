@@ -4,6 +4,7 @@ import type { ProjectObject, ObjectData, Asset } from '../types/project';
 const VECPATH_TYPES = new Set(['shape', 'vector_path', 'text', 'polygon', 'star']);
 /** Types that are inherently closed; vector_path needs an explicit closed check. */
 const CLOSED_TYPES = new Set(['shape', 'text', 'polygon', 'star']);
+const MESH_DEFORM_TYPES = new Set(['vector_path', 'shape', 'text', 'polygon', 'star', 'raster_image', 'barcode']);
 
 /** Content category used by the layer-family resolver and layer-
  *  content invariant. Matches the backend's `effective_is_raster`
@@ -107,6 +108,28 @@ function isBooleanCompatibleObject(
 
 export function isClosedVectorCompatible(obj: ProjectObject, allObjects: ProjectObject[]): boolean {
   return isBooleanCompatible(obj, allObjects);
+}
+
+export function isMeshDeformCompatible(obj: ProjectObject, allObjects: ProjectObject[]): boolean {
+  return isMeshDeformCompatibleObject(obj, allObjects, new Set());
+}
+
+function isMeshDeformCompatibleObject(
+  obj: ProjectObject,
+  allObjects: ProjectObject[],
+  seen: Set<string>,
+): boolean {
+  if (seen.has(obj.id) || obj.locked || !obj.visible) return false;
+  seen.add(obj.id);
+  const data = resolveEffectiveData(obj, allObjects);
+  if (!data) return false;
+  if (data.type === 'group') {
+    return data.children.length > 0 && data.children.every((childId) => {
+      const child = allObjects.find((candidate) => candidate.id === childId);
+      return child !== undefined && isMeshDeformCompatibleObject(child, allObjects, seen);
+    });
+  }
+  return MESH_DEFORM_TYPES.has(data.type);
 }
 
 export function imageObjectHasSourcePath(obj: ProjectObject | null, assets: Asset[]): boolean {

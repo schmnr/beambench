@@ -6,6 +6,11 @@ function isToolLikeObject(project: Project, object: ProjectObject): boolean {
     || (object.data.type === 'vector_path' && object.data.ruler_guide_axis != null);
 }
 
+export function isProjectObjectVisible(project: Project, object: ProjectObject): boolean {
+  if (!object.visible) return false;
+  return project.layers.find((layer) => layer.id === object.layer_id)?.visible !== false;
+}
+
 function findParentGroupId(project: Project, objectId: string): string | null {
   for (const object of project.objects) {
     if (object.data.type === 'group' && object.data.children.includes(objectId)) {
@@ -29,7 +34,7 @@ export function normalizeArrangementSelection(project: Project, objectIds: strin
   const normalized: string[] = [];
   for (const objectId of objectIds) {
     const object = project.objects.find((candidate) => candidate.id === objectId);
-    if (!object || isToolLikeObject(project, object)) continue;
+    if (!object || !isProjectObjectVisible(project, object) || isToolLikeObject(project, object)) continue;
     const promoted = topLevelArrangementObjectId(project, objectId);
     if (seen.has(promoted)) continue;
     seen.add(promoted);
@@ -49,7 +54,7 @@ export function normalizeSelectionMembers(project: Project, objectIds: string[])
   const normalized: string[] = [];
   for (const objectId of objectIds) {
     const object = project.objects.find((candidate) => candidate.id === objectId);
-    if (!object) continue;
+    if (!object || !isProjectObjectVisible(project, object)) continue;
     const promoted = topLevelArrangementObjectId(project, objectId);
     if (seen.has(promoted)) continue;
     seen.add(promoted);

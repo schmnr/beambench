@@ -774,6 +774,7 @@ fn polyline_distance(points: &[Point2D]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use beambench_common::path::Polyline;
     use beambench_planner::*;
     use chrono::Utc;
     use uuid::Uuid;
@@ -906,6 +907,24 @@ mod tests {
 
     #[test]
     fn raster_multi_run_preview_uses_one_scanline_envelope() {
+        let outer = Polyline::new(
+            vec![
+                Point2D::new(0.0, -1.0),
+                Point2D::new(10.0, -1.0),
+                Point2D::new(10.0, 1.0),
+                Point2D::new(0.0, 1.0),
+            ],
+            true,
+        );
+        let hole = Polyline::new(
+            vec![
+                Point2D::new(4.0, -0.5),
+                Point2D::new(6.0, -0.5),
+                Point2D::new(6.0, 0.5),
+                Point2D::new(4.0, 0.5),
+            ],
+            true,
+        );
         let plan = make_plan(vec![PlanSegment::Raster {
             scanlines: vec![Scanline {
                 y_mm: 0.0,
@@ -932,7 +951,7 @@ mod tests {
             scan_angle_deg: 0.0,
             scan_origin: Point2D::new(0.0, 0.0),
             overscan_mm: 5.0,
-            outlines: vec![],
+            outlines: vec![outer, hole],
             scan_axis: ScanAxis::default(),
             power_max_percent: 100.0,
             power_min_percent: 0.0,
@@ -944,6 +963,8 @@ mod tests {
         let preview = distill_preview(&plan);
         let raster = &preview.layers[0].raster_regions[0];
         assert_eq!(raster.run_extents.len(), 2);
+        assert_eq!(raster.outlines.len(), 2);
+        assert!(raster.outlines.iter().all(|outline| outline.closed));
         assert_eq!(raster.scanline_extents.len(), 1);
         assert_eq!(raster.scanline_extents[0].start_x_mm, 0.0);
         assert_eq!(raster.scanline_extents[0].end_x_mm, 10.0);

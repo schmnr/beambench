@@ -54,8 +54,9 @@ pub use export_dxf::export_dxf;
 pub use export_eps::{export_ai, export_eps};
 pub use export_pdf::export_pdf;
 pub use export_print::{
-    PrintDocument, PrintMode, render_print_document, render_print_document_with_selection,
-    render_print_png,
+    PrintAppearance, PrintDocument, PrintMode, render_print_document,
+    render_print_document_with_options, render_print_document_with_selection, render_print_png,
+    render_print_png_with_options,
 };
 pub use export_svg::export_svg;
 pub use import::{ImportError, import_image, import_svg};
@@ -82,9 +83,9 @@ pub use object::{
     TextTransformStyle,
 };
 pub use operations::{
-    flip_objects, lock_objects, move_objects_to_position, push_draw_order, reassign_layer,
-    rotate_objects, select_all_in_layer, select_open_shapes, set_layer_air_assist,
-    set_layer_visible, set_objects_visible, unlock_objects,
+    flip_objects, lock_objects, move_objects_in_outliner, move_objects_to_position,
+    push_draw_order, reassign_layer, rotate_objects, select_all_in_layer, select_open_shapes,
+    set_layer_air_assist, set_layer_visible, set_objects_visible, unlock_objects,
 };
 pub use optimization::{
     DirectionOrder, FinishPosition, OptimizationOrderKey, ProjectOptimization,
@@ -98,8 +99,8 @@ pub use quality_test::{
     QualityTestOrdering, QualityTestRequest, QualityTestSettings, QualityTestWarning,
 };
 pub use settings::{
-    AppSettings, CursorSize, DisplayUnit, IconSize, ImagePreset, SavedPosition, SpeedTimeUnit,
-    UiTheme,
+    AppSettings, ArtworkDisplayMode, CursorSize, DisplayUnit, IconSize, ImagePreset, SavedPosition,
+    SpeedTimeUnit, UiTheme,
 };
 pub use text_path::{apply_path_to_text, apply_path_to_text_with_options};
 pub use trace::{TraceConfig, trace_image, trace_image_preview_fast};

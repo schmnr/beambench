@@ -4,6 +4,29 @@ import i18n from '../i18n';
 
 export type TransformLockKind = 'position' | 'scale' | 'rotation' | 'shear';
 
+export const DEFAULT_TRANSFORM_LOCKS: TransformLocks = {
+  move_enabled: true,
+  size_enabled: true,
+  rotate_enabled: true,
+  shear_enabled: true,
+};
+
+/**
+ * Resolve the locks that apply to a selection. A transform is available only
+ * when every selected object allows it, so a locked object never moves as a
+ * side effect of a multi-selection transform.
+ */
+export function effectiveTransformLocks(
+  objects: ProjectObject[],
+): TransformLocks {
+  return {
+    move_enabled: objects.every((object) => object.transform_locks?.move_enabled !== false),
+    size_enabled: objects.every((object) => object.transform_locks?.size_enabled !== false),
+    rotate_enabled: objects.every((object) => object.transform_locks?.rotate_enabled !== false),
+    shear_enabled: objects.every((object) => object.transform_locks?.shear_enabled !== false),
+  };
+}
+
 const LOCK_MESSAGE_KEYS: Record<TransformLockKind, string> = {
   position: 'notifications.lock.position',
   scale: 'notifications.lock.scale',

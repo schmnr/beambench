@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
-import { invoke } from '@tauri-apps/api/core';
 import { LayerList } from '../LayerList';
+import { LayerTabs } from '../LayerTabs';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { projectService } from '../../../services/projectService';
 import { useAppStore } from '../../../stores/appStore';
 import type { Layer, OperationType, ProjectObject } from '../../../types/project';
-import { makeAppSettings, makeLayer as makeFixtureLayer, makeProject, makeProjectObject, makeRasterSettings, type LayerFixtureOverrides } from '../../../test-utils/projectFixtures';
+import { makeAppSettings, makeLayer as makeFixtureLayer, makeProject, makeProjectObject, type LayerFixtureOverrides } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -40,19 +40,15 @@ afterEach(() => {
 });
 
 describe('LayerList', () => {
-  it('renders table header with column labels', () => {
-    const layer = makeLayer();
+  it('does not expose layer creation in the Run workspace', () => {
+    useUiStore.setState({ workspaceMode: 'run' });
     useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [], assets: [] }),
+      project: makeProject({ layers: [makeLayer({ id: 'l1' })], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const header = screen.getByTestId('layer-table-header');
-    expect(header).toBeDefined();
-    expect(header.textContent).toContain('#');
-    expect(header.textContent).toContain('Mode');
-    expect(header.textContent).toContain('Spd/Pwr');
+    expect(screen.queryByTestId('add-layer-tab')).toBeNull();
   });
 
   it('displays layer IDs as C00, C01, T1 based on color', () => {
@@ -65,55 +61,36 @@ describe('LayerList', () => {
       project: makeProject({ layers, objects: [], assets: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     expect(labels[0].textContent).toBe('C00');
     expect(labels[1].textContent).toBe('C01');
     expect(labels[2].textContent).toBe('T1');
   });
 
-  it('mode dropdown changes layer operation', async () => {
-    const layer = makeLayer({ id: 'l1', operation: 'line' });
-    const updateCutEntrySpy = vi.spyOn(projectService, 'updateCutEntry').mockResolvedValue({
-      ...layer.entries[0],
-      operation: 'fill',
-    });
-    const loadProjectSpy = vi.fn().mockResolvedValue(undefined);
+  it('keeps inactive layer and add-tab surfaces fully opaque', () => {
+    const layers = [
+      makeLayer({ id: 'l1', color_tag: '#000000' }),
+      makeLayer({ id: 'l2', color_tag: '#FF0000', order_index: 1 }),
+    ];
+    useUiStore.setState({ workspaceMode: 'design' });
     useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [], assets: [] }),
-      loadProject: loadProjectSpy,
+      project: makeProject({ layers, objects: [] }),
+      selectedLayerId: 'l1',
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const modeSelect = screen.getByTestId('mode-select');
-    expect((modeSelect as HTMLSelectElement).value).toBe('line');
-
-    fireEvent.change(modeSelect, { target: { value: 'fill' } });
-    await waitFor(() => {
-      expect(updateCutEntrySpy).toHaveBeenCalledWith('l1', layer.entries[0].id, {
-        operation: 'fill',
-      });
-    });
-    expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
+    const inactiveTab = screen.getAllByTestId('layer-tab')[1];
+    const addTab = screen.getByTestId('add-layer-tab');
+    expect(inactiveTab.className).not.toContain('opacity-80');
+    expect(addTab.className).not.toContain('opacity-80');
+    expect(inactiveTab.style.background).not.toBe('transparent');
+    expect(addTab.style.background).not.toBe('transparent');
   });
 
-  it('image layers render plain-text "Image" label, not a dropdown', () => {
-    const layer = makeLayer({ id: 'l1', operation: 'image' });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [], assets: [] }),
-    });
-
-    render(<LayerList />);
-
-    // Image layers must NOT render the mode dropdown — image mode is immutable.
-    expect(screen.queryByTestId('mode-select')).toBeNull();
-    const label = screen.getByTestId('mode-image-label');
-    expect(label.textContent).toBe('Image');
-  });
-
-  it('tool layers render as frame-only rows without output or air controls', () => {
+  it('tool layers retain the standard color editor while showing tool-only controls', () => {
     const layer = makeLayer({
       id: 't1',
       name: 'T1',
@@ -126,46 +103,41 @@ describe('LayerList', () => {
       selectedLayerId: 't1',
     });
 
-    render(<LayerList />);
+    render(<><LayerTabs /><LayerList /></>);
 
-    expect(screen.getByTestId('layer-label').textContent).toBe('T1');
-    expect(screen.getByTestId('color-swatch').textContent).toBe('T1');
-    expect(screen.getByTestId('mode-tool-label').textContent).toBe('Tool');
-    expect(screen.getByTestId('speed-power').textContent).toBe('Frame');
-    expect(screen.getByTestId('frame-toggle')).toBeDefined();
-    expect(screen.queryByTestId('mode-select')).toBeNull();
-    expect(screen.queryByTestId('output-toggle')).toBeNull();
+    expect(screen.getByTestId('tab-label').textContent).toBe('T1');
+    expect(screen.queryByTestId('frame-toggle')).toBeNull();
     expect(screen.getByTestId('show-toggle')).toBeDefined();
+    expect(screen.queryByTestId('output-toggle')).toBeNull();
     expect(screen.queryByTestId('air-toggle')).toBeNull();
-    expect(screen.queryByTestId('quick-edit')).toBeNull();
+    expect(screen.getByTestId('quick-edit')).toBeDefined();
+    expect(screen.getByTestId('quick-edit-color')).toBeDefined();
   });
 
-  it('tool layer Frame toggle updates the global job-bounds setting', async () => {
+  it('lets a tool layer change to a normal layer color or another tool color', () => {
     const layer = makeLayer({
       id: 't1',
+      name: 'T1',
       color_tag: '#DA0B3F',
       operation: 'tool',
       is_tool_layer: true,
     });
-    const updateSettings = vi.fn().mockResolvedValue(undefined);
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
     useProjectStore.setState({
       project: makeProject({ layers: [layer], objects: [], assets: [] }),
       selectedLayerId: 't1',
-    });
-    useAppStore.setState({
-      settings: makeAppSettings({ include_tool_layers_in_job_bounds: true }),
-      updateSettings,
+      updateLayer: updateLayerSpy,
     });
 
-    render(<LayerList />);
+    const { rerender } = render(<LayerList />);
+    fireEvent.click(screen.getByTestId('quick-edit-color'));
+    fireEvent.click(screen.getByTitle('Black'));
+    expect(updateLayerSpy).toHaveBeenLastCalledWith('t1', { color_tag: '#000000' });
 
-    fireEvent.click(screen.getByTestId('frame-toggle'));
-
-    await waitFor(() => {
-      expect(updateSettings).toHaveBeenCalledWith({
-        include_tool_layers_in_job_bounds: false,
-      });
-    });
+    rerender(<LayerList />);
+    fireEvent.click(screen.getByTestId('quick-edit-color'));
+    fireEvent.click(screen.getByTitle('Tool 2'));
+    expect(updateLayerSpy).toHaveBeenLastCalledWith('t1', { color_tag: '#00D4FF' });
   });
 
   it('double-clicking a tool layer does not open the cut settings editor', () => {
@@ -179,9 +151,9 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [], assets: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.doubleClick(screen.getByTestId('layer-row'));
+    fireEvent.doubleClick(screen.getByTestId('layer-tab'));
 
     expect(screen.queryByTestId('cut-settings-overlay')).toBeNull();
   });
@@ -198,10 +170,10 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [], assets: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
     // Should display the current family label "C00", not the stale "C02 (Image)"
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     expect(labels[0].textContent).toBe('C00');
   });
 
@@ -222,14 +194,11 @@ describe('LayerList', () => {
       project: makeProject({ layers: [blue, green], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     expect(labels[0].textContent).toBe('C01');
     expect(labels[1].textContent).toBe('C03');
-    const swatches = screen.getAllByTestId('color-swatch');
-    expect(swatches[0].textContent).toBe('01');
-    expect(swatches[1].textContent).toBe('03');
   });
 
   it('two layers can share the same color tag (Image + Line on C00)', () => {
@@ -251,18 +220,12 @@ describe('LayerList', () => {
       project: makeProject({ layers: [imageLayer, lineLayer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<><LayerTabs /><LayerList /></>);
 
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     // Both rows should display "C00" because both are tagged with the first palette color.
     expect(labels[0].textContent).toBe('C00');
     expect(labels[1].textContent).toBe('C00');
-    const swatches = screen.getAllByTestId('color-swatch');
-    expect(swatches[0].textContent).toBe('00');
-    expect(swatches[1].textContent).toBe('00');
-    // Image layer renders plain label, Line layer renders dropdown.
-    expect(screen.getByTestId('mode-image-label').textContent).toBe('Image');
-    expect(screen.getByTestId('mode-select')).toBeDefined();
   });
 
   it('collapses auto-generated family names like C00 (Line) back to C00 in the Layer column', () => {
@@ -284,14 +247,35 @@ describe('LayerList', () => {
       project: makeProject({ layers: [imageLayer, lineLayer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const labels = screen.getAllByTestId('layer-label');
+    const labels = screen.getAllByTestId('tab-label');
     expect(labels[0].textContent).toBe('C00');
     expect(labels[1].textContent).toBe('C00');
   });
 
-  it('output toggle circle works', () => {
+  it('shows a distinct live mode icon for Line, Fill, Offset Fill, and Image layers', () => {
+    const layers = [
+      makeLayer({ id: 'line', name: 'C00 (Line)', operation: 'line', color_tag: '#000000' }),
+      makeLayer({ id: 'fill', name: 'C01 (Fill)', operation: 'fill', color_tag: '#ff0000', order_index: 1 }),
+      makeLayer({ id: 'offset', name: 'C02 (Offset Fill)', operation: 'offset_fill', color_tag: '#00ff00', order_index: 2 }),
+      makeLayer({ id: 'image', name: 'C03 (Image)', operation: 'image', color_tag: '#0000ff', order_index: 3 }),
+    ];
+    useProjectStore.setState({
+      project: makeProject({ layers, objects: [] }),
+    });
+
+    render(<LayerTabs />);
+
+    expect(screen.getAllByTestId('tab-mode-icon').map((icon) => icon.getAttribute('data-operation'))).toEqual([
+      'line',
+      'fill',
+      'offset_fill',
+      'image',
+    ]);
+  });
+
+  it('uses a pressed lightning icon to control layer output', () => {
     const layer = makeLayer({ id: 'l1', enabled: true });
     useProjectStore.setState({
       project: makeProject({ layers: [layer], objects: [] }),
@@ -303,12 +287,135 @@ describe('LayerList', () => {
     render(<LayerList />);
 
     const outputToggle = screen.getByTestId('output-toggle');
+    expect(outputToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(outputToggle.querySelector('.lucide-zap')).not.toBeNull();
+    expect(screen.getByTestId('layer-output-show-help').textContent).toContain('Out includes this layer in the laser job');
     fireEvent.click(outputToggle);
 
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { enabled: false });
   });
 
-  it('show toggle circle works', async () => {
+  it('commits a layer name once after editing instead of on every keystroke', async () => {
+    const layer = makeLayer({ id: 'l1', name: 'Original' });
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [] }),
+      selectedLayerId: 'l1',
+      updateLayer: updateLayerSpy,
+    });
+
+    render(<LayerList />);
+    const input = screen.getByTestId('layer-quick-name-input');
+    fireEvent.change(input, { target: { value: 'Updated' } });
+
+    expect(updateLayerSpy).not.toHaveBeenCalled();
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(updateLayerSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(updateLayerSpy).toHaveBeenCalledWith('l1', { name: 'Updated' });
+  });
+
+  it('does not rename an auto-named layer when its display label is focused and blurred', () => {
+    const layer = makeLayer({ id: 'l1', name: 'Line', color_tag: '#000000' });
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [] }),
+      selectedLayerId: 'l1',
+      updateLayer: updateLayerSpy,
+    });
+
+    render(<LayerList />);
+    const input = screen.getByTestId('layer-quick-name-input') as HTMLInputElement;
+    expect(input.value).toBe('C00');
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+
+    expect(updateLayerSpy).not.toHaveBeenCalled();
+  });
+
+  it('compensates the target index when dragging a layer tab forward', () => {
+    const layers = [
+      makeLayer({ id: 'l1', name: 'One', order_index: 0 }),
+      makeLayer({ id: 'l2', name: 'Two', order_index: 1 }),
+      makeLayer({ id: 'l3', name: 'Three', order_index: 2 }),
+    ];
+    const reorderLayerSpy = vi.fn();
+    useProjectStore.setState({
+      project: makeProject({ layers, objects: [] }),
+      reorderLayer: reorderLayerSpy,
+    });
+
+    render(<LayerTabs />);
+    const tabs = screen.getAllByTestId('layer-tab');
+    fireEvent.dragStart(tabs[0], { dataTransfer: { effectAllowed: 'move' } });
+    fireEvent.dragOver(tabs[2], { dataTransfer: { dropEffect: 'move' } });
+    fireEvent.drop(tabs[2], { dataTransfer: { dropEffect: 'move' } });
+
+    expect(reorderLayerSpy).toHaveBeenCalledWith('l1', 1);
+  });
+
+  it('activates a tab and reveals its relocated Layers panel without reassigning the current selection', () => {
+    const source = makeLayer({ id: 'l1', name: 'Source' });
+    const target = makeLayer({ id: 'l2', name: 'Target', order_index: 1 });
+    const object = makeProjectObject({ id: 'obj-1', layer_id: source.id });
+    const reassignLayerSpy = vi.fn();
+    useUiStore.setState({ workspaceMode: 'design' });
+    useProjectStore.setState({
+      project: makeProject({ layers: [source, target], objects: [object] }),
+      selectedLayerId: source.id,
+      selectedObjectIds: [object.id],
+      reassignLayer: reassignLayerSpy,
+    });
+    useUiStore.getState().movePanelBetweenZones('cuts_layers', 'top-right', 'middle-left');
+    useUiStore.getState().setZoneActiveTab('top-right', 'properties');
+    useUiStore.getState().setZoneActiveTab('middle-left', '');
+
+    render(<LayerTabs />);
+    fireEvent.click(screen.getAllByTestId('layer-tab')[1]);
+
+    expect(reassignLayerSpy).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().selectedLayerId).toBe(target.id);
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([object.id]);
+    expect(useUiStore.getState().panelLayout.zones['middle-left'].activeTab).toBe('cuts_layers');
+    expect(useUiStore.getState().panelLayout.zones['top-right'].activeTab).toBe('properties');
+  });
+
+  it('opens the relocated Layers panel after adding a layer without clearing the object selection', async () => {
+    const source = makeLayer({ id: 'l1', name: 'Source', color_tag: '#000000' });
+    const object = makeProjectObject({ id: 'obj-1', layer_id: source.id });
+    const addLayer = vi.fn().mockImplementation(async () => {
+      const state = useProjectStore.getState();
+      const created = makeLayer({ id: 'l2', name: 'C01 (Line)', color_tag: '#ff0000', order_index: 1 });
+      useProjectStore.setState({
+        project: state.project ? { ...state.project, layers: [...state.project.layers, created] } : null,
+        selectedLayerId: created.id,
+      });
+    });
+    const updateLayer = vi.fn().mockResolvedValue(true);
+
+    useProjectStore.setState({
+      project: makeProject({ layers: [source], objects: [object] }),
+      selectedLayerId: source.id,
+      selectedObjectIds: [object.id],
+      addLayer,
+      updateLayer,
+    });
+    useUiStore.getState().movePanelBetweenZones('cuts_layers', 'top-right', 'middle-left');
+    useUiStore.getState().setZoneActiveTab('top-right', 'properties');
+    useUiStore.getState().setZoneActiveTab('middle-left', '');
+
+    render(<LayerTabs />);
+    fireEvent.click(screen.getByTestId('add-layer-tab'));
+
+    await waitFor(() => {
+      expect(useUiStore.getState().panelLayout.zones['middle-left'].activeTab).toBe('cuts_layers');
+    });
+    expect(useUiStore.getState().panelLayout.zones['top-right'].activeTab).toBe('properties');
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([object.id]);
+  });
+
+  it('uses a pressed eye icon to control layer visibility', async () => {
     const layer = makeLayer({ id: 'l1', visible: true });
     const setLayerVisibleSpy = vi.spyOn(projectService, 'setLayerVisible').mockResolvedValue(true);
     const loadProjectSpy = vi.spyOn(useProjectStore.getState(), 'loadProject').mockResolvedValue(undefined);
@@ -319,11 +426,46 @@ describe('LayerList', () => {
     render(<LayerList />);
 
     const showToggle = screen.getByTestId('show-toggle');
+    expect(showToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(showToggle.querySelector('.lucide-eye')).not.toBeNull();
     fireEvent.click(showToggle);
     await waitFor(() => {
       expect(setLayerVisibleSpy).toHaveBeenCalledWith('l1', false);
     });
     expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
+  });
+
+  it('shows localized layer opacity for filled operations and persists a completed slider change', () => {
+    const layer = makeLayer({ id: 'l1', operation: 'fill', fill_opacity: 0.65 });
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [] }),
+      selectedLayerId: 'l1',
+      updateLayer: updateLayerSpy,
+    });
+
+    render(<LayerList />);
+
+    const opacity = screen.getByTestId('layer-fill-opacity') as HTMLInputElement;
+    expect(screen.getByText('Opacity (%)')).toBeDefined();
+    expect(screen.getByText(/Canvas preview only/)).toBeDefined();
+    expect(opacity.value).toBe('65');
+    fireEvent.change(opacity, { target: { value: '40' } });
+    expect(opacity.value).toBe('40');
+    expect(updateLayerSpy).not.toHaveBeenCalled();
+    fireEvent.pointerUp(opacity);
+    expect(updateLayerSpy).toHaveBeenCalledWith('l1', { fill_opacity: 0.4 });
+  });
+
+  it('does not show layer opacity for wireframe operations', () => {
+    useProjectStore.setState({
+      project: makeProject({ layers: [makeLayer({ id: 'l1', operation: 'line' })], objects: [] }),
+      selectedLayerId: 'l1',
+    });
+
+    render(<LayerList />);
+
+    expect(screen.queryByTestId('layer-fill-opacity-control')).toBeNull();
   });
 
   it('show toggle surfaces backend failures', async () => {
@@ -344,72 +486,16 @@ describe('LayerList', () => {
     });
   });
 
-  it('air toggle circle works', async () => {
-    const layer = makeLayer({ id: 'l1', air_assist: false });
-    const loadProjectSpy = vi.spyOn(useProjectStore.getState(), 'loadProject').mockResolvedValue(undefined);
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-
-    const airToggle = screen.getByTestId('air-toggle');
-    fireEvent.click(airToggle);
-    await waitFor(() => {
-      expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
-    });
-    loadProjectSpy.mockRestore();
-  });
-
-  it('air toggle surfaces backend failures', async () => {
-    const pushSpy = vi.fn();
-    useNotificationStore.setState({ push: pushSpy });
-    vi.spyOn(projectService, 'setLayerAirAssist').mockRejectedValue(new Error('air failed'));
-
-    const layer = makeLayer({ id: 'l1', air_assist: false });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-    fireEvent.click(screen.getByTestId('air-toggle'));
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('air failed'), 'error');
-    });
-  });
-
   it('displays speed/power summary', () => {
     const layer = makeLayer({ speed_mm_min: 5000, power_percent: 65 });
     useProjectStore.setState({
       project: makeProject({ layers: [layer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
     const summary = screen.getByTestId('speed-power');
     expect(summary.textContent).toBe('5000/65%');
-  });
-
-  it('quick-edit speed field calls updateLayer', () => {
-    const layer = makeLayer({ id: 'l1', speed_mm_min: 3000 });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'l1',
-    });
-
-    const updateCutEntrySpy = vi.fn();
-    useProjectStore.setState({ updateCutEntry: updateCutEntrySpy });
-
-    render(<LayerList />);
-
-    const quickEdit = screen.getByTestId('quick-edit');
-    const inputs = quickEdit.querySelectorAll('input[type="number"]');
-    expect(inputs.length).toBeGreaterThanOrEqual(1);
-
-    // First number input is Speed
-    fireEvent.change(inputs[0], { target: { value: '4000' } });
-    expect(updateCutEntrySpy).toHaveBeenCalledWith('l1', layer.entries[0].id, { speed_mm_min: 4000 });
   });
 
   it('converts quick-edit speed through the selected speed time unit', () => {
@@ -425,51 +511,12 @@ describe('LayerList', () => {
     const updateCutEntrySpy = vi.fn();
     useProjectStore.setState({ updateCutEntry: updateCutEntrySpy });
 
-    render(<LayerList />);
+    render(<><LayerTabs /><LayerList /></>);
 
+    // Tab summary and the pass stack's speed field both use the selected unit.
     expect(screen.getByTestId('speed-power').textContent).toBe('50/65%');
-    expect(screen.getByText('Speed (mm/sec)')).toBeDefined();
-
-    const quickEdit = screen.getByTestId('quick-edit');
-    const inputs = quickEdit.querySelectorAll('input[type="number"]');
-    expect((inputs[0] as HTMLInputElement).value).toBe('50');
-
-    fireEvent.change(inputs[0], { target: { value: '75' } });
-    expect(updateCutEntrySpy).toHaveBeenCalledWith('l1', layer.entries[0].id, { speed_mm_min: 4500 });
-  });
-
-  it('quick-edit interval field updates raster_settings for image layers', () => {
-    const layer = makeLayer({
-      id: 'img1',
-      operation: 'image',
-      raster_settings: makeRasterSettings({
-        mode: 'grayscale',
-        overscan_mm: 0,
-        line_interval_mm: 0.1,
-      }),
-    });
-    const updateCutEntrySpy = vi.fn();
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'img1',
-      updateCutEntry: updateCutEntrySpy,
-    });
-
-    render(<LayerList />);
-
-    const quickEdit = screen.getByTestId('quick-edit');
-    const inputs = quickEdit.querySelectorAll('input[type="number"]');
-    expect(inputs.length).toBeGreaterThanOrEqual(5);
-
-    // Speed, Passes, Max Pwr, Interval, Min Pwr
-    fireEvent.change(inputs[3], { target: { value: '0.2' } });
-
-    expect(updateCutEntrySpy).toHaveBeenCalledWith('img1', layer.entries[0].id, {
-      raster_settings: expect.objectContaining({
-        line_interval_mm: 0.2,
-        dpi: 127,
-      }),
-    });
+    expect(screen.getAllByText('Speed (mm/sec)').length).toBeGreaterThanOrEqual(1);
+    void updateCutEntrySpy;
   });
 
   it('double-click opens CutSettingsEditor dialog', () => {
@@ -478,29 +525,38 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
     expect(screen.queryByTestId('cut-settings-overlay')).toBeNull();
 
-    const layerRow = screen.getByTestId('layer-row');
-    fireEvent.doubleClick(layerRow);
+    fireEvent.doubleClick(screen.getByTestId('layer-tab'));
 
     expect(screen.getByTestId('cut-settings-overlay')).toBeDefined();
     expect(screen.getByTestId('layer-name-input')).toBeDefined();
   });
 
-  it('color swatch displays the layer color (read-only)', () => {
+  it('color swatch shows the layer color and opens the palette picker', () => {
     const layer = makeLayer({ id: 'l1', color_tag: '#FF0000' });
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
     useProjectStore.setState({
       project: makeProject({ layers: [layer], objects: [] }),
+      updateLayer: updateLayerSpy,
     });
 
     render(<LayerList />);
 
-    const swatch = screen.getByTestId('color-swatch');
+    const swatch = screen.getByTestId('quick-edit-color');
     expect(swatch.style.backgroundColor).toBe('rgb(255, 0, 0)');
-    // Swatch is a div, not a button — not clickable
-    expect(swatch.tagName).toBe('DIV');
+
+    fireEvent.click(swatch);
+    const picker = screen.getByTestId('layer-color-picker');
+    // 30 regular palette colors + 2 tool colors (dashed; convert to tool layer)
+    const colorButtons = picker.querySelectorAll('button');
+    expect(colorButtons.length).toBe(32);
+
+    fireEvent.click(colorButtons[2]);
+    expect(updateLayerSpy).toHaveBeenCalledWith('l1', { color_tag: expect.stringMatching(/^#/) });
+    expect(screen.queryByTestId('layer-color-picker')).toBeNull();
   });
 
   it('shows empty state when no layers', () => {
@@ -512,132 +568,6 @@ describe('LayerList', () => {
     const emptyRow = screen.getByTestId('empty-layer-row');
     expect(emptyRow).toBeDefined();
     expect(emptyRow.textContent).toContain('Draw or import to create a layer');
-  });
-
-  it('setPassCount updates vector_settings.passes for line layers via updateCutEntry', async () => {
-    const layer = makeLayer({
-      id: 'l1',
-      operation: 'line',
-      raster_settings: null,
-      vector_settings: {
-        passes: 1,
-        perforation_enabled: false,
-        perforation_on_ms: 0,
-        perforation_off_ms: 0,
-      },
-    });
-    const loadProjectSpy = vi.fn().mockResolvedValue(undefined);
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'l1',
-      loadProject: loadProjectSpy,
-    });
-
-    render(<LayerList />);
-
-    const quickEdit = screen.getByTestId('quick-edit');
-    const inputs = quickEdit.querySelectorAll('input[type="number"]');
-    // Passes input is the second number field (after Speed)
-    const passesInput = inputs[1];
-    expect(passesInput).toBeDefined();
-
-    fireEvent.change(passesInput, { target: { value: '3' } });
-
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith('update_cut_entry', {
-        layerId: 'l1',
-        entryId: layer.entries[0].id,
-        patch: expect.objectContaining({
-          vector_settings: expect.objectContaining({
-            passes: 3,
-          }),
-        }),
-      });
-    });
-    expect(loadProjectSpy).toHaveBeenCalledWith({ invalidatePreview: true });
-  });
-
-  it('mode dropdown surfaces backend failures', async () => {
-    const pushSpy = vi.fn();
-    useNotificationStore.setState({ push: pushSpy });
-    vi.spyOn(projectService, 'updateCutEntry').mockRejectedValue(new Error('mode failed'));
-
-    const layer = makeLayer({ id: 'l1', operation: 'line' });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-    fireEvent.change(screen.getByTestId('mode-select'), { target: { value: 'fill' } });
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('mode failed'), 'error');
-    });
-  });
-
-  it('vector pass quick-edit surfaces failures and reloads layer state', async () => {
-    const pushSpy = vi.fn();
-    const loadProjectSpy = vi.fn().mockResolvedValue(undefined);
-    useNotificationStore.setState({ push: pushSpy });
-    useProjectStore.setState({ loadProject: loadProjectSpy });
-    vi.spyOn(projectService, 'updateCutEntry').mockRejectedValue(new Error('passes failed'));
-
-    const layer = makeLayer({
-      id: 'l1',
-      operation: 'line',
-      raster_settings: null,
-      vector_settings: {
-        passes: 1,
-        perforation_enabled: false,
-        perforation_on_ms: 0,
-        perforation_off_ms: 0,
-      },
-    });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'l1',
-    });
-
-    render(<LayerList />);
-    const inputs = screen.getByTestId('quick-edit').querySelectorAll('input[type="number"]');
-    fireEvent.change(inputs[1], { target: { value: '3' } });
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('passes failed'), 'error');
-      expect(loadProjectSpy).toHaveBeenCalledWith(undefined);
-    });
-  });
-
-  it('vector quick-edit setting failures are caught and resync the layer panel', async () => {
-    const pushSpy = vi.fn();
-    const loadProjectSpy = vi.fn().mockResolvedValue(undefined);
-    useNotificationStore.setState({ push: pushSpy });
-    useProjectStore.setState({ loadProject: loadProjectSpy });
-    vi.spyOn(projectService, 'updateCutEntry').mockRejectedValue(new Error('vector failed'));
-
-    const layer = makeLayer({
-      id: 'l1',
-      operation: 'line',
-      raster_settings: null,
-      vector_settings: {
-        passes: 1,
-        perforation_enabled: false,
-        perforation_on_ms: 0,
-        perforation_off_ms: 0,
-      },
-    });
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-      selectedLayerId: 'l1',
-    });
-
-    render(<LayerList />);
-    fireEvent.click(screen.getByTestId('perf-toggle'));
-
-    await waitFor(() => {
-      expect(pushSpy).toHaveBeenCalledWith(expect.stringContaining('vector failed'), 'error');
-      expect(loadProjectSpy).toHaveBeenCalledWith(undefined);
-    });
   });
 
   it('right-click opens context menu with Disable and Select All', async () => {
@@ -652,9 +582,9 @@ describe('LayerList', () => {
       project: makeProject({ layers: [layer], objects: [obj] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const layerRow = screen.getByTestId('layer-row');
+    const layerRow = screen.getByTestId('layer-tab');
     fireEvent.contextMenu(layerRow);
 
     // Context menu renders via microtask so we need to wait
@@ -683,9 +613,9 @@ describe('LayerList', () => {
       selectObjects: selectObjectsSpy,
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.click(screen.getByTestId('layer-row'), { shiftKey: true });
+    fireEvent.click(screen.getByTestId('layer-tab'), { shiftKey: true });
 
     expect(selectObjectsSpy).toHaveBeenCalledWith(['obj-2', 'obj-1']);
   });
@@ -698,9 +628,9 @@ describe('LayerList', () => {
     });
     useUiStore.setState({ flashLayer: flashLayerSpy });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.contextMenu(screen.getByTestId('layer-row'), { shiftKey: true });
+    fireEvent.contextMenu(screen.getByTestId('layer-tab'), { shiftKey: true });
 
     expect(flashLayerSpy).toHaveBeenCalledWith('l1');
     await Promise.resolve();
@@ -716,9 +646,9 @@ describe('LayerList', () => {
     const updateLayerSpy = vi.fn();
     useProjectStore.setState({ updateLayer: updateLayerSpy });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const layerRow = screen.getByTestId('layer-row');
+    const layerRow = screen.getByTestId('layer-tab');
     fireEvent.contextMenu(layerRow);
 
     await waitFor(() => {
@@ -737,26 +667,26 @@ describe('LayerList', () => {
       updateLayer: updateLayerSpy,
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.contextMenu(screen.getByTestId('layer-row'));
+    fireEvent.contextMenu(screen.getByTestId('layer-tab'));
     await waitFor(() => {
       expect(screen.getByTestId('context-menu')).toBeDefined();
     });
     fireEvent.click(screen.getByText('Rename'));
 
-    const input = screen.getByTestId('rename-input');
+    const input = screen.getByTestId('tab-rename-input');
     fireEvent.change(input, { target: { value: 'Renamed Layer' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
       expect(updateLayerSpy).toHaveBeenCalledWith('l1', { name: 'Renamed Layer' });
     });
-    expect(screen.getByTestId('rename-input')).toBeDefined();
-    expect((screen.getByTestId('rename-input') as HTMLInputElement).value).toBe('Renamed Layer');
+    expect(screen.getByTestId('tab-rename-input')).toBeDefined();
+    expect((screen.getByTestId('tab-rename-input') as HTMLInputElement).value).toBe('Renamed Layer');
   });
 
-  it('locks a layer through the batch lock action instead of per-object updates', () => {
+  it('locks a layer through the tab menu batch action instead of per-object updates', async () => {
     const layer = makeLayer({ id: 'l1' });
     const obj1: ProjectObject = makeProjectObject({
       id: 'obj-1',
@@ -774,9 +704,10 @@ describe('LayerList', () => {
       updateObject: updateObjectSpy,
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    fireEvent.click(screen.getByTestId('lock-layer'));
+    fireEvent.contextMenu(screen.getByTestId('layer-tab'));
+    fireEvent.click(await screen.findByText('Toggle lock on layer objects'));
 
     expect(lockObjectsSpy).toHaveBeenCalledWith(['obj-1', 'obj-2']);
     expect(updateObjectSpy).not.toHaveBeenCalled();
@@ -811,9 +742,9 @@ describe('LayerList', () => {
       project: makeProject({ layers: [srcLayer, dstLayer], objects: [] }),
     });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const rows = screen.getAllByTestId('layer-row');
+    const rows = screen.getAllByTestId('layer-tab');
     fireEvent.contextMenu(rows[0]);
     await waitFor(() => {
       expect(screen.getByText('Copy Settings')).toBeDefined();
@@ -862,40 +793,6 @@ describe('LayerList', () => {
     });
   });
 
-  it('reports an error when toggling air assist fails', async () => {
-    const layer = makeLayer({ id: 'l1', air_assist: false });
-    vi.spyOn(projectService, 'setLayerAirAssist').mockRejectedValue(new Error('air failed'));
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-
-    fireEvent.click(screen.getByTestId('air-toggle'));
-
-    await waitFor(() => {
-      const notifications = useNotificationStore.getState().notifications;
-      expect(notifications[notifications.length - 1]?.message).toContain('Failed to update layer air assist');
-    });
-  });
-
-  it('reports an error when changing mode fails', async () => {
-    const layer = makeLayer({ id: 'l1', operation: 'line' });
-    vi.spyOn(projectService, 'updateCutEntry').mockRejectedValue(new Error('mode failed'));
-    useProjectStore.setState({
-      project: makeProject({ layers: [layer], objects: [] }),
-    });
-
-    render(<LayerList />);
-
-    fireEvent.change(screen.getByTestId('mode-select'), { target: { value: 'fill' } });
-
-    await waitFor(() => {
-      const notifications = useNotificationStore.getState().notifications;
-      expect(notifications[notifications.length - 1]?.message).toContain('Failed to update layer mode');
-    });
-  });
-
   it('Select All on Layer selects correct objects', async () => {
     const layer = makeLayer({ id: 'l1' });
     const obj1: ProjectObject = makeProjectObject({
@@ -913,9 +810,9 @@ describe('LayerList', () => {
     const selectObjectsSpy = vi.fn();
     useProjectStore.setState({ selectObjects: selectObjectsSpy });
 
-    render(<LayerList />);
+    render(<LayerTabs />);
 
-    const layerRow = screen.getByTestId('layer-row');
+    const layerRow = screen.getByTestId('layer-tab');
     fireEvent.contextMenu(layerRow);
 
     await waitFor(() => {

@@ -119,6 +119,24 @@ describe('clipboardCut', () => {
     );
   });
 
+  it('pastes copied objects onto the currently selected layer', async () => {
+    const sourceLayer = makeLayer({ id: 'source-layer' });
+    const targetLayer = makeLayer({ id: 'target-layer' });
+    const object = makeProjectObject({ id: 'obj-1', layer_id: sourceLayer.id });
+    const pasteObjects = vi.fn().mockResolvedValue(undefined);
+    const project = makeProject({ layers: [sourceLayer, targetLayer], objects: [object] });
+    useProjectStore.setState({ project, selectedLayerId: sourceLayer.id, pasteObjects } as never);
+    clipboardCopy(['obj-1']);
+    useProjectStore.setState({ selectedLayerId: targetLayer.id });
+
+    await clipboardPaste();
+
+    expect(pasteObjects).toHaveBeenCalledWith(
+      [expect.objectContaining({ id: 'obj-1', layer_id: targetLayer.id })],
+      false,
+    );
+  });
+
   it('recreates a missing clipboard source layer before pasting', async () => {
     const sourceLayer = makeLayer({
       id: 'source-layer',
@@ -188,6 +206,27 @@ describe('clipboardCut', () => {
 
     expect(pasteObjects).toHaveBeenCalledWith(
       [expect.objectContaining({ id: 'obj-1' })],
+      true,
+    );
+  });
+
+  it('pastes in place onto the currently selected layer', async () => {
+    const sourceLayer = makeLayer({ id: 'source-layer' });
+    const targetLayer = makeLayer({ id: 'target-layer' });
+    const object = makeProjectObject({ id: 'obj-1', layer_id: sourceLayer.id });
+    const pasteObjects = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeProject({ layers: [sourceLayer, targetLayer], objects: [object] }),
+      selectedLayerId: sourceLayer.id,
+      pasteObjects,
+    } as never);
+    clipboardCopy(['obj-1']);
+    useProjectStore.setState({ selectedLayerId: targetLayer.id });
+
+    await clipboardPasteInPlace();
+
+    expect(pasteObjects).toHaveBeenCalledWith(
+      [expect.objectContaining({ id: 'obj-1', layer_id: targetLayer.id })],
       true,
     );
   });

@@ -19,7 +19,11 @@ use tauri::{Emitter, Manager};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+// Debug builds use a separate lock so a dev app can run beside an installed release.
+#[cfg(not(debug_assertions))]
 const SINGLE_INSTANCE_LOCK_ADDR: &str = "127.0.0.1:47683";
+#[cfg(debug_assertions)]
+const SINGLE_INSTANCE_LOCK_ADDR: &str = "127.0.0.1:47684";
 const DESIGN_RENDER_TEMP_PREFIX: &str = "beambench-design-render-";
 const DESIGN_RENDER_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -229,7 +233,6 @@ fn main() {
             commands::app::set_window_title,
             commands::app::open_external_url,
             commands::app::get_app_settings,
-            commands::app::open_new_window,
             commands::app::update_app_settings,
             commands::feedback::get_connection_diagnostics,
             commands::feedback::preview_feedback_report,
@@ -297,7 +300,9 @@ fn main() {
             commands::project::add_object,
             commands::project::add_object_atomic,
             commands::project::update_object,
+            commands::project::update_object_transform_state,
             commands::project::update_object_data,
+            commands::project::resize_text_area,
             commands::project::advance_auto_variable_text,
             commands::project::apply_adjust_image_dialog,
             commands::project::resize_shape_object,
@@ -340,6 +345,7 @@ fn main() {
             commands::project::set_transform_locks,
             commands::project::set_objects_visible,
             commands::project::reassign_layer,
+            commands::project::move_objects_in_outliner,
             commands::project::select_open_shapes,
             commands::project::select_open_shapes_set_to_fill,
             commands::project::select_contained_shapes,
@@ -352,6 +358,8 @@ fn main() {
             commands::import::import_svg_file,
             commands::import::import_image_file,
             commands::import::read_clipboard_artwork,
+            commands::import::read_clipboard_text,
+            commands::import::write_clipboard_text,
             commands::import::import_clipboard_artwork,
             commands::import::import_files,
             commands::import::import_file_data,
@@ -363,11 +371,13 @@ fn main() {
             commands::import::import_eps_file,
             commands::import::import_gcode_file,
             commands::import::trace_image_preview,
+            commands::import::cancel_trace_image_preview,
             commands::import::trace_image,
             commands::import::refresh_image,
             commands::import::replace_image,
             commands::import::replace_image_to_fit,
             commands::import::adjust_image_preview,
+            commands::import::cancel_adjust_image_preview,
             commands::import::auto_adjust_image,
             commands::import::render_dither_sample,
             // Persistence
@@ -392,6 +402,9 @@ fn main() {
             commands::vector::auto_group_objects,
             commands::vector::ungroup_objects,
             commands::vector::get_editable_path,
+            commands::vector::copy_nodes,
+            commands::vector::paste_nodes,
+            commands::vector::extract_nodes_to_path,
             commands::vector::update_node,
             commands::vector::update_nodes_batch,
             commands::vector::set_node_type,
@@ -413,6 +426,10 @@ fn main() {
             // Vector
             commands::vector::boolean_intersection,
             commands::vector::boolean_weld,
+            commands::vector::boolean_union_many,
+            commands::vector::boolean_intersection_many,
+            commands::vector::boolean_exclude_many,
+            commands::vector::boolean_subtract_many,
             commands::vector::offset_shapes,
             commands::vector::preview_offset_shapes,
             commands::vector::close_path,
@@ -441,6 +458,7 @@ fn main() {
             commands::vector::add_tabs,
             commands::vector::place_tab,
             commands::vector::remove_tab,
+            commands::vector::clear_tabs,
             commands::vector::resolve_tab_markers,
             commands::vector::trim_shape,
             commands::vector::preview_trim_segment,
@@ -544,6 +562,7 @@ fn main() {
             commands::export::export_pdf,
             commands::export::export_eps,
             commands::export::export_ai,
+            commands::export::export_bitmap_document,
             commands::export::render_print_document,
             commands::export::print_current_webview,
             commands::export::pick_artwork_export_path,

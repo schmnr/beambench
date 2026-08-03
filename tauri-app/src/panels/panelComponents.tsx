@@ -1,18 +1,22 @@
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../stores/projectStore';
 import { LayerList } from '../components/layers/LayerList';
 import { PropertiesPanel } from '../components/properties/PropertiesPanel';
+import { TextDefaultsSection } from '../components/properties/TextDefaultsSection';
+import { useUiStore } from '../stores/uiStore';
 import { MovePanel } from '../components/machine/MovePanel';
 import { ConsoleWindow } from '../components/machine/ConsoleWindow';
 import { MacrosWindow } from '../components/machine/MacrosWindow';
 import { LaserPanel } from '../components/machine/LaserPanel';
 import { MaterialLibrary } from '../components/machine/MaterialLibrary';
-import { ColorPalette } from '../components/layout/ColorPalette';
 import { CameraContent } from '../components/machine/CameraContent';
 import { ArtLibraryPanel } from '../components/panels/ArtLibraryPanel';
 import { ConnectionDiagnosticsPanel } from '../components/panels/ConnectionDiagnosticsPanel';
-import { MeasurementPanel } from '../components/panels/MeasurementPanel';
+import { ProjectNotesPanel } from '../components/panels/ProjectNotesPanel';
+import { OutlinerPanel } from '../components/panels/OutlinerPanel';
+import { INSPECTOR_CARD_CLASS } from '../components/shared/panelAppearance';
+import { getPanelTypeId } from './panelRegistry';
 
 function CutsLayersContent() {
   const { t } = useTranslation();
@@ -20,14 +24,48 @@ function CutsLayersContent() {
   return hasProject ? <LayerList /> : <div className="text-xs text-bb-text-dim italic px-2 py-2">{t('panels.empty.no_project')}</div>;
 }
 
+function RunInspectorCard({ children }: { children: ReactNode }) {
+  return (
+    <div className={INSPECTOR_CARD_CLASS} data-testid="run-inspector-card">
+      {children}
+    </div>
+  );
+}
+
 function MoveContent() {
-  return <MovePanel />;
+  return <RunInspectorCard><MovePanel /></RunInspectorCard>;
+}
+
+function LaserContent() {
+  return <RunInspectorCard><LaserPanel /></RunInspectorCard>;
+}
+
+function CameraPanelContent() {
+  return <RunInspectorCard><CameraContent /></RunInspectorCard>;
+}
+
+function MacrosContent() {
+  return <RunInspectorCard><MacrosWindow /></RunInspectorCard>;
+}
+
+function ConsoleContent() {
+  return <RunInspectorCard><ConsoleWindow /></RunInspectorCard>;
 }
 
 function PropertiesContent() {
   const { t } = useTranslation();
   const hasProject = useProjectStore((s) => s.project !== null);
-  return hasProject ? <PropertiesPanel /> : <div className="text-xs text-bb-text-dim italic px-2 py-2">{t('panels.empty.nothing_selected')}</div>;
+  const hasSelection = useProjectStore((s) => s.selectedObjectIds.length > 0);
+  const textToolActive = useUiStore((s) => s.activeTool === 'text');
+  if (!hasProject) {
+    return <div className="text-xs text-bb-text-dim italic px-2 py-2">{t('panels.empty.nothing_selected')}</div>;
+  }
+  // Text tool armed with nothing selected: edit the defaults for the next
+  // text object (previously lived in the properties toolbar).
+  if (!hasSelection && textToolActive) {
+    return <TextDefaultsSection />;
+  }
+  return <PropertiesPanel />;
 }
 
 function ArtLibraryContent() {
@@ -39,16 +77,20 @@ function ArtLibraryContent() {
  * Every panel in PANEL_REGISTRY must have an entry here.
  */
 export const PANEL_COMPONENTS: Record<string, ComponentType> = {
+  outliner: OutlinerPanel,
   cuts_layers: CutsLayersContent,
   move: MoveContent,
-  console: ConsoleWindow,
-  macros: MacrosWindow,
+  console: ConsoleContent,
+  macros: MacrosContent,
   properties: PropertiesContent,
-  measurement: MeasurementPanel,
-  laser: LaserPanel,
+  laser: LaserContent,
   material: MaterialLibrary,
-  color_palette: ColorPalette,
-  camera: CameraContent,
+  camera: CameraPanelContent,
   art_library: ArtLibraryContent,
   connection_diagnostics: ConnectionDiagnosticsPanel,
+  notes: ProjectNotesPanel,
 };
+
+export function getPanelComponent(panelInstanceId: string): ComponentType | null {
+  return PANEL_COMPONENTS[getPanelTypeId(panelInstanceId)] ?? null;
+}

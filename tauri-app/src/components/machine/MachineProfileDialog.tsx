@@ -18,6 +18,8 @@ import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLab
 import { speedInputValue, displaySpeedToMmMin, speedStepForUnit, speedUnitLabel } from '../../utils/speedUnits';
 import { useAppStore } from '../../stores/appStore';
 import { SERIAL_BAUD_RATE_OPTIONS } from '../../constants/serial';
+import { Download, Plus, Save, Trash2, Upload } from 'lucide-react';
+import { DIALOG_TONE, DialogButton, DialogFooter, DialogNotice } from '../shared/DialogPrimitives';
 
 interface MachineProfileDialogProps {
   onClose: () => void;
@@ -323,102 +325,81 @@ export function MachineProfileDialog({ onClose }: MachineProfileDialogProps) {
       minHeight={520}
       onRequestClose={handleRequestClose}
       closeOnBackdropClick
-      footer={
-        <div className="flex gap-2 justify-end px-4 py-3">
+      footer={(
+        <DialogFooter
+          leading={editingProfile ? (
+            <DialogButton
+              tone={DIALOG_TONE.danger}
+              icon={<Trash2 size={13} />}
+              onClick={handleDelete}
+              disabled={!editingProfileExists || editingProfile.id === activeProfileId}
+            >
+              {t('dialog.machine_profile.delete')}
+            </DialogButton>
+          ) : undefined}
+        >
+          <DialogButton tone={DIALOG_TONE.quiet} onClick={handleRequestClose}>{t('common.close')}</DialogButton>
           {editingProfile && (
             <>
-              <button
-                onClick={() => void handleSave()}
-                className="px-3 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent transition-colors"
-              >
-                {t('common.save')}
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={!editingProfileExists || editingProfile.id === activeProfileId}
-                className="px-3 py-1 text-xs font-medium rounded bg-bb-error hover:bg-bb-error-hover text-bb-on-error transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {t('dialog.machine_profile.delete')}
-              </button>
-              <button
+              <DialogButton
+                tone={DIALOG_TONE.secondary}
                 onClick={handleSetActive}
                 disabled={editingProfile.id === activeProfileId}
-                className="px-3 py-1 text-xs font-medium rounded bg-bb-success hover:bg-bb-success-hover text-bb-on-success transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {t('dialog.machine_profile.set_active')}
-              </button>
+              </DialogButton>
+              <DialogButton tone={DIALOG_TONE.primary} icon={<Save size={13} />} onClick={() => void handleSave()}>
+                {t('common.save')}
+              </DialogButton>
             </>
           )}
-          <button
-            onClick={handleRequestClose}
-            className="px-3 py-1 text-xs font-medium rounded bg-bb-bg hover:bg-bb-hover text-bb-text transition-colors"
-          >
-            {t('common.close')}
-          </button>
-        </div>
-      }
+        </DialogFooter>
+      )}
     >
-      <div className="flex min-h-0 flex-1 flex-col p-4">
+      <div className="flex min-h-0 flex-1 flex-col bg-bb-bg/20 p-4">
         {closePromptVisible && (
-          <div className="mb-3 rounded border border-bb-warning-border bg-bb-warning-bg p-3 text-xs text-bb-text">
-            <div className="mb-2 text-bb-warning-fg">
-              {t('dialog.machine_profile.save_before_closing')}
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                className="rounded border border-bb-border px-2 py-1 text-bb-text-muted hover:bg-bb-hover"
-                onClick={() => setClosePromptVisible(false)}
-              >
-                {t('dialog.machine_profile.keep_editing')}
-              </button>
-              <button
-                className="rounded border border-bb-error-border px-2 py-1 text-bb-error-fg hover:bg-bb-error-bg"
-                onClick={handleDiscardAndClose}
-              >
-                {t('dialog.machine_profile.discard')}
-              </button>
-              <button
-                className="rounded bg-bb-accent px-2 py-1 text-bb-on-accent hover:bg-bb-accent-hover"
-                onClick={() => void handleSaveAndClose()}
-              >
-                {t('dialog.machine_profile.save_and_close')}
-              </button>
-            </div>
-          </div>
+          <DialogNotice
+            tone={DIALOG_TONE.warning}
+            role="alert"
+            actions={(
+              <>
+                <DialogButton tone={DIALOG_TONE.quiet} onClick={() => setClosePromptVisible(false)}>{t('dialog.machine_profile.keep_editing')}</DialogButton>
+                <DialogButton tone={DIALOG_TONE.danger} onClick={handleDiscardAndClose}>{t('dialog.machine_profile.discard')}</DialogButton>
+                <DialogButton tone={DIALOG_TONE.primary} onClick={() => void handleSaveAndClose()}>{t('dialog.machine_profile.save_and_close')}</DialogButton>
+              </>
+            )}
+          >
+            {t('dialog.machine_profile.save_before_closing')}
+          </DialogNotice>
         )}
         {pendingDiscardAction && (
-          <div className="mb-3 rounded border border-bb-warning-border bg-bb-warning-bg p-3 text-xs text-bb-text">
-            <div className="mb-2 text-bb-warning-fg">
+          <div className="mb-3">
+            <DialogNotice
+              tone={DIALOG_TONE.warning}
+              role="alert"
+              actions={(
+                <>
+                  <DialogButton tone={DIALOG_TONE.quiet} onClick={() => setPendingDiscardAction(null)}>{t('dialog.machine_profile.keep_editing')}</DialogButton>
+                  <DialogButton tone={DIALOG_TONE.danger} onClick={handleConfirmDiscard}>{t('dialog.machine_profile.discard')}</DialogButton>
+                </>
+              )}
+            >
               {t('dialog.machine_profile.discard_unsaved')}
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                className="rounded border border-bb-border px-2 py-1 text-bb-text-muted hover:bg-bb-hover"
-                onClick={() => setPendingDiscardAction(null)}
-              >
-                {t('dialog.machine_profile.keep_editing')}
-              </button>
-              <button
-                className="rounded bg-bb-warning px-2 py-1 font-medium text-bb-on-warning hover:bg-bb-warning-hover"
-                onClick={handleConfirmDiscard}
-              >
-                {t('dialog.machine_profile.discard')}
-              </button>
-            </div>
+            </DialogNotice>
           </div>
         )}
         <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
           {/* Left column: Profile list */}
-          <div className="w-40 border-r border-bb-border pr-3 flex flex-col gap-2">
-            <div className="overflow-y-auto flex-1 space-y-1">
+          <div className="flex w-44 flex-col gap-2 rounded-xl border border-bb-border bg-bb-panel p-2">
+            <div className="flex-1 space-y-1 overflow-y-auto">
               {profiles.map((profile) => (
                 <div
                   key={profile.id}
                   onClick={() => handleSelectProfile(profile)}
                   className={`px-2 py-1 text-xs cursor-pointer rounded ${
                     editingProfile?.id === profile.id
-                      ? 'bg-bb-accent text-bb-on-accent'
-                      : 'text-bb-text-muted hover:bg-bb-hover'
+                      ? 'border border-bb-accent/35 bg-bb-accent/10 text-bb-text'
+                      : 'border border-transparent text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
                   }`}
                 >
                   {profile.name}
@@ -428,32 +409,36 @@ export function MachineProfileDialog({ onClose }: MachineProfileDialogProps) {
                 </div>
               ))}
             </div>
-            <button
+            <DialogButton
+              icon={<Plus size={13} />}
               onClick={handleNewProfile}
-              className="px-2 py-1 text-xs font-medium rounded bg-bb-accent hover:bg-bb-accent-hover text-bb-on-accent transition-colors"
+              tone={DIALOG_TONE.primary}
+              className="w-full"
             >
               {t('dialog.machine_profile.new')}
-            </button>
+            </DialogButton>
             <div className="flex gap-1">
-              <button
+              <DialogButton
+                icon={<Download size={13} />}
                 onClick={() => void handleImport()}
-                className="flex-1 rounded border border-bb-border bg-bb-bg px-2 py-1 text-xs font-medium text-bb-text transition-colors hover:bg-bb-hover"
+                className="min-w-0 flex-1 px-2"
               >
                 {t('menus.file.import')}
-              </button>
-              <button
+              </DialogButton>
+              <DialogButton
+                icon={<Upload size={13} />}
                 onClick={() => void handleExport()}
                 disabled={!editingProfileExists || isDirty}
-                className="flex-1 rounded border border-bb-border bg-bb-bg px-2 py-1 text-xs font-medium text-bb-text transition-colors hover:bg-bb-hover disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-w-0 flex-1 px-2"
               >
                 {t('menus.file.export')}
-              </button>
+              </DialogButton>
             </div>
           </div>
 
           {/* Right column: Edit form */}
           <div
-            className="scrollbar-safe-edge flex-1 overflow-y-auto pl-3"
+            className="scrollbar-safe-edge flex-1 overflow-y-auto rounded-xl border border-bb-border bg-bb-panel p-3"
             data-testid="machine-profile-editor-scroll-region"
           >
             {editingProfile ? (
@@ -536,8 +521,8 @@ export function MachineProfileDialog({ onClose }: MachineProfileDialogProps) {
                   dirty={isDirty}
                   onApplied={handlePresetApplied}
                 />
-                <div className="border-t border-bb-border pt-2 mt-3">
-                    <div className="text-xs font-semibold text-bb-text mb-2">{t('dialog.machine_profile.camera_metadata')}</div>
+                <div className="mt-3 overflow-hidden rounded-xl border border-bb-border bg-bb-surface/20 p-3">
+                    <div className="-mx-3 -mt-3 mb-3 border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-transparent px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-bb-text">{t('dialog.machine_profile.camera_metadata')}</div>
                   <div className="space-y-2">
                     <TextInput
                         label={t('dialog.machine_profile.selected_camera')}
@@ -556,8 +541,8 @@ export function MachineProfileDialog({ onClose }: MachineProfileDialogProps) {
                     />
                   </div>
                 </div>
-                <div className="border-t border-bb-border pt-2 mt-3">
-                    <div className="text-xs font-semibold text-bb-text mb-2">{t('dialog.machine_profile.output_policy')}</div>
+                <div className="mt-3 overflow-hidden rounded-xl border border-bb-border bg-bb-surface/20 p-3">
+                    <div className="-mx-3 -mt-3 mb-3 border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-transparent px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-bb-text">{t('dialog.machine_profile.output_policy')}</div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2 text-xs">
                         <span className="text-bb-text-muted shrink-0">{t('dialog.machine_profile.constant_power')}</span>
@@ -659,8 +644,8 @@ export function MachineProfileDialog({ onClose }: MachineProfileDialogProps) {
                     )}
                   </div>
                 </div>
-                <div className="border-t border-bb-border pt-2 mt-3">
-                    <div className="text-xs font-semibold text-bb-text mb-2">{t('dialog.machine_profile.capabilities')}</div>
+                <div className="mt-3 overflow-hidden rounded-xl border border-bb-border bg-bb-surface/20 p-3">
+                    <div className="-mx-3 -mt-3 mb-3 border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-transparent px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-bb-text">{t('dialog.machine_profile.capabilities')}</div>
                   <div className="space-y-2">
                     {isRuidaProfile ? (
                       <>
@@ -711,8 +696,8 @@ export function MachineProfileDialog({ onClose }: MachineProfileDialogProps) {
                     )}
                   </div>
                 </div>
-                <div className="border-t border-bb-border pt-2 mt-3">
-                    <div className="text-xs font-semibold text-bb-text mb-2">{t('dialog.machine_profile.calibration')}</div>
+                <div className="mt-3 overflow-hidden rounded-xl border border-bb-border bg-bb-surface/20 p-3">
+                    <div className="-mx-3 -mt-3 mb-3 border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-transparent px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-bb-text">{t('dialog.machine_profile.calibration')}</div>
                   <div className="space-y-2">
                     <Toggle
                       label={t('dialog.machine_profile.enable_dot_width')}

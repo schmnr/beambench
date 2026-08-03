@@ -15,7 +15,7 @@ interface MenuState {
 
 const CLOSED: MenuState = { visible: false, x: 0, y: 0, items: [] };
 
-export function usePanelTabContextMenu(_zone: PhysicalDockZone) {
+export function usePanelTabContextMenu(zone: PhysicalDockZone) {
   const { t } = useTranslation();
   const [menuState, setMenuState] = useState<MenuState>(CLOSED);
 
@@ -30,7 +30,6 @@ export function usePanelTabContextMenu(_zone: PhysicalDockZone) {
       const items = buildPanelTabMenuItems(t, {
         panelId,
         mode: 'docked',
-        hiddenPanelIds: state.panelLayout.hiddenPanelIds,
         sidePanelsVisible: state.sidePanelsVisible,
         onFloat: (id) => {
           const panelDef = getPanelById(id);
@@ -38,14 +37,10 @@ export function usePanelTabContextMenu(_zone: PhysicalDockZone) {
           useUiStore.getState().floatPanel(id, 100, 100, size.w, size.h);
         },
         onClose: (id) => {
-          useUiStore.getState().togglePanelVisibility(id);
+          useUiStore.getState().removePanelInstance(id);
         },
-        onTogglePanel: (id) => {
-          if (id === 'camera') {
-            useUiStore.getState().toggleCameraWindow();
-          } else {
-            useUiStore.getState().togglePanelVisibility(id);
-          }
+        onAddPanel: (id) => {
+          useUiStore.getState().addPanelInstance(id, zone);
         },
         onToggleSidePanels: () => {
           useUiStore.getState().toggleSidePanels();
@@ -55,7 +50,7 @@ export function usePanelTabContextMenu(_zone: PhysicalDockZone) {
 
       setMenuState({ visible: true, x: e.clientX, y: e.clientY, items });
     },
-    [t],
+    [t, zone],
   );
 
   return { menuState, handleTabContextMenu, closeMenu };

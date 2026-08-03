@@ -1,16 +1,16 @@
 import { appService } from '../services/appService';
 import { persistenceService } from '../services/persistenceService';
-import { printService, type PrintMode } from '../services/printService';
 import { useNotificationStore } from '../stores/notificationStore';
 import i18n, { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../i18n';
 import { wrapBackendError } from '../i18n/errors';
 import { useAppStore } from '../stores/appStore';
 import { usePreviewStore } from '../stores/previewStore';
 import { useProjectStore } from '../stores/projectStore';
-import { renderOptionsFromViewStyle, useUiStore, type ToolType, type ViewStyle } from '../stores/uiStore';
+import { useUiStore, type ArtworkDisplayMode, type ToolType } from '../stores/uiStore';
 import { useUndoStore } from '../stores/undoStore';
 import { guardUnsavedChanges } from '../stores/unsavedGuardStore';
 import { useMachineStore } from '../stores/machineStore';
+import { getWorkspacePanelLayout } from '../panels';
 import {
   clearClipboard,
   hasClipboardData,
@@ -33,7 +33,9 @@ import {
 import { APP_COMMANDS, type AppCommandId } from './appCommandIds';
 import {
   imageObjectHasSourcePath,
+  isBooleanCompatible,
   isClosedVectorCompatible,
+  isMeshDeformCompatible,
   pickLastSelectedVectorGuide,
   resolveEffectiveData,
 } from './selectionContext';
@@ -45,8 +47,8 @@ import {
   WINDOW_PANEL_MENU_ITEMS,
   WINDOW_TOOLBAR_BY_COMMAND,
   WINDOW_TOOLBAR_MENU_ITEMS,
-  WINDOW_VIEW_STYLE_BY_COMMAND,
-  WINDOW_VIEW_STYLE_ITEMS,
+  WINDOW_ARTWORK_DISPLAY_BY_COMMAND,
+  WINDOW_ARTWORK_DISPLAY_ITEMS,
 } from './windowMenuDefinitions';
 
 export const QUICK_HELP_DOCS_URL = 'https://beambench.com/docs';
@@ -55,10 +57,7 @@ export interface AppCommandDialogActions {
   openAbout?: () => void;
   openSettings?: () => void;
   openNotes?: () => void;
-  openImportPreferences?: () => void;
-  openExportPreferences?: () => void;
-  openPreferencesFolder?: () => void;
-  resetPreferences?: () => void;
+  openPrint?: () => void;
   openHotkeyEditor?: () => void;
   openTraceImage?: (objectId: string) => void;
   openAdjustImage?: (objectId: string) => void;
@@ -138,6 +137,129 @@ const NATIVE_FOCUS_GUARDED_COMMANDS = new Set<string>([
   APP_COMMANDS.WINDOW_PREVIEW,
 ]);
 
+const DESIGN_ONLY_EDIT_COMMANDS = new Set<string>([
+  APP_COMMANDS.EDIT_UNDO,
+  APP_COMMANDS.EDIT_REDO,
+  APP_COMMANDS.EDIT_CUT,
+  APP_COMMANDS.EDIT_PASTE,
+  APP_COMMANDS.EDIT_PASTE_IN_PLACE,
+  APP_COMMANDS.EDIT_DUPLICATE,
+  APP_COMMANDS.EDIT_DELETE,
+  APP_COMMANDS.EDIT_CONVERT_TO_PATH,
+  APP_COMMANDS.EDIT_CONVERT_TO_BITMAP,
+  APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH,
+  APP_COMMANDS.EDIT_CLOSE_PATH,
+  APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE,
+  APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES,
+  APP_COMMANDS.EDIT_CLOSE_AND_JOIN,
+  APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES,
+  APP_COMMANDS.EDIT_DELETE_DUPLICATES,
+  APP_COMMANDS.EDIT_IMAGE_REFRESH,
+  APP_COMMANDS.EDIT_IMAGE_REPLACE,
+  APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT,
+]);
+
+const DESIGN_ONLY_TOOL_COMMANDS = new Set<string>([
+  APP_COMMANDS.TOOLS_NODE,
+  APP_COMMANDS.TOOLS_LINE,
+  APP_COMMANDS.TOOLS_RECTANGLE,
+  APP_COMMANDS.TOOLS_ELLIPSE,
+  APP_COMMANDS.TOOLS_TEXT,
+  APP_COMMANDS.TOOLS_TRIANGLE,
+  APP_COMMANDS.TOOLS_PENTAGON,
+  APP_COMMANDS.TOOLS_POLYGON,
+  APP_COMMANDS.TOOLS_OCTAGON,
+  APP_COMMANDS.TOOLS_STAR,
+  APP_COMMANDS.TOOLS_DUAL_STAR,
+  APP_COMMANDS.TOOLS_TABS,
+  APP_COMMANDS.TOOLS_TRIM,
+  APP_COMMANDS.TOOLS_BARCODE,
+  APP_COMMANDS.TOOLS_OFFSET,
+  APP_COMMANDS.TOOLS_TRACE_IMAGE,
+  APP_COMMANDS.TOOLS_ADJUST_IMAGE,
+  APP_COMMANDS.TOOLS_APPLY_PATH_TO_TEXT,
+  APP_COMMANDS.TOOLS_APPLY_MASK_TO_IMAGE,
+  APP_COMMANDS.TOOLS_CROP_IMAGE,
+  APP_COMMANDS.TOOLS_WARP_SELECTION,
+  APP_COMMANDS.TOOLS_DEFORM_SELECTION,
+  APP_COMMANDS.TOOLS_CUT_SHAPES,
+  APP_COMMANDS.TOOLS_BOOLEAN_UNION,
+  APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT,
+  APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION,
+  APP_COMMANDS.TOOLS_BOOLEAN_WELD,
+  APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT,
+]);
+
+const DESIGN_ONLY_ARRANGE_COMMANDS = new Set<string>([
+  APP_COMMANDS.ARRANGE_GROUP,
+  APP_COMMANDS.ARRANGE_UNGROUP,
+  APP_COMMANDS.ARRANGE_AUTO_GROUP,
+  APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE,
+  APP_COMMANDS.ARRANGE_ALIGN_LEFT,
+  APP_COMMANDS.ARRANGE_ALIGN_RIGHT,
+  APP_COMMANDS.ARRANGE_ALIGN_TOP,
+  APP_COMMANDS.ARRANGE_ALIGN_BOTTOM,
+  APP_COMMANDS.ARRANGE_ALIGN_CENTERS,
+  APP_COMMANDS.ARRANGE_ALIGN_CENTER_HORIZONTAL,
+  APP_COMMANDS.ARRANGE_ALIGN_CENTER_VERTICAL,
+  APP_COMMANDS.ARRANGE_DISTRIBUTE_HORIZONTAL,
+  APP_COMMANDS.ARRANGE_DISTRIBUTE_VERTICAL,
+  APP_COMMANDS.ARRANGE_DISTRIBUTE_H_SPACED,
+  APP_COMMANDS.ARRANGE_DISTRIBUTE_V_SPACED,
+  APP_COMMANDS.ARRANGE_DISTRIBUTE_H_CENTERED,
+  APP_COMMANDS.ARRANGE_DISTRIBUTE_V_CENTERED,
+  APP_COMMANDS.ARRANGE_FRONT,
+  APP_COMMANDS.ARRANGE_FORWARD,
+  APP_COMMANDS.ARRANGE_BACKWARD,
+  APP_COMMANDS.ARRANGE_BACK,
+  APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL,
+  APP_COMMANDS.ARRANGE_FLIP_VERTICAL,
+  APP_COMMANDS.ARRANGE_ROTATE_CW,
+  APP_COMMANDS.ARRANGE_ROTATE_CCW,
+  APP_COMMANDS.ARRANGE_MIRROR_ACROSS_LINE,
+  APP_COMMANDS.ARRANGE_GRID_ARRAY,
+  APP_COMMANDS.ARRANGE_CIRCULAR_ARRAY,
+  APP_COMMANDS.ARRANGE_MOVE_H_TOGETHER,
+  APP_COMMANDS.ARRANGE_MOVE_V_TOGETHER,
+  APP_COMMANDS.ARRANGE_DOCK_LEFT,
+  APP_COMMANDS.ARRANGE_DOCK_RIGHT,
+  APP_COMMANDS.ARRANGE_DOCK_UP,
+  APP_COMMANDS.ARRANGE_DOCK_DOWN,
+  APP_COMMANDS.ARRANGE_DOCK,
+  APP_COMMANDS.ARRANGE_BREAK_APART,
+  APP_COMMANDS.ARRANGE_COPY_ALONG_PATH,
+  APP_COMMANDS.ARRANGE_NEST_SELECTED,
+  APP_COMMANDS.ARRANGE_MOVE_TO_LASER_POSITION,
+  APP_COMMANDS.ARRANGE_MOVE_TO_PAGE_CENTER,
+  APP_COMMANDS.ARRANGE_MOVE_TO_UPPER_LEFT,
+  APP_COMMANDS.ARRANGE_MOVE_TO_UPPER_RIGHT,
+  APP_COMMANDS.ARRANGE_MOVE_TO_LOWER_LEFT,
+  APP_COMMANDS.ARRANGE_MOVE_TO_LOWER_RIGHT,
+  APP_COMMANDS.ARRANGE_MOVE_TO_LEFT,
+  APP_COMMANDS.ARRANGE_MOVE_TO_RIGHT,
+  APP_COMMANDS.ARRANGE_MOVE_TO_TOP,
+  APP_COMMANDS.ARRANGE_MOVE_TO_BOTTOM,
+  APP_COMMANDS.ARRANGE_LOCK,
+  APP_COMMANDS.ARRANGE_UNLOCK,
+]);
+
+const RUN_ONLY_LASER_POSITION_COMMANDS = new Set<string>([
+  APP_COMMANDS.TOOLS_POSITION_LASER,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_CENTER,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LEFT,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_TOP,
+  APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM,
+  APP_COMMANDS.ARRANGE_JOG_LASER_LEFT,
+  APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT,
+  APP_COMMANDS.ARRANGE_JOG_LASER_UP,
+  APP_COMMANDS.ARRANGE_JOG_LASER_DOWN,
+]);
+
 function activeElementAcceptsTextInput(): boolean {
   if (typeof document === 'undefined') return false;
   const active = document.activeElement as HTMLElement | null;
@@ -165,7 +287,7 @@ function selectedRasterImageId(): string | null {
   const selected = selectedIds
     .map((id) => objects.find((object) => object.id === id) ?? null)
     .filter((object): object is (typeof objects)[number] => object !== null);
-  return selected.length === 1 && resolveEffectiveData(selected[0], objects)?.type === 'raster_image'
+  return selected.length === 1 && selected[0].data.type === 'raster_image'
     ? selected[0].id
     : null;
 }
@@ -222,19 +344,17 @@ function frameSelection(): void {
   }
 }
 
-async function persistViewStyle(viewStyle: ViewStyle): Promise<void> {
-  const renderOptions = renderOptionsFromViewStyle(viewStyle);
+async function persistArtworkDisplayMode(mode: ArtworkDisplayMode): Promise<void> {
   await runCommand(() => useAppStore.getState().updateSettings({
-    antialiasing: renderOptions.antialiasing,
-    filled_rendering: renderOptions.filledRendering,
+    artwork_display_mode: mode,
   }));
 }
 
-function setWindowViewStyle(commandId: AppCommandId): boolean {
-  const viewStyle = WINDOW_VIEW_STYLE_BY_COMMAND[commandId];
-  if (!viewStyle) return false;
-  useUiStore.getState().setViewStyle(viewStyle);
-  void persistViewStyle(viewStyle);
+function setWindowArtworkDisplay(commandId: AppCommandId): boolean {
+  const mode = WINDOW_ARTWORK_DISPLAY_BY_COMMAND[commandId];
+  if (!mode) return false;
+  useUiStore.getState().setArtworkDisplayMode(mode);
+  void persistArtworkDisplayMode(mode);
   return true;
 }
 
@@ -265,11 +385,6 @@ function exportArtworkFromCurrentSelection(): Promise<string> {
     selectedIds,
     defaultName: selectedDefaultName(),
   });
-}
-
-function printCurrentProject(mode: PrintMode): Promise<void> {
-  if (!useProjectStore.getState().project) return Promise.resolve();
-  return printService.printProject(mode);
 }
 
 async function runCommand(action: () => Promise<unknown> | unknown): Promise<void> {
@@ -317,19 +432,30 @@ export async function executeAppCommand(
   const effectiveType = (object: (typeof selectedObjects)[number]) => resolveEffectiveData(object, allObjects)?.type;
   const isVectorType = (type: string | undefined) =>
     type === 'vector_path' || type === 'shape' || type === 'polygon' || type === 'star';
+  const isConvertibleVectorType = (type: string | undefined) =>
+    isVectorType(type) || type === 'text';
   const selectedTextObject = selectedObjects.find((object) => effectiveType(object) === 'text') ?? null;
   const selectedRasterObject = selectedObjects.find((object) => effectiveType(object) === 'raster_image') ?? null;
   const selectedPathObject = selectedObjects.find((object) => isVectorType(effectiveType(object))) ?? null;
   const selectedMaskObjects = selectedObjects.filter((object) => isVectorType(effectiveType(object)));
   const deformCompatibleSelection = selectedObjects.length > 0
-    && selectedObjects.every((object) => {
-      const type = effectiveType(object);
-      return type === 'vector_path' || type === 'shape' || type === 'text'
-        || type === 'polygon' || type === 'star' || type === 'raster_image' || type === 'barcode';
-    });
+    && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
+  const booleanCompatibleSelection = selectedObjects.length >= 2
+    && selectedObjects.every((object) => isBooleanCompatible(object, allObjects));
 
   if (shouldIgnoreNativeFocusGuardedCommand(commandId, context)) return;
-  if (setWindowViewStyle(commandId as AppCommandId)) return;
+  if (ui.workspaceMode !== 'design' && DESIGN_ONLY_EDIT_COMMANDS.has(commandId)) return;
+  if (ui.workspaceMode !== 'design' && DESIGN_ONLY_TOOL_COMMANDS.has(commandId)) return;
+  if (ui.workspaceMode !== 'design' && DESIGN_ONLY_ARRANGE_COMMANDS.has(commandId)) return;
+  if (RUN_ONLY_LASER_POSITION_COMMANDS.has(commandId)) {
+    const machine = useMachineStore.getState();
+    if (
+      ui.workspaceMode !== 'run'
+      || machine.sessionState !== 'ready'
+      || machine.machineStatus?.run_state !== 'idle'
+    ) return;
+  }
+  if (setWindowArtworkDisplay(commandId as AppCommandId)) return;
   if (toggleWindowPanel(commandId as AppCommandId)) return;
   if (toggleWindowToolbar(commandId as AppCommandId)) return;
 
@@ -360,11 +486,8 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.FILE_NEW:
       guardUnsavedChanges(() => {
-        ps.createProject('Untitled Project');
+        ps.createProject(i18n.t('menus.file.untitled_project'));
       });
-      return;
-    case APP_COMMANDS.FILE_NEW_WINDOW:
-      await runCommand(() => appService.openNewWindow());
       return;
     case APP_COMMANDS.FILE_OPEN_RECENT:
       if (context.filePath) {
@@ -401,7 +524,8 @@ export async function executeAppCommand(
       await runCommand(() => exportArtworkFromCurrentSelection());
       return;
     case APP_COMMANDS.FILE_SAVE_MACHINE_FILES:
-      if (!ps.project || preview.state !== 'current') return;
+      if (!ps.project || preview.state === 'generating') return;
+      if (preview.state !== 'current' && !(await preview.generatePreview())) return;
       await runCommand(() => ps.exportGcode());
       return;
     case APP_COMMANDS.LASER_MATERIAL_TEST:
@@ -413,11 +537,8 @@ export async function executeAppCommand(
     case APP_COMMANDS.LASER_INTERVAL_TEST:
       dialogActions.openIntervalTest?.();
       return;
-    case APP_COMMANDS.FILE_PRINT_BLACK:
-      await runCommand(() => printCurrentProject('black'));
-      return;
-    case APP_COMMANDS.FILE_PRINT_COLORS:
-      await runCommand(() => printCurrentProject('color'));
+    case APP_COMMANDS.FILE_PRINT:
+      if (ps.project) dialogActions.openPrint?.();
       return;
     case APP_COMMANDS.FILE_IMPORT: {
       await runCommand(async () => {
@@ -429,19 +550,7 @@ export async function executeAppCommand(
       return;
     }
     case APP_COMMANDS.FILE_NOTES:
-      ui.toggleNotesDialog();
-      return;
-    case APP_COMMANDS.FILE_PREFS_IMPORT:
-      dialogActions.openImportPreferences?.();
-      return;
-    case APP_COMMANDS.FILE_PREFS_EXPORT:
-      dialogActions.openExportPreferences?.();
-      return;
-    case APP_COMMANDS.FILE_PREFS_OPEN_FOLDER:
-      dialogActions.openPreferencesFolder?.();
-      return;
-    case APP_COMMANDS.FILE_PREFS_RESET_DEFAULTS:
-      dialogActions.resetPreferences?.();
+      if (ps.project) ui.showPanel('notes');
       return;
     case APP_COMMANDS.FILE_PREFS_EDIT_HOTKEYS:
       // Shelved for beta. Keep the command id stable while the editor is hidden.
@@ -451,8 +560,6 @@ export async function executeAppCommand(
       if (objectId) await runCommand(() => persistenceService.saveProcessedBitmap(objectId));
       return;
     }
-    case APP_COMMANDS.FILE_SAVE_BACKGROUND_CAPTURE:
-      return;
     case APP_COMMANDS.EDIT_UNDO:
       useUndoStore.getState().undo();
       return;
@@ -460,22 +567,35 @@ export async function executeAppCommand(
       useUndoStore.getState().redo();
       return;
     case APP_COMMANDS.EDIT_SELECT_ALL:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'select_all' }));
+        return;
+      }
       ps.selectAllObjects();
       return;
     case APP_COMMANDS.EDIT_INVERT_SELECTION: {
-      const project = ps.project;
-      if (!project) return;
-      const selected = new Set(selectedIds);
-      ps.selectObjects(project.objects.map((object) => object.id).filter((id) => !selected.has(id)));
+      if (ui.activeTool !== 'node') ps.invertObjectSelection();
       return;
     }
     case APP_COMMANDS.EDIT_CUT:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'cut' }));
+        return;
+      }
       if (unlockedSelection) await runCommand(() => clipboardCut(selectedIds));
       return;
     case APP_COMMANDS.EDIT_COPY:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'copy' }));
+        return;
+      }
       clipboardCopy(selectedIds);
       return;
     case APP_COMMANDS.EDIT_PASTE:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'paste' }));
+        return;
+      }
       await runCommand(async () => {
         if (hasClipboardData()) {
           await clipboardPaste();
@@ -491,24 +611,37 @@ export async function executeAppCommand(
       if (unlockedSelection) await runCommand(() => clipboardDuplicate(selectedIds));
       return;
     case APP_COMMANDS.EDIT_DELETE:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'delete' }));
+        return;
+      }
       if (unlockedSelection) await runCommand(() => ps.removeObjects(selectedIds));
       return;
     case APP_COMMANDS.EDIT_SETTINGS:
       dialogActions.openSettings?.();
       return;
     case APP_COMMANDS.EDIT_CONVERT_TO_PATH:
-      if (selectedIds.length === 1) await runCommand(() => ps.convertToPath(selectedIds[0]));
+      if (selectedObjects.length === 1 && unlockedSelection && isConvertibleVectorType(effectiveType(selectedObjects[0]))) {
+        await runCommand(() => ps.convertToPath(selectedIds[0]));
+      }
       return;
     case APP_COMMANDS.EDIT_CONVERT_TO_BITMAP:
-      if (selectedIds.length === 1) await runCommand(() => ps.convertToBitmap(selectedIds[0], 300));
+      if (selectedObjects.length === 1 && unlockedSelection && isConvertibleVectorType(effectiveType(selectedObjects[0]))) {
+        await runCommand(() => ps.convertToBitmap(selectedIds[0], 300));
+      }
+      return;
+    case APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH:
+      if (ui.activeTool === 'node') {
+        window.dispatchEvent(new CustomEvent('bb:node-edit-action', { detail: 'extract' }));
+      }
       return;
     case APP_COMMANDS.EDIT_CLOSE_PATH:
-      if (selectedIds.length > 0) {
+      if (selectedIds.length > 0 && unlockedSelection) {
         for (const objectId of selectedIds) await runCommand(() => ps.closePath(objectId));
       }
       return;
     case APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE:
-      if (selectedIds.length > 0) dialogActions.openCloseSelectedPathsWithTolerance?.(selectedIds);
+      if (selectedIds.length > 0 && unlockedSelection) dialogActions.openCloseSelectedPathsWithTolerance?.(selectedIds);
       return;
     case APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES:
       if (unlockedSelection) await runCommand(() => ps.autoJoinShapes(selectedIds, 0.05));
@@ -541,17 +674,17 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.EDIT_IMAGE_REFRESH: {
       const objectId = selectedRasterImageId();
-      if (objectId) await runCommand(() => ps.refreshImage(objectId));
+      if (objectId && unlockedSelection) await runCommand(() => ps.refreshImage(objectId));
       return;
     }
     case APP_COMMANDS.EDIT_IMAGE_REPLACE: {
       const objectId = selectedRasterImageId();
-      if (objectId) await runCommand(() => ps.replaceImage(objectId));
+      if (objectId && unlockedSelection) await runCommand(() => ps.replaceImage(objectId));
       return;
     }
     case APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT: {
       const objectId = selectedRasterImageId();
-      if (objectId) await runCommand(() => ps.replaceImageToFit(objectId));
+      if (objectId && unlockedSelection) await runCommand(() => ps.replaceImageToFit(objectId));
       return;
     }
     case APP_COMMANDS.ARRANGE_GROUP:
@@ -565,7 +698,7 @@ export async function executeAppCommand(
       return;
     }
     case APP_COMMANDS.ARRANGE_AUTO_GROUP:
-      if (canAutoGroup) await runCommand(() => ps.autoGroupObjects(selectedIds));
+      if (unlockedSelection && canAutoGroup) await runCommand(() => ps.autoGroupObjects(selectedIds));
       return;
     case APP_COMMANDS.TOOLS_SELECT:
       ui.setActiveTool('select');
@@ -638,21 +771,21 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.TOOLS_TRACE_IMAGE: {
       const objectId = selectedRasterImageId();
-      if (objectId) dialogActions.openTraceImage?.(objectId);
+      if (objectId && unlockedSelection) dialogActions.openTraceImage?.(objectId);
       return;
     }
     case APP_COMMANDS.TOOLS_ADJUST_IMAGE: {
       const objectId = selectedRasterImageId();
-      if (objectId) dialogActions.openAdjustImage?.(objectId);
+      if (objectId && unlockedSelection) dialogActions.openAdjustImage?.(objectId);
       return;
     }
     case APP_COMMANDS.TOOLS_APPLY_PATH_TO_TEXT:
-      if (selectedTextObject && selectedPathObject && selectedTextObject.id !== selectedPathObject.id) {
+      if (unlockedSelection && selectedTextObject && selectedPathObject && selectedTextObject.id !== selectedPathObject.id) {
         await runCommand(() => ps.applyPathToText(selectedTextObject.id, selectedPathObject.id));
       }
       return;
     case APP_COMMANDS.TOOLS_APPLY_MASK_TO_IMAGE:
-      if (selectedRasterObject && selectedMaskObjects.length > 0) {
+      if (unlockedSelection && selectedRasterObject && selectedMaskObjects.length > 0) {
         const maskIds = selectedMaskObjects
           .filter((object) => object.id !== selectedRasterObject.id && isClosedVectorCompatible(object, allObjects))
           .map((object) => object.id);
@@ -668,44 +801,61 @@ export async function executeAppCommand(
       }
       return;
     case APP_COMMANDS.TOOLS_CROP_IMAGE:
-      if (selectedRasterObject && selectedPathObject && selectedRasterObject.id !== selectedPathObject.id) {
+      if (unlockedSelection && selectedRasterObject && selectedPathObject && selectedRasterObject.id !== selectedPathObject.id) {
         await runCommand(() => ps.cropImage(selectedRasterObject.id, selectedPathObject.id));
       }
       return;
     case APP_COMMANDS.TOOLS_WARP_SELECTION:
       if (unlockedSelection && deformCompatibleSelection) {
-        ui.setActiveTool('warp_selection');
+        ui.setMeshDeformMode('warp');
+        ui.setActiveTool('warp');
       } else {
         useNotificationStore.getState().push(i18n.t('notifications.warp_requires_selection'), 'warning');
       }
       return;
     case APP_COMMANDS.TOOLS_DEFORM_SELECTION:
       if (unlockedSelection && deformCompatibleSelection) {
-        ui.setActiveTool('deform_selection');
+        ui.setMeshDeformMode('mesh');
+        ui.setActiveTool('warp');
       } else {
         useNotificationStore.getState().push(i18n.t('notifications.deform_requires_selection'), 'warning');
       }
       return;
     case APP_COMMANDS.TOOLS_CUT_SHAPES: {
-      if (selectedIds.length >= 2) {
+      if (unlockedSelection && booleanCompatibleSelection) {
         await runCommand(() => ps.cutShapes(selectedIds));
       }
       return;
     }
     case APP_COMMANDS.TOOLS_BOOLEAN_UNION:
-      if (selectedIds.length >= 2) await runCommand(() => ps.booleanUnion(selectedIds[0], selectedIds[1]));
+      if (!unlockedSelection || !booleanCompatibleSelection) return;
+      if (selectedIds.length === 2) {
+        await runCommand(() => ps.booleanUnion(selectedIds[0], selectedIds[1]));
+      } else if (selectedIds.length > 2) {
+        await runCommand(() => ps.booleanUnionMany(selectedIds));
+      }
       return;
     case APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT:
-      if (selectedIds.length >= 2) await runCommand(() => ps.booleanSubtract(selectedIds[0], selectedIds[1]));
+      if (!unlockedSelection || !booleanCompatibleSelection) return;
+      if (selectedIds.length === 2) {
+        await runCommand(() => ps.booleanSubtract(selectedIds[0], selectedIds[1]));
+      } else if (selectedIds.length > 2) {
+        await runCommand(() => ps.booleanSubtractMany(selectedIds));
+      }
       return;
     case APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION:
-      if (selectedIds.length >= 2) await runCommand(() => ps.booleanIntersection(selectedIds[0], selectedIds[1]));
+      if (!unlockedSelection || !booleanCompatibleSelection) return;
+      if (selectedIds.length === 2) {
+        await runCommand(() => ps.booleanIntersection(selectedIds[0], selectedIds[1]));
+      } else if (selectedIds.length > 2) {
+        await runCommand(() => ps.booleanIntersectionMany(selectedIds));
+      }
       return;
     case APP_COMMANDS.TOOLS_BOOLEAN_WELD:
-      if (selectedIds.length >= 2) await runCommand(() => ps.booleanWeld(selectedIds));
+      if (unlockedSelection && booleanCompatibleSelection) await runCommand(() => ps.booleanWeld(selectedIds));
       return;
     case APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT:
-      if (selectedIds.length >= 2) {
+      if (unlockedSelection && booleanCompatibleSelection && selectedIds.length === 2) {
         if (dialogActions.openBooleanAssistant) {
           dialogActions.openBooleanAssistant(selectedIds);
         } else {
@@ -714,7 +864,7 @@ export async function executeAppCommand(
       }
       return;
     case APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE:
-      ui.setActiveTool('two_point_rotate_scale');
+      if (unlockedSelection) ui.setActiveTool('two_point_rotate_scale');
       return;
     case APP_COMMANDS.ARRANGE_ALIGN_LEFT:
       if (canAlign) await runCommand(() => ps.alignObjects(selectedIds, 'left'));
@@ -752,16 +902,16 @@ export async function executeAppCommand(
       if (canDistribute) await runCommand(() => ps.distributeObjects(selectedIds, 'v_spaced'));
       return;
     case APP_COMMANDS.ARRANGE_FRONT:
-      if (selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'front'));
+      if (unlockedSelection && selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'front'));
       return;
     case APP_COMMANDS.ARRANGE_FORWARD:
-      if (selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'forward'));
+      if (unlockedSelection && selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'forward'));
       return;
     case APP_COMMANDS.ARRANGE_BACKWARD:
-      if (selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'backward'));
+      if (unlockedSelection && selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'backward'));
       return;
     case APP_COMMANDS.ARRANGE_BACK:
-      if (selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'back'));
+      if (unlockedSelection && selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'back'));
       return;
     case APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL:
       if (unlockedSelection) await runCommand(() => ps.flipObjects(selectedIds, 'horizontal'));
@@ -776,7 +926,7 @@ export async function executeAppCommand(
       if (unlockedSelection) await runCommand(() => ps.rotateObjects(selectedIds, -90));
       return;
     case APP_COMMANDS.ARRANGE_MIRROR_ACROSS_LINE:
-      if (selectedIds.length >= 2) await runCommand(() => ps.mirrorAcrossLine());
+      if (unlockedSelection && selectedIds.length >= 2) await runCommand(() => ps.mirrorAcrossLine());
       return;
     case APP_COMMANDS.ARRANGE_GRID_ARRAY:
       if (unlockedSelection) dialogActions.openGridArray?.(selectedIds);
@@ -817,7 +967,7 @@ export async function executeAppCommand(
     case APP_COMMANDS.ARRANGE_COPY_ALONG_PATH: {
       const guide = ps.project ? pickLastSelectedVectorGuide(selectedIds, ps.project.objects) : null;
       const sourceIds = selectedIds.filter((id) => id !== guide?.id);
-      if (guide && sourceIds.length > 0) dialogActions.openCopyAlongPath?.(sourceIds, guide.id);
+      if (unlockedSelection && guide && sourceIds.length > 0) dialogActions.openCopyAlongPath?.(sourceIds, guide.id);
       return;
     }
     case APP_COMMANDS.ARRANGE_RUBBER_BAND_OUTLINE:
@@ -928,9 +1078,15 @@ export async function executeAppCommand(
     case APP_COMMANDS.WINDOW_FRAME_SELECTION:
       frameSelection();
       return;
-    case APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED:
-      ui.toggleFilledRendering();
-      await persistViewStyle(useUiStore.getState().viewStyle);
+    case APP_COMMANDS.WINDOW_SMOOTH_EDGES: {
+      const enabled = !ui.smoothEdges;
+      ui.setSmoothEdges(enabled);
+      await runCommand(() => useAppStore.getState().updateSettings({ antialiasing: enabled }));
+      return;
+    }
+    case APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME:
+      ui.toggleOperationWireframe();
+      await persistArtworkDisplayMode(useUiStore.getState().artworkDisplayMode);
       return;
     case APP_COMMANDS.WINDOW_RESET_LAYOUT:
       ui.resetLayout();
@@ -954,6 +1110,11 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const recentFiles = useAppStore.getState().settings?.recent_files ?? [];
   const customHotkeys = useAppStore.getState().settings?.custom_hotkeys ?? {};
   const projectLoaded = ps.project !== null;
+  const designMode = ui.workspaceMode === 'design';
+  const machine = useMachineStore.getState();
+  const canPositionLaser = ui.workspaceMode === 'run'
+    && machine.sessionState === 'ready'
+    && machine.machineStatus?.run_state === 'idle';
   const selectedIds = ps.selectedObjectIds;
   const selectedObjects = ps.project?.objects.filter((object) => selectedIds.includes(object.id)) ?? [];
   const hasSelection = selectedIds.length > 0;
@@ -962,8 +1123,10 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const hasUnlockedSelection = selectedObjects.some((object) => !object.locked);
   const singleSelection = selectedObjects.length === 1 ? selectedObjects[0] : null;
   const allObjects = ps.project?.objects ?? [];
-  const rasterSelected = singleSelection !== null
-    && resolveEffectiveData(singleSelection, allObjects)?.type === 'raster_image';
+  // Image editing/replacement acts on an owned raster asset. A virtual clone
+  // resolves visually to a raster but does not own an asset that these
+  // commands can replace, refresh, trace, or adjust.
+  const rasterSelected = singleSelection?.data.type === 'raster_image';
   const refreshableRasterSelected = imageObjectHasSourcePath(singleSelection, ps.project?.assets ?? []);
   const vectorSelection = selectedObjects.length > 0
     && selectedObjects.every((object) => {
@@ -977,39 +1140,38 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const selectedRasterObject = selectedObjects.find((object) => effectiveType(object) === 'raster_image') ?? null;
   const selectedPathObject = selectedObjects.find((object) => isVectorType(effectiveType(object))) ?? null;
   const selectedMaskObjects = selectedObjects.filter((object) => isVectorType(effectiveType(object)));
-  const singleVectorSelection = singleSelection !== null && vectorSelection;
+  const singleVectorSelection = singleSelection !== null && unlockedSelection && vectorSelection;
   const singleClosedVectorCompatibleSelection =
     singleSelection !== null && isClosedVectorCompatible(singleSelection, allObjects);
-  const canBoolean = selectedObjects.length === 2 && unlockedSelection;
-  const canWeld = selectedObjects.length >= 2 && unlockedSelection;
-  const canApplyPathToText = selectedObjects.length === 2
+  const booleanCompatibleSelection = selectedObjects.length >= 2
+    && selectedObjects.every((object) => isBooleanCompatible(object, allObjects));
+  const canBoolean = selectedObjects.length === 2 && unlockedSelection && booleanCompatibleSelection;
+  const canWeld = unlockedSelection && booleanCompatibleSelection;
+  const canApplyPathToText = unlockedSelection && selectedObjects.length === 2
     && Boolean(selectedTextObject && selectedPathObject && selectedTextObject.id !== selectedPathObject.id);
-  const canApplyMaskToImage = selectedRasterObject !== null
+  const canApplyMaskToImage = unlockedSelection && selectedRasterObject !== null
     && selectedMaskObjects.some((object) =>
       object.id !== selectedRasterObject?.id && isClosedVectorCompatible(object, allObjects)
     );
-  const canCropImage = selectedObjects.length === 2
+  const canCropImage = unlockedSelection && selectedObjects.length === 2
     && Boolean(selectedRasterObject && selectedPathObject && selectedRasterObject.id !== selectedPathObject.id);
   const deformCompatibleSelection = selectedObjects.length > 0
-    && selectedObjects.every((object) => {
-      const type = effectiveType(object);
-      return type === 'vector_path' || type === 'shape' || type === 'text'
-        || type === 'polygon' || type === 'star' || type === 'raster_image' || type === 'barcode';
-    });
+    && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
   const canAlign = selectedIds.length >= 2 && selectedObjects.some((object) => !object.locked);
   const canDistribute = selectedIds.length >= 3 && selectedObjects.some((object) => !object.locked);
   const canMoveTogether = selectedIds.length >= 2 && selectedObjects.some((object) => !object.locked);
   const canAutoGroup = selectedIds.length >= 2 && findAutoGroupCandidates(ps.project, selectedIds).length > 0;
   const accel = (id: AppCommandId) => nativeAcceleratorForCommand(id, customHotkeys);
-  const viewStyleItems = WINDOW_VIEW_STYLE_ITEMS.map((item) => ({
+  const artworkDisplayItems = WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => ({
     id: item.commandId,
     enabled: true,
-    checked: ui.viewStyle === item.viewStyle,
+    checked: ui.artworkDisplayMode === item.mode,
   }));
+  const activePanelLayout = getWorkspacePanelLayout(ui.panelLayout, ui.workspaceMode);
   const panelItems = WINDOW_PANEL_MENU_ITEMS.map((item) => ({
     id: item.commandId,
     enabled: true,
-    checked: !ui.panelLayout.hiddenPanelIds.includes(item.panelId),
+    checked: !activePanelLayout.hiddenPanelIds.includes(item.panelId),
   }));
   const toolbarItems = WINDOW_TOOLBAR_MENU_ITEMS.map((item) => ({
     id: item.commandId,
@@ -1028,11 +1190,6 @@ export function getAppCommandState(): NativeMenuStateUpdate {
     recentFiles: recentFiles.map((file) => ({ name: file.name, path: file.path })),
     items: [
       ...nativeAcceleratorUpdates(customHotkeys),
-      { id: APP_COMMANDS.FILE_PREFS_IMPORT, enabled: true },
-      { id: APP_COMMANDS.FILE_PREFS_EXPORT, enabled: true },
-      { id: APP_COMMANDS.FILE_PREFS_OPEN_FOLDER, enabled: true },
-      { id: APP_COMMANDS.FILE_PREFS_RESET_DEFAULTS, enabled: true },
-      { id: APP_COMMANDS.FILE_NEW_WINDOW, enabled: true },
       { id: APP_COMMANDS.FILE_SAVE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_SAVE) },
       { id: APP_COMMANDS.FILE_SAVE_AS, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_SAVE_AS) },
       {
@@ -1045,53 +1202,52 @@ export function getAppCommandState(): NativeMenuStateUpdate {
       },
       {
         id: APP_COMMANDS.FILE_SAVE_MACHINE_FILES,
-        enabled: projectLoaded && preview.state === 'current',
+        enabled: projectLoaded && preview.state !== 'generating',
         accelerator: accel(APP_COMMANDS.FILE_SAVE_MACHINE_FILES),
       },
-      { id: APP_COMMANDS.FILE_PRINT_BLACK, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_PRINT_BLACK) },
-      { id: APP_COMMANDS.FILE_PRINT_COLORS, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_PRINT_COLORS) },
-      { id: APP_COMMANDS.FILE_SAVE_PROCESSED_BITMAP, enabled: rasterSelected },
+      { id: APP_COMMANDS.FILE_PRINT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_PRINT) },
       { id: APP_COMMANDS.FILE_IMPORT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_IMPORT) },
-      { id: APP_COMMANDS.FILE_NOTES, enabled: projectLoaded, title: i18n.t(ui.showNotesDialog ? 'menus.file.hide_notes' : 'menus.file.show_notes') },
-      { id: APP_COMMANDS.EDIT_UNDO, enabled: undo.canUndo, accelerator: accel(APP_COMMANDS.EDIT_UNDO) },
-      { id: APP_COMMANDS.EDIT_REDO, enabled: undo.canRedo, accelerator: accel(APP_COMMANDS.EDIT_REDO) },
+      { id: APP_COMMANDS.FILE_NOTES, enabled: projectLoaded, title: i18n.t('menus.file.project_notes') },
+      { id: APP_COMMANDS.EDIT_UNDO, enabled: designMode && undo.canUndo, accelerator: accel(APP_COMMANDS.EDIT_UNDO) },
+      { id: APP_COMMANDS.EDIT_REDO, enabled: designMode && undo.canRedo, accelerator: accel(APP_COMMANDS.EDIT_REDO) },
       { id: APP_COMMANDS.EDIT_SELECT_ALL, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_SELECT_ALL) },
-      { id: APP_COMMANDS.EDIT_INVERT_SELECTION, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_INVERT_SELECTION) },
-      { id: APP_COMMANDS.EDIT_CUT, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_CUT) },
+      { id: APP_COMMANDS.EDIT_INVERT_SELECTION, enabled: projectLoaded && ui.activeTool !== 'node', accelerator: accel(APP_COMMANDS.EDIT_INVERT_SELECTION) },
+      { id: APP_COMMANDS.EDIT_CUT, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_CUT) },
       { id: APP_COMMANDS.EDIT_COPY, enabled: hasSelection, accelerator: accel(APP_COMMANDS.EDIT_COPY) },
       // Paste must stay enabled whenever a project is open: the system
       // clipboard may hold an image/SVG the app can't detect synchronously,
       // and on macOS a disabled native menu item swallows Cmd+V entirely.
       // The handler falls through to the system clipboard when the in-app
       // clipboard is empty. Paste In Place is in-app-clipboard only.
-      { id: APP_COMMANDS.EDIT_PASTE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_PASTE) },
-      { id: APP_COMMANDS.EDIT_PASTE_IN_PLACE, enabled: projectLoaded && ui.hasClipboard, accelerator: accel(APP_COMMANDS.EDIT_PASTE_IN_PLACE) },
-      { id: APP_COMMANDS.EDIT_DUPLICATE, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_DUPLICATE) },
-      { id: APP_COMMANDS.EDIT_DELETE, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_DELETE) },
+      { id: APP_COMMANDS.EDIT_PASTE, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_PASTE) },
+      { id: APP_COMMANDS.EDIT_PASTE_IN_PLACE, enabled: designMode && projectLoaded && ui.activeTool !== 'node' && ui.hasClipboard, accelerator: accel(APP_COMMANDS.EDIT_PASTE_IN_PLACE) },
+      { id: APP_COMMANDS.EDIT_DUPLICATE, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_DUPLICATE) },
+      { id: APP_COMMANDS.EDIT_DELETE, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.EDIT_DELETE) },
       { id: APP_COMMANDS.EDIT_SETTINGS, enabled: true },
-      { id: APP_COMMANDS.EDIT_CONVERT_TO_PATH, enabled: singleVectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_PATH) },
-      { id: APP_COMMANDS.EDIT_CONVERT_TO_BITMAP, enabled: singleSelection !== null, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP) },
-      { id: APP_COMMANDS.EDIT_CLOSE_PATH, enabled: vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CLOSE_PATH) },
-      { id: APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE, enabled: vectorSelection },
-      { id: APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES, enabled: vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES) },
-      { id: APP_COMMANDS.EDIT_CLOSE_AND_JOIN, enabled: selectedObjects.length >= 2 && vectorSelection },
-      { id: APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES, enabled: vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES) },
-      { id: APP_COMMANDS.EDIT_DELETE_DUPLICATES, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_DELETE_DUPLICATES) },
+      { id: APP_COMMANDS.EDIT_CONVERT_TO_PATH, enabled: designMode && singleVectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_PATH) },
+      { id: APP_COMMANDS.EDIT_CONVERT_TO_BITMAP, enabled: designMode && singleVectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP) },
+      { id: APP_COMMANDS.EDIT_EXTRACT_NODES_TO_PATH, enabled: designMode && ui.activeTool === 'node' && singleVectorSelection },
+      { id: APP_COMMANDS.EDIT_CLOSE_PATH, enabled: designMode && unlockedSelection && vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_CLOSE_PATH) },
+      { id: APP_COMMANDS.EDIT_CLOSE_SELECTED_PATHS_WITH_TOLERANCE, enabled: designMode && unlockedSelection && vectorSelection },
+      { id: APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES, enabled: designMode && unlockedSelection && vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES) },
+      { id: APP_COMMANDS.EDIT_CLOSE_AND_JOIN, enabled: designMode && unlockedSelection && selectedObjects.length >= 2 && vectorSelection },
+      { id: APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES, enabled: designMode && unlockedSelection && vectorSelection, accelerator: accel(APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES) },
+      { id: APP_COMMANDS.EDIT_DELETE_DUPLICATES, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.EDIT_DELETE_DUPLICATES) },
       { id: APP_COMMANDS.EDIT_SELECT_OPEN_SHAPES, enabled: projectLoaded },
       { id: APP_COMMANDS.EDIT_SELECT_OPEN_SHAPES_SET_TO_FILL, enabled: projectLoaded },
       { id: APP_COMMANDS.EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER, enabled: projectLoaded && ps.selectedLayerId !== null },
       { id: APP_COMMANDS.EDIT_SELECT_CONTAINED_SHAPES, enabled: singleClosedVectorCompatibleSelection },
       { id: APP_COMMANDS.EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED, enabled: hasSelection },
-      { id: APP_COMMANDS.EDIT_IMAGE_REFRESH, enabled: refreshableRasterSelected },
-      { id: APP_COMMANDS.EDIT_IMAGE_REPLACE, enabled: rasterSelected },
-      { id: APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT, enabled: rasterSelected },
-      { id: APP_COMMANDS.ARRANGE_GROUP, enabled: selectedObjects.length >= 2 && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_GROUP) },
+      { id: APP_COMMANDS.EDIT_IMAGE_REFRESH, enabled: designMode && unlockedSelection && refreshableRasterSelected },
+      { id: APP_COMMANDS.EDIT_IMAGE_REPLACE, enabled: designMode && unlockedSelection && rasterSelected },
+      { id: APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT, enabled: designMode && unlockedSelection && rasterSelected },
+      { id: APP_COMMANDS.ARRANGE_GROUP, enabled: designMode && selectedObjects.length >= 2 && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_GROUP) },
       {
         id: APP_COMMANDS.ARRANGE_UNGROUP,
-        enabled: singleSelection?.data.type === 'group' && unlockedSelection,
+        enabled: designMode && singleSelection?.data.type === 'group' && unlockedSelection,
         accelerator: accel(APP_COMMANDS.ARRANGE_UNGROUP),
       },
-      { id: APP_COMMANDS.ARRANGE_AUTO_GROUP, enabled: canAutoGroup },
+      { id: APP_COMMANDS.ARRANGE_AUTO_GROUP, enabled: designMode && unlockedSelection && canAutoGroup },
       {
         id: APP_COMMANDS.TOOLS_SELECT,
         enabled: projectLoaded,
@@ -1099,109 +1255,114 @@ export function getAppCommandState(): NativeMenuStateUpdate {
           ? null
           : toolsSelectAccelerator,
       },
-      { id: APP_COMMANDS.TOOLS_LINE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_LINE) },
-      { id: APP_COMMANDS.TOOLS_RECTANGLE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_RECTANGLE) },
-      { id: APP_COMMANDS.TOOLS_ELLIPSE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_ELLIPSE) },
-      { id: APP_COMMANDS.TOOLS_TRIANGLE, enabled: projectLoaded },
-      { id: APP_COMMANDS.TOOLS_PENTAGON, enabled: projectLoaded },
-      { id: APP_COMMANDS.TOOLS_POLYGON, enabled: projectLoaded },
-      { id: APP_COMMANDS.TOOLS_OCTAGON, enabled: projectLoaded },
-      { id: APP_COMMANDS.TOOLS_STAR, enabled: projectLoaded },
-      { id: APP_COMMANDS.TOOLS_DUAL_STAR, enabled: projectLoaded },
-      { id: APP_COMMANDS.TOOLS_NODE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_NODE) },
-      { id: APP_COMMANDS.TOOLS_TRIM, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TRIM) },
-      { id: APP_COMMANDS.TOOLS_TABS, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TABS) },
-      { id: APP_COMMANDS.TOOLS_TEXT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TEXT) },
-      { id: APP_COMMANDS.TOOLS_POSITION_LASER, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_POSITION_LASER) },
+      { id: APP_COMMANDS.TOOLS_LINE, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_LINE) },
+      { id: APP_COMMANDS.TOOLS_RECTANGLE, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_RECTANGLE) },
+      { id: APP_COMMANDS.TOOLS_ELLIPSE, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_ELLIPSE) },
+      { id: APP_COMMANDS.TOOLS_TRIANGLE, enabled: designMode && projectLoaded },
+      { id: APP_COMMANDS.TOOLS_PENTAGON, enabled: designMode && projectLoaded },
+      { id: APP_COMMANDS.TOOLS_POLYGON, enabled: designMode && projectLoaded },
+      { id: APP_COMMANDS.TOOLS_OCTAGON, enabled: designMode && projectLoaded },
+      { id: APP_COMMANDS.TOOLS_STAR, enabled: designMode && projectLoaded },
+      { id: APP_COMMANDS.TOOLS_DUAL_STAR, enabled: designMode && projectLoaded },
+      { id: APP_COMMANDS.TOOLS_NODE, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_NODE) },
+      { id: APP_COMMANDS.TOOLS_TRIM, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TRIM) },
+      { id: APP_COMMANDS.TOOLS_TABS, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TABS) },
+      { id: APP_COMMANDS.TOOLS_TEXT, enabled: designMode && projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_TEXT) },
+      { id: APP_COMMANDS.TOOLS_POSITION_LASER, enabled: projectLoaded && canPositionLaser, accelerator: accel(APP_COMMANDS.TOOLS_POSITION_LASER) },
       { id: APP_COMMANDS.TOOLS_MEASURE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.TOOLS_MEASURE) },
-      { id: APP_COMMANDS.TOOLS_BARCODE, enabled: projectLoaded },
-      { id: APP_COMMANDS.TOOLS_OFFSET, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.TOOLS_OFFSET) },
-      { id: APP_COMMANDS.TOOLS_BOOLEAN_WELD, enabled: canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_WELD) },
-      { id: APP_COMMANDS.TOOLS_BOOLEAN_UNION, enabled: canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_UNION) },
-      { id: APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT, enabled: canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT) },
-      { id: APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION, enabled: canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION) },
-      { id: APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT, enabled: canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT) },
-      { id: APP_COMMANDS.TOOLS_CUT_SHAPES, enabled: selectedObjects.length >= 2 && unlockedSelection, accelerator: accel(APP_COMMANDS.TOOLS_CUT_SHAPES) },
-      { id: APP_COMMANDS.TOOLS_ADJUST_IMAGE, enabled: rasterSelected, accelerator: accel(APP_COMMANDS.TOOLS_ADJUST_IMAGE) },
-      { id: APP_COMMANDS.TOOLS_TRACE_IMAGE, enabled: rasterSelected, accelerator: accel(APP_COMMANDS.TOOLS_TRACE_IMAGE) },
-      { id: APP_COMMANDS.TOOLS_APPLY_PATH_TO_TEXT, enabled: canApplyPathToText },
-      { id: APP_COMMANDS.TOOLS_APPLY_MASK_TO_IMAGE, enabled: canApplyMaskToImage },
-      { id: APP_COMMANDS.TOOLS_CROP_IMAGE, enabled: canCropImage },
-      { id: APP_COMMANDS.TOOLS_WARP_SELECTION, enabled: deformCompatibleSelection && unlockedSelection },
-      { id: APP_COMMANDS.TOOLS_DEFORM_SELECTION, enabled: deformCompatibleSelection && unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_ALIGN_CENTERS, enabled: canAlign },
-      { id: APP_COMMANDS.ARRANGE_ALIGN_LEFT, enabled: canAlign },
-      { id: APP_COMMANDS.ARRANGE_ALIGN_RIGHT, enabled: canAlign },
-      { id: APP_COMMANDS.ARRANGE_ALIGN_TOP, enabled: canAlign },
-      { id: APP_COMMANDS.ARRANGE_ALIGN_BOTTOM, enabled: canAlign },
-      { id: APP_COMMANDS.ARRANGE_ALIGN_CENTER_VERTICAL, enabled: canAlign, accelerator: accel(APP_COMMANDS.ARRANGE_ALIGN_CENTER_VERTICAL) },
-      { id: APP_COMMANDS.ARRANGE_ALIGN_CENTER_HORIZONTAL, enabled: canAlign, accelerator: accel(APP_COMMANDS.ARRANGE_ALIGN_CENTER_HORIZONTAL) },
-      { id: APP_COMMANDS.ARRANGE_DISTRIBUTE_V_SPACED, enabled: canDistribute },
-      { id: APP_COMMANDS.ARRANGE_DISTRIBUTE_V_CENTERED, enabled: canDistribute },
-      { id: APP_COMMANDS.ARRANGE_DISTRIBUTE_H_SPACED, enabled: canDistribute },
-      { id: APP_COMMANDS.ARRANGE_DISTRIBUTE_H_CENTERED, enabled: canDistribute },
-      { id: APP_COMMANDS.ARRANGE_FRONT, enabled: singleSelection !== null, accelerator: accel(APP_COMMANDS.ARRANGE_FRONT) },
-      { id: APP_COMMANDS.ARRANGE_FORWARD, enabled: singleSelection !== null, accelerator: accel(APP_COMMANDS.ARRANGE_FORWARD) },
-      { id: APP_COMMANDS.ARRANGE_BACKWARD, enabled: singleSelection !== null, accelerator: accel(APP_COMMANDS.ARRANGE_BACKWARD) },
-      { id: APP_COMMANDS.ARRANGE_BACK, enabled: singleSelection !== null, accelerator: accel(APP_COMMANDS.ARRANGE_BACK) },
-      { id: APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL) },
-      { id: APP_COMMANDS.ARRANGE_FLIP_VERTICAL, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FLIP_VERTICAL) },
-      { id: APP_COMMANDS.ARRANGE_MIRROR_ACROSS_LINE, enabled: selectedObjects.length >= 2 && unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_ROTATE_CW, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_ROTATE_CW) },
-      { id: APP_COMMANDS.ARRANGE_ROTATE_CCW, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_ROTATE_CCW) },
-      { id: APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE) },
-      { id: APP_COMMANDS.ARRANGE_NEST_SELECTED, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_GRID_ARRAY, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_CIRCULAR_ARRAY, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_H_TOGETHER, enabled: canMoveTogether, accelerator: accel(APP_COMMANDS.ARRANGE_MOVE_H_TOGETHER) },
-      { id: APP_COMMANDS.ARRANGE_MOVE_V_TOGETHER, enabled: canMoveTogether, accelerator: accel(APP_COMMANDS.ARRANGE_MOVE_V_TOGETHER) },
-      { id: APP_COMMANDS.ARRANGE_DOCK_LEFT, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_DOCK_RIGHT, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_DOCK_UP, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_DOCK_DOWN, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_LASER_POSITION, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_PAGE_CENTER, enabled: unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_MOVE_TO_PAGE_CENTER) },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_UPPER_LEFT, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_UPPER_RIGHT, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_LOWER_LEFT, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_LOWER_RIGHT, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_LEFT, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_RIGHT, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_TOP, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_TO_BOTTOM, enabled: unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_CENTER, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LEFT, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_TOP, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM, enabled: hasSelection },
-      { id: APP_COMMANDS.ARRANGE_JOG_LASER_LEFT, enabled: useMachineStore.getState().machineStatus?.run_state === 'idle', accelerator: accel(APP_COMMANDS.ARRANGE_JOG_LASER_LEFT) },
-      { id: APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT, enabled: useMachineStore.getState().machineStatus?.run_state === 'idle', accelerator: accel(APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT) },
-      { id: APP_COMMANDS.ARRANGE_JOG_LASER_UP, enabled: useMachineStore.getState().machineStatus?.run_state === 'idle', accelerator: accel(APP_COMMANDS.ARRANGE_JOG_LASER_UP) },
-      { id: APP_COMMANDS.ARRANGE_JOG_LASER_DOWN, enabled: useMachineStore.getState().machineStatus?.run_state === 'idle', accelerator: accel(APP_COMMANDS.ARRANGE_JOG_LASER_DOWN) },
-      { id: APP_COMMANDS.ARRANGE_BREAK_APART, enabled: singleVectorSelection, accelerator: accel(APP_COMMANDS.ARRANGE_BREAK_APART) },
-      { id: APP_COMMANDS.ARRANGE_COPY_ALONG_PATH, enabled: selectedObjects.length >= 2 && vectorSelection },
-      { id: APP_COMMANDS.ARRANGE_LOCK, enabled: hasUnlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_UNLOCK, enabled: hasLockedSelection },
+      { id: APP_COMMANDS.TOOLS_BARCODE, enabled: designMode && projectLoaded },
+      { id: APP_COMMANDS.TOOLS_OFFSET, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.TOOLS_OFFSET) },
+      { id: APP_COMMANDS.TOOLS_BOOLEAN_WELD, enabled: designMode && canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_WELD) },
+      { id: APP_COMMANDS.TOOLS_BOOLEAN_UNION, enabled: designMode && canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_UNION) },
+      { id: APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT, enabled: designMode && canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT) },
+      { id: APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION, enabled: designMode && canWeld, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION) },
+      { id: APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT, enabled: designMode && canBoolean, accelerator: accel(APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT) },
+      { id: APP_COMMANDS.TOOLS_CUT_SHAPES, enabled: designMode && canWeld, accelerator: accel(APP_COMMANDS.TOOLS_CUT_SHAPES) },
+      { id: APP_COMMANDS.TOOLS_ADJUST_IMAGE, enabled: designMode && unlockedSelection && rasterSelected, accelerator: accel(APP_COMMANDS.TOOLS_ADJUST_IMAGE) },
+      { id: APP_COMMANDS.TOOLS_TRACE_IMAGE, enabled: designMode && unlockedSelection && rasterSelected, accelerator: accel(APP_COMMANDS.TOOLS_TRACE_IMAGE) },
+      { id: APP_COMMANDS.TOOLS_APPLY_PATH_TO_TEXT, enabled: designMode && canApplyPathToText },
+      { id: APP_COMMANDS.TOOLS_APPLY_MASK_TO_IMAGE, enabled: designMode && canApplyMaskToImage },
+      { id: APP_COMMANDS.TOOLS_CROP_IMAGE, enabled: designMode && canCropImage },
+      { id: APP_COMMANDS.TOOLS_WARP_SELECTION, enabled: designMode && deformCompatibleSelection && unlockedSelection },
+      { id: APP_COMMANDS.TOOLS_DEFORM_SELECTION, enabled: designMode && deformCompatibleSelection && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_ALIGN_CENTERS, enabled: designMode && canAlign },
+      { id: APP_COMMANDS.ARRANGE_ALIGN_LEFT, enabled: designMode && canAlign },
+      { id: APP_COMMANDS.ARRANGE_ALIGN_RIGHT, enabled: designMode && canAlign },
+      { id: APP_COMMANDS.ARRANGE_ALIGN_TOP, enabled: designMode && canAlign },
+      { id: APP_COMMANDS.ARRANGE_ALIGN_BOTTOM, enabled: designMode && canAlign },
+      { id: APP_COMMANDS.ARRANGE_ALIGN_CENTER_VERTICAL, enabled: designMode && canAlign, accelerator: accel(APP_COMMANDS.ARRANGE_ALIGN_CENTER_VERTICAL) },
+      { id: APP_COMMANDS.ARRANGE_ALIGN_CENTER_HORIZONTAL, enabled: designMode && canAlign, accelerator: accel(APP_COMMANDS.ARRANGE_ALIGN_CENTER_HORIZONTAL) },
+      { id: APP_COMMANDS.ARRANGE_DISTRIBUTE_V_SPACED, enabled: designMode && canDistribute },
+      { id: APP_COMMANDS.ARRANGE_DISTRIBUTE_V_CENTERED, enabled: designMode && canDistribute },
+      { id: APP_COMMANDS.ARRANGE_DISTRIBUTE_H_SPACED, enabled: designMode && canDistribute },
+      { id: APP_COMMANDS.ARRANGE_DISTRIBUTE_H_CENTERED, enabled: designMode && canDistribute },
+      { id: APP_COMMANDS.ARRANGE_FRONT, enabled: designMode && singleSelection !== null && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FRONT) },
+      { id: APP_COMMANDS.ARRANGE_FORWARD, enabled: designMode && singleSelection !== null && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FORWARD) },
+      { id: APP_COMMANDS.ARRANGE_BACKWARD, enabled: designMode && singleSelection !== null && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_BACKWARD) },
+      { id: APP_COMMANDS.ARRANGE_BACK, enabled: designMode && singleSelection !== null && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_BACK) },
+      { id: APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL) },
+      { id: APP_COMMANDS.ARRANGE_FLIP_VERTICAL, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FLIP_VERTICAL) },
+      { id: APP_COMMANDS.ARRANGE_MIRROR_ACROSS_LINE, enabled: designMode && selectedObjects.length >= 2 && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_ROTATE_CW, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_ROTATE_CW) },
+      { id: APP_COMMANDS.ARRANGE_ROTATE_CCW, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_ROTATE_CCW) },
+      { id: APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE) },
+      { id: APP_COMMANDS.ARRANGE_NEST_SELECTED, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_GRID_ARRAY, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_CIRCULAR_ARRAY, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_H_TOGETHER, enabled: designMode && canMoveTogether, accelerator: accel(APP_COMMANDS.ARRANGE_MOVE_H_TOGETHER) },
+      { id: APP_COMMANDS.ARRANGE_MOVE_V_TOGETHER, enabled: designMode && canMoveTogether, accelerator: accel(APP_COMMANDS.ARRANGE_MOVE_V_TOGETHER) },
+      { id: APP_COMMANDS.ARRANGE_DOCK_LEFT, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_DOCK_RIGHT, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_DOCK_UP, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_DOCK_DOWN, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_LASER_POSITION, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_PAGE_CENTER, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_MOVE_TO_PAGE_CENTER) },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_UPPER_LEFT, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_UPPER_RIGHT, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_LOWER_LEFT, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_LOWER_RIGHT, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_LEFT, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_RIGHT, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_TOP, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_TO_BOTTOM, enabled: designMode && unlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_CENTER, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_LEFT, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_UPPER_RIGHT, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_LEFT, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LOWER_RIGHT, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_LEFT, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_RIGHT, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_TOP, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_MOVE_LASER_TO_SELECTION_BOTTOM, enabled: canPositionLaser && hasSelection },
+      { id: APP_COMMANDS.ARRANGE_JOG_LASER_LEFT, enabled: canPositionLaser, accelerator: accel(APP_COMMANDS.ARRANGE_JOG_LASER_LEFT) },
+      { id: APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT, enabled: canPositionLaser, accelerator: accel(APP_COMMANDS.ARRANGE_JOG_LASER_RIGHT) },
+      { id: APP_COMMANDS.ARRANGE_JOG_LASER_UP, enabled: canPositionLaser, accelerator: accel(APP_COMMANDS.ARRANGE_JOG_LASER_UP) },
+      { id: APP_COMMANDS.ARRANGE_JOG_LASER_DOWN, enabled: canPositionLaser, accelerator: accel(APP_COMMANDS.ARRANGE_JOG_LASER_DOWN) },
+      { id: APP_COMMANDS.ARRANGE_BREAK_APART, enabled: designMode && singleVectorSelection, accelerator: accel(APP_COMMANDS.ARRANGE_BREAK_APART) },
+      { id: APP_COMMANDS.ARRANGE_COPY_ALONG_PATH, enabled: designMode && selectedObjects.length >= 2 && unlockedSelection && vectorSelection },
+      { id: APP_COMMANDS.ARRANGE_LOCK, enabled: designMode && hasUnlockedSelection },
+      { id: APP_COMMANDS.ARRANGE_UNLOCK, enabled: designMode && hasLockedSelection },
       { id: APP_COMMANDS.WINDOW_SIDE_PANELS, enabled: true, checked: ui.sidePanelsVisible, accelerator: accel(APP_COMMANDS.WINDOW_SIDE_PANELS) },
       { id: APP_COMMANDS.WINDOW_PREVIEW, enabled: projectLoaded, checked: preview.previewWindowOpen, accelerator: accel(APP_COMMANDS.WINDOW_PREVIEW) },
       {
         id: APP_COMMANDS.WINDOW_REFRESH_PREVIEW,
-        enabled: projectLoaded && (preview.previewWindowOpen || preview.state !== 'idle'),
+        enabled: projectLoaded && preview.state !== 'generating',
         accelerator: accel(APP_COMMANDS.WINDOW_REFRESH_PREVIEW),
       },
       { id: APP_COMMANDS.WINDOW_ZOOM_TO_PAGE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.WINDOW_ZOOM_TO_PAGE) },
       { id: APP_COMMANDS.WINDOW_ZOOM_IN, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.WINDOW_ZOOM_IN) },
       { id: APP_COMMANDS.WINDOW_ZOOM_OUT, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.WINDOW_ZOOM_OUT) },
       { id: APP_COMMANDS.WINDOW_FRAME_SELECTION, enabled: hasSelection, accelerator: accel(APP_COMMANDS.WINDOW_FRAME_SELECTION) },
-      ...viewStyleItems,
+      ...artworkDisplayItems,
       {
-        id: APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED,
+        id: APP_COMMANDS.WINDOW_SMOOTH_EDGES,
         enabled: true,
-        accelerator: accel(APP_COMMANDS.WINDOW_TOGGLE_WIREFRAME_FILLED),
+        checked: ui.smoothEdges,
+      },
+      {
+        id: APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME,
+        enabled: true,
+        accelerator: accel(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME),
       },
       ...panelItems,
       ...toolbarItems,

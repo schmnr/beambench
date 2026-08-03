@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AlignmentType, DistributionDirection } from '../../types/project';
 import { useProjectStore } from '../../stores/projectStore';
+import { useMachineStore } from '../../stores/machineStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useCameraStore } from '../../stores/cameraStore';
-import { useNotificationStore } from '../../stores/notificationStore';
-import { wrapBackendError } from '../../i18n/errors';
-import { projectService } from '../../services/projectService';
-import { executeAppCommand } from '../../commands/appCommands';
-import { APP_COMMANDS } from '../../commands/appCommandIds';
-import { isTransformLocked, notifyTransformLocked, notifyObjectLocked } from '../../utils/transformLocks';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyTransformLocked,
+  notifyObjectLocked,
+} from '../../utils/transformLocks';
 import { zoomToFitBounds } from '../../canvas/ViewportTransform';
-import { computeVisualBoundsWorld } from '../../canvas/alignment';
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 import { ROTARY_SETUP_OPEN_EVENT } from '../../rotaryEvents';
@@ -23,28 +22,20 @@ import { useMacroStore } from '../../stores/macroStore';
 import {
   FilePlus, FolderOpen, Save, SaveAll, Import,
   Undo2, Redo2,
-  Scissors, Copy, ClipboardPaste, Trash2,
-  ZoomIn, ZoomOut, Maximize2, Focus,
+  ZoomIn, ZoomOut, Maximize2,
   Grid3x3, Magnet,
   Eye,
   Camera,
   Settings,
-  Group, Ungroup, FlipHorizontal2, FlipVertical2,
-  AlignStartVertical, AlignEndVertical,
-  AlignStartHorizontal, AlignEndHorizontal,
-  AlignCenterHorizontal, AlignCenterVertical,
-  AlignHorizontalSpaceAround, AlignVerticalSpaceAround,
-  Crosshair,
+  FlipHorizontal2, FlipVertical2,
   Play,
+  PenLine, Zap, MapPin,
 } from 'lucide-react';
 import {
   MirrorAcrossLineIcon,
-  MakeSameWidthIcon,
-  MakeSameHeightIcon,
-  MoveHorizontallyTogetherIcon,
-  MoveVerticallyTogetherIcon,
   DockToEdgeIcon,
 } from '../icons/ArrangeIcons';
+import { GridSpacingControl } from './GridSpacingControl';
 
 function Separator() {
   return <div className="w-px h-4 bg-bb-border mx-0.5" />;
@@ -61,20 +52,28 @@ function MacroToolbarIcon({ number }: { number: number }) {
   );
 }
 
+const CONNECTION_DOT_COLORS: Record<string, string> = {
+  disconnected: 'bg-gray-500',
+  connecting: 'bg-yellow-500',
+  ready: 'bg-green-500',
+  alarm: 'bg-red-500',
+};
+
+/** Pill styling per connection state — quiet when idle, loud when live. */
+const CONNECTION_PILL_CLASSES: Record<string, string> = {
+  disconnected: 'bg-bb-surface-2 text-bb-text-muted',
+  connecting: 'bg-bb-warning-bg text-bb-warning-fg',
+  ready: 'bg-bb-success-bg text-bb-success-fg',
+  alarm: 'bg-bb-error-bg text-bb-error-fg',
+};
+
 const FLIP_HORIZONTAL = 'horizontal' as const;
 const FLIP_VERTICAL = 'vertical' as const;
-const ALIGN_LEFT = 'left' as const;
-const ALIGN_RIGHT = 'right' as const;
-const ALIGN_TOP = 'top' as const;
-const ALIGN_BOTTOM = 'bottom' as const;
-const ALIGN_VERTICAL_CENTERS = 'centers_v' as const;
-const ALIGN_HORIZONTAL_CENTERS = 'centers_h' as const;
-const DISTRIBUTE_H_CENTERED = 'h_centered' as const;
-const DISTRIBUTE_V_CENTERED = 'v_centered' as const;
-const SIZE_WIDTH = 'width' as const;
-const SIZE_HEIGHT = 'height' as const;
+const EMERGENCY_STOP_SYMBOL = '■';
 const CONNECTION_SETTINGS_TAB = 'connection' as const;
 const MACHINE_SETTINGS_TAB = 'machine' as const;
+const TOOL_SELECT = 'select' as const;
+const TOOL_LASER_POSITION = 'laser_position' as const;
 
 export function MainToolbar() {
   const { t } = useTranslation();
@@ -86,14 +85,8 @@ export function MainToolbar() {
   const project = useProjectStore((s) => s.project);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
-  const removeObjects = useProjectStore((s) => s.removeObjects);
-  const groupObjects = useProjectStore((s) => s.groupObjects);
-  const ungroupObjects = useProjectStore((s) => s.ungroupObjects);
   const flipObjects = useProjectStore((s) => s.flipObjects);
-  const moveObjectsTo = useProjectStore((s) => s.moveObjectsTo);
-  const moveObjectsTogether = useProjectStore((s) => s.moveObjectsTogether);
   const mirrorAcrossLine = useProjectStore((s) => s.mirrorAcrossLine);
-  const makeSameSize = useProjectStore((s) => s.makeSameSize);
   const computeDockArrangementSelection = useProjectStore((s) => s.computeDockArrangementSelection);
   const computeMirrorAcrossLineSelection = useProjectStore((s) => s.computeMirrorAcrossLineSelection);
 
@@ -105,7 +98,16 @@ export function MainToolbar() {
   const toggleSnap = useUiStore((s) => s.toggleSnap);
   const zoomToFit = useUiStore((s) => s.zoomToFit);
   const toolbarVisibility = useUiStore((s) => s.panelLayout.toolbarVisibility);
-  const hasClipboard = useUiStore((s) => s.hasClipboard);
+  const activeTool = useUiStore((s) => s.activeTool);
+  const setActiveTool = useUiStore((s) => s.setActiveTool);
+
+  const sessionState = useMachineStore((s) => s.sessionState);
+  const emergencyStop = useMachineStore((s) => s.emergencyStop);
+  const activeProfileName = useMachineStore(
+    (s) => (s.profiles ?? []).find((p) => p.id === s.activeProfileId)?.name ?? null,
+  );
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const setWorkspaceMode = useUiStore((s) => s.setWorkspaceMode);
 
   const canUndo = useUndoStore((s) => s.canUndo);
   const canRedo = useUndoStore((s) => s.canRedo);
@@ -140,24 +142,16 @@ export function MainToolbar() {
   }, []);
 
   const hasSelection = selectedObjectIds.length > 0;
-  const selCount = selectedObjectIds.length;
   const selectedObjects = project?.objects.filter((o) => selectedObjectIds.includes(o.id)) ?? [];
   const anyLocked = selectedObjects.some((o) => o.locked);
   const canMutate = hasSelection && !anyLocked;
-  const singleSelected = selectedObjects.length === 1 ? selectedObjects[0] : null;
-  const canGroup = selCount >= 2 && !anyLocked;
-  const canUngroup = selCount === 1 && !anyLocked && singleSelected?.data.type === 'group';
-  const canAlign = selCount >= 2 && !anyLocked;
-  const canDistribute = selCount >= 3 && !anyLocked;
   const arrangementSelection = computeDockArrangementSelection();
   const mirrorAcrossLineSelection = computeMirrorAcrossLineSelection();
-  const canMoveTogether = arrangementSelection.length >= 2 && !anyLocked;
   const canDock = arrangementSelection.length >= 1 && !anyLocked;
   const canMirrorAcrossLine = mirrorAcrossLineSelection.length >= 2 && !anyLocked;
-  const canMakeSameSize = arrangementSelection.length >= 2 && !anyLocked;
 
   const blockTransform = (kind: 'position' | 'scale' | 'rotation') => {
-    const locks = useProjectStore.getState().project?.transform_locks;
+    const locks = effectiveTransformLocks(selectedObjects);
     if (isTransformLocked(locks, kind)) {
       notifyTransformLocked(kind);
       return true;
@@ -171,80 +165,15 @@ export function MainToolbar() {
     void flipObjects(selectedObjectIds, direction);
   };
 
-  const handleAlign = async (alignmentType: AlignmentType) => {
-    if (selectedObjectIds.length < 2) return;
-    if (anyLocked) { notifyObjectLocked(); return; }
-    if (blockTransform('position')) return;
-    try {
-      const updatedObjects = await projectService.alignObjects(selectedObjectIds, alignmentType);
-      const project = useProjectStore.getState().project;
-      if (project) {
-        const updatedMap = new Map(updatedObjects.map((o) => [o.id, o]));
-        useProjectStore.setState({
-          project: {
-            ...project,
-            objects: project.objects.map((o) => updatedMap.get(o.id) ?? o),
-            dirty: true,
-          },
-        });
-        usePreviewStore.getState().invalidate();
-        await useUndoStore.getState().refresh();
-      }
-    } catch (error) {
-      useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
-    }
-  };
-
-  const handleDistribute = async (direction: DistributionDirection) => {
-    if (selectedObjectIds.length < 3) return;
-    if (anyLocked) { notifyObjectLocked(); return; }
-    if (blockTransform('position')) return;
-    try {
-      const updatedObjects = await projectService.distributeObjects(selectedObjectIds, direction);
-      const project = useProjectStore.getState().project;
-      if (project) {
-        const updatedMap = new Map(updatedObjects.map((o) => [o.id, o]));
-        useProjectStore.setState({
-          project: {
-            ...project,
-            objects: project.objects.map((o) => updatedMap.get(o.id) ?? o),
-            dirty: true,
-          },
-        });
-        usePreviewStore.getState().invalidate();
-        await useUndoStore.getState().refresh();
-      }
-    } catch (error) {
-      useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
-    }
-  };
-
-  const handleMoveTogether = async (axis: 'horizontal' | 'vertical') => {
-    await moveObjectsTogether(axis);
-  };
-
   const handleMirrorAcrossLine = async () => {
     if (anyLocked) { notifyObjectLocked(); return; }
     await mirrorAcrossLine();
-  };
-
-  const handleMakeSameSize = async (axis: 'width' | 'height', preserveAspect: boolean) => {
-    await makeSameSize(axis, preserveAspect);
   };
 
   const handleOpenDockDialog = () => {
     if (blockTransform('position')) return;
     if (arrangementSelection.length === 0) return;
     setDockDialogObjectIds(arrangementSelection);
-  };
-
-  const handleCenterOnPage = async () => {
-    if (selectedObjectIds.length < 1 || !project) return;
-    if (anyLocked) { notifyObjectLocked(); return; }
-    if (blockTransform('position')) return;
-    const cx = project.workspace.bed_width_mm / 2;
-    const cy = project.workspace.bed_height_mm / 2;
-    await moveObjectsTo(selectedObjectIds, cx, cy);
   };
 
   const handleImport = () => {
@@ -266,40 +195,70 @@ export function MainToolbar() {
     zoomToFit(result.offset, result.zoom);
   };
 
-  const handleZoomToSelection = () => {
-    if (!project || selectedObjectIds.length === 0) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const id of selectedObjectIds) {
-      const obj = project.objects.find((o) => o.id === id);
-      if (obj) {
-        // Transform-aware bounds: raw obj.bounds ignores rotation/shear and
-        // zooms to the wrong region for rotated objects (matches drawSelection).
-        const vb = computeVisualBoundsWorld(obj, project.objects);
-        minX = Math.min(minX, vb.min.x);
-        minY = Math.min(minY, vb.min.y);
-        maxX = Math.max(maxX, vb.max.x);
-        maxY = Math.max(maxY, vb.max.y);
-      }
-    }
-    if (!isFinite(minX)) return;
-    const size = getCanvasViewportSize();
-    if (!size) return;
-    const result = zoomToFitBounds({ min: { x: minX, y: minY }, max: { x: maxX, y: maxY } }, size.width, size.height);
-    zoomToFit(result.offset, result.zoom);
-  };
-
   const sz = 20;
   const showMain = toolbarVisibility.main;
-  const showArrange = toolbarVisibility.arrange;
-  const showArrangeLong = toolbarVisibility.arrangeLong;
+  const showMirror = toolbarVisibility.arrange || toolbarVisibility.arrangeLong;
   const showDocking = toolbarVisibility.docking;
 
-  if (!showMain && !showArrange && !showArrangeLong && !showDocking) {
+  if (!showMain && workspaceMode !== 'design') {
     return null;
   }
 
+  const normalizedSessionState = sessionState ?? 'disconnected';
+  const connectionDot = CONNECTION_DOT_COLORS[normalizedSessionState] ?? 'bg-gray-500';
+  const connectionLabel = t(`status.connection.${normalizedSessionState}`, {
+    defaultValue:
+      normalizedSessionState.charAt(0).toUpperCase() + normalizedSessionState.slice(1),
+  });
+
   return (
-    <div className="no-select flex items-center h-9 bg-bb-panel px-2 gap-0.5 text-xs border-b border-bb-border">
+    <div className="no-select relative flex items-center h-11 bg-bb-panel px-3 gap-0.5 text-xs border-b border-bb-border">
+      {/* Brand + project identity */}
+      <span
+        aria-hidden="true"
+        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-bb-accent text-[13px] font-extrabold text-bb-on-accent"
+      >
+        B
+      </span>
+      <span className="mx-2 max-w-64 truncate text-xs font-medium text-bb-text">
+        {project?.metadata.project_name ?? t('toolbars.main.untitled_project')}
+        {project?.dirty ? (
+          <span className="text-bb-accent ml-1" title={t('status.unsaved_changes')}>*</span>
+        ) : null}
+      </span>
+      {/* Design | Run workspace switch — the app's primary navigation */}
+      <div
+        className="mx-1.5 flex flex-shrink-0 rounded-xl border border-bb-accent/40 bg-bb-surface-2 p-0.5 shadow-[0_0_10px_rgba(45,212,222,0.15)]"
+        data-testid="mode-switch"
+      >
+        <button
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-1 text-sm ${
+            workspaceMode === 'design'
+              ? 'bg-bb-accent font-bold text-bb-on-accent shadow'
+              : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
+          }`}
+          onClick={() => setWorkspaceMode('design')}
+          title={t('toolbars.main.mode_design_hint')}
+          data-testid="mode-design"
+        >
+          <PenLine size={14} />
+          {t('toolbars.main.mode_design')}
+        </button>
+        <button
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-1 text-sm ${
+            workspaceMode === 'run'
+              ? 'bg-bb-accent font-bold text-bb-on-accent shadow'
+              : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
+          }`}
+          onClick={() => setWorkspaceMode('run')}
+          title={t('toolbars.main.mode_run_hint')}
+          data-testid="mode-run"
+        >
+          <Zap size={14} />
+          {t('toolbars.main.mode_run')}
+        </button>
+      </div>
+      <Separator />
       {showMain && (
         <>
       {/* File group */}
@@ -307,7 +266,7 @@ export function MainToolbar() {
       <IconButton icon={<FolderOpen size={sz} />} label={t('toolbars.main.open')} onClick={() => void openProject()} />
       <IconButton icon={<Save size={sz} />} label={t('toolbars.main.save')} onClick={() => void saveProject()} disabled={!project} />
       <IconButton icon={<SaveAll size={sz} />} label={t('toolbars.main.save_as')} onClick={() => void saveProjectAs()} disabled={!project} />
-      <IconButton icon={<Import size={sz} />} label={t('toolbars.main.import')} onClick={handleImport} disabled={!project} />
+      <IconButton icon={<Import size={sz} />} label={t('toolbars.main.import')} onClick={handleImport} disabled={!project || workspaceMode === 'run'} />
       <Separator />
 
       {/* Undo/Redo */}
@@ -315,33 +274,23 @@ export function MainToolbar() {
       <IconButton icon={<Redo2 size={sz} />} label={t('toolbars.main.redo')} onClick={() => void redo()} disabled={!canRedo} />
       <Separator />
 
-      {/* Clipboard group */}
-      <IconButton icon={<Scissors size={sz} />} label={t('toolbars.main.cut')} onClick={() => void executeAppCommand(APP_COMMANDS.EDIT_CUT)} disabled={!canMutate} />
-      <IconButton icon={<Copy size={sz} />} label={t('toolbars.main.copy')} onClick={() => void executeAppCommand(APP_COMMANDS.EDIT_COPY)} disabled={!hasSelection} />
-      <IconButton
-        icon={<ClipboardPaste size={sz} />}
-        label={t('toolbars.main.paste')}
-        onClick={() => void executeAppCommand(APP_COMMANDS.EDIT_PASTE)}
-        disabled={!project || !hasClipboard}
-      />
-      <IconButton
-        icon={<Trash2 size={sz} />}
-        label={t('toolbars.main.delete')}
-        onClick={() => { if (canMutate) void removeObjects([...selectedObjectIds]); }}
-        disabled={!canMutate}
-      />
-      <Separator />
-
       {/* Zoom group */}
-      <IconButton icon={<ZoomIn size={sz} />} label={t('toolbars.main.zoom_in')} onClick={zoomInFn} />
       <IconButton icon={<ZoomOut size={sz} />} label={t('toolbars.main.zoom_out')} onClick={zoomOutFn} />
-      <IconButton icon={<Maximize2 size={sz} />} label={t('toolbars.main.fit_page')} onClick={handleZoomToPage} disabled={!project} />
-      <IconButton icon={<Focus size={sz} />} label={t('toolbars.main.fit_selection')} onClick={handleZoomToSelection} disabled={!hasSelection} />
+      <IconButton icon={<ZoomIn size={sz} />} label={t('toolbars.main.zoom_in')} onClick={zoomInFn} />
+      <IconButton
+        icon={<Maximize2 size={sz} />}
+        label={t('toolbars.main.fit_page')}
+        onClick={handleZoomToPage}
+        disabled={!project}
+      />
       <Separator />
 
       {/* Grid/Snap */}
-      <IconButton icon={<Grid3x3 size={sz} />} label={t('toolbars.main.grid')} onClick={toggleGrid} active={gridVisible} />
-      <IconButton icon={<Magnet size={sz} />} label={t('toolbars.main.snap')} onClick={toggleSnap} active={snapToGrid} />
+      <div className="flex flex-shrink-0 items-center gap-0.5">
+        <IconButton icon={<Grid3x3 size={sz} />} label={t('toolbars.main.grid')} onClick={toggleGrid} active={gridVisible} />
+        <GridSpacingControl label={t('dialog.settings.grid_spacing')} />
+        <IconButton icon={<Magnet size={sz} />} label={t('toolbars.main.snap')} onClick={toggleSnap} active={snapToGrid} />
+      </div>
       <Separator />
 
       {/* Preview */}
@@ -359,54 +308,35 @@ export function MainToolbar() {
         setDeviceSettingsInitialTab(CONNECTION_SETTINGS_TAB);
         setShowDeviceSettings(true);
       }} />
-      <div className="w-3" />
         </>
       )}
 
-      {showArrange && (
+      {workspaceMode === 'design' && (
         <>
-      {/* Group/Ungroup */}
-      <IconButton icon={<Group size={sz} />} label={t('toolbars.main.group')} onClick={() => void groupObjects(selectedObjectIds)} disabled={!canGroup} />
-      <IconButton icon={<Ungroup size={sz} />} label={t('toolbars.main.ungroup')} onClick={() => void ungroupObjects(selectedObjectIds[0])} disabled={!canUngroup} />
-      <Separator />
-
-      {/* Flip */}
-      <IconButton icon={<FlipHorizontal2 size={sz} />} label={t('toolbars.main.flip_horizontal')} onClick={() => handleFlip(FLIP_HORIZONTAL)} disabled={!canMutate} />
-      <IconButton icon={<FlipVertical2 size={sz} />} label={t('toolbars.main.flip_vertical')} onClick={() => handleFlip(FLIP_VERTICAL)} disabled={!canMutate} />
-      <IconButton icon={<MirrorAcrossLineIcon size={sz} />} label={t('toolbars.main.mirror_across_line')} onClick={() => void handleMirrorAcrossLine()} disabled={!canMirrorAcrossLine} />
-      <Separator />
-
-      {/* Align */}
-      <IconButton icon={<AlignStartVertical size={sz} />} label={t('toolbars.main.align_left')} onClick={() => void handleAlign(ALIGN_LEFT)} disabled={!canAlign} />
-      <IconButton icon={<AlignEndVertical size={sz} />} label={t('toolbars.main.align_right')} onClick={() => void handleAlign(ALIGN_RIGHT)} disabled={!canAlign} />
-      <IconButton icon={<AlignStartHorizontal size={sz} />} label={t('toolbars.main.align_top')} onClick={() => void handleAlign(ALIGN_TOP)} disabled={!canAlign} />
-      <IconButton icon={<AlignEndHorizontal size={sz} />} label={t('toolbars.main.align_bottom')} onClick={() => void handleAlign(ALIGN_BOTTOM)} disabled={!canAlign} />
-      <IconButton icon={<AlignCenterHorizontal size={sz} />} label={t('toolbars.main.align_vertical_centers')} onClick={() => void handleAlign(ALIGN_VERTICAL_CENTERS)} disabled={!canAlign} />
-      <IconButton icon={<AlignCenterVertical size={sz} />} label={t('toolbars.main.align_horizontal_centers')} onClick={() => void handleAlign(ALIGN_HORIZONTAL_CENTERS)} disabled={!canAlign} />
-      <Separator />
-        </>
-      )}
-
-      {showArrangeLong && (
-        <>
-      {/* Distribute */}
-      <IconButton icon={<AlignHorizontalSpaceAround size={sz} />} label={t('toolbars.main.distribute_h_centered')} onClick={() => void handleDistribute(DISTRIBUTE_H_CENTERED)} disabled={!canDistribute} />
-      <IconButton icon={<AlignVerticalSpaceAround size={sz} />} label={t('toolbars.main.distribute_v_centered')} onClick={() => void handleDistribute(DISTRIBUTE_V_CENTERED)} disabled={!canDistribute} />
-      <IconButton icon={<MakeSameWidthIcon size={sz} />} label={t('toolbars.main.make_same_width')} onClick={(event) => void handleMakeSameSize(SIZE_WIDTH, Boolean(event?.shiftKey))} disabled={!canMakeSameSize} />
-      <IconButton icon={<MakeSameHeightIcon size={sz} />} label={t('toolbars.main.make_same_height')} onClick={(event) => void handleMakeSameSize(SIZE_HEIGHT, Boolean(event?.shiftKey))} disabled={!canMakeSameSize} />
-      <IconButton icon={<MoveHorizontallyTogetherIcon size={sz} />} label={t('toolbars.main.move_h_together')} onClick={() => void handleMoveTogether(FLIP_HORIZONTAL)} disabled={!canMoveTogether} />
-      <IconButton icon={<MoveVerticallyTogetherIcon size={sz} />} label={t('toolbars.main.move_v_together')} onClick={() => void handleMoveTogether(FLIP_VERTICAL)} disabled={!canMoveTogether} />
-      <Separator />
-
-      {/* Center on Page */}
-      <IconButton icon={<Crosshair size={sz} />} label={t('toolbars.main.center_on_page')} onClick={() => void handleCenterOnPage()} disabled={!canMutate} />
-        </>
-      )}
-
-      {showDocking && (
-        <>
-          <IconButton icon={<DockToEdgeIcon size={sz} />} label={t('toolbars.main.dock')} onClick={handleOpenDockDialog} disabled={!canDock} />
           <Separator />
+          <IconButton icon={<FlipHorizontal2 size={sz} />} label={t('toolbars.main.flip_horizontal')} onClick={() => handleFlip(FLIP_HORIZONTAL)} disabled={!canMutate} />
+          <IconButton icon={<FlipVertical2 size={sz} />} label={t('toolbars.main.flip_vertical')} onClick={() => handleFlip(FLIP_VERTICAL)} disabled={!canMutate} />
+          {showMirror && (
+            <IconButton icon={<MirrorAcrossLineIcon size={sz} />} label={t('toolbars.main.mirror_across_line')} onClick={() => void handleMirrorAcrossLine()} disabled={!canMirrorAcrossLine} />
+          )}
+          {showDocking && (
+            <IconButton icon={<DockToEdgeIcon size={sz} />} label={t('toolbars.main.dock')} onClick={handleOpenDockDialog} disabled={!canDock} />
+          )}
+          <div className="w-3" />
+        </>
+      )}
+
+      {workspaceMode === 'run' && (
+        <>
+          <Separator />
+          <IconButton
+            icon={<MapPin size={sz} />}
+            label={t('toolbars.creation.laser_position')}
+            onClick={() => setActiveTool(
+              activeTool === TOOL_LASER_POSITION ? TOOL_SELECT : TOOL_LASER_POSITION,
+            )}
+            active={activeTool === TOOL_LASER_POSITION}
+          />
         </>
       )}
 
@@ -427,6 +357,32 @@ export function MainToolbar() {
           })}
         </>
       )}
+
+      {/* Right side: emergency stop (whenever a machine session exists) + connection pill */}
+      <div className="flex-1" />
+      {normalizedSessionState !== 'disconnected' && (
+        <button
+          className="mr-1 flex flex-shrink-0 items-center gap-1 rounded-lg bg-bb-error px-3 py-1 text-xs font-bold text-bb-on-error hover:bg-bb-error-hover"
+          onClick={() => void emergencyStop()}
+          data-testid="toolbar-emergency-stop"
+        >
+          {EMERGENCY_STOP_SYMBOL} {t('panels.machine.laser.stop')}
+        </button>
+      )}
+      <button
+        className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xxs hover:brightness-110 ${
+          CONNECTION_PILL_CLASSES[normalizedSessionState] ?? CONNECTION_PILL_CLASSES.disconnected
+        }`}
+        onClick={() => setWorkspaceMode('run')}
+        title={t('toolbars.main.mode_run_hint')}
+        data-testid="connection-pill"
+      >
+        <span className={`h-2 w-2 rounded-full ${connectionDot}`} />
+        <span>
+          {connectionLabel}
+          {normalizedSessionState !== 'disconnected' && activeProfileName ? ` · ${activeProfileName}` : ''}
+        </span>
+      </button>
 
       {showDeviceSettings && (
         <DeviceSettingsDialog

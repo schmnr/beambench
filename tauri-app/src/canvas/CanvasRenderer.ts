@@ -8,6 +8,7 @@ import type { PreviewState } from '../stores/previewStore';
 import { drawBed, drawGrid, drawOrigin, drawRulers } from './drawWorkspace';
 import {
   applyTransform,
+  appendObjectScreenFillPath,
   buildObjectScreenMaskPath,
   drawObject,
   drawRasterImage,
@@ -22,6 +23,7 @@ import {
 import {
   drawSelectionHighlight,
   drawRubberBand,
+  drawLasso,
   drawShapePreview,
   drawNodeHandles,
   drawHoveredSegment,
@@ -43,10 +45,18 @@ import {
 } from './drawPreview';
 import { previewViewportForWorkspace } from './previewViewport';
 import { PreviewBitmapCache } from './previewBitmapCache';
+import { isObjectVisibleInLayerStack, sortObjectsForLayerStack } from './layerStack';
+export { sortObjectsForLayerStack } from './layerStack';
 import { useNotificationStore } from '../stores/notificationStore';
 import i18n from '../i18n';
 import { getCachedTransformedBoundsWorld } from './sceneIndex';
 import { measureCanvasPerf } from './canvasPerf';
+import { lengthUnitLabel, mmToDisplay, roundDisplayLength } from '../utils/lengthUnits';
+import { layerFillOpacity, layerUsesFilledAppearance } from '../utils/layerAppearance';
+import {
+  mapMeshDeformPoint,
+  type MeshDeformPreviewObject,
+} from './meshDeformPreview';
 import {
   CAMERA_OVERLAY_HANDLE_SIZE_PX,
   mapCameraPixelThroughWarp,
@@ -54,11 +64,17 @@ import {
   cameraOverlayCanvasTransform,
   type CameraOverlayRenderParams,
 } from './cameraOverlay';
-import type { MeasurementDragMetrics, MeasurementSegmentMetrics } from './measurement';
+import type {
+  MeasurementDragMetrics,
+  MeasurementPending,
+  MeasurementResult,
+  MeasurementSegmentMetrics,
+} from './measurement';
 
 export type ToolOverlay =
   | { type: 'none' }
   | { type: 'rubber-band'; startScreen: Point2D; endScreen: Point2D; crossing?: boolean }
+  | { type: 'text-box-preview'; startWorld: Point2D; endWorld: Point2D }
   | {
       type: 'shape-preview';
       // World coordinates, converted at draw time with the CURRENT viewport
@@ -85,10 +101,15 @@ export type ToolOverlay =
       hoveredEndpoint?: NodeId | null;
       joinTargetNodeId?: NodeId | null;
       selectionRect?: { startScreen: Point2D; endScreen: Point2D; crossing?: boolean } | null;
+      selectionLasso?: { points: Point2D[] } | null;
     }
   | { type: 'snap-guides'; guides: { axis: 'x' | 'y'; value: number }[] }
   | { type: 'ruler-guide-preview'; axis: 'horizontal' | 'vertical'; value: number }
-  | { type: 'offset-preview'; paths: { points: Point2D[]; closed: boolean }[] }
+  | {
+      type: 'offset-preview';
+      paths: { points: Point2D[]; closed: boolean }[];
+      translation?: Point2D | null;
+    }
   | {
       type: 'measure-line';
       startScreen: Point2D;
@@ -100,7 +121,9 @@ export type ToolOverlay =
       type: 'measure-inspection';
       hoverObjectId?: string;
       hoverSegment?: MeasurementSegmentMetrics | null;
-      drag?: MeasurementDragMetrics;
+      draft?: MeasurementDragMetrics | null;
+      result?: MeasurementResult | null;
+      pending?: MeasurementPending | null;
     }
   | { type: 'trim-preview'; segmentScreenPoints: Point2D[] }
   | {
@@ -144,6 +167,9 @@ export type ToolOverlay =
   | {
       type: 'mesh-deform';
       gridSize: number;
+      sourceBounds?: import('../types/project').Bounds;
+      previewActive?: boolean;
+      previewObjects?: MeshDeformPreviewObject[];
       handles: {
         worldX: number;
         worldY: number;
@@ -175,6 +201,8 @@ export interface RenderParams {
   theme?: CanvasTheme;
   antialiasing?: boolean;
   filledRendering?: boolean;
+  /** Use each layer's operation to choose wireframe/filled rendering (Design workspace). */
+  useLayerAppearance?: boolean;
   selectionDashOffset?: number;
   showLastPosition?: boolean;
   laserPosition?: Point2D | null;
@@ -199,6 +227,52 @@ export interface CanvasInteractionState {
   objectIds?: string[];
 }
 
+function drawTextBoxPreview(
+  ctx: CanvasRenderingContext2D,
+  overlay: Extract<ToolOverlay, { type: 'text-box-preview' }>,
+  vp: ViewportParams,
+  displayUnit: 'mm' | 'inches',
+): void {
+  const start = worldToScreen(overlay.startWorld, vp);
+  const end = worldToScreen(overlay.endWorld, vp);
+  const left = Math.min(start.x, end.x);
+  const top = Math.min(start.y, end.y);
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(45, 212, 222, 0.95)';
+  ctx.fillStyle = 'rgba(45, 212, 222, 0.07)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 4]);
+  ctx.fillRect(left, top, width, height);
+  ctx.strokeRect(left + 0.5, top + 0.5, Math.max(0, width - 1), Math.max(0, height - 1));
+
+  // Keep the live dimensions attached to the gesture so Box mode feels
+  // like drawing a shape, rather than revealing its size after release.
+  const widthMm = Math.abs(overlay.endWorld.x - overlay.startWorld.x);
+  const heightMm = Math.abs(overlay.endWorld.y - overlay.startWorld.y);
+  const label = `${roundDisplayLength(mmToDisplay(widthMm, displayUnit), displayUnit)} × ${roundDisplayLength(mmToDisplay(heightMm, displayUnit), displayUnit)} ${lengthUnitLabel(displayUnit)}`;
+  ctx.font = '500 11px system-ui, sans-serif';
+  const labelWidth = ctx.measureText(label).width;
+  const badgeWidth = labelWidth + 12;
+  const badgeHeight = 20;
+  const badgeX = Math.max(4, Math.min(left, vp.canvasWidth - badgeWidth - 4));
+  const badgeY = top >= badgeHeight + 8
+    ? top - badgeHeight - 5
+    : Math.min(top + 6, vp.canvasHeight - badgeHeight - 4);
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.beginPath();
+  ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 4);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, badgeX + 6, badgeY + badgeHeight / 2);
+  ctx.restore();
+}
+
 // Default layer colors for preview rendering
 const DEFAULT_LAYER_COLORS = [
   '#ff6b6b',
@@ -213,9 +287,9 @@ const DEFAULT_LAYER_COLORS = [
 
 /**
  * Cached raster image. During load this is the raw `HTMLImageElement`.
- * After load it is replaced with a pre-grayscaled `HTMLCanvasElement` so
- * the main canvas renders a grayscale positioning proxy without having to
- * rely on runtime `ctx.filter` (which has been flaky on some WebKit builds).
+ * After load it is replaced with a pre-grayscaled `HTMLCanvasElement` used
+ * as the stable source for the main canvas's layer-colored burn tint. This
+ * avoids runtime `ctx.filter`, which has been flaky on some WebKit builds.
  */
 export type CachedRasterImage = HTMLImageElement | HTMLCanvasElement;
 
@@ -322,7 +396,8 @@ export class CanvasRenderer {
   /**
    * Ensure an image is loaded for the given asset key. The cached entry is
    * upgraded from an `HTMLImageElement` (during load) to a pre-grayscaled
-   * `HTMLCanvasElement` once the source image finishes decoding.
+   * `HTMLCanvasElement` once the source image finishes decoding. Layer-color
+   * tint variants are cached lazily by the object renderer.
    */
   ensureImage(assetKey: string, blobUrl: string): void {
     if (this.imageCache.has(assetKey)) return;
@@ -518,7 +593,7 @@ export class CanvasRenderer {
         ]),
       );
       if (filled && hasClosedSubpath) {
-        ctx.fillStyle = color + 'B0';
+        ctx.fillStyle = color;
         ctx.fill(mapped);
       }
       ctx.stroke(mapped);
@@ -574,7 +649,7 @@ export class CanvasRenderer {
           drawCommands(subpath.commands, true);
         }
       }
-      ctx.fillStyle = color + 'B0';
+      ctx.fillStyle = color;
       ctx.fill('evenodd');
     }
 
@@ -697,6 +772,51 @@ export class CanvasRenderer {
     };
   }
 
+  private drawLayerCompoundFill(
+    ctx: CanvasRenderingContext2D,
+    layer: Layer,
+    layerObjects: ProjectObject[],
+    allObjects: ProjectObject[],
+    vp: ViewportParams,
+    fillOpacity: number,
+    toolOverlay: ToolOverlay,
+  ): Set<string> {
+    // The active node path is in-flight geometry rather than project geometry.
+    // Keep the layer on its existing per-object rendering during that edit so
+    // the compound pass never flashes stale contours under the live path.
+    if (
+      layerObjects.length < 2
+      || (toolOverlay.type === 'node-edit'
+        && layerObjects.some((object) => object.id === toolOverlay.objectId))
+    ) {
+      return new Set();
+    }
+
+    const compoundObjectIds = new Set<string>();
+    ctx.save();
+    if (layer.enabled === false) ctx.globalAlpha *= 0.3;
+    ctx.globalAlpha *= fillOpacity;
+    if (layer.is_tool_layer === true) ctx.globalAlpha *= 0.6;
+    ctx.fillStyle = layer.color_tag;
+    ctx.beginPath();
+
+    for (const object of layerObjects) {
+      const resolved = this.resolveConcreteObject(object, allObjects);
+      if (!resolved || this.isObjectCulled(resolved, vp)) continue;
+      if (appendObjectScreenFillPath(ctx, resolved, vp)) {
+        compoundObjectIds.add(object.id);
+      }
+    }
+
+    if (compoundObjectIds.size >= 2) {
+      ctx.fill('evenodd');
+    } else {
+      compoundObjectIds.clear();
+    }
+    ctx.restore();
+    return compoundObjectIds;
+  }
+
   private buildRasterMaskRenderContext(
     obj: ProjectObject,
     allObjects: ProjectObject[],
@@ -733,6 +853,7 @@ export class CanvasRenderer {
     theme: CanvasTheme,
     filled: boolean | undefined,
     isToolLayer: boolean,
+    useLayerAppearance: boolean,
   ): void {
     if (obj.data.type === 'raster_image') {
       if (isToolLayer) {
@@ -766,6 +887,7 @@ export class CanvasRenderer {
       isToolLayer,
       this.barcodePathCache,
       this.imageErrorCache,
+      useLayerAppearance,
     );
   }
 
@@ -851,6 +973,8 @@ export class CanvasRenderer {
         layer.visible !== false ? 1 : 0,
         layer.color_tag ?? '',
         layer.is_tool_layer === true ? 1 : 0,
+        layer.fill_opacity ?? 1,
+        layer.entries.map((entry) => entry.operation).join(','),
       ].join(':'))
       .join('|');
     return [
@@ -867,6 +991,7 @@ export class CanvasRenderer {
       params.theme?.canvasBg ?? DARK_THEME.canvasBg,
       params.antialiasing !== false ? 1 : 0,
       params.filledRendering === true ? 1 : 0,
+      params.useLayerAppearance === true ? 1 : 0,
       params.displayUnit ?? 'mm',
       params.showPreview ? 1 : 0,
       previewRevision,
@@ -1143,24 +1268,24 @@ export class CanvasRenderer {
     theme: CanvasTheme,
   ): void {
     const { objects, layers, vp } = params;
-    if (overlay.hoverObjectId) {
-      const object = objects.find((candidate) => candidate.id === overlay.hoverObjectId);
+    const drawHighlightedObject = (objectId: string, color: string, alpha: number) => {
+      const object = objects.find((candidate) => candidate.id === objectId);
       if (object) {
         const sourceLayer = layers.find((layer) => layer.id === object.layer_id);
         const highlightLayer: Layer = sourceLayer
-          ? { ...sourceLayer, color_tag: MEASURE_OBJECT_STROKE, is_tool_layer: false }
+          ? { ...sourceLayer, color_tag: color, is_tool_layer: false }
           : {
               id: 'measure-highlight',
               name: 'Measure Highlight',
               entries: [],
               enabled: true,
               order_index: 0,
-              color_tag: MEASURE_OBJECT_STROKE,
+              color_tag: color,
               visible: true,
               is_tool_layer: false,
             };
         ctx.save();
-        ctx.globalAlpha = 0.95;
+        ctx.globalAlpha = alpha;
         drawObject(
           ctx,
           object,
@@ -1175,6 +1300,13 @@ export class CanvasRenderer {
         );
         ctx.restore();
       }
+    };
+
+    if (overlay.pending?.kind === 'gap') {
+      drawHighlightedObject(overlay.pending.objectId, '#ffd43b', 0.95);
+    }
+    if (overlay.hoverObjectId) {
+      drawHighlightedObject(overlay.hoverObjectId, MEASURE_OBJECT_STROKE, 0.95);
     }
 
     if (overlay.hoverSegment) {
@@ -1196,16 +1328,141 @@ export class CanvasRenderer {
       ctx.restore();
     }
 
-    if (overlay.drag) {
+    if (overlay.pending?.kind === 'angle') {
+      this.drawMeasurementSegment(ctx, overlay.pending.segment, vp, '#ffd43b', 3);
+    }
+
+    if (overlay.pending?.kind === 'linear' && !overlay.draft) {
+      const point = worldToScreen(overlay.pending.start, vp);
+      ctx.save();
+      ctx.fillStyle = '#ffd43b';
+      ctx.strokeStyle = 'rgba(12, 15, 19, 0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (overlay.draft) {
       drawMeasureLine(
         ctx,
-        worldToScreen(overlay.drag.start, vp),
-        worldToScreen(overlay.drag.end, vp),
-        overlay.drag.lengthMm,
-        overlay.drag.angleDeg,
+        worldToScreen(overlay.draft.start, vp),
+        worldToScreen(overlay.draft.end, vp),
+        overlay.draft.lengthMm,
+        overlay.draft.angleDeg,
         displayUnit,
       );
     }
+
+    if (overlay.result) {
+      this.drawMeasurementResult(ctx, overlay.result, vp, displayUnit);
+    }
+  }
+
+  private drawMeasurementSegment(
+    ctx: CanvasRenderingContext2D,
+    segment: MeasurementSegmentMetrics,
+    vp: ViewportParams,
+    color: string,
+    lineWidth = 2,
+  ): void {
+    const start = worldToScreen(segment.start, vp);
+    const end = worldToScreen(segment.end, vp);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+    for (const point of [start, end]) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  private drawMeasurementLabel(
+    ctx: CanvasRenderingContext2D,
+    screenPoint: Point2D,
+    label: string,
+  ): void {
+    ctx.save();
+    ctx.font = '600 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const width = ctx.measureText(label).width + 12;
+    const height = 22;
+    ctx.fillStyle = 'rgba(12, 15, 19, 0.92)';
+    ctx.strokeStyle = '#ffd43b';
+    ctx.lineWidth = 1;
+    ctx.fillRect(screenPoint.x - width / 2, screenPoint.y - height / 2, width, height);
+    ctx.strokeRect(screenPoint.x - width / 2, screenPoint.y - height / 2, width, height);
+    ctx.fillStyle = '#ffd43b';
+    ctx.fillText(label, screenPoint.x, screenPoint.y + 0.5);
+    ctx.restore();
+  }
+
+  private drawMeasurementResult(
+    ctx: CanvasRenderingContext2D,
+    result: MeasurementResult,
+    vp: ViewportParams,
+    displayUnit: 'mm' | 'inches',
+  ): void {
+    const formatLength = (valueMm: number) => {
+      if (displayUnit === 'inches') return `${(valueMm / 25.4).toFixed(3)} in`;
+      return `${valueMm.toFixed(2)} mm`;
+    };
+
+    if (result.kind === 'linear' || result.kind === 'gap') {
+      drawMeasureLine(
+        ctx,
+        worldToScreen(result.start, vp),
+        worldToScreen(result.end, vp),
+        result.lengthMm,
+        result.angleDeg,
+        displayUnit,
+      );
+      return;
+    }
+
+    if (result.kind === 'angle') {
+      this.drawMeasurementSegment(ctx, result.first, vp, '#ffd43b', 2.5);
+      this.drawMeasurementSegment(ctx, result.second, vp, '#ffd43b', 2.5);
+      this.drawMeasurementLabel(
+        ctx,
+        worldToScreen(result.labelPoint, vp),
+        `${result.angleDeg.toFixed(1)}°`,
+      );
+      return;
+    }
+
+    const center = worldToScreen(result.center, vp);
+    const edge = worldToScreen(result.edgePoint, vp);
+    ctx.save();
+    ctx.strokeStyle = '#ffd43b';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath();
+    ctx.moveTo(center.x, center.y);
+    ctx.lineTo(edge.x, edge.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (const point of [center, edge]) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffd43b';
+      ctx.fill();
+    }
+    ctx.restore();
+    const label = result.circular
+      ? `R ${formatLength(result.radiusXmm)}  Ø ${formatLength(result.diameterXmm)}`
+      : `Rx ${formatLength(result.radiusXmm)}  Ry ${formatLength(result.radiusYmm)}`;
+    this.drawMeasurementLabel(ctx, { x: (center.x + edge.x) / 2, y: (center.y + edge.y) / 2 - 12 }, label);
   }
 
   private drawBaseSceneContents(
@@ -1238,12 +1495,39 @@ export class CanvasRenderer {
     drawOrigin(ctx, workspace, vp);
 
     const layerMap = new Map(layers.map((l) => [l.id, l]));
+    const objectsByLayer = new Map<string, ProjectObject[]>();
+    for (const object of visibleObjects) {
+      const layerObjects = objectsByLayer.get(object.layer_id);
+      if (layerObjects) layerObjects.push(object);
+      else objectsByLayer.set(object.layer_id, [object]);
+    }
+    const compoundFillIdsByLayer = new Map<string, Set<string>>();
 
     for (const obj of visibleObjects) {
       const layer = layerMap.get(obj.layer_id);
       if (!layer) continue;
       const isToolLayer = layer.is_tool_layer === true;
       const layerDisabled = layer.enabled === false;
+      const filled = params.useLayerAppearance
+        ? layerUsesFilledAppearance(layer)
+        : params.filledRendering === true;
+      const fillOpacity = params.useLayerAppearance && filled ? layerFillOpacity(layer) : 1;
+      let compoundFillIds = compoundFillIdsByLayer.get(layer.id);
+      if (!compoundFillIds) {
+        compoundFillIds = filled
+          ? this.drawLayerCompoundFill(
+              ctx,
+              layer,
+              objectsByLayer.get(layer.id) ?? [],
+              objects,
+              vp,
+              fillOpacity,
+              toolOverlay,
+            )
+          : new Set();
+        compoundFillIdsByLayer.set(layer.id, compoundFillIds);
+      }
+      const objectFilled = filled && !compoundFillIds.has(obj.id);
 
       if (obj.data.type === 'virtual_clone') {
         const cloneData = obj.data;
@@ -1267,12 +1551,13 @@ export class CanvasRenderer {
           }
           ctx.save();
           if (layerDisabled) ctx.globalAlpha *= 0.3;
+          ctx.globalAlpha *= fillOpacity;
           ctx.globalAlpha *= 0.6;
           ctx.setLineDash([4, 4]);
           const usedProxy =
             resolved.data.type === 'vector_path' &&
             this.shouldUseVectorProxy(resolved, params.interactionState) &&
-            this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, params.filledRendering === true);
+            this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, objectFilled);
           if (!usedProxy) {
             this.drawObjectWithRasterMasks(
               ctx,
@@ -1281,8 +1566,9 @@ export class CanvasRenderer {
               vp,
               objects,
               theme,
-              params.filledRendering,
+              objectFilled,
               isToolLayer,
+              params.useLayerAppearance === true,
             );
           }
           ctx.restore();
@@ -1299,9 +1585,11 @@ export class CanvasRenderer {
         toolOverlay.objectId === obj.id &&
         obj.data.type === 'vector_path'
       ) {
-        if (isToolLayer || layerDisabled) {
+        const needsLayerContext = isToolLayer || layerDisabled || fillOpacity < 1;
+        if (needsLayerContext) {
           ctx.save();
           if (layerDisabled) ctx.globalAlpha *= 0.3;
+          ctx.globalAlpha *= fillOpacity;
           if (isToolLayer) {
             ctx.globalAlpha *= 0.6;
             ctx.setLineDash([8, 4]);
@@ -1313,23 +1601,25 @@ export class CanvasRenderer {
           layer.color_tag,
           vp,
           toolOverlay.nodeToWorld,
-          params.filledRendering,
+          objectFilled,
         );
-        if (isToolLayer || layerDisabled) {
+        if (needsLayerContext) {
           ctx.restore();
         }
       } else {
         if (this.isObjectCulled(obj, vp)) {
           continue;
         }
-        if (layerDisabled) {
+        const needsLayerContext = layerDisabled || fillOpacity < 1;
+        if (needsLayerContext) {
           ctx.save();
-          ctx.globalAlpha *= 0.3;
+          if (layerDisabled) ctx.globalAlpha *= 0.3;
+          ctx.globalAlpha *= fillOpacity;
         }
         const usedProxy =
           obj.data.type === 'vector_path' &&
           this.shouldUseVectorProxy(obj, params.interactionState) &&
-          this.drawVectorProxy(ctx, obj, layer.color_tag, vp, params.filledRendering === true);
+          this.drawVectorProxy(ctx, obj, layer.color_tag, vp, objectFilled);
         if (!usedProxy) {
           this.drawObjectWithRasterMasks(
             ctx,
@@ -1338,11 +1628,12 @@ export class CanvasRenderer {
             vp,
             objects,
             theme,
-            params.filledRendering,
+            objectFilled,
             isToolLayer,
+            params.useLayerAppearance === true,
           );
         }
-        if (layerDisabled) {
+        if (needsLayerContext) {
           ctx.restore();
         }
       }
@@ -1437,24 +1728,56 @@ export class CanvasRenderer {
     // 5. Origin crosshair
     drawOrigin(ctx, workspace, vp);
 
-    // 6. Objects (sorted by z_index, filtered by visibility + layer visible)
+    // 6. Objects (layer stack first, then z-order within each visible layer)
     const layerMap = new Map(layers.map((l) => [l.id, l]));
     const skipId = params.skipObjectId;
-    const visibleObjects = objects
+    const meshPreviewObjectIds = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
+      ? new Set(toolOverlay.previewObjects
+          ?.filter((preview) => !preview.outlineOnly)
+          .map((preview) => preview.objectId) ?? [])
+      : null;
+    const visibleObjects = sortObjectsForLayerStack(objects
       .filter((obj) => {
         if (!obj.visible) return false;
+        if (meshPreviewObjectIds?.has(obj.id)) return false;
         if (skipId && obj.id === skipId) return false;
         const layer = layerMap.get(obj.layer_id);
         if (layer && previewedLayerIds.has(layer.id)) return false;
         return layer?.visible !== false; // Show OFF hides completely
-      })
-      .sort((a, b) => a.z_index - b.z_index);
+      }), layers);
+    const objectsByLayer = new Map<string, ProjectObject[]>();
+    for (const object of visibleObjects) {
+      const layerObjects = objectsByLayer.get(object.layer_id);
+      if (layerObjects) layerObjects.push(object);
+      else objectsByLayer.set(object.layer_id, [object]);
+    }
+    const compoundFillIdsByLayer = new Map<string, Set<string>>();
 
     for (const obj of visibleObjects) {
       const layer = layerMap.get(obj.layer_id);
       if (layer) {
         const isToolLayer = layer.is_tool_layer === true;
         const layerDisabled = layer.enabled === false;
+        const filled = params.useLayerAppearance
+          ? layerUsesFilledAppearance(layer)
+          : params.filledRendering === true;
+        const fillOpacity = params.useLayerAppearance && filled ? layerFillOpacity(layer) : 1;
+        let compoundFillIds = compoundFillIdsByLayer.get(layer.id);
+        if (!compoundFillIds) {
+          compoundFillIds = filled
+            ? this.drawLayerCompoundFill(
+                ctx,
+                layer,
+                objectsByLayer.get(layer.id) ?? [],
+                objects,
+                vp,
+                fillOpacity,
+                toolOverlay,
+              )
+            : new Set();
+          compoundFillIdsByLayer.set(layer.id, compoundFillIds);
+        }
+        const objectFilled = filled && !compoundFillIds.has(obj.id);
 
         // Resolve VirtualClone: follow chain to find real source geometry
         if (obj.data.type === 'virtual_clone') {
@@ -1480,12 +1803,13 @@ export class CanvasRenderer {
             }
             ctx.save();
             if (layerDisabled) ctx.globalAlpha *= 0.3;
+            ctx.globalAlpha *= fillOpacity;
             ctx.globalAlpha *= 0.6;
             ctx.setLineDash([4, 4]);
             const usedProxy =
               resolved.data.type === 'vector_path' &&
               this.shouldUseVectorProxy(resolved, params.interactionState) &&
-              this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, params.filledRendering === true);
+              this.drawVectorProxy(ctx, resolved, layer.color_tag, vp, objectFilled);
             if (!usedProxy) {
               this.drawObjectWithRasterMasks(
                 ctx,
@@ -1494,8 +1818,9 @@ export class CanvasRenderer {
                 vp,
                 objects,
                 theme,
-                params.filledRendering,
+                objectFilled,
                 isToolLayer,
+                params.useLayerAppearance === true,
               );
             }
             ctx.restore();
@@ -1515,9 +1840,11 @@ export class CanvasRenderer {
           toolOverlay.objectId === obj.id &&
           obj.data.type === 'vector_path'
         ) {
-          if (isToolLayer || layerDisabled) {
+          const needsLayerContext = isToolLayer || layerDisabled || fillOpacity < 1;
+          if (needsLayerContext) {
             ctx.save();
             if (layerDisabled) ctx.globalAlpha *= 0.3;
+            ctx.globalAlpha *= fillOpacity;
             if (isToolLayer) {
               ctx.globalAlpha *= 0.6;
               ctx.setLineDash([8, 4]);
@@ -1529,23 +1856,25 @@ export class CanvasRenderer {
             layer.color_tag,
             vp,
             toolOverlay.nodeToWorld,
-            params.filledRendering,
+            objectFilled,
           );
-          if (isToolLayer || layerDisabled) {
+          if (needsLayerContext) {
             ctx.restore();
           }
         } else {
           if (this.isObjectCulled(obj, vp)) {
             continue;
           }
-          if (layerDisabled) {
+          const needsLayerContext = layerDisabled || fillOpacity < 1;
+          if (needsLayerContext) {
             ctx.save();
-            ctx.globalAlpha *= 0.3;
+            if (layerDisabled) ctx.globalAlpha *= 0.3;
+            ctx.globalAlpha *= fillOpacity;
           }
           const usedProxy =
             obj.data.type === 'vector_path' &&
             this.shouldUseVectorProxy(obj, params.interactionState) &&
-            this.drawVectorProxy(ctx, obj, layer.color_tag, vp, params.filledRendering === true);
+            this.drawVectorProxy(ctx, obj, layer.color_tag, vp, objectFilled);
           if (!usedProxy) {
             this.drawObjectWithRasterMasks(
               ctx,
@@ -1554,11 +1883,12 @@ export class CanvasRenderer {
               vp,
               objects,
               theme,
-              params.filledRendering,
+              objectFilled,
               isToolLayer,
+              params.useLayerAppearance === true,
             );
           }
-          if (layerDisabled) {
+          if (needsLayerContext) {
             ctx.restore();
           }
         }
@@ -1575,9 +1905,13 @@ export class CanvasRenderer {
     }
 
     // 6. Selection highlights and handles (skip object being text-edited)
-    const selectedObjects = objects.filter(
-      (o) => selectedObjectIds.includes(o.id) && o.id !== skipId,
-    );
+    const selectedObjects = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
+      ? []
+      : objects.filter(
+          (o) => selectedObjectIds.includes(o.id)
+            && o.id !== skipId
+            && isObjectVisibleInLayerStack(o, layers),
+        );
     if (selectedObjects.length > 0) {
       const selectionLocks = toolOverlay.type === 'mesh-deform'
         ? { move_enabled: false, size_enabled: false, rotate_enabled: false, shear_enabled: false }
@@ -1619,6 +1953,10 @@ export class CanvasRenderer {
       case 'rubber-band':
         drawRubberBand(ctx, toolOverlay.startScreen, toolOverlay.endScreen, toolOverlay.crossing);
         break;
+      case 'text-box-preview': {
+        drawTextBoxPreview(ctx, toolOverlay, vp, displayUnit);
+        break;
+      }
       case 'shape-preview': {
         // Convert with the CURRENT viewport so mid-draw zoom/pan keeps the
         // preview at true world size.
@@ -1667,6 +2005,9 @@ export class CanvasRenderer {
             toolOverlay.selectionRect.crossing,
           );
         }
+        if (toolOverlay.selectionLasso) {
+          drawLasso(ctx, toolOverlay.selectionLasso.points);
+        }
         drawNodeHandles(
           ctx,
           toolOverlay.paths,
@@ -1687,7 +2028,7 @@ export class CanvasRenderer {
         );
         break;
       case 'offset-preview':
-        this.drawOffsetPreview(ctx, toolOverlay.paths, vp);
+        this.drawOffsetPreview(ctx, toolOverlay.paths, vp, toolOverlay.translation);
         break;
       case 'measure-line':
         drawMeasureLine(
@@ -1751,15 +2092,17 @@ export class CanvasRenderer {
         );
         break;
       case 'mesh-deform':
-        drawMeshDeformOverlay(
-          ctx,
-          toolOverlay.handles.map((handle) => ({
-            screen: worldToScreen({ x: handle.worldX, y: handle.worldY }, vp),
-            active: handle.active,
-            hovered: handle.hovered,
-          })),
-          toolOverlay.gridSize,
-        );
+        if (!toolOverlay.previewActive) {
+          drawMeshDeformOverlay(
+            ctx,
+            toolOverlay.handles.map((handle) => ({
+              screen: worldToScreen({ x: handle.worldX, y: handle.worldY }, vp),
+              active: handle.active,
+              hovered: handle.hovered,
+            })),
+            toolOverlay.gridSize,
+          );
+        }
         break;
       case 'camera-overlay-adjust':
         this.drawCameraOverlayAdjustHandles(
@@ -1828,15 +2171,21 @@ export class CanvasRenderer {
       ctx.imageSmoothingEnabled = params.antialiasing !== false;
       const layerMap = new Map(layers.map((l) => [l.id, l]));
       const skipId = params.skipObjectId;
-      const visibleObjects = objects
+      const meshPreviewObjectIds = params.toolOverlay.type === 'mesh-deform'
+        && params.toolOverlay.previewActive
+        ? new Set(params.toolOverlay.previewObjects
+            ?.filter((preview) => !preview.outlineOnly)
+            .map((preview) => preview.objectId) ?? [])
+        : null;
+      const visibleObjects = sortObjectsForLayerStack(objects
         .filter((obj) => {
           if (!obj.visible) return false;
+          if (meshPreviewObjectIds?.has(obj.id)) return false;
           if (skipId && obj.id === skipId) return false;
           const layer = layerMap.get(obj.layer_id);
           if (layer && previewedLayerIds.has(layer.id)) return false;
           return layer?.visible !== false;
-        })
-        .sort((a, b) => a.z_index - b.z_index);
+        }), layers);
       const currentSnapshots = this.buildBaseObjectSnapshots(visibleObjects, objects, vp);
       const currentSignature = this.getBaseSceneSignature(params, previewedLayerIds);
       const canUseDirtyRect =
@@ -1886,9 +2235,13 @@ export class CanvasRenderer {
         ctx.clearRect(0, 0, vp.canvasWidth, vp.canvasHeight);
       }
 
-      const selectedObjects = objects.filter(
-        (o) => selectedObjectIds.includes(o.id) && o.id !== skipId,
-      );
+      const selectedObjects = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
+        ? []
+        : objects.filter(
+            (o) => selectedObjectIds.includes(o.id)
+              && o.id !== skipId
+              && isObjectVisibleInLayerStack(o, params.layers),
+          );
       if (selectedObjects.length > 0) {
         const selectionLocks = toolOverlay.type === 'mesh-deform'
           ? { move_enabled: false, size_enabled: false, rotate_enabled: false, shear_enabled: false }
@@ -1907,6 +2260,9 @@ export class CanvasRenderer {
       switch (toolOverlay.type) {
       case 'rubber-band':
         drawRubberBand(ctx, toolOverlay.startScreen, toolOverlay.endScreen, toolOverlay.crossing);
+        break;
+      case 'text-box-preview':
+        drawTextBoxPreview(ctx, toolOverlay, vp, displayUnit);
         break;
       case 'shape-preview': {
         // Convert with the CURRENT viewport so mid-draw zoom/pan keeps the
@@ -1956,6 +2312,9 @@ export class CanvasRenderer {
             toolOverlay.selectionRect.crossing,
           );
         }
+        if (toolOverlay.selectionLasso) {
+          drawLasso(ctx, toolOverlay.selectionLasso.points);
+        }
         drawNodeHandles(
           ctx,
           toolOverlay.paths,
@@ -1976,7 +2335,7 @@ export class CanvasRenderer {
         );
         break;
       case 'offset-preview':
-        this.drawOffsetPreview(ctx, toolOverlay.paths, vp);
+        this.drawOffsetPreview(ctx, toolOverlay.paths, vp, toolOverlay.translation);
         break;
       case 'measure-line':
         drawMeasureLine(
@@ -2040,6 +2399,7 @@ export class CanvasRenderer {
         );
         break;
       case 'mesh-deform':
+        this.drawMeshDeformLivePreview(ctx, toolOverlay, params);
         drawMeshDeformOverlay(
           ctx,
           toolOverlay.handles.map((handle) => ({
@@ -2073,6 +2433,65 @@ export class CanvasRenderer {
         );
       }
     });
+  }
+
+  private drawMeshDeformLivePreview(
+    ctx: CanvasRenderingContext2D,
+    overlay: Extract<ToolOverlay, { type: 'mesh-deform' }>,
+    params: RenderParams,
+  ): void {
+    if (
+      !overlay.previewActive
+      || !overlay.sourceBounds
+      || !overlay.previewObjects
+      || overlay.previewObjects.length === 0
+    ) return;
+
+    const layerMap = new Map(params.layers.map((layer) => [layer.id, layer]));
+    const handles = overlay.handles.map((handle) => ({ x: handle.worldX, y: handle.worldY }));
+    for (const preview of overlay.previewObjects) {
+      const layer = layerMap.get(preview.layerId);
+      if (!layer || layer.visible === false) continue;
+      const path = new Path2D();
+      for (const sourcePath of preview.paths) {
+        if (sourcePath.points.length < 2) continue;
+        const first = worldToScreen(mapMeshDeformPoint(
+          sourcePath.points[0],
+          overlay.sourceBounds,
+          handles,
+          overlay.gridSize,
+          overlay.gridSize === 2,
+        ), params.vp);
+        path.moveTo(first.x, first.y);
+        for (let index = 1; index < sourcePath.points.length; index++) {
+          const screen = worldToScreen(mapMeshDeformPoint(
+            sourcePath.points[index],
+            overlay.sourceBounds,
+            handles,
+            overlay.gridSize,
+            overlay.gridSize === 2,
+          ), params.vp);
+          path.lineTo(screen.x, screen.y);
+        }
+        if (sourcePath.closed) path.closePath();
+      }
+
+      const filled = !preview.outlineOnly
+        && (params.useLayerAppearance
+          ? layerUsesFilledAppearance(layer)
+          : params.filledRendering === true);
+      ctx.save();
+      ctx.strokeStyle = layer.color_tag;
+      ctx.fillStyle = layer.color_tag;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = layer.enabled === false ? 0.3 : 1;
+      if (filled) {
+        ctx.globalAlpha *= params.useLayerAppearance ? layerFillOpacity(layer) : 1;
+        ctx.fill(path, 'evenodd');
+      }
+      ctx.stroke(path);
+      ctx.restore();
+    }
   }
 
   private drawPreviewBadge(
@@ -2211,6 +2630,7 @@ export class CanvasRenderer {
     ctx: CanvasRenderingContext2D,
     paths: { points: Point2D[]; closed: boolean }[],
     vp: ViewportParams,
+    translation?: Point2D | null,
   ): void {
     ctx.save();
     ctx.strokeStyle = '#38bdf8';
@@ -2221,10 +2641,18 @@ export class CanvasRenderer {
     for (const path of paths) {
       if (path.points.length < 2) continue;
       ctx.beginPath();
-      const first = worldToScreen(path.points[0], vp);
+      const translateX = translation?.x ?? 0;
+      const translateY = translation?.y ?? 0;
+      const first = worldToScreen({
+        x: path.points[0].x + translateX,
+        y: path.points[0].y + translateY,
+      }, vp);
       ctx.moveTo(first.x, first.y);
       for (let i = 1; i < path.points.length; i++) {
-        const p = worldToScreen(path.points[i], vp);
+        const p = worldToScreen({
+          x: path.points[i].x + translateX,
+          y: path.points[i].y + translateY,
+        }, vp);
         ctx.lineTo(p.x, p.y);
       }
       if (path.closed) ctx.closePath();

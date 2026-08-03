@@ -16,6 +16,7 @@ export interface AppSettingsUpdate {
   ui_theme?: AppSettings['ui_theme'];
   dark_mode?: boolean;
   antialiasing?: boolean;
+  artwork_display_mode?: AppSettings['artwork_display_mode'];
   filled_rendering?: boolean;
   reduce_motion?: boolean;
   show_palette_labels?: boolean;
@@ -32,7 +33,6 @@ export interface AppSettingsUpdate {
   last_radius_mm?: number;
   export_settings?: AppSettings['export_settings'];
   allow_importing_to_tool_layers?: boolean;
-  include_tool_layers_in_job_bounds?: boolean;
   check_for_updates_on_startup?: boolean;
   update_snoozed_until?: string;
   skipped_update_version?: string;
@@ -52,33 +52,47 @@ function snakeToCamel(obj: Record<string, unknown>): Record<string, unknown> {
 }
 
 function serializePanelLayout(layout: PanelLayoutState): Record<string, unknown> {
+  const serializeZones = (zones: PanelLayoutState['zones']) => Object.fromEntries(
+    Object.entries(zones).map(([zoneId, zone]) => [
+      zoneId,
+      {
+        panel_ids: zone.panelIds,
+        active_tab: zone.activeTab,
+      },
+    ]),
+  );
+  const serializeFloating = (panels: PanelLayoutState['floatingPanels']) => panels.map((fp) => ({
+    panel_id: fp.panelId,
+    x: fp.x,
+    y: fp.y,
+    width: fp.width,
+    height: fp.height,
+    z_index: fp.zIndex,
+    origin_zone: fp.originZone ?? null,
+    origin_index: fp.originIndex ?? null,
+  }));
+
   return {
-    zones: Object.fromEntries(
-      Object.entries(layout.zones).map(([zoneId, zone]) => [
-        zoneId,
-        {
-          panel_ids: zone.panelIds,
-          active_tab: zone.activeTab,
-        },
-      ]),
-    ),
+    layout_version: layout.layoutVersion,
+    zones: serializeZones(layout.zones),
     hidden_panel_ids: layout.hiddenPanelIds,
     upper_split_ratio: layout.upperSplitRatio,
+    run_zones: serializeZones(layout.runZones),
+    run_hidden_panel_ids: layout.runHiddenPanelIds,
+    run_upper_split_ratio: layout.runUpperSplitRatio,
+    column_split_ratios: {
+      design_left: layout.columnRatios.left,
+      design_right: layout.columnRatios.right,
+      run_left: layout.runColumnRatios.left,
+      run_right: layout.runColumnRatios.right,
+    },
+    run_floating_panels: serializeFloating(layout.runFloatingPanels),
     right_panel_width: layout.rightPanelWidth,
     left_panel_width: layout.leftPanelWidth,
     bottom_panel_height: layout.bottomPanelHeight,
     side_panels_visible: layout.sidePanelsVisible,
     toolbar_visibility: layout.toolbarVisibility,
-    floating_panels: layout.floatingPanels.map((fp) => ({
-      panel_id: fp.panelId,
-      x: fp.x,
-      y: fp.y,
-      width: fp.width,
-      height: fp.height,
-      z_index: fp.zIndex,
-      origin_zone: fp.originZone ?? null,
-      origin_index: fp.originIndex ?? null,
-    })),
+    floating_panels: serializeFloating(layout.floatingPanels),
   };
 }
 
@@ -97,10 +111,6 @@ export const appService = {
 
   async getSettings(): Promise<AppSettings> {
     return invoke<AppSettings>('get_app_settings');
-  },
-
-  async openNewWindow(): Promise<string> {
-    return invoke<string>('open_new_window');
   },
 
   /**

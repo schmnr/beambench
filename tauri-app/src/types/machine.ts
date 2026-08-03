@@ -335,6 +335,14 @@ export interface DeviceCapabilities {
 }
 
 export interface MachineRuntimeState {
+  controller_family: ControllerFamily | null;
+  controller_model: ControllerModel | null;
+  controller_driver: ControllerDriverId | null;
+  controller_selection: ExplicitControllerSelection | null;
+  experimental_mode: boolean;
+  product_tier: ControllerProductTier | null;
+  evidence_state: ControllerEvidenceState | null;
+  transport_kind: TransportKind | null;
   capabilities: DeviceCapabilities | null;
   session_state: SessionState;
 }

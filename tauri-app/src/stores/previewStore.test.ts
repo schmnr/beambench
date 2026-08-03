@@ -672,4 +672,5 @@ describe('previewStore', () => {
     await vi.advanceTimersByTimeAsync(500);
     expect(previewService.generatePreview).toHaveBeenCalledTimes(1);
   });
+
 });

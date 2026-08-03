@@ -1,0 +1,377 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Eye, EyeOff, Plus } from 'lucide-react';
+import { useProjectStore } from '../../stores/projectStore';
+import { useAppStore } from '../../stores/appStore';
+import { projectService } from '../../services/projectService';
+import { useNotificationStore } from '../../stores/notificationStore';
+import { wrapBackendError } from '../../i18n/errors';
+import { resolveDestinationLayer, normColor } from '../../stores/layerFamilyResolver';
+import { PALETTE_COLORS } from '../../constants/palette';
+import { formatSpeedForDisplay } from '../../utils/speedUnits';
+import { useUiStore } from '../../stores/uiStore';
+import { ContextMenu } from '../shared/ContextMenu';
+import { buildLayerContextMenuItems } from './layerMenuItems';
+import { buildLayerListHeaderMenuItems } from './LayerListHeaderMenu';
+import { CutSettingsEditor } from './CutSettingsEditor';
+import { displayLayerName, layerOperation, operationDisplayLabel } from './layerNaming';
+import { LayerModeIcon } from './LayerModeIcon';
+
+const ONLY_THIS_ON = 'only_this_on' as const;
+const DESIGN_WORKSPACE = 'design' as const;
+const LAYERS_PANEL_ID = 'cuts_layers';
+
+/**
+ * Layer tabs above the workspace. One tab per layer: color dot, name,
+ * speed/power summary, visibility eye. Clicking a tab sets the active layer
+ * for new objects. Moving existing objects between layers is an explicit
+ * action elsewhere in the UI. The `+` tab creates a layer using the first
+ * unused palette color.
+ */
+export function LayerTabs() {
+  const { t } = useTranslation();
+  const project = useProjectStore((s) => s.project);
+  const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
+  const selectLayer = useProjectStore((s) => s.selectLayer);
+  const addLayer = useProjectStore((s) => s.addLayer);
+  const updateLayer = useProjectStore((s) => s.updateLayer);
+  const loadProject = useProjectStore((s) => s.loadProject);
+  const reorderLayer = useProjectStore((s) => s.reorderLayer);
+  const removeLayer = useProjectStore((s) => s.removeLayer);
+  const lockObjects = useProjectStore((s) => s.lockObjects);
+  const unlockObjects = useProjectStore((s) => s.unlockObjects);
+  const selectObjects = useProjectStore((s) => s.selectObjects);
+  const copyLayerSettings = useProjectStore((s) => s.copyLayerSettings);
+  const pasteLayerSettings = useProjectStore((s) => s.pasteLayerSettings);
+  const setAllLayersEnabled = useProjectStore((s) => s.setAllLayersEnabled);
+  const setAllLayersVisible = useProjectStore((s) => s.setAllLayersVisible);
+  const sortLayersCutLast = useProjectStore((s) => s.sortLayersCutLast);
+  const flashLayer = useUiStore((s) => s.flashLayer);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
+  const layerSettingsClipboard = useUiStore((s) => s.layerSettingsClipboard);
+  const displayUnit = useAppStore((s) => s.settings?.display_unit) === 'inches' ? 'inches' : 'mm';
+  const speedTimeUnit = useAppStore((s) => s.settings?.speed_time_unit) === 'seconds' ? 'seconds' : 'minutes';
+  const canvasDark = useAppStore((s) => s.settings?.dark_mode) === true;
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
+  const [stripMenu, setStripMenu] = useState<{ x: number; y: number } | null>(null);
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  if (!project) return null;
+
+  // Tabs sit on the canvas edge, so they follow the canvas light/dark
+  // setting (settings.dark_mode), not the app chrome theme — matching
+  // the workspace paper they attach to.
+  const tabColors = canvasDark
+    ? {
+        active: { background: '#2a2a2a', borderColor: '#555555', color: '#e5e5e5' },
+        inactive: { background: '#3a3a3a', borderColor: '#4a4a4a', color: '#9a9a9a' },
+        dim: '#8a8a8a',
+      }
+    : {
+        active: { background: '#ffffff', borderColor: '#cccccc', color: '#1e293b' },
+        inactive: { background: '#eceff1', borderColor: '#d6dade', color: '#64748b' },
+        dim: '#94a3b8',
+      };
+
+  const revealLayersPanel = () => {
+    const ui = useUiStore.getState();
+    if (ui.workspaceMode !== DESIGN_WORKSPACE) return;
+    if (!ui.sidePanelsVisible) ui.toggleSidePanels();
+    useUiStore.getState().showPanel(LAYERS_PANEL_ID);
+  };
+
+  const handleTabClick = (layerId: string, shiftKey: boolean) => {
+    if (shiftKey) {
+      // Shift-click selects all objects on the layer (old row behavior).
+      const layerObjIds = project.objects
+        .filter((o) => o.layer_id === layerId)
+        .map((o) => o.id)
+        .reverse();
+      selectObjects(layerObjIds);
+      return;
+    }
+    selectLayer(layerId);
+    revealLayersPanel();
+  };
+
+  const handleCommitRename = async () => {
+    if (renamingLayerId && renameValue.trim()) {
+      const renamed = await updateLayer(renamingLayerId, { name: renameValue.trim() });
+      if (!renamed) return;
+    }
+    setRenamingLayerId(null);
+  };
+
+  const handleToggleVisible = async (layerId: string, visible: boolean) => {
+    try {
+      await projectService.setLayerVisible(layerId, visible);
+      await loadProject({ invalidatePreview: true });
+    } catch (error) {
+      useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
+    }
+  };
+
+  const createOrSelectLayerForColor = async (colorHex: string) => {
+    const out = resolveDestinationLayer({
+      project,
+      requestedLayerId: null,
+      pendingColor: colorHex,
+      selectedLayerId: null,
+      contentKind: 'non_raster',
+    });
+    if (out.kind === 'needs_create') {
+      await addLayer(out.suggestedName, out.operation);
+      const createdLayers = useProjectStore.getState().project?.layers ?? [];
+      const created = createdLayers[createdLayers.length - 1];
+      if (created) await updateLayer(created.id, { color_tag: out.colorTag });
+    } else {
+      selectLayer(out.layerId);
+    }
+  };
+
+  const handleAddLayer = async () => {
+    if (useUiStore.getState().workspaceMode === 'run') return;
+    revealLayersPanel();
+    const used = new Set(project.layers.map((l) => normColor(l.color_tag)));
+    const nextColor = PALETTE_COLORS.find(
+      (c) => !c.is_tool_layer && !used.has(normColor(c.hex)),
+    );
+    if (!nextColor) return;
+    await createOrSelectLayerForColor(nextColor.hex);
+  };
+
+
+  return (
+    <div
+      className="no-select flex items-end overflow-x-auto scrollbar-none px-3 pt-2 bg-bb-bg"
+      role="tablist"
+      onContextMenu={(e) => {
+        // Right-click on the strip background: batch enable/show/sort menu.
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+          setStripMenu({ x: e.clientX, y: e.clientY });
+        }
+      }}
+    >
+      {project.layers.map((layer, index) => {
+        const activeLayerId = selectedLayerId ?? project.layers[0]?.id;
+        const active = layer.id === activeLayerId;
+        const entry = layer.entries[0];
+        const operation = layerOperation(layer);
+        const hidden = layer.visible === false;
+        return (
+          <button
+            key={layer.id}
+            onClick={(e) => handleTabClick(layer.id, e.shiftKey)}
+            onDoubleClick={() => {
+              if (workspaceMode === 'run') return;
+              if (!layer.is_tool_layer) setEditingLayerId(layer.id);
+            }}
+            onContextMenu={(e) => {
+              if (workspaceMode === 'run') return;
+              e.preventDefault();
+              e.stopPropagation();
+              selectLayer(layer.id);
+              if (e.shiftKey) {
+                // Shift-right-click: flash the layer's content instead of a menu.
+                flashLayer(layer.id);
+                return;
+              }
+              queueMicrotask(() => setContextMenu({ x: e.clientX, y: e.clientY, layerId: layer.id }));
+            }}
+            draggable={workspaceMode === 'design'}
+            role="tab"
+            aria-selected={active}
+            data-testid="layer-tab"
+            onDragStart={(e) => {
+              if (workspaceMode === 'run') return;
+              setDragIndex(index);
+              e.dataTransfer.effectAllowed = 'move';
+            }}
+            onDragOver={(e) => {
+              if (dragIndex === null || dragIndex === index) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setDropIndex(index);
+            }}
+            onDragLeave={() => {
+              if (dropIndex === index) setDropIndex(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragIndex !== null && dragIndex !== index) {
+                const dragged = project.layers[dragIndex];
+                // reorderLayer removes the source before inserting it. When
+                // moving forward, compensate for that removal so the tab
+                // lands on the hovered slot instead of one position after it.
+                const targetIndex = dragIndex < index ? index - 1 : index;
+                if (dragged) void reorderLayer(dragged.id, targetIndex);
+              }
+              setDragIndex(null);
+              setDropIndex(null);
+            }}
+            onDragEnd={() => {
+              setDragIndex(null);
+              setDropIndex(null);
+            }}
+            className={`relative flex items-center gap-1.5 rounded-t-lg border border-b-0 ${
+              active
+                ? 'flex-shrink-0 px-3 py-1.5 text-xs font-semibold shadow-sm'
+                : 'min-w-0 flex-shrink px-2.5 py-1 text-xxs'
+            } ${layer.is_tool_layer ? 'border-dashed' : ''} ${dragIndex === index ? 'opacity-40' : ''}`}
+            style={{
+              ...(active ? tabColors.active : tabColors.inactive),
+              marginLeft: index === 0 ? 0 : -8,
+              zIndex: active ? 30 : 20 - Math.min(index, 15),
+              // Inactive tabs compress browser-style; active keeps full detail.
+              ...(active ? {} : { maxWidth: '8rem', minWidth: '1.9rem' }),
+              ...(dropIndex === index
+                ? { outline: '2px solid rgb(var(--bb-accent))', outlineOffset: -2 }
+                : {}),
+            }}
+            title={layer.name}
+          >
+            <span
+              className="h-2 w-2 flex-shrink-0 rounded-full"
+              style={{ backgroundColor: layer.color_tag }}
+            />
+            <span
+              className="flex shrink-0 items-center"
+              role="img"
+              aria-label={`${t('panels.layers.header.mode')}: ${operationDisplayLabel(operation)}`}
+              title={operationDisplayLabel(operation)}
+            >
+              <LayerModeIcon operation={operation} size={11} testId="tab-mode-icon" />
+            </span>
+            {renamingLayerId === layer.id ? (
+              <input
+                autoFocus
+                className="w-24 rounded border border-bb-accent bg-bb-input px-0.5 text-xxs text-bb-text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={() => { void handleCommitRename(); }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setRenamingLayerId(null);
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                data-testid="tab-rename-input"
+              />
+            ) : (
+              <span className="min-w-0 max-w-32 truncate" data-testid="tab-label">{displayLayerName(layer)}</span>
+            )}
+            {active && !layer.is_tool_layer && entry && (
+              <span className="flex-shrink-0" data-testid="speed-power" style={{ color: tabColors.dim }}>
+                {formatSpeedForDisplay(entry.speed_mm_min ?? 1000, displayUnit, speedTimeUnit)}/{entry.power_percent ?? 50}%
+              </span>
+            )}
+            {(active || hidden) && (
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label={t('panels.layers.header.show')}
+              className="flex-shrink-0"
+              style={{ color: hidden ? tabColors.dim : undefined, opacity: hidden ? 0.6 : 1 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleToggleVisible(layer.id, hidden);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  void handleToggleVisible(layer.id, hidden);
+                }
+              }}
+            >
+              {hidden ? <EyeOff size={11} /> : <Eye size={11} />}
+            </span>
+            )}
+          </button>
+        );
+      })}
+      {workspaceMode === 'design' && (
+        <button
+          onClick={() => void handleAddLayer()}
+          aria-label={t('panels.layers.add_layer')}
+          title={t('panels.layers.add_layer')}
+          data-testid="add-layer-tab"
+          className="relative flex flex-shrink-0 items-center rounded-t-lg border border-b-0 px-2 py-1"
+          style={{ ...tabColors.inactive, marginLeft: project.layers.length > 0 ? -8 : 0, zIndex: 1 }}
+        >
+          <Plus size={12} />
+        </button>
+      )}
+
+      {/* Per-layer context menu (ported from the layer table rows) */}
+      {contextMenu && (() => {
+        const ctxLayer = project.layers.find((l) => l.id === contextMenu.layerId);
+        if (!ctxLayer) return null;
+        return (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={buildLayerContextMenuItems(t, ctxLayer, project.objects, {
+              toggleEnabled: (layerId, enabled) => void updateLayer(layerId, { enabled }),
+              toggleVisible: (layerId, visible) => void handleToggleVisible(layerId, visible),
+              selectObjects,
+              copySettings: (layer) => { if (!layer.is_tool_layer) copyLayerSettings(layer.id); },
+              pasteSettings: (layerId) => void pasteLayerSettings(layerId),
+              startRename: (layerId) => {
+                const layer = project.layers.find((l) => l.id === layerId);
+                setRenamingLayerId(layerId);
+                setRenameValue(layer?.name ?? '');
+              },
+              hasClipboard: layerSettingsClipboard !== null && layerSettingsClipboard.length > 0,
+              disableAllButThis: (layerId) => void setAllLayersEnabled({ kind: ONLY_THIS_ON, keep: layerId }),
+              hideAllButThis: (layerId) => void setAllLayersVisible({ kind: ONLY_THIS_ON, keep: layerId }),
+              flashLayer: (layerId) => flashLayer(layerId),
+              deleteLayer: (layerId) => void removeLayer(layerId),
+              toggleLockObjects: (layerId) => {
+                const layerObjs = project.objects.filter((o) => o.layer_id === layerId);
+                if (layerObjs.length === 0) return;
+                const ids = layerObjs.map((o) => o.id);
+                if (layerObjs.every((o) => o.locked)) void unlockObjects(ids);
+                else void lockObjects(ids);
+              },
+            })}
+            onClose={() => setContextMenu(null)}
+          />
+        );
+      })()}
+
+      {/* Strip background menu: enable/show all, sort cuts last */}
+      {stripMenu && (
+        <ContextMenu
+          x={stripMenu.x}
+          y={stripMenu.y}
+          items={buildLayerListHeaderMenuItems(t, {
+            setAllLayersEnabled: (mode) => void setAllLayersEnabled(mode),
+            setAllLayersVisible: (mode) => void setAllLayersVisible(mode),
+            sortLayersCutLast: () => void sortLayersCutLast(),
+          })}
+          onClose={() => setStripMenu(null)}
+        />
+      )}
+
+      {/* Double-click: full per-layer cut settings editor */}
+      {editingLayerId && (
+        <CutSettingsEditor
+          layerId={editingLayerId}
+          onClose={() => setEditingLayerId(null)}
+          onSwitchLayer={(newId) => setEditingLayerId(newId)}
+        />
+      )}
+    </div>
+  );
+}

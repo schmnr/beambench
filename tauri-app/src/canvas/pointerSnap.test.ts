@@ -142,4 +142,75 @@ describe('resolveCanvasPointerSnap', () => {
 
     expect(result.snapped).toEqual({ x: 20, y: 20 });
   });
+
+  it('ignores hidden objects during geometry snapping', () => {
+    const hiddenProject = makeProject({
+      objects: [makeProjectObject({
+        id: 'hidden-target',
+        visible: false,
+        bounds: { min: { x: 20, y: 20 }, max: { x: 40, y: 40 } },
+      })],
+    });
+
+    const result = resolveCanvasPointerSnap({
+      world: { x: 20.2, y: 20.2 },
+      ctrlKey: false,
+      altKey: false,
+      project: hiddenProject,
+      zoom: 100,
+      snapEnabled: false,
+      gridVisible: false,
+      effectiveSnapSpacing: 10,
+      snapToObjects: true,
+      snapThresholdPx: 10,
+    });
+
+    expect(result.snapped).toEqual({ x: 20.2, y: 20.2 });
+  });
+
+  it('snaps Measure to workspace edges even when object snapping is disabled', () => {
+    const result = resolveCanvasPointerSnap({
+      world: { x: 125, y: 0.04 },
+      ctrlKey: false,
+      altKey: false,
+      project,
+      zoom: 100,
+      snapEnabled: false,
+      gridVisible: false,
+      effectiveSnapSpacing: 10,
+      snapToObjects: false,
+      snapThresholdPx: 8,
+      snapToWorkspace: true,
+    });
+
+    expect(result.snapped).toEqual({ x: 125, y: 0 });
+    expect(result.nextPreferredTargetKey).toBe('workspace:top');
+  });
+
+  it('snaps to the intersection of nearby vector segments', () => {
+    const intersectionProject = makeProject({
+      objects: [makeProjectObject({
+        id: 'crossing-lines',
+        data: { type: 'vector_path', path_data: 'M 0 5 L 20 5 M 3 0 L 3 20', closed: false },
+        bounds: { min: { x: 0, y: 0 }, max: { x: 20, y: 20 } },
+      })],
+    });
+
+    const result = resolveCanvasPointerSnap({
+      world: { x: 3.03, y: 5.04 },
+      ctrlKey: false,
+      altKey: false,
+      project: intersectionProject,
+      zoom: 100,
+      snapEnabled: false,
+      gridVisible: false,
+      effectiveSnapSpacing: 10,
+      snapToObjects: true,
+      snapThresholdPx: 8,
+    });
+
+    expect(result.snapped.x).toBeCloseTo(3);
+    expect(result.snapped.y).toBeCloseTo(5);
+    expect(result.nextPreferredTargetKey).toContain('intersection:');
+  });
 });

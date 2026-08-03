@@ -10,6 +10,10 @@ fn default_false() -> bool {
     false
 }
 
+fn default_fill_opacity() -> f64 {
+    1.0
+}
+
 fn default_line_interval_mm() -> f64 {
     0.1
 }
@@ -499,6 +503,8 @@ pub struct LayerPatch {
     pub visible: Option<bool>,
     #[serde(default, alias = "color", skip_serializing_if = "Option::is_none")]
     pub color_tag: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fill_opacity: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -512,6 +518,10 @@ pub struct Layer {
     pub visible: bool,
     #[serde(default = "default_false")]
     pub is_tool_layer: bool,
+    /// Design-canvas opacity for layers rendered with a filled appearance.
+    /// This is presentation-only and does not affect toolpath generation.
+    #[serde(default = "default_fill_opacity")]
+    pub fill_opacity: f64,
     pub entries: Vec<CutEntry>,
 }
 
@@ -525,6 +535,7 @@ impl Layer {
             color_tag: ColorTag::default(),
             visible: true,
             is_tool_layer: false,
+            fill_opacity: default_fill_opacity(),
             entries: vec![CutEntry::new(operation)],
         }
     }
@@ -656,6 +667,17 @@ mod tests {
     }
 
     #[test]
+    fn legacy_layer_without_fill_opacity_defaults_to_opaque() {
+        let layer = Layer::new_single_entry("Engrave", OperationType::Fill);
+        let mut json = serde_json::to_value(layer).unwrap();
+        json.as_object_mut().unwrap().remove("fill_opacity");
+
+        let restored: Layer = serde_json::from_value(json).unwrap();
+
+        assert_eq!(restored.fill_opacity, 1.0);
+    }
+
+    #[test]
     fn operation_type_serializes_snake_case() {
         let json = serde_json::to_string(&OperationType::Image).unwrap();
         assert_eq!(json, "\"image\"");
@@ -726,6 +748,7 @@ mod tests {
         let entry = layer.primary_entry();
         assert!(layer.visible);
         assert!(!layer.is_tool_layer);
+        assert_eq!(layer.fill_opacity, 1.0);
         assert!(entry.output_enabled);
         assert!(!entry.air_assist);
         assert_eq!(entry.power_min_percent, 0.0);

@@ -2,10 +2,24 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../stores/appStore';
+import { useNotificationStore } from '../../stores/notificationStore';
+import { appService } from '../../services/appService';
+import { wrapBackendError } from '../../i18n/errors';
 import { NumberStepper } from '../shared/NumberStepper';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
-import type { AppSettings, UiTheme } from '../../types/commands';
+import type { AppSettings, ArtworkDisplayMode, UiTheme } from '../../types/commands';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
+import { Download, FileInput, FolderOpen, Monitor, RotateCcw, Ruler, Save, Settings2, Upload } from 'lucide-react';
+import {
+  DialogButton,
+  DialogFooter,
+  DialogNotice,
+  DialogSectionHeader,
+  DialogTabs,
+  DIALOG_TAB_ORIENTATION,
+  DIALOG_TONE,
+  dialogControlClassName,
+} from '../shared/DialogPrimitives';
 
 type SettingsDraft = {
   displayUnit: 'mm' | 'inches';
@@ -18,7 +32,7 @@ type SettingsDraft = {
   uiTheme: UiTheme;
   darkMode: boolean;
   antialiasing: boolean;
-  filledRendering: boolean;
+  artworkDisplayMode: ArtworkDisplayMode;
   reduceMotion: boolean;
   clickTolerance: number;
   snapThreshold: number;
@@ -29,7 +43,6 @@ type SettingsDraft = {
   scrollZoom: boolean;
   checkForUpdatesOnStartup: boolean;
   allowImportingToToolLayers: boolean;
-  includeToolLayersInJobBounds: boolean;
 };
 
 const SETTINGS_DRAFT_KEYS = [
@@ -43,7 +56,7 @@ const SETTINGS_DRAFT_KEYS = [
   'uiTheme',
   'darkMode',
   'antialiasing',
-  'filledRendering',
+  'artworkDisplayMode',
   'reduceMotion',
   'clickTolerance',
   'snapThreshold',
@@ -54,13 +67,10 @@ const SETTINGS_DRAFT_KEYS = [
   'scrollZoom',
   'checkForUpdatesOnStartup',
   'allowImportingToToolLayers',
-  'includeToolLayersInJobBounds',
 ] as const;
 
 type SettingsDraftKey = (typeof SETTINGS_DRAFT_KEYS)[number];
 type TabId = 'general' | 'units_grid' | 'display' | 'file_import';
-
-const TAB_IDS: TabId[] = ['general', 'units_grid', 'display', 'file_import'];
 
 function createDraft(settings: AppSettings): SettingsDraft {
   return {
@@ -73,8 +83,8 @@ function createDraft(settings: AppSettings): SettingsDraft {
     apiLocalhostOnly: settings.api_localhost_only,
     uiTheme: settings.ui_theme ?? 'dark',
     darkMode: settings.dark_mode ?? false,
-    antialiasing: settings.antialiasing ?? false,
-    filledRendering: settings.filled_rendering ?? false,
+    antialiasing: settings.antialiasing ?? true,
+    artworkDisplayMode: settings.artwork_display_mode ?? 'by_layer',
     reduceMotion: settings.reduce_motion ?? false,
     clickTolerance: settings.click_tolerance_px ?? 5,
     snapThreshold: settings.snap_threshold_px ?? 5,
@@ -85,7 +95,6 @@ function createDraft(settings: AppSettings): SettingsDraft {
     scrollZoom: settings.scroll_zoom ?? true,
     checkForUpdatesOnStartup: settings.check_for_updates_on_startup ?? true,
     allowImportingToToolLayers: settings.allow_importing_to_tool_layers ?? false,
-    includeToolLayersInJobBounds: settings.include_tool_layers_in_job_bounds ?? true,
   };
 }
 
@@ -99,8 +108,8 @@ const FALLBACK_DRAFT: SettingsDraft = {
   apiLocalhostOnly: false,
   uiTheme: 'dark',
   darkMode: false,
-  antialiasing: false,
-  filledRendering: false,
+  antialiasing: true,
+  artworkDisplayMode: 'by_layer',
   reduceMotion: false,
   clickTolerance: 5,
   snapThreshold: 5,
@@ -111,7 +120,6 @@ const FALLBACK_DRAFT: SettingsDraft = {
   scrollZoom: true,
   checkForUpdatesOnStartup: true,
   allowImportingToToolLayers: false,
-  includeToolLayersInJobBounds: true,
 };
 
 function SwitchRow(props: {
@@ -125,7 +133,7 @@ function SwitchRow(props: {
   const controlId = props.testId ? `${props.testId}-control` : generatedId;
   const descriptionId = props.description ? `${controlId}-description` : undefined;
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2 transition-colors hover:bg-bb-surface/55">
       <div>
         <label htmlFor={controlId} className="text-sm text-bb-text">{props.label}</label>
         {props.description && (
@@ -137,8 +145,8 @@ function SwitchRow(props: {
       <button
         id={controlId}
         data-testid={props.testId}
-        className={`relative h-5 w-10 shrink-0 rounded-full transition-colors ${
-          props.checked ? 'bg-bb-accent' : 'bg-bb-border'
+        className={`relative h-5 w-10 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent ${
+          props.checked ? 'border-bb-accent bg-bb-accent' : 'border-bb-control-border bg-bb-input'
         }`}
         onClick={() => props.onChange(!props.checked)}
         role="switch"
@@ -165,7 +173,7 @@ function NumberRow(props: {
   testId?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2 transition-colors hover:bg-bb-surface/55">
       <label className="text-sm text-bb-text">{props.label}</label>
       <NumberStepper
         data-testid={props.testId}
@@ -174,7 +182,7 @@ function NumberRow(props: {
         min={props.min}
         max={props.max}
         step={props.step}
-        className="w-24 rounded border border-bb-control-border bg-bb-surface px-2 py-1 text-right text-sm text-bb-text"
+        className={`${dialogControlClassName} w-24 text-right tabular-nums`}
       />
     </div>
   );
@@ -193,10 +201,19 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     ['minutes', t('dialog.settings.speed_minutes_short')],
     ['seconds', t('dialog.settings.speed_seconds_short')],
   ];
+  const tabs = [
+    { id: 'general' as const, label: t('dialog.settings.tab.general'), icon: <Settings2 size={14} /> },
+    { id: 'units_grid' as const, label: t('dialog.settings.tab.units_grid'), icon: <Ruler size={14} /> },
+    { id: 'display' as const, label: t('dialog.settings.tab.display'), icon: <Monitor size={14} /> },
+    { id: 'file_import' as const, label: t('dialog.settings.tab.file_import'), icon: <FileInput size={14} /> },
+  ];
   const [draft, setDraft] = useState<SettingsDraft | null>(() => (settings ? createDraft(settings) : null));
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [dataAction, setDataAction] = useState<'import' | 'export' | 'folder' | 'reset' | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [conflictFields, setConflictFields] = useState<SettingsDraftKey[]>([]);
   const dirtyFieldsRef = useRef<Set<SettingsDraftKey>>(new Set());
   const baseDraftRef = useRef<SettingsDraft | null>(draft);
@@ -280,7 +297,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         ui_theme: draft.uiTheme,
         dark_mode: draft.darkMode,
         antialiasing: draft.antialiasing,
-        filled_rendering: draft.filledRendering,
+        artwork_display_mode: draft.artworkDisplayMode,
         reduce_motion: draft.reduceMotion,
         click_tolerance_px: draft.clickTolerance,
         snap_threshold_px: draft.snapThreshold,
@@ -291,7 +308,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         scroll_zoom: draft.scrollZoom,
         check_for_updates_on_startup: draft.checkForUpdatesOnStartup,
         allow_importing_to_tool_layers: draft.allowImportingToToolLayers,
-        include_tool_layers_in_job_bounds: draft.includeToolLayersInJobBounds,
       });
       onClose();
     } catch (e) {
@@ -300,6 +316,55 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       setIsSaving(false);
     }
   };
+
+  const replaceDraftFromSettings = (nextSettings: AppSettings) => {
+    const nextDraft = createDraft(nextSettings);
+    useAppStore.getState().applySettings(nextSettings);
+    setDraft(nextDraft);
+    baseDraftRef.current = nextDraft;
+    dirtyFieldsRef.current.clear();
+    setConflictFields([]);
+    setSaveError(null);
+  };
+
+  const runDataAction = async (
+    action: Exclude<typeof dataAction, null>,
+    task: typeof appService.openPreferencesFolder,
+  ) => {
+    try {
+      setDataAction(action);
+      setDataError(null);
+      await task();
+    } catch (error) {
+      if (!String(error).toLowerCase().includes('cancelled')) {
+        setDataError(wrapBackendError(String(error)));
+      }
+    } finally {
+      setDataAction(null);
+    }
+  };
+
+  const importPreferences = () => runDataAction('import', async () => {
+    const path = await appService.pickPreferencesImportPath();
+    const imported = await appService.importPreferences(path);
+    replaceDraftFromSettings(imported);
+    useNotificationStore.getState().push(t('notifications.preferences_imported'), 'success');
+  });
+
+  const exportPreferences = () => runDataAction('export', async () => {
+    const path = await appService.pickPreferencesExportPath();
+    await appService.exportPreferences(path);
+    useNotificationStore.getState().push(t('notifications.preferences_exported'), 'success');
+  });
+
+  const openPreferencesFolder = () => runDataAction('folder', () => appService.openPreferencesFolder());
+
+  const resetPreferences = () => runDataAction('reset', async () => {
+    const reset = await appService.resetPreferences();
+    replaceDraftFromSettings(reset);
+    setConfirmReset(false);
+    useNotificationStore.getState().push(t('notifications.preferences_reset'), 'success');
+  });
 
   return createPortal(
     <>
@@ -313,77 +378,60 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         minHeight={520}
         onRequestClose={onClose}
         closeOnBackdropClick
-        footer={
-          <div className="space-y-3 px-5 py-4">
-            {saveError && (
-              <div role="alert" className="text-sm text-bb-error-fg">
-                {saveError}
+        footer={(
+          <div>
+            {(saveError || conflictFields.length > 0) && (
+              <div className="space-y-2 border-b border-bb-border px-4 py-3">
+                {saveError && <DialogNotice tone={DIALOG_TONE.error} role="alert">{saveError}</DialogNotice>}
+                {conflictFields.length > 0 && (
+                  <DialogNotice
+                    tone={DIALOG_TONE.warning}
+                    role="alert"
+                    testId="settings-sync-warning"
+                    actions={(
+                      <>
+                        <DialogButton tone={DIALOG_TONE.quiet} onClick={() => resolveConflicts('latest')}>
+                          {t('dialog.settings.use_latest')}
+                        </DialogButton>
+                        <DialogButton tone={DIALOG_TONE.secondary} onClick={() => resolveConflicts('mine')}>
+                          {t('dialog.settings.keep_mine')}
+                        </DialogButton>
+                      </>
+                    )}
+                  >
+                    {t('dialog.settings.conflict_warning')}
+                  </DialogNotice>
+                )}
               </div>
             )}
-
-            {conflictFields.length > 0 && (
-              <div
-                role="alert"
-                data-testid="settings-sync-warning"
-                className="space-y-2 rounded border border-bb-warning-border bg-bb-warning-bg p-2 text-sm text-bb-warning-fg"
-              >
-                <div>{t('dialog.settings.conflict_warning')}</div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    className="rounded border border-bb-warning-border px-2 py-1 text-xs hover:bg-bb-hover"
-                    onClick={() => resolveConflicts('latest')}
-                  >
-                    {t('dialog.settings.use_latest')}
-                  </button>
-                  <button
-                    className="rounded bg-bb-warning px-2 py-1 text-xs font-medium text-bb-on-warning hover:bg-bb-warning-hover"
-                    onClick={() => resolveConflicts('mine')}
-                  >
-                    {t('dialog.settings.keep_mine')}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={onClose}
-                className="rounded border border-bb-border bg-bb-surface px-4 py-1.5 text-sm text-bb-text-muted hover:bg-bb-hover"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
+            <DialogFooter>
+              <DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t('common.cancel')}</DialogButton>
+              <DialogButton
+                tone={DIALOG_TONE.primary}
+                icon={<Save size={13} />}
                 onClick={() => void handleSave()}
                 disabled={!ready || isSaving || conflictFields.length > 0}
-                className="rounded bg-bb-accent px-4 py-1.5 text-sm text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-50"
               >
                 {t('common.save')}
-              </button>
-            </div>
+              </DialogButton>
+            </DialogFooter>
           </div>
-        }
+        )}
       >
         {!ready ? (
           <div className="px-5 py-8 text-sm text-bb-text-muted">{t('dialog.settings.loading')}</div>
         ) : (
-          <div className="flex min-h-0 flex-1">
-            <div className="w-44 shrink-0 border-r border-bb-border p-2">
-              {TAB_IDS.map((id) => (
-                <button
-                  key={id}
-                  className={`mb-1 w-full rounded px-3 py-2 text-left text-sm ${
-                    activeTab === id
-                      ? 'bg-bb-accent text-bb-on-accent'
-                      : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'
-                  }`}
-                  onClick={() => setActiveTab(id)}
-                >
-                  {t(`dialog.settings.tab.${id}`)}
-                </button>
-              ))}
+          <div className="flex min-h-0 flex-1 bg-bb-bg/20">
+            <div className="w-48 shrink-0 border-r border-bb-border bg-bb-surface/30">
+              <DialogTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} orientation={DIALOG_TAB_ORIENTATION.vertical} />
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-bb-panel">
+              <DialogSectionHeader
+                icon={tabs.find((tab) => tab.id === activeTab)?.icon}
+                title={tabs.find((tab) => tab.id === activeTab)?.label}
+              />
+              <div className="p-5">
               {activeTab === 'general' && (
                 <div className="space-y-4">
                   <SwitchRow
@@ -434,7 +482,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
               {activeTab === 'units_grid' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2">
                     <label className="text-sm text-bb-text">{t('dialog.settings.display_unit')}</label>
                     <div className="flex gap-1">
                       {displayUnits.map((unit) => (
@@ -442,8 +490,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                           key={unit}
                           className={`rounded px-3 py-1 text-xs ${
                             content.displayUnit === unit
-                              ? 'bg-bb-accent text-bb-on-accent'
-                              : 'border border-bb-border bg-bb-surface text-bb-text-muted hover:bg-bb-hover'
+                              ? 'border border-bb-accent/45 bg-bb-accent/10 text-bb-text'
+                              : 'border border-bb-border bg-bb-bg text-bb-text-muted hover:border-bb-accent/30 hover:bg-bb-hover'
                           }`}
                           onClick={() => updateDraft('displayUnit', unit)}
                         >
@@ -452,7 +500,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2">
                     <label className="text-sm text-bb-text">{t('dialog.settings.speed_time_unit')}</label>
                     <div className="flex gap-1">
                       {speedUnits.map(([unit, label]) => (
@@ -460,8 +508,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                           key={unit}
                           className={`rounded px-3 py-1 text-xs ${
                             content.speedTimeUnit === unit
-                              ? 'bg-bb-accent text-bb-on-accent'
-                              : 'border border-bb-border bg-bb-surface text-bb-text-muted hover:bg-bb-hover'
+                              ? 'border border-bb-accent/45 bg-bb-accent/10 text-bb-text'
+                              : 'border border-bb-border bg-bb-bg text-bb-text-muted hover:border-bb-accent/30 hover:bg-bb-hover'
                           }`}
                           onClick={() => updateDraft('speedTimeUnit', unit)}
                         >
@@ -520,7 +568,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
               {activeTab === 'display' && (
                 <div className="space-y-4">
-                  <fieldset className="space-y-2">
+                  <fieldset className="space-y-2 rounded-xl border border-bb-border bg-bb-surface/20 p-3">
                     <legend className="text-sm font-semibold text-bb-text">
                       {t('dialog.settings.appearance')}
                     </legend>
@@ -542,7 +590,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                         aria-describedby="settings-ui-theme-help"
                         value={content.uiTheme}
                         onChange={(event) => updateDraft('uiTheme', event.target.value as UiTheme)}
-                        className="shrink-0 rounded border border-bb-control-border bg-bb-surface px-2 py-1 text-sm text-bb-text"
+                        className={`${dialogControlClassName} shrink-0`}
                       >
                         <option value="system">{t('dialog.settings.theme_system')}</option>
                         <option value="light">{t('dialog.settings.theme_light')}</option>
@@ -562,25 +610,35 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     onChange={(v) => updateDraft('antialiasing', v)}
                     testId="toggle-antialiasing"
                   />
-                  <SwitchRow
-                    label={t('dialog.settings.filled_rendering')}
-                    checked={content.filledRendering}
-                    onChange={(v) => updateDraft('filledRendering', v)}
-                    testId="toggle-filled-rendering"
-                  />
+                  <div className="flex min-h-12 items-start justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2">
+                    <label htmlFor="settings-artwork-display" className="self-center text-sm text-bb-text">
+                      {t('menus.window.view_style')}
+                    </label>
+                    <select
+                      id="settings-artwork-display"
+                      data-testid="select-artwork-display"
+                      value={content.artworkDisplayMode}
+                      onChange={(event) => updateDraft('artworkDisplayMode', event.target.value as ArtworkDisplayMode)}
+                      className={`${dialogControlClassName} shrink-0`}
+                    >
+                      <option value="by_layer">{t('menus.window.view_style_wireframe_coarse')}</option>
+                      <option value="wireframe">{t('menus.window.view_style_wireframe_smooth')}</option>
+                      <option value="filled">{t('menus.window.view_style_filled_coarse')}</option>
+                    </select>
+                  </div>
                   <SwitchRow
                     label={t('dialog.settings.reduce_motion')}
                     checked={content.reduceMotion}
                     onChange={(v) => updateDraft('reduceMotion', v)}
                     testId="toggle-reduce-motion"
                   />
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg bg-bb-surface/35 px-3 py-2">
                     <label className="text-sm text-bb-text">{t('dialog.settings.scroll_wheel')}</label>
                     <select
                       data-testid="select-scroll-behavior"
                       value={content.scrollZoom ? 'zoom' : 'pan'}
                       onChange={(e) => updateDraft('scrollZoom', e.target.value === 'zoom')}
-                      className="rounded border border-bb-control-border bg-bb-surface px-2 py-1 text-sm text-bb-text"
+                      className={dialogControlClassName}
                     >
                       <option value="zoom">{t('dialog.settings.scroll_zoom')}</option>
                       <option value="pan">{t('dialog.settings.scroll_pan')}</option>
@@ -597,15 +655,71 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                     onChange={(v) => updateDraft('allowImportingToToolLayers', v)}
                     testId="toggle-allow-import-tool-layers"
                   />
-                  <SwitchRow
-                    label={t('dialog.settings.include_tool_layers_job_bounds')}
-                    checked={content.includeToolLayersInJobBounds}
-                    onChange={(v) => updateDraft('includeToolLayersInJobBounds', v)}
-                    testId="toggle-tool-layers-job-bounds"
-                  />
+                  <div className="overflow-hidden rounded-xl border border-bb-border bg-bb-surface/20">
+                    <div className="border-b border-bb-border bg-gradient-to-r from-bb-accent/10 via-bb-surface/45 to-transparent px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-bb-text">
+                      {t('menus.file.preferences')}
+                    </div>
+                    <div className="space-y-2 p-3">
+                      {dataError && (
+                        <DialogNotice tone={DIALOG_TONE.error} role="alert">{dataError}</DialogNotice>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <DialogButton
+                          icon={<Upload size={13} />}
+                          disabled={dataAction !== null}
+                          onClick={() => { void importPreferences(); }}
+                        >
+                          {t('menus.file.import_preferences')}
+                        </DialogButton>
+                        <DialogButton
+                          icon={<Download size={13} />}
+                          disabled={dataAction !== null}
+                          onClick={() => { void exportPreferences(); }}
+                        >
+                          {t('menus.file.export_preferences')}
+                        </DialogButton>
+                        <DialogButton
+                          icon={<FolderOpen size={13} />}
+                          className="col-span-2"
+                          disabled={dataAction !== null}
+                          onClick={() => { void openPreferencesFolder(); }}
+                        >
+                          {t('menus.file.open_preferences_folder')}
+                        </DialogButton>
+                      </div>
+                      {confirmReset ? (
+                        <DialogNotice
+                          tone={DIALOG_TONE.warning}
+                          role="alert"
+                          actions={(
+                            <>
+                              <DialogButton tone={DIALOG_TONE.quiet} onClick={() => setConfirmReset(false)}>
+                                {t('common.cancel')}
+                              </DialogButton>
+                              <DialogButton tone={DIALOG_TONE.danger} disabled={dataAction !== null} onClick={() => { void resetPreferences(); }}>
+                                {t('common.ok')}
+                              </DialogButton>
+                            </>
+                          )}
+                        >
+                          {t('menus.file.reset_preferences_confirm')}
+                        </DialogNotice>
+                      ) : (
+                        <DialogButton
+                          tone={DIALOG_TONE.danger}
+                          icon={<RotateCcw size={13} />}
+                          className="w-full"
+                          disabled={dataAction !== null}
+                          onClick={() => setConfirmReset(true)}
+                        >
+                          {t('menus.file.reset_preferences')}
+                        </DialogButton>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
-
+              </div>
             </div>
           </div>
         )}

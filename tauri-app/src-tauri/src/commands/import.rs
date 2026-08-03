@@ -262,6 +262,26 @@ pub fn read_clipboard_artwork() -> Result<Option<ClipboardArtworkPayload>, Strin
 }
 
 #[tauri::command]
+pub fn read_clipboard_text() -> Result<Option<String>, String> {
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|e| format!("Failed to open system clipboard: {e}"))?;
+    match clipboard.get_text() {
+        Ok(text) => Ok(Some(text)),
+        Err(arboard::Error::ContentNotAvailable) => Ok(None),
+        Err(error) => Err(format!("Failed to read clipboard text: {error}")),
+    }
+}
+
+#[tauri::command]
+pub fn write_clipboard_text(text: String) -> Result<(), String> {
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|e| format!("Failed to open system clipboard: {e}"))?;
+    clipboard
+        .set_text(text)
+        .map_err(|error| format!("Failed to write clipboard text: {error}"))
+}
+
+#[tauri::command]
 pub fn import_clipboard_artwork(
     svc: State<'_, Arc<ServiceContext>>,
     data_base64: String,
@@ -519,6 +539,12 @@ pub async fn trace_image_preview(
 }
 
 #[tauri::command]
+pub fn cancel_trace_image_preview(svc: State<'_, Arc<ServiceContext>>, request_id: u64) {
+    svc.latest_trace_preview_request_id
+        .fetch_max(request_id, std::sync::atomic::Ordering::AcqRel);
+}
+
+#[tauri::command]
 pub async fn trace_image(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
@@ -689,7 +715,7 @@ fn replace_image_inner(
 }
 
 #[tauri::command]
-pub fn adjust_image_preview(
+pub async fn adjust_image_preview(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
     brightness: f64,
@@ -711,33 +737,44 @@ pub fn adjust_image_preview(
     halftone_angle_deg: f64,
     newsprint_angle_deg: f64,
     newsprint_frequency: f64,
+    request_id: u64,
 ) -> Result<imports::AdjustImagePreviewOutput, String> {
-    imports::adjust_image_preview(
-        &svc,
-        imports::AdjustImagePreviewInput {
-            object_id: parse_id(&object_id)?,
-            brightness,
-            contrast,
-            gamma,
-            invert,
-            threshold,
-            saturation,
-            sharpen,
-            edge_enhance,
-            enhance_radius,
-            enhance_amount,
-            enhance_denoise,
-            mode,
-            dpi,
-            negative,
-            pass_through,
-            halftone_cells_per_inch,
-            halftone_angle_deg,
-            newsprint_angle_deg,
-            newsprint_frequency,
-        },
-    )
-    .map_err(Into::into)
+    let svc = svc.inner().clone();
+    svc.latest_adjust_preview_request_id
+        .fetch_max(request_id, std::sync::atomic::Ordering::AcqRel);
+    let input = imports::AdjustImagePreviewInput {
+        object_id: parse_id(&object_id)?,
+        preview_request_id: Some(request_id),
+        brightness,
+        contrast,
+        gamma,
+        invert,
+        threshold,
+        saturation,
+        sharpen,
+        edge_enhance,
+        enhance_radius,
+        enhance_amount,
+        enhance_denoise,
+        mode,
+        dpi,
+        negative,
+        pass_through,
+        halftone_cells_per_inch,
+        halftone_angle_deg,
+        newsprint_angle_deg,
+        newsprint_frequency,
+    };
+    tokio::task::spawn_blocking(move || imports::adjust_image_preview(&svc, input))
+        .await
+        .map_err(|error| format!("Image adjustment preview task failed: {error}"))?
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn cancel_adjust_image_preview(svc: State<'_, Arc<ServiceContext>>, request_id: u64) {
+    svc.latest_adjust_preview_request_id
+        .fetch_max(request_id, std::sync::atomic::Ordering::AcqRel);
 }
 
 #[tauri::command]

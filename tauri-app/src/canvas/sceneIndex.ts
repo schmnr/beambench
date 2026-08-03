@@ -3,6 +3,11 @@ import type { Bounds, ProjectObject } from '../types/project';
 import type { ViewportParams } from './ViewportTransform';
 import { screenToWorld, screenToWorldDist } from './ViewportTransform';
 import { computeTransformedBoundsWorld } from './alignment';
+import {
+  isObjectVisibleInLayerStack,
+  sortObjectsForHitTesting,
+  type LayerStackLayer,
+} from './layerStack';
 
 type BoundsRevision = {
   minX: number;
@@ -100,7 +105,6 @@ function buildSceneIndex(objects: ReadonlyArray<ProjectObject>): SceneIndexSnaps
   const items: SceneIndexItem[] = [];
 
   for (const obj of objects) {
-    if (!obj.visible) continue;
     const bounds = getCachedTransformedBoundsWorld(obj);
     const item: SceneIndexItem = {
       minX: bounds.min.x,
@@ -140,24 +144,32 @@ function normalizeBounds(min: { x: number; y: number }, max: { x: number; y: num
   };
 }
 
-function sortTopmostFirst(items: SceneIndexItem[]): ProjectObject[] {
-  return items
-    .sort((a, b) => b.zIndex - a.zIndex)
-    .map((item) => item.object);
+function sortTopmostFirst(
+  items: SceneIndexItem[],
+  layers?: LayerStackLayer[],
+): ProjectObject[] {
+  const objects = items.map((item) => item.object);
+  if (layers) return sortObjectsForHitTesting(objects, layers);
+  return items.sort((a, b) => b.zIndex - a.zIndex).map((item) => item.object);
 }
 
 export function queryWorldBoundsCandidates(
   worldBounds: Bounds,
   objects: ReadonlyArray<ProjectObject>,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
   const snapshot = getSceneIndex(objects);
+  // Visibility is deliberately evaluated at query time. Layer/object toggles
+  // can update in place while the spatial snapshot remains cached.
+  const visibleItems = snapshot.tree.search({
+    minX: worldBounds.min.x,
+    minY: worldBounds.min.y,
+    maxX: worldBounds.max.x,
+    maxY: worldBounds.max.y,
+  }).filter((item) => isObjectVisibleInLayerStack(item.object, layers));
   return sortTopmostFirst(
-    snapshot.tree.search({
-      minX: worldBounds.min.x,
-      minY: worldBounds.min.y,
-      maxX: worldBounds.max.x,
-      maxY: worldBounds.max.y,
-    }),
+    visibleItems,
+    layers,
   );
 }
 
@@ -166,6 +178,7 @@ export function queryPointCandidates(
   objects: ReadonlyArray<ProjectObject>,
   vp: ViewportParams,
   tolerancePx = 6,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
   const world = screenToWorld(screenPt, vp);
   const toleranceMm = screenToWorldDist(tolerancePx, vp.zoom);
@@ -175,6 +188,7 @@ export function queryPointCandidates(
       max: { x: world.x + toleranceMm, y: world.y + toleranceMm },
     },
     objects,
+    layers,
   );
 }
 
@@ -182,11 +196,12 @@ export function queryRectCandidates(
   screenRect: { min: { x: number; y: number }; max: { x: number; y: number } },
   objects: ReadonlyArray<ProjectObject>,
   vp: ViewportParams,
+  layers?: LayerStackLayer[],
 ): ProjectObject[] {
   const worldMin = screenToWorld(screenRect.min, vp);
   const worldMax = screenToWorld(screenRect.max, vp);
   const worldBounds = normalizeBounds(worldMin, worldMax);
-  return queryWorldBoundsCandidates(worldBounds, objects);
+  return queryWorldBoundsCandidates(worldBounds, objects, layers);
 }
 
 export function resetSceneIndexCachesForTests(): void {

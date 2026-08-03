@@ -197,7 +197,7 @@ fn transformed_bounds(object: &crate::object::ProjectObject) -> Bounds {
     }
 }
 
-fn recompute_group_bounds(project: &mut Project, group_id: ObjectId) {
+pub fn recompute_group_bounds(project: &mut Project, group_id: ObjectId) {
     let children = project
         .objects
         .iter()
@@ -420,24 +420,13 @@ pub fn update_object_bounds_batch(project: &mut Project, entries: &[(ObjectId, B
                         }
                     }
                     obj.bounds = *new_bounds;
-                    // Refresh text cache with guide path (if any).
-                    // Apply the guide-derived bounds: keep the user's position
-                    // (min corner) but adopt the guide-derived size so the
-                    // selection box stays in sync with the actual text layout.
-                    let mapped_bounds = refresh_text_object_cache_with_guide(
+                    // Refresh intrinsic text geometry without replacing the
+                    // user-controlled bounds or affine transform.
+                    refresh_text_object_cache_with_guide(
                         &mut obj.data,
                         &obj.bounds,
                         guide.as_ref(),
                     );
-                    if let Some(mb) = mapped_bounds {
-                        let width = mb.width();
-                        let height = mb.height();
-                        obj.bounds = Bounds::new(
-                            obj.bounds.min,
-                            Point2D::new(obj.bounds.min.x + width, obj.bounds.min.y + height),
-                        );
-                        obj.transform = Transform2D::identity();
-                    }
                 }
                 _ => {
                     obj.bounds = *new_bounds;
@@ -533,15 +522,11 @@ fn refresh_dependent_text_objects(project: &mut Project, guide_id: ObjectId) {
             .collect();
         for text_id in dependent_ids {
             if let Some(obj) = project.find_object_mut(text_id) {
-                let mapped_bounds = refresh_text_object_cache_with_guide(
+                refresh_text_object_cache_with_guide(
                     &mut obj.data,
                     &obj.bounds,
                     guide_vecpath.as_ref(),
                 );
-                if let Some(bounds) = mapped_bounds {
-                    obj.bounds = bounds;
-                    obj.transform = Transform2D::identity();
-                }
             }
         }
     }
@@ -580,7 +565,6 @@ fn refit_vector_path_to_bounds(obj: &mut crate::object::ProjectObject, new_bound
         };
     }
     obj.bounds = *new_bounds;
-    obj.tabs.clear();
 }
 
 /// Reorder an object within the current z-order stack.
@@ -659,6 +643,104 @@ pub fn push_draw_order(project: &mut Project, id: ObjectId, direction: DrawOrder
     project.dirty = true;
 }
 
+/// Move one or more top-level objects into a layer and place them in the
+/// layer's front-to-back stack. Group descendants travel with their parent so
+/// the hierarchy never spans layers. `before_id` is interpreted in the target
+/// layer after the moving block has been removed; `None` places the block at
+/// the back.
+pub fn move_objects_in_outliner(
+    project: &mut Project,
+    ids: &[ObjectId],
+    target_layer_id: LayerId,
+    before_id: Option<ObjectId>,
+) {
+    if !project
+        .layers
+        .iter()
+        .any(|layer| layer.id == target_layer_id)
+    {
+        return;
+    }
+
+    let mut moving_ids = Vec::new();
+    for id in ids {
+        collect_group_member_ids(project, *id, &mut moving_ids);
+    }
+    if moving_ids.is_empty() {
+        return;
+    }
+
+    let moving_set: std::collections::HashSet<ObjectId> = moving_ids.iter().copied().collect();
+    let mut moving_block: Vec<ObjectId> = project
+        .objects
+        .iter()
+        .filter(|object| moving_set.contains(&object.id))
+        .map(|object| object.id)
+        .collect();
+    moving_block.sort_by(|a, b| {
+        let a_z = project
+            .objects
+            .iter()
+            .find(|object| object.id == *a)
+            .map(|object| object.z_index)
+            .unwrap_or(0);
+        let b_z = project
+            .objects
+            .iter()
+            .find(|object| object.id == *b)
+            .map(|object| object.z_index)
+            .unwrap_or(0);
+        b_z.cmp(&a_z)
+    });
+
+    for object in project
+        .objects
+        .iter_mut()
+        .filter(|object| moving_set.contains(&object.id))
+    {
+        object.layer_id = target_layer_id;
+    }
+
+    let mut target_stack: Vec<ObjectId> = project
+        .objects
+        .iter()
+        .filter(|object| object.layer_id == target_layer_id && !moving_set.contains(&object.id))
+        .map(|object| object.id)
+        .collect();
+    target_stack.sort_by(|a, b| {
+        let a_z = project
+            .objects
+            .iter()
+            .find(|object| object.id == *a)
+            .map(|object| object.z_index)
+            .unwrap_or(0);
+        let b_z = project
+            .objects
+            .iter()
+            .find(|object| object.id == *b)
+            .map(|object| object.z_index)
+            .unwrap_or(0);
+        b_z.cmp(&a_z)
+    });
+
+    let insert_index = before_id
+        .and_then(|before| target_stack.iter().position(|id| *id == before))
+        .unwrap_or(target_stack.len());
+    target_stack.splice(insert_index..insert_index, moving_block);
+
+    let stack_len = target_stack.len();
+    for (index, object_id) in target_stack.into_iter().enumerate() {
+        if let Some(object) = project
+            .objects
+            .iter_mut()
+            .find(|object| object.id == object_id)
+        {
+            object.z_index = stack_len.saturating_sub(index + 1) as i32;
+        }
+    }
+    project.dirty = true;
+}
+
 /// Move objects to a specific position (sets bounds.min to x, y).
 pub fn move_objects_to_position(project: &mut Project, ids: &[ObjectId], x: f64, y: f64) {
     for id in ids {
@@ -701,9 +783,6 @@ pub fn reassign_layer(project: &mut Project, ids: &[ObjectId], target_layer_id: 
     }
 
     project.dirty = true;
-
-    // Clean up layers that lost all their objects
-    project.clean_empty_layers();
 }
 
 /// Select all open shapes (VectorPath objects where closed=false).
@@ -780,6 +859,7 @@ mod tests {
             },
             z_index: 0,
             lock_aspect_ratio: false,
+            transform_locks: Default::default(),
             power_scale: 1.0,
             priority: 0,
             created_at: chrono::Utc::now(),
@@ -1148,6 +1228,78 @@ mod tests {
     }
 
     #[test]
+    fn move_objects_in_outliner_reassigns_and_places_before_target() {
+        use crate::layer::{Layer, OperationType};
+
+        let mut project = make_test_project();
+        let source_layer = Layer::new("Source", OperationType::Line);
+        let target_layer = Layer::new("Target", OperationType::Line);
+        let source_layer_id = source_layer.id;
+        let target_layer_id = target_layer.id;
+        project.add_layer(source_layer);
+        project.add_layer(target_layer);
+
+        let moving_id = ObjectId::new();
+        let front_id = ObjectId::new();
+        let back_id = ObjectId::new();
+        let mut moving = make_test_object(moving_id);
+        let mut front = make_test_object(front_id);
+        let mut back = make_test_object(back_id);
+        moving.layer_id = source_layer_id;
+        moving.z_index = 0;
+        front.layer_id = target_layer_id;
+        front.z_index = 1;
+        back.layer_id = target_layer_id;
+        back.z_index = 0;
+        project.objects.extend([moving, front, back]);
+
+        move_objects_in_outliner(&mut project, &[moving_id], target_layer_id, Some(back_id));
+
+        let moved = project.find_object(moving_id).unwrap();
+        let front = project.find_object(front_id).unwrap();
+        let back = project.find_object(back_id).unwrap();
+        assert_eq!(moved.layer_id, target_layer_id);
+        assert!(front.z_index > moved.z_index);
+        assert!(moved.z_index > back.z_index);
+        assert!(project.dirty);
+    }
+
+    #[test]
+    fn move_objects_in_outliner_keeps_group_descendants_on_the_same_layer() {
+        use crate::layer::{Layer, OperationType};
+
+        let mut project = make_test_project();
+        let source_layer = Layer::new("Source", OperationType::Line);
+        let target_layer = Layer::new("Target", OperationType::Line);
+        let source_layer_id = source_layer.id;
+        let target_layer_id = target_layer.id;
+        project.add_layer(source_layer);
+        project.add_layer(target_layer);
+
+        let group_id = ObjectId::new();
+        let child_id = ObjectId::new();
+        let mut group = make_test_object(group_id);
+        let mut child = make_test_object(child_id);
+        group.layer_id = source_layer_id;
+        child.layer_id = source_layer_id;
+        group.data = ObjectData::Group {
+            children: vec![child_id],
+        };
+        project.objects.extend([child, group]);
+
+        move_objects_in_outliner(&mut project, &[group_id], target_layer_id, None);
+
+        assert_eq!(
+            project.find_object(group_id).unwrap().layer_id,
+            target_layer_id
+        );
+        assert_eq!(
+            project.find_object(child_id).unwrap().layer_id,
+            target_layer_id
+        );
+    }
+
+    #[test]
     fn nudge_objects_moves_by_delta() {
         let mut project = make_test_project();
         let id = ObjectId::new();
@@ -1179,7 +1331,7 @@ mod tests {
     }
 
     #[test]
-    fn reassign_layer_cleans_up_empty_source_layer() {
+    fn reassign_layer_preserves_empty_layers() {
         use crate::layer::{Layer, OperationType};
 
         let mut project = make_test_project();
@@ -1202,9 +1354,11 @@ mod tests {
         reassign_layer(&mut project, &[id], lid_b);
 
         assert_eq!(project.objects[0].layer_id, lid_b);
-        // layer_a should be cleaned up (no objects left)
-        assert_eq!(project.layers.len(), 1);
-        assert_eq!(project.layers[0].id, lid_b);
+        // Empty layers are intentional project structure and remain until
+        // the user explicitly deletes them.
+        assert_eq!(project.layers.len(), 2);
+        assert_eq!(project.layers[0].id, lid_a);
+        assert_eq!(project.layers[1].id, lid_b);
     }
 
     #[test]
@@ -1372,6 +1526,10 @@ mod tests {
             ruler_guide_axis: None,
         };
         obj.bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0));
+        obj.tabs.push(crate::object::TabAnchor {
+            subpath_index: 0,
+            position: 0.25,
+        });
         project.objects.push(obj);
 
         let new_bounds = Bounds::new(Point2D::new(5.0, 5.0), Point2D::new(25.0, 15.0));
@@ -1394,8 +1552,37 @@ mod tests {
         } else {
             panic!("Expected VectorPath");
         }
-        // Tabs should be cleared
-        assert!(obj.tabs.is_empty());
+        // Bounds-only transforms preserve normalized anchors because the
+        // path topology and subpath ordering have not changed.
+        assert_eq!(obj.tabs.len(), 1);
+        assert_eq!(obj.tabs[0].subpath_index, 0);
+        assert!((obj.tabs[0].position - 0.25).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn update_object_bounds_batch_preserves_tabs_when_moving_vector_path() {
+        let mut project = make_test_project();
+        let id = ObjectId::new();
+        let mut obj = make_test_object(id);
+        obj.data = ObjectData::VectorPath {
+            path_data: "M0 0 L10 0 L10 10 L0 10 Z".into(),
+            closed: true,
+            ruler_guide_axis: None,
+        };
+        obj.bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0));
+        obj.tabs.push(crate::object::TabAnchor {
+            subpath_index: 0,
+            position: 0.625,
+        });
+        project.objects.push(obj);
+
+        let moved_bounds = Bounds::new(Point2D::new(30.0, 40.0), Point2D::new(40.0, 50.0));
+        update_object_bounds_batch(&mut project, &[(id, moved_bounds)]);
+
+        let moved = project.find_object(id).unwrap();
+        assert_eq!(moved.tabs.len(), 1);
+        assert_eq!(moved.tabs[0].subpath_index, 0);
+        assert!((moved.tabs[0].position - 0.625).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -1803,7 +1990,7 @@ mod tests {
     }
 
     #[test]
-    fn update_object_bounds_batch_path_text_applies_mapped_bounds() {
+    fn update_object_bounds_batch_path_text_preserves_user_bounds_and_transform() {
         use crate::object::{TextAlignment, TextAlignmentV, TextLayoutMode};
 
         let mut project = make_test_project();
@@ -1855,9 +2042,11 @@ mod tests {
             variable_text: None,
         };
         text_obj.bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(100.0, 10.0));
+        text_obj.transform = Transform2D::rotate(0.25);
+        let expected_transform = text_obj.transform;
         project.objects.push(text_obj);
 
-        // Move the path-text via batch bounds to a new position with wrong size
+        // Move and resize path text through the same batch API used by the inspector.
         let user_bounds = Bounds::new(Point2D::new(20.0, 30.0), Point2D::new(70.0, 80.0));
         update_object_bounds_batch(&mut project, &[(text_id, user_bounds)]);
 
@@ -1873,11 +2062,10 @@ mod tests {
             "min.y should be user-provided: {}",
             obj.bounds.min.y
         );
-        // The width/height should NOT be the user's 50x50 but the guide-derived
-        // size (from refresh_text_object_cache_with_guide's mapped_bounds).
-        // Since fonts are not loaded in tests, mapped_bounds may be None and
-        // the user bounds are kept — but if mapped_bounds IS returned, size must
-        // come from there. Either way, resolved_path_data must be preserved.
+        assert_eq!(
+            obj.bounds, user_bounds,
+            "advanced text must retain the user's requested size"
+        );
         if let ObjectData::Text {
             resolved_path_data, ..
         } = &obj.data
@@ -1889,13 +2077,9 @@ mod tests {
         } else {
             panic!("Expected Text variant");
         }
-        // Transform must be identity (reset by mapped bounds application)
-        assert!(
-            (obj.transform.a - 1.0).abs() < 1e-9
-                && (obj.transform.d - 1.0).abs() < 1e-9
-                && obj.transform.tx.abs() < 1e-9
-                && obj.transform.ty.abs() < 1e-9,
-            "Transform should be identity after path-text batch bounds"
+        assert_eq!(
+            obj.transform, expected_transform,
+            "cache refresh must preserve rotation/shear"
         );
     }
 }

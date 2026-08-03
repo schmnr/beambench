@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { exportCanvasScreenshot } from '../canvasScreenshotExportService';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn(), save: vi.fn() }));
-vi.mock('../canvasScreenshotExportService', () => ({ exportCanvasScreenshot: vi.fn() }));
 
 import { vectorService } from '../vectorService';
 import { machineService } from '../machineService';
@@ -27,7 +25,6 @@ beforeEach(() => {
   vi.mocked(invoke).mockReset();
   vi.mocked(save).mockReset();
   vi.mocked(open).mockReset();
-  vi.mocked(exportCanvasScreenshot).mockReset();
   delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 });
 
@@ -42,6 +39,21 @@ describe('vectorService methods', () => {
     vi.mocked(invoke).mockResolvedValue({});
     await vectorService.booleanExclude('a', 'b');
     expect(invoke).toHaveBeenCalledWith('boolean_exclude', { objectIdA: 'a', objectIdB: 'b' });
+  });
+
+  it('invokes atomic multi-object Boolean commands', async () => {
+    vi.mocked(invoke).mockResolvedValue({});
+    const objectIds = ['a', 'b', 'c'];
+
+    await vectorService.booleanUnionMany(objectIds);
+    await vectorService.booleanSubtractMany(objectIds);
+    await vectorService.booleanIntersectionMany(objectIds);
+    await vectorService.booleanExcludeMany(objectIds);
+
+    expect(invoke).toHaveBeenNthCalledWith(1, 'boolean_union_many', { objectIds });
+    expect(invoke).toHaveBeenNthCalledWith(2, 'boolean_subtract_many', { objectIds });
+    expect(invoke).toHaveBeenNthCalledWith(3, 'boolean_intersection_many', { objectIds });
+    expect(invoke).toHaveBeenNthCalledWith(4, 'boolean_exclude_many', { objectIds });
   });
 
   it('booleanAssistantPreview invokes the read-only preview command', async () => {
@@ -134,6 +146,12 @@ describe('vectorService methods', () => {
     vi.mocked(invoke).mockResolvedValue({});
     await vectorService.addTabs('obj-1', 4, 2.5);
     expect(invoke).toHaveBeenCalledWith('add_tabs', { objectId: 'obj-1', count: 4, widthMm: 2.5 });
+  });
+
+  it('clearTabs invokes the non-destructive tab reset command', async () => {
+    vi.mocked(invoke).mockResolvedValue({});
+    await vectorService.clearTabs('obj-1');
+    expect(invoke).toHaveBeenCalledWith('clear_tabs', { objectId: 'obj-1' });
   });
 
   it('cropImage invokes the raster crop command', async () => {
@@ -306,7 +324,6 @@ describe('persistenceService methods', () => {
     vi.mocked(invoke)
       .mockResolvedValueOnce({ export_settings: { last_directory: '/tmp', last_format: 'dxf', filename_stem: 'fixture' } })
       .mockResolvedValueOnce({ export_settings: { last_directory: '/tmp', last_format: 'png', filename_stem: 'output' } });
-    vi.mocked(exportCanvasScreenshot).mockResolvedValue('/tmp/output.png');
     vi.mocked(save).mockResolvedValue('/tmp/output.png');
 
     await persistenceService.exportArtwork({ selectionOnly: true, selectedIds: ['obj-1'], defaultName: 'Project' });
@@ -316,9 +333,14 @@ describe('persistenceService methods', () => {
       defaultPath: '/tmp/fixture.dxf',
       filters: expect.arrayContaining([{ name: 'AutoCAD DXF Files (*.dxf)', extensions: ['dxf'] }]),
     }));
-    expect(exportCanvasScreenshot).toHaveBeenCalledWith('/tmp/output.png', 'png');
-    expect(invoke).not.toHaveBeenCalledWith('export_png', expect.anything());
-    expect(invoke).toHaveBeenNthCalledWith(2, 'update_app_settings', {
+    expect(invoke).toHaveBeenNthCalledWith(2, 'export_bitmap_document', {
+      path: '/tmp/output.png',
+      format: 'png',
+      selectionOnly: true,
+      selectedIds: ['obj-1'],
+      pixelsPerMm: 4,
+    });
+    expect(invoke).toHaveBeenNthCalledWith(3, 'update_app_settings', {
       exportSettings: {
         last_directory: '/tmp',
         last_format: 'png',
@@ -331,7 +353,6 @@ describe('persistenceService methods', () => {
     vi.mocked(invoke)
       .mockResolvedValueOnce({ export_settings: { last_directory: null, last_format: 'jpg', filename_stem: null } })
       .mockResolvedValueOnce({});
-    vi.mocked(exportCanvasScreenshot).mockResolvedValue('/tmp/output.jpg');
     vi.mocked(save).mockResolvedValue('/tmp/output');
 
     await persistenceService.exportArtwork();
@@ -340,8 +361,13 @@ describe('persistenceService methods', () => {
       title: 'Export vectors to file',
       defaultPath: 'output.jpg',
     }));
-    expect(exportCanvasScreenshot).toHaveBeenCalledWith('/tmp/output.jpg', 'jpg');
-    expect(invoke).not.toHaveBeenCalledWith('export_jpg', expect.anything());
+    expect(invoke).toHaveBeenNthCalledWith(2, 'export_bitmap_document', {
+      path: '/tmp/output.jpg',
+      format: 'jpg',
+      selectionOnly: false,
+      selectedIds: [],
+      pixelsPerMm: 4,
+    });
   });
 
   it('exportArtwork uses the macOS native picker with descriptive format labels', async () => {
@@ -388,7 +414,6 @@ describe('persistenceService methods', () => {
 
     await expect(persistenceService.exportArtwork()).rejects.toThrow('Export cancelled');
     expect(invoke).toHaveBeenCalledOnce();
-    expect(exportCanvasScreenshot).not.toHaveBeenCalled();
   });
 
   it('exportArtwork rejects unsupported extensions before invoking an exporter', async () => {
@@ -397,7 +422,6 @@ describe('persistenceService methods', () => {
 
     await expect(persistenceService.exportArtwork()).rejects.toThrow('Unsupported export file type ".tiff"');
     expect(invoke).toHaveBeenCalledOnce();
-    expect(exportCanvasScreenshot).not.toHaveBeenCalled();
   });
 
   it('exportSvg invokes correct command with dialog', async () => {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Wind } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useMachineStore } from '../../stores/machineStore';
 import { useAppStore } from '../../stores/appStore';
@@ -13,7 +13,10 @@ import type {
 } from '../../types/project';
 import type { MachineProfile } from '../../types/machine';
 import { NumberInput } from '../shared/NumberInput';
+import { RangeInput } from '../shared/RangeInput';
 import { Toggle } from '../shared/Toggle';
+import { ToggleSwitch } from '../shared/ToggleSwitch';
+import { IconToggleButton } from '../shared/IconToggleButton';
 import { effectiveLineIntervalMm } from '../../types/rasterSettings';
 // M4: defaults moved to a dedicated module with a SYNC-WITH-RUST contract; the user-facing
 // Reset to Defaults action routes through the backend (projectStore.resetCutEntryToDefaults).
@@ -57,6 +60,7 @@ const EXPANDED_ICON = '▾';
 const COLLAPSED_ICON = '▸';
 const MOVE_UP_ICON = '▲';
 const MOVE_DOWN_ICON = '▼';
+const MAX_PASSES = 50;
 const GROUPING_OPTIONS = [
   { value: GROUP_ALL_SHAPES, labelKey: 'panels.sub_layer_stack.group_all_shapes' },
   { value: GROUPS_TOGETHER, labelKey: 'panels.sub_layer_stack.group_groups_together' },
@@ -116,6 +120,19 @@ function buildOperationPatch(entry: CutEntry, operation: OperationType) {
 
 function getPasses(entry: CutEntry): number {
   return entry.vector_settings?.passes ?? entry.raster_settings?.passes ?? 1;
+}
+
+function buildPassesPatch(entry: CutEntry, passes: number) {
+  const usesRasterPasses = entry.operation === OPERATION_IMAGE || entry.operation === OPERATION_FILL;
+  const canVector = usesLineSurface(entry.operation) || entry.operation === OPERATION_OFFSET_FILL;
+  return {
+    raster_settings: usesRasterPasses
+      ? { ...(entry.raster_settings ?? defaultRasterSettings()), passes }
+      : entry.raster_settings,
+    vector_settings: canVector
+      ? { ...(entry.vector_settings ?? defaultVectorSettings()), passes }
+      : entry.vector_settings,
+  };
 }
 
 function lineIntervalToLinesPerInch(lineIntervalMm: number): number {
@@ -179,7 +196,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
   const layer = useProjectStore((s) => s.project?.layers.find((candidate) => candidate.id === layerId) ?? null);
   const projectObjects = useProjectStore((s) => s.project?.objects ?? []);
   const activeProfile = useMachineStore((s) =>
-    s.profiles.find((profile) => profile.id === s.activeProfileId) ?? null,
+    (s.profiles ?? []).find((profile) => profile.id === s.activeProfileId) ?? null,
   );
   const addCutEntry = useProjectStore((s) => s.addCutEntry);
   const removeCutEntry = useProjectStore((s) => s.removeCutEntry);
@@ -225,6 +242,10 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
 
   return (
     <div className="flex flex-col gap-2">
+      {entries.length > 1 && (
+        <div className="pb-1 text-[10px] text-bb-text-dim">{t('panels.sub_layer_stack.order_hint')}</div>
+      )}
+      {entries.length > 1 && (
       <div className="flex flex-wrap gap-1" data-testid="sub-layer-tabs">
         {entries.map((entry, index) => (
           <button
@@ -242,14 +263,15 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
           </button>
         ))}
       </div>
+      )}
       {entries.map((entry, index) => {
         const expanded = entry.id === expandedId;
         if (!expanded) return null;
         const passes = getPasses(entry);
+        const displaySpeed = speedInputValue(entry.speed_mm_min, displayUnit, speedTimeUnit);
         const lineInterval = effectiveLineIntervalMm(entry.raster_settings);
         const linesPerInch = lineIntervalToLinesPerInch(lineInterval);
         const showsRasterSettings = entry.operation === OPERATION_IMAGE || entry.operation === OPERATION_FILL || entry.operation === OPERATION_OFFSET_FILL;
-        const usesRasterPasses = entry.operation === OPERATION_IMAGE || entry.operation === OPERATION_FILL;
         const isOffsetFill = entry.operation === OPERATION_OFFSET_FILL;
         const isLineSurface = usesLineSurface(entry.operation);
         const canVector = isLineSurface || entry.operation === OPERATION_OFFSET_FILL;
@@ -270,10 +292,15 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
         return (
           <div
             key={entry.id}
-            className="rounded border border-bb-border bg-bb-bg-alt/60"
+            className={
+              entries.length > 1
+                ? `rounded-xl border border-bb-border bg-bb-surface shadow-sm transition-opacity ${entry.output_enabled ? '' : 'opacity-55'}`
+                : ''
+            }
             data-testid={`sub-layer-card-${index}`}
           >
-            <div className="flex items-center gap-2 px-2 py-2">
+            {entries.length > 1 && (
+            <div className="flex items-center gap-2.5 px-3 py-2.5">
               <button
                 type="button"
                 className="text-xs text-bb-text-dim hover:text-bb-text"
@@ -282,22 +309,29 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
               >
                 {expanded ? EXPANDED_ICON : COLLAPSED_ICON}
               </button>
-              <span className="min-w-16 rounded bg-bb-accent/20 px-1.5 py-0.5 text-[11px] uppercase text-bb-text">
-                {modeLabel(entry.operation, t)}
-              </span>
-              <span className="text-xs text-bb-text-dim">
-                {t('panels.sub_layer_stack.summary', {
-                  speed: formatSpeedForDisplay(entry.speed_mm_min, displayUnit, speedTimeUnit),
-                  power: Math.round(entry.power_percent),
-                  passes,
-                })}
-              </span>
-              <div className="ml-auto flex items-center gap-1">
-                <Toggle
-                  label={t('panels.sub_layer_stack.output')}
-                  checked={entry.output_enabled}
-                  onChange={(output_enabled) => void updateCutEntry(layer.id, entry.id, { output_enabled })}
-                />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold text-bb-text">
+                  {index + 1} · {modeLabel(entry.operation, t)}
+                </div>
+                <div className="truncate text-[10px] text-bb-text-dim">
+                  {t('panels.sub_layer_stack.summary', {
+                    speed: formatSpeedForDisplay(entry.speed_mm_min, displayUnit, speedTimeUnit),
+                    power: Math.round(entry.power_percent),
+                    passes,
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="flex items-center gap-1.5 text-[10px] text-bb-text-muted">
+                  {t('panels.sub_layer_stack.output')}
+                  <ToggleSwitch
+                    active={entry.output_enabled}
+                    onClick={() => void updateCutEntry(layer.id, entry.id, { output_enabled: !entry.output_enabled })}
+                    aria-label={t('panels.sub_layer_stack.output')}
+                  />
+                </label>
+                {entries.length > 1 && (
+                <>
                 <button
                   type="button"
                   className="rounded border border-bb-border px-1 text-xs text-bb-text disabled:opacity-40"
@@ -316,6 +350,8 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 >
                   {MOVE_DOWN_ICON}
                 </button>
+                </>
+                )}
                 <button
                   type="button"
                   className="rounded border border-bb-border p-1 text-bb-text-muted hover:text-bb-text"
@@ -325,20 +361,44 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 >
                   <RotateCcw size={12} />
                 </button>
+                {entries.length > 1 && (
                 <button
                   type="button"
                   className="rounded border border-bb-border px-1 text-xs text-bb-text disabled:opacity-40"
                   onClick={() => void removeCutEntry(layer.id, entry.id)}
-                  disabled={entries.length === 1}
                   data-testid={`sub-layer-delete-${entry.id}`}
                 >
                   {t('panels.sub_layer_stack.delete')}
                 </button>
+                )}
               </div>
             </div>
+            )}
+
 
             {expanded && (
-              <div className="flex flex-col gap-2 border-t border-bb-border px-2 py-2">
+              <div className={entries.length > 1 ? "flex flex-col gap-3 border-t border-bb-border px-3 py-3" : "flex flex-col gap-3"}>
+                {entries.length === 1 && (
+                  <div className="flex items-center justify-end gap-2">
+                    <label className="flex items-center gap-1.5 text-[10px] text-bb-text-muted">
+                      {t('panels.sub_layer_stack.output')}
+                      <ToggleSwitch
+                        active={entry.output_enabled}
+                        onClick={() => void updateCutEntry(layer.id, entry.id, { output_enabled: !entry.output_enabled })}
+                        aria-label={t('panels.sub_layer_stack.output')}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="rounded border border-bb-border p-1 text-bb-text-muted hover:text-bb-text"
+                      onClick={() => void resetCutEntryToDefaults(layer.id, entry.id)}
+                      title={t('panels.sub_layer_stack.reset_to_defaults_title')}
+                      data-testid={`sub-layer-reset-${entry.id}`}
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-bb-text-dim">{t('panels.sub_layer_stack.mode')}</label>
                   <select
@@ -359,23 +419,25 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                     ))}
                   </select>
                 </div>
-                <NumberInput
+                <RangeInput
                   label={t('panels.sub_layer_stack.speed_with_unit', { unit: speedLabel })}
-                  value={speedInputValue(entry.speed_mm_min, displayUnit, speedTimeUnit)}
+                  value={displaySpeed}
                   onChange={(speed) => void updateCutEntry(layer.id, entry.id, {
                     speed_mm_min: displaySpeedToMmMin(speed, displayUnit, speedTimeUnit),
                   })}
                   min={minDisplaySpeed}
                   max={maxDisplaySpeed}
                   step={speedStep}
+                  testId={`sub-layer-speed-slider-${entry.id}`}
                 />
-                <NumberInput
+                <RangeInput
                   label={t('panels.sub_layer_stack.power_percent')}
                   value={entry.power_percent}
                   onChange={(power_percent) => void updateCutEntry(layer.id, entry.id, { power_percent })}
                   min={0}
                   max={100}
                   step={1}
+                  testId={`sub-layer-power-slider-${entry.id}`}
                 />
                 {showMinPower && (
                   <NumberInput
@@ -387,28 +449,27 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                     step={1}
                   />
                 )}
-                <NumberInput
+                <RangeInput
                   label={t('panels.sub_layer_stack.passes')}
                   value={passes}
                   onChange={(nextPasses) =>
-                    void updateCutEntry(layer.id, entry.id, {
-                      raster_settings: usesRasterPasses
-                        ? { ...(entry.raster_settings ?? defaultRasterSettings()), passes: nextPasses }
-                        : entry.raster_settings,
-                      vector_settings: canVector
-                        ? { ...(entry.vector_settings ?? defaultVectorSettings()), passes: nextPasses }
-                        : entry.vector_settings,
-                    })
+                    void updateCutEntry(layer.id, entry.id, buildPassesPatch(entry, nextPasses))
                   }
                   min={1}
-                  max={20}
+                  max={MAX_PASSES}
                   step={1}
+                  testId={`sub-layer-passes-slider-${entry.id}`}
                 />
-                <Toggle
-                  label={t('panels.sub_layer_stack.air_assist')}
-                  checked={entry.air_assist}
-                  onChange={(air_assist) => void updateCutEntry(layer.id, entry.id, { air_assist })}
-                />
+                <div className="flex min-h-6 items-center justify-between text-xs">
+                  <span className="text-bb-text-muted">{t('panels.sub_layer_stack.air_assist')}</span>
+                  <IconToggleButton
+                    active={entry.air_assist}
+                    label={t('panels.sub_layer_stack.air_assist')}
+                    icon={<Wind size={16} />}
+                    onClick={() => void updateCutEntry(layer.id, entry.id, { air_assist: !entry.air_assist })}
+                    testId={`sub-layer-air-assist-${entry.id}`}
+                  />
+                </div>
                 {showZOffset && (
                   <NumberInput
                     label={labelWithUnit(t('panels.sub_layer_stack.z_offset_mm'), lengthUnitLabel(displayUnit))}
@@ -616,20 +677,55 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
 
                 {canVector && (
                   <div className="flex flex-col gap-2 rounded border border-bb-border/70 p-2">
-                    <div className="text-xs font-medium uppercase tracking-wide text-bb-accent">{t('panels.sub_layer_stack.vector')}</div>
                     {isLineSurface && (
-                      <Toggle
-                        label={t('panels.sub_layer_stack.perforation')}
-                        checked={entry.vector_settings?.perforation_enabled ?? false}
-                        onChange={(perforation_enabled) =>
-                          void updateCutEntry(layer.id, entry.id, {
-                            vector_settings: {
-                              ...(entry.vector_settings ?? defaultVectorSettings()),
-                              perforation_enabled,
-                            },
-                          })
-                        }
-                      />
+                      <>
+                        <Toggle
+                          label={t('panels.sub_layer_stack.perforation')}
+                          checked={entry.vector_settings?.perforation_enabled ?? false}
+                          onChange={(perforation_enabled) =>
+                            void updateCutEntry(layer.id, entry.id, {
+                              vector_settings: {
+                                ...(entry.vector_settings ?? defaultVectorSettings()),
+                                perforation_enabled,
+                              },
+                            })
+                          }
+                        />
+                        {(entry.vector_settings?.perforation_enabled ?? false) && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <NumberInput
+                              label={t('panels.layers.quick_edit.on_ms')}
+                              value={entry.vector_settings?.perforation_on_ms ?? 10}
+                              onChange={(perforation_on_ms) =>
+                                void updateCutEntry(layer.id, entry.id, {
+                                  vector_settings: {
+                                    ...(entry.vector_settings ?? defaultVectorSettings()),
+                                    perforation_on_ms,
+                                  },
+                                })
+                              }
+                              min={1}
+                              max={1000}
+                              step={1}
+                            />
+                            <NumberInput
+                              label={t('panels.layers.quick_edit.off_ms')}
+                              value={entry.vector_settings?.perforation_off_ms ?? 10}
+                              onChange={(perforation_off_ms) =>
+                                void updateCutEntry(layer.id, entry.id, {
+                                  vector_settings: {
+                                    ...(entry.vector_settings ?? defaultVectorSettings()),
+                                    perforation_off_ms,
+                                  },
+                                })
+                              }
+                              min={1}
+                              max={1000}
+                              step={1}
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
                     <NumberInput
                       label={labelWithUnit(t('panels.sub_layer_stack.kerf_offset_mm'), lengthUnitLabel(displayUnit))}

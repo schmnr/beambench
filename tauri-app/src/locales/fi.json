@@ -62,7 +62,6 @@
       "export_selection": "Vie valinta",
       "hide_notes": "Piilota muistiinpanot",
       "import_preferences": "Tuo asetukset",
-      "new_window": "Uusi ikkuna",
       "open_preferences_folder": "Avaa Prefs-kansio",
       "preferences_exported": "Asetukset viety.",
       "preferences_imported": "Asetukset tuotu.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "Palautetaanko asetukset oletusasetuksiin? Koneprofiilit, viimeisimmät tiedostot, tallennetut sijainnit, API-asetukset ja vientipolut säilytetään.",
       "save_background_capture": "Tallenna taustakuva",
       "save_processed_bitmap": "Tallenna käsitelty bittikartta",
-      "show_notes": "Näytä muistiinpanot"
+      "show_notes": "Näytä muistiinpanot",
+      "project_notes": "Projektin muistiinpanot...",
+      "print": "Tulosta...",
+      "export_processed_image": "Vie käsitelty kuva..."
     },
     "edit": {
       "label": "Muokkaa",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Liity valittuihin muotoihin automaattisesti",
       "close_and_join": "Sulje & Liity",
       "convert_to_bitmap": "Muunna bittikartaksi",
+      "extract_selected_nodes_to_path": "Pura valitut solmut uudeksi poluksi",
       "duplicate": "Kopioi",
       "image_options": "Kuva-asetukset",
       "invert_selection": "Käänteinen valinta",
@@ -241,12 +244,12 @@
       "shape_properties": "Muodon ominaisuudet",
       "text_options": "Tekstiasetukset",
       "toggle_side_panels": "Vaihda sivupaneelit",
-      "toggle_wireframe_filled": "Vaihda vaijerikehys / täytetty",
-      "view_style": "Näytä tyyli:",
-      "view_style_filled_coarse": "Täytetty / karkea",
-      "view_style_filled_smooth": "Täytetty / sileä",
-      "view_style_wireframe_coarse": "Rautalanka / karkea",
-      "view_style_wireframe_smooth": "Rautalanka/Smooth",
+      "toggle_wireframe_filled": "Vaihda toiminto / rautalanka",
+      "view_style": "Grafiikan näyttö:",
+      "view_style_filled_coarse": "Pakota täyttö",
+      "view_style_filled_smooth": "Sileät reunat",
+      "view_style_wireframe_coarse": "Kerrostoiminnon mukaan",
+      "view_style_wireframe_smooth": "Pakota rautalanka",
       "zoom_to_page": "Zoomaa sivulle"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Vierityspyörä",
       "scroll_zoom": "Zoomaus",
       "scroll_pan": "Panorointi",
-      "allow_import_tool_layers": "Salli tuonti työkalutasoille",
-      "include_tool_layers_job_bounds": "Sisällytä työkalutasot työn rajoihin"
+      "allow_import_tool_layers": "Salli tuonti työkalutasoille"
     },
     "about": {
       "tagline": "Tekijöiltä tekijöille.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "Viivakoodivalintaikkuna suljettiin, koska sen kohdetaso ei ole enää käytettävissä."
     },
     "adjust_image": {
+      "invert_display_help": "Vain esikatselu. Tallennettu kuva ja laserin tulostus eivät muutu.",
+      "invert_adjustment_help": "Käänteisyys tallennetaan tämän kuvan mukana ja suoritetaan ennen tason rasterikäsittelyä.",
+      "negative_image_help": "Negatiivinen kuva kääntää tason tulostuksen. Jos myös yllä oleva Käänteinen on käytössä, käännöt voivat kumota toisensa.",
       "title": "Säädä kuvaa",
       "drag_to_move": "Siirrä vetämällä",
       "original": "Alkuperäinen",
@@ -701,6 +706,7 @@
       "include_project_file": "Sisällytä projektitiedosto",
       "include_project_file_help": "Oletuksena pois päältä. Tämä lähettää todelliset .lzrproj-geometria- ja rasteritiedot.",
       "job_compatibility_help": "Mitään ei ole vielä lähetetty. Raportti sisältää Beam Bench -version, käyttöjärjestelmän, ohjainperheen, koneen yksilöimättömät asetukset ja valmistuneen työn yhteenvedot. Se ei sisällä kuvioita, G-codea, tiedostonimiä, sarjaliikennettä, lokeja, laitepolkuja, profiilitunnuksia eikä projektitiedostoja.",
+      "privacy_policy": "Lue tietosuojakäytäntö",
       "what_gets_sent": "Mitä lähetetään",
       "loading": "Ladataan...",
       "submitting_report": "Lähetetään raporttia Beam Benchille...",
@@ -784,6 +790,7 @@
       "pan_hint": "Valitse jäljitysalue vetämällä. Panoroi pitämällä välilyöntiä pohjassa ja vetämällä."
     },
     "preview": {
+      "options_help": "Siirtymä on liikettä laser sammutettuna. Edistyminen näyttää valmiin työstön. Ylipyyhkäisy näyttää rasterikiihdytyksen kuvan ulkopuolella. Tehon mukaan varjostus ja Käänteinen vaikuttavat vain tähän näkymään.",
       "title": "Esikatseluikkuna",
       "stale_refresh_required": "Vanhentunut - päivitys vaaditaan",
       "stale": "Vanhentunut",
@@ -1105,10 +1112,27 @@
       "title": "Tallentamattomat muutokset",
       "message": "Projektissasi on tallentamattomia muutoksia. Tallennetaanko ne ennen jatkamista?",
       "discard": "Älä tallenna"
+    },
+    "print": {
+      "title": "Tulosta",
+      "output": "Tulostuksen tulos",
+      "description": "Valitse, miten projektin tulee näyttää, ja jatka sitten järjestelmän tulostusvalintaikkunassa.",
+      "color": "Väri",
+      "black": "Musta",
+      "layer_colors": "Tasojen värit",
+      "appearance": "Kuvituksen ulkoasu",
+      "by_operation": "Tason toiminnon mukaan",
+      "outlines": "Vain ääriviivat",
+      "print": "Tulosta...",
+      "preparing": "Valmistellaan..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Suunnittelu",
+      "mode_run": "Suorita",
+      "mode_design_hint": "Suunnittelu: piirrä ja järjestä projektisi",
+      "mode_run_hint": "Suorita: lähetä työ laserillesi",
       "new": "Uusi",
       "untitled_project": "Nimetön projekti",
       "open": "Avaa",
@@ -1193,13 +1217,16 @@
       "close_path": "Sulje polku",
       "auto_join_paths": "Liity automaattisesti polkuihin",
       "insert_midpoint": "Lisää keskipiste (M)",
-      "align_to_angle": "Kohdista kulmaan (A)"
+      "align_to_angle": "Kohdista kulmaan (A)",
+      "extend_to_intersection": "Jatka leikkauspisteeseen (E)"
     },
     "transform_toggles": {
       "move": "Siirrä",
       "size": "Koko",
       "rotate": "Kierrä",
-      "shear": "Leikkaus"
+      "shear": "Leikkaus",
+      "lock_all": "Lukitse kaikki muunnokset",
+      "unlock_all": "Avaa kaikki muunnokset"
     },
     "properties": {
       "position_x": "X-sij.",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Ei projektia",
-      "nothing_selected": "Ei mitään valittuna"
+      "nothing_selected": "Valitse objekti muokataksesi sen ominaisuuksia"
+    },
+    "library": {
+      "title": "Kirjasto"
     },
     "floating": {
       "dock_tooltip": "Kiinnitä paneeli",
       "close_tooltip": "Sulje paneeli",
       "float_tooltip": "Irrota paneeli"
     },
+    "outliner": {
+      "help": "Vedä järjestääksesi uudelleen tai siirtääksesi. Kaksoisnapsauta nimetäksesi uudelleen. Piilotetut objektit säilyvät täällä, jotta voit palauttaa ne.",
+      "summary": "{layers} tasoa · {objects} objektia",
+      "empty_layer": "Ei esineitä",
+      "expand_layer": "Laajenna kerrosta",
+      "collapse_layer": "Tiivistä kerros",
+      "expand_group": "Laajenna ryhmää",
+      "collapse_group": "Tiivistä ryhmä",
+      "show_layer": "Näytä taso",
+      "hide_layer": "Piilota kerros",
+      "show_object": "Näytä objekti",
+      "hide_object": "Piilota objekti",
+      "lock_object": "Lukitse kohde",
+      "unlock_object": "Avaa objektin lukitus"
+    },
     "registry": {
-      "cuts_layers": "Leikkaukset / Tasot",
+      "outliner": "Outliner",
+      "cuts_layers": "Kerrokset",
       "move": "Siirrä",
       "console": "Konsoli",
       "macros": "Makrot",
-      "properties": "Muodon ominaisuudet",
+      "properties": "Ominaisuudet",
       "measurement": "Mittaus",
       "laser": "Laser Control",
       "material": "Materiaalikirjasto",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Yksi alitaso"
     },
     "properties": {
+      "transform": "Muunna",
+      "visibility_help": "Piilotetut objektit jätetään pois työstä. Palauta ne Outlinerissa.",
+      "power_scale_help": "Kertoo tämän objektin tason tehon muuttamatta tasoa.",
+      "cut_priority_help": "Pienemmät arvot suoritetaan ensin, kun prioriteettioptimointi on käytössä.",
       "objects_selected": "{count} objektia valittu",
       "layer": "Taso",
       "mixed": "Sekalainen",
@@ -1421,7 +1471,7 @@
       "union": "liitto",
       "subtract": "Vähennä",
       "intersection": "Leikkaus",
-      "nothing_selected": "Ei valintaa",
+      "nothing_selected": "Valitse objekti muokataksesi sen ominaisuuksia",
       "name": "Nimi",
       "power_scale_percent": "Tehoasteikko %",
       "cut_priority": "Leikkausprioriteetti",
@@ -1484,15 +1534,63 @@
       "h_space": "H-väli",
       "v_space": "V-väli",
       "path_offset": "Polun siirtymä",
+      "baseline_offset": "Perusviivan siirtymä",
+      "direction_normal": "Normaali",
+      "direction_reverse": "Käänteinen",
+      "strength": "Voimakkuus",
+      "arc_span": "Kaaren laajuus",
+      "circle_position": "Sijainti ympyrällä",
+      "circle_side": "Ympyrän puoli",
+      "circle_top": "Ylhäällä",
+      "circle_bottom": "Alhaalla",
+      "circle_outside": "Ulkopuolella",
+      "circle_inside": "Sisäpuolella",
       "bend_radius": "Taivutussäde",
       "align_left": "Vasen",
       "align_center": "Keskelle",
       "align_right": "Oikea",
       "align_top": "Ylös",
       "align_middle": "Keskelle",
-      "align_bottom": "Alas"
+      "align_bottom": "Alas",
+      "tool_title": "Teksti työkalu",
+      "creation_hint": "Valitse Osoite, jos haluat klikata ja kirjoittaa, tai laatikko vetääksesi rivitysaluetta.",
+      "edit_text": "Muokkaa tekstiä",
+      "edit_on_canvas": "Muokkaa kankaalle",
+      "search_fonts": "Hae fontteja",
+      "recent_fonts": "Viimeaikaiset",
+      "favorite_fonts": "Suosikit",
+      "all_fonts": "Kaikki fontit",
+      "no_fonts_found": "Fonttia ei löytynyt",
+      "favorite_font": "Suosikkifontti",
+      "unfavorite_font": "Poista suosikki",
+      "style": "Tyyli",
+      "style_regular": "Säännöllinen",
+      "style_bold_italic": "Lihavoitu kursiivi",
+      "typography": "Typografia",
+      "alignment_spacing": "Tasaus ja väli",
+      "text_box": "Tekstin tyyppi",
+      "width_mode": "tila",
+      "auto_width": "Point",
+      "fixed_width": "Laatikko",
+      "width": "Laatikon leveys",
+      "squeeze_to_fit": "Purista sopivaksi",
+      "advanced_shape": "Edistynyt tekstimuoto",
+      "transform": "Kirjekuori",
+      "transform_none": "Ei mitään",
+      "transform_arch": "Arch",
+      "transform_rise": "Nouse",
+      "transform_wave": "Aalto",
+      "transform_flag": "Lippu",
+      "transform_angle": "Kulma",
+      "transform_circle": "Ympyrä",
+      "curve": "Käyrä",
+      "laser_output": "Laserlähtö",
+      "convert_hint": "Convert to Path jäädyttää kirjaimet muokattavaan leikkausgeometriaan.",
+      "tracking": "Seuranta",
+      "line_spacing": "Rivivälit"
     },
     "sub_layer_stack": {
+      "title": "Alitasot",
       "operation_tool": "Työkalu",
       "operation_image": "Kuva",
       "operation_fill": "Täyttö",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Offset ulospäin",
       "max_sub_layers_title": "Enimmäismäärä 11 alitasoa saavutettu",
       "add_sub_layer_title": "Lisää alitaso",
-      "add_sub_layer": "+ Lisää alitaso"
+      "add_sub_layer": "+ Lisää alitaso",
+      "order_hint": "Alitasot suoritetaan järjestyksessä ylhäältä alas."
     },
     "cut_settings": {
       "title": "Leikkausasetukset",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Työkalutasot ovat apuviivoja eivätkä koskaan tuota laserin tulostusta.",
+      "output_show_help": "Tulostus sisällyttää tämän tason laserajoon. Näytä muuttaa vain piirtoalueen näkymää.",
+      "opacity_help": "Vain piirtoalueen esikatselu. Tämä ei muuta laserin tehoa tai kuvankäsittelyä.",
+      "delete_layer": "Poista taso",
+      "add_layer": "Lisää taso",
       "header": {
         "index": "#",
         "layer": "Taso",
@@ -1587,8 +1691,6 @@
         "multi": "Useita"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Sisällytä työkalutasot työn rajoihin",
-      "exclude_tool_layers_from_job_bounds": "Sulje työkalutasot työn rajojen ulkopuolelle",
       "frame": "Kehys",
       "move_up": "Siirrä ylös",
       "move_down": "Siirrä alas",
@@ -1635,7 +1737,8 @@
         "on_ms": "Päällä (ms)",
         "off_ms": "Pois (ms)",
         "kerf_mm": "Kerf-siirtymä"
-      }
+      },
+      "settings_copied": "Tason asetukset kopioitu"
     },
     "move": {
       "step_mm": "Askel",
@@ -2168,9 +2271,40 @@
       "end": "Loppu",
       "midpoint": "Keskipiste",
       "difference": "Ero",
-      "angle": "Kulma"
+      "angle": "Kulma",
+      "mode_linear": "Lineaarinen",
+      "mode_angle": "Kulma",
+      "mode_radius": "Säde",
+      "mode_gap": "aukko",
+      "minimum_gap": "Minimi väli",
+      "horizontal": "Vaakasuora",
+      "vertical": "Pystysuora",
+      "horizontal_gap": "Vaakasuora rako",
+      "vertical_gap": "Pystysuuntainen rako",
+      "first_segment": "Ensimmäinen jakso",
+      "second_segment": "Toinen segmentti",
+      "radius": "Säde",
+      "diameter": "Halkaisija",
+      "radius_x": "Säde X",
+      "radius_y": "Säde Y",
+      "diameter_x": "Halkaisija X",
+      "diameter_y": "Halkaisija Y",
+      "linear_second_hint": "Napsauta toista pistettä",
+      "angle_second_hint": "Napsauta toista segmenttiä",
+      "gap_second_hint": "Napsauta toista objektia",
+      "angle_hint": "Napsauta kahta segmenttiä mitataksesi niiden kulman",
+      "radius_hint": "Napsauta ympyrää tai ellipsiä",
+      "gap_hint": "Napsauta kahta kohdetta mitataksesi niiden lähin väli",
+      "linear_hint": "Napsauta ja vedä tai napsauta kahta pistettä",
+      "title": "Mittaa",
+      "modes": "Mittaustilat",
+      "copy_value": "Kopioi arvo",
+      "copied": "Kopioitu",
+      "clear_measurement": "Selkeä mittaus",
+      "keyboard_hint": "Shift rajoittaa kulmia. Escape tyhjentää ja palaa sitten Select-tilaan."
     },
     "art_library": {
+      "drag_help": "Vedä grafiikka piirtoalueelle. Poista se kirjastosta painamalla ×.",
       "no_libraries": "Ei ladattuja kirjastoja.",
       "search": "Hae...",
       "icon_size": "Kuvakekoko:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Beam Bench -grafiikkakirjasto",
       "filter_artwork": "Kuvitus"
     }
+  },
+  "warp_tool": {
+    "title": "Warp",
+    "four_points": "4 pistettä",
+    "sixteen_points": "16 pistettä"
   },
   "context_menu": {
     "windows": "Ikkunat",

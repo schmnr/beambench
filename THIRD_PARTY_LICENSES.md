@@ -547,6 +547,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [tauri-plugin-process](https://github.com/tauri-apps/plugins-workspace) | 2.3.1 | Apache-2.0 OR MIT |
 | Cargo | [tauri-plugin-shell](https://github.com/tauri-apps/plugins-workspace) | 2.3.5 | Apache-2.0 OR MIT |
 | Cargo | [tauri-plugin-updater](https://github.com/tauri-apps/plugins-workspace) | 2.10.1 | Apache-2.0 OR MIT |
+| Cargo | [tauri-plugin-window-state](https://github.com/tauri-apps/plugins-workspace) | 2.4.1 | Apache-2.0 OR MIT |
 | Cargo | [tauri-plugin](https://github.com/tauri-apps/tauri) | 2.6.3 | Apache-2.0 OR MIT |
 | Cargo | [tauri-runtime-wry](https://github.com/tauri-apps/tauri) | 2.11.4 | Apache-2.0 OR MIT |
 | Cargo | [tauri-runtime](https://github.com/tauri-apps/tauri) | 2.11.3 | Apache-2.0 OR MIT |
@@ -1849,7 +1850,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### 0ae52fe329cc
 
-Packages: npm:isexe@2.0.0, npm:lru-cache@5.1.1, npm:semver@6.3.1, npm:semver@7.8.5, npm:which@2.0.2, npm:yallist@3.1.1
+Packages: npm:isexe@2.0.0, npm:lru-cache@5.1.1, npm:minimatch@10.2.5, npm:semver@6.3.1, npm:semver@7.8.5, npm:which@2.0.2, npm:yallist@3.1.1
 
 ```text
 The ISC License
@@ -4268,36 +4269,6 @@ licenses; we recommend you read them, as their terms may differ from the
 terms above.
 ```
 
-### 23b57495a1f9
-
-Packages: npm:balanced-match@4.0.4
-
-```text
-(MIT)
-
-Original code Copyright Julian Gruber <julian@juliangruber.com>
-
-Port to TypeScript Copyright Isaac Z. Schlueter <i@izs.me>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
 ### 23c3dce12b90
 
 Packages: Cargo:sharded-slab@0.1.7
@@ -4703,22 +4674,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-```
-
-### 2806ece4e2aa
-
-Packages: npm:zod-validation-error@4.0.2
-
-```text
-(The MIT License)
-
-Copyright 2022 Causaly, Inc <front-end@causaly.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
 ### 283ea6cc2997
@@ -6449,6 +6404,34 @@ in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 3a7c107a9e62
+
+Packages: npm:balanced-match@4.0.4
+
+```text
+(MIT)
+
+Copyright (c) 2013 Julian Gruber &lt;julian@juliangruber.com&gt;
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
@@ -8829,7 +8812,7 @@ DEALINGS IN THE SOFTWARE.
 
 ### 4bf96504d6e8
 
-Packages: Cargo:ab_glyph@0.2.32, Cargo:ab_glyph_rasterizer@0.1.10, Cargo:arboard@3.6.1, Cargo:const_fn@0.4.12, Cargo:fdeflate@0.3.7, Cargo:field-offset@0.3.6, Cargo:half@2.7.1, Cargo:image-webp@0.2.4, Cargo:image@0.25.10, Cargo:miniz_oxide@0.8.9, Cargo:owned_ttf_parser@0.25.1, Cargo:pin-project-lite@0.2.17, Cargo:raw-window-handle@0.6.2, Cargo:resvg@0.45.1, Cargo:sync_wrapper@1.0.2, Cargo:tauri-build@2.6.3, Cargo:tauri-codegen@2.6.3, Cargo:tauri-macros@2.6.3, Cargo:tauri-plugin-dialog@2.7.2, Cargo:tauri-plugin-fs@2.5.1, Cargo:tauri-plugin-opener@2.5.4, Cargo:tauri-plugin-process@2.3.1, Cargo:tauri-plugin-shell@2.3.5, Cargo:tauri-plugin-updater@2.10.1, Cargo:tauri-runtime-wry@2.11.4, Cargo:tauri-runtime@2.11.3, Cargo:tauri-utils@2.9.3, Cargo:tauri@2.11.5, Cargo:time-core@0.1.8, Cargo:time-macros@0.2.27, Cargo:time@0.3.47, Cargo:usvg@0.45.1, npm:@tauri-apps/api@2.11.1, npm:@tauri-apps/cli@2.11.4, npm:xml-name-validator@5.0.0
+Packages: Cargo:ab_glyph@0.2.32, Cargo:ab_glyph_rasterizer@0.1.10, Cargo:arboard@3.6.1, Cargo:const_fn@0.4.12, Cargo:fdeflate@0.3.7, Cargo:field-offset@0.3.6, Cargo:half@2.7.1, Cargo:image-webp@0.2.4, Cargo:image@0.25.10, Cargo:miniz_oxide@0.8.9, Cargo:owned_ttf_parser@0.25.1, Cargo:pin-project-lite@0.2.17, Cargo:raw-window-handle@0.6.2, Cargo:resvg@0.45.1, Cargo:sync_wrapper@1.0.2, Cargo:tauri-build@2.6.3, Cargo:tauri-codegen@2.6.3, Cargo:tauri-macros@2.6.3, Cargo:tauri-plugin-dialog@2.7.2, Cargo:tauri-plugin-fs@2.5.1, Cargo:tauri-plugin-opener@2.5.4, Cargo:tauri-plugin-process@2.3.1, Cargo:tauri-plugin-shell@2.3.5, Cargo:tauri-plugin-updater@2.10.1, Cargo:tauri-plugin-window-state@2.4.1, Cargo:tauri-runtime-wry@2.11.4, Cargo:tauri-runtime@2.11.3, Cargo:tauri-utils@2.9.3, Cargo:tauri@2.11.5, Cargo:time-core@0.1.8, Cargo:time-macros@0.2.27, Cargo:time@0.3.47, Cargo:usvg@0.45.1, npm:@tauri-apps/api@2.11.1, npm:@tauri-apps/cli@2.11.4, npm:xml-name-validator@5.0.0
 
 ```text
 Apache License
@@ -18976,7 +18959,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### 89ff9689dcf9
 
-Packages: Cargo:tauri-build@2.6.3, Cargo:tauri-codegen@2.6.3, Cargo:tauri-macros@2.6.3, Cargo:tauri-plugin-dialog@2.7.2, Cargo:tauri-plugin-fs@2.5.1, Cargo:tauri-plugin-opener@2.5.4, Cargo:tauri-plugin-process@2.3.1, Cargo:tauri-plugin-shell@2.3.5, Cargo:tauri-plugin-updater@2.10.1, Cargo:tauri-runtime-wry@2.11.4, Cargo:tauri-runtime@2.11.3, Cargo:tauri-utils@2.9.3, Cargo:tauri@2.11.5, npm:@tauri-apps/api@2.11.1, npm:@tauri-apps/cli@2.11.4
+Packages: Cargo:tauri-build@2.6.3, Cargo:tauri-codegen@2.6.3, Cargo:tauri-macros@2.6.3, Cargo:tauri-plugin-dialog@2.7.2, Cargo:tauri-plugin-fs@2.5.1, Cargo:tauri-plugin-opener@2.5.4, Cargo:tauri-plugin-process@2.3.1, Cargo:tauri-plugin-shell@2.3.5, Cargo:tauri-plugin-updater@2.10.1, Cargo:tauri-plugin-window-state@2.4.1, Cargo:tauri-runtime-wry@2.11.4, Cargo:tauri-runtime@2.11.3, Cargo:tauri-utils@2.9.3, Cargo:tauri@2.11.5, npm:@tauri-apps/api@2.11.1, npm:@tauri-apps/cli@2.11.4
 
 ```text
 MIT License
@@ -23039,68 +23022,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-```
-
-### aa4c6585f201
-
-Packages: npm:minimatch@10.2.5
-
-```text
-# Blue Oak Model License
-
-Version 1.0.0
-
-## Purpose
-
-This license gives everyone as much permission to work with
-this software as possible, while protecting contributors
-from liability.
-
-## Acceptance
-
-In order to receive this license, you must agree to its
-rules. The rules of this license are both obligations
-under that agreement and conditions to your license.
-You must not do anything with this software that triggers
-a rule that you cannot or will not follow.
-
-## Copyright
-
-Each contributor licenses you to do everything with this
-software that would otherwise infringe that contributor's
-copyright in it.
-
-## Notices
-
-You must ensure that everyone who gets a copy of
-any part of this software from you, with or without
-changes, also gets the text of this license or a link to
-<https://blueoakcouncil.org/license/1.0.0>.
-
-## Excuse
-
-If anyone notifies you in writing that you have not
-complied with [Notices](#notices), you can keep your
-license by taking all practical steps to comply within 30
-days after the notice. If you do not do so, your license
-ends immediately.
-
-## Patent
-
-Each contributor licenses you to do everything with this
-software that would otherwise infringe any patent claims
-they can license or become able to license.
-
-## Reliability
-
-No contributor can revoke this license.
-
-## No Liability
-
-**_As far as the law allows, this software comes as is,
-without any warranty or condition, and no contributor
-will be liable to anyone for any damages related to this
-software or this license, under any kind of legal claim._**
 ```
 
 ### aa69fda6dd94
@@ -28071,7 +27992,7 @@ SOFTWARE.
 
 ### cf9b17822d1f
 
-Packages: npm:eslint-plugin-react-hooks@7.1.1, npm:hermes-estree@0.25.1, npm:hermes-parser@0.25.1, npm:react-dom@19.2.4, npm:react-refresh@0.17.0, npm:react@19.2.4, npm:scheduler@0.27.0
+Packages: npm:eslint-plugin-react-hooks@7.1.1, npm:react-dom@19.2.4, npm:react-refresh@0.17.0, npm:react@19.2.4, npm:scheduler@0.27.0
 
 ```text
 MIT License
@@ -28145,6 +28066,34 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+```
+
+### cfe46dde9d4b
+
+Packages: npm:brace-expansion@5.0.8
+
+```text
+MIT License
+
+Copyright (c) 2013 Julian Gruber <julian@juliangruber.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ### d0a8e5996a99
@@ -31082,7 +31031,7 @@ Permission is granted to anyone to use this software for any purpose, including 
 
 ### eb8a6c846304
 
-Packages: Cargo:tauri-plugin-dialog@2.7.2, Cargo:tauri-plugin-fs@2.5.1, Cargo:tauri-plugin-opener@2.5.4, Cargo:tauri-plugin-process@2.3.1, Cargo:tauri-plugin-shell@2.3.5, Cargo:tauri-plugin-updater@2.10.1, npm:@tauri-apps/plugin-dialog@2.7.2, npm:@tauri-apps/plugin-process@2.3.1, npm:@tauri-apps/plugin-updater@2.10.1
+Packages: Cargo:tauri-plugin-dialog@2.7.2, Cargo:tauri-plugin-fs@2.5.1, Cargo:tauri-plugin-opener@2.5.4, Cargo:tauri-plugin-process@2.3.1, Cargo:tauri-plugin-shell@2.3.5, Cargo:tauri-plugin-updater@2.10.1, Cargo:tauri-plugin-window-state@2.4.1, npm:@tauri-apps/plugin-dialog@2.7.2, npm:@tauri-apps/plugin-process@2.3.1, npm:@tauri-apps/plugin-updater@2.10.1
 
 ```text
 SPDXVersion: SPDX-2.1
@@ -31613,36 +31562,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### f36e2da26df2
-
-Packages: npm:brace-expansion@5.0.8
-
-```text
-MIT License
-
-Copyright Julian Gruber <julian@juliangruber.com>
-
-TypeScript port Copyright Isaac Z. Schlueter <i@izs.me>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
 ### f3b071bdd275
 
 Packages: npm:asynckit@0.4.0
@@ -31711,34 +31630,6 @@ Packages: Cargo:field-offset@0.3.6
 MIT License
 
 Copyright (c) 2016-2021 Diggory Blake, and other contributors.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### f61cacc2acb8
-
-Packages: npm:zod@4.4.3
-
-```text
-MIT License
-
-Copyright (c) 2025 Colin McDonnell
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33920,7 +33811,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 ### ff82c90f8494
 
-Packages: Cargo:windows-collections@0.2.0, Cargo:windows-collections@0.3.2, Cargo:windows-core@0.61.2, Cargo:windows-core@0.62.2, Cargo:windows-future@0.2.1, Cargo:windows-future@0.3.2, Cargo:windows-implement@0.60.2, Cargo:windows-interface@0.59.3, Cargo:windows-link@0.1.3, Cargo:windows-link@0.2.1, Cargo:windows-numerics@0.2.0, Cargo:windows-numerics@0.3.1, Cargo:windows-result@0.3.4, Cargo:windows-result@0.4.1, Cargo:windows-strings@0.4.2, Cargo:windows-strings@0.5.1, Cargo:windows-sys@0.45.0, Cargo:windows-sys@0.52.0, Cargo:windows-sys@0.59.0, Cargo:windows-sys@0.60.2, Cargo:windows-sys@0.61.2, Cargo:windows-targets@0.42.2, Cargo:windows-targets@0.52.6, Cargo:windows-targets@0.53.5, Cargo:windows-threading@0.1.0, Cargo:windows-threading@0.2.1, Cargo:windows-version@0.1.7, Cargo:windows@0.61.3, Cargo:windows@0.62.2, Cargo:windows_aarch64_gnullvm@0.42.2, Cargo:windows_aarch64_gnullvm@0.52.6, Cargo:windows_aarch64_gnullvm@0.53.1, Cargo:windows_aarch64_msvc@0.42.2, Cargo:windows_aarch64_msvc@0.52.6, Cargo:windows_aarch64_msvc@0.53.1, Cargo:windows_i686_gnu@0.42.2, Cargo:windows_i686_gnu@0.52.6, Cargo:windows_i686_gnu@0.53.1, Cargo:windows_i686_gnullvm@0.52.6, Cargo:windows_i686_gnullvm@0.53.1, Cargo:windows_i686_msvc@0.42.2, Cargo:windows_i686_msvc@0.52.6, Cargo:windows_i686_msvc@0.53.1, Cargo:windows_x86_64_gnu@0.42.2, Cargo:windows_x86_64_gnu@0.52.6, Cargo:windows_x86_64_gnu@0.53.1, Cargo:windows_x86_64_gnullvm@0.42.2, Cargo:windows_x86_64_gnullvm@0.52.6, Cargo:windows_x86_64_gnullvm@0.53.1, Cargo:windows_x86_64_msvc@0.42.2, Cargo:windows_x86_64_msvc@0.52.6, Cargo:windows_x86_64_msvc@0.53.1, npm:@types/aria-query@5.0.4, npm:@types/babel__core@7.20.5, npm:@types/babel__generator@7.27.0, npm:@types/babel__template@7.4.4, npm:@types/babel__traverse@7.28.0, npm:@types/chai@5.2.3, npm:@types/deep-eql@4.0.2, npm:@types/esrecurse@4.3.1, npm:@types/estree@1.0.8, npm:@types/json-schema@7.0.15, npm:@types/rbush@4.0.0, npm:@types/react-dom@19.2.3, npm:@types/react@19.2.14
+Packages: Cargo:windows-collections@0.2.0, Cargo:windows-collections@0.3.2, Cargo:windows-core@0.61.2, Cargo:windows-core@0.62.2, Cargo:windows-future@0.2.1, Cargo:windows-future@0.3.2, Cargo:windows-implement@0.60.2, Cargo:windows-interface@0.59.3, Cargo:windows-link@0.1.3, Cargo:windows-link@0.2.1, Cargo:windows-numerics@0.2.0, Cargo:windows-numerics@0.3.1, Cargo:windows-result@0.3.4, Cargo:windows-result@0.4.1, Cargo:windows-strings@0.4.2, Cargo:windows-strings@0.5.1, Cargo:windows-sys@0.45.0, Cargo:windows-sys@0.52.0, Cargo:windows-sys@0.59.0, Cargo:windows-sys@0.60.2, Cargo:windows-sys@0.61.2, Cargo:windows-targets@0.42.2, Cargo:windows-targets@0.52.6, Cargo:windows-targets@0.53.5, Cargo:windows-threading@0.1.0, Cargo:windows-threading@0.2.1, Cargo:windows-version@0.1.7, Cargo:windows@0.61.3, Cargo:windows@0.62.2, Cargo:windows_aarch64_gnullvm@0.42.2, Cargo:windows_aarch64_gnullvm@0.52.6, Cargo:windows_aarch64_gnullvm@0.53.1, Cargo:windows_aarch64_msvc@0.42.2, Cargo:windows_aarch64_msvc@0.52.6, Cargo:windows_aarch64_msvc@0.53.1, Cargo:windows_i686_gnu@0.42.2, Cargo:windows_i686_gnu@0.52.6, Cargo:windows_i686_gnu@0.53.1, Cargo:windows_i686_gnullvm@0.52.6, Cargo:windows_i686_gnullvm@0.53.1, Cargo:windows_i686_msvc@0.42.2, Cargo:windows_i686_msvc@0.52.6, Cargo:windows_i686_msvc@0.53.1, Cargo:windows_x86_64_gnu@0.42.2, Cargo:windows_x86_64_gnu@0.52.6, Cargo:windows_x86_64_gnu@0.53.1, Cargo:windows_x86_64_gnullvm@0.42.2, Cargo:windows_x86_64_gnullvm@0.52.6, Cargo:windows_x86_64_gnullvm@0.53.1, Cargo:windows_x86_64_msvc@0.42.2, Cargo:windows_x86_64_msvc@0.52.6, Cargo:windows_x86_64_msvc@0.53.1, npm:@types/aria-query@5.0.4, npm:@types/babel__core@7.20.5, npm:@types/babel__generator@7.27.0, npm:@types/babel__template@7.4.4, npm:@types/babel__traverse@7.28.0, npm:@types/chai@5.2.3, npm:@types/deep-eql@4.0.2, npm:@types/estree@1.0.8, npm:@types/json-schema@7.0.15, npm:@types/rbush@4.0.0, npm:@types/react-dom@19.2.3, npm:@types/react@19.2.14
 
 ```text
 MIT License

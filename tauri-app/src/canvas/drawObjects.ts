@@ -63,7 +63,7 @@ export function drawShape(
       ctx.beginPath();
       ctx.roundRect(topLeft.x, topLeft.y, w, h, r);
       if (filled) {
-        ctx.fillStyle = color + 'B0';
+        ctx.fillStyle = color;
         ctx.fill();
       }
       ctx.stroke();
@@ -110,7 +110,7 @@ export function drawShape(
       );
       ctx.closePath();
       if (filled) {
-        ctx.fillStyle = color + 'B0';
+        ctx.fillStyle = color;
         ctx.fill();
       }
       ctx.stroke();
@@ -118,7 +118,7 @@ export function drawShape(
       ctx.beginPath();
       ctx.rect(topLeft.x, topLeft.y, w, h);
       if (filled) {
-        ctx.fillStyle = color + 'B0';
+        ctx.fillStyle = color;
         ctx.fill();
       }
       ctx.stroke();
@@ -127,7 +127,7 @@ export function drawShape(
     ctx.beginPath();
     ctx.ellipse(topLeft.x + w / 2, topLeft.y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
     if (filled) {
-      ctx.fillStyle = color + 'B0';
+      ctx.fillStyle = color;
       ctx.fill();
     }
     ctx.stroke();
@@ -149,9 +149,17 @@ export function drawText(
   if (resolved_path_data) {
     const commands = parsePathData(resolved_path_data);
     if (commands.length === 0) return;
+    const pathBBox = computePathBBox(commands);
+    const mappedBounds = textUsesMappedBounds(obj.data);
+    const boundsW = obj.bounds.max.x - obj.bounds.min.x;
+    const boundsH = obj.bounds.max.y - obj.bounds.min.y;
 
-    const localToScreen = (px: number, py: number) =>
-      worldToScreen({ x: obj.bounds.min.x + px, y: obj.bounds.min.y + py }, vp);
+    const localToScreen = (px: number, py: number) => worldToScreen(
+      mappedBounds
+        ? mapPathCoordToBounds(px, py, pathBBox, obj.bounds.min.x, obj.bounds.min.y, boundsW, boundsH)
+        : { x: obj.bounds.min.x + px, y: obj.bounds.min.y + py },
+      vp,
+    );
 
     ctx.save();
     applyTransform(ctx, obj.transform, vp, obj.bounds);
@@ -191,7 +199,7 @@ export function drawText(
     }
 
     if (filled) {
-      ctx.fillStyle = color + 'B0';
+      ctx.fillStyle = color;
       ctx.fill();
     }
     ctx.stroke();
@@ -400,7 +408,7 @@ export function drawVectorPath(
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     if (filled && hasClosedSubpath) {
-      ctx.fillStyle = color + 'B0';
+      ctx.fillStyle = color;
       ctx.fill(screenPath);
     }
     ctx.stroke(screenPath);
@@ -421,7 +429,7 @@ export function drawVectorPath(
         drawPathCommandsToContext(ctx, subpath.commands, mapPt, true);
       }
     }
-    ctx.fillStyle = color + 'B0';
+    ctx.fillStyle = color;
     ctx.fill('evenodd');
   }
 
@@ -494,7 +502,7 @@ export function drawEditableVectorPath(
     for (const path of paths) {
       if (path.closed) drawPath(path);
     }
-    ctx.fillStyle = color + 'B0';
+    ctx.fillStyle = color;
     ctx.fill('evenodd');
   }
 
@@ -526,6 +534,63 @@ export function drawRasterImage(
   drawRasterImageContent(ctx, obj, color, vp, imageCache, imageErrorCache);
 }
 
+const RASTER_LAYER_TINT_CACHE_SEPARATOR = '\u0000layer-tint:';
+
+function buildLayerTintCanvas(
+  source: HTMLImageElement | HTMLCanvasElement,
+  color: string,
+): HTMLCanvasElement | null {
+  const width = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+  const height = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+  if (width <= 0 || height <= 0) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const tintCtx = canvas.getContext('2d');
+  if (!tintCtx) return null;
+
+  tintCtx.drawImage(source, 0, 0, width, height);
+  try {
+    const imageData = tintCtx.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
+    for (let index = 0; index < pixels.length; index += 4) {
+      const luminance = 0.299 * pixels[index]
+        + 0.587 * pixels[index + 1]
+        + 0.114 * pixels[index + 2];
+      pixels[index] = 255;
+      pixels[index + 1] = 255;
+      pixels[index + 2] = 255;
+      pixels[index + 3] = Math.round(pixels[index + 3] * (1 - luminance / 255));
+    }
+    tintCtx.putImageData(imageData, 0, 0);
+    tintCtx.globalCompositeOperation = 'source-in';
+    tintCtx.fillStyle = color;
+    tintCtx.fillRect(0, 0, width, height);
+    tintCtx.globalCompositeOperation = 'source-over';
+    return canvas;
+  } catch {
+    // Local project assets should always be readable. If a platform blocks
+    // pixel access, retain the stable grayscale positioning proxy instead.
+    return null;
+  }
+}
+
+function layerTintedRaster(
+  imageCache: Map<string, HTMLImageElement | HTMLCanvasElement>,
+  assetKey: string,
+  source: HTMLImageElement | HTMLCanvasElement,
+  color: string,
+): HTMLCanvasElement | null {
+  const tintKey = `${assetKey}${RASTER_LAYER_TINT_CACHE_SEPARATOR}${color.toLowerCase()}`;
+  const cachedTint = imageCache.get(tintKey);
+  if (cachedTint instanceof HTMLCanvasElement) return cachedTint;
+
+  const tinted = buildLayerTintCanvas(source, color);
+  if (tinted) imageCache.set(tintKey, tinted);
+  return tinted;
+}
+
 function drawRasterImageContent(
   ctx: CanvasRenderingContext2D,
   obj: ProjectObject,
@@ -543,16 +608,18 @@ function drawRasterImageContent(
   ctx.save();
   applyTransform(ctx, obj.transform, vp, obj.bounds);
 
-  // Main canvas shows a grayscale positioning proxy. The cache entry is a
-  // pre-baked grayscale `HTMLCanvasElement` once loading is complete; before
-  // then it's still the raw `HTMLImageElement` and we treat that as "not
-  // ready yet" so we don't briefly flash the color source.
+  // The main canvas uses the cached grayscale positioning proxy as a burn
+  // mask tinted with the layer color. Dark pixels carry the strongest color,
+  // midtones fade toward the canvas, and white pixels remain transparent.
   const cached = imageCache?.get(obj.data.asset_key);
   const loadError = imageErrorCache?.get(obj.data.asset_key);
   const loadedImageFallback =
     cached instanceof HTMLImageElement && cached.complete && cached.naturalWidth > 0 && cached.naturalHeight > 0;
   if (cached instanceof HTMLCanvasElement || loadedImageFallback) {
-    ctx.drawImage(cached, topLeft.x, topLeft.y, w, h);
+    const tinted = imageCache
+      ? layerTintedRaster(imageCache, obj.data.asset_key, cached, color)
+      : null;
+    ctx.drawImage(tinted ?? cached, topLeft.x, topLeft.y, w, h);
   } else if (loadError) {
     ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 1;
@@ -664,6 +731,7 @@ export function drawBarcode(
   color: string,
   vp: ViewportParams,
   barcodePathCache?: Map<string, string>,
+  filled = true,
 ): void {
   if (obj.data.type !== 'barcode') return;
 
@@ -741,8 +809,10 @@ export function drawBarcode(
       }
     }
 
-    ctx.fillStyle = color + 'B0';
-    ctx.fill();
+    if (filled) {
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
     ctx.stroke();
     if (showText) {
       const topLeft = worldToScreen({ x: obj.bounds.min.x, y: obj.bounds.max.y - textWorldHeight }, vp);
@@ -949,7 +1019,7 @@ function drawPathShape(
   ctx.closePath();
 
   if (filled) {
-    ctx.fillStyle = color + 'B0';
+    ctx.fillStyle = color;
     ctx.fill();
   }
 
@@ -999,7 +1069,12 @@ function getTransformedObjectScreenAabb(obj: ProjectObject, vp: ViewportParams):
   };
 }
 
-function addScreenPointsToPath(path: Path2D, points: { x: number; y: number }[]): boolean {
+type ScreenPathSink = Pick<
+  Path2D,
+  'moveTo' | 'lineTo' | 'quadraticCurveTo' | 'bezierCurveTo' | 'closePath'
+>;
+
+function addScreenPointsToPath(path: ScreenPathSink, points: { x: number; y: number }[]): boolean {
   if (points.length < 3) return false;
   path.moveTo(points[0].x, points[0].y);
   for (let i = 1; i < points.length; i++) {
@@ -1009,7 +1084,7 @@ function addScreenPointsToPath(path: Path2D, points: { x: number; y: number }[])
   return true;
 }
 
-function addBoundsRectToScreenPath(path: Path2D, obj: ProjectObject, vp: ViewportParams): boolean {
+function addBoundsRectToScreenPath(path: ScreenPathSink, obj: ProjectObject, vp: ViewportParams): boolean {
   return addScreenPointsToPath(path, [
     objectWorldToScreen(obj.bounds.min, obj, vp),
     objectWorldToScreen({ x: obj.bounds.max.x, y: obj.bounds.min.y }, obj, vp),
@@ -1018,7 +1093,12 @@ function addBoundsRectToScreenPath(path: Path2D, obj: ProjectObject, vp: Viewpor
   ]);
 }
 
-function addRoundedRectToScreenPath(path: Path2D, obj: ProjectObject, vp: ViewportParams, radiusMm: number): boolean {
+function addRoundedRectToScreenPath(
+  path: ScreenPathSink,
+  obj: ProjectObject,
+  vp: ViewportParams,
+  radiusMm: number,
+): boolean {
   const minX = obj.bounds.min.x;
   const minY = obj.bounds.min.y;
   const maxX = obj.bounds.max.x;
@@ -1050,7 +1130,7 @@ function addRoundedRectToScreenPath(path: Path2D, obj: ProjectObject, vp: Viewpo
   return addScreenPointsToPath(path, points);
 }
 
-function addEllipseToScreenPath(path: Path2D, obj: ProjectObject, vp: ViewportParams): boolean {
+function addEllipseToScreenPath(path: ScreenPathSink, obj: ProjectObject, vp: ViewportParams): boolean {
   const points: { x: number; y: number }[] = [];
   const cx = (obj.bounds.min.x + obj.bounds.max.x) / 2;
   const cy = (obj.bounds.min.y + obj.bounds.max.y) / 2;
@@ -1065,7 +1145,7 @@ function addEllipseToScreenPath(path: Path2D, obj: ProjectObject, vp: ViewportPa
 }
 
 function addVectorCommandsToScreenPath(
-  path: Path2D,
+  path: ScreenPathSink,
   commands: PathCommand[],
   bbox: PathBBox,
   obj: ProjectObject,
@@ -1119,7 +1199,7 @@ function addVectorCommandsToScreenPath(
 }
 
 function addShapeCommandsToScreenPath(
-  path: Path2D,
+  path: ScreenPathSink,
   obj: ProjectObject,
   vp: ViewportParams,
   cmds: ShapeCmd[],
@@ -1172,23 +1252,41 @@ function addShapeCommandsToScreenPath(
   return true;
 }
 
-export function buildObjectScreenMaskPath(obj: ProjectObject, vp: ViewportParams): Path2D | null {
-  if (typeof Path2D === 'undefined') return null;
-  const path = new Path2D();
+/**
+ * Append the closed contours of an object to a screen-space path. Callers can
+ * fill several objects in a single `evenodd` pass so nested objects on the
+ * same Fill layer become holes, matching the generated laser job.
+ */
+export function appendObjectScreenFillPath(
+  path: ScreenPathSink,
+  obj: ProjectObject,
+  vp: ViewportParams,
+): boolean {
   switch (obj.data.type) {
     case 'shape':
       if (obj.data.kind === 'ellipse') {
-        return addEllipseToScreenPath(path, obj, vp) ? path : null;
+        return addEllipseToScreenPath(path, obj, vp);
       }
       if (obj.data.corner_radius > 0) {
-        return addRoundedRectToScreenPath(path, obj, vp, obj.data.corner_radius) ? path : null;
+        return addRoundedRectToScreenPath(path, obj, vp, obj.data.corner_radius);
       }
-      return addBoundsRectToScreenPath(path, obj, vp) ? path : null;
+      return addBoundsRectToScreenPath(path, obj, vp);
     case 'vector_path': {
-      if (!obj.data.closed) return null;
       const info = getVectorPathRenderInfoForObject(obj);
-      if (!info) return null;
-      return addVectorCommandsToScreenPath(path, info.commands, info.bbox, obj, vp, true) ? path : null;
+      if (!info) return false;
+      let drew = false;
+      for (const subpath of getPathSubpathRenderStates(info.commands)) {
+        if (!subpath.closed) continue;
+        drew = addVectorCommandsToScreenPath(
+          path,
+          subpath.commands,
+          info.bbox,
+          obj,
+          vp,
+          true,
+        ) || drew;
+      }
+      return drew;
     }
     case 'polygon': {
       const points = buildPolygonPoints(obj.data.sides, obj.data.radius);
@@ -1197,7 +1295,7 @@ export function buildObjectScreenMaskPath(obj: ProjectObject, vp: ViewportParams
           ? { type: 'move' as const, x: point.x, y: point.y }
           : { type: 'line' as const, x: point.x, y: point.y },
       );
-      return addShapeCommandsToScreenPath(path, obj, vp, cmds) ? path : null;
+      return addShapeCommandsToScreenPath(path, obj, vp, cmds);
     }
     case 'star': {
       const cmds = buildStarPath(
@@ -1209,11 +1307,78 @@ export function buildObjectScreenMaskPath(obj: ProjectObject, vp: ViewportParams
         obj.data.corner_radius ?? 0,
         obj.data.corner_radii,
       );
-      return addShapeCommandsToScreenPath(path, obj, vp, cmds) ? path : null;
+      return addShapeCommandsToScreenPath(path, obj, vp, cmds);
+    }
+    case 'text': {
+      if (!obj.data.resolved_path_data) return false;
+      const commands = parsePathData(obj.data.resolved_path_data);
+      const pathBBox = computePathBBox(commands);
+      const mappedBounds = textUsesMappedBounds(obj.data);
+      const boundsW = obj.bounds.max.x - obj.bounds.min.x;
+      const boundsH = obj.bounds.max.y - obj.bounds.min.y;
+      const toScreen = (x: number, y: number) => objectWorldToScreen(
+        mappedBounds
+          ? mapPathCoordToBounds(x, y, pathBBox, obj.bounds.min.x, obj.bounds.min.y, boundsW, boundsH)
+          : { x: obj.bounds.min.x + x, y: obj.bounds.min.y + y },
+        obj,
+        vp,
+      );
+      let drew = false;
+      for (const subpath of getPathSubpathRenderStates(commands)) {
+        if (!subpath.closed || subpath.commands.length === 0) continue;
+        for (const command of subpath.commands) {
+          switch (command.type) {
+            case 'M': {
+              const point = toScreen(command.x, command.y);
+              path.moveTo(point.x, point.y);
+              drew = true;
+              break;
+            }
+            case 'L': {
+              const point = toScreen(command.x, command.y);
+              path.lineTo(point.x, point.y);
+              break;
+            }
+            case 'Q': {
+              const control = toScreen(command.x1!, command.y1!);
+              const point = toScreen(command.x, command.y);
+              path.quadraticCurveTo(control.x, control.y, point.x, point.y);
+              break;
+            }
+            case 'C': {
+              const control1 = toScreen(command.x1!, command.y1!);
+              const control2 = toScreen(command.x2!, command.y2!);
+              const point = toScreen(command.x, command.y);
+              path.bezierCurveTo(
+                control1.x,
+                control1.y,
+                control2.x,
+                control2.y,
+                point.x,
+                point.y,
+              );
+              break;
+            }
+            case 'Z':
+              path.closePath();
+              break;
+          }
+        }
+        if (subpath.commands[subpath.commands.length - 1]?.type !== 'Z') {
+          path.closePath();
+        }
+      }
+      return drew;
     }
     default:
-      return null;
+      return false;
   }
+}
+
+export function buildObjectScreenMaskPath(obj: ProjectObject, vp: ViewportParams): Path2D | null {
+  if (typeof Path2D === 'undefined') return null;
+  const path = new Path2D();
+  return appendObjectScreenFillPath(path, obj, vp) ? path : null;
 }
 
 export function buildPolygonPoints(sides: number, radius: number): { x: number; y: number }[] {
@@ -1423,6 +1588,7 @@ export function drawObject(
   isToolLayer?: boolean,
   barcodePathCache?: Map<string, string>,
   imageErrorCache?: Map<string, string>,
+  useLayerAppearance = false,
 ): void {
   const color = layer.color_tag;
 
@@ -1452,7 +1618,7 @@ export function drawObject(
       drawRasterImage(ctx, obj, color, vp, imageCache, imageErrorCache);
       break;
     case 'barcode':
-      drawBarcode(ctx, obj, color, vp, barcodePathCache);
+      drawBarcode(ctx, obj, color, vp, barcodePathCache, useLayerAppearance ? filled : true);
       break;
     case 'group':
       // Groups are flattened in rendering — children are drawn individually
@@ -1878,6 +2044,14 @@ export function mapPathCoordToBounds(
       ? ((y - pathBBox.minY) / pathBBox.height) * boundsH + boundsMinY
       : boundsMinY + boundsH / 2;
   return { x: nx, y: ny };
+}
+
+export function textUsesMappedBounds(data: ProjectObject['data']): boolean {
+  return data.type === 'text' && (
+    data.transform_style !== 'none'
+    || data.on_path
+    || data.layout_mode !== 'straight'
+  );
 }
 
 /** Convert EditablePath[] back to an SVG path `d` string (inverse of get_editable_path) */

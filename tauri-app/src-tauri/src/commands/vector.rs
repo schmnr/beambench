@@ -133,6 +133,64 @@ pub fn get_editable_path(
 }
 
 #[tauri::command]
+pub fn copy_nodes(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+    node_ids: Vec<serde_json::Value>,
+) -> Result<vector::NodeClipboardCopy, String> {
+    let node_ids = node_ids
+        .into_iter()
+        .map(|value| serde_json::from_value(value).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    vector::copy_nodes(
+        &svc,
+        vector::CopyNodesInput {
+            object_id: parse_id(&object_id)?,
+            node_ids,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn paste_nodes(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+    copied_path_json: String,
+    offset_mm: Option<f64>,
+) -> Result<vector::NodePasteResult, String> {
+    vector::paste_nodes(
+        &svc,
+        vector::PasteNodesInput {
+            object_id: parse_id(&object_id)?,
+            copied_path_json,
+            offset_mm: offset_mm.unwrap_or(5.0),
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn extract_nodes_to_path(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+    node_ids: Vec<serde_json::Value>,
+) -> Result<ProjectObject, String> {
+    let node_ids = node_ids
+        .into_iter()
+        .map(|value| serde_json::from_value(value).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    vector::extract_nodes_to_path(
+        &svc,
+        vector::ExtractNodesInput {
+            object_id: parse_id(&object_id)?,
+            node_ids,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
 pub fn update_node(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
@@ -463,7 +521,7 @@ pub fn scale_path_to_bounds(
 }
 
 #[tauri::command]
-pub fn mesh_deform_selection(
+pub async fn mesh_deform_selection(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
     source_bounds: Bounds,
@@ -471,21 +529,22 @@ pub fn mesh_deform_selection(
     grid_size: usize,
     perspective: bool,
 ) -> Result<Vec<ProjectObject>, String> {
+    let svc = svc.inner().clone();
     let object_ids = object_ids
         .iter()
         .map(|id| parse_id(id))
         .collect::<Result<Vec<_>, _>>()?;
-    vector::mesh_deform_selection(
-        &svc,
-        vector::MeshDeformSelectionInput {
-            object_ids,
-            source_bounds,
-            handles,
-            grid_size,
-            perspective,
-        },
-    )
-    .map_err(Into::into)
+    let input = vector::MeshDeformSelectionInput {
+        object_ids,
+        source_bounds,
+        handles,
+        grid_size,
+        perspective,
+    };
+    tokio::task::spawn_blocking(move || vector::mesh_deform_selection(&svc, input))
+        .await
+        .map_err(|e| format!("Warp task failed: {e}"))?
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -899,6 +958,69 @@ pub fn boolean_weld(
     boolean_weld_inner(&svc, parsed_ids)
 }
 
+fn parse_boolean_many_ids(object_ids: &[String]) -> Result<Vec<ObjectId>, String> {
+    object_ids
+        .iter()
+        .map(|id| parse_id(id))
+        .collect::<Result<Vec<_>, _>>()
+}
+
+#[tauri::command]
+pub fn boolean_intersection_many(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+) -> Result<ProjectObject, String> {
+    vector::boolean_intersection_many(
+        &svc,
+        vector::BooleanWeldInput {
+            object_ids: parse_boolean_many_ids(&object_ids)?,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn boolean_union_many(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+) -> Result<ProjectObject, String> {
+    vector::boolean_union_many(
+        &svc,
+        vector::BooleanWeldInput {
+            object_ids: parse_boolean_many_ids(&object_ids)?,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn boolean_exclude_many(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+) -> Result<ProjectObject, String> {
+    vector::boolean_exclude_many(
+        &svc,
+        vector::BooleanWeldInput {
+            object_ids: parse_boolean_many_ids(&object_ids)?,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn boolean_subtract_many(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+) -> Result<ProjectObject, String> {
+    vector::boolean_subtract_many(
+        &svc,
+        vector::BooleanWeldInput {
+            object_ids: parse_boolean_many_ids(&object_ids)?,
+        },
+    )
+    .map_err(Into::into)
+}
+
 fn boolean_weld_inner(
     svc: &ServiceContext,
     parsed_ids: Vec<ObjectId>,
@@ -1151,7 +1273,8 @@ pub struct OffsetPreviewPath {
 }
 
 /// Non-mutating offset preview. `source_all_open` reports whether the collected
-/// geometry was entirely open paths (the only case that yields a preview).
+/// geometry was entirely open paths so the frontend can use side-oriented
+/// labels for those paths.
 #[derive(Serialize)]
 pub struct OffsetPreview {
     pub paths: Vec<OffsetPreviewPath>,
@@ -1159,13 +1282,14 @@ pub struct OffsetPreview {
 }
 
 #[tauri::command]
-pub fn preview_offset_shapes(
+pub async fn preview_offset_shapes(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
     distance: f64,
     direction: String,
     corner_style: Option<String>,
 ) -> Result<OffsetPreview, String> {
+    let svc = svc.inner().clone();
     let oids: Vec<ObjectId> = object_ids
         .iter()
         .map(|id| parse_id(id))
@@ -1182,13 +1306,20 @@ pub fn preview_offset_shapes(
         _ => beambench_core::vector::offset::CornerStyle::Miter,
     };
 
-    preview_offset_shapes_inner(&svc, &oids, distance, dir, corner)
+    // Closed offsets use Clipper2 and can be expensive for node-dense artwork.
+    // Keep that exact Apply-equivalent computation off the UI thread so the
+    // properties controls remain responsive while the preview updates.
+    tokio::task::spawn_blocking(move || {
+        preview_offset_shapes_inner(&svc, &oids, distance, dir, corner)
+    })
+    .await
+    .map_err(|e| format!("Offset preview task failed: {e}"))?
 }
 
 /// Core logic for `preview_offset_shapes`, separated from the Tauri command
 /// wrapper so it can be tested without `State<>`. Reads the project, never
-/// mutates it, and skips the Clipper2 closed buffer entirely for closed/mixed
-/// selections (preview is scoped to all-open selections).
+/// mutates it, and uses the same geometry function as Apply so the canvas ghost
+/// is an accurate preview for open, closed, and mixed selections.
 fn preview_offset_shapes_inner(
     svc: &ServiceContext,
     oids: &[ObjectId],
@@ -1201,16 +1332,21 @@ fn preview_offset_shapes_inner(
 
     let split = collect_and_split(project, oids)?;
 
-    // Scope: only all-open selections get a preview. Bail before the heavy
-    // stage for closed/mixed/empty selections so Clipper2 never runs here.
-    if !split.closed_subpaths.is_empty() || split.open_subpaths.is_empty() {
+    if split.closed_subpaths.is_empty() && split.open_subpaths.is_empty() {
         return Ok(OffsetPreview {
             paths: vec![],
             source_all_open: false,
         });
     }
 
-    let results = compute_offset_from_split(&split.open_subpaths, &[], distance, dir, corner);
+    let source_all_open = split.closed_subpaths.is_empty() && !split.open_subpaths.is_empty();
+    let results = compute_offset_from_split(
+        &split.open_subpaths,
+        &split.closed_subpaths,
+        distance,
+        dir,
+        corner,
+    );
 
     let mut paths = Vec::new();
     for path in &results {
@@ -1233,7 +1369,7 @@ fn preview_offset_shapes_inner(
 
     Ok(OffsetPreview {
         paths,
-        source_all_open: true,
+        source_all_open,
     })
 }
 
@@ -4004,6 +4140,34 @@ pub fn remove_tab(
     remove_tab_inner(&svc, parse_id(&object_id)?, world_x, world_y)
 }
 
+#[tauri::command]
+pub fn clear_tabs(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+) -> Result<ProjectObject, String> {
+    clear_tabs_inner(&svc, parse_id(&object_id)?)
+}
+
+fn clear_tabs_inner(svc: &ServiceContext, oid: ObjectId) -> Result<ProjectObject, String> {
+    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+    let project = guard.as_mut().ok_or("No project open")?;
+    let source = project.find_object(oid).ok_or("Object not found")?.clone();
+    if source.tabs.is_empty() {
+        return Ok(source);
+    }
+
+    svc.push_project_undo_snapshot(project)
+        .map_err(|e| e.to_string())?;
+    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+    let obj = project.find_object_mut(oid).ok_or("Object not found")?;
+    obj.tabs.clear();
+    let result = obj.clone();
+    project.dirty = true;
+    drop(guard);
+    planning::invalidate_plan_cache(svc).map_err(String::from)?;
+    Ok(result)
+}
+
 fn remove_tab_inner(
     svc: &ServiceContext,
     oid: ObjectId,
@@ -4854,7 +5018,7 @@ mod tests {
     }
 
     #[test]
-    fn preview_offset_closed_selection_skips_compute() {
+    fn preview_offset_closed_selection_matches_apply_geometry() {
         let (mut project, layer_id) = test_project();
         let rect_id = add_rect(&mut project, layer_id, 0.0, 0.0, 10.0, 10.0);
         let svc = svc_with_project(project);
@@ -4870,13 +5034,24 @@ mod tests {
 
         assert!(!preview.source_all_open);
         assert!(
-            preview.paths.is_empty(),
-            "closed selection must not produce a preview"
+            !preview.paths.is_empty(),
+            "closed selection needs a live preview"
+        );
+        assert!(preview.paths.iter().all(|path| path.closed));
+        let preview_min_x = preview
+            .paths
+            .iter()
+            .flat_map(|path| path.points.iter())
+            .map(|point| point.x)
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            (preview_min_x + 2.0).abs() < 1e-6,
+            "outward preview should extend to x=-2, got {preview_min_x}"
         );
     }
 
     #[test]
-    fn preview_offset_mixed_selection_skips_compute() {
+    fn preview_offset_mixed_selection_includes_open_and_closed_results() {
         let (mut project, layer_id) = test_project();
         let line_id = add_line(&mut project, layer_id, 0.0, 0.0, 10.0, 0.0);
         let rect_id = add_rect(&mut project, layer_id, 0.0, 0.0, 10.0, 10.0);
@@ -4891,9 +5066,15 @@ mod tests {
         )
         .unwrap();
 
-        // A closed member disqualifies the whole selection from preview.
         assert!(!preview.source_all_open);
-        assert!(preview.paths.is_empty());
+        assert!(
+            preview.paths.iter().any(|path| path.closed),
+            "mixed preview should include the closed offset"
+        );
+        assert!(
+            preview.paths.iter().any(|path| !path.closed),
+            "mixed preview should include the open offset"
+        );
     }
 
     #[test]
@@ -5710,6 +5891,36 @@ mod tests {
             1
         );
         assert!(!svc.undo_state().unwrap().can_undo);
+    }
+
+    #[test]
+    fn clear_tabs_removes_all_anchors_with_one_undo_step() {
+        let (mut project, layer_id) = test_project();
+        let object_id = add_vecpath(
+            &mut project,
+            layer_id,
+            "closed",
+            "M0 0 L10 0 L10 10 L0 10 Z",
+        );
+        let obj = project.find_object_mut(object_id).unwrap();
+        obj.tabs.push(beambench_core::object::TabAnchor {
+            subpath_index: 0,
+            position: 0.2,
+        });
+        obj.tabs.push(beambench_core::object::TabAnchor {
+            subpath_index: 0,
+            position: 0.7,
+        });
+        let svc = svc_with_project(project);
+
+        let updated = clear_tabs_inner(&svc, object_id).unwrap();
+
+        assert!(updated.tabs.is_empty());
+        assert!(svc.undo_state().unwrap().can_undo);
+        let guard = svc.project.lock().unwrap();
+        let project = guard.as_ref().unwrap();
+        assert!(project.find_object(object_id).unwrap().tabs.is_empty());
+        assert!(project.dirty);
     }
 
     #[test]

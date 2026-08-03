@@ -8,6 +8,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import { makeProjectObject } from '../../test-utils/projectFixtures';
 import { resolveCanvasPointerSnap } from '../pointerSnap';
 import type { EditablePath, NodeId, NodeSelectionTarget } from '../../types/vector';
+import { writeNodeClipboard } from '../../utils/nodeClipboard';
 
 // Mock vectorService
 vi.mock('../../services/vectorService', () => ({
@@ -30,7 +31,15 @@ vi.mock('../../services/vectorService', () => ({
     togglePathClosed: vi.fn(),
     closeAndJoin: vi.fn(),
     convertSegmentToCurve: vi.fn(),
+    copyNodes: vi.fn(),
+    pasteNodes: vi.fn(),
+    extractNodesToPath: vi.fn(),
   },
+}));
+
+vi.mock('../../utils/nodeClipboard', () => ({
+  writeNodeClipboard: vi.fn(),
+  readNodeClipboard: vi.fn(),
 }));
 
 vi.mock('../pointerSnap', () => ({
@@ -44,6 +53,7 @@ const uiState = {
   nudgeStepFineMm: 1,
   nudgeStepCoarseMm: 20,
   setNodeEditNodeCount: vi.fn(),
+  setNodeEditOpenPathObjectId: vi.fn(),
   setNodeSubMode: vi.fn(),
 };
 
@@ -304,6 +314,12 @@ describe('NodeTool', () => {
     vi.mocked(vectorService.extendEndpointToIntersection).mockResolvedValue(
       makeVectorPathObj('path1', { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } }),
     );
+    vi.mocked(vectorService.copyNodes).mockResolvedValue({
+      pathJson: '{"subpaths":[]}',
+      pathData: 'M 0 0',
+      bounds: { min: { x: 0, y: 0 }, max: { x: 0, y: 0 } },
+      closed: false,
+    });
     vi.mocked(resolveCanvasPointerSnap).mockImplementation(({ world }) => ({
       snapped: world,
       nextPreferredTargetKey: null,
@@ -370,6 +386,23 @@ describe('NodeTool', () => {
 
     expect(vectorService.getEditablePath).toHaveBeenCalledWith('path1');
     expect(tool.getOverlay()).toMatchObject({ type: 'node-edit', objectId: 'path1' });
+    expect(uiState.setNodeEditOpenPathObjectId).toHaveBeenCalledWith(null);
+  });
+
+  it('reports open subpaths from the loaded node geometry', async () => {
+    vi.mocked(vectorService.getEditablePath).mockResolvedValueOnce([
+      { closed: true, nodes: [] },
+      makeLineEditablePath(1, { x: 0, y: 0 }, { x: 10, y: 0 }),
+    ]);
+    const obj = makeVectorPathObj('path1', { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    const ctx = makeToolContext({
+      selectedObjectIds: ['path1'],
+      objects: [obj],
+    });
+
+    await tool.prepareForSelection(ctx);
+
+    expect(uiState.setNodeEditOpenPathObjectId).toHaveBeenCalledWith('path1');
   });
 
   it('maps editable nodes from the freshly loaded path when frontend path data is stale after a move', async () => {
@@ -652,7 +685,10 @@ describe('NodeTool', () => {
     // @ts-expect-error accessing private field
     tool.objectId = 'path1';
     // @ts-expect-error accessing private field
-    tool.editablePaths = [{ closed: false, nodes: [] }, { closed: false, nodes: [] }];
+    tool.editablePaths = [
+      makeLineEditablePath(0, { x: 0, y: 0 }, { x: 10, y: 0 }),
+      makeLineEditablePath(1, { x: 20, y: 0 }, { x: 30, y: 0 }),
+    ];
     // @ts-expect-error accessing private field
     tool.activeSubpathIdx = 1;
 
@@ -698,7 +734,7 @@ describe('NodeTool', () => {
     // @ts-expect-error accessing private field
     tool.editablePaths = [
       { closed: true, nodes: [] },
-      { closed: false, nodes: [] },
+      makeLineEditablePath(1, { x: 20, y: 0 }, { x: 30, y: 0 }),
     ];
     // @ts-expect-error accessing private field
     tool.activeSubpathIdx = 0;
@@ -718,7 +754,7 @@ describe('NodeTool', () => {
     // @ts-expect-error accessing private field
     tool.objectId = 'path1';
     // @ts-expect-error accessing private field
-    tool.editablePaths = [{ closed: false, nodes: [] }];
+    tool.editablePaths = [makeLineEditablePath(0, { x: 0, y: 0 }, { x: 10, y: 0 })];
     uiState.nodeSubMode = 'close_open';
 
     const ctx = makeToolContext();
@@ -936,7 +972,7 @@ describe('NodeTool', () => {
     // @ts-expect-error accessing private field
     tool.objectId = 'path1';
     // @ts-expect-error accessing private field
-    tool.editablePaths = [{ closed: false, nodes: [] }];
+    tool.editablePaths = [makeLineEditablePath(0, { x: 0, y: 0 }, { x: 10, y: 0 })];
     uiState.nodeSubMode = 'close_open';
 
     const ctx = makeToolContext();
@@ -982,6 +1018,36 @@ describe('NodeTool', () => {
     tool.onMouseDown(makeMouseEvent({ screenX: 410, screenY: 300, worldX: 5, worldY: 0 }), ctx);
 
     expect(vectorService.insertNode).toHaveBeenCalledWith('path1', 0, 1, 0.5);
+  });
+
+  it('hit-tests imported quadratic segments using their true curve', () => {
+    const obj = makeVectorPathObj('path1', { min: { x: 0, y: 0 }, max: { x: 10, y: 5 } });
+    const ctx = makeToolContext({ selectedObjectIds: ['path1'], objects: [obj], vp: originVp });
+    // @ts-expect-error private state setup
+    tool.objectId = 'path1';
+    // @ts-expect-error private state setup
+    tool.objectBounds = obj.bounds;
+    // @ts-expect-error private state setup
+    tool.pathBBox = { minX: 0, minY: 0, maxX: 10, maxY: 5, width: 10, height: 5 };
+    // @ts-expect-error private state setup
+    tool.editablePaths = [{
+      closed: false,
+      nodes: [
+        { id: { subpath_idx: 0, command_idx: 0 }, incoming_segment: 'move', position: { x: 0, y: 0 }, handle_in: null, handle_out: { x: 5, y: 10 }, node_type: 'corner' },
+        { id: { subpath_idx: 0, command_idx: 1 }, incoming_segment: 'quadratic', position: { x: 10, y: 0 }, handle_in: { x: 5, y: 10 }, handle_out: null, node_type: 'corner' },
+      ],
+    }];
+    uiState.nodeSubMode = 'insert';
+    const screen = worldToScreen({ x: 5, y: 5 }, originVp);
+
+    tool.onMouseDown(makeMouseEvent({ screenX: screen.x, screenY: screen.y, worldX: 5, worldY: 5 }), ctx);
+
+    expect(vectorService.insertNode).toHaveBeenCalledWith(
+      'path1',
+      0,
+      1,
+      expect.closeTo(0.5, 1),
+    );
   });
 
   it('midpoint toolbar one-click action still uses the cached hovered segment', () => {
@@ -1351,7 +1417,7 @@ describe('NodeTool', () => {
     expect(cmdIdxs).toEqual([0, 1]);
   });
 
-  it('rubber-band drag selects multiple nodes', () => {
+  it('freehand lasso selects enclosed nodes by default', () => {
     const obj = primeThreeNodePathTool(tool);
     const ctx = makeToolContext({
       selectedObjectIds: ['path1'],
@@ -1359,15 +1425,19 @@ describe('NodeTool', () => {
       vp: originVp,
     });
 
-    tool.onMouseDown(makeMouseEvent({ screenX: 380, screenY: 280 }), ctx);
+    tool.onMouseDown(makeMouseEvent({ screenX: 390, screenY: 290 }), ctx);
+    tool.onMouseMove(makeMouseEvent({ screenX: 430, screenY: 290 }), ctx);
     tool.onMouseMove(makeMouseEvent({ screenX: 430, screenY: 310 }), ctx);
+    tool.onMouseMove(makeMouseEvent({ screenX: 390, screenY: 310 }), ctx);
 
     const overlay = tool.getOverlay();
     if (overlay.type !== 'node-edit') throw new Error('Expected node-edit overlay');
-    expect(overlay.selectionRect).toMatchObject({
-      startScreen: { x: 380, y: 280 },
-      endScreen: { x: 430, y: 310 },
-    });
+    expect(overlay.selectionLasso?.points).toEqual([
+      { x: 390, y: 290 },
+      { x: 430, y: 290 },
+      { x: 430, y: 310 },
+      { x: 390, y: 310 },
+    ]);
 
     tool.onMouseUp(makeMouseEvent(), ctx);
 
@@ -1376,7 +1446,7 @@ describe('NodeTool', () => {
     expect(cmdIdxs).toEqual([0, 1]);
   });
 
-  it('shift rubber-band adds node hits to the existing node selection', () => {
+  it('shift-lasso adds enclosed nodes to the existing node selection', () => {
     const obj = primeThreeNodePathTool(tool);
     const ctx = makeToolContext({
       selectedObjectIds: ['path1'],
@@ -1388,13 +1458,146 @@ describe('NodeTool', () => {
     // @ts-expect-error private state setup
     tool.primaryTarget = { kind: 'node', nodeId: { subpath_idx: 0, command_idx: 2 } };
 
-    tool.onMouseDown(makeMouseEvent({ screenX: 380, screenY: 280, shiftKey: true }), ctx);
+    tool.onMouseDown(makeMouseEvent({ screenX: 390, screenY: 290, shiftKey: true }), ctx);
+    tool.onMouseMove(makeMouseEvent({ screenX: 430, screenY: 290, shiftKey: true }), ctx);
     tool.onMouseMove(makeMouseEvent({ screenX: 430, screenY: 310, shiftKey: true }), ctx);
+    tool.onMouseMove(makeMouseEvent({ screenX: 390, screenY: 310, shiftKey: true }), ctx);
     tool.onMouseUp(makeMouseEvent({ shiftKey: true }), ctx);
 
     // @ts-expect-error private state read
     const cmdIdxs = tool.selectedTargets.map((t: { nodeId: NodeId }) => t.nodeId.command_idx).sort();
     expect(cmdIdxs).toEqual([0, 1, 2]);
+  });
+
+  it('Option/Alt-drag uses the directional box selector', () => {
+    const obj = primeThreeNodePathTool(tool);
+    const ctx = makeToolContext({
+      selectedObjectIds: ['path1'],
+      objects: [obj],
+      vp: originVp,
+    });
+
+    tool.onMouseDown(makeMouseEvent({ screenX: 380, screenY: 280, altKey: true }), ctx);
+    tool.onMouseMove(makeMouseEvent({ screenX: 430, screenY: 310, altKey: true }), ctx);
+
+    const overlay = tool.getOverlay();
+    if (overlay.type !== 'node-edit') throw new Error('Expected node-edit overlay');
+    expect(overlay.selectionRect).toMatchObject({
+      startScreen: { x: 380, y: 280 },
+      endScreen: { x: 430, y: 310 },
+    });
+
+    tool.onMouseUp(makeMouseEvent({ altKey: true }), ctx);
+
+    // @ts-expect-error private state read
+    const cmdIdxs = tool.selectedTargets.map((t: { nodeId: NodeId }) => t.nodeId.command_idx).sort();
+    expect(cmdIdxs).toEqual([0, 1]);
+  });
+
+  it('drags a fully selected closed island from its filled interior', async () => {
+    const obj = makeVectorPathObj('path1', {
+      min: { x: 0, y: 0 },
+      max: { x: 20, y: 20 },
+    });
+    const ctx = makeToolContext({
+      selectedObjectIds: ['path1'],
+      objects: [obj],
+      layers: [{ id: 'layer1', enabled: true, operation: 'fill' }],
+    });
+    const nodes = [
+      { id: { subpath_idx: 0, command_idx: 0 }, position: { x: 0, y: 0 }, handle_in: null, handle_out: null, node_type: 'corner' as const },
+      { id: { subpath_idx: 0, command_idx: 1 }, position: { x: 20, y: 0 }, handle_in: null, handle_out: null, node_type: 'corner' as const },
+      { id: { subpath_idx: 0, command_idx: 2 }, position: { x: 20, y: 20 }, handle_in: null, handle_out: null, node_type: 'corner' as const },
+      { id: { subpath_idx: 0, command_idx: 3 }, position: { x: 0, y: 20 }, handle_in: null, handle_out: null, node_type: 'corner' as const },
+    ];
+    // @ts-expect-error private state setup
+    tool.objectId = 'path1';
+    // @ts-expect-error private state setup
+    tool.objectBounds = { min: { x: 0, y: 0 }, max: { x: 20, y: 20 } };
+    // @ts-expect-error private state setup
+    tool.pathBBox = { minX: 0, minY: 0, maxX: 20, maxY: 20, width: 20, height: 20 };
+    // @ts-expect-error private state setup
+    tool.editablePaths = [{ closed: true, nodes }];
+    // @ts-expect-error private state setup
+    tool.selectedTargets = nodes.map((node) => ({ kind: 'node', nodeId: node.id }));
+    // @ts-expect-error private state setup
+    tool.primaryTarget = { kind: 'node', nodeId: nodes[3].id };
+
+    const startWorld = { x: 10, y: 10 };
+    const endWorld = { x: 17, y: 10 };
+    const startScreen = worldToScreen(startWorld, ctx.vp);
+    const endScreen = worldToScreen(endWorld, ctx.vp);
+    tool.onMouseDown(makeMouseEvent({
+      screenX: startScreen.x,
+      screenY: startScreen.y,
+      worldX: startWorld.x,
+      worldY: startWorld.y,
+    }), ctx);
+    tool.onMouseMove(makeMouseEvent({
+      screenX: endScreen.x,
+      screenY: endScreen.y,
+      worldX: endWorld.x,
+      worldY: endWorld.y,
+    }), ctx);
+
+    // @ts-expect-error private state read
+    expect(tool.editablePaths[0].nodes.map((node: { position: { x: number } }) => node.position.x))
+      .toEqual([7, 27, 27, 7]);
+
+    vi.mocked(vectorService.updateNodesBatch).mockResolvedValue(obj);
+    tool.onMouseUp(makeMouseEvent({
+      screenX: endScreen.x,
+      screenY: endScreen.y,
+      worldX: endWorld.x,
+      worldY: endWorld.y,
+    }), ctx);
+    await vi.waitFor(() => expect(vectorService.updateNodesBatch).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not drag a filled compound-path hole', () => {
+    const obj = makeVectorPathObj('path1', {
+      min: { x: 0, y: 0 },
+      max: { x: 20, y: 20 },
+    });
+    const ctx = makeToolContext({
+      selectedObjectIds: ['path1'],
+      objects: [obj],
+      layers: [{ id: 'layer1', enabled: true, operation: 'fill' }],
+    });
+    const square = (subpath_idx: number, min: number, max: number): EditablePath => ({
+      closed: true,
+      nodes: [
+        { id: { subpath_idx, command_idx: 0 }, position: { x: min, y: min }, handle_in: null, handle_out: null, node_type: 'corner' },
+        { id: { subpath_idx, command_idx: 1 }, position: { x: max, y: min }, handle_in: null, handle_out: null, node_type: 'corner' },
+        { id: { subpath_idx, command_idx: 2 }, position: { x: max, y: max }, handle_in: null, handle_out: null, node_type: 'corner' },
+        { id: { subpath_idx, command_idx: 3 }, position: { x: min, y: max }, handle_in: null, handle_out: null, node_type: 'corner' },
+      ],
+    });
+    const paths = [square(0, 0, 20), square(1, 2, 18)];
+    // @ts-expect-error private state setup
+    tool.objectId = 'path1';
+    // @ts-expect-error private state setup
+    tool.objectBounds = { min: { x: 0, y: 0 }, max: { x: 20, y: 20 } };
+    // @ts-expect-error private state setup
+    tool.pathBBox = { minX: 0, minY: 0, maxX: 20, maxY: 20, width: 20, height: 20 };
+    // @ts-expect-error private state setup
+    tool.editablePaths = paths;
+    // @ts-expect-error private state setup
+    tool.selectedTargets = paths.flatMap((path) =>
+      path.nodes.map((node) => ({ kind: 'node', nodeId: node.id })),
+    );
+
+    const holeWorld = { x: 10, y: 10 };
+    const holeScreen = worldToScreen(holeWorld, ctx.vp);
+    tool.onMouseDown(makeMouseEvent({
+      screenX: holeScreen.x,
+      screenY: holeScreen.y,
+      worldX: holeWorld.x,
+      worldY: holeWorld.y,
+    }), ctx);
+
+    // @ts-expect-error private state read
+    expect(tool.state.type).toBe('lasso');
   });
 
   it('Ctrl/Cmd+A selects every editable node', () => {
@@ -1418,6 +1621,37 @@ describe('NodeTool', () => {
     // @ts-expect-error private state read
     const cmdIdxs = tool.selectedTargets.map((t: { nodeId: NodeId }) => t.nodeId.command_idx).sort();
     expect(cmdIdxs).toEqual([0, 1, 2]);
+  });
+
+  it('copies selected nodes to the OS clipboard instead of copying the object', async () => {
+    const obj = primeThreeNodePathTool(tool);
+    const ctx = makeToolContext({ selectedObjectIds: ['path1'], objects: [obj] });
+    // @ts-expect-error private state setup
+    tool.selectedTargets = [{ kind: 'node', nodeId: { subpath_idx: 0, command_idx: 1 } }];
+
+    tool.onKeyDown({
+      key: 'c',
+      metaKey: true,
+      ctrlKey: false,
+      preventDefault: vi.fn(),
+      stopImmediatePropagation: vi.fn(),
+    } as unknown as KeyboardEvent, ctx);
+
+    await vi.waitFor(() => expect(writeNodeClipboard).toHaveBeenCalledTimes(1));
+    expect(vectorService.copyNodes).toHaveBeenCalledWith(
+      'path1',
+      [{ subpath_idx: 0, command_idx: 1 }],
+    );
+  });
+
+  it('leaves unrelated Cmd/Ctrl shortcuts to the application command layer', () => {
+    const obj = primeThreeNodePathTool(tool);
+    const ctx = makeToolContext({ selectedObjectIds: ['path1'], objects: [obj] });
+
+    tool.onKeyDown({ key: 's', metaKey: true, ctrlKey: false } as KeyboardEvent, ctx);
+
+    expect(uiState.setNodeSubMode).not.toHaveBeenCalled();
+    expect(vectorService.setNodeType).not.toHaveBeenCalled();
   });
 
   it('Delete removes all selected nodes through the batch command', () => {

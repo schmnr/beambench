@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SelectTool, computeResizedBounds } from './SelectTool';
+import { SelectTool, computeObjectLocalResizeBounds, computeResizedBounds } from './SelectTool';
 import type { CanvasMouseEvent, ToolContext } from './types';
 import type { Bounds, ProjectObject, Transform2D } from '../../types/project';
 import type { ViewportParams } from '../ViewportTransform';
@@ -1188,6 +1188,27 @@ describe('SelectTool mixed-selection drag batches atomically', () => {
   });
 });
 
+describe('computeObjectLocalResizeBounds', () => {
+  it('resizes on rotated local axes while keeping the opposite handle fixed', () => {
+    const original = { min: { x: 0, y: 0 }, max: { x: 100, y: 50 } };
+    const rotate90 = { a: 0, b: 1, c: -1, d: 0, tx: 0, ty: 0 };
+
+    const resized = computeObjectLocalResizeBounds(
+      original,
+      rotate90,
+      'e',
+      20,
+      0,
+      false,
+      false,
+    );
+
+    expect(resized.max.x - resized.min.x).toBeCloseTo(120);
+    expect(resized.max.y - resized.min.y).toBeCloseTo(50);
+    expect(resized).toEqual({ min: { x: -10, y: 10 }, max: { x: 110, y: 60 } });
+  });
+});
+
 describe('computeResizedBounds', () => {
   const orig = { min: { x: 0, y: 0 }, max: { x: 100, y: 50 } }; // 100x50, aspect 2:1
 
@@ -1366,6 +1387,72 @@ describe('SelectTool resize clamp (no bounds inversion)', () => {
     expect(obj.bounds.min.y).toBeCloseTo(0);
     expect(obj.bounds.max.x).toBeCloseTo(5);
     expect(obj.bounds.max.y).toBeCloseTo(5);
+  });
+});
+
+describe('SelectTool read-only selection', () => {
+  it('keeps click selection but never starts an object move', () => {
+    const tool = new SelectTool();
+    const obj = makeVectorObject('target', { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    const selectObjects = vi.fn();
+    const updateObjectBoundsBatch = vi.fn().mockResolvedValue(undefined);
+    const ctx = makeToolContext({
+      objects: [obj],
+      readOnly: true,
+      selectObjects,
+      updateObjectBoundsBatch,
+    });
+
+    tool.onMouseDown(makeMouseEvent({
+      screenX: 414, screenY: 308,
+      worldX: 7, worldY: 4,
+      snappedX: 7, snappedY: 4,
+    }), ctx);
+    tool.onMouseMove(makeMouseEvent({
+      screenX: 454, screenY: 308,
+      worldX: 27, worldY: 4,
+      snappedX: 27, snappedY: 4,
+    }), ctx);
+    tool.onMouseUp(makeMouseEvent({
+      screenX: 454, screenY: 308,
+      worldX: 27, worldY: 4,
+      snappedX: 27, snappedY: 4,
+    }), ctx);
+
+    expect(obj.bounds).toEqual({ min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    expect(updateObjectBoundsBatch).not.toHaveBeenCalled();
+    expect(selectObjects).toHaveBeenLastCalledWith(['target']);
+  });
+
+  it('does not activate resize handles or mutate their bounds', () => {
+    const tool = new SelectTool();
+    const obj = makeVectorObject('target', { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    const updateObjectBoundsBatch = vi.fn().mockResolvedValue(undefined);
+    const ctx = makeToolContext({
+      objects: [obj],
+      selectedObjectIds: ['target'],
+      readOnly: true,
+      updateObjectBoundsBatch,
+    });
+
+    tool.onMouseDown(makeMouseEvent({
+      screenX: 420, screenY: 320,
+      worldX: 10, worldY: 10,
+      snappedX: 10, snappedY: 10,
+    }), ctx);
+    tool.onMouseMove(makeMouseEvent({
+      screenX: 440, screenY: 340,
+      worldX: 20, worldY: 20,
+      snappedX: 20, snappedY: 20,
+    }), ctx);
+    tool.onMouseUp(makeMouseEvent({
+      screenX: 440, screenY: 340,
+      worldX: 20, worldY: 20,
+      snappedX: 20, snappedY: 20,
+    }), ctx);
+
+    expect(obj.bounds).toEqual({ min: { x: 0, y: 0 }, max: { x: 10, y: 10 } });
+    expect(updateObjectBoundsBatch).not.toHaveBeenCalled();
   });
 });
 

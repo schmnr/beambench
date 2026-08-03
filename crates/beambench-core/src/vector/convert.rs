@@ -42,7 +42,10 @@ pub fn object_to_vecpath(data: &ObjectData) -> Option<VecPath> {
             corner_radii,
         )),
         ObjectData::VectorPath { path_data, .. } => {
-            let parsed = VecPath::parse_svg_d(path_data);
+            let mut parsed = VecPath::parse_svg_d(path_data);
+            // Isolated nodes produce no laser motion and must not distort the
+            // bounds used to map geometry into the object's world bounds.
+            parsed.prune_orphan_subpaths();
             if let Some(bbox) = parsed.visual_bounds() {
                 if bbox.min.x.abs() > 1e-9 || bbox.min.y.abs() > 1e-9 {
                     let normalize = Transform2D::translate(-bbox.min.x, -bbox.min.y);
@@ -76,16 +79,59 @@ pub fn object_to_vecpath(data: &ObjectData) -> Option<VecPath> {
     }
 }
 
+/// Advanced text caches are intrinsic geometry. Unlike straight text frames,
+/// their stored object bounds are user-editable and must scale that geometry.
+pub fn text_uses_mapped_bounds(data: &ObjectData) -> bool {
+    match data {
+        ObjectData::Text {
+            layout_mode,
+            on_path,
+            transform_style,
+            ..
+        } => {
+            *transform_style != crate::object::TextTransformStyle::None
+                || *on_path
+                || *layout_mode != crate::object::TextLayoutMode::Straight
+        }
+        _ => false,
+    }
+}
+
+fn map_path_to_bounds(path: &VecPath, bounds: &Bounds) -> Option<VecPath> {
+    let intrinsic = path.visual_bounds().or_else(|| path.bounds())?;
+    let old_w = intrinsic.width();
+    let old_h = intrinsic.height();
+    let new_w = bounds.width();
+    let new_h = bounds.height();
+    let sx = if old_w > 0.0 { new_w / old_w } else { 1.0 };
+    let sy = if old_h > 0.0 { new_h / old_h } else { 1.0 };
+    Some(bake_transform(
+        path,
+        &Transform2D {
+            a: sx,
+            b: 0.0,
+            c: 0.0,
+            d: sy,
+            tx: bounds.min.x - intrinsic.min.x * sx,
+            ty: bounds.min.y - intrinsic.min.y * sy,
+        },
+    ))
+}
+
 /// Convert a project object into a world-space VecPath that matches its current
 /// displayed bounds and transform.
 pub fn object_to_world_vecpath(obj: &ProjectObject) -> Option<VecPath> {
     let world = if matches!(obj.data, ObjectData::Text { .. }) {
         let path = text_object_local_path_with_bounds(&obj.data, &obj.bounds)
             .or_else(|| object_to_vecpath(&obj.data))?;
-        let translated = bake_transform(
-            &path,
-            &Transform2D::translate(obj.bounds.min.x, obj.bounds.min.y),
-        );
+        let translated = if text_uses_mapped_bounds(&obj.data) {
+            map_path_to_bounds(&path, &obj.bounds)?
+        } else {
+            bake_transform(
+                &path,
+                &Transform2D::translate(obj.bounds.min.x, obj.bounds.min.y),
+            )
+        };
         if !obj.transform.is_identity() {
             bake_transform_around_bounds_center(&translated, &obj.transform, &obj.bounds)
         } else {
@@ -175,7 +221,27 @@ pub fn object_to_world_vecpath_resolved(obj: &ProjectObject, project: &Project) 
 
 pub fn object_local_point_to_world(obj: &ProjectObject, local: Point2D) -> Option<Point2D> {
     if matches!(obj.data, ObjectData::Text { .. }) {
-        let translated = Point2D::new(local.x + obj.bounds.min.x, local.y + obj.bounds.min.y);
+        let translated = if text_uses_mapped_bounds(&obj.data) {
+            let path = text_object_local_path_with_bounds(&obj.data, &obj.bounds)
+                .or_else(|| object_to_vecpath(&obj.data))?;
+            let intrinsic = path.visual_bounds().or_else(|| path.bounds())?;
+            let sx = if intrinsic.width() > 0.0 {
+                obj.bounds.width() / intrinsic.width()
+            } else {
+                1.0
+            };
+            let sy = if intrinsic.height() > 0.0 {
+                obj.bounds.height() / intrinsic.height()
+            } else {
+                1.0
+            };
+            Point2D::new(
+                obj.bounds.min.x + (local.x - intrinsic.min.x) * sx,
+                obj.bounds.min.y + (local.y - intrinsic.min.y) * sy,
+            )
+        } else {
+            Point2D::new(local.x + obj.bounds.min.x, local.y + obj.bounds.min.y)
+        };
         return Some(if !obj.transform.is_identity() {
             obj.transform.apply_around_center(
                 &translated,
@@ -924,6 +990,23 @@ mod tests {
         };
         let path = object_to_vecpath(&data).unwrap();
         let bounds = path.bounds().unwrap();
+        assert!(bounds.min.x.abs() < 0.001);
+        assert!(bounds.min.y.abs() < 0.001);
+        assert!((bounds.max.x - 100.0).abs() < 0.001);
+        assert!((bounds.max.y - 100.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn object_to_vecpath_ignores_orphan_nodes_when_normalizing() {
+        let data = ObjectData::VectorPath {
+            path_data: "M1000 1000 Z M50 100 L150 200".to_string(),
+            closed: true,
+            ruler_guide_axis: None,
+        };
+
+        let path = object_to_vecpath(&data).unwrap();
+        assert_eq!(path.subpaths.len(), 1);
+        let bounds = path.visual_bounds().unwrap();
         assert!(bounds.min.x.abs() < 0.001);
         assert!(bounds.min.y.abs() < 0.001);
         assert!((bounds.max.x - 100.0).abs() < 0.001);

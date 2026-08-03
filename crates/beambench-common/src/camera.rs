@@ -167,7 +167,7 @@ pub struct CameraOverlayRuntimeState {
 impl Default for CameraOverlayRuntimeState {
     fn default() -> Self {
         Self {
-            overlay_visible: true,
+            overlay_visible: false,
             overlay_opacity: 0.4,
             draft_overlay_transform: None,
             draft_base_transform: None,

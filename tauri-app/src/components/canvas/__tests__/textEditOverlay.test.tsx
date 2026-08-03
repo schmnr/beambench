@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import {
@@ -52,6 +52,7 @@ describe('TextEditOverlay', () => {
 
   afterEach(() => {
     cleanup();
+    clearPendingEdit();
     useProjectStore.setState(initialProjectState, true);
     useUiStore.setState(initialUiState, true);
   });
@@ -71,6 +72,18 @@ describe('TextEditOverlay', () => {
     const textarea = screen.getByTestId('text-edit-overlay');
     expect(textarea).toBeTruthy();
     expect((textarea as HTMLTextAreaElement).value).toBe('Hello');
+  });
+
+  it('accepts buffered text before the textarea receives focus', () => {
+    const obj = makeTextObject('obj-1', '');
+    useProjectStore.setState({ project: makeProject([obj]) as any });
+    useUiStore.setState({ textEditObjectId: 'obj-1', textEditMode: 'new' });
+    setPendingEdit('obj-1', '');
+
+    render(<TextEditOverlay vp={defaultVp} />);
+    act(() => updatePendingContent('P'));
+
+    expect((screen.getByTestId('text-edit-overlay') as HTMLTextAreaElement).value).toBe('P');
   });
 
   it('does not render when textEditObjectId points to a non-text object', () => {
@@ -130,6 +143,128 @@ describe('TextEditOverlay', () => {
 
     // Overlay should still be open — Enter inserts newline, does NOT commit
     expect(useUiStore.getState().textEditObjectId).toBe('obj-1');
+  });
+
+  it('Cmd/Ctrl+Enter commits and closes the overlay', async () => {
+    const obj = makeTextObject('obj-1', 'Hello');
+    useProjectStore.setState({ project: makeProject([obj]) as any });
+    useUiStore.setState({ textEditObjectId: 'obj-1', textEditMode: 'double-click' });
+
+    render(<TextEditOverlay vp={defaultVp} />);
+    fireEvent.keyDown(screen.getByTestId('text-edit-overlay'), { key: 'Enter', metaKey: true });
+
+    await waitFor(() => {
+      expect(useUiStore.getState().textEditObjectId).toBeNull();
+    });
+  });
+
+  it('keeps keyboard zoom available while editing text', () => {
+    const obj = makeTextObject('obj-1', 'Hello');
+    useProjectStore.setState({ project: makeProject([obj]) as any });
+    useUiStore.setState({ textEditObjectId: 'obj-1', zoom: 100 });
+
+    render(<TextEditOverlay vp={defaultVp} />);
+    const textarea = screen.getByTestId('text-edit-overlay');
+
+    fireEvent.keyDown(textarea, { key: '=', metaKey: true });
+    expect(useUiStore.getState().zoom).toBeGreaterThan(100);
+
+    const zoomedIn = useUiStore.getState().zoom;
+    fireEvent.keyDown(textarea, { key: '-', ctrlKey: true });
+    expect(useUiStore.getState().zoom).toBeLessThan(zoomedIn);
+    expect(useUiStore.getState().textEditObjectId).toBe('obj-1');
+  });
+
+  it('shows a subtle resizable frame only for Box text', () => {
+    const obj = {
+      ...makeTextObject('obj-1', 'A wrapped line', { max_width: 30, v_spacing: 1.5 }),
+      bounds: { min: { x: 10, y: 20 }, max: { x: 40, y: 50 } },
+    };
+    expect((obj.data as any).max_width).toBe(30);
+    useProjectStore.setState({ project: makeProject([obj]) as any });
+    useUiStore.setState({ textEditObjectId: 'obj-1' });
+
+    render(<TextEditOverlay vp={defaultVp} />);
+    const textarea = screen.getByTestId('text-edit-overlay') as HTMLTextAreaElement;
+    const frame = screen.getByTestId('text-area-frame');
+
+    expect(textarea.className).toContain('border-none');
+    expect(textarea.className).toContain('text-edit-overlay');
+    expect(frame.className).toContain('border-dashed');
+    expect(frame.className).toContain('border-bb-accent/70');
+    expect(frame.style.width).toBe('60px');
+    expect(frame.style.height).toBe('60px');
+    expect(screen.getByTestId('text-area-resize-handle')).toBeTruthy();
+    expect(textarea.style.padding).toBe('0px');
+    expect(textarea.wrap).toBe('soft');
+    expect(textarea.style.width).toBe('100%');
+    expect(textarea.style.height).toBe('100%');
+    expect(textarea.style.overflow).toBe('auto');
+    expect(textarea.style.whiteSpace).toBe('pre-wrap');
+    expect(textarea.style.lineHeight).toBe('15px');
+  });
+
+  it('keeps Point text borderless without an area frame', () => {
+    const obj = makeTextObject('obj-1', 'Point text', { max_width: null });
+    useProjectStore.setState({ project: makeProject([obj]) as any });
+    useUiStore.setState({ textEditObjectId: 'obj-1' });
+
+    render(<TextEditOverlay vp={defaultVp} />);
+
+    expect(screen.queryByTestId('text-area-frame')).toBeNull();
+    expect(screen.getByTestId('text-edit-overlay').className).toContain('border-none');
+  });
+
+  it('resizes the Box frame without using generic text scaling', async () => {
+    const obj = {
+      ...makeTextObject('obj-1', 'Area text', { max_width: 30 }),
+      bounds: { min: { x: 10, y: 20 }, max: { x: 40, y: 50 } },
+    };
+    const resizeTextArea = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject([obj]) as any,
+      resizeTextArea,
+    });
+    useUiStore.setState({ textEditObjectId: 'obj-1' });
+
+    render(<TextEditOverlay vp={defaultVp} />);
+    const handle = screen.getByTestId('text-area-resize-handle');
+    Object.defineProperty(handle, 'setPointerCapture', { value: vi.fn() });
+    Object.defineProperty(handle, 'releasePointerCapture', { value: vi.fn() });
+
+    const dispatchPointer = (type: string, clientX: number, clientY: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX, clientY });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      fireEvent(handle, event);
+    };
+    dispatchPointer('pointerdown', 100, 100);
+    dispatchPointer('pointermove', 140, 120);
+    dispatchPointer('pointerup', 140, 120);
+
+    await waitFor(() => {
+      expect(resizeTextArea).toHaveBeenCalledWith('obj-1', {
+        min: { x: 10, y: 20 },
+        max: { x: 60, y: 60 },
+      });
+    });
+  });
+
+  it('places the caret at the supplied canvas index', async () => {
+    const obj = makeTextObject('obj-1', 'Hello world');
+    useProjectStore.setState({ project: makeProject([obj]) as any });
+    useUiStore.setState({
+      textEditObjectId: 'obj-1',
+      textEditMode: 'double-click',
+      textEditCaretIndex: 6,
+    });
+
+    render(<TextEditOverlay vp={defaultVp} />);
+    const textarea = screen.getByTestId('text-edit-overlay') as HTMLTextAreaElement;
+
+    await waitFor(() => {
+      expect(textarea.selectionStart).toBe(6);
+      expect(textarea.selectionEnd).toBe(6);
+    });
   });
 
   it('center-aligned overlay has translateX(-50%) transform', () => {

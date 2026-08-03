@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { invoke } from '@tauri-apps/api/core';
 import { SettingsDialog } from '../SettingsDialog';
 import { useAppStore } from '../../../stores/appStore';
 import type { AppSettings } from '../../../types/commands';
@@ -23,7 +24,8 @@ function makeSettings(overrides: Partial<AppSettings> = {}): AppSettings {
     api_localhost_only: false,
     ui_theme: 'dark',
     dark_mode: false,
-    antialiasing: false,
+    antialiasing: true,
+    artwork_display_mode: 'by_layer',
     filled_rendering: false,
     reduce_motion: false,
     show_palette_labels: false,
@@ -114,8 +116,8 @@ describe('SettingsDialog', () => {
     expect(screen.getByText('Controls menus, toolbars, panels, dialogs, and window chrome. The workspace background is set separately.')).toBeDefined();
     expect(screen.getByText('Dark workspace background')).toBeDefined();
     expect(screen.getByRole('switch', { name: 'Dark workspace background' })).toBeDefined();
-    expect(screen.getByText('Antialiasing')).toBeDefined();
-    expect(screen.getByText('Filled rendering')).toBeDefined();
+    expect(screen.getByText('Smooth edges')).toBeDefined();
+    expect((screen.getByTestId('select-artwork-display') as HTMLSelectElement).value).toBe('by_layer');
     expect(screen.getByText('Reduce motion')).toBeDefined();
   });
 
@@ -239,10 +241,31 @@ describe('SettingsDialog', () => {
 
     fireEvent.click(screen.getByText('File & Import'));
     expect(screen.getByText('Allow importing to tool layers')).toBeDefined();
-    expect(screen.getByText('Include tool layers in job bounds')).toBeDefined();
+    expect(screen.queryByText('Include tool layers in job bounds')).toBeNull();
 
     expect(screen.queryByText('Hotkeys')).toBeNull();
     expect(screen.queryByText('Edit Hotkeys')).toBeNull();
+  });
+
+  it('keeps preference-file management in the File & Import settings tab', async () => {
+    useAppStore.setState({ settings: makeSettings() });
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === 'reset_preferences') return makeSettings({ autosave_enabled: false });
+      return null;
+    });
+
+    render(<SettingsDialog onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('File & Import'));
+
+    expect(screen.getByRole('button', { name: 'Import Prefs' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Export Prefs' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Open Prefs Folder' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Prefs to Defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('reset_preferences');
+    });
   });
 
   it('saves backed file and import fields', async () => {
@@ -370,12 +393,11 @@ describe('SettingsDialog', () => {
     // dark_mode default: false
     const darkToggle = screen.getByTestId('toggle-dark-mode');
     expect(darkToggle.getAttribute('aria-checked')).toBe('false');
-    // antialiasing default: false (was incorrectly true in old UI fallback)
+    // smooth edge rendering ships enabled by default
     const aaToggle = screen.getByTestId('toggle-antialiasing');
-    expect(aaToggle.getAttribute('aria-checked')).toBe('false');
-    // filled_rendering default: false
-    const frToggle = screen.getByTestId('toggle-filled-rendering');
-    expect(frToggle.getAttribute('aria-checked')).toBe('false');
+    expect(aaToggle.getAttribute('aria-checked')).toBe('true');
+    expect((screen.getByTestId('select-artwork-display') as HTMLSelectElement).value).toBe('by_layer');
+    expect(screen.queryByTestId('toggle-filled-rendering')).toBeNull();
     // reduce_motion default: false
     const rmToggle = screen.getByTestId('toggle-reduce-motion');
     expect(rmToggle.getAttribute('aria-checked')).toBe('false');
@@ -401,8 +423,8 @@ describe('SettingsDialog', () => {
         expect.objectContaining({
           autosave_enabled: true,
           dark_mode: false,
-          antialiasing: false,
-          filled_rendering: false,
+          antialiasing: true,
+          artwork_display_mode: 'by_layer',
           reduce_motion: false,
           click_tolerance_px: 5,
           snap_threshold_px: 5,
@@ -417,7 +439,7 @@ describe('SettingsDialog', () => {
     spy.mockRestore();
   });
 
-  it('toggle calls updateSettings on save', async () => {
+  it('display controls call updateSettings on save', async () => {
     useAppStore.setState({
       settings: makeSettings({
         autosave_enabled: false,
@@ -435,13 +457,14 @@ describe('SettingsDialog', () => {
     // Toggle dark mode
     fireEvent.click(screen.getByText('Display'));
     fireEvent.click(screen.getByTestId('toggle-dark-mode'));
+    fireEvent.change(screen.getByTestId('select-artwork-display'), { target: { value: 'filled' } });
 
     // Click Save
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
       expect(spy).toHaveBeenCalledWith(
-        expect.objectContaining({ dark_mode: true }),
+        expect.objectContaining({ dark_mode: true, artwork_display_mode: 'filled' }),
       );
     });
     await waitFor(() => {

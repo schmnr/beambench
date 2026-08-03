@@ -1,0 +1,226 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+import { TextPropertiesPanel } from '../TextPropertiesPanel';
+import { TextDefaultsSection } from '../TextDefaultsSection';
+import { useProjectStore } from '../../../stores/projectStore';
+import { useUiStore } from '../../../stores/uiStore';
+import { useAppStore } from '../../../stores/appStore';
+import type { ObjectData } from '../../../types/project';
+import { makeAppSettings } from '../../../test-utils/projectFixtures';
+import {
+  clearPendingEdit,
+  setPendingEdit,
+  updatePendingContent,
+} from '../../../canvas/textEditSession';
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn((cmd: string) => {
+    if (cmd === 'get_system_fonts') return Promise.resolve(['Arial', 'Helvetica']);
+    return Promise.resolve(null);
+  }),
+}));
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
+
+const makeTextData = (over: Partial<Extract<ObjectData, { type: 'text' }>> = {}): Extract<ObjectData, { type: 'text' }> => ({
+  type: 'text',
+  content: 'Hello',
+  font_family: 'Arial',
+  font_size_mm: 10,
+  alignment: 'left',
+  alignment_v: 'top',
+  bold: false,
+  italic: false,
+  upper_case: false,
+  welded: false,
+  h_spacing: 0,
+  v_spacing: 0,
+  layout_mode: 'straight',
+  on_path: false,
+  path_offset: 0,
+  distort: false,
+  rtl: false,
+  bend_radius: 0,
+  transform_style: 'none',
+  transform_curve: 0,
+  circle_placement: 'top_outside',
+  max_width: null,
+  squeeze: false,
+  ignore_empty_vars: false,
+  missing_font: false,
+  guide_path_id: null,
+  missing_glyphs: [],
+  ...over,
+});
+
+const initialProjectState = useProjectStore.getState();
+const initialUiState = useUiStore.getState();
+const initialAppState = useAppStore.getState();
+
+afterEach(() => {
+  cleanup();
+  clearPendingEdit();
+  useProjectStore.setState(initialProjectState, true);
+  useUiStore.setState(initialUiState, true);
+  useAppStore.setState(initialAppState, true);
+});
+
+describe('TextPropertiesPanel', () => {
+  it('uses the contextual tool title treatment', () => {
+    render(<TextPropertiesPanel objectId="t1" data={makeTextData()} />);
+
+    const header = screen.getByTestId('text-properties-header');
+    expect(header.className).toContain('bg-gradient-to-r');
+    expect(header.className).toContain('from-bb-accent/10');
+    expect(header.className).toContain('to-bb-surface/30');
+  });
+
+  it('bold toggle commits updated text data', () => {
+    const updateObjectData = vi.fn();
+    useProjectStore.setState({ updateObjectData });
+    render(<TextPropertiesPanel objectId="t1" data={makeTextData()} />);
+    fireEvent.click(screen.getByLabelText('Bold'));
+    expect(updateObjectData).toHaveBeenCalledWith('t1', expect.objectContaining({ bold: true }));
+  });
+
+  it('uppercase toggle commits updated text data', () => {
+    const updateObjectData = vi.fn();
+    useProjectStore.setState({ updateObjectData });
+    render(<TextPropertiesPanel objectId="t1" data={makeTextData()} />);
+    fireEvent.click(screen.getByLabelText('Uppercase'));
+    expect(updateObjectData).toHaveBeenCalledWith('t1', expect.objectContaining({ upper_case: true }));
+  });
+
+  it('mirrors the active on-canvas text draft live', () => {
+    setPendingEdit('t1', 'Hello');
+    render(<TextPropertiesPanel objectId="t1" data={makeTextData()} />);
+
+    act(() => updatePendingContent('Hello from canvas'));
+
+    expect(screen.getByLabelText('Content')).toHaveProperty('value', 'Hello from canvas');
+  });
+
+  it('path mode without a guide path offers Select Path', () => {
+    render(
+      <TextPropertiesPanel
+        objectId="t1"
+        data={makeTextData({ layout_mode: 'path', guide_path_id: null })}
+      />,
+    );
+    expect(screen.getByText('Select Path')).toBeDefined();
+  });
+
+  it('path mode with a linked guide path offers Pick and Clear', () => {
+    render(
+      <TextPropertiesPanel
+        objectId="t1"
+        data={makeTextData({ layout_mode: 'path', guide_path_id: 'g1' })}
+      />,
+    );
+    expect(screen.getByText('Pick')).toBeDefined();
+    expect(screen.getByText('Clear')).toBeDefined();
+  });
+
+  it('displays and stores text dimensions in the selected unit', () => {
+    const updateObjectData = vi.fn();
+    useAppStore.setState({ settings: makeAppSettings({ display_unit: 'inches' }) });
+    useProjectStore.setState({ updateObjectData });
+    render(
+      <TextPropertiesPanel
+        objectId="t1"
+        data={makeTextData({
+          layout_mode: 'path',
+          h_spacing: 25.4,
+          v_spacing: 50.8,
+          path_offset: 12.7,
+          max_width: 76.2,
+        })}
+      />,
+    );
+
+    expect(screen.getByLabelText('Tracking (in)')).toHaveProperty('value', '1');
+    expect(screen.getByLabelText('Line spacing (in)')).toHaveProperty('value', '2');
+    expect(screen.getByLabelText('Baseline Offset (in)')).toHaveProperty('value', '0.5');
+    expect(screen.getByLabelText('Box width (in)')).toHaveProperty('value', '3');
+
+    fireEvent.change(screen.getByLabelText('Tracking (in)'), { target: { value: '2' } });
+    expect(updateObjectData).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ h_spacing: 50.8 }),
+    );
+  });
+});
+
+describe('TextDefaultsSection', () => {
+  it('edits the text defaults used for the next text object', () => {
+    render(<TextDefaultsSection />);
+    fireEvent.click(screen.getByLabelText('Bold'));
+    expect(useUiStore.getState().textDefaults.bold).toBe(true);
+  });
+
+  it('shows font and size controls', () => {
+    render(<TextDefaultsSection />);
+    expect(screen.getByText('Font')).toBeDefined();
+    expect(screen.getAllByRole('spinbutton').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('makes Point the default and requires Box mode for wrapping text', () => {
+    render(<TextDefaultsSection />);
+
+    expect(screen.getByRole('button', { name: 'Point' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Box' }));
+
+    expect(useUiStore.getState().textDefaults.max_width).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Box width (mm)')).toBeDefined();
+  });
+
+  it('converts the minimum text size to the active display unit', () => {
+    useAppStore.setState({ settings: makeAppSettings({ display_unit: 'inches' }) });
+    render(<TextDefaultsSection />);
+
+    const sizeInput = screen.getByLabelText('Size (in)');
+    expect(Number(sizeInput.getAttribute('min'))).toBeCloseTo(0.1 / 25.4);
+  });
+
+  it('makes Bend visible immediately and exposes its direction and baseline offset', () => {
+    render(<TextDefaultsSection />);
+
+    fireEvent.change(screen.getByLabelText('Shape'), { target: { value: 'bend' } });
+
+    expect(useUiStore.getState().textDefaults).toMatchObject({
+      layout_mode: 'bend',
+      on_path: false,
+      bend_radius: 50,
+      transform_style: 'none',
+    });
+    expect(screen.getByLabelText('Bend Radius (mm)')).toBeDefined();
+    expect(screen.getByLabelText('Baseline Offset (mm)')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Reverse' })).toBeDefined();
+    expect(screen.getByLabelText('Distort')).toHaveProperty('disabled', false);
+  });
+
+  it('offers all circle placements and updates the selected placement', () => {
+    render(<TextDefaultsSection />);
+    fireEvent.change(screen.getByLabelText('Shape'), { target: { value: 'circle' } });
+
+    expect(screen.getByLabelText('Arc Span')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Bottom' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Inside' }));
+
+    expect(useUiStore.getState().textDefaults).toMatchObject({
+      layout_mode: 'straight',
+      on_path: false,
+      transform_style: 'circle',
+      circle_placement: 'bottom_inside',
+    });
+  });
+
+  it('hides controls that do not affect mapped envelope shapes', () => {
+    render(<TextDefaultsSection />);
+    fireEvent.change(screen.getByLabelText('Shape'), { target: { value: 'wave' } });
+
+    expect(screen.queryByLabelText('Align')).toBeNull();
+    expect(screen.queryByLabelText('V Align')).toBeNull();
+    expect(screen.queryByLabelText('Distort')).toBeNull();
+    expect(screen.getByLabelText('Strength')).toBeDefined();
+  });
+});

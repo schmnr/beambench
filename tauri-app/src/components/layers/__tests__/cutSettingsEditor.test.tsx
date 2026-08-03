@@ -128,12 +128,46 @@ describe('CutSettingsEditor', () => {
     render(<CutSettingsEditor layerId="layer-1" onClose={vi.fn()} />);
 
     expect(screen.getByText('Speed (mm/sec)')).toBeDefined();
-    const speedInput = screen.getByDisplayValue('50');
+    const speedInput = screen.getByRole('spinbutton', { name: 'Speed (mm/sec)' });
     fireEvent.change(speedInput, { target: { value: '75' } });
 
     expect(updateCutEntry).toHaveBeenCalledWith('layer-1', layer.entries[0].id, {
       speed_mm_min: 4500,
     });
+  });
+
+  it('provides sliders for speed and passes that update the targeted cut entry', () => {
+    const layer = makeLayer({
+      speed_mm_min: 3000,
+      vector_settings: makeVectorSettings({ passes: 2 }),
+    });
+    const updateCutEntry = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [], assets: [] }),
+      updateCutEntry,
+    });
+
+    render(<CutSettingsEditor layerId="layer-1" onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByTestId(`sub-layer-speed-slider-${layer.entries[0].id}`), {
+      target: { value: '4500' },
+    });
+    expect(updateCutEntry).toHaveBeenCalledWith('layer-1', layer.entries[0].id, {
+      speed_mm_min: 4500,
+    });
+
+    const passesSlider = screen.getByTestId(`sub-layer-passes-slider-${layer.entries[0].id}`);
+    expect(passesSlider.getAttribute('max')).toBe('50');
+    fireEvent.change(passesSlider, {
+      target: { value: '4' },
+    });
+    expect(updateCutEntry).toHaveBeenCalledWith(
+      'layer-1',
+      layer.entries[0].id,
+      expect.objectContaining({
+        vector_settings: expect.objectContaining({ passes: 4 }),
+      }),
+    );
   });
 
   it('vector-backed mode picker only offers line, fill, and offset fill', () => {
@@ -167,7 +201,6 @@ describe('CutSettingsEditor', () => {
       option.getAttribute('value'),
     );
     expect(options).toEqual(['line', 'fill', 'offset_fill']);
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
     expect(screen.getByText('Perforation')).toBeDefined();
   });
 
@@ -208,7 +241,6 @@ describe('CutSettingsEditor', () => {
     });
 
     render(<CutSettingsEditor layerId="layer-1" onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
     fireEvent.change(screen.getByDisplayValue('0.1'), {
       target: { value: '0.08' },
     });
@@ -236,7 +268,6 @@ describe('CutSettingsEditor', () => {
     });
 
     render(<CutSettingsEditor layerId="layer-1" onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTestId(`sub-layer-expand-${layer.entries[0].id}`));
 
     expect(screen.queryByText('Perforation')).toBeNull();
     expect(screen.queryByText('G-code Prefix')).toBeNull();

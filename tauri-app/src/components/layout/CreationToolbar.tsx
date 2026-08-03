@@ -3,24 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore, type ToolType } from '../../stores/uiStore';
 import { IconButton } from '../shared/IconButton';
 import { ToolbarSubmenuButton, type SubmenuItem } from '../shared/ToolbarSubmenuButton';
+import { LibraryIcon } from '../icons/LibraryIcon';
+import { WarpIcon } from '../icons/WarpIcon';
+import { TabsIcon } from '../icons/TabsIcon';
 import {
   MousePointer2, Square, Circle,
   Pentagon, Star, Type, ScissorsLineDashed,
-  MapPin, Ruler, PenTool as PenToolIcon,
+  Ruler, PenTool as PenToolIcon,
   Triangle, Hexagon, Octagon,
 } from 'lucide-react';
 
-const TabsIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    {/* Cut path (dashed circle) */}
-    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" strokeDasharray="5 3.5" fill="none" />
-    {/* Tab bridges (solid segments crossing the cut) */}
-    <rect x="11" y="1.5" width="2" height="3.5" rx="0.5" fill="rgb(34,192,238)" />
-    <rect x="11" y="19" width="2" height="3.5" rx="0.5" fill="rgb(34,192,238)" />
-    <rect x="1.5" y="11" width="3.5" height="2" rx="0.5" fill="rgb(34,192,238)" />
-    <rect x="19" y="11" width="3.5" height="2" rx="0.5" fill="rgb(34,192,238)" />
-  </svg>
-);
 import type { PolygonTool } from '../../canvas/tools/PolygonTool';
 import type { StarTool } from '../../canvas/tools/StarTool';
 
@@ -33,7 +25,7 @@ const NodeEditIcon = ({ size = 24 }: { size?: number }) => (
     <circle cx="3" cy="3" r="2.8" stroke="currentColor" strokeWidth="1.8" fill="none" />
     <circle cx="21" cy="3" r="2.8" stroke="currentColor" strokeWidth="1.8" fill="none" />
     {/* Selected bottom node (hollow square, blue, bold) */}
-    <rect x="9" y="18" width="6" height="6" rx="0.8" fill="rgb(34,192,238)" />
+    <rect x="9" y="18" width="6" height="6" rx="0.8" fill="rgb(var(--bb-accent))" />
   </svg>
 );
 
@@ -71,7 +63,7 @@ const TOOL_TEXT = 'text' as const;
 const TOOL_NODE = 'node' as const;
 const TOOL_TRIM = 'trim' as const;
 const TOOL_TABS = 'tabs' as const;
-const TOOL_LASER_POSITION = 'laser_position' as const;
+const TOOL_WARP = 'warp' as const;
 const TOOL_MEASURE = 'measure' as const;
 const SMALL_BUTTON_SIZE = 'sm' as const;
 
@@ -117,6 +109,8 @@ function GroupSeparator() {
 export function CreationToolbar() {
   const { t } = useTranslation();
   const activeTool = useUiStore((s) => s.activeTool);
+  const libraryDrawerOpen = useUiStore((s) => s.libraryDrawerOpen);
+  const toggleLibraryDrawer = useUiStore((s) => s.toggleLibraryDrawer);
   const setActiveTool = useUiStore((s) => s.setActiveTool);
   const lastShapeSubTool = useUiStore((s) => s.lastShapeSubTool);
   const setLastShapeSubTool = useUiStore((s) => s.setLastShapeSubTool);
@@ -164,7 +158,17 @@ export function CreationToolbar() {
   );
 
   return (
-    <div className="no-select w-16 bg-bb-panel py-1 gap-0.5 text-xs border-r border-bb-border flex flex-col items-center">
+    <div className="no-select w-16 bg-bb-panel py-1.5 gap-0.5 text-xs flex flex-col items-center">
+      {/* Library drawer launcher (Art / Materials) */}
+      <IconButton
+        icon={<LibraryIcon size={24} />}
+        label={t('panels.library.title')}
+        onClick={toggleLibraryDrawer}
+        active={libraryDrawerOpen}
+        size={SMALL_BUTTON_SIZE}
+      />
+      <GroupSeparator />
+
       {/* Select */}
       <IconButton
         icon={<MousePointer2 size={24} />}
@@ -226,17 +230,17 @@ export function CreationToolbar() {
         active={activeTool === TOOL_TABS}
         size={SMALL_BUTTON_SIZE}
       />
+      <IconButton
+        icon={<WarpIcon size={24} />}
+        label={t('warp_tool.title')}
+        onClick={() => setActiveTool(TOOL_WARP)}
+        active={activeTool === TOOL_WARP}
+        size={SMALL_BUTTON_SIZE}
+      />
 
       <GroupSeparator />
 
-      {/* Laser Position / Measure */}
-      <IconButton
-        icon={<MapPin size={24} />}
-        label={t('toolbars.creation.laser_position')}
-        onClick={() => setActiveTool(TOOL_LASER_POSITION)}
-        active={activeTool === TOOL_LASER_POSITION}
-        size={SMALL_BUTTON_SIZE}
-      />
+      {/* Measure */}
       <IconButton
         icon={<Ruler size={24} />}
         label={t('toolbars.creation.measure')}

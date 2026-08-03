@@ -62,7 +62,6 @@
       "export_selection": "Selección de exportación",
       "hide_notes": "Ocultar notas",
       "import_preferences": "Importar preferencias",
-      "new_window": "Nueva ventana",
       "open_preferences_folder": "Abrir carpeta de preferencias",
       "preferences_exported": "Preferencias exportadas.",
       "preferences_imported": "Preferencias importadas.",
@@ -73,7 +72,10 @@
       "reset_preferences_confirm": "¿Restablecer las preferencias a los valores predeterminados? Se conservarán los perfiles de máquina, los archivos recientes, las posiciones guardadas, la configuración de API y las rutas de exportación.",
       "save_background_capture": "Guardar captura de fondo",
       "save_processed_bitmap": "Guardar mapa de bits procesado",
-      "show_notes": "Mostrar notas"
+      "show_notes": "Mostrar notas",
+      "project_notes": "Notas del proyecto...",
+      "print": "Imprimir...",
+      "export_processed_image": "Exportar imagen procesada..."
     },
     "edit": {
       "label": "Editar",
@@ -90,6 +92,7 @@
       "auto_join_selected_shapes": "Unir automáticamente formas seleccionadas",
       "close_and_join": "Cerrar y unirse",
       "convert_to_bitmap": "Convertir a mapa de bits",
+      "extract_selected_nodes_to_path": "Extraer nodos seleccionados a una ruta nueva",
       "duplicate": "Duplicar",
       "image_options": "Opciones de imagen",
       "invert_selection": "Invertir selección",
@@ -241,12 +244,12 @@
       "shape_properties": "Propiedades de forma",
       "text_options": "Opciones de texto",
       "toggle_side_panels": "Alternar paneles laterales",
-      "toggle_wireframe_filled": "Alternar estructura alámbrica/relleno",
-      "view_style": "Estilo de vista:",
-      "view_style_filled_coarse": "Relleno / Grueso",
-      "view_style_filled_smooth": "Relleno / Liso",
-      "view_style_wireframe_coarse": "Estructura alámbrica/gruesa",
-      "view_style_wireframe_smooth": "Estructura alámbrica/lisa",
+      "toggle_wireframe_filled": "Alternar operación / contorno",
+      "view_style": "Visualización del diseño:",
+      "view_style_filled_coarse": "Forzar relleno",
+      "view_style_filled_smooth": "Bordes suaves",
+      "view_style_wireframe_coarse": "Según operación de capa",
+      "view_style_wireframe_smooth": "Forzar contorno",
       "zoom_to_page": "Acercar a la página"
     },
     "help": {
@@ -558,8 +561,7 @@
       "scroll_wheel": "Rueda del mouse",
       "scroll_zoom": "Zoom",
       "scroll_pan": "Desplazar",
-      "allow_import_tool_layers": "Permitir importar a capas de herramienta",
-      "include_tool_layers_job_bounds": "Incluir capas de herramienta en los límites del trabajo"
+      "allow_import_tool_layers": "Permitir importar a capas de herramienta"
     },
     "about": {
       "tagline": "Creado por makers para makers.",
@@ -627,6 +629,9 @@
       "error_layer_unavailable": "El cuadro de diálogo de código de barras se cerró porque su capa de destino ya no está disponible."
     },
     "adjust_image": {
+      "invert_display_help": "Solo vista previa. La imagen guardada y la salida del láser no cambian.",
+      "invert_adjustment_help": "La inversión se guarda con esta imagen y se aplica antes del procesamiento ráster de la capa.",
+      "negative_image_help": "Imagen negativa invierte la salida de la capa. Si Invertir también está activado arriba, ambas inversiones pueden anularse.",
       "title": "Ajustar imagen",
       "drag_to_move": "Arrastra para mover",
       "original": "Originales",
@@ -701,6 +706,7 @@
       "include_project_file": "Incluir archivo de proyecto",
       "include_project_file_help": "Desactivado de forma predeterminada. Esto envía la geometría .lzrproj real y los datos ráster.",
       "job_compatibility_help": "Todavía no se ha enviado nada. Este informe contiene la versión de Beam Bench, el sistema operativo, la familia del controlador, ajustes de la máquina que no permiten identificarla y los totales del trabajo finalizado. Excluye los diseños, el G-code, los nombres de archivo, el tráfico serial, los registros, las rutas de dispositivos, los identificadores de perfil y los archivos de proyecto.",
+      "privacy_policy": "Consultar la política de privacidad",
       "what_gets_sent": "lo que se envía",
       "loading": "Cargando...",
       "submitting_report": "Presentando informe a Beam Bench...",
@@ -784,6 +790,7 @@
       "pan_hint": "Arrastra para seleccionar un área de trazado. Mantén presionada la barra espaciadora y arrastra para desplazarte."
     },
     "preview": {
+      "options_help": "Recorrido es el movimiento con el láser apagado. Progreso muestra el grabado completado. La sobreexploración muestra la aceleración ráster fuera del diseño. Sombrear por potencia e Invertir solo afectan esta vista.",
       "title": "Ventana de vista previa",
       "stale_refresh_required": "Obsoleto: se requiere actualización",
       "stale": "rancio",
@@ -1105,10 +1112,27 @@
       "title": "Cambios sin guardar",
       "message": "Tu proyecto tiene cambios sin guardar. ¿Guardarlos antes de continuar?",
       "discard": "No guardar"
+    },
+    "print": {
+      "title": "Imprimir",
+      "output": "Salida de impresión",
+      "description": "Elija cómo debe aparecer el proyecto y luego continúe en el cuadro de diálogo de impresión del sistema.",
+      "color": "Color",
+      "black": "Negro",
+      "layer_colors": "Colores de capas",
+      "appearance": "Apariencia del diseño",
+      "by_operation": "Según operación de capa",
+      "outlines": "Solo contornos",
+      "print": "Imprimir...",
+      "preparing": "Preparando..."
     }
   },
   "toolbars": {
     "main": {
+      "mode_design": "Diseño",
+      "mode_run": "Ejecutar",
+      "mode_design_hint": "Diseño: dibuja y organiza tu proyecto",
+      "mode_run_hint": "Ejecutar: envía el trabajo a tu láser",
       "new": "Nuevo",
       "untitled_project": "Proyecto sin título",
       "open": "Abierto",
@@ -1193,13 +1217,16 @@
       "close_path": "Cerrar ruta",
       "auto_join_paths": "Rutas de unión automática",
       "insert_midpoint": "Insertar punto medio (M)",
-      "align_to_angle": "Alinear al ángulo (A)"
+      "align_to_angle": "Alinear al ángulo (A)",
+      "extend_to_intersection": "Extender hasta la intersección (E)"
     },
     "transform_toggles": {
       "move": "Mover",
       "size": "Tamaño",
       "rotate": "Girar",
-      "shear": "Cortar"
+      "shear": "Cortar",
+      "lock_all": "Bloquear todas las transformaciones",
+      "unlock_all": "Desbloquear todas las transformaciones"
     },
     "properties": {
       "position_x": "Pos. X",
@@ -1341,19 +1368,38 @@
   "panels": {
     "empty": {
       "no_project": "Sin proyecto",
-      "nothing_selected": "Nada seleccionado"
+      "nothing_selected": "Selecciona un objeto para editar sus propiedades"
+    },
+    "library": {
+      "title": "Biblioteca"
     },
     "floating": {
       "dock_tooltip": "Acoplar panel",
       "close_tooltip": "Cerrar panel",
       "float_tooltip": "Desacoplar panel"
     },
+    "outliner": {
+      "help": "Arrastra para reordenar o mover. Haz doble clic para cambiar el nombre. Los objetos ocultos permanecen aquí para que puedas restaurarlos.",
+      "summary": "{layers} capas · {objects} objetos",
+      "empty_layer": "Sin objetos",
+      "expand_layer": "Expandir capa",
+      "collapse_layer": "Contraer capa",
+      "expand_group": "Expandir grupo",
+      "collapse_group": "Colapsar grupo",
+      "show_layer": "Mostrar capa",
+      "hide_layer": "Ocultar capa",
+      "show_object": "Mostrar objeto",
+      "hide_object": "Ocultar objeto",
+      "lock_object": "Bloquear objeto",
+      "unlock_object": "Desbloquear objeto"
+    },
     "registry": {
-      "cuts_layers": "Cortes / Capas",
+      "outliner": "esquematizador",
+      "cuts_layers": "capas",
       "move": "Mover",
       "console": "Consola",
       "macros": "Macros",
-      "properties": "Propiedades de forma",
+      "properties": "Propiedades",
       "measurement": "Medición",
       "laser": "Laser Control",
       "material": "Biblioteca de materiales",
@@ -1412,6 +1458,10 @@
       "single_sub_layer": "Una subcapa"
     },
     "properties": {
+      "transform": "Transformar",
+      "visibility_help": "Los objetos ocultos se excluyen del trabajo. Restáuralos en el Outliner.",
+      "power_scale_help": "Multiplica la potencia de la capa para este objeto sin modificar la capa.",
+      "cut_priority_help": "Los valores más bajos se ejecutan antes cuando está activada la optimización por prioridad.",
       "objects_selected": "{count} objetos seleccionados",
       "layer": "Capa",
       "mixed": "Mixto",
@@ -1421,7 +1471,7 @@
       "union": "Unión",
       "subtract": "Sustraer",
       "intersection": "Intersección",
-      "nothing_selected": "Nada seleccionado",
+      "nothing_selected": "Selecciona un objeto para editar sus propiedades",
       "name": "Nombre",
       "power_scale_percent": "Escala de potencia %",
       "cut_priority": "Prioridad de corte",
@@ -1484,15 +1534,63 @@
       "h_space": "Esp. H",
       "v_space": "Esp. V",
       "path_offset": "Desfase de ruta",
+      "baseline_offset": "Desfase de línea base",
+      "direction_normal": "Normal",
+      "direction_reverse": "Inversa",
+      "strength": "Intensidad",
+      "arc_span": "Extensión del arco",
+      "circle_position": "Posición en el círculo",
+      "circle_side": "Lado del círculo",
+      "circle_top": "Superior",
+      "circle_bottom": "Inferior",
+      "circle_outside": "Exterior",
+      "circle_inside": "Interior",
       "bend_radius": "Radio de curvatura",
       "align_left": "Izquierda",
       "align_center": "Centro",
       "align_right": "Derecha",
       "align_top": "Arriba",
       "align_middle": "Medio",
-      "align_bottom": "Abajo"
+      "align_bottom": "Abajo",
+      "tool_title": "herramienta de texto",
+      "creation_hint": "Elija Señalar para hacer clic y escribir, o Cuadro para arrastrar una región envolvente.",
+      "edit_text": "Editar texto",
+      "edit_on_canvas": "Editar en lienzo",
+      "search_fonts": "Buscar fuentes",
+      "recent_fonts": "Reciente",
+      "favorite_fonts": "Favoritos",
+      "all_fonts": "Todas las fuentes",
+      "no_fonts_found": "No se encontraron fuentes",
+      "favorite_font": "fuente favorita",
+      "unfavorite_font": "Eliminar favorito",
+      "style": "Estilo",
+      "style_regular": "regular",
+      "style_bold_italic": "Negrita cursiva",
+      "typography": "tipografía",
+      "alignment_spacing": "Alineación y espaciado",
+      "text_box": "tipo de texto",
+      "width_mode": "Modo",
+      "auto_width": "punto",
+      "fixed_width": "Caja",
+      "width": "Ancho de la caja",
+      "squeeze_to_fit": "Apretar para encajar",
+      "advanced_shape": "Forma de texto avanzada",
+      "transform": "sobre",
+      "transform_none": "Ninguno",
+      "transform_arch": "arco",
+      "transform_rise": "subir",
+      "transform_wave": "Ola",
+      "transform_flag": "Bandera",
+      "transform_angle": "ángulo",
+      "transform_circle": "circulo",
+      "curve": "Curva",
+      "laser_output": "Salida láser",
+      "convert_hint": "Convertir a ruta congela las letras en una geometría de corte editable.",
+      "tracking": "Seguimiento",
+      "line_spacing": "Interlineado"
     },
     "sub_layer_stack": {
+      "title": "Subcapas",
       "operation_tool": "Herramienta",
       "operation_image": "Imagen",
       "operation_fill": "Relleno",
@@ -1542,7 +1640,8 @@
       "offset_outward": "Desfase hacia afuera",
       "max_sub_layers_title": "Se alcanzó el máximo de 11 subcapas",
       "add_sub_layer_title": "Agregar subcapa",
-      "add_sub_layer": "+ Agregar subcapa"
+      "add_sub_layer": "+ Agregar subcapa",
+      "order_hint": "Las subcapas se ejecutan en orden, de arriba hacia abajo."
     },
     "cut_settings": {
       "title": "Ajustes de corte",
@@ -1568,6 +1667,11 @@
       }
     },
     "layers": {
+      "tool_layer_help": "Las capas de herramienta sirven de guía y nunca producen salida láser.",
+      "output_show_help": "Salida incluye esta capa en el trabajo láser. Ver solo cambia la vista del lienzo.",
+      "opacity_help": "Solo vista previa del lienzo. No cambia la potencia del láser ni el procesamiento de la imagen.",
+      "delete_layer": "Eliminar capa",
+      "add_layer": "Agregar capa",
       "header": {
         "index": "#",
         "layer": "Capa",
@@ -1587,8 +1691,6 @@
         "multi": "Múltiple"
       },
       "additional_entries": " (+{count})",
-      "include_tool_layers_in_job_bounds": "Incluir capas de herramienta en los límites del trabajo",
-      "exclude_tool_layers_from_job_bounds": "Excluir capas de herramienta de los límites del trabajo",
       "frame": "Marco",
       "move_up": "Subir",
       "move_down": "Bajar",
@@ -1635,7 +1737,8 @@
         "on_ms": "Encendido (ms)",
         "off_ms": "Apagado (ms)",
         "kerf_mm": "Desfase de kerf"
-      }
+      },
+      "settings_copied": "Configuración de capa copiada"
     },
     "move": {
       "step_mm": "Paso",
@@ -2168,9 +2271,40 @@
       "end": "Fin",
       "midpoint": "Punto medio",
       "difference": "Diferencia",
-      "angle": "Ángulo"
+      "angle": "Ángulo",
+      "mode_linear": "lineal",
+      "mode_angle": "ángulo",
+      "mode_radius": "Radio",
+      "mode_gap": "brecha",
+      "minimum_gap": "Brecha mínima",
+      "horizontal": "Horizontales",
+      "vertical": "verticales",
+      "horizontal_gap": "Espacio horizontal",
+      "vertical_gap": "brecha vertical",
+      "first_segment": "Primer segmento",
+      "second_segment": "Segundo segmento",
+      "radius": "Radio",
+      "diameter": "Diámetro",
+      "radius_x": "Radio X",
+      "radius_y": "Radio Y",
+      "diameter_x": "Diámetro X",
+      "diameter_y": "Diámetro Y",
+      "linear_second_hint": "Haga clic en el segundo punto",
+      "angle_second_hint": "Haga clic en un segundo segmento",
+      "gap_second_hint": "Haga clic en el segundo objeto",
+      "angle_hint": "Haga clic en dos segmentos para medir su ángulo",
+      "radius_hint": "Haga clic en un círculo o elipse",
+      "gap_hint": "Haga clic en dos objetos para medir su espacio más cercano",
+      "linear_hint": "Haga clic y arrastre o haga clic en dos puntos",
+      "title": "Medida",
+      "modes": "Modos de medición",
+      "copy_value": "Copiar valor",
+      "copied": "copiado",
+      "clear_measurement": "Medición clara",
+      "keyboard_hint": "Shift restringe los ángulos. Escape se borra y luego regresa a Seleccionar."
     },
     "art_library": {
+      "drag_help": "Arrastra el diseño al lienzo. Usa × para eliminarlo de la biblioteca.",
       "no_libraries": "No hay bibliotecas cargadas.",
       "search": "Buscar...",
       "icon_size": "Tamaño de icono:",
@@ -2202,6 +2336,11 @@
       "filter_library": "Biblioteca de arte de Beam Bench",
       "filter_artwork": "Ilustración"
     }
+  },
+  "warp_tool": {
+    "title": "deformar",
+    "four_points": "4 puntos",
+    "sixteen_points": "16 puntos"
   },
   "context_menu": {
     "windows": "Ventanas",

@@ -6,7 +6,9 @@ use thiserror::Error;
 use zip::CompressionMethod;
 use zip::write::SimpleFileOptions;
 
+use beambench_common::path::VecPath;
 use beambench_core::asset::AssetId;
+use beambench_core::object::ObjectData;
 use beambench_core::project::Project;
 
 #[derive(Debug, Error)]
@@ -116,6 +118,10 @@ pub fn load_project(path: &Path) -> Result<Project, PersistenceError> {
         }
     }
 
+    // Remove isolated nodes left by older node-edit operations before they can
+    // affect selection, bounds mapping, or laser planning.
+    prune_orphan_vector_subpaths(&mut project);
+
     // Validate: every RasterImage asset_key resolves to an asset
     for obj in &project.objects {
         if let beambench_core::object::ObjectData::RasterImage { asset_key, .. } = &obj.data {
@@ -134,6 +140,81 @@ pub fn load_project(path: &Path) -> Result<Project, PersistenceError> {
 
     project.dirty = false;
     Ok(project)
+}
+
+fn prune_orphan_vector_subpaths(project: &mut Project) {
+    for object in &mut project.objects {
+        let ObjectData::VectorPath {
+            path_data, closed, ..
+        } = &mut object.data
+        else {
+            continue;
+        };
+
+        let mut path = VecPath::parse_svg_d(path_data);
+        let previous_path_bounds = path.visual_bounds();
+        let mut next_subpath_index = 0;
+        let subpath_index_map: Vec<Option<usize>> = path
+            .subpaths
+            .iter()
+            .map(|subpath| {
+                if subpath.has_drawable_segment() {
+                    let mapped = next_subpath_index;
+                    next_subpath_index += 1;
+                    Some(mapped)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if path.prune_orphan_subpaths() == 0 {
+            continue;
+        }
+
+        *path_data = path.to_svg_d();
+        *closed = path.subpaths.iter().any(|subpath| subpath.closed);
+        object.bounds = match (previous_path_bounds, path.visual_bounds()) {
+            (Some(previous), Some(cleaned)) => {
+                // Preserve any scale/placement already applied through object.bounds
+                // while removing the orphan's contribution to those bounds.
+                let previous_width = previous.max.x - previous.min.x;
+                let previous_height = previous.max.y - previous.min.y;
+                let object_width = object.bounds.max.x - object.bounds.min.x;
+                let object_height = object.bounds.max.y - object.bounds.min.y;
+                let scale_x = if previous_width.abs() > f64::EPSILON {
+                    object_width / previous_width
+                } else {
+                    1.0
+                };
+                let scale_y = if previous_height.abs() > f64::EPSILON {
+                    object_height / previous_height
+                } else {
+                    1.0
+                };
+                let map_x = |x: f64| object.bounds.min.x + (x - previous.min.x) * scale_x;
+                let map_y = |y: f64| object.bounds.min.y + (y - previous.min.y) * scale_y;
+                beambench_common::Bounds::new(
+                    beambench_common::Point2D::new(map_x(cleaned.min.x), map_y(cleaned.min.y)),
+                    beambench_common::Point2D::new(map_x(cleaned.max.x), map_y(cleaned.max.y)),
+                )
+            }
+            _ => beambench_common::Bounds::new(object.bounds.min, object.bounds.min),
+        };
+        object.tabs.retain_mut(|tab| {
+            let Some(Some(mapped_index)) = subpath_index_map.get(tab.subpath_index) else {
+                return false;
+            };
+            tab.subpath_index = *mapped_index;
+            true
+        });
+        object.start_point_edits.retain_mut(|edit| {
+            let Some(Some(mapped_index)) = subpath_index_map.get(edit.subpath_index) else {
+                return false;
+            };
+            edit.subpath_index = *mapped_index;
+            true
+        });
+    }
 }
 
 /// Information about a recoverable project.
@@ -214,7 +295,7 @@ mod tests {
     use super::*;
     use beambench_common::{Bounds, Point2D};
     use beambench_core::asset::{Asset, AssetMediaType};
-    use beambench_core::object::{ObjectData, ProjectObject};
+    use beambench_core::object::{ObjectData, ProjectObject, StartPointEdit, TabAnchor};
     use tempfile::TempDir;
 
     fn test_project_with_asset() -> Project {
@@ -258,6 +339,70 @@ mod tests {
         assert_eq!(loaded.layers, original.layers);
         assert_eq!(loaded.objects, original.objects);
         assert_eq!(loaded.assets, original.assets);
+        assert!(!loaded.dirty);
+    }
+
+    #[test]
+    fn load_prunes_orphan_vector_nodes_and_repairs_bounds() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("orphan-node.lzrproj");
+        let mut project = Project::new("Orphan Node");
+        let layer_id = project.ensure_default_layer();
+        let mut object = ProjectObject::new(
+            "legacy-path",
+            layer_id,
+            Bounds::new(Point2D::new(10.0, 20.0), Point2D::new(1000.0, 1000.0)),
+            ObjectData::VectorPath {
+                path_data: "M1000 1000 Z M10 20 L30 40".to_string(),
+                closed: true,
+                ruler_guide_axis: None,
+            },
+        );
+        object.tabs = vec![
+            TabAnchor {
+                subpath_index: 0,
+                position: 0.25,
+            },
+            TabAnchor {
+                subpath_index: 1,
+                position: 0.5,
+            },
+        ];
+        object.start_point_edits = vec![
+            StartPointEdit {
+                subpath_index: 0,
+                original_start_current_idx: 0,
+                reversed: false,
+                v_display: 1,
+                normalized: false,
+            },
+            StartPointEdit {
+                subpath_index: 1,
+                original_start_current_idx: 0,
+                reversed: false,
+                v_display: 2,
+                normalized: false,
+            },
+        ];
+        project.add_object(object);
+        save_project(&project, &path).unwrap();
+
+        let loaded = load_project(&path).unwrap();
+        let object = &loaded.objects[0];
+        let ObjectData::VectorPath {
+            path_data, closed, ..
+        } = &object.data
+        else {
+            panic!("expected vector path");
+        };
+        assert_eq!(path_data, "M10 20 L30 40");
+        assert!(!closed);
+        assert_eq!(object.bounds.min, Point2D::new(10.0, 20.0));
+        assert_eq!(object.bounds.max, Point2D::new(30.0, 40.0));
+        assert_eq!(object.tabs.len(), 1);
+        assert_eq!(object.tabs[0].subpath_index, 0);
+        assert_eq!(object.start_point_edits.len(), 1);
+        assert_eq!(object.start_point_edits[0].subpath_index, 0);
         assert!(!loaded.dirty);
     }
 

@@ -92,6 +92,7 @@ pub fn update_layer(
             enabled: patch.enabled,
             visible: patch.visible,
             color_tag: patch.color_tag,
+            fill_opacity: patch.fill_opacity,
             ..Default::default()
         },
     )
@@ -301,6 +302,7 @@ pub fn update_object(
     transform: Option<Transform2D>,
     bounds: Option<Bounds>,
     lock_aspect_ratio: Option<bool>,
+    transform_locks: Option<TransformLocks>,
     power_scale: Option<f64>,
     priority: Option<i32>,
 ) -> Result<ProjectObject, String> {
@@ -320,8 +322,35 @@ pub fn update_object(
             transform,
             bounds,
             lock_aspect_ratio,
+            transform_locks,
             power_scale,
             priority,
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn update_object_transform_state(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+    transform_locks: Option<TransformLocks>,
+    transform_lock_key: Option<String>,
+    transform_enabled: Option<bool>,
+    lock_aspect_ratio: Option<bool>,
+) -> Result<Vec<ProjectObject>, String> {
+    let object_ids = object_ids
+        .iter()
+        .map(|id| parse_id(id))
+        .collect::<Result<Vec<_>, _>>()?;
+    project_ops::update_object_transform_state(
+        &svc,
+        project_ops::UpdateObjectTransformStateInput {
+            object_ids,
+            transform_locks,
+            transform_lock_key,
+            transform_enabled,
+            lock_aspect_ratio,
         },
     )
     .map_err(Into::into)
@@ -335,6 +364,16 @@ pub fn update_object_data(
 ) -> Result<ProjectObject, String> {
     let oid: ObjectId = parse_id(&object_id)?;
     project_ops::update_object_data(&svc, oid, data).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn resize_text_area(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_id: String,
+    bounds: Bounds,
+) -> Result<ProjectObject, String> {
+    let oid: ObjectId = parse_id(&object_id)?;
+    project_ops::resize_text_area(&svc, oid, bounds).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -1217,6 +1256,61 @@ pub fn reassign_layer(
 }
 
 #[tauri::command]
+pub fn move_objects_in_outliner(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+    target_layer_id: String,
+    before_object_id: Option<String>,
+) -> Result<(), String> {
+    let parsed_ids: Vec<ObjectId> = object_ids
+        .iter()
+        .map(|id| parse_id(id))
+        .collect::<Result<Vec<_>, _>>()?;
+    let target_layer_id = parse_id(&target_layer_id)?;
+    let before_object_id = before_object_id.as_deref().map(parse_id).transpose()?;
+    let mut guard = svc
+        .project
+        .lock()
+        .map_err(|error| format!("lock: {error}"))?;
+    let project = guard.as_mut().ok_or("No project open")?;
+    let destination = project
+        .layers
+        .iter()
+        .find(|layer| layer.id == target_layer_id)
+        .ok_or("Target layer not found")?;
+
+    let mut expanded = Vec::new();
+    let mut pending = parsed_ids.clone();
+    while let Some(object_id) = pending.pop() {
+        if expanded.contains(&object_id) {
+            continue;
+        }
+        let object = project.find_object(object_id).ok_or("Object not found")?;
+        expanded.push(object_id);
+        if let ObjectData::Group { children } = &object.data {
+            pending.extend(children.iter().copied());
+        }
+    }
+    for object_id in &expanded {
+        let object = project.find_object(*object_id).ok_or("Object not found")?;
+        if matches!(object.data, ObjectData::Group { .. }) {
+            continue;
+        }
+        beambench_service::check_layer_content_invariant(&object.data, destination, project)
+            .map_err(|error| error.to_string())?;
+    }
+
+    svc.push_project_undo_snapshot(project)?;
+    beambench_core::move_objects_in_outliner(
+        project,
+        &parsed_ids,
+        target_layer_id,
+        before_object_id,
+    );
+    Ok(())
+}
+
+#[tauri::command]
 pub fn select_open_shapes(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<String>, String> {
     let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
     let project = guard.as_mut().ok_or("No project open")?;
@@ -1472,7 +1566,6 @@ fn delete_duplicates_inner(
     svc.push_project_undo_snapshot(project)?;
     let dup_vec: Vec<ObjectId> = dup_ids.iter().copied().collect();
     project.remove_objects(&dup_vec);
-    project.clean_empty_layers();
     let remaining = if parsed_ids.is_empty() || !selection_scope {
         Vec::new()
     } else {
@@ -1875,6 +1968,35 @@ mod tests {
         let project = guard.as_ref().unwrap();
         assert!(project.find_object(locked_original.id).is_some());
         assert!(project.find_object(duplicate.id).is_none());
+    }
+
+    #[test]
+    fn delete_duplicates_preserves_layers_that_become_empty() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("test");
+        project.layers.clear();
+        let first_layer = Layer::new("First", OperationType::Line);
+        let second_layer = Layer::new("Second", OperationType::Line);
+        let first_layer_id = first_layer.id;
+        let second_layer_id = second_layer.id;
+        project.add_layer(first_layer);
+        project.add_layer(second_layer);
+        add_vector_path(&mut project, first_layer_id, "original", "M0 0 L10 0");
+        add_vector_path(&mut project, second_layer_id, "duplicate", "M0 0 L10 0");
+        *ctx.project.lock().unwrap() = Some(project);
+
+        delete_duplicates_inner(&ctx, &[]).unwrap();
+
+        let guard = ctx.project.lock().unwrap();
+        let project = guard.as_ref().unwrap();
+        assert!(project.find_layer(first_layer_id).is_some());
+        assert!(project.find_layer(second_layer_id).is_some());
+        assert!(
+            project
+                .objects
+                .iter()
+                .all(|object| object.layer_id == first_layer_id)
+        );
     }
 
     /// Exercises the same palette-sync mutation pattern to verify
