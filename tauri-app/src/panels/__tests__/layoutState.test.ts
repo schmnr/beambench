@@ -5,6 +5,7 @@ import {
   DEFAULT_TOOLBAR_VISIBILITY,
   DEFAULT_UPPER_SPLIT_RATIO,
   DEFAULT_RIGHT_PANEL_WIDTH,
+  DEFAULT_RUN_LEFT_PANEL_WIDTH,
 } from '../layoutState';
 import type { FloatingPanelState } from '../layoutState';
 
@@ -34,6 +35,10 @@ describe('layoutState', () => {
 
   it('DEFAULT_RIGHT_PANEL_WIDTH is 440', () => {
     expect(DEFAULT_RIGHT_PANEL_WIDTH).toBe(440);
+  });
+
+  it('gives the Run Move dock a wider presentation default', () => {
+    expect(DEFAULT_RUN_LEFT_PANEL_WIDTH).toBe(360);
   });
 
   it('createDefaultLayout zones have correct panels', () => {

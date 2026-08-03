@@ -106,6 +106,7 @@ export const DEFAULT_RUN_COLUMN_RATIOS: WorkspaceColumnRatios = {
 };
 export const DEFAULT_RIGHT_PANEL_WIDTH = 440;
 export const DEFAULT_LEFT_PANEL_WIDTH = 280;
+export const DEFAULT_RUN_LEFT_PANEL_WIDTH = 360;
 export const DEFAULT_BOTTOM_PANEL_HEIGHT = 36;
 export const DEFAULT_TOOLBAR_VISIBILITY = {
   main: true,

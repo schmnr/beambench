@@ -236,6 +236,15 @@ describe('AppShell workspace modes', () => {
     expect(screen.getByText('FloatingPanelLayer')).toBeDefined();
   });
 
+  it('widens the untouched default left dock for the Run Move panel', () => {
+    useUiStore.setState({ workspaceMode: 'run' });
+
+    render(<AppShell />);
+
+    const dock = screen.getByText('PanelColumn-left').parentElement;
+    expect(dock?.style.width).toBe('360px');
+  });
+
   it('keeps Run controls visible when Design side panels are hidden', () => {
     useUiStore.setState({ workspaceMode: 'run', sidePanelsVisible: false });
 

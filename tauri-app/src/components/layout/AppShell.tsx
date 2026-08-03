@@ -19,7 +19,13 @@ import { ImportDropZone } from '../import/ImportDropZone';
 import { FloatingPanelLayer } from './FloatingPanelLayer';
 import { PanelDndProvider, usePanelDnd } from '../../panels/DndContext';
 import { isNativeMenuActive } from '../../utils/platform';
-import { COLUMN_ZONES, getWorkspacePanelLayout } from '../../panels';
+import {
+  COLUMN_ZONES,
+  DEFAULT_LEFT_PANEL_WIDTH,
+  DEFAULT_RIGHT_PANEL_WIDTH,
+  DEFAULT_RUN_LEFT_PANEL_WIDTH,
+  getWorkspacePanelLayout,
+} from '../../panels';
 
 const LEFT_COLUMN = 'left' as const;
 const RIGHT_COLUMN = 'right' as const;
@@ -110,6 +116,9 @@ export function AppShell() {
   const modifierPropertiesSession = useUiStore((s) => s.modifierPropertiesSession);
   const selectionKey = useProjectStore((s) => s.selectedObjectIds.join('|'));
   const runMode = workspaceMode === 'run';
+  const effectiveLeftWidth = runMode && leftPanelWidth === DEFAULT_LEFT_PANEL_WIDTH
+    ? DEFAULT_RUN_LEFT_PANEL_WIDTH
+    : leftPanelWidth;
 
   useEffect(() => {
     if (workspaceMode !== DESIGN_WORKSPACE || selectionKey.length === 0) return;
@@ -143,7 +152,7 @@ export function AppShell() {
   };
 
   const handleLeftResize = (delta: number) => {
-    setLeftPanelWidth(leftPanelWidth + delta);
+    setLeftPanelWidth(effectiveLeftWidth + delta);
     appService.persistLayout(useUiStore.getState().panelLayout);
   };
 
@@ -170,8 +179,10 @@ export function AppShell() {
     && (rightHasContent || (sideDocksEnabled && openedEmptyDocks[getDockRecoveryKey(workspaceMode, 'right')]));
   const bottomDockOpen = bottomPanelHeight > 0 && (bottomHasContent || bottomDockRequested);
   const openEmptyDock = (side: 'left' | 'right') => {
-    if (side === 'left' && leftPanelWidth <= 0) setLeftPanelWidth(280);
-    if (side === 'right' && rightPanelWidth <= 0) setRightPanelWidth(440);
+    if (side === 'left' && leftPanelWidth <= 0) {
+      setLeftPanelWidth(runMode ? DEFAULT_RUN_LEFT_PANEL_WIDTH : DEFAULT_LEFT_PANEL_WIDTH);
+    }
+    if (side === 'right' && rightPanelWidth <= 0) setRightPanelWidth(DEFAULT_RIGHT_PANEL_WIDTH);
     setOpenedEmptyDocks((current) => ({ ...current, [getDockRecoveryKey(workspaceMode, side)]: true }));
   };
 
@@ -188,8 +199,6 @@ export function AppShell() {
   useEffect(() => {
     if (bottomHasContent) setBottomDockRequested(false);
   }, [bottomHasContent]);
-  const effectiveLeftWidth = leftPanelWidth;
-
   return (
     <PanelDndProvider>
       <div className="h-full flex flex-col">
