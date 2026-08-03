@@ -780,4 +780,39 @@ describe('PropertiesPanel', () => {
 
     expect(ungroupObjects).toHaveBeenCalledWith('obj1');
   });
+
+  it('shows Break Apart as a compact action for a selected vector object', () => {
+    const project = makeProject({
+      data: {
+        type: 'vector_path' as const,
+        path_data: 'M 0 0 L 10 0 L 10 10 Z M 20 20 L 30 20 L 30 30 Z',
+        closed: true,
+      },
+    });
+    const breakApart = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'], breakApart });
+
+    render(<PropertiesPanel />);
+
+    const button = screen.getByRole('button', { name: 'Break Apart' });
+    expect(button.className).toContain('w-7');
+    fireEvent.click(button);
+    expect(breakApart).toHaveBeenCalledWith('obj1');
+  });
+
+  it('does not show Break Apart for raster objects', () => {
+    const project = makeProject({
+      data: {
+        type: 'raster_image' as const,
+        asset_key: 'asset-1',
+        original_width_px: 100,
+        original_height_px: 100,
+      },
+    });
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+
+    render(<PropertiesPanel />);
+
+    expect(screen.queryByRole('button', { name: 'Break Apart' })).toBeNull();
+  });
 });

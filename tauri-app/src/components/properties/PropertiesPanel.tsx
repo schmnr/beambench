@@ -18,10 +18,10 @@ import { RadiusPropertiesSection } from './RadiusPropertiesSection';
 import { WarpPropertiesSection } from './WarpPropertiesSection';
 import { TabPropertiesSection } from './TabPropertiesSection';
 import { MeasurementPropertiesSection } from './MeasurementPropertiesSection';
-import { createSelectionContext, isBooleanCompatible } from '../../commands/selectionContext';
+import { createSelectionContext, isBooleanCompatible, isEffectiveVector } from '../../commands/selectionContext';
 import { IconButton } from '../shared/IconButton';
 import { IconToggleButton } from '../shared/IconToggleButton';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Split } from 'lucide-react';
 import {
   ExcludeIcon,
   IntersectIcon,
@@ -37,6 +37,7 @@ import {
 
 const TOAST_SUCCESS = 'success' as const;
 const TOAST_ERROR = 'error' as const;
+const VECTOR_BUTTON_SIZE = 'xs' as const;
 const BOOLEAN_BUTTON_SIZE = 'sm' as const;
 const BOOLEAN_ICON_SIZE = 24;
 
@@ -49,8 +50,10 @@ export function PropertiesPanel() {
   const loadProject = useProjectStore((s) => s.loadProject);
   const booleanPending = useProjectStore((s) => s.booleanPending);
   const setObjectsVisible = useProjectStore((s) => s.setObjectsVisible);
+  const breakApart = useProjectStore((s) => s.breakApart);
   const assignImageMask = useProjectStore((s) => s.assignImageMask);
   const activeTool = useUiStore((s) => s.activeTool);
+  const workspaceMode = useUiStore((s) => s.workspaceMode);
   const modifierPropertiesSession = useUiStore((s) => s.modifierPropertiesSession);
 
   const selectedObject = project?.objects.find((o) => o.id === selectedObjectIds[0]) ?? null;
@@ -280,6 +283,7 @@ export function PropertiesPanel() {
   const polygonData = isPolygonShape ? selectedObject.data as Extract<typeof selectedObject.data, { type: 'polygon' }> : null;
   const starData = isStarShape ? selectedObject.data as Extract<typeof selectedObject.data, { type: 'star' }> : null;
   const powerScalePercent = Math.round((selectedObject.power_scale ?? 1) * 100);
+  const isVectorObject = isEffectiveVector(selectedObject, project?.objects ?? []);
 
   return (
     <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
@@ -321,6 +325,21 @@ export function PropertiesPanel() {
       />
 
       <SelectionArrangeSection />
+
+      {isVectorObject && (
+        <section className="border-t border-bb-border pt-3" data-testid="vector-actions-section">
+          <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.layers.vector')}</div>
+          <div className="mt-1 flex gap-0.5">
+            <IconButton
+              size={VECTOR_BUTTON_SIZE}
+              icon={<Split size={17} />}
+              label={t('menus.arrange.break_apart')}
+              disabled={workspaceMode !== 'design' || selectedObject.locked}
+              onClick={() => void breakApart(selectedObject.id)}
+            />
+          </div>
+        </section>
+      )}
 
       {isTextObject && selectedObject.data.type === 'text' && (
         <TextPropertiesPanel objectId={selectedObject.id} data={selectedObject.data} />
