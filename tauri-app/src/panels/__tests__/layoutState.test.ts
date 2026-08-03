@@ -12,7 +12,7 @@ import type { FloatingPanelState } from '../layoutState';
 describe('layoutState', () => {
   it('createDefaultLayout has correct defaults', () => {
     const layout = createDefaultLayout();
-    expect(layout.layoutVersion).toBe(6);
+    expect(layout.layoutVersion).toBe(7);
     expect(layout.upperSplitRatio).toBe(DEFAULT_UPPER_SPLIT_RATIO);
     expect(layout.rightPanelWidth).toBe(DEFAULT_RIGHT_PANEL_WIDTH);
     expect(layout.hiddenPanelIds).toEqual([
@@ -46,7 +46,7 @@ describe('layoutState', () => {
     expect(layout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'properties']);
     expect(layout.zones['middle-right'].panelIds).toHaveLength(0);
     expect(layout.zones['bottom-right'].panelIds).toHaveLength(0);
-    expect(layout.zones['top-left'].panelIds).toHaveLength(0);
+    expect(layout.zones['top-left'].panelIds).toEqual(['outliner']);
     expect(layout.zones['left'].panelIds).toHaveLength(0);
     expect(layout.zones['bottom'].panelIds).toHaveLength(0);
   });

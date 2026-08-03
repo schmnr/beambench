@@ -83,9 +83,9 @@ pub use object::{
     TextTransformStyle,
 };
 pub use operations::{
-    flip_objects, lock_objects, move_objects_to_position, push_draw_order, reassign_layer,
-    rotate_objects, select_all_in_layer, select_open_shapes, set_layer_air_assist,
-    set_layer_visible, set_objects_visible, unlock_objects,
+    flip_objects, lock_objects, move_objects_in_outliner, move_objects_to_position,
+    push_draw_order, reassign_layer, rotate_objects, select_all_in_layer, select_open_shapes,
+    set_layer_air_assist, set_layer_visible, set_objects_visible, unlock_objects,
 };
 pub use optimization::{
     DirectionOrder, FinishPosition, OptimizationOrderKey, ProjectOptimization,

@@ -345,6 +345,7 @@ fn main() {
             commands::project::set_transform_locks,
             commands::project::set_objects_visible,
             commands::project::reassign_layer,
+            commands::project::move_objects_in_outliner,
             commands::project::select_open_shapes,
             commands::project::select_open_shapes_set_to_fill,
             commands::project::select_contained_shapes,

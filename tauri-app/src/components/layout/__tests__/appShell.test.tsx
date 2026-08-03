@@ -49,6 +49,22 @@ afterEach(() => {
 });
 
 describe('AppShell workspace modes', () => {
+  const emptyDesignLeftDock = () => {
+    useUiStore.setState((state) => ({
+      workspaceMode: 'design',
+      sidePanelsVisible: true,
+      panelLayout: {
+        ...state.panelLayout,
+        zones: {
+          ...state.panelLayout.zones,
+          'top-left': { panelIds: [], activeTab: '' },
+          'middle-left': { panelIds: [], activeTab: '' },
+          'bottom-left': { panelIds: [], activeTab: '' },
+        },
+      },
+    }));
+  };
+
   it('switches to Properties when the object selection changes', () => {
     useUiStore.getState().setZoneActiveTab('top-right', 'cuts_layers');
     render(<AppShell />);
@@ -168,6 +184,7 @@ describe('AppShell workspace modes', () => {
   });
 
   it('offers a slim recovery grip for an unused left dock', () => {
+    emptyDesignLeftDock();
     render(<AppShell />);
 
     expect(screen.queryByText('PanelColumn-left')).toBeNull();
@@ -176,6 +193,7 @@ describe('AppShell workspace modes', () => {
   });
 
   it('accepts panel drops on collapsed left and bottom dock edges', () => {
+    emptyDesignLeftDock();
     render(<AppShell />);
 
     expect(dndMocks.registerDropZone).toHaveBeenCalledWith('top-left', expect.any(HTMLElement));
@@ -183,6 +201,7 @@ describe('AppShell workspace modes', () => {
   });
 
   it('closes a recovered left dock after its last panel is pulled out', () => {
+    emptyDesignLeftDock();
     render(<AppShell />);
     fireEvent.click(screen.getByRole('button', { name: 'Open left dock' }));
 

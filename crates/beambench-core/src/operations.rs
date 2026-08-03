@@ -658,6 +658,104 @@ pub fn push_draw_order(project: &mut Project, id: ObjectId, direction: DrawOrder
     project.dirty = true;
 }
 
+/// Move one or more top-level objects into a layer and place them in the
+/// layer's front-to-back stack. Group descendants travel with their parent so
+/// the hierarchy never spans layers. `before_id` is interpreted in the target
+/// layer after the moving block has been removed; `None` places the block at
+/// the back.
+pub fn move_objects_in_outliner(
+    project: &mut Project,
+    ids: &[ObjectId],
+    target_layer_id: LayerId,
+    before_id: Option<ObjectId>,
+) {
+    if !project
+        .layers
+        .iter()
+        .any(|layer| layer.id == target_layer_id)
+    {
+        return;
+    }
+
+    let mut moving_ids = Vec::new();
+    for id in ids {
+        collect_group_member_ids(project, *id, &mut moving_ids);
+    }
+    if moving_ids.is_empty() {
+        return;
+    }
+
+    let moving_set: std::collections::HashSet<ObjectId> = moving_ids.iter().copied().collect();
+    let mut moving_block: Vec<ObjectId> = project
+        .objects
+        .iter()
+        .filter(|object| moving_set.contains(&object.id))
+        .map(|object| object.id)
+        .collect();
+    moving_block.sort_by(|a, b| {
+        let a_z = project
+            .objects
+            .iter()
+            .find(|object| object.id == *a)
+            .map(|object| object.z_index)
+            .unwrap_or(0);
+        let b_z = project
+            .objects
+            .iter()
+            .find(|object| object.id == *b)
+            .map(|object| object.z_index)
+            .unwrap_or(0);
+        b_z.cmp(&a_z)
+    });
+
+    for object in project
+        .objects
+        .iter_mut()
+        .filter(|object| moving_set.contains(&object.id))
+    {
+        object.layer_id = target_layer_id;
+    }
+
+    let mut target_stack: Vec<ObjectId> = project
+        .objects
+        .iter()
+        .filter(|object| object.layer_id == target_layer_id && !moving_set.contains(&object.id))
+        .map(|object| object.id)
+        .collect();
+    target_stack.sort_by(|a, b| {
+        let a_z = project
+            .objects
+            .iter()
+            .find(|object| object.id == *a)
+            .map(|object| object.z_index)
+            .unwrap_or(0);
+        let b_z = project
+            .objects
+            .iter()
+            .find(|object| object.id == *b)
+            .map(|object| object.z_index)
+            .unwrap_or(0);
+        b_z.cmp(&a_z)
+    });
+
+    let insert_index = before_id
+        .and_then(|before| target_stack.iter().position(|id| *id == before))
+        .unwrap_or(target_stack.len());
+    target_stack.splice(insert_index..insert_index, moving_block);
+
+    let stack_len = target_stack.len();
+    for (index, object_id) in target_stack.into_iter().enumerate() {
+        if let Some(object) = project
+            .objects
+            .iter_mut()
+            .find(|object| object.id == object_id)
+        {
+            object.z_index = stack_len.saturating_sub(index + 1) as i32;
+        }
+    }
+    project.dirty = true;
+}
+
 /// Move objects to a specific position (sets bounds.min to x, y).
 pub fn move_objects_to_position(project: &mut Project, ids: &[ObjectId], x: f64, y: f64) {
     for id in ids {
@@ -1142,6 +1240,78 @@ mod tests {
 
         let moved = project.objects.iter().find(|obj| obj.id == id_c).unwrap();
         assert_eq!(moved.z_index, 0);
+    }
+
+    #[test]
+    fn move_objects_in_outliner_reassigns_and_places_before_target() {
+        use crate::layer::{Layer, OperationType};
+
+        let mut project = make_test_project();
+        let source_layer = Layer::new("Source", OperationType::Line);
+        let target_layer = Layer::new("Target", OperationType::Line);
+        let source_layer_id = source_layer.id;
+        let target_layer_id = target_layer.id;
+        project.add_layer(source_layer);
+        project.add_layer(target_layer);
+
+        let moving_id = ObjectId::new();
+        let front_id = ObjectId::new();
+        let back_id = ObjectId::new();
+        let mut moving = make_test_object(moving_id);
+        let mut front = make_test_object(front_id);
+        let mut back = make_test_object(back_id);
+        moving.layer_id = source_layer_id;
+        moving.z_index = 0;
+        front.layer_id = target_layer_id;
+        front.z_index = 1;
+        back.layer_id = target_layer_id;
+        back.z_index = 0;
+        project.objects.extend([moving, front, back]);
+
+        move_objects_in_outliner(&mut project, &[moving_id], target_layer_id, Some(back_id));
+
+        let moved = project.find_object(moving_id).unwrap();
+        let front = project.find_object(front_id).unwrap();
+        let back = project.find_object(back_id).unwrap();
+        assert_eq!(moved.layer_id, target_layer_id);
+        assert!(front.z_index > moved.z_index);
+        assert!(moved.z_index > back.z_index);
+        assert!(project.dirty);
+    }
+
+    #[test]
+    fn move_objects_in_outliner_keeps_group_descendants_on_the_same_layer() {
+        use crate::layer::{Layer, OperationType};
+
+        let mut project = make_test_project();
+        let source_layer = Layer::new("Source", OperationType::Line);
+        let target_layer = Layer::new("Target", OperationType::Line);
+        let source_layer_id = source_layer.id;
+        let target_layer_id = target_layer.id;
+        project.add_layer(source_layer);
+        project.add_layer(target_layer);
+
+        let group_id = ObjectId::new();
+        let child_id = ObjectId::new();
+        let mut group = make_test_object(group_id);
+        let mut child = make_test_object(child_id);
+        group.layer_id = source_layer_id;
+        child.layer_id = source_layer_id;
+        group.data = ObjectData::Group {
+            children: vec![child_id],
+        };
+        project.objects.extend([child, group]);
+
+        move_objects_in_outliner(&mut project, &[group_id], target_layer_id, None);
+
+        assert_eq!(
+            project.find_object(group_id).unwrap().layer_id,
+            target_layer_id
+        );
+        assert_eq!(
+            project.find_object(child_id).unwrap().layer_id,
+            target_layer_id
+        );
     }
 
     #[test]

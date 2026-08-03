@@ -579,6 +579,18 @@ export const projectService = {
     return invoke<void>('reassign_layer', { objectIds, targetLayerId: layerId });
   },
 
+  async moveObjectsInOutliner(
+    objectIds: string[],
+    targetLayerId: string,
+    beforeObjectId: string | null,
+  ): Promise<void> {
+    return invoke<void>('move_objects_in_outliner', {
+      objectIds,
+      targetLayerId,
+      beforeObjectId,
+    });
+  },
+
   async selectOpenShapes(): Promise<string[]> {
     return invoke<string[]>('select_open_shapes');
   },

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { PANEL_REGISTRY, getPanelById, getDefaultLayout } from '../panelRegistry';
 
 describe('panelRegistry', () => {
-  it('has 11 registered panels', () => {
-    expect(PANEL_REGISTRY).toHaveLength(11);
+  it('has 12 registered panels', () => {
+    expect(PANEL_REGISTRY).toHaveLength(12);
   });
 
   it('all panel ids are unique', () => {
@@ -51,6 +51,12 @@ describe('panelRegistry', () => {
   it('top-right zone contains correct panels', () => {
     const layout = getDefaultLayout();
     expect(layout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'properties']);
+  });
+
+  it('puts the Outliner in the default Design left dock', () => {
+    const layout = getDefaultLayout();
+    expect(layout.zones['top-left']).toEqual({ panelIds: ['outliner'], activeTab: 'outliner' });
+    expect(layout.runHiddenPanelIds).toContain('outliner');
   });
 
   it('middle-right zone contains correct panels', () => {

@@ -614,6 +614,7 @@ describe('app command bridge', () => {
     expect(stateItem(APP_COMMANDS.WINDOW_SMOOTH_EDGES)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_PANEL_CONSOLE)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_PANEL_NOTES)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.WINDOW_PANEL_OUTLINER)).toMatchObject({ checked: true });
     expect(stateItem(APP_COMMANDS.WINDOW_TOOLBAR_ARRANGE_LONG)).toMatchObject({ checked: true });
     expect(stateItem(APP_COMMANDS.WINDOW_TOOLBAR_DOCKING)).toMatchObject({ checked: false });
 

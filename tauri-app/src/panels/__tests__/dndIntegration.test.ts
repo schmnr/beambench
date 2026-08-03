@@ -147,8 +147,8 @@ describe('DnD Integration — full workflows through store actions', () => {
     expect(final.hiddenPanelIds).toContain('camera');
   });
 
-  it('registry has 11 panels total', () => {
-    expect(PANEL_REGISTRY).toHaveLength(11);
+  it('registry has 12 panels total', () => {
+    expect(PANEL_REGISTRY).toHaveLength(12);
   });
 
   it('float → dock at specific index → appears at that position', () => {

@@ -14,6 +14,7 @@ export const WINDOW_PANEL_MENU_ITEMS = [
   { label: 'Console', commandId: APP_COMMANDS.WINDOW_PANEL_CONSOLE, panelId: 'console' },
   { label: 'Macros', commandId: APP_COMMANDS.WINDOW_PANEL_MACROS, panelId: 'macros' },
   { label: 'Layers', commandId: APP_COMMANDS.WINDOW_PANEL_CUTS_LAYERS, panelId: 'cuts_layers' },
+  { label: 'Outliner', commandId: APP_COMMANDS.WINDOW_PANEL_OUTLINER, panelId: 'outliner' },
   { label: 'Laser Control', commandId: APP_COMMANDS.WINDOW_PANEL_LASER, panelId: 'laser' },
   { label: 'Material Library', commandId: APP_COMMANDS.WINDOW_PANEL_MATERIAL_LIBRARY, panelId: 'material' },
   { label: 'Move', commandId: APP_COMMANDS.WINDOW_PANEL_MOVE, panelId: 'move' },

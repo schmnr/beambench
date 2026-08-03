@@ -169,6 +169,7 @@ export const APP_COMMANDS = {
   WINDOW_PANEL_CONSOLE: 'window.panel.console',
   WINDOW_PANEL_MACROS: 'window.panel.macros',
   WINDOW_PANEL_CUTS_LAYERS: 'window.panel.cuts_layers',
+  WINDOW_PANEL_OUTLINER: 'window.panel.outliner',
   WINDOW_PANEL_LASER: 'window.panel.laser',
   WINDOW_PANEL_MATERIAL_LIBRARY: 'window.panel.material_library',
   WINDOW_PANEL_MOVE: 'window.panel.move',

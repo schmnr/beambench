@@ -1491,7 +1491,22 @@
       "generating": "Generating…",
       "generate_batch": "Generate Batch"
     },
+    "outliner": {
+      "summary": "{layers} layers · {objects} objects",
+      "empty_layer": "No objects",
+      "expand_layer": "Expand layer",
+      "collapse_layer": "Collapse layer",
+      "expand_group": "Expand group",
+      "collapse_group": "Collapse group",
+      "show_layer": "Show layer",
+      "hide_layer": "Hide layer",
+      "show_object": "Show object",
+      "hide_object": "Hide object",
+      "lock_object": "Lock object",
+      "unlock_object": "Unlock object"
+    },
     "registry": {
+      "outliner": "Outliner",
       "cuts_layers": "Layers",
       "move": "Move",
       "console": "Console",

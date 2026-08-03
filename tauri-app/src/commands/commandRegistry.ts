@@ -174,6 +174,7 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.WINDOW_PANEL_CONSOLE, label: 'Console', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_MACROS, label: 'Macros', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_CUTS_LAYERS, label: 'Layers', group: 'Window', editable: false },
+  { id: APP_COMMANDS.WINDOW_PANEL_OUTLINER, label: 'Outliner', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_LASER, label: 'Laser Control', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_MATERIAL_LIBRARY, label: 'Material Library', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_MOVE, label: 'Move', group: 'Window', editable: false },

@@ -490,11 +490,13 @@ describe('App bootstrap', () => {
 
     await waitFor(() => {
       const layout = useUiStore.getState().panelLayout;
-      expect(layout.layoutVersion).toBe(6);
+      expect(layout.layoutVersion).toBe(7);
       expect(layout.runZones['top-left']).toEqual({ panelIds: ['move'], activeTab: 'move' });
       expect(layout.runHiddenPanelIds).not.toContain('move');
       expect(layout.hiddenPanelIds).toContain('notes');
       expect(layout.runHiddenPanelIds).toContain('notes');
+      expect(layout.zones['top-left']).toEqual({ panelIds: ['outliner'], activeTab: 'outliner' });
+      expect(layout.runHiddenPanelIds).toContain('outliner');
     });
   });
 

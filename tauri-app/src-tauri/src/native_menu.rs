@@ -178,6 +178,7 @@ pub mod command {
     pub const WINDOW_PANEL_CONSOLE: &str = "window.panel.console";
     pub const WINDOW_PANEL_MACROS: &str = "window.panel.macros";
     pub const WINDOW_PANEL_CUTS_LAYERS: &str = "window.panel.cuts_layers";
+    pub const WINDOW_PANEL_OUTLINER: &str = "window.panel.outliner";
     pub const WINDOW_PANEL_LASER: &str = "window.panel.laser";
     pub const WINDOW_PANEL_MATERIAL_LIBRARY: &str = "window.panel.material_library";
     pub const WINDOW_PANEL_MOVE: &str = "window.panel.move";
@@ -1260,6 +1261,13 @@ const WINDOW_PANELS_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_CUTS_LAYERS,
         title: "Layers",
+        accelerator: None,
+        enabled: true,
+        checked: true,
+    },
+    NativeMenuEntry::Check {
+        id: command::WINDOW_PANEL_OUTLINER,
+        title: "Outliner",
         accelerator: None,
         enabled: true,
         checked: true,
@@ -3008,6 +3016,12 @@ mod tests {
                 (
                     "Window > Panels > Layers".to_string(),
                     command::WINDOW_PANEL_CUTS_LAYERS,
+                    None,
+                    Some(true)
+                ),
+                (
+                    "Window > Panels > Outliner".to_string(),
+                    command::WINDOW_PANEL_OUTLINER,
                     None,
                     Some(true)
                 ),

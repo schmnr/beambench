@@ -257,6 +257,18 @@ describe('projectService methods', () => {
     });
   });
 
+  it('moves outliner objects with one atomic command', async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    await projectService.moveObjectsInOutliner(['obj-1', 'obj-2'], 'layer-2', 'obj-3');
+
+    expect(invoke).toHaveBeenCalledWith('move_objects_in_outliner', {
+      objectIds: ['obj-1', 'obj-2'],
+      targetLayerId: 'layer-2',
+      beforeObjectId: 'obj-3',
+    });
+  });
+
   it('rotateObjectsAndBakeActivePath invokes the node-align bake command', async () => {
     vi.mocked(invoke).mockResolvedValue({ id: 'obj-1' });
 
@@ -441,9 +453,9 @@ describe('appService methods', () => {
 
     expect(invoke).toHaveBeenCalledWith('update_app_settings', {
       panelLayout: {
-        layout_version: 6,
+        layout_version: 7,
         zones: {
-          'top-left': { panel_ids: [], active_tab: '' },
+          'top-left': { panel_ids: ['outliner'], active_tab: 'outliner' },
           'middle-left': { panel_ids: [], active_tab: '' },
           'bottom-left': { panel_ids: [], active_tab: '' },
           'bottom-right': { panel_ids: [], active_tab: '' },
@@ -463,7 +475,7 @@ describe('appService methods', () => {
           'top-right': { panel_ids: ['laser'], active_tab: 'laser' },
           'middle-right': { panel_ids: ['camera', 'macros', 'console'], active_tab: 'camera' },
         },
-        run_hidden_panel_ids: ['cuts_layers', 'properties', 'material', 'art_library', 'connection_diagnostics', 'notes'],
+        run_hidden_panel_ids: ['outliner', 'cuts_layers', 'properties', 'material', 'art_library', 'connection_diagnostics', 'notes'],
         run_upper_split_ratio: 0.58,
         column_split_ratios: {
           design_left: [1, 0, 0],

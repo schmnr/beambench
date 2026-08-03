@@ -48,6 +48,7 @@ vi.mock('../../services/projectService', () => ({
     dockObjects: vi.fn(),
     resizeSlots: vi.fn(),
     reassignLayer: vi.fn(),
+    moveObjectsInOutliner: vi.fn(),
     countDuplicates: vi.fn(),
     deleteDuplicates: vi.fn(),
     autoJoinShapes: vi.fn(),
@@ -2544,6 +2545,36 @@ describe('projectStore — new actions', () => {
     await useProjectStore.getState().reassignLayer(['obj1'], 'layer2');
 
     expect(useProjectStore.getState().selectedLayerId).toBe('layer2');
+  });
+
+  it('moveObjectsInOutliner reloads the atomic layer and stack change', async () => {
+    const before = makeProject();
+    const targetLayer = makeLayer({ id: 'layer2', name: 'L2', order_index: 1, color_tag: '#00ff00' });
+    before.layers.push(targetLayer);
+    const after = {
+      ...before,
+      objects: before.objects.map((object) => object.id === 'obj1'
+        ? { ...object, layer_id: 'layer2', z_index: 3 }
+        : object),
+    };
+    mockedProject.moveObjectsInOutliner.mockResolvedValue(undefined);
+    mockedProject.getProject.mockResolvedValue(after);
+    useProjectStore.setState({
+      project: before,
+      selectedLayerId: 'layer1',
+      selectedObjectIds: ['obj1'],
+    });
+
+    const moved = await useProjectStore.getState().moveObjectsInOutliner(
+      ['obj1'],
+      'layer2',
+      null,
+    );
+
+    expect(moved).toBe(true);
+    expect(mockedProject.moveObjectsInOutliner).toHaveBeenCalledWith(['obj1'], 'layer2', null);
+    expect(useProjectStore.getState().selectedLayerId).toBe('layer2');
+    expect(useProjectStore.getState().project?.objects[0].z_index).toBe(3);
   });
 
   it('offsetShapes rethrows error after notification', async () => {

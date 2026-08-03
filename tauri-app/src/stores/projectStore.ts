@@ -54,7 +54,7 @@ import {
 } from './layerFamilyResolver';
 import { objectContentKind } from '../commands/selectionContext';
 import { buildRulerGuideGeometry, normalizeProjectRulerGuides } from '../utils/rulerGuides';
-import { expandArrangementSelectionMembers, expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers, resolveArrangementAnchorId } from '../utils/arrangementSelection';
+import { expandArrangementSelectionMembers, expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers, resolveArrangementAnchorId, topLevelArrangementObjectId } from '../utils/arrangementSelection';
 import { findAutoGroupCandidates } from '../utils/autoGroupCandidates';
 import {
   effectiveTransformLocks,
@@ -527,6 +527,11 @@ interface ProjectStoreState {
   moveObjectsTogether: (axis: MoveTogetherAxis) => Promise<void>;
   dockObjects: (objectIds: string[], direction: DockDirection, options: DockOptions) => Promise<boolean>;
   reassignLayer: (objectIds: string[], layerId: string) => Promise<boolean>;
+  moveObjectsInOutliner: (
+    objectIds: string[],
+    targetLayerId: string,
+    beforeObjectId: string | null,
+  ) => Promise<boolean>;
   countDuplicates: (objectIds: string[]) => Promise<number>;
   deleteDuplicates: (objectIds: string[]) => Promise<void>;
   autoJoinShapes: (objectIds: string[], toleranceMm: number) => Promise<void>;
@@ -2736,6 +2741,32 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       return true;
     } catch (e) {
       notifyError(String(e));
+      return false;
+    }
+  },
+
+  moveObjectsInOutliner: async (objectIds, targetLayerId, beforeObjectId) => {
+    const current = get();
+    if (!current.project || objectIds.length === 0) return false;
+    const rootIds = [...new Set(objectIds
+      .filter((objectId) => current.project?.objects.some((object) => object.id === objectId))
+      .map((objectId) => topLevelArrangementObjectId(current.project!, objectId)))];
+    if (rootIds.length === 0) return false;
+    try {
+      await projectService.moveObjectsInOutliner(rootIds, targetLayerId, beforeObjectId);
+      const project = await projectService.getProject();
+      if (project) {
+        set({
+          project: decorateProject({ ...project, dirty: true })!,
+          selectedLayerId: targetLayerId,
+          selectedObjectIds: rootIds,
+        });
+      }
+      invalidatePreview();
+      await refreshUndo();
+      return true;
+    } catch (error) {
+      notifyError(String(error));
       return false;
     }
   },

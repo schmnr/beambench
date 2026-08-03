@@ -14,6 +14,7 @@ import { CameraContent } from '../components/machine/CameraContent';
 import { ArtLibraryPanel } from '../components/panels/ArtLibraryPanel';
 import { ConnectionDiagnosticsPanel } from '../components/panels/ConnectionDiagnosticsPanel';
 import { ProjectNotesPanel } from '../components/panels/ProjectNotesPanel';
+import { OutlinerPanel } from '../components/panels/OutlinerPanel';
 import { INSPECTOR_CARD_CLASS } from '../components/shared/panelAppearance';
 import { getPanelTypeId } from './panelRegistry';
 
@@ -76,6 +77,7 @@ function ArtLibraryContent() {
  * Every panel in PANEL_REGISTRY must have an entry here.
  */
 export const PANEL_COMPONENTS: Record<string, ComponentType> = {
+  outliner: OutlinerPanel,
   cuts_layers: CutsLayersContent,
   move: MoveContent,
   console: ConsoleContent,

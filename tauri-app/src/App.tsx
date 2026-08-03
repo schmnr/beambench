@@ -734,7 +734,7 @@ function App() {
         // Version 4 introduced the three-zone columns. Keep those split ratios
         // intact while applying the narrower v5 repair below.
         const legacyColumnLayout = savedLayoutVersion < 4;
-        const designZones = restoreZones(pl.zones, defaults.zones);
+        let designZones = restoreZones(pl.zones, defaults.zones);
         let runZones = !pl.run_zones || Object.keys(pl.run_zones).length === 0
           ? defaults.runZones
           : restoreZones(pl.run_zones, defaults.runZones);
@@ -788,6 +788,29 @@ function App() {
           }
           if (!notesAssignedInRun && !runHiddenPanelIds.includes('notes')) {
             runHiddenPanelIds = [...runHiddenPanelIds, 'notes'];
+          }
+        }
+
+        // v7 introduces the Design Outliner as the default left dock. Add it
+        // once for existing layouts without disturbing any panel the user has
+        // already placed there. Run keeps the organizational panel hidden.
+        if (savedLayoutVersion < 7) {
+          const outlinerAssignedInDesign = Object.values(designZones).some(
+            (zone) => zone.panelIds.includes('outliner'),
+          ) || floatingPanels.some((panel) => panel.panelId === 'outliner');
+          if (!outlinerAssignedInDesign) {
+            const topLeft = designZones['top-left'];
+            designZones = {
+              ...designZones,
+              'top-left': {
+                panelIds: ['outliner', ...topLeft.panelIds.filter((id) => id !== 'outliner')],
+                activeTab: 'outliner',
+              },
+            };
+          }
+          hiddenPanelIds = hiddenPanelIds.filter((id) => id !== 'outliner');
+          if (!runHiddenPanelIds.includes('outliner')) {
+            runHiddenPanelIds = [...runHiddenPanelIds, 'outliner'];
           }
         }
 

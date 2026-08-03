@@ -1256,6 +1256,61 @@ pub fn reassign_layer(
 }
 
 #[tauri::command]
+pub fn move_objects_in_outliner(
+    svc: State<'_, Arc<ServiceContext>>,
+    object_ids: Vec<String>,
+    target_layer_id: String,
+    before_object_id: Option<String>,
+) -> Result<(), String> {
+    let parsed_ids: Vec<ObjectId> = object_ids
+        .iter()
+        .map(|id| parse_id(id))
+        .collect::<Result<Vec<_>, _>>()?;
+    let target_layer_id = parse_id(&target_layer_id)?;
+    let before_object_id = before_object_id.as_deref().map(parse_id).transpose()?;
+    let mut guard = svc
+        .project
+        .lock()
+        .map_err(|error| format!("lock: {error}"))?;
+    let project = guard.as_mut().ok_or("No project open")?;
+    let destination = project
+        .layers
+        .iter()
+        .find(|layer| layer.id == target_layer_id)
+        .ok_or("Target layer not found")?;
+
+    let mut expanded = Vec::new();
+    let mut pending = parsed_ids.clone();
+    while let Some(object_id) = pending.pop() {
+        if expanded.contains(&object_id) {
+            continue;
+        }
+        let object = project.find_object(object_id).ok_or("Object not found")?;
+        expanded.push(object_id);
+        if let ObjectData::Group { children } = &object.data {
+            pending.extend(children.iter().copied());
+        }
+    }
+    for object_id in &expanded {
+        let object = project.find_object(*object_id).ok_or("Object not found")?;
+        if matches!(object.data, ObjectData::Group { .. }) {
+            continue;
+        }
+        beambench_service::check_layer_content_invariant(&object.data, destination, project)
+            .map_err(|error| error.to_string())?;
+    }
+
+    svc.push_project_undo_snapshot(project)?;
+    beambench_core::move_objects_in_outliner(
+        project,
+        &parsed_ids,
+        target_layer_id,
+        before_object_id,
+    );
+    Ok(())
+}
+
+#[tauri::command]
 pub fn select_open_shapes(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<String>, String> {
     let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
     let project = guard.as_mut().ok_or("No project open")?;
