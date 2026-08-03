@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { ModifiersToolbar } from '../ModifiersToolbar';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
-import { makeLayer, makeProject as makeProjectFixture, makeProjectObject } from '../../../test-utils/projectFixtures';
+import { makeLayer, makeProject as makeProjectFixture, makeProjectObject, makeTextObjectData } from '../../../test-utils/projectFixtures';
+import { clearPendingEdit, setPendingEdit, updatePendingContent } from '../../../canvas/textEditSession';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -25,6 +26,7 @@ const initialUiState = useUiStore.getState();
 
 afterEach(() => {
   cleanup();
+  clearPendingEdit();
   useProjectStore.setState(initialState, true);
   useUiStore.setState(initialUiState, true);
 });
@@ -77,6 +79,31 @@ describe('ModifiersToolbar', () => {
       objectIds: ['a', 'b'],
     });
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens a modifier session after an active inline text edit finishes committing', async () => {
+    const project = makeProject();
+    project.objects[0] = { ...project.objects[0], data: makeTextObjectData({ content: 'Hello' }) };
+    let finishCommit!: (saved: boolean) => void;
+    const updateObjectData = vi.fn().mockReturnValue(new Promise<boolean>((resolve) => {
+      finishCommit = resolve;
+    }));
+    useProjectStore.setState({ project, selectedObjectIds: ['a'], updateObjectData });
+    useUiStore.setState({ textEditObjectId: 'a', textEditMode: 'double-click' });
+    setPendingEdit('a', 'Hello');
+    updatePendingContent('Hello edited');
+
+    render(<ModifiersToolbar />);
+    fireEvent.click(screen.getByTitle('Offset'));
+    expect(useUiStore.getState().modifierPropertiesSession).toBeNull();
+
+    finishCommit(true);
+    await waitFor(() => {
+      expect(useUiStore.getState().modifierPropertiesSession).toEqual({
+        kind: 'offset',
+        objectIds: ['a'],
+      });
+    });
   });
 
   it('clicking an active modifier button closes its Properties session', () => {

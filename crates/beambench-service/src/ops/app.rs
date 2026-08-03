@@ -45,7 +45,6 @@ pub struct UpdateAppSettingsInput {
     pub last_radius_mm: Option<f64>,
     pub export_settings: Option<ExportSettings>,
     pub allow_importing_to_tool_layers: Option<bool>,
-    pub include_tool_layers_in_job_bounds: Option<bool>,
     pub check_for_updates_on_startup: Option<bool>,
     pub update_snoozed_until: Option<String>,
     pub skipped_update_version: Option<String>,
@@ -182,9 +181,6 @@ pub fn apply_app_settings_update(
     }
     if let Some(v) = input.allow_importing_to_tool_layers {
         next_settings.allow_importing_to_tool_layers = v;
-    }
-    if let Some(v) = input.include_tool_layers_in_job_bounds {
-        next_settings.include_tool_layers_in_job_bounds = v;
     }
     if let Some(v) = input.check_for_updates_on_startup {
         next_settings.check_for_updates_on_startup = v;

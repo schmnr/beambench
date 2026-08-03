@@ -205,7 +205,11 @@ export function LayerTabs() {
               e.preventDefault();
               if (dragIndex !== null && dragIndex !== index) {
                 const dragged = project.layers[dragIndex];
-                if (dragged) void reorderLayer(dragged.id, index);
+                // reorderLayer removes the source before inserting it. When
+                // moving forward, compensate for that removal so the tab
+                // lands on the hovered slot instead of one position after it.
+                const targetIndex = dragIndex < index ? index - 1 : index;
+                if (dragged) void reorderLayer(dragged.id, targetIndex);
               }
               setDragIndex(null);
               setDropIndex(null);

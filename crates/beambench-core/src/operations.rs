@@ -420,24 +420,13 @@ pub fn update_object_bounds_batch(project: &mut Project, entries: &[(ObjectId, B
                         }
                     }
                     obj.bounds = *new_bounds;
-                    // Refresh text cache with guide path (if any).
-                    // Apply the guide-derived bounds: keep the user's position
-                    // (min corner) but adopt the guide-derived size so the
-                    // selection box stays in sync with the actual text layout.
-                    let mapped_bounds = refresh_text_object_cache_with_guide(
+                    // Refresh intrinsic text geometry without replacing the
+                    // user-controlled bounds or affine transform.
+                    refresh_text_object_cache_with_guide(
                         &mut obj.data,
                         &obj.bounds,
                         guide.as_ref(),
                     );
-                    if let Some(mb) = mapped_bounds {
-                        let width = mb.width();
-                        let height = mb.height();
-                        obj.bounds = Bounds::new(
-                            obj.bounds.min,
-                            Point2D::new(obj.bounds.min.x + width, obj.bounds.min.y + height),
-                        );
-                        obj.transform = Transform2D::identity();
-                    }
                 }
                 _ => {
                     obj.bounds = *new_bounds;
@@ -533,15 +522,11 @@ fn refresh_dependent_text_objects(project: &mut Project, guide_id: ObjectId) {
             .collect();
         for text_id in dependent_ids {
             if let Some(obj) = project.find_object_mut(text_id) {
-                let mapped_bounds = refresh_text_object_cache_with_guide(
+                refresh_text_object_cache_with_guide(
                     &mut obj.data,
                     &obj.bounds,
                     guide_vecpath.as_ref(),
                 );
-                if let Some(bounds) = mapped_bounds {
-                    obj.bounds = bounds;
-                    obj.transform = Transform2D::identity();
-                }
             }
         }
     }
@@ -2005,7 +1990,7 @@ mod tests {
     }
 
     #[test]
-    fn update_object_bounds_batch_path_text_applies_mapped_bounds() {
+    fn update_object_bounds_batch_path_text_preserves_user_bounds_and_transform() {
         use crate::object::{TextAlignment, TextAlignmentV, TextLayoutMode};
 
         let mut project = make_test_project();
@@ -2057,9 +2042,11 @@ mod tests {
             variable_text: None,
         };
         text_obj.bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(100.0, 10.0));
+        text_obj.transform = Transform2D::rotate(0.25);
+        let expected_transform = text_obj.transform;
         project.objects.push(text_obj);
 
-        // Move the path-text via batch bounds to a new position with wrong size
+        // Move and resize path text through the same batch API used by the inspector.
         let user_bounds = Bounds::new(Point2D::new(20.0, 30.0), Point2D::new(70.0, 80.0));
         update_object_bounds_batch(&mut project, &[(text_id, user_bounds)]);
 
@@ -2075,11 +2062,10 @@ mod tests {
             "min.y should be user-provided: {}",
             obj.bounds.min.y
         );
-        // The width/height should NOT be the user's 50x50 but the guide-derived
-        // size (from refresh_text_object_cache_with_guide's mapped_bounds).
-        // Since fonts are not loaded in tests, mapped_bounds may be None and
-        // the user bounds are kept — but if mapped_bounds IS returned, size must
-        // come from there. Either way, resolved_path_data must be preserved.
+        assert_eq!(
+            obj.bounds, user_bounds,
+            "advanced text must retain the user's requested size"
+        );
         if let ObjectData::Text {
             resolved_path_data, ..
         } = &obj.data
@@ -2091,13 +2077,9 @@ mod tests {
         } else {
             panic!("Expected Text variant");
         }
-        // Transform must be identity (reset by mapped bounds application)
-        assert!(
-            (obj.transform.a - 1.0).abs() < 1e-9
-                && (obj.transform.d - 1.0).abs() < 1e-9
-                && obj.transform.tx.abs() < 1e-9
-                && obj.transform.ty.abs() < 1e-9,
-            "Transform should be identity after path-text batch bounds"
+        assert_eq!(
+            obj.transform, expected_transform,
+            "cache refresh must preserve rotation/shear"
         );
     }
 }

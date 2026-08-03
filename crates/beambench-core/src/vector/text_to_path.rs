@@ -1048,6 +1048,38 @@ fn apply_text_envelope_transform(path: VecPath, style: TextTransformStyle, curve
     })
 }
 
+fn reverse_text_lines_for_rtl(content: &str) -> String {
+    content
+        .lines()
+        .map(|line| line.chars().rev().collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn weld_resolved_text_path(path: VecPath, glyph_starts: &[usize]) -> VecPath {
+    if glyph_starts.is_empty() {
+        return path;
+    }
+    let paths = glyph_starts
+        .iter()
+        .enumerate()
+        .filter_map(|(index, start)| {
+            let end = glyph_starts
+                .get(index + 1)
+                .copied()
+                .unwrap_or(path.subpaths.len());
+            (*start < end && end <= path.subpaths.len()).then(|| VecPath {
+                subpaths: path.subpaths[*start..end].to_vec(),
+            })
+        })
+        .collect::<Vec<_>>();
+    if paths.is_empty() {
+        path
+    } else {
+        crate::vector::boolean::weld_shapes(&paths)
+    }
+}
+
 /// Return the font ascender in mm for a given font configuration.
 /// The ascender is the distance from baseline to the top of the tallest glyphs.
 /// Falls back to `font_size_mm * 0.8` if the font cannot be resolved.
@@ -1262,6 +1294,11 @@ pub fn refresh_text_object_cache_with_guide(
 
     let resolved_content =
         resolve_text_content_for_object(content, variable_text.as_ref(), *ignore_empty_vars);
+    let box_layout_content = if *rtl {
+        reverse_text_lines_for_rtl(&resolved_content)
+    } else {
+        resolved_content.clone()
+    };
 
     // Editable transformations take precedence over both modern and legacy layout modes.
     // A zero-strength non-Circle transform deliberately resolves as straight text rather
@@ -1400,7 +1437,7 @@ pub fn refresh_text_object_cache_with_guide(
                     })
             }
             style => resolve_text_in_box_with_options(
-                &resolved_content,
+                &box_layout_content,
                 font_family,
                 *font_size_mm,
                 *bold,
@@ -1418,6 +1455,9 @@ pub fn refresh_text_object_cache_with_guide(
             )
             .map(|mut resolved| {
                 resolved.path = apply_text_envelope_transform(resolved.path, style, curve);
+                if *welded {
+                    resolved.path = weld_resolved_text_path(resolved.path, &resolved.glyph_starts);
+                }
                 resolved
             }),
         };
@@ -1552,7 +1592,7 @@ pub fn refresh_text_object_cache_with_guide(
     let box_w = bounds.width().max(0.0);
     let box_h = bounds.height().max(0.0);
     let resolved = resolve_text_in_box_with_options(
-        &resolved_content,
+        &box_layout_content,
         font_family,
         *font_size_mm,
         *bold,
@@ -1570,7 +1610,10 @@ pub fn refresh_text_object_cache_with_guide(
     );
 
     match resolved {
-        Some(resolved) => {
+        Some(mut resolved) => {
+            if *welded {
+                resolved.path = weld_resolved_text_path(resolved.path, &resolved.glyph_starts);
+            }
             *resolved_font_source = Some(resolved.resolved_font_source);
             *resolved_font_key = Some(resolved.resolved_font_key);
             *resolved_path_data = Some(normalize_path_to_origin(resolved.path).to_svg_d());
@@ -2313,6 +2356,77 @@ mod tests {
             pos_d, neg_d,
             "positive vs negative radius should produce different geometry"
         );
+    }
+
+    #[test]
+    fn mapped_envelope_honors_rtl_and_weld() {
+        let bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(100.0, 40.0));
+        let mut normal = text_data("AB", "Arial");
+        set_transform(
+            &mut normal,
+            TextTransformStyle::Wave,
+            60.0,
+            TextCirclePlacement::TopOutside,
+        );
+        let mut rtl = normal.clone();
+        if let ObjectData::Text { rtl, .. } = &mut rtl {
+            *rtl = true;
+        }
+        refresh_text_object_cache(&mut normal, &bounds);
+        refresh_text_object_cache(&mut rtl, &bounds);
+        assert_ne!(
+            cached_text_path(&normal).to_svg_d(),
+            cached_text_path(&rtl).to_svg_d()
+        );
+
+        let mut unwelded = text_data("OO", "Arial");
+        set_transform(
+            &mut unwelded,
+            TextTransformStyle::Wave,
+            60.0,
+            TextCirclePlacement::TopOutside,
+        );
+        if let ObjectData::Text { h_spacing, .. } = &mut unwelded {
+            *h_spacing = -5.0;
+        }
+        let mut welded = unwelded.clone();
+        if let ObjectData::Text { welded, .. } = &mut welded {
+            *welded = true;
+        }
+        refresh_text_object_cache(&mut unwelded, &bounds);
+        refresh_text_object_cache(&mut welded, &bounds);
+        assert_ne!(
+            cached_text_path(&unwelded).to_svg_d(),
+            cached_text_path(&welded).to_svg_d(),
+            "mapped text weld must change overlapping letter geometry"
+        );
+    }
+
+    #[test]
+    fn advanced_text_world_geometry_respects_user_bounds() {
+        let mut data = text_data("Scale me", "Arial");
+        set_transform(
+            &mut data,
+            TextTransformStyle::Wave,
+            60.0,
+            TextCirclePlacement::TopOutside,
+        );
+        let initial = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(100.0, 40.0));
+        refresh_text_object_cache(&mut data, &initial);
+        let target = Bounds::new(Point2D::new(25.0, 30.0), Point2D::new(175.0, 90.0));
+        let object = crate::object::ProjectObject::new(
+            "Advanced text",
+            crate::object::LayerRef::new(),
+            target,
+            data,
+        );
+
+        let world = crate::vector::convert::object_to_world_vecpath(&object).unwrap();
+        let world_bounds = world.visual_bounds().unwrap();
+        assert!((world_bounds.min.x - target.min.x).abs() < 1e-6);
+        assert!((world_bounds.min.y - target.min.y).abs() < 1e-6);
+        assert!((world_bounds.max.x - target.max.x).abs() < 1e-6);
+        assert!((world_bounds.max.y - target.max.y).abs() < 1e-6);
     }
 
     #[test]

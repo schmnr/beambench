@@ -316,6 +316,45 @@ describe('LayerList', () => {
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { name: 'Updated' });
   });
 
+  it('does not rename an auto-named layer when its display label is focused and blurred', () => {
+    const layer = makeLayer({ id: 'l1', name: 'Line', color_tag: '#000000' });
+    const updateLayerSpy = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [] }),
+      selectedLayerId: 'l1',
+      updateLayer: updateLayerSpy,
+    });
+
+    render(<LayerList />);
+    const input = screen.getByTestId('layer-quick-name-input') as HTMLInputElement;
+    expect(input.value).toBe('C00');
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+
+    expect(updateLayerSpy).not.toHaveBeenCalled();
+  });
+
+  it('compensates the target index when dragging a layer tab forward', () => {
+    const layers = [
+      makeLayer({ id: 'l1', name: 'One', order_index: 0 }),
+      makeLayer({ id: 'l2', name: 'Two', order_index: 1 }),
+      makeLayer({ id: 'l3', name: 'Three', order_index: 2 }),
+    ];
+    const reorderLayerSpy = vi.fn();
+    useProjectStore.setState({
+      project: makeProject({ layers, objects: [] }),
+      reorderLayer: reorderLayerSpy,
+    });
+
+    render(<LayerTabs />);
+    const tabs = screen.getAllByTestId('layer-tab');
+    fireEvent.dragStart(tabs[0], { dataTransfer: { effectAllowed: 'move' } });
+    fireEvent.dragOver(tabs[2], { dataTransfer: { dropEffect: 'move' } });
+    fireEvent.drop(tabs[2], { dataTransfer: { dropEffect: 'move' } });
+
+    expect(reorderLayerSpy).toHaveBeenCalledWith('l1', 1);
+  });
+
   it('activates a tab and reveals its relocated Layers panel without reassigning the current selection', () => {
     const source = makeLayer({ id: 'l1', name: 'Source' });
     const target = makeLayer({ id: 'l2', name: 'Target', order_index: 1 });

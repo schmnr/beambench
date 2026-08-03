@@ -124,17 +124,13 @@ fn apply_session_job_options(
     let selected_objects: Vec<ProjectObject> = project
         .objects
         .iter()
-        .filter(|object| {
-            selected_ids.contains(object.id.to_string().as_str())
-                && object.visible
-                && !object.locked
-        })
+        .filter(|object| selected_ids.contains(object.id.to_string().as_str()) && object.visible)
         .cloned()
         .collect();
 
     if selected_objects.is_empty() {
         return Err(ServiceError::invalid_input(
-            "Selected-only job options require at least one visible, unlocked selected graphic",
+            "Selected-only job options require at least one visible selected graphic",
         ));
     }
 
@@ -148,9 +144,7 @@ fn apply_session_job_options(
 
     if options.cut_selected_graphics {
         project.objects.retain(|object| {
-            selected_ids.contains(object.id.to_string().as_str())
-                && object.visible
-                && !object.locked
+            selected_ids.contains(object.id.to_string().as_str()) && object.visible
         });
     }
 
@@ -840,6 +834,33 @@ mod tests {
             project_after.objects.len(),
             4,
             "session job options must not mutate or serialize into the open project"
+        );
+    }
+
+    #[test]
+    fn selected_only_job_options_include_locked_artwork() {
+        let ctx = create_test_ctx_with_project();
+        let selected_id = {
+            let mut guard = ctx.project.lock().unwrap();
+            let object = &mut guard.as_mut().unwrap().objects[0];
+            object.locked = true;
+            object.id.to_string()
+        };
+
+        let plan = generate_plan_with_options(
+            &ctx,
+            &SessionJobOptions {
+                cut_selected_graphics: true,
+                use_selection_origin: false,
+                selected_object_ids: vec![selected_id],
+            },
+        )
+        .expect("locking is edit protection and must not suppress selected output");
+
+        assert!(
+            plan.segments
+                .iter()
+                .any(|segment| matches!(segment, PlanSegment::Vector { .. }))
         );
     }
 

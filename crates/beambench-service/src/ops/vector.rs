@@ -2183,6 +2183,20 @@ pub fn extract_nodes_to_path(
     extracted.power_scale = source.power_scale;
     extracted.priority = source.priority;
     let result = project.add_object(extracted).clone();
+    if remaining.subpaths.is_empty() {
+        for object in &mut project.objects {
+            if let ObjectData::Text {
+                guide_path_id: Some(guide_path_id),
+                ..
+            } = &mut object.data
+            {
+                if *guide_path_id == input.object_id {
+                    *guide_path_id = result.id;
+                }
+            }
+        }
+        crate::ops::project::refresh_project_text_caches(project);
+    }
     project.dirty = true;
 
     drop(guard);
@@ -6479,5 +6493,76 @@ mod tests {
             extracted.data,
             ObjectData::VectorPath { closed: true, .. }
         ));
+    }
+
+    #[test]
+    fn extracting_an_entire_text_guide_relinks_the_text_to_the_new_path() {
+        let (ctx, object_id) = node_clipboard_project();
+        let text_id = {
+            let mut guard = ctx.project.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            let layer_id = project.objects[0].layer_id;
+            let text = ProjectObject::new(
+                "Path text",
+                layer_id,
+                Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+                ObjectData::Text {
+                    content: "Hello".to_string(),
+                    font_family: "Arial".to_string(),
+                    font_size_mm: 10.0,
+                    alignment: beambench_core::TextAlignment::Left,
+                    alignment_v: beambench_core::TextAlignmentV::Top,
+                    bold: false,
+                    italic: false,
+                    upper_case: false,
+                    welded: false,
+                    h_spacing: 0.0,
+                    v_spacing: 0.0,
+                    on_path: true,
+                    path_offset: 0.0,
+                    distort: false,
+                    layout_mode: beambench_core::TextLayoutMode::Path,
+                    rtl: false,
+                    bend_radius: 0.0,
+                    transform_style: beambench_core::TextTransformStyle::None,
+                    transform_curve: 0.0,
+                    circle_placement: beambench_core::TextCirclePlacement::TopOutside,
+                    max_width: None,
+                    squeeze: false,
+                    ignore_empty_vars: false,
+                    resolved_font_source: None,
+                    resolved_font_key: None,
+                    resolved_path_data: None,
+                    missing_font: false,
+                    missing_glyphs: Vec::new(),
+                    guide_path_id: Some(object_id),
+                    variable_text: None,
+                },
+            );
+            let id = text.id;
+            project.add_object(text);
+            id
+        };
+
+        let extracted = extract_nodes_to_path(
+            &ctx,
+            ExtractNodesInput {
+                object_id,
+                node_ids: (0..4)
+                    .map(|command_idx| NodeId {
+                        subpath_idx: 0,
+                        command_idx,
+                    })
+                    .collect(),
+            },
+        )
+        .unwrap();
+
+        let guard = ctx.project.lock().unwrap();
+        let text = guard.as_ref().unwrap().find_object(text_id).unwrap();
+        let ObjectData::Text { guide_path_id, .. } = &text.data else {
+            panic!("expected text");
+        };
+        assert_eq!(*guide_path_id, Some(extracted.id));
     }
 }

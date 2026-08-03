@@ -466,7 +466,9 @@ describe('PropertiesPanel', () => {
     useUiStore.setState({ pendingGuidePathTextId: null });
 
     render(<PropertiesPanel />);
-    fireEvent.click(screen.getByRole('button', { name: 'Path' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Shape' }), {
+      target: { value: 'path' },
+    });
 
     await waitFor(() => {
       expect(updateObjectData).toHaveBeenCalledWith(

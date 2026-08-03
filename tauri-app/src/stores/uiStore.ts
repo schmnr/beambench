@@ -1452,14 +1452,37 @@ export const useUiStore = create<UiStoreState>((set) => ({
   updateTextDefaults: (partial) => set((s) => ({ textDefaults: { ...s.textDefaults, ...partial } })),
   setRadiusToolValue: (v) => set({ radiusToolValue: v }),
   openModifierProperties: (kind, objectIds) => {
-    // Modifier panels are selection actions, not canvas tools. Leaving an
-    // active drawing/editing tool also prevents its overlays from competing
-    // with the contextual controls.
-    useUiStore.getState().setActiveTool('select');
-    set({ modifierPropertiesSession: { kind, objectIds: [...objectIds] } });
-    const ui = useUiStore.getState();
-    if (!ui.sidePanelsVisible) ui.toggleSidePanels();
-    useUiStore.getState().showPanel('properties');
+    // Modifier panels are selection actions, not canvas tools. Commit an
+    // inline text edit before opening the session so the asynchronous commit
+    // cannot later clear the modifier panel as part of the tool transition.
+    const prevId = useUiStore.getState().textEditObjectId;
+    const prevMode = useUiStore.getState().textEditMode;
+    const shouldDelete = isNewEmptyText(prevId, prevMode);
+    const finishOpen = () => {
+      useMeasurementStore.getState().clear();
+      set({
+        activeTool: 'select',
+        modifierPropertiesSession: { kind, objectIds: [...objectIds] },
+        nodeSubMode: 'select',
+        pendingStartPointObjectId: null,
+        ...EMPTY_TEXT_EDIT_STATE,
+      });
+      const ui = useUiStore.getState();
+      if (!ui.sidePanelsVisible) ui.toggleSidePanels();
+      useUiStore.getState().showPanel('properties');
+    };
+
+    if (!hasPendingTextEdit()) {
+      finishOpen();
+      if (shouldDelete && prevId) void useProjectStore.getState().removeObject(prevId);
+      return;
+    }
+
+    void (async () => {
+      if (!(await commitPendingTextEdit())) return;
+      finishOpen();
+      if (shouldDelete && prevId) await useProjectStore.getState().removeObject(prevId);
+    })();
   },
   closeModifierProperties: () => set({ modifierPropertiesSession: null }),
   updateDockSettings: (partial) => set((s) => ({ dockSettings: { ...s.dockSettings, ...partial } })),

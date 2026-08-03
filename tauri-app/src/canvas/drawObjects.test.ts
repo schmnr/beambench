@@ -544,6 +544,31 @@ describe('drawText', () => {
     expect(ctx.fill).toHaveBeenCalledTimes(1);
     expect(ctx.stroke).toHaveBeenCalledTimes(1);
   });
+
+  it('maps advanced text geometry across user-resized bounds', () => {
+    const ctx = createMockCtx();
+    const vp: ViewportParams = {
+      offset: { x: 0, y: 0 },
+      zoom: 10,
+      canvasWidth: 800,
+      canvasHeight: 600,
+    };
+    const obj = makeProjectObject({
+      bounds: { min: { x: 100, y: 200 }, max: { x: 140, y: 220 } },
+      data: makeTextObjectData({
+        transform_style: 'wave',
+        transform_curve: 50,
+        resolved_path_data: 'M 0 0 L 10 0 L 10 5 L 0 5 Z',
+      }),
+    });
+
+    drawText(ctx, obj, '#000000', vp, true);
+
+    const topRight = worldToScreen({ x: 140, y: 200 }, vp);
+    const bottomRight = worldToScreen({ x: 140, y: 220 }, vp);
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(1, topRight.x, topRight.y);
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(2, bottomRight.x, bottomRight.y);
+  });
 });
 
 describe('drawVectorPath', () => {

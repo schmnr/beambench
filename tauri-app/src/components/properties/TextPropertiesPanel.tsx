@@ -4,9 +4,10 @@ import { Type } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useNotificationStore } from '../../stores/notificationStore';
-import type { ObjectData, TextLayoutMode } from '../../types/project';
+import type { ObjectData } from '../../types/project';
 import { TextControls, type TextControlValue } from './TextControls';
-import { applyTextLayoutMode, clearTextGuidePath } from './textLayoutMode';
+import { clearTextGuidePath } from './textLayoutMode';
+import { patchForTextShape, type TextShapeMode } from './textShapeMode';
 import {
   getPendingContentForObject,
   subscribePendingTextEdit,
@@ -96,6 +97,21 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
     void updateObjectData(objectId, { ...data, ...patch });
   };
 
+  const changeShape = async (shape: TextShapeMode) => {
+    useUiStore.getState().setPendingGuidePathText(null);
+    const shapePatch = patchForTextShape(controlValue, shape);
+    const nextData = {
+      ...data,
+      ...shapePatch,
+      ...(shape === 'path' ? {} : { guide_path_id: null }),
+    };
+    const updated = await updateObjectData(objectId, nextData);
+    if (updated && shape === 'path' && !nextData.guide_path_id) {
+      useUiStore.getState().setPendingGuidePathText(objectId);
+      useNotificationStore.getState().push(t('toolbars.properties.select_guide_path_hint'), 'info');
+    }
+  };
+
   const effectiveMode = data.on_path && (data.layout_mode ?? 'straight') === 'straight'
     ? 'path'
     : data.layout_mode ?? 'straight';
@@ -170,9 +186,7 @@ export function TextPropertiesPanel({ objectId, data }: TextPropertiesPanelProps
         <TextControls
           value={controlValue}
           onPatch={patchData}
-          onLayoutChange={(layoutMode) => {
-            void applyTextLayoutMode(objectId, data, layoutMode as TextLayoutMode, { bendRadiusFallback: 50 });
-          }}
+          onShapeChange={(shape) => void changeShape(shape)}
           pathControls={pathControls}
         />
       </div>

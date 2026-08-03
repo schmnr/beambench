@@ -378,6 +378,27 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
 
             {expanded && (
               <div className={entries.length > 1 ? "flex flex-col gap-3 border-t border-bb-border px-3 py-3" : "flex flex-col gap-3"}>
+                {entries.length === 1 && (
+                  <div className="flex items-center justify-end gap-2">
+                    <label className="flex items-center gap-1.5 text-[10px] text-bb-text-muted">
+                      {t('panels.sub_layer_stack.output')}
+                      <ToggleSwitch
+                        active={entry.output_enabled}
+                        onClick={() => void updateCutEntry(layer.id, entry.id, { output_enabled: !entry.output_enabled })}
+                        aria-label={t('panels.sub_layer_stack.output')}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="rounded border border-bb-border p-1 text-bb-text-muted hover:text-bb-text"
+                      onClick={() => void resetCutEntryToDefaults(layer.id, entry.id)}
+                      title={t('panels.sub_layer_stack.reset_to_defaults_title')}
+                      data-testid={`sub-layer-reset-${entry.id}`}
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-bb-text-dim">{t('panels.sub_layer_stack.mode')}</label>
                   <select

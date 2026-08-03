@@ -25,8 +25,8 @@ function formatLength(valueMm: number, unit: DisplayUnit): string {
   return unit === 'inches' ? `${(valueMm / 25.4).toFixed(3)} in` : `${valueMm.toFixed(2)} mm`;
 }
 
-function formatArea(valueMm2: number | null, unit: DisplayUnit): string {
-  if (valueMm2 == null) return '—';
+function formatArea(valueMm2: number | null, unit: DisplayUnit, notApplicable: string): string {
+  if (valueMm2 == null) return notApplicable;
   return unit === 'inches'
     ? `${(valueMm2 / (25.4 * 25.4)).toFixed(3)} in²`
     : `${valueMm2.toFixed(2)} mm²`;
@@ -57,6 +57,7 @@ export function MeasurementPropertiesSection() {
   }, [copiedKey]);
 
   const rows = useMemo<MetricRow[]>(() => {
+    const notApplicable = t('panels.measurement.not_applicable');
     const result = measurement.result;
     const linear = measurement.draft
       ?? (result?.kind === 'linear' || result?.kind === 'gap' ? result : null);
@@ -106,8 +107,8 @@ export function MeasurementPropertiesSection() {
       const hoverRows: MetricRow[] = [
         { key: 'width', label: t('panels.measurement.width'), value: formatLength(metrics.widthMm, unit) },
         { key: 'height', label: t('panels.measurement.height'), value: formatLength(metrics.heightMm, unit) },
-        { key: 'perimeter', label: t('panels.measurement.perimeter'), value: metrics.perimeterMm == null ? '—' : formatLength(metrics.perimeterMm, unit) },
-        { key: 'area', label: t('panels.measurement.area'), value: formatArea(metrics.areaMm2, unit) },
+        { key: 'perimeter', label: t('panels.measurement.perimeter'), value: metrics.perimeterMm == null ? notApplicable : formatLength(metrics.perimeterMm, unit) },
+        { key: 'area', label: t('panels.measurement.area'), value: formatArea(metrics.areaMm2, unit, notApplicable) },
       ];
       if (measurement.hover.segment) {
         hoverRows.push({ key: 'segment', label: t('panels.measurement.segment'), value: formatLength(measurement.hover.segment.lengthMm, unit) });

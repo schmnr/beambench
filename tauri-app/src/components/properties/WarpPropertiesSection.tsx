@@ -5,11 +5,11 @@ import { ContextualToolSection } from './ContextualToolSection';
 
 const MODES: Array<{
   mode: MeshDeformMode;
-  label: string;
+  labelKey: 'warp_tool.four_points' | 'warp_tool.sixteen_points';
   titleKey: 'menus.tools.warp_selection_4_points' | 'menus.tools.deform_selection_16_points';
 }> = [
-  { mode: 'warp', label: '4 points', titleKey: 'menus.tools.warp_selection_4_points' },
-  { mode: 'mesh', label: '16 points', titleKey: 'menus.tools.deform_selection_16_points' },
+  { mode: 'warp', labelKey: 'warp_tool.four_points', titleKey: 'menus.tools.warp_selection_4_points' },
+  { mode: 'mesh', labelKey: 'warp_tool.sixteen_points', titleKey: 'menus.tools.deform_selection_16_points' },
 ];
 
 export function WarpPropertiesSection() {
@@ -35,7 +35,7 @@ export function WarpPropertiesSection() {
                   : 'border-bb-border bg-bb-surface text-bb-text-muted hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text'
               }`}
             >
-              {option.label}
+              {t(option.labelKey)}
             </button>
           );
         })}

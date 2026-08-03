@@ -326,7 +326,6 @@ export function makeAppSettings(overrides: Partial<AppSettings> = {}): AppSettin
       filename_stem: null,
     },
     allow_importing_to_tool_layers: false,
-    include_tool_layers_in_job_bounds: true,
     ...overrides,
   };
 }

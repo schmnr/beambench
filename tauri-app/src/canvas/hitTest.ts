@@ -4,7 +4,7 @@ import type { HandleId } from '../types/canvas';
 import { worldToScreen, screenToWorld, pxPerMm } from './ViewportTransform';
 import { getSelectionFrameScreen, getSelectionHandles } from './drawSelection';
 import { HANDLE_HIT_SIZE, ROTATION_ARC_RADIUS } from './constants';
-import { parsePathData, mapPathCoordToBounds, buildPolygonPoints, buildStarPath, quadraticExtremumT, quadraticPoint, getVectorPathRenderInfoForObject } from './drawObjects';
+import { parsePathData, computePathBBox, mapPathCoordToBounds, textUsesMappedBounds, buildPolygonPoints, buildStarPath, quadraticExtremumT, quadraticPoint, getVectorPathRenderInfoForObject } from './drawObjects';
 import { applyInverseTransformToPoint, isIdentityTransform } from './textMeasure';
 import { applyAroundCenter, computeTransformedBoundsWorld, computeVisualBoundsWorld, getObjectSnapPoints, getRulerGuideAxis, mapLocalToBounds, resolveCloneForGeometry } from './alignment';
 import { queryPointCandidates, queryRectCandidates } from './sceneIndex';
@@ -227,10 +227,18 @@ export function isPointInTextGlyphs(
 
   const commands = parsePathData(pathData);
   if (commands.length === 0) return true;
+  const pathBBox = computePathBBox(commands);
+  const mappedBounds = textUsesMappedBounds(obj.data);
+  const boundsW = obj.bounds.max.x - obj.bounds.min.x;
+  const boundsH = obj.bounds.max.y - obj.bounds.min.y;
 
   // Build Path2D in untransformed screen coords (bounds-relative → screen)
-  const localToScreen = (px: number, py: number) =>
-    worldToScreen({ x: obj.bounds.min.x + px, y: obj.bounds.min.y + py }, vp);
+  const localToScreen = (px: number, py: number) => worldToScreen(
+    mappedBounds
+      ? mapPathCoordToBounds(px, py, pathBBox, obj.bounds.min.x, obj.bounds.min.y, boundsW, boundsH)
+      : { x: obj.bounds.min.x + px, y: obj.bounds.min.y + py },
+    vp,
+  );
 
   const path = new Path2D();
   for (const cmd of commands) {

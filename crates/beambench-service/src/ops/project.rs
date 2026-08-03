@@ -7,7 +7,7 @@ use beambench_common::{
     canonical_palette_color_tag,
 };
 use beambench_core::variable_text::{VariableTextConfig, advance_sequence_value};
-use beambench_core::vector::convert::object_to_world_vecpath_resolved;
+use beambench_core::vector::convert::{object_to_world_vecpath_resolved, text_uses_mapped_bounds};
 use beambench_core::vector::text_to_path::{
     intrinsic_text_bounds, refresh_text_object_cache, refresh_text_object_cache_with_guide,
 };
@@ -257,15 +257,11 @@ fn refresh_dependent_text_objects(project: &mut Project, guide_id: ObjectId) {
             .collect();
         for text_id in dependent_ids {
             if let Some(obj) = project.find_object_mut(text_id) {
-                let mapped_bounds = refresh_text_object_cache_with_guide(
+                refresh_text_object_cache_with_guide(
                     &mut obj.data,
                     &obj.bounds,
                     guide_vecpath.as_ref(),
                 );
-                if let Some(bounds) = mapped_bounds {
-                    obj.bounds = bounds;
-                    obj.transform = Transform2D::identity();
-                }
             }
         }
     }
@@ -367,22 +363,14 @@ pub(crate) fn refresh_project_text_caches(project: &mut Project) {
     }
     let project_snapshot = project.clone();
     // Second pass: refresh caches, passing guide path where available.
+    // Bounds and transforms are persisted user state; loading, planning, and
+    // preview generation must never replace them with intrinsic cache bounds.
     for obj in &mut project.objects {
-        let mapped_bounds = if let Some(guide) = guide_paths.get(&obj.id) {
+        if let Some(guide) = guide_paths.get(&obj.id) {
             refresh_text_object_cache_with_project_context(&project_snapshot, obj, Some(guide))
         } else {
             refresh_text_object_cache_with_project_context(&project_snapshot, obj, None)
         };
-        if let Some(mb) = mapped_bounds {
-            // Preserve stored position, update size from geometry
-            let width = mb.width();
-            let height = mb.height();
-            obj.bounds = Bounds::new(
-                obj.bounds.min,
-                Point2D::new(obj.bounds.min.x + width, obj.bounds.min.y + height),
-            );
-            obj.transform = Transform2D::identity();
-        }
     }
 }
 
@@ -2366,6 +2354,16 @@ fn apply_update_object_patch_in_project(
         }
         if let Some(data) = data {
             let placement_bounds = obj.bounds;
+            let previous_mapped_scale = if text_uses_mapped_bounds(&current_data) {
+                intrinsic_text_bounds(&current_data).and_then(|intrinsic| {
+                    (intrinsic.width() > 1e-9 && intrinsic.height() > 1e-9).then_some((
+                        placement_bounds.width() / intrinsic.width(),
+                        placement_bounds.height() / intrinsic.height(),
+                    ))
+                })
+            } else {
+                None
+            };
             let previous_area_width = straight_text_area_width(&current_data);
             let next_area_width = straight_text_area_width(&data);
             if let Some(area_width) = next_area_width {
@@ -2397,6 +2395,7 @@ fn apply_update_object_patch_in_project(
                     ObjectData::Text {
                         layout_mode,
                         on_path,
+                        transform_style,
                         ..
                     } => {
                         let effective = if *on_path && *layout_mode == TextLayoutMode::Straight {
@@ -2405,6 +2404,7 @@ fn apply_update_object_patch_in_project(
                             *layout_mode
                         };
                         effective == TextLayoutMode::Straight
+                            && *transform_style == beambench_core::TextTransformStyle::None
                     }
                     _ => false,
                 };
@@ -2426,13 +2426,24 @@ fn apply_update_object_patch_in_project(
                 guide.as_ref(),
             );
             if let Some(mb) = mapped_bounds {
-                apply_mapped_text_bounds(obj, &placement_bounds, &mb);
+                let scaled_bounds = if let Some((scale_x, scale_y)) = previous_mapped_scale {
+                    Bounds::new(
+                        mb.min,
+                        Point2D::new(
+                            mb.min.x + mb.width() * scale_x,
+                            mb.min.y + mb.height() * scale_y,
+                        ),
+                    )
+                } else {
+                    mb
+                };
+                apply_mapped_text_bounds(obj, &placement_bounds, &scaled_bounds);
             }
         }
         if let Some(bounds) = input.bounds {
             // Scale dimensional text properties proportionally to the bounds change.
-            // Only for straight text (not path/bend) — those geometries are determined
-            // by the guide curve or arc, not the bounding box.
+            // Only straight text scales typography properties. Advanced text
+            // treats the object bounds as a post-layout geometry transform.
             if let ObjectData::Text {
                 font_size_mm,
                 h_spacing,
@@ -2440,10 +2451,13 @@ fn apply_update_object_patch_in_project(
                 max_width,
                 layout_mode,
                 on_path,
+                transform_style,
                 ..
             } = &mut obj.data
             {
-                let is_straight = *layout_mode == TextLayoutMode::Straight && !*on_path;
+                let is_straight = *layout_mode == TextLayoutMode::Straight
+                    && !*on_path
+                    && *transform_style == beambench_core::TextTransformStyle::None;
                 if is_straight {
                     let old_w = obj.bounds.width();
                     let old_h = obj.bounds.height();
@@ -2466,10 +2480,7 @@ fn apply_update_object_patch_in_project(
                 }
             }
             obj.bounds = bounds;
-            // Re-resolve text cache so straight text reflows within new box dimensions.
-            // For path/bend text, geometry is determined by the guide/arc (not bounds), so
-            // we refresh the cache but preserve the user-positioned bounds — otherwise a
-            // simple drag would snap the object to the intrinsic geometry origin.
+            // Re-resolve the intrinsic cache while preserving the requested bounds.
             refresh_text_object_cache_with_project_context(&project_snapshot, obj, guide.as_ref());
         }
         if let Some(priority) = input.priority {
@@ -4725,6 +4736,7 @@ mod tests {
         let mut project = Project::new("Paste Snapshot");
         let layer = Layer::new("Layer 1", OperationType::Cut);
         let layer_id = layer.id;
+        let layer_color = layer.color_tag.clone();
         project.add_layer(layer);
         let source = project
             .add_object(ProjectObject::new(
@@ -4753,7 +4765,7 @@ mod tests {
         let stored = ctx.project.lock().unwrap().clone().unwrap();
         assert!(stored.find_object(source_id).is_none());
         assert!(stored.find_object(pasted[0].id).is_some());
-        assert_eq!(stored.layers[0].color_tag, ColorTag("#000000".to_string()));
+        assert_eq!(stored.layers[0].color_tag, layer_color);
     }
 
     #[test]
@@ -5949,6 +5961,44 @@ mod tests {
         assert_ne!(updated.bounds.height(), old_bounds.height());
         assert!(matches!(
             updated.data,
+            ObjectData::Text {
+                resolved_path_data: Some(_),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn project_cache_refresh_preserves_advanced_text_bounds_and_transform() {
+        let bounds = Bounds::new(Point2D::new(12.0, 34.0), Point2D::new(132.0, 79.0));
+        let (mut project, object_id) = make_straight_text_project(10.0, 0.0, 0.0, None, bounds);
+        let affine = Transform2D {
+            a: 0.9,
+            b: 0.35,
+            c: -0.2,
+            d: 1.1,
+            tx: 4.0,
+            ty: -7.0,
+        };
+        let object = project.find_object_mut(object_id).unwrap();
+        object.transform = affine;
+        if let ObjectData::Text {
+            transform_style,
+            transform_curve,
+            ..
+        } = &mut object.data
+        {
+            *transform_style = beambench_core::TextTransformStyle::Wave;
+            *transform_curve = 60.0;
+        }
+
+        refresh_project_text_caches(&mut project);
+
+        let refreshed = project.find_object(object_id).unwrap();
+        assert_eq!(refreshed.bounds, bounds);
+        assert_eq!(refreshed.transform, affine);
+        assert!(matches!(
+            refreshed.data,
             ObjectData::Text {
                 resolved_path_data: Some(_),
                 ..

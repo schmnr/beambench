@@ -14,6 +14,24 @@ use crate::events;
 use crate::ops::project;
 use crate::persist::persist_settings_to_disk;
 
+fn unique_migrated_layer_name(project: &Project, base: &str, operation: OperationType) -> String {
+    let mode = match operation {
+        OperationType::Image => "Image",
+        _ => "Line",
+    };
+    let preferred = format!("{base} ({mode})");
+    if !project.layers.iter().any(|layer| layer.name == preferred) {
+        return preferred;
+    }
+    for suffix in 2.. {
+        let candidate = format!("{preferred} {suffix}");
+        if !project.layers.iter().any(|layer| layer.name == candidate) {
+            return candidate;
+        }
+    }
+    unreachable!()
+}
+
 /// Split any layer holding mixed raster/vector content into two
 /// sibling layers, one per content type. Called on project load so
 /// legacy projects self-heal to match the "raster and vector content
@@ -87,7 +105,8 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
         if layer_is_image && !vector_ids.is_empty() {
             // Image layer with vectors → create a sibling Line layer.
             let base = crate::validation::strip_mode_suffix(&layer_name);
-            let mut new_layer = Layer::new(base, OperationType::Line);
+            let sibling_name = unique_migrated_layer_name(project, base, OperationType::Line);
+            let mut new_layer = Layer::new(&sibling_name, OperationType::Line);
             new_layer.color_tag = layer_color.clone();
             new_layer.primary_entry_mut().speed_mm_min = layer_speed;
             new_layer.primary_entry_mut().power_percent = layer_power;
@@ -99,14 +118,15 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
                 }
             }
             warnings.push(format!(
-                "Migrated {} non-raster object(s) off image layer '{}' into new sibling '{base}'",
+                "Migrated {} non-raster object(s) off image layer '{}' into new sibling '{sibling_name}'",
                 vector_ids.len(),
                 layer_name,
             ));
         } else if !layer_is_image && !raster_ids.is_empty() {
             // Non-image layer with rasters → create a sibling Image layer.
             let base = crate::validation::strip_mode_suffix(&layer_name);
-            let mut new_layer = Layer::new(base, OperationType::Image);
+            let sibling_name = unique_migrated_layer_name(project, base, OperationType::Image);
+            let mut new_layer = Layer::new(&sibling_name, OperationType::Image);
             new_layer.color_tag = layer_color.clone();
             new_layer.primary_entry_mut().speed_mm_min = layer_speed;
             new_layer.primary_entry_mut().power_percent = layer_power;
@@ -118,7 +138,7 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
                 }
             }
             warnings.push(format!(
-                "Migrated {} raster object(s) off layer '{}' into new sibling '{base}'",
+                "Migrated {} raster object(s) off layer '{}' into new sibling '{sibling_name}'",
                 raster_ids.len(),
                 layer_name,
             ));
@@ -597,6 +617,18 @@ mod tests {
         assert!(
             !line_still_has_clone,
             "raster clone should be removed from the Line layer"
+        );
+        let mut names = project
+            .layers
+            .iter()
+            .map(|layer| layer.name.as_str())
+            .collect::<Vec<_>>();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(
+            names.len(),
+            project.layers.len(),
+            "mixed-layer migration must not create duplicate stored names"
         );
     }
 

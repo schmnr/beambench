@@ -202,17 +202,46 @@ export function TransformSection() {
   const lockAspect = selectedObjects.length > 0
     && selectedObjects.every((object) => object.lock_aspect_ratio);
   const selectionKey = selectedObjectIds.join(',');
-  const scaleBaselineRef = useRef({ selectionKey, width: w, height: h });
-  if (scaleBaselineRef.current.selectionKey !== selectionKey) {
-    scaleBaselineRef.current = { selectionKey, width: w, height: h };
+  const textGeometryKey = selectedObjects.map((object) => {
+    if (object.data.type !== 'text') return object.id;
+    const data = object.data;
+    return [
+      object.id,
+      data.content,
+      data.font_family,
+      data.font_size_mm,
+      data.bold,
+      data.italic,
+      data.upper_case,
+      data.h_spacing,
+      data.v_spacing,
+      data.layout_mode,
+      data.on_path,
+      data.path_offset,
+      data.distort,
+      data.rtl,
+      data.bend_radius,
+      data.transform_style,
+      data.transform_curve,
+      data.circle_placement,
+      data.max_width,
+      data.squeeze,
+      data.welded,
+      data.guide_path_id,
+    ].join(':');
+  }).join('|');
+  const scaleBaselineKey = `${selectionKey}|${textGeometryKey}`;
+  const scaleBaselineRef = useRef({ selectionKey: scaleBaselineKey, width: w, height: h });
+  if (scaleBaselineRef.current.selectionKey !== scaleBaselineKey) {
+    scaleBaselineRef.current = { selectionKey: scaleBaselineKey, width: w, height: h };
   }
 
   useEffect(() => {
     const baseline = scaleBaselineRef.current;
-    if (baseline.selectionKey !== selectionKey) return;
+    if (baseline.selectionKey !== scaleBaselineKey) return;
     setScaleXPercent(baseline.width > 0 ? Math.round((w / baseline.width) * 1000) / 10 : 100);
     setScaleYPercent(baseline.height > 0 ? Math.round((h / baseline.height) * 1000) / 10 : 100);
-  }, [selectionKey, w, h]);
+  }, [scaleBaselineKey, w, h]);
 
   const col = anchorPoints.indexOf(anchor) % 3;
   const row = Math.floor(anchorPoints.indexOf(anchor) / 3);

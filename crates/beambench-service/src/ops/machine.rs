@@ -6023,6 +6023,13 @@ mod tests {
         session.poll().unwrap();
         assert_eq!(session.session_state(), SessionState::Validating);
         handle.enqueue_response("<Idle|MPos:0.000,0.000,0.000|FS:0,0>");
+        let settings_handle = handle.clone();
+        let settings_producer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(20));
+            settings_handle.enqueue_response("$22=1");
+            settings_handle.enqueue_response("$32=1");
+            settings_handle.enqueue_response("ok");
+        });
 
         let probe = GrblFamilyIdentityProbeResult {
             identity: GrblFamilyIdentity {
@@ -6074,6 +6081,7 @@ mod tests {
             },
         )
         .unwrap();
+        settings_producer.join().unwrap();
 
         assert!(matches!(
             result,
@@ -6118,6 +6126,13 @@ mod tests {
         session.poll().unwrap();
         assert_eq!(session.session_state(), SessionState::Validating);
         handle.enqueue_response("<Idle|MPos:0.000,0.000,0.000|FS:0,0|FW:grblHAL>");
+        let settings_handle = handle.clone();
+        let settings_producer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(20));
+            settings_handle.enqueue_response("$22=1");
+            settings_handle.enqueue_response("$32=1");
+            settings_handle.enqueue_response("ok");
+        });
 
         let probe = GrblFamilyIdentityProbeResult {
             identity: GrblFamilyIdentity {
@@ -6169,6 +6184,7 @@ mod tests {
             },
         )
         .unwrap();
+        settings_producer.join().unwrap();
 
         assert!(matches!(
             result,

@@ -33,7 +33,6 @@ export interface AppSettingsUpdate {
   last_radius_mm?: number;
   export_settings?: AppSettings['export_settings'];
   allow_importing_to_tool_layers?: boolean;
-  include_tool_layers_in_job_bounds?: boolean;
   check_for_updates_on_startup?: boolean;
   update_snoozed_until?: string;
   skipped_update_version?: string;

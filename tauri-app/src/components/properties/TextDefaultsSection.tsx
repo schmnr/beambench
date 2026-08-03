@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { MousePointer2, Type } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
-import type { TextLayoutMode } from '../../types/project';
 import { TextControls, type TextControlValue } from './TextControls';
+import { patchForTextShape } from './textShapeMode';
 
 /** Settings for the next text object, shown before anything is placed. */
 export function TextDefaultsSection() {
@@ -31,14 +31,7 @@ export function TextDefaultsSection() {
         value={value}
         creationMode
         onPatch={(patch) => updateTextDefaults(patch)}
-        onLayoutChange={(layoutMode) => {
-          const layout_mode = layoutMode as TextLayoutMode;
-          updateTextDefaults({
-            layout_mode,
-            on_path: layout_mode === 'path',
-            ...(layout_mode === 'bend' && textDefaults.bend_radius === 0 ? { bend_radius: 50 } : {}),
-          });
-        }}
+        onShapeChange={(shape) => updateTextDefaults(patchForTextShape(value, shape))}
       />
     </div>
   );

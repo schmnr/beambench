@@ -149,9 +149,17 @@ export function drawText(
   if (resolved_path_data) {
     const commands = parsePathData(resolved_path_data);
     if (commands.length === 0) return;
+    const pathBBox = computePathBBox(commands);
+    const mappedBounds = textUsesMappedBounds(obj.data);
+    const boundsW = obj.bounds.max.x - obj.bounds.min.x;
+    const boundsH = obj.bounds.max.y - obj.bounds.min.y;
 
-    const localToScreen = (px: number, py: number) =>
-      worldToScreen({ x: obj.bounds.min.x + px, y: obj.bounds.min.y + py }, vp);
+    const localToScreen = (px: number, py: number) => worldToScreen(
+      mappedBounds
+        ? mapPathCoordToBounds(px, py, pathBBox, obj.bounds.min.x, obj.bounds.min.y, boundsW, boundsH)
+        : { x: obj.bounds.min.x + px, y: obj.bounds.min.y + py },
+      vp,
+    );
 
     ctx.save();
     applyTransform(ctx, obj.transform, vp, obj.bounds);
@@ -1304,8 +1312,14 @@ export function appendObjectScreenFillPath(
     case 'text': {
       if (!obj.data.resolved_path_data) return false;
       const commands = parsePathData(obj.data.resolved_path_data);
+      const pathBBox = computePathBBox(commands);
+      const mappedBounds = textUsesMappedBounds(obj.data);
+      const boundsW = obj.bounds.max.x - obj.bounds.min.x;
+      const boundsH = obj.bounds.max.y - obj.bounds.min.y;
       const toScreen = (x: number, y: number) => objectWorldToScreen(
-        { x: obj.bounds.min.x + x, y: obj.bounds.min.y + y },
+        mappedBounds
+          ? mapPathCoordToBounds(x, y, pathBBox, obj.bounds.min.x, obj.bounds.min.y, boundsW, boundsH)
+          : { x: obj.bounds.min.x + x, y: obj.bounds.min.y + y },
         obj,
         vp,
       );
@@ -2030,6 +2044,14 @@ export function mapPathCoordToBounds(
       ? ((y - pathBBox.minY) / pathBBox.height) * boundsH + boundsMinY
       : boundsMinY + boundsH / 2;
   return { x: nx, y: ny };
+}
+
+export function textUsesMappedBounds(data: ProjectObject['data']): boolean {
+  return data.type === 'text' && (
+    data.transform_style !== 'none'
+    || data.on_path
+    || data.layout_mode !== 'straight'
+  );
 }
 
 /** Convert EditablePath[] back to an SVG path `d` string (inverse of get_editable_path) */

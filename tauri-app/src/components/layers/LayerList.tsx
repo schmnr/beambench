@@ -58,7 +58,10 @@ export function LayerList() {
   }, [activeLayer?.id, activeLayerFillOpacityPercent]);
 
   const commitLayerName = async () => {
-    if (!activeLayer || layerNameDraft === activeLayer.name) return;
+    // The input intentionally shows the friendly palette label for an
+    // auto-named layer. Treat that displayed value as unchanged so focusing
+    // and blurring does not replace the layer's stored name or add undo noise.
+    if (!activeLayer || layerNameDraft === activeLayerDisplayName) return;
     const updated = await updateLayer(activeLayer.id, { name: layerNameDraft });
     if (!updated) {
       const currentLayer = useProjectStore.getState().project?.layers.find((layer) => layer.id === activeLayer.id);

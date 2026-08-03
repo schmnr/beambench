@@ -349,7 +349,7 @@ export function PropertiesPanel() {
 
       {isVectorObject && (
         <section className="border-t border-bb-border pt-3" data-testid="vector-actions-section">
-          <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.layers.vector')}</div>
+          <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.sub_layer_stack.vector')}</div>
           <div className="mt-1 flex gap-0.5">
             <IconButton
               size={VECTOR_BUTTON_SIZE}

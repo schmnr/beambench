@@ -20,6 +20,29 @@ afterEach(() => {
 });
 
 describe('LayerSettingsPanel', () => {
+  it('keeps output and reset controls available for a single cut entry', () => {
+    const layer = makeLayer({ id: 'l1' });
+    layer.entries[0].output_enabled = false;
+    const updateCutEntry = vi.fn();
+    const resetCutEntryToDefaults = vi.fn();
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [], assets: [] }),
+      selectedLayerId: 'l1',
+      updateCutEntry,
+      resetCutEntryToDefaults,
+    });
+
+    render(<LayerSettingsPanel />);
+
+    const output = screen.getByRole('button', { name: 'Output' });
+    expect(output.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(output);
+    expect(updateCutEntry).toHaveBeenCalledWith('l1', 'entry-1', { output_enabled: true });
+
+    fireEvent.click(screen.getByTitle('Reset this sub-layer to built-in defaults for its operation'));
+    expect(resetCutEntryToDefaults).toHaveBeenCalledWith('l1', 'entry-1');
+  });
+
   it('uses a pressed wind icon for air assist instead of a switch', () => {
     const layer = makeLayer({ id: 'l1', air_assist: true });
     const updateCutEntry = vi.fn();

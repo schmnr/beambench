@@ -327,8 +327,6 @@ pub struct AppSettings {
     #[serde(default)]
     pub allow_importing_to_tool_layers: bool,
     #[serde(default = "default_true_settings")]
-    pub include_tool_layers_in_job_bounds: bool,
-    #[serde(default = "default_true_settings")]
     pub check_for_updates_on_startup: bool,
     #[serde(default)]
     pub update_snoozed_until: String,
@@ -446,7 +444,6 @@ impl Default for AppSettings {
             custom_hotkeys: HashMap::new(),
             export_settings: ExportSettings::default(),
             allow_importing_to_tool_layers: false,
-            include_tool_layers_in_job_bounds: true,
             check_for_updates_on_startup: true,
             update_snoozed_until: String::new(),
             skipped_update_version: String::new(),

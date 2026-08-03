@@ -1566,7 +1566,6 @@ fn delete_duplicates_inner(
     svc.push_project_undo_snapshot(project)?;
     let dup_vec: Vec<ObjectId> = dup_ids.iter().copied().collect();
     project.remove_objects(&dup_vec);
-    project.clean_empty_layers();
     let remaining = if parsed_ids.is_empty() || !selection_scope {
         Vec::new()
     } else {
@@ -1969,6 +1968,35 @@ mod tests {
         let project = guard.as_ref().unwrap();
         assert!(project.find_object(locked_original.id).is_some());
         assert!(project.find_object(duplicate.id).is_none());
+    }
+
+    #[test]
+    fn delete_duplicates_preserves_layers_that_become_empty() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("test");
+        project.layers.clear();
+        let first_layer = Layer::new("First", OperationType::Line);
+        let second_layer = Layer::new("Second", OperationType::Line);
+        let first_layer_id = first_layer.id;
+        let second_layer_id = second_layer.id;
+        project.add_layer(first_layer);
+        project.add_layer(second_layer);
+        add_vector_path(&mut project, first_layer_id, "original", "M0 0 L10 0");
+        add_vector_path(&mut project, second_layer_id, "duplicate", "M0 0 L10 0");
+        *ctx.project.lock().unwrap() = Some(project);
+
+        delete_duplicates_inner(&ctx, &[]).unwrap();
+
+        let guard = ctx.project.lock().unwrap();
+        let project = guard.as_ref().unwrap();
+        assert!(project.find_layer(first_layer_id).is_some());
+        assert!(project.find_layer(second_layer_id).is_some());
+        assert!(
+            project
+                .objects
+                .iter()
+                .all(|object| object.layer_id == first_layer_id)
+        );
     }
 
     /// Exercises the same palette-sync mutation pattern to verify

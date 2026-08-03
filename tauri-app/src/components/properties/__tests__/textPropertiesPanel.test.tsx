@@ -139,7 +139,7 @@ describe('TextPropertiesPanel', () => {
 
     expect(screen.getByLabelText('Tracking (in)')).toHaveProperty('value', '1');
     expect(screen.getByLabelText('Line spacing (in)')).toHaveProperty('value', '2');
-    expect(screen.getByLabelText('Path Offset (in)')).toHaveProperty('value', '0.5');
+    expect(screen.getByLabelText('Baseline Offset (in)')).toHaveProperty('value', '0.5');
     expect(screen.getByLabelText('Box width (in)')).toHaveProperty('value', '3');
 
     fireEvent.change(screen.getByLabelText('Tracking (in)'), { target: { value: '2' } });
@@ -181,17 +181,46 @@ describe('TextDefaultsSection', () => {
     expect(Number(sizeInput.getAttribute('min'))).toBeCloseTo(0.1 / 25.4);
   });
 
-  it('keeps the retired toolbar layout and curved-text defaults available', () => {
+  it('makes Bend visible immediately and exposes its direction and baseline offset', () => {
     render(<TextDefaultsSection />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bend' }));
+    fireEvent.change(screen.getByLabelText('Shape'), { target: { value: 'bend' } });
 
     expect(useUiStore.getState().textDefaults).toMatchObject({
       layout_mode: 'bend',
       on_path: false,
       bend_radius: 50,
+      transform_style: 'none',
     });
     expect(screen.getByLabelText('Bend Radius (mm)')).toBeDefined();
+    expect(screen.getByLabelText('Baseline Offset (mm)')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Reverse' })).toBeDefined();
     expect(screen.getByLabelText('Distort')).toHaveProperty('disabled', false);
+  });
+
+  it('offers all circle placements and updates the selected placement', () => {
+    render(<TextDefaultsSection />);
+    fireEvent.change(screen.getByLabelText('Shape'), { target: { value: 'circle' } });
+
+    expect(screen.getByLabelText('Arc Span')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Bottom' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Inside' }));
+
+    expect(useUiStore.getState().textDefaults).toMatchObject({
+      layout_mode: 'straight',
+      on_path: false,
+      transform_style: 'circle',
+      circle_placement: 'bottom_inside',
+    });
+  });
+
+  it('hides controls that do not affect mapped envelope shapes', () => {
+    render(<TextDefaultsSection />);
+    fireEvent.change(screen.getByLabelText('Shape'), { target: { value: 'wave' } });
+
+    expect(screen.queryByLabelText('Align')).toBeNull();
+    expect(screen.queryByLabelText('V Align')).toBeNull();
+    expect(screen.queryByLabelText('Distort')).toBeNull();
+    expect(screen.getByLabelText('Strength')).toBeDefined();
   });
 });
