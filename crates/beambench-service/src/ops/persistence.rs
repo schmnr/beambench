@@ -20,10 +20,10 @@ use crate::persist::persist_settings_to_disk;
 /// live on separate layers" invariant enforced by all write paths.
 ///
 /// Direction 1: a non-image layer containing raster objects → create
-///   a sibling image layer (same color_tag, name suffixed " (Image)"),
+///   a sibling image layer (same color_tag and clean family name),
 ///   re-home the rasters.
 /// Direction 2: an image layer containing non-raster objects → create
-///   a sibling Line layer (same color_tag, name suffixed " (Line)"),
+///   a sibling Line layer (same color_tag and clean family name),
 ///   re-home the vectors.
 ///
 /// Idempotent: running twice on the same project is a no-op (after the
@@ -87,7 +87,7 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
         if layer_is_image && !vector_ids.is_empty() {
             // Image layer with vectors → create a sibling Line layer.
             let base = crate::validation::strip_mode_suffix(&layer_name);
-            let mut new_layer = Layer::new(format!("{base} (Line)"), OperationType::Line);
+            let mut new_layer = Layer::new(base, OperationType::Line);
             new_layer.color_tag = layer_color.clone();
             new_layer.primary_entry_mut().speed_mm_min = layer_speed;
             new_layer.primary_entry_mut().power_percent = layer_power;
@@ -99,14 +99,14 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
                 }
             }
             warnings.push(format!(
-                "Migrated {} non-raster object(s) off image layer '{}' into new sibling '{base} (Line)'",
+                "Migrated {} non-raster object(s) off image layer '{}' into new sibling '{base}'",
                 vector_ids.len(),
                 layer_name,
             ));
         } else if !layer_is_image && !raster_ids.is_empty() {
             // Non-image layer with rasters → create a sibling Image layer.
             let base = crate::validation::strip_mode_suffix(&layer_name);
-            let mut new_layer = Layer::new(format!("{base} (Image)"), OperationType::Image);
+            let mut new_layer = Layer::new(base, OperationType::Image);
             new_layer.color_tag = layer_color.clone();
             new_layer.primary_entry_mut().speed_mm_min = layer_speed;
             new_layer.primary_entry_mut().power_percent = layer_power;
@@ -118,7 +118,7 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
                 }
             }
             warnings.push(format!(
-                "Migrated {} raster object(s) off layer '{}' into new sibling '{base} (Image)'",
+                "Migrated {} raster object(s) off layer '{}' into new sibling '{base}'",
                 raster_ids.len(),
                 layer_name,
             ));

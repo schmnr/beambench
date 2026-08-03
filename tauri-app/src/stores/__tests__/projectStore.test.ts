@@ -1364,7 +1364,7 @@ describe('projectStore — new actions', () => {
       expect.any(Object),
       expect.any(Object),
       expect.objectContaining({
-        name: 'C00 (Line)',
+        name: 'C00',
         operation: 'line',
       }),
     );

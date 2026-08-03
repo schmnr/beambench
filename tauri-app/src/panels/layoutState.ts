@@ -93,7 +93,7 @@ export function setWorkspacePanelLayout(
       };
 }
 
-export const PANEL_LAYOUT_VERSION = 7;
+export const PANEL_LAYOUT_VERSION = 8;
 export const DEFAULT_UPPER_SPLIT_RATIO = 1;
 export const DEFAULT_RUN_UPPER_SPLIT_RATIO = 0.58;
 export const DEFAULT_DESIGN_COLUMN_RATIOS: WorkspaceColumnRatios = {

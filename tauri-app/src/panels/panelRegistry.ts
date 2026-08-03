@@ -57,10 +57,10 @@ export function createPanelInstanceId(panelTypeId: string, occupiedIds: Iterable
 }
 
 const DESIGN_DEFAULT_ZONES: Record<PhysicalDockZone, string[]> = {
-  'top-left': ['outliner'],
+  'top-left': [],
   'middle-left': [],
   'bottom-left': [],
-  'top-right': ['cuts_layers', 'properties'],
+  'top-right': ['cuts_layers', 'outliner', 'properties'],
   'middle-right': [],
   'bottom-right': [],
   left: [],
@@ -79,7 +79,7 @@ const RUN_DEFAULT_ZONES: Record<PhysicalDockZone, string[]> = {
 };
 
 export const PANEL_REGISTRY: PanelDefinition[] = [
-  { id: 'outliner', title: 'Outliner', titleKey: 'panels.registry.outliner', defaultZone: 'top-left', defaultVisible: true, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 320, h: 480 }, minFloatSize: { w: 240, h: 220 } },
+  { id: 'outliner', title: 'Outliner', titleKey: 'panels.registry.outliner', defaultZone: 'top-right', defaultVisible: true, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 320, h: 480 }, minFloatSize: { w: 240, h: 220 } },
   { id: 'cuts_layers', title: 'Layers', titleKey: 'panels.registry.cuts_layers', defaultZone: 'top-right', defaultVisible: true, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 384, h: 300 }, minFloatSize: { w: 200, h: 150 } },
   { id: 'move', title: 'Move', titleKey: 'panels.registry.move', defaultZone: 'top-left', defaultVisible: true, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 320, h: 260 }, minFloatSize: { w: 200, h: 150 } },
   { id: 'console', title: 'Console', titleKey: 'panels.registry.console', defaultZone: 'middle-right', defaultVisible: true, supportsClose: true, supportsFloat: true, defaultFloatSize: { w: 420, h: 300 }, minFloatSize: { w: 250, h: 150 } },

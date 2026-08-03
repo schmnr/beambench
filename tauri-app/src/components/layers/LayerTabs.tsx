@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, Plus, Image as ImageIcon } from 'lucide-react';
+import { Eye, EyeOff, Plus } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useAppStore } from '../../stores/appStore';
 import { projectService } from '../../services/projectService';
@@ -14,7 +14,8 @@ import { ContextMenu } from '../shared/ContextMenu';
 import { buildLayerContextMenuItems } from './layerMenuItems';
 import { buildLayerListHeaderMenuItems } from './LayerListHeaderMenu';
 import { CutSettingsEditor } from './CutSettingsEditor';
-import { displayLayerName } from './layerNaming';
+import { displayLayerName, layerOperation, operationDisplayLabel } from './layerNaming';
+import { LayerModeIcon } from './LayerModeIcon';
 
 const ONLY_THIS_ON = 'only_this_on' as const;
 const DESIGN_WORKSPACE = 'design' as const;
@@ -160,6 +161,7 @@ export function LayerTabs() {
         const activeLayerId = selectedLayerId ?? project.layers[0]?.id;
         const active = layer.id === activeLayerId;
         const entry = layer.entries[0];
+        const operation = layerOperation(layer);
         const hidden = layer.visible === false;
         return (
           <button
@@ -233,9 +235,14 @@ export function LayerTabs() {
               className="h-2 w-2 flex-shrink-0 rounded-full"
               style={{ backgroundColor: layer.color_tag }}
             />
-            {layer.entries[0]?.operation === 'image' && (
-              <ImageIcon size={10} className="flex-shrink-0" data-testid="tab-image-marker" />
-            )}
+            <span
+              className="flex shrink-0 items-center"
+              role="img"
+              aria-label={`${t('panels.layers.header.mode')}: ${operationDisplayLabel(operation)}`}
+              title={operationDisplayLabel(operation)}
+            >
+              <LayerModeIcon operation={operation} size={11} testId="tab-mode-icon" />
+            </span>
             {renamingLayerId === layer.id ? (
               <input
                 autoFocus

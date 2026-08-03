@@ -254,6 +254,27 @@ describe('LayerList', () => {
     expect(labels[1].textContent).toBe('C00');
   });
 
+  it('shows a distinct live mode icon for Line, Fill, Offset Fill, and Image layers', () => {
+    const layers = [
+      makeLayer({ id: 'line', name: 'C00 (Line)', operation: 'line', color_tag: '#000000' }),
+      makeLayer({ id: 'fill', name: 'C01 (Fill)', operation: 'fill', color_tag: '#ff0000', order_index: 1 }),
+      makeLayer({ id: 'offset', name: 'C02 (Offset Fill)', operation: 'offset_fill', color_tag: '#00ff00', order_index: 2 }),
+      makeLayer({ id: 'image', name: 'C03 (Image)', operation: 'image', color_tag: '#0000ff', order_index: 3 }),
+    ];
+    useProjectStore.setState({
+      project: makeProject({ layers, objects: [] }),
+    });
+
+    render(<LayerTabs />);
+
+    expect(screen.getAllByTestId('tab-mode-icon').map((icon) => icon.getAttribute('data-operation'))).toEqual([
+      'line',
+      'fill',
+      'offset_fill',
+      'image',
+    ]);
+  });
+
   it('uses a pressed lightning icon to control layer output', () => {
     const layer = makeLayer({ id: 'l1', enabled: true });
     useProjectStore.setState({

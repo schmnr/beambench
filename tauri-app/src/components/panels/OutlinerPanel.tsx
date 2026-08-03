@@ -23,6 +23,12 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import type { Layer, Project, ProjectObject } from '../../types/project';
 import { INSPECTOR_CARD_CLASS } from '../shared/panelAppearance';
+import {
+  displayLayerName,
+  layerOperation,
+  operationDisplayLabel,
+} from '../layers/layerNaming';
+import { LayerModeIcon } from '../layers/LayerModeIcon';
 
 type DragState =
   | { kind: 'layer'; layerId: string }
@@ -32,6 +38,12 @@ type DropState =
   | { kind: 'layer'; layerId: string; edge: 'before' | 'after' | 'inside' }
   | { kind: 'object'; objectId: string; edge: 'before' | 'after' }
   | null;
+
+type RenameState = {
+  kind: 'layer' | 'object';
+  id: string;
+  value: string;
+} | null;
 
 const OUTLINER_DATA_TYPE = 'application/x-beambench-outliner';
 
@@ -139,6 +151,7 @@ export function OutlinerPanel() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const [drop, setDrop] = useState<DropState>(null);
+  const [rename, setRename] = useState<RenameState>(null);
   const editable = workspaceMode === 'design';
 
   const objectsById = useMemo(
@@ -162,6 +175,51 @@ export function OutlinerPanel() {
     setDrag(null);
     setDrop(null);
   };
+
+  const commitRename = async () => {
+    if (!rename) return;
+    const value = rename.value.trim();
+    if (!value) {
+      setRename(null);
+      return;
+    }
+    const currentName = rename.kind === 'layer'
+      ? project.layers.find((layer) => layer.id === rename.id)?.name
+      : project.objects.find((object) => object.id === rename.id)?.name;
+    if (currentName === value) {
+      setRename(null);
+      return;
+    }
+    const updated = rename.kind === 'layer'
+      ? await updateLayer(rename.id, { name: value })
+      : await updateObject(rename.id, { name: value });
+    if (updated !== false) setRename(null);
+  };
+
+  const renameInput = (target: Exclude<RenameState, null>) => (
+    <input
+      autoFocus
+      className="h-6 min-w-0 flex-1 rounded border border-bb-accent bg-bb-input px-1.5 text-xs text-bb-text outline-none"
+      value={target.value}
+      aria-label={`${t('common.rename')}: ${target.value}`}
+      data-testid={`outliner-${target.kind}-rename-input`}
+      onFocus={(event) => event.currentTarget.select()}
+      onChange={(event) => setRename({ ...target, value: event.target.value })}
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onBlur={() => { void commitRename(); }}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          event.currentTarget.blur();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          setRename(null);
+        }
+      }}
+    />
+  );
 
   const startObjectDrag = (event: React.DragEvent, object: ProjectObject) => {
     if (!editable) return;
@@ -207,7 +265,7 @@ export function OutlinerPanel() {
           aria-selected={selected}
           aria-expanded={isGroup ? expanded : undefined}
           tabIndex={0}
-          draggable={editable && topLevel}
+          draggable={editable && topLevel && !(rename?.kind === 'object' && rename.id === object.id)}
           data-testid={`outliner-object-${object.id}`}
           onDragStart={(event) => startObjectDrag(event, object)}
           onDragEnd={finishDrag}
@@ -235,6 +293,11 @@ export function OutlinerPanel() {
             else selectObjects([object.id]);
           }}
           onKeyDown={(event) => {
+            if (event.key === 'F2' && editable) {
+              event.preventDefault();
+              setRename({ kind: 'object', id: object.id, value: object.name });
+              return;
+            }
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
               if (object.visible) {
@@ -260,7 +323,21 @@ export function OutlinerPanel() {
             </button>
           ) : <span className="w-5 shrink-0" />}
           <span className="shrink-0 text-bb-text-dim"><ObjectTypeIcon object={object} /></span>
-          <span className={`min-w-0 flex-1 truncate ${object.visible ? '' : 'opacity-55'}`} title={object.name}>{object.name}</span>
+          {rename?.kind === 'object' && rename.id === object.id
+            ? renameInput(rename)
+            : (
+              <span
+                className={`min-w-0 flex-1 truncate ${object.visible ? '' : 'opacity-55'}`}
+                title={editable ? `${object.name} · ${t('common.rename')}` : object.name}
+                onDoubleClick={(event) => {
+                  if (!editable) return;
+                  event.stopPropagation();
+                  setRename({ kind: 'object', id: object.id, value: object.name });
+                }}
+              >
+                {object.name}
+              </span>
+            )}
           {editable && (
             <div className={`flex shrink-0 items-center ${selected || !object.visible || object.locked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}>
               <button
@@ -313,6 +390,8 @@ export function OutlinerPanel() {
           const expanded = !collapsedLayers.has(layer.id);
           const active = selectedLayerId === layer.id;
           const dropOnLayer = drop?.kind === 'layer' && drop.layerId === layer.id;
+          const operation = layerOperation(layer);
+          const visibleName = displayLayerName(layer);
           return (
             <div key={layer.id}>
               <div
@@ -324,7 +403,7 @@ export function OutlinerPanel() {
                 aria-expanded={expanded}
                 aria-selected={active}
                 tabIndex={0}
-                draggable={editable}
+                draggable={editable && !(rename?.kind === 'layer' && rename.id === layer.id)}
                 onDragStart={(event) => {
                   if (!editable) return;
                   event.dataTransfer.effectAllowed = 'move';
@@ -370,6 +449,11 @@ export function OutlinerPanel() {
                 }}
                 onClick={() => selectLayer(layer.id)}
                 onKeyDown={(event) => {
+                  if (event.key === 'F2' && editable) {
+                    event.preventDefault();
+                    setRename({ kind: 'layer', id: layer.id, value: visibleName });
+                    return;
+                  }
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
                     selectLayer(layer.id);
@@ -390,7 +474,29 @@ export function OutlinerPanel() {
                   {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                 </button>
                 <span className="h-3 w-3 shrink-0 rounded-sm border border-bb-border" style={{ backgroundColor: layer.color_tag }} />
-                <span className={`min-w-0 flex-1 truncate font-medium ${layer.visible ? '' : 'opacity-55'}`} title={layer.name}>{layer.name}</span>
+                <span
+                  className="flex shrink-0 items-center text-bb-text-dim"
+                  role="img"
+                  aria-label={`${t('panels.layers.header.mode')}: ${operationDisplayLabel(operation)}`}
+                  title={operationDisplayLabel(operation)}
+                >
+                  <LayerModeIcon operation={operation} size={14} testId={`outliner-mode-${operation}`} />
+                </span>
+                {rename?.kind === 'layer' && rename.id === layer.id
+                  ? renameInput(rename)
+                  : (
+                    <span
+                      className={`min-w-0 flex-1 truncate font-medium ${layer.visible ? '' : 'opacity-55'}`}
+                      title={editable ? `${visibleName} · ${t('common.rename')}` : visibleName}
+                      onDoubleClick={(event) => {
+                        if (!editable) return;
+                        event.stopPropagation();
+                        setRename({ kind: 'layer', id: layer.id, value: visibleName });
+                      }}
+                    >
+                      {visibleName}
+                    </span>
+                  )}
                 <span className="shrink-0 rounded bg-bb-bg px-1.5 py-0.5 text-[10px] tabular-nums text-bb-text-dim">{objects.length}</span>
                 {editable && (
                   <button

@@ -28,7 +28,7 @@ describe('panelRegistry', () => {
 
   it('getDefaultLayout produces valid state', () => {
     const layout = getDefaultLayout();
-    expect(layout.zones['top-right'].panelIds).toHaveLength(2);
+    expect(layout.zones['top-right'].panelIds).toHaveLength(3);
     expect(layout.zones['middle-right'].panelIds).toHaveLength(0);
     expect(layout.zones['left'].panelIds).toHaveLength(0);
     expect(layout.zones['bottom'].panelIds).toHaveLength(0);
@@ -50,12 +50,13 @@ describe('panelRegistry', () => {
 
   it('top-right zone contains correct panels', () => {
     const layout = getDefaultLayout();
-    expect(layout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'properties']);
+    expect(layout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'outliner', 'properties']);
   });
 
-  it('puts the Outliner in the default Design left dock', () => {
+  it('puts the Outliner beside Layers and Properties in the Design right dock', () => {
     const layout = getDefaultLayout();
-    expect(layout.zones['top-left']).toEqual({ panelIds: ['outliner'], activeTab: 'outliner' });
+    expect(layout.zones['top-left']).toEqual({ panelIds: [], activeTab: '' });
+    expect(layout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'outliner', 'properties']);
     expect(layout.runHiddenPanelIds).toContain('outliner');
   });
 

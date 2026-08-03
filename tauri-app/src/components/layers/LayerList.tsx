@@ -13,6 +13,7 @@ import { normColor } from '../../stores/layerFamilyResolver';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { INSPECTOR_CARD_CLASS, INSPECTOR_SECTION_HEADER_CLASS } from '../shared/panelAppearance';
 import { layerFillOpacity, layerUsesFilledAppearance } from '../../utils/layerAppearance';
+import { displayLayerName } from './layerNaming';
 
 export function LayerList() {
   const { t } = useTranslation();
@@ -38,21 +39,23 @@ export function LayerList() {
   const activeLayerObjs = activeLayer ? objects.filter((o) => o.layer_id === activeLayer.id) : [];
   const layerAllLocked = activeLayerObjs.length > 0 && activeLayerObjs.every((o) => o.locked);
   const usesFilledAppearance = activeLayer ? layerUsesFilledAppearance(activeLayer) : false;
+  const activeLayerDisplayName = activeLayer ? displayLayerName(activeLayer) : '';
+  const activeLayerFillOpacityPercent = Math.round(activeLayer ? layerFillOpacity(activeLayer) * 100 : 100);
 
   useEffect(() => {
-    setLayerNameDraft(activeLayer?.name ?? '');
-  }, [activeLayer?.id, activeLayer?.name]);
+    setLayerNameDraft(activeLayerDisplayName);
+  }, [activeLayer?.id, activeLayerDisplayName]);
 
   useEffect(() => {
-    setFillOpacityPercentDraft(Math.round(activeLayer ? layerFillOpacity(activeLayer) * 100 : 100));
-  }, [activeLayer?.id, activeLayer?.fill_opacity]);
+    setFillOpacityPercentDraft(activeLayerFillOpacityPercent);
+  }, [activeLayer?.id, activeLayerFillOpacityPercent]);
 
   const commitLayerName = async () => {
     if (!activeLayer || layerNameDraft === activeLayer.name) return;
     const updated = await updateLayer(activeLayer.id, { name: layerNameDraft });
     if (!updated) {
       const currentLayer = useProjectStore.getState().project?.layers.find((layer) => layer.id === activeLayer.id);
-      setLayerNameDraft(currentLayer?.name ?? activeLayer.name);
+      setLayerNameDraft(currentLayer ? displayLayerName(currentLayer) : displayLayerName(activeLayer));
     }
   };
 

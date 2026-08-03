@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 function makeOutlinerProject() {
-  const black = makeLayer({ id: 'black', name: 'Black Line', color_tag: '#000000', order_index: 0 });
+  const black = makeLayer({ id: 'black', name: 'C00 (Line)', color_tag: '#000000', order_index: 0 });
   const red = makeLayer({ id: 'red', name: 'Red Fill', color_tag: '#ff0000', order_index: 1, operation: 'fill' });
   const child = makeProjectObject({ id: 'child', name: 'Grouped Circle', layer_id: 'black', z_index: 1 });
   const group = makeProjectObject({
@@ -44,7 +44,10 @@ describe('OutlinerPanel', () => {
     render(<OutlinerPanel />);
 
     expect(screen.getByText('2 layers · 4 objects')).toBeDefined();
-    expect(screen.getByText('Black Line')).toBeDefined();
+    expect(screen.getByText('C00')).toBeDefined();
+    expect(screen.queryByText('C00 (Line)')).toBeNull();
+    expect(screen.getByTestId('outliner-mode-line')).toBeDefined();
+    expect(screen.getByTestId('outliner-mode-fill')).toBeDefined();
     expect(screen.getByText('Logo Group')).toBeDefined();
     expect(screen.queryByText('Grouped Circle')).toBeNull();
 
@@ -68,6 +71,34 @@ describe('OutlinerPanel', () => {
 
     expect(selectLayer).toHaveBeenCalledWith('black');
     expect(selectObjects).toHaveBeenCalledWith(['loose']);
+  });
+
+  it('renames layers and groups inline', async () => {
+    const updateLayer = vi.fn().mockResolvedValue(true);
+    const updateObject = vi.fn().mockResolvedValue(true);
+    useUiStore.setState({ workspaceMode: 'design' });
+    useProjectStore.setState({
+      project: makeOutlinerProject(),
+      selectedLayerId: 'black',
+      selectedObjectIds: [],
+      updateLayer,
+      updateObject,
+    });
+
+    render(<OutlinerPanel />);
+
+    fireEvent.doubleClick(screen.getByText('C00'));
+    const layerInput = screen.getByTestId('outliner-layer-rename-input');
+    expect((layerInput as HTMLInputElement).value).toBe('C00');
+    fireEvent.change(layerInput, { target: { value: 'Engrave' } });
+    fireEvent.keyDown(layerInput, { key: 'Enter' });
+    await waitFor(() => expect(updateLayer).toHaveBeenCalledWith('black', { name: 'Engrave' }));
+
+    fireEvent.doubleClick(screen.getByText('Logo Group'));
+    const groupInput = screen.getByTestId('outliner-object-rename-input');
+    fireEvent.change(groupInput, { target: { value: 'Clock Face' } });
+    fireEvent.blur(groupInput);
+    await waitFor(() => expect(updateObject).toHaveBeenCalledWith('group', { name: 'Clock Face' }));
   });
 
   it('drops an object onto another layer in one outliner move', async () => {

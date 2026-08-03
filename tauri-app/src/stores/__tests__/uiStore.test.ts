@@ -436,7 +436,7 @@ describe('uiStore', () => {
   describe('reorderPanelInZone', () => {
     it('changes order within zone', () => {
       const ids = useUiStore.getState().panelLayout.zones['top-right'].panelIds;
-      expect(ids.indexOf('properties')).toBe(1);
+      expect(ids.indexOf('properties')).toBe(2);
 
       useUiStore.getState().reorderPanelInZone('properties', 'top-right', 0);
 
@@ -455,7 +455,7 @@ describe('uiStore', () => {
       const state = useUiStore.getState();
       expect(state.panelLayout.floatingPanels).toHaveLength(0);
       expect(state.nextFloatingZIndex).toBe(1);
-      expect(state.panelLayout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'properties']);
+      expect(state.panelLayout.zones['top-right'].panelIds).toEqual(['cuts_layers', 'outliner', 'properties']);
     });
   });
 

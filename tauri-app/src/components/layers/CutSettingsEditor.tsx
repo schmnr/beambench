@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { SubLayerStack } from '../properties/SubLayerStack';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { displayLayerName } from './layerNaming';
 
 const PREVIOUS_LAYER_ICON = '←';
 const NEXT_LAYER_ICON = '→';
@@ -67,7 +68,7 @@ export function CutSettingsEditor({ layerId, onClose, onSwitchLayer }: CutSettin
           <input
             data-testid="layer-name-input"
             className="mt-1 w-full rounded border border-bb-border bg-bb-input px-2 py-1 text-xs text-bb-text"
-            value={layer.name}
+            value={displayLayerName(layer)}
             onChange={(event) => void updateLayer(layer.id, { name: event.target.value })}
             />
           </div>

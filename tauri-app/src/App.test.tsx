@@ -458,8 +458,8 @@ describe('App bootstrap', () => {
       panel_layout: {
         layout_version: 4,
         zones: {
-          'top-right': { panel_ids: ['cuts_layers', 'properties'], active_tab: 'cuts_layers' },
-          'middle-right': emptyZone,
+          'top-right': emptyZone,
+          'middle-right': { panel_ids: ['cuts_layers', 'properties'], active_tab: 'properties' },
           'bottom-right': emptyZone,
           'top-left': emptyZone,
           'middle-left': emptyZone,
@@ -490,12 +490,16 @@ describe('App bootstrap', () => {
 
     await waitFor(() => {
       const layout = useUiStore.getState().panelLayout;
-      expect(layout.layoutVersion).toBe(7);
+      expect(layout.layoutVersion).toBe(8);
       expect(layout.runZones['top-left']).toEqual({ panelIds: ['move'], activeTab: 'move' });
       expect(layout.runHiddenPanelIds).not.toContain('move');
       expect(layout.hiddenPanelIds).toContain('notes');
       expect(layout.runHiddenPanelIds).toContain('notes');
-      expect(layout.zones['top-left']).toEqual({ panelIds: ['outliner'], activeTab: 'outliner' });
+      expect(layout.zones['top-left']).toEqual({ panelIds: [], activeTab: '' });
+      expect(layout.zones['middle-right']).toEqual({
+        panelIds: ['cuts_layers', 'outliner', 'properties'],
+        activeTab: 'properties',
+      });
       expect(layout.runHiddenPanelIds).toContain('outliner');
     });
   });

@@ -130,13 +130,8 @@ pub fn resolve_layer_for_object(
         RoutingTarget::NeedsImage => OperationType::Image,
         RoutingTarget::NeedsNonImage => OperationType::Line,
     };
-    let suffix = match target {
-        RoutingTarget::NeedsImage => " (Image)",
-        RoutingTarget::NeedsNonImage => " (Line)",
-    };
     let base = strip_mode_suffix(&requested_name);
-    let new_name = format!("{base}{suffix}");
-    let mut new_layer = Layer::new(new_name, new_operation);
+    let mut new_layer = Layer::new(base, new_operation);
     new_layer.color_tag = requested_color_tag;
     new_layer.primary_entry_mut().speed_mm_min = requested_speed;
     new_layer.primary_entry_mut().power_percent = requested_power;
@@ -429,10 +424,7 @@ mod tests {
         let created = project
             .find_layer(resolved)
             .expect("new sibling should exist");
-        assert_eq!(
-            created.name, "C01 (Line)",
-            "should strip existing (Image) suffix before appending (Line)"
-        );
+        assert_eq!(created.name, "C01", "mode is represented by the layer icon");
     }
 
     #[test]

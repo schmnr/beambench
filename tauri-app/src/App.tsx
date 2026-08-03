@@ -791,20 +791,38 @@ function App() {
           }
         }
 
-        // v7 introduces the Design Outliner as the default left dock. Add it
-        // once for existing layouts without disturbing any panel the user has
-        // already placed there. Run keeps the organizational panel hidden.
-        if (savedLayoutVersion < 7) {
+        // v8 places the Design Outliner in the same right-side tab group as
+        // Layers and Properties. Move only the v7 default-left placement;
+        // explicitly floated or otherwise relocated Outliners stay put.
+        if (savedLayoutVersion < 8) {
           const outlinerAssignedInDesign = Object.values(designZones).some(
             (zone) => zone.panelIds.includes('outliner'),
           ) || floatingPanels.some((panel) => panel.panelId === 'outliner');
-          if (!outlinerAssignedInDesign) {
-            const topLeft = designZones['top-left'];
+          const topLeft = designZones['top-left'];
+          const hasDefaultLeftOutliner = !floatingPanels.some((panel) => panel.panelId === 'outliner')
+            && topLeft.panelIds[0] === 'outliner'
+            && topLeft.activeTab === 'outliner';
+          if (!outlinerAssignedInDesign || hasDefaultLeftOutliner) {
+            const targetRightZone = COLUMN_ZONES.right.find(
+              (zone) => designZones[zone].panelIds.includes('cuts_layers'),
+            ) ?? COLUMN_ZONES.right.find(
+              (zone) => designZones[zone].panelIds.includes('properties'),
+            ) ?? 'top-right';
+            const rightPanelIds = designZones[targetRightZone].panelIds.filter((id) => id !== 'outliner');
+            const layersIndex = rightPanelIds.indexOf('cuts_layers');
+            const insertIndex = layersIndex >= 0 ? layersIndex + 1 : rightPanelIds.length;
+            rightPanelIds.splice(insertIndex, 0, 'outliner');
             designZones = {
               ...designZones,
               'top-left': {
-                panelIds: ['outliner', ...topLeft.panelIds.filter((id) => id !== 'outliner')],
-                activeTab: 'outliner',
+                panelIds: topLeft.panelIds.filter((id) => id !== 'outliner'),
+                activeTab: topLeft.activeTab === 'outliner'
+                  ? (topLeft.panelIds.find((id) => id !== 'outliner') ?? '')
+                  : topLeft.activeTab,
+              },
+              [targetRightZone]: {
+                panelIds: rightPanelIds,
+                activeTab: designZones[targetRightZone].activeTab || 'cuts_layers',
               },
             };
           }

@@ -3,6 +3,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import { TextInput } from '../shared/TextInput';
 import { Toggle } from '../shared/Toggle';
 import { SubLayerStack } from './SubLayerStack';
+import { displayLayerName } from '../layers/layerNaming';
 
 export function LayerSettingsPanel() {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export function LayerSettingsPanel() {
       <div className="flex flex-col gap-2 rounded border border-bb-border bg-bb-bg-alt/60 p-2">
         <TextInput
           label={t('panels.layer_settings.name')}
-          value={selectedLayer.name}
+          value={displayLayerName(selectedLayer)}
           onChange={(name) => void updateLayer(selectedLayer.id, { name })}
         />
         <Toggle
