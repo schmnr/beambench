@@ -1907,7 +1907,11 @@ export class CanvasRenderer {
     // 6. Selection highlights and handles (skip object being text-edited)
     const selectedObjects = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
       ? []
-      : objects.filter((o) => selectedObjectIds.includes(o.id) && o.id !== skipId);
+      : objects.filter(
+          (o) => selectedObjectIds.includes(o.id)
+            && o.id !== skipId
+            && isObjectVisibleInLayerStack(o, layers),
+        );
     if (selectedObjects.length > 0) {
       const selectionLocks = toolOverlay.type === 'mesh-deform'
         ? { move_enabled: false, size_enabled: false, rotate_enabled: false, shear_enabled: false }

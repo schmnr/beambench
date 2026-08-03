@@ -601,7 +601,7 @@ describe('projectStore — new actions', () => {
     expect(useProjectStore.getState().project?.dirty).toBe(true);
   });
 
-  it('setObjectsVisible calls batch service and reloads project', async () => {
+  it('setObjectsVisible hides an object without losing the reversible Properties selection', async () => {
     const reloaded = makeProject();
     reloaded.objects[0].visible = false;
     mockedProject.setObjectsVisible.mockResolvedValue(undefined);
@@ -613,7 +613,7 @@ describe('projectStore — new actions', () => {
     expect(mockedProject.setObjectsVisible).toHaveBeenCalledWith(['obj1'], false);
     expect(mockedProject.getProject).toHaveBeenCalled();
     expect(useProjectStore.getState().project?.objects[0].visible).toBe(false);
-    expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['obj1']);
   });
 
   it('updateObjectBoundsBatch refetches committed path data and bounds on success', async () => {

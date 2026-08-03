@@ -319,6 +319,27 @@ describe('CanvasRenderer', () => {
     });
 
     expect(ctx.strokeRect).not.toHaveBeenCalled();
+    vi.mocked(ctx.strokeRect).mockClear();
+
+    renderer.render({
+      ...baseParams,
+      objects: [hiddenObject, layerHiddenObject],
+      selectedObjectIds: ['hidden-object', 'layer-hidden-object'],
+      layers: [
+        makeLayer({ id: 'visible-layer', visible: true }),
+        makeLayer({ id: 'hidden-layer', visible: false }),
+      ],
+    });
+
+    // The only rectangle is the workspace boundary; no selection box is
+    // painted for either hidden selection.
+    expect(ctx.strokeRect).toHaveBeenCalledTimes(1);
+    expect(ctx.strokeRect).toHaveBeenCalledWith(
+      0,
+      0,
+      baseParams.vp.canvasWidth,
+      baseParams.vp.canvasHeight,
+    );
   });
 
   it('redraws only a bounded dirty region for base-scene object movement', () => {

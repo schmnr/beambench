@@ -2492,9 +2492,17 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const project = await projectService.getProject();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
+        const previousSelection = get().selectedObjectIds;
         set({
           project: nextProject,
-          selectedObjectIds: normalizeSelectionMembers(nextProject, get().selectedObjectIds),
+          // Keep objects selected when the Properties eye hides them so that
+          // the same control remains available to show them again. Hidden
+          // objects are still excluded from canvas hit-testing and selection
+          // rendering; choosing anything else naturally replaces this
+          // contextual selection.
+          selectedObjectIds: visible
+            ? normalizeSelectionMembers(nextProject, previousSelection)
+            : previousSelection.filter((id) => nextProject.objects.some((object) => object.id === id)),
         });
       }
       invalidatePreview();
