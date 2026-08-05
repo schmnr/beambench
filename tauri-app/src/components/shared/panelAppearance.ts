@@ -18,3 +18,6 @@ export const INSPECTOR_TITLE_BAR_ICON_CLASS =
 
 export const INSPECTOR_HELP_TEXT_CLASS =
   'text-[10px] leading-4 text-bb-text-dim';
+
+export const WIDE_INSPECTOR_CARD_CLASS =
+  'bb-wide-inspector-card';

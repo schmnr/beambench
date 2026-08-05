@@ -13,3 +13,9 @@ export function lihuiyuUsbDeviceLabel(device: LihuiyuUsbDeviceInfo): string {
     || 'CH341 USB';
   return `${name} — ${lihuiyuUsbDeviceId(device)}`;
 }
+
+export function lihuiyuUsbHasIncompatibleWindowsDriver(
+  device: LihuiyuUsbDeviceInfo | null | undefined,
+): boolean {
+  return device?.windows_driver_compatible === false;
+}

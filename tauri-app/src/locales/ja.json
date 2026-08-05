@@ -24,6 +24,8 @@
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
     "refresh_usb_devices": "Refresh USB devices",
+    "lihuiyu_windows_driver_incompatible": "This controller is using the Windows USB driver {driver}. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list.",
+    "lihuiyu_windows_driver_tradeoff": "Changing the USB driver may prevent LaserDRW or other vendor software from using this controller until its original driver is restored.",
     "network_host": "Host",
     "tcp_port": "TCP port",
     "udp_port": "UDP port",
@@ -1054,7 +1056,12 @@
       "error_command_conflict": "{hotkey} はすでに {command} に属しています。",
       "error_macro_conflict": "{hotkey} はすでにマクロ {macro} に属しています。",
       "prompt": "{command} の新しいホットキーを押します。",
-      "saved": "ホットキーが更新されました。"
+      "saved": "ホットキーが更新されました。",
+      "function": "コマンド",
+      "current": "現在",
+      "default": "デフォルト",
+      "actions": "操作",
+      "reset": "リセット"
     },
     "boolean_assistant": {
       "title": "ブール演算アシスタント",
@@ -1640,6 +1647,7 @@
       "offset_outward": "外側へオフセット",
       "max_sub_layers_title": "サブレイヤーは最大 11 個です",
       "add_sub_layer_title": "サブレイヤーを追加",
+      "sub_layer": "サブレイヤー",
       "add_sub_layer": "+ サブレイヤーを追加",
       "order_hint": "サブレイヤーは上から下の順に実行されます。"
     },
@@ -2495,6 +2503,7 @@
     "operation_failed_with_detail": "操作に失敗しました: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "workspace_edge_left": "左端",
     "workspace_edge_right": "右端",
     "workspace_edge_top": "上端",
@@ -2505,5 +2514,32 @@
   },
   "import": {
     "drop_to_import": "ファイルをドロップしてインポート"
+  },
+  "selection": {
+    "object": "Object",
+    "layer": "Layer",
+    "mode_replace": "Replace",
+    "mode_add": "Add",
+    "mode_toggle": "Toggle",
+    "mode_remove": "Remove",
+    "marquee_count": "{count} candidates · {mode}",
+    "overlap_title": "Choose overlapping object",
+    "topmost": "Top",
+    "overlap_hint": "Use ↑ ↓ and Enter · Esc closes",
+    "canvas": "Canvas",
+    "group": "Group",
+    "exit_isolation": "Exit group isolation",
+    "select_similar": "Select Similar",
+    "same_layer": "Same Layer",
+    "same_type": "Same Type",
+    "same_size": "Same Size",
+    "same_operation": "Same Operation",
+    "same_circle_diameter": "Same Circle Diameter",
+    "same_open_closed": "Same Open/Closed State"
+  },
+  "commands": {
+    "activate_layers": "レイヤーを表示",
+    "activate_properties": "プロパティを表示",
+    "activate_outliner": "アウトライナーを表示"
   }
 }

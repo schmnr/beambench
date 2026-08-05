@@ -1,5 +1,7 @@
 use std::{fmt, io, time::Duration};
 
+#[cfg(target_os = "windows")]
+use nusb::ErrorKind;
 use nusb::{
     Device, DeviceInfo, Endpoint, Interface, MaybeFuture,
     descriptors::TransferType,
@@ -35,6 +37,9 @@ pub struct LihuiyuUsbDeviceInfo {
     /// Populated on Windows when the operating system reports the active USB
     /// driver. Other platforms leave it unset.
     pub driver: Option<String>,
+    /// `Some(false)` means Windows has bound this device to a driver that the
+    /// WinUSB backend cannot claim. Non-Windows platforms leave this unset.
+    pub windows_driver_compatible: Option<bool>,
 }
 
 impl LihuiyuUsbDeviceInfo {
@@ -144,6 +149,13 @@ pub enum LihuiyuUsbError {
         source: nusb::Error,
     },
     #[error(
+        "the CH341 device at {selector} uses incompatible Windows driver {driver}; Beam Bench requires WinUSB for USB device 1a86:5512"
+    )]
+    IncompatibleWindowsDriver {
+        selector: LihuiyuUsbSelector,
+        driver: String,
+    },
+    #[error(
         "selecting CH341 interface {interface_number} alternate setting {alternate_setting} at {selector} failed: {source}"
     )]
     AlternateSetting {
@@ -204,6 +216,12 @@ impl NativeLihuiyuUsbIo {
         let listed_info = matches
             .pop()
             .expect("the single matched CH341 device remains available");
+        if native_windows_driver_compatible(&listed_info) == Some(false) {
+            return Err(LihuiyuUsbError::IncompatibleWindowsDriver {
+                selector: selector.clone(),
+                driver: native_driver(&listed_info).unwrap_or_else(|| "(not reported)".to_owned()),
+            });
+        }
         let device = listed_info
             .open()
             .wait()
@@ -230,10 +248,13 @@ impl NativeLihuiyuUsbIo {
         let interface = device
             .detach_and_claim_interface(bulk_interface.interface_number)
             .wait()
-            .map_err(|source| LihuiyuUsbError::ClaimInterface {
-                selector: selector.clone(),
-                interface_number: bulk_interface.interface_number,
-                source,
+            .map_err(|source| {
+                map_claim_interface_error(
+                    selector,
+                    &listed_info,
+                    bulk_interface.interface_number,
+                    source,
+                )
             })?;
         if bulk_interface.alternate_setting != 0 {
             interface
@@ -399,6 +420,7 @@ fn native_device_info(
         serial_number: info.serial_number().map(str::to_owned),
         has_required_bulk_endpoints,
         driver: native_driver(info),
+        windows_driver_compatible: native_windows_driver_compatible(info),
     }
 }
 
@@ -440,6 +462,45 @@ fn native_driver(info: &DeviceInfo) -> Option<String> {
 #[cfg(not(target_os = "windows"))]
 fn native_driver(_info: &DeviceInfo) -> Option<String> {
     None
+}
+
+#[cfg(target_os = "windows")]
+fn native_windows_driver_compatible(info: &DeviceInfo) -> Option<bool> {
+    Some(windows_driver_name_compatible(info.driver()))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn native_windows_driver_compatible(_info: &DeviceInfo) -> Option<bool> {
+    None
+}
+
+#[cfg(any(target_os = "windows", test))]
+fn windows_driver_name_compatible(driver: Option<&str>) -> bool {
+    driver.is_some_and(|driver| {
+        driver.eq_ignore_ascii_case("winusb") || driver.eq_ignore_ascii_case("usbccgp")
+    })
+}
+
+fn map_claim_interface_error(
+    selector: &LihuiyuUsbSelector,
+    info: &DeviceInfo,
+    interface_number: u8,
+    source: nusb::Error,
+) -> LihuiyuUsbError {
+    #[cfg(target_os = "windows")]
+    if source.kind() == ErrorKind::Unsupported {
+        return LihuiyuUsbError::IncompatibleWindowsDriver {
+            selector: selector.clone(),
+            driver: native_driver(info).unwrap_or_else(|| "(not reported)".to_owned()),
+        };
+    }
+
+    let _ = info;
+    LihuiyuUsbError::ClaimInterface {
+        selector: selector.clone(),
+        interface_number,
+        source,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -551,6 +612,7 @@ mod tests {
             serial_number: None,
             has_required_bulk_endpoints: Some(true),
             driver: None,
+            windows_driver_compatible: None,
         }
     }
 
@@ -569,6 +631,14 @@ mod tests {
         assert!(selector.matches(&info("3", 7, &[])));
         assert!(!selector.matches(&info("3", 8, &[])));
         assert_eq!(selector.to_string(), "usb-bus-3-address-7");
+    }
+
+    #[test]
+    fn windows_driver_compatibility_matches_nusb_claim_policy() {
+        assert!(windows_driver_name_compatible(Some("WinUSB")));
+        assert!(windows_driver_name_compatible(Some("usbccgp")));
+        assert!(!windows_driver_name_compatible(Some("CH341PAR")));
+        assert!(!windows_driver_name_compatible(None));
     }
 
     #[test]

@@ -94,12 +94,14 @@ describe('command registry product ids', () => {
 
     expect(shortcutFor('Draw Lines')).toBe('Ctrl/Cmd+L');
     expect(shortcutFor('Edit Nodes')).toBe('Ctrl/Cmd+`');
-    expect(shortcutFor('Add Tabs')).toBe('Ctrl/Cmd+Tab');
+    expect(shortcutFor('Add Tabs')).toBe('Alt/Option+Shift+T');
     expect(shortcutFor('Edit Text')).toBe('Ctrl/Cmd+T');
     expect(getEffectiveHotkey(APP_COMMANDS.TOOLS_POSITION_LASER, {})).toBe('Ctrl+Shift+l');
     expect(shortcutFor('Measure')).toBe('Ctrl/Cmd+M');
     expect(shortcutFor('Offset Shapes')).toBe('Alt/Option+O');
     expect(shortcutFor('Weld Shapes')).toBe('Ctrl/Cmd+W');
+    expect(shortcutFor('Boolean Union')).toBe('Alt/Option+Shift+U');
+    expect(shortcutFor('Boolean Intersection')).toBe('Alt/Option+Shift+I');
     expect(shortcutFor('Boolean Assistant')).toBe('Ctrl/Cmd+B');
     expect(shortcutFor('Cut Shapes')).toBe('Alt/Option+Shift+C');
     expect(shortcutFor('Adjust Image')).toBe('Alt/Option+I');
@@ -119,7 +121,7 @@ describe('command registry product ids', () => {
     expect(getCommand(APP_COMMANDS.APP_PREFERENCES)).toMatchObject({
       label: 'Settings',
       defaultHotkey: 'Ctrl+,',
-      editable: false,
+      editable: true,
     });
     expect(getCommand(APP_COMMANDS.EDIT_SETTINGS)).toMatchObject({
       label: 'Settings',
@@ -156,6 +158,32 @@ describe('command registry product ids', () => {
     expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_ZOOM_TO_PAGE, {})).toBe('Ctrl+0');
     expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_FRAME_SELECTION, {})).toBe('Ctrl+Shift+a');
     expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME, {})).toBe('Shift+Alt+w');
+    expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_ACTIVATE_LAYERS, {})).toBe('Alt+1');
+    expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_ACTIVATE_PROPERTIES, {})).toBe('Alt+2');
+    expect(getEffectiveHotkey(APP_COMMANDS.WINDOW_ACTIVATE_OUTLINER, {})).toBe('Alt+3');
+  });
+
+  it('keeps every default shortcut parseable and conflict-free', () => {
+    const owners = new Map<string, string>();
+    const conflicts: string[] = [];
+
+    for (const command of getCommandMetadata()) {
+      if (!command.defaultHotkey) continue;
+      const normalized = normalizeHotkey(command.defaultHotkey);
+      expect(normalized, `${command.id} has an invalid default shortcut`).not.toBeNull();
+      if (!normalized) continue;
+      const existing = owners.get(normalized);
+      if (existing) conflicts.push(`${normalized}: ${existing}, ${command.id}`);
+      owners.set(normalized, command.id);
+    }
+
+    expect(conflicts).toEqual([]);
+  });
+
+  it('allows every command with a shortcut to be customized', () => {
+    expect(getCommandMetadata()
+      .filter((command) => command.defaultHotkey && !command.editable)
+      .map((command) => command.id)).toEqual([]);
   });
 
   it('registers Laser Tools test commands for native menu dispatch', () => {

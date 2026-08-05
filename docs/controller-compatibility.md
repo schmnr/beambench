@@ -128,10 +128,17 @@ M2 and M3 Nano boards. Laser power remains controlled by the physical machine
 panel: Beam Bench converts software power to beam off or beam on and does not
 send unverified M3-only power or hardware-parameter commands.
 
-The USB backend uses IOKit on macOS, usbfs on Linux, and WinUSB on Windows. If
-the controller is listed but cannot be opened, check Linux USB permissions or
-the active Windows device driver, then reconnect the controller and refresh the
-USB list.
+The USB backend uses IOKit on macOS, usbfs on Linux, and WinUSB on Windows.
+Windows must bind the controller's `1a86:5512` interface to WinUSB before Beam
+Bench can claim it. Beam Bench detects other active Windows drivers before
+connecting and shows the driver name with setup guidance. After changing the
+driver, reconnect the controller and refresh the USB list. Changing this binding
+can prevent LaserDRW or other vendor software from using the controller until
+its original driver is restored. Beam Bench does not replace Windows drivers
+automatically.
+
+If the controller is listed but cannot be opened on Linux, check USB permissions,
+then reconnect the controller and refresh the USB list.
 
 ### Ruida Notes
 

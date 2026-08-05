@@ -215,6 +215,21 @@ fn main() {
                         );
                         return;
                     }
+                    // Reaching this point means the close is intentional:
+                    // either the project is clean, or the user explicitly
+                    // saved/discarded their changes. Remove its autosave so
+                    // the next launch does not mistake a clean shutdown for a
+                    // crash. An abnormal termination never reaches this path,
+                    // so genuine crash recovery remains available.
+                    match beambench_service::ops::persistence::discard_current_project_recovery(
+                        &ctx,
+                    ) {
+                        Ok(true) => tracing::info!("Discarded recovery after clean shutdown"),
+                        Ok(false) => {}
+                        Err(error) => {
+                            tracing::warn!(%error, "Failed to discard recovery after clean shutdown")
+                        }
+                    }
                     let deleted = ctx.cleanup_tracked_camera_frame_files();
                     if deleted > 0 {
                         tracing::info!(deleted, "Cleaned tracked camera frames");

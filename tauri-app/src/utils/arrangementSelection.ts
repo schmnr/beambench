@@ -11,11 +11,41 @@ export function isProjectObjectVisible(project: Project, object: ProjectObject):
   return project.layers.find((layer) => layer.id === object.layer_id)?.visible !== false;
 }
 
-function findParentGroupId(project: Project, objectId: string): string | null {
+export function findParentGroupId(project: Project, objectId: string): string | null {
   for (const object of project.objects) {
     if (object.data.type === 'group' && object.data.children.includes(objectId)) {
       return object.id;
     }
+  }
+  return null;
+}
+
+export function collectGroupDescendantIds(project: Project, groupId: string): string[] {
+  const descendants: string[] = [];
+  collectGroupDescendants(project, groupId, descendants, new Set([groupId]));
+  return descendants;
+}
+
+export function isObjectWithinGroup(project: Project, objectId: string, groupId: string): boolean {
+  return objectId === groupId || collectGroupDescendantIds(project, groupId).includes(objectId);
+}
+
+/** Resolve a hit to the object selectable at the current group-isolation depth. */
+export function selectionBoundaryObjectId(
+  project: Project,
+  objectId: string,
+  isolationRootId: string | null,
+): string | null {
+  if (!isolationRootId) return topLevelArrangementObjectId(project, objectId);
+  if (objectId === isolationRootId || !isObjectWithinGroup(project, objectId, isolationRootId)) return null;
+
+  let current = objectId;
+  const seen = new Set<string>();
+  while (!seen.has(current)) {
+    seen.add(current);
+    const parentId = findParentGroupId(project, current);
+    if (!parentId || parentId === isolationRootId) return current;
+    current = parentId;
   }
   return null;
 }
@@ -50,12 +80,21 @@ export function normalizeArrangementSelection(project: Project, objectIds: strin
  * (they just don't participate in arrange/align operations).
  */
 export function normalizeSelectionMembers(project: Project, objectIds: string[]): string[] {
+  return normalizeSelectionMembersWithinIsolation(project, objectIds, null);
+}
+
+export function normalizeSelectionMembersWithinIsolation(
+  project: Project,
+  objectIds: string[],
+  isolationRootId: string | null,
+): string[] {
   const seen = new Set<string>();
   const normalized: string[] = [];
   for (const objectId of objectIds) {
     const object = project.objects.find((candidate) => candidate.id === objectId);
     if (!object || !isProjectObjectVisible(project, object)) continue;
-    const promoted = topLevelArrangementObjectId(project, objectId);
+    const promoted = selectionBoundaryObjectId(project, objectId, isolationRootId);
+    if (!promoted) continue;
     if (seen.has(promoted)) continue;
     seen.add(promoted);
     normalized.push(promoted);

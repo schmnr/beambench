@@ -16,6 +16,9 @@ import { useUiStore } from '../../stores/uiStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { PANEL_REGISTRY, type PhysicalDockZone } from '../../panels/panelRegistry';
 import { appService } from '../../services/appService';
+import { useAppStore } from '../../stores/appStore';
+import { APP_COMMANDS } from '../../commands/appCommandIds';
+import { getEffectiveHotkey } from '../../commands/commandRegistry';
 
 export interface CanvasMenuCallbacks {
   onTraceImage?: () => void;
@@ -25,6 +28,8 @@ export interface CanvasMenuCallbacks {
 
 export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext, callbacks?: CanvasMenuCallbacks): ContextMenuEntry[] {
   const nodeMode = useUiStore.getState().activeTool === 'node';
+  const customHotkeys = useAppStore.getState().settings?.custom_hotkeys ?? {};
+  const shortcutFor = (commandId: string) => getEffectiveHotkey(commandId, customHotkeys) ?? undefined;
   const runNodeEditAction = (
     action: 'copy' | 'cut' | 'paste' | 'extract' | 'delete' | 'select_all',
   ) => {
@@ -101,7 +106,7 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'cut',
       label: t('context_menu.cut'),
-      shortcut: 'Ctrl+X',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_CUT),
       disabled: !ctx.canMutate,
       onClick: () => nodeMode
         ? runNodeEditAction('cut')
@@ -110,7 +115,7 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'copy',
       label: t('context_menu.copy'),
-      shortcut: 'Ctrl+C',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_COPY),
       disabled: !ctx.hasSelection,
       onClick: () => nodeMode
         ? runNodeEditAction('copy')
@@ -119,7 +124,7 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'paste',
       label: t('context_menu.paste'),
-      shortcut: 'Ctrl+V',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_PASTE),
       // Always enabled: the system clipboard may hold an image/SVG/file the
       // app cannot detect synchronously. Falls through to the system
       // clipboard when the in-app object clipboard is empty (same flow as
@@ -142,7 +147,7 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'paste-in-place',
       label: t('menus.edit.paste_in_place'),
-      shortcut: 'Alt+V',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_PASTE_IN_PLACE),
       // Paste in Place requires our object snapshot clipboard; arbitrary
       // system artwork has no existing canvas position to preserve.
       disabled: !ctx.hasClipboard,
@@ -151,7 +156,7 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'duplicate',
       label: t('context_menu.duplicate'),
-      shortcut: 'Ctrl+D',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_DUPLICATE),
       disabled: !ctx.canMutate,
       onClick: () => void clipboardDuplicate([...ctx.selectedObjectIds]),
     },
@@ -161,7 +166,7 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'delete',
       label: t('context_menu.delete'),
-      shortcut: 'Del',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_DELETE),
       disabled: !ctx.canMutate,
       onClick: () => nodeMode
         ? runNodeEditAction('delete')
@@ -170,10 +175,29 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'select-all',
       label: t('context_menu.select_all'),
-      shortcut: 'Ctrl+A',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_SELECT_ALL),
       onClick: () => nodeMode
         ? runNodeEditAction('select_all')
         : useProjectStore.getState().selectAllObjects(),
+    },
+    {
+      type: 'submenu',
+      id: 'select-similar',
+      label: t('selection.select_similar'),
+      disabled: !ctx.hasSelection,
+      children: [
+        ['layer', 'same_layer', APP_COMMANDS.EDIT_SELECT_SIMILAR_LAYER],
+        ['type', 'same_type', APP_COMMANDS.EDIT_SELECT_SIMILAR_TYPE],
+        ['size', 'same_size', APP_COMMANDS.EDIT_SELECT_SIMILAR_SIZE],
+        ['operation', 'same_operation', APP_COMMANDS.EDIT_SELECT_SIMILAR_OPERATION],
+        ['circle_diameter', 'same_circle_diameter', APP_COMMANDS.EDIT_SELECT_SIMILAR_CIRCLE_DIAMETER],
+        ['open_closed', 'same_open_closed', APP_COMMANDS.EDIT_SELECT_SIMILAR_OPEN_CLOSED],
+      ].map(([kind, key, commandId]) => ({
+        id: `select-similar-${kind}`,
+        label: t(`selection.${key}`),
+        shortcut: shortcutFor(commandId),
+        onClick: () => useProjectStore.getState().selectSimilar(kind as import('../../utils/selectionSimilar').SimilarSelectionKind),
+      })),
     },
     ...(nodeMode
       ? [{
@@ -189,14 +213,14 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'group',
       label: t('context_menu.group'),
-      shortcut: 'Ctrl+G',
+      shortcut: shortcutFor(APP_COMMANDS.ARRANGE_GROUP),
       disabled: !ctx.canGroup,
       onClick: () => void useProjectStore.getState().groupObjects(ctx.selectedObjectIds),
     },
     {
       id: 'ungroup',
       label: t('context_menu.ungroup'),
-      shortcut: 'Ctrl+U',
+      shortcut: shortcutFor(APP_COMMANDS.ARRANGE_UNGROUP),
       disabled: !ctx.canUngroup,
       onClick: () => void useProjectStore.getState().ungroupObjects(ctx.selectedObjectIds[0]),
     },
@@ -243,14 +267,14 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'convert-path',
       label: t('context_menu.convert_to_path'),
-      shortcut: 'Ctrl+Shift+C',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_CONVERT_TO_PATH),
       disabled: !ctx.canConvertToPath,
       onClick: () => void useProjectStore.getState().convertToPath(ctx.selectedObjectIds[0]),
     },
     {
       id: 'convert-bitmap',
       label: t('context_menu.convert_to_bitmap'),
-      shortcut: 'Ctrl+Shift+B',
+      shortcut: shortcutFor(APP_COMMANDS.EDIT_CONVERT_TO_BITMAP),
       disabled: !ctx.canConvertToBitmap,
       onClick: () => void useProjectStore.getState().convertToBitmap(ctx.selectedObjectIds[0], 300),
     },
@@ -302,7 +326,7 @@ export function buildCanvasContextMenuItems(t: TFunction, ctx: SelectionContext,
     {
       id: 'preview',
       label: t('context_menu.preview'),
-      shortcut: 'Alt+P',
+      shortcut: shortcutFor(APP_COMMANDS.WINDOW_PREVIEW),
       onClick: () => usePreviewStore.getState().togglePreview(),
     },
     {

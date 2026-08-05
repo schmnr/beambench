@@ -17,6 +17,7 @@ import { ProjectNotesPanel } from '../components/panels/ProjectNotesPanel';
 import { OutlinerPanel } from '../components/panels/OutlinerPanel';
 import { INSPECTOR_CARD_CLASS } from '../components/shared/panelAppearance';
 import { getPanelTypeId } from './panelRegistry';
+import { usePanelHost } from './PanelHost';
 
 function CutsLayersContent() {
   const { t } = useTranslation();
@@ -25,8 +26,12 @@ function CutsLayersContent() {
 }
 
 function RunInspectorCard({ children }: { children: ReactNode }) {
+  const { orientation } = usePanelHost();
   return (
-    <div className={INSPECTOR_CARD_CLASS} data-testid="run-inspector-card">
+    <div
+      className={orientation === 'wide' ? 'bb-wide-inspector-card' : INSPECTOR_CARD_CLASS}
+      data-testid="run-inspector-card"
+    >
       {children}
     </div>
   );

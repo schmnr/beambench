@@ -233,6 +233,14 @@ pub struct DiagnosticConnectionEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub baud_rate: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vendor_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub product_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usb_driver: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -478,6 +486,10 @@ mod tests {
                 error_code: None,
                 port_name: Some("/Users/alice/dev/cu.usbserial".to_owned()),
                 baud_rate: Some(115200),
+                transport_kind: Some("serial".to_owned()),
+                vendor_id: None,
+                product_id: None,
+                usb_driver: None,
                 message: Some("Opening serial port".to_owned()),
                 error: None,
             }],

@@ -10,6 +10,7 @@ import {
   CameraOverlayStatus,
   CameraStillPreview,
 } from './CameraOverlayControls';
+import { usePanelHost } from '../../panels';
 
 /**
  * Camera panel content — extracted from CameraWindow for use inside
@@ -18,6 +19,7 @@ import {
  */
 export function CameraContent() {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
   const activeProfileId = useMachineStore((s) => s.activeProfileId);
   const project = useProjectStore((s) => s.project);
   const devices = useCameraStore((s) => s.devices) ?? [];
@@ -59,7 +61,10 @@ export function CameraContent() {
     : t('panels.machine.camera.no_camera');
 
   return (
-    <div className="p-3 text-xs space-y-3 overflow-y-auto">
+    <div className={orientation === 'wide'
+      ? 'bb-bottom-camera text-xs'
+      : 'space-y-3 overflow-y-auto p-3 text-xs'}>
+      <section className="space-y-2" data-camera-region="status">
       {/* Header with status + actions */}
       <div className="flex items-center justify-between gap-2">
         <div className="text-bb-text-muted">
@@ -108,12 +113,18 @@ export function CameraContent() {
 
       {/* Status grid */}
       <CameraOverlayStatus />
+      </section>
 
+      <section data-camera-region="preview">
       <CameraStillPreview frame={overlayState?.frame} />
+      </section>
+      <section className="space-y-2" data-camera-region="controls">
       <CameraOverlayControls />
       <CameraOverlaySetupControls controlsEnabled={cameraControlsEnabled} />
+      </section>
 
       {/* Action buttons */}
+      <section className="space-y-2" data-camera-region="actions">
       <div className="flex gap-1 flex-wrap">
         <button
           className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
@@ -149,6 +160,7 @@ export function CameraContent() {
           {t('panels.machine.camera.align_camera')}
         </button>
       </div>
+      </section>
 
       {showAlignmentDialog && selectedCameraId && (
         <CameraAlignmentDialog onClose={() => setShowAlignmentDialog(false)} />

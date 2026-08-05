@@ -23,23 +23,24 @@ export type CustomHotkeys = Record<string, string>;
 type CommandDefinition = Omit<CommandMetadata, 'labelKey' | 'groupKey'>;
 
 const COMMAND_DEFINITIONS: CommandDefinition[] = [
-  { id: APP_COMMANDS.APP_PREFERENCES, label: 'Settings', group: 'Edit', defaultHotkey: 'Ctrl+,', editable: false },
+  { id: APP_COMMANDS.APP_PREFERENCES, label: 'Settings', group: 'Edit', defaultHotkey: 'Ctrl+,', editable: true },
   { id: APP_COMMANDS.FILE_NEW, label: 'New', group: 'File', defaultHotkey: 'Ctrl+n', editable: true },
-  { id: APP_COMMANDS.FILE_OPEN, label: 'Open', group: 'File', defaultHotkey: 'Ctrl+o', editable: false },
+  { id: APP_COMMANDS.FILE_OPEN, label: 'Open', group: 'File', defaultHotkey: 'Ctrl+o', editable: true },
   { id: APP_COMMANDS.FILE_IMPORT, label: 'Import', group: 'File', defaultHotkey: 'Ctrl+i', editable: true },
-  { id: APP_COMMANDS.FILE_SAVE, label: 'Save', group: 'File', defaultHotkey: 'Ctrl+s', editable: false },
-  { id: APP_COMMANDS.FILE_SAVE_AS, label: 'Save As', group: 'File', defaultHotkey: 'Ctrl+Shift+s', editable: false },
+  { id: APP_COMMANDS.FILE_NOTES, label: 'Project Notes', group: 'File', defaultHotkey: 'Ctrl+Alt+n', editable: true },
+  { id: APP_COMMANDS.FILE_SAVE, label: 'Save', group: 'File', defaultHotkey: 'Ctrl+s', editable: true },
+  { id: APP_COMMANDS.FILE_SAVE_AS, label: 'Save As', group: 'File', defaultHotkey: 'Ctrl+Shift+s', editable: true },
   { id: APP_COMMANDS.FILE_EXPORT, label: 'Export', group: 'File', defaultHotkey: 'Alt+x', editable: true },
   { id: APP_COMMANDS.FILE_PRINT, label: 'Print...', group: 'File', defaultHotkey: 'Ctrl+p', editable: true },
   { id: APP_COMMANDS.FILE_PREFS_EDIT_HOTKEYS, label: 'Edit Hotkeys', group: 'Preferences', editable: false },
-  { id: APP_COMMANDS.APP_QUIT, label: 'Quit', group: 'App', defaultHotkey: 'Ctrl+q', editable: false },
+  { id: APP_COMMANDS.APP_QUIT, label: 'Quit', group: 'App', defaultHotkey: 'Ctrl+q', editable: true },
   { id: APP_COMMANDS.EDIT_UNDO, label: 'Undo', group: 'Edit', defaultHotkey: 'Ctrl+z', editable: true },
   { id: APP_COMMANDS.EDIT_REDO, label: 'Redo', group: 'Edit', defaultHotkey: 'Ctrl+Shift+z', editable: true },
   { id: APP_COMMANDS.EDIT_SELECT_ALL, label: 'Select All', group: 'Edit', defaultHotkey: 'Ctrl+a', editable: true },
   { id: APP_COMMANDS.EDIT_INVERT_SELECTION, label: 'Invert Selection', group: 'Edit', defaultHotkey: 'Ctrl+Shift+i', editable: true },
-  { id: APP_COMMANDS.EDIT_CUT, label: 'Cut', group: 'Edit', defaultHotkey: 'Ctrl+x', editable: false },
-  { id: APP_COMMANDS.EDIT_COPY, label: 'Copy', group: 'Edit', defaultHotkey: 'Ctrl+c', editable: false },
-  { id: APP_COMMANDS.EDIT_PASTE, label: 'Paste', group: 'Edit', defaultHotkey: 'Ctrl+v', editable: false },
+  { id: APP_COMMANDS.EDIT_CUT, label: 'Cut', group: 'Edit', defaultHotkey: 'Ctrl+x', editable: true },
+  { id: APP_COMMANDS.EDIT_COPY, label: 'Copy', group: 'Edit', defaultHotkey: 'Ctrl+c', editable: true },
+  { id: APP_COMMANDS.EDIT_PASTE, label: 'Paste', group: 'Edit', defaultHotkey: 'Ctrl+v', editable: true },
   { id: APP_COMMANDS.EDIT_PASTE_IN_PLACE, label: 'Paste in Place', group: 'Edit', defaultHotkey: 'Alt+v', editable: true },
   { id: APP_COMMANDS.EDIT_DUPLICATE, label: 'Duplicate', group: 'Edit', defaultHotkey: 'Ctrl+d', editable: true },
   { id: APP_COMMANDS.EDIT_DELETE, label: 'Delete', group: 'Edit', defaultHotkey: 'Backspace', editable: true },
@@ -58,6 +59,12 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER, label: 'Select All Shapes in Current Layer', group: 'Edit', editable: true },
   { id: APP_COMMANDS.EDIT_SELECT_CONTAINED_SHAPES, label: 'Select Contained Shapes', group: 'Edit', editable: true },
   { id: APP_COMMANDS.EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED, label: 'Select Shapes Smaller Than Selected', group: 'Edit', editable: true },
+  { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_LAYER, label: 'Select Similar: Same Layer', group: 'Edit', editable: true },
+  { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_TYPE, label: 'Select Similar: Same Type', group: 'Edit', editable: true },
+  { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_SIZE, label: 'Select Similar: Same Size', group: 'Edit', editable: true },
+  { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_OPERATION, label: 'Select Similar: Same Operation', group: 'Edit', editable: true },
+  { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_CIRCLE_DIAMETER, label: 'Select Similar: Same Circle Diameter', group: 'Edit', editable: true },
+  { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_OPEN_CLOSED, label: 'Select Similar: Same Open/Closed State', group: 'Edit', editable: true },
   { id: APP_COMMANDS.EDIT_IMAGE_REFRESH, label: 'Refresh Image', group: 'Edit', editable: true },
   { id: APP_COMMANDS.EDIT_IMAGE_REPLACE, label: 'Replace Image', group: 'Edit', editable: true },
   { id: APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT, label: 'Replace Image to Fit', group: 'Edit', editable: true },
@@ -72,7 +79,7 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.TOOLS_OCTAGON, label: 'Octagon', group: 'Tools', editable: true },
   { id: APP_COMMANDS.TOOLS_STAR, label: 'Star', group: 'Tools', editable: true },
   { id: APP_COMMANDS.TOOLS_DUAL_STAR, label: 'Dual Star', group: 'Tools', editable: true },
-  { id: APP_COMMANDS.TOOLS_TABS, label: 'Add Tabs', group: 'Tools', defaultHotkey: 'Ctrl+Tab', editable: true },
+  { id: APP_COMMANDS.TOOLS_TABS, label: 'Add Tabs', group: 'Tools', defaultHotkey: 'Alt+Shift+t', editable: true },
   { id: APP_COMMANDS.TOOLS_TRIM, label: 'Trim Shapes', group: 'Tools', defaultHotkey: 'Ctrl+k', editable: true },
   { id: APP_COMMANDS.TOOLS_TEXT, label: 'Edit Text', group: 'Tools', defaultHotkey: 'Ctrl+t', editable: true },
   { id: APP_COMMANDS.TOOLS_POSITION_LASER, label: 'Position Laser', group: 'Tools', defaultHotkey: 'Ctrl+Shift+l', editable: true },
@@ -80,9 +87,9 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.TOOLS_BARCODE, label: 'Create Bar Code', group: 'Tools', editable: true },
   { id: APP_COMMANDS.TOOLS_OFFSET, label: 'Offset Shapes', group: 'Tools', defaultHotkey: 'Alt+o', editable: true },
   { id: APP_COMMANDS.TOOLS_BOOLEAN_WELD, label: 'Weld Shapes', group: 'Tools', defaultHotkey: 'Ctrl+w', editable: true },
-  { id: APP_COMMANDS.TOOLS_BOOLEAN_UNION, label: 'Boolean Union', group: 'Tools', defaultHotkey: 'Alt++', editable: true },
+  { id: APP_COMMANDS.TOOLS_BOOLEAN_UNION, label: 'Boolean Union', group: 'Tools', defaultHotkey: 'Alt+Shift+u', editable: true },
   { id: APP_COMMANDS.TOOLS_BOOLEAN_SUBTRACT, label: 'Boolean Subtract', group: 'Tools', defaultHotkey: 'Alt+-', editable: true },
-  { id: APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION, label: 'Boolean Intersection', group: 'Tools', defaultHotkey: 'Alt+*', editable: true },
+  { id: APP_COMMANDS.TOOLS_BOOLEAN_INTERSECTION, label: 'Boolean Intersection', group: 'Tools', defaultHotkey: 'Alt+Shift+i', editable: true },
   { id: APP_COMMANDS.TOOLS_BOOLEAN_ASSISTANT, label: 'Boolean Assistant', group: 'Tools', defaultHotkey: 'Ctrl+b', editable: true },
   { id: APP_COMMANDS.TOOLS_CUT_SHAPES, label: 'Cut Shapes', group: 'Tools', defaultHotkey: 'Alt+Shift+c', editable: true },
   { id: APP_COMMANDS.TOOLS_ADJUST_IMAGE, label: 'Adjust Image', group: 'Tools', defaultHotkey: 'Alt+i', editable: true },
@@ -153,6 +160,9 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.ARRANGE_LOCK, label: 'Lock Selected Shapes', group: 'Arrange', editable: true },
   { id: APP_COMMANDS.ARRANGE_UNLOCK, label: 'Unlock Selected Shapes', group: 'Arrange', editable: true },
   { id: APP_COMMANDS.FILE_SAVE_MACHINE_FILES, label: 'Save Machine Files', group: 'Laser Tools', defaultHotkey: 'Alt+Shift+l', editable: true },
+  { id: APP_COMMANDS.VIEW_TOGGLE_GRID, label: 'Grid', group: 'View', defaultHotkey: 'g', editable: true },
+  { id: APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_GRID, label: 'Snap to Grid', group: 'View', defaultHotkey: 'Ctrl+Shift+g', editable: true },
+  { id: APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_OBJECTS, label: 'Snap to Objects', group: 'View', editable: true },
   { id: APP_COMMANDS.LASER_MATERIAL_TEST, label: 'Material Test', group: 'Laser Tools', editable: false },
   { id: APP_COMMANDS.LASER_FOCUS_TEST, label: 'Focus Test', group: 'Laser Tools', editable: false },
   { id: APP_COMMANDS.LASER_INTERVAL_TEST, label: 'Interval Test', group: 'Laser Tools', editable: false },
@@ -169,6 +179,9 @@ const COMMAND_DEFINITIONS: CommandDefinition[] = [
   { id: APP_COMMANDS.WINDOW_SMOOTH_EDGES, label: 'Smooth Edges', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME, label: 'Toggle Operation / Wireframe', group: 'Window', defaultHotkey: 'Alt+Shift+w', editable: true },
   { id: APP_COMMANDS.WINDOW_SIDE_PANELS, label: 'Side Panels', group: 'Window', defaultHotkey: 'F12', editable: true },
+  { id: APP_COMMANDS.WINDOW_ACTIVATE_LAYERS, label: 'Activate Layers', group: 'Window', defaultHotkey: 'Alt+1', editable: true },
+  { id: APP_COMMANDS.WINDOW_ACTIVATE_PROPERTIES, label: 'Activate Properties', group: 'Window', defaultHotkey: 'Alt+2', editable: true },
+  { id: APP_COMMANDS.WINDOW_ACTIVATE_OUTLINER, label: 'Activate Outliner', group: 'Window', defaultHotkey: 'Alt+3', editable: true },
   { id: APP_COMMANDS.WINDOW_PANEL_ART_LIBRARY, label: 'Art Library', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_CAMERA_CONTROL, label: 'Camera Control', group: 'Window', editable: false },
   { id: APP_COMMANDS.WINDOW_PANEL_CONSOLE, label: 'Console', group: 'Window', editable: false },
@@ -196,6 +209,9 @@ const COMMAND_LABEL_KEY_OVERRIDES: Partial<Record<AppCommandId, string>> = {
   [APP_COMMANDS.LASER_MATERIAL_TEST]: 'dialog.material_test.title',
   [APP_COMMANDS.LASER_FOCUS_TEST]: 'dialog.focus_test.title',
   [APP_COMMANDS.LASER_INTERVAL_TEST]: 'dialog.interval_test.title',
+  [APP_COMMANDS.WINDOW_ACTIVATE_LAYERS]: 'commands.activate_layers',
+  [APP_COMMANDS.WINDOW_ACTIVATE_PROPERTIES]: 'commands.activate_properties',
+  [APP_COMMANDS.WINDOW_ACTIVATE_OUTLINER]: 'commands.activate_outliner',
 };
 
 const COMMAND_GROUP_KEYS: Record<string, string> = {
@@ -207,6 +223,7 @@ const COMMAND_GROUP_KEYS: Record<string, string> = {
   'Laser Tools': 'menus.laser_tools.label',
   Preferences: 'menus.file.preferences',
   Tools: 'menus.tools.label',
+  View: 'menus.view.label',
   Window: 'menus.window.label',
 };
 
@@ -231,7 +248,7 @@ const CONVENTIONALLY_RESERVED_HOTKEYS = new Set(
     .filter((spec): spec is string => spec !== null),
 );
 
-let cachedSignature = '';
+let cachedSignature: string | null = null;
 let cachedParsedHotkeys = new Map<AppCommandId, ParsedHotkey>();
 
 function signature(customHotkeys: CustomHotkeys): string {

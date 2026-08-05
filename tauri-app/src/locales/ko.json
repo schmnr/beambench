@@ -24,6 +24,8 @@
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
     "refresh_usb_devices": "Refresh USB devices",
+    "lihuiyu_windows_driver_incompatible": "This controller is using the Windows USB driver {driver}. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list.",
+    "lihuiyu_windows_driver_tradeoff": "Changing the USB driver may prevent LaserDRW or other vendor software from using this controller until its original driver is restored.",
     "network_host": "Host",
     "tcp_port": "TCP port",
     "udp_port": "UDP port",
@@ -1054,7 +1056,12 @@
       "error_command_conflict": "{hotkey}는 이미 {command}에 속해 있습니다.",
       "error_macro_conflict": "{hotkey}는 이미 매크로 {macro}에 속해 있습니다.",
       "prompt": "{command}에 대한 새 단축키를 누르세요.",
-      "saved": "단축키가 업데이트되었습니다."
+      "saved": "단축키가 업데이트되었습니다.",
+      "function": "명령",
+      "current": "현재",
+      "default": "기본값",
+      "actions": "작업",
+      "reset": "재설정"
     },
     "boolean_assistant": {
       "title": "불리언 어시스턴트",
@@ -1640,6 +1647,7 @@
       "offset_outward": "바깥쪽 오프셋",
       "max_sub_layers_title": "최대 11개 하위 레이어에 도달했습니다",
       "add_sub_layer_title": "하위 레이어 추가",
+      "sub_layer": "하위 레이어",
       "add_sub_layer": "+ 하위 레이어 추가",
       "order_hint": "하위 레이어는 위에서 아래 순서로 실행됩니다."
     },
@@ -2495,6 +2503,7 @@
     "operation_failed_with_detail": "작업에 실패했습니다: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "workspace_edge_left": "왼쪽",
     "workspace_edge_right": "오른쪽",
     "workspace_edge_top": "위쪽",
@@ -2505,5 +2514,32 @@
   },
   "import": {
     "drop_to_import": "가져올 파일을 놓으세요"
+  },
+  "selection": {
+    "object": "Object",
+    "layer": "Layer",
+    "mode_replace": "Replace",
+    "mode_add": "Add",
+    "mode_toggle": "Toggle",
+    "mode_remove": "Remove",
+    "marquee_count": "{count} candidates · {mode}",
+    "overlap_title": "Choose overlapping object",
+    "topmost": "Top",
+    "overlap_hint": "Use ↑ ↓ and Enter · Esc closes",
+    "canvas": "Canvas",
+    "group": "Group",
+    "exit_isolation": "Exit group isolation",
+    "select_similar": "Select Similar",
+    "same_layer": "Same Layer",
+    "same_type": "Same Type",
+    "same_size": "Same Size",
+    "same_operation": "Same Operation",
+    "same_circle_diameter": "Same Circle Diameter",
+    "same_open_closed": "Same Open/Closed State"
+  },
+  "commands": {
+    "activate_layers": "레이어 활성화",
+    "activate_properties": "속성 활성화",
+    "activate_outliner": "아웃라이너 활성화"
   }
 }

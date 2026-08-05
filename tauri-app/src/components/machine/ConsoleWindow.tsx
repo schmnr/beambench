@@ -1,9 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useConsoleStore } from '../../stores/consoleStore';
+import { usePanelHost } from '../../panels';
 
 export function ConsoleWindow(): React.ReactElement {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
+  const wide = orientation === 'wide';
   const { entries, sendCommand, refreshLog, clearLog, historyUp, historyDown } =
     useConsoleStore();
   const logRef = React.useRef<HTMLDivElement>(null);
@@ -51,12 +54,12 @@ export function ConsoleWindow(): React.ReactElement {
   }
 
   return (
-    <div className="px-2 pb-2 flex flex-col gap-1">
+    <div className={wide ? 'flex h-full min-h-0 flex-col gap-1 p-2' : 'flex flex-col gap-1 px-2 pb-2'}>
       <div
         ref={logRef}
         onScroll={handleScroll}
         data-testid="console-log"
-        className="h-40 overflow-y-auto bg-bb-bg border border-bb-border rounded p-1 text-xs font-mono space-y-0.5"
+        className={`${wide ? 'min-h-0 flex-1' : 'h-40'} overflow-y-auto bg-bb-bg border border-bb-border rounded p-1 text-xs font-mono space-y-0.5`}
       >
         {(entries ?? []).map((entry, i) => (
           <div

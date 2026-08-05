@@ -35,6 +35,7 @@ import { wrapBackendError } from '../../i18n/errors';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
 import { speedInputValue, displaySpeedToMmMin, speedStepForUnit, speedUnitLabel, formatSpeedForDisplay } from '../../utils/speedUnits';
 import { useAppStore } from '../../stores/appStore';
+import { usePanelHost } from '../../panels';
 
 const STEP_SIZES = [0.1, 1, 10, 100] as const;
 const STEP_SIZES_IN = [0.005, 0.05, 0.5, 2] as const;
@@ -87,6 +88,7 @@ function axisReadout(value: number | undefined, displayUnit: 'mm' | 'inches') {
 }
 
 export function MovePanel(): React.ReactElement {
+  const { orientation } = usePanelHost();
   const { t } = useTranslation();
   const project = useProjectStore((s) => s.project);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
@@ -491,8 +493,10 @@ export function MovePanel(): React.ReactElement {
   ];
 
   return (
-    <div className="space-y-3.5 px-3 pb-3 text-xs text-bb-text">
-      <div className="space-y-2">
+    <div className={orientation === 'wide'
+      ? 'bb-bottom-move text-xs text-bb-text'
+      : 'space-y-3.5 px-3 pb-3 text-xs text-bb-text'}>
+      <div className="space-y-2" data-bottom-section="position">
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className={SECTION_HEADER}>{t('panels.move.machine_positioning')}</div>
@@ -556,7 +560,7 @@ export function MovePanel(): React.ReactElement {
         )}
       </div>
 
-      <div className={SECTION}>
+      <div className={SECTION} data-bottom-section="feed">
         <div className="flex items-center justify-between">
           <span className={SECTION_HEADER}>{t('panels.move.feed_rate')}</span>
           <span className="text-bb-text-muted">{formatSpeedForDisplay(moveFeedRate, displayUnit, speedTimeUnit)} {speedUnitLabel(displayUnit, speedTimeUnit)}</span>
@@ -571,7 +575,7 @@ export function MovePanel(): React.ReactElement {
         />
       </div>
 
-      <div className={SECTION}>
+      <div className={SECTION} data-bottom-section="goto">
         <div className={SECTION_HEADER}>{t('panels.move.go_to_position')}</div>
         <div className="grid grid-cols-2 gap-2">
           <NumberInput
@@ -621,7 +625,7 @@ export function MovePanel(): React.ReactElement {
         </div>
       </div>
 
-      <div className={SECTION}>
+      <div className={SECTION} data-bottom-section="jog">
         <div className={SECTION_HEADER}>{t('panels.move.jog')}</div>
         <div className="flex gap-3">
           <div className="grid grid-cols-3 gap-0.5 rounded bg-bb-bg p-1.5">
@@ -703,7 +707,7 @@ export function MovePanel(): React.ReactElement {
         )}
       </div>
 
-      <div className={SECTION}>
+      <div className={SECTION} data-bottom-section="saved">
         <div className="flex items-center justify-between">
           <span className={SECTION_HEADER}>{t('panels.move.saved_positions')}</span>
           <div className="flex gap-1">
@@ -745,7 +749,7 @@ export function MovePanel(): React.ReactElement {
         )}
       </div>
 
-      <div className={SECTION}>
+      <div className={SECTION} data-bottom-section="origin">
         <div className={SECTION_HEADER}>{t('panels.move.origin_finish')}</div>
         <div className="grid grid-cols-2 gap-1">
           <button className={BTN} disabled={!supportsAbsolutePositioning || !readyIdle || !hasProject} onClick={() => void setWorkOrigin()}>
@@ -767,7 +771,7 @@ export function MovePanel(): React.ReactElement {
         </div>
       </div>
 
-      <div className={SECTION}>
+      <div className={SECTION} data-bottom-section="selection">
         <button className={BTN + ' w-full'} disabled={!supportsAbsolutePositioning || !readyIdle || !hasSelection} onClick={() => void handleMoveLaserToSelection()}>
           <LocateFixed size={14} />
           {t('panels.move.laser_to_selection')}
@@ -776,7 +780,7 @@ export function MovePanel(): React.ReactElement {
       </div>
 
       {fireEnabled && manualFireSupported && (
-        <div className={FIRE_SECTION}>
+        <div className={FIRE_SECTION} data-bottom-section="safety">
           <button
             className={`inline-flex w-full items-center justify-center gap-1 rounded bg-bb-error px-2 py-1.5 text-xs font-semibold text-bb-on-error hover:bg-bb-error-hover disabled:cursor-default disabled:opacity-50 ${fireHeld ? 'animate-pulse shadow-[0_0_0_1px_rgba(239,68,68,0.45),0_0_18px_rgba(239,68,68,0.25)]' : ''}`}
             disabled={!readyIdle}
@@ -795,7 +799,7 @@ export function MovePanel(): React.ReactElement {
       )}
 
       {activeJob && overridesSupported && (
-        <div className={SECTION}>
+        <div className={SECTION} data-bottom-section="safety">
           <OverrideControls />
         </div>
       )}

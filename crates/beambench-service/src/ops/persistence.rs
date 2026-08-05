@@ -237,6 +237,36 @@ fn recovery_dir() -> ServiceResult<PathBuf> {
     Ok(config_dir.join("beam-bench").join("recovery"))
 }
 
+/// Remove the open project's autosave after an intentional application close.
+///
+/// Crash recovery files must survive abnormal termination, but a close that
+/// reaches Tauri's accepted `CloseRequested` path is deliberate — including
+/// when the user chose Don't Save. Leaving that autosave behind would make the
+/// next launch incorrectly offer to restore work the user explicitly discarded.
+pub fn discard_current_project_recovery(ctx: &ServiceContext) -> ServiceResult<bool> {
+    let dir = recovery_dir()?;
+    discard_current_project_recovery_from_dir(ctx, &dir)
+}
+
+fn discard_current_project_recovery_from_dir(
+    ctx: &ServiceContext,
+    dir: &Path,
+) -> ServiceResult<bool> {
+    let project_id = {
+        let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let Some(project) = project_guard.as_ref() else {
+            return Ok(false);
+        };
+        project.metadata.project_id
+    };
+    let recovery_path = dir.join(format!("{project_id}.lzrproj.recovery"));
+    let existed = recovery_path.exists();
+    discard_recovery(&recovery_path).map_err(|e| {
+        ServiceError::persistence(format!("Failed to discard recovery on clean shutdown: {e}"))
+    })?;
+    Ok(existed)
+}
+
 pub fn save_project_to_path(ctx: &ServiceContext, save_path: &Path) -> ServiceResult<String> {
     let project_id_str;
     {
@@ -497,6 +527,20 @@ mod tests {
         assert_eq!(found.len(), 1, "recovery scan must find the autosave");
         assert_eq!(found[0].project_name, "Autosave Test");
         assert_eq!(found[0].path, recovery_path);
+    }
+
+    #[test]
+    fn intentional_close_discards_current_project_recovery() {
+        let ctx = ServiceContext::new();
+        let project = Project::new("Discarded on Close");
+        let dir = tempdir().unwrap();
+        let recovery_path = beambench_project::save_recovery(&project, dir.path()).unwrap();
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let discarded = discard_current_project_recovery_from_dir(&ctx, dir.path()).unwrap();
+
+        assert!(discarded);
+        assert!(!recovery_path.exists());
     }
 
     #[test]

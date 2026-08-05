@@ -562,7 +562,7 @@ fn build_machine_diagnostics(
             firmware_type: profile_fields.firmware_type,
             controller_family: None,
             controller_model: None,
-            transport_kind: None,
+            transport_kind: last_port_event.and_then(|event| event.transport_kind.clone()),
             transfer_mode: profile_fields.transfer_mode,
             s_value_max: profile_fields.s_value_max,
             homing_enabled: profile_fields.homing_enabled,
@@ -576,8 +576,12 @@ fn build_machine_diagnostics(
                 .or_else(|| last_port_event.and_then(|event| event.baud_rate))
                 .or(profile_baud_rate),
             port_name,
-            port_vendor_id: port.and_then(|port| port.vendor_id.clone()),
-            port_product_id: port.and_then(|port| port.product_id.clone()),
+            port_vendor_id: port
+                .and_then(|port| port.vendor_id.clone())
+                .or_else(|| last_port_event.and_then(|event| event.vendor_id.clone())),
+            port_product_id: port
+                .and_then(|port| port.product_id.clone())
+                .or_else(|| last_port_event.and_then(|event| event.product_id.clone())),
             session_state: if waiting_for_choice {
                 DiagnosticSessionState::Connecting
             } else if failure.is_some() {
@@ -729,6 +733,15 @@ fn latest_connection_failure(
 }
 
 fn connection_failure_summary(event: &DiagnosticConnectionEvent) -> String {
+    if event.error_code.as_deref() == Some("lihuiyu_incompatible_windows_driver") {
+        let driver = event
+            .usb_driver
+            .as_deref()
+            .unwrap_or("an incompatible driver");
+        return format!(
+            "This Lihuiyu controller is using Windows USB driver {driver}. Beam Bench requires WinUSB for USB device 1a86:5512. Reconnect the controller and refresh the USB list after changing the driver."
+        );
+    }
     if event.error_code.as_deref() == Some("serial_port_unavailable")
         || event
             .error
@@ -850,7 +863,20 @@ fn known_issues_for(
         .collect::<Vec<_>>();
 
     if let Some(failure) = latest_connection_failure(connection_events)
+        && failure.error_code.as_deref() == Some("lihuiyu_incompatible_windows_driver")
+    {
+        issues.retain(|issue| issue.code != "no_grbl_response");
+        issues.insert(
+            0,
+            KnownIssueWarning {
+                code: "lihuiyu_incompatible_windows_driver".to_owned(),
+                severity: "warning".to_owned(),
+                message: connection_failure_summary(failure),
+            },
+        );
+    } else if let Some(failure) = latest_connection_failure(connection_events)
         && failure.stage == "open_failed"
+        && failure.transport_kind.as_deref() != Some("usb")
     {
         issues.retain(|issue| issue.code != "no_grbl_response");
         issues.insert(
@@ -1139,6 +1165,43 @@ mod tests {
                 .known_issues
                 .iter()
                 .any(|issue| issue.code == "serial_port_unavailable")
+        );
+    }
+
+    #[test]
+    fn preview_preserves_incompatible_lihuiyu_windows_driver_diagnostics() {
+        let ctx = ServiceContext::new();
+        ctx.push_usb_connection_event(
+            "open_failed",
+            "usb-bus-PCIROOT(0)-ports-1".to_owned(),
+            0x1a86,
+            0x5512,
+            Some("CH341PAR".to_owned()),
+            None,
+            Some("lihuiyu_incompatible_windows_driver".to_owned()),
+            Some("[lihuiyu_incompatible_windows_driver] Beam Bench requires WinUSB".to_owned()),
+        );
+
+        let bundle = preview_feedback_report(&ctx, bug_input()).unwrap();
+
+        assert_eq!(bundle.machine.transport_kind.as_deref(), Some("usb"));
+        assert_eq!(bundle.machine.port_vendor_id.as_deref(), Some("0x1a86"));
+        assert_eq!(bundle.machine.port_product_id.as_deref(), Some("0x5512"));
+        assert_eq!(
+            bundle.connection_events[0].usb_driver.as_deref(),
+            Some("CH341PAR")
+        );
+        assert_eq!(
+            bundle.connection_events[0].error_code.as_deref(),
+            Some("lihuiyu_incompatible_windows_driver")
+        );
+        assert!(
+            bundle
+                .known_issues
+                .iter()
+                .any(|issue| issue.code == "lihuiyu_incompatible_windows_driver"
+                    && issue.message.contains("CH341PAR")
+                    && issue.message.contains("WinUSB"))
         );
     }
 

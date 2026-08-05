@@ -24,6 +24,8 @@
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
     "refresh_usb_devices": "Refresh USB devices",
+    "lihuiyu_windows_driver_incompatible": "This controller is using the Windows USB driver {driver}. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list.",
+    "lihuiyu_windows_driver_tradeoff": "Changing the USB driver may prevent LaserDRW or other vendor software from using this controller until its original driver is restored.",
     "network_host": "Host",
     "tcp_port": "TCP port",
     "udp_port": "UDP port",
@@ -1054,7 +1056,12 @@
       "error_command_conflict": "A {hotkey} már a {command}-hez tartozik.",
       "error_macro_conflict": "A {hotkey} már a {macro} makróhoz tartozik.",
       "prompt": "Nyomjon meg egy új gyorsbillentyűt a {command} számára.",
-      "saved": "A gyorsbillentyűk frissítve."
+      "saved": "A gyorsbillentyűk frissítve.",
+      "function": "Parancs",
+      "current": "Jelenlegi",
+      "default": "Alapértelmezett",
+      "actions": "Műveletek",
+      "reset": "Visszaállítás"
     },
     "boolean_assistant": {
       "title": "Boole-asszisztens",
@@ -1640,6 +1647,7 @@
       "offset_outward": "Eltolás kifelé",
       "max_sub_layers_title": "Elérte a 11 alréteges maximumot",
       "add_sub_layer_title": "Alréteg hozzáadása",
+      "sub_layer": "Alréteg",
       "add_sub_layer": "+ Alréteg hozzáadása",
       "order_hint": "Az alrétegek sorrendben futnak, fentről lefelé."
     },
@@ -2495,6 +2503,7 @@
     "operation_failed_with_detail": "A művelet sikertelen: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "workspace_edge_left": "bal",
     "workspace_edge_right": "jobb",
     "workspace_edge_top": "felső",
@@ -2505,5 +2514,32 @@
   },
   "import": {
     "drop_to_import": "Húzd ide a fájlokat az importáláshoz"
+  },
+  "selection": {
+    "object": "Object",
+    "layer": "Layer",
+    "mode_replace": "Replace",
+    "mode_add": "Add",
+    "mode_toggle": "Toggle",
+    "mode_remove": "Remove",
+    "marquee_count": "{count} candidates · {mode}",
+    "overlap_title": "Choose overlapping object",
+    "topmost": "Top",
+    "overlap_hint": "Use ↑ ↓ and Enter · Esc closes",
+    "canvas": "Canvas",
+    "group": "Group",
+    "exit_isolation": "Exit group isolation",
+    "select_similar": "Select Similar",
+    "same_layer": "Same Layer",
+    "same_type": "Same Type",
+    "same_size": "Same Size",
+    "same_operation": "Same Operation",
+    "same_circle_diameter": "Same Circle Diameter",
+    "same_open_closed": "Same Open/Closed State"
+  },
+  "commands": {
+    "activate_layers": "Rétegek aktiválása",
+    "activate_properties": "Tulajdonságok aktiválása",
+    "activate_outliner": "Körvonal aktiválása"
   }
 }

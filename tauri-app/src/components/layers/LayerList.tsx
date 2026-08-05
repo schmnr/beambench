@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { projectService } from '../../services/projectService';
-import { SubLayerStack } from '../properties/SubLayerStack';
+import { SubLayerModeControl, SubLayerStack } from '../properties/SubLayerStack';
 import { CheckSquare, Eye, EyeOff, Layers3, Lock, ClipboardCopy, ClipboardPaste, Trash2, Zap, ZapOff } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { TextInput } from '../shared/TextInput';
@@ -21,9 +21,12 @@ import {
 } from '../shared/panelAppearance';
 import { layerFillOpacity, layerUsesFilledAppearance } from '../../utils/layerAppearance';
 import { displayLayerName } from './layerNaming';
+import { usePanelHost } from '../../panels';
 
 export function LayerList() {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
+  const wide = orientation === 'wide';
   const layers = useProjectStore((s) => s.project?.layers ?? []);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const updateLayer = useProjectStore((s) => s.updateLayer);
@@ -40,6 +43,7 @@ export function LayerList() {
   const [colorPicker, setColorPicker] = useState<{ x: number; y: number } | null>(null);
   const [layerNameDraft, setLayerNameDraft] = useState('');
   const [fillOpacityPercentDraft, setFillOpacityPercentDraft] = useState(100);
+  const [activeCutEntryId, setActiveCutEntryId] = useState<string | null>(null);
 
   const selectedLayer = layers.find((l) => l.id === selectedLayerId) ?? null;
   const activeLayer = selectedLayer ?? layers[0] ?? null;
@@ -48,6 +52,9 @@ export function LayerList() {
   const usesFilledAppearance = activeLayer ? layerUsesFilledAppearance(activeLayer) : false;
   const activeLayerDisplayName = activeLayer ? displayLayerName(activeLayer) : '';
   const activeLayerFillOpacityPercent = Math.round(activeLayer ? layerFillOpacity(activeLayer) * 100 : 100);
+  const activeLayerEntryId = activeLayer?.entries.some((entry) => entry.id === activeCutEntryId)
+    ? activeCutEntryId
+    : activeLayer?.entries[0]?.id ?? null;
 
   useEffect(() => {
     setLayerNameDraft(activeLayerDisplayName);
@@ -112,10 +119,10 @@ export function LayerList() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className={wide ? 'h-full min-h-0' : 'flex flex-col'}>
       {/* ── LAYER ─────────────────────────────────────────────── */}
       {activeLayer && (
-        <div className={INSPECTOR_CARD_CLASS} data-testid="layer-block">
+        <div className={wide ? 'bb-wide-layer-card' : INSPECTOR_CARD_CLASS} data-testid="layer-block">
           <div className={INSPECTOR_TITLE_BAR_CLASS} data-testid="layer-title-bar">
             <Layers3 size={14} className={INSPECTOR_TITLE_BAR_ICON_CLASS} />
             <span className={INSPECTOR_TITLE_BAR_LABEL_CLASS}>
@@ -220,7 +227,7 @@ export function LayerList() {
             </div>
           </div>
 
-          <div className="px-3 py-2.5">
+          <div className="px-3 py-2.5" data-layer-summary>
           <TextInput
             label={t('panels.properties.name')}
             value={layerNameDraft}
@@ -274,7 +281,15 @@ export function LayerList() {
             </div>
           </div>
 
-          <div className={`mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="layer-output-show-help">
+          {wide && !activeLayer.is_tool_layer && (
+            <SubLayerModeControl
+              layerId={activeLayer.id}
+              entryId={activeLayerEntryId}
+              className="mt-2.5"
+            />
+          )}
+
+          <div className={`mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`} data-layer-helper data-testid="layer-output-show-help">
             {activeLayer.is_tool_layer
               ? t('panels.layers.tool_layer_help', {
                 defaultValue: 'Tool layers are guides and never produce laser output.',
@@ -296,7 +311,7 @@ export function LayerList() {
                 onCommit={(value) => void commitFillOpacity(value)}
                 testId="layer-fill-opacity"
               />
-              <div className={`mt-1 ${INSPECTOR_HELP_TEXT_CLASS}`}>
+              <div className={`mt-1 ${INSPECTOR_HELP_TEXT_CLASS}`} data-layer-helper>
                 {t('panels.layers.opacity_help', {
                   defaultValue: 'Canvas preview only. This does not change laser power or image processing.',
                 })}
@@ -309,13 +324,17 @@ export function LayerList() {
           {/* Cut settings — flat for a single sub-layer; the stacked
               sub-layer UI only appears once a second one exists. */}
           {!activeLayer.is_tool_layer && (
-            <div className="border-t border-bb-border px-3 py-2.5">
+            <div className="border-t border-bb-border px-3 py-2.5" data-layer-process>
               {activeLayer.entries.length > 1 && (
                 <div className={`${INSPECTOR_SECTION_HEADER_CLASS} pb-2`}>
                   {t('panels.sub_layer_stack.title')}
                 </div>
               )}
-              <SubLayerStack layerId={activeLayer.id} />
+              <SubLayerStack
+                layerId={activeLayer.id}
+                activeEntryId={wide ? activeLayerEntryId : undefined}
+                onActiveEntryChange={wide ? setActiveCutEntryId : undefined}
+              />
             </div>
           )}
         </div>

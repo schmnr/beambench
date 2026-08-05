@@ -58,6 +58,8 @@ import { ZOOM_FACTOR, MIN_ZOOM, MAX_ZOOM, DARK_THEME, LIGHT_THEME, RULER_SIZE } 
 import { ContextMenu } from '../shared/ContextMenu';
 import { useCanvasContextMenu } from './useCanvasContextMenu';
 import { TextEditOverlay } from './TextEditOverlay';
+import { SelectionPickerPopover } from './SelectionPickerPopover';
+import { SelectionIsolationBreadcrumb } from './SelectionIsolationBreadcrumb';
 import { cancelPendingGuidePathSelection } from './guidePathCancel';
 import { exitStartPointPickMode } from './startPointPick';
 import {
@@ -142,6 +144,8 @@ type CameraOverlayAdjustDrag = {
   preDragDirty: boolean;
 };
 
+type SelectionPickerState = { x: number; y: number; objectIds: string[] } | null;
+
 export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const baseCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -211,6 +215,8 @@ export function Canvas() {
   const snapToObjects = useUiStore((s) => s.snapToObjects);
   const gridSpacingMm = useUiStore((s) => s.gridSpacingMm);
   const flashedLayerId = useUiStore((s) => s.flashedLayerId);
+  const selectionIsolationPath = useUiStore((s) => s.selectionIsolationPath);
+  const setSelectionIsolationPath = useUiStore((s) => s.setSelectionIsolationPath);
   const setZoom = useUiStore((s) => s.setZoom);
   const setViewportOffset = useUiStore((s) => s.setViewportOffset);
   const zoomToFit = useUiStore((s) => s.zoomToFit);
@@ -275,6 +281,14 @@ export function Canvas() {
     kind: 'none',
     objectIds: [],
   });
+  const [selectionPicker, setSelectionPicker] = useState<SelectionPickerState>(null);
+
+  useEffect(() => {
+    if (!project || selectionIsolationPath.length === 0) return;
+    const validIds = new Set(project.objects.filter((object) => object.data.type === 'group').map((object) => object.id));
+    const validPath = selectionIsolationPath.filter((id) => validIds.has(id));
+    if (validPath.length !== selectionIsolationPath.length) setSelectionIsolationPath(validPath);
+  }, [project, selectionIsolationPath, setSelectionIsolationPath]);
 
   // Start-point pick mode state
   const [startPointVertices, setStartPointVertices] = useState<
@@ -680,6 +694,7 @@ export function Canvas() {
       previewState,
       previewManualRefreshRequired: manualRefreshRequired,
       selectionDashOffset: dashOffsetRef.current,
+      selectionIsolationObjectId: selectionIsolationPath[selectionIsolationPath.length - 1] ?? null,
       showLastPosition,
       laserPosition,
       skipObjectId: textEditObjectId,
@@ -711,6 +726,7 @@ export function Canvas() {
     settings?.display_unit,
     flashedLayerId,
     interactionState,
+    selectionIsolationPath,
     prepareCanvas,
     buildEffectiveOverlay,
   ]);
@@ -752,6 +768,7 @@ export function Canvas() {
       previewState,
       previewManualRefreshRequired: manualRefreshRequired,
       selectionDashOffset: dashOffsetRef.current,
+      selectionIsolationObjectId: selectionIsolationPath[selectionIsolationPath.length - 1] ?? null,
       showLastPosition,
       laserPosition,
       skipObjectId: textEditObjectId,
@@ -801,6 +818,7 @@ export function Canvas() {
     settings?.display_unit,
     flashedLayerId,
     interactionState,
+    selectionIsolationPath,
     prepareCanvas,
     buildEffectiveOverlay,
   ]);
@@ -1001,10 +1019,13 @@ export function Canvas() {
       layers:
         project?.layers.map((l) => ({
           id: l.id,
+          name: l.name,
+          color_tag: l.color_tag,
           enabled: l.enabled,
           visible: l.visible,
           operation: l.entries[0]?.operation ?? 'line',
         })) ?? [],
+      selectionIsolationPath,
       // TransformLocks is non-optional; default to all-enabled per backend Default impl.
       transformLocks: selectionTransformLocks,
       readOnly: workspaceMode === 'run',
@@ -1024,6 +1045,9 @@ export function Canvas() {
       },
       requestRender,
       requestOverlayRender,
+      setSelectionIsolationPath,
+      openSelectionPicker: (screen, objectIds) => setSelectionPicker({ x: screen.x, y: screen.y, objectIds }),
+      closeSelectionPicker: () => setSelectionPicker(null),
     };
   }, [
     vp,
@@ -1046,6 +1070,8 @@ export function Canvas() {
     setCursorWorldPos,
     requestRender,
     requestOverlayRender,
+    selectionIsolationPath,
+    setSelectionIsolationPath,
   ]);
 
   const processPointerMove = useCallback(
@@ -1528,7 +1554,8 @@ export function Canvas() {
 
   const handleMouseLeave = useCallback(() => {
     setCursorWorldPos(null);
-  }, [setCursorWorldPos]);
+    tool.onMouseLeave?.(buildToolContext());
+  }, [buildToolContext, setCursorWorldPos, tool]);
 
   // Right-click during an active left-drag must cancel the drag the same way
   // Escape does (restore original bounds/transforms, reset tool state) before
@@ -1925,6 +1952,39 @@ export function Canvas() {
         onContextMenu={handleCanvasContextMenu}
       />
       <TextEditOverlay vp={vp} />
+      {project && (
+        <SelectionIsolationBreadcrumb
+          path={selectionIsolationPath}
+          objects={project.objects}
+          onNavigate={(depth) => {
+            setSelectionIsolationPath(selectionIsolationPath.slice(0, depth));
+            selectObjects([]);
+            requestRender();
+          }}
+          onExit={() => {
+            setSelectionIsolationPath([]);
+            selectObjects([]);
+            requestRender();
+          }}
+        />
+      )}
+      {selectionPicker && project && (
+        <SelectionPickerPopover
+          x={selectionPicker.x}
+          y={selectionPicker.y}
+          objectIds={selectionPicker.objectIds}
+          objects={project.objects}
+          layers={project.layers}
+          viewportWidth={width}
+          viewportHeight={height}
+          onSelect={(objectId) => {
+            selectObjects([objectId]);
+            setSelectionPicker(null);
+            requestRender();
+          }}
+          onClose={() => setSelectionPicker(null)}
+        />
+      )}
       {menuState.visible && (
         <ContextMenu x={menuState.x} y={menuState.y} items={menuState.items} onClose={closeMenu} />
       )}

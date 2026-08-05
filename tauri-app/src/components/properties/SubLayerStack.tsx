@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RotateCcw, Wind } from 'lucide-react';
+import { usePanelHost } from '../../panels';
 import { useProjectStore } from '../../stores/projectStore';
 import { useMachineStore } from '../../stores/machineStore';
 import { useAppStore } from '../../stores/appStore';
@@ -187,14 +188,64 @@ function OffsetFillModeGraphic() {
   );
 }
 
-interface SubLayerStackProps {
+interface SubLayerModeControlProps {
   layerId: string;
+  entryId: string | null;
+  className?: string;
 }
 
-export function SubLayerStack({ layerId }: SubLayerStackProps) {
+export function SubLayerModeControl({ layerId, entryId, className = '' }: SubLayerModeControlProps) {
   const { t } = useTranslation();
   const layer = useProjectStore((s) => s.project?.layers.find((candidate) => candidate.id === layerId) ?? null);
   const projectObjects = useProjectStore((s) => s.project?.objects ?? []);
+  const updateCutEntry = useProjectStore((s) => s.updateCutEntry);
+  const entry = layer?.entries.find((candidate) => candidate.id === entryId) ?? null;
+
+  if (!layer || !entry) return null;
+
+  const modeOptions: Array<{ value: OperationType; label: string }> = [
+    { value: OPERATION_LINE, label: t('panels.sub_layer_stack.operation_line') },
+    { value: OPERATION_FILL, label: t('panels.sub_layer_stack.operation_fill') },
+    { value: OPERATION_OFFSET_FILL, label: t('panels.sub_layer_stack.operation_offset_fill') },
+  ];
+  if (layerHasRasterObjects(layerId, projectObjects) || entry.operation === OPERATION_IMAGE) {
+    modeOptions.push({ value: OPERATION_IMAGE, label: t('panels.sub_layer_stack.operation_image') });
+  }
+
+  return (
+    <div className={`flex items-center gap-2 ${className}`} data-testid="sub-layer-mode-control">
+      <label className="shrink-0 text-xs text-bb-text-dim">{t('panels.sub_layer_stack.mode')}</label>
+      <select
+        className="min-w-0 flex-1 rounded border border-bb-border bg-bb-input px-2 py-1 text-xs text-bb-text"
+        value={displayModeValue(entry.operation)}
+        onChange={(event) =>
+          void updateCutEntry(
+            layer.id,
+            entry.id,
+            buildOperationPatch(entry, event.target.value as OperationType),
+          )
+        }
+      >
+        {modeOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+interface SubLayerStackProps {
+  layerId: string;
+  activeEntryId?: string | null;
+  onActiveEntryChange?: (entryId: string | null) => void;
+}
+
+export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: SubLayerStackProps) {
+  const { t } = useTranslation();
+  const { orientation } = usePanelHost();
+  const layer = useProjectStore((s) => s.project?.layers.find((candidate) => candidate.id === layerId) ?? null);
   const activeProfile = useMachineStore((s) =>
     (s.profiles ?? []).find((profile) => profile.id === s.activeProfileId) ?? null,
   );
@@ -216,11 +267,17 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
   const expandedId = useMemo(() => {
     if (!layer) return null;
     const entries = layer.entries ?? [];
-    if (expandedEntryId && entries.some((entry) => entry.id === expandedEntryId)) {
-      return expandedEntryId;
+    const requestedEntryId = activeEntryId ?? expandedEntryId;
+    if (requestedEntryId && entries.some((entry) => entry.id === requestedEntryId)) {
+      return requestedEntryId;
     }
     return entries[0]?.id ?? null;
-  }, [expandedEntryId, layer]);
+  }, [activeEntryId, expandedEntryId, layer]);
+
+  const setActiveEntry = (entryId: string | null) => {
+    setExpandedEntryId(entryId);
+    onActiveEntryChange?.(entryId);
+  };
 
   if (!layer) {
     return null;
@@ -238,8 +295,6 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
   }
 
   const entries = layer.entries;
-  const supportsImageMode = layerHasRasterObjects(layerId, projectObjects);
-
   return (
     <div className="flex flex-col gap-2">
       {entries.length > 1 && (
@@ -256,7 +311,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 ? 'border-bb-accent bg-bb-accent/20 text-bb-text'
                 : 'border-bb-border bg-bb-bg text-bb-text-muted hover:bg-bb-hover'
             }`}
-            onClick={() => setExpandedEntryId(entry.id)}
+            onClick={() => setActiveEntry(entry.id)}
             data-testid={`sub-layer-tab-${index}`}
           >
             {index + 1}. {modeLabel(entry.operation, t)}
@@ -280,14 +335,6 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
           (entry.operation === OPERATION_IMAGE && entry.raster_settings?.mode === RASTER_MODE_GRAYSCALE);
         const showZOffset = activeProfile?.supports_z_moves === true;
         const groupingMode = entry.vector_settings?.offset_fill_grouping_mode ?? GROUP_ALL_SHAPES;
-        const modeOptions: Array<{ value: OperationType; label: string }> = [
-          { value: OPERATION_LINE, label: t('panels.sub_layer_stack.operation_line') },
-          { value: OPERATION_FILL, label: t('panels.sub_layer_stack.operation_fill') },
-          { value: OPERATION_OFFSET_FILL, label: t('panels.sub_layer_stack.operation_offset_fill') },
-        ];
-        if (supportsImageMode || entry.operation === OPERATION_IMAGE) {
-          modeOptions.push({ value: OPERATION_IMAGE, label: t('panels.sub_layer_stack.operation_image') });
-        }
 
         return (
           <div
@@ -304,7 +351,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
               <button
                 type="button"
                 className="text-xs text-bb-text-dim hover:text-bb-text"
-                onClick={() => setExpandedEntryId(expanded ? null : entry.id)}
+                onClick={() => setActiveEntry(expanded ? null : entry.id)}
                 data-testid={`sub-layer-expand-${entry.id}`}
               >
                 {expanded ? EXPANDED_ICON : COLLAPSED_ICON}
@@ -377,9 +424,11 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
 
 
             {expanded && (
-              <div className={entries.length > 1 ? "flex flex-col gap-3 border-t border-bb-border px-3 py-3" : "flex flex-col gap-3"}>
+              <div className={orientation === 'wide'
+                ? `bb-bottom-cut-settings ${entries.length > 1 ? 'border-t border-bb-border px-3 py-3' : ''}`
+                : entries.length > 1 ? 'flex flex-col gap-3 border-t border-bb-border px-3 py-3' : 'flex flex-col gap-3'}>
                 {entries.length === 1 && (
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end gap-2" data-cut-control="entry-output">
                     <label className="flex items-center gap-1.5 text-[10px] text-bb-text-muted">
                       {t('panels.sub_layer_stack.output')}
                       <ToggleSwitch
@@ -399,68 +448,59 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                     </button>
                   </div>
                 )}
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-bb-text-dim">{t('panels.sub_layer_stack.mode')}</label>
-                  <select
-                    className="flex-1 rounded border border-bb-border bg-bb-input px-2 py-1 text-xs text-bb-text"
-                    value={displayModeValue(entry.operation)}
-                    onChange={(e) =>
-                      void updateCutEntry(
-                        layer.id,
-                        entry.id,
-                        buildOperationPatch(entry, e.target.value as OperationType),
-                      )
-                    }
-                  >
-                    {modeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                <div data-cut-control="mode">
+                  <SubLayerModeControl layerId={layer.id} entryId={entry.id} />
                 </div>
-                <RangeInput
-                  label={t('panels.sub_layer_stack.speed_with_unit', { unit: speedLabel })}
-                  value={displaySpeed}
-                  onChange={(speed) => void updateCutEntry(layer.id, entry.id, {
-                    speed_mm_min: displaySpeedToMmMin(speed, displayUnit, speedTimeUnit),
-                  })}
-                  min={minDisplaySpeed}
-                  max={maxDisplaySpeed}
-                  step={speedStep}
-                  testId={`sub-layer-speed-slider-${entry.id}`}
-                />
-                <RangeInput
-                  label={t('panels.sub_layer_stack.power_percent')}
-                  value={entry.power_percent}
-                  onChange={(power_percent) => void updateCutEntry(layer.id, entry.id, { power_percent })}
-                  min={0}
-                  max={100}
-                  step={1}
-                  testId={`sub-layer-power-slider-${entry.id}`}
-                />
-                {showMinPower && (
-                  <NumberInput
-                    label={t('panels.sub_layer_stack.min_power_percent')}
-                    value={entry.power_min_percent}
-                    onChange={(power_min_percent) => void updateCutEntry(layer.id, entry.id, { power_min_percent })}
+                <div data-cut-control="speed">
+                  <RangeInput
+                    label={t('panels.sub_layer_stack.speed_with_unit', { unit: speedLabel })}
+                    value={displaySpeed}
+                    onChange={(speed) => void updateCutEntry(layer.id, entry.id, {
+                      speed_mm_min: displaySpeedToMmMin(speed, displayUnit, speedTimeUnit),
+                    })}
+                    min={minDisplaySpeed}
+                    max={maxDisplaySpeed}
+                    step={speedStep}
+                    testId={`sub-layer-speed-slider-${entry.id}`}
+                  />
+                </div>
+                <div data-cut-control="power">
+                  <RangeInput
+                    label={t('panels.sub_layer_stack.power_percent')}
+                    value={entry.power_percent}
+                    onChange={(power_percent) => void updateCutEntry(layer.id, entry.id, { power_percent })}
                     min={0}
                     max={100}
                     step={1}
+                    testId={`sub-layer-power-slider-${entry.id}`}
                   />
+                </div>
+                {showMinPower && (
+                  <div data-cut-control="advanced">
+                    <NumberInput
+                      label={t('panels.sub_layer_stack.min_power_percent')}
+                      value={entry.power_min_percent}
+                      onChange={(power_min_percent) => void updateCutEntry(layer.id, entry.id, { power_min_percent })}
+                      min={0}
+                      max={100}
+                      step={1}
+                    />
+                  </div>
                 )}
-                <RangeInput
-                  label={t('panels.sub_layer_stack.passes')}
-                  value={passes}
-                  onChange={(nextPasses) =>
-                    void updateCutEntry(layer.id, entry.id, buildPassesPatch(entry, nextPasses))
-                  }
-                  min={1}
-                  max={MAX_PASSES}
-                  step={1}
-                  testId={`sub-layer-passes-slider-${entry.id}`}
-                />
-                <div className="flex min-h-6 items-center justify-between text-xs">
+                <div data-cut-control="passes">
+                  <RangeInput
+                    label={t('panels.sub_layer_stack.passes')}
+                    value={passes}
+                    onChange={(nextPasses) =>
+                      void updateCutEntry(layer.id, entry.id, buildPassesPatch(entry, nextPasses))
+                    }
+                    min={1}
+                    max={MAX_PASSES}
+                    step={1}
+                    testId={`sub-layer-passes-slider-${entry.id}`}
+                  />
+                </div>
+                <div className="flex min-h-6 items-center justify-between text-xs" data-cut-control="air-assist">
                   <span className="text-bb-text-muted">{t('panels.sub_layer_stack.air_assist')}</span>
                   <IconToggleButton
                     active={entry.air_assist}
@@ -471,18 +511,20 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                   />
                 </div>
                 {showZOffset && (
-                  <NumberInput
-                    label={labelWithUnit(t('panels.sub_layer_stack.z_offset_mm'), lengthUnitLabel(displayUnit))}
-                    value={roundDisplayLength(mmToDisplay(entry.z_offset_mm, displayUnit), displayUnit)}
-                    onChange={(v) => void updateCutEntry(layer.id, entry.id, { z_offset_mm: displayToMm(v, displayUnit) })}
-                    min={mmToDisplay(-100, displayUnit)}
-                    max={mmToDisplay(100, displayUnit)}
-                    step={lengthStep(displayUnit, 0.1, 0.005)}
-                  />
+                  <div data-cut-control="advanced">
+                    <NumberInput
+                      label={labelWithUnit(t('panels.sub_layer_stack.z_offset_mm'), lengthUnitLabel(displayUnit))}
+                      value={roundDisplayLength(mmToDisplay(entry.z_offset_mm, displayUnit), displayUnit)}
+                      onChange={(v) => void updateCutEntry(layer.id, entry.id, { z_offset_mm: displayToMm(v, displayUnit) })}
+                      min={mmToDisplay(-100, displayUnit)}
+                      max={mmToDisplay(100, displayUnit)}
+                      step={lengthStep(displayUnit, 0.1, 0.005)}
+                    />
+                  </div>
                 )}
 
                 {showsRasterSettings && !isOffsetFill && (
-                  <div className="flex flex-col gap-2 rounded border border-bb-border/70 p-2">
+                  <div className="flex flex-col gap-2 rounded border border-bb-border/70 p-2" data-cut-control="advanced">
                     <div className="text-xs font-medium uppercase tracking-wide text-bb-accent">{t('panels.sub_layer_stack.raster')}</div>
                     {entry.operation === OPERATION_IMAGE && (
                       <div className="flex items-center gap-2">
@@ -578,6 +620,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 {isOffsetFill && (
                   <div
                     className="flex flex-col gap-3 rounded border border-bb-border/70 p-2"
+                    data-cut-control="advanced"
                     data-testid={`offset-fill-settings-${entry.id}`}
                   >
                     <div className="text-xs font-medium uppercase tracking-wide text-bb-accent">
@@ -676,7 +719,7 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                 )}
 
                 {canVector && (
-                  <div className="flex flex-col gap-2 rounded border border-bb-border/70 p-2">
+                  <div className="flex flex-col gap-2 rounded border border-bb-border/70 p-2" data-cut-control="vector">
                     {isLineSurface && (
                       <>
                         <Toggle
@@ -775,22 +818,38 @@ export function SubLayerStack({ layerId }: SubLayerStackProps) {
                     )}
                   </div>
                 )}
+                {orientation === 'wide' && (
+                  <button
+                    type="button"
+                    className="bb-bottom-sub-layer-button"
+                    onClick={() => void addCutEntry(layer.id, entries.length > 0 ? entries[entries.length - 1]?.id ?? null : null)}
+                    disabled={entries.length >= 11}
+                    data-testid="add-sub-layer"
+                    data-cut-control="add-sub-layer"
+                    title={entries.length >= 11 ? t('panels.sub_layer_stack.max_sub_layers_title') : t('panels.sub_layer_stack.add_sub_layer_title')}
+                  >
+                    <span aria-hidden="true" className="text-lg leading-none">+</span>
+                    <span>{t('panels.sub_layer_stack.sub_layer')}</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
         );
       })}
 
-      <button
-        type="button"
-        className="rounded border border-dashed border-bb-border px-2 py-2 text-sm text-bb-text disabled:opacity-40"
-        onClick={() => void addCutEntry(layer.id, entries.length > 0 ? entries[entries.length - 1]?.id ?? null : null)}
-        disabled={entries.length >= 11}
-        data-testid="add-sub-layer"
-        title={entries.length >= 11 ? t('panels.sub_layer_stack.max_sub_layers_title') : t('panels.sub_layer_stack.add_sub_layer_title')}
-      >
-        {t('panels.sub_layer_stack.add_sub_layer')}
-      </button>
+      {orientation !== 'wide' && (
+        <button
+          type="button"
+          className="rounded border border-dashed border-bb-border px-2 py-2 text-sm text-bb-text hover:border-bb-accent hover:bg-bb-accent/10 disabled:opacity-40"
+          onClick={() => void addCutEntry(layer.id, entries.length > 0 ? entries[entries.length - 1]?.id ?? null : null)}
+          disabled={entries.length >= 11}
+          data-testid="add-sub-layer"
+          title={entries.length >= 11 ? t('panels.sub_layer_stack.max_sub_layers_title') : t('panels.sub_layer_stack.add_sub_layer_title')}
+        >
+          + {t('panels.sub_layer_stack.sub_layer')}
+        </button>
+      )}
     </div>
   );
 }

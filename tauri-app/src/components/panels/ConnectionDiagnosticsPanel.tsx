@@ -7,6 +7,7 @@ import { openFeedbackReport } from '../../feedbackEvents';
 import { useNotificationStore } from '../../stores/notificationStore';
 import i18n from '../../i18n';
 import { wrapBackendError } from '../../i18n/errors';
+import { usePanelHost } from '../../panels';
 
 function formatState(state: string): string {
   return state.replace(/_/g, ' ');
@@ -25,6 +26,7 @@ function TrafficBlock({ title, hex, ascii }: { title: string; hex: string; ascii
 
 export function ConnectionDiagnosticsPanel() {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
   const [snapshot, setSnapshot] = useState<ConnectionDiagnosticsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +87,10 @@ export function ConnectionDiagnosticsPanel() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 p-3 text-xs text-bb-text">
+    <div className={orientation === 'wide'
+      ? 'bb-bottom-diagnostics text-xs text-bb-text'
+      : 'flex h-full min-h-0 flex-col gap-3 p-3 text-xs text-bb-text'}>
+      <section className="space-y-2" data-diagnostics-region="summary">
       <div className="flex items-center justify-between gap-2">
         <div>
           <div className="text-sm font-semibold">{t('panels.registry.connection_diagnostics')}</div>
@@ -114,7 +119,9 @@ export function ConnectionDiagnosticsPanel() {
           <div className="mt-1 font-mono text-[11px]">{snapshot.machine.firmware_version}</div>
         )}
       </div>
+      </section>
 
+      <section className="space-y-2" data-diagnostics-region="ports">
       <div className="min-h-0 overflow-auto rounded border border-bb-border">
         <table className="w-full text-left text-[11px]">
           <thead className="sticky top-0 bg-bb-panel text-bb-text-dim">
@@ -148,7 +155,9 @@ export function ConnectionDiagnosticsPanel() {
           {issue.message}
         </div>
       ))}
+      </section>
 
+      <section className="space-y-2" data-diagnostics-region="traffic">
       {snapshot && snapshot.connection_events.length > 0 && (
         <div className="rounded border border-bb-border bg-bb-bg/50 p-2">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-bb-text-dim">{t('panels.diagnostics.connection_events')}</div>
@@ -169,8 +178,12 @@ export function ConnectionDiagnosticsPanel() {
         <TrafficBlock title={t('panels.diagnostics.tx')} hex={snapshot?.recent_serial.tx_hex ?? ''} ascii={snapshot?.recent_serial.tx_ascii ?? ''} />
         <TrafficBlock title={t('panels.diagnostics.rx')} hex={snapshot?.recent_serial.rx_hex ?? ''} ascii={snapshot?.recent_serial.rx_ascii ?? ''} />
       </div>
+      </section>
 
-      <div className="mt-auto flex gap-2 pt-1">
+      <div
+        className={orientation === 'wide' ? 'flex flex-col gap-2' : 'mt-auto flex gap-2 pt-1'}
+        data-diagnostics-region="actions"
+      >
         <button
           type="button"
           className="inline-flex flex-1 items-center justify-center gap-1 rounded bg-bb-panel px-3 py-1.5 text-xs text-bb-text ring-1 ring-bb-border hover:bg-bb-hover"

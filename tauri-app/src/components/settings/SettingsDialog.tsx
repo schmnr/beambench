@@ -9,7 +9,9 @@ import { NumberStepper } from '../shared/NumberStepper';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
 import type { AppSettings, ArtworkDisplayMode, UiTheme } from '../../types/commands';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
-import { Download, FileInput, FolderOpen, Monitor, RotateCcw, Ruler, Save, Settings2, Upload } from 'lucide-react';
+import { Download, FileInput, FolderOpen, Keyboard, Monitor, RotateCcw, Ruler, Save, Settings2, Upload } from 'lucide-react';
+import type { CustomHotkeys } from '../../commands/commandRegistry';
+import { HotkeySettingsPanel } from './HotkeySettingsPanel';
 import {
   DialogButton,
   DialogFooter,
@@ -43,6 +45,7 @@ type SettingsDraft = {
   scrollZoom: boolean;
   checkForUpdatesOnStartup: boolean;
   allowImportingToToolLayers: boolean;
+  customHotkeys: CustomHotkeys;
 };
 
 const SETTINGS_DRAFT_KEYS = [
@@ -67,10 +70,11 @@ const SETTINGS_DRAFT_KEYS = [
   'scrollZoom',
   'checkForUpdatesOnStartup',
   'allowImportingToToolLayers',
+  'customHotkeys',
 ] as const;
 
 type SettingsDraftKey = (typeof SETTINGS_DRAFT_KEYS)[number];
-type TabId = 'general' | 'units_grid' | 'display' | 'file_import';
+type TabId = 'general' | 'units_grid' | 'display' | 'file_import' | 'shortcuts';
 
 function createDraft(settings: AppSettings): SettingsDraft {
   return {
@@ -95,6 +99,7 @@ function createDraft(settings: AppSettings): SettingsDraft {
     scrollZoom: settings.scroll_zoom ?? true,
     checkForUpdatesOnStartup: settings.check_for_updates_on_startup ?? true,
     allowImportingToToolLayers: settings.allow_importing_to_tool_layers ?? false,
+    customHotkeys: { ...(settings.custom_hotkeys ?? {}) },
   };
 }
 
@@ -120,7 +125,19 @@ const FALLBACK_DRAFT: SettingsDraft = {
   scrollZoom: true,
   checkForUpdatesOnStartup: true,
   allowImportingToToolLayers: false,
+  customHotkeys: {},
 };
+
+function draftValuesEqual<K extends SettingsDraftKey>(
+  key: K,
+  left: SettingsDraft[K],
+  right: SettingsDraft[K],
+): boolean {
+  if (key !== 'customHotkeys') return left === right;
+  const normalize = (value: SettingsDraft[K]) => Object.entries(value as CustomHotkeys)
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+}
 
 function SwitchRow(props: {
   label: string;
@@ -206,6 +223,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     { id: 'units_grid' as const, label: t('dialog.settings.tab.units_grid'), icon: <Ruler size={14} /> },
     { id: 'display' as const, label: t('dialog.settings.tab.display'), icon: <Monitor size={14} /> },
     { id: 'file_import' as const, label: t('dialog.settings.tab.file_import'), icon: <FileInput size={14} /> },
+    { id: 'shortcuts' as const, label: t('dialog.hotkey_editor.title'), icon: <Keyboard size={14} /> },
   ];
   const [draft, setDraft] = useState<SettingsDraft | null>(() => (settings ? createDraft(settings) : null));
   const [activeTab, setActiveTab] = useState<TabId>('general');
@@ -237,14 +255,15 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
     for (const key of SETTINGS_DRAFT_KEYS) {
       if (!dirtyFieldsRef.current.has(key)) {
-        if (nextDraft[key] !== latest[key]) {
+        if (!draftValuesEqual(key, nextDraft[key], latest[key])) {
           (nextDraft as Record<SettingsDraftKey, SettingsDraft[SettingsDraftKey]>)[key] = latest[key];
           draftChanged = true;
         }
         continue;
       }
 
-      if (previousBase[key] !== latest[key] && draft[key] !== latest[key]) {
+      if (!draftValuesEqual(key, previousBase[key], latest[key])
+        && !draftValuesEqual(key, draft[key], latest[key])) {
         nextConflicts.push(key);
       }
     }
@@ -308,6 +327,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         scroll_zoom: draft.scrollZoom,
         check_for_updates_on_startup: draft.checkForUpdatesOnStartup,
         allow_importing_to_tool_layers: draft.allowImportingToToolLayers,
+        custom_hotkeys: draft.customHotkeys,
       });
       onClose();
     } catch (e) {
@@ -426,12 +446,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               <DialogTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} orientation={DIALOG_TAB_ORIENTATION.vertical} />
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-bb-panel">
+            <div className="flex min-h-0 flex-1 flex-col bg-bb-panel">
               <DialogSectionHeader
                 icon={tabs.find((tab) => tab.id === activeTab)?.icon}
                 title={tabs.find((tab) => tab.id === activeTab)?.label}
               />
-              <div className="p-5">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5">
               {activeTab === 'general' && (
                 <div className="space-y-4">
                   <SwitchRow
@@ -717,6 +737,15 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                       )}
                     </div>
                   </div>
+                </div>
+              )}
+              {activeTab === 'shortcuts' && (
+                <div className="flex h-full min-h-[360px]">
+                  <HotkeySettingsPanel
+                    value={content.customHotkeys}
+                    onChange={(value) => updateDraft('customHotkeys', value)}
+                    disabled={isSaving}
+                  />
                 </div>
               )}
               </div>

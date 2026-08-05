@@ -73,7 +73,21 @@ import type {
 
 export type ToolOverlay =
   | { type: 'none' }
-  | { type: 'rubber-band'; startScreen: Point2D; endScreen: Point2D; crossing?: boolean }
+  | {
+      type: 'rubber-band';
+      startScreen: Point2D;
+      endScreen: Point2D;
+      crossing?: boolean;
+      candidateObjectIds?: string[];
+      selectionMode?: 'replace' | 'add' | 'toggle' | 'remove';
+    }
+  | {
+      type: 'selection-feedback';
+      objectId: string;
+      cursorScreen: Point2D;
+      label: string;
+      color: string;
+    }
   | { type: 'text-box-preview'; startWorld: Point2D; endWorld: Point2D }
   | {
       type: 'shape-preview';
@@ -204,6 +218,8 @@ export interface RenderParams {
   /** Use each layer's operation to choose wireframe/filled rendering (Design workspace). */
   useLayerAppearance?: boolean;
   selectionDashOffset?: number;
+  /** Current group-isolation root. Outside geometry is visually de-emphasized. */
+  selectionIsolationObjectId?: string | null;
   showLastPosition?: boolean;
   laserPosition?: Point2D | null;
   /** Object ID to skip rendering (e.g. text being edited inline) */
@@ -225,6 +241,107 @@ export interface CanvasInteractionState {
   active: boolean;
   kind: 'none' | 'object-drag' | 'pan' | 'zoom';
   objectIds?: string[];
+}
+
+function drawSelectionFeedback(
+  ctx: CanvasRenderingContext2D,
+  overlay: Extract<ToolOverlay, { type: 'selection-feedback' }>,
+  objects: ProjectObject[],
+  vp: ViewportParams,
+): void {
+  const object = objects.find((candidate) => candidate.id === overlay.objectId);
+  if (!object) return;
+  const bounds = getCachedTransformedBoundsWorld(object);
+  const topLeft = worldToScreen(bounds.min, vp);
+  const bottomRight = worldToScreen(bounds.max, vp);
+  ctx.save();
+  ctx.strokeStyle = overlay.color;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 3]);
+  ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+  ctx.setLineDash([]);
+
+  ctx.font = '500 11px system-ui, -apple-system, sans-serif';
+  const labelWidth = Math.min(220, Math.ceil(ctx.measureText(overlay.label).width) + 30);
+  const x = Math.min(ctx.canvas.width - labelWidth - 8, overlay.cursorScreen.x + 12);
+  const y = Math.max(8, overlay.cursorScreen.y - 32);
+  ctx.fillStyle = 'rgba(12, 16, 20, 0.94)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, labelWidth, 24, 6);
+  ctx.fill();
+  ctx.fillStyle = overlay.color;
+  ctx.beginPath();
+  ctx.arc(x + 11, y + 12, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#e5e7eb';
+  ctx.fillText(overlay.label, x + 21, y + 16, labelWidth - 27);
+  ctx.restore();
+}
+
+function drawRubberBandCandidates(
+  ctx: CanvasRenderingContext2D,
+  overlay: Extract<ToolOverlay, { type: 'rubber-band' }>,
+  objects: ProjectObject[],
+  vp: ViewportParams,
+): void {
+  const ids = overlay.candidateObjectIds ?? [];
+  if (ids.length === 0) return;
+  const byId = new Map(objects.map((object) => [object.id, object]));
+  ctx.save();
+  ctx.strokeStyle = overlay.crossing ? '#34d399' : '#22d3ee';
+  ctx.fillStyle = overlay.crossing ? 'rgba(52, 211, 153, 0.08)' : 'rgba(34, 211, 238, 0.08)';
+  ctx.lineWidth = 1.25;
+  for (const id of ids) {
+    const object = byId.get(id);
+    if (!object) continue;
+    const bounds = getCachedTransformedBoundsWorld(object);
+    const topLeft = worldToScreen(bounds.min, vp);
+    const bottomRight = worldToScreen(bounds.max, vp);
+    ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+    ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+  }
+  const mode = i18n.t(`selection.mode_${overlay.selectionMode ?? 'replace'}`);
+  const label = i18n.t('selection.marquee_count', { count: ids.length, mode });
+  ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+  const width = Math.ceil(ctx.measureText(label).width) + 18;
+  const x = Math.min(ctx.canvas.width - width - 8, overlay.endScreen.x + 10);
+  const y = Math.min(ctx.canvas.height - 29, overlay.endScreen.y + 10);
+  ctx.fillStyle = 'rgba(12, 16, 20, 0.94)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, 23, 6);
+  ctx.fill();
+  ctx.fillStyle = '#e5e7eb';
+  ctx.fillText(label, x + 9, y + 15);
+  ctx.restore();
+}
+
+function drawSelectionIsolationSpotlight(
+  ctx: CanvasRenderingContext2D,
+  objectId: string | null | undefined,
+  objects: ProjectObject[],
+  vp: ViewportParams,
+): void {
+  if (!objectId) return;
+  const object = objects.find((candidate) => candidate.id === objectId);
+  if (!object) return;
+  const bounds = getCachedTransformedBoundsWorld(object);
+  const topLeft = worldToScreen(bounds.min, vp);
+  const bottomRight = worldToScreen(bounds.max, vp);
+  const left = Math.max(0, topLeft.x);
+  const top = Math.max(0, topLeft.y);
+  const right = Math.min(vp.canvasWidth, bottomRight.x);
+  const bottom = Math.min(vp.canvasHeight, bottomRight.y);
+  ctx.save();
+  ctx.fillStyle = 'rgba(4, 8, 12, 0.38)';
+  ctx.fillRect(0, 0, vp.canvasWidth, Math.max(0, top));
+  ctx.fillRect(0, bottom, vp.canvasWidth, Math.max(0, vp.canvasHeight - bottom));
+  ctx.fillRect(0, top, Math.max(0, left), Math.max(0, bottom - top));
+  ctx.fillRect(right, top, Math.max(0, vp.canvasWidth - right), Math.max(0, bottom - top));
+  ctx.strokeStyle = 'rgba(34, 211, 238, 0.72)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 4]);
+  ctx.strokeRect(left, top, right - left, bottom - top);
+  ctx.restore();
 }
 
 function drawTextBoxPreview(
@@ -1904,6 +2021,8 @@ export class CanvasRenderer {
       this.renderPreview(ctx, previewData, layers, previewViewportForWorkspace(vp, workspace));
     }
 
+    drawSelectionIsolationSpotlight(ctx, params.selectionIsolationObjectId, objects, vp);
+
     // 6. Selection highlights and handles (skip object being text-edited)
     const selectedObjects = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
       ? []
@@ -1952,6 +2071,10 @@ export class CanvasRenderer {
     switch (toolOverlay.type) {
       case 'rubber-band':
         drawRubberBand(ctx, toolOverlay.startScreen, toolOverlay.endScreen, toolOverlay.crossing);
+        drawRubberBandCandidates(ctx, toolOverlay, objects, vp);
+        break;
+      case 'selection-feedback':
+        drawSelectionFeedback(ctx, toolOverlay, objects, vp);
         break;
       case 'text-box-preview': {
         drawTextBoxPreview(ctx, toolOverlay, vp, displayUnit);
@@ -2235,6 +2358,8 @@ export class CanvasRenderer {
         ctx.clearRect(0, 0, vp.canvasWidth, vp.canvasHeight);
       }
 
+      drawSelectionIsolationSpotlight(ctx, params.selectionIsolationObjectId, objects, vp);
+
       const selectedObjects = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
         ? []
         : objects.filter(
@@ -2260,6 +2385,10 @@ export class CanvasRenderer {
       switch (toolOverlay.type) {
       case 'rubber-band':
         drawRubberBand(ctx, toolOverlay.startScreen, toolOverlay.endScreen, toolOverlay.crossing);
+        drawRubberBandCandidates(ctx, toolOverlay, objects, vp);
+        break;
+      case 'selection-feedback':
+        drawSelectionFeedback(ctx, toolOverlay, objects, vp);
         break;
       case 'text-box-preview':
         drawTextBoxPreview(ctx, toolOverlay, vp, displayUnit);

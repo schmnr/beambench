@@ -4,6 +4,7 @@ const MACHINE_ZERO_REQUIRES_HOME =
   'Machine-zero moves require homing in the current session first';
 const SERIAL_PORT_UNAVAILABLE =
   /\[serial_port_unavailable\]\s+Could not open ([^:]+):/u;
+const LIHUIYU_INCOMPATIBLE_WINDOWS_DRIVER = '[lihuiyu_incompatible_windows_driver]';
 
 /**
  * Localize a raw backend error string for display to the user.
@@ -23,6 +24,9 @@ export function wrapBackendError(detail: string): string {
   const unavailablePort = normalized.match(SERIAL_PORT_UNAVAILABLE);
   if (unavailablePort) {
     return i18n.t('errors.serial_port_unavailable', { port: unavailablePort[1].trim() });
+  }
+  if (normalized.includes(LIHUIYU_INCOMPATIBLE_WINDOWS_DRIVER)) {
+    return i18n.t('errors.lihuiyu_incompatible_windows_driver');
   }
   return i18n.t('errors.operation_failed_with_detail', { detail });
 }

@@ -8,6 +8,7 @@ import { useNotificationStore } from '../../stores/notificationStore';
 import { wrapBackendError } from '../../i18n/errors';
 import type { MacroDefinition } from '../../types/macro';
 import { hotkeysConflict } from '../../utils/hotkeyMatch';
+import { usePanelHost } from '../../panels';
 
 /** Built-in keyboard shortcuts that macros should not override. */
 const BUILTIN_HOTKEYS = [
@@ -22,6 +23,7 @@ const BUILTIN_HOTKEYS = [
 
 export function MacrosWindow(): React.ReactElement {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
   const { macros, loadMacros, saveMacro, deleteMacro, runMacro } = useMacroStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -143,7 +145,8 @@ export function MacrosWindow(): React.ReactElement {
   }
 
   return (
-    <div className="px-2 pb-2 space-y-1">
+    <div className={orientation === 'wide' ? 'bb-bottom-worklist' : 'space-y-1 px-2 pb-2'}>
+      <div className="space-y-1" data-worklist-tools>
       {pendingEditMacro && (
         <div className="rounded border border-bb-warning-border bg-bb-warning-bg p-2 text-xs text-bb-text">
           <div className="mb-2 text-bb-warning-fg">
@@ -190,6 +193,8 @@ export function MacrosWindow(): React.ReactElement {
           {t('panels.machine.macros.export')}
         </button>
       </div>
+      </div>
+      <div className="space-y-1" data-worklist-content>
       {(macros ?? []).map((macro) => (
         <div
           key={macro.id}
@@ -290,6 +295,7 @@ export function MacrosWindow(): React.ReactElement {
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 }

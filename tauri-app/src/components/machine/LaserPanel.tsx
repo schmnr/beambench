@@ -23,6 +23,7 @@ import type {
   ProjectOptimization,
 } from '../../types/project';
 import { DEFAULT_PROJECT_OPTIMIZATION } from '../../types/project';
+import { usePanelHost } from '../../panels';
 
 const PAUSE_ICON = '\u23f8';
 const STOP_ICON = '\u25a0';
@@ -119,6 +120,7 @@ function CheckboxRow(props: {
 
 export function LaserPanel() {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
   const startInFlightRef = useRef(false);
   const project = useProjectStore((s) => s.project);
@@ -343,7 +345,10 @@ export function LaserPanel() {
   };
 
   return (
-    <div className="flex flex-col gap-2 px-3 py-2.5 text-xs">
+    <div className={orientation === 'wide'
+      ? 'bb-bottom-laser text-xs'
+      : 'flex flex-col gap-2 px-3 py-2.5 text-xs'}>
+      <section className="flex flex-col gap-2" data-laser-region="job">
       {/* 1. Connection gradient bar */}
       <div className={`h-1.5 rounded-full bg-gradient-to-r ${connectionGradient}`} data-testid="connection-bar" />
 
@@ -453,8 +458,10 @@ export function LaserPanel() {
             : t('panels.machine.laser.frame_warning')}
         </div>
       )}
+      </section>
 
       {/* 6. Show Last Position + Optimization Settings row */}
+      <section className="flex flex-col gap-2" data-laser-region="actions">
       <div className="flex gap-1">
         <button
           data-testid="show-last-position-button"
@@ -770,9 +777,13 @@ export function LaserPanel() {
           {t('panels.machine.laser.save_gcode')}
         </button>
       )}
+      </section>
 
       {/* 8. Divider */}
-      <div className="border-t border-bb-border my-0.5" />
+      <section
+        className={orientation === 'wide' ? 'flex flex-col gap-2' : 'flex flex-col gap-2 border-t border-bb-border pt-2'}
+        data-laser-region="machine"
+      >
 
       {/* 9. Devices row at bottom */}
       <div className="flex items-center gap-2" data-testid="devices-row">
@@ -822,8 +833,10 @@ export function LaserPanel() {
       >
         {t(START_FROM_STATUS_KEYS[startFrom])}
       </div>
+      </section>
 
       {/* 11. Job Origin grid */}
+      <section className="flex flex-col gap-2" data-laser-region="origin">
       <div>
         <label className="block text-bb-text-muted mb-1">{t('panels.machine.laser.job_origin')}</label>
         <div className="grid grid-cols-3 gap-1 w-fit">
@@ -852,6 +865,7 @@ export function LaserPanel() {
           ))}
         </div>
       </div>
+      </section>
 
       {/* Preflight dialog */}
       {showPreflightDialog && preflightReport && (

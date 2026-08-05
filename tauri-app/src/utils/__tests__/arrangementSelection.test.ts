@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers } from '../arrangementSelection';
+import { expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers, normalizeSelectionMembersWithinIsolation } from '../arrangementSelection';
 import { makeLayer, makeProject, makeProjectObject } from '../../test-utils/projectFixtures';
 
 describe('normalizeArrangementSelection', () => {
@@ -98,6 +98,24 @@ describe('normalizeSelectionMembers', () => {
     });
 
     expect(normalizeSelectionMembers(project, ['child-a', 'child-b'])).toEqual(['group']);
+  });
+
+  it('promotes only to the current isolation boundary and excludes outside objects', () => {
+    const project = makeProject({
+      objects: [
+        makeProjectObject({ id: 'deep-child' }),
+        makeProjectObject({ id: 'nested-group', data: { type: 'group', children: ['deep-child'] } }),
+        makeProjectObject({ id: 'sibling' }),
+        makeProjectObject({ id: 'outside' }),
+        makeProjectObject({ id: 'root-group', data: { type: 'group', children: ['nested-group', 'sibling'] } }),
+      ],
+    });
+
+    expect(normalizeSelectionMembersWithinIsolation(
+      project,
+      ['deep-child', 'sibling', 'outside'],
+      'root-group',
+    )).toEqual(['nested-group', 'sibling']);
   });
 });
 

@@ -261,7 +261,7 @@ describe('buildCanvasContextMenuItems', () => {
     const expectedOrder = [
       'windows',
       'cut', 'copy', 'paste', 'paste-in-place', 'duplicate',
-      'delete', 'select-all',
+      'delete', 'select-all', 'select-similar',
       'group', 'ungroup',
       'lock', // single unlocked object
       'convert-path', 'convert-bitmap',
