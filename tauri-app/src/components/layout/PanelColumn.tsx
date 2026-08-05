@@ -8,6 +8,7 @@ import {
   getPanelById,
   getWorkspacePanelLayout,
   PANEL_REGISTRY,
+  PanelHost,
 } from '../../panels';
 import type { ColumnDockZone, PanelColumnSide } from '../../panels';
 import { TabBar } from '../shared/TabBar';
@@ -44,6 +45,7 @@ function DockZonePanel({ zone }: { zone: ColumnDockZone }) {
     ? zoneState.activeTab
     : visiblePanelIds[0] ?? '';
   const PanelContent = activeTab ? getPanelComponent(activeTab) : null;
+  const panelPlacement = { kind: 'docked', zone } as const;
   const zoneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,8 +103,12 @@ function DockZonePanel({ zone }: { zone: ColumnDockZone }) {
         onTabContextMenu={handleTabContextMenu}
         dropInsertIndex={dropInsertIndex}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {PanelContent && <PanelContent />}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {PanelContent && (
+          <PanelHost panelInstanceId={activeTab} placement={panelPlacement}>
+            <PanelContent />
+          </PanelHost>
+        )}
       </div>
       {menuState.visible && (
         <ContextMenu x={menuState.x} y={menuState.y} items={menuState.items} onClose={closeMenu} />

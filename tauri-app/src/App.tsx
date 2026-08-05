@@ -1521,8 +1521,6 @@ function App() {
       // --- View shortcuts ---
       else if (e.key === 'g' && !ctrl && !isInput) {
         ui.toggleGrid();
-      } else if (e.key === 'p' && !ctrl && !alt && !isInput) {
-        usePreviewStore.getState().togglePreview();
       } else if (ctrl && e.key === '0' && !isInput) {
         e.preventDefault();
         // Zoom to fit handled via zoomToFit in StatusBar — set to 100%
@@ -1534,17 +1532,7 @@ function App() {
         ui.setActiveTool('select');
       }
       // --- Tool shortcuts ---
-      else if (!ctrl && !alt && !isInput && e.key === 'v') {
-        ui.setActiveTool('select');
-      } else if (!ctrl && !isInput && e.key === 'r') {
-        ui.setActiveTool('rect');
-      } else if (!ctrl && !isInput && e.key === 'e') {
-        ui.setActiveTool('ellipse');
-      } else if (!ctrl && !isInput && e.key === 't') {
-        ui.setActiveTool('text');
-      } else if (!ctrl && !isInput && e.key === 'a') {
-        ui.setActiveTool('node');
-      } else if (ctrl && e.key === 'l' && !isInput) {
+      else if (ctrl && e.key === 'l' && !isInput) {
         e.preventDefault();
         ui.setActiveTool('line');
       } else if (ctrl && e.key === '`' && !isInput) {
@@ -1553,10 +1541,6 @@ function App() {
       } else if (ctrl && e.key === 'k' && !isInput) {
         e.preventDefault();
         ui.setActiveTool('trim');
-      } else if (alt && e.key === 'l' && !isInput) {
-        ui.setActiveTool('laser_position');
-      } else if (alt && e.key === 'm' && !isInput) {
-        ui.setActiveTool('measure');
       }
       // --- Zoom shortcuts ---
       else if (ctrl && (e.key === '=' || e.key === '+') && !isInput) {
@@ -1575,13 +1559,13 @@ function App() {
         if (selectionContext.canConvertToBitmap && singleSelectedObject) {
           void ps.convertToBitmap(singleSelectedObject.id, 300);
         }
-      } else if (alt && (e.key === 'T' || e.key === 't') && !ctrl && !isInput) {
+      } else if (alt && (e.key === 'T' || e.key === 't') && !ctrl && !shift && !isInput) {
         e.preventDefault();
         // Open Trace Image dialog instead of tracing directly
         if (singleSelectedObject?.data.type === 'raster_image') {
           setTraceDialogObjectId(singleSelectedObject.id);
         }
-      } else if (alt && (e.key === 'I' || e.key === 'i') && !ctrl && !isInput) {
+      } else if (alt && (e.key === 'I' || e.key === 'i') && !ctrl && !shift && !isInput) {
         e.preventDefault();
         // Open Adjust Image dialog instead of refreshing
         if (singleSelectedObject?.data.type === 'raster_image') {
@@ -1600,12 +1584,12 @@ function App() {
       } else if (alt && e.key === 'b' && !ctrl && !isInput) {
         e.preventDefault();
         if (selectionContext.canBreakApart) void ps.breakApart(ps.selectedObjectIds[0]);
-      } else if (ctrl && e.key === 'Tab' && !isInput) {
+      } else if (alt && shift && (e.key === 't' || e.key === 'T') && !ctrl && !isInput) {
         e.preventDefault();
         ui.setActiveTool('tabs');
       }
       // --- Boolean shortcuts ---
-      else if (alt && e.key === '+' && !ctrl && !isInput) {
+      else if (alt && shift && (e.key === 'u' || e.key === 'U') && !ctrl && !isInput) {
         e.preventDefault();
         const objs = ps.project?.objects ?? [];
         const sel = ps.selectedObjectIds;
@@ -1629,7 +1613,7 @@ function App() {
             void ps.booleanSubtractMany(sel);
           }
         }
-      } else if (alt && e.key === '*' && !ctrl && !isInput) {
+      } else if (alt && shift && (e.key === 'i' || e.key === 'I') && !ctrl && !isInput) {
         e.preventDefault();
         const objs = ps.project?.objects ?? [];
         const sel = ps.selectedObjectIds;

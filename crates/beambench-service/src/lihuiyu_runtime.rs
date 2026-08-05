@@ -462,6 +462,7 @@ mod tests {
             serial_number: None,
             has_required_bulk_endpoints: Some(true),
             driver: Some("virtual-usb".to_string()),
+            windows_driver_compatible: None,
         }
     }
 

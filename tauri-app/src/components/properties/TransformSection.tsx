@@ -32,6 +32,7 @@ import { computeVisualBoundsWorld, getCombinedBounds } from '../../canvas/alignm
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
 import { zoomToFitBounds } from '../../canvas/ViewportTransform';
 import { useUiStore } from '../../stores/uiStore';
+import { usePanelHost } from '../../panels';
 
 const DISPLAY_UNIT_MM = 'mm' as const;
 const DISPLAY_UNIT_INCHES = 'inches' as const;
@@ -138,6 +139,7 @@ function AspectLinkButton({
  * only copy.
  */
 export function TransformSection() {
+  const { orientation } = usePanelHost();
   const { t } = useTranslation();
   const project = useProjectStore((s) => s.project);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
@@ -539,7 +541,10 @@ export function TransformSection() {
   if (!hasSelection) return null;
 
   return (
-    <div className="border-b border-bb-border pb-3 mb-1" data-testid="transform-section">
+    <div
+      className={orientation === 'wide' ? 'bb-bottom-transform' : 'mb-1 border-b border-bb-border pb-3'}
+      data-testid="transform-section"
+    >
       {/* Header: label, anchor grid, unit toggle */}
       <div className={`${INSPECTOR_TITLE_BAR_CLASS} -mx-3 -mt-2.5 mb-3`} data-testid="transform-title-bar">
         <Move size={14} className={INSPECTOR_TITLE_BAR_ICON_CLASS} />

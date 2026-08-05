@@ -1037,6 +1037,53 @@ describe('DeviceSettingsDialog', () => {
     expect(connectNetwork).toHaveBeenCalledWith('grblhal.local', 23);
   });
 
+  it('blocks an incompatible Lihuiyu Windows driver with actionable guidance', async () => {
+    const connectUsb = vi.fn();
+    useMachineStore.setState({
+      sessionState: 'disconnected',
+      connectedPort: null,
+      availablePorts: [],
+      availableLihuiyuUsbDevices: [{
+        bus_id: 'PCIROOT(0)#PCI(1400)#USBROOT(0)',
+        device_address: 7,
+        port_numbers: [1],
+        vendor_id: 0x1a86,
+        product_id: 0x5512,
+        manufacturer: null,
+        product: 'CH341 USB',
+        serial_number: null,
+        has_required_bulk_endpoints: true,
+        driver: 'CH341PAR',
+        windows_driver_compatible: false,
+      }],
+      profiles: [],
+      activeProfileId: null,
+      loading: false,
+      controllerConnectionChallenge: null,
+      controllerSelection: { mode: 'known_driver', driver: 'grbl' },
+      connect: vi.fn(),
+      connectNetwork: vi.fn(),
+      connectUsb,
+      disconnect: vi.fn(),
+      refreshPorts: vi.fn().mockResolvedValue(undefined),
+      refreshLihuiyuUsbDevices: vi.fn().mockResolvedValue(undefined),
+      setActiveProfile: vi.fn().mockResolvedValue(undefined),
+    });
+
+    render(<DeviceSettingsDialog onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Connection'), { target: { value: 'usb_packet' } });
+
+    const warning = await screen.findByTestId('lihuiyu-windows-driver-warning');
+    expect(warning.textContent).toContain('CH341PAR');
+    expect(warning.textContent).toContain('requires WinUSB');
+    expect(warning.textContent).toContain('LaserDRW');
+
+    const connectButton = screen.getByText('Connect') as HTMLButtonElement;
+    expect(connectButton.disabled).toBe(true);
+    fireEvent.click(connectButton);
+    expect(connectUsb).not.toHaveBeenCalled();
+  });
+
   it('uses the Ruida UDP endpoint defaults without an extra confirmation', async () => {
     const connectNetwork = vi.fn();
     useMachineStore.setState({

@@ -1,24 +1,13 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
-import { getPanelById, getPanelComponent, getWorkspacePanelLayout, PANEL_REGISTRY } from '../../panels';
+import { getPanelById, getPanelComponent, getWorkspacePanelLayout, PANEL_REGISTRY, PanelHost } from '../../panels';
 import type { PhysicalDockZone } from '../../panels';
 import { TabBar } from '../shared/TabBar';
 import { appService } from '../../services/appService';
 import { usePanelDnd } from '../../panels/DndContext';
 import { ContextMenu } from '../shared/ContextMenu';
 import { usePanelTabContextMenu } from '../panels/usePanelTabContextMenu';
-import { buildPanelTabMenuItems } from '../panels/panelTabMenuItems';
-import type { ContextMenuEntry } from '../shared/ContextMenu';
-
-interface CompactMenuState {
-  visible: boolean;
-  x: number;
-  y: number;
-  items: ContextMenuEntry[];
-}
-
-const COMPACT_CLOSED: CompactMenuState = { visible: false, x: 0, y: 0, items: [] };
 
 export function BottomPanel() {
   const { t } = useTranslation();
@@ -29,9 +18,6 @@ export function BottomPanel() {
   const addPanelInstance = useUiStore((s) => s.addPanelInstance);
   const { dragState, startDrag, registerDropZone } = usePanelDnd();
   const { menuState, handleTabContextMenu, closeMenu } = usePanelTabContextMenu(zone);
-
-  const [compactMenu, setCompactMenu] = useState<CompactMenuState>(COMPACT_CLOSED);
-  const closeCompactMenu = useCallback(() => setCompactMenu(COMPACT_CLOSED), []);
 
   const workspaceLayout = getWorkspacePanelLayout(panelLayout, workspaceMode);
   const zoneState = workspaceLayout.zones[zone];
@@ -49,45 +35,12 @@ export function BottomPanel() {
     : visiblePanelIds[0] ?? '';
 
   const PanelContent = activeTab ? getPanelComponent(activeTab) : null;
-
-  // Compact mode: only color_palette visible → no TabBar chrome
-  const isCompact = visiblePanelIds.length === 1 && visiblePanelIds[0] === 'color_palette';
+  const panelPlacement = { kind: 'docked', zone } as const;
 
   const handleTabChange = (tabId: string) => {
     setZoneActiveTab(zone, tabId);
     appService.persistLayout(useUiStore.getState().panelLayout);
   };
-
-  const handleCompactContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const panelId = 'color_palette';
-    const state = useUiStore.getState();
-
-    const items = buildPanelTabMenuItems(t, {
-      panelId,
-      mode: 'docked',
-      sidePanelsVisible: state.sidePanelsVisible,
-      onFloat: (id) => {
-        const panelDef = getPanelById(id);
-        const size = panelDef?.defaultFloatSize ?? { w: 384, h: 300 };
-        useUiStore.getState().floatPanel(id, 100, 100, size.w, size.h);
-      },
-      onClose: (id) => {
-        useUiStore.getState().removePanelInstance(id);
-      },
-      onAddPanel: (id) => {
-        useUiStore.getState().addPanelInstance(id, zone);
-      },
-      onToggleSidePanels: () => {
-        useUiStore.getState().toggleSidePanels();
-      },
-      onDock: () => {},
-    });
-
-    setCompactMenu({ visible: true, x: e.clientX, y: e.clientY, items });
-  }, [t]);
 
   const zoneRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -126,17 +79,6 @@ export function BottomPanel() {
     );
   }
 
-  if (isCompact) {
-    return (
-      <div ref={zoneRef} className="w-full bg-bb-panel" onContextMenu={handleCompactContextMenu}>
-        {PanelContent && <PanelContent />}
-        {compactMenu.visible && (
-          <ContextMenu x={compactMenu.x} y={compactMenu.y} items={compactMenu.items} onClose={closeCompactMenu} />
-        )}
-      </div>
-    );
-  }
-
   return (
     <div ref={zoneRef} className="flex h-full w-full flex-col bg-bb-panel" onContextMenu={(e) => e.preventDefault()}>
       <TabBar
@@ -147,8 +89,12 @@ export function BottomPanel() {
         onTabContextMenu={handleTabContextMenu}
         dropInsertIndex={dropInsertIndex}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        {PanelContent && <PanelContent />}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {PanelContent && (
+          <PanelHost panelInstanceId={activeTab} placement={panelPlacement}>
+            <PanelContent />
+          </PanelHost>
+        )}
       </div>
       {menuState.visible && (
         <ContextMenu x={menuState.x} y={menuState.y} items={menuState.items} onClose={closeMenu} />

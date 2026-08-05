@@ -1073,9 +1073,9 @@ describe('Keyboard shortcuts', () => {
     expect(selectObjects).toHaveBeenCalledWith(['o1']);
   });
 
-  it('Ctrl+Tab sets tabs tool', async () => {
+  it('Alt+Shift+T sets the tabs tool without colliding with app switching', async () => {
     await renderApp();
-    await dispatchKeyDown(window, { key: 'Tab', ctrlKey: true });
+    await dispatchKeyDown(window, { key: 'T', altKey: true, shiftKey: true });
     expect(useUiStore.getState().activeTool).toBe('tabs');
   });
 

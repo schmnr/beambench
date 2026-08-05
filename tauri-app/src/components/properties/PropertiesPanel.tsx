@@ -34,7 +34,9 @@ import {
   INSPECTOR_EMPTY_CLASS,
   INSPECTOR_HELP_TEXT_CLASS,
   INSPECTOR_SECTION_HEADER_CLASS,
+  WIDE_INSPECTOR_CARD_CLASS,
 } from '../shared/panelAppearance';
+import { usePanelHost } from '../../panels';
 
 const TOAST_SUCCESS = 'success' as const;
 const TOAST_ERROR = 'error' as const;
@@ -44,6 +46,10 @@ const BOOLEAN_ICON_SIZE = 24;
 
 export function PropertiesPanel() {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
+  const wide = orientation === 'wide';
+  const cardClass = wide ? WIDE_INSPECTOR_CARD_CLASS : INSPECTOR_CARD_CLASS;
+  const flowClass = wide ? 'bb-bottom-properties-layout' : 'flex flex-col gap-2.5 px-3 py-2.5';
   const project = useProjectStore((s) => s.project);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
   const updateObject = useProjectStore((s) => s.updateObject);
@@ -82,29 +88,31 @@ export function PropertiesPanel() {
       && !selectionContext.imageMaskSelectionHasInvalidMasks;
 
     return (
-      <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
-      <div className="flex flex-col gap-2.5 px-3 py-2.5">
+      <div className={cardClass} data-testid="properties-card">
+      <div className={flowClass}>
         <TransformSection />
-        <div className="text-xs text-bb-text-dim">{t('panels.properties.objects_selected', { count: selectedObjectIds.length })}</div>
+        <section className="flex flex-col gap-2" data-properties-primary>
+          <div className="text-xs text-bb-text-dim">{t('panels.properties.objects_selected', { count: selectedObjectIds.length })}</div>
 
-        {/* Batch controls */}
-        <div className="flex items-center text-xs">
-          <label className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              data-testid="batch-visible"
-              checked={allVisible}
-              ref={(el) => { if (el) el.indeterminate = !allVisible && !noneVisible; }}
-              onChange={() => void setObjectsVisible(selectedObjectIds, !allVisible)}
-            />
-            {t('panels.properties.visible')}
-          </label>
-        </div>
-        <div className={INSPECTOR_HELP_TEXT_CLASS}>
-          {t('panels.properties.visibility_help', {
-            defaultValue: 'Hidden objects are excluded from the job. Restore them in the Outliner.',
-          })}
-        </div>
+          {/* Batch controls */}
+          <div className="flex items-center text-xs">
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                data-testid="batch-visible"
+                checked={allVisible}
+                ref={(el) => { if (el) el.indeterminate = !allVisible && !noneVisible; }}
+                onChange={() => void setObjectsVisible(selectedObjectIds, !allVisible)}
+              />
+              {t('panels.properties.visible')}
+            </label>
+          </div>
+          <div className={INSPECTOR_HELP_TEXT_CLASS}>
+            {t('panels.properties.visibility_help', {
+              defaultValue: 'Hidden objects are excluded from the job. Restore them in the Outliner.',
+            })}
+          </div>
+        </section>
 
         <SelectionArrangeSection />
 
@@ -212,7 +220,7 @@ export function PropertiesPanel() {
   if (!selectedObject) {
     if (activeTool === 'measure') {
       return (
-        <div className={INSPECTOR_CARD_CLASS} data-testid="measurement-tool-card">
+        <div className={cardClass} data-testid="measurement-tool-card">
           <div className="p-3">
             <MeasurementPropertiesSection />
           </div>
@@ -221,7 +229,7 @@ export function PropertiesPanel() {
     }
     if (activeTool === 'node') {
       return (
-        <div className={INSPECTOR_CARD_CLASS} data-testid="node-editing-card">
+        <div className={cardClass} data-testid="node-editing-card">
           <div className="p-3">
             <NodeEditingSection />
           </div>
@@ -230,14 +238,14 @@ export function PropertiesPanel() {
     }
     if (activeTool === 'text') {
       return (
-        <div className={INSPECTOR_CARD_CLASS} data-testid="text-defaults-card">
+        <div className={cardClass} data-testid="text-defaults-card">
           <TextDefaultsSection />
         </div>
       );
     }
     if (activeTool === 'radius') {
       return (
-        <div className={INSPECTOR_CARD_CLASS} data-testid="radius-tool-card">
+        <div className={cardClass} data-testid="radius-tool-card">
           <div className="p-3">
             <RadiusPropertiesSection />
           </div>
@@ -246,7 +254,7 @@ export function PropertiesPanel() {
     }
     if (activeTool === 'warp') {
       return (
-        <div className={INSPECTOR_CARD_CLASS} data-testid="warp-tool-card">
+        <div className={cardClass} data-testid="warp-tool-card">
           <div className="p-3">
             <WarpPropertiesSection />
           </div>
@@ -255,7 +263,7 @@ export function PropertiesPanel() {
     }
     if (activeTool === 'tabs') {
       return (
-        <div className={INSPECTOR_CARD_CLASS} data-testid="tab-tool-card">
+        <div className={cardClass} data-testid="tab-tool-card">
           <div className="p-3">
             <TabPropertiesSection />
           </div>
@@ -264,7 +272,7 @@ export function PropertiesPanel() {
     }
     if (modifierPropertiesSession) {
       return (
-        <div className={INSPECTOR_CARD_CLASS} data-testid="modifier-properties-card">
+        <div className={cardClass} data-testid="modifier-properties-card">
           <div className="p-3">
             <ModifierPropertiesSection />
           </div>
@@ -292,9 +300,10 @@ export function PropertiesPanel() {
   const isVectorObject = isEffectiveVector(selectedObject, project?.objects ?? []);
 
   return (
-    <div className={INSPECTOR_CARD_CLASS} data-testid="properties-card">
-    <div className="flex flex-col gap-2.5 px-3 py-2.5">
+    <div className={cardClass} data-testid="properties-card">
+    <div className={flowClass}>
       <TransformSection />
+      <section className="flex flex-col gap-2" data-properties-primary>
       <TextInput
         label={t('panels.properties.name')}
         value={selectedObject.name}
@@ -311,7 +320,7 @@ export function PropertiesPanel() {
           testId="object-show-toggle"
         />
       </div>
-      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="object-visibility-help">
+      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`} data-property-helper data-testid="object-visibility-help">
         {t('panels.properties.visibility_help', {
           defaultValue: 'Hidden objects are excluded from the job. Restore them in the Outliner.',
         })}
@@ -325,7 +334,7 @@ export function PropertiesPanel() {
         max={100}
         testId="properties-power-scale-slider"
       />
-      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`}>
+      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`} data-property-helper>
         {t('panels.properties.power_scale_help', {
           defaultValue: 'Multiplies this object’s layer power without changing the layer.',
         })}
@@ -339,11 +348,12 @@ export function PropertiesPanel() {
         min={-99}
         max={99}
       />
-      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`}>
+      <div className={`-mt-1.5 ${INSPECTOR_HELP_TEXT_CLASS}`} data-property-helper>
         {t('panels.properties.cut_priority_help', {
           defaultValue: 'Lower values run earlier when Priority optimization is enabled.',
         })}
       </div>
+      </section>
 
       <SelectionArrangeSection />
 
@@ -367,36 +377,31 @@ export function PropertiesPanel() {
       )}
 
       {(isRectangleShape || isEllipseShape || isPolygonShape || isStarShape) && (
-        <div className="flex flex-col gap-1.5 pt-1 border-t border-bb-border">
+        <section className="flex flex-col gap-1.5 border-t border-bb-border pt-1">
           <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.properties.shape')}</div>
-        </div>
-      )}
-
-      {isRectangleShape && selectedObject.data.type === 'shape' && (
-        <NumberInput
-          label={t('panels.properties.corner_radius')}
-          value={selectedObject.data.corner_radius}
-          onChange={(value) => {
-            if (selectedObject.data.type === 'shape') {
-              updateObjectData(selectedObject.id, { ...selectedObject.data, corner_radius: value });
-            }
-          }}
-          step={0.5}
-        />
-      )}
-
-      {polygonData && (
-        <NumberInput
-          label={t('panels.properties.sides')}
-          value={polygonData.sides}
-          onChange={(sides) => updateObjectData(selectedObject.id, { ...polygonData, sides: Math.max(3, Math.round(sides)) })}
-          step={1}
-          min={3}
-        />
-      )}
-
-      {starData && (
-        <div className="flex flex-col gap-1.5">
+          {isRectangleShape && selectedObject.data.type === 'shape' && (
+            <NumberInput
+              label={t('panels.properties.corner_radius')}
+              value={selectedObject.data.corner_radius}
+              onChange={(value) => {
+                if (selectedObject.data.type === 'shape') {
+                  updateObjectData(selectedObject.id, { ...selectedObject.data, corner_radius: value });
+                }
+              }}
+              step={0.5}
+            />
+          )}
+          {polygonData && (
+            <NumberInput
+              label={t('panels.properties.sides')}
+              value={polygonData.sides}
+              onChange={(sides) => updateObjectData(selectedObject.id, { ...polygonData, sides: Math.max(3, Math.round(sides)) })}
+              step={1}
+              min={3}
+            />
+          )}
+          {starData && (
+            <div className="flex flex-col gap-1.5">
           <NumberInput
             label={t('panels.properties.points')}
             value={starData.points}
@@ -447,7 +452,9 @@ export function PropertiesPanel() {
               max={1}
             />
           )}
-        </div>
+            </div>
+          )}
+        </section>
       )}
 
       {selectedObject.data?.type === 'raster_image' && (

@@ -22,6 +22,12 @@ export const WINDOW_PANEL_MENU_ITEMS = [
   { label: 'Properties', commandId: APP_COMMANDS.WINDOW_PANEL_SHAPE_PROPERTIES, panelId: 'properties' },
 ] as const satisfies ReadonlyArray<{ label: string; commandId: AppCommandId; panelId: string }>;
 
+export const WINDOW_PANEL_NAVIGATION_ITEMS = [
+  { label: 'Activate Layers', commandId: APP_COMMANDS.WINDOW_ACTIVATE_LAYERS, panelId: 'cuts_layers' },
+  { label: 'Activate Properties', commandId: APP_COMMANDS.WINDOW_ACTIVATE_PROPERTIES, panelId: 'properties' },
+  { label: 'Activate Outliner', commandId: APP_COMMANDS.WINDOW_ACTIVATE_OUTLINER, panelId: 'outliner' },
+] as const satisfies ReadonlyArray<{ label: string; commandId: AppCommandId; panelId: string }>;
+
 export const WINDOW_TOOLBAR_MENU_ITEMS = [
   { label: 'Arrange', commandId: APP_COMMANDS.WINDOW_TOOLBAR_ARRANGE, toolbarId: 'arrange' },
   { label: 'Arrange (Long)', commandId: APP_COMMANDS.WINDOW_TOOLBAR_ARRANGE_LONG, toolbarId: 'arrangeLong' },
@@ -43,6 +49,7 @@ export const WINDOW_MENU_COMMAND_ORDER = [
   APP_COMMANDS.WINDOW_SMOOTH_EDGES,
   APP_COMMANDS.WINDOW_TOGGLE_OPERATION_WIREFRAME,
   APP_COMMANDS.WINDOW_SIDE_PANELS,
+  ...WINDOW_PANEL_NAVIGATION_ITEMS.map((item) => item.commandId),
   ...WINDOW_PANEL_MENU_ITEMS.map((item) => item.commandId),
   ...WINDOW_TOOLBAR_MENU_ITEMS.map((item) => item.commandId),
 ] as const satisfies ReadonlyArray<AppCommandId>;
@@ -53,6 +60,10 @@ export const WINDOW_ARTWORK_DISPLAY_BY_COMMAND = Object.fromEntries(
 
 export const WINDOW_PANEL_BY_COMMAND = Object.fromEntries(
   WINDOW_PANEL_MENU_ITEMS.map((item) => [item.commandId, item.panelId]),
+) as Partial<Record<AppCommandId, string>>;
+
+export const WINDOW_PANEL_NAVIGATION_BY_COMMAND = Object.fromEntries(
+  WINDOW_PANEL_NAVIGATION_ITEMS.map((item) => [item.commandId, item.panelId]),
 ) as Partial<Record<AppCommandId, string>>;
 
 export const WINDOW_TOOLBAR_BY_COMMAND = Object.fromEntries(

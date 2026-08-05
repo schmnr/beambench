@@ -10,7 +10,7 @@ import { useUiStore, type ArtworkDisplayMode, type ToolType } from '../stores/ui
 import { useUndoStore } from '../stores/undoStore';
 import { guardUnsavedChanges } from '../stores/unsavedGuardStore';
 import { useMachineStore } from '../stores/machineStore';
-import { getWorkspacePanelLayout } from '../panels';
+import { getPanelTypeId, getWorkspacePanelLayout } from '../panels';
 import {
   clearClipboard,
   hasClipboardData,
@@ -23,6 +23,12 @@ import {
 import { pasteClipboardArtworkFromSystem } from '../utils/systemClipboard';
 import { isNativeMenuActive } from '../utils/platform';
 import { findAutoGroupCandidates } from '../utils/autoGroupCandidates';
+import {
+  effectiveTransformLocks,
+  isTransformLocked,
+  notifyTransformLocked,
+  type TransformLockKind,
+} from '../utils/transformLocks';
 import {
   jogLaser,
   moveLaserToSelection,
@@ -44,6 +50,7 @@ import { zoomToFitBounds } from '../canvas/ViewportTransform';
 import { getCanvasViewportSize } from '../canvas/canvasViewportRegistry';
 import {
   WINDOW_PANEL_BY_COMMAND,
+  WINDOW_PANEL_NAVIGATION_BY_COMMAND,
   WINDOW_PANEL_MENU_ITEMS,
   WINDOW_TOOLBAR_BY_COMMAND,
   WINDOW_TOOLBAR_MENU_ITEMS,
@@ -370,6 +377,20 @@ function toggleWindowPanel(commandId: AppCommandId): boolean {
   return true;
 }
 
+function activateWindowPanel(commandId: AppCommandId): boolean {
+  const panelTypeId = WINDOW_PANEL_NAVIGATION_BY_COMMAND[commandId];
+  if (!panelTypeId) return false;
+  const ui = useUiStore.getState();
+  const workspace = getWorkspacePanelLayout(ui.panelLayout, ui.workspaceMode);
+  const dockedInstance = Object.values(workspace.zones)
+    .flatMap((zone) => zone.panelIds)
+    .find((panelId) => getPanelTypeId(panelId) === panelTypeId);
+  const floatingInstance = workspace.floatingPanels
+    .find((panel) => getPanelTypeId(panel.panelId) === panelTypeId)?.panelId;
+  ui.showPanel(dockedInstance ?? floatingInstance ?? panelTypeId);
+  return true;
+}
+
 function toggleWindowToolbar(commandId: AppCommandId): boolean {
   const toolbarId = WINDOW_TOOLBAR_BY_COMMAND[commandId];
   if (!toolbarId) return false;
@@ -442,6 +463,14 @@ export async function executeAppCommand(
     && selectedObjects.every((object) => isMeshDeformCompatible(object, allObjects));
   const booleanCompatibleSelection = selectedObjects.length >= 2
     && selectedObjects.every((object) => isBooleanCompatible(object, allObjects));
+  const vectorSelection = selectedObjects.length > 0
+    && selectedObjects.every((object) => isConvertibleVectorType(effectiveType(object)));
+  const transformLocks = effectiveTransformLocks(selectedObjects);
+  const requireTransform = (kind: TransformLockKind) => {
+    if (!isTransformLocked(transformLocks, kind)) return true;
+    notifyTransformLocked(kind);
+    return false;
+  };
 
   if (shouldIgnoreNativeFocusGuardedCommand(commandId, context)) return;
   if (ui.workspaceMode !== 'design' && DESIGN_ONLY_EDIT_COMMANDS.has(commandId)) return;
@@ -456,6 +485,7 @@ export async function executeAppCommand(
     ) return;
   }
   if (setWindowArtworkDisplay(commandId as AppCommandId)) return;
+  if (activateWindowPanel(commandId as AppCommandId)) return;
   if (toggleWindowPanel(commandId as AppCommandId)) return;
   if (toggleWindowToolbar(commandId as AppCommandId)) return;
 
@@ -471,6 +501,15 @@ export async function executeAppCommand(
   }
 
   switch (commandId) {
+    case APP_COMMANDS.VIEW_TOGGLE_GRID:
+      ui.toggleGrid();
+      return;
+    case APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_GRID:
+      ui.toggleSnap();
+      return;
+    case APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_OBJECTS:
+      ui.toggleSnapToObjects();
+      return;
     case APP_COMMANDS.APP_ABOUT:
     case APP_COMMANDS.HELP_ABOUT:
       dialogActions.openAbout?.();
@@ -644,13 +683,13 @@ export async function executeAppCommand(
       if (selectedIds.length > 0 && unlockedSelection) dialogActions.openCloseSelectedPathsWithTolerance?.(selectedIds);
       return;
     case APP_COMMANDS.EDIT_AUTO_JOIN_SELECTED_SHAPES:
-      if (unlockedSelection) await runCommand(() => ps.autoJoinShapes(selectedIds, 0.05));
+      if (unlockedSelection && vectorSelection) await runCommand(() => ps.autoJoinShapes(selectedIds, 0.05));
       return;
     case APP_COMMANDS.EDIT_CLOSE_AND_JOIN:
       if (selectedIds.length >= 2 && unlockedSelection) await runCommand(() => ps.closeAndJoin(selectedIds));
       return;
     case APP_COMMANDS.EDIT_OPTIMIZE_SELECTED_SHAPES:
-      if (unlockedSelection) await runCommand(() => ps.optimizeShapes(selectedIds));
+      if (unlockedSelection && vectorSelection) await runCommand(() => ps.optimizeShapes(selectedIds));
       return;
     case APP_COMMANDS.EDIT_DELETE_DUPLICATES:
       if (await confirmDeleteDuplicates(dialogActions, selectedIds)) {
@@ -671,6 +710,24 @@ export async function executeAppCommand(
       return;
     case APP_COMMANDS.EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED:
       await runCommand(() => ps.selectShapesSmallerThanSelected());
+      return;
+    case APP_COMMANDS.EDIT_SELECT_SIMILAR_LAYER:
+      ps.selectSimilar('layer');
+      return;
+    case APP_COMMANDS.EDIT_SELECT_SIMILAR_TYPE:
+      ps.selectSimilar('type');
+      return;
+    case APP_COMMANDS.EDIT_SELECT_SIMILAR_SIZE:
+      ps.selectSimilar('size');
+      return;
+    case APP_COMMANDS.EDIT_SELECT_SIMILAR_OPERATION:
+      ps.selectSimilar('operation');
+      return;
+    case APP_COMMANDS.EDIT_SELECT_SIMILAR_CIRCLE_DIAMETER:
+      ps.selectSimilar('circle_diameter');
+      return;
+    case APP_COMMANDS.EDIT_SELECT_SIMILAR_OPEN_CLOSED:
+      ps.selectSimilar('open_closed');
       return;
     case APP_COMMANDS.EDIT_IMAGE_REFRESH: {
       const objectId = selectedRasterImageId();
@@ -864,7 +921,9 @@ export async function executeAppCommand(
       }
       return;
     case APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE:
-      if (unlockedSelection) ui.setActiveTool('two_point_rotate_scale');
+      if (unlockedSelection && requireTransform('scale') && requireTransform('rotation')) {
+        ui.setActiveTool('two_point_rotate_scale');
+      }
       return;
     case APP_COMMANDS.ARRANGE_ALIGN_LEFT:
       if (canAlign) await runCommand(() => ps.alignObjects(selectedIds, 'left'));
@@ -914,16 +973,16 @@ export async function executeAppCommand(
       if (unlockedSelection && selectedIds.length === 1) await runCommand(() => ps.pushDrawOrder(selectedIds[0], 'back'));
       return;
     case APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL:
-      if (unlockedSelection) await runCommand(() => ps.flipObjects(selectedIds, 'horizontal'));
+      if (unlockedSelection && requireTransform('scale')) await runCommand(() => ps.flipObjects(selectedIds, 'horizontal'));
       return;
     case APP_COMMANDS.ARRANGE_FLIP_VERTICAL:
-      if (unlockedSelection) await runCommand(() => ps.flipObjects(selectedIds, 'vertical'));
+      if (unlockedSelection && requireTransform('scale')) await runCommand(() => ps.flipObjects(selectedIds, 'vertical'));
       return;
     case APP_COMMANDS.ARRANGE_ROTATE_CW:
-      if (unlockedSelection) await runCommand(() => ps.rotateObjects(selectedIds, 90));
+      if (unlockedSelection && requireTransform('rotation')) await runCommand(() => ps.rotateObjects(selectedIds, 90));
       return;
     case APP_COMMANDS.ARRANGE_ROTATE_CCW:
-      if (unlockedSelection) await runCommand(() => ps.rotateObjects(selectedIds, -90));
+      if (unlockedSelection && requireTransform('rotation')) await runCommand(() => ps.rotateObjects(selectedIds, -90));
       return;
     case APP_COMMANDS.ARRANGE_MIRROR_ACROSS_LINE:
       if (unlockedSelection && selectedIds.length >= 2) await runCommand(() => ps.mirrorAcrossLine());
@@ -1161,12 +1220,20 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   const canDistribute = selectedIds.length >= 3 && selectedObjects.some((object) => !object.locked);
   const canMoveTogether = selectedIds.length >= 2 && selectedObjects.some((object) => !object.locked);
   const canAutoGroup = selectedIds.length >= 2 && findAutoGroupCandidates(ps.project, selectedIds).length > 0;
+  const transformLocks = effectiveTransformLocks(selectedObjects);
+  const canScale = !isTransformLocked(transformLocks, 'scale');
+  const canRotate = !isTransformLocked(transformLocks, 'rotation');
   const accel = (id: AppCommandId) => nativeAcceleratorForCommand(id, customHotkeys);
   const artworkDisplayItems = WINDOW_ARTWORK_DISPLAY_ITEMS.map((item) => ({
     id: item.commandId,
     enabled: true,
     checked: ui.artworkDisplayMode === item.mode,
   }));
+  const viewItems = [
+    { id: APP_COMMANDS.VIEW_TOGGLE_GRID, enabled: true, checked: ui.gridVisible, accelerator: accel(APP_COMMANDS.VIEW_TOGGLE_GRID) },
+    { id: APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_GRID, enabled: true, checked: ui.snapToGrid, accelerator: accel(APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_GRID) },
+    { id: APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_OBJECTS, enabled: true, checked: ui.snapToObjects, accelerator: accel(APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_OBJECTS) },
+  ];
   const activePanelLayout = getWorkspacePanelLayout(ui.panelLayout, ui.workspaceMode);
   const panelItems = WINDOW_PANEL_MENU_ITEMS.map((item) => ({
     id: item.commandId,
@@ -1190,6 +1257,7 @@ export function getAppCommandState(): NativeMenuStateUpdate {
     recentFiles: recentFiles.map((file) => ({ name: file.name, path: file.path })),
     items: [
       ...nativeAcceleratorUpdates(customHotkeys),
+      ...viewItems,
       { id: APP_COMMANDS.FILE_SAVE, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_SAVE) },
       { id: APP_COMMANDS.FILE_SAVE_AS, enabled: projectLoaded, accelerator: accel(APP_COMMANDS.FILE_SAVE_AS) },
       {
@@ -1238,6 +1306,12 @@ export function getAppCommandState(): NativeMenuStateUpdate {
       { id: APP_COMMANDS.EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER, enabled: projectLoaded && ps.selectedLayerId !== null },
       { id: APP_COMMANDS.EDIT_SELECT_CONTAINED_SHAPES, enabled: singleClosedVectorCompatibleSelection },
       { id: APP_COMMANDS.EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED, enabled: hasSelection },
+      { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_LAYER, enabled: hasSelection },
+      { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_TYPE, enabled: hasSelection },
+      { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_SIZE, enabled: hasSelection },
+      { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_OPERATION, enabled: hasSelection },
+      { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_CIRCLE_DIAMETER, enabled: hasSelection },
+      { id: APP_COMMANDS.EDIT_SELECT_SIMILAR_OPEN_CLOSED, enabled: hasSelection },
       { id: APP_COMMANDS.EDIT_IMAGE_REFRESH, enabled: designMode && unlockedSelection && refreshableRasterSelected },
       { id: APP_COMMANDS.EDIT_IMAGE_REPLACE, enabled: designMode && unlockedSelection && rasterSelected },
       { id: APP_COMMANDS.EDIT_IMAGE_REPLACE_TO_FIT, enabled: designMode && unlockedSelection && rasterSelected },
@@ -1300,12 +1374,12 @@ export function getAppCommandState(): NativeMenuStateUpdate {
       { id: APP_COMMANDS.ARRANGE_FORWARD, enabled: designMode && singleSelection !== null && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FORWARD) },
       { id: APP_COMMANDS.ARRANGE_BACKWARD, enabled: designMode && singleSelection !== null && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_BACKWARD) },
       { id: APP_COMMANDS.ARRANGE_BACK, enabled: designMode && singleSelection !== null && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_BACK) },
-      { id: APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL) },
-      { id: APP_COMMANDS.ARRANGE_FLIP_VERTICAL, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_FLIP_VERTICAL) },
+      { id: APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL, enabled: designMode && unlockedSelection && canScale, accelerator: accel(APP_COMMANDS.ARRANGE_FLIP_HORIZONTAL) },
+      { id: APP_COMMANDS.ARRANGE_FLIP_VERTICAL, enabled: designMode && unlockedSelection && canScale, accelerator: accel(APP_COMMANDS.ARRANGE_FLIP_VERTICAL) },
       { id: APP_COMMANDS.ARRANGE_MIRROR_ACROSS_LINE, enabled: designMode && selectedObjects.length >= 2 && unlockedSelection },
-      { id: APP_COMMANDS.ARRANGE_ROTATE_CW, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_ROTATE_CW) },
-      { id: APP_COMMANDS.ARRANGE_ROTATE_CCW, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_ROTATE_CCW) },
-      { id: APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE, enabled: designMode && unlockedSelection, accelerator: accel(APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE) },
+      { id: APP_COMMANDS.ARRANGE_ROTATE_CW, enabled: designMode && unlockedSelection && canRotate, accelerator: accel(APP_COMMANDS.ARRANGE_ROTATE_CW) },
+      { id: APP_COMMANDS.ARRANGE_ROTATE_CCW, enabled: designMode && unlockedSelection && canRotate, accelerator: accel(APP_COMMANDS.ARRANGE_ROTATE_CCW) },
+      { id: APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE, enabled: designMode && unlockedSelection && canScale && canRotate, accelerator: accel(APP_COMMANDS.ARRANGE_TWO_POINT_ROTATE_SCALE) },
       { id: APP_COMMANDS.ARRANGE_NEST_SELECTED, enabled: designMode && unlockedSelection },
       { id: APP_COMMANDS.ARRANGE_GRID_ARRAY, enabled: designMode && unlockedSelection },
       { id: APP_COMMANDS.ARRANGE_CIRCULAR_ARRAY, enabled: designMode && unlockedSelection },
@@ -1371,92 +1445,6 @@ export function getAppCommandState(): NativeMenuStateUpdate {
   };
 }
 
-// macOS-only duplicate-dispatch guard. This mirrors native accelerators that can
-// become effective; isNativeMenuOwnedShortcut still returns false off macOS.
-const NATIVE_MENU_OWNED_SHORTCUTS = new Set([
-  'meta+comma',
-  'meta+n',
-  'meta+o',
-  'meta+s',
-  'meta+shift+s',
-  'meta+i',
-  'meta+alt+n',
-  'meta+q',
-  'meta+p',
-  'meta+shift+p',
-  'meta+z',
-  'meta+shift+z',
-  'meta+a',
-  'meta+shift+i',
-  'meta+shift+c',
-  'meta+x',
-  'meta+c',
-  'meta+v',
-  'alt+v',
-  'meta+d',
-  'delete',
-  'backspace',
-  'meta+g',
-  'meta+u',
-  'alt+j',
-  'alt+shift+o',
-  'alt+d',
-  'escape',
-  'meta+l',
-  'meta+r',
-  'meta+e',
-  'meta+`',
-  'meta+k',
-  'meta+tab',
-  'meta+t',
-  'meta+shift+l',
-  'meta+m',
-  'alt+o',
-  'meta+w',
-  'meta+b',
-  'alt+shift+c',
-  'alt+t',
-  'alt+i',
-  'alt+b',
-  'alt+left',
-  'alt+right',
-  'alt+up',
-  'alt+down',
-  'alt+pageup',
-  'alt+pagedown',
-  'alt+shift+h',
-  'alt+shift+v',
-  'meta+2',
-  'alt+plus',
-  'alt+-',
-  'alt+*',
-  'meta+shift+b',
-  'pageup',
-  'pagedown',
-  'meta+pageup',
-  'meta+pagedown',
-  'meta+shift+h',
-  'meta+shift+v',
-  'meta+shift+m',
-  'meta+alt+[',
-  'meta+alt+]',
-  'meta+shift+[',
-  'meta+shift+]',
-  'period',
-  'comma',
-  'meta+0',
-  'meta+=',
-  'meta+-',
-  'meta+shift+a',
-  'alt+p',
-  'alt+shift+w',
-  'p',
-  'f12',
-  'f1',
-  'alt+x',
-  'alt+shift+l',
-]);
-
 export function nativeMenuShortcutKey(event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'altKey' | 'shiftKey'>): string {
   const parts: string[] = [];
   if (event.metaKey) parts.push('meta');
@@ -1470,7 +1458,6 @@ export function nativeMenuShortcutKey(event: Pick<KeyboardEvent, 'key' | 'metaKe
 export function isNativeMenuOwnedShortcut(event: KeyboardEvent, nativeMenuActive = isNativeMenuActive()): boolean {
   if (!nativeMenuActive) return false;
   if (activeElementAcceptsTextInput() || useUiStore.getState().textEditObjectId !== null) return false;
-  if (NATIVE_MENU_OWNED_SHORTCUTS.has(nativeMenuShortcutKey(event))) return true;
   const customHotkeys = useAppStore.getState().settings?.custom_hotkeys ?? {};
   return findCommandForKeyboardEvent(event, customHotkeys) !== null;
 }

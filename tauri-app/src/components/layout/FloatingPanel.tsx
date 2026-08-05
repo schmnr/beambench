@@ -160,7 +160,7 @@ export function FloatingPanel({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
+      <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
 
       {/* Resize handle */}
       <div

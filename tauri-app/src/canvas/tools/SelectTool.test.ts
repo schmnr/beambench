@@ -554,6 +554,73 @@ describe('SelectTool crossing/enclosing selection', () => {
   });
 });
 
+describe('SelectTool professional selection feedback', () => {
+  const bounds = { min: { x: 10, y: 10 }, max: { x: 20, y: 20 } };
+
+  it('preselects the top hit on hover and clears it on leave', () => {
+    const tool = new SelectTool();
+    const ctx = makeToolContext({
+      objects: [makeVectorObject('hovered', bounds)],
+      layers: [{ id: 'layer1', name: 'Cut', color_tag: '#ef4444', enabled: true }],
+      requestOverlayRender: vi.fn(),
+    });
+    tool.onMouseMove(makeMouseEvent({ screenX: 430, screenY: 330, worldX: 15, worldY: 15 }), ctx);
+    expect(tool.getOverlay()).toMatchObject({
+      type: 'selection-feedback',
+      objectId: 'hovered',
+      color: '#ef4444',
+    });
+    tool.onMouseLeave(ctx);
+    expect(tool.getOverlay()).toEqual({ type: 'none' });
+  });
+
+  it('reports live marquee candidates and modifier mode', () => {
+    const tool = new SelectTool();
+    const ctx = makeToolContext({ objects: [makeVectorObject('candidate', bounds)] });
+    tool.onMouseDown(makeMouseEvent({ screenX: 415, screenY: 315, worldX: 7.5, worldY: 7.5, shiftKey: true }), ctx);
+    tool.onMouseMove(makeMouseEvent({ screenX: 445, screenY: 345, worldX: 22.5, worldY: 22.5, shiftKey: true }), ctx);
+    expect(tool.getOverlay()).toMatchObject({
+      type: 'rubber-band',
+      candidateObjectIds: ['candidate'],
+      selectionMode: 'add',
+    });
+  });
+
+  it('opens the overlap chooser on Alt-click', () => {
+    const tool = new SelectTool();
+    const openSelectionPicker = vi.fn();
+    const ctx = makeToolContext({
+      objects: [makeVectorObject('back', bounds), makeVectorObject('front', bounds)],
+      openSelectionPicker,
+    });
+    const event = makeMouseEvent({ screenX: 430, screenY: 330, worldX: 15, worldY: 15, altKey: true });
+    tool.onMouseDown(event, ctx);
+    tool.onMouseUp(event, ctx);
+    expect(openSelectionPicker).toHaveBeenCalledWith({ x: 430, y: 330 }, ['front', 'back']);
+  });
+
+  it('enters a group on double-click and exits one level with Escape', async () => {
+    const tool = new SelectTool();
+    const child = makeVectorObject('child', bounds);
+    const group = makeGroupObject('group', ['child'], bounds);
+    const setSelectionIsolationPath = vi.fn();
+    const selectObjects = vi.fn();
+    const ctx = makeToolContext({
+      objects: [child, group],
+      selectionIsolationPath: [],
+      setSelectionIsolationPath,
+      selectObjects,
+    });
+    tool.onDoubleClick(makeMouseEvent({ screenX: 430, screenY: 330, worldX: 15, worldY: 15 }), ctx);
+    await vi.waitFor(() => expect(setSelectionIsolationPath).toHaveBeenCalledWith(['group']));
+
+    const isolatedCtx = { ...ctx, selectionIsolationPath: ['group'] };
+    tool.onKeyDown(new KeyboardEvent('keydown', { key: 'Escape' }), isolatedCtx);
+    expect(setSelectionIsolationPath).toHaveBeenLastCalledWith([]);
+    expect(selectObjects).toHaveBeenLastCalledWith(['group']);
+  });
+});
+
 describe('SelectTool grouped object selection', () => {
   let tool: SelectTool;
 

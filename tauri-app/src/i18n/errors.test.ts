@@ -29,4 +29,14 @@ describe('wrapBackendError', () => {
       'Could not open COM5. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.',
     );
   });
+
+  it('uses the stable Lihuiyu driver code instead of exposing the backend exception', () => {
+    expect(
+      wrapBackendError(
+        '[lihuiyu_incompatible_windows_driver] the CH341 device uses Windows driver CH341PAR',
+      ),
+    ).toBe(
+      'This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.',
+    );
+  });
 });

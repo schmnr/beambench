@@ -278,6 +278,7 @@ export interface LihuiyuUsbDeviceInfo {
   serial_number: string | null;
   has_required_bulk_endpoints: boolean | null;
   driver: string | null;
+  windows_driver_compatible: boolean | null;
 }
 
 export type ControllerConnectionResult =

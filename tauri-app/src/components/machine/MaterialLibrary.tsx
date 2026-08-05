@@ -23,6 +23,7 @@ import {
   lengthUnitLabel,
   labelWithUnit,
 } from '../../utils/lengthUnits';
+import { usePanelHost } from '../../panels';
 
 const OPERATION_OPTIONS: Array<{ value: OperationType; labelKey: string }> = [
   { value: 'line', labelKey: 'panels.machine.material_library.operation.line' },
@@ -71,6 +72,7 @@ function operationOptionsForEdit(
 
 export function MaterialLibrary() {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
   const presets = useMaterialStore((s) => s.presets);
   const loadPresets = useMaterialStore((s) => s.loadPresets);
   const savePreset = useMaterialStore((s) => s.savePreset);
@@ -279,7 +281,8 @@ export function MaterialLibrary() {
   }
 
   return (
-    <div className="px-2 pb-2 space-y-1">
+    <div className={orientation === 'wide' ? 'bb-bottom-worklist' : 'space-y-1 px-2 pb-2'}>
+      <div className="space-y-1" data-worklist-tools>
       {pendingEditPreset && (
         <div className="rounded border border-bb-warning-border bg-bb-warning-bg p-2 text-xs text-bb-text">
           <div className="mb-2 text-bb-warning-fg">
@@ -412,7 +415,9 @@ export function MaterialLibrary() {
           {t('panels.machine.material_library.from_layer')}
         </button>
       </div>
+      </div>
 
+      <div className="space-y-1" data-worklist-content>
       {[...grouped.entries()].map(([material, thicknessMap]) => (
         <div key={material} data-testid="material-group">
           <div className="text-xs font-medium text-bb-text-muted px-1 py-0.5 bg-bb-bg-alt border-b border-bb-border mt-1">
@@ -549,6 +554,7 @@ export function MaterialLibrary() {
           ))}
         </div>
       ))}
+      </div>
     </div>
   );
 }

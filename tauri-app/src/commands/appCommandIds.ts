@@ -42,6 +42,12 @@ export const APP_COMMANDS = {
   EDIT_SELECT_ALL_SHAPES_IN_CURRENT_LAYER: 'edit.select_all_shapes_in_current_layer',
   EDIT_SELECT_CONTAINED_SHAPES: 'edit.select_contained_shapes',
   EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED: 'edit.select_shapes_smaller_than_selected',
+  EDIT_SELECT_SIMILAR_LAYER: 'edit.select_similar.layer',
+  EDIT_SELECT_SIMILAR_TYPE: 'edit.select_similar.type',
+  EDIT_SELECT_SIMILAR_SIZE: 'edit.select_similar.size',
+  EDIT_SELECT_SIMILAR_OPERATION: 'edit.select_similar.operation',
+  EDIT_SELECT_SIMILAR_CIRCLE_DIAMETER: 'edit.select_similar.circle_diameter',
+  EDIT_SELECT_SIMILAR_OPEN_CLOSED: 'edit.select_similar.open_closed',
   EDIT_IMAGE_REFRESH: 'edit.image.refresh',
   EDIT_IMAGE_REPLACE: 'edit.image.replace',
   EDIT_IMAGE_REPLACE_TO_FIT: 'edit.image.replace_to_fit',
@@ -151,6 +157,10 @@ export const APP_COMMANDS = {
   LASER_INTERVAL_TEST: 'laser.interval_test',
   FILE_SAVE_MACHINE_FILES: 'file.save_machine_files',
 
+  VIEW_TOGGLE_GRID: 'view.toggle_grid',
+  VIEW_TOGGLE_SNAP_TO_GRID: 'view.toggle_snap_to_grid',
+  VIEW_TOGGLE_SNAP_TO_OBJECTS: 'view.toggle_snap_to_objects',
+
   WINDOW_SIDE_PANELS: 'window.side_panels',
   WINDOW_PREVIEW: 'window.preview',
   WINDOW_REFRESH_PREVIEW: 'window.refresh_preview',
@@ -164,6 +174,9 @@ export const APP_COMMANDS = {
   WINDOW_SMOOTH_EDGES: 'window.smooth_edges',
   // Keep the persisted command ID so existing custom shortcuts continue to work.
   WINDOW_TOGGLE_OPERATION_WIREFRAME: 'window.toggle_wireframe_filled',
+  WINDOW_ACTIVATE_LAYERS: 'window.activate.layers',
+  WINDOW_ACTIVATE_PROPERTIES: 'window.activate.properties',
+  WINDOW_ACTIVATE_OUTLINER: 'window.activate.outliner',
   WINDOW_PANEL_ART_LIBRARY: 'window.panel.art_library',
   WINDOW_PANEL_CAMERA_CONTROL: 'window.panel.camera',
   WINDOW_PANEL_CONSOLE: 'window.panel.console',

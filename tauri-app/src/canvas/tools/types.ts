@@ -24,7 +24,8 @@ export interface ToolContext {
   objects: ProjectObject[];
   selectedObjectIds: string[];
   selectedLayerId: string | null;
-  layers: { id: string; enabled: boolean; visible?: boolean; operation?: string }[];
+  layers: { id: string; name?: string; color_tag?: string; enabled: boolean; visible?: boolean; operation?: string }[];
+  selectionIsolationPath?: string[];
   transformLocks?: TransformLocks;
   /** Selection remains available, but project geometry must not be mutated. */
   readOnly?: boolean;
@@ -52,6 +53,9 @@ export interface ToolContext {
   requestRender: () => void;
   /** Repaint transient handles/guides without redrawing project geometry. */
   requestOverlayRender?: () => void;
+  setSelectionIsolationPath?: (path: string[]) => void;
+  openSelectionPicker?: (screen: Point2D, objectIds: string[]) => void;
+  closeSelectionPicker?: () => void;
 }
 
 export interface CanvasTool {
@@ -60,6 +64,7 @@ export interface CanvasTool {
   onMouseMove(e: CanvasMouseEvent, ctx: ToolContext): void;
   onMouseUp(e: CanvasMouseEvent, ctx: ToolContext): void;
   onDoubleClick?(e: CanvasMouseEvent, ctx: ToolContext): void;
+  onMouseLeave?(ctx: ToolContext): void;
   onKeyDown?(e: KeyboardEvent, ctx: ToolContext): void;
   getCursor(ctx: ToolContext): string;
   getOverlay(): ToolOverlay;

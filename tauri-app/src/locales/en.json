@@ -24,6 +24,8 @@
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
     "refresh_usb_devices": "Refresh USB devices",
+    "lihuiyu_windows_driver_incompatible": "This controller is using the Windows USB driver {driver}. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list.",
+    "lihuiyu_windows_driver_tradeoff": "Changing the USB driver may prevent LaserDRW or other vendor software from using this controller until its original driver is restored.",
     "network_host": "Host",
     "tcp_port": "TCP port",
     "udp_port": "UDP port",
@@ -414,7 +416,12 @@
       "error_command_conflict": "{hotkey} already belongs to {command}.",
       "error_macro_conflict": "{hotkey} already belongs to macro {macro}.",
       "prompt": "Press a new hotkey for {command}.",
-      "saved": "Hotkeys updated."
+      "saved": "Hotkeys updated.",
+      "function": "Function",
+      "current": "Current",
+      "default": "Default",
+      "actions": "Actions",
+      "reset": "Reset"
     },
     "boolean_assistant": {
       "title": "Boolean Assistant",
@@ -1786,6 +1793,7 @@
       "offset_outward": "Offset Outward",
       "max_sub_layers_title": "Maximum of 11 sub-layers reached",
       "add_sub_layer_title": "Add sub-layer",
+      "sub_layer": "Sub-layer",
       "add_sub_layer": "+ Add sub-layer",
       "order_hint": "Sub-layers run in order, top to bottom."
     },
@@ -2495,6 +2503,7 @@
     "operation_failed_with_detail": "Operation failed: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "workspace_edge_left": "left",
     "workspace_edge_right": "right",
     "workspace_edge_top": "top",
@@ -2505,5 +2514,32 @@
   },
   "import": {
     "drop_to_import": "Drop files to import"
+  },
+  "selection": {
+    "object": "Object",
+    "layer": "Layer",
+    "mode_replace": "Replace",
+    "mode_add": "Add",
+    "mode_toggle": "Toggle",
+    "mode_remove": "Remove",
+    "marquee_count": "{count} candidates · {mode}",
+    "overlap_title": "Choose overlapping object",
+    "topmost": "Top",
+    "overlap_hint": "Use ↑ ↓ and Enter · Esc closes",
+    "canvas": "Canvas",
+    "group": "Group",
+    "exit_isolation": "Exit group isolation",
+    "select_similar": "Select Similar",
+    "same_layer": "Same Layer",
+    "same_type": "Same Type",
+    "same_size": "Same Size",
+    "same_operation": "Same Operation",
+    "same_circle_diameter": "Same Circle Diameter",
+    "same_open_closed": "Same Open/Closed State"
+  },
+  "commands": {
+    "activate_layers": "Activate Layers",
+    "activate_properties": "Activate Properties",
+    "activate_outliner": "Activate Outliner"
   }
 }

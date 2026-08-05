@@ -52,6 +52,12 @@ pub mod command {
     pub const EDIT_SELECT_CONTAINED_SHAPES: &str = "edit.select_contained_shapes";
     pub const EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED: &str =
         "edit.select_shapes_smaller_than_selected";
+    pub const EDIT_SELECT_SIMILAR_LAYER: &str = "edit.select_similar.layer";
+    pub const EDIT_SELECT_SIMILAR_TYPE: &str = "edit.select_similar.type";
+    pub const EDIT_SELECT_SIMILAR_SIZE: &str = "edit.select_similar.size";
+    pub const EDIT_SELECT_SIMILAR_OPERATION: &str = "edit.select_similar.operation";
+    pub const EDIT_SELECT_SIMILAR_CIRCLE_DIAMETER: &str = "edit.select_similar.circle_diameter";
+    pub const EDIT_SELECT_SIMILAR_OPEN_CLOSED: &str = "edit.select_similar.open_closed";
     pub const EDIT_IMAGE_REFRESH: &str = "edit.image.refresh";
     pub const EDIT_IMAGE_REPLACE: &str = "edit.image.replace";
     pub const EDIT_IMAGE_REPLACE_TO_FIT: &str = "edit.image.replace_to_fit";
@@ -160,6 +166,10 @@ pub mod command {
     pub const LASER_FOCUS_TEST: &str = "laser.focus_test";
     pub const LASER_INTERVAL_TEST: &str = "laser.interval_test";
 
+    pub const VIEW_TOGGLE_GRID: &str = "view.toggle_grid";
+    pub const VIEW_TOGGLE_SNAP_TO_GRID: &str = "view.toggle_snap_to_grid";
+    pub const VIEW_TOGGLE_SNAP_TO_OBJECTS: &str = "view.toggle_snap_to_objects";
+
     pub const WINDOW_SIDE_PANELS: &str = "window.side_panels";
     pub const WINDOW_PREVIEW: &str = "window.preview";
     pub const WINDOW_REFRESH_PREVIEW: &str = "window.refresh_preview";
@@ -173,6 +183,9 @@ pub mod command {
     pub const WINDOW_SMOOTH_EDGES: &str = "window.smooth_edges";
     // Preserve the old command ID so saved custom shortcuts remain valid.
     pub const WINDOW_TOGGLE_OPERATION_WIREFRAME: &str = "window.toggle_wireframe_filled";
+    pub const WINDOW_ACTIVATE_LAYERS: &str = "window.activate.layers";
+    pub const WINDOW_ACTIVATE_PROPERTIES: &str = "window.activate.properties";
+    pub const WINDOW_ACTIVATE_OUTLINER: &str = "window.activate.outliner";
     pub const WINDOW_PANEL_ART_LIBRARY: &str = "window.panel.art_library";
     pub const WINDOW_PANEL_CAMERA_CONTROL: &str = "window.panel.camera";
     pub const WINDOW_PANEL_CONSOLE: &str = "window.panel.console";
@@ -349,6 +362,45 @@ const EDIT_IMAGE_OPTIONS_MENU: &[NativeMenuEntry] = &[
     },
 ];
 
+const EDIT_SELECT_SIMILAR_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_SIMILAR_LAYER,
+        title: "Same Layer",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_SIMILAR_TYPE,
+        title: "Same Type",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_SIMILAR_SIZE,
+        title: "Same Size",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_SIMILAR_OPERATION,
+        title: "Same Operation",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_SIMILAR_CIRCLE_DIAMETER,
+        title: "Same Circle Diameter",
+        accelerator: None,
+        enabled: false,
+    },
+    NativeMenuEntry::Command {
+        id: command::EDIT_SELECT_SIMILAR_OPEN_CLOSED,
+        title: "Same Open/Closed State",
+        accelerator: None,
+        enabled: false,
+    },
+];
+
 const EDIT_SELECT_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::EDIT_SELECT_ALL,
@@ -392,6 +444,10 @@ const EDIT_SELECT_MENU: &[NativeMenuEntry] = &[
         title: "Select Shapes Smaller Than Selected",
         accelerator: None,
         enabled: false,
+    },
+    NativeMenuEntry::Submenu {
+        title: "Select Similar",
+        entries: EDIT_SELECT_SIMILAR_MENU,
     },
 ];
 
@@ -581,7 +637,7 @@ const TOOLS_BOOLEAN_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::TOOLS_BOOLEAN_UNION,
         title: "Boolean Union",
-        accelerator: Some("Alt++"),
+        accelerator: Some("Alt+Shift+U"),
         enabled: false,
     },
     NativeMenuEntry::Command {
@@ -593,7 +649,7 @@ const TOOLS_BOOLEAN_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::TOOLS_BOOLEAN_INTERSECTION,
         title: "Boolean Intersection",
-        accelerator: Some("Alt+*"),
+        accelerator: Some("Alt+Shift+I"),
         enabled: false,
     },
     NativeMenuEntry::Command {
@@ -652,6 +708,30 @@ const TOOLS_TRANSFORM_MENU: &[NativeMenuEntry] = &[
     },
 ];
 
+const VIEW_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Check {
+        id: command::VIEW_TOGGLE_GRID,
+        title: "Grid",
+        accelerator: Some("G"),
+        enabled: true,
+        checked: true,
+    },
+    NativeMenuEntry::Check {
+        id: command::VIEW_TOGGLE_SNAP_TO_GRID,
+        title: "Snap to Grid",
+        accelerator: Some("CmdOrCtrl+Shift+G"),
+        enabled: true,
+        checked: false,
+    },
+    NativeMenuEntry::Check {
+        id: command::VIEW_TOGGLE_SNAP_TO_OBJECTS,
+        title: "Snap to Objects",
+        accelerator: None,
+        enabled: true,
+        checked: false,
+    },
+];
+
 const TOOLS_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::TOOLS_SELECT,
@@ -684,7 +764,7 @@ const TOOLS_MENU: &[NativeMenuEntry] = &[
     NativeMenuEntry::Command {
         id: command::TOOLS_TABS,
         title: "Add Tabs",
-        accelerator: Some("CmdOrCtrl+Tab"),
+        accelerator: Some("Alt+Shift+T"),
         enabled: false,
     },
     NativeMenuEntry::Command {
@@ -1230,6 +1310,25 @@ const WINDOW_ARTWORK_DISPLAY_MENU: &[NativeMenuEntry] = &[
 ];
 
 const WINDOW_PANELS_MENU: &[NativeMenuEntry] = &[
+    NativeMenuEntry::Command {
+        id: command::WINDOW_ACTIVATE_LAYERS,
+        title: "Activate Layers",
+        accelerator: Some("Alt+1"),
+        enabled: true,
+    },
+    NativeMenuEntry::Command {
+        id: command::WINDOW_ACTIVATE_PROPERTIES,
+        title: "Activate Properties",
+        accelerator: Some("Alt+2"),
+        enabled: true,
+    },
+    NativeMenuEntry::Command {
+        id: command::WINDOW_ACTIVATE_OUTLINER,
+        title: "Activate Outliner",
+        accelerator: Some("Alt+3"),
+        enabled: true,
+    },
+    NativeMenuEntry::Separator,
     NativeMenuEntry::Check {
         id: command::WINDOW_PANEL_ART_LIBRARY,
         title: "Art Library",
@@ -1625,6 +1724,10 @@ const MENU_SPEC: &[NativeMenuSection] = &[
     NativeMenuSection {
         title: "Edit",
         entries: EDIT_MENU,
+    },
+    NativeMenuSection {
+        title: "View",
+        entries: VIEW_MENU,
     },
     NativeMenuSection {
         title: "Tools",
@@ -2499,6 +2602,30 @@ mod tests {
                     command::EDIT_SELECT_SHAPES_SMALLER_THAN_SELECTED,
                 ),
                 (
+                    "Edit > Select > Select Similar > Same Layer".to_string(),
+                    command::EDIT_SELECT_SIMILAR_LAYER
+                ),
+                (
+                    "Edit > Select > Select Similar > Same Type".to_string(),
+                    command::EDIT_SELECT_SIMILAR_TYPE
+                ),
+                (
+                    "Edit > Select > Select Similar > Same Size".to_string(),
+                    command::EDIT_SELECT_SIMILAR_SIZE
+                ),
+                (
+                    "Edit > Select > Select Similar > Same Operation".to_string(),
+                    command::EDIT_SELECT_SIMILAR_OPERATION
+                ),
+                (
+                    "Edit > Select > Select Similar > Same Circle Diameter".to_string(),
+                    command::EDIT_SELECT_SIMILAR_CIRCLE_DIAMETER
+                ),
+                (
+                    "Edit > Select > Select Similar > Same Open/Closed State".to_string(),
+                    command::EDIT_SELECT_SIMILAR_OPEN_CLOSED
+                ),
+                (
                     "Edit > Convert to Path".to_string(),
                     command::EDIT_CONVERT_TO_PATH,
                 ),
@@ -2839,6 +2966,7 @@ mod tests {
                 "Beam Bench",
                 "File",
                 "Edit",
+                "View",
                 "Tools",
                 "Arrange",
                 "Laser Tools",
@@ -2988,6 +3116,24 @@ mod tests {
                     command::WINDOW_SIDE_PANELS,
                     Some("F12"),
                     Some(true)
+                ),
+                (
+                    "Window > Panels > Activate Layers".to_string(),
+                    command::WINDOW_ACTIVATE_LAYERS,
+                    Some("Alt+1"),
+                    None
+                ),
+                (
+                    "Window > Panels > Activate Properties".to_string(),
+                    command::WINDOW_ACTIVATE_PROPERTIES,
+                    Some("Alt+2"),
+                    None
+                ),
+                (
+                    "Window > Panels > Activate Outliner".to_string(),
+                    command::WINDOW_ACTIVATE_OUTLINER,
+                    Some("Alt+3"),
+                    None
                 ),
                 (
                     "Window > Panels > Art Library".to_string(),

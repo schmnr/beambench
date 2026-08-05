@@ -50,7 +50,11 @@ import {
 } from '../../utils/speedUnits';
 import { useAppStore } from '../../stores/appStore';
 import { SERIAL_BAUD_RATE_OPTIONS } from '../../constants/serial';
-import { lihuiyuUsbDeviceId, lihuiyuUsbDeviceLabel } from '../../utils/lihuiyuUsb';
+import {
+  lihuiyuUsbDeviceId,
+  lihuiyuUsbDeviceLabel,
+  lihuiyuUsbHasIncompatibleWindowsDriver,
+} from '../../utils/lihuiyuUsb';
 import { wrapBackendError } from '../../i18n/errors';
 import { Cable, Cpu, HardDrive, Radar, Settings2, SlidersHorizontal } from 'lucide-react';
 import {
@@ -282,15 +286,17 @@ function ConnectionTab({ active }: { active: boolean }) {
     });
   }, [laserPeckerSelected, ruidaSelected, transportKind]);
 
+  const selectedUsbDevice = availableLihuiyuUsbDevices.find(
+    (candidate) => lihuiyuUsbDeviceId(candidate) === selectedUsbDeviceId,
+  );
+  const incompatibleUsbDriver = lihuiyuUsbHasIncompatibleWindowsDriver(selectedUsbDevice);
+
   const handleConnect = () => {
     if (!ACTIVE_CONNECTION_STATES.includes(sessionState)) {
       if (transportKind === NETWORK_TRANSPORT) {
         connectNetwork(networkHost, networkPort);
       } else if (transportKind === USB_TRANSPORT) {
-        const device = availableLihuiyuUsbDevices.find(
-          (candidate) => lihuiyuUsbDeviceId(candidate) === selectedUsbDeviceId,
-        );
-        if (device) connectUsb(device);
+        if (selectedUsbDevice) connectUsb(selectedUsbDevice);
       } else {
         connect(selectedPort, baudRate);
       }
@@ -308,7 +314,7 @@ function ConnectionTab({ active }: { active: boolean }) {
     selectedUsbDeviceId,
     selectedPort,
   );
-  const isConnectDisabled = endpointMissing || loading || connectionPending;
+  const isConnectDisabled = endpointMissing || loading || connectionPending || incompatibleUsbDriver;
 
   const visiblePorts = visibleSerialPorts(availablePorts ?? [], showAllPorts, selectedPort);
   const hiddenPortCount = hiddenSerialPortCount(availablePorts ?? [], selectedPort);
@@ -467,25 +473,43 @@ function ConnectionTab({ active }: { active: boolean }) {
           </label>
         </div>
       ) : (
-        <div className="flex items-center gap-2 text-xs">
-          <Select
-            label={t('controller_choice.usb_device')}
-            value={selectedUsbDeviceId}
-            options={usbDeviceOptions}
-            onChange={setSelectedUsbDeviceId}
-            disabled={isConnected || connectionPending}
-            selectClassName="min-w-0 flex-1"
-          />
-          <button
-            type="button"
-            onClick={() => void refreshLihuiyuUsbDevices()}
-            disabled={isConnected || connectionPending || loading}
-            className="mt-4 px-2 py-1 text-xs bg-bb-bg border border-bb-border rounded hover:bg-bb-accent-hover hover:text-bb-on-accent disabled:opacity-60 text-bb-text"
-            title={t('controller_choice.refresh_usb_devices')}
-          >
-            {REFRESH_SYMBOL}
-          </button>
-        </div>
+        <>
+          <div className="flex items-center gap-2 text-xs">
+            <Select
+              label={t('controller_choice.usb_device')}
+              value={selectedUsbDeviceId}
+              options={usbDeviceOptions}
+              onChange={setSelectedUsbDeviceId}
+              disabled={isConnected || connectionPending}
+              selectClassName="min-w-0 flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => void refreshLihuiyuUsbDevices()}
+              disabled={isConnected || connectionPending || loading}
+              className="mt-4 px-2 py-1 text-xs bg-bb-bg border border-bb-border rounded hover:bg-bb-accent-hover hover:text-bb-on-accent disabled:opacity-60 text-bb-text"
+              title={t('controller_choice.refresh_usb_devices')}
+            >
+              {REFRESH_SYMBOL}
+            </button>
+          </div>
+          {incompatibleUsbDriver && (
+            <div
+              role="alert"
+              data-testid="lihuiyu-windows-driver-warning"
+              className="rounded border border-bb-warning-border bg-bb-warning-bg px-3 py-2 text-xs text-bb-warning-fg"
+            >
+              <p>
+                {t('controller_choice.lihuiyu_windows_driver_incompatible', {
+                  driver: selectedUsbDevice?.driver || t('common.unknown'),
+                })}
+              </p>
+              <p className="mt-1">
+                {t('controller_choice.lihuiyu_windows_driver_tradeoff')}
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       <ControllerChoiceControls disabled={isConnected} transportKind={transportKind} />

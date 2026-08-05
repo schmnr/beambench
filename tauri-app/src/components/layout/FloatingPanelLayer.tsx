@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
-import { getPanelById, getPanelComponent, getWorkspacePanelLayout, type PhysicalDockZone } from '../../panels';
+import { getPanelById, getPanelComponent, getWorkspacePanelLayout, PanelHost, type PhysicalDockZone } from '../../panels';
 import { FloatingPanel } from './FloatingPanel';
 import { ContextMenu, type ContextMenuEntry } from '../shared/ContextMenu';
 import { buildPanelTabMenuItems } from '../panels/panelTabMenuItems';
@@ -14,6 +14,7 @@ interface MenuState {
 }
 
 const CLOSED: MenuState = { visible: false, x: 0, y: 0, items: [] };
+const FLOATING_PANEL_PLACEMENT = { kind: 'floating' } as const;
 
 /** Dock zone to fall back to when re-docking a panel whose default zone is floating. */
 function resolveDockFallback(defaultZone: string): string {
@@ -102,7 +103,9 @@ export function FloatingPanelLayer() {
             onFocus={() => bringToFront(fp.panelId)}
             onTitleContextMenu={(e) => handleTitleContextMenu(fp.panelId, e)}
           >
-            <PanelContent />
+            <PanelHost panelInstanceId={fp.panelId} placement={FLOATING_PANEL_PLACEMENT}>
+              <PanelContent />
+            </PanelHost>
           </FloatingPanel>
         );
       })}

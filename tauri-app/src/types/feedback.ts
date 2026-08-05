@@ -93,6 +93,10 @@ export interface DiagnosticConnectionEvent {
   error_code?: string | null;
   port_name?: string | null;
   baud_rate?: number | null;
+  transport_kind?: string | null;
+  vendor_id?: string | null;
+  product_id?: string | null;
+  usb_driver?: string | null;
   message?: string | null;
   error?: string | null;
 }

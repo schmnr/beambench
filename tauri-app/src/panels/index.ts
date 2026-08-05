@@ -44,3 +44,5 @@ export type {
   ToolbarVisibility,
 } from './layoutState';
 export { PANEL_COMPONENTS, getPanelComponent } from './panelComponents';
+export { PanelHost, usePanelHost } from './PanelHost';
+export type { PanelHostContextValue, PanelHostPlacement } from './PanelHost';

@@ -11,6 +11,7 @@ import { IconButton } from '../shared/IconButton';
 import { ART_LIBRARY_DRAG_MIME, encodeArtLibraryDragData } from '../shared/artLibraryDragData';
 import { rangeTrackBackground } from '../shared/RangeInput';
 import { INSPECTOR_HELP_TEXT_CLASS } from '../shared/panelAppearance';
+import { usePanelHost } from '../../panels';
 
 const inputClass =
   'px-2 py-1 rounded border border-bb-border bg-bb-surface text-xs text-bb-text placeholder:text-bb-text-dim focus:outline-none focus:border-bb-accent';
@@ -114,6 +115,7 @@ function ActionButton({
 
 export function ArtLibraryPanel() {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
   const libraries = useArtLibraryStore((s) => s.libraries);
   const selectedLibraryId = useArtLibraryStore((s) => s.selectedLibraryId);
   const searchQuery = useArtLibraryStore((s) => s.searchQuery);
@@ -308,10 +310,13 @@ export function ArtLibraryPanel() {
   return (
     <div className="h-full min-h-0 overflow-hidden px-2 py-2 text-xs text-bb-text">
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+        <div className={orientation === 'wide'
+          ? 'bb-wide-art-library min-h-0 flex-1'
+          : 'flex min-h-0 flex-1 flex-col gap-1.5'}>
           <div
             className="flex min-h-0 flex-col rounded border border-bb-border bg-bb-surface"
             style={{ height: 132, flex: '0 0 auto' }}
+            data-testid="art-library-libraries"
           >
             <div className="flex h-9 shrink-0 items-center gap-1 border-b border-bb-border px-2">
               <div className={`${sectionHeaderClass} min-w-0 flex-1 truncate`}>
@@ -479,11 +484,13 @@ export function ArtLibraryPanel() {
               </div>
             </div>
 
-            <div className={INSPECTOR_HELP_TEXT_CLASS} data-testid="art-library-help">
-              {t('panels.art_library.drag_help', {
-                defaultValue: 'Drag artwork onto the canvas. Use × to delete it from the library.',
-              })}
-            </div>
+            {orientation !== 'wide' && (
+              <div className={INSPECTOR_HELP_TEXT_CLASS} data-testid="art-library-help">
+                {t('panels.art_library.drag_help', {
+                  defaultValue: 'Drag artwork onto the canvas. Use × to delete it from the library.',
+                })}
+              </div>
+            )}
 
             {currentLibrary?.save_error ? (
               <div className="rounded border border-bb-error-border bg-bb-error-bg px-2 py-1.5 text-[11px] font-medium text-bb-error-fg">

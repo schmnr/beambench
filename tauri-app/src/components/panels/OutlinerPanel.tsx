@@ -23,6 +23,8 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import type { Layer, Project, ProjectObject } from '../../types/project';
 import { INSPECTOR_CARD_CLASS, INSPECTOR_HELP_TEXT_CLASS } from '../shared/panelAppearance';
+import { WIDE_INSPECTOR_CARD_CLASS } from '../shared/panelAppearance';
+import { usePanelHost } from '../../panels';
 import {
   displayLayerName,
   layerOperation,
@@ -133,6 +135,7 @@ function dropEdgeForRow(event: React.DragEvent<HTMLElement>): 'before' | 'after'
 
 export function OutlinerPanel() {
   const { t } = useTranslation();
+  const { orientation } = usePanelHost();
   const project = useProjectStore((state) => state.project);
   const selectedLayerId = useProjectStore((state) => state.selectedLayerId);
   const selectedObjectIds = useProjectStore((state) => state.selectedObjectIds);
@@ -378,20 +381,27 @@ export function OutlinerPanel() {
   };
 
   return (
-    <section className={INSPECTOR_CARD_CLASS} data-testid="outliner-panel">
+    <section
+      className={`${orientation === 'wide' ? WIDE_INSPECTOR_CARD_CLASS : INSPECTOR_CARD_CLASS} flex min-h-0 flex-col`}
+      data-testid="outliner-panel"
+    >
       <div className="flex h-9 items-center border-b border-bb-border bg-gradient-to-r from-bb-accent/10 to-bb-surface/30 px-3">
         <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-bb-text-dim">
           {t('panels.outliner.summary', { layers: project.layers.length, objects: project.objects.length })}
         </span>
       </div>
-      {editable && (
+      {editable && orientation !== 'wide' && (
         <div className={`border-b border-bb-border px-3 py-2 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="outliner-help">
           {t('panels.outliner.help', {
             defaultValue: 'Drag to reorder or move. Double-click to rename. Hidden objects stay here so you can restore them.',
           })}
         </div>
       )}
-      <div className="py-1" role="tree" aria-label={t('panels.registry.outliner')}>
+      <div
+        className={orientation === 'wide' ? 'bb-bottom-outliner-tree min-h-0 flex-1' : 'min-h-0 flex-1 overflow-auto py-1'}
+        role="tree"
+        aria-label={t('panels.registry.outliner')}
+      >
         {project.layers.map((layer) => {
           const objects = topLevelObjectsForLayer(project, layer.id);
           const expanded = !collapsedLayers.has(layer.id);
@@ -400,7 +410,7 @@ export function OutlinerPanel() {
           const operation = layerOperation(layer);
           const visibleName = displayLayerName(layer);
           return (
-            <div key={layer.id}>
+            <div key={layer.id} data-outliner-layer-group>
               <div
                 className={`group relative flex h-9 items-center gap-1 px-1 text-xs outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-bb-accent ${
                   active ? 'bg-bb-accent/10 text-bb-text' : 'text-bb-text-muted hover:bg-bb-hover hover:text-bb-text'

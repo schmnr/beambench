@@ -359,21 +359,56 @@ impl ServiceContext {
         message: Option<String>,
         error: Option<String>,
     ) {
+        let error_code = error.as_deref().and_then(|detail| {
+            detail
+                .contains("[serial_port_unavailable]")
+                .then(|| "serial_port_unavailable".to_owned())
+        });
+        self.push_connection_event_entry(DiagnosticConnectionEvent {
+            ts: Utc::now().to_rfc3339(),
+            stage: stage.into(),
+            error_code,
+            port_name,
+            baud_rate,
+            transport_kind: None,
+            vendor_id: None,
+            product_id: None,
+            usb_driver: None,
+            message,
+            error,
+        });
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_usb_connection_event(
+        &self,
+        stage: impl Into<String>,
+        device_id: String,
+        vendor_id: u16,
+        product_id: u16,
+        usb_driver: Option<String>,
+        message: Option<String>,
+        error_code: Option<String>,
+        error: Option<String>,
+    ) {
+        self.push_connection_event_entry(DiagnosticConnectionEvent {
+            ts: Utc::now().to_rfc3339(),
+            stage: stage.into(),
+            error_code,
+            port_name: Some(device_id),
+            baud_rate: None,
+            transport_kind: Some("usb".to_owned()),
+            vendor_id: Some(format!("0x{vendor_id:04x}")),
+            product_id: Some(format!("0x{product_id:04x}")),
+            usb_driver,
+            message,
+            error,
+        });
+    }
+
+    fn push_connection_event_entry(&self, event: DiagnosticConnectionEvent) {
         if let Ok(mut events) = self.connection_events.lock() {
-            let error_code = error.as_deref().and_then(|detail| {
-                detail
-                    .contains("[serial_port_unavailable]")
-                    .then(|| "serial_port_unavailable".to_owned())
-            });
-            events.push_back(DiagnosticConnectionEvent {
-                ts: Utc::now().to_rfc3339(),
-                stage: stage.into(),
-                error_code,
-                port_name,
-                baud_rate,
-                message,
-                error,
-            });
+            events.push_back(event);
             while events.len() > CONNECTION_EVENTS_CAP {
                 events.pop_front();
             }

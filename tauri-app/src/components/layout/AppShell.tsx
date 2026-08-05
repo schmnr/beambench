@@ -281,7 +281,7 @@ export function AppShell() {
           ) : (
             <BottomDockRecovery
               onOpen={() => {
-                if (bottomPanelHeight <= 0) setBottomPanelHeight(220);
+                if (bottomPanelHeight < 200) setBottomPanelHeight(200);
                 setBottomDockRequested(true);
               }}
             />

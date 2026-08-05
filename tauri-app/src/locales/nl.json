@@ -24,6 +24,8 @@
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
     "refresh_usb_devices": "Refresh USB devices",
+    "lihuiyu_windows_driver_incompatible": "This controller is using the Windows USB driver {driver}. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list.",
+    "lihuiyu_windows_driver_tradeoff": "Changing the USB driver may prevent LaserDRW or other vendor software from using this controller until its original driver is restored.",
     "network_host": "Host",
     "tcp_port": "TCP port",
     "udp_port": "UDP port",
@@ -1054,7 +1056,12 @@
       "error_command_conflict": "{hotkey} behoort al tot {command}.",
       "error_macro_conflict": "{hotkey} behoort al tot macro {macro}.",
       "prompt": "Druk op een nieuwe sneltoets voor {command}.",
-      "saved": "Sneltoetsen bijgewerkt."
+      "saved": "Sneltoetsen bijgewerkt.",
+      "function": "Opdracht",
+      "current": "Huidig",
+      "default": "Standaard",
+      "actions": "Acties",
+      "reset": "Herstellen"
     },
     "boolean_assistant": {
       "title": "Booleaanse assistent",
@@ -1640,6 +1647,7 @@
       "offset_outward": "Offset naar buiten",
       "max_sub_layers_title": "Maximum van 11 sublagen bereikt",
       "add_sub_layer_title": "Sublaag toevoegen",
+      "sub_layer": "Sublaag",
       "add_sub_layer": "+ Sublaag toevoegen",
       "order_hint": "Sublagen worden op volgorde uitgevoerd, van boven naar beneden."
     },
@@ -2495,6 +2503,7 @@
     "operation_failed_with_detail": "Bewerking mislukt: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "workspace_edge_left": "linker",
     "workspace_edge_right": "rechter",
     "workspace_edge_top": "bovenste",
@@ -2505,5 +2514,32 @@
   },
   "import": {
     "drop_to_import": "Sleep bestanden om te importeren"
+  },
+  "selection": {
+    "object": "Object",
+    "layer": "Layer",
+    "mode_replace": "Replace",
+    "mode_add": "Add",
+    "mode_toggle": "Toggle",
+    "mode_remove": "Remove",
+    "marquee_count": "{count} candidates · {mode}",
+    "overlap_title": "Choose overlapping object",
+    "topmost": "Top",
+    "overlap_hint": "Use ↑ ↓ and Enter · Esc closes",
+    "canvas": "Canvas",
+    "group": "Group",
+    "exit_isolation": "Exit group isolation",
+    "select_similar": "Select Similar",
+    "same_layer": "Same Layer",
+    "same_type": "Same Type",
+    "same_size": "Same Size",
+    "same_operation": "Same Operation",
+    "same_circle_diameter": "Same Circle Diameter",
+    "same_open_closed": "Same Open/Closed State"
+  },
+  "commands": {
+    "activate_layers": "Lagen activeren",
+    "activate_properties": "Eigenschappen activeren",
+    "activate_outliner": "Overzicht activeren"
   }
 }

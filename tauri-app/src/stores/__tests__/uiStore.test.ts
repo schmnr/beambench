@@ -279,7 +279,7 @@ describe('uiStore', () => {
 
       const layout = useUiStore.getState().panelLayout;
       expect(layout.zones.bottom.panelIds).toContain('connection_diagnostics');
-      expect(layout.bottomPanelHeight).toBe(220);
+      expect(layout.bottomPanelHeight).toBe(200);
     });
 
     it('opens the bottom dock when an existing tab is moved there', () => {
@@ -289,7 +289,15 @@ describe('uiStore', () => {
 
       const layout = useUiStore.getState().panelLayout;
       expect(layout.zones.bottom.panelIds).toContain('properties');
-      expect(layout.bottomPanelHeight).toBe(220);
+      expect(layout.bottomPanelHeight).toBe(200);
+    });
+
+    it('expands a tab-strip-only bottom dock to the compact working height', () => {
+      useUiStore.getState().setBottomPanelHeight(80);
+
+      useUiStore.getState().addPanelInstance('console', 'bottom');
+
+      expect(useUiStore.getState().panelLayout.bottomPanelHeight).toBe(200);
     });
   });
 

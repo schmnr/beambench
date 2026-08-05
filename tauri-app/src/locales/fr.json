@@ -24,6 +24,8 @@
     "select_usb_device": "Select a Lihuiyu controller",
     "no_usb_devices": "No Lihuiyu controllers found",
     "refresh_usb_devices": "Refresh USB devices",
+    "lihuiyu_windows_driver_incompatible": "Ce contrôleur utilise le pilote USB Windows {driver}. Beam Bench nécessite WinUSB pour l’appareil 1a86:5512. Changez le pilote, reconnectez le contrôleur, puis actualisez la liste USB.",
+    "lihuiyu_windows_driver_tradeoff": "Le changement de pilote USB peut empêcher LaserDRW ou un autre logiciel du fabricant d’utiliser ce contrôleur jusqu’à la restauration de son pilote d’origine.",
     "network_host": "Host",
     "tcp_port": "TCP port",
     "udp_port": "UDP port",
@@ -1054,7 +1056,12 @@
       "error_command_conflict": "{hotkey} appartient déjà à {command}.",
       "error_macro_conflict": "{hotkey} appartient déjà à la macro {macro}.",
       "prompt": "Appuyez sur une nouvelle touche de raccourci pour {command}.",
-      "saved": "Raccourcis clavier mis à jour."
+      "saved": "Raccourcis clavier mis à jour.",
+      "function": "Commande",
+      "current": "Actuel",
+      "default": "Par défaut",
+      "actions": "Actions",
+      "reset": "Réinitialiser"
     },
     "boolean_assistant": {
       "title": "Assistant booléen",
@@ -1640,6 +1647,7 @@
       "offset_outward": "Décalage vers extérieur",
       "max_sub_layers_title": "Maximum de 11 sous-calques atteint",
       "add_sub_layer_title": "Ajouter un sous-calque",
+      "sub_layer": "Sous-calque",
       "add_sub_layer": "+ Ajouter un sous-calque",
       "order_hint": "Les sous-calques s’exécutent dans l’ordre, de haut en bas."
     },
@@ -2495,6 +2503,7 @@
     "operation_failed_with_detail": "Échec de l’opération : {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Impossible d’ouvrir {port}. Une autre application utilise peut-être ce port, ou le contrôleur a été déconnecté. Fermez les autres logiciels laser ou série, reconnectez le contrôleur, puis réessayez.",
+    "lihuiyu_incompatible_windows_driver": "Ce contrôleur Lihuiyu utilise un pilote USB Windows incompatible. Beam Bench nécessite WinUSB pour l’appareil 1a86:5512. Changez le pilote, reconnectez le contrôleur, puis actualisez la liste USB. Le changement de pilote peut empêcher le logiciel du fabricant d’utiliser le contrôleur jusqu’à la restauration du pilote d’origine.",
     "workspace_edge_left": "gauche",
     "workspace_edge_right": "droit",
     "workspace_edge_top": "supérieur",
@@ -2505,5 +2514,32 @@
   },
   "import": {
     "drop_to_import": "Déposez des fichiers à importer"
+  },
+  "selection": {
+    "object": "Object",
+    "layer": "Layer",
+    "mode_replace": "Replace",
+    "mode_add": "Add",
+    "mode_toggle": "Toggle",
+    "mode_remove": "Remove",
+    "marquee_count": "{count} candidates · {mode}",
+    "overlap_title": "Choose overlapping object",
+    "topmost": "Top",
+    "overlap_hint": "Use ↑ ↓ and Enter · Esc closes",
+    "canvas": "Canvas",
+    "group": "Group",
+    "exit_isolation": "Exit group isolation",
+    "select_similar": "Select Similar",
+    "same_layer": "Same Layer",
+    "same_type": "Same Type",
+    "same_size": "Same Size",
+    "same_operation": "Same Operation",
+    "same_circle_diameter": "Same Circle Diameter",
+    "same_open_closed": "Same Open/Closed State"
+  },
+  "commands": {
+    "activate_layers": "Activer les calques",
+    "activate_properties": "Activer les propriétés",
+    "activate_outliner": "Activer le plan"
   }
 }

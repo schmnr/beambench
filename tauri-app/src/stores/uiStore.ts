@@ -174,6 +174,9 @@ interface UiStoreState {
   // Cursor
   cursorWorldPos: Point2D | null;
 
+  // Transient group-isolation path for deep canvas selection.
+  selectionIsolationPath: string[];
+
   // Canvas display
   artworkDisplayMode: ArtworkDisplayMode;
   smoothEdges: boolean;
@@ -351,6 +354,8 @@ interface UiStoreState {
 
   // Cursor actions
   setCursorWorldPos: (pos: Point2D | null) => void;
+  setSelectionIsolationPath: (path: string[]) => void;
+  clearSelectionIsolation: () => void;
 
   // Canvas display actions
   setArtworkDisplayMode: (mode: ArtworkDisplayMode) => void;
@@ -387,18 +392,14 @@ const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
 
 /** M4: how long a flash highlight stays visible before auto-clearing. */
 const FLASH_DURATION_MS = 600;
-const DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT = 220;
+const DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT = 200;
 const BOTTOM_DOCK_COLLAPSE_THRESHOLD = 32;
 
 function revealPhysicalDock(
   layout: PanelLayoutState,
   zone: PhysicalDockZone,
-  ensureUsableHeight = false,
 ): PanelLayoutState {
-  const minimumHeight = ensureUsableHeight
-    ? DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT
-    : BOTTOM_DOCK_COLLAPSE_THRESHOLD;
-  if (zone !== 'bottom' || layout.bottomPanelHeight >= minimumHeight) return layout;
+  if (zone !== 'bottom' || layout.bottomPanelHeight >= DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT) return layout;
   return { ...layout, bottomPanelHeight: DEFAULT_OPEN_BOTTOM_DOCK_HEIGHT };
 }
 
@@ -521,6 +522,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   workspaceMode: 'design' as const,
 
   cursorWorldPos: null,
+  selectionIsolationPath: [],
   rotaryEnabled: false,
   printAndCutEnabled: false,
   cameraWindowOpen: false,
@@ -634,7 +636,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
       let newLayout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
       if (activatedDockZone) {
-        newLayout = revealPhysicalDock(newLayout, activatedDockZone, panelId === 'notes');
+        newLayout = revealPhysicalDock(newLayout, activatedDockZone);
       }
       appService.persistLayout(newLayout);
       return { panelLayout: newLayout };
@@ -726,7 +728,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
       };
       let layout = setWorkspacePanelLayout(s.panelLayout, s.workspaceMode, nextWorkspace);
       if (activatedDockZone) {
-        layout = revealPhysicalDock(layout, activatedDockZone, panelId === 'notes');
+        layout = revealPhysicalDock(layout, activatedDockZone);
       }
       appService.persistLayout(layout);
       return {
@@ -1308,6 +1310,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
     set((s) => ({ jobOptions: { ...s.jobOptions, ...partial } })),
 
   setCursorWorldPos: (pos) => set({ cursorWorldPos: pos }),
+  setSelectionIsolationPath: (path) => set({ selectionIsolationPath: [...path] }),
+  clearSelectionIsolation: () => set({ selectionIsolationPath: [] }),
 
   setArtworkDisplayMode: (mode) => set({ artworkDisplayMode: mode }),
   setSmoothEdges: (enabled) => set({ smoothEdges: enabled }),

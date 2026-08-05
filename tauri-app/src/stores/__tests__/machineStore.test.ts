@@ -343,6 +343,7 @@ describe('machineStore frame-selected toggle', () => {
       serial_number: null,
       has_required_bulk_endpoints: true,
       driver: null,
+      windows_driver_compatible: null,
     };
     const status = makeMachineStatus({ run_state: 'idle' });
     mockedMachine.beginUsbControllerConnection.mockResolvedValue({

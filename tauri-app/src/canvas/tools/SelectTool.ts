@@ -2,7 +2,7 @@ import type { CanvasTool, CanvasMouseEvent, ToolContext } from './types';
 import type { ToolOverlay } from '../CanvasRenderer';
 import type { HandleId } from '../../types/canvas';
 import type { Point2D, Transform2D, Bounds, ProjectObject } from '../../types/project';
-import { hitTestPoint, hitTestPointAll, hitTestRect, hitTestRectContained, hitTestHandle, hitTestSelectionEdge, hitTestSnapPoint } from '../hitTest';
+import { hitTestPointAll, hitTestRect, hitTestRectContained, hitTestHandle, hitTestSelectionEdge, hitTestSnapPoint } from '../hitTest';
 import { DRAG_THRESHOLD_PX, SNAP_THRESHOLD_PX, ROTATION_SNAP_SHIFT_DEG, ROTATION_SNAP_CTRL_DEG } from '../constants';
 import { computePointSnap, computeSelectionPivot, computeSelectionSnap, computeVisualBoundsWorld, getCombinedBounds, getObjectSnapPoints, getRulerGuideAxis, applyAroundCenter, type SnapLine } from '../alignment';
 import { screenToWorldDist } from '../ViewportTransform';
@@ -17,10 +17,11 @@ import i18n from '../../i18n';
 
 type SelectState =
   | { type: 'idle' }
-  | { type: 'maybe-drag'; startScreen: Point2D; startWorld: Point2D; objectId: string; shiftKey: boolean; ctrlKey: boolean }
+  | { type: 'maybe-drag'; startScreen: Point2D; startWorld: Point2D; objectId: string; shiftKey: boolean; ctrlKey: boolean; startedAt?: number }
   | { type: 'dragging'; startWorld: Point2D; lastWorld: Point2D; objectIds: string[];
       origBounds: Map<string, Bounds>; snapOrigin?: Point2D }
-  | { type: 'rubber-band'; startScreen: Point2D; currentScreen: Point2D; crossing: boolean }
+  | { type: 'rubber-band'; startScreen: Point2D; currentScreen: Point2D; crossing: boolean;
+      candidateObjectIds?: string[]; selectionMode?: SelectionModifierMode }
   | { type: 'handle-drag'; handleId: HandleId; startWorld: Point2D; lastWorld: Point2D; objectIds: string[];
       origBounds: Map<string, Bounds>; origTransforms: Map<string, Transform2D>;
       sharedCenter: Point2D; selectionWidth: number; selectionHeight: number;
@@ -85,6 +86,7 @@ export class SelectTool implements CanvasTool {
   private lastAltClickScreen: Point2D | null = null;
   private altCycleIndex = 0;
   private lastClickCycleScreen: Point2D | null = null;
+  private hoverFeedback: Extract<ToolOverlay, { type: 'selection-feedback' }> | null = null;
 
   onMouseDown(e: CanvasMouseEvent, ctx: ToolContext): void {
     // Clear inline text editing on any click
@@ -112,8 +114,11 @@ export class SelectTool implements CanvasTool {
     const worldPt = { x: e.worldX, y: e.worldY };
 
     // Check handles first (only if something is selected)
-    const selectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects);
-    const transformIds = expandTransformObjectIds(selectionIds, ctx.objects);
+    ctx.closeSelectionPicker?.();
+    this.hoverFeedback = null;
+    const isolationRootId = ctx.selectionIsolationPath?.[ctx.selectionIsolationPath.length - 1] ?? null;
+    const selectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects, isolationRootId);
+    const transformIds = expandTransformObjectIds(selectionIds, ctx.objects, isolationRootId);
     const selectedObjects = selectionIds
       .map((id) => ctx.objects.find((o) => o.id === id))
       .filter(Boolean) as typeof ctx.objects;
@@ -258,16 +263,21 @@ export class SelectTool implements CanvasTool {
     }
 
     // Check object hit
-    const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp, true, ctx.layers);
+    const hit = normalizeHitObjects(
+      hitTestPointAll(screenPt, ctx.objects, ctx.vp, true, ctx.layers),
+      ctx.objects,
+      isolationRootId,
+    )[0];
 
     if (hit) {
       this.state = {
         type: 'maybe-drag',
         startScreen: screenPt,
         startWorld: worldPt,
-        objectId: topLevelSelectableObjectId(hit.id, ctx.objects),
+        objectId: hit.id,
         shiftKey: e.shiftKey,
         ctrlKey: e.ctrlKey,
+        startedAt: performance.now(),
       };
     } else {
       // Start rubber-band
@@ -279,6 +289,8 @@ export class SelectTool implements CanvasTool {
         startScreen: screenPt,
         currentScreen: screenPt,
         crossing: false,
+        candidateObjectIds: [],
+        selectionMode: selectionModifierMode(e.shiftKey, e.ctrlKey),
       };
       ctx.requestRender();
     }
@@ -297,7 +309,36 @@ export class SelectTool implements CanvasTool {
       if (this.state.type !== 'rubber-band') return;
     }
 
+    const isolationRootId = ctx.selectionIsolationPath?.[ctx.selectionIsolationPath.length - 1] ?? null;
     switch (this.state.type) {
+      case 'idle': {
+        const hit = normalizeHitObjects(
+          hitTestPointAll(screenPt, ctx.objects, ctx.vp, true, ctx.layers),
+          ctx.objects,
+          isolationRootId,
+        )[0];
+        if (!hit) {
+          if (this.hoverFeedback) {
+            this.hoverFeedback = null;
+            ctx.requestOverlayRender?.();
+          }
+          break;
+        }
+        const layer = ctx.layers.find((candidate) => candidate.id === hit.layer_id);
+        const next: Extract<ToolOverlay, { type: 'selection-feedback' }> = {
+          type: 'selection-feedback',
+          objectId: hit.id,
+          cursorScreen: screenPt,
+          label: `${hit.name || i18n.t('selection.object')} · ${layer?.name || i18n.t('selection.layer')}`,
+          color: layer?.color_tag || '#22d3ee',
+        };
+        const changed = this.hoverFeedback?.objectId !== next.objectId
+          || this.hoverFeedback.cursorScreen.x !== next.cursorScreen.x
+          || this.hoverFeedback.cursorScreen.y !== next.cursorScreen.y;
+        this.hoverFeedback = next;
+        if (changed) ctx.requestOverlayRender?.();
+        break;
+      }
       case 'maybe-drag': {
         const dx = screenPt.x - this.state.startScreen.x;
         const dy = screenPt.y - this.state.startScreen.y;
@@ -310,7 +351,7 @@ export class SelectTool implements CanvasTool {
           const { objectId, shiftKey, ctrlKey } = this.state;
           const mode = selectionModifierMode(shiftKey, ctrlKey);
           let dragSelectionIds: string[];
-          const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects);
+          const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects, isolationRootId);
 
           if (mode === 'replace') {
             if (!currentSelectionIds.includes(objectId)) {
@@ -335,7 +376,7 @@ export class SelectTool implements CanvasTool {
             ctx.requestRender();
             break;
           }
-          const dragIds = expandTransformObjectIds(dragSelectionIds, ctx.objects);
+          const dragIds = expandTransformObjectIds(dragSelectionIds, ctx.objects, isolationRootId);
 
           const origBounds = new Map<string, Bounds>();
           for (const id of dragIds) {
@@ -539,7 +580,10 @@ export class SelectTool implements CanvasTool {
       case 'rubber-band':
         this.state.currentScreen = screenPt;
         this.state.crossing = screenPt.x < this.state.startScreen.x;
-        ctx.requestRender();
+        this.state.selectionMode = selectionModifierMode(e.shiftKey, e.ctrlKey);
+        this.state.candidateObjectIds = rubberBandCandidateIds(this.state, ctx, isolationRootId);
+        if (ctx.requestOverlayRender) ctx.requestOverlayRender();
+        else ctx.requestRender();
         break;
 
       case 'handle-drag': {
@@ -798,10 +842,20 @@ export class SelectTool implements CanvasTool {
         const mode = selectionModifierMode(shiftKey, ctrlKey);
         const screenPt = { x: e.screenX, y: e.screenY };
 
-        if (e.altKey && mode === 'replace') {
-          // Alt+click: cycle through overlapping objects
-          const hits = normalizeHitObjects(hitTestPointAll(screenPt, ctx.objects, ctx.vp, true, ctx.layers), ctx.objects);
+        const isolationRootId = ctx.selectionIsolationPath?.[ctx.selectionIsolationPath.length - 1] ?? null;
+        const chooserRequested = e.altKey || performance.now() - (this.state.startedAt ?? performance.now()) >= 400;
+        if (chooserRequested && mode === 'replace') {
+          const hits = normalizeHitObjects(
+            hitTestPointAll(screenPt, ctx.objects, ctx.vp, true, ctx.layers),
+            ctx.objects,
+            isolationRootId,
+          );
           if (hits.length > 1) {
+            if (ctx.openSelectionPicker) {
+              ctx.openSelectionPicker(screenPt, hits.map((candidate) => candidate.id));
+              break;
+            }
+            // Preserve cycling as a fallback for embedded/test contexts.
             const sameSpot = this.lastAltClickScreen != null &&
               Math.abs(screenPt.x - this.lastAltClickScreen.x) <= 2 &&
               Math.abs(screenPt.y - this.lastAltClickScreen.y) <= 2;
@@ -820,8 +874,8 @@ export class SelectTool implements CanvasTool {
         this.altCycleIndex = 0;
 
         if (mode === 'replace') {
-          const hits = normalizeHitObjects(hitTestPointAll(screenPt, ctx.objects, ctx.vp, true, ctx.layers), ctx.objects);
-          const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects);
+          const hits = normalizeHitObjects(hitTestPointAll(screenPt, ctx.objects, ctx.vp, true, ctx.layers), ctx.objects, isolationRootId);
+          const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects, isolationRootId);
           const selectedHitIndex = hits.findIndex((hit) => currentSelectionIds.includes(hit.id));
           const sameSpot = this.lastClickCycleScreen != null &&
             Math.abs(screenPt.x - this.lastClickCycleScreen.x) <= 2 &&
@@ -841,7 +895,7 @@ export class SelectTool implements CanvasTool {
           this.lastClickCycleScreen = null;
         }
 
-        const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects);
+        const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects, isolationRootId);
         ctx.selectObjects(applySelectionModifierToOne(currentSelectionIds, objectId, mode));
         break;
       }
@@ -882,13 +936,15 @@ export class SelectTool implements CanvasTool {
         const hits = crossing
           ? hitTestRect(rect, ctx.objects, ctx.vp, true, ctx.layers)
           : hitTestRectContained(rect, ctx.objects, ctx.vp, true, ctx.layers);
-        const ids = normalizeSelectableIds(
+        const isolationRootId = ctx.selectionIsolationPath?.[ctx.selectionIsolationPath.length - 1] ?? null;
+        const ids = this.state.candidateObjectIds ?? normalizeSelectableIds(
           orderMultiSelectBatchForAnchor(hits.map((o) => o.id), ctx.objects),
           ctx.objects,
+          isolationRootId,
         );
 
         const mode = selectionModifierMode(e.shiftKey, e.ctrlKey);
-        const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects);
+        const currentSelectionIds = normalizeSelectableIds(ctx.selectedObjectIds, ctx.objects, isolationRootId);
         ctx.selectObjects(applySelectionModifierToMany(currentSelectionIds, ids, mode));
         break;
       }
@@ -986,7 +1042,20 @@ export class SelectTool implements CanvasTool {
       const screenPt = { x: e.screenX, y: e.screenY };
       if (await beginTextEditFromDoubleClick(e, ctx)) return;
 
-      const hit = hitTestPoint(screenPt, ctx.objects, ctx.vp, false, ctx.layers);
+      const isolationRootId = ctx.selectionIsolationPath?.[ctx.selectionIsolationPath.length - 1] ?? null;
+      const hit = normalizeHitObjects(
+        hitTestPointAll(screenPt, ctx.objects, ctx.vp, false, ctx.layers),
+        ctx.objects,
+        isolationRootId,
+      )[0];
+      if (hit?.data.type === 'group') {
+        const nextPath = [...(ctx.selectionIsolationPath ?? []), hit.id];
+        ctx.setSelectionIsolationPath?.(nextPath);
+        ctx.selectObjects([]);
+        this.hoverFeedback = null;
+        ctx.requestRender();
+        return;
+      }
       if (hit && hit.data.type === 'raster_image') {
         ctx.selectObjects([hit.id]);
         const obj = ctx.objects.find((o) => o.id === hit.id);
@@ -1009,10 +1078,26 @@ export class SelectTool implements CanvasTool {
 
   onKeyDown(e: KeyboardEvent, ctx: ToolContext): void {
     if (e.key === 'Escape') {
+      ctx.closeSelectionPicker?.();
+      const isolationPath = ctx.selectionIsolationPath ?? [];
+      if (this.state.type === 'idle' && isolationPath.length > 0) {
+        const exitedGroupId = isolationPath[isolationPath.length - 1];
+        ctx.setSelectionIsolationPath?.(isolationPath.slice(0, -1));
+        ctx.selectObjects([exitedGroupId]);
+        this.hoverFeedback = null;
+        ctx.requestRender();
+        return;
+      }
       // Cancel any in-progress transform, restore originals, deselect
       this.cancelDrag(ctx);
       ctx.selectObjects([]);
     }
+  }
+
+  onMouseLeave(ctx: ToolContext): void {
+    if (!this.hoverFeedback) return;
+    this.hoverFeedback = null;
+    ctx.requestOverlayRender?.();
   }
 
   /**
@@ -1084,11 +1169,14 @@ export class SelectTool implements CanvasTool {
         startScreen: this.state.startScreen,
         endScreen: this.state.currentScreen,
         crossing: this.state.crossing,
+        candidateObjectIds: this.state.candidateObjectIds,
+        selectionMode: this.state.selectionMode,
       };
     }
     if (this.snapGuides.length > 0) {
       return { type: 'snap-guides', guides: this.snapGuides };
     }
+    if (this.hoverFeedback) return this.hoverFeedback;
     return { type: 'none' };
   }
 
@@ -1098,6 +1186,7 @@ export class SelectTool implements CanvasTool {
     this.activeSnapTargetKey = null;
     this.lastAltClickScreen = null;
     this.altCycleIndex = 0;
+    this.hoverFeedback = null;
   }
 }
 
@@ -1187,25 +1276,36 @@ function findParentGroupId(objectId: string, objects: ProjectObject[]): string |
   return null;
 }
 
-function topLevelSelectableObjectId(objectId: string, objects: ProjectObject[]): string {
+function topLevelSelectableObjectId(
+  objectId: string,
+  objects: ProjectObject[],
+  isolationRootId: string | null = null,
+): string | null {
+  if (isolationRootId && objectId === isolationRootId) return null;
   let current = objectId;
   const seen = new Set<string>();
   while (!seen.has(current)) {
     seen.add(current);
     const parent = findParentGroupId(current, objects);
-    if (!parent) return current;
+    if (!parent) return isolationRootId ? null : current;
+    if (parent === isolationRootId) return current;
     current = parent;
   }
   return objectId;
 }
 
-function normalizeSelectableIds(ids: string[], objects: ProjectObject[]): string[] {
+function normalizeSelectableIds(
+  ids: string[],
+  objects: ProjectObject[],
+  isolationRootId: string | null = null,
+): string[] {
   const objectIds = new Set(objects.map((object) => object.id));
   const seen = new Set<string>();
   const normalized: string[] = [];
   for (const id of ids) {
     if (!objectIds.has(id)) continue;
-    const selectableId = topLevelSelectableObjectId(id, objects);
+    const selectableId = topLevelSelectableObjectId(id, objects, isolationRootId);
+    if (!selectableId) continue;
     if (seen.has(selectableId)) continue;
     seen.add(selectableId);
     normalized.push(selectableId);
@@ -1213,11 +1313,40 @@ function normalizeSelectableIds(ids: string[], objects: ProjectObject[]): string
   return normalized;
 }
 
-function normalizeHitObjects(hits: ProjectObject[], objects: ProjectObject[]): ProjectObject[] {
+function normalizeHitObjects(
+  hits: ProjectObject[],
+  objects: ProjectObject[],
+  isolationRootId: string | null = null,
+): ProjectObject[] {
   const byId = new Map(objects.map((object) => [object.id, object]));
-  return normalizeSelectableIds(hits.map((hit) => hit.id), objects)
+  return normalizeSelectableIds(hits.map((hit) => hit.id), objects, isolationRootId)
     .map((id) => byId.get(id))
     .filter(Boolean) as ProjectObject[];
+}
+
+function rubberBandCandidateIds(
+  state: Extract<SelectState, { type: 'rubber-band' }>,
+  ctx: ToolContext,
+  isolationRootId: string | null,
+): string[] {
+  const rect = {
+    min: {
+      x: Math.min(state.startScreen.x, state.currentScreen.x),
+      y: Math.min(state.startScreen.y, state.currentScreen.y),
+    },
+    max: {
+      x: Math.max(state.startScreen.x, state.currentScreen.x),
+      y: Math.max(state.startScreen.y, state.currentScreen.y),
+    },
+  };
+  const hits = state.crossing
+    ? hitTestRect(rect, ctx.objects, ctx.vp, true, ctx.layers)
+    : hitTestRectContained(rect, ctx.objects, ctx.vp, true, ctx.layers);
+  return normalizeSelectableIds(
+    orderMultiSelectBatchForAnchor(hits.map((object) => object.id), ctx.objects),
+    ctx.objects,
+    isolationRootId,
+  );
 }
 
 function selectionIncludesLockedObjects(ids: string[], objects: ProjectObject[]): boolean {
@@ -1241,10 +1370,14 @@ function collectGroupDescendantIds(
   }
 }
 
-function expandTransformObjectIds(ids: string[], objects: ProjectObject[]): string[] {
+function expandTransformObjectIds(
+  ids: string[],
+  objects: ProjectObject[],
+  isolationRootId: string | null = null,
+): string[] {
   const expanded: string[] = [];
   const seen = new Set<string>();
-  for (const id of normalizeSelectableIds(ids, objects)) {
+  for (const id of normalizeSelectableIds(ids, objects, isolationRootId)) {
     if (!seen.has(id)) {
       seen.add(id);
       expanded.push(id);

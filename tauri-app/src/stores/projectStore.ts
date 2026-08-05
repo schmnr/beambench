@@ -54,7 +54,8 @@ import {
 } from './layerFamilyResolver';
 import { objectContentKind } from '../commands/selectionContext';
 import { buildRulerGuideGeometry, normalizeProjectRulerGuides } from '../utils/rulerGuides';
-import { expandArrangementSelectionMembers, expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers, resolveArrangementAnchorId, topLevelArrangementObjectId } from '../utils/arrangementSelection';
+import { expandArrangementSelectionMembers, expandSelectionMembers, normalizeArrangementSelection, normalizeSelectionMembers, normalizeSelectionMembersWithinIsolation, resolveArrangementAnchorId, topLevelArrangementObjectId } from '../utils/arrangementSelection';
+import { selectSimilarObjectIds, type SimilarSelectionKind } from '../utils/selectionSimilar';
 import { findAutoGroupCandidates } from '../utils/autoGroupCandidates';
 import {
   effectiveTransformLocks,
@@ -452,6 +453,7 @@ interface ProjectStoreState {
   selectAllObjects: () => void;
   invertObjectSelection: () => void;
   toggleObjectSelection: (objectId: string) => void;
+  selectSimilar: (kind: SimilarSelectionKind) => void;
   duplicateObject: (objectId: string) => Promise<void>;
   duplicateObjectInPlace: (objectId: string) => Promise<void>;
   duplicateObjects: (objectIds: string[]) => Promise<void>;
@@ -1667,10 +1669,14 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   selectObjects: (objectIds) => {
+    const isolationPath = useUiStore.getState().selectionIsolationPath;
+    const isolationRootId = isolationPath[isolationPath.length - 1] ?? null;
     set((state) => ({
       selectedObjectIds: mergeSelectionAddOrder(
         state.selectedObjectIds,
-        state.project ? normalizeSelectionMembers(state.project, objectIds) : objectIds,
+        state.project
+          ? normalizeSelectionMembersWithinIsolation(state.project, objectIds, isolationRootId)
+          : objectIds,
       ),
     }));
   },
@@ -1678,8 +1684,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   selectAllObjects: () => {
     const { project } = get();
     if (project) {
+      const isolationPath = useUiStore.getState().selectionIsolationPath;
+      const isolationRootId = isolationPath[isolationPath.length - 1] ?? null;
       const objectIds = orderBatchForDrawOrderAnchor(
-        normalizeSelectionMembers(project, project.objects.map((o) => o.id)),
+        normalizeSelectionMembersWithinIsolation(project, project.objects.map((o) => o.id), isolationRootId),
         project.objects,
       );
       set((state) => ({
@@ -1692,9 +1700,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     const { project, selectedObjectIds } = get();
     if (!project) return;
 
+    const isolationPath = useUiStore.getState().selectionIsolationPath;
+    const isolationRootId = isolationPath[isolationPath.length - 1] ?? null;
     const selected = new Set(selectedObjectIds);
     const selectableIds = orderBatchForDrawOrderAnchor(
-      normalizeSelectionMembers(project, project.objects.map((object) => object.id)),
+      normalizeSelectionMembersWithinIsolation(project, project.objects.map((object) => object.id), isolationRootId),
       project.objects,
     );
     set({ selectedObjectIds: selectableIds.filter((id) => !selected.has(id)) });
@@ -1702,8 +1712,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
   toggleObjectSelection: (objectId) => {
     const project = get().project;
+    const isolationPath = useUiStore.getState().selectionIsolationPath;
+    const isolationRootId = isolationPath[isolationPath.length - 1] ?? null;
     const selectableId = project
-      ? normalizeSelectionMembers(project, [objectId])[0] ?? objectId
+      ? normalizeSelectionMembersWithinIsolation(project, [objectId], isolationRootId)[0] ?? objectId
       : objectId;
     const { selectedObjectIds } = get();
     if (selectedObjectIds.includes(selectableId)) {
@@ -1711,6 +1723,17 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     } else {
       set({ selectedObjectIds: [...selectedObjectIds, selectableId] });
     }
+  },
+
+  selectSimilar: (kind) => {
+    const { project, selectedObjectIds } = get();
+    const anchorId = selectedObjectIds[selectedObjectIds.length - 1];
+    if (!project || !anchorId) return;
+    const isolationPath = useUiStore.getState().selectionIsolationPath;
+    const isolationRootId = isolationPath[isolationPath.length - 1] ?? null;
+    const objectIds = selectSimilarObjectIds(project, anchorId, kind, isolationRootId);
+    if (objectIds.length === 0) return;
+    set({ selectedObjectIds: mergeSelectionAddOrder(selectedObjectIds, objectIds) });
   },
 
   duplicateObject: async (objectId) => {

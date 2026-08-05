@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { SettingsDialog } from '../SettingsDialog';
 import { useAppStore } from '../../../stores/appStore';
 import type { AppSettings } from '../../../types/commands';
+import { APP_COMMANDS } from '../../../commands/appCommandIds';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -135,7 +136,7 @@ describe('SettingsDialog', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(screen.getByTestId('toggle-dark-mode').getAttribute('aria-checked')).toBe('false');
 
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => {
       expect(spy).toHaveBeenCalledWith(expect.objectContaining({
         ui_theme: 'light',
@@ -155,7 +156,7 @@ describe('SettingsDialog', () => {
     render(<SettingsDialog onClose={vi.fn()} />);
     fireEvent.click(screen.getByText('Display'));
     fireEvent.change(screen.getByLabelText('App appearance'), { target: { value: 'light' } });
-    fireEvent.click(screen.getByText('Save'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('save failed'));
     expect(document.documentElement.dataset.theme).toBe('dark');
@@ -243,8 +244,52 @@ describe('SettingsDialog', () => {
     expect(screen.getByText('Allow importing to tool layers')).toBeDefined();
     expect(screen.queryByText('Include tool layers in job bounds')).toBeNull();
 
-    expect(screen.queryByText('Hotkeys')).toBeNull();
-    expect(screen.queryByText('Edit Hotkeys')).toBeNull();
+    expect(screen.getByText('Edit Hotkeys')).toBeDefined();
+  });
+
+  it('lists, edits, and saves application shortcuts from Settings', async () => {
+    useAppStore.setState({ settings: makeSettings() });
+    const updateSpy = vi.spyOn(useAppStore.getState(), 'updateSettings').mockResolvedValue(undefined);
+
+    render(<SettingsDialog onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('Edit Hotkeys'));
+
+    expect(screen.getByTestId('hotkey-settings-panel')).toBeDefined();
+    fireEvent.change(screen.getByPlaceholderText('Search commands'), { target: { value: 'Activate Layers' } });
+    expect(screen.getByText('Activate Layers')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+    fireEvent.keyDown(window, { key: '4', altKey: true });
+    expect(screen.getByText('(custom)')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({
+        custom_hotkeys: expect.objectContaining({
+          [APP_COMMANDS.WINDOW_ACTIVATE_LAYERS]: 'Alt+4',
+        }),
+      }));
+    });
+    updateSpy.mockRestore();
+  });
+
+  it('resets all shortcut customizations to their defaults', async () => {
+    useAppStore.setState({
+      settings: makeSettings({
+        custom_hotkeys: { [APP_COMMANDS.WINDOW_ACTIVATE_LAYERS]: 'Alt+4' },
+      }),
+    });
+    const updateSpy = vi.spyOn(useAppStore.getState(), 'updateSettings').mockResolvedValue(undefined);
+
+    render(<SettingsDialog onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('Edit Hotkeys'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset All' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ custom_hotkeys: {} }));
+    });
+    updateSpy.mockRestore();
   });
 
   it('keeps preference-file management in the File & Import settings tab', async () => {

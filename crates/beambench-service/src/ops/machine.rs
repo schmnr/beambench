@@ -26,8 +26,8 @@ use beambench_grbl::{
 };
 use beambench_lihuiyu::{
     LihuiyuCompilationConfig, LihuiyuCompiledJob, LihuiyuCoordinateTransform, LihuiyuUsbDeviceInfo,
-    LihuiyuUsbIo, LihuiyuUsbSelector, NativeLihuiyuUsbIo, compile_lihuiyu_job,
-    enumerate_lihuiyu_usb_devices,
+    LihuiyuUsbError, LihuiyuUsbIo, LihuiyuUsbSelector, NativeLihuiyuUsbIo, USB_PRODUCT_ID,
+    USB_VENDOR_ID, compile_lihuiyu_job, enumerate_lihuiyu_usb_devices,
 };
 use beambench_marlin::{
     MarlinGcodeConfig, MarlinPowerScale, MarlinSerialSession, MarlinSerialSessionConfig,
@@ -2628,16 +2628,55 @@ pub fn begin_usb_controller_connection(
         port_numbers: input.port_numbers,
     };
     let endpoint_name = selector.to_string();
-    ctx.push_connection_event(
+    ctx.push_usb_connection_event(
         "transport_open",
-        Some(endpoint_name),
+        endpoint_name.clone(),
+        USB_VENDOR_ID,
+        USB_PRODUCT_ID,
         None,
         Some("Opening Lihuiyu CH341 USB transport".to_string()),
         None,
+        None,
     );
-    let io = NativeLihuiyuUsbIo::open(&selector)
-        .map_err(|error| ServiceError::machine(format!("Lihuiyu USB transport failed: {error}")))?;
+    let io = match NativeLihuiyuUsbIo::open(&selector) {
+        Ok(io) => io,
+        Err(error) => {
+            let (error_code, usb_driver) = match &error {
+                LihuiyuUsbError::IncompatibleWindowsDriver { driver, .. } => (
+                    Some("lihuiyu_incompatible_windows_driver".to_owned()),
+                    Some(driver.clone()),
+                ),
+                _ => (None, None),
+            };
+            let detail = if error_code.is_some() {
+                format!("[lihuiyu_incompatible_windows_driver] {error}")
+            } else {
+                format!("Lihuiyu USB transport failed: {error}")
+            };
+            ctx.push_usb_connection_event(
+                "open_failed",
+                endpoint_name,
+                USB_VENDOR_ID,
+                USB_PRODUCT_ID,
+                usb_driver,
+                None,
+                error_code,
+                Some(detail.clone()),
+            );
+            return Err(ServiceError::machine(detail));
+        }
+    };
     let device = io.device_info().clone();
+    ctx.push_usb_connection_event(
+        "transport_opened",
+        device.stable_id(),
+        device.vendor_id,
+        device.product_id,
+        device.driver.clone(),
+        Some("Claimed Lihuiyu CH341 USB interface".to_owned()),
+        None,
+        None,
+    );
     finish_lihuiyu_usb_connection(ctx, io, device)
 }
 
@@ -5001,6 +5040,7 @@ mod tests {
             serial_number: None,
             has_required_bulk_endpoints: Some(true),
             driver: Some("virtual-usb".to_string()),
+            windows_driver_compatible: None,
         };
         let result = finish_lihuiyu_usb_connection(
             &ctx,
@@ -5075,6 +5115,7 @@ mod tests {
             serial_number: None,
             has_required_bulk_endpoints: Some(true),
             driver: Some("virtual-usb".to_string()),
+            windows_driver_compatible: None,
         };
         finish_lihuiyu_usb_connection(
             &ctx,
@@ -5149,6 +5190,7 @@ mod tests {
             serial_number: None,
             has_required_bulk_endpoints: Some(true),
             driver: Some("virtual-usb".to_string()),
+            windows_driver_compatible: None,
         };
         finish_lihuiyu_usb_connection(
             &ctx,
@@ -5228,6 +5270,7 @@ mod tests {
             serial_number: None,
             has_required_bulk_endpoints: Some(true),
             driver: Some("virtual-usb".to_string()),
+            windows_driver_compatible: None,
         };
         let mut io = beambench_lihuiyu::LihuiyuVirtualUsbIo::m2_nano();
         io.fail_next_packet_writes(1);

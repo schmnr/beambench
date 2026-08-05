@@ -42,6 +42,22 @@ afterEach(() => {
 });
 
 describe('app command bridge', () => {
+  it('activates core inspector panels without toggling their visibility', async () => {
+    useUiStore.getState().setZoneActiveTab('top-right', 'outliner');
+
+    await executeAppCommand(APP_COMMANDS.WINDOW_ACTIVATE_LAYERS);
+    let workspace = useUiStore.getState().panelLayout.zones;
+    expect(workspace['top-right'].activeTab).toBe('cuts_layers');
+
+    await executeAppCommand(APP_COMMANDS.WINDOW_ACTIVATE_PROPERTIES);
+    workspace = useUiStore.getState().panelLayout.zones;
+    expect(workspace['top-right'].activeTab).toBe('properties');
+
+    await executeAppCommand(APP_COMMANDS.WINDOW_ACTIVATE_OUTLINER);
+    workspace = useUiStore.getState().panelLayout.zones;
+    expect(workspace['top-right'].activeTab).toBe('outliner');
+  });
+
   it('executes the unified export command with explicit selection state', async () => {
     const project = makeProject();
     useProjectStore.setState({
@@ -235,7 +251,7 @@ describe('app command bridge', () => {
     expect(layout.zones.bottom.panelIds).toContain('notes');
     expect(layout.zones.bottom.activeTab).toBe('notes');
     expect(layout.hiddenPanelIds).not.toContain('notes');
-    expect(layout.bottomPanelHeight).toBe(220);
+    expect(layout.bottomPanelHeight).toBe(200);
   });
 
   it('routes Laser Tools test commands to their dialogs', async () => {
@@ -612,6 +628,9 @@ describe('app command bridge', () => {
     expect(stateItem(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_FILLED)).toMatchObject({ checked: true });
     expect(stateItem(APP_COMMANDS.WINDOW_ARTWORK_DISPLAY_BY_LAYER)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_SMOOTH_EDGES)).toMatchObject({ checked: false });
+    expect(stateItem(APP_COMMANDS.VIEW_TOGGLE_GRID)).toMatchObject({ checked: true, accelerator: 'g' });
+    expect(stateItem(APP_COMMANDS.VIEW_TOGGLE_SNAP_TO_GRID)).toMatchObject({ checked: false, accelerator: 'CmdOrCtrl+Shift+g' });
+    expect(stateItem(APP_COMMANDS.WINDOW_ACTIVATE_LAYERS)).toMatchObject({ accelerator: 'Alt+1' });
     expect(stateItem(APP_COMMANDS.WINDOW_PANEL_CONSOLE)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_PANEL_NOTES)).toMatchObject({ checked: false });
     expect(stateItem(APP_COMMANDS.WINDOW_PANEL_OUTLINER)).toMatchObject({ checked: true });
@@ -892,7 +911,7 @@ describe('app command bridge', () => {
     const cases: KeyboardEventInit[] = [
       { key: 'B', metaKey: true, shiftKey: true },
       { key: 'P', metaKey: true },
-      { key: 'P', metaKey: true, shiftKey: true },
+      { key: 'P', shiftKey: true },
       { key: 'H', metaKey: true, shiftKey: true },
       { key: 'H', altKey: true, shiftKey: true },
       { key: 'V', altKey: true, shiftKey: true },
@@ -915,7 +934,6 @@ describe('app command bridge', () => {
       { key: '-', metaKey: true },
       { key: 'A', metaKey: true, shiftKey: true },
       { key: 'W', altKey: true, shiftKey: true },
-      { key: 'Tab', metaKey: true },
       { key: 'T', altKey: true },
       { key: 'I', altKey: true },
       { key: 'O', altKey: true },
@@ -926,7 +944,10 @@ describe('app command bridge', () => {
     ];
 
     for (const init of cases) {
-      expect(isNativeMenuOwnedShortcut(new KeyboardEvent('keydown', init), true)).toBe(true);
+      expect(
+        isNativeMenuOwnedShortcut(new KeyboardEvent('keydown', init), true),
+        JSON.stringify(init),
+      ).toBe(true);
     }
   });
 

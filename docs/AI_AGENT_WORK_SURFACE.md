@@ -64,6 +64,7 @@ beambench-cli design plan plan.json --json
 | `macros.manage` | `partial` | `machine_config` | `beambench-cli macro list --json; beambench-cli macro add --name <name> --description <description> --commands <commands> --json; beambench-cli macro remove <id> --json; beambench-cli macro run <id> --json` | `GET /api/v1/macros` |  |
 | `art_library.manage` | `ui_only` | `ui_only` |  |  |  |
 | `window.view_controls` | `ui_only` | `ui_only` |  |  |  |
+| `view.canvas_controls` | `ui_only` | `ui_only` |  |  |  |
 | `help.menu` | `ignored` | `ui_only` |  |  |  |
 
 ## Regeneration

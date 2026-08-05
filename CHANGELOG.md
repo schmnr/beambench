@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Intentional shutdowns, including choosing Don't Save, now remove the current
+  project's autosave so the next launch does not incorrectly offer crash
+  recovery. Recovery files remain available after an actual crash.
+- On Windows, Lihuiyu USB setup now detects incompatible CH341 drivers before
+  connecting, explains the WinUSB requirement and vendor-software tradeoff, and
+  records USB-specific driver, VID/PID, transport, and failure diagnostics in
+  feedback reports.
+
 ## 0.2.0
 
 - Refreshed the complete Design and Run experience around customizable panel
