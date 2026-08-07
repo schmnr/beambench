@@ -1,6 +1,6 @@
 //! Execution plan builder - the main orchestrator.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use beambench_common::geometry::{Bounds, Point2D};
@@ -45,7 +45,7 @@ fn effective_layer_ramp_length_mm(layer: &Layer) -> f64 {
     rs.ramp_length_mm.max(0.0)
 }
 use beambench_core::vector::flatten::{DEFAULT_TOLERANCE_MM, flatten_vecpath};
-use beambench_core::vector::normalize::normalize_object;
+use beambench_core::vector::normalize::{normalize_object, vector_path_has_drawable_geometry};
 use beambench_core::vector::offset::signed_area;
 use beambench_core::vector::{
     OFFSET_FILL_BOOLEAN_TOLERANCE_MM, normalize_subject_evenodd_with_tolerance, optimize_path,
@@ -2281,6 +2281,13 @@ fn build_plan_inner(
         for obj in layer_objects {
             match &obj.data {
                 ObjectData::RasterImage { .. } => raster_objects.push(obj),
+                // Groups are arrangement containers; their concrete children
+                // are already present in `layer_objects`. Empty VectorPaths
+                // saved by older importers likewise contain no laser motion
+                // and should not become blocking normalization warnings.
+                ObjectData::Group { .. } => {}
+                ObjectData::VectorPath { path_data, .. }
+                    if !vector_path_has_drawable_geometry(path_data) => {}
                 _ => {
                     // Vector/shape objects are always processed, even on raster
                     // layers — the layer controls laser settings, not valid
@@ -3490,6 +3497,11 @@ fn build_plan_inner(
         }
     }
 
+    // A failure inside a multi-pass entry is discovered once per pass. The
+    // user needs one actionable message, not N identical preflight rows.
+    let mut seen_warning_messages = HashSet::new();
+    warnings.retain(|warning| seen_warning_messages.insert(warning.message.clone()));
+
     // 9. Calculate statistics (includes finish travel distance)
     let total_distance_mm = calculate_distance(&segments);
     let estimated_duration_secs = calculate_duration_with_calibration(&segments, calibration);
@@ -3928,6 +3940,56 @@ mod tests {
     }
 
     #[test]
+    fn legacy_empty_vectors_and_group_containers_do_not_warn_per_pass() {
+        let mut project = create_test_project();
+
+        let mut layer = Layer::new("Cut", OperationType::Cut);
+        layer
+            .primary_entry_mut()
+            .vector_settings
+            .as_mut()
+            .unwrap()
+            .passes = 3;
+        let layer_id = layer.id;
+        project.layers.push(layer);
+
+        let drawable = ProjectObject::new(
+            "Drawable rectangle",
+            layer_id,
+            Bounds::new(Point2D::new(10.0, 10.0), Point2D::new(50.0, 50.0)),
+            ObjectData::Shape {
+                kind: ShapeKind::Rectangle,
+                width: 40.0,
+                height: 40.0,
+                corner_radius: 0.0,
+            },
+        );
+        let drawable_id = drawable.id;
+        project.objects.push(drawable);
+        project.objects.push(ProjectObject::new(
+            "SVG Import #00FF00",
+            layer_id,
+            Bounds::new(Point2D::new(70.0, 70.0), Point2D::new(70.0, 70.0)),
+            ObjectData::VectorPath {
+                path_data: "M70 70 L70 70".to_string(),
+                closed: false,
+                ruler_guide_axis: None,
+            },
+        ));
+        project
+            .objects
+            .push(group_object("Imported group", layer_id, vec![drawable_id]));
+
+        let plan = build_plan(&project).unwrap();
+        assert!(!plan.segments.is_empty());
+        assert!(
+            plan.warnings.is_empty(),
+            "empty legacy paths and group containers must not block preflight: {:?}",
+            plan.warnings
+        );
+    }
+
+    #[test]
     fn bottom_left_workspace_flips_vector_y_to_machine_coordinates() {
         let mut project = create_test_project();
         project.workspace.origin = WorkspaceOrigin::BottomLeft;
@@ -4018,7 +4080,13 @@ mod tests {
     fn raster_object_without_asset_data_generates_warning() {
         let mut project = create_test_project();
 
-        let layer = Layer::new("Image", OperationType::Image);
+        let mut layer = Layer::new("Image", OperationType::Image);
+        layer
+            .primary_entry_mut()
+            .raster_settings
+            .as_mut()
+            .unwrap()
+            .passes = 3;
         let layer_id = layer.id;
         project.layers.push(layer);
 

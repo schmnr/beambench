@@ -11,7 +11,31 @@ use crate::vector::convert::{object_to_vecpath, object_to_world_vecpath};
 use crate::vector::flatten::{DEFAULT_TOLERANCE_MM, flatten_vecpath};
 use crate::vector::transform::bake_transform;
 
-const VECTOR_PATH_FLATTEN_TOLERANCE_MM: f64 = 0.02;
+pub(crate) const VECTOR_PATH_FLATTEN_TOLERANCE_MM: f64 = 0.02;
+
+/// Apply the same cleanup used immediately before planner flattening.
+///
+/// Importers use this to avoid persisting contours that look like SVG paths
+/// structurally but cannot produce any laser motion (for example `M10 10
+/// L10 10` or `M10 10 Z`).
+pub(crate) fn cleanup_vecpath_for_planner(
+    path: &mut beambench_common::path::VecPath,
+    tolerance: f64,
+) {
+    path.prune_orphan_subpaths();
+    remove_zero_length_segments(path);
+    dedup_consecutive_points(path, tolerance * 0.1);
+    remove_empty_subpaths(path);
+}
+
+/// Return whether serialized vector geometry can produce at least one
+/// planner polyline. This is also used to ignore empty paths saved by older
+/// Beam Bench versions without treating them as job failures.
+pub fn vector_path_has_drawable_geometry(path_data: &str) -> bool {
+    let mut path = beambench_common::path::VecPath::parse_svg_d(path_data);
+    cleanup_vecpath_for_planner(&mut path, VECTOR_PATH_FLATTEN_TOLERANCE_MM);
+    !flatten_vecpath(&path, VECTOR_PATH_FLATTEN_TOLERANCE_MM).is_empty()
+}
 
 /// The result of normalizing a project object into planner-ready polylines.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -41,9 +65,7 @@ pub fn normalize_object_with_tolerance(
     if matches!(obj.data, crate::object::ObjectData::Text { .. }) {
         let mut vec_path = object_to_world_vecpath(obj)?;
 
-        remove_zero_length_segments(&mut vec_path);
-        dedup_consecutive_points(&mut vec_path, flatten_tolerance * 0.1);
-        remove_empty_subpaths(&mut vec_path);
+        cleanup_vecpath_for_planner(&mut vec_path, flatten_tolerance);
 
         let polylines = flatten_vecpath(&vec_path, flatten_tolerance);
         if polylines.is_empty() {
@@ -66,9 +88,7 @@ pub fn normalize_object_with_tolerance(
     }
 
     // Step 3: Cleanup (before flattening to remove degenerate commands)
-    remove_zero_length_segments(&mut vec_path);
-    dedup_consecutive_points(&mut vec_path, flatten_tolerance * 0.1);
-    remove_empty_subpaths(&mut vec_path);
+    cleanup_vecpath_for_planner(&mut vec_path, flatten_tolerance);
 
     // Step 4: Flatten curves to polylines FIRST.
     // This must happen before coordinate mapping so that we compute the
@@ -248,6 +268,14 @@ mod tests {
             explicit.polylines[0].points.len(),
             "VectorPath normalization should clamp the default flatten tolerance"
         );
+    }
+
+    #[test]
+    fn drawable_geometry_rejects_degenerate_svg_artifacts() {
+        assert!(!vector_path_has_drawable_geometry("M10 10"));
+        assert!(!vector_path_has_drawable_geometry("M10 10 L10 10"));
+        assert!(!vector_path_has_drawable_geometry("M10 10Z"));
+        assert!(vector_path_has_drawable_geometry("M10 10 L20 20"));
     }
 
     #[test]

@@ -10,6 +10,8 @@ use crate::object::{
     ObjectData, ObjectId, ProjectObject, TextAlignment, TextAlignmentV, TextLayoutMode,
 };
 use crate::project::Project;
+use crate::vector::flatten::flatten_vecpath;
+use crate::vector::normalize::{VECTOR_PATH_FLATTEN_TOLERANCE_MM, cleanup_vecpath_for_planner};
 use crate::vector::text_to_path::{can_resolve_font, font_ascender_mm};
 
 #[derive(Debug, Error)]
@@ -718,10 +720,15 @@ fn collect_paths_by_paint(
     for node in group.children() {
         match node {
             usvg::Node::Path(path) => {
-                let d = transform_path_to_bed_space(path, scale, offset_x, offset_y);
-                if d.is_empty() {
+                let mut bed_path = transform_path_to_bed_space(path, scale, offset_x, offset_y);
+                cleanup_vecpath_for_planner(&mut bed_path, VECTOR_PATH_FLATTEN_TOLERANCE_MM);
+                if flatten_vecpath(&bed_path, VECTOR_PATH_FLATTEN_TOLERANCE_MM).is_empty() {
                     continue;
                 }
+                let Some(bbox) = bed_path.visual_bounds() else {
+                    continue;
+                };
+                let d = bed_path.to_svg_d();
                 let stroke_hex = paint_hex(path.stroke().map(|s| s.paint()));
                 let fill_hex = paint_hex(path.fill().map(|f| f.paint()));
                 let key = format!(
@@ -729,12 +736,6 @@ fn collect_paths_by_paint(
                     stroke_hex.as_deref().unwrap_or("none"),
                     fill_hex.as_deref().unwrap_or("none")
                 );
-
-                let bbox = path.abs_bounding_box();
-                let bx0 = bbox.left() as f64 * scale + offset_x;
-                let by0 = bbox.top() as f64 * scale + offset_y;
-                let bx1 = bbox.right() as f64 * scale + offset_x;
-                let by1 = bbox.bottom() as f64 * scale + offset_y;
 
                 let entry = match groups.iter_mut().find(|g| g.key == key) {
                     Some(existing) => existing,
@@ -758,17 +759,17 @@ fn collect_paths_by_paint(
                     }
                 };
 
-                if d.contains('Z') {
+                if bed_path.subpaths.iter().any(|subpath| subpath.closed) {
                     entry.has_closed = true;
                 }
                 if !entry.path_data.is_empty() {
                     entry.path_data.push(' ');
                 }
                 entry.path_data.push_str(&d);
-                entry.min_x = entry.min_x.min(bx0);
-                entry.min_y = entry.min_y.min(by0);
-                entry.max_x = entry.max_x.max(bx1);
-                entry.max_y = entry.max_y.max(by1);
+                entry.min_x = entry.min_x.min(bbox.min.x);
+                entry.min_y = entry.min_y.min(bbox.min.y);
+                entry.max_x = entry.max_x.max(bbox.max.x);
+                entry.max_y = entry.max_y.max(bbox.max.y);
             }
             usvg::Node::Group(g) => {
                 collect_paths_by_paint(g, scale, offset_x, offset_y, groups);
@@ -785,7 +786,7 @@ fn transform_path_to_bed_space(
     scale: f64,
     offset_x: f64,
     offset_y: f64,
-) -> String {
+) -> VecPath {
     let t = path.abs_transform();
     let mut subpaths = Vec::new();
     let mut current = SubPath::new();
@@ -836,7 +837,7 @@ fn transform_path_to_bed_space(
         subpaths.push(current);
     }
 
-    VecPath { subpaths }.to_svg_d()
+    VecPath { subpaths }
 }
 
 /// Transform a point from path-local space to bed space:
@@ -1050,6 +1051,39 @@ mod tests {
             blue.bounds
         );
         assert!(blue.bounds.width() < 60.0, "circle bounds stay tight");
+    }
+
+    #[test]
+    fn import_svg_discards_non_drawable_color_artifacts() {
+        // Regression for the Facebook report: the green paint group contains
+        // only zero-length geometry. Older releases imported it as
+        // `SVG Import #00FF00`, then the planner failed once per cut pass.
+        // The same-paint black artifact also must not inflate the real
+        // rectangle's object bounds.
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+            <rect x="10" y="10" width="50" height="50" fill="none" stroke="#000000"/>
+            <path d="M190 190 L190 190" fill="none" stroke="#000000"/>
+            <path d="M70 70 L70 70" fill="none" stroke="#00FF00"/>
+            <path d="M80 80 Z" fill="none" stroke="#00FF00"/>
+        </svg>"##;
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+
+        let ids = import_svg(svg, &mut project, layer_id).unwrap();
+        assert_eq!(ids.len(), 1, "empty green paint group must be discarded");
+
+        let object = project.find_object(ids[0]).unwrap();
+        assert_eq!(object.name, "SVG Import");
+        assert!(
+            crate::vector::normalize_object(object).is_some(),
+            "every imported vector object must be planner-normalizable"
+        );
+        let expected_width_mm = 50.0 * 25.4 / 96.0;
+        assert!(
+            (object.bounds.width() - expected_width_mm).abs() < 0.01,
+            "degenerate same-paint geometry must not inflate bounds: {:?}",
+            object.bounds
+        );
     }
 
     #[test]
