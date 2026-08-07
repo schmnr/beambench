@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.2.1
+
+- Added a searchable Shortcuts tab to Settings with current and default
+  bindings, conflict detection, per-command reset, and Reset All. Beam Bench
+  now exposes 150 customizable commands, including commands without a default
+  shortcut.
+- Added shortcut-ready commands for selecting similar objects, toggling the
+  grid and snapping, refreshing Preview, and focusing Layers, Properties, or
+  Outliner. Updated several default bindings to avoid reserved combinations.
+- Improved overlapping-object selection, group isolation, selection
+  breadcrumbs, panel hosting, menus, and workspace layout behavior.
+
 - Intentional shutdowns, including choosing Don't Save, now remove the current
   project's autosave so the next launch does not incorrectly offer crash
   recovery. Recovery files remain available after an actual crash.
@@ -9,6 +21,13 @@
   connecting, explains the WinUSB requirement and vendor-software tradeoff, and
   records USB-specific driver, VID/PID, transport, and failure diagnostics in
   feedback reports.
+- LightBurn imports now convert bottom-left coordinates and root transforms
+  correctly, so artwork is no longer mirrored or moved to the top-left.
+- LightBurn imports now preserve inherited layer assignments, including tool
+  layers such as T2, instead of collapsing the project onto one listed layer.
+- SVG imports now discard non-drawable paint artifacts and legacy empty vector
+  containers before planning, preventing repeated "Failed to normalize object"
+  preflight errors. Repeated multi-pass planner warnings are also deduplicated.
 
 ## 0.2.0
 
