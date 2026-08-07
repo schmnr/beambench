@@ -24,7 +24,7 @@ pub use cleanup::{dedup_consecutive_points, remove_empty_subpaths, remove_zero_l
 pub use convert::{object_to_vecpath, shape_to_vecpath};
 pub use flatten::flatten_vecpath;
 pub use node_edit::{EditablePath, HandleType, NodeId, PathNode};
-pub use normalize::{NormalizedVector, normalize_object};
+pub use normalize::{NormalizedVector, normalize_object, vector_path_has_drawable_geometry};
 pub use offset::{CornerStyle, OffsetDirection, offset_path, signed_area};
 pub use path_ops::{
     FilletCandidate, apply_radius, apply_radius_at_corner, apply_start_point_edits_forward,
