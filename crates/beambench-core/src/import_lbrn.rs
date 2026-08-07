@@ -24,6 +24,8 @@ pub struct LbrnDocument {
     pub app_version: String,
     pub format_version: String,
     pub material_height_mm: Option<f64>,
+    pub mirror_x: bool,
+    pub mirror_y: bool,
     pub notes: String,
     pub layers: Vec<LbrnLayer>,
     pub shapes: Vec<LbrnShape>,
@@ -143,6 +145,8 @@ pub fn parse_lbrn_project(bytes: &[u8]) -> Result<LbrnDocument, String> {
         .unwrap_or("unknown")
         .to_string();
     let material_height_mm = parse_attr_f64(root, "MaterialHeight").filter(|v| *v > 0.0);
+    let mirror_x = root.attribute("MirrorX").is_some_and(parse_lbrn_bool);
+    let mirror_y = root.attribute("MirrorY").is_some_and(parse_lbrn_bool);
     let notes = root
         .children()
         .find(|node| node.has_tag_name("Notes"))
@@ -168,6 +172,7 @@ pub fn parse_lbrn_project(bytes: &[u8]) -> Result<LbrnDocument, String> {
         if let Some(shape) = parse_shape(
             node,
             Transform2D::identity(),
+            None,
             &shared_paths,
             &shared_bitmaps,
             &mut warnings,
@@ -184,6 +189,8 @@ pub fn parse_lbrn_project(bytes: &[u8]) -> Result<LbrnDocument, String> {
         app_version,
         format_version,
         material_height_mm,
+        mirror_x,
+        mirror_y,
         notes,
         layers,
         shapes,
@@ -319,6 +326,7 @@ fn parse_raster_mode(value: &str) -> RasterMode {
 fn parse_shape(
     node: Node<'_, '_>,
     parent_transform: Transform2D,
+    inherited_layer_index: Option<u32>,
     shared_paths: &HashMap<(String, String), VecPath>,
     shared_bitmaps: &HashMap<(String, String), Vec<u8>>,
     warnings: &mut Vec<String>,
@@ -326,7 +334,9 @@ fn parse_shape(
     let shape_type = node.attribute("Type").unwrap_or("Unknown");
     let local_transform = parse_xform(node);
     let transform = parent_transform.compose(&local_transform);
-    let layer_index = parse_attr_u32(node, "CutIndex").unwrap_or(0);
+    let layer_index = parse_attr_u32(node, "CutIndex")
+        .or(inherited_layer_index)
+        .unwrap_or(0);
 
     match shape_type {
         "Rect" | "Rectangle" => Some(LbrnShape::Rectangle {
@@ -445,7 +455,14 @@ fn parse_shape(
                 .children()
                 .filter(|child| child.has_tag_name("Shape"))
                 .filter_map(|child| {
-                    parse_shape(child, transform, shared_paths, shared_bitmaps, warnings)
+                    parse_shape(
+                        child,
+                        transform,
+                        Some(layer_index),
+                        shared_paths,
+                        shared_bitmaps,
+                        warnings,
+                    )
                 })
                 .collect::<Vec<_>>();
             if children.is_empty() {
@@ -992,6 +1009,8 @@ mod tests {
         assert_eq!(parsed.app_version, "1.6.03");
         assert_eq!(parsed.format_version, "1");
         assert_eq!(parsed.material_height_mm, Some(3.0));
+        assert!(!parsed.mirror_x);
+        assert!(!parsed.mirror_y);
         assert_eq!(parsed.notes, "Fixture notes");
         assert_eq!(parsed.layers.len(), 2);
         assert_eq!(parsed.layers[0].entries[0].speed_mm_min, 6000.0);
@@ -1007,6 +1026,47 @@ mod tests {
         };
         assert_eq!(transform.tx, 40.0);
         assert_eq!(transform.ty, 60.0);
+    }
+
+    #[test]
+    fn parses_root_mirrors_and_inherits_group_cut_index() {
+        let xml = project_xml(
+            r#"<LBRN_PROJECT_ROOT AppVersion="1.6.03" FormatVersion="1" MirrorX="True" MirrorY="False">
+          <CutSetting type="Cut"><index Value="1"/><name Value="C01"/></CutSetting>
+          <CutSetting type="Tool"><index Value="31"/><name Value="T2"/></CutSetting>
+          <Shape Type="Group" CutIndex="31"><XForm>1 0 0 1 10 20</XForm><Children>
+            <Shape Type="Rect" W="20" H="10"><XForm>1 0 0 1 5 6</XForm></Shape>
+            <Shape Type="Group"><XForm>1 0 0 1 1 2</XForm><Children>
+              <Shape Type="Ellipse" Rx="3" Ry="4"><XForm>1 0 0 1 7 8</XForm></Shape>
+              <Shape Type="Rect" CutIndex="1" W="2" H="2"><XForm>1 0 0 1 9 10</XForm></Shape>
+            </Children></Shape>
+          </Children></Shape>
+        </LBRN_PROJECT_ROOT>"#,
+        );
+
+        let parsed = parse_lbrn_project(xml.as_bytes()).unwrap();
+        assert!(parsed.mirror_x);
+        assert!(!parsed.mirror_y);
+
+        let LbrnShape::Group { children } = &parsed.shapes[0] else {
+            panic!("expected outer group")
+        };
+        let LbrnShape::Rectangle { layer_index, .. } = &children[0] else {
+            panic!("expected inherited rectangle")
+        };
+        assert_eq!(*layer_index, 31);
+
+        let LbrnShape::Group { children } = &children[1] else {
+            panic!("expected nested group")
+        };
+        let LbrnShape::Ellipse { layer_index, .. } = &children[0] else {
+            panic!("expected inherited ellipse")
+        };
+        assert_eq!(*layer_index, 31);
+        let LbrnShape::Rectangle { layer_index, .. } = &children[1] else {
+            panic!("expected explicit rectangle")
+        };
+        assert_eq!(*layer_index, 1);
     }
 
     #[test]

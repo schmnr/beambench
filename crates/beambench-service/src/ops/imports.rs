@@ -10,7 +10,7 @@ use beambench_common::PALETTE_COLORS;
 use beambench_common::Point2D;
 use beambench_common::RasterAdjustments;
 use beambench_common::geometry::Transform2D;
-use beambench_common::path::VecPath;
+use beambench_common::path::{PathCommand, VecPath};
 use beambench_core::trace::trace_image_preview_fast_cancellable;
 use beambench_core::vector::text_to_path::intrinsic_text_bounds;
 use beambench_core::vector::transform::bake_transform;
@@ -839,6 +839,83 @@ fn linear_object_transform(transform: Transform2D) -> Transform2D {
     }
 }
 
+/// Convert LightBurn's Y-up project coordinates into Beam Bench's Y-down
+/// canvas coordinates. Root mirror flags describe axis mirroring in the
+/// LightBurn project and are applied before the coordinate-system conversion.
+fn lbrn_world_to_canvas_transform(
+    project: &beambench_core::Project,
+    mirror_x: bool,
+    mirror_y: bool,
+) -> Transform2D {
+    Transform2D {
+        a: if mirror_x { -1.0 } else { 1.0 },
+        b: 0.0,
+        c: 0.0,
+        // LightBurn geometry is Y-up. A mirrored LightBurn Y axis already
+        // points down, so it does not need the usual canvas-axis inversion.
+        d: if mirror_y { 1.0 } else { -1.0 },
+        tx: if mirror_x {
+            project.workspace.bed_width_mm
+        } else {
+            0.0
+        },
+        ty: if mirror_y {
+            0.0
+        } else {
+            project.workspace.bed_height_mm
+        },
+    }
+}
+
+/// Rectangles, ellipses, text, and bitmaps are reconstructed from native Beam
+/// Bench primitives whose local coordinates are already Y-down. Conjugating
+/// the source transform with a local Y flip converts rotation/shear without
+/// turning text or image pixels upside down.
+fn lbrn_semantic_object_transform(
+    world_to_canvas: Transform2D,
+    source: Transform2D,
+) -> Transform2D {
+    world_to_canvas
+        .compose(&source)
+        .compose(&Transform2D::scale(1.0, -1.0))
+}
+
+fn transform_lbrn_path(mut path: VecPath, transform: Transform2D) -> VecPath {
+    let transform_point = |x: &mut f64, y: &mut f64| {
+        let point = transform.apply(&Point2D::new(*x, *y));
+        *x = point.x;
+        *y = point.y;
+    };
+
+    for subpath in &mut path.subpaths {
+        for command in &mut subpath.commands {
+            match command {
+                PathCommand::MoveTo { x, y } | PathCommand::LineTo { x, y } => {
+                    transform_point(x, y);
+                }
+                PathCommand::QuadTo { cx, cy, x, y } => {
+                    transform_point(cx, cy);
+                    transform_point(x, y);
+                }
+                PathCommand::CubicTo {
+                    c1x,
+                    c1y,
+                    c2x,
+                    c2y,
+                    x,
+                    y,
+                } => {
+                    transform_point(c1x, c1y);
+                    transform_point(c2x, c2y);
+                    transform_point(x, y);
+                }
+                PathCommand::Close => {}
+            }
+        }
+    }
+    path
+}
+
 fn centered_bounds(transform: Transform2D, width: f64, height: f64) -> Bounds {
     let half_w = width.max(0.0) / 2.0;
     let half_h = height.max(0.0) / 2.0;
@@ -892,6 +969,7 @@ fn import_lbrn_shape(
     project: &mut beambench_core::Project,
     shape: LbrnShape,
     layer_ids: &HashMap<u32, LayerId>,
+    world_to_canvas: Transform2D,
 ) -> ServiceResult<Vec<ProjectObject>> {
     let mut created = Vec::new();
     match shape {
@@ -902,6 +980,7 @@ fn import_lbrn_shape(
             height_mm,
             corner_radius_mm,
         } => {
+            let transform = lbrn_semantic_object_transform(world_to_canvas, transform);
             let layer_id = *layer_ids
                 .get(&layer_index)
                 .ok_or_else(|| ServiceError::internal("Missing imported Lbrn layer"))?;
@@ -925,6 +1004,7 @@ fn import_lbrn_shape(
             radius_x_mm,
             radius_y_mm,
         } => {
+            let transform = lbrn_semantic_object_transform(world_to_canvas, transform);
             let layer_id = *layer_ids
                 .get(&layer_index)
                 .ok_or_else(|| ServiceError::internal("Missing imported Lbrn layer"))?;
@@ -945,6 +1025,7 @@ fn import_lbrn_shape(
             created.push(project.add_object(object).clone());
         }
         LbrnShape::Path { layer_index, path } => {
+            let path = transform_lbrn_path(path, world_to_canvas);
             let layer_id = *layer_ids
                 .get(&layer_index)
                 .ok_or_else(|| ServiceError::internal("Missing imported Lbrn layer"))?;
@@ -972,6 +1053,7 @@ fn import_lbrn_shape(
             letter_spacing_mm,
             line_spacing_mm,
         } => {
+            let transform = lbrn_semantic_object_transform(world_to_canvas, transform);
             let layer_id = *layer_ids
                 .get(&layer_index)
                 .ok_or_else(|| ServiceError::internal("Missing imported Lbrn layer"))?;
@@ -1031,6 +1113,7 @@ fn import_lbrn_shape(
             data,
             adjustments,
         } => {
+            let transform = lbrn_semantic_object_transform(world_to_canvas, transform);
             let layer_id = *layer_ids
                 .get(&layer_index)
                 .ok_or_else(|| ServiceError::internal("Missing imported Lbrn layer"))?;
@@ -1056,7 +1139,7 @@ fn import_lbrn_shape(
         LbrnShape::Group { children } => {
             let mut child_ids = Vec::new();
             for child in children {
-                let imported = import_lbrn_shape(project, child, layer_ids)?;
+                let imported = import_lbrn_shape(project, child, layer_ids, world_to_canvas)?;
                 child_ids.extend(imported.iter().map(|object| object.id));
                 created.extend(imported);
             }
@@ -1078,6 +1161,8 @@ fn import_lbrn_document(
     project: &mut beambench_core::Project,
     document: LbrnDocument,
 ) -> ServiceResult<(Vec<ProjectObject>, Vec<String>)> {
+    let world_to_canvas =
+        lbrn_world_to_canvas_transform(project, document.mirror_x, document.mirror_y);
     let mut layer_ids = HashMap::new();
     for source in &document.layers {
         layer_ids.insert(source.index, install_lbrn_layer(project, source));
@@ -1129,7 +1214,12 @@ fn import_lbrn_document(
 
     let mut created = Vec::new();
     for shape in document.shapes {
-        created.extend(import_lbrn_shape(project, shape, &layer_ids)?);
+        created.extend(import_lbrn_shape(
+            project,
+            shape,
+            &layer_ids,
+            world_to_canvas,
+        )?);
     }
     project.dirty = true;
     Ok((created, document.warnings))
@@ -2536,6 +2626,93 @@ mod tests {
         assert_eq!(project.material_height_mm, Some(3.0));
         assert_eq!(project.notes, "Imported notes");
         assert!(ctx.undo_state().unwrap().can_undo);
+    }
+
+    #[test]
+    fn lbrn_import_maps_bottom_left_coordinates_and_inherited_t2_layer() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<LBRN_PROJECT_ROOT AppVersion="1.6.03" FormatVersion="1" MirrorX="False" MirrorY="False">
+  <CutSetting type="Cut"><index Value="1"/><name Value="C01"/></CutSetting>
+  <CutSetting type="Tool"><index Value="31"/><name Value="T2"/></CutSetting>
+  <Shape Type="Path" CutIndex="1"><XForm>1 0 0 1 0 0</XForm>
+    <VertList>V0 0V10 0V0 20</VertList><PrimList>LineClosed</PrimList>
+  </Shape>
+  <Shape Type="Group" CutIndex="31"><XForm>1 0 0 1 0 0</XForm><Children>
+    <Shape Type="Rect" W="10" H="10"><XForm>1 0 0 1 5 5</XForm></Shape>
+    <Shape Type="Rect" W="10" H="10"><XForm>1 0 0 1 20 10</XForm></Shape>
+  </Children></Shape>
+</LBRN_PROJECT_ROOT>"#
+            .replace("LBRN_PROJECT_ROOT", concat!("Light", "BurnProject"));
+        let document = parse_lbrn_project(xml.as_bytes()).unwrap();
+        let mut project = Project::new("Bottom-left Lbrn import");
+        project.layers.clear();
+        project.workspace.bed_width_mm = 100.0;
+        project.workspace.bed_height_mm = 80.0;
+
+        let (objects, warnings) = import_lbrn_document(&mut project, document).unwrap();
+        assert!(warnings.is_empty());
+        assert_eq!(objects.len(), 4, "path, two rectangles, and their group");
+        assert_eq!(project.layers.len(), 2);
+
+        let c01 = project
+            .layers
+            .iter()
+            .find(|layer| layer.name == "C01")
+            .unwrap();
+        let t2 = project
+            .layers
+            .iter()
+            .find(|layer| layer.name == "T2")
+            .unwrap();
+        assert!(t2.is_tool_layer);
+
+        let path = project
+            .objects
+            .iter()
+            .find(|object| matches!(object.data, ObjectData::VectorPath { .. }))
+            .unwrap();
+        assert_eq!(path.layer_id, c01.id);
+        assert_eq!(path.bounds.min, Point2D::new(0.0, 60.0));
+        assert_eq!(path.bounds.max, Point2D::new(10.0, 80.0));
+        let ObjectData::VectorPath { path_data, .. } = &path.data else {
+            unreachable!()
+        };
+        assert_eq!(path_data, "M0 80 L10 80 L0 60Z");
+
+        let t2_rectangles = project
+            .objects
+            .iter()
+            .filter(|object| {
+                object.layer_id == t2.id && matches!(object.data, ObjectData::Shape { .. })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(t2_rectangles.len(), 2);
+        assert!(t2_rectangles.iter().any(|object| {
+            object.bounds.min == Point2D::new(0.0, 70.0)
+                && object.bounds.max == Point2D::new(10.0, 80.0)
+        }));
+    }
+
+    #[test]
+    fn lbrn_world_transform_respects_root_mirror_flags() {
+        let mut project = Project::new("Mirrored Lbrn import");
+        project.workspace.bed_width_mm = 100.0;
+        project.workspace.bed_height_mm = 80.0;
+
+        let bottom_left = lbrn_world_to_canvas_transform(&project, false, false);
+        assert_eq!(
+            bottom_left.apply(&Point2D::new(10.0, 20.0)),
+            Point2D::new(10.0, 60.0)
+        );
+
+        let mirrored_both = lbrn_world_to_canvas_transform(&project, true, true);
+        assert_eq!(
+            mirrored_both.apply(&Point2D::new(10.0, 20.0)),
+            Point2D::new(90.0, 20.0)
+        );
+
+        let semantic = lbrn_semantic_object_transform(bottom_left, Transform2D::identity());
+        assert_eq!(semantic, Transform2D::translate(0.0, 80.0));
     }
 
     #[test]
