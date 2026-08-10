@@ -11,13 +11,24 @@ import type {
 } from '../types/camera';
 import type { Workspace } from '../types/project';
 import { fitCameraOverlayToWorkspace } from '../canvas/cameraOverlay';
-import { captureBrowserCameraFrame } from '../services/browserCameraCapture';
+import {
+  captureBrowserCameraFrame,
+  disposeBrowserCameraSession,
+  type BrowserCameraCaptureStage,
+} from '../services/browserCameraCapture';
 import { cameraService } from '../services/cameraService';
 import { useNotificationStore } from './notificationStore';
 import { wrapBackendError } from '../i18n/errors';
 
 const notifyError = (msg: string) => useNotificationStore.getState().push(wrapBackendError(msg), 'error');
 const notifySuccess = (msg: string) => useNotificationStore.getState().push(msg, 'success');
+
+export type CameraCaptureStage =
+  | 'idle'
+  | BrowserCameraCaptureStage
+  | 'saving'
+  | 'success'
+  | 'error';
 
 interface CameraStoreState {
   devices: CameraDeviceInfo[];
@@ -32,6 +43,7 @@ interface CameraStoreState {
   calibration: CameraCalibration | null;
   alignment: CameraAlignment | null;
   loading: boolean;
+  captureStage: CameraCaptureStage;
   error: string | null;
   refreshDevices: () => Promise<void>;
   selectCamera: (cameraId: string | null) => Promise<void>;
@@ -95,6 +107,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   calibration: null,
   alignment: null,
   loading: false,
+  captureStage: 'idle',
   error: null,
 
   refreshDevices: async () => {
@@ -110,6 +123,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
 
   selectCamera: async (cameraId) => {
     try {
+      if (cameraId !== get().selectedCameraId) {
+        disposeBrowserCameraSession();
+      }
       const selectedCameraId = await cameraService.selectCamera(cameraId);
       set({
         selectedCameraId,
@@ -117,6 +133,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
         draftOverlayBaseTransform: null,
         overlayAdjustMode: false,
         overlayDraftDirty: false,
+        captureStage: 'idle',
         error: null,
       });
       await get().refreshOverlayState();
@@ -191,14 +208,18 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   captureFrame: async (workspace) => {
+    if (get().loading) return;
     void workspace;
-    set({ loading: true, error: null });
+    set({ loading: true, captureStage: 'resolving', error: null });
     try {
       const selectedCameraId = get().selectedCameraId;
       const devices = get().devices;
       const selectedDevice = devices.find((device) => device.camera_id === selectedCameraId);
       if (selectedCameraId && selectedDevice?.backend_kind === 'native') {
-        const frame = await captureBrowserCameraFrame(selectedDevice, devices);
+        const frame = await captureBrowserCameraFrame(selectedDevice, devices, {
+          onStage: (captureStage) => set({ captureStage }),
+        });
+        set({ captureStage: 'saving' });
         await cameraService.saveFrame(
           selectedCameraId,
           frame.imageData,
@@ -207,14 +228,16 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
           frame.mediaType,
         );
       } else {
+        set({ captureStage: 'capturing' });
         await cameraService.captureFrame(selectedCameraId);
       }
-      await get().refreshOverlayState();
-      set({ loading: false });
-      notifySuccess('Camera overlay updated');
+      set({ captureStage: 'saving' });
+      const state = await cameraService.getAgentState();
+      set({ ...applyAgentState(state), loading: false, captureStage: 'success' });
+      notifySuccess('New camera image captured');
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ error: msg, loading: false });
+      set({ error: msg, loading: false, captureStage: 'error' });
       notifyError(msg);
     }
   },

@@ -490,9 +490,9 @@ Shared fixtures:
 - Hardware Requirement: Laser+Camera
 - Prerequisites: Selected camera and active profile
 - Setup / Fixture: Camera-enabled profile
-- Steps: Capture frame and inspect status, file path, frame dimensions, and overlay-ready state.
-- Expected Result: New frame metadata appears and overlay state updates consistently with the capture.
-- Edge / Negative Cases: Capture should be disabled cleanly when no camera is selected.
+- Steps: Capture a frame, inspect progress/status, file path, frame dimensions, and overlay-ready state, then capture ten more frames immediately and after 5-second and 30-second idle periods.
+- Expected Result: Opening/warm-up/capture/save progress is coherent, every successful capture produces new frame metadata, and the selected camera can be reused without restarting Beam Bench.
+- Edge / Negative Cases: Capture should be disabled cleanly when no camera is selected. A temporary busy/readiness failure should retry once; a final failure must preserve the last good frame and saved alignment.
 - Persistence / Reopen Check: Reopen camera surfaces and verify the last capture metadata remains coherent.
 - Undo / Redo Expectation: Runtime-only.
 - Status: Active
@@ -503,8 +503,8 @@ Shared fixtures:
 - Hardware Requirement: Laser+Camera
 - Prerequisites: Existing camera state
 - Setup / Fixture: Captured frame plus any existing calibration/alignment data
-- Steps: Trigger refresh actions for devices, overlay, calibration, and alignment.
-- Expected Result: UI state refreshes without stale values and without requiring full app restart.
+- Steps: Use **Rescan Cameras**, **Capture New Image**, and the advanced **Reload Camera State** action, then refresh calibration and alignment state.
+- Expected Result: Each action has distinct semantics: rescan changes the device list, capture requests a new image, and state reload hydrates existing state without implying a new image.
 - Edge / Negative Cases: Refresh with missing prerequisites must fail clearly rather than silently.
 - Persistence / Reopen Check: Reopen camera panel and verify refreshed state remains correct.
 - Undo / Redo Expectation: Runtime-only.

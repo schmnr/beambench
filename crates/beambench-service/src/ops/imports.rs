@@ -1292,6 +1292,32 @@ fn import_pending(
             PendingImport::Svg { bytes } => {
                 let ids = import_svg(&bytes, project, effective_layer_id)
                     .map_err(|e| ServiceError::invalid_input(format!("SVG import failed: {e}")))?;
+
+                let raster_ids = ids
+                    .iter()
+                    .copied()
+                    .filter(|id| {
+                        project.find_object(*id).is_some_and(|object| {
+                            matches!(object.data, ObjectData::RasterImage { .. })
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                if !raster_ids.is_empty() {
+                    let (image_layer_id, notice) = route_import_with_notice(
+                        project,
+                        layer_id,
+                        RoutingTarget::NeedsImage,
+                        allow_tool_imports,
+                    )?;
+                    if let Some(notice) = notice {
+                        routing_notices.push(notice);
+                    }
+                    for raster_id in raster_ids {
+                        if let Some(object) = project.find_object_mut(raster_id) {
+                            object.layer_id = image_layer_id;
+                        }
+                    }
+                }
                 imported_objects.extend(
                     ids.iter()
                         .filter_map(|id| project.find_object(*id).cloned())
@@ -2271,6 +2297,29 @@ mod tests {
         br#"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"><rect x="0" y="0" width="20" height="10"/></svg>"#
     }
 
+    fn sample_svg_with_embedded_png() -> Vec<u8> {
+        use base64::Engine;
+
+        let mut png = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(std::io::Cursor::new(&mut png));
+        image::ImageEncoder::write_image(
+            encoder,
+            &[0, 64, 128, 255],
+            2,
+            2,
+            image::ExtendedColorType::L8,
+        )
+        .unwrap();
+        let encoded = base64::engine::general_purpose::STANDARD.encode(png);
+        format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50">
+                <rect x="5" y="5" width="20" height="20" fill="none" stroke="black"/>
+                <image x="40" y="10" width="30" height="30" href="data:image/png;base64,{encoded}"/>
+            </svg>"#
+        )
+        .into_bytes()
+    }
+
     fn sample_lbrn_project() -> Vec<u8> {
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <LBRN_PROJECT_ROOT AppVersion="1.6.03" FormatVersion="1" MaterialHeight="3">
@@ -2470,6 +2519,46 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(err.code, crate::error::ServiceErrorCode::NotFound);
+    }
+
+    #[test]
+    fn mixed_svg_routes_embedded_raster_to_image_layer() {
+        let ctx = ServiceContext::new();
+        let mut project = beambench_core::Project::new("Mixed SVG Import");
+        let line_layer_id = project.ensure_default_layer();
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let dir = tempdir().unwrap();
+        let svg_path = dir.path().join("mixed.svg");
+        std::fs::write(&svg_path, sample_svg_with_embedded_png()).unwrap();
+
+        let objects = import_svg_from_path(
+            &ctx,
+            ImportSvgInput {
+                file_path: svg_path.to_string_lossy().to_string(),
+                layer_id: line_layer_id,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(objects.len(), 2);
+        let vector = objects
+            .iter()
+            .find(|object| matches!(object.data, ObjectData::VectorPath { .. }))
+            .expect("vector portion");
+        assert_eq!(vector.layer_id, line_layer_id);
+
+        let raster = objects
+            .iter()
+            .find(|object| matches!(object.data, ObjectData::RasterImage { .. }))
+            .expect("embedded raster portion");
+        assert_ne!(raster.layer_id, line_layer_id);
+
+        let project_guard = ctx.project.lock().unwrap();
+        let imported_project = project_guard.as_ref().unwrap();
+        assert_eq!(imported_project.assets.len(), 1);
+        let raster_layer = imported_project.find_layer(raster.layer_id).unwrap();
+        assert_eq!(raster_layer.primary_entry().operation, OperationType::Image);
     }
 
     #[test]

@@ -2,7 +2,7 @@ use thiserror::Error;
 use usvg::tiny_skia_path::PathSegment;
 
 use beambench_common::path::{PathCommand, SubPath, VecPath};
-use beambench_common::{Bounds, Point2D};
+use beambench_common::{Bounds, Point2D, Transform2D};
 
 use crate::asset::{Asset, AssetMediaType};
 use crate::layer::LayerId;
@@ -367,6 +367,21 @@ pub fn import_svg(
     let mut paint_groups: Vec<PaintGroup> = Vec::new();
     collect_paths_by_paint(tree.root(), scale, offset_x, offset_y, &mut paint_groups);
 
+    // Preserve embedded raster artwork as real project image assets. usvg
+    // already resolves data-URI PNG/JPEG/GIF/WebP payloads and computes the
+    // complete ancestor/image transform, including preserveAspectRatio.
+    // Keep the native pixels and express their SVG placement through Beam
+    // Bench's bounds + affine transform model.
+    import_embedded_svg_images(
+        tree.root(),
+        project,
+        layer_id,
+        scale,
+        offset_x,
+        offset_y,
+        &mut created_ids,
+    )?;
+
     // A file with this many distinct paints is color noise (flattened
     // gradient art), not operation intent. Import it as one object rather
     // than exploding the object list.
@@ -626,7 +641,7 @@ pub fn import_image(
     // Convert to grayscale immediately on import — laser engravers only
     // use luminance data. Storing grayscale avoids color artifacts in
     // canvas preview and the Adjust Image dialog.
-    let gray = img.to_luma8();
+    let gray = image_to_engraving_grayscale(&img);
     let mut gray_png = Vec::new();
     {
         let encoder = image::codecs::png::PngEncoder::new(std::io::Cursor::new(&mut gray_png));
@@ -680,6 +695,24 @@ pub fn import_image(
     let obj_id = obj.id;
     project.add_object(obj);
     Ok(obj_id)
+}
+
+/// Convert color artwork to laser luminance while treating transparent pixels
+/// as white (no engraving). Dropping alpha would turn transparent SVG image
+/// backgrounds black after the grayscale conversion.
+fn image_to_engraving_grayscale(img: &image::DynamicImage) -> image::GrayImage {
+    if !img.color().has_alpha() {
+        return img.to_luma8();
+    }
+
+    let luma_alpha = img.to_luma_alpha8();
+    image::GrayImage::from_fn(img.width(), img.height(), |x, y| {
+        let pixel = luma_alpha.get_pixel(x, y).0;
+        let luma = u16::from(pixel[0]);
+        let alpha = u16::from(pixel[1]);
+        let composited = (luma * alpha + 255 * (255 - alpha) + 127) / 255;
+        image::Luma([composited as u8])
+    })
 }
 
 /// Recursively collect all path segments from a usvg group, transforming
@@ -774,9 +807,89 @@ fn collect_paths_by_paint(
             usvg::Node::Group(g) => {
                 collect_paths_by_paint(g, scale, offset_x, offset_y, groups);
             }
-            _ => {} // Skip embedded images and text for now
+            _ => {} // Text and images are imported by their dedicated passes.
         }
     }
+}
+
+fn import_embedded_svg_images(
+    group: &usvg::Group,
+    project: &mut Project,
+    layer_id: LayerId,
+    scale: f64,
+    offset_x: f64,
+    offset_y: f64,
+    created_ids: &mut Vec<ObjectId>,
+) -> Result<(), ImportError> {
+    for node in group.children() {
+        match node {
+            usvg::Node::Group(child) => import_embedded_svg_images(
+                child,
+                project,
+                layer_id,
+                scale,
+                offset_x,
+                offset_y,
+                created_ids,
+            )?,
+            usvg::Node::Image(image) if image.is_visible() => {
+                let (bytes, extension) = match image.kind() {
+                    usvg::ImageKind::JPEG(bytes) => (bytes.as_slice(), "jpg"),
+                    usvg::ImageKind::PNG(bytes) => (bytes.as_slice(), "png"),
+                    usvg::ImageKind::GIF(bytes) => (bytes.as_slice(), "gif"),
+                    usvg::ImageKind::WEBP(bytes) => (bytes.as_slice(), "webp"),
+                    // A nested SVG image needs a separate vector-coordinate
+                    // import path. Do not silently rasterize it and discard
+                    // its vector fidelity or operation colors.
+                    usvg::ImageKind::SVG(_) => continue,
+                };
+                let filename = format!("SVG Embedded Image {}.{extension}", created_ids.len() + 1);
+                let object_id = import_image(bytes, &filename, None, project, layer_id)?;
+
+                let native_width = image.size().width() as f64;
+                let native_height = image.size().height() as f64;
+                let bounds = Bounds::new(
+                    Point2D::new(offset_x, offset_y),
+                    Point2D::new(
+                        offset_x + native_width * scale,
+                        offset_y + native_height * scale,
+                    ),
+                );
+                let base_center = Point2D::new(
+                    offset_x + native_width * scale / 2.0,
+                    offset_y + native_height * scale / 2.0,
+                );
+                let svg_transform = image.abs_transform();
+                let (placed_center_x, placed_center_y) = to_bed_space(
+                    native_width / 2.0,
+                    native_height / 2.0,
+                    &svg_transform,
+                    scale,
+                    offset_x,
+                    offset_y,
+                );
+                let transform = Transform2D {
+                    a: svg_transform.sx as f64,
+                    b: svg_transform.ky as f64,
+                    c: svg_transform.kx as f64,
+                    d: svg_transform.sy as f64,
+                    tx: placed_center_x - base_center.x,
+                    ty: placed_center_y - base_center.y,
+                };
+
+                let object = project.find_object_mut(object_id).ok_or_else(|| {
+                    ImportError::ImageDecodeError(
+                        "embedded SVG image object was not created".to_string(),
+                    )
+                })?;
+                object.bounds = bounds;
+                object.transform = transform;
+                created_ids.push(object_id);
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 /// Convert a single usvg path's segments to an SVG d-string with all
@@ -1230,6 +1343,151 @@ mod tests {
         );
     }
 
+    fn transformed_object_bounds(object: &ProjectObject) -> Bounds {
+        let center = Point2D::new(
+            (object.bounds.min.x + object.bounds.max.x) / 2.0,
+            (object.bounds.min.y + object.bounds.max.y) / 2.0,
+        );
+        let corners = [
+            object.bounds.min,
+            Point2D::new(object.bounds.max.x, object.bounds.min.y),
+            object.bounds.max,
+            Point2D::new(object.bounds.min.x, object.bounds.max.y),
+        ];
+        let transformed =
+            corners.map(|corner| object.transform.apply_around_center(&corner, &center));
+        Bounds::new(
+            Point2D::new(
+                transformed
+                    .iter()
+                    .map(|point| point.x)
+                    .fold(f64::INFINITY, f64::min),
+                transformed
+                    .iter()
+                    .map(|point| point.y)
+                    .fold(f64::INFINITY, f64::min),
+            ),
+            Point2D::new(
+                transformed
+                    .iter()
+                    .map(|point| point.x)
+                    .fold(f64::NEG_INFINITY, f64::max),
+                transformed
+                    .iter()
+                    .map(|point| point.y)
+                    .fold(f64::NEG_INFINITY, f64::max),
+            ),
+        )
+    }
+
+    #[test]
+    fn import_svg_preserves_embedded_png_alongside_vectors() {
+        use base64::Engine;
+
+        let png = create_test_png(4, 3);
+        let encoded = base64::engine::general_purpose::STANDARD.encode(png);
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+                <rect x="10" y="10" width="20" height="20" fill="none" stroke="black"/>
+                <image x="50" y="20" width="40" height="30" href="data:image/png;base64,{encoded}"/>
+            </svg>"#
+        );
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+
+        let ids = import_svg(svg.as_bytes(), &mut project, layer_id).unwrap();
+        assert_eq!(
+            ids.len(),
+            2,
+            "the vector and embedded image must both import"
+        );
+        assert_eq!(project.assets.len(), 1);
+
+        let raster = ids
+            .iter()
+            .filter_map(|id| project.find_object(*id))
+            .find(|object| matches!(object.data, ObjectData::RasterImage { .. }))
+            .expect("embedded image object");
+        let ObjectData::RasterImage {
+            original_width_px,
+            original_height_px,
+            asset_key,
+            ..
+        } = &raster.data
+        else {
+            unreachable!()
+        };
+        assert_eq!((*original_width_px, *original_height_px), (4, 3));
+        assert!(!asset_key.is_empty());
+
+        let scale = 25.4 / 96.0;
+        let offset_x = (project.workspace.bed_width_mm - 200.0 * scale) / 2.0;
+        let offset_y = (project.workspace.bed_height_mm - 100.0 * scale) / 2.0;
+        let visual = transformed_object_bounds(raster);
+        assert!((visual.min.x - (offset_x + 50.0 * scale)).abs() < 0.01);
+        assert!((visual.min.y - (offset_y + 20.0 * scale)).abs() < 0.01);
+        assert!((visual.width() - 40.0 * scale).abs() < 0.01);
+        assert!((visual.height() - 30.0 * scale).abs() < 0.01);
+    }
+
+    #[test]
+    fn import_svg_preserves_embedded_image_rotation() {
+        use base64::Engine;
+
+        let png = create_test_png(4, 2);
+        let encoded = base64::engine::general_purpose::STANDARD.encode(png);
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+                <image width="40" height="20" transform="translate(100 20) rotate(90)" href="data:image/png;base64,{encoded}"/>
+            </svg>"#
+        );
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+
+        let ids = import_svg(svg.as_bytes(), &mut project, layer_id).unwrap();
+        assert_eq!(ids.len(), 1);
+        let raster = project.find_object(ids[0]).unwrap();
+        assert!(matches!(raster.data, ObjectData::RasterImage { .. }));
+        assert!(raster.transform.b.abs() > 0.9);
+        assert!(raster.transform.c.abs() > 0.9);
+
+        let scale = 25.4 / 96.0;
+        let offset_x = (project.workspace.bed_width_mm - 200.0 * scale) / 2.0;
+        let offset_y = (project.workspace.bed_height_mm - 100.0 * scale) / 2.0;
+        let visual = transformed_object_bounds(raster);
+        assert!((visual.min.x - (offset_x + 80.0 * scale)).abs() < 0.01);
+        assert!((visual.min.y - (offset_y + 20.0 * scale)).abs() < 0.01);
+        assert!((visual.width() - 20.0 * scale).abs() < 0.01);
+        assert!((visual.height() - 40.0 * scale).abs() < 0.01);
+    }
+
+    #[test]
+    fn import_svg_preserves_embedded_image_aspect_ratio_alignment() {
+        use base64::Engine;
+
+        let png = create_test_png(4, 2);
+        let encoded = base64::engine::general_purpose::STANDARD.encode(png);
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+                <image x="50" y="20" width="40" height="40" href="data:image/png;base64,{encoded}"/>
+            </svg>"#
+        );
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+
+        let ids = import_svg(svg.as_bytes(), &mut project, layer_id).unwrap();
+        let raster = project.find_object(ids[0]).unwrap();
+
+        let scale = 25.4 / 96.0;
+        let offset_x = (project.workspace.bed_width_mm - 200.0 * scale) / 2.0;
+        let offset_y = (project.workspace.bed_height_mm - 100.0 * scale) / 2.0;
+        let visual = transformed_object_bounds(raster);
+        assert!((visual.min.x - (offset_x + 50.0 * scale)).abs() < 0.01);
+        assert!((visual.min.y - (offset_y + 30.0 * scale)).abs() < 0.01);
+        assert!((visual.width() - 40.0 * scale).abs() < 0.01);
+        assert!((visual.height() - 20.0 * scale).abs() < 0.01);
+    }
+
     #[test]
     fn import_invalid_svg_returns_error() {
         let bad = b"not an svg at all";
@@ -1271,6 +1529,27 @@ mod tests {
         assert_eq!(project.assets.len(), 1);
         assert_eq!(project.assets[0].original_filename, "test.png");
         assert!(project.get_asset_data(project.assets[0].id).is_some());
+    }
+
+    #[test]
+    fn import_image_composites_transparency_onto_white() {
+        let rgba = image::RgbaImage::from_raw(2, 1, vec![0, 0, 0, 0, 0, 0, 0, 255]).unwrap();
+        let mut png_bytes = Vec::new();
+        image::DynamicImage::ImageRgba8(rgba)
+            .write_to(
+                &mut std::io::Cursor::new(&mut png_bytes),
+                image::ImageFormat::Png,
+            )
+            .unwrap();
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+
+        import_image(&png_bytes, "alpha.png", None, &mut project, layer_id).unwrap();
+
+        let stored = project.get_asset_data(project.assets[0].id).unwrap();
+        let decoded = image::load_from_memory(stored).unwrap().to_luma8();
+        assert_eq!(decoded.get_pixel(0, 0).0[0], 255);
+        assert_eq!(decoded.get_pixel(1, 0).0[0], 0);
     }
 
     #[test]

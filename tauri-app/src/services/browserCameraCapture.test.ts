@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  captureBrowserCameraFrame,
+  disposeBrowserCameraSession,
   findVideoInput,
   normalizeCameraLabel,
   resolveBrowserVideoInput,
@@ -24,8 +26,8 @@ const mediaDevice = (label: string, deviceId: string): MediaDeviceInfo => ({
   toJSON: () => ({}),
 });
 
-const mediaStream = (): MediaStream => ({
-  getTracks: () => [{ stop: vi.fn() } as unknown as MediaStreamTrack],
+const mediaStream = (stop = vi.fn()): MediaStream => ({
+  getTracks: () => [{ stop, readyState: 'live' } as unknown as MediaStreamTrack],
 }) as unknown as MediaStream;
 
 describe('browserCameraCapture', () => {
@@ -37,9 +39,39 @@ describe('browserCameraCapture', () => {
         getUserMedia: vi.fn(),
       },
     });
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    Object.defineProperty(HTMLVideoElement.prototype, 'videoWidth', {
+      configurable: true,
+      get: () => 1280,
+    });
+    Object.defineProperty(HTMLVideoElement.prototype, 'videoHeight', {
+      configurable: true,
+      get: () => 720,
+    });
+    Object.defineProperty(HTMLVideoElement.prototype, 'readyState', {
+      configurable: true,
+      get: () => HTMLMediaElement.HAVE_METADATA,
+    });
+    Object.defineProperty(HTMLVideoElement.prototype, 'requestVideoFrameCallback', {
+      configurable: true,
+      value: (callback: () => void) => {
+        queueMicrotask(callback);
+        return 1;
+      },
+    });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => {
+      callback({
+        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+      } as Blob);
+    });
   });
 
   afterEach(() => {
+    disposeBrowserCameraSession();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -111,6 +143,25 @@ describe('browserCameraCapture', () => {
     await expectation;
   });
 
+  it('stops a camera stream that arrives after the access timeout', async () => {
+    vi.useFakeTimers();
+    const stop = vi.fn();
+    let provideStream!: (stream: MediaStream) => void;
+    vi.mocked(navigator.mediaDevices.enumerateDevices).mockResolvedValue([]);
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockReturnValue(new Promise((resolve) => {
+      provideStream = resolve;
+    }));
+
+    const result = resolveBrowserVideoInput(cameraDevice('C922 Pro Stream Webcam'));
+    const expectation = expect(result).rejects.toThrow('Timed out waiting for camera access');
+    await vi.advanceTimersByTimeAsync(8000);
+    await expectation;
+
+    provideStream(mediaStream(stop));
+    await vi.runAllTimersAsync();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
   it('uses the only available browser camera when labels do not match', async () => {
     vi.mocked(navigator.mediaDevices.enumerateDevices).mockResolvedValue([
       mediaDevice('Unexpected Camera Label', 'single-camera'),
@@ -139,5 +190,49 @@ describe('browserCameraCapture', () => {
     await expect(resolveBrowserVideoInput(cameraDevice('C922 Pro Stream Webcam'))).rejects.toThrow(
       'Could not match "C922 Pro Stream Webcam" to an available browser camera.',
     );
+  });
+
+  it('reuses a warm camera session for consecutive captures', async () => {
+    const stop = vi.fn();
+    vi.mocked(navigator.mediaDevices.enumerateDevices).mockResolvedValue([
+      mediaDevice('C922 Pro Stream Webcam', 'c922'),
+    ]);
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue(mediaStream(stop));
+
+    const firstStages: string[] = [];
+    const secondStages: string[] = [];
+    const first = await captureBrowserCameraFrame(cameraDevice('C922 Pro Stream Webcam'), undefined, {
+      onStage: (stage) => firstStages.push(stage),
+    });
+    const second = await captureBrowserCameraFrame(cameraDevice('C922 Pro Stream Webcam'), undefined, {
+      onStage: (stage) => secondStages.push(stage),
+    });
+
+    expect(first).toMatchObject({ widthPx: 1280, heightPx: 720, mediaType: 'image/png' });
+    expect(second).toMatchObject({ widthPx: 1280, heightPx: 720, mediaType: 'image/png' });
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
+    expect(firstStages).toEqual(expect.arrayContaining(['resolving', 'opening', 'warming', 'capturing', 'encoding']));
+    expect(secondStages).toEqual(expect.arrayContaining(['resolving', 'warming', 'capturing', 'encoding']));
+    expect(stop).not.toHaveBeenCalled();
+
+    disposeBrowserCameraSession();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries once when a camera is temporarily busy', async () => {
+    vi.mocked(navigator.mediaDevices.enumerateDevices).mockResolvedValue([
+      mediaDevice('C922 Pro Stream Webcam', 'c922'),
+    ]);
+    vi.mocked(navigator.mediaDevices.getUserMedia)
+      .mockRejectedValueOnce(new DOMException('busy', 'NotReadableError'))
+      .mockResolvedValueOnce(mediaStream());
+    const stages: string[] = [];
+
+    await expect(captureBrowserCameraFrame(cameraDevice('C922 Pro Stream Webcam'), undefined, {
+      onStage: (stage) => stages.push(stage),
+    })).resolves.toMatchObject({ widthPx: 1280, heightPx: 720 });
+
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(2);
+    expect(stages).toContain('retrying');
   });
 });
