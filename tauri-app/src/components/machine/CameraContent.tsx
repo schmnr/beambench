@@ -5,6 +5,7 @@ import { useMachineStore } from '../../stores/machineStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { CameraAlignmentDialog } from '../dialogs/CameraAlignmentDialog';
 import {
+  CameraCaptureActions,
   CameraOverlayControls,
   CameraOverlaySetupControls,
   CameraOverlayStatus,
@@ -52,6 +53,7 @@ export function CameraContent() {
   const selectedDevice = devices.find((device) => device.camera_id === selectedCameraId);
   const hasActiveProfile = activeProfileId !== null;
   const cameraControlsEnabled = hasActiveProfile && !!selectedCameraId;
+  const canAlignCamera = cameraControlsEnabled && Boolean(overlayState?.frame) && !loading;
   const cameraStatusText = selectedDevice?.status_text ?? overlayState?.frame?.captured_at
     ?? (devices.length > 0
       ? t('panels.machine.camera.status.cameras_available', { count: devices.length })
@@ -70,21 +72,11 @@ export function CameraContent() {
         <div className="text-bb-text-muted">
           {cameraStatusText}
         </div>
-        <div className="flex gap-1">
-          <button
-            className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover"
-            onClick={() => void refreshDevices()}
-          >
-            {t('panels.machine.camera.refresh')}
-          </button>
-          <button
-            className="px-2 py-1 rounded bg-bb-accent text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-60"
-            disabled={!cameraControlsEnabled || loading}
-            onClick={() => void captureFrame(project?.workspace ?? null)}
-          >
-            {t('panels.machine.camera.update_overlay')}
-          </button>
-        </div>
+        <CameraCaptureActions
+          controlsEnabled={cameraControlsEnabled}
+          onRescan={() => void refreshDevices()}
+          onCapture={() => void captureFrame(project?.workspace ?? null)}
+        />
       </div>
 
       {/* Device selector */}
@@ -93,7 +85,7 @@ export function CameraContent() {
         <select
           value={selectedCameraId ?? ''}
           onChange={(e) => void selectCamera(e.target.value || null)}
-          disabled={!hasActiveProfile}
+          disabled={!hasActiveProfile || loading}
           className="w-40 px-1 py-0.5 bg-bb-bg border border-bb-border rounded text-xs text-bb-text focus:outline-none focus:border-bb-accent"
         >
           <option value="">{emptyDeviceLabel}</option>
@@ -120,23 +112,16 @@ export function CameraContent() {
       </section>
       <section className="space-y-2" data-camera-region="controls">
       <CameraOverlayControls />
-      <CameraOverlaySetupControls controlsEnabled={cameraControlsEnabled} />
+      <CameraOverlaySetupControls controlsEnabled={cameraControlsEnabled && !loading} />
       </section>
 
       {/* Action buttons */}
       <section className="space-y-2" data-camera-region="actions">
       <div className="flex gap-1 flex-wrap">
-        <button
-          className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
-          disabled={!cameraControlsEnabled}
-          onClick={() => void refreshOverlayState()}
-        >
-          {t('panels.machine.camera.refresh_overlay')}
-        </button>
         {calibration && !alignment && (
           <button
             className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
-            disabled={!cameraControlsEnabled}
+            disabled={!cameraControlsEnabled || loading}
             onClick={() => void resetCalibration()}
           >
             {t('panels.machine.camera.reset_calibration')}
@@ -144,22 +129,41 @@ export function CameraContent() {
         )}
         <button
           className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
-          disabled={!cameraControlsEnabled || !alignment}
+          disabled={!cameraControlsEnabled || !alignment || loading}
           onClick={() => void resetAlignment()}
         >
           {t('panels.machine.camera.reset_alignment')}
         </button>
       </div>
 
+      <details className="text-bb-text-muted">
+        <summary className="cursor-pointer select-none hover:text-bb-text">
+          {t('panels.machine.camera.advanced_actions')}
+        </summary>
+        <button
+          type="button"
+          className="mt-1 px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
+          disabled={!cameraControlsEnabled || loading}
+          onClick={() => void refreshOverlayState()}
+        >
+          {t('panels.machine.camera.reload_camera_state')}
+        </button>
+      </details>
+
       <div className="flex gap-1">
         <button
           className="px-2 py-1 rounded bg-bb-accent text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-60"
-          disabled={!cameraControlsEnabled}
+          disabled={!canAlignCamera}
           onClick={() => setShowAlignmentDialog(true)}
         >
           {t('panels.machine.camera.align_camera')}
         </button>
       </div>
+      {cameraControlsEnabled && !overlayState?.frame && (
+        <div className="text-bb-text-muted">
+          {t('panels.machine.camera.capture_before_alignment')}
+        </div>
+      )}
       </section>
 
       {showAlignmentDialog && selectedCameraId && (

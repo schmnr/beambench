@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCameraStore } from '../cameraStore';
 import { cameraService } from '../../services/cameraService';
+import { captureBrowserCameraFrame } from '../../services/browserCameraCapture';
 import type {
   CameraAgentState,
   CameraAlignment,
@@ -10,6 +11,7 @@ import type {
 
 vi.mock('../../services/browserCameraCapture', () => ({
   captureBrowserCameraFrame: vi.fn(),
+  disposeBrowserCameraSession: vi.fn(),
 }));
 
 vi.mock('../../services/cameraService', () => ({
@@ -213,6 +215,107 @@ describe('cameraStore overlay display state', () => {
 
     expect(cameraService.captureFrame).toHaveBeenCalledWith('cam-1');
     expect(useCameraStore.getState().overlayVisible).toBe(true);
+  });
+
+  it('ignores a second capture request while the first capture is still running', async () => {
+    let finishCapture!: (value: CameraFrameHandle) => void;
+    vi.mocked(cameraService.captureFrame).mockReturnValue(new Promise((resolve) => {
+      finishCapture = resolve;
+    }));
+    vi.mocked(cameraService.getAgentState).mockResolvedValue(agentState());
+    useCameraStore.setState({
+      selectedCameraId: 'cam-1',
+      devices: [{
+        camera_id: 'cam-1',
+        display_name: 'Top Camera',
+        backend_kind: 'mock_snapshot',
+        available: true,
+        width_px: 100,
+        height_px: 50,
+        status_text: 'Ready',
+      }],
+    });
+
+    const firstCapture = useCameraStore.getState().captureFrame();
+    const duplicateCapture = useCameraStore.getState().captureFrame();
+
+    expect(cameraService.captureFrame).toHaveBeenCalledTimes(1);
+    finishCapture(frame);
+    await Promise.all([firstCapture, duplicateCapture]);
+    expect(useCameraStore.getState().captureStage).toBe('success');
+  });
+
+  it('reports native capture stages while saving a new image', async () => {
+    vi.mocked(captureBrowserCameraFrame).mockImplementation(async (_device, _devices, options) => {
+      options?.onStage?.('opening');
+      options?.onStage?.('warming');
+      options?.onStage?.('capturing');
+      return {
+        imageData: new Uint8Array([1, 2, 3]),
+        widthPx: 1280,
+        heightPx: 720,
+        mediaType: 'image/png',
+      };
+    });
+    vi.mocked(cameraService.saveFrame).mockResolvedValue(frame);
+    vi.mocked(cameraService.getAgentState).mockResolvedValue(agentState());
+    useCameraStore.setState({
+      selectedCameraId: 'cam-1',
+      devices: [{
+        camera_id: 'cam-1',
+        display_name: 'Top Camera',
+        backend_kind: 'native',
+        available: true,
+        width_px: 1280,
+        height_px: 720,
+        status_text: 'Ready',
+      }],
+    });
+
+    await useCameraStore.getState().captureFrame();
+
+    expect(cameraService.saveFrame).toHaveBeenCalledWith(
+      'cam-1',
+      new Uint8Array([1, 2, 3]),
+      1280,
+      720,
+      'image/png',
+    );
+    expect(useCameraStore.getState().captureStage).toBe('success');
+    expect(useCameraStore.getState().loading).toBe(false);
+  });
+
+  it('keeps the last good overlay when a replacement capture fails', async () => {
+    const existingState = agentState();
+    vi.mocked(captureBrowserCameraFrame).mockRejectedValue(
+      new Error('Timed out waiting for camera frame.'),
+    );
+    useCameraStore.setState({
+      selectedCameraId: 'cam-1',
+      overlayState: {
+        selected_camera_id: existingState.selected_camera_id,
+        frame: existingState.frame,
+        calibration: existingState.calibration,
+        alignment: existingState.alignment,
+        overlay_ready: existingState.overlay_ready,
+      },
+      devices: [{
+        camera_id: 'cam-1',
+        display_name: 'Top Camera',
+        backend_kind: 'native',
+        available: true,
+        width_px: 1280,
+        height_px: 720,
+        status_text: 'Ready',
+      }],
+    });
+
+    await useCameraStore.getState().captureFrame();
+
+    expect(cameraService.saveFrame).not.toHaveBeenCalled();
+    expect(useCameraStore.getState().overlayState?.frame).toEqual(frame);
+    expect(useCameraStore.getState().captureStage).toBe('error');
+    expect(useCameraStore.getState().error).toContain('Timed out waiting for camera frame');
   });
 
   it('creates a fitted draft overlay after capture when no saved alignment exists', async () => {

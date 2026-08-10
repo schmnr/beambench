@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CameraCalibrationDialog } from '../CameraCalibrationDialog';
-import { CameraAlignmentDialog } from '../CameraAlignmentDialog';
+import {
+  CameraAlignmentDialog,
+  resetCameraAlignmentDraftsForTests,
+} from '../CameraAlignmentDialog';
 import { useCameraStore } from '../../../stores/cameraStore';
 import { useProjectStore } from '../../../stores/projectStore';
 import { makeProject } from '../../../test-utils/projectFixtures';
@@ -43,6 +46,7 @@ const solvedAlignment = {
 
 afterEach(() => {
   cleanup();
+  resetCameraAlignmentDraftsForTests();
   useCameraStore.setState(initialCameraState, true);
   useProjectStore.setState(initialProjectState, true);
 });
@@ -309,6 +313,31 @@ describe('CameraAlignmentDialog', () => {
 
     expect((screen.getAllByLabelText('Camera X')[0] as HTMLInputElement).value).toBe('100');
     expect((screen.getAllByLabelText('Camera Y')[0] as HTMLInputElement).value).toBe('50');
+    expect(screen.getByRole('button', { name: 'Point 2' })).toBeDefined();
+  });
+
+  it('uses Enter to advance between fields without closing the alignment dialog', () => {
+    const onClose = vi.fn();
+    render(<CameraAlignmentDialog onClose={onClose} />);
+
+    const inputs = screen.getAllByLabelText('Camera X');
+    inputs[0].focus();
+    fireEvent.keyDown(inputs[0], { key: 'Enter' });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getAllByLabelText('Camera Y')[0]);
+  });
+
+  it('blocks a solve when point pairs contain duplicate camera coordinates', () => {
+    render(<CameraAlignmentDialog onClose={vi.fn()} />);
+
+    const cameraXInputs = screen.getAllByLabelText('Camera X');
+    const cameraYInputs = screen.getAllByLabelText('Camera Y');
+    fireEvent.change(cameraXInputs[1], { target: { value: cameraXInputs[0].getAttribute('value') ?? '10' } });
+    fireEvent.change(cameraYInputs[1], { target: { value: cameraYInputs[0].getAttribute('value') ?? '10' } });
+
+    expect(screen.getByText('Two or more camera points are at the same location.')).toBeDefined();
+    expect((screen.getByText('Solve') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('keeps alignment dialog open when save fails', async () => {

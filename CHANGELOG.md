@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- SVG imports now preserve embedded PNG, JPEG, GIF, and WebP artwork alongside
+  vector paths, including its position, scale, rotation, transparency, and
+  automatic routing to an Image layer.
+- Camera capture now reuses warm sessions, retries transient failures, preserves
+  the last good overlay on errors, and provides a guided, validated alignment
+  workflow with clearer capture controls and progress feedback.
+
 ## 0.2.1
 
 - Added a searchable Shortcuts tab to Settings with current and default

@@ -1,17 +1,89 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Camera, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useCameraStore } from '../../stores/cameraStore';
 import { useProjectStore } from '../../stores/projectStore';
 import type { CameraFrameHandle } from '../../types/camera';
 import { cameraFrameAssetUrl } from '../../services/cameraFrameAsset';
 import { rangeTrackBackground } from '../shared/RangeInput';
 
-export function CameraStillPreview({ frame }: { frame: CameraFrameHandle | null | undefined }) {
+interface CameraCaptureActionsProps {
+  controlsEnabled: boolean;
+  onRescan: () => void;
+  onCapture: () => void;
+}
+
+export function CameraCaptureActions({
+  controlsEnabled,
+  onRescan,
+  onCapture,
+}: CameraCaptureActionsProps) {
   const { t } = useTranslation();
+  const loading = useCameraStore((s) => s.loading);
+  const captureStage = useCameraStore((s) => s.captureStage);
+  const error = useCameraStore((s) => s.error);
+  const hasPreviousFrame = useCameraStore((s) => Boolean(s.overlayState?.frame));
+  const stageKey = captureStage === 'idle' || captureStage === 'success' || captureStage === 'error'
+    ? null
+    : `panels.machine.camera.capture_stage.${captureStage}`;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex gap-1 justify-end">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover disabled:opacity-60"
+          onClick={onRescan}
+          disabled={loading}
+        >
+          <RefreshCw size={12} aria-hidden={true} />
+          {t('panels.machine.camera.rescan_cameras')}
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bb-accent text-bb-on-accent hover:bg-bb-accent-hover disabled:opacity-60"
+          disabled={!controlsEnabled || loading}
+          onClick={onCapture}
+          aria-busy={loading}
+        >
+          {loading
+            ? <LoaderCircle size={12} className="motion-safe:animate-spin" aria-hidden={true} />
+            : <Camera size={12} aria-hidden={true} />}
+          {loading && stageKey
+            ? t(stageKey)
+            : t('panels.machine.camera.capture_new_image')}
+        </button>
+      </div>
+      {loading && stageKey && (
+        <div role="status" aria-live="polite" className="text-right text-bb-text-muted">
+          {t(stageKey)}
+        </div>
+      )}
+      {captureStage === 'error' && error && hasPreviousFrame && (
+        <div role="status" className="max-w-[34rem] text-right text-bb-warning-fg">
+          {t('panels.machine.camera.capture_failed_preserved')}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CameraStillPreview({ frame }: { frame: CameraFrameHandle | null | undefined }) {
+  const { t, i18n } = useTranslation();
   const src = useMemo(() => {
     if (!frame) return null;
     return cameraFrameAssetUrl(frame.file_path, frame.handle_id);
   }, [frame]);
+  const capturedTime = useMemo(() => {
+    if (!frame?.captured_at) return null;
+    const capturedAt = new Date(frame.captured_at);
+    if (Number.isNaN(capturedAt.getTime())) return null;
+    return new Intl.DateTimeFormat(i18n.resolvedLanguage, {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(capturedAt);
+  }, [frame?.captured_at, i18n.resolvedLanguage]);
 
   if (!frame || !src) return null;
 
@@ -19,6 +91,9 @@ export function CameraStillPreview({ frame }: { frame: CameraFrameHandle | null 
     <div className="space-y-1">
       <div className="text-bb-text-muted">
         {t('panels.machine.camera.latest_capture', { width: frame.width_px, height: frame.height_px })}
+        {capturedTime && (
+          <span> · {t('panels.machine.camera.captured_at', { time: capturedTime })}</span>
+        )}
       </div>
       <div className="h-32 rounded border border-bb-border bg-bb-bg overflow-hidden">
         <img

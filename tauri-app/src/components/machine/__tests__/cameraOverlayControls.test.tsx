@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import {
+  CameraCaptureActions,
   CameraOverlaySetupControls,
   CameraOverlayStatus,
 } from '../CameraOverlayControls';
@@ -52,6 +53,53 @@ afterEach(() => {
 });
 
 describe('CameraOverlayControls', () => {
+  it('uses explicit rescan and capture actions and reports capture progress', () => {
+    const onRescan = vi.fn();
+    const onCapture = vi.fn();
+    act(() => {
+      useCameraStore.setState({
+        loading: false,
+        captureStage: 'idle',
+        error: null,
+      });
+    });
+
+    const { rerender } = render(
+      <CameraCaptureActions controlsEnabled onRescan={onRescan} onCapture={onCapture} />,
+    );
+    fireEvent.click(screen.getByText('Rescan Cameras'));
+    fireEvent.click(screen.getByText('Capture New Image'));
+    expect(onRescan).toHaveBeenCalledTimes(1);
+    expect(onCapture).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      useCameraStore.setState({ loading: true, captureStage: 'retrying' });
+    });
+    rerender(<CameraCaptureActions controlsEnabled onRescan={onRescan} onCapture={onCapture} />);
+    expect(screen.getAllByText('Retrying camera…').length).toBeGreaterThan(0);
+  });
+
+  it('explains that a failed replacement capture preserved the last good frame', () => {
+    act(() => {
+      useCameraStore.setState({
+        overlayState: {
+          selected_camera_id: 'cam-1',
+          frame,
+          calibration: null,
+          alignment: null,
+          overlay_ready: false,
+        },
+        loading: false,
+        captureStage: 'error',
+        error: 'Timed out waiting for camera frame',
+      });
+    });
+
+    render(<CameraCaptureActions controlsEnabled onRescan={vi.fn()} onCapture={vi.fn()} />);
+
+    expect(screen.getByText('Capture failed. Your last good image and alignment are still active.')).toBeDefined();
+  });
+
   it('renders no-frame, preview, adjusting, unsaved, and saved status states', () => {
     render(<CameraOverlayStatus />);
     expect(screen.getByText('Overlay: No frame')).toBeDefined();
