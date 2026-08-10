@@ -2,12 +2,19 @@
 
 ## Unreleased
 
+## 0.2.2
+
 - SVG imports now preserve embedded PNG, JPEG, GIF, and WebP artwork alongside
   vector paths, including its position, scale, rotation, transparency, and
   automatic routing to an Image layer.
 - Camera capture now reuses warm sessions, retries transient failures, preserves
   the last good overlay on errors, and provides a guided, validated alignment
   workflow with clearer capture controls and progress feedback.
+- The startup promotion now presents Craftgineer's professional design tools
+  with working video previews and PrintCutCarve's machine-tested design library
+  with its current Platinum Club offer.
+- Completed translations for the new camera workflow and startup promotion in
+  every supported language.
 
 ## 0.2.1
 
