@@ -296,6 +296,44 @@ describe('CanvasRenderer', () => {
     expect(ctx.strokeRect).toHaveBeenCalled();
   });
 
+  it('keeps selection-isolation shading on the stable base canvas', () => {
+    const isolatedObject = makeProjectObject({
+      id: 'isolated-group',
+      bounds: { min: { x: 20, y: 20 }, max: { x: 80, y: 70 } },
+      layer_id: 'layer1',
+    });
+    const params: RenderParams = {
+      ...baseParams,
+      objects: [isolatedObject],
+      layers: [makeLayer({ id: 'layer1', name: 'Layer 1' })],
+      selectionIsolationObjectId: isolatedObject.id,
+    };
+
+    renderer.renderBaseScene({ ...params, selectionIsolationObjectId: null });
+    const ordinaryFillCount = vi.mocked(ctx.fillRect).mock.calls.length;
+    const ordinaryStrokeRectCount = vi.mocked(ctx.strokeRect).mock.calls.length;
+    vi.mocked(ctx.fillRect).mockClear();
+    vi.mocked(ctx.strokeRect).mockClear();
+
+    renderer.renderBaseScene(params);
+    expect(vi.mocked(ctx.fillRect).mock.calls).toHaveLength(ordinaryFillCount + 4);
+    expect(vi.mocked(ctx.strokeRect).mock.calls).toHaveLength(ordinaryStrokeRectCount + 1);
+
+    vi.mocked(ctx.fillRect).mockClear();
+    vi.mocked(ctx.strokeRect).mockClear();
+    vi.mocked(ctx.clearRect).mockClear();
+
+    renderer.renderToolOverlay(params);
+    expect(ctx.clearRect).toHaveBeenCalledWith(
+      0,
+      0,
+      baseParams.vp.canvasWidth,
+      baseParams.vp.canvasHeight,
+    );
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+    expect(ctx.strokeRect).not.toHaveBeenCalled();
+  });
+
   it('does not render selection handles for hidden objects or hidden layers', () => {
     const hiddenObject = makeProjectObject({
       id: 'hidden-object',
@@ -377,8 +415,8 @@ describe('CanvasRenderer', () => {
       layers: [layer],
     });
 
-    expect(ctx.clearRect).toHaveBeenCalledTimes(1);
-    const [x, y, w, h] = (ctx.clearRect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
+    expect(ctx.clearRect).not.toHaveBeenCalled();
+    const [x, y, w, h] = (ctx.rect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
     expect([x, y, w, h]).not.toEqual([0, 0, baseParams.vp.canvasWidth, baseParams.vp.canvasHeight]);
     expect(w).toBeLessThan(baseParams.vp.canvasWidth);
     expect(h).toBeLessThan(baseParams.vp.canvasHeight);
@@ -454,6 +492,7 @@ describe('CanvasRenderer', () => {
     });
 
     (ctx.clearRect as unknown as { mockClear: () => void }).mockClear();
+    (ctx.rect as unknown as { mockClear: () => void }).mockClear();
     (ctx.clip as unknown as { mockClear: () => void }).mockClear();
 
     renderer.renderBaseScene({
@@ -462,8 +501,8 @@ describe('CanvasRenderer', () => {
       layers: [layer],
     });
 
-    expect(ctx.clearRect).toHaveBeenCalledTimes(1);
-    const [, , w, h] = (ctx.clearRect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
+    expect(ctx.clearRect).not.toHaveBeenCalled();
+    const [, , w, h] = (ctx.rect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
     expect(w).toBeLessThan(baseParams.vp.canvasWidth);
     expect(h).toBeLessThan(baseParams.vp.canvasHeight);
     expect(ctx.clip).toHaveBeenCalled();
@@ -492,6 +531,7 @@ describe('CanvasRenderer', () => {
     });
 
     (ctx.clearRect as unknown as { mockClear: () => void }).mockClear();
+    (ctx.rect as unknown as { mockClear: () => void }).mockClear();
     (ctx.clip as unknown as { mockClear: () => void }).mockClear();
 
     renderer.renderBaseScene({
@@ -500,8 +540,8 @@ describe('CanvasRenderer', () => {
       layers: [layer],
     });
 
-    expect(ctx.clearRect).toHaveBeenCalledTimes(1);
-    const [, , w, h] = (ctx.clearRect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
+    expect(ctx.clearRect).not.toHaveBeenCalled();
+    const [, , w, h] = (ctx.rect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
     expect(w).toBeLessThan(baseParams.vp.canvasWidth);
     expect(h).toBeLessThan(baseParams.vp.canvasHeight);
     expect(ctx.clip).toHaveBeenCalled();
@@ -533,6 +573,7 @@ describe('CanvasRenderer', () => {
     });
 
     (ctx.clearRect as unknown as { mockClear: () => void }).mockClear();
+    (ctx.rect as unknown as { mockClear: () => void }).mockClear();
     (ctx.clip as unknown as { mockClear: () => void }).mockClear();
 
     objA.z_index = 3;
@@ -544,11 +585,44 @@ describe('CanvasRenderer', () => {
       layers: [layer],
     });
 
-    expect(ctx.clearRect).toHaveBeenCalledTimes(1);
-    const [, , w, h] = (ctx.clearRect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
+    expect(ctx.clearRect).not.toHaveBeenCalled();
+    const [, , w, h] = (ctx.rect as unknown as { mock: { calls: number[][] } }).mock.calls[0];
     expect(w).toBeLessThan(baseParams.vp.canvasWidth);
     expect(h).toBeLessThan(baseParams.vp.canvasHeight);
     expect(ctx.clip).toHaveBeenCalled();
+  });
+
+  it('forces a full base redraw when isolated bounds move', () => {
+    const isolatedObject = makeProjectObject({
+      id: 'moving-isolation-root',
+      bounds: { min: { x: 20, y: 20 }, max: { x: 80, y: 70 } },
+      layer_id: 'layer1',
+    });
+    const layer = makeLayer({ id: 'layer1', name: 'Layer 1' });
+    const params: RenderParams = {
+      ...baseParams,
+      objects: [isolatedObject],
+      layers: [layer],
+      selectionIsolationObjectId: isolatedObject.id,
+    };
+
+    renderer.renderBaseScene(params);
+    vi.mocked(ctx.clearRect).mockClear();
+    vi.mocked(ctx.fillRect).mockClear();
+    vi.mocked(ctx.clip).mockClear();
+
+    isolatedObject.bounds.min.x += 15;
+    isolatedObject.bounds.max.x += 15;
+    renderer.renderBaseScene(params);
+
+    expect(ctx.clearRect).not.toHaveBeenCalled();
+    expect(ctx.clip).not.toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      0,
+      0,
+      baseParams.vp.canvasWidth,
+      baseParams.vp.canvasHeight,
+    );
   });
 
   it('forces a full base redraw when layer visibility changes', () => {

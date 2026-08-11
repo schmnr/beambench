@@ -1094,6 +1094,21 @@ export class CanvasRenderer {
         layer.entries.map((entry) => entry.operation).join(','),
       ].join(':'))
       .join('|');
+    const isolationObject = params.selectionIsolationObjectId
+      ? params.objects.find((object) => object.id === params.selectionIsolationObjectId)
+      : null;
+    const isolationBounds = isolationObject
+      ? getCachedTransformedBoundsWorld(isolationObject)
+      : null;
+    const isolationSignature = isolationObject && isolationBounds
+      ? [
+          isolationObject.id,
+          isolationBounds.min.x,
+          isolationBounds.min.y,
+          isolationBounds.max.x,
+          isolationBounds.max.y,
+        ].join(':')
+      : 'none';
     return [
       params.workspace.bed_width_mm,
       params.workspace.bed_height_mm,
@@ -1122,6 +1137,7 @@ export class CanvasRenderer {
       params.laserPosition?.y ?? '',
       params.interactionState?.active ? 1 : 0,
       params.interactionState?.kind ?? 'none',
+      isolationSignature,
       layerSignature,
     ].join('~');
   }
@@ -1798,6 +1814,11 @@ export class CanvasRenderer {
         params.previewManualRefreshRequired,
       );
     }
+
+    // Isolation shading is stable scene content. Keep it on the opaque base
+    // canvas so animated selection-overlay clears can never expose an
+    // intermediate undimmed frame on Windows/WebView2.
+    drawSelectionIsolationSpotlight(ctx, params.selectionIsolationObjectId, objects, vp);
   }
 
   render(params: RenderParams): void {
@@ -2329,12 +2350,9 @@ export class CanvasRenderer {
           dirtyRect.maxY - dirtyRect.minY,
         );
         ctx.clip();
-        ctx.clearRect(
-          dirtyRect.minX,
-          dirtyRect.minY,
-          dirtyRect.maxX - dirtyRect.minX,
-          dirtyRect.maxY - dirtyRect.minY,
-        );
+        // drawBaseSceneContents starts with an opaque canvas fill. Clearing the
+        // visible canvas first is redundant and can expose a transparent frame
+        // to the Windows compositor while objects are moving.
         this.drawBaseSceneContents(params, visibleObjects, theme, displayUnit);
         ctx.restore();
       } else {
@@ -2357,8 +2375,6 @@ export class CanvasRenderer {
       if (clear) {
         ctx.clearRect(0, 0, vp.canvasWidth, vp.canvasHeight);
       }
-
-      drawSelectionIsolationSpotlight(ctx, params.selectionIsolationObjectId, objects, vp);
 
       const selectedObjects = toolOverlay.type === 'mesh-deform' && toolOverlay.previewActive
         ? []
