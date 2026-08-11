@@ -86,6 +86,7 @@ import {
   getVectorPathCommandCountForObject,
 } from '../../canvas/drawObjects';
 import { adaptiveMeshPreviewFrameInterval } from '../../canvas/meshDeformPreview';
+import { shouldAnimateSelectionDashes } from '../../canvas/selectionDashAnimation';
 import { offsetPreviewTranslation } from '../../canvas/offsetPreview';
 import { machineToCanvasPoint } from '../../utils/workspaceCoordinates';
 import type { SimilarityTransform } from '../../types/camera';
@@ -870,7 +871,14 @@ export function Canvas() {
 
   // Selection dash animation (marching ants).
   useEffect(() => {
-    if (selectedObjectIds.length === 0 || settings?.reduce_motion || hasHeavySelection) {
+    const shouldAnimate = shouldAnimateSelectionDashes({
+      selectedObjectCount: selectedObjectIds.length,
+      reduceMotion: settings?.reduce_motion === true,
+      hasHeavySelection,
+      interactionActive: interactionState.active,
+      interactionKind: interactionState.kind,
+    });
+    if (!shouldAnimate) {
       cancelAnimationFrame(animFrameRef.current);
       dashOffsetRef.current = 0;
       requestOverlayRender();
@@ -883,7 +891,14 @@ export function Canvas() {
     };
     animFrameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [hasHeavySelection, selectedObjectIds.length, settings?.reduce_motion, requestOverlayRender]);
+  }, [
+    hasHeavySelection,
+    interactionState.active,
+    interactionState.kind,
+    selectedObjectIds.length,
+    settings?.reduce_motion,
+    requestOverlayRender,
+  ]);
 
   // Load raster image assets into renderer's image cache
   useEffect(() => {
