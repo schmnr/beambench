@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.2.3
+
+- Prevented brief black canvas flashes while moving objects, including during
+  selection animation and isolated-object editing on Windows.
 - Replaced the startup promotion's H.264 playback with bundled animated WebP
   previews and static fallbacks so Linux WebKitGTK/GStreamer failures cannot
   block startup. The promotion continues to appear on every launch.
