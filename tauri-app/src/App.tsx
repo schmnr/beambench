@@ -929,7 +929,7 @@ function App() {
         });
         useUiStore.setState({ nextFloatingZIndex: maxZ + 1, sidePanelsVisible });
       }
-      // First-launch / periodic welcome promo, decided after settings resolve.
+      // Startup welcome promo, decided after settings resolve.
       if (shouldShowWelcome(settings)) {
         useWelcomeStore.getState().openDialog();
       }
