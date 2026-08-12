@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replaced the startup promotion's H.264 playback with bundled animated WebP
+  previews and static fallbacks so Linux WebKitGTK/GStreamer failures cannot
+  block startup. The promotion continues to appear on every launch.
+
 ## 0.2.2
 
 - SVG imports now preserve embedded PNG, JPEG, GIF, and WebP artwork alongside

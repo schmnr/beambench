@@ -8,21 +8,15 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null)
 
 const mockedInvoke = vi.mocked(invoke);
 const initialWelcomeState = useWelcomeStore.getState();
-let playSpy: ReturnType<typeof vi.spyOn>;
-let pauseSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   mockedInvoke.mockClear();
   mockedInvoke.mockResolvedValue(null);
-  playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
-  pauseSpy = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
   useWelcomeStore.setState({ dialogOpen: true });
 });
 
 afterEach(() => {
   cleanup();
-  playSpy.mockRestore();
-  pauseSpy.mockRestore();
   useWelcomeStore.setState(initialWelcomeState, true);
 });
 
@@ -41,18 +35,25 @@ describe('WelcomeDialog', () => {
     expect(screen.queryByText(/free tools/i)).toBeNull();
   });
 
-  it('shows three silent looping Craftgineer previews with posters', () => {
+  it('shows three animated Craftgineer previews without video playback', () => {
     render(<WelcomeDialog />);
-    const videos = [...document.body.querySelectorAll('video')];
+    const previews = [...document.body.querySelectorAll('.welcome-cg-media img')];
 
-    expect(videos).toHaveLength(3);
-    videos.forEach((video) => {
-      expect(video.autoplay).toBe(true);
-      expect(video.muted).toBe(true);
-      expect(video.loop).toBe(true);
-      expect(video.playsInline).toBe(true);
-      expect(video.poster).toContain('-poster.png');
+    expect(previews).toHaveLength(3);
+    previews.forEach((preview) => expect(preview.getAttribute('src')).toContain('-preview.webp'));
+    document.body.querySelectorAll('.welcome-cg-media source').forEach((source) => {
+      expect(source.getAttribute('media')).toBe('(prefers-reduced-motion: reduce)');
+      expect(source.getAttribute('srcset')).toContain('-poster.png');
     });
+    expect(document.body.querySelector('video')).toBeNull();
+  });
+
+  it('falls back to a static poster when an animated preview cannot decode', () => {
+    render(<WelcomeDialog />);
+    const preview = document.body.querySelector<HTMLImageElement>('.welcome-cg-media img');
+    expect(preview).not.toBeNull();
+    fireEvent.error(preview!);
+    expect(preview!.getAttribute('src')).toContain('-poster.png');
   });
 
   it('shows PrintCutCarve examples and the Platinum Club offer', () => {
@@ -85,7 +86,7 @@ describe('WelcomeDialog', () => {
 
   it('closes for the session on Escape', () => {
     render(<WelcomeDialog />);
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'Escape' });
     expect(useWelcomeStore.getState().dialogOpen).toBe(false);
   });
 
@@ -95,9 +96,15 @@ describe('WelcomeDialog', () => {
     expect(useWelcomeStore.getState().dialogOpen).toBe(false);
   });
 
-  it('never calls update_app_settings (no persisted opt-out)', () => {
+  it('closes for the session from the close button', () => {
     render(<WelcomeDialog />);
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Close welcome' }));
+    expect(useWelcomeStore.getState().dialogOpen).toBe(false);
+  });
+
+  it('never persists an opt-out when dismissed', () => {
+    render(<WelcomeDialog />);
+    fireEvent.keyDown(window, { key: 'Escape' });
     const settingsCall = mockedInvoke.mock.calls.find(([cmd]) => cmd === 'update_app_settings');
     expect(settingsCall).toBeUndefined();
   });
