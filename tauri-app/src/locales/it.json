@@ -2446,6 +2446,7 @@
     "macro_executed": "Macro eseguita",
     "framing_started": "Inquadratura avviata",
     "framing_started_laser_on": "Inquadratura con laser acceso avviata",
+    "framing_completed": "Inquadratura completata. Premi Avvia per incidere.",
     "delete_duplicates_needs_dialog": "Elimina duplicati richiede una finestra di conferma.",
     "image_mask_requires_closed": "Le maschere immagine richiedono forme vettoriali chiuse.",
     "warp_requires_selection": "Distorci selezione richiede una selezione sbloccata compatibile con i vettori.",

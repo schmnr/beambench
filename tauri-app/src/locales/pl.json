@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro wykonane",
     "framing_started": "Rozpoczęto kadrowanie",
     "framing_started_laser_on": "Rozpoczęto kadrowanie z włączonym laserem",
+    "framing_completed": "Kadrowanie zakończone. Naciśnij Start, aby rozpocząć grawerowanie.",
     "delete_duplicates_needs_dialog": "Usuwanie duplikatów wymaga okna potwierdzenia.",
     "image_mask_requires_closed": "Maski obrazu wymagają zamkniętych kształtów wektorowych.",
     "warp_requires_selection": "Zniekształcanie zaznaczenia wymaga odblokowanego zaznaczenia zgodnego z wektorami.",

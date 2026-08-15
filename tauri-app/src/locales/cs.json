@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro provedeno",
     "framing_started": "Rámování zahájeno",
     "framing_started_laser_on": "Rámování se zapnutým laserem zahájeno",
+    "framing_completed": "Rámování dokončeno. Stisknutím Start zahájíte gravírování.",
     "delete_duplicates_needs_dialog": "Odstranění duplicit vyžaduje potvrzovací dialog.",
     "image_mask_requires_closed": "Masky obrázku vyžadují uzavřené vektorové tvary.",
     "warp_requires_selection": "Pokřivení výběru vyžaduje odemčený výběr kompatibilní s vektory.",

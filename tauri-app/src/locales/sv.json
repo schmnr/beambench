@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro kört",
     "framing_started": "Inramning startad",
     "framing_started_laser_on": "Inramning med laser på startad",
+    "framing_completed": "Inramningen är klar. Tryck på Start för att gravera.",
     "delete_duplicates_needs_dialog": "Ta bort dubbletter kräver en bekräftelsedialog.",
     "image_mask_requires_closed": "Bildmasker kräver slutna vektorformer.",
     "warp_requires_selection": "Förvräng markering kräver en upplåst vektorkompatibel markering.",

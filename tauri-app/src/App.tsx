@@ -1110,7 +1110,12 @@ function App() {
     }
     if (event.type === 'job.completed' && isJobProgressPayload(event.payload)) {
       const machineState = useMachineStore.getState();
-      if (machineState.activeJobPurpose === 'job' && !machineState.connectionPreview) {
+      if (machineState.activeJobPurpose === 'frame') {
+        useNotificationStore.getState().push(
+          i18n.t('notifications.framing_completed'),
+          'success',
+        );
+      } else if (machineState.activeJobPurpose === 'job' && !machineState.connectionPreview) {
         void machineService.getMachineRuntimeState().then((runtime) => {
           if (!shouldOfferPostJobCompatibility(runtime)) return;
           const controllerKey = runtime.controller_driver ?? runtime.controller_model ?? 'unknown';
@@ -1148,6 +1153,12 @@ function App() {
           // Compatibility outreach is optional. Runtime metadata failures must
           // never affect a completed job or create a generic prompt.
         });
+      }
+    }
+    if (event.type === 'job.failed' && isJobProgressPayload(event.payload)) {
+      const message = event.payload.error_message?.trim();
+      if (message) {
+        useNotificationStore.getState().push(wrapBackendError(message), 'error');
       }
     }
     if (

@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro suoritettu",
     "framing_started": "Kehystys aloitettu",
     "framing_started_laser_on": "Kehystys laser päällä aloitettu",
+    "framing_completed": "Kehystys valmis. Aloita kaiverrus painamalla Aloita.",
     "delete_duplicates_needs_dialog": "Kaksoiskappaleiden poistaminen vaatii vahvistusvalintaikkunan.",
     "image_mask_requires_closed": "Kuvamaskit edellyttävät suljettuja vektorimuotoja.",
     "warp_requires_selection": "Valinnan vääristäminen edellyttää lukitsematonta vektoriyhteensopivaa valintaa.",

@@ -682,6 +682,12 @@ describe('App bootstrap', () => {
     });
 
     expect(screen.queryByText('Did this job finish correctly?')).toBeNull();
+    expect(
+      useNotificationStore.getState().notifications.some(
+        (notification) => notification.message === 'Framing complete. Press Start to engrave.'
+          && notification.type === 'success',
+      ),
+    ).toBe(true);
   });
 
   it('warns when subscribing to the app event bridge fails', async () => {
@@ -1428,6 +1434,12 @@ describe('Keyboard shortcuts', () => {
       state: 'failed',
       error_message: 'GRBL error 2: Bad number format',
     });
+    expect(
+      useNotificationStore.getState().notifications.some(
+        (notification) => notification.type === 'error'
+          && notification.message.includes('GRBL error 2: Bad number format'),
+      ),
+    ).toBe(true);
   });
 
   it('reloads project state after design transaction events', async () => {

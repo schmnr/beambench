@@ -2446,6 +2446,7 @@
     "macro_executed": "Macro executed",
     "framing_started": "Framing started",
     "framing_started_laser_on": "Laser-on framing started",
+    "framing_completed": "Framing complete. Press Start to engrave.",
     "delete_duplicates_needs_dialog": "Delete Duplicates requires a confirmation dialog.",
     "image_mask_requires_closed": "Image masks require closed vector shapes.",
     "warp_requires_selection": "Warp Selection requires an unlocked vector-compatible selection.",

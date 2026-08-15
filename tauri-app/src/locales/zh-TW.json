@@ -2446,6 +2446,7 @@
     "macro_executed": "巨集已執行",
     "framing_started": "已開始走邊框",
     "framing_started_laser_on": "已開始雷射開啟走邊框",
+    "framing_completed": "走邊框已完成。按「開始」進行雕刻。",
     "delete_duplicates_needs_dialog": "刪除重複項需要確認對話方塊。",
     "image_mask_requires_closed": "影像遮罩需要封閉的向量形狀。",
     "warp_requires_selection": "扭曲選取範圍需要未鎖定且與向量相容的選取範圍。",

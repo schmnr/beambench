@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro çalıştırıldı",
     "framing_started": "Çerçeveleme başlatıldı",
     "framing_started_laser_on": "Lazer açık çerçeveleme başlatıldı",
+    "framing_completed": "Çerçeveleme tamamlandı. Kazımak için Başlat'a basın.",
     "delete_duplicates_needs_dialog": "Yinelenenleri sil bir onay iletişim kutusu gerektirir.",
     "image_mask_requires_closed": "Görüntü maskeleri kapalı vektör şekilleri gerektirir.",
     "warp_requires_selection": "Seçimi eğme, kilidi açık ve vektör uyumlu bir seçim gerektirir.",

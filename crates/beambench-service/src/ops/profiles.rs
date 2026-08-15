@@ -576,6 +576,34 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
         },
         MachineProfilePreset {
+            id: "acmer_s2",
+            version: 1,
+            name: "ACMER S2 (4W / 7W / 12W / 20W)",
+            description: "Official ACMER S2 workspace and GRBL defaults.",
+            advisory_text: Some(
+                "ACMER specifies a 300 × 300 mm engraving area. Beam Bench will recheck compatible GRBL controller settings when the machine connects.",
+            ),
+            firmware_type: "grbl",
+            default_baud_rate: 115200,
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            max_speed_mm_min: 10000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::BottomLeft,
+            use_constant_power: false,
+            emit_s_every_g1: false,
+            use_g0_for_overscan: true,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::BottomLeft),
+        },
+        MachineProfilePreset {
             id: "generic_grbl_diode",
             version: 1,
             name: "Generic GRBL Diode",
@@ -1543,6 +1571,25 @@ mod tests {
                 "{id}"
             );
         }
+    }
+
+    #[test]
+    fn acmer_s2_preset_matches_published_grbl_defaults() {
+        let preset = profile_presets()
+            .into_iter()
+            .find(|preset| preset.id == "acmer_s2")
+            .unwrap();
+
+        assert_eq!(preset.default_baud_rate, 115_200);
+        assert_eq!(preset.bed_width_mm, 300.0);
+        assert_eq!(preset.bed_height_mm, 300.0);
+        assert_eq!(preset.max_speed_mm_min, 10_000.0);
+        assert_eq!(preset.s_value_max, 1_000);
+        assert_eq!(preset.origin, WorkspaceOrigin::BottomLeft);
+        assert_eq!(
+            preset.preferred_default_origin,
+            Some(WorkspaceOrigin::BottomLeft)
+        );
     }
 
     #[test]

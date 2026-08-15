@@ -2446,6 +2446,7 @@
     "macro_executed": "Macro uitgevoerd",
     "framing_started": "Kaderen gestart",
     "framing_started_laser_on": "Kaderen met laser aan gestart",
+    "framing_completed": "Kaderen voltooid. Druk op Start om te graveren.",
     "delete_duplicates_needs_dialog": "Duplicaten verwijderen vereist een bevestigingsvenster.",
     "image_mask_requires_closed": "Afbeeldingsmaskers vereisen gesloten vectorvormen.",
     "warp_requires_selection": "Selectie vervormen vereist een ontgrendelde, vectorcompatibele selectie.",

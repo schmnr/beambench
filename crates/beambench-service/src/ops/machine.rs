@@ -626,6 +626,14 @@ fn apply_grbl_settings_to_profile(
     let bed_width_mm = positive_finite(grbl_settings.max_travel_x());
     let bed_height_mm = positive_finite(grbl_settings.max_travel_y());
     let preset_effective_bed = profile.preset_id.as_deref().and_then(|preset_id| {
+        // The generic preset contains onboarding defaults, not a known
+        // machine-specific engraving area. Let the controller's $130/$131
+        // replace those placeholders once a complete settings dump is
+        // available. Named hardware presets may deliberately advertise an
+        // effective engraving area smaller than the controller's axis travel.
+        if preset_id == "generic_grbl_diode" {
+            return None;
+        }
         crate::ops::profiles::profile_presets()
             .into_iter()
             .find(|preset| preset.id == preset_id)
@@ -3537,6 +3545,40 @@ pub fn run_preflight_check_with_options(
         }
     };
 
+    // A project can intentionally remain unbound when artwork is imported
+    // before a machine connects. Its canvas may therefore be larger than the
+    // controller-synchronized active profile. Always validate the final
+    // motion against the machine as a second, independent safety boundary.
+    let (machine_width_mm, machine_height_mm) = profile.workspace_dimensions_mm();
+    if let Err(error) = beambench_planner::validate::validate_bounds(
+        &plan.segments,
+        machine_width_mm,
+        machine_height_mm,
+    ) {
+        let message = match error {
+            PlannerError::BoundsExceeded(violation) => {
+                planning::machine_bounds_exceeded_error(
+                    &project_for_controller,
+                    &profile,
+                    violation,
+                    ctx.settings
+                        .lock()
+                        .map_err(|e| lock_err("settings", e))?
+                        .display_unit,
+                )
+                .message
+            }
+            other => format!("Machine workspace validation failed: {other}"),
+        };
+        report.checks.push(PreflightCheck {
+            category: "machine_workspace".to_string(),
+            description: "Planned motion fits the active machine profile".to_string(),
+            passed: false,
+            message,
+        });
+        report.outcome = PreflightOutcome::Fail;
+    }
+
     if profile.rotary_enabled {
         let controller_ok = matches!(session, MachineSessionHandle::Grbl(_))
             && session.capabilities().supports_rotary;
@@ -4157,6 +4199,7 @@ pub fn frame_job(
     };
     let physical_bounds = bounds_of(&physical_objects);
 
+    let profile = active_profile(ctx)?;
     let ruida_frame = {
         let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
         matches!(
@@ -4167,7 +4210,7 @@ pub fn frame_job(
     let frame_power = if ruida_frame {
         0.0
     } else {
-        frame_power_percent(laser_on_override, &active_profile(ctx)?)
+        frame_power_percent(laser_on_override, &profile)
     };
 
     let mut frame_plan = match frame_mode {
@@ -4259,10 +4302,24 @@ pub fn frame_job(
         other => ServiceError::invalid_state(format!("Frame validation failed: {other}")),
     })?;
 
+    let (machine_width_mm, machine_height_mm) = profile.workspace_dimensions_mm();
+    beambench_planner::validate::validate_bounds(
+        &frame_plan.segments,
+        machine_width_mm,
+        machine_height_mm,
+    )
+    .map_err(|error| match error {
+        PlannerError::BoundsExceeded(violation) => {
+            planning::machine_bounds_exceeded_error(&project, &profile, violation, display_unit)
+        }
+        other => ServiceError::invalid_state(format!(
+            "Machine workspace frame validation failed: {other}"
+        )),
+    })?;
+
     // Frame G-code must honor the active profile: constant-power machines
     // need M3 (M4 dims toward zero at framing speeds) and the profile's
     // s_value_max caps laser-on framing power.
-    let profile = active_profile(ctx)?;
     let frame_gcode_config = super::output::build_gcode_config(&project.optimization, &profile);
 
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
@@ -7543,7 +7600,12 @@ mod tests {
 
     #[test]
     fn frame_job_uses_supplied_feed_rate() {
-        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let profile = MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            ..MachineProfile::default()
+        };
+        let (ctx, transport) = ready_grbl_context(profile);
         *ctx.project.lock().unwrap() = Some(frame_project());
 
         frame_job(&ctx, "rectangular", &[], false, Some(1234.0)).unwrap();
@@ -7584,18 +7646,61 @@ mod tests {
     }
 
     #[test]
+    fn frame_job_rejects_motion_inside_project_but_outside_active_machine_profile() {
+        let profile = MachineProfile {
+            name: "ACMER S2".to_string(),
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        let (ctx, transport) = ready_grbl_context(profile);
+        let mut project = frame_project();
+        project.workspace = Workspace {
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            origin: beambench_core::WorkspaceOrigin::BottomLeft,
+        };
+        project.objects[0].bounds =
+            Bounds::new(Point2D::new(305.0, 20.0), Point2D::new(315.0, 30.0));
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let error = frame_job(&ctx, "rectangular", &[], false, None).unwrap_err();
+
+        assert_eq!(error.code, crate::error::ServiceErrorCode::InvalidState);
+        assert_eq!(
+            error
+                .details
+                .as_ref()
+                .and_then(|details| details.get("kind")),
+            Some(&json!("machine_bounds_exceeded"))
+        );
+        assert!(error.message.contains("ACMER S2"));
+        assert!(error.message.contains("300 × 300 mm"));
+        assert!(ctx.job.lock().unwrap().is_none());
+        assert!(
+            !sent_lines(&transport)
+                .iter()
+                .any(|line| line.starts_with("G0") || line.starts_with("G1")),
+            "motion outside the active machine profile must not stream"
+        );
+    }
+
+    #[test]
     fn frame_job_rejects_rotary_mode_for_non_grbl_sessions() {
         let profile = MachineProfile {
             rotary_enabled: true,
             ..MachineProfile::default()
         };
+        let project_workspace = workspace_from_profile(&profile);
         let settings = AppSettings {
             active_profile_id: Some(profile.id),
             machine_profiles: vec![profile],
             ..AppSettings::default()
         };
         let ctx = ServiceContext::with_settings(settings);
-        *ctx.project.lock().unwrap() = Some(frame_project());
+        let mut project = frame_project();
+        project.workspace = project_workspace;
+        *ctx.project.lock().unwrap() = Some(project);
         *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Dsp(DspSession::connect(
             ControllerModel::Ruida,
             "mock".to_string(),
@@ -7616,6 +7721,8 @@ mod tests {
             use_constant_power: true,
             s_value_max: 255,
             laser_on_when_framing: true,
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
             ..MachineProfile::default()
         };
         let (ctx, transport) = ready_grbl_context(profile);
@@ -7832,6 +7939,37 @@ mod tests {
         assert_eq!(profile.bed_width_mm, 370.0);
         assert_eq!(profile.bed_height_mm, 360.0);
         assert_eq!(profile.max_speed_mm_min, 6000.0);
+    }
+
+    #[test]
+    fn grbl_settings_sync_replaces_generic_preset_workspace_defaults() {
+        let _guard = PersistTestGuard::new();
+        let mut settings = AppSettings::default();
+        let profile = MachineProfile {
+            preset_id: Some("generic_grbl_diode".to_string()),
+            preset_version: Some(1),
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            ..MachineProfile::default()
+        };
+        settings.active_profile_id = Some(profile.id);
+        settings.machine_profiles.push(profile);
+        let ctx = ServiceContext::with_settings(settings);
+        let mut grbl = GrblSettings::new();
+        grbl.set(130, 300.0);
+        grbl.set(131, 300.0);
+
+        let sync = sync_active_profile_from_grbl_settings(&ctx, &grbl, Some(115200))
+            .unwrap()
+            .unwrap();
+        let stored = ctx.settings.lock().unwrap();
+        let profile = &stored.machine_profiles[0];
+
+        assert_eq!(sync.bed_width_mm, Some(300.0));
+        assert_eq!(sync.bed_height_mm, Some(300.0));
+        assert_eq!(profile.bed_width_mm, 300.0);
+        assert_eq!(profile.bed_height_mm, 300.0);
+        assert_eq!(profile.preset_id.as_deref(), Some("generic_grbl_diode"));
     }
 
     #[test]

@@ -2446,6 +2446,7 @@
     "macro_executed": "Macro exécutée",
     "framing_started": "Cadrage démarré",
     "framing_started_laser_on": "Cadrage avec laser allumé démarré",
+    "framing_completed": "Cadrage terminé. Appuyez sur Démarrer pour graver.",
     "delete_duplicates_needs_dialog": "Supprimer les doublons nécessite une boîte de dialogue de confirmation.",
     "image_mask_requires_closed": "Les masques d'image nécessitent des formes vectorielles fermées.",
     "warp_requires_selection": "Déformer la sélection nécessite une sélection déverrouillée compatible avec les vecteurs.",

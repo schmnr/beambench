@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro ausgeführt",
     "framing_started": "Rahmenfahrt gestartet",
     "framing_started_laser_on": "Rahmenfahrt mit Laser gestartet",
+    "framing_completed": "Rahmenfahrt abgeschlossen. Drücke Start, um zu gravieren.",
     "delete_duplicates_needs_dialog": "Duplikate löschen erfordert einen Bestätigungsdialog.",
     "image_mask_requires_closed": "Bildmasken erfordern geschlossene Vektorformen.",
     "warp_requires_selection": "Auswahl verzerren erfordert eine entsperrte, vektorkompatible Auswahl.",

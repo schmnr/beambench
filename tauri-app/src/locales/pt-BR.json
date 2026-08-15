@@ -2446,6 +2446,7 @@
     "macro_executed": "Macro executada",
     "framing_started": "Enquadramento iniciado",
     "framing_started_laser_on": "Enquadramento com laser ligado iniciado",
+    "framing_completed": "Enquadramento concluído. Pressione Iniciar para gravar.",
     "delete_duplicates_needs_dialog": "Excluir duplicatas requer uma caixa de diálogo de confirmação.",
     "image_mask_requires_closed": "As máscaras de imagem exigem formas vetoriais fechadas.",
     "warp_requires_selection": "Distorcer seleção requer uma seleção desbloqueada compatível com vetores.",

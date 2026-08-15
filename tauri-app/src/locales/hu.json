@@ -2446,6 +2446,7 @@
     "macro_executed": "Makró végrehajtva",
     "framing_started": "Keretezés elindítva",
     "framing_started_laser_on": "Keretezés bekapcsolt lézerrel elindítva",
+    "framing_completed": "A keretezés kész. A gravírozáshoz nyomja meg az Indítás gombot.",
     "delete_duplicates_needs_dialog": "A másolatok törléséhez megerősítő párbeszédpanel szükséges.",
     "image_mask_requires_closed": "A képmaszkokhoz zárt vektoralakzatok szükségesek.",
     "warp_requires_selection": "A kijelölés torzításához feloldott, vektorkompatibilis kijelölés szükséges.",

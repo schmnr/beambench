@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro izveden",
     "framing_started": "Okvirjanje se je začelo",
     "framing_started_laser_on": "Okvirjanje z vklopljenim laserjem se je začelo",
+    "framing_completed": "Okvirjanje je končano. Pritisnite Začni za graviranje.",
     "delete_duplicates_needs_dialog": "Brisanje dvojnikov zahteva potrditveno pogovorno okno.",
     "image_mask_requires_closed": "Maske slike zahtevajo zaprte vektorske oblike.",
     "warp_requires_selection": "Popačenje izbora zahteva odklenjen izbor, združljiv z vektorji.",

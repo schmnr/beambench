@@ -2446,6 +2446,7 @@
     "macro_executed": "Macro ejecutada",
     "framing_started": "Encuadre iniciado",
     "framing_started_laser_on": "Encuadre con láser encendido iniciado",
+    "framing_completed": "Encuadre completado. Pulsa Iniciar para grabar.",
     "delete_duplicates_needs_dialog": "Eliminar duplicados requiere un cuadro de diálogo de confirmación.",
     "image_mask_requires_closed": "Las máscaras de imagen requieren formas vectoriales cerradas.",
     "warp_requires_selection": "Deformar selección requiere una selección desbloqueada y compatible con vectores.",

@@ -2446,6 +2446,7 @@
     "macro_executed": "マクロを実行しました",
     "framing_started": "フレーミングを開始しました",
     "framing_started_laser_on": "レーザーオンのフレーミングを開始しました",
+    "framing_completed": "フレーミングが完了しました。彫刻するには開始を押してください。",
     "delete_duplicates_needs_dialog": "重複の削除には確認ダイアログが必要です。",
     "image_mask_requires_closed": "画像マスクには閉じたベクター形状が必要です。",
     "warp_requires_selection": "選択範囲のワープには、ロック解除されたベクター対応の選択範囲が必要です。",

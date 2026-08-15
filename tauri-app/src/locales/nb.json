@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro kjørt",
     "framing_started": "Innramming startet",
     "framing_started_laser_on": "Innramming med laser på startet",
+    "framing_completed": "Innramming fullført. Trykk Start for å gravere.",
     "delete_duplicates_needs_dialog": "Slett duplikater krever en bekreftelsesdialog.",
     "image_mask_requires_closed": "Bildemasker krever lukkede vektorformer.",
     "warp_requires_selection": "Forvreng utvalg krever et opplåst vektorkompatibelt utvalg.",

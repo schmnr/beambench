@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added an ACMER S2 machine preset and made Generic GRBL replace its placeholder
+  workspace with controller-reported `$130/$131` travel on connection.
+- Framing now checks full planned motion against the active machine profile, so
+  a larger or unbound project canvas cannot send an out-of-range frame to a
+  smaller connected laser. Completed frames and controller failures are also
+  reported clearly in the UI.
+
 ## 0.2.3
 
 - Prevented brief black canvas flashes while moving objects, including during

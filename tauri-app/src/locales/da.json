@@ -2446,6 +2446,7 @@
     "macro_executed": "Makro udført",
     "framing_started": "Indramning startet",
     "framing_started_laser_on": "Indramning med laser tændt startet",
+    "framing_completed": "Indramning færdig. Tryk på Start for at gravere.",
     "delete_duplicates_needs_dialog": "Slet dubletter kræver en bekræftelsesdialog.",
     "image_mask_requires_closed": "Billedmasker kræver lukkede vektorformer.",
     "warp_requires_selection": "Fordrej markering kræver en oplåst vektorkompatibel markering.",

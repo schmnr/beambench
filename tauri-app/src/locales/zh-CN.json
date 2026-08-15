@@ -2446,6 +2446,7 @@
     "macro_executed": "宏已执行",
     "framing_started": "已开始走边框",
     "framing_started_laser_on": "已开始激光开启走边框",
+    "framing_completed": "走边框已完成。按“开始”进行雕刻。",
     "delete_duplicates_needs_dialog": "删除重复项需要确认对话框。",
     "image_mask_requires_closed": "图像蒙版需要闭合的矢量形状。",
     "warp_requires_selection": "扭曲选区需要未锁定且与矢量兼容的选区。",
