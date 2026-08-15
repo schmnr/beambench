@@ -37,6 +37,7 @@ import {
   WIDE_INSPECTOR_CARD_CLASS,
 } from '../shared/panelAppearance';
 import { usePanelHost } from '../../panels';
+import { SelectionLayerControl } from './SelectionLayerControl';
 
 const TOAST_SUCCESS = 'success' as const;
 const TOAST_ERROR = 'error' as const;
@@ -93,6 +94,8 @@ export function PropertiesPanel() {
         <TransformSection />
         <section className="flex flex-col gap-2" data-properties-primary>
           <div className="text-xs text-bb-text-dim">{t('panels.properties.objects_selected', { count: selectedObjectIds.length })}</div>
+
+          <SelectionLayerControl objects={selectedObjects} />
 
           {/* Batch controls */}
           <div className="flex items-center text-xs">
@@ -309,6 +312,7 @@ export function PropertiesPanel() {
         value={selectedObject.name}
         onChange={(name) => updateObject(selectedObject.id, { name })}
       />
+      <SelectionLayerControl objects={[selectedObject]} />
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="text-bb-text-muted">{t('panels.layers.header.show')}</span>
         <IconToggleButton

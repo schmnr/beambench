@@ -41,6 +41,8 @@ export function LayerTabs() {
   const lockObjects = useProjectStore((s) => s.lockObjects);
   const unlockObjects = useProjectStore((s) => s.unlockObjects);
   const selectObjects = useProjectStore((s) => s.selectObjects);
+  const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
+  const reassignLayer = useProjectStore((s) => s.reassignLayer);
   const copyLayerSettings = useProjectStore((s) => s.copyLayerSettings);
   const pasteLayerSettings = useProjectStore((s) => s.pasteLayerSettings);
   const setAllLayersEnabled = useProjectStore((s) => s.setAllLayersEnabled);
@@ -325,6 +327,8 @@ export function LayerTabs() {
               toggleEnabled: (layerId, enabled) => void updateLayer(layerId, { enabled }),
               toggleVisible: (layerId, visible) => void handleToggleVisible(layerId, visible),
               selectObjects,
+              selectedObjectIds,
+              moveSelectedObjects: (layerId) => void reassignLayer(selectedObjectIds, layerId),
               copySettings: (layer) => { if (!layer.is_tool_layer) copyLayerSettings(layer.id); },
               pasteSettings: (layerId) => void pasteLayerSettings(layerId),
               startRename: (layerId) => {

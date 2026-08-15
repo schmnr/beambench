@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objets sélectionnés",
       "layer": "Calque",
       "mixed": "Mixte",
+      "layer_assignment_help": "Déplace uniquement les objets sélectionnés ; les réglages du calque restent communs à tous ses objets.",
       "visible": "Visible",
       "locked": "Verrouillé",
       "boolean_operations": "Opérations booléennes",
@@ -1728,6 +1729,7 @@
         "multi": "Multiple"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Les réglages s’appliquent à {count} objet(s) de ce calque.",
       "frame": "Cadre",
       "move_up": "Monter",
       "move_down": "Descendre",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Désactiver tous les calques sauf celui-ci",
         "hide_all_but_this": "Masquer tous les calques sauf celui-ci",
         "select_all_on_layer": "Tout sélectionner sur le calque",
+        "move_selection_here": "Déplacer la sélection vers ce calque",
         "flash_content": "Faire clignoter le contenu de ce calque",
         "copy_settings": "Copier les paramètres",
         "paste_settings": "Coller les paramètres"
@@ -2553,7 +2556,7 @@
     "workspace_edge_right": "droit",
     "workspace_edge_top": "supérieur",
     "workspace_edge_bottom": "inférieur",
-    "artwork_outside_workspace": "{hasObject, select, yes {« {object} » dépasse de {amount} {unit} le bord {edge} de la zone de travail. L’objet a été sélectionné. Déplacez-le à l’intérieur de la zone de travail avant de prévisualiser ou de lancer le travail.} other {Une partie de votre dessin dépasse de {amount} {unit} le bord {edge} de la zone de travail. Déplacez-la à l’intérieur de la zone de travail avant de prévisualiser ou de lancer le travail.}}",
+    "artwork_outside_workspace": "{hasObject, select, yes {La position prévue de « {object} » dépasse de {amount} {unit} le bord {edge} de la zone de travail. L’objet a été sélectionné. Ajustez le placement du travail ou déplacez l’objet dans la zone de travail avant de prévisualiser ou de lancer le travail.} other {La position prévue du travail dépasse de {amount} {unit} le bord {edge} de la zone de travail. Ajustez le placement du travail avant de prévisualiser ou de lancer le travail.}}",
     "ui_error_title": "Beam Bench a rencontré une erreur d'interface",
     "reload": "Recharger"
   },

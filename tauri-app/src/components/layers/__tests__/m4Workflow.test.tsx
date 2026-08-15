@@ -5,7 +5,7 @@ import { LayerTabs } from '../LayerTabs';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { projectService } from '../../../services/projectService';
-import { makeLayer, makeProject } from '../../../test-utils/projectFixtures';
+import { makeLayer, makeProject, makeProjectObject } from '../../../test-utils/projectFixtures';
 import { buildLayerListHeaderMenuItems } from '../LayerListHeaderMenu';
 import i18n from '../../../i18n';
 
@@ -23,6 +23,26 @@ afterEach(() => {
 });
 
 describe('M4 Copy/Paste side buttons', () => {
+  it('offers an explicit context-menu action to move only the current selection', async () => {
+    const layers = [
+      makeLayer({ id: 'l1', name: 'L1', operation: 'line' }),
+      makeLayer({ id: 'l2', name: 'L2', operation: 'cut', order_index: 1 }),
+    ];
+    const object = makeProjectObject({ id: 'o1', layer_id: 'l1' });
+    const reassignLayer = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers, objects: [object] }),
+      selectedObjectIds: ['o1'],
+      reassignLayer,
+    });
+    render(<LayerTabs />);
+
+    fireEvent.contextMenu(screen.getAllByTestId('layer-tab')[1]);
+    fireEvent.click(await screen.findByText('Move Selection to This Layer'));
+
+    expect(reassignLayer).toHaveBeenCalledWith(['o1'], 'l2');
+  });
+
   it('Copy Settings writes the full stack to uiStore.layerSettingsClipboard (no shell fields)', async () => {
     const layer = makeLayer({
       id: 'l1',

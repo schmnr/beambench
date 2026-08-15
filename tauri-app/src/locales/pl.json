@@ -1501,6 +1501,7 @@
       "objects_selected": "Wybrano {count} obiekty",
       "layer": "Warstwa",
       "mixed": "Mieszane",
+      "layer_assignment_help": "Przenosi tylko zaznaczone obiekty; ustawienia warstwy nadal są wspólne dla wszystkich obiektów na tej warstwie.",
       "visible": "Widoczna",
       "locked": "Zablokowane",
       "boolean_operations": "Operacje boolowskie",
@@ -1728,6 +1729,7 @@
         "multi": "Wiele"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Ustawienia dotyczą {count} obiektów na tej warstwie.",
       "frame": "Ramka",
       "move_up": "Przenieś w górę",
       "move_down": "Przenieś w dół",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Wyłącz wszystkie warstwy poza tą",
         "hide_all_but_this": "Ukryj wszystkie warstwy poza tą",
         "select_all_on_layer": "Zaznacz wszystko na warstwie",
+        "move_selection_here": "Przenieś zaznaczenie na tę warstwę",
         "flash_content": "Podświetl zawartość tej warstwy",
         "copy_settings": "Kopiuj ustawienia",
         "paste_settings": "Wklej ustawienia"

@@ -1501,6 +1501,7 @@
       "objects_selected": "Vybráno {count} objektů",
       "layer": "Vrstva",
       "mixed": "Smíšené",
+      "layer_assignment_help": "Přesune pouze vybrané objekty; nastavení vrstvy zůstává společné pro všechny objekty v této vrstvě.",
       "visible": "Viditelné",
       "locked": "Zamčeno",
       "boolean_operations": "Booleovské operace",
@@ -1728,6 +1729,7 @@
         "multi": "Více"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Nastavení se vztahuje na {count} objektů v této vrstvě.",
       "frame": "Rámeček",
       "move_up": "Přesunout nahoru",
       "move_down": "Přesunout dolů",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Zakázat všechny vrstvy kromě této",
         "hide_all_but_this": "Skrýt všechny vrstvy kromě této",
         "select_all_on_layer": "Vybrat vše ve vrstvě",
+        "move_selection_here": "Přesunout výběr do této vrstvy",
         "flash_content": "Zvýraznit obsah této vrstvy",
         "copy_settings": "Kopírovat nastavení",
         "paste_settings": "Vložit nastavení"

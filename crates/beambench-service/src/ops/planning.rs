@@ -191,7 +191,7 @@ fn build_plan_for_project(
         })
 }
 
-fn bounds_exceeded_error(
+pub(crate) fn bounds_exceeded_error(
     project: &Project,
     violation: BoundsViolation,
     display_unit: DisplayUnit,

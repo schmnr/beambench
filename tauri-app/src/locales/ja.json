@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} 個のオブジェクトを選択中",
       "layer": "レイヤー",
       "mixed": "混在",
+      "layer_assignment_help": "選択したオブジェクトだけを移動します。レイヤー設定は、そのレイヤー上のすべてのオブジェクトで共有されます。",
       "visible": "表示",
       "locked": "ロック",
       "boolean_operations": "ブール演算",
@@ -1728,6 +1729,7 @@
         "multi": "複数"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "設定はこのレイヤー上の {count} 個のオブジェクトに適用されます。",
       "frame": "フレーム",
       "move_up": "上へ移動",
       "move_down": "下へ移動",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "このレイヤー以外をすべて無効化",
         "hide_all_but_this": "このレイヤー以外をすべて非表示",
         "select_all_on_layer": "レイヤー上をすべて選択",
+        "move_selection_here": "選択範囲をこのレイヤーへ移動",
         "flash_content": "このレイヤーの内容を点滅表示",
         "copy_settings": "設定をコピー",
         "paste_settings": "設定を貼り付け"

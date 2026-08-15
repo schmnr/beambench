@@ -96,9 +96,22 @@ export function formatWorkspaceBoundsError(
   const details = parseBoundsDetails(error);
   if (!details) return null;
 
-  const sourceObject = details.violation.source_object_id
+  const explicitSourceObject = details.violation.source_object_id
     ? project?.objects.find((object) => object.id === details.violation.source_object_id)
     : undefined;
+  const outputLayerIds = new Set(
+    project?.layers
+      .filter((layer) => layer.enabled && !layer.is_tool_layer)
+      .map((layer) => layer.id) ?? [],
+  );
+  const visibleOutputObjects = project?.objects.filter(
+    (object) => object.visible !== false && outputLayerIds.has(object.layer_id),
+  ) ?? [];
+  // Raster planning segments do not always retain a source object id. When
+  // there is only one possible output object, selecting it is still exact and
+  // gives the user an immediate route to inspect or move it.
+  const sourceObject = explicitSourceObject
+    ?? (visibleOutputObjects.length === 1 ? visibleOutputObjects[0] : undefined);
   const origin = project?.workspace.origin ?? details.workspace_origin ?? 'top_left';
   const edge = i18n.t(`errors.workspace_edge_${visualEdge(
     details.violation.axis,

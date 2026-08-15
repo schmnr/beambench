@@ -12,6 +12,8 @@ interface LayerMenuCallbacks {
   deleteLayer?: (layerId: string) => void;
   toggleLockObjects?: (layerId: string) => void;
   hasClipboard?: boolean;
+  selectedObjectIds?: string[];
+  moveSelectedObjects?: (layerId: string) => void;
 
   // M4 additions
   /** "Disable all layers but this one" — keeps the row's layer enabled, disables every other. */
@@ -29,6 +31,13 @@ export function buildLayerContextMenuItems(
   callbacks: LayerMenuCallbacks,
 ): ContextMenuEntry[] {
   const layerObjects = objects.filter((o) => o.layer_id === layer.id);
+  const selectedObjects = objects.filter((object) => callbacks.selectedObjectIds?.includes(object.id));
+  const selectedKinds = new Set(selectedObjects.map((object) => object.data.type === 'raster_image'));
+  const targetIsImage = layer.entries[0]?.operation === 'image';
+  const targetAcceptsSelection = layer.is_tool_layer
+    || (selectedKinds.size === 1 && (selectedKinds.has(true) ? targetIsImage : !targetIsImage));
+  const selectionAlreadyOnLayer = selectedObjects.length > 0
+    && selectedObjects.every((object) => object.layer_id === layer.id);
 
   const items: ContextMenuEntry[] = [
     {
@@ -71,6 +80,15 @@ export function buildLayerContextMenuItems(
     disabled: layerObjects.length === 0,
     onClick: () => callbacks.selectObjects(layerObjects.map((o) => o.id)),
   });
+
+  if (callbacks.moveSelectedObjects) {
+    items.push({
+      id: 'move-selection-here',
+      label: t('panels.layers.context_menu.move_selection_here'),
+      disabled: selectedObjects.length === 0 || selectionAlreadyOnLayer || !targetAcceptsSelection,
+      onClick: () => callbacks.moveSelectedObjects!(layer.id),
+    });
+  }
 
   if (callbacks.flashLayer) {
     items.push({

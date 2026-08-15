@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} predmetov izbranih",
       "layer": "Plast",
       "mixed": "Mešano",
+      "layer_assignment_help": "Premakne samo izbrane predmete; nastavitve plasti ostanejo skupne vsem predmetom na tej plasti.",
       "visible": "Vidno",
       "locked": "Zaklenjeno",
       "boolean_operations": "Boolove operacije",
@@ -1728,6 +1729,7 @@
         "multi": "Več"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Nastavitve veljajo za {count} predmetov na tej plasti.",
       "frame": "Okvir",
       "move_up": "Premakni gor",
       "move_down": "Premakni dol",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Onemogoči vse plasti razen te",
         "hide_all_but_this": "Skrij vse plasti razen te",
         "select_all_on_layer": "Izberi vse na plasti",
+        "move_selection_here": "Premakni izbor na to plast",
         "flash_content": "Utripni vsebino na tej plasti",
         "copy_settings": "Kopiraj nastavitve",
         "paste_settings": "Prilepi nastavitve"

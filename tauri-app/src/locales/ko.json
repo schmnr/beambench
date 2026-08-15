@@ -1501,6 +1501,7 @@
       "objects_selected": "{count}개 객체 선택됨",
       "layer": "레이어",
       "mixed": "혼합",
+      "layer_assignment_help": "선택한 개체만 이동합니다. 레이어 설정은 해당 레이어의 모든 개체에 계속 공통으로 적용됩니다.",
       "visible": "표시",
       "locked": "잠김",
       "boolean_operations": "불리언 작업",
@@ -1728,6 +1729,7 @@
         "multi": "다중"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "설정이 이 레이어의 개체 {count}개에 적용됩니다.",
       "frame": "프레임",
       "move_up": "위로 이동",
       "move_down": "아래로 이동",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "이 레이어를 제외한 모든 레이어 비활성화",
         "hide_all_but_this": "이 레이어를 제외한 모든 레이어 숨기기",
         "select_all_on_layer": "레이어의 모든 항목 선택",
+        "move_selection_here": "선택 항목을 이 레이어로 이동",
         "flash_content": "이 레이어 내용 깜박임",
         "copy_settings": "설정 복사",
         "paste_settings": "설정 붙여넣기"

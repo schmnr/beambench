@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objetos seleccionados",
       "layer": "Capa",
       "mixed": "Mixto",
+      "layer_assignment_help": "Mueve solo los objetos seleccionados; los ajustes de la capa siguen compartidos por todos los objetos de esa capa.",
       "visible": "Visible",
       "locked": "Bloqueado",
       "boolean_operations": "Operaciones booleanas",
@@ -1728,6 +1729,7 @@
         "multi": "Múltiple"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Los ajustes se aplican a {count} objeto(s) de esta capa.",
       "frame": "Marco",
       "move_up": "Subir",
       "move_down": "Bajar",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Desactivar todas las capas salvo esta",
         "hide_all_but_this": "Ocultar todas las capas salvo esta",
         "select_all_on_layer": "Seleccionar todo en la capa",
+        "move_selection_here": "Mover la selección a esta capa",
         "flash_content": "Resaltar contenido de esta capa",
         "copy_settings": "Copiar ajustes",
         "paste_settings": "Pegar ajustes"

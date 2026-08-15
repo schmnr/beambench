@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objektia valittu",
       "layer": "Taso",
       "mixed": "Sekalainen",
+      "layer_assignment_help": "Siirtää vain valitut objektit; tason asetukset pysyvät yhteisinä kaikille tason objekteille.",
       "visible": "Näkyvä",
       "locked": "Lukittu",
       "boolean_operations": "Boolean-toiminnot",
@@ -1728,6 +1729,7 @@
         "multi": "Useita"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Asetukset koskevat tämän tason {count} objektia.",
       "frame": "Kehys",
       "move_up": "Siirrä ylös",
       "move_down": "Siirrä alas",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Poista kaikki tasot paitsi tämä käytöstä",
         "hide_all_but_this": "Piilota kaikki tasot paitsi tämä",
         "select_all_on_layer": "Valitse kaikki tasolla",
+        "move_selection_here": "Siirrä valinta tälle tasolle",
         "flash_content": "Väläytä tämän tason sisältö",
         "copy_settings": "Kopioi asetukset",
         "paste_settings": "Liitä asetukset"

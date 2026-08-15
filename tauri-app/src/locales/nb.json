@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objekter valgt",
       "layer": "Lag",
       "mixed": "Blandet",
+      "layer_assignment_help": "Flytter bare de valgte objektene; laginnstillingene deles fortsatt av alle objektene på laget.",
       "visible": "Synlig",
       "locked": "Låst",
       "boolean_operations": "Boolske operasjoner",
@@ -1728,6 +1729,7 @@
         "multi": "Flere"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Innstillingene gjelder for {count} objekt(er) på dette laget.",
       "frame": "Ramme",
       "move_up": "Flytt opp",
       "move_down": "Flytt ned",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Deaktiver alle lag unntatt dette",
         "hide_all_but_this": "Skjul alle lag unntatt dette",
         "select_all_on_layer": "Velg alt på laget",
+        "move_selection_here": "Flytt markeringen til dette laget",
         "flash_content": "Blink innhold på dette laget",
         "copy_settings": "Kopier innstillinger",
         "paste_settings": "Lim inn innstillinger"

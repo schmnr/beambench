@@ -33,6 +33,7 @@ use beambench_marlin::{
     MarlinGcodeConfig, MarlinPowerScale, MarlinSerialSession, MarlinSerialSessionConfig,
     SnapmakerGcodeConfig, SnapmakerLaserMode, generate_marlin_gcode, generate_snapmaker_gcode,
 };
+use beambench_planner::PlannerError;
 use beambench_planner::{
     ExecutionPlan, anchor_segments_to_target, apply_workspace_origin_transform, build_frame_plan,
     build_hull_frame_plan, calculate_plan_bounds, flip_bounds_y,
@@ -4241,6 +4242,23 @@ pub fn frame_job(
     let bounds = calculate_plan_bounds(&frame_plan.segments);
     frame_plan.bounds = bounds;
 
+    let display_unit = ctx
+        .settings
+        .lock()
+        .map_err(|e| lock_err("settings", e))?
+        .display_unit;
+    beambench_planner::validate::validate_bounds(
+        &frame_plan.segments,
+        project.workspace.bed_width_mm,
+        project.workspace.bed_height_mm,
+    )
+    .map_err(|error| match error {
+        PlannerError::BoundsExceeded(violation) => {
+            planning::bounds_exceeded_error(&project, violation, display_unit)
+        }
+        other => ServiceError::invalid_state(format!("Frame validation failed: {other}")),
+    })?;
+
     // Frame G-code must honor the active profile: constant-power machines
     // need M3 (M4 dims toward zero at framing speeds) and the profile's
     // s_value_max caps laser-on framing power.
@@ -7535,6 +7553,33 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("F1234")),
             "frame job should stream commands with the requested move feed"
+        );
+    }
+
+    #[test]
+    fn frame_job_rejects_planned_motion_outside_workspace_before_streaming() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut project = frame_project();
+        project.objects[0].bounds =
+            Bounds::new(Point2D::new(-20.0, 0.0), Point2D::new(-10.0, 10.0));
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let error = frame_job(&ctx, "rectangular", &[], true, None).unwrap_err();
+
+        assert_eq!(error.code, crate::error::ServiceErrorCode::InvalidState);
+        assert_eq!(
+            error
+                .details
+                .as_ref()
+                .and_then(|details| details.get("kind")),
+            Some(&json!("bounds_exceeded"))
+        );
+        assert!(ctx.job.lock().unwrap().is_none());
+        assert!(
+            !sent_lines(&transport)
+                .iter()
+                .any(|line| line.starts_with("G0") || line.starts_with("G1")),
+            "out-of-bounds framing must not stream motion commands"
         );
     }
 

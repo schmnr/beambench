@@ -239,6 +239,10 @@ export function LayerList() {
             data-testid="layer-quick-name-input"
           />
 
+          <div className={`mt-1 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="layer-settings-scope">
+            {t('panels.layers.settings_scope', { count: activeLayerObjs.length })}
+          </div>
+
           <div className="mt-2 flex items-center justify-between gap-4">
             <div className="flex items-center gap-1.5 text-xs" data-testid="quick-edit">
               <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
