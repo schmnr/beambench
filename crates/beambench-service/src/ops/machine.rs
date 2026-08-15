@@ -76,6 +76,10 @@ const CONTROLLER_CONNECTION_CHALLENGE_TTL: Duration = Duration::from_secs(120);
 const CONTROLLER_COMPATIBILITY_STATUS_TIMEOUT: Duration = Duration::from_secs(1);
 const CONTROLLER_SETTINGS_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
 const CONTROLLER_QUERY_POLL_INTERVAL: Duration = Duration::from_millis(20);
+const IDLE_STATUS_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
+const IDLE_HEALTH_RECHECK_ATTEMPTS: usize = 3;
+const IDLE_HEALTH_RECHECK_INTERVAL: Duration = Duration::from_millis(100);
+const EMERGENCY_STOP_CONFIRM_POLLS: usize = 12;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SerialControllerProtocol {
@@ -2910,6 +2914,76 @@ pub fn list_serial_ports_op() -> ServiceResult<Vec<PortInfo>> {
     list_available_ports().map_err(|e| ServiceError::machine(e.to_string()))
 }
 
+fn refresh_idle_session_once(session: &mut MachineSessionHandle) -> ServiceResult<()> {
+    session
+        .poll()
+        .map_err(|error| ServiceError::machine(format!("Controller polling failed: {error}")))?;
+    recover_ready_if_idle_after_validation(session)?;
+    session.query_status().map_err(|error| {
+        ServiceError::machine(format!("Controller status query failed: {error}"))
+    })?;
+    Ok(())
+}
+
+/// Refresh an idle controller and perform a short automatic recheck before
+/// declaring the connection lost. Immediate transport errors get one retry;
+/// a GRBL controller that accepts writes but has stopped answering gets three
+/// bounded status rechecks. Jobs use their stricter streamer error path.
+fn refresh_idle_session_health_with_timeout(
+    session: &mut MachineSessionHandle,
+    response_timeout: Duration,
+) -> ServiceResult<()> {
+    if let Err(first_error) = refresh_idle_session_once(session) {
+        std::thread::sleep(IDLE_HEALTH_RECHECK_INTERVAL);
+        return refresh_idle_session_once(session).map_err(|recheck_error| {
+            ServiceError::machine(format!(
+                "[controller_connection_lost] Controller communication failed and the automatic recheck also failed. Initial error: {first_error}. Recheck error: {recheck_error}"
+            ))
+        });
+    }
+
+    let Some(age) = session.status_response_wait_age() else {
+        return Ok(());
+    };
+    if age <= response_timeout {
+        return Ok(());
+    }
+
+    let status_report_count = session.status_report_count();
+    for _ in 0..IDLE_HEALTH_RECHECK_ATTEMPTS {
+        std::thread::sleep(IDLE_HEALTH_RECHECK_INTERVAL);
+        refresh_idle_session_once(session).map_err(|error| {
+            ServiceError::machine(format!(
+                "[controller_connection_lost] Controller stopped responding during an automatic health recheck: {error}"
+            ))
+        })?;
+        if session.status_report_count() > status_report_count {
+            return Ok(());
+        }
+    }
+
+    Err(ServiceError::machine(
+        "[controller_connection_lost] The controller did not answer routine status checks or three automatic rechecks. Beam Bench disconnected it; reconnect the controller before continuing.",
+    ))
+}
+
+fn refresh_idle_session_health(session: &mut MachineSessionHandle) -> ServiceResult<()> {
+    refresh_idle_session_health_with_timeout(session, IDLE_STATUS_RESPONSE_TIMEOUT)
+}
+
+fn handle_idle_connection_loss(ctx: &ServiceContext, error: &ServiceError) {
+    let message = error.to_string();
+    drop_stale_machine_session(ctx);
+    ctx.push_error(message.clone());
+    ctx.emit_event(
+        "machine.disconnected",
+        json!({
+            "reason": "controller_connection_lost",
+            "message": message,
+        }),
+    );
+}
+
 pub fn runtime_state(ctx: &ServiceContext) -> ServiceResult<MachineRuntimeState> {
     let (job_progress, job_tick_error) = match tick_job(ctx) {
         Ok(p) => (p, None),
@@ -2922,10 +2996,11 @@ pub fn runtime_state(ctx: &ServiceContext) -> ServiceResult<MachineRuntimeState>
     let mut session_guard = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     if !active_job && let Some(session) = session_guard.as_mut() {
         // Read pending data (including response from previous `?` query).
-        session.poll();
-        recover_ready_if_idle_after_validation(session)?;
-        // Send a fresh `?` so the next poll picks up an up-to-date status report.
-        session.query_status();
+        if let Err(error) = refresh_idle_session_health(session) {
+            drop(session_guard);
+            handle_idle_connection_loss(ctx, &error);
+            return Ok(runtime_summary(None, None, false));
+        }
     }
     let machine_coordinates_valid = ctx.machine_coordinates_valid.load(Ordering::Acquire);
     let mut state = runtime_summary(
@@ -3042,12 +3117,11 @@ pub fn machine_status(ctx: &ServiceContext) -> ServiceResult<MachineStatus> {
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
     if !active_job {
-        // Read pending data (including the response from the previous `?` query).
-        session.poll();
-        recover_ready_if_idle_after_validation(session)?;
-        // Send a fresh `?` so the *next* poll picks up an up-to-date status report.
-        // GRBL always responds to `?` regardless of alarm/idle/run state.
-        session.query_status();
+        if let Err(error) = refresh_idle_session_health(session) {
+            drop(session_lock);
+            handle_idle_connection_loss(ctx, &error);
+            return Err(error);
+        }
     }
     let status = session.machine_status();
     drop(session_lock);
@@ -3068,8 +3142,11 @@ pub fn session_state(ctx: &ServiceContext) -> ServiceResult<SessionState> {
     match &mut *session_lock {
         Some(session) => {
             if !active_job {
-                session.poll();
-                recover_ready_if_idle_after_validation(session)?;
+                if let Err(error) = refresh_idle_session_health(session) {
+                    drop(session_lock);
+                    handle_idle_connection_loss(ctx, &error);
+                    return Ok(SessionState::Disconnected);
+                }
             }
             Ok(session.session_state())
         }
@@ -4669,6 +4746,57 @@ pub fn reset_all_overrides(ctx: &ServiceContext) -> ServiceResult<()> {
     Ok(())
 }
 
+fn send_grbl_emergency_stop(session: &mut GrblRuntimeSession) -> Result<(), String> {
+    // Drain pre-existing responses so only traffic observed after Ctrl-X can
+    // confirm delivery of this stop.
+    session.poll().map_err(|error| error.to_string())?;
+    let status_report_count = session.status_report_count();
+    session.soft_reset().map_err(|error| error.to_string())?;
+    let mut banner_received = false;
+    let mut fresh_status_received = false;
+    for poll_index in 0..EMERGENCY_STOP_CONFIRM_POLLS {
+        let responses = session.poll().map_err(|error| error.to_string())?;
+        if responses
+            .iter()
+            .any(|response| matches!(response, GrblResponse::Banner(_) | GrblResponse::Alarm(_)))
+        {
+            banner_received = true;
+            break;
+        }
+        if session.status_report_count() > status_report_count {
+            fresh_status_received = true;
+            break;
+        }
+        // Some GRBL-family controllers do not emit a banner after Ctrl-X. Ask
+        // for an explicit status once the reset has had time to settle, then
+        // accept only the resulting fresh response as confirmation.
+        if poll_index == 5 {
+            session.poll_status().map_err(|error| error.to_string())?;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    if !banner_received && !fresh_status_received {
+        return Err(
+            "controller did not confirm the stop with a reset banner, alarm, or fresh status response"
+                .to_string(),
+        );
+    }
+    if fresh_status_received && session.session_state() == SessionState::WaitingForBanner {
+        session
+            .begin_validation_from_fresh_status(status_report_count)
+            .map_err(|error| error.to_string())?;
+    }
+    if session.session_state() != SessionState::Alarm {
+        let _ = session.request_settings();
+        std::thread::sleep(Duration::from_millis(200));
+        let _ = session.poll();
+        let _ = session.poll_status();
+        std::thread::sleep(Duration::from_millis(100));
+        let _ = session.poll();
+    }
+    Ok(())
+}
+
 pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     let _ = force_laser_fire_stop(ctx, "emergency_stop");
     ctx.machine_coordinates_valid
@@ -4678,60 +4806,72 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    match session {
-        MachineSessionHandle::Grbl(session) => {
-            session
-                .soft_reset()
-                .map_err(|e| ServiceError::machine(format!("Emergency stop failed: {e}")))?;
-            let mut banner_received = false;
-            for _ in 0..MAX_BANNER_POLLS {
-                let responses = session
-                    .poll()
-                    .map_err(|e| ServiceError::machine(e.to_string()))?;
-                if responses
-                    .iter()
-                    .any(|r| matches!(r, GrblResponse::Banner(_) | GrblResponse::Alarm(_)))
-                {
-                    banner_received = true;
-                    break;
+
+    let mut recovered_after_reopen = false;
+    let stop_result: Result<(), String> = match session {
+        MachineSessionHandle::Grbl(session) => match send_grbl_emergency_stop(session) {
+            Ok(()) => Ok(()),
+            Err(initial_error) => {
+                // A Windows USB/CH340 reset can invalidate an open handle while
+                // leaving the same COM port available. Close that stale handle,
+                // reopen the exact same endpoint, and resend only the stop/reset.
+                // Never rebuild or resume the interrupted job.
+                let recheck_result = session
+                    .disconnect()
+                    .map_err(|error| error.to_string())
+                    .and_then(|()| session.connect().map_err(|error| error.to_string()))
+                    .and_then(|()| send_grbl_emergency_stop(session));
+                match recheck_result {
+                    Ok(()) => {
+                        recovered_after_reopen = true;
+                        Ok(())
+                    }
+                    Err(recheck_error) => Err(format!(
+                        "[emergency_stop_unconfirmed] Beam Bench could not confirm that the controller received the Emergency Stop. The automatic reconnect and recheck also failed. Initial error: {initial_error}. Recheck error: {recheck_error}. Use the machine's physical emergency stop or disconnect laser power now."
+                    )),
                 }
-                std::thread::sleep(std::time::Duration::from_millis(100));
             }
-            if banner_received && session.session_state() != SessionState::Alarm {
-                let _ = session.request_settings();
-                std::thread::sleep(std::time::Duration::from_millis(200));
-                let _ = session.poll();
-                let _ = session.poll_status();
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                let _ = session.poll();
-            }
-        }
-        MachineSessionHandle::Marlin(session) => {
-            session.emergency_shutdown().map_err(|error| {
-                ServiceError::machine(format!("Emergency stop failed: {error}"))
-            })?;
-        }
-        MachineSessionHandle::Smoothieware(session) => {
-            session.emergency_shutdown().map_err(|error| {
-                ServiceError::machine(format!("Emergency stop failed: {error}"))
-            })?;
-        }
-        MachineSessionHandle::Ruida(session) => {
-            session.emergency_stop().map_err(|error| {
-                ServiceError::machine(format!("Emergency stop failed: {error}"))
-            })?;
-        }
-        MachineSessionHandle::Lihuiyu(session) => {
-            session.emergency_stop().map_err(|error| {
-                ServiceError::machine(format!("Emergency stop failed: {error}"))
-            })?;
-        }
+        },
+        MachineSessionHandle::Marlin(session) => session
+            .emergency_shutdown()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::Smoothieware(session) => session
+            .emergency_shutdown()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::Ruida(session) => session
+            .emergency_stop()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::Lihuiyu(session) => session
+            .emergency_stop()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
         MachineSessionHandle::Dsp(session) => {
             session.machine_status.run_state = MachineRunState::Idle;
+            Ok(())
         }
         MachineSessionHandle::Galvo(session) => {
             session.machine_status.run_state = MachineRunState::Idle;
+            Ok(())
         }
+    };
+    let stop_result = stop_result.map_err(|error| {
+        if error.contains("[emergency_stop_unconfirmed]") {
+            error
+        } else {
+            format!(
+                "[emergency_stop_unconfirmed] Beam Bench could not confirm that the controller received the Emergency Stop: {error}. Use the machine's physical emergency stop or disconnect laser power now."
+            )
+        }
+    });
+
+    // A failed stop must never leave Beam Bench holding a stale session. A
+    // successful stop delivered through the recovery reopen is also closed so
+    // the user must deliberately reconnect before issuing another command.
+    let disconnect_session = stop_result.is_err() || recovered_after_reopen;
+    if disconnect_session {
+        if let Some(session) = session_lock.as_mut() {
+            let _ = session.disconnect();
+        }
+        *session_lock = None;
     }
     // Lock-order invariant: job is always acquired BEFORE session (see
     // tick_job). Holding session while taking job here deadlocked against a
@@ -4742,8 +4882,28 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
         *job_lock = None;
     }
     remember_job_progress(ctx, None)?;
-    ctx.emit_event("machine.emergency_stop", json!({}));
-    Ok(())
+    if disconnect_session {
+        ctx.emit_event(
+            "machine.disconnected",
+            json!({
+                "reason": if recovered_after_reopen {
+                    "emergency_stop_recovered"
+                } else {
+                    "emergency_stop_unconfirmed"
+                },
+            }),
+        );
+    }
+    match stop_result {
+        Ok(()) => {
+            ctx.emit_event(
+                "machine.emergency_stop",
+                json!({ "recovered_after_reopen": recovered_after_reopen }),
+            );
+            Ok(())
+        }
+        Err(error) => Err(ServiceError::machine(error)),
+    }
 }
 
 /// Capture the current work position and store it as user_origin on the project.
@@ -5244,6 +5404,94 @@ mod tests {
             .recv_timeout(Duration::from_secs(20))
             .expect("deadlock: emergency_stop and tick_job did not finish");
         assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn grbl_emergency_stop_reopens_once_and_disconnects_after_recovery() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_byte_writes = 1;
+            state.banner_on_reopen = true;
+        }
+
+        emergency_stop(&ctx).unwrap();
+
+        let state = transport.lock().unwrap();
+        assert_eq!(state.open_count, 2, "the stale handle should reopen once");
+        assert!(state.close_count >= 2, "recovered sessions must be closed");
+        assert_eq!(
+            state
+                .bytes
+                .iter()
+                .filter(|bytes| bytes.as_slice() == grbl_commands::soft_reset())
+                .count(),
+            2,
+            "the failed reset should be resent on the reopened endpoint"
+        );
+        drop(state);
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn grbl_emergency_stop_failure_clears_stale_state_and_requires_physical_stop() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport.lock().unwrap().fail_byte_writes = 2;
+
+        let error = emergency_stop(&ctx).unwrap_err();
+
+        assert!(error.message.contains("[emergency_stop_unconfirmed]"));
+        assert!(
+            error
+                .message
+                .contains("automatic reconnect and recheck also failed")
+        );
+        assert!(error.message.contains("physical emergency stop"));
+        assert!(error.message.contains("disconnect laser power"));
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn idle_polling_recovers_from_one_transient_read_error() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport.lock().unwrap().fail_reads = 1;
+
+        let status = machine_status(&ctx).unwrap();
+
+        assert_eq!(status.run_state, MachineRunState::Idle);
+        assert!(ctx.session.lock().unwrap().is_some());
+    }
+
+    #[test]
+    fn idle_polling_disconnects_after_transport_error_recheck_fails() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport.lock().unwrap().fail_reads = 2;
+
+        let error = machine_status(&ctx).unwrap_err();
+
+        assert!(error.message.contains("[controller_connection_lost]"));
+        assert!(error.message.contains("automatic recheck also failed"));
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn silent_grbl_session_gets_three_bounded_health_rechecks() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut session_lock = ctx.session.lock().unwrap();
+        let session = session_lock.as_mut().unwrap();
+        let bytes_before = transport.lock().unwrap().bytes.len();
+
+        let error = refresh_idle_session_health_with_timeout(session, Duration::ZERO).unwrap_err();
+
+        assert!(
+            error
+                .message
+                .contains("did not answer routine status checks")
+        );
+        let status_queries = transport.lock().unwrap().bytes.len() - bytes_before;
+        assert_eq!(status_queries, 4, "one routine query plus three rechecks");
     }
 
     #[test]
@@ -6759,11 +7007,15 @@ mod tests {
     #[derive(Default)]
     struct RecordingTransportState {
         open: bool,
+        open_count: usize,
+        close_count: usize,
         rx: VecDeque<String>,
         lines: Vec<String>,
         bytes: Vec<Vec<u8>>,
         fail_m5_writes: usize,
-        fail_next_read: bool,
+        fail_byte_writes: usize,
+        fail_reads: usize,
+        banner_on_reopen: bool,
     }
 
     struct RecordingTransport {
@@ -6778,12 +7030,16 @@ mod tests {
 
     impl SerialTransport for RecordingTransport {
         fn open(&mut self) -> Result<(), SerialError> {
-            self.state.lock().unwrap().open = true;
+            let mut state = self.state.lock().unwrap();
+            state.open = true;
+            state.open_count += 1;
             Ok(())
         }
 
         fn close(&mut self) -> Result<(), SerialError> {
-            self.state.lock().unwrap().open = false;
+            let mut state = self.state.lock().unwrap();
+            state.open = false;
+            state.close_count += 1;
             Ok(())
         }
 
@@ -6792,7 +7048,18 @@ mod tests {
         }
 
         fn write_bytes(&mut self, data: &[u8]) -> Result<usize, SerialError> {
-            self.state.lock().unwrap().bytes.push(data.to_vec());
+            let mut state = self.state.lock().unwrap();
+            state.bytes.push(data.to_vec());
+            if state.fail_byte_writes > 0 {
+                state.fail_byte_writes -= 1;
+                return Err(SerialError::WriteFailed(
+                    "injected byte write failure".to_string(),
+                ));
+            }
+            if data == grbl_commands::soft_reset() && state.open_count > 1 && state.banner_on_reopen
+            {
+                state.rx.push_back("Grbl 1.1h".to_string());
+            }
             Ok(data.len())
         }
 
@@ -6812,8 +7079,8 @@ mod tests {
 
         fn read_line(&mut self) -> Result<Option<String>, SerialError> {
             let mut state = self.state.lock().unwrap();
-            if state.fail_next_read {
-                state.fail_next_read = false;
+            if state.fail_reads > 0 {
+                state.fail_reads -= 1;
                 return Err(SerialError::IoError(std::io::Error::new(
                     std::io::ErrorKind::BrokenPipe,
                     "injected read failure",
@@ -7682,7 +7949,7 @@ mod tests {
             job.start(session).unwrap();
         }
         *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
-        transport.lock().unwrap().fail_next_read = true;
+        transport.lock().unwrap().fail_reads = 1;
 
         let err = tick_job(&ctx).unwrap_err();
 

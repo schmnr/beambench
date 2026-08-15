@@ -16,7 +16,7 @@ use beambench_common::machine::{MachineRunState, MachineStatus, SessionState};
 use beambench_serial::SerialTransport;
 use chrono::Utc;
 use std::collections::{HashMap, VecDeque};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tracing::{debug, warn};
 
 const CONSOLE_LOG_CAPACITY: usize = 1000;
@@ -33,6 +33,7 @@ pub struct GrblSession {
     console_log: VecDeque<ConsoleEntry>,
     saw_undecodable_data: bool,
     status_report_count: u64,
+    unanswered_status_since: Option<Instant>,
 }
 
 impl GrblSession {
@@ -48,6 +49,7 @@ impl GrblSession {
             console_log: VecDeque::with_capacity(CONSOLE_LOG_CAPACITY),
             saw_undecodable_data: false,
             status_report_count: 0,
+            unanswered_status_since: None,
         }
     }
 
@@ -56,6 +58,17 @@ impl GrblSession {
     /// must not trust an Idle that predates the job).
     pub fn status_report_count(&self) -> u64 {
         self.status_report_count
+    }
+
+    /// Time spent waiting for an answer to real-time status queries.
+    ///
+    /// The timer begins with the first unanswered `?`, is not reset by
+    /// repeated queries, and clears only when a status response arrives. This
+    /// avoids false disconnects after the app has been suspended while still
+    /// detecting a controller that accepts writes but never answers.
+    pub fn status_response_wait_age(&self) -> Option<Duration> {
+        self.unanswered_status_since
+            .map(|started| started.elapsed())
     }
 
     /// Whether any received line contained bytes that were not valid UTF-8
@@ -161,6 +174,7 @@ impl GrblSession {
             }
             GrblResponse::Status(status) => {
                 self.status_report_count = self.status_report_count.wrapping_add(1);
+                self.unanswered_status_since = None;
                 // GRBL only includes `Ov:` (override fields) periodically, not in
                 // every status report.  When Ov is absent, the parser returns 0 for
                 // the override fields.  Preserve the previous override values in
@@ -261,6 +275,7 @@ impl GrblSession {
         }
         self.identity_detector = GrblFamilyIdentityDetector::default();
         self.last_identity_probe = None;
+        self.unanswered_status_since = None;
         self.state_machine.force(SessionState::Disconnected);
         Ok(())
     }
@@ -286,7 +301,10 @@ impl GrblSession {
 
     /// Query the machine status (?).
     pub fn poll_status(&mut self) -> Result<(), GrblError> {
-        self.send_realtime(commands::status_query())
+        self.send_realtime(commands::status_query())?;
+        self.unanswered_status_since
+            .get_or_insert_with(Instant::now);
+        Ok(())
     }
 
     /// Unlock the machine ($X).
@@ -329,6 +347,7 @@ impl GrblSession {
         self.send_realtime(commands::soft_reset())?;
         self.identity_detector = GrblFamilyIdentityDetector::default();
         self.last_identity_probe = None;
+        self.unanswered_status_since = None;
         self.state_machine.force(SessionState::WaitingForBanner);
         Ok(())
     }

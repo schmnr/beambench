@@ -5,6 +5,7 @@ const MACHINE_ZERO_REQUIRES_HOME =
 const SERIAL_PORT_UNAVAILABLE =
   /\[serial_port_unavailable\]\s+Could not open ([^:]+):/u;
 const LIHUIYU_INCOMPATIBLE_WINDOWS_DRIVER = '[lihuiyu_incompatible_windows_driver]';
+const INTERNAL_SAFETY_MARKER = /^\[(?:controller_connection_lost|emergency_stop_unconfirmed)\]\s*/u;
 
 /**
  * Localize a raw backend error string for display to the user.
@@ -28,7 +29,11 @@ export function wrapBackendError(detail: string): string {
   if (normalized.includes(LIHUIYU_INCOMPATIBLE_WINDOWS_DRIVER)) {
     return i18n.t('errors.lihuiyu_incompatible_windows_driver');
   }
-  return i18n.t('errors.operation_failed_with_detail', { detail });
+  return i18n.t('errors.operation_failed_with_detail', {
+    detail: INTERNAL_SAFETY_MARKER.test(normalized)
+      ? normalized.replace(INTERNAL_SAFETY_MARKER, '')
+      : detail,
+  });
 }
 
 /** Read the useful message from either a structured Tauri error or a legacy error. */

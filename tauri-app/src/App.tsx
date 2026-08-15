@@ -1171,9 +1171,12 @@ function App() {
       useNotificationStore.getState().push(wrapBackendError(message), 'error');
     }
     if (event.type === 'machine.disconnected') {
-      const payload = event.payload as { stop_warning?: unknown } | undefined;
+      const payload = event.payload as { stop_warning?: unknown; message?: unknown } | undefined;
       if (typeof payload?.stop_warning === 'string' && payload.stop_warning.trim().length > 0) {
         useNotificationStore.getState().push(wrapBackendError(payload.stop_warning), 'warning');
+      }
+      if (typeof payload?.message === 'string' && payload.message.trim().length > 0) {
+        useNotificationStore.getState().push(wrapBackendError(payload.message), 'warning');
       }
       const currentJobProgress = useMachineStore.getState().jobProgress;
       useMachineStore.setState({
