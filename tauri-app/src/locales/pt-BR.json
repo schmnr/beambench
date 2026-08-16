@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objetos selecionados",
       "layer": "Camada",
       "mixed": "Misto",
+      "layer_assignment_help": "Move apenas os objetos selecionados; as configurações da camada continuam compartilhadas por todos os objetos nela.",
       "visible": "Visível",
       "locked": "Bloqueado",
       "boolean_operations": "Operações booleanas",
@@ -1728,6 +1729,7 @@
         "multi": "Múltiplo"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "As configurações se aplicam a {count} objeto(s) nesta camada.",
       "frame": "Moldura",
       "move_up": "Mover para cima",
       "move_down": "Mover para baixo",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Desativar todas as camadas exceto esta",
         "hide_all_but_this": "Ocultar todas as camadas exceto esta",
         "select_all_on_layer": "Selecionar tudo na camada",
+        "move_selection_here": "Mover seleção para esta camada",
         "flash_content": "Destacar conteúdo nesta camada",
         "copy_settings": "Copiar configurações",
         "paste_settings": "Colar configurações"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Macro executada",
     "framing_started": "Enquadramento iniciado",
     "framing_started_laser_on": "Enquadramento com laser ligado iniciado",
+    "framing_completed": "Enquadramento concluído. Pressione Iniciar para gravar.",
     "delete_duplicates_needs_dialog": "Excluir duplicatas requer uma caixa de diálogo de confirmação.",
     "image_mask_requires_closed": "As máscaras de imagem exigem formas vetoriais fechadas.",
     "warp_requires_selection": "Distorcer seleção requer uma seleção desbloqueada compatível com vetores.",

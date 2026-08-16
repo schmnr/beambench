@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objekt markerade",
       "layer": "Lager",
       "mixed": "Blandat",
+      "layer_assignment_help": "Flyttar bara de markerade objekten; lagerinställningarna delas fortfarande av alla objekt på lagret.",
       "visible": "Synlig",
       "locked": "Låst",
       "boolean_operations": "Booleska operationer",
@@ -1728,6 +1729,7 @@
         "multi": "Flera"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Inställningarna gäller för {count} objekt på det här lagret.",
       "frame": "Ram",
       "move_up": "Flytta upp",
       "move_down": "Flytta ned",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Inaktivera alla lager utom detta",
         "hide_all_but_this": "Dölj alla lager utom detta",
         "select_all_on_layer": "Markera allt på lagret",
+        "move_selection_here": "Flytta markeringen till det här lagret",
         "flash_content": "Blinka innehåll på detta lager",
         "copy_settings": "Kopiera inställningar",
         "paste_settings": "Klistra in inställningar"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Makro kört",
     "framing_started": "Inramning startad",
     "framing_started_laser_on": "Inramning med laser på startad",
+    "framing_completed": "Inramningen är klar. Tryck på Start för att gravera.",
     "delete_duplicates_needs_dialog": "Ta bort dubbletter kräver en bekräftelsedialog.",
     "image_mask_requires_closed": "Bildmasker kräver slutna vektorformer.",
     "warp_requires_selection": "Förvräng markering kräver en upplåst vektorkompatibel markering.",

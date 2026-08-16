@@ -4,6 +4,7 @@ import { previewService } from '../services/previewService';
 import { useNotificationStore } from './notificationStore';
 import { backendErrorMessage, wrapBackendError } from '../i18n/errors';
 import { formatWorkspaceBoundsError } from '../i18n/previewBoundsError';
+import i18n from '../i18n';
 import { sessionJobOptions } from '../types/jobOptions';
 
 export type PreviewState = 'idle' | 'generating' | 'current' | 'stale' | 'error';
@@ -235,8 +236,9 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
         useAppStore.getState().settings?.display_unit ?? 'mm',
       );
       if (boundsError) {
+        const projectStore = useProjectStore.getState();
         if (boundsError.sourceObjectId) {
-          useProjectStore.getState().selectObjects([boundsError.sourceObjectId]);
+          projectStore.selectObjects([boundsError.sourceObjectId]);
         }
         set({
           state: 'error',
@@ -244,7 +246,17 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
           previewGenerationDialogVisible: false,
           previewGenerationDialogTitle: DEFAULT_PREVIEW_GENERATION_DIALOG_TITLE,
         });
-        useNotificationStore.getState().push(boundsError.message, 'error');
+        const canUseAbsoluteCoordinates = projectStore.project?.start_from !== 'absolute_coords';
+        useNotificationStore.getState().push(boundsError.message, 'error', canUseAbsoluteCoordinates ? {
+          actionLabel: i18n.t('panels.machine.laser.start_from.absolute_coords'),
+          onAction: () => {
+            void (async () => {
+              await useProjectStore.getState().setStartFrom('absolute_coords');
+              await get().generatePreview();
+            })();
+          },
+          autoDismissMs: 12_000,
+        } : undefined);
         return false;
       }
       set({

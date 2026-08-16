@@ -156,7 +156,16 @@ impl SerialTransport for RealSerialTransport {
 
     fn read_available(&mut self) -> Result<Vec<u8>, SerialError> {
         let port = self.port.as_mut().ok_or(SerialError::NotOpen)?;
-        let bytes_available = port.bytes_to_read().unwrap_or(0) as usize;
+        // A failed buffer query is not the same as an empty buffer. Windows
+        // CH340 handles commonly surface a removed, reset, or invalidated
+        // device here. Preserve that failure so the service can recheck the
+        // connection and clear a stale "connected" session.
+        let bytes_available = port.bytes_to_read().map_err(|error| {
+            SerialError::IoError(std::io::Error::other(format!(
+                "could not query {} input buffer: {error}",
+                self.port_name
+            )))
+        })? as usize;
         if bytes_available == 0 {
             return Ok(Vec::new());
         }

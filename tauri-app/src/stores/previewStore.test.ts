@@ -339,6 +339,33 @@ describe('previewStore', () => {
     });
   });
 
+  it('offers Absolute Coordinates and automatically rechecks the preview', async () => {
+    const setStartFrom = vi.fn().mockResolvedValue(undefined);
+    useProjectStore.setState({
+      project: makeProject({ start_from: 'user_origin' }),
+      setStartFrom,
+    });
+    vi.mocked(previewService.generatePreview).mockRejectedValueOnce({
+      code: 'invalid_state',
+      details: {
+        kind: 'bounds_exceeded',
+        violation: { axis: 'y', boundary: 'min', amount_mm: 127.2 },
+      },
+    });
+
+    await expect(usePreviewStore.getState().generatePreview()).resolves.toBe(false);
+
+    const notifications = useNotificationStore.getState().notifications;
+    const notification = notifications[notifications.length - 1];
+    expect(notification?.actionLabel).toBe('Absolute Coords');
+    vi.mocked(previewService.generatePreview).mockResolvedValueOnce(mockPreviewData);
+    notification?.onAction?.();
+
+    await vi.waitFor(() => expect(setStartFrom).toHaveBeenCalledWith('absolute_coords'));
+    await vi.waitFor(() => expect(usePreviewStore.getState().state).toBe('current'));
+    expect(previewService.generatePreview).toHaveBeenCalledTimes(2);
+  });
+
   it('empty project preview failure quietly clears preview mode instead of erroring', async () => {
     vi.mocked(previewService.generatePreview).mockRejectedValue(
       new Error('Plan generation failed: Cannot build plan from empty project'),

@@ -191,7 +191,7 @@ fn build_plan_for_project(
         })
 }
 
-fn bounds_exceeded_error(
+pub(crate) fn bounds_exceeded_error(
     project: &Project,
     violation: BoundsViolation,
     display_unit: DisplayUnit,
@@ -229,6 +229,44 @@ fn bounds_exceeded_error(
         "violation": violation,
         "object_name": object_name,
         "workspace_origin": project.workspace.origin,
+    }))
+}
+
+pub(crate) fn machine_bounds_exceeded_error(
+    project: &Project,
+    profile: &MachineProfile,
+    violation: BoundsViolation,
+    display_unit: DisplayUnit,
+) -> ServiceError {
+    let edge = match (violation.axis, violation.boundary, project.workspace.origin) {
+        (BoundsAxis::X, BoundsBoundary::Min, _) => "left",
+        (BoundsAxis::X, BoundsBoundary::Max, _) => "right",
+        (BoundsAxis::Y, BoundsBoundary::Min, WorkspaceOrigin::TopLeft) => "top",
+        (BoundsAxis::Y, BoundsBoundary::Min, WorkspaceOrigin::BottomLeft) => "bottom",
+        (BoundsAxis::Y, BoundsBoundary::Max, WorkspaceOrigin::TopLeft) => "bottom",
+        (BoundsAxis::Y, BoundsBoundary::Max, WorkspaceOrigin::BottomLeft) => "top",
+    };
+    let (amount, unit) = match display_unit {
+        DisplayUnit::Mm => (format!("{:.2}", violation.amount_mm), "mm"),
+        DisplayUnit::Inches => (format!("{:.4}", violation.amount_mm / 25.4), "in"),
+    };
+    let (machine_width_mm, machine_height_mm) = profile.workspace_dimensions_mm();
+    let message = format!(
+        "The planned motion extends {amount} {unit} beyond the {edge} edge of the active machine profile \"{}\" ({machine_width_mm:.0} × {machine_height_mm:.0} mm). Resize or reposition the artwork, or correct the project and machine profile dimensions before framing or running the job.",
+        profile.name,
+    );
+
+    ServiceError::invalid_state(message).with_details(json!({
+        "kind": "machine_bounds_exceeded",
+        "violation": violation,
+        "machine_profile_id": profile.id,
+        "machine_profile_name": profile.name,
+        "machine_workspace": {
+            "bed_width_mm": machine_width_mm,
+            "bed_height_mm": machine_height_mm,
+            "origin": profile.origin,
+        },
+        "project_workspace": project.workspace,
     }))
 }
 

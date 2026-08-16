@@ -97,6 +97,7 @@ const mockedMachine = machineService as unknown as {
   saveMachineProfile: ReturnType<typeof vi.fn>;
   deleteMachineProfile: ReturnType<typeof vi.fn>;
   setActiveProfile: ReturnType<typeof vi.fn>;
+  emergencyStop: ReturnType<typeof vi.fn>;
 };
 const mockedDiscovery = discoveryService as unknown as {
   connectCandidate: ReturnType<typeof vi.fn>;
@@ -212,6 +213,61 @@ describe('machineStore frame-selected toggle', () => {
 
     useMachineStore.getState().setFrameSelectedOnly(false);
     expect(useMachineStore.getState().frameSelectedOnly).toBe(false);
+  });
+
+  it('emergency stop reflects an automatic reopen recovery as disconnected', async () => {
+    mockedMachine.emergencyStop.mockResolvedValue(undefined);
+    mockedMachine.getSessionState.mockResolvedValue('disconnected');
+    useMachineStore.setState({
+      sessionState: 'running',
+      connectedPort: 'COM3',
+      machineStatus: makeMachineStatus({ run_state: 'run' }),
+      jobProgress: makeJobProgress(),
+      activeJobPurpose: 'job',
+      machineCoordinatesValid: true,
+    });
+
+    await useMachineStore.getState().emergencyStop();
+
+    expect(useMachineStore.getState()).toMatchObject({
+      sessionState: 'disconnected',
+      connectedPort: null,
+      machineStatus: null,
+      jobProgress: null,
+      activeJobPurpose: null,
+      machineCoordinatesValid: false,
+    });
+    const notifications = useNotificationStore.getState().notifications;
+    const notification = notifications[notifications.length - 1];
+    expect(notification).toMatchObject({ type: 'warning' });
+    expect(notification?.message).toContain('automatically reopening');
+  });
+
+  it('keeps an unconfirmed emergency stop warning visible and clears stale state', async () => {
+    mockedMachine.emergencyStop.mockRejectedValue(
+      '[emergency_stop_unconfirmed] Stop delivery failed. Use the physical emergency stop.',
+    );
+    useMachineStore.setState({
+      sessionState: 'running',
+      connectedPort: 'COM3',
+      machineStatus: makeMachineStatus({ run_state: 'run' }),
+      jobProgress: makeJobProgress(),
+      machineCoordinatesValid: true,
+    });
+
+    await useMachineStore.getState().emergencyStop();
+
+    expect(useMachineStore.getState()).toMatchObject({
+      sessionState: 'disconnected',
+      connectedPort: null,
+      machineStatus: null,
+      jobProgress: null,
+      machineCoordinatesValid: false,
+    });
+    const notifications = useNotificationStore.getState().notifications;
+    const notification = notifications[notifications.length - 1];
+    expect(notification).toMatchObject({ type: 'error' });
+    expect(notification?.message).toContain('physical emergency stop');
   });
 
   it('runPreflight clears stale reports when the latest preflight fails', async () => {

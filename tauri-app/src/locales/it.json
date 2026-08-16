@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} oggetti selezionati",
       "layer": "Livello",
       "mixed": "Misto",
+      "layer_assignment_help": "Sposta solo gli oggetti selezionati; le impostazioni del livello restano condivise da tutti gli oggetti del livello.",
       "visible": "Visibile",
       "locked": "Bloccato",
       "boolean_operations": "Operazioni booleane",
@@ -1728,6 +1729,7 @@
         "multi": "Multiplo"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Le impostazioni si applicano a {count} oggetto/i su questo livello.",
       "frame": "Cornice",
       "move_up": "Sposta su",
       "move_down": "Sposta giù",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Disabilita tutti i livelli tranne questo",
         "hide_all_but_this": "Nascondi tutti i livelli tranne questo",
         "select_all_on_layer": "Seleziona tutto sul livello",
+        "move_selection_here": "Sposta la selezione su questo livello",
         "flash_content": "Evidenzia contenuto su questo livello",
         "copy_settings": "Copia impostazioni",
         "paste_settings": "Incolla impostazioni"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Macro eseguita",
     "framing_started": "Inquadratura avviata",
     "framing_started_laser_on": "Inquadratura con laser acceso avviata",
+    "framing_completed": "Inquadratura completata. Premi Avvia per incidere.",
     "delete_duplicates_needs_dialog": "Elimina duplicati richiede una finestra di conferma.",
     "image_mask_requires_closed": "Le maschere immagine richiedono forme vettoriali chiuse.",
     "warp_requires_selection": "Distorci selezione richiede una selezione sbloccata compatibile con i vettori.",

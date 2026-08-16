@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use beambench_common::ConsoleEntry;
 use beambench_common::controller_choice::{
@@ -957,26 +957,45 @@ impl MachineSessionHandle {
         }
     }
 
-    pub fn poll(&mut self) {
+    pub fn poll(&mut self) -> Result<(), String> {
         match self {
-            Self::Grbl(session) => {
-                let _ = session.poll();
-            }
-            Self::Ruida(session) => {
-                let _ = session.poll();
-            }
-            Self::Lihuiyu(session) => {
-                let _ = session.poll();
-            }
-            _ => {}
+            Self::Grbl(session) => session
+                .poll()
+                .map(|_| ())
+                .map_err(|error| error.to_string()),
+            Self::Ruida(session) => session
+                .poll()
+                .map(|_| ())
+                .map_err(|error| error.to_string()),
+            Self::Lihuiyu(session) => session
+                .poll()
+                .map(|_| ())
+                .map_err(|error| error.to_string()),
+            _ => Ok(()),
         }
     }
 
     /// Send a `?` status query to the controller so the next `poll()` picks up
     /// the real-time machine state.  No-op for non-GRBL sessions.
-    pub fn query_status(&mut self) {
+    pub fn query_status(&mut self) -> Result<(), String> {
         if let Self::Grbl(session) = self {
-            let _ = session.poll_status();
+            session.poll_status().map_err(|error| error.to_string())?;
+        }
+        Ok(())
+    }
+
+    /// How long the current GRBL status query has remained unanswered.
+    pub fn status_response_wait_age(&self) -> Option<Duration> {
+        match self {
+            Self::Grbl(session) => session.status_response_wait_age(),
+            _ => None,
+        }
+    }
+
+    pub fn status_report_count(&self) -> Option<u64> {
+        match self {
+            Self::Grbl(session) => Some(session.status_report_count()),
+            _ => None,
         }
     }
 

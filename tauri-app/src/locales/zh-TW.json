@@ -1501,6 +1501,7 @@
       "objects_selected": "已選取 {count} 個物件",
       "layer": "圖層",
       "mixed": "混合",
+      "layer_assignment_help": "僅移動所選物件；圖層設定仍由該圖層上的所有物件共用。",
       "visible": "可見",
       "locked": "已鎖定",
       "boolean_operations": "布林運算",
@@ -1728,6 +1729,7 @@
         "multi": "多個"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "設定套用至此圖層上的 {count} 個物件。",
       "frame": "框選",
       "move_up": "上移",
       "move_down": "下移",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "停用除該圖層外的所有圖層",
         "hide_all_but_this": "隱藏除該圖層外的所有圖層",
         "select_all_on_layer": "選取圖層上的全部內容",
+        "move_selection_here": "將所選物件移至此圖層",
         "flash_content": "閃爍顯示此圖層內容",
         "copy_settings": "複製設定",
         "paste_settings": "貼上設定"
@@ -2443,6 +2446,7 @@
     "macro_executed": "巨集已執行",
     "framing_started": "已開始走邊框",
     "framing_started_laser_on": "已開始雷射開啟走邊框",
+    "framing_completed": "走邊框已完成。按「開始」進行雕刻。",
     "delete_duplicates_needs_dialog": "刪除重複項需要確認對話方塊。",
     "image_mask_requires_closed": "影像遮罩需要封閉的向量形狀。",
     "warp_requires_selection": "扭曲選取範圍需要未鎖定且與向量相容的選取範圍。",

@@ -998,12 +998,48 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   emergencyStop: async () => {
     try {
       await machineService.emergencyStop();
-      set({ jobProgress: null, machineCoordinatesValid: false, error: null });
-      notifySuccess('Emergency stop sent');
+      const sessionState = await machineService.getSessionState().catch(() => null);
+      if (sessionState === 'disconnected') {
+        set({
+          sessionState: 'disconnected',
+          machineStatus: null,
+          connectedPort: null,
+          capabilities: null,
+          jobProgress: null,
+          activeJobPurpose: null,
+          machineCoordinatesValid: false,
+          error: null,
+        });
+        useNotificationStore.getState().push(
+          'Emergency stop was resent after automatically reopening the controller connection. Beam Bench disconnected afterward; reconnect before continuing.',
+          'warning',
+        );
+      } else {
+        set({ jobProgress: null, machineCoordinatesValid: false, error: null });
+        notifySuccess('Emergency stop sent');
+      }
     } catch (e) {
       const msg = String(e);
-      set({ error: msg });
-      notifyError(msg);
+      const unconfirmed = msg.includes('[emergency_stop_unconfirmed]');
+      set({
+        error: msg,
+        ...(unconfirmed ? {
+          sessionState: 'disconnected' as SessionState,
+          machineStatus: null,
+          connectedPort: null,
+          capabilities: null,
+          jobProgress: null,
+          activeJobPurpose: null,
+          machineCoordinatesValid: false,
+        } : {}),
+      });
+      if (unconfirmed) {
+        useNotificationStore.getState().push(wrapBackendError(msg), 'error', {
+          autoDismissMs: null,
+        });
+      } else {
+        notifyError(msg);
+      }
     }
   },
 

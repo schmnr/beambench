@@ -1110,7 +1110,12 @@ function App() {
     }
     if (event.type === 'job.completed' && isJobProgressPayload(event.payload)) {
       const machineState = useMachineStore.getState();
-      if (machineState.activeJobPurpose === 'job' && !machineState.connectionPreview) {
+      if (machineState.activeJobPurpose === 'frame') {
+        useNotificationStore.getState().push(
+          i18n.t('notifications.framing_completed'),
+          'success',
+        );
+      } else if (machineState.activeJobPurpose === 'job' && !machineState.connectionPreview) {
         void machineService.getMachineRuntimeState().then((runtime) => {
           if (!shouldOfferPostJobCompatibility(runtime)) return;
           const controllerKey = runtime.controller_driver ?? runtime.controller_model ?? 'unknown';
@@ -1150,6 +1155,12 @@ function App() {
         });
       }
     }
+    if (event.type === 'job.failed' && isJobProgressPayload(event.payload)) {
+      const message = event.payload.error_message?.trim();
+      if (message) {
+        useNotificationStore.getState().push(wrapBackendError(message), 'error');
+      }
+    }
     if (
       event.type === 'job.completed'
       || event.type === 'job.failed'
@@ -1171,9 +1182,12 @@ function App() {
       useNotificationStore.getState().push(wrapBackendError(message), 'error');
     }
     if (event.type === 'machine.disconnected') {
-      const payload = event.payload as { stop_warning?: unknown } | undefined;
+      const payload = event.payload as { stop_warning?: unknown; message?: unknown } | undefined;
       if (typeof payload?.stop_warning === 'string' && payload.stop_warning.trim().length > 0) {
         useNotificationStore.getState().push(wrapBackendError(payload.stop_warning), 'warning');
+      }
+      if (typeof payload?.message === 'string' && payload.message.trim().length > 0) {
+        useNotificationStore.getState().push(wrapBackendError(payload.message), 'warning');
       }
       const currentJobProgress = useMachineStore.getState().jobProgress;
       useMachineStore.setState({

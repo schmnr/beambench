@@ -496,8 +496,9 @@ describe('PropertiesPanel', () => {
     });
   });
 
-  it('does not duplicate layer assignment controls in object properties', () => {
+  it('moves only the selected objects when their layer is changed', () => {
     const base = makeProject();
+    const reassignLayer = vi.fn().mockResolvedValue(true);
     const project = {
       ...base,
       layers: [
@@ -517,10 +518,57 @@ describe('PropertiesPanel', () => {
         { ...base.objects[0], id: 'obj2', name: 'Rect2' },
       ],
     };
-    useProjectStore.setState({ project, selectedObjectIds: ['obj1', 'obj2'] });
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: ['obj1'],
+      reassignLayer,
+    });
 
     render(<PropertiesPanel />);
-    expect(screen.queryByLabelText('Layer')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Layer'), { target: { value: 'l2' } });
+
+    expect(reassignLayer).toHaveBeenCalledWith(['obj1'], 'l2');
+  });
+
+  it('shows Mixed for a multi-layer selection and moves the full selection together', () => {
+    const base = makeProject();
+    const reassignLayer = vi.fn().mockResolvedValue(true);
+    const project = {
+      ...base,
+      layers: [
+        ...base.layers,
+        makeLayer({
+          id: 'l2',
+          name: 'L2',
+          operation: 'cut',
+          order_index: 1,
+          color_tag: '#00ff00',
+        }),
+        makeLayer({
+          id: 'l3',
+          name: 'L3',
+          operation: 'score',
+          order_index: 2,
+          color_tag: '#0000ff',
+        }),
+      ],
+      objects: [
+        base.objects[0],
+        { ...base.objects[0], id: 'obj2', name: 'Rect2', layer_id: 'l2' },
+      ],
+    };
+    useProjectStore.setState({
+      project,
+      selectedObjectIds: ['obj1', 'obj2'],
+      reassignLayer,
+    });
+
+    render(<PropertiesPanel />);
+    const layerSelect = screen.getByLabelText('Layer') as HTMLSelectElement;
+    expect(layerSelect.value).toBe('__mixed_layer__');
+
+    fireEvent.change(layerSelect, { target: { value: 'l3' } });
+    expect(reassignLayer).toHaveBeenCalledWith(['obj1', 'obj2'], 'l3');
   });
 
   it('routes multi-select visibility through the batch store action', () => {

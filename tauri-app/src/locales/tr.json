@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} nesne seçildi",
       "layer": "Katman",
       "mixed": "Karışık",
+      "layer_assignment_help": "Yalnızca seçili nesneleri taşır; katman ayarları o katmandaki tüm nesneler için ortak kalır.",
       "visible": "Görünür",
       "locked": "Kilitli",
       "boolean_operations": "Boolean İşlemleri",
@@ -1728,6 +1729,7 @@
         "multi": "Çoklu"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Ayarlar bu katmandaki {count} nesneye uygulanır.",
       "frame": "Çerçeve",
       "move_up": "Yukarı taşı",
       "move_down": "Aşağı taşı",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Bu hariç tüm katmanları devre dışı bırak",
         "hide_all_but_this": "Bu hariç tüm katmanları gizle",
         "select_all_on_layer": "Katmandaki her şeyi seç",
+        "move_selection_here": "Seçimi bu katmana taşı",
         "flash_content": "Bu katmandaki içeriği yanıp söndür",
         "copy_settings": "Ayarları kopyala",
         "paste_settings": "Ayarları yapıştır"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Makro çalıştırıldı",
     "framing_started": "Çerçeveleme başlatıldı",
     "framing_started_laser_on": "Lazer açık çerçeveleme başlatıldı",
+    "framing_completed": "Çerçeveleme tamamlandı. Kazımak için Başlat'a basın.",
     "delete_duplicates_needs_dialog": "Yinelenenleri sil bir onay iletişim kutusu gerektirir.",
     "image_mask_requires_closed": "Görüntü maskeleri kapalı vektör şekilleri gerektirir.",
     "warp_requires_selection": "Seçimi eğme, kilidi açık ve vektör uyumlu bir seçim gerektirir.",

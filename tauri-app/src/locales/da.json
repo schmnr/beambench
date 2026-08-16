@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objekter valgt",
       "layer": "Lag",
       "mixed": "Blandet",
+      "layer_assignment_help": "Flytter kun de valgte objekter; lagindstillingerne deles fortsat af alle objekter på laget.",
       "visible": "Synlig",
       "locked": "Låst",
       "boolean_operations": "Booleske operationer",
@@ -1728,6 +1729,7 @@
         "multi": "Flere"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Indstillingerne gælder for {count} objekt(er) på dette lag.",
       "frame": "Ramme",
       "move_up": "Flyt op",
       "move_down": "Flyt ned",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Deaktiver alle lag undtagen dette",
         "hide_all_but_this": "Skjul alle lag undtagen dette",
         "select_all_on_layer": "Vælg alt på laget",
+        "move_selection_here": "Flyt markeringen til dette lag",
         "flash_content": "Blink indhold på dette lag",
         "copy_settings": "Kopiér indstillinger",
         "paste_settings": "Indsæt indstillinger"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Makro udført",
     "framing_started": "Indramning startet",
     "framing_started_laser_on": "Indramning med laser tændt startet",
+    "framing_completed": "Indramning færdig. Tryk på Start for at gravere.",
     "delete_duplicates_needs_dialog": "Slet dubletter kræver en bekræftelsesdialog.",
     "image_mask_requires_closed": "Billedmasker kræver lukkede vektorformer.",
     "warp_requires_selection": "Fordrej markering kræver en oplåst vektorkompatibel markering.",

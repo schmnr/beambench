@@ -651,7 +651,7 @@ impl ServiceContext {
         // During a job, only the streamer may consume controller responses;
         // polling here would steal acknowledgements from its byte accounting.
         if !job_active {
-            session.poll();
+            let _ = session.poll();
         }
         let mut session_entries = session.console_entries(CONSOLE_LOG_CAP);
 

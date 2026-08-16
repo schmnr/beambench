@@ -39,4 +39,19 @@ describe('wrapBackendError', () => {
       'This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.',
     );
   });
+
+  it('keeps internal safety markers out of user-facing warnings', () => {
+    expect(
+      wrapBackendError(
+        '[emergency_stop_unconfirmed] Stop delivery was not confirmed. Use the physical stop.',
+      ),
+    ).toBe(
+      'Operation failed: Stop delivery was not confirmed. Use the physical stop.',
+    );
+    expect(
+      wrapBackendError(
+        '[controller_connection_lost] Automatic controller rechecks failed.',
+      ),
+    ).toBe('Operation failed: Automatic controller rechecks failed.');
+  });
 });

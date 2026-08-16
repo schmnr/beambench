@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} Objekte ausgewählt",
       "layer": "Ebene",
       "mixed": "Gemischt",
+      "layer_assignment_help": "Verschiebt nur die ausgewählten Objekte; die Ebeneneinstellungen gelten weiterhin gemeinsam für alle Objekte auf dieser Ebene.",
       "visible": "Sichtbar",
       "locked": "Gesperrt",
       "boolean_operations": "Boolesche Operationen",
@@ -1728,6 +1729,7 @@
         "multi": "Mehrfach"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Die Einstellungen gelten für {count} Objekt(e) auf dieser Ebene.",
       "frame": "Rahmen",
       "move_up": "Nach oben",
       "move_down": "Nach unten",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Alle Ebenen außer dieser deaktivieren",
         "hide_all_but_this": "Alle Ebenen außer dieser ausblenden",
         "select_all_on_layer": "Alle auf Ebene auswählen",
+        "move_selection_here": "Auswahl auf diese Ebene verschieben",
         "flash_content": "Inhalt auf dieser Ebene kurz hervorheben",
         "copy_settings": "Einstellungen kopieren",
         "paste_settings": "Einstellungen einfügen"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Makro ausgeführt",
     "framing_started": "Rahmenfahrt gestartet",
     "framing_started_laser_on": "Rahmenfahrt mit Laser gestartet",
+    "framing_completed": "Rahmenfahrt abgeschlossen. Drücke Start, um zu gravieren.",
     "delete_duplicates_needs_dialog": "Duplikate löschen erfordert einen Bestätigungsdialog.",
     "image_mask_requires_closed": "Bildmasken erfordern geschlossene Vektorformen.",
     "warp_requires_selection": "Auswahl verzerren erfordert eine entsperrte, vektorkompatible Auswahl.",

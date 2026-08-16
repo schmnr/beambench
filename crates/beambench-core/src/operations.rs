@@ -1386,6 +1386,8 @@ mod tests {
         // Move only one to layer_b
         reassign_layer(&mut project, &[id1], lid_b);
 
+        assert_eq!(project.objects[0].layer_id, lid_b);
+        assert_eq!(project.objects[1].layer_id, lid_a);
         // layer_a still has obj2, so both layers remain
         assert_eq!(project.layers.len(), 2);
     }

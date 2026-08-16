@@ -1647,6 +1647,7 @@
       "objects_selected": "{count} objects selected",
       "layer": "Layer",
       "mixed": "Mixed",
+      "layer_assignment_help": "Moves only the selected object(s); layer settings remain shared by every object on that layer.",
       "visible": "Visible",
       "locked": "Locked",
       "boolean_operations": "Boolean Operations",
@@ -1874,6 +1875,7 @@
         "multi": "Multi"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Settings apply to {count} object(s) on this layer.",
       "frame": "Frame",
       "move_up": "Move up",
       "move_down": "Move down",
@@ -1905,6 +1907,7 @@
         "disable_all_but_this": "Disable all layers but this one",
         "hide_all_but_this": "Hide all layers but this one",
         "select_all_on_layer": "Select All on Layer",
+        "move_selection_here": "Move Selection to This Layer",
         "flash_content": "Flash content on this layer",
         "copy_settings": "Copy Settings",
         "paste_settings": "Paste Settings"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Macro executed",
     "framing_started": "Framing started",
     "framing_started_laser_on": "Laser-on framing started",
+    "framing_completed": "Framing complete. Press Start to engrave.",
     "delete_duplicates_needs_dialog": "Delete Duplicates requires a confirmation dialog.",
     "image_mask_requires_closed": "Image masks require closed vector shapes.",
     "warp_requires_selection": "Warp Selection requires an unlocked vector-compatible selection.",
@@ -2553,7 +2557,7 @@
     "workspace_edge_right": "right",
     "workspace_edge_top": "top",
     "workspace_edge_bottom": "bottom",
-    "artwork_outside_workspace": "{hasObject, select, yes {“{object}” extends {amount} {unit} beyond the {edge} edge of the workspace. It has been selected. Move it inside the workspace before previewing or running the job.} other {Part of your artwork extends {amount} {unit} beyond the {edge} edge of the workspace. Move it inside the workspace before previewing or running the job.}}",
+    "artwork_outside_workspace": "{hasObject, select, yes {The planned position of “{object}” extends {amount} {unit} beyond the {edge} edge of the workspace. It has been selected. Adjust the job placement or move the object inside the workspace before previewing or running the job.} other {The planned job position extends {amount} {unit} beyond the {edge} edge of the workspace. Adjust the job placement before previewing or running the job.}}",
     "ui_error_title": "Beam Bench hit a UI error",
     "reload": "Reload"
   },

@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objektum kijelölve",
       "layer": "Réteg",
       "mixed": "Vegyes",
+      "layer_assignment_help": "Csak a kijelölt objektumokat helyezi át; a réteg beállításai továbbra is a réteg minden objektumára vonatkoznak.",
       "visible": "Látható",
       "locked": "Zárolt",
       "boolean_operations": "Boole-műveletek",
@@ -1728,6 +1729,7 @@
         "multi": "Több"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "A beállítások a réteg {count} objektumára vonatkoznak.",
       "frame": "Keret",
       "move_up": "Mozgatás fel",
       "move_down": "Mozgatás le",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Minden réteg letiltása ezen kívül",
         "hide_all_but_this": "Minden réteg elrejtése ezen kívül",
         "select_all_on_layer": "Összes kijelölése a rétegen",
+        "move_selection_here": "Kijelölés áthelyezése erre a rétegre",
         "flash_content": "Réteg tartalmának felvillantása",
         "copy_settings": "Beállítások másolása",
         "paste_settings": "Beállítások beillesztése"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Makró végrehajtva",
     "framing_started": "Keretezés elindítva",
     "framing_started_laser_on": "Keretezés bekapcsolt lézerrel elindítva",
+    "framing_completed": "A keretezés kész. A gravírozáshoz nyomja meg az Indítás gombot.",
     "delete_duplicates_needs_dialog": "A másolatok törléséhez megerősítő párbeszédpanel szükséges.",
     "image_mask_requires_closed": "A képmaszkokhoz zárt vektoralakzatok szükségesek.",
     "warp_requires_selection": "A kijelölés torzításához feloldott, vektorkompatibilis kijelölés szükséges.",

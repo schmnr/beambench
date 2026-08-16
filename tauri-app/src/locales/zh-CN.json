@@ -1501,6 +1501,7 @@
       "objects_selected": "已选择 {count} 个对象",
       "layer": "图层",
       "mixed": "混合",
+      "layer_assignment_help": "仅移动所选对象；图层设置仍由该图层上的所有对象共享。",
       "visible": "可见",
       "locked": "已锁定",
       "boolean_operations": "布尔运算",
@@ -1728,6 +1729,7 @@
         "multi": "多个"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "设置应用于此图层上的 {count} 个对象。",
       "frame": "框选",
       "move_up": "上移",
       "move_down": "下移",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "禁用除该图层外的所有图层",
         "hide_all_but_this": "隐藏除该图层外的所有图层",
         "select_all_on_layer": "选择图层上的全部内容",
+        "move_selection_here": "将所选对象移到此图层",
         "flash_content": "闪烁显示此图层内容",
         "copy_settings": "复制设置",
         "paste_settings": "粘贴设置"
@@ -2443,6 +2446,7 @@
     "macro_executed": "宏已执行",
     "framing_started": "已开始走边框",
     "framing_started_laser_on": "已开始激光开启走边框",
+    "framing_completed": "走边框已完成。按“开始”进行雕刻。",
     "delete_duplicates_needs_dialog": "删除重复项需要确认对话框。",
     "image_mask_requires_closed": "图像蒙版需要闭合的矢量形状。",
     "warp_requires_selection": "扭曲选区需要未锁定且与矢量兼容的选区。",

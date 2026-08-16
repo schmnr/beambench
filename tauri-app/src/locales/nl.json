@@ -1501,6 +1501,7 @@
       "objects_selected": "{count} objecten geselecteerd",
       "layer": "Laag",
       "mixed": "Gemengd",
+      "layer_assignment_help": "Verplaatst alleen de geselecteerde objecten; laaginstellingen blijven gedeeld door alle objecten op die laag.",
       "visible": "Zichtbaar",
       "locked": "Vergrendeld",
       "boolean_operations": "Booleaanse bewerkingen",
@@ -1728,6 +1729,7 @@
         "multi": "Meervoudig"
       },
       "additional_entries": " (+{count})",
+      "settings_scope": "Instellingen gelden voor {count} object(en) op deze laag.",
       "frame": "Frame",
       "move_up": "Omhoog",
       "move_down": "Omlaag",
@@ -1759,6 +1761,7 @@
         "disable_all_but_this": "Alle lagen behalve deze uitschakelen",
         "hide_all_but_this": "Alle lagen behalve deze verbergen",
         "select_all_on_layer": "Alles op laag selecteren",
+        "move_selection_here": "Selectie naar deze laag verplaatsen",
         "flash_content": "Inhoud op deze laag laten knipperen",
         "copy_settings": "Instellingen kopiëren",
         "paste_settings": "Instellingen plakken"
@@ -2443,6 +2446,7 @@
     "macro_executed": "Macro uitgevoerd",
     "framing_started": "Kaderen gestart",
     "framing_started_laser_on": "Kaderen met laser aan gestart",
+    "framing_completed": "Kaderen voltooid. Druk op Start om te graveren.",
     "delete_duplicates_needs_dialog": "Duplicaten verwijderen vereist een bevestigingsvenster.",
     "image_mask_requires_closed": "Afbeeldingsmaskers vereisen gesloten vectorvormen.",
     "warp_requires_selection": "Selectie vervormen vereist een ontgrendelde, vectorcompatibele selectie.",

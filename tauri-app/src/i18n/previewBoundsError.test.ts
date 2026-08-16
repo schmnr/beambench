@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeProject } from '../test-utils/projectFixtures';
+import { makeLayer, makeProject, makeProjectObject } from '../test-utils/projectFixtures';
 import { formatWorkspaceBoundsError } from './previewBoundsError';
 
 describe('formatWorkspaceBoundsError', () => {
@@ -42,5 +42,28 @@ describe('formatWorkspaceBoundsError', () => {
 
     expect(result?.message).toContain('1 in');
     expect(result?.message).not.toContain('25.4 mm');
+  });
+
+  it('selects the only visible output object when raster details omit a source id', () => {
+    const layer = makeLayer({ id: 'image-layer', operation: 'image' });
+    const object = makeProjectObject({
+      id: 'bitmap-1',
+      layer_id: layer.id,
+      data: {
+        type: 'raster_image',
+        asset_key: 'asset-1',
+        original_width_px: 100,
+        original_height_px: 100,
+      },
+    });
+    const result = formatWorkspaceBoundsError({
+      details: {
+        kind: 'bounds_exceeded',
+        violation: { axis: 'y', boundary: 'min', amount_mm: 127.2 },
+      },
+    }, makeProject({ layers: [layer], objects: [object] }));
+
+    expect(result?.sourceObjectId).toBe('bitmap-1');
+    expect(result?.message).toContain('planned position');
   });
 });
