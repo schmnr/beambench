@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.2.4
+
+- Added a direct Layer control for the current selection and a Move Selection
+  action on layer tabs. Moving one selected object now leaves every unselected
+  object on its existing layer, while layer settings remain shared by the
+  objects that belong to that layer.
+- Added automatic controller health rechecks before declaring an idle
+  connection lost. GRBL emergency stops can reopen a failed transport once to
+  resend and confirm the reset, and an unconfirmed stop now disconnects stale
+  state and gives explicit physical-stop guidance.
+- Bounds recovery can switch an affected project to Absolute Coordinates and
+  automatically recheck the preview instead of leaving the user at a dead end.
 - Added an ACMER S2 machine preset and made Generic GRBL replace its placeholder
   workspace with controller-reported `$130/$131` travel on connection.
 - Framing now checks full planned motion against the active machine profile, so
