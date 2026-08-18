@@ -591,6 +591,12 @@ pub fn apply_workspace_origin_transform(
                             for scanline in scanlines.iter_mut() {
                                 scanline.y_mm = bed_height_mm - scanline.y_mm;
                             }
+                            // Source images are generated top row first. After
+                            // a bottom-left workspace flip, execute the lowest
+                            // physical row first so the raster begins at the
+                            // machine's near/bottom side without mirroring the
+                            // image itself.
+                            scanlines.reverse();
                         }
                         crate::plan::ScanAxis::Vertical => {
                             for scanline in scanlines.iter_mut() {

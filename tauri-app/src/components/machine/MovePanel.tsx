@@ -31,9 +31,27 @@ import { NumberInput } from '../shared/NumberInput';
 import { StatusDisplay } from './StatusDisplay';
 import { OverrideControls } from './OverrideControls';
 import { moveLaserToSelection } from '../../commands/arrangeActions';
-import { wrapBackendError } from '../../i18n/errors';
-import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
-import { speedInputValue, displaySpeedToMmMin, speedStepForUnit, speedUnitLabel, formatSpeedForDisplay } from '../../utils/speedUnits';
+import {
+  backendErrorMessage,
+  backendErrorReportContext,
+  wrapBackendError,
+} from '../../i18n/errors';
+import type { FeedbackSourceContext } from '../../types/feedback';
+import {
+  mmToDisplay,
+  displayToMm,
+  roundDisplayLength,
+  lengthStep,
+  lengthUnitLabel,
+  labelWithUnit,
+} from '../../utils/lengthUnits';
+import {
+  speedInputValue,
+  displaySpeedToMmMin,
+  speedStepForUnit,
+  speedUnitLabel,
+  formatSpeedForDisplay,
+} from '../../utils/speedUnits';
 import { useAppStore } from '../../stores/appStore';
 import { usePanelHost } from '../../panels';
 
@@ -72,7 +90,9 @@ function positionText(
 }
 
 function isJobActive(state: string | undefined) {
-  return state === 'preparing' || state === 'ready_to_run' || state === 'running' || state === 'paused';
+  return (
+    state === 'preparing' || state === 'ready_to_run' || state === 'running' || state === 'paused'
+  );
 }
 
 function connectionDotClass(connected: boolean, readyIdle: boolean) {
@@ -118,7 +138,8 @@ export function MovePanel(): React.ReactElement {
   const stepSizes = displayUnit === 'inches' ? STEP_SIZES_IN : STEP_SIZES;
 
   const profileList = Array.isArray(profiles) ? profiles : [];
-  const activeProfile = profileList.find((profile) => profile.id === activeProfileId) ?? profileList[0];
+  const activeProfile =
+    profileList.find((profile) => profile.id === activeProfileId) ?? profileList[0];
   const isRuidaProfile = activeProfile?.firmware_type.trim().toLowerCase() === 'ruida';
   const supportsZ = !isRuidaProfile && activeProfile?.supports_z_moves === true;
   const ruidaTableAxis = activeProfile?.ruida_table_axis ?? 'disabled';
@@ -158,19 +179,78 @@ export function MovePanel(): React.ReactElement {
   const savedPositionList = Array.isArray(savedPositions) ? savedPositions : [];
   const hiddenSavedPositionCount = Math.max(0, savedPositionList.length - 4);
   const [fireHeld, setFireHeld] = useState(false);
+  const [finiteJogPending, setFiniteJogPending] = useState(false);
 
   const holdTimerRef = useRef<number | null>(null);
   const pendingJogRef = useRef<JogVector | null>(null);
   const continuousJogActiveRef = useRef(false);
   const finiteJogOnlyRef = useRef(false);
+  const finiteJogPendingRef = useRef(false);
   const fireTokenRef = useRef<string | null>(null);
   const fireStartPendingRef = useRef(false);
   const fireReleasePendingRef = useRef(false);
   const fireKeepaliveRef = useRef<number | null>(null);
 
-  const notifyError = useCallback((error: unknown) => {
-    useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
-  }, []);
+  const notifyError = useCallback(
+    (error: unknown, feedbackContext?: Partial<FeedbackSourceContext>) => {
+      useNotificationStore.getState().push(wrapBackendError(backendErrorMessage(error)), 'error', {
+        feedbackContext: {
+          ...feedbackContext,
+          ...backendErrorReportContext(error),
+        },
+      });
+    },
+    [],
+  );
+
+  const recheckFiniteJog = useCallback(async () => {
+    const deadline = Date.now() + 2_000;
+    let consecutiveIdle = 0;
+    do {
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+      await refreshStatus();
+      await refreshSessionState();
+      const runState = useMachineStore.getState().machineStatus?.run_state;
+      if (runState === 'idle') {
+        consecutiveIdle += 1;
+        if (consecutiveIdle >= 2) return;
+      } else if (runState === 'jog') {
+        consecutiveIdle = 0;
+      } else {
+        return;
+      }
+    } while (Date.now() < deadline);
+  }, [refreshSessionState, refreshStatus]);
+
+  const runFiniteJog = useCallback(
+    async (vector: JogVector) => {
+      if (finiteJogPendingRef.current) return;
+      finiteJogPendingRef.current = true;
+      setFiniteJogPending(true);
+      const xMm = vector.x * jogDistance;
+      const yMm = vector.y * jogDistance;
+      try {
+        await machineService.jog(xMm, yMm, moveFeedRate);
+        await recheckFiniteJog();
+      } catch (error) {
+        notifyError(error, {
+          action: 'jog',
+          feature: 'jog',
+          jog_request: {
+            x_mm: xMm,
+            y_mm: yMm,
+            z_mm: null,
+            feed_rate_mm_min: moveFeedRate,
+            continuous: false,
+          },
+        });
+      } finally {
+        finiteJogPendingRef.current = false;
+        setFiniteJogPending(false);
+      }
+    },
+    [jogDistance, moveFeedRate, notifyError, recheckFiniteJog],
+  );
 
   const reloadSavedPositions = useCallback(async () => {
     try {
@@ -221,13 +301,7 @@ export function MovePanel(): React.ReactElement {
     if (finiteJogOnlyRef.current) {
       finiteJogOnlyRef.current = false;
       if (pending && readyIdle) {
-        try {
-          await machineService.jog(pending.x * jogDistance, pending.y * jogDistance, moveFeedRate);
-          await refreshStatus();
-          await refreshSessionState();
-        } catch (error) {
-          notifyError(error);
-        }
+        await runFiniteJog(pending);
       }
       return;
     }
@@ -235,13 +309,7 @@ export function MovePanel(): React.ReactElement {
       window.clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
       if (pending && readyIdle) {
-        try {
-          await machineService.jog(pending.x * jogDistance, pending.y * jogDistance, moveFeedRate);
-          await refreshStatus();
-          await refreshSessionState();
-        } catch (error) {
-          notifyError(error);
-        }
+        await runFiniteJog(pending);
       }
       return;
     }
@@ -255,7 +323,7 @@ export function MovePanel(): React.ReactElement {
         notifyError(error);
       }
     }
-  }, [jogDistance, moveFeedRate, notifyError, readyIdle, refreshSessionState, refreshStatus]);
+  }, [notifyError, readyIdle, refreshSessionState, refreshStatus, runFiniteJog]);
 
   useEffect(() => {
     const handleWindowBlur = () => {
@@ -312,7 +380,7 @@ export function MovePanel(): React.ReactElement {
   };
 
   const startJogPointer = (event: PointerEvent<HTMLButtonElement>, vector: JogVector) => {
-    if (!jogSupported || !readyIdle) return;
+    if (!jogSupported || !readyIdle || finiteJogPendingRef.current) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     pendingJogRef.current = vector;
     if (!continuousJogSupported) {
@@ -332,7 +400,17 @@ export function MovePanel(): React.ReactElement {
         )
         .catch((error) => {
           continuousJogActiveRef.current = false;
-          notifyError(error);
+          notifyError(error, {
+            action: 'jog',
+            feature: 'jog',
+            jog_request: {
+              x_mm: vector.x * CONTINUOUS_JOG_DISTANCE_MM,
+              y_mm: vector.y * CONTINUOUS_JOG_DISTANCE_MM,
+              z_mm: null,
+              feed_rate_mm_min: moveFeedRate,
+              continuous: true,
+            },
+          });
         });
     }, HOLD_DELAY_MS);
   };
@@ -378,7 +456,9 @@ export function MovePanel(): React.ReactElement {
     try {
       await machineService.moveLaserToMachine(0, 0, moveFeedRate, supportsZ ? 0 : null);
       await refreshStatus();
-      useNotificationStore.getState().push(t('panels.move.notifications.moving_to_machine_zero'), 'info');
+      useNotificationStore
+        .getState()
+        .push(t('panels.move.notifications.moving_to_machine_zero'), 'info');
     } catch (error) {
       notifyError(error);
     }
@@ -396,9 +476,16 @@ export function MovePanel(): React.ReactElement {
   const handleSaveCurrent = async () => {
     const pos = workPosition;
     if (!pos) return;
-    const name = positionName.trim() || t('panels.move.default_position_name', { index: savedPositionList.length + 1 });
+    const name =
+      positionName.trim() ||
+      t('panels.move.default_position_name', { index: savedPositionList.length + 1 });
     try {
-      const updated = await machineService.savePosition(name, pos.x, pos.y, supportsZ ? pos.z : null);
+      const updated = await machineService.savePosition(
+        name,
+        pos.x,
+        pos.y,
+        supportsZ ? pos.z : null,
+      );
       setSavedPositions(Array.isArray(updated) ? updated : []);
       setSaveModalOpen(false);
       setPositionName('');
@@ -418,9 +505,16 @@ export function MovePanel(): React.ReactElement {
 
   const handleGoSaved = async (position: SavedPosition) => {
     try {
-      await machineService.moveLaserTo(position.x, position.y, moveFeedRate, supportsZ ? position.z ?? null : null);
+      await machineService.moveLaserTo(
+        position.x,
+        position.y,
+        moveFeedRate,
+        supportsZ ? (position.z ?? null) : null,
+      );
       await refreshStatus();
-      useNotificationStore.getState().push(t('panels.move.notifications.moving_to_position', { name: position.name }), 'info');
+      useNotificationStore
+        .getState()
+        .push(t('panels.move.notifications.moving_to_position', { name: position.name }), 'info');
     } catch (error) {
       notifyError(error);
     }
@@ -432,7 +526,9 @@ export function MovePanel(): React.ReactElement {
     try {
       await machineService.moveLaserTo(origin[0], origin[1], moveFeedRate);
       await refreshStatus();
-      useNotificationStore.getState().push(t('panels.move.notifications.moving_to_user_origin'), 'info');
+      useNotificationStore
+        .getState()
+        .push(t('panels.move.notifications.moving_to_user_origin'), 'info');
     } catch (error) {
       notifyError(error);
     }
@@ -443,7 +539,9 @@ export function MovePanel(): React.ReactElement {
     if (!pos || !project) return;
     try {
       await setOptimization({ finish_position: 'custom_xy', finish_x: pos.x, finish_y: pos.y });
-      useNotificationStore.getState().push(t('panels.move.notifications.finish_position_set'), 'success');
+      useNotificationStore
+        .getState()
+        .push(t('panels.move.notifications.finish_position_set'), 'success');
     } catch (error) {
       notifyError(error);
     }
@@ -456,7 +554,9 @@ export function MovePanel(): React.ReactElement {
     fireReleasePendingRef.current = false;
     setFireHeld(true);
     try {
-      const result = await machineService.laserFireStart(activeProfile?.default_fire_power_percent ?? 1);
+      const result = await machineService.laserFireStart(
+        activeProfile?.default_fire_power_percent ?? 1,
+      );
       fireStartPendingRef.current = false;
       if (fireReleasePendingRef.current) {
         fireReleasePendingRef.current = false;
@@ -465,14 +565,17 @@ export function MovePanel(): React.ReactElement {
         return;
       }
       fireTokenRef.current = result.token;
-      fireKeepaliveRef.current = window.setInterval(() => {
-        const token = fireTokenRef.current;
-        if (!token) return;
-        void machineService.laserFireKeepalive(token).catch((error) => {
-          void stopFire();
-          notifyError(error);
-        });
-      }, Math.max(100, result.keepalive_interval_ms));
+      fireKeepaliveRef.current = window.setInterval(
+        () => {
+          const token = fireTokenRef.current;
+          if (!token) return;
+          void machineService.laserFireKeepalive(token).catch((error) => {
+            void stopFire();
+            notifyError(error);
+          });
+        },
+        Math.max(100, result.keepalive_interval_ms),
+      );
     } catch (error) {
       fireStartPendingRef.current = false;
       setFireHeld(false);
@@ -481,28 +584,78 @@ export function MovePanel(): React.ReactElement {
   };
 
   const jogButtons: Array<{ key: string; title: string; vector: JogVector; icon: ReactNode }> = [
-    { key: 'nw', title: t('panels.machine.jog.northwest'), vector: { x: -1, y: 1 }, icon: <ArrowUpLeft size={16} /> },
-    { key: 'n', title: t('panels.machine.jog.up'), vector: { x: 0, y: 1 }, icon: <ArrowUp size={16} /> },
-    { key: 'ne', title: t('panels.machine.jog.northeast'), vector: { x: 1, y: 1 }, icon: <ArrowUpRight size={16} /> },
-    { key: 'w', title: t('panels.machine.jog.left'), vector: { x: -1, y: 0 }, icon: <ArrowLeft size={16} /> },
+    {
+      key: 'nw',
+      title: t('panels.machine.jog.northwest'),
+      vector: { x: -1, y: 1 },
+      icon: <ArrowUpLeft size={16} />,
+    },
+    {
+      key: 'n',
+      title: t('panels.machine.jog.up'),
+      vector: { x: 0, y: 1 },
+      icon: <ArrowUp size={16} />,
+    },
+    {
+      key: 'ne',
+      title: t('panels.machine.jog.northeast'),
+      vector: { x: 1, y: 1 },
+      icon: <ArrowUpRight size={16} />,
+    },
+    {
+      key: 'w',
+      title: t('panels.machine.jog.left'),
+      vector: { x: -1, y: 0 },
+      icon: <ArrowLeft size={16} />,
+    },
     { key: 'center', title: '', vector: { x: 0, y: 0 }, icon: <Crosshair size={15} /> },
-    { key: 'e', title: t('panels.machine.jog.right'), vector: { x: 1, y: 0 }, icon: <ArrowRight size={16} /> },
-    { key: 'sw', title: t('panels.machine.jog.southwest'), vector: { x: -1, y: -1 }, icon: <ArrowDownLeft size={16} /> },
-    { key: 's', title: t('panels.machine.jog.down'), vector: { x: 0, y: -1 }, icon: <ArrowDown size={16} /> },
-    { key: 'se', title: t('panels.machine.jog.southeast'), vector: { x: 1, y: -1 }, icon: <ArrowDownRight size={16} /> },
+    {
+      key: 'e',
+      title: t('panels.machine.jog.right'),
+      vector: { x: 1, y: 0 },
+      icon: <ArrowRight size={16} />,
+    },
+    {
+      key: 'sw',
+      title: t('panels.machine.jog.southwest'),
+      vector: { x: -1, y: -1 },
+      icon: <ArrowDownLeft size={16} />,
+    },
+    {
+      key: 's',
+      title: t('panels.machine.jog.down'),
+      vector: { x: 0, y: -1 },
+      icon: <ArrowDown size={16} />,
+    },
+    {
+      key: 'se',
+      title: t('panels.machine.jog.southeast'),
+      vector: { x: 1, y: -1 },
+      icon: <ArrowDownRight size={16} />,
+    },
   ];
 
   return (
-    <div className={orientation === 'wide'
-      ? 'bb-bottom-move text-xs text-bb-text'
-      : 'space-y-3.5 px-3 pb-3 text-xs text-bb-text'}>
+    <div
+      className={
+        orientation === 'wide'
+          ? 'bb-bottom-move text-xs text-bb-text'
+          : 'space-y-3.5 px-3 pb-3 text-xs text-bb-text'
+      }
+    >
       <div className="space-y-2" data-bottom-section="position">
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className={SECTION_HEADER}>{t('panels.move.machine_positioning')}</div>
             <div className="mt-1 flex items-center gap-1.5 text-bb-text-muted">
-              <span className={`h-2 w-2 rounded-full ${connectionDotClass(connected, readyIdle)}`} />
-              <span>{connected ? t('panels.move.status_connected') : t('panels.move.status_disconnected')}</span>
+              <span
+                className={`h-2 w-2 rounded-full ${connectionDotClass(connected, readyIdle)}`}
+              />
+              <span>
+                {connected
+                  ? t('panels.move.status_connected')
+                  : t('panels.move.status_disconnected')}
+              </span>
             </div>
           </div>
           <div className="flex flex-wrap justify-end gap-1">
@@ -518,7 +671,11 @@ export function MovePanel(): React.ReactElement {
               <Home size={14} />
               {t('panels.machine.jog.home')}
             </button>
-            <button className={BTN} onClick={() => void unlock()} disabled={!unlockSupported || !alarmLocked}>
+            <button
+              className={BTN}
+              onClick={() => void unlock()}
+              disabled={!unlockSupported || !alarmLocked}
+            >
               <RotateCcw size={14} />
               {t('panels.machine.jog.unlock')}
             </button>
@@ -526,7 +683,9 @@ export function MovePanel(): React.ReactElement {
         </div>
         <div
           className={`grid gap-1 rounded border border-bb-border bg-bb-bg px-2 py-1.5 font-mono text-[11px] tabular-nums ${supportsZ ? 'grid-cols-3' : 'grid-cols-2'}`}
-          aria-label={t('panels.move.current_position', { position: positionText(workPosition, supportsZ, displayUnit) })}
+          aria-label={t('panels.move.current_position', {
+            position: positionText(workPosition, supportsZ, displayUnit),
+          })}
         >
           <div className="min-w-0">
             <span className="mr-1 text-bb-text-dim">X</span>
@@ -563,10 +722,16 @@ export function MovePanel(): React.ReactElement {
       <div className={SECTION} data-bottom-section="feed">
         <div className="flex items-center justify-between">
           <span className={SECTION_HEADER}>{t('panels.move.feed_rate')}</span>
-          <span className="text-bb-text-muted">{formatSpeedForDisplay(moveFeedRate, displayUnit, speedTimeUnit)} {speedUnitLabel(displayUnit, speedTimeUnit)}</span>
+          <span className="text-bb-text-muted">
+            {formatSpeedForDisplay(moveFeedRate, displayUnit, speedTimeUnit)}{' '}
+            {speedUnitLabel(displayUnit, speedTimeUnit)}
+          </span>
         </div>
         <NumberInput
-          label={labelWithUnit(t('panels.move.feed_mm_min'), speedUnitLabel(displayUnit, speedTimeUnit))}
+          label={labelWithUnit(
+            t('panels.move.feed_mm_min'),
+            speedUnitLabel(displayUnit, speedTimeUnit),
+          )}
           value={speedInputValue(moveFeedRate, displayUnit, speedTimeUnit)}
           onChange={(v) => setMoveFeedRate(displaySpeedToMmMin(v, displayUnit, speedTimeUnit))}
           min={speedInputValue(1, displayUnit, speedTimeUnit)}
@@ -600,21 +765,35 @@ export function MovePanel(): React.ReactElement {
           )}
         </div>
         <div className="grid grid-cols-2 gap-1">
-          <button className={`${PRIMARY_BTN} col-span-2`} disabled={!supportsAbsolutePositioning || !readyIdle} onClick={() => void handleGo()} data-testid="goto-button">
+          <button
+            className={`${PRIMARY_BTN} col-span-2`}
+            disabled={!supportsAbsolutePositioning || !readyIdle}
+            onClick={() => void handleGo()}
+            data-testid="goto-button"
+          >
             <Navigation size={14} />
             {t('common.go')}
           </button>
-          <button className={BTN} disabled={!machineZeroReady} onClick={() => void handleGoMachineZero()} data-testid="goto-machine-zero-button">
+          <button
+            className={BTN}
+            disabled={!machineZeroReady}
+            onClick={() => void handleGoMachineZero()}
+            data-testid="goto-machine-zero-button"
+          >
             <MapPin size={14} />
             {t('panels.move.go_machine_zero')}
           </button>
-          <button className={BTN} disabled={!workPosition} onClick={() => {
-            const pos = workPosition;
-            if (!pos) return;
-            setGoX(pos.x);
-            setGoY(pos.y);
-            setGoZ(pos.z ?? 0);
-          }}>
+          <button
+            className={BTN}
+            disabled={!workPosition}
+            onClick={() => {
+              const pos = workPosition;
+              if (!pos) return;
+              setGoX(pos.x);
+              setGoY(pos.y);
+              setGoZ(pos.z ?? 0);
+            }}
+          >
             {t('panels.move.use_current')}
           </button>
           {machineZeroNeedsHome && (
@@ -629,9 +808,12 @@ export function MovePanel(): React.ReactElement {
         <div className={SECTION_HEADER}>{t('panels.move.jog')}</div>
         <div className="flex gap-3">
           <div className="grid grid-cols-3 gap-0.5 rounded bg-bb-bg p-1.5">
-            {jogButtons.map((button) => (
+            {jogButtons.map((button) =>
               button.key === 'center' ? (
-                <div key={button.key} className="flex h-10 w-10 items-center justify-center rounded border border-bb-border bg-bb-bg-alt text-bb-text-muted">
+                <div
+                  key={button.key}
+                  className="flex h-10 w-10 items-center justify-center rounded border border-bb-border bg-bb-bg-alt text-bb-text-muted"
+                >
                   {button.icon}
                 </div>
               ) : (
@@ -639,7 +821,7 @@ export function MovePanel(): React.ReactElement {
                   key={button.key}
                   className={ICON_BTN}
                   title={button.title}
-                  disabled={!jogSupported || !readyIdle}
+                  disabled={!jogSupported || !readyIdle || finiteJogPending}
                   onPointerDown={(event) => startJogPointer(event, button.vector)}
                   onPointerUp={() => void releaseJog()}
                   onPointerCancel={() => void releaseJog()}
@@ -647,17 +829,24 @@ export function MovePanel(): React.ReactElement {
                 >
                   {button.icon}
                 </button>
-              )
-            ))}
+              ),
+            )}
           </div>
           <div className="min-w-0 flex-1 space-y-2">
             <div>
-              <div className="mb-1 text-bb-text-muted">{labelWithUnit(t('panels.machine.jog.step_size_mm'), lengthUnitLabel(displayUnit))}</div>
+              <div className="mb-1 text-bb-text-muted">
+                {labelWithUnit(t('panels.machine.jog.step_size_mm'), lengthUnitLabel(displayUnit))}
+              </div>
               <div className="grid grid-cols-4 gap-1">
                 {stepSizes.map((size) => (
                   <button
                     key={size}
-                    className={roundDisplayLength(mmToDisplay(jogDistance, displayUnit), displayUnit) === size ? PRIMARY_BTN : BTN}
+                    className={
+                      roundDisplayLength(mmToDisplay(jogDistance, displayUnit), displayUnit) ===
+                      size
+                        ? PRIMARY_BTN
+                        : BTN
+                    }
                     onClick={() => setJogDistance(displayToMm(size, displayUnit))}
                   >
                     {size}
@@ -665,7 +854,9 @@ export function MovePanel(): React.ReactElement {
                 ))}
               </div>
             </div>
-            {continuousJogSupported && <div className="text-bb-text-muted">{t('panels.move.hold_to_jog')}</div>}
+            {continuousJogSupported && (
+              <div className="text-bb-text-muted">{t('panels.move.hold_to_jog')}</div>
+            )}
             {supportsRuidaTableJog && (
               <div>
                 <div className="mb-1 text-bb-text-muted">
@@ -674,7 +865,7 @@ export function MovePanel(): React.ReactElement {
                 <div className="grid grid-cols-2 gap-1">
                   <button
                     className={BTN}
-                    disabled={!jogSupported || !readyIdle}
+                    disabled={!jogSupported || !readyIdle || finiteJogPending}
                     onClick={() => void handleRuidaTableJog(-1)}
                     data-testid="ruida-table-jog-negative"
                   >
@@ -683,7 +874,7 @@ export function MovePanel(): React.ReactElement {
                   </button>
                   <button
                     className={BTN}
-                    disabled={!jogSupported || !readyIdle}
+                    disabled={!jogSupported || !readyIdle || finiteJogPending}
                     onClick={() => void handleRuidaTableJog(1)}
                     data-testid="ruida-table-jog-positive"
                   >
@@ -711,11 +902,19 @@ export function MovePanel(): React.ReactElement {
         <div className="flex items-center justify-between">
           <span className={SECTION_HEADER}>{t('panels.move.saved_positions')}</span>
           <div className="flex gap-1">
-            <button className={BTN} disabled={!supportsAbsolutePositioning || !workPosition} onClick={() => setSaveModalOpen(true)}>
+            <button
+              className={BTN}
+              disabled={!supportsAbsolutePositioning || !workPosition}
+              onClick={() => setSaveModalOpen(true)}
+            >
               <Save size={14} />
               {t('panels.move.save_current')}
             </button>
-            <button className={BTN} onClick={() => setManageOpen(true)} disabled={savedPositionList.length === 0}>
+            <button
+              className={BTN}
+              onClick={() => setManageOpen(true)}
+              disabled={savedPositionList.length === 0}
+            >
               {t('panels.move.manage')}
             </button>
           </div>
@@ -732,10 +931,17 @@ export function MovePanel(): React.ReactElement {
                     name: position.name,
                     x: roundDisplayLength(mmToDisplay(position.x, displayUnit), displayUnit),
                     y: roundDisplayLength(mmToDisplay(position.y, displayUnit), displayUnit),
-                    z: position.z == null ? '' : roundDisplayLength(mmToDisplay(position.z, displayUnit), displayUnit),
+                    z:
+                      position.z == null
+                        ? ''
+                        : roundDisplayLength(mmToDisplay(position.z, displayUnit), displayUnit),
                   })}
                 </span>
-                <button className={BTN} disabled={!supportsAbsolutePositioning || !readyIdle} onClick={() => void handleGoSaved(position)}>
+                <button
+                  className={BTN}
+                  disabled={!supportsAbsolutePositioning || !readyIdle}
+                  onClick={() => void handleGoSaved(position)}
+                >
                   {t('common.go')}
                 </button>
               </div>
@@ -752,19 +958,35 @@ export function MovePanel(): React.ReactElement {
       <div className={SECTION} data-bottom-section="origin">
         <div className={SECTION_HEADER}>{t('panels.move.origin_finish')}</div>
         <div className="grid grid-cols-2 gap-1">
-          <button className={BTN} disabled={!supportsAbsolutePositioning || !readyIdle || !hasProject} onClick={() => void setWorkOrigin()}>
+          <button
+            className={BTN}
+            disabled={!supportsAbsolutePositioning || !readyIdle || !hasProject}
+            onClick={() => void setWorkOrigin()}
+          >
             <Crosshair size={14} />
             {t('panels.move.set_user_origin')}
           </button>
-          <button className={BTN} disabled={!supportsAbsolutePositioning || !hasProject || !project?.user_origin} onClick={() => void resetWorkOrigin()}>
+          <button
+            className={BTN}
+            disabled={!supportsAbsolutePositioning || !hasProject || !project?.user_origin}
+            onClick={() => void resetWorkOrigin()}
+          >
             <RotateCcw size={14} />
             {t('panels.move.clear_user_origin')}
           </button>
-          <button className={BTN} disabled={!supportsAbsolutePositioning || !readyIdle || !project?.user_origin} onClick={() => void handleGoOrigin()}>
+          <button
+            className={BTN}
+            disabled={!supportsAbsolutePositioning || !readyIdle || !project?.user_origin}
+            onClick={() => void handleGoOrigin()}
+          >
             <Navigation size={14} />
             {t('panels.move.go_to_user_origin')}
           </button>
-          <button className={BTN} disabled={!supportsAbsolutePositioning || !workPosition || !hasProject} onClick={() => void handleSetFinish()}>
+          <button
+            className={BTN}
+            disabled={!supportsAbsolutePositioning || !workPosition || !hasProject}
+            onClick={() => void handleSetFinish()}
+          >
             <MapPin size={14} />
             {t('panels.move.set_finish_position')}
           </button>
@@ -772,11 +994,17 @@ export function MovePanel(): React.ReactElement {
       </div>
 
       <div className={SECTION} data-bottom-section="selection">
-        <button className={BTN + ' w-full'} disabled={!supportsAbsolutePositioning || !readyIdle || !hasSelection} onClick={() => void handleMoveLaserToSelection()}>
+        <button
+          className={BTN + ' w-full'}
+          disabled={!supportsAbsolutePositioning || !readyIdle || !hasSelection}
+          onClick={() => void handleMoveLaserToSelection()}
+        >
           <LocateFixed size={14} />
           {t('panels.move.laser_to_selection')}
         </button>
-        {!hasProject && <div className="text-bb-text-muted">{t('panels.move.project_actions_disabled')}</div>}
+        {!hasProject && (
+          <div className="text-bb-text-muted">{t('panels.move.project_actions_disabled')}</div>
+        )}
       </div>
 
       {fireEnabled && manualFireSupported && (
@@ -808,7 +1036,11 @@ export function MovePanel(): React.ReactElement {
         <div className="rounded border border-bb-border bg-bb-surface p-2 shadow">
           <div className="mb-2 flex items-center justify-between">
             <span className="font-medium">{t('panels.move.save_position')}</span>
-            <button className="text-bb-text-muted hover:text-bb-text" onClick={() => setSaveModalOpen(false)} title={t('common.close')}>
+            <button
+              className="text-bb-text-muted hover:text-bb-text"
+              onClick={() => setSaveModalOpen(false)}
+              title={t('common.close')}
+            >
               <X size={14} />
             </button>
           </div>
@@ -828,7 +1060,11 @@ export function MovePanel(): React.ReactElement {
         <div className="rounded border border-bb-border bg-bb-surface p-2 shadow">
           <div className="mb-2 flex items-center justify-between">
             <span className="font-medium">{t('panels.move.manage_positions')}</span>
-            <button className="text-bb-text-muted hover:text-bb-text" onClick={() => setManageOpen(false)} title={t('common.close')}>
+            <button
+              className="text-bb-text-muted hover:text-bb-text"
+              onClick={() => setManageOpen(false)}
+              title={t('common.close')}
+            >
               <X size={14} />
             </button>
           </div>
@@ -836,7 +1072,11 @@ export function MovePanel(): React.ReactElement {
             {savedPositionList.map((position) => (
               <div key={position.id} className="flex items-center gap-1">
                 <span className="min-w-0 flex-1 truncate text-bb-text-muted">{position.name}</span>
-                <button className={ICON_BTN + ' h-7 w-7'} onClick={() => void handleDeleteSaved(position.id)} title={t('panels.move.delete_position_title')}>
+                <button
+                  className={ICON_BTN + ' h-7 w-7'}
+                  onClick={() => void handleDeleteSaved(position.id)}
+                  title={t('panels.move.delete_position_title')}
+                >
                   <Trash2 size={13} />
                 </button>
               </div>

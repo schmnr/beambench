@@ -156,6 +156,7 @@ fn build_plan_for_project(
     project: &Project,
     selection_origin_bounds: Option<Bounds>,
 ) -> ServiceResult<ExecutionPlan> {
+    ensure_positioning_ready(ctx, project)?;
     let runtime = ctx
         .optimization_runtime
         .lock()
@@ -189,6 +190,32 @@ fn build_plan_for_project(
             }
             other => ServiceError::invalid_state(format!("Plan generation failed: {other}")),
         })
+}
+
+fn ensure_positioning_ready(ctx: &ServiceContext, project: &Project) -> ServiceResult<()> {
+    match project.start_from {
+        StartFromMode::UserOrigin if project.user_origin.is_none() => Err(
+            ServiceError::invalid_state(
+                "User Origin is selected, but no user origin has been set. Move the laser to the intended origin and choose Set Here before framing or running the job.",
+            )
+            .with_details(json!({ "kind": "user_origin_not_set" })),
+        ),
+        StartFromMode::CurrentPosition => {
+            let runtime = ctx
+                .optimization_runtime
+                .lock()
+                .map_err(|e| lock_err("optimization_runtime", e))?;
+            if runtime.current_position.is_none() {
+                Err(ServiceError::invalid_state(
+                    "Current Position requires a connected machine with a reported work position.",
+                )
+                .with_details(json!({ "kind": "current_position_unavailable" })))
+            } else {
+                Ok(())
+            }
+        }
+        _ => Ok(()),
+    }
 }
 
 pub(crate) fn bounds_exceeded_error(
@@ -288,29 +315,37 @@ pub fn sync_current_position(ctx: &ServiceContext) -> ServiceResult<()> {
         }
     };
 
-    let live_pos = if start_from == StartFromMode::CurrentPosition {
+    let (live_pos, coordinates_trusted) = if start_from == StartFromMode::CurrentPosition {
         let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
         match session_lock.as_ref() {
             Some(MachineSessionHandle::Grbl(session)) => {
                 let status = session.last_status();
-                Some((status.work_position.x, status.work_position.y))
+                (
+                    Some((status.work_position.x, status.work_position.y)),
+                    ctx.machine_coordinates_valid.load(Ordering::Acquire),
+                )
             }
             Some(MachineSessionHandle::Dsp(session)) => {
                 let wp = &session.machine_status.work_position;
-                Some((wp.x, wp.y))
+                (Some((wp.x, wp.y)), true)
             }
-            _ => None,
+            Some(_) => (None, true),
+            None => (None, false),
         }
     } else {
-        None
+        let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        let trusted = !matches!(session_lock.as_ref(), Some(MachineSessionHandle::Grbl(_)))
+            || ctx.machine_coordinates_valid.load(Ordering::Acquire);
+        (None, trusted)
     };
 
     let mut runtime = ctx
         .optimization_runtime
         .lock()
         .map_err(|e| lock_err("optimization_runtime", e))?;
-    if runtime.current_position != live_pos {
+    if runtime.current_position != live_pos || runtime.coordinates_trusted != coordinates_trusted {
         runtime.current_position = live_pos;
+        runtime.coordinates_trusted = coordinates_trusted;
         drop(runtime);
         invalidate_plan_cache(ctx)?;
     }

@@ -1,14 +1,15 @@
 use std::sync::LazyLock;
 
 use crate::console::ConsoleEntry;
-use crate::machine::{JobProgress, MachineRunState, SessionState};
+use crate::geometry::Bounds;
+use crate::machine::{JobProgress, MachinePosition, MachineRunState, SessionState};
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
-pub const FEEDBACK_SCHEMA_VERSION: u32 = 1;
+pub const FEEDBACK_SCHEMA_VERSION: u32 = 2;
 pub const MAX_FEEDBACK_TITLE_CHARS: usize = 200;
 pub const MAX_FEEDBACK_DESCRIPTION_CHARS: usize = 10_000;
 pub const MAX_FEEDBACK_REPLY_TO_EMAIL_CHARS: usize = 320;
@@ -117,6 +118,10 @@ pub struct DiagnosticBundleV1 {
 #[serde(deny_unknown_fields)]
 pub struct DiagnosticTerminalJob {
     pub captured_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub age_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relevant_to_report: Option<bool>,
     pub reason: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub progress: Option<JobProgress>,
@@ -165,7 +170,7 @@ pub enum DiagnosticSessionState {
     Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DiagnosticMachine {
     pub connected: bool,
@@ -198,6 +203,26 @@ pub struct DiagnosticMachine {
     pub emit_s_every_g1: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub use_g0_for_overscan: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bed_width_mm: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bed_height_mm: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_origin: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_speed_mm_min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub controller_travel_x_mm: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub controller_travel_y_mm: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_state: Option<MachineRunState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub machine_position: Option<MachinePosition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub work_position: Option<MachinePosition>,
+    #[serde(default)]
+    pub machine_coordinates_valid: bool,
     pub firmware_version: Option<String>,
     pub baud_rate: Option<u32>,
     pub port_name: Option<String>,
@@ -278,15 +303,66 @@ pub struct DiagnosticPanic {
     pub git_sha: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DiagnosticProjectMetadata {
     pub object_count: usize,
+    #[serde(default)]
+    pub layer_count: usize,
     pub size_bytes: Option<u64>,
     pub has_raster: bool,
     pub has_vector: bool,
     pub has_text: bool,
+    #[serde(default)]
+    pub workspace_width_mm: f64,
+    #[serde(default)]
+    pub workspace_height_mm: f64,
+    #[serde(default)]
+    pub workspace_origin: String,
+    #[serde(default)]
+    pub start_from: String,
+    #[serde(default)]
+    pub job_origin: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_origin: Option<(f64, f64)>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_current_position: Option<(f64, f64)>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement_target: Option<(f64, f64)>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artwork_bounds: Option<Bounds>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_bounds: Option<Bounds>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cached_plan_bounds: Option<Bounds>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub layers: Vec<DiagnosticProjectLayer>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<DiagnosticProjectObject>,
+    /// Retained for schema-v1 compatibility. New reports never include a filename.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiagnosticProjectLayer {
+    pub layer_id: String,
+    pub enabled: bool,
+    pub visible: bool,
+    pub is_tool_layer: bool,
+    pub operations: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiagnosticProjectObject {
+    pub object_id: String,
+    pub object_type: String,
+    pub layer_id: String,
+    pub visible: bool,
+    pub locked: bool,
+    pub bounds: Bounds,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -297,7 +373,7 @@ pub struct KnownIssueWarning {
     pub message: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeedbackSourceContext {
     pub source: String,
@@ -305,6 +381,33 @@ pub struct FeedbackSourceContext {
     pub stack: Option<String>,
     pub feature: Option<String>,
     pub correlation_ts: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_details: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame_laser_on: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_object_count: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selected_bounds: Option<Bounds>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jog_request: Option<DiagnosticJogRequest>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiagnosticJogRequest {
+    pub x_mm: f64,
+    pub y_mm: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub z_mm: Option<f64>,
+    pub feed_rate_mm_min: f64,
+    pub continuous: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -351,7 +454,7 @@ pub struct FeedbackHistoryEntry {
     pub saved_path: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConnectionDiagnosticsSnapshot {
     pub captured_at: String,
@@ -463,6 +566,16 @@ mod tests {
                 use_constant_power: None,
                 emit_s_every_g1: None,
                 use_g0_for_overscan: None,
+                bed_width_mm: None,
+                bed_height_mm: None,
+                workspace_origin: None,
+                max_speed_mm_min: None,
+                controller_travel_x_mm: None,
+                controller_travel_y_mm: None,
+                run_state: None,
+                machine_position: None,
+                work_position: None,
+                machine_coordinates_valid: false,
                 firmware_version: None,
                 baud_rate: None,
                 port_name: None,
@@ -513,6 +626,8 @@ mod tests {
             }],
             terminal_job: Some(DiagnosticTerminalJob {
                 captured_at: "2026-05-14T12:00:01Z".to_owned(),
+                age_ms: Some(0),
+                relevant_to_report: Some(true),
                 reason: "terminal_progress".to_owned(),
                 progress: None,
                 error: Some("job failed".to_owned()),
@@ -524,10 +639,24 @@ mod tests {
             }),
             project_metadata: Some(DiagnosticProjectMetadata {
                 object_count: 1,
+                layer_count: 1,
                 size_bytes: Some(10),
                 has_raster: false,
                 has_vector: true,
                 has_text: false,
+                workspace_width_mm: 400.0,
+                workspace_height_mm: 400.0,
+                workspace_origin: "top_left".to_owned(),
+                start_from: "absolute_coords".to_owned(),
+                job_origin: "top_left".to_owned(),
+                user_origin: None,
+                runtime_current_position: None,
+                placement_target: None,
+                artwork_bounds: None,
+                output_bounds: None,
+                cached_plan_bounds: None,
+                layers: Vec::new(),
+                objects: Vec::new(),
                 project_path: Some("/Users/alice/Documents/project.lzrproj".to_owned()),
             }),
             known_issues: Vec::new(),
@@ -538,6 +667,14 @@ mod tests {
                 stack: None,
                 feature: None,
                 correlation_ts: None,
+                action: None,
+                error_code: None,
+                error_details: None,
+                frame_mode: None,
+                frame_laser_on: None,
+                selected_object_count: None,
+                selected_bounds: None,
+                jog_request: None,
             }),
         }
     }

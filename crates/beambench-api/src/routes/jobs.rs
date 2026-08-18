@@ -42,6 +42,8 @@ struct StartJobBody {
     confirm_motion: bool,
     #[serde(default)]
     confirm_laser_on: bool,
+    #[serde(default)]
+    confirm_advisories: bool,
 }
 
 async fn run_preflight(
@@ -68,7 +70,11 @@ async fn start_job(
     let job_ctx = ctx.clone();
     let job_options = options.options;
     let progress = tokio::task::spawn_blocking(move || {
-        machine::start_job_with_options(&job_ctx, &job_options)
+        machine::start_job_with_options_confirming_advisories(
+            &job_ctx,
+            &job_options,
+            options.confirm_advisories,
+        )
     })
     .await
     .map_err(|error| {

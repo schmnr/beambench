@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { PreviewData } from '../types/preview';
 import { previewService } from '../services/previewService';
 import { useNotificationStore } from './notificationStore';
-import { backendErrorMessage, wrapBackendError } from '../i18n/errors';
+import { backendErrorMessage, backendErrorReportContext, wrapBackendError } from '../i18n/errors';
 import { formatWorkspaceBoundsError } from '../i18n/previewBoundsError';
 import i18n from '../i18n';
 import { sessionJobOptions } from '../types/jobOptions';
@@ -58,9 +58,11 @@ function clearPreviewGenerationRevealTimer(): void {
 }
 
 function isEmptyPlanError(msg: string): boolean {
-  return msg.includes('Cannot build plan from empty project')
-    || msg.includes('Plan generation failed: Cannot build plan from empty project')
-    || msg.includes('EmptyPlan');
+  return (
+    msg.includes('Cannot build plan from empty project') ||
+    msg.includes('Plan generation failed: Cannot build plan from empty project') ||
+    msg.includes('EmptyPlan')
+  );
 }
 
 function isPlanningCancelledError(msg: string): boolean {
@@ -76,8 +78,8 @@ async function hasEstimatedLongOffsetFill(): Promise<boolean> {
   let warned = false;
   for (const layer of project.layers) {
     if (!layer.enabled || layer.is_tool_layer) continue;
-    const objects = project.objects.filter((object) =>
-      object.layer_id === layer.id && object.visible && !object.locked
+    const objects = project.objects.filter(
+      (object) => object.layer_id === layer.id && object.visible && !object.locked,
     );
     if (objects.length === 0) continue;
 
@@ -104,9 +106,9 @@ function schedulePreviewGenerationDialog(requestId: number, epochAtStart: number
     previewGenerationRevealTimer = null;
     const state = usePreviewStore.getState();
     if (
-      requestId === latestRequestId
-      && epochAtStart === previewEpoch
-      && state.state === 'generating'
+      requestId === latestRequestId &&
+      epochAtStart === previewEpoch &&
+      state.state === 'generating'
     ) {
       usePreviewStore.setState({ previewGenerationDialogVisible: true });
     }
@@ -145,12 +147,14 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
       void hasEstimatedLongOffsetFill()
         .then((hasLongOffsetFill) => {
           if (
-            hasLongOffsetFill
-            && requestId === latestRequestId
-            && epochAtStart === previewEpoch
-            && usePreviewStore.getState().state === 'generating'
+            hasLongOffsetFill &&
+            requestId === latestRequestId &&
+            epochAtStart === previewEpoch &&
+            usePreviewStore.getState().state === 'generating'
           ) {
-            usePreviewStore.setState({ previewGenerationDialogTitle: OFFSET_FILL_GENERATION_DIALOG_TITLE });
+            usePreviewStore.setState({
+              previewGenerationDialogTitle: OFFSET_FILL_GENERATION_DIALOG_TITLE,
+            });
           }
         })
         .catch(() => undefined);
@@ -159,7 +163,10 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
         import('./projectStore'),
       ]);
       const data = await previewService.generatePreview(
-        sessionJobOptions(useUiStore.getState().jobOptions, useProjectStore.getState().selectedObjectIds),
+        sessionJobOptions(
+          useUiStore.getState().jobOptions,
+          useProjectStore.getState().selectedObjectIds,
+        ),
       );
       if (requestId !== latestRequestId || epochAtStart !== previewEpoch) {
         return false;
@@ -178,8 +185,9 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
       // Surface plan warnings and failed-entry omissions only when the set changes.
       const messages = [...data.warnings, ...data.failed_entries];
       const sorted = [...messages].sort();
-      const changed = sorted.length !== lastToastedWarnings.length
-        || sorted.some((w, i) => w !== lastToastedWarnings[i]);
+      const changed =
+        sorted.length !== lastToastedWarnings.length ||
+        sorted.some((w, i) => w !== lastToastedWarnings[i]);
       if (changed) {
         lastToastedWarnings = sorted;
         for (const w of data.warnings) {
@@ -247,16 +255,31 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
           previewGenerationDialogTitle: DEFAULT_PREVIEW_GENERATION_DIALOG_TITLE,
         });
         const canUseAbsoluteCoordinates = projectStore.project?.start_from !== 'absolute_coords';
-        useNotificationStore.getState().push(boundsError.message, 'error', canUseAbsoluteCoordinates ? {
-          actionLabel: i18n.t('panels.machine.laser.start_from.absolute_coords'),
-          onAction: () => {
-            void (async () => {
-              await useProjectStore.getState().setStartFrom('absolute_coords');
-              await get().generatePreview();
-            })();
+        useNotificationStore.getState().push(boundsError.message, 'error', {
+          ...(canUseAbsoluteCoordinates
+            ? {
+                actionLabel: i18n.t('panels.machine.laser.start_from.absolute_coords'),
+                onAction: () => {
+                  void (async () => {
+                    await useProjectStore.getState().setStartFrom('absolute_coords');
+                    await get().generatePreview();
+                  })();
+                },
+                autoDismissMs: 12_000,
+              }
+            : {}),
+          feedbackContext: {
+            action: 'preview',
+            feature: 'preview',
+            selected_object_count: boundsError.sourceObjectId ? 1 : 0,
+            selected_bounds: boundsError.sourceObjectId
+              ? (projectStore.project?.objects.find(
+                  (object) => object.id === boundsError.sourceObjectId,
+                )?.bounds ?? null)
+              : null,
+            ...backendErrorReportContext(e),
           },
-          autoDismissMs: 12_000,
-        } : undefined);
+        });
         return false;
       }
       set({
@@ -265,7 +288,13 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
         previewGenerationDialogVisible: false,
         previewGenerationDialogTitle: DEFAULT_PREVIEW_GENERATION_DIALOG_TITLE,
       });
-      useNotificationStore.getState().push(wrapBackendError(msg), 'error');
+      useNotificationStore.getState().push(wrapBackendError(msg), 'error', {
+        feedbackContext: {
+          action: 'preview',
+          feature: 'preview',
+          ...backendErrorReportContext(e),
+        },
+      });
       return false;
     }
   },
@@ -292,12 +321,7 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
   refreshPreview: async () => get().generatePreview(),
 
   invalidate: () => {
-    const {
-      previewWindowOpen,
-      state,
-      interactionActive,
-      lastSuccessfulDurationMs,
-    } = get();
+    const { previewWindowOpen, state, interactionActive, lastSuccessfulDurationMs } = get();
 
     if (state === 'idle' && !previewWindowOpen) return;
 
@@ -306,7 +330,8 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
     const canAutoRefresh =
       visible &&
       !interactionActive &&
-      (lastSuccessfulDurationMs === null || lastSuccessfulDurationMs <= AUTO_REFRESH_MAX_DURATION_MS);
+      (lastSuccessfulDurationMs === null ||
+        lastSuccessfulDurationMs <= AUTO_REFRESH_MAX_DURATION_MS);
 
     set({
       state: 'stale',
@@ -369,11 +394,13 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
     }
     // Generate data if needed — also retry on error
     if (state === 'idle' || state === 'stale' || state === 'error') {
-      void get().generatePreview().then((ready) => {
-        if (ready) {
-          set({ previewWindowOpen: true, showPreview: false });
-        }
-      });
+      void get()
+        .generatePreview()
+        .then((ready) => {
+          if (ready) {
+            set({ previewWindowOpen: true, showPreview: false });
+          }
+        });
     }
   },
 
@@ -385,21 +412,11 @@ export const usePreviewStore = create<PreviewStoreState>((set, get) => ({
   },
 
   setInteractionActive: (active: boolean) => {
-    const {
-      state,
-      previewWindowOpen,
-      pendingInteractionRefresh,
-      lastSuccessfulDurationMs,
-    } = get();
+    const { state, previewWindowOpen, pendingInteractionRefresh, lastSuccessfulDurationMs } = get();
 
     set({ interactionActive: active });
 
-    if (
-      active ||
-      !pendingInteractionRefresh ||
-      state !== 'stale' ||
-      !previewWindowOpen
-    ) {
+    if (active || !pendingInteractionRefresh || state !== 'stale' || !previewWindowOpen) {
       return;
     }
 

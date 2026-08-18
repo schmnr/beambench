@@ -15,6 +15,22 @@ export interface FeedbackSourceContext {
   stack?: string | null;
   feature?: string | null;
   correlation_ts?: string | null;
+  action?: string | null;
+  error_code?: string | null;
+  error_details?: unknown;
+  frame_mode?: string | null;
+  frame_laser_on?: boolean | null;
+  selected_object_count?: number | null;
+  selected_bounds?: DiagnosticBounds | null;
+  jog_request?: DiagnosticJogRequest | null;
+}
+
+export interface DiagnosticJogRequest {
+  x_mm: number;
+  y_mm: number;
+  z_mm?: number | null;
+  feed_rate_mm_min: number;
+  continuous: boolean;
 }
 
 export interface FeedbackReportInput {
@@ -68,6 +84,16 @@ export interface DiagnosticMachine {
   use_constant_power?: boolean | null;
   emit_s_every_g1?: boolean | null;
   use_g0_for_overscan?: boolean | null;
+  bed_width_mm?: number | null;
+  bed_height_mm?: number | null;
+  workspace_origin?: string | null;
+  max_speed_mm_min?: number | null;
+  controller_travel_x_mm?: number | null;
+  controller_travel_y_mm?: number | null;
+  run_state?: MachineRunState | null;
+  machine_position?: { x: number; y: number; z: number } | null;
+  work_position?: { x: number; y: number; z: number } | null;
+  machine_coordinates_valid?: boolean;
   firmware_version?: string | null;
   baud_rate?: number | null;
   port_name?: string | null;
@@ -129,11 +155,53 @@ export interface DiagnosticPanic {
 
 export interface DiagnosticProjectMetadata {
   object_count: number;
+  layer_count?: number;
   size_bytes?: number | null;
   has_raster: boolean;
   has_vector: boolean;
   has_text: boolean;
+  workspace_width_mm?: number;
+  workspace_height_mm?: number;
+  workspace_origin?: string;
+  start_from?: string;
+  job_origin?: string;
+  user_origin?: [number, number] | null;
+  runtime_current_position?: [number, number] | null;
+  placement_target?: [number, number] | null;
+  artwork_bounds?: DiagnosticBounds | null;
+  output_bounds?: DiagnosticBounds | null;
+  cached_plan_bounds?: DiagnosticBounds | null;
+  layers?: DiagnosticProjectLayer[];
+  objects?: DiagnosticProjectObject[];
+  /** Schema-v1 compatibility only. Schema-v2 reports omit filenames. */
   project_path?: string | null;
+}
+
+export interface DiagnosticPoint {
+  x: number;
+  y: number;
+}
+
+export interface DiagnosticBounds {
+  min: DiagnosticPoint;
+  max: DiagnosticPoint;
+}
+
+export interface DiagnosticProjectLayer {
+  layer_id: string;
+  enabled: boolean;
+  visible: boolean;
+  is_tool_layer: boolean;
+  operations: string[];
+}
+
+export interface DiagnosticProjectObject {
+  object_id: string;
+  object_type: string;
+  layer_id: string;
+  visible: boolean;
+  locked: boolean;
+  bounds: DiagnosticBounds;
 }
 
 export interface KnownIssueWarning {
@@ -144,6 +212,8 @@ export interface KnownIssueWarning {
 
 export interface DiagnosticTerminalJob {
   captured_at: string;
+  age_ms?: number | null;
+  relevant_to_report?: boolean | null;
   reason: string;
   progress?: JobProgress | null;
   error?: string | null;

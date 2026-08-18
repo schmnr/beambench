@@ -7,7 +7,14 @@ import { usePreviewStore } from '../../stores/previewStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { wrapBackendError } from '../../i18n/errors';
 import { useAppStore } from '../../stores/appStore';
-import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
+import {
+  mmToDisplay,
+  displayToMm,
+  roundDisplayLength,
+  lengthStep,
+  lengthUnitLabel,
+  labelWithUnit,
+} from '../../utils/lengthUnits';
 import { NumberStepper } from '../shared/NumberStepper';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
 import { JobProgressBar } from './JobProgressBar';
@@ -24,6 +31,7 @@ import type {
 } from '../../types/project';
 import { DEFAULT_PROJECT_OPTIMIZATION } from '../../types/project';
 import { usePanelHost } from '../../panels';
+import { appService } from '../../services/appService';
 
 const PAUSE_ICON = '\u23f8';
 const STOP_ICON = '\u25a0';
@@ -91,6 +99,11 @@ function isExportCancelledError(error: unknown): boolean {
   return error instanceof Error && error.message === 'Export cancelled';
 }
 
+function positioningHelpUrl(language?: string): string {
+  const locale = language?.startsWith('fr') ? 'fr' : 'en';
+  return `https://beambench.com/${locale}/docs/explainers/job-origin-vs-workspace-origin`;
+}
+
 /** Thin label+checkbox row used throughout the optimization popover. */
 function CheckboxRow(props: {
   testId: string;
@@ -102,7 +115,9 @@ function CheckboxRow(props: {
   return (
     <label
       className={`flex items-center gap-1.5 text-xs ${
-        props.disabled ? 'text-bb-text-muted opacity-60 cursor-not-allowed' : 'text-bb-text cursor-pointer'
+        props.disabled
+          ? 'text-bb-text-muted opacity-60 cursor-not-allowed'
+          : 'text-bb-text cursor-pointer'
       }`}
     >
       <input
@@ -119,13 +134,14 @@ function CheckboxRow(props: {
 }
 
 export function LaserPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { orientation } = usePanelHost();
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
   const startInFlightRef = useRef(false);
   const project = useProjectStore((s) => s.project);
   const setStartFrom = useProjectStore((s) => s.setStartFrom);
   const setJobOrigin = useProjectStore((s) => s.setJobOrigin);
+  const updateCutEntry = useProjectStore((s) => s.updateCutEntry);
   const sessionState = useMachineStore((s) => s.sessionState);
   const profiles = useMachineStore((s) => s.profiles) ?? [];
   const activeProfileId = useMachineStore((s) => s.activeProfileId);
@@ -140,6 +156,7 @@ export function LaserPanel() {
   const startJob = useMachineStore((s) => s.startJob);
   const pauseJob = useMachineStore((s) => s.pauseJob);
   const resumeJob = useMachineStore((s) => s.resumeJob);
+  const setWorkOrigin = useMachineStore((s) => s.setWorkOrigin);
 
   const jobOptions = useUiStore((s) => s.jobOptions);
   const updateJobOptions = useUiStore((s) => s.updateJobOptions);
@@ -169,10 +186,14 @@ export function LaserPanel() {
   const [frameShiftArmed, setFrameShiftArmed] = useState(false);
   const [laserFrameRequested, setLaserFrameRequested] = useState(false);
   const [showOptDialog, setShowOptDialog] = useState(false);
-  const [optimizationDraft, setOptimizationDraft] = useState<ProjectOptimization>(projectOptimization);
-  const optimizationSnapshotRef = useRef<ProjectOptimization>(cloneOptimization(projectOptimization));
+  const [optimizationDraft, setOptimizationDraft] =
+    useState<ProjectOptimization>(projectOptimization);
+  const optimizationSnapshotRef = useRef<ProjectOptimization>(
+    cloneOptimization(projectOptimization),
+  );
   const [frameMode, setFrameMode] = useState<'rectangular' | 'rubber_band'>('rectangular');
   const [startInFlight, setStartInFlight] = useState(false);
+  const [preflightActionBusy, setPreflightActionBusy] = useState(false);
 
   // Reset frameConfirm after 3 seconds
   useEffect(() => {
@@ -187,10 +208,9 @@ export function LaserPanel() {
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) => {
-      return target instanceof HTMLElement && (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
+      return (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
       );
     };
     const handleKey = (event: KeyboardEvent) => {
@@ -214,13 +234,22 @@ export function LaserPanel() {
   const isAbsoluteStart = startFrom === 'absolute_coords';
   const isAlarmState = sessionState === 'alarm' || machineStatus?.run_state === 'alarm';
   const effectiveSessionState = isAlarmState ? 'alarm' : sessionState;
-  const hiddenSelectionJobOptionsActive = jobOptions.cut_selected_graphics || jobOptions.use_selection_origin;
+  const hiddenSelectionJobOptionsActive =
+    jobOptions.cut_selected_graphics || jobOptions.use_selection_origin;
 
   const connectionGradient =
-    effectiveSessionState === 'ready' || effectiveSessionState === 'running' || effectiveSessionState === 'paused' ? 'from-green-500 to-green-700'
-    : effectiveSessionState === 'connecting' || effectiveSessionState === 'transport_open' || effectiveSessionState === 'waiting_for_banner' || effectiveSessionState === 'validating' ? 'from-yellow-500 to-yellow-700'
-    : effectiveSessionState === 'alarm' || effectiveSessionState === 'error' ? 'from-red-500 to-red-700'
-    : 'from-gray-500 to-gray-700';
+    effectiveSessionState === 'ready' ||
+    effectiveSessionState === 'running' ||
+    effectiveSessionState === 'paused'
+      ? 'from-green-500 to-green-700'
+      : effectiveSessionState === 'connecting' ||
+          effectiveSessionState === 'transport_open' ||
+          effectiveSessionState === 'waiting_for_banner' ||
+          effectiveSessionState === 'validating'
+        ? 'from-yellow-500 to-yellow-700'
+        : effectiveSessionState === 'alarm' || effectiveSessionState === 'error'
+          ? 'from-red-500 to-red-700'
+          : 'from-gray-500 to-gray-700';
 
   const activeProfile = activeProfileId ? profiles.find((p) => p.id === activeProfileId) : null;
   const profileLaserOnFraming = activeProfile?.laser_on_when_framing ?? false;
@@ -228,24 +257,35 @@ export function LaserPanel() {
     ? frameLaserOnConfirm
     : profileLaserOnFraming || laserFrameRequested || frameShiftArmed;
 
-  const isConnected = sessionState === 'ready' || sessionState === 'running' || sessionState === 'paused' || sessionState === 'alarm';
+  const isConnected =
+    sessionState === 'ready' ||
+    sessionState === 'running' ||
+    sessionState === 'paused' ||
+    sessionState === 'alarm';
   const isIdleState =
     machineStatus?.run_state === 'idle' ||
     (sessionState === 'ready' && (!machineStatus || machineStatus.run_state === 'unknown'));
   const canUseMotionControls = isIdleState && !isAlarmState;
   const hasJob = jobProgress !== null;
+  const positioningReady = startFrom !== 'user_origin' || project?.user_origin != null;
   const isJobActive =
-    jobProgress?.state === 'preparing' || jobProgress?.state === 'running' || jobProgress?.state === 'paused';
+    jobProgress?.state === 'preparing' ||
+    jobProgress?.state === 'running' ||
+    jobProgress?.state === 'paused';
   const canStart =
     sessionState === 'ready' &&
     machineStatus?.run_state === 'idle' &&
     !loading &&
     previewState !== 'generating' &&
-    !startInFlight;
+    !startInFlight &&
+    positioningReady;
+  const canFrame = canUseMotionControls && positioningReady;
   const canPause = jobProgress?.state === 'running';
   const canResume = jobProgress?.state === 'paused';
   const canStop =
-    jobProgress?.state === 'preparing' || jobProgress?.state === 'running' || jobProgress?.state === 'paused';
+    jobProgress?.state === 'preparing' ||
+    jobProgress?.state === 'running' ||
+    jobProgress?.state === 'paused';
 
   useEffect(() => {
     if (hiddenSelectionJobOptionsActive) {
@@ -279,7 +319,9 @@ export function LaserPanel() {
   const handleSaveGcode = async () => {
     try {
       await exportGcode();
-      useNotificationStore.getState().push(t('panels.machine.laser.notifications.gcode_exported'), 'info');
+      useNotificationStore
+        .getState()
+        .push(t('panels.machine.laser.notifications.gcode_exported'), 'info');
     } catch (e) {
       if (isExportCancelledError(e)) return;
       useNotificationStore.getState().push(wrapBackendError(String(e)), 'error');
@@ -314,6 +356,52 @@ export function LaserPanel() {
     }
   };
 
+  const applyRasterRecommendation = async (kind: 'overscan' | 'speed', value: number) => {
+    if (!project) return;
+    setPreflightActionBusy(true);
+    try {
+      for (const layer of project.layers) {
+        if (!layer.enabled || layer.is_tool_layer) continue;
+        for (const entry of layer.entries) {
+          if (!entry.output_enabled) continue;
+          if (
+            kind === 'overscan' &&
+            entry.raster_settings &&
+            entry.raster_settings.overscan_mm < value
+          ) {
+            await updateCutEntry(layer.id, entry.id, {
+              raster_settings: { ...entry.raster_settings, overscan_mm: value },
+            });
+          } else if (kind === 'speed' && entry.speed_mm_min > value) {
+            await updateCutEntry(layer.id, entry.id, { speed_mm_min: value });
+          }
+        }
+      }
+      await generatePreview();
+      await runPreflight();
+    } finally {
+      setPreflightActionBusy(false);
+    }
+  };
+
+  const handleContinueAfterAdvisories = async () => {
+    setPreflightActionBusy(true);
+    try {
+      closePreflightDialog();
+      await startJob(true);
+    } finally {
+      setPreflightActionBusy(false);
+    }
+  };
+
+  const handleApplyRecommendedOverscan = (value: number) => {
+    void applyRasterRecommendation('overscan', value);
+  };
+
+  const handleApplyRecommendedSpeed = (value: number) => {
+    void applyRasterRecommendation('speed', value);
+  };
+
   const updateOptimizationDraft = (patch: Partial<ProjectOptimization>) => {
     setOptimizationDraft((current) => ({ ...current, ...patch }));
   };
@@ -321,7 +409,9 @@ export function LaserPanel() {
   const setDraftOrderKey = (key: OptimizationOrderKey, enabled: boolean) => {
     setOptimizationDraft((current) => {
       const nextKeys = enabled
-        ? ORDER_KEYS.filter((candidate) => candidate === key || current.ordering.includes(candidate))
+        ? ORDER_KEYS.filter(
+            (candidate) => candidate === key || current.ordering.includes(candidate),
+          )
         : current.ordering.filter((candidate) => candidate !== key);
       return { ...current, ordering: nextKeys };
     });
@@ -345,526 +435,659 @@ export function LaserPanel() {
   };
 
   return (
-    <div className={orientation === 'wide'
-      ? 'bb-bottom-laser text-xs'
-      : 'flex flex-col gap-2 px-3 py-2.5 text-xs'}>
+    <div
+      className={
+        orientation === 'wide'
+          ? 'bb-bottom-laser text-xs'
+          : 'flex flex-col gap-2 px-3 py-2.5 text-xs'
+      }
+    >
       <section className="flex flex-col gap-2" data-laser-region="job">
-      {/* 1. Connection gradient bar */}
-      <div className={`h-1.5 rounded-full bg-gradient-to-r ${connectionGradient}`} data-testid="connection-bar" />
+        {/* 1. Connection gradient bar */}
+        <div
+          className={`h-1.5 rounded-full bg-gradient-to-r ${connectionGradient}`}
+          data-testid="connection-bar"
+        />
 
-      {/* 2. Status label */}
-      <div className="text-center text-bb-text-muted text-xs">
-        {CONNECTION_LABEL_KEYS[effectiveSessionState] ? t(CONNECTION_LABEL_KEYS[effectiveSessionState]) : effectiveSessionState}
-      </div>
-
-      {/* 3. Large Pause / Stop / Start buttons (when connected) */}
-      {isConnected && (
-        <div className="grid grid-cols-3 gap-1" data-testid="job-buttons">
-          <button
-            data-testid="pause-button"
-            className="py-2.5 text-sm font-medium rounded bg-bb-warning text-bb-on-warning disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bb-warning-hover"
-            disabled={!canPause}
-            onClick={pauseJob}
-          >
-            {PAUSE_ICON} {t('panels.machine.laser.pause')}
-          </button>
-          <button
-            data-testid="stop-button"
-            className="py-2.5 text-sm font-medium rounded bg-bb-error text-bb-on-error disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bb-error-hover"
-            disabled={!canStop}
-            onClick={emergencyStop}
-          >
-            {STOP_ICON} {t('panels.machine.laser.stop')}
-          </button>
-          {canResume ? (
-            <button
-              data-testid="resume-button"
-              className="py-2.5 text-sm font-medium rounded bg-bb-accent text-bb-on-accent disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bb-accent-hover"
-              onClick={resumeJob}
-            >
-              {PLAY_ICON} {t('panels.machine.laser.resume')}
-            </button>
-          ) : (
-            <button
-              data-testid="start-button"
-              className="py-2.5 text-sm font-medium rounded bg-bb-success text-bb-on-success disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bb-success-hover"
-              disabled={!canStart}
-              onClick={() => void handleStart()}
-            >
-              {PLAY_ICON} {t('panels.machine.laser.start')}
-            </button>
-          )}
+        {/* 2. Status label */}
+        <div className="text-center text-bb-text-muted text-xs">
+          {CONNECTION_LABEL_KEYS[effectiveSessionState]
+            ? t(CONNECTION_LABEL_KEYS[effectiveSessionState])
+            : effectiveSessionState}
         </div>
-      )}
 
-      {/* 4. Frame (when connected + idle, no active job) */}
-      {isConnected && !hasJob && (
-        <div className="flex flex-col gap-1">
-          <button
-            disabled={!canUseMotionControls}
-            className={`px-2 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed ${
-              laserOnFramingArmed
-                ? 'bg-bb-error-bg border-bb-error-border text-bb-error-fg hover:brightness-95'
-                : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
-            }`}
-            onMouseMove={(e) => setFrameShiftArmed(e.shiftKey)}
-            onMouseLeave={() => setFrameShiftArmed(false)}
-            onClick={(e) => handleFrameClick(e.shiftKey)}
-          >
-            {frameConfirm
-              ? frameLaserOnConfirm ? t('panels.machine.laser.confirm_laser_frame') : t('panels.machine.laser.confirm_frame')
-              : laserOnFramingArmed ? t('panels.machine.laser.frame_laser_on') : t('panels.machine.laser.frame')}
-          </button>
-          <div className="grid grid-cols-2 gap-1">
+        {/* 3. Large Pause / Stop / Start buttons (when connected) */}
+        {isConnected && (
+          <div className="grid grid-cols-3 gap-1" data-testid="job-buttons">
             <button
-              data-testid="frame-mode-toggle"
-              disabled={!canUseMotionControls}
-              className={`px-2 py-1 rounded border text-xs disabled:opacity-50 disabled:cursor-not-allowed ${
-                frameMode === 'rubber_band'
-                  ? 'bg-bb-accent border-bb-accent text-bb-on-accent'
+              data-testid="pause-button"
+              className="py-2.5 text-sm font-medium rounded bg-bb-warning text-bb-on-warning disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bb-warning-hover"
+              disabled={!canPause}
+              onClick={pauseJob}
+            >
+              {PAUSE_ICON} {t('panels.machine.laser.pause')}
+            </button>
+            <button
+              data-testid="stop-button"
+              className="py-2.5 text-sm font-medium rounded bg-bb-error text-bb-on-error disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bb-error-hover"
+              disabled={!canStop}
+              onClick={emergencyStop}
+            >
+              {STOP_ICON} {t('panels.machine.laser.stop')}
+            </button>
+            {canResume ? (
+              <button
+                data-testid="resume-button"
+                className="py-2.5 text-sm font-medium rounded bg-bb-accent text-bb-on-accent disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bb-accent-hover"
+                onClick={resumeJob}
+              >
+                {PLAY_ICON} {t('panels.machine.laser.resume')}
+              </button>
+            ) : (
+              <button
+                data-testid="start-button"
+                className="py-2.5 text-sm font-medium rounded bg-bb-success text-bb-on-success disabled:opacity-60 disabled:cursor-not-allowed hover:bg-bb-success-hover"
+                disabled={!canStart}
+                onClick={() => void handleStart()}
+              >
+                {PLAY_ICON} {t('panels.machine.laser.start')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* 4. Frame (when connected + idle, no active job) */}
+        {isConnected && !hasJob && (
+          <div className="flex flex-col gap-1">
+            <button
+              data-testid="frame-button"
+              disabled={!canFrame}
+              className={`px-2 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed ${
+                laserOnFramingArmed
+                  ? 'bg-bb-error-bg border-bb-error-border text-bb-error-fg hover:brightness-95'
                   : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
               }`}
-              onClick={() => setFrameMode(frameMode === 'rectangular' ? 'rubber_band' : 'rectangular')}
-              title={frameMode === 'rectangular' ? t('panels.machine.laser.rectangular_frame') : t('panels.machine.laser.rubber_band_frame')}
+              onMouseMove={(e) => setFrameShiftArmed(e.shiftKey)}
+              onMouseLeave={() => setFrameShiftArmed(false)}
+              onClick={(e) => handleFrameClick(e.shiftKey)}
+              title={
+                positioningReady ? undefined : t('panels.machine.laser.user_origin_required_title')
+              }
             >
-              {frameMode === 'rectangular' ? t('panels.machine.laser.frame_mode_rect') : t('panels.machine.laser.frame_mode_hull')}
+              {frameConfirm
+                ? frameLaserOnConfirm
+                  ? t('panels.machine.laser.confirm_laser_frame')
+                  : t('panels.machine.laser.confirm_frame')
+                : laserOnFramingArmed
+                  ? t('panels.machine.laser.frame_laser_on')
+                  : t('panels.machine.laser.frame')}
             </button>
-            <label
-              className={`flex items-center justify-center gap-1.5 rounded border px-2 py-1 text-xs ${
-                laserOnFramingArmed
-                  ? 'bg-bb-error-bg border-bb-error-border text-bb-error-fg'
-                  : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
-              } ${!canUseMotionControls || frameConfirm || profileLaserOnFraming ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-              title={t('panels.machine.laser.laser_on_frame_warning')}
-            >
-              <input
-                type="checkbox"
-                data-testid="laser-frame-toggle"
-                checked={profileLaserOnFraming || laserFrameRequested}
-                disabled={!canUseMotionControls || frameConfirm || profileLaserOnFraming}
-                onChange={(event) => setLaserFrameRequested(event.target.checked)}
-                className="accent-bb-error"
-              />
-              {t('panels.machine.laser.frame_laser_on')}
-            </label>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                data-testid="frame-mode-toggle"
+                disabled={!canFrame}
+                className={`px-2 py-1 rounded border text-xs disabled:opacity-50 disabled:cursor-not-allowed ${
+                  frameMode === 'rubber_band'
+                    ? 'bg-bb-accent border-bb-accent text-bb-on-accent'
+                    : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
+                }`}
+                onClick={() =>
+                  setFrameMode(frameMode === 'rectangular' ? 'rubber_band' : 'rectangular')
+                }
+                title={
+                  frameMode === 'rectangular'
+                    ? t('panels.machine.laser.rectangular_frame')
+                    : t('panels.machine.laser.rubber_band_frame')
+                }
+              >
+                {frameMode === 'rectangular'
+                  ? t('panels.machine.laser.frame_mode_rect')
+                  : t('panels.machine.laser.frame_mode_hull')}
+              </button>
+              <label
+                className={`flex items-center justify-center gap-1.5 rounded border px-2 py-1 text-xs ${
+                  laserOnFramingArmed
+                    ? 'bg-bb-error-bg border-bb-error-border text-bb-error-fg'
+                    : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
+                } ${!canUseMotionControls || frameConfirm || profileLaserOnFraming ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                title={t('panels.machine.laser.laser_on_frame_warning')}
+              >
+                <input
+                  type="checkbox"
+                  data-testid="laser-frame-toggle"
+                  checked={profileLaserOnFraming || laserFrameRequested}
+                  disabled={!canUseMotionControls || frameConfirm || profileLaserOnFraming}
+                  onChange={(event) => setLaserFrameRequested(event.target.checked)}
+                  className="accent-bb-error"
+                />
+                {t('panels.machine.laser.frame_laser_on')}
+              </label>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {frameConfirm && (
-        <div className={`rounded px-2 py-1 ${frameLaserOnConfirm ? 'bg-bb-error-bg text-bb-error-fg' : 'bg-bb-warning-bg text-bb-warning-fg'}`}>
-          {frameLaserOnConfirm
-            ? t('panels.machine.laser.laser_on_frame_warning')
-            : t('panels.machine.laser.frame_warning')}
-        </div>
-      )}
+        {frameConfirm && (
+          <div
+            className={`rounded px-2 py-1 ${frameLaserOnConfirm ? 'bg-bb-error-bg text-bb-error-fg' : 'bg-bb-warning-bg text-bb-warning-fg'}`}
+          >
+            {frameLaserOnConfirm
+              ? t('panels.machine.laser.laser_on_frame_warning')
+              : t('panels.machine.laser.frame_warning')}
+          </div>
+        )}
       </section>
 
       {/* 6. Show Last Position + Optimization Settings row */}
       <section className="flex flex-col gap-2" data-laser-region="actions">
-      <div className="flex gap-1">
-        <button
-          data-testid="show-last-position-button"
-          className={`flex-1 px-2 py-1 rounded border text-xs ${
-            showLastPosition
-              ? 'bg-bb-accent/20 border-bb-accent text-bb-text'
-              : 'bg-bb-bg border-bb-border text-bb-text-muted hover:bg-bb-hover'
-          }`}
-          onClick={toggleShowLastPosition}
-        >
-          {t('panels.machine.laser.show_last_position')}
-        </button>
-        <button
-          data-testid="optimization-settings-button"
-          className="flex-1 px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text-muted hover:bg-bb-hover text-xs disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={openOptimizationDialog}
-          disabled={showOptDialog}
-        >
-          {t('panels.machine.laser.optimization')}
-        </button>
-      </div>
+        <div className="flex gap-1">
+          <button
+            data-testid="show-last-position-button"
+            className={`flex-1 px-2 py-1 rounded border text-xs ${
+              showLastPosition
+                ? 'bg-bb-accent/20 border-bb-accent text-bb-text'
+                : 'bg-bb-bg border-bb-border text-bb-text-muted hover:bg-bb-hover'
+            }`}
+            onClick={toggleShowLastPosition}
+          >
+            {t('panels.machine.laser.show_last_position')}
+          </button>
+          <button
+            data-testid="optimization-settings-button"
+            className="flex-1 px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text-muted hover:bg-bb-hover text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={openOptimizationDialog}
+            disabled={showOptDialog}
+          >
+            {t('panels.machine.laser.optimization')}
+          </button>
+        </div>
 
-      {/* Optimization modal edits a local draft and persists only on OK. */}
-      {showOptDialog && (
-        <MovableResizableDialogFrame
-          title={t('panels.machine.laser.optimization_settings')}
-          titleId="optimization-dialog-title"
-          testId="optimization-modal"
-          initialWidth={560}
-          initialHeight={720}
-          minWidth={480}
-          minHeight={520}
-          onRequestClose={handleOptimizationCancel}
-          closeOnBackdropClick
-          footer={
-            <div className="flex justify-end gap-2 px-3 py-3">
-              <button
-                className="rounded border border-bb-border bg-bb-bg px-3 py-1 text-xs text-bb-text hover:bg-bb-hover"
-                onClick={handleOptimizationCancel}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                className="rounded bg-bb-accent px-3 py-1 text-xs font-medium text-bb-on-accent hover:bg-bb-accent-hover"
-                onClick={() => { void handleOptimizationOk(); }}
-              >
-                {t('common.ok')}
-              </button>
-            </div>
-          }
-        >
-          <div className="min-h-0 flex-1 overflow-y-auto p-3 space-y-3">
-          <div className="flex items-center justify-end">
-            <CheckboxRow
-              testId="optimization-enabled"
-              label={t('common.enable')}
-              checked={optimizationDraft.enabled}
-              onChange={(v) => updateOptimizationDraft({ enabled: v })}
-            />
-          </div>
-          {/* Group: Order by */}
-          <fieldset className="space-y-1">
-            <legend className="text-bb-text-muted text-xs mb-1">{t('panels.machine.laser.optimization_order_by')}</legend>
-            <CheckboxRow
-              testId="order-by-layer"
-              label={t('panels.machine.laser.optimization_layer')}
-              checked={optimizationDraft.ordering.includes(ORDER_KEY_LAYER)}
-              onChange={(v) => setDraftOrderKey(ORDER_KEY_LAYER, v)}
-            />
-            <CheckboxRow
-              testId="order-by-group"
-              label={t('panels.machine.laser.optimization_group')}
-              checked={optimizationDraft.ordering.includes(ORDER_KEY_GROUP)}
-              onChange={(v) => setDraftOrderKey(ORDER_KEY_GROUP, v)}
-            />
-            <CheckboxRow
-              testId="order-by-priority"
-              label={t('panels.machine.laser.optimization_priority')}
-              checked={optimizationDraft.ordering.includes(ORDER_KEY_PRIORITY)}
-              onChange={(v) => setDraftOrderKey(ORDER_KEY_PRIORITY, v)}
-            />
-          </fieldset>
-
-          {/* Group: Within each */}
-          <fieldset className="space-y-1">
-            <legend className="text-bb-text-muted text-xs mb-1">{t('panels.machine.laser.optimization_within_each')}</legend>
-            <CheckboxRow
-              testId="inner-first"
-              label={t('panels.machine.laser.cut_inner_shapes_first')}
-              checked={optimizationDraft.inner_first}
-              onChange={(v) => updateOptimizationDraft({ inner_first: v })}
-            />
-            <label className="flex items-center gap-1.5 text-xs text-bb-text">
-              <span className="min-w-[5.5rem]">{t('panels.machine.laser.direction')}</span>
-              <select
-                data-testid="direction-order-select"
-                value={optimizationDraft.direction_order}
-                onChange={(e) =>
-                  updateOptimizationDraft({ direction_order: e.target.value as DirectionOrder })
-                }
-                className="flex-1 bg-bb-surface-elevated text-bb-text border border-bb-border rounded px-2 py-0.5 text-xs"
-              >
-                <option value="none">{t('panels.machine.laser.direction_none')}</option>
-                <option value="top_down">{t('panels.machine.laser.direction_top_down')}</option>
-                <option value="bottom_up">{t('panels.machine.laser.direction_bottom_up')}</option>
-                <option value="left_right">{t('panels.machine.laser.direction_left_right')}</option>
-                <option value="right_left">{t('panels.machine.laser.direction_right_left')}</option>
-              </select>
-            </label>
-            <CheckboxRow
-              testId="choose-best-start"
-              label={t('panels.machine.laser.choose_best_starting_point')}
-              checked={optimizationDraft.choose_best_start}
-              onChange={(v) => updateOptimizationDraft({ choose_best_start: v })}
-            />
-            <CheckboxRow
-              testId="choose-corners"
-              label={t('panels.machine.laser.choose_corners_if_possible')}
-              checked={optimizationDraft.choose_corners}
-              onChange={(v) => updateOptimizationDraft({ choose_corners: v })}
-              disabled={!optimizationDraft.choose_best_start}
-            />
-            <CheckboxRow
-              testId="choose-best-direction"
-              label={t('panels.machine.laser.choose_best_direction')}
-              checked={optimizationDraft.choose_best_direction}
-              onChange={(v) => updateOptimizationDraft({ choose_best_direction: v })}
-            />
-          </fieldset>
-
-          {/* Group: Travel */}
-          <fieldset className="space-y-1">
-            <legend className="text-bb-text-muted text-xs mb-1">{t('panels.machine.laser.travel')}</legend>
-            <CheckboxRow
-              testId="reduce-travel"
-              label={t('panels.machine.laser.reduce_travel_moves')}
-              checked={optimizationDraft.reduce_travel}
-              onChange={(v) => updateOptimizationDraft({ reduce_travel: v })}
-            />
-            <CheckboxRow
-              testId="hide-backlash"
-              label={t('panels.machine.laser.hide_backlash')}
-              checked={optimizationDraft.hide_backlash}
-              onChange={(v) => updateOptimizationDraft({ hide_backlash: v })}
-            />
-            <CheckboxRow
-              testId="reduce-direction-changes"
-              label={t('panels.machine.laser.reduce_direction_changes')}
-              checked={optimizationDraft.reduce_direction_changes}
-              onChange={(v) => updateOptimizationDraft({ reduce_direction_changes: v })}
-            />
-          </fieldset>
-
-          {/* Group: Cleanup */}
-          <fieldset className="space-y-1">
-            <legend className="text-bb-text-muted text-xs mb-1">{t('panels.machine.laser.cleanup')}</legend>
-            <CheckboxRow
-              testId="remove-overlapping"
-              label={t('panels.machine.laser.remove_overlapping_lines')}
-              checked={optimizationDraft.remove_overlapping}
-              onChange={(v) => updateOptimizationDraft({ remove_overlapping: v })}
-            />
-            {optimizationDraft.remove_overlapping && (
-              <label className="flex items-center gap-1.5 text-xs text-bb-text ml-5">
-                <span>{labelWithUnit(t('panels.machine.laser.tolerance_mm'), lengthUnitLabel(displayUnit))}</span>
-                <NumberStepper
-                  data-testid="remove-overlap-tolerance"
-                  value={roundDisplayLength(mmToDisplay(optimizationDraft.remove_overlap_tolerance_mm, displayUnit), displayUnit)}
-                  onChange={(e) => {
-                    // The previous `Number(value) || 0.05` coerced an
-                    // explicit 0 back to 0.05 because 0 is falsy,
-                    // making the control unable to express the
-                    // exact-zero tolerance the backend supports
-                    // (`dedupe::remove_near_duplicates` treats 0 as
-                    // "flag on but no-op").
-                    //
-                    // Two distinct invalid-input cases:
-                    //   1. Empty string — user has cleared the field
-                    //      mid-edit. `Number('')` is 0 (!), so we
-                    //      filter it by string first to avoid
-                    //      committing a phantom 0.
-                    //   2. NaN — non-numeric input; ignore.
-                    // Everything else (including a negative value
-                    // that the stepper's `min={0}` will visually
-                    // clamp) flows through.
-                    const raw = e.target.value;
-                    if (raw === '') return;
-                    const parsed = Number(raw);
-                    if (!Number.isFinite(parsed)) return;
-                    updateOptimizationDraft({ remove_overlap_tolerance_mm: displayToMm(parsed, displayUnit) });
+        {/* Optimization modal edits a local draft and persists only on OK. */}
+        {showOptDialog && (
+          <MovableResizableDialogFrame
+            title={t('panels.machine.laser.optimization_settings')}
+            titleId="optimization-dialog-title"
+            testId="optimization-modal"
+            initialWidth={560}
+            initialHeight={720}
+            minWidth={480}
+            minHeight={520}
+            onRequestClose={handleOptimizationCancel}
+            closeOnBackdropClick
+            footer={
+              <div className="flex justify-end gap-2 px-3 py-3">
+                <button
+                  className="rounded border border-bb-border bg-bb-bg px-3 py-1 text-xs text-bb-text hover:bg-bb-hover"
+                  onClick={handleOptimizationCancel}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  className="rounded bg-bb-accent px-3 py-1 text-xs font-medium text-bb-on-accent hover:bg-bb-accent-hover"
+                  onClick={() => {
+                    void handleOptimizationOk();
                   }}
-                  step={lengthStep(displayUnit, 0.01, 0.001)}
-                  min={0}
-                  className="w-20 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
+                >
+                  {t('common.ok')}
+                </button>
+              </div>
+            }
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 space-y-3">
+              <div className="flex items-center justify-end">
+                <CheckboxRow
+                  testId="optimization-enabled"
+                  label={t('common.enable')}
+                  checked={optimizationDraft.enabled}
+                  onChange={(v) => updateOptimizationDraft({ enabled: v })}
                 />
-              </label>
-            )}
-          </fieldset>
+              </div>
+              {/* Group: Order by */}
+              <fieldset className="space-y-1">
+                <legend className="text-bb-text-muted text-xs mb-1">
+                  {t('panels.machine.laser.optimization_order_by')}
+                </legend>
+                <CheckboxRow
+                  testId="order-by-layer"
+                  label={t('panels.machine.laser.optimization_layer')}
+                  checked={optimizationDraft.ordering.includes(ORDER_KEY_LAYER)}
+                  onChange={(v) => setDraftOrderKey(ORDER_KEY_LAYER, v)}
+                />
+                <CheckboxRow
+                  testId="order-by-group"
+                  label={t('panels.machine.laser.optimization_group')}
+                  checked={optimizationDraft.ordering.includes(ORDER_KEY_GROUP)}
+                  onChange={(v) => setDraftOrderKey(ORDER_KEY_GROUP, v)}
+                />
+                <CheckboxRow
+                  testId="order-by-priority"
+                  label={t('panels.machine.laser.optimization_priority')}
+                  checked={optimizationDraft.ordering.includes(ORDER_KEY_PRIORITY)}
+                  onChange={(v) => setDraftOrderKey(ORDER_KEY_PRIORITY, v)}
+                />
+              </fieldset>
 
-          {/* Group: Output positioning (unchanged surface, rewired path) */}
-          <fieldset className="space-y-1">
-            <legend className="text-bb-text-muted text-xs mb-1">{t('panels.machine.laser.output')}</legend>
-            <div>
-              <label className="flex items-center gap-1.5 text-xs text-bb-text cursor-pointer">
-                <input
-                  type="checkbox"
-                  data-testid="start-point-checkbox"
-                  checked={
-                    optimizationDraft.start_point_x != null &&
-                    optimizationDraft.start_point_y != null
-                  }
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      updateOptimizationDraft({ start_point_x: 0, start_point_y: 0 });
-                    } else {
-                      updateOptimizationDraft({ start_point_x: null, start_point_y: null });
+              {/* Group: Within each */}
+              <fieldset className="space-y-1">
+                <legend className="text-bb-text-muted text-xs mb-1">
+                  {t('panels.machine.laser.optimization_within_each')}
+                </legend>
+                <CheckboxRow
+                  testId="inner-first"
+                  label={t('panels.machine.laser.cut_inner_shapes_first')}
+                  checked={optimizationDraft.inner_first}
+                  onChange={(v) => updateOptimizationDraft({ inner_first: v })}
+                />
+                <label className="flex items-center gap-1.5 text-xs text-bb-text">
+                  <span className="min-w-[5.5rem]">{t('panels.machine.laser.direction')}</span>
+                  <select
+                    data-testid="direction-order-select"
+                    value={optimizationDraft.direction_order}
+                    onChange={(e) =>
+                      updateOptimizationDraft({ direction_order: e.target.value as DirectionOrder })
                     }
-                  }}
-                  className="accent-bb-accent"
+                    className="flex-1 bg-bb-surface-elevated text-bb-text border border-bb-border rounded px-2 py-0.5 text-xs"
+                  >
+                    <option value="none">{t('panels.machine.laser.direction_none')}</option>
+                    <option value="top_down">{t('panels.machine.laser.direction_top_down')}</option>
+                    <option value="bottom_up">
+                      {t('panels.machine.laser.direction_bottom_up')}
+                    </option>
+                    <option value="left_right">
+                      {t('panels.machine.laser.direction_left_right')}
+                    </option>
+                    <option value="right_left">
+                      {t('panels.machine.laser.direction_right_left')}
+                    </option>
+                  </select>
+                </label>
+                <CheckboxRow
+                  testId="choose-best-start"
+                  label={t('panels.machine.laser.choose_best_starting_point')}
+                  checked={optimizationDraft.choose_best_start}
+                  onChange={(v) => updateOptimizationDraft({ choose_best_start: v })}
                 />
-                {t('panels.machine.laser.custom_start_point')}
-              </label>
-              {optimizationDraft.start_point_x != null &&
-                optimizationDraft.start_point_y != null && (
-                  <div className="flex items-center gap-1 mt-1 ml-5">
+                <CheckboxRow
+                  testId="choose-corners"
+                  label={t('panels.machine.laser.choose_corners_if_possible')}
+                  checked={optimizationDraft.choose_corners}
+                  onChange={(v) => updateOptimizationDraft({ choose_corners: v })}
+                  disabled={!optimizationDraft.choose_best_start}
+                />
+                <CheckboxRow
+                  testId="choose-best-direction"
+                  label={t('panels.machine.laser.choose_best_direction')}
+                  checked={optimizationDraft.choose_best_direction}
+                  onChange={(v) => updateOptimizationDraft({ choose_best_direction: v })}
+                />
+              </fieldset>
+
+              {/* Group: Travel */}
+              <fieldset className="space-y-1">
+                <legend className="text-bb-text-muted text-xs mb-1">
+                  {t('panels.machine.laser.travel')}
+                </legend>
+                <CheckboxRow
+                  testId="reduce-travel"
+                  label={t('panels.machine.laser.reduce_travel_moves')}
+                  checked={optimizationDraft.reduce_travel}
+                  onChange={(v) => updateOptimizationDraft({ reduce_travel: v })}
+                />
+                <CheckboxRow
+                  testId="hide-backlash"
+                  label={t('panels.machine.laser.hide_backlash')}
+                  checked={optimizationDraft.hide_backlash}
+                  onChange={(v) => updateOptimizationDraft({ hide_backlash: v })}
+                />
+                <CheckboxRow
+                  testId="reduce-direction-changes"
+                  label={t('panels.machine.laser.reduce_direction_changes')}
+                  checked={optimizationDraft.reduce_direction_changes}
+                  onChange={(v) => updateOptimizationDraft({ reduce_direction_changes: v })}
+                />
+              </fieldset>
+
+              {/* Group: Cleanup */}
+              <fieldset className="space-y-1">
+                <legend className="text-bb-text-muted text-xs mb-1">
+                  {t('panels.machine.laser.cleanup')}
+                </legend>
+                <CheckboxRow
+                  testId="remove-overlapping"
+                  label={t('panels.machine.laser.remove_overlapping_lines')}
+                  checked={optimizationDraft.remove_overlapping}
+                  onChange={(v) => updateOptimizationDraft({ remove_overlapping: v })}
+                />
+                {optimizationDraft.remove_overlapping && (
+                  <label className="flex items-center gap-1.5 text-xs text-bb-text ml-5">
+                    <span>
+                      {labelWithUnit(
+                        t('panels.machine.laser.tolerance_mm'),
+                        lengthUnitLabel(displayUnit),
+                      )}
+                    </span>
                     <NumberStepper
-                      data-testid="start-point-x"
-                      value={roundDisplayLength(mmToDisplay(optimizationDraft.start_point_x, displayUnit), displayUnit)}
-                      onChange={(e) =>
-                        updateOptimizationDraft({ start_point_x: displayToMm(Number(e.target.value) || 0, displayUnit) })
-                      }
-                      step={lengthStep(displayUnit, 1, 0.05)}
-                      className="flex-1 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
-                      placeholder={labelWithUnit('X', lengthUnitLabel(displayUnit))}
+                      data-testid="remove-overlap-tolerance"
+                      value={roundDisplayLength(
+                        mmToDisplay(optimizationDraft.remove_overlap_tolerance_mm, displayUnit),
+                        displayUnit,
+                      )}
+                      onChange={(e) => {
+                        // The previous `Number(value) || 0.05` coerced an
+                        // explicit 0 back to 0.05 because 0 is falsy,
+                        // making the control unable to express the
+                        // exact-zero tolerance the backend supports
+                        // (`dedupe::remove_near_duplicates` treats 0 as
+                        // "flag on but no-op").
+                        //
+                        // Two distinct invalid-input cases:
+                        //   1. Empty string — user has cleared the field
+                        //      mid-edit. `Number('')` is 0 (!), so we
+                        //      filter it by string first to avoid
+                        //      committing a phantom 0.
+                        //   2. NaN — non-numeric input; ignore.
+                        // Everything else (including a negative value
+                        // that the stepper's `min={0}` will visually
+                        // clamp) flows through.
+                        const raw = e.target.value;
+                        if (raw === '') return;
+                        const parsed = Number(raw);
+                        if (!Number.isFinite(parsed)) return;
+                        updateOptimizationDraft({
+                          remove_overlap_tolerance_mm: displayToMm(parsed, displayUnit),
+                        });
+                      }}
+                      step={lengthStep(displayUnit, 0.01, 0.001)}
+                      min={0}
+                      className="w-20 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
                     />
-                    <NumberStepper
-                      data-testid="start-point-y"
-                      value={roundDisplayLength(mmToDisplay(optimizationDraft.start_point_y, displayUnit), displayUnit)}
-                      onChange={(e) =>
-                        updateOptimizationDraft({ start_point_y: displayToMm(Number(e.target.value) || 0, displayUnit) })
-                      }
-                      step={lengthStep(displayUnit, 1, 0.05)}
-                      className="flex-1 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
-                      placeholder={labelWithUnit('Y', lengthUnitLabel(displayUnit))}
-                    />
-                    <span className="text-xs text-bb-text-muted shrink-0">{lengthUnitLabel(displayUnit)}</span>
-                  </div>
+                  </label>
                 )}
-            </div>
-            <div>
-              <label className="block text-bb-text-muted text-xs mb-1">{t('panels.machine.laser.finish_position')}</label>
-              <select
-                data-testid="finish-position-select"
-                value={optimizationDraft.finish_position}
-                onChange={(e) => {
-                  const val = e.target.value as FinishPosition;
-                  if (val === 'custom_xy') {
-                    updateOptimizationDraft({ finish_position: val, finish_x: 0, finish_y: 0 });
-                  } else {
-                    updateOptimizationDraft({ finish_position: val, finish_x: null, finish_y: null });
-                  }
-                }}
-                className="w-full bg-bb-surface-elevated text-bb-text border border-bb-border rounded px-2 py-1 text-xs"
-              >
-                <option value="origin">{t('panels.machine.laser.finish_return_to_origin')}</option>
-                <option value="dont_move">{t('panels.machine.laser.finish_dont_move')}</option>
-                <option value="custom_xy">{t('panels.machine.laser.finish_custom_xy')}</option>
-              </select>
-              {optimizationDraft.finish_position === 'custom_xy' && (
-                <div className="flex items-center gap-1 mt-1">
-                  <NumberStepper
-                    data-testid="finish-x"
-                    value={roundDisplayLength(mmToDisplay(optimizationDraft.finish_x ?? 0, displayUnit), displayUnit)}
-                    onChange={(e) =>
-                      updateOptimizationDraft({ finish_x: displayToMm(Number(e.target.value) || 0, displayUnit) })
-                    }
-                    step={lengthStep(displayUnit, 1, 0.05)}
-                    className="flex-1 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
-                    placeholder={labelWithUnit('X', lengthUnitLabel(displayUnit))}
-                  />
-                  <NumberStepper
-                    data-testid="finish-y"
-                    value={roundDisplayLength(mmToDisplay(optimizationDraft.finish_y ?? 0, displayUnit), displayUnit)}
-                    onChange={(e) =>
-                      updateOptimizationDraft({ finish_y: displayToMm(Number(e.target.value) || 0, displayUnit) })
-                    }
-                    step={lengthStep(displayUnit, 1, 0.05)}
-                    className="flex-1 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
-                    placeholder={labelWithUnit('Y', lengthUnitLabel(displayUnit))}
-                  />
-                  <span className="text-xs text-bb-text-muted shrink-0">{lengthUnitLabel(displayUnit)}</span>
+              </fieldset>
+
+              {/* Group: Output positioning (unchanged surface, rewired path) */}
+              <fieldset className="space-y-1">
+                <legend className="text-bb-text-muted text-xs mb-1">
+                  {t('panels.machine.laser.output')}
+                </legend>
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs text-bb-text cursor-pointer">
+                    <input
+                      type="checkbox"
+                      data-testid="start-point-checkbox"
+                      checked={
+                        optimizationDraft.start_point_x != null &&
+                        optimizationDraft.start_point_y != null
+                      }
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          updateOptimizationDraft({ start_point_x: 0, start_point_y: 0 });
+                        } else {
+                          updateOptimizationDraft({ start_point_x: null, start_point_y: null });
+                        }
+                      }}
+                      className="accent-bb-accent"
+                    />
+                    {t('panels.machine.laser.custom_start_point')}
+                  </label>
+                  {optimizationDraft.start_point_x != null &&
+                    optimizationDraft.start_point_y != null && (
+                      <div className="flex items-center gap-1 mt-1 ml-5">
+                        <NumberStepper
+                          data-testid="start-point-x"
+                          value={roundDisplayLength(
+                            mmToDisplay(optimizationDraft.start_point_x, displayUnit),
+                            displayUnit,
+                          )}
+                          onChange={(e) =>
+                            updateOptimizationDraft({
+                              start_point_x: displayToMm(Number(e.target.value) || 0, displayUnit),
+                            })
+                          }
+                          step={lengthStep(displayUnit, 1, 0.05)}
+                          className="flex-1 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
+                          placeholder={labelWithUnit('X', lengthUnitLabel(displayUnit))}
+                        />
+                        <NumberStepper
+                          data-testid="start-point-y"
+                          value={roundDisplayLength(
+                            mmToDisplay(optimizationDraft.start_point_y, displayUnit),
+                            displayUnit,
+                          )}
+                          onChange={(e) =>
+                            updateOptimizationDraft({
+                              start_point_y: displayToMm(Number(e.target.value) || 0, displayUnit),
+                            })
+                          }
+                          step={lengthStep(displayUnit, 1, 0.05)}
+                          className="flex-1 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
+                          placeholder={labelWithUnit('Y', lengthUnitLabel(displayUnit))}
+                        />
+                        <span className="text-xs text-bb-text-muted shrink-0">
+                          {lengthUnitLabel(displayUnit)}
+                        </span>
+                      </div>
+                    )}
                 </div>
-              )}
+                <div>
+                  <label className="block text-bb-text-muted text-xs mb-1">
+                    {t('panels.machine.laser.finish_position')}
+                  </label>
+                  <select
+                    data-testid="finish-position-select"
+                    value={optimizationDraft.finish_position}
+                    onChange={(e) => {
+                      const val = e.target.value as FinishPosition;
+                      if (val === 'custom_xy') {
+                        updateOptimizationDraft({ finish_position: val, finish_x: 0, finish_y: 0 });
+                      } else {
+                        updateOptimizationDraft({
+                          finish_position: val,
+                          finish_x: null,
+                          finish_y: null,
+                        });
+                      }
+                    }}
+                    className="w-full bg-bb-surface-elevated text-bb-text border border-bb-border rounded px-2 py-1 text-xs"
+                  >
+                    <option value="origin">
+                      {t('panels.machine.laser.finish_return_to_origin')}
+                    </option>
+                    <option value="dont_move">{t('panels.machine.laser.finish_dont_move')}</option>
+                    <option value="custom_xy">{t('panels.machine.laser.finish_custom_xy')}</option>
+                  </select>
+                  {optimizationDraft.finish_position === 'custom_xy' && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <NumberStepper
+                        data-testid="finish-x"
+                        value={roundDisplayLength(
+                          mmToDisplay(optimizationDraft.finish_x ?? 0, displayUnit),
+                          displayUnit,
+                        )}
+                        onChange={(e) =>
+                          updateOptimizationDraft({
+                            finish_x: displayToMm(Number(e.target.value) || 0, displayUnit),
+                          })
+                        }
+                        step={lengthStep(displayUnit, 1, 0.05)}
+                        className="flex-1 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
+                        placeholder={labelWithUnit('X', lengthUnitLabel(displayUnit))}
+                      />
+                      <NumberStepper
+                        data-testid="finish-y"
+                        value={roundDisplayLength(
+                          mmToDisplay(optimizationDraft.finish_y ?? 0, displayUnit),
+                          displayUnit,
+                        )}
+                        onChange={(e) =>
+                          updateOptimizationDraft({
+                            finish_y: displayToMm(Number(e.target.value) || 0, displayUnit),
+                          })
+                        }
+                        step={lengthStep(displayUnit, 1, 0.05)}
+                        className="flex-1 px-1 py-0.5 bg-bb-surface-elevated text-bb-text border border-bb-border rounded text-xs"
+                        placeholder={labelWithUnit('Y', lengthUnitLabel(displayUnit))}
+                      />
+                      <span className="text-xs text-bb-text-muted shrink-0">
+                        {lengthUnitLabel(displayUnit)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
-          </div>
-        </MovableResizableDialogFrame>
-      )}
+          </MovableResizableDialogFrame>
+        )}
 
-      {/* Job progress (when job active) */}
-      {hasJob && <JobProgressBar />}
+        {/* Job progress (when job active) */}
+        {hasJob && <JobProgressBar />}
 
-      {/* Override controls (when job running/paused) */}
-      {isJobActive && <OverrideControls />}
+        {/* Override controls (when job running/paused) */}
+        {isJobActive && <OverrideControls />}
 
-      {/* Save GCode */}
-      {isConnected && project && (
-        <button
-          data-testid="save-gcode-button"
-          className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover"
-          onClick={() => void handleSaveGcode()}
-        >
-          {t('panels.machine.laser.save_gcode')}
-        </button>
-      )}
+        {/* Save GCode */}
+        {isConnected && project && (
+          <button
+            data-testid="save-gcode-button"
+            className="px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover"
+            onClick={() => void handleSaveGcode()}
+          >
+            {t('panels.machine.laser.save_gcode')}
+          </button>
+        )}
       </section>
 
       {/* 8. Divider */}
       <section
-        className={orientation === 'wide' ? 'flex flex-col gap-2' : 'flex flex-col gap-2 border-t border-bb-border pt-2'}
+        className={
+          orientation === 'wide'
+            ? 'flex flex-col gap-2'
+            : 'flex flex-col gap-2 border-t border-bb-border pt-2'
+        }
         data-laser-region="machine"
       >
+        {/* 9. Devices row at bottom */}
+        <div className="flex items-center gap-2" data-testid="devices-row">
+          <select
+            data-testid="profile-select"
+            aria-label={t('panels.machine.laser.profile_select')}
+            value={activeProfileId ?? ''}
+            disabled={profiles.length === 0 || isConnected || loading}
+            onChange={(e) => {
+              void setActiveProfile(e.target.value === '' ? null : e.target.value);
+            }}
+            className="min-w-0 flex-1 rounded border border-bb-border bg-bb-panel px-1.5 py-1 text-xs text-bb-text disabled:cursor-not-allowed disabled:opacity-60"
+            title={
+              isConnected
+                ? t('panels.machine.laser.profile_select_connected_title')
+                : t('panels.machine.laser.profile_select')
+            }
+          >
+            <option value="">{t('panels.machine.laser.no_machine')}</option>
+            {profiles.map((profile) => (
+              <option key={profile.id} value={profile.id}>
+                {profile.name}
+              </option>
+            ))}
+          </select>
+          <button
+            data-testid="devices-button"
+            className="shrink-0 px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover"
+            onClick={() => setShowDevicesDialog(true)}
+          >
+            {t('panels.machine.laser.manage_machine_profiles')}
+          </button>
+        </div>
 
-      {/* 9. Devices row at bottom */}
-      <div className="flex items-center gap-2" data-testid="devices-row">
-        <select
-          data-testid="profile-select"
-          aria-label={t('panels.machine.laser.profile_select')}
-          value={activeProfileId ?? ''}
-          disabled={profiles.length === 0 || isConnected || loading}
-          onChange={(e) => { void setActiveProfile(e.target.value === '' ? null : e.target.value); }}
-          className="min-w-0 flex-1 rounded border border-bb-border bg-bb-panel px-1.5 py-1 text-xs text-bb-text disabled:cursor-not-allowed disabled:opacity-60"
-          title={isConnected ? t('panels.machine.laser.profile_select_connected_title') : t('panels.machine.laser.profile_select')}
-        >
-          <option value="">{t('panels.machine.laser.no_machine')}</option>
-          {profiles.map((profile) => (
-            <option key={profile.id} value={profile.id}>
-              {profile.name}
-            </option>
-          ))}
-        </select>
-        <button
-          data-testid="devices-button"
-          className="shrink-0 px-2 py-1 rounded bg-bb-bg border border-bb-border text-bb-text hover:bg-bb-hover"
-          onClick={() => setShowDevicesDialog(true)}
-        >
-          {t('panels.machine.laser.manage_machine_profiles')}
-        </button>
-      </div>
+        {/* 10. Start From */}
+        <div>
+          <label className="block text-bb-text-muted mb-1">
+            {t('panels.machine.laser.start_from_label')}
+          </label>
+          <select
+            className="w-fit min-w-40 max-w-full rounded bg-bb-panel border border-bb-border text-bb-text px-1.5 py-1 focus:outline-none focus:border-bb-accent"
+            value={startFrom}
+            onChange={(e) => void setStartFrom(e.target.value as StartFromMode)}
+          >
+            {START_FROM_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {/* 10. Start From */}
-      <div>
-        <label className="block text-bb-text-muted mb-1">{t('panels.machine.laser.start_from_label')}</label>
-        <select
-          className="w-fit min-w-40 max-w-full rounded bg-bb-panel border border-bb-border text-bb-text px-1.5 py-1 focus:outline-none focus:border-bb-accent"
-          value={startFrom}
-          onChange={(e) => void setStartFrom(e.target.value as StartFromMode)}
+        <div
+          data-testid="start-from-status"
+          role="status"
+          className="rounded border border-bb-border bg-bb-bg/50 px-2 py-1 text-bb-text-muted"
         >
-          {START_FROM_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
-          ))}
-        </select>
-      </div>
-
-      <div
-        data-testid="start-from-status"
-        role="status"
-        className="rounded border border-bb-border bg-bb-bg/50 px-2 py-1 text-bb-text-muted"
-      >
-        {t(START_FROM_STATUS_KEYS[startFrom])}
-      </div>
+          <div>{t(START_FROM_STATUS_KEYS[startFrom])}</div>
+          {startFrom === 'user_origin' && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 border-t border-bb-border pt-1.5">
+              <span className={project?.user_origin ? 'text-bb-success-fg' : 'text-bb-warning-fg'}>
+                {project?.user_origin
+                  ? t('panels.machine.laser.user_origin_saved', {
+                      x: project.user_origin[0].toFixed(1),
+                      y: project.user_origin[1].toFixed(1),
+                    })
+                  : t('panels.machine.laser.user_origin_not_set')}
+              </span>
+              <button
+                type="button"
+                disabled={!canUseMotionControls || loading}
+                onClick={() => void setWorkOrigin()}
+                className="rounded border border-bb-border bg-bb-surface-2 px-2 py-1 text-xs font-medium text-bb-text hover:bg-bb-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t('panels.machine.laser.set_user_origin_here')}
+              </button>
+            </div>
+          )}
+          {startFrom !== 'absolute_coords' && (
+            <button
+              type="button"
+              onClick={() => {
+                void appService.openExternalUrl(positioningHelpUrl(i18n.resolvedLanguage));
+              }}
+              className="mt-1 text-xs text-bb-accent underline-offset-2 hover:underline"
+            >
+              {t('panels.machine.laser.positioning_help')}
+            </button>
+          )}
+        </div>
       </section>
 
       {/* 11. Job Origin grid */}
       <section className="flex flex-col gap-2" data-laser-region="origin">
-      <div>
-        <label className="block text-bb-text-muted mb-1">{t('panels.machine.laser.job_origin')}</label>
-        <div className="grid grid-cols-3 gap-1 w-fit">
-          {ANCHOR_GRID.map((cell) => (
-            <button
-              key={cell.value}
-              disabled={isAbsoluteStart}
-              className={`w-7 h-7 rounded text-xs font-medium border disabled:cursor-not-allowed ${
-                isAbsoluteStart
-                  ? jobOrigin === cell.value
-                    ? 'bg-bb-accent/40 text-bb-text-muted border-bb-accent/50'
-                    : 'bg-bb-panel text-bb-text-muted border-bb-border opacity-50'
-                  : jobOrigin === cell.value
-                  ? 'bg-bb-accent text-bb-on-accent border-bb-accent'
-                  : 'bg-bb-panel text-bb-text-muted border-bb-border hover:bg-bb-hover'
-              }`}
-              onClick={() => void setJobOrigin(cell.value)}
-              title={
-                isAbsoluteStart
-                  ? t('panels.machine.laser.job_origin_ignored_title')
-                  : t(ANCHOR_TITLE_KEYS[cell.value])
-              }
-            >
-              {cell.label}
-            </button>
-          ))}
+        <div>
+          <label className="block text-bb-text-muted mb-1">
+            {t('panels.machine.laser.job_origin')}
+          </label>
+          <div className="grid grid-cols-3 gap-1 w-fit">
+            {ANCHOR_GRID.map((cell) => (
+              <button
+                key={cell.value}
+                disabled={isAbsoluteStart}
+                className={`w-7 h-7 rounded text-xs font-medium border disabled:cursor-not-allowed ${
+                  isAbsoluteStart
+                    ? jobOrigin === cell.value
+                      ? 'bg-bb-accent/40 text-bb-text-muted border-bb-accent/50'
+                      : 'bg-bb-panel text-bb-text-muted border-bb-border opacity-50'
+                    : jobOrigin === cell.value
+                      ? 'bg-bb-accent text-bb-on-accent border-bb-accent'
+                      : 'bg-bb-panel text-bb-text-muted border-bb-border hover:bg-bb-hover'
+                }`}
+                onClick={() => void setJobOrigin(cell.value)}
+                title={
+                  isAbsoluteStart
+                    ? t('panels.machine.laser.job_origin_ignored_title')
+                    : t(ANCHOR_TITLE_KEYS[cell.value])
+                }
+              >
+                {cell.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
       </section>
 
       {/* Preflight dialog */}
@@ -872,13 +1095,15 @@ export function LaserPanel() {
         <PreflightDialog
           report={preflightReport}
           onClose={closePreflightDialog}
+          busy={preflightActionBusy}
+          onApplyOverscan={handleApplyRecommendedOverscan}
+          onReduceSpeed={handleApplyRecommendedSpeed}
+          onContinue={() => void handleContinueAfterAdvisories()}
         />
       )}
 
       {/* Devices dialog */}
-      {showDevicesDialog && (
-        <DeviceSettingsDialog onClose={() => setShowDevicesDialog(false)} />
-      )}
+      {showDevicesDialog && <DeviceSettingsDialog onClose={() => setShowDevicesDialog(false)} />}
     </div>
   );
 }

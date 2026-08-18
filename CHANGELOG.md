@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+## 0.2.5
+
+- Framing now preserves structured workspace-bound errors, selects the affected
+  object when possible, and offers the same Absolute Coordinates recovery used
+  by Preview.
+- Finite jog controls now serialize rapid clicks and automatically recheck the
+  controller until it reports idle, preventing overlapping jog commands caused
+  by stale status.
+- Current Position and User Origin now work safely on unhomed GRBL machines
+  without treating arbitrary work coordinates as physical bed coordinates.
+  Relative jobs validate their size, require a completed frame, and frames
+  return to the placement anchor before Start.
+- User Origin now shows whether it is set, exposes a Set Here action, and
+  blocks framing and job planning with clear guidance when it is missing.
+- Raster acceleration findings are now quality advisories with actions to
+  apply recommended overscan, reduce speed, recheck automatically, or continue
+  deliberately. Geometry omissions and positioning failures remain blocking.
+- Bottom-left workspaces now execute horizontal raster rows from the physical
+  bottom upward without rotating or mirroring the artwork.
+- File drag-and-drop overlays now clear reliably after an import or when the
+  pointer leaves the nested canvas surface.
+- DXF imports now preserve spline geometry, polyline bulge arcs, wrapped arcs,
+  and legacy polylines with adaptive curve accuracy. Partial or empty imports
+  now report unsupported entities accurately with localized guidance instead
+  of silently losing geometry.
+- Completed translations across all supported languages for the new preflight,
+  origin, and machine-preset controls, plus expanded French documentation for
+  Move, Laser Control, positioning, and overscan recovery.
+- Bug reports now include privacy-safe placement, bounds, machine travel, live
+  position, failed-action, and structured-error context. Stale completed-job
+  consoles are omitted, scrubbed coordinates remain internally consistent,
+  and filenames and artwork contents remain excluded.
+
 ## 0.2.4
 
 - Added a direct Layer control for the current selection and a Move Selection

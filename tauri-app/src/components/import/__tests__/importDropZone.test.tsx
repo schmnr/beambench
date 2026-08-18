@@ -6,7 +6,9 @@ import { useArtLibraryStore } from '../../../stores/artLibraryStore';
 import { makeLayer, makeProject } from '../../../test-utils/projectFixtures';
 
 const tauriDragDrop = vi.hoisted(() => ({
-  handler: null as null | ((event: { payload: { type: string; paths?: string[] } }) => void | Promise<void>),
+  handler: null as
+    | null
+    | ((event: { payload: { type: string; paths?: string[] } }) => void | Promise<void>),
 }));
 
 vi.mock('@tauri-apps/api/webviewWindow', () => ({
@@ -93,14 +95,23 @@ afterEach(() => {
 function setProject() {
   useProjectStore.setState({
     project: makeProject({
-      metadata: { format_version: '1', app_version: '0.1.0', project_id: 'p1', project_name: 'Test', created_at: '', modified_at: '' },
-      layers: [makeLayer({
-        id: 'l1',
-        name: 'Layer 1',
-        operation: 'cut',
-        color_tag: '#ff0000',
-        power_percent: 100,
-      })],
+      metadata: {
+        format_version: '1',
+        app_version: '0.1.0',
+        project_id: 'p1',
+        project_name: 'Test',
+        created_at: '',
+        modified_at: '',
+      },
+      layers: [
+        makeLayer({
+          id: 'l1',
+          name: 'Layer 1',
+          operation: 'cut',
+          color_tag: '#ff0000',
+          power_percent: 100,
+        }),
+      ],
       objects: [],
       assets: [],
     }),
@@ -133,6 +144,68 @@ async function emitNativeDragDropEvent(payload: { type: string; paths?: string[]
 }
 
 describe('ImportDropZone', () => {
+  it('clears the file overlay when a drag leaves from the nested canvas surface', () => {
+    setProject();
+    const { getByText, queryByText } = render(
+      <ImportDropZone>
+        <div>content</div>
+      </ImportDropZone>,
+    );
+
+    const canvasSurface = getByText('content');
+    const file = new File(['0\nSECTION'], 'drawing.dxf');
+    const dataTransfer = { files: [file], items: [], types: ['Files'] };
+
+    fireEvent.dragEnter(canvasSurface, { dataTransfer });
+    expect(queryByText('Drop files to import')).not.toBeNull();
+
+    fireEvent.dragLeave(canvasSurface, {
+      dataTransfer,
+      relatedTarget: document.body,
+    });
+    expect(queryByText('Drop files to import')).toBeNull();
+  });
+
+  it('clears a late file-overlay event when an asynchronous DXF drop completes', async () => {
+    setProject();
+    let finishImport: ((value: Array<{ id: string }>) => void) | undefined;
+    mockImportFileData.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishImport = resolve;
+        }),
+    );
+    mockedProjectService.getProject.mockResolvedValue(useProjectStore.getState().project);
+
+    const { container, queryByText } = render(
+      <ImportDropZone>
+        <div>content</div>
+      </ImportDropZone>,
+    );
+    const zone = container.firstChild as HTMLElement;
+    const file = new File(['0\nSECTION'], 'drawing.dxf');
+    const dataTransfer = { files: [file], items: [], types: ['Files'] };
+
+    fireEvent.dragEnter(zone, { dataTransfer });
+    fireEvent.drop(zone, { dataTransfer });
+    await waitFor(() => {
+      expect(mockImportFileData).toHaveBeenCalledOnce();
+      expect(finishImport).toBeTypeOf('function');
+    });
+    // Model a trailing drag-enter from the WebView while the import promise is
+    // still settling. The finished drop must clear this stale visual state.
+    fireEvent.dragEnter(zone, { dataTransfer });
+    expect(queryByText('Drop files to import')).not.toBeNull();
+
+    await act(async () => {
+      finishImport?.([{ id: 'obj1' }]);
+    });
+
+    await waitFor(() => {
+      expect(queryByText('Drop files to import')).toBeNull();
+    });
+  });
+
   it('imports supported file paths from Tauri native drag-drop events', async () => {
     setProject();
     mockImportFilePaths.mockResolvedValue([{ id: 'obj1' }]);
@@ -150,10 +223,7 @@ describe('ImportDropZone', () => {
     });
 
     await waitFor(() => {
-      expect(mockImportFilePaths).toHaveBeenCalledWith(
-        ['/tmp/drawing.dxf'],
-        'l1',
-      );
+      expect(mockImportFilePaths).toHaveBeenCalledWith(['/tmp/drawing.dxf'], 'l1');
     });
   });
 

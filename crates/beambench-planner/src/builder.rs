@@ -3400,12 +3400,31 @@ fn build_plan_inner(
     // 6f. Insert travel segments (after offsets so travels connect the final positions)
     let mut segments = travel::insert_travel_segments(all_segments);
 
-    // 7. Validate bounds (after offsets have been applied, before finish travel)
-    validate_bounds(
-        &segments,
-        project.workspace.bed_width_mm,
-        project.workspace.bed_height_mm,
-    )?;
+    // 7. Validate bounds (after offsets have been applied, before finish travel).
+    // An unhomed controller's work-coordinate zero is arbitrary. For relative
+    // placement modes, validate the physical job size without pretending that
+    // those coordinates identify the bed edges. Absolute jobs and homed
+    // relative jobs retain strict edge validation.
+    if project.start_from != StartFromMode::AbsoluteCoords && !input.runtime.coordinates_trusted {
+        let work_bounds = calculate_work_bounds(&segments);
+        if work_bounds.width() > project.workspace.bed_width_mm + 1e-6
+            || work_bounds.height() > project.workspace.bed_height_mm + 1e-6
+        {
+            return Err(PlannerError::InvalidSettings(format!(
+                "Relative-positioned job is {:.1} x {:.1} mm, larger than the {:.1} x {:.1} mm workspace",
+                work_bounds.width(),
+                work_bounds.height(),
+                project.workspace.bed_width_mm,
+                project.workspace.bed_height_mm,
+            )));
+        }
+    } else {
+        validate_bounds(
+            &segments,
+            project.workspace.bed_width_mm,
+            project.workspace.bed_height_mm,
+        )?;
+    }
 
     // 8. Calculate overall bounds (work area, before finish travel)
     let bounds = calculate_plan_bounds(&segments);
@@ -3684,6 +3703,18 @@ fn get_last_point(segments: &[PlanSegment]) -> Option<Point2D> {
 
 /// Calculate bounding box for all segments.
 pub fn calculate_plan_bounds(segments: &[PlanSegment]) -> Bounds {
+    calculate_bounds(segments, true)
+}
+
+/// Calculate burn/work bounds without including connector travel metadata.
+/// This is used when an unhomed controller provides a relative coordinate
+/// frame: the job extent is knowable even though its physical bed offset is
+/// not.
+pub fn calculate_work_bounds(segments: &[PlanSegment]) -> Bounds {
+    calculate_bounds(segments, false)
+}
+
+fn calculate_bounds(segments: &[PlanSegment], include_travel: bool) -> Bounds {
     let mut min_x = f64::MAX;
     let mut min_y = f64::MAX;
     let mut max_x = f64::NEG_INFINITY;
@@ -3691,10 +3722,11 @@ pub fn calculate_plan_bounds(segments: &[PlanSegment]) -> Bounds {
 
     for segment in segments {
         match segment {
-            PlanSegment::Travel { start, end } => {
+            PlanSegment::Travel { start, end } if include_travel => {
                 update_bounds(&mut min_x, &mut min_y, &mut max_x, &mut max_y, start);
                 update_bounds(&mut min_x, &mut min_y, &mut max_x, &mut max_y, end);
             }
+            PlanSegment::Travel { .. } => {}
             PlanSegment::Vector { polyline, .. } => {
                 for point in polyline {
                     update_bounds(&mut min_x, &mut min_y, &mut max_x, &mut max_y, point);
@@ -4073,6 +4105,10 @@ mod tests {
         assert!(
             min_y >= 39.9 && max_y <= 50.1,
             "bottom-left origin should place visual raster Y 250..260 at machine Y 40..50, got {min_y}..{max_y}",
+        );
+        assert!(
+            raster.first().unwrap().y_mm < raster.last().unwrap().y_mm,
+            "bottom-left raster should execute from the physical bottom upward"
         );
     }
 
@@ -6270,6 +6306,7 @@ mod tests {
             ProjectOptimization::default(),
             OptimizationRuntime {
                 current_position: Some((x, y)),
+                ..OptimizationRuntime::default()
             },
             PlannerCalibration::default(),
         )
@@ -6312,6 +6349,25 @@ mod tests {
         assert!((min_y - 90.0).abs() < 0.1, "min_y {min_y}");
         assert!((max_x - 200.0).abs() < 0.1, "max_x {max_x}");
         assert!((max_y - 190.0).abs() < 0.1, "max_y {max_y}");
+    }
+
+    #[test]
+    fn untrusted_current_position_validates_size_without_assuming_bed_edges() {
+        let mut project = anchoring_test_project(Bounds::new(
+            Point2D::new(100.0, 100.0),
+            Point2D::new(200.0, 200.0),
+        ));
+        project.start_from = beambench_common::StartFromMode::CurrentPosition;
+        project.job_origin = beambench_common::AnchorPoint::Center;
+        let mut input = input_with_position(0.0, 0.0);
+        input.runtime.coordinates_trusted = false;
+
+        let plan = build_plan_with_input(&project, &input).unwrap();
+        let (min_x, min_y, max_x, max_y) = vector_bbox(&plan);
+        assert!((min_x + 50.0).abs() < 0.1, "min_x {min_x}");
+        assert!((min_y + 50.0).abs() < 0.1, "min_y {min_y}");
+        assert!((max_x - 50.0).abs() < 0.1, "max_x {max_x}");
+        assert!((max_y - 50.0).abs() < 0.1, "max_y {max_y}");
     }
 
     #[test]

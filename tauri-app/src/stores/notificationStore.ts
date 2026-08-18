@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { FeedbackSourceContext } from '../types/feedback';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -9,6 +10,7 @@ export interface Notification {
   createdAt: number;
   actionLabel?: string;
   onAction?: () => void;
+  feedbackContext?: Partial<FeedbackSourceContext>;
 }
 
 const MAX_VISIBLE = 5;
@@ -42,6 +44,7 @@ interface NotificationStoreState {
       actionLabel?: string;
       onAction?: () => void;
       autoDismissMs?: number | null;
+      feedbackContext?: Partial<FeedbackSourceContext>;
     },
   ) => string;
   dismiss: (id: string) => void;
@@ -51,17 +54,32 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
   notifications: [],
 
   push: (message, type, options) => {
-    const delay = options?.autoDismissMs === undefined ? AUTO_DISMISS_MS[type] : options.autoDismissMs;
+    const delay =
+      options?.autoDismissMs === undefined ? AUTO_DISMISS_MS[type] : options.autoDismissMs;
 
     // Dedupe: if an identical toast is already visible, refresh its
     // auto-dismiss timer instead of appending a duplicate.
     const existing = get().notifications.find((n) => n.message === message && n.type === type);
     if (existing) {
+      set((state) => ({
+        notifications: state.notifications.map((notification) =>
+          notification.id === existing.id
+            ? {
+                ...notification,
+                createdAt: Date.now(),
+                feedbackContext: options?.feedbackContext ?? notification.feedbackContext,
+              }
+            : notification,
+        ),
+      }));
       clearDismissTimer(existing.id);
       if (delay !== null && delay > 0) {
-        dismissTimers.set(existing.id, setTimeout(() => {
-          get().dismiss(existing.id);
-        }, delay));
+        dismissTimers.set(
+          existing.id,
+          setTimeout(() => {
+            get().dismiss(existing.id);
+          }, delay),
+        );
       }
       return existing.id;
     }
@@ -74,6 +92,7 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
       createdAt: Date.now(),
       actionLabel: options?.actionLabel,
       onAction: options?.onAction,
+      feedbackContext: options?.feedbackContext,
     };
 
     set((s) => {
@@ -88,9 +107,12 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
 
     // Auto-dismiss
     if (delay !== null && delay > 0) {
-      dismissTimers.set(id, setTimeout(() => {
-        get().dismiss(id);
-      }, delay));
+      dismissTimers.set(
+        id,
+        setTimeout(() => {
+          get().dismiss(id);
+        }, delay),
+      );
     }
     return id;
   },

@@ -368,7 +368,54 @@
       "outcome_pass": "Réussi",
       "outcome_warnings": "Avertissements",
       "outcome_fail": "Échec",
-      "warnings_block_start": "Résolvez les avertissements ci-dessus avant de lancer le travail."
+      "warnings_block_start": "Résolvez les avertissements ci-dessus avant de lancer le travail.",
+      "advisory_choice": "Le travail peut être lancé, mais cette correction peut améliorer la qualité de gravure.",
+      "apply_overscan": "Utiliser {value} mm de surbalayage et revérifier",
+      "reduce_speed": "Utiliser {value} mm/min et revérifier",
+      "continue_anyway": "Continuer quand même",
+      "categories": {
+        "connection": "Connexion",
+        "machine": "Machine",
+        "plan": "Plan",
+        "bounds": "Limites",
+        "settings": "Réglages",
+        "positioning": "Positionnement",
+        "planner": "Planificateur",
+        "machine_workspace": "Espace de travail de la machine"
+      },
+      "checks": {
+        "session_ready": "La connexion est prête",
+        "machine_idle": "La machine est inactive",
+        "no_alarm": "Aucune alarme active",
+        "plan_segments": "Le plan contient des mouvements",
+        "plan_fits": "Le plan tient dans la zone de travail",
+        "raster_motion_fits": "Les mouvements de gravure tiennent dans la zone de travail",
+        "laser_mode": "Le mode laser est activé ($32=1)",
+        "homing_enabled": "Le retour à l’origine est activé",
+        "relative_framed": "Le placement relatif a été cadré à la position actuelle"
+      },
+      "messages": {
+        "connected_ready": "Connecté et prêt",
+        "machine_idle": "Machine inactive",
+        "no_alarm": "Aucune alarme",
+        "raster_motion_within_bed": "Les mouvements de gravure restent dans la zone de travail",
+        "laser_mode_enabled": "Mode laser activé",
+        "homing_enabled": "Retour à l’origine activé",
+        "frame_completed": "Cadrage terminé pour ce projet et ce placement précis",
+        "frame_required": "Cette machine n’est pas référencée. Beam Bench ne peut donc pas vérifier les bords physiques. Cadrez le travail après avoir positionné le laser, puis relancez la vérification.",
+        "segment_count_one": "1 segment",
+        "segment_count_other": "{count} segments"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "L’accélération nécessite plus de surbalayage",
+          "message": "La vitesse choisie nécessite une plus grande distance d’accélération. Augmentez le surbalayage ou réduisez la vitesse pour obtenir des bords plus réguliers."
+        },
+        "speed_limited": {
+          "title": "La vitesse demandée dépasse la limite de la machine",
+          "message": "Le contrôleur fonctionnera plus lentement que la valeur demandée."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} est disponible",
@@ -1809,41 +1856,41 @@
         "moving_laser_to_selection": "Déplacement du laser vers la sélection",
         "moving_to_coordinates": "Déplacement vers ({x}, {y}) {unit}",
         "moving_to_position": "Déplacement vers {name}",
-        "moving_to_machine_zero": "Moving to machine zero",
-        "moving_to_user_origin": "Moving to user origin",
-        "finish_position_set": "Finish position set"
+        "moving_to_machine_zero": "Déplacement vers le zéro machine",
+        "moving_to_user_origin": "Déplacement vers l’origine utilisateur",
+        "finish_position_set": "Position finale définie"
       },
       "errors": {
         "operation_failed": "Échec de l’opération: {detail}"
       },
-      "machine_positioning": "Machine Positioning",
-      "status_connected": "Machine connected",
-      "status_disconnected": "Machine disconnected",
-      "get_position": "Get Position",
-      "feed_rate": "Move Feed Rate",
-      "feed_mm_min": "Feed",
+      "machine_positioning": "Positionnement de la machine",
+      "status_connected": "Machine connectée",
+      "status_disconnected": "Machine déconnectée",
+      "get_position": "Lire la position",
+      "feed_rate": "Vitesse de déplacement",
+      "feed_mm_min": "Avance",
       "axis_z": "Z",
-      "go_machine_zero": "Go Machine Zero",
-      "use_current": "Use Current",
-      "jog": "Jog",
-      "current_position": "Current: {position}",
-      "hold_to_jog": "Click for one step. Hold to jog continuously.",
+      "go_machine_zero": "Aller au zéro machine",
+      "use_current": "Utiliser la position actuelle",
+      "jog": "Déplacement manuel",
+      "current_position": "Position actuelle : {position}",
+      "hold_to_jog": "Cliquez pour un pas. Maintenez pour un déplacement continu.",
       "lift_table_axis": "Table élévatrice (axe {axis})",
-      "manage": "Manage",
-      "origin_finish": "Origin and Finish",
-      "set_user_origin": "Set Origin",
-      "clear_user_origin": "Clear Origin",
-      "go_to_user_origin": "Go Origin",
-      "set_finish_position": "Set Finish",
-      "project_actions_disabled": "Open a project to use selection, origin, and finish controls.",
-      "fire_hold": "Hold to Fire",
-      "fire_power": "Power: {power}%",
-      "save_position": "Save Position",
-      "position_name": "Position name",
-      "manage_positions": "Manage Positions",
-      "preview_connected_ui": "Preview connected UI",
-      "preview_connected_help": "Development preview only. Controls are shown without a machine.",
-      "saved_positions_more": "+{count} more",
+      "manage": "Gérer",
+      "origin_finish": "Origine et position finale",
+      "set_user_origin": "Définir l’origine",
+      "clear_user_origin": "Effacer l’origine",
+      "go_to_user_origin": "Aller à l’origine",
+      "set_finish_position": "Définir la fin",
+      "project_actions_disabled": "Ouvrez un projet pour utiliser la sélection, l’origine et la position finale.",
+      "fire_hold": "Maintenir pour activer",
+      "fire_power": "Puissance : {power} %",
+      "save_position": "Enregistrer la position",
+      "position_name": "Nom de la position",
+      "manage_positions": "Gérer les positions",
+      "preview_connected_ui": "Aperçu de l’interface connectée",
+      "preview_connected_help": "Aperçu de développement uniquement. Les commandes sont affichées sans machine.",
+      "saved_positions_more": "+{count} autres",
       "stop_jog": "Arrêter le déplacement"
     },
     "machine": {
@@ -1940,7 +1987,7 @@
       "job_control": {
         "cancel": "Annuler",
         "pause": "Pause",
-        "resume": "CV",
+        "resume": "Reprendre",
         "start": "Commencer"
       },
       "laser": {
@@ -1988,8 +2035,8 @@
         "finish_return_to_origin": "Retour à l'origine",
         "frame": "Cadre",
         "frame_laser_on": "Cadre : Laser activé",
-        "frame_mode_hull": "Outline",
-        "frame_mode_rect": "Box",
+        "frame_mode_hull": "Contour",
+        "frame_mode_rect": "Rectangle",
         "frame_warning": "Le cadre déplacera la tête laser autour des limites du projet avec le laser éteint. Assurez-vous que la zone de travail est dégagée.",
         "go_to_user_origin": "Aller à l'origine de l'utilisateur",
         "hide_backlash": "Masquer le jeu",
@@ -2020,13 +2067,13 @@
         "resume": "CV",
         "rubber_band_frame": "Cadre avec élastique",
         "save_gcode": "Enregistrer le GCode",
-        "set_user_origin": "Définir l'origine de l'utilisateur",
+        "set_user_origin": "Définir l’origine utilisateur",
         "show_last_position": "Afficher la dernière position",
         "start": "Commencer",
         "start_from": {
           "absolute_coords": "Coordonnées absolues",
-          "current_position": "Poste actuel",
-          "user_origin": "Origine de l'utilisateur"
+          "current_position": "Position actuelle",
+          "user_origin": "Origine utilisateur"
         },
         "start_from_label": "Commencer à partir de",
         "start_from_status": {
@@ -2034,20 +2081,25 @@
           "current_position": "L’origine du travail ancre la sortie par rapport à la position actuelle de la tête.",
           "user_origin": "L’origine du travail ancre la sortie par rapport à l’origine utilisateur stockée."
         },
+        "user_origin_not_set": "Non définie",
+        "user_origin_saved": "Enregistrée à X {x}, Y {y} mm",
+        "set_user_origin_here": "Définir ici",
+        "user_origin_required_title": "Définissez l’origine utilisateur avant de cadrer ou de démarrer",
+        "positioning_help": "Aide au positionnement",
         "stop": "Arrêter",
         "tolerance_mm": "Tolérance",
-        "travel": "Voyage",
+        "travel": "Déplacements",
         "unlock": "Déverrouiller",
-        "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select": "Profil de machine",
+        "profile_select_connected_title": "Déconnectez la machine avant de changer de profil"
       },
       "panel": {
         "positioning": "Positionnement",
         "start_from_label": "Commencer à partir de",
         "start_from": {
           "absolute_coords": "Coordonnées absolues",
-          "current_position": "Poste actuel",
-          "user_origin": "Origine de l'utilisateur"
+          "current_position": "Position actuelle",
+          "user_origin": "Origine utilisateur"
         },
         "job_origin": "Origine du travail",
         "anchor": {
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Échec de l'application du préréglage : {detail}",
         "title": "Préréglage de la machine",
         "preview": "Aperçu",
-        "no_changes": "Aucun changement."
+        "no_changes": "Aucun changement.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Zone de travail officielle et réglages GRBL par défaut de l’ACMER S2.",
+            "advisory": "ACMER indique une zone de gravure de 300 × 300 mm. Beam Bench revérifiera les réglages GRBL compatibles lors de la connexion de la machine."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Image dirigée vers \"{layer}\"",
     "routed_vector": "Vecteur dirigé vers \"{layer}\"",
     "import_complete": "Importation terminée : {fileCount, plural, one {# fichier} other {# fichiers}}, {objectCount, plural, one {# objet} other {# objets}}",
+    "dxf_skipped_entities": "Certaines entités DXF n’ont pas pu être importées : {entities}.",
     "discard_recovery_failed": "Impossible de supprimer {count, plural, one {# fichier de récupération} other {# fichiers de récupération}} : {detail}",
     "text_baked": "Texte résolu intégré dans l'objet",
     "batch_failed": "Échec du lot : {detail}",
@@ -2549,6 +2608,10 @@
     }
   },
   "errors": {
+    "user_origin_not_set": "L’origine utilisateur est sélectionnée, mais elle n’est pas définie. Placez le laser au point voulu, puis choisissez Définir ici avant de cadrer ou de démarrer.",
+    "current_position_unavailable": "Position actuelle nécessite une machine connectée qui transmet sa position.",
+    "dxf_no_usable_geometry": "Le fichier DXF ne contient aucune géométrie vectorielle 2D exploitable.",
+    "dxf_no_usable_geometry_with_entities": "Le fichier DXF ne contient aucune géométrie vectorielle 2D exploitable. Entités non prises en charge ou incorrectes : {entities}.",
     "operation_failed_with_detail": "Échec de l’opération : {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Impossible d’ouvrir {port}. Une autre application utilise peut-être ce port, ou le contrôleur a été déconnecté. Fermez les autres logiciels laser ou série, reconnectez le contrôleur, puis réessayez.",

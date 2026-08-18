@@ -9,7 +9,12 @@ import { useNotificationStore } from '../../../stores/notificationStore';
 import { useAppStore } from '../../../stores/appStore';
 import { machineService } from '../../../services/machineService';
 import { previewService } from '../../../services/previewService';
-import { makeJobProgress, makeMachineProfile, makeMachineStatus, makeProject } from '../../../test-utils/projectFixtures';
+import {
+  makeJobProgress,
+  makeMachineProfile,
+  makeMachineStatus,
+  makeProject,
+} from '../../../test-utils/projectFixtures';
 
 vi.mock('../../../hooks/useMachinePolling', () => ({
   useMachinePolling: vi.fn(),
@@ -40,7 +45,9 @@ vi.mock('../../../services/previewService', () => ({
     exportGcode: vi.fn().mockResolvedValue('ok'),
     generatePreview: vi.fn().mockResolvedValue(null),
     cancelPlanning: vi.fn(),
-    getOptimizationSettings: vi.fn().mockResolvedValue({ cut_order: 'optimized', travel_optimization: true }),
+    getOptimizationSettings: vi
+      .fn()
+      .mockResolvedValue({ cut_order: 'optimized', travel_optimization: true }),
     updateOptimizationSettings: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -66,7 +73,9 @@ vi.mock('../../dialogs/DeviceSettingsDialog', () => ({
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockReturnValue(new Promise(() => {})),
+}));
 
 const initialMachineState = useMachineStore.getState();
 const initialPreviewState = usePreviewStore.getState();
@@ -106,7 +115,12 @@ const setConnectedWithProject = () => {
 describe('LaserPanel', () => {
   it('renders connection gradient bar', () => {
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'absolute_coords', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'absolute_coords',
+        job_origin: 'top_left',
+      }),
     });
     render(<LaserPanel />);
     expect(screen.getByTestId('connection-bar')).toBeDefined();
@@ -114,7 +128,12 @@ describe('LaserPanel', () => {
 
   it('renders profile selection and opens device settings', () => {
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'absolute_coords', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'absolute_coords',
+        job_origin: 'top_left',
+      }),
     });
     render(<LaserPanel />);
 
@@ -139,6 +158,27 @@ describe('LaserPanel', () => {
     expect(screen.getByTestId('start-button')).toBeDefined();
   });
 
+  it('shows User Origin state and can set it from the current position', async () => {
+    setConnectedWithProject();
+    useProjectStore.setState({
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'user_origin',
+        job_origin: 'center',
+        user_origin: null,
+      }),
+    });
+
+    render(<LaserPanel />);
+    expect(screen.getByText('Not set')).toBeDefined();
+    expect((screen.getByTestId('frame-button') as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set here' }));
+    await waitFor(() => expect(machineService.setWorkOrigin).toHaveBeenCalledOnce());
+    expect(screen.getByText(/Saved at X 10.0, Y 20.0 mm/)).toBeDefined();
+  });
+
   it('shows Resume button instead of Start when paused', () => {
     useMachineStore.setState({
       sessionState: 'paused',
@@ -147,7 +187,12 @@ describe('LaserPanel', () => {
       jobProgress: makeJobProgress({ state: 'paused', total_lines: 100, acknowledged_lines: 50 }),
     });
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'absolute_coords', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'absolute_coords',
+        job_origin: 'top_left',
+      }),
     });
 
     render(<LaserPanel />);
@@ -174,7 +219,12 @@ describe('LaserPanel', () => {
   it('hides job buttons when disconnected', () => {
     useMachineStore.setState({ sessionState: 'disconnected', profiles: [] });
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'absolute_coords', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'absolute_coords',
+        job_origin: 'top_left',
+      }),
     });
 
     render(<LaserPanel />);
@@ -234,7 +284,11 @@ describe('LaserPanel', () => {
 
     fireEvent.click(screen.getByText('Frame'));
     expect(screen.getByText('Confirm Frame')).toBeDefined();
-    expect(screen.getByText('Frame will move laser head around project bounds with the laser off. Ensure work area is clear.')).toBeDefined();
+    expect(
+      screen.getByText(
+        'Frame will move laser head around project bounds with the laser off. Ensure work area is clear.',
+      ),
+    ).toBeDefined();
 
     fireEvent.click(screen.getByText('Confirm Frame'));
 
@@ -254,7 +308,9 @@ describe('LaserPanel', () => {
     fireEvent.mouseMove(frameButton, { shiftKey: true });
     expect(screen.getByText('Frame: Laser On', { selector: 'button' })).toBeDefined();
 
-    fireEvent.click(screen.getByText('Frame: Laser On', { selector: 'button' }), { shiftKey: true });
+    fireEvent.click(screen.getByText('Frame: Laser On', { selector: 'button' }), {
+      shiftKey: true,
+    });
     expect(screen.getByText('Confirm Laser Frame')).toBeDefined();
 
     fireEvent.click(screen.getByText('Confirm Laser Frame'));
@@ -319,9 +375,10 @@ describe('LaserPanel', () => {
   it('disables Start while preview bootstrap is pending', async () => {
     let resolvePreview!: (value: boolean) => void;
     const generatePreview = vi.fn().mockImplementation(
-      () => new Promise<boolean>((resolve) => {
-        resolvePreview = resolve;
-      }),
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolvePreview = resolve;
+        }),
     );
 
     setConnectedWithProject();
@@ -372,7 +429,12 @@ describe('LaserPanel', () => {
       jobOptions: { cut_selected_graphics: true, use_selection_origin: false },
     });
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'current_position', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'current_position',
+        job_origin: 'top_left',
+      }),
     });
 
     render(<LaserPanel />);
@@ -513,7 +575,12 @@ describe('LaserPanel', () => {
     });
     const setOptimization = vi.fn().mockResolvedValue(undefined);
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'absolute_coords', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'absolute_coords',
+        job_origin: 'top_left',
+      }),
       setOptimization,
     });
 
@@ -529,7 +596,12 @@ describe('LaserPanel', () => {
 
   it('Show Last Position button toggles uiStore state', () => {
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'absolute_coords', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'absolute_coords',
+        job_origin: 'top_left',
+      }),
     });
 
     render(<LaserPanel />);
@@ -588,19 +660,25 @@ describe('LaserPanel', () => {
     useProjectStore.setState({ project });
 
     const { rerender } = render(<LaserPanel />);
-    expect(screen.getByText('Job Origin is ignored. Artwork runs at its workspace coordinates.')).toBeDefined();
+    expect(
+      screen.getByText('Job Origin is ignored. Artwork runs at its workspace coordinates.'),
+    ).toBeDefined();
 
     act(() => {
       useProjectStore.setState({ project: { ...project, start_from: 'current_position' } });
     });
     rerender(<LaserPanel />);
-    expect(screen.getByText('Job Origin anchors output relative to the current head position.')).toBeDefined();
+    expect(
+      screen.getByText('Job Origin anchors output relative to the current head position.'),
+    ).toBeDefined();
 
     act(() => {
       useProjectStore.setState({ project: { ...project, start_from: 'user_origin' } });
     });
     rerender(<LaserPanel />);
-    expect(screen.getByText('Job Origin anchors output relative to the stored user origin.')).toBeDefined();
+    expect(
+      screen.getByText('Job Origin anchors output relative to the stored user origin.'),
+    ).toBeDefined();
   });
 
   it('shows the active profile in the profile selector', () => {
@@ -610,7 +688,12 @@ describe('LaserPanel', () => {
       activeProfileId: 'p1',
     });
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'absolute_coords', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'absolute_coords',
+        job_origin: 'top_left',
+      }),
     });
 
     render(<LaserPanel />);
@@ -626,7 +709,12 @@ describe('LaserPanel', () => {
       setActiveProfile,
     });
     useProjectStore.setState({
-      project: makeProject({ layers: [], objects: [], start_from: 'absolute_coords', job_origin: 'top_left' }),
+      project: makeProject({
+        layers: [],
+        objects: [],
+        start_from: 'absolute_coords',
+        job_origin: 'top_left',
+      }),
     });
 
     render(<LaserPanel />);

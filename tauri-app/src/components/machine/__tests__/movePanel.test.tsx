@@ -7,7 +7,11 @@ import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { useAppStore } from '../../../stores/appStore';
 import { machineService } from '../../../services/machineService';
-import { makeMachineProfile, makeMachineStatus, makeProject } from '../../../test-utils/projectFixtures';
+import {
+  makeMachineProfile,
+  makeMachineStatus,
+  makeProject,
+} from '../../../test-utils/projectFixtures';
 
 vi.mock('../../../services/machineService', () => ({
   machineService: {
@@ -51,7 +55,9 @@ vi.mock('../../../services/machineService', () => ({
   },
 }));
 
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockReturnValue(new Promise(() => {})),
+}));
 
 const initialMachineState = useMachineStore.getState();
 const initialProjectState = useProjectStore.getState();
@@ -155,7 +161,9 @@ describe('MovePanel', () => {
       expect(machineService.getSavedPositions).toHaveBeenCalled();
     });
     expect(screen.getByText('Home the machine first to use machine zero.')).toBeDefined();
-    expect((screen.getByTestId('goto-machine-zero-button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('goto-machine-zero-button') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     expect(machineService.moveLaserToMachine).not.toHaveBeenCalled();
   });
 
@@ -267,15 +275,46 @@ describe('MovePanel', () => {
     expect(screen.queryByTestId('stop-jog-button')).toBeNull();
   });
 
+  it('serializes finite jog clicks and rechecks until the machine is idle', async () => {
+    connectMachine();
+    useMachineStore.setState({
+      capabilities: {
+        ...useMachineStore.getState().capabilities!,
+        can_jog_continuous: false,
+      },
+    });
+    vi.mocked(machineService.getMachineStatus)
+      .mockResolvedValueOnce(makeMachineStatus({ run_state: 'jog' }))
+      .mockResolvedValue(makeMachineStatus({ run_state: 'idle' }));
+
+    render(<MovePanel />);
+    const jogUp = screen.getByTitle('Jog Up');
+    fireEvent.pointerDown(jogUp, { pointerId: 1 });
+    fireEvent.pointerUp(jogUp, { pointerId: 1 });
+    fireEvent.pointerDown(jogUp, { pointerId: 2 });
+    fireEvent.pointerUp(jogUp, { pointerId: 2 });
+
+    await waitFor(
+      () => {
+        expect(machineService.jog).toHaveBeenCalledTimes(1);
+        expect(machineService.getMachineStatus).toHaveBeenCalledTimes(3);
+        expect((jogUp as HTMLButtonElement).disabled).toBe(false);
+      },
+      { timeout: 1_500 },
+    );
+  });
+
   it('jogs the configured Ruida lift-table channel in finite profile-speed steps', async () => {
     connectMachine();
     useUiStore.setState({ moveWindowJogDistanceMm: 2.5 });
     useMachineStore.setState({
-      profiles: [makeMachineProfile({
-        firmware_type: 'ruida',
-        ruida_table_axis: 'u',
-        z_move_feed_mm_min: 240,
-      })],
+      profiles: [
+        makeMachineProfile({
+          firmware_type: 'ruida',
+          ruida_table_axis: 'u',
+          z_move_feed_mm_min: 240,
+        }),
+      ],
       loadProfiles: vi.fn().mockResolvedValue(undefined),
     });
 
@@ -285,6 +324,12 @@ describe('MovePanel', () => {
     fireEvent.click(screen.getByTestId('ruida-table-jog-positive'));
     await waitFor(() => {
       expect(machineService.jog).toHaveBeenCalledWith(0, 0, 240, 2.5);
+    });
+
+    await waitFor(() => {
+      expect((screen.getByTestId('ruida-table-jog-negative') as HTMLButtonElement).disabled).toBe(
+        false,
+      );
     });
 
     fireEvent.click(screen.getByTestId('ruida-table-jog-negative'));
@@ -327,7 +372,9 @@ describe('MovePanel', () => {
   it('shows Fire only when the active profile opts in and stops on release', async () => {
     connectMachine();
     useMachineStore.setState({
-      profiles: [makeMachineProfile({ enable_laser_fire_button: true, default_fire_power_percent: 1 })],
+      profiles: [
+        makeMachineProfile({ enable_laser_fire_button: true, default_fire_power_percent: 1 }),
+      ],
       activeProfileId: 'profile-1',
     });
 
@@ -371,7 +418,9 @@ describe('MovePanel', () => {
         supports_cylinder: false,
         supports_camera_alignment: false,
       },
-      profiles: [makeMachineProfile({ enable_laser_fire_button: true, default_fire_power_percent: 1 })],
+      profiles: [
+        makeMachineProfile({ enable_laser_fire_button: true, default_fire_power_percent: 1 }),
+      ],
       activeProfileId: 'profile-1',
     });
 
@@ -381,7 +430,9 @@ describe('MovePanel', () => {
     // controls must not render as always-erroring buttons.
     expect(screen.queryByRole('button', { name: 'Hold to Fire' })).toBeNull();
     expect(screen.queryByText('Click for one step. Hold to jog continuously.')).toBeNull();
-    expect((screen.getByTestId('goto-machine-zero-button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('goto-machine-zero-button') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   it('disables Home and jog when the controller lacks those capabilities', () => {
@@ -450,12 +501,22 @@ describe('MovePanel', () => {
       expect(machineService.getSavedPositions).toHaveBeenCalled();
     });
 
-    expect((screen.getByRole('button', { name: 'Home' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Home' }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
     expect((screen.getByTestId('goto-button') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByTestId('goto-machine-zero-button') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Set Origin' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Go Origin' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Laser to Selection' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('goto-machine-zero-button') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect((screen.getByRole('button', { name: 'Set Origin' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect((screen.getByRole('button', { name: 'Go Origin' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(
+      (screen.getByRole('button', { name: 'Laser to Selection' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     expect(screen.queryByRole('button', { name: 'Hold to Fire' })).toBeNull();
     expect(screen.queryByText('Hold a direction to jog continuously.')).toBeNull();
   });

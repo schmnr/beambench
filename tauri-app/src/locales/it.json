@@ -368,7 +368,54 @@
       "outcome_pass": "Superato",
       "outcome_warnings": "Avvisi",
       "outcome_fail": "Fallito",
-      "warnings_block_start": "Risolvi gli avvisi qui sopra prima di avviare il lavoro."
+      "warnings_block_start": "Risolvi gli avvisi qui sopra prima di avviare il lavoro.",
+      "advisory_choice": "Questo lavoro può essere eseguito, ma la correzione dell'avviso può migliorare la qualità dell'incisione.",
+      "apply_overscan": "Utilizza l'overscan di {value} mm e ricontrolla",
+      "reduce_speed": "Utilizzare {value} mm/min e ricontrollare",
+      "continue_anyway": "Continua comunque",
+      "categories": {
+        "connection": "Connessione",
+        "machine": "Macchina",
+        "plan": "Piano",
+        "bounds": "Limiti",
+        "settings": "Impostazioni",
+        "positioning": "Posizionamento",
+        "planner": "Pianificatore",
+        "machine_workspace": "Area di lavoro della macchina"
+      },
+      "checks": {
+        "session_ready": "La sessione è pronta",
+        "machine_idle": "La macchina è inattiva",
+        "no_alarm": "Nessun allarme attivo",
+        "plan_segments": "Il piano ha movimento",
+        "plan_fits": "Il piano si inserisce nel basamento della macchina",
+        "raster_motion_fits": "Il movimento raster si adatta al basamento della macchina",
+        "laser_mode": "La modalità laser è abilitata ($32=1)",
+        "homing_enabled": "L'homing è abilitato",
+        "relative_framed": "Il posizionamento relativo è stato inquadrato nella posizione attuale"
+      },
+      "messages": {
+        "connected_ready": "Connesso e pronto",
+        "machine_idle": "Macchina inattiva",
+        "no_alarm": "Nessun allarme",
+        "raster_motion_within_bed": "Il movimento raster è all'interno del letto",
+        "laser_mode_enabled": "Modalità laser abilitata",
+        "homing_enabled": "Homing abilitato",
+        "frame_completed": "Telaio completato per questo esatto progetto e posizionamento",
+        "frame_required": "Questo controller non è in home, quindi Beam Bench non può verificare i bordi fisici del letto. Inquadrare il lavoro dopo aver posizionato il laser, quindi ricontrollare prima di iniziare.",
+        "segment_count_one": "1 segmento",
+        "segment_count_other": "{count} segmenti"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "L'accelerazione raster richiede più overscan",
+          "message": "La velocità selezionata richiede una maggiore distanza di accelerazione. Aumenta l'overscan o riduci la velocità per ottenere bordi delle file più uniformi."
+        },
+        "speed_limited": {
+          "title": "La velocità richiesta supera il limite della macchina",
+          "message": "Il controller funzionerà più lentamente di quanto richiesto."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} è disponibile",
@@ -2039,7 +2086,12 @@
         "travel": "Viaggio",
         "unlock": "Sblocca",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Non impostato",
+        "user_origin_saved": "Salvato alle X {x}, Y {y} mm",
+        "set_user_origin_here": "Imposta qui",
+        "user_origin_required_title": "Imposta l'origine dell'utente prima di inquadrare o iniziare",
+        "positioning_help": "Aiuto per il posizionamento"
       },
       "panel": {
         "positioning": "Posizionamento",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Impossibile applicare la preimpostazione: {detail}",
         "title": "Preimpostazione macchina",
         "preview": "Anteprima",
-        "no_changes": "Nessun cambiamento."
+        "no_changes": "Nessun cambiamento.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Area di lavoro ufficiale ACMER S2 e impostazioni predefinite GRBL.",
+            "advisory": "ACMER specifica un'area di incisione di 300 × 300 mm. Beam Bench ricontrollerà le impostazioni del controller GRBL compatibile quando la macchina si connette."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Immagine instradata su \"{layer}\"",
     "routed_vector": "Vettore instradato su \"{layer}\"",
     "import_complete": "Importazione completata: {fileCount, plural, one {# file} other {# file}}, {objectCount, plural, one {# oggetto} other {# oggetti}}",
+    "dxf_skipped_entities": "Non è stato possibile importare alcune entità DXF: {entities}.",
     "discard_recovery_failed": "Impossibile eliminare {count, plural, one {# file di ripristino} other {# file di ripristino}}: {detail}",
     "text_baked": "Testo risolto integrato nell'oggetto",
     "batch_failed": "Batch non riuscito: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "inferiore",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}” supera di {amount} {unit} il bordo {edge} dell’area di lavoro. L’oggetto è stato selezionato. Spostalo all’interno dell’area di lavoro prima di visualizzare l’anteprima o avviare il lavoro.} other {Una parte del disegno supera di {amount} {unit} il bordo {edge} dell’area di lavoro. Spostala all’interno dell’area di lavoro prima di visualizzare l’anteprima o avviare il lavoro.}}",
     "ui_error_title": "Beam Bench ha riscontrato un errore dell'interfaccia",
-    "reload": "Ricarica"
+    "reload": "Ricarica",
+    "user_origin_not_set": "L'origine utente è selezionata ma non è stata impostata. Spostare il laser sull'origine prevista e scegliere Imposta qui prima di inquadrare o iniziare.",
+    "current_position_unavailable": "La posizione attuale necessita di una macchina connessa con una posizione segnalata.",
+    "dxf_no_usable_geometry": "Il file DXF non contiene geometria vettoriale 2D utilizzabile.",
+    "dxf_no_usable_geometry_with_entities": "Il file DXF non contiene geometria vettoriale 2D utilizzabile. Entità non supportate o non valide: {entities}."
   },
   "import": {
     "drop_to_import": "Trascina i file da importare"

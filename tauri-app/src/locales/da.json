@@ -368,7 +368,54 @@
       "outcome_pass": "Bestået",
       "outcome_warnings": "Advarsler",
       "outcome_fail": "Mislykkedes",
-      "warnings_block_start": "Løs advarslerne ovenfor, før du starter jobbet."
+      "warnings_block_start": "Løs advarslerne ovenfor, før du starter jobbet.",
+      "advisory_choice": "Dette job kan køre, men korrigering af vejledningen kan forbedre graveringskvaliteten.",
+      "apply_overscan": "Brug {value} mm overscan og tjek igen",
+      "reduce_speed": "Brug {value} mm/min og tjek igen",
+      "continue_anyway": "Fortsæt alligevel",
+      "categories": {
+        "connection": "Forbindelse",
+        "machine": "Maskine",
+        "plan": "Planlæg",
+        "bounds": "Grænser",
+        "settings": "Indstillinger",
+        "positioning": "Positionering",
+        "planner": "Planlægger",
+        "machine_workspace": "Maskinarbejdsplads"
+      },
+      "checks": {
+        "session_ready": "Session er klar",
+        "machine_idle": "Maskinen er inaktiv",
+        "no_alarm": "Ingen aktiv alarm",
+        "plan_segments": "Planen har bevægelse",
+        "plan_fits": "Plan passer ind i maskinsengen",
+        "raster_motion_fits": "Rasterbevægelse passer ind i maskinsengen",
+        "laser_mode": "Lasertilstand er aktiveret ($32=1)",
+        "homing_enabled": "Homing er aktiveret",
+        "relative_framed": "Relativ placering blev indrammet på den aktuelle position"
+      },
+      "messages": {
+        "connected_ready": "Tilsluttet og klar",
+        "machine_idle": "Maskinen er tomgang",
+        "no_alarm": "Ingen alarm",
+        "raster_motion_within_bed": "Rasterbevægelse er inde i sengen",
+        "laser_mode_enabled": "Lasertilstand aktiveret",
+        "homing_enabled": "Homing aktiveret",
+        "frame_completed": "Ramme færdiggjort til netop dette projekt og placering",
+        "frame_required": "Denne controller er ikke hjemmebaseret, så Beam Bench kan ikke verificere de fysiske sengekanter. Indram jobbet efter placering af laseren, og kontroller derefter igen, før du starter.",
+        "segment_count_one": "1 segment",
+        "segment_count_other": "{count} segmenter"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "Rasteracceleration kræver mere overscanning",
+          "message": "Den valgte hastighed kræver mere accelerationsafstand. Øg overscanning eller reducer hastigheden for mere jævne rækkekanter."
+        },
+        "speed_limited": {
+          "title": "Den ønskede hastighed overskrider maskingrænsen",
+          "message": "Controlleren vil køre langsommere end anmodet."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} er tilgængelig",
@@ -2039,7 +2086,12 @@
         "travel": "Rejser",
         "unlock": "Lås op",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Ikke indstillet",
+        "user_origin_saved": "Gemt ved X {x}, Y {y} mm",
+        "set_user_origin_here": "Indstil her",
+        "user_origin_required_title": "Indstil brugeroprindelse før indramning eller start",
+        "positioning_help": "Positioneringshjælp"
       },
       "panel": {
         "positioning": "Positionering",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Kunne ikke anvende forudindstilling: {detail}",
         "title": "Maskinforudindstilling",
         "preview": "Forhåndsvisning",
-        "no_changes": "Ingen ændringer."
+        "no_changes": "Ingen ændringer.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Officielle ACMER S2-arbejdsområde og GRBL-standarder.",
+            "advisory": "ACMER specificerer et 300 × 300 mm graveringsområde. Beam Bench kontrollerer de kompatible GRBL-controllerindstillinger igen, når maskinen tilsluttes."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Billede dirigeret til \"{layer}\"",
     "routed_vector": "Vektor dirigeret til \"{layer}\"",
     "import_complete": "Import fuldført: {fileCount, plural, one {# fil} other {# filer}}, {objectCount, plural, one {# objekt} other {# objekter}}",
+    "dxf_skipped_entities": "Nogle DXF-enheder kunne ikke importeres: {entities}.",
     "discard_recovery_failed": "Kunne ikke kassere {count, plural, one {# gendannelsesfil} other {# gendannelsesfiler}}: {detail}",
     "text_baked": "Opløst tekst indlejret i objektet",
     "batch_failed": "Batch mislykkedes: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "nederste",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}” strækker sig {amount} {unit} ud over arbejdsområdets {edge} kant. Objektet er valgt. Flyt det ind på arbejdsområdet, før du forhåndsviser eller kører jobbet.} other {En del af motivet strækker sig {amount} {unit} ud over arbejdsområdets {edge} kant. Flyt den ind på arbejdsområdet, før du forhåndsviser eller kører jobbet.}}",
     "ui_error_title": "Beam Bench stødte på en UI-fejl",
-    "reload": "Genindlæs"
+    "reload": "Genindlæs",
+    "user_origin_not_set": "Brugeroprindelse er valgt, men er ikke blevet indstillet. Flyt laseren til den tilsigtede oprindelse, og vælg Indstil her før indramning eller start.",
+    "current_position_unavailable": "Aktuel position kræver en tilsluttet maskine med en rapporteret position.",
+    "dxf_no_usable_geometry": "DXF-filen indeholder ingen brugbar 2D-vektorgeometri.",
+    "dxf_no_usable_geometry_with_entities": "DXF-filen indeholder ingen brugbar 2D-vektorgeometri. Ikke-understøttede eller ugyldige enheder: {entities}."
   },
   "import": {
     "drop_to_import": "Slip filer for at importere"

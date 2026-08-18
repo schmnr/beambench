@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { wrapBackendError } from './errors';
+import { localizeImportWarning, wrapBackendError } from './errors';
 
 describe('wrapBackendError', () => {
   it('translates the machine-zero homing gate into a direct instruction', () => {
@@ -53,5 +53,23 @@ describe('wrapBackendError', () => {
         '[controller_connection_lost] Automatic controller rechecks failed.',
       ),
     ).toBe('Operation failed: Automatic controller rechecks failed.');
+  });
+
+  it('localizes DXF empty and partial import feedback', () => {
+    expect(wrapBackendError('DXF import found no usable 2D vector geometry.')).toBe(
+      'The DXF file contains no usable 2D vector geometry.',
+    );
+    expect(
+      wrapBackendError(
+        'DXF import found no usable 2D vector geometry. Unsupported or malformed entities: 1 POLYLINE.',
+      ),
+    ).toBe(
+      'The DXF file contains no usable 2D vector geometry. Unsupported or malformed entities: 1 POLYLINE.',
+    );
+    expect(
+      localizeImportWarning(
+        'DXF import skipped unsupported or malformed entities: 1 TEXT.',
+      ),
+    ).toBe('Some DXF entities could not be imported: 1 TEXT.');
   });
 });

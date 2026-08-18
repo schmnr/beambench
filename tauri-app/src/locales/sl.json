@@ -368,7 +368,54 @@
       "outcome_pass": "Uspešno",
       "outcome_warnings": "Opozorila",
       "outcome_fail": "Neuspešno",
-      "warnings_block_start": "Pred zagonom opravila odpravite zgornja opozorila."
+      "warnings_block_start": "Pred zagonom opravila odpravite zgornja opozorila.",
+      "advisory_choice": "To opravilo se lahko izvaja, vendar lahko popravek nasveta izboljša kakovost graviranja.",
+      "apply_overscan": "Uporabite {value} mm overscan in ponovno preverite",
+      "reduce_speed": "Uporabite {value} mm/min in ponovno preverite",
+      "continue_anyway": "Vseeno nadaljujte",
+      "categories": {
+        "connection": "Povezava",
+        "machine": "Stroj",
+        "plan": "Načrtujte",
+        "bounds": "Meje",
+        "settings": "nastavitve",
+        "positioning": "Pozicioniranje",
+        "planner": "Planer",
+        "machine_workspace": "Delovni prostor stroja"
+      },
+      "checks": {
+        "session_ready": "Seja je pripravljena",
+        "machine_idle": "Stroj miruje",
+        "no_alarm": "Ni aktivnega alarma",
+        "plan_segments": "Načrt ima gibanje",
+        "plan_fits": "Načrt se prilega postelji stroja",
+        "raster_motion_fits": "Rastrsko gibanje se prilega postelji stroja",
+        "laser_mode": "Laserski način je omogočen ($32=1)",
+        "homing_enabled": "Domovanje je omogočeno",
+        "relative_framed": "Relativna postavitev je bila uokvirjena na trenutni položaj"
+      },
+      "messages": {
+        "connected_ready": "Povezan in pripravljen",
+        "machine_idle": "Stroj v prostem teku",
+        "no_alarm": "Brez alarma",
+        "raster_motion_within_bed": "Rastrsko gibanje je znotraj postelje",
+        "laser_mode_enabled": "Laserski način omogočen",
+        "homing_enabled": "Domovanje omogočeno",
+        "frame_completed": "Okvir je dokončan za točno ta projekt in postavitev",
+        "frame_required": "Ta krmilnik ni domač, zato Beam Bench ne more preveriti fizičnih robov postelje. Po namestitvi laserja uokvirite opravilo in ga pred začetkom ponovno preverite.",
+        "segment_count_one": "1 segment",
+        "segment_count_other": "{count} segmentov"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "Rastrsko pospeševanje potrebuje več prostora za skeniranje",
+          "message": "Izbrana hitrost zahteva večjo razdaljo pospeška. Za bolj enakomerne robove vrstic povečajte obseg ali zmanjšajte hitrost."
+        },
+        "speed_limited": {
+          "title": "Zahtevana hitrost presega omejitev stroja",
+          "message": "Krmilnik bo deloval počasneje, kot je zahtevano."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} je na voljo",
@@ -2039,7 +2086,12 @@
         "travel": "Potovanje",
         "unlock": "Odkleni",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Ni nastavljeno",
+        "user_origin_saved": "Shranjeno pri X {x}, Y {y} mm",
+        "set_user_origin_here": "Nastavite tukaj",
+        "user_origin_required_title": "Nastavite izvor uporabnika pred okvirjanjem ali začetkom",
+        "positioning_help": "Pomoč pri določanju položaja"
       },
       "panel": {
         "positioning": "Pozicioniranje",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Prednastavitve ni bilo mogoče uporabiti: {detail}",
         "title": "Prednastavitev stroja",
         "preview": "Predogled",
-        "no_changes": "Brez sprememb."
+        "no_changes": "Brez sprememb.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Uradni delovni prostor ACMER S2 in privzete nastavitve GRBL.",
+            "advisory": "ACMER določa območje graviranja 300 × 300 mm. Beam Bench bo znova preveril združljive nastavitve krmilnika GRBL, ko se naprava poveže."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Slika usmerjena v \"{layer}\"",
     "routed_vector": "Vektor usmerjen v \"{layer}\"",
     "import_complete": "Uvoz dokončan: {fileCount, plural, one {# datoteka} other {# datotek}}, {objectCount, plural, one {# predmet} other {# predmetov}}",
+    "dxf_skipped_entities": "Nekaterih entitet DXF ni bilo mogoče uvoziti: {entities}.",
     "discard_recovery_failed": "Ni bilo mogoče zavreči {count, plural, one {# datoteke za obnovitev} other {# datotek za obnovitev}}: {detail}",
     "text_baked": "Razrešeno besedilo vstavljeno v predmet",
     "batch_failed": "Paket ni uspel: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "spodnji",
     "artwork_outside_workspace": "{hasObject, select, yes {»{object}« sega {amount} {unit} čez {edge} rob delovnega območja. Predmet je izbran. Pred predogledom ali zagonom opravila ga premaknite v delovno območje.} other {Del vašega načrta sega {amount} {unit} čez {edge} rob delovnega območja. Pred predogledom ali zagonom opravila ga premaknite v delovno območje.}}",
     "ui_error_title": "V Beam Bench je prišlo do napake vmesnika",
-    "reload": "Ponovno naloži"
+    "reload": "Ponovno naloži",
+    "user_origin_not_set": "Uporabniški izvor je izbran, vendar ni nastavljen. Premaknite laser na predvideno izhodišče in izberite Set here pred okvirjanjem ali začetkom.",
+    "current_position_unavailable": "Trenutni položaj potrebuje povezan stroj s prijavljenim položajem.",
+    "dxf_no_usable_geometry": "Datoteka DXF ne vsebuje uporabne 2D-vektorske geometrije.",
+    "dxf_no_usable_geometry_with_entities": "Datoteka DXF ne vsebuje uporabne 2D-vektorske geometrije. Nepodprte ali nepravilne entitete: {entities}."
   },
   "import": {
     "drop_to_import": "Spustite datoteke za uvoz"
