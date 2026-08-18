@@ -25,8 +25,9 @@ export function Toast({
   onDismiss: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const isConnectionError = notification.type === 'error'
-    && /\b(connect|connection|serial|port|grbl|baud|usb)\b/i.test(notification.message);
+  const isConnectionError =
+    notification.type === 'error' &&
+    /\b(connect|connection|serial|port|grbl|baud|usb)\b/i.test(notification.message);
 
   return (
     <div
@@ -54,9 +55,10 @@ export function Toast({
               title: t('notifications.error_report_title'),
               description: notification.message,
               sourceContext: {
+                ...notification.feedbackContext,
                 source: 'error_toast',
                 error_message: notification.message,
-                feature: 'toast',
+                feature: notification.feedbackContext?.feature ?? 'toast',
                 correlation_ts: new Date(notification.createdAt).toISOString(),
               },
             });

@@ -301,6 +301,46 @@ describe('machineStore frame-selected toggle', () => {
     });
   });
 
+  it('turns structured frame bounds failures into actionable report context', async () => {
+    const project = makeProject({ start_from: 'current_position' });
+    useProjectStore.setState({ project, selectedObjectIds: [] });
+    mockedMachine.frameJob.mockRejectedValue({
+      code: 'planning_failed',
+      message: 'Artwork exceeds the workspace bounds',
+      details: {
+        kind: 'bounds_exceeded',
+        workspace_origin: 'top_left',
+        violation: {
+          axis: 'x',
+          boundary: 'min',
+          amount_mm: 151.81,
+          source_object_id: 'obj-1',
+        },
+      },
+    });
+
+    const result = await useMachineStore.getState().frameJob('rectangular', ['obj-1'], true);
+
+    expect(result).toBeNull();
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['obj-1']);
+    const notifications = useNotificationStore.getState().notifications;
+    const notification = notifications[notifications.length - 1];
+    expect(notification).toMatchObject({
+      type: 'error',
+      actionLabel: 'Absolute Coords',
+      feedbackContext: {
+        action: 'frame',
+        frame_mode: 'rectangular',
+        frame_laser_on: true,
+        selected_object_count: 1,
+        error_code: 'planning_failed',
+      },
+    });
+    expect(notification?.feedbackContext?.error_details).toMatchObject({
+      kind: 'bounds_exceeded',
+    });
+  });
+
   it('connect hydrates the first machine status snapshot for connected controls', async () => {
     const status = makeMachineStatus({ run_state: 'idle', work_position: { x: 12, y: 34, z: 0 } });
     mockedMachine.beginControllerConnection.mockResolvedValue({
@@ -367,11 +407,9 @@ describe('machineStore frame-selected toggle', () => {
     });
     mockedMachine.getMachineStatus.mockResolvedValue(status);
 
-    await useMachineStore.getState().connectNetwork(
-      'fluidnc.local',
-      23,
-      { mode: 'known_driver', driver: 'fluid_nc' },
-    );
+    await useMachineStore
+      .getState()
+      .connectNetwork('fluidnc.local', 23, { mode: 'known_driver', driver: 'fluid_nc' });
 
     expect(mockedMachine.beginNetworkControllerConnection).toHaveBeenCalledWith(
       'fluidnc.local',
@@ -462,11 +500,9 @@ describe('machineStore frame-selected toggle', () => {
       },
     });
 
-    await useMachineStore.getState().connect(
-      '/dev/cu.usbserial-210',
-      115200,
-      { mode: 'auto_detect' },
-    );
+    await useMachineStore
+      .getState()
+      .connect('/dev/cu.usbserial-210', 115200, { mode: 'auto_detect' });
 
     expect(useMachineStore.getState()).toMatchObject({
       sessionState: 'disconnected',
@@ -877,9 +913,14 @@ describe('machineStore frame-selected toggle', () => {
       };
       useMachineStore.setState({ preflightReport: passReport });
 
-      let resolveReport: (report: Awaited<ReturnType<typeof machineService.runPreflightCheck>>) => void = () => {};
+      let resolveReport: (
+        report: Awaited<ReturnType<typeof machineService.runPreflightCheck>>,
+      ) => void = () => {};
       vi.mocked(machineService.runPreflightCheck).mockImplementation(
-        () => new Promise((r) => { resolveReport = r; }),
+        () =>
+          new Promise((r) => {
+            resolveReport = r;
+          }),
       );
 
       const pending = useMachineStore.getState().runPreflight();

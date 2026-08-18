@@ -176,7 +176,11 @@ pub fn run_preflight(
         PreflightOutcome::PassWithWarnings
     };
 
-    PreflightReport { outcome, checks }
+    PreflightReport {
+        outcome,
+        checks,
+        advisories: Vec::new(),
+    }
 }
 
 /// Validate that worst-case raster head motion (burn extent extended by

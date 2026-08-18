@@ -368,7 +368,54 @@
       "outcome_pass": "Geçti",
       "outcome_warnings": "Uyarılar",
       "outcome_fail": "Başarısız",
-      "warnings_block_start": "İşi başlatmadan önce yukarıdaki uyarıları giderin."
+      "warnings_block_start": "İşi başlatmadan önce yukarıdaki uyarıları giderin.",
+      "advisory_choice": "Bu iş yürütülebilir ancak uyarının düzeltilmesi gravür kalitesini artırabilir.",
+      "apply_overscan": "{value} mm aşırı taramayı kullanın ve yeniden kontrol edin",
+      "reduce_speed": "{value} mm/dak değerini kullanın ve yeniden kontrol edin",
+      "continue_anyway": "Yine de devam et",
+      "categories": {
+        "connection": "Bağlantı",
+        "machine": "Makine",
+        "plan": "Planı",
+        "bounds": "Sınırlar",
+        "settings": "Ayarlar",
+        "positioning": "Konumlandırma",
+        "planner": "Planlayıcı",
+        "machine_workspace": "Makine çalışma alanı"
+      },
+      "checks": {
+        "session_ready": "Oturum hazır",
+        "machine_idle": "Makine boşta",
+        "no_alarm": "Aktif alarm yok",
+        "plan_segments": "Planda hareket var",
+        "plan_fits": "Plan makine yatağına sığar",
+        "raster_motion_fits": "Raster hareketi makine yatağına sığar",
+        "laser_mode": "Lazer modu etkin (32$=1)",
+        "homing_enabled": "Hedef arama etkinleştirildi",
+        "relative_framed": "Göreli yerleşim geçerli konumda çerçevelendi"
+      },
+      "messages": {
+        "connected_ready": "Bağlı ve hazır",
+        "machine_idle": "Makine boşta",
+        "no_alarm": "Alarm yok",
+        "raster_motion_within_bed": "Raster hareketi yatağın içindedir",
+        "laser_mode_enabled": "Lazer modu etkin",
+        "homing_enabled": "Hedefe ulaşma etkin",
+        "frame_completed": "Tam olarak bu proje ve yerleştirme için çerçeve tamamlandı",
+        "frame_required": "Bu denetleyici homlu olmadığından Beam Bench fiziksel yatak kenarlarını doğrulayamaz. Lazeri konumlandırdıktan sonra işi çerçeveleyin ve başlamadan önce yeniden kontrol edin.",
+        "segment_count_one": "1 bölüm",
+        "segment_count_other": "{count} segment"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "Raster hızlandırmanın daha fazla taramaya ihtiyacı var",
+          "message": "Seçilen hız daha fazla hızlanma mesafesi gerektiriyor. Daha düzgün satır kenarları için aşırı taramayı artırın veya hızı azaltın."
+        },
+        "speed_limited": {
+          "title": "İstenen hız makine sınırını aşıyor",
+          "message": "Denetleyici istenenden daha yavaş çalışacak."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} mevcut",
@@ -2039,7 +2086,12 @@
         "travel": "Seyahat",
         "unlock": "Kilidi aç",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Ayarlanmadı",
+        "user_origin_saved": "X {x}, Y {y} mm'de kaydedildi",
+        "set_user_origin_here": "Buradan ayarlayın",
+        "user_origin_required_title": "Çerçevelemeden veya başlamadan önce Kullanıcı Kaynağını ayarlayın",
+        "positioning_help": "Konumlandırma yardımı"
       },
       "panel": {
         "positioning": "Konumlandırma",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Ön ayar uygulanamadı: {detail}",
         "title": "Makine Ön Ayarı",
         "preview": "Önizleme",
-        "no_changes": "Değişiklik yok."
+        "no_changes": "Değişiklik yok.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Resmi ACMER S2 çalışma alanı ve GRBL varsayılanları.",
+            "advisory": "ACMER, 300 × 300 mm'lik bir gravür alanı belirtir. Beam Bench, makine bağlandığında uyumlu GRBL denetleyici ayarlarını yeniden kontrol edecektir."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Görüntü şuraya yönlendirildi: \"{layer}\"",
     "routed_vector": "Vektör şuraya yönlendirildi: \"{layer}\"",
     "import_complete": "İçe aktarma tamamlandı: {fileCount, plural, one {# dosya} other {# dosya}}, {objectCount, plural, one {# nesne} other {# nesne}}",
+    "dxf_skipped_entities": "Bazı DXF varlıkları içe aktarılamadı: {entities}.",
     "discard_recovery_failed": "{count, plural, one {# kurtarma dosyası} other {# kurtarma dosyası}} atılamadı: {detail}",
     "text_baked": "Çözümlenen metin nesneye işlendi",
     "batch_failed": "Toplu işlem başarısız: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "alt",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}” çalışma alanının {edge} kenarından {amount} {unit} taşıyor. Nesne seçildi. Önizleme yapmadan veya işi çalıştırmadan önce nesneyi çalışma alanının içine taşıyın.} other {Tasarımınızın bir bölümü çalışma alanının {edge} kenarından {amount} {unit} taşıyor. Önizleme yapmadan veya işi çalıştırmadan önce bu bölümü çalışma alanının içine taşıyın.}}",
     "ui_error_title": "Beam Bench bir arayüz hatasıyla karşılaştı",
-    "reload": "Yeniden yükle"
+    "reload": "Yeniden yükle",
+    "user_origin_not_set": "Kullanıcı Kaynağı seçili ancak ayarlanmadı. Lazeri istenilen başlangıç ​​noktasına taşıyın ve çerçevelemeden veya başlamadan önce Buraya ayarla seçeneğini seçin.",
+    "current_position_unavailable": "Geçerli Konum, rapor edilen konuma sahip bağlı bir makineye ihtiyaç duyar.",
+    "dxf_no_usable_geometry": "DXF dosyasında kullanılabilir 2B vektör geometrisi yok.",
+    "dxf_no_usable_geometry_with_entities": "DXF dosyasında kullanılabilir 2B vektör geometrisi yok. Desteklenmeyen veya hatalı varlıklar: {entities}."
   },
   "import": {
     "drop_to_import": "İçe aktarmak için dosyaları bırakın"

@@ -15,6 +15,7 @@ import type {
   DeviceCapabilities,
   LihuiyuUsbDeviceInfo,
 } from '../types/machine';
+import type { Project } from '../types/project';
 import { machineService } from '../services/machineService';
 import { discoveryService } from '../services/discoveryService';
 import { appService } from '../services/appService';
@@ -23,12 +24,34 @@ import { usePreviewStore } from './previewStore';
 import { useCameraStore } from './cameraStore';
 import { useProjectStore } from './projectStore';
 import { useUiStore } from './uiStore';
+import { useAppStore } from './appStore';
 import { sessionJobOptions } from '../types/jobOptions';
-import { wrapBackendError } from '../i18n/errors';
+import { backendErrorMessage, backendErrorReportContext, wrapBackendError } from '../i18n/errors';
+import { formatWorkspaceBoundsError } from '../i18n/previewBoundsError';
 import i18n from '../i18n';
 
-const notifyError = (msg: string) => useNotificationStore.getState().push(wrapBackendError(msg), 'error');
+const notifyError = (msg: string) =>
+  useNotificationStore.getState().push(wrapBackendError(msg), 'error');
 const notifySuccess = (msg: string) => useNotificationStore.getState().push(msg, 'success');
+
+function selectedBounds(project: Project | null | undefined, objectIds: string[] | undefined) {
+  if (!project || !objectIds || objectIds.length === 0) return null;
+  const selected = project.objects.filter((object) => objectIds.includes(object.id));
+  if (selected.length === 0) return null;
+  return selected.slice(1).reduce(
+    (bounds, object) => ({
+      min: {
+        x: Math.min(bounds.min.x, object.bounds.min.x),
+        y: Math.min(bounds.min.y, object.bounds.min.y),
+      },
+      max: {
+        x: Math.max(bounds.max.x, object.bounds.max.x),
+        y: Math.max(bounds.max.y, object.bounds.max.y),
+      },
+    }),
+    selected[0].bounds,
+  );
+}
 
 // The preview machine simulates a fully-featured GRBL controller.
 const PREVIEW_CAPABILITIES: DeviceCapabilities = {
@@ -58,9 +81,8 @@ export function controllerEndpointDisplayName(endpoint: ControllerConnectionEndp
     return `${endpoint.device_id} (${endpoint.vendor_id.toString(16).padStart(4, '0')}:${endpoint.product_id.toString(16).padStart(4, '0')})`;
   }
   const host = endpoint.host.trim();
-  const displayHost = host.includes(':') && !(host.startsWith('[') && host.endsWith(']'))
-    ? `[${host}]`
-    : host;
+  const displayHost =
+    host.includes(':') && !(host.startsWith('[') && host.endsWith(']')) ? `[${host}]` : host;
   return `${displayHost}:${endpoint.port}`;
 }
 
@@ -166,9 +188,15 @@ interface MachineStoreState {
   hydrateSession: () => Promise<void>;
   home: () => Promise<void>;
   unlock: () => Promise<void>;
-  jog: (xMm: number, yMm: number, feedRate: number, zMm?: number | null, continuous?: boolean) => Promise<void>;
+  jog: (
+    xMm: number,
+    yMm: number,
+    feedRate: number,
+    zMm?: number | null,
+    continuous?: boolean,
+  ) => Promise<void>;
   runPreflight: () => Promise<PreflightReport | null>;
-  startJob: () => Promise<void>;
+  startJob: (allowAdvisories?: boolean) => Promise<void>;
   frameJob: (
     frameMode?: FrameMode,
     selectedObjectIds?: string[],
@@ -398,10 +426,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         driver: 'lihuiyu',
       };
       set({ controllerSelection });
-      const result = await machineService.beginUsbControllerConnection(
-        device,
-        controllerSelection,
-      );
+      const result = await machineService.beginUsbControllerConnection(device, controllerSelection);
       if (result.status !== 'connected') {
         throw new Error('Lihuiyu USB connection did not complete');
       }
@@ -483,8 +508,9 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       notifySuccess(`Connected to ${controllerEndpointDisplayName(result.endpoint)}`);
     } catch (e) {
       const msg = String(e);
-      const challengeExpired = msg.toLowerCase().includes('decision expired')
-        || msg.toLowerCase().includes('no controller connection decision is pending');
+      const challengeExpired =
+        msg.toLowerCase().includes('decision expired') ||
+        msg.toLowerCase().includes('no controller connection decision is pending');
       set({
         error: msg,
         loading: false,
@@ -592,9 +618,11 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       ]);
       const currentState = get().sessionState;
       const sessionState =
-        status.run_state === 'alarm' ? 'alarm'
-        : currentState === 'alarm' && status.run_state === 'idle' ? 'ready'
-        : currentState;
+        status.run_state === 'alarm'
+          ? 'alarm'
+          : currentState === 'alarm' && status.run_state === 'idle'
+            ? 'ready'
+            : currentState;
       set({ machineStatus: status, machineCoordinatesValid, sessionState, error: null });
     } catch (e) {
       set({ error: String(e) });
@@ -702,7 +730,10 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
     set({ loading: true, error: null, preflightReport: null });
     try {
       const report = await machineService.runPreflightCheck(
-        sessionJobOptions(useUiStore.getState().jobOptions, useProjectStore.getState().selectedObjectIds),
+        sessionJobOptions(
+          useUiStore.getState().jobOptions,
+          useProjectStore.getState().selectedObjectIds,
+        ),
       );
       set({ preflightReport: report, loading: false });
       return report;
@@ -714,12 +745,16 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
     }
   },
 
-  startJob: async () => {
+  startJob: async (allowAdvisories = false) => {
     set({ loading: true, error: null, activeJobPurpose: 'job' });
     try {
       await useProjectStore.getState().advanceAutoVariableText();
       const progress = await machineService.startJob(
-        sessionJobOptions(useUiStore.getState().jobOptions, useProjectStore.getState().selectedObjectIds),
+        sessionJobOptions(
+          useUiStore.getState().jobOptions,
+          useProjectStore.getState().selectedObjectIds,
+        ),
+        allowAdvisories,
       );
       set({ jobProgress: progress, loading: false });
     } catch (e) {
@@ -749,9 +784,46 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         );
       return progress;
     } catch (e) {
-      const msg = String(e);
+      const msg = backendErrorMessage(e);
       set({ error: msg, loading: false, activeJobPurpose: null });
-      notifyError(msg);
+      const projectStore = useProjectStore.getState();
+      const boundsError = formatWorkspaceBoundsError(
+        e,
+        projectStore.project,
+        useAppStore.getState().settings?.display_unit ?? 'mm',
+      );
+      const feedbackContext = {
+        action: 'frame',
+        feature: 'frame',
+        frame_mode: frameMode,
+        frame_laser_on: laserOnOverride,
+        selected_object_count: selectedObjectIds?.length ?? 0,
+        selected_bounds: selectedBounds(projectStore.project, selectedObjectIds),
+        ...backendErrorReportContext(e),
+      };
+      if (boundsError) {
+        if (boundsError.sourceObjectId) {
+          projectStore.selectObjects([boundsError.sourceObjectId]);
+        }
+        const canUseAbsoluteCoordinates = projectStore.project?.start_from !== 'absolute_coords';
+        useNotificationStore.getState().push(boundsError.message, 'error', {
+          ...(canUseAbsoluteCoordinates
+            ? {
+                actionLabel: i18n.t('panels.machine.laser.start_from.absolute_coords'),
+                onAction: () => {
+                  void (async () => {
+                    await useProjectStore.getState().setStartFrom('absolute_coords');
+                    await get().frameJob(frameMode, selectedObjectIds, laserOnOverride);
+                  })();
+                },
+                autoDismissMs: 12_000,
+              }
+            : {}),
+          feedbackContext,
+        });
+      } else {
+        useNotificationStore.getState().push(wrapBackendError(msg), 'error', { feedbackContext });
+      }
       return null;
     }
   },
@@ -1010,10 +1082,12 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
           machineCoordinatesValid: false,
           error: null,
         });
-        useNotificationStore.getState().push(
-          'Emergency stop was resent after automatically reopening the controller connection. Beam Bench disconnected afterward; reconnect before continuing.',
-          'warning',
-        );
+        useNotificationStore
+          .getState()
+          .push(
+            'Emergency stop was resent after automatically reopening the controller connection. Beam Bench disconnected afterward; reconnect before continuing.',
+            'warning',
+          );
       } else {
         set({ jobProgress: null, machineCoordinatesValid: false, error: null });
         notifySuccess('Emergency stop sent');
@@ -1023,15 +1097,17 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       const unconfirmed = msg.includes('[emergency_stop_unconfirmed]');
       set({
         error: msg,
-        ...(unconfirmed ? {
-          sessionState: 'disconnected' as SessionState,
-          machineStatus: null,
-          connectedPort: null,
-          capabilities: null,
-          jobProgress: null,
-          activeJobPurpose: null,
-          machineCoordinatesValid: false,
-        } : {}),
+        ...(unconfirmed
+          ? {
+              sessionState: 'disconnected' as SessionState,
+              machineStatus: null,
+              connectedPort: null,
+              capabilities: null,
+              jobProgress: null,
+              activeJobPurpose: null,
+              machineCoordinatesValid: false,
+            }
+          : {}),
       });
       if (unconfirmed) {
         useNotificationStore.getState().push(wrapBackendError(msg), 'error', {

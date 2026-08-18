@@ -368,7 +368,54 @@
       "outcome_pass": "Hyväksytty",
       "outcome_warnings": "Varoituksia",
       "outcome_fail": "Hylätty",
-      "warnings_block_start": "Ratkaise yllä olevat varoitukset ennen työn aloittamista."
+      "warnings_block_start": "Ratkaise yllä olevat varoitukset ennen työn aloittamista.",
+      "advisory_choice": "Tämä työ voidaan suorittaa, mutta neuvojen korjaaminen voi parantaa kaiverruslaatua.",
+      "apply_overscan": "Käytä {value} mm:n yliskannausta ja tarkista uudelleen",
+      "reduce_speed": "Käytä {value} mm/min ja tarkista uudelleen",
+      "continue_anyway": "Jatka joka tapauksessa",
+      "categories": {
+        "connection": "Yhteys",
+        "machine": "Kone",
+        "plan": "Suunnittele",
+        "bounds": "Rajat",
+        "settings": "Asetukset",
+        "positioning": "Paikannus",
+        "planner": "Suunnittelija",
+        "machine_workspace": "Koneen työtila"
+      },
+      "checks": {
+        "session_ready": "Sessio on valmis",
+        "machine_idle": "Kone on tyhjäkäynnillä",
+        "no_alarm": "Ei aktiivista hälytystä",
+        "plan_segments": "Suunnitelmalla on liikettä",
+        "plan_fits": "Suunnitelma sopii koneen sisään",
+        "raster_motion_fits": "Raster-liike mahtuu koneen sisään",
+        "laser_mode": "Lasertila on käytössä ($32=1)",
+        "homing_enabled": "Kotiutus on käytössä",
+        "relative_framed": "Suhteellinen sijoitus kehystettiin nykyiseen sijaintiin"
+      },
+      "messages": {
+        "connected_ready": "Yhdistetty ja valmis",
+        "machine_idle": "Kone tyhjäkäynnillä",
+        "no_alarm": "Ei hälytystä",
+        "raster_motion_within_bed": "Rasteriliike tapahtuu sängyn sisällä",
+        "laser_mode_enabled": "Lasertila käytössä",
+        "homing_enabled": "Kotiutus käytössä",
+        "frame_completed": "Kehys valmis juuri tätä projektia ja sijoitusta varten",
+        "frame_required": "Tätä ohjainta ei ole asennettu, joten Beam Bench ei voi tarkistaa sängyn fyysisiä reunoja. Kehystä työ laserin sijoittamisen jälkeen ja tarkista sitten ennen aloittamista.",
+        "segment_count_one": "1 segmentti",
+        "segment_count_other": "{count} segmenttiä"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "Rasterikiihdytys vaatii enemmän yliskannausta",
+          "message": "Valittu nopeus vaatii enemmän kiihdytysmatkaa. Lisää yliskannausta tai vähennä nopeutta, jotta rivin reunat ovat tasaisempia."
+        },
+        "speed_limited": {
+          "title": "Pyydetty nopeus ylittää koneen rajan",
+          "message": "Ohjain toimii hitaammin kuin pyydetään."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} on saatavilla",
@@ -2039,7 +2086,12 @@
         "travel": "Matkustaa",
         "unlock": "Avaa lukitus",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Ei asetettu",
+        "user_origin_saved": "Tallennettu X {x}, Y {y} mm",
+        "set_user_origin_here": "Aseta tähän",
+        "user_origin_required_title": "Aseta User Origin ennen kehystämistä tai aloittamista",
+        "positioning_help": "Apua paikannukseen"
       },
       "panel": {
         "positioning": "Paikannus",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Esiasetuksen käyttäminen epäonnistui: {detail}",
         "title": "Koneen esiasetus",
         "preview": "Esikatselu",
-        "no_changes": "Ei muutoksia."
+        "no_changes": "Ei muutoksia.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Virallinen ACMER S2 -työtila ja GRBL-oletusasetukset.",
+            "advisory": "ACMER määrittelee 300 × 300 mm kaiverrusalueen. Beam Bench tarkistaa yhteensopivat GRBL-ohjaimen asetukset uudelleen, kun kone muodostaa yhteyden."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Kuva reititetty kohteeseen \"{layer}\"",
     "routed_vector": "Vektori reititetty kohteeseen \"{layer}\"",
     "import_complete": "Tuonti valmis: {fileCount, plural, one {# tiedosto} other {# tiedostoa}}, {objectCount, plural, one {# objekti} other {# objektia}}",
+    "dxf_skipped_entities": "Joitakin DXF-entiteettejä ei voitu tuoda: {entities}.",
     "discard_recovery_failed": "{count, plural, one {# palautustiedoston hylkääminen epäonnistui} other {# palautustiedoston hylkääminen epäonnistui}}: {detail}",
     "text_baked": "Ratkaistu teksti leivottu objektiin",
     "batch_failed": "Erä epäonnistui: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "alareunan",
     "artwork_outside_workspace": "{hasObject, select, yes {”{object}” ulottuu {amount} {unit} työalueen {edge} yli. Objekti on valittu. Siirrä se työalueen sisään ennen esikatselua tai työn suorittamista.} other {Osa kuviosta ulottuu {amount} {unit} työalueen {edge} yli. Siirrä se työalueen sisään ennen esikatselua tai työn suorittamista.}}",
     "ui_error_title": "Beam Benchissä tapahtui käyttöliittymävirhe",
-    "reload": "Lataa uudelleen"
+    "reload": "Lataa uudelleen",
+    "user_origin_not_set": "Käyttäjän alkuperä on valittu, mutta sitä ei ole asetettu. Siirrä laser aiottuun lähtökohtaan ja valitse Aseta tästä ennen kehystämistä tai aloittamista.",
+    "current_position_unavailable": "Nykyinen sijainti tarvitsee yhdistetyn koneen, jolla on raportoitu sijainti.",
+    "dxf_no_usable_geometry": "DXF-tiedosto ei sisällä käyttökelpoista 2D-vektorigrafiikkaa.",
+    "dxf_no_usable_geometry_with_entities": "DXF-tiedosto ei sisällä käyttökelpoista 2D-vektorigrafiikkaa. Tukemattomat tai virheelliset entiteetit: {entities}."
   },
   "import": {
     "drop_to_import": "Pudota tiedostot tuotavaksi"

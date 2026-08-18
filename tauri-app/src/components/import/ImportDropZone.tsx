@@ -13,8 +13,22 @@ interface ImportDropZoneProps {
 }
 
 const SUPPORTED_EXTS = new Set([
-  'svg', 'png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff', 'webp', 'tga',
-  'dxf', 'ai', 'pdf', 'eps', 'lbrn', 'lbrn2',
+  'svg',
+  'png',
+  'jpg',
+  'jpeg',
+  'bmp',
+  'gif',
+  'tif',
+  'tiff',
+  'webp',
+  'tga',
+  'dxf',
+  'ai',
+  'pdf',
+  'eps',
+  'lbrn',
+  'lbrn2',
 ]);
 
 function getSupportedPaths(paths: string[]): string[] {
@@ -36,13 +50,17 @@ export function ImportDropZone({ children }: ImportDropZoneProps) {
   const project = useProjectStore((s) => s.project);
   const [isDragging, setIsDragging] = useState(false);
 
-  const isOsFileDrag = useCallback((e: DragEvent) => (
-    e.dataTransfer?.types?.includes('Files') ?? false
-  ), []);
+  const isOsFileDrag = useCallback(
+    (e: DragEvent) => e.dataTransfer?.types?.includes('Files') ?? false,
+    [],
+  );
 
-  const hasActiveArtLibraryDrag = useCallback((e: DragEvent) => (
-    useArtLibraryStore.getState().dragState !== null || isArtLibraryDragDataTransfer(e.dataTransfer)
-  ), []);
+  const hasActiveArtLibraryDrag = useCallback(
+    (e: DragEvent) =>
+      useArtLibraryStore.getState().dragState !== null ||
+      isArtLibraryDragDataTransfer(e.dataTransfer),
+    [],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -73,7 +91,14 @@ export function ImportDropZone({ children }: ImportDropZoneProps) {
           try {
             await useProjectStore.getState().importFilePaths(filePaths);
           } catch (err) {
-            useNotificationStore.getState().push(i18n.t('notifications.import_failed', { detail: String(err) }), 'error');
+            useNotificationStore
+              .getState()
+              .push(i18n.t('notifications.import_failed', { detail: String(err) }), 'error');
+          } finally {
+            // Some WebViews can deliver a trailing drag-enter while the
+            // asynchronous import is being processed. The completed drop
+            // always owns the final overlay state.
+            setIsDragging(false);
           }
         }
       }
@@ -108,21 +133,30 @@ export function ImportDropZone({ children }: ImportDropZoneProps) {
     [hasActiveArtLibraryDrag, isOsFileDrag, project],
   );
 
-  const handleDragOver = useCallback((e: DragEvent) => {
-    if (hasActiveArtLibraryDrag(e) || !isOsFileDrag(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-  }, [hasActiveArtLibraryDrag, isOsFileDrag]);
+  const handleDragOver = useCallback(
+    (e: DragEvent) => {
+      if (hasActiveArtLibraryDrag(e) || !isOsFileDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    [hasActiveArtLibraryDrag, isOsFileDrag],
+  );
 
-  const handleDragLeave = useCallback((e: DragEvent) => {
-    if (hasActiveArtLibraryDrag(e) || !isOsFileDrag(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    // Only hide when leaving the drop zone itself (not child elements)
-    if (e.currentTarget === e.target) {
-      setIsDragging(false);
-    }
-  }, [hasActiveArtLibraryDrag, isOsFileDrag]);
+  const handleDragLeave = useCallback(
+    (e: DragEvent) => {
+      if (hasActiveArtLibraryDrag(e) || !isOsFileDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // React reports the canvas child as the target when a desktop drag leaves
+      // the workspace. Use the destination instead so transitions between
+      // children stay active, while actually leaving the drop zone clears it.
+      const destination = e.relatedTarget;
+      if (!(destination instanceof Node) || !e.currentTarget.contains(destination)) {
+        setIsDragging(false);
+      }
+    },
+    [hasActiveArtLibraryDrag, isOsFileDrag],
+  );
 
   const handleDrop = useCallback(
     async (e: DragEvent) => {
@@ -162,7 +196,13 @@ export function ImportDropZone({ children }: ImportDropZoneProps) {
           await useProjectStore.getState().importFiles();
           return;
         }
-        useNotificationStore.getState().push(i18n.t('notifications.import_failed', { detail: String(err) }), 'error');
+        useNotificationStore
+          .getState()
+          .push(i18n.t('notifications.import_failed', { detail: String(err) }), 'error');
+      } finally {
+        // Keep the drop overlay transient even if the WebView emits a late
+        // drag-enter while the file contents are being imported.
+        setIsDragging(false);
       }
     },
     [hasActiveArtLibraryDrag, isOsFileDrag, project],

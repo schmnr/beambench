@@ -368,7 +368,54 @@
       "outcome_pass": "Bestanden",
       "outcome_warnings": "Warnungen",
       "outcome_fail": "Fehlgeschlagen",
-      "warnings_block_start": "Beheben Sie die obigen Warnungen, bevor Sie den Auftrag starten."
+      "warnings_block_start": "Beheben Sie die obigen Warnungen, bevor Sie den Auftrag starten.",
+      "advisory_choice": "Dieser Job kann ausgeführt werden, aber die Korrektur des Hinweises kann die Gravurqualität verbessern.",
+      "apply_overscan": "Verwenden Sie {value} mm Overscan und überprüfen Sie es erneut",
+      "reduce_speed": "Verwenden Sie {value} mm/min und prüfen Sie erneut",
+      "continue_anyway": "Machen Sie trotzdem weiter",
+      "categories": {
+        "connection": "Verbindung",
+        "machine": "Maschine",
+        "plan": "Planen",
+        "bounds": "Grenzen",
+        "settings": "Einstellungen",
+        "positioning": "Positionierung",
+        "planner": "Planer",
+        "machine_workspace": "Maschinenarbeitsplatz"
+      },
+      "checks": {
+        "session_ready": "Die Sitzung ist fertig",
+        "machine_idle": "Maschine steht im Leerlauf",
+        "no_alarm": "Kein aktiver Alarm",
+        "plan_segments": "Plan hat Bewegung",
+        "plan_fits": "Plan passt in das Maschinenbett",
+        "raster_motion_fits": "Raster Motion passt in das Maschinenbett",
+        "laser_mode": "Der Lasermodus ist aktiviert ($32=1)",
+        "homing_enabled": "Referenzfahrt ist aktiviert",
+        "relative_framed": "Die relative Platzierung wurde an der aktuellen Position eingerahmt"
+      },
+      "messages": {
+        "connected_ready": "Verbunden und bereit",
+        "machine_idle": "Maschine im Leerlauf",
+        "no_alarm": "Kein Alarm",
+        "raster_motion_within_bed": "Die Rasterbewegung erfolgt innerhalb des Bettes",
+        "laser_mode_enabled": "Lasermodus aktiviert",
+        "homing_enabled": "Referenzfahrt aktiviert",
+        "frame_completed": "Der Rahmen wurde für genau dieses Projekt und diese Platzierung fertiggestellt",
+        "frame_required": "Dieser Controller ist nicht referenziert, daher kann Beam Bench die physischen Bettkanten nicht überprüfen. Richten Sie den Auftrag nach der Positionierung des Lasers ein und überprüfen Sie ihn erneut, bevor Sie beginnen.",
+        "segment_count_one": "1 Segment",
+        "segment_count_other": "{count} Segmente"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "Die Rasterbeschleunigung erfordert mehr Overscan",
+          "message": "Die gewählte Geschwindigkeit erfordert einen größeren Beschleunigungsweg. Erhöhen Sie den Overscan oder verringern Sie die Geschwindigkeit, um gleichmäßigere Zeilenränder zu erzielen."
+        },
+        "speed_limited": {
+          "title": "Die angeforderte Geschwindigkeit überschreitet das Maschinenlimit",
+          "message": "Der Controller läuft langsamer als gewünscht."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} ist verfügbar",
@@ -2039,7 +2086,12 @@
         "travel": "Reisen",
         "unlock": "Entsperren",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Nicht festgelegt",
+        "user_origin_saved": "Gespeichert bei X {x}, Y {y} mm",
+        "set_user_origin_here": "Hier einstellen",
+        "user_origin_required_title": "Legen Sie den Benutzerursprung fest, bevor Sie den Rahmen festlegen oder beginnen",
+        "positioning_help": "Positionierungshilfe"
       },
       "panel": {
         "positioning": "Positionierung",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Voreinstellung konnte nicht angewendet werden: {detail}",
         "title": "Maschinenvoreinstellung",
         "preview": "Vorschau",
-        "no_changes": "Keine Änderungen."
+        "no_changes": "Keine Änderungen.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Offizieller ACMER S2-Arbeitsbereich und GRBL-Standardeinstellungen.",
+            "advisory": "ACMER gibt eine Gravurfläche von 300 × 300 mm an. Beam Bench überprüft die kompatiblen GRBL-Controller-Einstellungen erneut, wenn die Maschine eine Verbindung herstellt."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Bild geleitet nach \"{layer}\"",
     "routed_vector": "Vektor geleitet nach \"{layer}\"",
     "import_complete": "Import abgeschlossen: {fileCount, plural, one {# Datei} other {# Dateien}}, {objectCount, plural, one {# Objekt} other {# Objekte}}",
+    "dxf_skipped_entities": "Einige DXF-Elemente konnten nicht importiert werden: {entities}.",
     "discard_recovery_failed": "{count, plural, one {# Wiederherstellungsdatei konnte nicht verworfen werden} other {# Wiederherstellungsdateien konnten nicht verworfen werden}}: {detail}",
     "text_baked": "Aufgelöster Text in das Objekt eingebrannt",
     "batch_failed": "Stapelverarbeitung fehlgeschlagen: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "unteren",
     "artwork_outside_workspace": "{hasObject, select, yes {„{object}“ ragt {amount} {unit} über den {edge} Rand des Arbeitsbereichs hinaus. Das Objekt wurde ausgewählt. Verschiebe es in den Arbeitsbereich, bevor du die Vorschau öffnest oder den Auftrag startest.} other {Ein Teil deines Designs ragt {amount} {unit} über den {edge} Rand des Arbeitsbereichs hinaus. Verschiebe ihn in den Arbeitsbereich, bevor du die Vorschau öffnest oder den Auftrag startest.}}",
     "ui_error_title": "In Beam Bench ist ein UI-Fehler aufgetreten",
-    "reload": "Neu laden"
+    "reload": "Neu laden",
+    "user_origin_not_set": "Der Benutzerursprung ist ausgewählt, wurde jedoch nicht festgelegt. Bewegen Sie den Laser zum vorgesehenen Ursprung und wählen Sie „Hier festlegen“, bevor Sie den Bildausschnitt festlegen oder beginnen.",
+    "current_position_unavailable": "Für die aktuelle Position ist eine verbundene Maschine mit einer gemeldeten Position erforderlich.",
+    "dxf_no_usable_geometry": "Die DXF-Datei enthält keine verwendbare 2D-Vektorgeometrie.",
+    "dxf_no_usable_geometry_with_entities": "Die DXF-Datei enthält keine verwendbare 2D-Vektorgeometrie. Nicht unterstützte oder fehlerhafte Elemente: {entities}."
   },
   "import": {
     "drop_to_import": "Dateien zum Importieren ablegen"

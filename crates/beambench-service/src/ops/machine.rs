@@ -15,8 +15,8 @@ use beambench_common::geometry::{Bounds, Point2D};
 use beambench_common::machine::{
     ControllerEvidenceState, ControllerFamily, ControllerModel, ControllerProductTier,
     DeviceCapabilities, DeviceIdentity, JobProgress, JobState, MachineConnectionTarget,
-    MachineRunState, MachineStatus, PortInfo, PreflightCheck, PreflightOutcome, PreflightReport,
-    SessionState, TransportKind,
+    MachineRunState, MachineStatus, PortInfo, PreflightAdvisory, PreflightCheck, PreflightOutcome,
+    PreflightReport, SessionState, TransportKind,
 };
 use beambench_core::{MachineProfile, MachineProfileId, Project, RuidaTableAxis, Workspace};
 use beambench_grbl::{
@@ -36,7 +36,8 @@ use beambench_marlin::{
 use beambench_planner::PlannerError;
 use beambench_planner::{
     ExecutionPlan, anchor_segments_to_target, apply_workspace_origin_transform, build_frame_plan,
-    build_hull_frame_plan, calculate_plan_bounds, flip_bounds_y,
+    build_hull_frame_plan, calculate_plan_bounds, calculate_work_bounds, flip_bounds_y,
+    translate_segments,
 };
 use beambench_ruida::{
     RuidaCompilationConfig, RuidaCompiledJob, RuidaCoordinateTransform, RuidaJogAxis,
@@ -459,6 +460,7 @@ fn run_ruida_preflight(
             PreflightOutcome::Fail
         },
         checks,
+        advisories: Vec::new(),
     }
 }
 
@@ -496,6 +498,7 @@ fn run_lihuiyu_preflight(
             PreflightOutcome::Fail
         },
         checks,
+        advisories: Vec::new(),
     }
 }
 
@@ -871,6 +874,8 @@ fn retain_terminal_job_diagnostic(
 ) {
     let diagnostic = DiagnosticTerminalJob {
         captured_at: chrono::Utc::now().to_rfc3339(),
+        age_ms: None,
+        relevant_to_report: None,
         reason: reason.to_string(),
         progress,
         error,
@@ -3026,6 +3031,16 @@ pub fn runtime_state(ctx: &ServiceContext) -> ServiceResult<MachineRuntimeState>
     Ok(state)
 }
 
+fn clear_relative_frame_confirmation(ctx: &ServiceContext) -> ServiceResult<()> {
+    *ctx.relative_frame_confirmation
+        .lock()
+        .map_err(|e| lock_err("relative_frame_confirmation", e))? = None;
+    *ctx.pending_relative_frame_confirmation
+        .lock()
+        .map_err(|e| lock_err("pending_relative_frame_confirmation", e))? = None;
+    Ok(())
+}
+
 pub fn connect_machine(
     ctx: &ServiceContext,
     input: ConnectMachineInput,
@@ -3045,6 +3060,7 @@ pub fn connect_machine(
         ));
     }
     clear_pending_controller_connection(ctx)?;
+    clear_relative_frame_confirmation(ctx)?;
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
@@ -3089,6 +3105,7 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
         .map_err(|e| lock_err("controller_connection_gate", e))?;
     let _ = force_laser_fire_stop(ctx, "disconnect");
     clear_pending_controller_connection(ctx)?;
+    clear_relative_frame_confirmation(ctx)?;
     let mut disconnect_warning: Option<String> = None;
     {
         let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
@@ -3258,6 +3275,9 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
     let profile = active_profile(ctx)?;
     if input.z_mm.is_some_and(|value| !value.is_finite()) {
         return Err(ServiceError::invalid_input("z must be a finite number"));
+    }
+    if input.continuous && ctx.active_jog.load(Ordering::Acquire) {
+        return Err(ServiceError::busy("A continuous jog is already active"));
     }
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
@@ -3460,6 +3480,86 @@ pub fn run_preflight_check(ctx: &ServiceContext) -> ServiceResult<PreflightRepor
     run_preflight_check_with_options(ctx, &planning::SessionJobOptions::default())
 }
 
+fn relative_frame_fingerprint(
+    ctx: &ServiceContext,
+    project: &Project,
+    profile: &MachineProfile,
+) -> ServiceResult<Option<String>> {
+    let runtime = ctx
+        .optimization_runtime
+        .lock()
+        .map_err(|e| lock_err("optimization_runtime", e))?;
+    if project.start_from == StartFromMode::AbsoluteCoords || runtime.coordinates_trusted {
+        return Ok(None);
+    }
+    let target = match project.start_from {
+        StartFromMode::CurrentPosition => runtime.current_position,
+        StartFromMode::UserOrigin => project.user_origin,
+        StartFromMode::AbsoluteCoords => None,
+    }
+    .ok_or_else(|| ServiceError::invalid_state("Relative positioning target is unavailable"))?;
+    Ok(Some(format!(
+        "{}:{:?}:{:?}:{:.3}:{:.3}:{}",
+        planning::revision_hash(project)?,
+        project.start_from,
+        project.job_origin,
+        target.0,
+        target.1,
+        profile.id,
+    )))
+}
+
+fn raster_overscan_advisory(
+    plan: &ExecutionPlan,
+    profile: &MachineProfile,
+) -> Option<PreflightAdvisory> {
+    let acceleration = profile.acceleration_mm_s2;
+    if !acceleration.is_finite() || acceleration <= 0.0 {
+        return None;
+    }
+    let mut max_required = 0.0_f64;
+    let mut configured_for_max_required = 0.0_f64;
+    let mut minimum_safe_speed = f64::INFINITY;
+    let mut has_shortfall = false;
+    for segment in &plan.segments {
+        let beambench_planner::PlanSegment::Raster {
+            speed_mm_min,
+            overscan_mm,
+            ..
+        } = segment
+        else {
+            continue;
+        };
+        let effective_speed = if profile.max_speed_mm_min > 0.0 {
+            speed_mm_min.min(profile.max_speed_mm_min)
+        } else {
+            *speed_mm_min
+        };
+        let velocity = effective_speed / 60.0;
+        let required = velocity * velocity / (2.0 * acceleration);
+        if required > *overscan_mm + 0.01 {
+            has_shortfall = true;
+            if required > max_required {
+                max_required = required;
+                configured_for_max_required = *overscan_mm;
+            }
+            let safe_speed = (2.0 * acceleration * overscan_mm.max(0.0)).sqrt() * 60.0;
+            minimum_safe_speed = minimum_safe_speed.min(safe_speed);
+        }
+    }
+    has_shortfall.then(|| {
+        PreflightAdvisory {
+            code: "raster_overscan".to_string(),
+            description: "Raster acceleration needs more overscan".to_string(),
+            message: format!(
+                "Raster overscan is {configured_for_max_required:.1} mm, but this machine needs approximately {max_required:.1} mm at the requested speed."
+            ),
+            recommended_overscan_mm: Some((max_required * 10.0).ceil() / 10.0),
+            recommended_speed_mm_min: Some(minimum_safe_speed.floor().max(1.0)),
+        }
+    })
+}
+
 pub fn run_preflight_check_with_options(
     ctx: &ServiceContext,
     job_options: &planning::SessionJobOptions,
@@ -3493,6 +3593,7 @@ pub fn run_preflight_check_with_options(
             let report = PreflightReport {
                 outcome: PreflightOutcome::Fail,
                 checks,
+                advisories: Vec::new(),
             };
             ctx.emit_event(
                 "job.preflight.completed",
@@ -3512,19 +3613,34 @@ pub fn run_preflight_check_with_options(
         .as_ref()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
     let profile = active_profile(ctx)?;
+    let relative_fingerprint = relative_frame_fingerprint(ctx, &project_for_controller, &profile)?;
+    let relative_untrusted = relative_fingerprint.is_some();
+    let mut relative_plan;
+    let plan_for_checks = if relative_untrusted {
+        relative_plan = plan.clone();
+        let work_bounds = calculate_work_bounds(&relative_plan.segments);
+        let (machine_width_mm, machine_height_mm) = profile.workspace_dimensions_mm();
+        let dx = machine_width_mm * 0.5 - (work_bounds.min.x + work_bounds.max.x) * 0.5;
+        let dy = machine_height_mm * 0.5 - (work_bounds.min.y + work_bounds.max.y) * 0.5;
+        translate_segments(&mut relative_plan.segments, dx, dy);
+        relative_plan.bounds = calculate_work_bounds(&relative_plan.segments);
+        &relative_plan
+    } else {
+        &plan
+    };
     let mut report = match session {
-        MachineSessionHandle::Grbl(session) => run_preflight(session, &plan, &profile),
+        MachineSessionHandle::Grbl(session) => run_preflight(session, plan_for_checks, &profile),
         MachineSessionHandle::Ruida(session) => {
-            run_ruida_preflight(session, &plan, &project_for_controller, &profile)
+            run_ruida_preflight(session, plan_for_checks, &project_for_controller, &profile)
         }
         MachineSessionHandle::Lihuiyu(session) => {
-            run_lihuiyu_preflight(session, &plan, &project_for_controller, &profile)
+            run_lihuiyu_preflight(session, plan_for_checks, &project_for_controller, &profile)
         }
         _ => {
             let (mut checks, basics_ok) = generic_preflight_checks(
                 session.session_state(),
                 session.machine_status().run_state,
-                &plan,
+                plan_for_checks,
                 &profile,
             );
             let can_run_job = session.capabilities().can_run_job;
@@ -3541,6 +3657,7 @@ pub fn run_preflight_check_with_options(
                     PreflightOutcome::Fail
                 },
                 checks,
+                advisories: Vec::new(),
             }
         }
     };
@@ -3550,11 +3667,13 @@ pub fn run_preflight_check_with_options(
     // controller-synchronized active profile. Always validate the final
     // motion against the machine as a second, independent safety boundary.
     let (machine_width_mm, machine_height_mm) = profile.workspace_dimensions_mm();
-    if let Err(error) = beambench_planner::validate::validate_bounds(
-        &plan.segments,
-        machine_width_mm,
-        machine_height_mm,
-    ) {
+    if !relative_untrusted
+        && let Err(error) = beambench_planner::validate::validate_bounds(
+            &plan.segments,
+            machine_width_mm,
+            machine_height_mm,
+        )
+    {
         let message = match error {
             PlannerError::BoundsExceeded(violation) => {
                 planning::machine_bounds_exceeded_error(
@@ -3577,6 +3696,29 @@ pub fn run_preflight_check_with_options(
             message,
         });
         report.outcome = PreflightOutcome::Fail;
+    }
+
+    if let Some(fingerprint) = relative_fingerprint {
+        let framed = ctx
+            .relative_frame_confirmation
+            .lock()
+            .map_err(|e| lock_err("relative_frame_confirmation", e))?
+            .as_ref()
+            == Some(&fingerprint);
+        report.checks.push(PreflightCheck {
+            category: "positioning".to_string(),
+            description: "Relative placement was framed at the current position".to_string(),
+            passed: framed,
+            message: if framed {
+                "Frame completed for this exact project and placement".to_string()
+            } else {
+                "This controller is not homed, so Beam Bench cannot verify physical bed edges. Frame the job after positioning the laser, then recheck before starting."
+                    .to_string()
+            },
+        });
+        if !framed {
+            report.outcome = PreflightOutcome::Fail;
+        }
     }
 
     if profile.rotary_enabled {
@@ -3624,19 +3766,47 @@ pub fn run_preflight_check_with_options(
         }
     }
 
-    // Surface plan warnings as preflight checks so the user sees them before starting.
+    // Separate correctable quality advisories from blocking omissions and
+    // safety failures. Missing geometry remains a hard stop; overscan and
+    // controller speed clamping can be corrected or explicitly accepted.
     if !plan.warnings.is_empty() {
         for w in &plan.warnings {
-            report.checks.push(PreflightCheck {
-                category: "planner".to_string(),
-                description: w.message.clone(),
-                passed: false,
-                message: w.message.clone(),
-            });
+            if w.message.starts_with("Raster overscan is ") {
+                if report
+                    .advisories
+                    .iter()
+                    .all(|item| item.code != "raster_overscan")
+                    && let Some(advisory) = raster_overscan_advisory(&plan, &profile)
+                {
+                    report.advisories.push(advisory);
+                }
+            } else if w.message.starts_with("Requested speed ") {
+                if report
+                    .advisories
+                    .iter()
+                    .all(|item| item.code != "speed_limited")
+                {
+                    report.advisories.push(PreflightAdvisory {
+                        code: "speed_limited".to_string(),
+                        description: "Requested speed exceeds the machine limit".to_string(),
+                        message: w.message.clone(),
+                        recommended_overscan_mm: None,
+                        recommended_speed_mm_min: Some(profile.max_speed_mm_min),
+                    });
+                }
+            } else {
+                report.checks.push(PreflightCheck {
+                    category: "planner".to_string(),
+                    description: w.message.clone(),
+                    passed: false,
+                    message: w.message.clone(),
+                });
+                report.outcome = PreflightOutcome::Fail;
+            }
         }
-        if report.outcome == PreflightOutcome::Pass {
-            report.outcome = PreflightOutcome::PassWithWarnings;
-        }
+    }
+    if report.outcome == PreflightOutcome::Pass && !report.advisories.is_empty() {
+        report.outcome = PreflightOutcome::PassWithWarnings;
     }
 
     if !plan.failed_entries.is_empty() {
@@ -3700,6 +3870,14 @@ pub fn start_job_with_options(
     ctx: &ServiceContext,
     job_options: &planning::SessionJobOptions,
 ) -> ServiceResult<JobProgress> {
+    start_job_with_options_confirming_advisories(ctx, job_options, false)
+}
+
+pub fn start_job_with_options_confirming_advisories(
+    ctx: &ServiceContext,
+    job_options: &planning::SessionJobOptions,
+    allow_advisories: bool,
+) -> ServiceResult<JobProgress> {
     force_laser_fire_stop(ctx, "job_start")?;
     let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
     if job_lock.is_some() {
@@ -3711,6 +3889,7 @@ pub fn start_job_with_options(
     let preflight = run_preflight_check_with_options(ctx, job_options)?;
     match preflight.outcome {
         PreflightOutcome::Pass => {}
+        PreflightOutcome::PassWithWarnings if allow_advisories => {}
         PreflightOutcome::PassWithWarnings => {
             return Err(ServiceError::invalid_state(
                 "Preflight passed with warnings; resolve warnings before starting the job",
@@ -3724,6 +3903,10 @@ pub fn start_job_with_options(
             );
         }
     }
+
+    *ctx.pending_relative_frame_confirmation
+        .lock()
+        .map_err(|e| lock_err("pending_relative_frame_confirmation", e))? = None;
 
     // Force fresh plan for job start (ensure_current_plan syncs live position automatically)
     planning::invalidate_plan_cache(ctx)?;
@@ -3837,6 +4020,7 @@ fn drop_stale_machine_session(ctx: &ServiceContext) {
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
+    let _ = clear_relative_frame_confirmation(ctx);
 }
 
 fn handle_fatal_job_tick_error(ctx: &ServiceContext, message: String) {
@@ -3951,6 +4135,19 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
                 job_lock.as_ref(),
                 session_lock.as_ref(),
             );
+            let pending_frame = ctx
+                .pending_relative_frame_confirmation
+                .lock()
+                .map_err(|e| lock_err("pending_relative_frame_confirmation", e))?
+                .take();
+            if progress.state == beambench_common::machine::JobState::Completed {
+                if let Some(fingerprint) = pending_frame {
+                    *ctx.relative_frame_confirmation
+                        .lock()
+                        .map_err(|e| lock_err("relative_frame_confirmation", e))? =
+                        Some(fingerprint);
+                }
+            }
             *job_lock = None;
         }
     }
@@ -4241,22 +4438,32 @@ pub fn frame_job(
     // traces the area the actual job will engrave.
     let project = planning::current_project(ctx)?;
 
+    if project.start_from == StartFromMode::UserOrigin && project.user_origin.is_none() {
+        return Err(ServiceError::invalid_state(
+            "User Origin is selected, but no user origin has been set. Move the laser to the intended origin and choose Set Here before framing.",
+        )
+        .with_details(json!({ "kind": "user_origin_not_set" })));
+    }
+
     apply_workspace_origin_transform(
         &mut frame_plan.segments,
         project.workspace.origin,
         project.workspace.bed_height_mm,
     );
 
-    let current_pos = ctx
-        .optimization_runtime
-        .lock()
-        .map_err(|e| lock_err("optimization_runtime", e))?
-        .current_position;
+    let (current_pos, coordinates_trusted) = {
+        let runtime = ctx
+            .optimization_runtime
+            .lock()
+            .map_err(|e| lock_err("optimization_runtime", e))?;
+        (runtime.current_position, runtime.coordinates_trusted)
+    };
 
-    if project.start_from == StartFromMode::UserOrigin && project.user_origin.is_none() {
-        // No offset — matches the builder skip-not-fallback behavior
-    } else if project.start_from == StartFromMode::CurrentPosition && current_pos.is_none() {
-        // No offset — no live machine position available
+    if project.start_from == StartFromMode::CurrentPosition && current_pos.is_none() {
+        return Err(ServiceError::invalid_state(
+            "Current Position requires a connected machine with a reported work position.",
+        )
+        .with_details(json!({ "kind": "current_position_unavailable" })));
     } else if project.start_from != StartFromMode::AbsoluteCoords {
         // Anchor the frame exactly like the job: job-origin anchor of the
         // content lands on the start-from target, in machine space.
@@ -4279,6 +4486,25 @@ pub fn frame_job(
             y_flipped,
             target,
         );
+
+        // Framing must return to the exact placement target. Otherwise a
+        // Current Position job would be re-anchored to the frame's final
+        // corner when the plan is regenerated for Start.
+        if let Some(last) = frame_plan
+            .segments
+            .last()
+            .and_then(|segment| segment.motion_end())
+        {
+            let target_point = Point2D::new(target.0, target.1);
+            if last.distance_to(&target_point) > 0.001 {
+                frame_plan
+                    .segments
+                    .push(beambench_planner::PlanSegment::Travel {
+                        start: last,
+                        end: target_point,
+                    });
+            }
+        }
     }
 
     // Recompute bounds after transforms
@@ -4290,32 +4516,64 @@ pub fn frame_job(
         .lock()
         .map_err(|e| lock_err("settings", e))?
         .display_unit;
-    beambench_planner::validate::validate_bounds(
-        &frame_plan.segments,
-        project.workspace.bed_width_mm,
-        project.workspace.bed_height_mm,
-    )
-    .map_err(|error| match error {
-        PlannerError::BoundsExceeded(violation) => {
-            planning::bounds_exceeded_error(&project, violation, display_unit)
+    let relative_untrusted =
+        project.start_from != StartFromMode::AbsoluteCoords && !coordinates_trusted;
+    if relative_untrusted {
+        let work_bounds = calculate_work_bounds(&frame_plan.segments);
+        if work_bounds.width() > project.workspace.bed_width_mm + 1e-6
+            || work_bounds.height() > project.workspace.bed_height_mm + 1e-6
+        {
+            return Err(ServiceError::invalid_state(format!(
+                "The framed job is {:.1} x {:.1} mm, larger than the {:.1} x {:.1} mm project workspace.",
+                work_bounds.width(),
+                work_bounds.height(),
+                project.workspace.bed_width_mm,
+                project.workspace.bed_height_mm,
+            )));
         }
-        other => ServiceError::invalid_state(format!("Frame validation failed: {other}")),
-    })?;
+    } else {
+        beambench_planner::validate::validate_bounds(
+            &frame_plan.segments,
+            project.workspace.bed_width_mm,
+            project.workspace.bed_height_mm,
+        )
+        .map_err(|error| match error {
+            PlannerError::BoundsExceeded(violation) => {
+                planning::bounds_exceeded_error(&project, violation, display_unit)
+            }
+            other => ServiceError::invalid_state(format!("Frame validation failed: {other}")),
+        })?;
+    }
 
     let (machine_width_mm, machine_height_mm) = profile.workspace_dimensions_mm();
-    beambench_planner::validate::validate_bounds(
-        &frame_plan.segments,
-        machine_width_mm,
-        machine_height_mm,
-    )
-    .map_err(|error| match error {
-        PlannerError::BoundsExceeded(violation) => {
-            planning::machine_bounds_exceeded_error(&project, &profile, violation, display_unit)
+    if relative_untrusted {
+        let work_bounds = calculate_work_bounds(&frame_plan.segments);
+        if work_bounds.width() > machine_width_mm + 1e-6
+            || work_bounds.height() > machine_height_mm + 1e-6
+        {
+            return Err(ServiceError::invalid_state(format!(
+                "The framed job is {:.1} x {:.1} mm, larger than the {:.1} x {:.1} mm active machine profile.",
+                work_bounds.width(),
+                work_bounds.height(),
+                machine_width_mm,
+                machine_height_mm,
+            )));
         }
-        other => ServiceError::invalid_state(format!(
-            "Machine workspace frame validation failed: {other}"
-        )),
-    })?;
+    } else {
+        beambench_planner::validate::validate_bounds(
+            &frame_plan.segments,
+            machine_width_mm,
+            machine_height_mm,
+        )
+        .map_err(|error| match error {
+            PlannerError::BoundsExceeded(violation) => {
+                planning::machine_bounds_exceeded_error(&project, &profile, violation, display_unit)
+            }
+            other => ServiceError::invalid_state(format!(
+                "Machine workspace frame validation failed: {other}"
+            )),
+        })?;
+    }
 
     // Frame G-code must honor the active profile: constant-power machines
     // need M3 (M4 dims toward zero at framing speeds) and the profile's
@@ -4402,6 +4660,10 @@ pub fn frame_job(
     };
     let progress = job.progress();
     clear_retained_terminal_job(ctx)?;
+    *ctx.pending_relative_frame_confirmation
+        .lock()
+        .map_err(|e| lock_err("pending_relative_frame_confirmation", e))? =
+        relative_frame_fingerprint(ctx, &project, &profile)?;
     *job_lock = Some(job);
     drop(session_lock);
     drop(job_lock);
@@ -5249,7 +5511,7 @@ mod tests {
     use beambench_core::{AppSettings, ObjectData, Project, ProjectObject};
     use beambench_dsp::DspSession;
     use beambench_grbl::GcodeConfig;
-    use beambench_planner::ExecutionPlan;
+    use beambench_planner::{DirectionMode, ExecutionPlan, PlanSegment, PowerMode, ScanAxis};
     use beambench_serial::{MockSerialTransport, SerialError, SerialTransport};
     use chrono::Utc;
     use std::collections::VecDeque;
@@ -7189,6 +7451,43 @@ mod tests {
         }
     }
 
+    fn raster_segment(speed_mm_min: f64, overscan_mm: f64) -> PlanSegment {
+        PlanSegment::Raster {
+            scanlines: vec![],
+            line_interval_mm: 0.1,
+            direction_mode: DirectionMode::Bidirectional,
+            power_mode: PowerMode::Binary,
+            speed_mm_min,
+            layer_id: "raster".to_string(),
+            cut_entry_id: "entry".to_string(),
+            scan_angle_deg: 0.0,
+            scan_origin: Point2D::new(0.0, 0.0),
+            overscan_mm,
+            outlines: vec![],
+            scan_axis: ScanAxis::Horizontal,
+            power_max_percent: 100.0,
+            power_min_percent: 0.0,
+            dot_width_correction_mm: 0.0,
+            ramp_length_mm: 0.0,
+            x_pixel_mm: 0.1,
+        }
+    }
+
+    #[test]
+    fn raster_overscan_advisory_recommends_values_safe_for_every_active_raster() {
+        let mut profile = MachineProfile::default();
+        profile.acceleration_mm_s2 = 100.0;
+        profile.max_speed_mm_min = 10_000.0;
+        let mut plan = dummy_plan();
+        plan.segments = vec![raster_segment(2_000.0, 2.5), raster_segment(1_500.0, 1.0)];
+
+        let advisory = raster_overscan_advisory(&plan, &profile).unwrap();
+
+        assert_eq!(advisory.code, "raster_overscan");
+        assert_eq!(advisory.recommended_overscan_mm, Some(5.6));
+        assert_eq!(advisory.recommended_speed_mm_min, Some(848.0));
+    }
+
     #[test]
     fn ruida_compilation_rejects_unreported_current_position_placement() {
         let mut project = Project::new("Ruida current-position placement");
@@ -8217,6 +8516,8 @@ mod tests {
         let ctx = ServiceContext::with_settings(settings);
         *ctx.last_terminal_job.lock().unwrap() = Some(DiagnosticTerminalJob {
             captured_at: Utc::now().to_rfc3339(),
+            age_ms: None,
+            relevant_to_report: None,
             reason: "previous_failure".to_string(),
             progress: Some(JobProgress::default()),
             error: Some("old evidence".to_string()),

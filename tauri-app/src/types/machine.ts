@@ -400,9 +400,18 @@ export interface PreflightCheck {
   message: string;
 }
 
+export interface PreflightAdvisory {
+  code: string;
+  description: string;
+  message: string;
+  recommended_overscan_mm?: number | null;
+  recommended_speed_mm_min?: number | null;
+}
+
 export interface PreflightReport {
   outcome: PreflightOutcome;
   checks: PreflightCheck[];
+  advisories?: PreflightAdvisory[];
 }
 
 export interface ScanningOffsetEntry {

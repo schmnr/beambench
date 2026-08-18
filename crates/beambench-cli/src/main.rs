@@ -3441,6 +3441,7 @@ fn feedback_input_from_args(
             stack: None,
             feature: Some("beambench-cli".to_owned()),
             correlation_ts: Some(chrono::Utc::now().to_rfc3339()),
+            ..FeedbackSourceContext::default()
         }),
     })
 }

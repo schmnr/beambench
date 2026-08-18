@@ -152,7 +152,7 @@ export const machineService = {
     yMm: number,
     feedRate: number,
     zMm?: number | null,
-    continuous = false
+    continuous = false,
   ): Promise<void> {
     return invoke<void>('machine_jog', { xMm, yMm, zMm, feedRate, continuous });
   },
@@ -165,8 +165,8 @@ export const machineService = {
     return invoke<PreflightReport>('run_preflight_check', { jobOptions });
   },
 
-  async startJob(jobOptions?: SessionJobOptions): Promise<JobProgress> {
-    return invoke<JobProgress>('start_job', { jobOptions });
+  async startJob(jobOptions?: SessionJobOptions, allowAdvisories = false): Promise<JobProgress> {
+    return invoke<JobProgress>('start_job', { jobOptions, allowAdvisories });
   },
 
   async getJobProgress(): Promise<JobProgress | null> {
@@ -198,10 +198,12 @@ export const machineService = {
       title: `${i18n.t('menus.file.import')} ${i18n.t('dialog.device_settings.profile')}`,
       multiple: false,
       directory: false,
-      filters: [{
-        name: i18n.t('dialog.device_settings.profile'),
-        extensions: [MACHINE_PROFILE_EXTENSION],
-      }],
+      filters: [
+        {
+          name: i18n.t('dialog.device_settings.profile'),
+          extensions: [MACHINE_PROFILE_EXTENSION],
+        },
+      ],
     });
     return typeof selected === 'string' ? selected : null;
   },
@@ -210,10 +212,12 @@ export const machineService = {
     const selected = await save({
       title: `${i18n.t('menus.file.export')} ${i18n.t('dialog.device_settings.profile')}`,
       defaultPath: machineProfileDefaultPath(profileName),
-      filters: [{
-        name: i18n.t('dialog.device_settings.profile'),
-        extensions: [MACHINE_PROFILE_EXTENSION],
-      }],
+      filters: [
+        {
+          name: i18n.t('dialog.device_settings.profile'),
+          extensions: [MACHINE_PROFILE_EXTENSION],
+        },
+      ],
     });
     return selected === null ? null : ensureMachineProfileExtension(selected);
   },
@@ -240,7 +244,7 @@ export const machineService = {
 
   async getMachineProfilePresetDiff(
     profileId: string,
-    presetId: string
+    presetId: string,
   ): Promise<ProfileFieldDiff[]> {
     return invoke<ProfileFieldDiff[]>('get_machine_profile_preset_diff', { profileId, presetId });
   },
@@ -248,7 +252,7 @@ export const machineService = {
   async applyMachineProfilePreset(
     profileId: string,
     presetId: string,
-    confirmDiff: boolean
+    confirmDiff: boolean,
   ): Promise<ApplyPresetResult> {
     return invoke<ApplyPresetResult>('apply_machine_profile_preset', {
       profileId,
@@ -265,9 +269,14 @@ export const machineService = {
     frameMode?: FrameMode,
     selectedObjectIds?: string[],
     laserOnOverride = false,
-    feedRate?: number
+    feedRate?: number,
   ): Promise<JobProgress> {
-    return invoke<JobProgress>('frame_job', { frameMode, selectedObjectIds, laserOnOverride, feedRate });
+    return invoke<JobProgress>('frame_job', {
+      frameMode,
+      selectedObjectIds,
+      laserOnOverride,
+      feedRate,
+    });
   },
 
   async setFeedOverride(action: OverrideAction): Promise<void> {
@@ -314,7 +323,12 @@ export const machineService = {
     return invoke<void>('move_laser_to', { x, y, z, feedRate });
   },
 
-  async moveLaserToMachine(x: number, y: number, feedRate: number, z?: number | null): Promise<void> {
+  async moveLaserToMachine(
+    x: number,
+    y: number,
+    feedRate: number,
+    z?: number | null,
+  ): Promise<void> {
     return invoke<void>('move_laser_to_machine', { x, y, z, feedRate });
   },
 
@@ -334,7 +348,12 @@ export const machineService = {
     return invoke<SavedPosition[]>('get_saved_positions');
   },
 
-  async savePosition(name: string, x: number, y: number, z?: number | null): Promise<SavedPosition[]> {
+  async savePosition(
+    name: string,
+    x: number,
+    y: number,
+    z?: number | null,
+  ): Promise<SavedPosition[]> {
     return invoke<SavedPosition[]>('save_position', { name, x, y, z });
   },
 

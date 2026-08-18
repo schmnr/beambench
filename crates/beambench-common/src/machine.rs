@@ -431,11 +431,25 @@ pub struct PreflightCheck {
     pub message: String,
 }
 
+/// A non-blocking preflight finding with optional one-click corrections.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PreflightAdvisory {
+    pub code: String,
+    pub description: String,
+    pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_overscan_mm: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_speed_mm_min: Option<f64>,
+}
+
 /// Complete preflight report.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PreflightReport {
     pub outcome: PreflightOutcome,
     pub checks: Vec<PreflightCheck>,
+    #[serde(default)]
+    pub advisories: Vec<PreflightAdvisory>,
 }
 
 #[cfg(test)]
@@ -700,6 +714,7 @@ mod tests {
                 passed: true,
                 message: "Connected".to_string(),
             }],
+            advisories: Vec::new(),
         };
         let json = serde_json::to_string(&report).unwrap();
         let restored: PreflightReport = serde_json::from_str(&json).unwrap();

@@ -368,7 +368,54 @@
       "outcome_pass": "Aprovado",
       "outcome_warnings": "Avisos",
       "outcome_fail": "Falhou",
-      "warnings_block_start": "Resolva os avisos acima antes de iniciar o trabalho."
+      "warnings_block_start": "Resolva os avisos acima antes de iniciar o trabalho.",
+      "advisory_choice": "Este trabalho pode ser executado, mas a correção do aviso pode melhorar a qualidade da gravação.",
+      "apply_overscan": "Use overscan de {value} mm e verifique novamente",
+      "reduce_speed": "Use {value} mm/min e verifique novamente",
+      "continue_anyway": "Continuar mesmo assim",
+      "categories": {
+        "connection": "Conexão",
+        "machine": "Máquina",
+        "plan": "Plano",
+        "bounds": "Limites",
+        "settings": "Configurações",
+        "positioning": "Posicionamento",
+        "planner": "Planejador",
+        "machine_workspace": "Espaço de trabalho da máquina"
+      },
+      "checks": {
+        "session_ready": "A sessão está pronta",
+        "machine_idle": "A máquina está ociosa",
+        "no_alarm": "Nenhum alarme ativo",
+        "plan_segments": "Plano tem movimento",
+        "plan_fits": "O plano cabe na base da máquina",
+        "raster_motion_fits": "O movimento raster se ajusta à base da máquina",
+        "laser_mode": "O modo laser está ativado ($ 32 = 1)",
+        "homing_enabled": "A localização está ativada",
+        "relative_framed": "O posicionamento relativo foi enquadrado na posição atual"
+      },
+      "messages": {
+        "connected_ready": "Conectado e pronto",
+        "machine_idle": "Máquina ociosa",
+        "no_alarm": "Sem alarme",
+        "raster_motion_within_bed": "O movimento raster está dentro da cama",
+        "laser_mode_enabled": "Modo laser ativado",
+        "homing_enabled": "Homing habilitado",
+        "frame_completed": "Estrutura concluída para este projeto e posicionamento exatos",
+        "frame_required": "Este controlador não está localizado, portanto o Beam Bench não pode verificar as bordas físicas da cama. Enquadre o trabalho após posicionar o laser e verifique novamente antes de começar.",
+        "segment_count_one": "1 segmento",
+        "segment_count_other": "{count} segmentos"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "A aceleração raster precisa de mais overscan",
+          "message": "A velocidade selecionada precisa de mais distância de aceleração. Aumente o overscan ou reduza a velocidade para obter bordas de linha mais uniformes."
+        },
+        "speed_limited": {
+          "title": "A velocidade solicitada excede o limite da máquina",
+          "message": "O controlador funcionará mais lentamente do que o solicitado."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} está disponível",
@@ -2039,7 +2086,12 @@
         "travel": "Viajar",
         "unlock": "Desbloquear",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Não definido",
+        "user_origin_saved": "Salvo em X {x}, Y {y} mm",
+        "set_user_origin_here": "Defina aqui",
+        "user_origin_required_title": "Defina a origem do usuário antes de enquadrar ou iniciar",
+        "positioning_help": "Ajuda de posicionamento"
       },
       "panel": {
         "positioning": "Posicionamento",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Falha ao aplicar predefinição: {detail}",
         "title": "Predefinição da máquina",
         "preview": "Visualização",
-        "no_changes": "Sem alterações."
+        "no_changes": "Sem alterações.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Espaço de trabalho oficial ACMER S2 e padrões GRBL.",
+            "advisory": "ACMER especifica uma área de gravação de 300 × 300 mm. O Beam Bench verificará novamente as configurações compatíveis do controlador GRBL quando a máquina for conectada."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Imagem direcionada para \"{layer}\"",
     "routed_vector": "Vetor direcionado para \"{layer}\"",
     "import_complete": "Importação concluída: {fileCount, plural, one {# arquivo} other {# arquivos}}, {objectCount, plural, one {# objeto} other {# objetos}}",
+    "dxf_skipped_entities": "Não foi possível importar algumas entidades DXF: {entities}.",
     "discard_recovery_failed": "Falha ao descartar {count, plural, one {# arquivo de recuperação} other {# arquivos de recuperação}}: {detail}",
     "text_baked": "Texto resolvido fixado no objeto",
     "batch_failed": "Falha no lote: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "inferior",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}” ultrapassa em {amount} {unit} a borda {edge} da área de trabalho. O objeto foi selecionado. Mova-o para dentro da área de trabalho antes de visualizar ou executar o trabalho.} other {Parte do seu desenho ultrapassa em {amount} {unit} a borda {edge} da área de trabalho. Mova-a para dentro da área de trabalho antes de visualizar ou executar o trabalho.}}",
     "ui_error_title": "O Beam Bench encontrou um erro de interface",
-    "reload": "Recarregar"
+    "reload": "Recarregar",
+    "user_origin_not_set": "A origem do usuário está selecionada, mas não foi definida. Mova o laser para a origem pretendida e escolha Definir aqui antes de enquadrar ou iniciar.",
+    "current_position_unavailable": "A Posição Atual precisa de uma máquina conectada com uma posição informada.",
+    "dxf_no_usable_geometry": "O arquivo DXF não contém geometria vetorial 2D utilizável.",
+    "dxf_no_usable_geometry_with_entities": "O arquivo DXF não contém geometria vetorial 2D utilizável. Entidades não compatíveis ou inválidas: {entities}."
   },
   "import": {
     "drop_to_import": "Solte arquivos para importar"

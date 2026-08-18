@@ -38,7 +38,7 @@ import { useUpdateStore } from './stores/updateStore';
 import { useWelcomeStore, shouldShowWelcome } from './stores/welcomeStore';
 import { useMacroStore } from './stores/macroStore';
 import { useNotificationStore } from './stores/notificationStore';
-import { wrapBackendError } from './i18n/errors';
+import { localizeImportWarning, wrapBackendError } from './i18n/errors';
 import { useEventListener } from './hooks/useEventListener';
 import { useAutosave } from './hooks/useAutosave';
 import { useMachinePolling } from './hooks/useMachinePolling';
@@ -1227,7 +1227,7 @@ function App() {
         ? p.warnings.filter((warning): warning is string => typeof warning === 'string')
         : [];
       if (warnings.length > 0) {
-        useNotificationStore.getState().push(warnings.join(' '), 'warning');
+        useNotificationStore.getState().push(warnings.map(localizeImportWarning).join(' '), 'warning');
       }
     }
     if (event.type === 'project.import.oversized') {

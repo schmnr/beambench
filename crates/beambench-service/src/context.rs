@@ -140,6 +140,11 @@ pub struct ServiceContext {
     /// True only after the current connection has established machine
     /// coordinates. G53 absolute machine-coordinate moves require this.
     pub machine_coordinates_valid: AtomicBool,
+    /// Fingerprint of the most recent completed frame for an unhomed,
+    /// relative-positioned job. A matching frame is required before Start.
+    pub relative_frame_confirmation: Mutex<Option<String>>,
+    /// Frame fingerprint awaiting successful job completion.
+    pub pending_relative_frame_confirmation: Mutex<Option<String>>,
     /// Active manual fire session. Fire is backend-deadman protected and must
     /// be explicitly stopped or renewed before this state expires.
     pub active_laser_fire: Mutex<Option<LaserFireState>>,
@@ -235,6 +240,8 @@ impl ServiceContext {
             job_tick_loop_running: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
             machine_coordinates_valid: AtomicBool::new(false),
+            relative_frame_confirmation: Mutex::new(None),
+            pending_relative_frame_confirmation: Mutex::new(None),
             active_laser_fire: Mutex::new(None),
             discovery_state: Mutex::new(DiscoveryScanState::default()),
             camera_devices_override: Mutex::new(None),
@@ -287,6 +294,8 @@ impl ServiceContext {
             job_tick_loop_running: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
             machine_coordinates_valid: AtomicBool::new(false),
+            relative_frame_confirmation: Mutex::new(None),
+            pending_relative_frame_confirmation: Mutex::new(None),
             active_laser_fire: Mutex::new(None),
             discovery_state: Mutex::new(DiscoveryScanState::default()),
             camera_devices_override: Mutex::new(None),

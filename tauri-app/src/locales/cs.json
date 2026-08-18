@@ -368,7 +368,54 @@
       "outcome_pass": "Prošlo",
       "outcome_warnings": "Varování",
       "outcome_fail": "Selhalo",
-      "warnings_block_start": "Před spuštěním úlohy vyřešte výše uvedená upozornění."
+      "warnings_block_start": "Před spuštěním úlohy vyřešte výše uvedená upozornění.",
+      "advisory_choice": "Tato úloha může běžet, ale oprava upozornění může zlepšit kvalitu gravírování.",
+      "apply_overscan": "Použijte {value} mm overscan a znovu zkontrolujte",
+      "reduce_speed": "Použijte {value} mm/min a znovu zkontrolujte",
+      "continue_anyway": "Přesto pokračujte",
+      "categories": {
+        "connection": "Připojení",
+        "machine": "Stroj",
+        "plan": "Plán",
+        "bounds": "Hranice",
+        "settings": "Nastavení",
+        "positioning": "Polohování",
+        "planner": "Plánovač",
+        "machine_workspace": "Pracovní prostor stroje"
+      },
+      "checks": {
+        "session_ready": "Relace je připravena",
+        "machine_idle": "Stroj je nečinný",
+        "no_alarm": "Žádný aktivní alarm",
+        "plan_segments": "Plán má pohyb",
+        "plan_fits": "Plán se vejde do lože stroje",
+        "raster_motion_fits": "Pohyb rastru zapadá do lože stroje",
+        "laser_mode": "Laserový režim je povolen (32 $=1)",
+        "homing_enabled": "Navádění je povoleno",
+        "relative_framed": "Relativní umístění bylo zarámováno na aktuální pozici"
+      },
+      "messages": {
+        "connected_ready": "Připojeno a připraveno",
+        "machine_idle": "Stroj je nečinný",
+        "no_alarm": "Žádný alarm",
+        "raster_motion_within_bed": "Pohyb rastru je uvnitř postele",
+        "laser_mode_enabled": "Laserový režim povolen",
+        "homing_enabled": "Navádění povoleno",
+        "frame_completed": "Rám dokončen pro tento přesný projekt a umístění",
+        "frame_required": "Tento ovladač není umístěn, takže Beam Bench nemůže ověřit fyzické okraje postele. Po umístění laseru zarámujte úlohu a před zahájením znovu zkontrolujte.",
+        "segment_count_one": "1 segment",
+        "segment_count_other": "{count} segmentů"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "Zrychlení rastru vyžaduje více přeskenování",
+          "message": "Zvolená rychlost vyžaduje větší vzdálenost zrychlení. Zvyšte přeskenování nebo snižte rychlost pro rovnoměrnější okraje řádků."
+        },
+        "speed_limited": {
+          "title": "Požadovaná rychlost překračuje limit stroje",
+          "message": "Ovladač poběží pomaleji, než je požadováno."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} je k dispozici",
@@ -2039,7 +2086,12 @@
         "travel": "Cestování",
         "unlock": "Odemknout",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Není nastaveno",
+        "user_origin_saved": "Uloženo na X {x}, Y {y} mm",
+        "set_user_origin_here": "Nastavte zde",
+        "user_origin_required_title": "Před zarámováním nebo zahájením nastavte User Origin",
+        "positioning_help": "Pomoc s polohováním"
       },
       "panel": {
         "positioning": "Polohování",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Nepodařilo se použít předvolbu: {detail}",
         "title": "Přednastavení stroje",
         "preview": "Náhled",
-        "no_changes": "Žádné změny."
+        "no_changes": "Žádné změny.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Oficiální pracovní prostor ACMER S2 a výchozí nastavení GRBL.",
+            "advisory": "ACMER specifikuje gravírovací plochu 300 × 300 mm. Beam Bench po připojení stroje znovu zkontroluje kompatibilní nastavení ovladače GRBL."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Obrázek směrován do \"{layer}\"",
     "routed_vector": "Vektor směrován do \"{layer}\"",
     "import_complete": "Import dokončen: {fileCount, plural, one {# soubor} other {# souborů}}, {objectCount, plural, one {# objekt} other {# objektů}}",
+    "dxf_skipped_entities": "Některé entity DXF se nepodařilo importovat: {entities}.",
     "discard_recovery_failed": "Nepodařilo se zahodit {count, plural, one {# soubor obnovení} other {# souborů obnovení}}: {detail}",
     "text_baked": "Vyřešený text zapečen do objektu",
     "batch_failed": "Dávka selhala: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "dolní",
     "artwork_outside_workspace": "{hasObject, select, yes {„{object}“ přesahuje o {amount} {unit} přes {edge} okraj pracovní plochy. Objekt byl vybrán. Před náhledem nebo spuštěním úlohy jej přesuňte dovnitř pracovní plochy.} other {Část návrhu přesahuje o {amount} {unit} přes {edge} okraj pracovní plochy. Před náhledem nebo spuštěním úlohy ji přesuňte dovnitř pracovní plochy.}}",
     "ui_error_title": "V Beam Bench došlo k chybě uživatelského rozhraní",
-    "reload": "Načíst znovu"
+    "reload": "Načíst znovu",
+    "user_origin_not_set": "Uživatelský původ je vybrán, ale nebyl nastaven. Přesuňte laser na zamýšlený počátek a před rámováním nebo zahájením vyberte možnost Nastavit zde.",
+    "current_position_unavailable": "Aktuální pozice potřebuje připojený stroj s nahlášenou pozicí.",
+    "dxf_no_usable_geometry": "Soubor DXF neobsahuje žádnou použitelnou 2D vektorovou geometrii.",
+    "dxf_no_usable_geometry_with_entities": "Soubor DXF neobsahuje žádnou použitelnou 2D vektorovou geometrii. Nepodporované nebo poškozené entity: {entities}."
   },
   "import": {
     "drop_to_import": "Přetáhněte soubory k importu"

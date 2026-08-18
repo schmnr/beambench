@@ -497,7 +497,54 @@
       "outcome_pass": "Pass",
       "outcome_warnings": "Warnings",
       "outcome_fail": "Fail",
-      "warnings_block_start": "Resolve the warnings above before starting the job."
+      "warnings_block_start": "Resolve the warnings above before starting the job.",
+      "advisory_choice": "This job can run, but correcting the advisory may improve engraving quality.",
+      "apply_overscan": "Use {value} mm overscan and recheck",
+      "reduce_speed": "Use {value} mm/min and recheck",
+      "continue_anyway": "Continue anyway",
+      "categories": {
+        "connection": "Connection",
+        "machine": "Machine",
+        "plan": "Plan",
+        "bounds": "Bounds",
+        "settings": "Settings",
+        "positioning": "Positioning",
+        "planner": "Planner",
+        "machine_workspace": "Machine workspace"
+      },
+      "checks": {
+        "session_ready": "Session is ready",
+        "machine_idle": "Machine is idle",
+        "no_alarm": "No active alarm",
+        "plan_segments": "Plan has motion",
+        "plan_fits": "Plan fits within the machine bed",
+        "raster_motion_fits": "Raster motion fits within the machine bed",
+        "laser_mode": "Laser mode is enabled ($32=1)",
+        "homing_enabled": "Homing is enabled",
+        "relative_framed": "Relative placement was framed at the current position"
+      },
+      "messages": {
+        "connected_ready": "Connected and ready",
+        "machine_idle": "Machine idle",
+        "no_alarm": "No alarm",
+        "raster_motion_within_bed": "Raster motion is within the bed",
+        "laser_mode_enabled": "Laser mode enabled",
+        "homing_enabled": "Homing enabled",
+        "frame_completed": "Frame completed for this exact project and placement",
+        "frame_required": "This controller is not homed, so Beam Bench cannot verify the physical bed edges. Frame the job after positioning the laser, then recheck before starting.",
+        "segment_count_one": "1 segment",
+        "segment_count_other": "{count} segments"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "Raster acceleration needs more overscan",
+          "message": "The selected speed needs more acceleration distance. Increase overscan or reduce speed for more even row edges."
+        },
+        "speed_limited": {
+          "title": "Requested speed exceeds the machine limit",
+          "message": "The controller will run more slowly than requested."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} is available",
@@ -2180,6 +2227,11 @@
           "current_position": "Job Origin anchors output relative to the current head position.",
           "user_origin": "Job Origin anchors output relative to the stored user origin."
         },
+        "user_origin_not_set": "Not set",
+        "user_origin_saved": "Saved at X {x}, Y {y} mm",
+        "set_user_origin_here": "Set here",
+        "user_origin_required_title": "Set User Origin before framing or starting",
+        "positioning_help": "Positioning help",
         "stop": "Stop",
         "tolerance_mm": "Tolerance",
         "travel": "Travel",
@@ -2262,7 +2314,13 @@
         "failed_to_apply": "Failed to apply preset: {detail}",
         "title": "Machine Preset",
         "preview": "Preview",
-        "no_changes": "No changes."
+        "no_changes": "No changes.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Official ACMER S2 workspace and GRBL defaults.",
+            "advisory": "ACMER specifies a 300 × 300 mm engraving area. Beam Bench will recheck compatible GRBL controller settings when the machine connects."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Image routed to \"{layer}\"",
     "routed_vector": "Vector routed to \"{layer}\"",
     "import_complete": "Import complete: {fileCount, plural, one {# file} other {# files}}, {objectCount, plural, one {# object} other {# objects}}",
+    "dxf_skipped_entities": "Some DXF entities could not be imported: {entities}.",
     "discard_recovery_failed": "Failed to discard {count, plural, one {# recovery file} other {# recovery files}}: {detail}",
     "text_baked": "Baked resolved text into the object",
     "batch_failed": "Batch failed: {detail}",
@@ -2549,6 +2608,10 @@
     }
   },
   "errors": {
+    "user_origin_not_set": "User Origin is selected but has not been set. Move the laser to the intended origin and choose Set here before framing or starting.",
+    "current_position_unavailable": "Current Position needs a connected machine with a reported position.",
+    "dxf_no_usable_geometry": "The DXF file contains no usable 2D vector geometry.",
+    "dxf_no_usable_geometry_with_entities": "The DXF file contains no usable 2D vector geometry. Unsupported or malformed entities: {entities}.",
     "operation_failed_with_detail": "Operation failed: {detail}",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",

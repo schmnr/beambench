@@ -15,10 +15,10 @@ use beambench_common::machine::{
 };
 use beambench_core::{CutEntry, MachineProfile, MachineProfileId, MacroDefinition, MaterialPreset};
 use beambench_grbl::GrblSettingId;
-use beambench_service::ServiceContext;
 use beambench_service::ops::planning::SessionJobOptions;
 use beambench_service::ops::{discovery, machine, profiles};
 use beambench_service::persist;
+use beambench_service::{ServiceContext, ServiceError};
 use tauri::State;
 use uuid::Uuid;
 
@@ -329,12 +329,15 @@ pub fn run_preflight_check(
 pub async fn start_job(
     svc: State<'_, Arc<ServiceContext>>,
     job_options: Option<SessionJobOptions>,
+    allow_advisories: Option<bool>,
 ) -> Result<JobProgress, String> {
     let svc = svc.inner().clone();
     let tick_svc = svc.clone();
     let options = job_options.unwrap_or_default();
+    let allow_advisories = allow_advisories.unwrap_or(false);
     let progress = tauri::async_runtime::spawn_blocking(move || {
-        machine::start_job_with_options(&svc, &options).map_err(String::from)
+        machine::start_job_with_options_confirming_advisories(&svc, &options, allow_advisories)
+            .map_err(String::from)
     })
     .await
     .map_err(|error| format!("Job start task failed: {error}"))??;
@@ -564,7 +567,7 @@ pub async fn frame_job(
     selected_object_ids: Option<Vec<String>>,
     laser_on_override: Option<bool>,
     feed_rate: Option<f64>,
-) -> Result<JobProgress, String> {
+) -> Result<JobProgress, ServiceError> {
     let svc = svc.inner().clone();
     let tick_svc = svc.clone();
     let mode = frame_mode.unwrap_or_else(|| "rectangular".to_string());
@@ -577,10 +580,9 @@ pub async fn frame_job(
             laser_on_override.unwrap_or(false),
             feed_rate,
         )
-        .map_err(String::from)
     })
     .await
-    .map_err(|error| format!("Frame start task failed: {error}"))??;
+    .map_err(|error| ServiceError::internal(format!("Frame start task failed: {error}")))??;
     machine::spawn_job_tick_loop(tick_svc);
     Ok(progress)
 }

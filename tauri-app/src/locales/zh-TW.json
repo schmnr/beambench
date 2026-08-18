@@ -368,7 +368,54 @@
       "outcome_pass": "通過",
       "outcome_warnings": "警告",
       "outcome_fail": "失敗",
-      "warnings_block_start": "請先解決上述警告，再開始作業。"
+      "warnings_block_start": "請先解決上述警告，再開始作業。",
+      "advisory_choice": "此作業可以運行，但更正建議可能會提高雕刻品質。",
+      "apply_overscan": "使用 {value} mm 過掃描並重新檢查",
+      "reduce_speed": "使用 {value} mm/min 並重新檢查",
+      "continue_anyway": "仍然繼續",
+      "categories": {
+        "connection": "連接方式",
+        "machine": "機器",
+        "plan": "計劃",
+        "bounds": "界線",
+        "settings": "設定",
+        "positioning": "定位",
+        "planner": "規劃師",
+        "machine_workspace": "機器工作空間"
+      },
+      "checks": {
+        "session_ready": "會話已準備就緒",
+        "machine_idle": "機器閒置",
+        "no_alarm": "無活動警報",
+        "plan_segments": "計劃有動議",
+        "plan_fits": "計畫適合機器床身",
+        "raster_motion_fits": "光柵運動適合機器床身",
+        "laser_mode": "雷射模式已啟用（$32=1）",
+        "homing_enabled": "歸位已啟用",
+        "relative_framed": "相對位置以目前位置為框架"
+      },
+      "messages": {
+        "connected_ready": "已連接並準備就緒",
+        "machine_idle": "機器閒置",
+        "no_alarm": "無警報",
+        "raster_motion_within_bed": "光柵運動在床內",
+        "laser_mode_enabled": "雷射模式已啟用",
+        "homing_enabled": "啟用歸位",
+        "frame_completed": "為該專案和佈局完成的框架",
+        "frame_required": "此控制器未歸位，因此 Beam Bench 無法驗證實體床邊緣。定位雷射後對作業進行構圖，然後在開始前重新檢查。",
+        "segment_count_one": "1 段",
+        "segment_count_other": "{count} 個片段"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "光柵加速需要更多的過掃描",
+          "message": "選擇的速度需要更長的加速距離。增加過掃描或降低速度以獲得更均勻的行邊緣。"
+        },
+        "speed_limited": {
+          "title": "請求的速度超出機器限制",
+          "message": "控制器的運作速度將比要求的慢。"
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} 可用",
@@ -2039,7 +2086,12 @@
         "travel": "旅行",
         "unlock": "解鎖",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "未設定",
+        "user_origin_saved": "儲存於 X {x}、Y {y} 毫米",
+        "set_user_origin_here": "在此設置",
+        "user_origin_required_title": "在取景或開始之前設定使用者原點",
+        "positioning_help": "定位幫助"
       },
       "panel": {
         "positioning": "定位",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "未能套用預設：{detail}",
         "title": "機器預設",
         "preview": "預覽",
-        "no_changes": "沒有變化。"
+        "no_changes": "沒有變化。",
+        "catalog": {
+          "acmer_s2": {
+            "description": "官方 ACMER S2 工作區和 GRBL 預設值。",
+            "advisory": "ACMER 指定雕刻區域為 300 × 300 mm。當機器連接時，Beam Bench 將重新檢查相容的 GRBL 控制器設定。"
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "影像已分配到 \"{layer}\"",
     "routed_vector": "向量已分配到 \"{layer}\"",
     "import_complete": "匯入完成：{fileCount, plural, other {# 個檔案}}，{objectCount, plural, other {# 個物件}}",
+    "dxf_skipped_entities": "部分 DXF 圖元無法匯入：{entities}。",
     "discard_recovery_failed": "無法捨棄 {count, plural, other {# 個復原檔案}}：{detail}",
     "text_baked": "已將解析後的文字固化到物件中",
     "batch_failed": "批次處理失敗：{detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "下邊緣",
     "artwork_outside_workspace": "{hasObject, select, yes {「{object}」超出工作區{edge} {amount} {unit}。該物件已選取。請在預覽或執行工作前將它移入工作區。} other {圖稿的一部分超出工作區{edge} {amount} {unit}。請在預覽或執行工作前將它移入工作區。}}",
     "ui_error_title": "Beam Bench 發生介面錯誤",
-    "reload": "重新載入"
+    "reload": "重新載入",
+    "user_origin_not_set": "用戶原點已選擇但尚未設定。將雷射移至預期原點，並在取景或開始之前選擇在此處設定。",
+    "current_position_unavailable": "目前位置需要具有報告位置的連接機器。",
+    "dxf_no_usable_geometry": "DXF 檔案不包含可用的 2D 向量幾何圖形。",
+    "dxf_no_usable_geometry_with_entities": "DXF 檔案不包含可用的 2D 向量幾何圖形。不支援或格式錯誤的圖元：{entities}。"
   },
   "import": {
     "drop_to_import": "拖放檔案以匯入"

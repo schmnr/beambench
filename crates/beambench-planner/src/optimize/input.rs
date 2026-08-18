@@ -34,13 +34,31 @@ use crate::plan::PlannerCalibration;
 /// `beambench_planner::OptimizationSettings.current_position` and was
 /// stripped before persistence; Phase 4a gives it a dedicated type so the
 /// persisted and ephemeral surfaces are structurally distinct.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct OptimizationRuntime {
     /// Live machine position captured at plan time.
     ///
     /// `None` means unknown (treat as `(0, 0)` at the planner boundary,
     /// matching pre-M1 behavior).
     pub current_position: Option<(f64, f64)>,
+    /// Whether the live work-coordinate frame is tied to the physical bed.
+    ///
+    /// Homed controllers can safely validate anchored jobs against absolute
+    /// bed edges. Unhomed GRBL controllers cannot: their work coordinates are
+    /// still useful as a relative placement frame, but an arbitrary zero must
+    /// not be mistaken for the machine's lower-left or upper-left corner.
+    pub coordinates_trusted: bool,
+}
+
+impl Default for OptimizationRuntime {
+    fn default() -> Self {
+        Self {
+            current_position: None,
+            // Preserve the strict historical planner behavior for standalone
+            // callers. The service explicitly supplies the live trust state.
+            coordinates_trusted: true,
+        }
+    }
 }
 
 /// Full input to the optimization pipeline.
@@ -166,6 +184,7 @@ mod tests {
         };
         let runtime = OptimizationRuntime {
             current_position: Some((5.0, 7.0)),
+            ..OptimizationRuntime::default()
         };
         let cal = PlannerCalibration {
             dot_width_mm: 0.1,

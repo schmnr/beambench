@@ -17,8 +17,9 @@ use beambench_core::vector::transform::bake_transform;
 use beambench_core::{
     AssetId, LayerId, LbrnCutEntry, LbrnDocument, LbrnShape, ObjectData, ObjectId, ProjectObject,
     ShapeKind, TextAlignment, TextAlignmentV, TextCirclePlacement, TextLayoutMode,
-    TextTransformStyle, TraceConfig, import_gcode_as_vecpaths, import_image, import_svg, parse_dxf,
-    parse_eps_paths, parse_lbrn_project, parse_pdf_painted_paths, trace_image,
+    TextTransformStyle, TraceConfig, import_gcode_as_vecpaths, import_image, import_svg,
+    parse_dxf_with_report, parse_eps_paths, parse_lbrn_project, parse_pdf_painted_paths,
+    trace_image,
 };
 use beambench_core::{
     CutEntry, Layer, OperationType, PdfPaintMode, PdfPaintedPath, PdfRgbColor, RasterSettings,
@@ -266,6 +267,7 @@ enum PendingImport {
     Vector {
         name_prefix: String,
         paths: Vec<ImportedVectorPath>,
+        warnings: Vec<String>,
     },
     Lbrn {
         document: LbrnDocument,
@@ -279,6 +281,20 @@ enum PendingImport {
 struct ImportedVectorPath {
     path: VecPath,
     color_tag: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedVectorImport {
+    paths: Vec<ImportedVectorPath>,
+    warnings: Vec<String>,
+}
+
+fn pending_vector_import(name_prefix: &str, parsed: ParsedVectorImport) -> PendingImport {
+    PendingImport::Vector {
+        name_prefix: name_prefix.to_string(),
+        paths: parsed.paths,
+        warnings: parsed.warnings,
+    }
 }
 
 impl ImportedVectorPath {
@@ -662,9 +678,11 @@ fn prepare_pending_import(
                 .filter(|stem| !stem.is_empty())
                 .unwrap_or("Import")
                 .to_string();
+            let parsed = parse_vector_bytes(&bytes, format)?;
             Ok(PendingImport::Vector {
                 name_prefix,
-                paths: parse_vector_bytes(&bytes, format)?,
+                paths: parsed.paths,
+                warnings: parsed.warnings,
             })
         }
         "lbrn" | "lbrn2" => Ok(PendingImport::Lbrn {
@@ -1342,13 +1360,18 @@ fn import_pending(
                     .clone();
                 imported_objects.push(obj);
             }
-            PendingImport::Vector { name_prefix, paths } => {
+            PendingImport::Vector {
+                name_prefix,
+                paths,
+                warnings,
+            } => {
                 imported_objects.extend(add_imported_vector_paths(
                     project,
                     effective_layer_id,
                     &name_prefix,
                     paths,
                 )?);
+                import_warnings.extend(warnings);
             }
             PendingImport::Lbrn { document } => {
                 let (objects, warnings) = import_lbrn_document(project, document)?;
@@ -1559,6 +1582,7 @@ fn import_vector_paths(
     file_count: usize,
     name_prefix: &str,
     paths: Vec<ImportedVectorPath>,
+    warnings: Vec<String>,
 ) -> ServiceResult<Vec<ProjectObject>> {
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let project = project_guard
@@ -1611,6 +1635,7 @@ fn import_vector_paths(
             "file_count": file_count,
             "object_ids": imported_objects.iter().map(|obj| obj.id).collect::<Vec<_>>(),
             "objects": imported_objects.iter().map(events::object_summary).collect::<Vec<_>>(),
+            "warnings": warnings,
         }),
     );
     Ok(imported_objects)
@@ -1619,7 +1644,7 @@ fn import_vector_paths(
 fn parse_vector_file(
     file_path: &str,
     format: VectorImportFormat,
-) -> ServiceResult<Vec<ImportedVectorPath>> {
+) -> ServiceResult<ParsedVectorImport> {
     let bytes = read_file_bytes(file_path)?;
     parse_vector_bytes(&bytes, format)
 }
@@ -1627,48 +1652,91 @@ fn parse_vector_file(
 fn parse_vector_bytes(
     bytes: &[u8],
     format: VectorImportFormat,
-) -> ServiceResult<Vec<ImportedVectorPath>> {
+) -> ServiceResult<ParsedVectorImport> {
     match format {
         VectorImportFormat::Dxf => {
             let content = String::from_utf8_lossy(bytes);
-            let entities = parse_dxf(&content)
+            let report = parse_dxf_with_report(&content)
                 .map_err(|e| ServiceError::invalid_input(format!("DXF import failed: {e}")))?;
-            Ok(entities
+            if report.entities.is_empty() {
+                let message = match dxf_skipped_entities_summary(&report.skipped_entities) {
+                    Some(summary) => format!(
+                        "DXF import found no usable 2D vector geometry. Unsupported or malformed entities: {summary}."
+                    ),
+                    None => "DXF import found no usable 2D vector geometry.".to_string(),
+                };
+                return Err(ServiceError::invalid_input(message));
+            }
+            let warnings = dxf_skipped_entities_warning(&report.skipped_entities)
                 .into_iter()
-                .map(|entity| ImportedVectorPath::uncolored(entity.path))
-                .collect())
+                .collect();
+            Ok(ParsedVectorImport {
+                paths: report
+                    .entities
+                    .into_iter()
+                    .map(|entity| ImportedVectorPath::uncolored(entity.path))
+                    .collect(),
+                warnings,
+            })
         }
         VectorImportFormat::Pdf => parse_pdf_painted_paths(bytes)
-            .map(|paths| {
-                paths
+            .map(|paths| ParsedVectorImport {
+                paths: paths
                     .into_iter()
                     .map(ImportedVectorPath::from_pdf)
-                    .collect()
+                    .collect(),
+                warnings: Vec::new(),
             })
             .map_err(|e| ServiceError::invalid_input(format!("PDF import failed: {e}"))),
         VectorImportFormat::Ai => match parse_pdf_painted_paths(bytes) {
-            Ok(paths) => Ok(paths
-                .into_iter()
-                .map(ImportedVectorPath::from_pdf)
-                .collect()),
+            Ok(paths) => Ok(ParsedVectorImport {
+                paths: paths
+                    .into_iter()
+                    .map(ImportedVectorPath::from_pdf)
+                    .collect(),
+                warnings: Vec::new(),
+            }),
             Err(_) => parse_eps_paths(bytes)
-                .map(|paths| {
-                    paths
+                .map(|paths| ParsedVectorImport {
+                    paths: paths
                         .into_iter()
                         .map(ImportedVectorPath::uncolored)
-                        .collect()
+                        .collect(),
+                    warnings: Vec::new(),
                 })
                 .map_err(|e| ServiceError::invalid_input(format!("AI import failed: {e}"))),
         },
         VectorImportFormat::Eps => parse_eps_paths(bytes)
-            .map(|paths| {
-                paths
+            .map(|paths| ParsedVectorImport {
+                paths: paths
                     .into_iter()
                     .map(ImportedVectorPath::uncolored)
-                    .collect()
+                    .collect(),
+                warnings: Vec::new(),
             })
             .map_err(|e| ServiceError::invalid_input(format!("EPS import failed: {e}"))),
     }
+}
+
+fn dxf_skipped_entities_warning(
+    skipped: &std::collections::BTreeMap<String, usize>,
+) -> Option<String> {
+    let summary = dxf_skipped_entities_summary(skipped)?;
+    Some(format!(
+        "DXF import skipped unsupported or malformed entities: {summary}."
+    ))
+}
+
+fn dxf_skipped_entities_summary(
+    skipped: &std::collections::BTreeMap<String, usize>,
+) -> Option<String> {
+    (!skipped.is_empty()).then(|| {
+        skipped
+            .iter()
+            .map(|(entity_type, count)| format!("{count} {entity_type}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    })
 }
 
 pub fn import_svg_from_path(
@@ -1765,22 +1833,22 @@ pub fn import_art_library_item(
 ) -> ServiceResult<Vec<ProjectObject>> {
     let pending = match media_type {
         "image/svg+xml" => PendingImport::Svg { bytes },
-        "application/dxf" => PendingImport::Vector {
-            name_prefix: item_name.to_string(),
-            paths: parse_vector_bytes(&bytes, VectorImportFormat::Dxf)?,
-        },
-        "application/pdf" => PendingImport::Vector {
-            name_prefix: item_name.to_string(),
-            paths: parse_vector_bytes(&bytes, VectorImportFormat::Pdf)?,
-        },
-        "application/ai" => PendingImport::Vector {
-            name_prefix: item_name.to_string(),
-            paths: parse_vector_bytes(&bytes, VectorImportFormat::Ai)?,
-        },
-        "application/postscript" => PendingImport::Vector {
-            name_prefix: item_name.to_string(),
-            paths: parse_vector_bytes(&bytes, VectorImportFormat::Eps)?,
-        },
+        "application/dxf" => pending_vector_import(
+            item_name,
+            parse_vector_bytes(&bytes, VectorImportFormat::Dxf)?,
+        ),
+        "application/pdf" => pending_vector_import(
+            item_name,
+            parse_vector_bytes(&bytes, VectorImportFormat::Pdf)?,
+        ),
+        "application/ai" => pending_vector_import(
+            item_name,
+            parse_vector_bytes(&bytes, VectorImportFormat::Ai)?,
+        ),
+        "application/postscript" => pending_vector_import(
+            item_name,
+            parse_vector_bytes(&bytes, VectorImportFormat::Eps)?,
+        ),
         "image/png" | "image/jpeg" | "image/gif" | "image/bmp" | "image/webp" | "image/tiff"
         | "image/x-tga" => PendingImport::Image {
             filename: source_filename.to_string(),
@@ -1812,8 +1880,15 @@ pub fn import_vector_file_from_path(
             VectorImportFormat::Ai => "AI Import",
             VectorImportFormat::Eps => "EPS Import",
         });
-    let paths = parse_vector_file(&input.file_path, input.format)?;
-    import_vector_paths(ctx, input.layer_id, 1, name_prefix, paths)
+    let parsed = parse_vector_file(&input.file_path, input.format)?;
+    import_vector_paths(
+        ctx,
+        input.layer_id,
+        1,
+        name_prefix,
+        parsed.paths,
+        parsed.warnings,
+    )
 }
 
 pub fn import_gcode_from_path(
@@ -1835,7 +1910,7 @@ pub fn import_gcode_from_path(
     if paths.is_empty() {
         return Ok(Vec::new());
     }
-    import_vector_paths(ctx, input.layer_id, 1, name_prefix, paths)
+    import_vector_paths(ctx, input.layer_id, 1, name_prefix, paths, Vec::new())
 }
 
 pub fn trace_raster_image(
@@ -3020,6 +3095,57 @@ mod tests {
     }
 
     #[test]
+    fn import_dxf_rejects_files_with_no_usable_geometry() {
+        let parsed = parse_vector_bytes(
+            b"0\nSECTION\n2\nENTITIES\n0\nTEXT\n10\n0\n20\n0\n1\nHello\n0\nENDSEC\n",
+            VectorImportFormat::Dxf,
+        );
+        let error = parsed.expect_err("text-only DXF should not silently import nothing");
+        let message = error.to_string();
+        assert!(message.contains("no usable 2D vector geometry"));
+        assert!(message.contains("1 TEXT"));
+    }
+
+    #[test]
+    fn import_dxf_surfaces_a_partial_import_warning() {
+        let ctx = ServiceContext::new();
+        let mut project = beambench_core::Project::new("Partial DXF");
+        let layer_id = project.ensure_default_layer();
+        *ctx.project.lock().unwrap() = Some(project);
+        let mut rx = ctx.events.subscribe();
+
+        let dir = tempdir().unwrap();
+        let dxf_path = dir.path().join("partial.dxf");
+        std::fs::write(
+            &dxf_path,
+            "0\nSECTION\n2\nENTITIES\n0\nTEXT\n10\n1\n20\n2\n1\nHello\n0\nLINE\n10\n0\n20\n0\n11\n10\n21\n0\n0\nENDSEC\n",
+        )
+        .unwrap();
+
+        let objects = import_vector_file_from_path(
+            &ctx,
+            ImportVectorFileInput {
+                file_path: dxf_path.to_string_lossy().to_string(),
+                layer_id,
+                format: VectorImportFormat::Dxf,
+            },
+        )
+        .unwrap();
+        assert_eq!(objects.len(), 1);
+
+        let mut completed = None;
+        while let Ok(message) = rx.try_recv() {
+            let event: serde_json::Value = serde_json::from_str(&message).unwrap();
+            if event["type"] == "project.import.completed" {
+                completed = Some(event);
+            }
+        }
+        let warnings = &completed.expect("completed import event")["payload"]["warnings"];
+        assert_eq!(warnings.as_array().map(Vec::len), Some(1));
+        assert!(warnings[0].as_str().unwrap().contains("1 TEXT"));
+    }
+
+    #[test]
     fn import_pdf_uses_single_undo_snapshot_and_invalidates_plan() {
         let ctx = ServiceContext::new();
         let mut project = beambench_core::Project::new("Import");
@@ -3233,7 +3359,8 @@ mod tests {
                 color_tag: Some(format!("#{index:06X}")),
             })
             .collect();
-        let objects = import_vector_paths(&ctx, requested_id, 1, "Many Colors", paths).unwrap();
+        let objects =
+            import_vector_paths(&ctx, requested_id, 1, "Many Colors", paths, Vec::new()).unwrap();
 
         assert_eq!(objects.len(), MAX_AUTO_COLOR_LAYERS + 1);
         assert!(objects.iter().all(|object| object.layer_id == requested_id));

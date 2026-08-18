@@ -60,17 +60,21 @@ export function MachinePresetPanel({
     [presets, selectedPresetId],
   );
 
-  const disabledReason =
-    !profileExists ? t('panels.machine.preset.save_profile_before_applying')
-    : dirty ? t('panels.machine.preset.save_or_discard_before_applying')
-    : null;
+  const disabledReason = !profileExists
+    ? t('panels.machine.preset.save_profile_before_applying')
+    : dirty
+      ? t('panels.machine.preset.save_or_discard_before_applying')
+      : null;
 
   const loadDiff = async () => {
     if (!selectedPresetId || disabledReason) return null;
     setLoading(true);
     setError(null);
     try {
-      const nextDiff = await machineService.getMachineProfilePresetDiff(profile.id, selectedPresetId);
+      const nextDiff = await machineService.getMachineProfilePresetDiff(
+        profile.id,
+        selectedPresetId,
+      );
       setDiff(nextDiff);
       return nextDiff;
     } catch (e) {
@@ -88,7 +92,11 @@ export function MachinePresetPanel({
     setLoading(true);
     setError(null);
     try {
-      const result = await machineService.applyMachineProfilePreset(profile.id, selectedPresetId, true);
+      const result = await machineService.applyMachineProfilePreset(
+        profile.id,
+        selectedPresetId,
+        true,
+      );
       setDiff(result.diff);
       onApplied(result.profile);
       pushNotification(t('panels.machine.preset.applied'), 'success');
@@ -146,12 +154,16 @@ export function MachinePresetPanel({
         </div>
         {selectedPreset && (
           <div className="text-[11px] text-bb-text-muted">
-            {selectedPreset.description}
+            {t(`panels.machine.preset.catalog.${selectedPreset.id}.description`, {
+              defaultValue: selectedPreset.description,
+            })}
           </div>
         )}
         {selectedPreset?.advisory_text && (
           <div className="rounded border border-bb-warning-border bg-bb-warning-bg px-2 py-1 text-[11px] text-bb-warning-fg">
-            {selectedPreset.advisory_text}
+            {t(`panels.machine.preset.catalog.${selectedPreset.id}.advisory`, {
+              defaultValue: selectedPreset.advisory_text,
+            })}
           </div>
         )}
         {disabledReason && <div className="text-[11px] text-bb-warning-fg">{disabledReason}</div>}
@@ -159,7 +171,9 @@ export function MachinePresetPanel({
         {diff && (
           <div className="max-h-32 overflow-y-auto rounded border border-bb-border">
             {diff.length === 0 ? (
-              <div className="px-2 py-1 text-[11px] text-bb-text-muted">{t('panels.machine.preset.no_changes')}</div>
+              <div className="px-2 py-1 text-[11px] text-bb-text-muted">
+                {t('panels.machine.preset.no_changes')}
+              </div>
             ) : (
               <table className="w-full text-left text-[11px] text-bb-text-muted">
                 <tbody>

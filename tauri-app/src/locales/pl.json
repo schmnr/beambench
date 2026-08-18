@@ -368,7 +368,54 @@
       "outcome_pass": "Pomyślny",
       "outcome_warnings": "Ostrzeżenia",
       "outcome_fail": "Niepowodzenie",
-      "warnings_block_start": "Rozwiąż powyższe ostrzeżenia przed rozpoczęciem zadania."
+      "warnings_block_start": "Rozwiąż powyższe ostrzeżenia przed rozpoczęciem zadania.",
+      "advisory_choice": "To zadanie można wykonać, ale skorygowanie zalecenia może poprawić jakość grawerowania.",
+      "apply_overscan": "Użyj overscanu o wartości {value} mm i sprawdź ponownie",
+      "reduce_speed": "Użyj {value} mm/min i sprawdź ponownie",
+      "continue_anyway": "Kontynuuj mimo to",
+      "categories": {
+        "connection": "Połączenie",
+        "machine": "Maszyna",
+        "plan": "Planuj",
+        "bounds": "Granice",
+        "settings": "Ustawienia",
+        "positioning": "Pozycjonowanie",
+        "planner": "Planista",
+        "machine_workspace": "Obszar roboczy maszyny"
+      },
+      "checks": {
+        "session_ready": "Sesja gotowa",
+        "machine_idle": "Maszyna jest bezczynna",
+        "no_alarm": "Brak aktywnego alarmu",
+        "plan_segments": "Plan ma ruch",
+        "plan_fits": "Plan mieści się w łożu maszyny",
+        "raster_motion_fits": "Ruch rastrowy mieści się w łożu maszyny",
+        "laser_mode": "Tryb laserowy jest włączony (32 USD = 1)",
+        "homing_enabled": "Bazowanie jest włączone",
+        "relative_framed": "Względne położenie zostało określone w bieżącej pozycji"
+      },
+      "messages": {
+        "connected_ready": "Podłączony i gotowy",
+        "machine_idle": "Maszyna bezczynna",
+        "no_alarm": "Brak alarmu",
+        "raster_motion_within_bed": "Ruch rastrowy odbywa się w łóżku",
+        "laser_mode_enabled": "Włączono tryb laserowy",
+        "homing_enabled": "Bazowanie włączone",
+        "frame_completed": "Rama ukończona dokładnie dla tego projektu i miejsca docelowego",
+        "frame_required": "Ten kontroler nie jest ustawiony, więc Beam Bench nie może zweryfikować fizycznych krawędzi łóżka. Wykadruj zadanie po ustawieniu lasera i sprawdź ponownie przed rozpoczęciem.",
+        "segment_count_one": "1 segment",
+        "segment_count_other": "Liczba segmentów: {count}"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "Przyspieszenie rastrowe wymaga większego overscanu",
+          "message": "Wybrana prędkość wymaga większej odległości przyspieszenia. Zwiększ overscan lub zmniejsz prędkość, aby uzyskać bardziej równe krawędzie rzędów."
+        },
+        "speed_limited": {
+          "title": "Żądana prędkość przekracza limit maszyny",
+          "message": "Kontroler będzie działał wolniej niż żądano."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} jest dostępny",
@@ -2039,7 +2086,12 @@
         "travel": "Podróż",
         "unlock": "Odblokuj",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "Nie ustawiono",
+        "user_origin_saved": "Zapisano w X {x}, Y {y} mm",
+        "set_user_origin_here": "Ustaw tutaj",
+        "user_origin_required_title": "Ustaw pochodzenie użytkownika przed kadrowaniem lub rozpoczęciem",
+        "positioning_help": "Pomoc w pozycjonowaniu"
       },
       "panel": {
         "positioning": "Pozycjonowanie",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "Nie udało się zastosować ustawienia wstępnego: {detail}",
         "title": "Wstępne ustawienie maszyny",
         "preview": "Podgląd",
-        "no_changes": "Żadnych zmian."
+        "no_changes": "Żadnych zmian.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Oficjalny obszar roboczy ACMER S2 i ustawienia domyślne GRBL.",
+            "advisory": "ACMER określa obszar grawerowania o wymiarach 300 × 300 mm. Beam Bench ponownie sprawdzi ustawienia kompatybilnego kontrolera GRBL, gdy urządzenie się połączy."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Obraz skierowano do \"{layer}\"",
     "routed_vector": "Wektor skierowano do \"{layer}\"",
     "import_complete": "Import zakończony: {fileCount, plural, one {# plik} other {# plików}}, {objectCount, plural, one {# obiekt} other {# obiektów}}",
+    "dxf_skipped_entities": "Nie udało się zaimportować niektórych elementów DXF: {entities}.",
     "discard_recovery_failed": "Nie udało się odrzucić {count, plural, one {# pliku odzyskiwania} other {# plików odzyskiwania}}: {detail}",
     "text_baked": "Utrwalono rozwiązany tekst w obiekcie",
     "batch_failed": "Operacja wsadowa nie powiodła się: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "dolną",
     "artwork_outside_workspace": "{hasObject, select, yes {„{object}” wystaje o {amount} {unit} poza {edge} krawędź obszaru roboczego. Obiekt został zaznaczony. Przesuń go do obszaru roboczego przed wyświetleniem podglądu lub uruchomieniem zadania.} other {Część projektu wystaje o {amount} {unit} poza {edge} krawędź obszaru roboczego. Przesuń ją do obszaru roboczego przed wyświetleniem podglądu lub uruchomieniem zadania.}}",
     "ui_error_title": "W Beam Bench wystąpił błąd interfejsu",
-    "reload": "Załaduj ponownie"
+    "reload": "Załaduj ponownie",
+    "user_origin_not_set": "Wybrano pochodzenie użytkownika, ale nie ustawiono. Przesuń laser do zamierzonego punktu początkowego i wybierz opcję Ustaw tutaj przed kadrowaniem lub rozpoczęciem.",
+    "current_position_unavailable": "Bieżąca pozycja wymaga podłączonej maszyny ze zgłoszoną pozycją.",
+    "dxf_no_usable_geometry": "Plik DXF nie zawiera użytecznej geometrii wektorowej 2D.",
+    "dxf_no_usable_geometry_with_entities": "Plik DXF nie zawiera użytecznej geometrii wektorowej 2D. Nieobsługiwane lub uszkodzone elementy: {entities}."
   },
   "import": {
     "drop_to_import": "Upuść pliki, aby zaimportować"

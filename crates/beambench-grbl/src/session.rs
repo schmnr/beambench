@@ -319,7 +319,13 @@ impl GrblSession {
 
     /// Jog to a relative position.
     pub fn jog(&mut self, x: f64, y: f64, z: Option<f64>, feed: f64) -> Result<(), GrblError> {
-        self.send_command(&commands::jog(x, y, z, feed))
+        self.send_command(&commands::jog(x, y, z, feed))?;
+        // GRBL can take a polling interval to report `Jog`. Mark the command
+        // active immediately so a rapid second click cannot enqueue another
+        // finite jog against stale Idle state. The next status report remains
+        // authoritative and restores Idle when motion completes.
+        self.last_status.run_state = MachineRunState::Jog;
+        Ok(())
     }
 
     /// Cancel current jog.
@@ -717,6 +723,25 @@ mod tests {
             session.send_command("G0 X10"),
             Err(GrblError::NotConnected)
         ));
+    }
+
+    #[test]
+    fn jog_marks_motion_active_until_controller_reports_idle() {
+        let mut transport = MockSerialTransport::new("mock");
+        let handle = transport.handle();
+        transport.enqueue_response("Grbl 1.1h ['$' for help]");
+        transport.enqueue_response("<Idle|MPos:0.000,0.000,0.000|WPos:0.000,0.000,0.000>");
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+        session.poll().unwrap();
+        session.mark_ready().unwrap();
+
+        session.jog(1.0, 0.0, None, 1000.0).unwrap();
+        assert_eq!(session.last_status().run_state, MachineRunState::Jog);
+
+        handle.enqueue_response("<Idle|MPos:1.000,0.000,0.000|WPos:1.000,0.000,0.000>");
+        session.poll().unwrap();
+        assert_eq!(session.last_status().run_state, MachineRunState::Idle);
     }
 
     #[test]

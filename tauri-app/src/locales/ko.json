@@ -368,7 +368,54 @@
       "outcome_pass": "통과",
       "outcome_warnings": "경고",
       "outcome_fail": "실패",
-      "warnings_block_start": "작업을 시작하기 전에 위의 경고를 해결하세요."
+      "warnings_block_start": "작업을 시작하기 전에 위의 경고를 해결하세요.",
+      "advisory_choice": "이 작업은 실행될 수 있지만 권고 사항을 수정하면 조각 품질이 향상될 수 있습니다.",
+      "apply_overscan": "{value}mm 오버스캔을 사용하고 다시 확인하세요.",
+      "reduce_speed": "{value}mm/min을 사용하고 다시 확인하세요.",
+      "continue_anyway": "무시하고 계속",
+      "categories": {
+        "connection": "연결",
+        "machine": "기계",
+        "plan": "계획",
+        "bounds": "경계",
+        "settings": "설정",
+        "positioning": "포지셔닝",
+        "planner": "플래너",
+        "machine_workspace": "기계 작업 공간"
+      },
+      "checks": {
+        "session_ready": "세션이 준비되었습니다",
+        "machine_idle": "기계가 유휴 상태입니다.",
+        "no_alarm": "활성 알람 없음",
+        "plan_segments": "계획에 움직임이 있습니다",
+        "plan_fits": "계획은 기계 침대에 맞습니다.",
+        "raster_motion_fits": "래스터 모션이 머신 베드에 맞습니다.",
+        "laser_mode": "레이저 모드가 활성화되었습니다($32=1).",
+        "homing_enabled": "원점 복귀가 활성화되었습니다.",
+        "relative_framed": "상대 배치가 현재 위치에 프레임으로 설정되었습니다."
+      },
+      "messages": {
+        "connected_ready": "연결 및 준비됨",
+        "machine_idle": "기계 유휴",
+        "no_alarm": "알람 없음",
+        "raster_motion_within_bed": "래스터 모션이 침대 내에 있습니다.",
+        "laser_mode_enabled": "레이저 모드 활성화됨",
+        "homing_enabled": "원점 복귀 가능",
+        "frame_completed": "이 정확한 프로젝트 및 배치를 위해 완성된 프레임",
+        "frame_required": "이 컨트롤러는 원위치되지 않으므로 Beam Bench는 물리적인 침대 가장자리를 확인할 수 없습니다. 레이저 위치를 정한 후 작업 프레임을 지정한 다음 시작하기 전에 다시 확인하십시오.",
+        "segment_count_one": "1개 세그먼트",
+        "segment_count_other": "{count} 세그먼트"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "래스터 가속에는 더 많은 오버스캔이 필요합니다.",
+          "message": "선택한 속도에는 더 많은 가속 거리가 필요합니다. 더 균일한 행 가장자리를 위해 오버스캔을 높이거나 속도를 줄이세요."
+        },
+        "speed_limited": {
+          "title": "요청된 속도가 기계 제한을 초과합니다.",
+          "message": "컨트롤러가 요청한 것보다 더 느리게 실행됩니다."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version}이(가) 사용 가능합니다",
@@ -2039,7 +2086,12 @@
         "travel": "여행",
         "unlock": "잠금 해제",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "설정되지 않음",
+        "user_origin_saved": "X {x}, Y {y} mm에 저장됨",
+        "set_user_origin_here": "여기에서 설정하세요",
+        "user_origin_required_title": "프레이밍 또는 시작 전에 사용자 원본 설정",
+        "positioning_help": "포지셔닝 도움말"
       },
       "panel": {
         "positioning": "포지셔닝",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "사전 설정을 적용하지 못했습니다: {detail}",
         "title": "기계 사전 설정",
         "preview": "미리보기",
-        "no_changes": "변경사항이 없습니다."
+        "no_changes": "변경사항이 없습니다.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "공식 ACMER S2 작업 공간 및 GRBL 기본값.",
+            "advisory": "ACMER는 300 × 300mm 조각 영역을 지정합니다. Beam Bench는 기계가 연결될 때 호환되는 GRBL 컨트롤러 설정을 다시 확인합니다."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "이미지를 \"{layer}\"(으)로 라우팅했습니다",
     "routed_vector": "벡터를 \"{layer}\"(으)로 라우팅했습니다",
     "import_complete": "가져오기 완료: {fileCount, plural, other {파일 #개}}, {objectCount, plural, other {개체 #개}}",
+    "dxf_skipped_entities": "일부 DXF 엔티티를 가져오지 못했습니다: {entities}.",
     "discard_recovery_failed": "{count, plural, other {복구 파일 #개}}를 삭제하지 못했습니다: {detail}",
     "text_baked": "확인된 텍스트를 개체에 적용했습니다",
     "batch_failed": "배치가 실패했습니다: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "아래쪽",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}”이(가) 작업 영역의 {edge} 경계에서 {amount} {unit} 벗어나 있습니다. 해당 개체를 선택했습니다. 미리 보거나 작업을 실행하기 전에 작업 영역 안으로 이동하세요.} other {아트워크의 일부가 작업 영역의 {edge} 경계에서 {amount} {unit} 벗어나 있습니다. 미리 보거나 작업을 실행하기 전에 작업 영역 안으로 이동하세요.}}",
     "ui_error_title": "Beam Bench에서 UI 오류가 발생했습니다",
-    "reload": "새로고침"
+    "reload": "새로고침",
+    "user_origin_not_set": "사용자 원본이 선택되었지만 설정되지 않았습니다. 레이저를 원하는 원점으로 이동하고 프레이밍 또는 시작하기 전에 여기에서 설정을 선택하십시오.",
+    "current_position_unavailable": "현재 위치에는 보고된 위치와 연결된 기계가 필요합니다.",
+    "dxf_no_usable_geometry": "DXF 파일에 사용할 수 있는 2D 벡터 형상이 없습니다.",
+    "dxf_no_usable_geometry_with_entities": "DXF 파일에 사용할 수 있는 2D 벡터 형상이 없습니다. 지원되지 않거나 잘못된 엔티티: {entities}."
   },
   "import": {
     "drop_to_import": "가져올 파일을 놓으세요"

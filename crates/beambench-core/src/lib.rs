@@ -60,7 +60,7 @@ pub use export_print::{
 };
 pub use export_svg::export_svg;
 pub use import::{ImportError, import_image, import_svg};
-pub use import_dxf::{DxfEntity, parse_dxf};
+pub use import_dxf::{DxfEntity, DxfParseReport, parse_dxf, parse_dxf_with_report};
 pub use import_gcode::{GcodeLine, import_gcode_as_vecpaths, parse_gcode};
 pub use import_lbrn::{LbrnCutEntry, LbrnDocument, LbrnLayer, LbrnShape, parse_lbrn_project};
 pub use import_pdf::{

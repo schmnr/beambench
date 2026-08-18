@@ -4,17 +4,19 @@ use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use beambench_common::StartFromMode;
 use beambench_common::controller_choice::ControllerConnectionEndpoint;
 use beambench_common::feedback::{
     ConnectionDiagnosticsSnapshot, DiagnosticBundleV1, DiagnosticClient, DiagnosticConnectionEvent,
-    DiagnosticLogEntry, DiagnosticMachine, DiagnosticPanic, DiagnosticPort,
-    DiagnosticProjectMetadata, DiagnosticSessionState, DiagnosticSystem,
+    DiagnosticLogEntry, DiagnosticMachine, DiagnosticPanic, DiagnosticPort, DiagnosticProjectLayer,
+    DiagnosticProjectMetadata, DiagnosticProjectObject, DiagnosticSessionState, DiagnosticSystem,
     FEEDBACK_HISTORY_MAX_ENTRIES, FEEDBACK_SCHEMA_VERSION, FeedbackHistoryEntry, FeedbackKind,
     FeedbackReportInput, KnownIssueWarning, MAX_FEEDBACK_DESCRIPTION_CHARS,
     MAX_FEEDBACK_REPLY_TO_EMAIL_CHARS, MAX_FEEDBACK_TITLE_CHARS, MAX_PROJECT_ATTACHMENT_RAW_BYTES,
     MAX_SUBMIT_BODY_BYTES, SavedReport, SubmitFeedbackRequest, scrub_and_serialize,
     scrub_deserialized,
 };
+use beambench_common::geometry::Bounds;
 use beambench_common::machine::{PortInfo, SessionState};
 use beambench_core::object::ObjectData;
 use beambench_core::{MachineProfile, Project};
@@ -27,10 +29,10 @@ use zip::write::SimpleFileOptions;
 
 use crate::context::{ActiveErrorEntry, ServiceContext};
 use crate::error::{ServiceError, ServiceResult};
-use crate::ops::project;
 use crate::persist;
 
 const MAX_PANIC_REPORT_FILE_BYTES: u64 = 256 * 1024;
+const MAX_DIAGNOSTIC_PROJECT_ITEMS: usize = 10_000;
 const MAX_PANIC_REPORT_BUNDLE_BYTES: usize = 512 * 1024;
 
 pub const KNOWN_ISSUES: &[KnownIssueDefinition] = &[
@@ -75,10 +77,9 @@ pub fn build_bundle(
     validate_feedback_input(input)?;
 
     let project = ctx.project.lock().ok().and_then(|guard| guard.clone());
-    let project_path = project::current_project_path(ctx).ok().flatten();
     let project_metadata = project
         .as_ref()
-        .map(|project| build_project_metadata(project, project_path.as_deref()));
+        .map(|project| build_project_metadata(ctx, project));
     let connection_events = ctx.recent_connection_events();
     let ports_detected = detect_ports(ctx);
     let machine = build_machine_diagnostics(ctx, &ports_detected, &connection_events);
@@ -116,7 +117,8 @@ pub fn build_bundle(
             .last_terminal_job
             .lock()
             .ok()
-            .and_then(|guard| guard.clone()),
+            .and_then(|guard| guard.clone())
+            .map(|job| contextualize_terminal_job(job, input.source_context.as_ref())),
         project_metadata,
         known_issues,
         project_file_attached: input.include_project_file,
@@ -151,6 +153,9 @@ fn minimize_successful_job_compatibility_bundle(bundle: &mut DiagnosticBundleV1)
     bundle.machine.port_vendor_id = None;
     bundle.machine.port_product_id = None;
     bundle.machine.handshake_message = None;
+    bundle.machine.machine_position = None;
+    bundle.machine.work_position = None;
+    bundle.machine.machine_coordinates_valid = false;
     bundle.ports_detected.clear();
     bundle.connection_events.clear();
     bundle.recent_serial = Default::default();
@@ -174,6 +179,14 @@ fn minimize_successful_job_compatibility_bundle(bundle: &mut DiagnosticBundleV1)
         context.error_message = None;
         context.stack = None;
         context.correlation_ts = None;
+        context.action = None;
+        context.error_code = None;
+        context.error_details = None;
+        context.frame_mode = None;
+        context.frame_laser_on = None;
+        context.selected_object_count = None;
+        context.selected_bounds = None;
+        context.jog_request = None;
     }
 }
 
@@ -406,10 +419,57 @@ fn project_attachment_bytes(ctx: &ServiceContext) -> ServiceResult<Vec<u8>> {
         .map_err(|e| ServiceError::persistence(format!("Failed to serialize project: {e}")))
 }
 
-fn build_project_metadata(
-    project: &Project,
-    project_path: Option<&Path>,
-) -> DiagnosticProjectMetadata {
+fn bounds_for_objects<'a>(
+    objects: impl Iterator<Item = &'a beambench_core::ProjectObject>,
+) -> Option<Bounds> {
+    objects
+        .map(|object| object.bounds)
+        .reduce(|bounds, next| bounds.union(&next))
+}
+
+fn object_type(object: &ObjectData) -> &'static str {
+    match object {
+        ObjectData::RasterImage { .. } => "raster_image",
+        ObjectData::VectorPath { .. } => "vector_path",
+        ObjectData::Shape { .. } => "shape",
+        ObjectData::Star { .. } => "star",
+        ObjectData::Text { .. } => "text",
+        ObjectData::Polygon { .. } => "polygon",
+        ObjectData::Barcode { .. } => "barcode",
+        ObjectData::Group { .. } => "group",
+        ObjectData::VirtualClone { .. } => "virtual_clone",
+    }
+}
+
+fn contextualize_terminal_job(
+    mut job: beambench_common::feedback::DiagnosticTerminalJob,
+    source_context: Option<&beambench_common::feedback::FeedbackSourceContext>,
+) -> beambench_common::feedback::DiagnosticTerminalJob {
+    let report_time = source_context
+        .and_then(|context| context.correlation_ts.as_deref())
+        .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
+        .map(|value| value.with_timezone(&Utc))
+        .unwrap_or_else(Utc::now);
+    let captured_at = DateTime::parse_from_rfc3339(&job.captured_at)
+        .ok()
+        .map(|value| value.with_timezone(&Utc));
+    let age_ms = captured_at.map(|captured| {
+        report_time
+            .signed_duration_since(captured)
+            .num_milliseconds()
+            .unsigned_abs()
+    });
+    let relevant = age_ms.is_some_and(|age| age <= 5 * 60 * 1_000);
+    job.age_ms = age_ms;
+    job.relevant_to_report = Some(relevant);
+    if !relevant {
+        job.job_console.clear();
+        job.session_console.clear();
+    }
+    job
+}
+
+fn build_project_metadata(ctx: &ServiceContext, project: &Project) -> DiagnosticProjectMetadata {
     let mut has_raster = false;
     let mut has_vector = false;
     let mut has_text = false;
@@ -429,27 +489,91 @@ fn build_project_metadata(
 
     let size_bytes = save_project_to_bytes(project)
         .ok()
-        .map(|bytes| bytes.len() as u64)
-        .or_else(|| {
-            project_path
-                .and_then(|path| path.metadata().ok())
-                .map(|metadata| metadata.len())
-        });
+        .map(|bytes| bytes.len() as u64);
+
+    let output_layer_ids = project
+        .layers
+        .iter()
+        .filter(|layer| layer.enabled && !layer.is_tool_layer)
+        .map(|layer| layer.id)
+        .collect::<std::collections::HashSet<_>>();
+    let artwork_bounds = bounds_for_objects(project.objects.iter());
+    let output_bounds = bounds_for_objects(
+        project
+            .objects
+            .iter()
+            .filter(|object| object.visible && output_layer_ids.contains(&object.layer_id)),
+    );
+    let runtime_current_position = ctx
+        .optimization_runtime
+        .lock()
+        .ok()
+        .and_then(|runtime| runtime.current_position);
+    let placement_target = match project.start_from {
+        StartFromMode::AbsoluteCoords => None,
+        StartFromMode::CurrentPosition => runtime_current_position,
+        StartFromMode::UserOrigin => project.user_origin,
+    };
+    let cached_plan_bounds = ctx
+        .plan_cache
+        .lock()
+        .ok()
+        .and_then(|plan| plan.as_ref().map(|plan| plan.bounds));
+    let layers = project
+        .layers
+        .iter()
+        .take(MAX_DIAGNOSTIC_PROJECT_ITEMS)
+        .map(|layer| DiagnosticProjectLayer {
+            layer_id: layer.id.to_string(),
+            enabled: layer.enabled,
+            visible: layer.visible,
+            is_tool_layer: layer.is_tool_layer,
+            operations: layer
+                .entries
+                .iter()
+                .filter_map(|entry| serialized_enum_string(entry.operation))
+                .collect(),
+        })
+        .collect();
+    let objects = project
+        .objects
+        .iter()
+        .take(MAX_DIAGNOSTIC_PROJECT_ITEMS)
+        .map(|object| DiagnosticProjectObject {
+            object_id: object.id.to_string(),
+            object_type: object_type(&object.data).to_owned(),
+            layer_id: object.layer_id.to_string(),
+            visible: object.visible,
+            locked: object.locked,
+            bounds: object.bounds,
+        })
+        .collect();
 
     DiagnosticProjectMetadata {
         object_count: project.objects.len(),
+        layer_count: project.layers.len(),
         size_bytes,
         has_raster,
         has_vector,
         has_text,
-        project_path: project_path.and_then(project_file_name_for_diagnostics),
+        workspace_width_mm: project.workspace.bed_width_mm,
+        workspace_height_mm: project.workspace.bed_height_mm,
+        workspace_origin: serialized_enum_string(project.workspace.origin)
+            .unwrap_or_else(|| "unknown".to_owned()),
+        start_from: serialized_enum_string(project.start_from)
+            .unwrap_or_else(|| "unknown".to_owned()),
+        job_origin: serialized_enum_string(project.job_origin)
+            .unwrap_or_else(|| "unknown".to_owned()),
+        user_origin: project.user_origin,
+        runtime_current_position,
+        placement_target,
+        artwork_bounds,
+        output_bounds,
+        cached_plan_bounds,
+        layers,
+        objects,
+        project_path: None,
     }
-}
-
-fn project_file_name_for_diagnostics(path: &Path) -> Option<String> {
-    path.file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .filter(|name| !name.is_empty())
 }
 
 fn detect_ports(ctx: &ServiceContext) -> Vec<DiagnosticPort> {
@@ -569,6 +693,16 @@ fn build_machine_diagnostics(
             use_constant_power: profile_fields.use_constant_power,
             emit_s_every_g1: profile_fields.emit_s_every_g1,
             use_g0_for_overscan: profile_fields.use_g0_for_overscan,
+            bed_width_mm: profile_fields.bed_width_mm,
+            bed_height_mm: profile_fields.bed_height_mm,
+            workspace_origin: profile_fields.workspace_origin,
+            max_speed_mm_min: profile_fields.max_speed_mm_min,
+            controller_travel_x_mm: None,
+            controller_travel_y_mm: None,
+            run_state: None,
+            machine_position: None,
+            work_position: None,
+            machine_coordinates_valid: false,
             firmware_version: None,
             baud_rate: pending_endpoint
                 .as_ref()
@@ -609,6 +743,14 @@ fn build_machine_diagnostics(
         .as_deref()
         .and_then(|active| ports.iter().find(|port| port.name == active));
     let state = session_state_to_diagnostic(session.session_state());
+    let status = session.machine_status();
+    let controller_settings = session.controller_settings().unwrap_or_default();
+    let controller_travel_x_mm = controller_settings
+        .get("$130")
+        .and_then(|value| value.parse::<f64>().ok());
+    let controller_travel_y_mm = controller_settings
+        .get("$131")
+        .and_then(|value| value.parse::<f64>().ok());
 
     DiagnosticMachine {
         connected: !matches!(session.session_state(), SessionState::Disconnected),
@@ -629,6 +771,18 @@ fn build_machine_diagnostics(
         use_constant_power: profile_fields.use_constant_power,
         emit_s_every_g1: profile_fields.emit_s_every_g1,
         use_g0_for_overscan: profile_fields.use_g0_for_overscan,
+        bed_width_mm: profile_fields.bed_width_mm,
+        bed_height_mm: profile_fields.bed_height_mm,
+        workspace_origin: profile_fields.workspace_origin,
+        max_speed_mm_min: profile_fields.max_speed_mm_min,
+        controller_travel_x_mm,
+        controller_travel_y_mm,
+        run_state: Some(status.run_state),
+        machine_position: Some(status.machine_position),
+        work_position: Some(status.work_position),
+        machine_coordinates_valid: ctx
+            .machine_coordinates_valid
+            .load(std::sync::atomic::Ordering::Acquire),
         firmware_version,
         baud_rate: profile_baud_rate,
         port_name,
@@ -652,6 +806,10 @@ struct MachineProfileDiagnosticFields {
     use_constant_power: Option<bool>,
     emit_s_every_g1: Option<bool>,
     use_g0_for_overscan: Option<bool>,
+    bed_width_mm: Option<f64>,
+    bed_height_mm: Option<f64>,
+    workspace_origin: Option<String>,
+    max_speed_mm_min: Option<f64>,
 }
 
 impl MachineProfileDiagnosticFields {
@@ -671,6 +829,10 @@ impl MachineProfileDiagnosticFields {
             use_constant_power: Some(profile.use_constant_power),
             emit_s_every_g1: Some(profile.emit_s_every_g1),
             use_g0_for_overscan: Some(profile.use_g0_for_overscan),
+            bed_width_mm: Some(profile.bed_width_mm),
+            bed_height_mm: Some(profile.bed_height_mm),
+            workspace_origin: serialized_enum_string(profile.origin),
+            max_speed_mm_min: Some(profile.max_speed_mm_min),
         }
     }
 }
@@ -1053,6 +1215,7 @@ mod tests {
                 stack: None,
                 feature: None,
                 correlation_ts: None,
+                ..FeedbackSourceContext::default()
             }),
         }
     }
@@ -1071,6 +1234,7 @@ mod tests {
                 stack: None,
                 feature: Some("job_compatibility_success".to_owned()),
                 correlation_ts: Some("2026-05-14T12:34:56Z".to_owned()),
+                ..FeedbackSourceContext::default()
             }),
         }
     }
@@ -1119,7 +1283,7 @@ mod tests {
                 .project_metadata
                 .as_ref()
                 .and_then(|metadata| metadata.project_path.as_deref()),
-            Some("a.lzrproj")
+            None
         );
         assert_eq!(bundle.recent_logs.len(), 1);
         assert_eq!(bundle.recent_logs[0].ts, "2026-05-14T12:34:56+00:00");
@@ -1213,7 +1377,9 @@ mod tests {
         progress.error_message =
             Some("Controller reported Idle while bytes were pending".to_string());
         *ctx.last_terminal_job.lock().unwrap() = Some(DiagnosticTerminalJob {
-            captured_at: "2026-05-14T12:34:56Z".to_string(),
+            captured_at: Utc::now().to_rfc3339(),
+            age_ms: None,
+            relevant_to_report: None,
             reason: "fatal_tick_error".to_string(),
             progress: Some(progress),
             error: Some("serial read failed".to_string()),
@@ -1246,8 +1412,44 @@ mod tests {
     }
 
     #[test]
+    fn preview_omits_console_content_from_stale_terminal_jobs() {
+        let ctx = ServiceContext::new();
+        *ctx.last_terminal_job.lock().unwrap() = Some(DiagnosticTerminalJob {
+            captured_at: "2026-01-01T00:00:00Z".to_owned(),
+            age_ms: None,
+            relevant_to_report: None,
+            reason: "completed".to_owned(),
+            progress: Some(JobProgress::default()),
+            error: None,
+            job_tick_loop_running: false,
+            session_state: Some(SessionState::Ready),
+            machine_run_state: Some(MachineRunState::Idle),
+            job_console: vec![ConsoleEntry {
+                timestamp: Utc::now(),
+                direction: ConsoleDirection::Sent,
+                content: "G1 X10".to_owned(),
+            }],
+            session_console: vec![ConsoleEntry {
+                timestamp: Utc::now(),
+                direction: ConsoleDirection::Received,
+                content: "ok".to_owned(),
+            }],
+        });
+
+        let bundle = preview_feedback_report(&ctx, bug_input()).unwrap();
+        let retained = bundle.terminal_job.expect("retained terminal job summary");
+
+        assert_eq!(retained.relevant_to_report, Some(false));
+        assert!(retained.age_ms.is_some_and(|age| age > 5 * 60 * 1_000));
+        assert!(retained.job_console.is_empty());
+        assert!(retained.session_console.is_empty());
+    }
+
+    #[test]
     fn successful_job_compatibility_preview_excludes_design_and_trace_data() {
         let ctx = ServiceContext::new();
+        ctx.machine_coordinates_valid
+            .store(true, std::sync::atomic::Ordering::Release);
         ctx.settings.lock().unwrap().display_language = "fr".to_owned();
         ctx.push_error("WARN test: project /Users/alice/secret.lzrproj".to_owned());
         ctx.push_connection_event(
@@ -1268,6 +1470,8 @@ mod tests {
         });
         *ctx.last_terminal_job.lock().unwrap() = Some(DiagnosticTerminalJob {
             captured_at: "2026-05-14T12:34:56Z".to_owned(),
+            age_ms: None,
+            relevant_to_report: None,
             reason: "terminal_progress".to_owned(),
             progress: Some(progress),
             error: None,
@@ -1292,6 +1496,7 @@ mod tests {
         assert!(bundle.recent_logs.is_empty());
         assert!(bundle.recent_panics.is_empty());
         assert!(bundle.project_metadata.is_none());
+        assert!(!bundle.machine.machine_coordinates_valid);
         assert!(terminal.job_console.is_empty());
         assert!(terminal.session_console.is_empty());
         assert_eq!(
@@ -1443,6 +1648,16 @@ mod tests {
                 use_constant_power: None,
                 emit_s_every_g1: None,
                 use_g0_for_overscan: None,
+                bed_width_mm: None,
+                bed_height_mm: None,
+                workspace_origin: None,
+                max_speed_mm_min: None,
+                controller_travel_x_mm: None,
+                controller_travel_y_mm: None,
+                run_state: None,
+                machine_position: None,
+                work_position: None,
+                machine_coordinates_valid: false,
                 firmware_version: None,
                 baud_rate: Some(115_200),
                 port_name: None,

@@ -368,7 +368,54 @@
       "outcome_pass": "Correcto",
       "outcome_warnings": "Advertencias",
       "outcome_fail": "Fallo",
-      "warnings_block_start": "Resuelve las advertencias anteriores antes de iniciar el trabajo."
+      "warnings_block_start": "Resuelve las advertencias anteriores antes de iniciar el trabajo.",
+      "advisory_choice": "Este trabajo se puede ejecutar, pero corregir el aviso puede mejorar la calidad del grabado.",
+      "apply_overscan": "Utilice {value} mm de sobreexploración y vuelva a comprobar",
+      "reduce_speed": "Utilice {value} mm/min y vuelva a comprobar",
+      "continue_anyway": "Continuar de todos modos",
+      "categories": {
+        "connection": "Conexión",
+        "machine": "maquina",
+        "plan": "Planificar",
+        "bounds": "límites",
+        "settings": "Configuración",
+        "positioning": "Posicionamiento",
+        "planner": "Planificador",
+        "machine_workspace": "Espacio de trabajo de la máquina"
+      },
+      "checks": {
+        "session_ready": "La sesión está lista",
+        "machine_idle": "La máquina está inactiva",
+        "no_alarm": "Ninguna alarma activa",
+        "plan_segments": "El plan tiene movimiento.",
+        "plan_fits": "El plan cabe dentro de la plataforma de la máquina",
+        "raster_motion_fits": "El movimiento de trama cabe dentro de la plataforma de la máquina",
+        "laser_mode": "El modo láser está habilitado ($32=1)",
+        "homing_enabled": "La referencia está habilitada",
+        "relative_framed": "La ubicación relativa se enmarcó en la posición actual."
+      },
+      "messages": {
+        "connected_ready": "Conectado y listo",
+        "machine_idle": "Máquina inactiva",
+        "no_alarm": "Sin alarma",
+        "raster_motion_within_bed": "El movimiento rasterizado está dentro de la cama.",
+        "laser_mode_enabled": "Modo láser habilitado",
+        "homing_enabled": "Búsqueda habilitada",
+        "frame_completed": "Marco completado para este proyecto y ubicación exactos.",
+        "frame_required": "Este controlador no está referenciado, por lo que Beam Bench no puede verificar los bordes físicos de la cama. Encuadre el trabajo después de colocar el láser y luego vuelva a verificar antes de comenzar.",
+        "segment_count_one": "1 segmento",
+        "segment_count_other": "{count} segmentos"
+      },
+      "advisories": {
+        "raster_overscan": {
+          "title": "La aceleración ráster necesita más sobreexploración",
+          "message": "La velocidad seleccionada necesita más distancia de aceleración. Aumente la sobreexploración o reduzca la velocidad para obtener bordes de fila más uniformes."
+        },
+        "speed_limited": {
+          "title": "La velocidad solicitada excede el límite de la máquina",
+          "message": "El controlador funcionará más lentamente de lo solicitado."
+        }
+      }
     },
     "update": {
       "title_template": "Beam Bench {version} está disponible",
@@ -2039,7 +2086,12 @@
         "travel": "viajar",
         "unlock": "Desbloquear",
         "profile_select": "Machine profile",
-        "profile_select_connected_title": "Disconnect before switching machine profile"
+        "profile_select_connected_title": "Disconnect before switching machine profile",
+        "user_origin_not_set": "No establecido",
+        "user_origin_saved": "Guardado en X {x}, Y {y} mm",
+        "set_user_origin_here": "Establecer aquí",
+        "user_origin_required_title": "Establecer el origen del usuario antes de enmarcar o comenzar",
+        "positioning_help": "Ayuda de posicionamiento"
       },
       "panel": {
         "positioning": "Posicionamiento",
@@ -2116,7 +2168,13 @@
         "failed_to_apply": "No se pudo aplicar el ajuste preestablecido: {detail}",
         "title": "Preajuste de máquina",
         "preview": "Vista previa",
-        "no_changes": "Sin cambios."
+        "no_changes": "Sin cambios.",
+        "catalog": {
+          "acmer_s2": {
+            "description": "Espacio de trabajo oficial de ACMER S2 y valores predeterminados de GRBL.",
+            "advisory": "ACMER especifica un área de grabado de 300 × 300 mm. Beam Bench volverá a verificar la configuración del controlador GRBL compatible cuando la máquina se conecte."
+          }
+        }
       },
       "material_library": {
         "operation": {
@@ -2468,6 +2526,7 @@
     "routed_image": "Imagen dirigida a \"{layer}\"",
     "routed_vector": "Vector dirigido a \"{layer}\"",
     "import_complete": "Importación completada: {fileCount, plural, one {# archivo} other {# archivos}}, {objectCount, plural, one {# objeto} other {# objetos}}",
+    "dxf_skipped_entities": "Algunas entidades DXF no se pudieron importar: {entities}.",
     "discard_recovery_failed": "No se pudieron descartar {count, plural, one {# archivo de recuperación} other {# archivos de recuperación}}: {detail}",
     "text_baked": "Texto resuelto fijado en el objeto",
     "batch_failed": "El lote falló: {detail}",
@@ -2559,7 +2618,11 @@
     "workspace_edge_bottom": "inferior",
     "artwork_outside_workspace": "{hasObject, select, yes {«{object}» sobresale {amount} {unit} del borde {edge} del área de trabajo. El objeto se ha seleccionado. Muévelo dentro del área de trabajo antes de previsualizar o ejecutar el trabajo.} other {Parte del diseño sobresale {amount} {unit} del borde {edge} del área de trabajo. Muévela dentro del área de trabajo antes de previsualizar o ejecutar el trabajo.}}",
     "ui_error_title": "Beam Bench tuvo un error de interfaz",
-    "reload": "Recargar"
+    "reload": "Recargar",
+    "user_origin_not_set": "El origen del usuario está seleccionado pero no se ha configurado. Mueva el láser al origen deseado y elija Establecer aquí antes de encuadrar o comenzar.",
+    "current_position_unavailable": "La posición actual necesita una máquina conectada con una posición informada.",
+    "dxf_no_usable_geometry": "El archivo DXF no contiene geometría vectorial 2D utilizable.",
+    "dxf_no_usable_geometry_with_entities": "El archivo DXF no contiene geometría vectorial 2D utilizable. Entidades no compatibles o dañadas: {entities}."
   },
   "import": {
     "drop_to_import": "Suelta archivos para importar"
