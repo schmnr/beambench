@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.6
+
 - GRBL homing now remains connected while controllers are legitimately silent,
   and absolute coordinates become trusted only after a fresh post-home Idle
   report confirms completion.
