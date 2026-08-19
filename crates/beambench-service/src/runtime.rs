@@ -9,8 +9,8 @@ use beambench_common::controller_choice::{
 };
 use beambench_common::machine::{
     ControllerEvidenceState, ControllerFamily, ControllerModel, ControllerProductTier,
-    DeviceCapabilities, DeviceIdentity, JobProgress, JobState, MachineRunState, MachineStatus,
-    SessionState, TransportKind,
+    DeviceCapabilities, DeviceIdentity, JobProgress, JobState, MachinePosition, MachineRunState,
+    MachineStatus, SessionState, TransportKind,
 };
 use beambench_dsp::{DspJob, DspSession};
 use beambench_galvo::{GalvoJob, GalvoSession};
@@ -996,6 +996,53 @@ impl MachineSessionHandle {
         match self {
             Self::Grbl(session) => Some(session.status_report_count()),
             _ => None,
+        }
+    }
+
+    /// Request and wait for a position reported after this call began.
+    ///
+    /// This is used at placement boundaries where a cached status is unsafe,
+    /// such as Current Position planning and Set Origin after a jog.
+    pub fn fresh_work_position(
+        &mut self,
+        timeout: Duration,
+    ) -> Result<Option<MachinePosition>, String> {
+        match self {
+            Self::Grbl(session) => {
+                if session.is_homing() {
+                    return Err(
+                        "The controller is still homing. Wait for homing to finish before using its position."
+                            .to_string(),
+                    );
+                }
+                // Drain anything that predates this request, then accept only a
+                // position-bearing report received after the explicit query.
+                session.poll().map_err(|error| error.to_string())?;
+                let baseline = session.position_report_count();
+                session.poll_status().map_err(|error| error.to_string())?;
+                let deadline = Instant::now() + timeout;
+                while session.position_report_count() == baseline && Instant::now() < deadline {
+                    session.poll().map_err(|error| error.to_string())?;
+                    if session.position_report_count() == baseline {
+                        std::thread::sleep(Duration::from_millis(20));
+                    }
+                }
+                if session.position_report_count() == baseline {
+                    return Err(
+                        "The controller did not report a fresh position. Recheck the connection and try again."
+                            .to_string(),
+                    );
+                }
+                if !session.work_position_valid() {
+                    return Err(
+                        "The controller reported machine position without a usable work-coordinate offset. Recheck the connection and try again."
+                            .to_string(),
+                    );
+                }
+                Ok(Some(session.last_status().work_position))
+            }
+            Self::Dsp(session) => Ok(Some(session.machine_status.work_position)),
+            _ => Ok(None),
         }
     }
 

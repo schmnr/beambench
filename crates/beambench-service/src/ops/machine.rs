@@ -79,6 +79,7 @@ const CONTROLLER_COMPATIBILITY_STATUS_TIMEOUT: Duration = Duration::from_secs(1)
 const CONTROLLER_SETTINGS_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
 const CONTROLLER_QUERY_POLL_INTERVAL: Duration = Duration::from_millis(20);
 const IDLE_STATUS_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
+const HOMING_STATUS_RESPONSE_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const IDLE_HEALTH_RECHECK_ATTEMPTS: usize = 3;
 const IDLE_HEALTH_RECHECK_INTERVAL: Duration = Duration::from_millis(100);
 const EMERGENCY_STOP_CONFIRM_POLLS: usize = 12;
@@ -2947,6 +2948,39 @@ fn refresh_idle_session_health_with_timeout(
     session: &mut MachineSessionHandle,
     response_timeout: Duration,
 ) -> ServiceResult<()> {
+    if matches!(session, MachineSessionHandle::Grbl(grbl) if grbl.is_homing()) {
+        // Stock GRBL may ignore real-time status queries throughout `$H` and
+        // only acknowledge the command after the cycle finishes. Poll the
+        // transport, but do not apply the much shorter idle-response watchdog
+        // while homing is legitimately silent.
+        if let Err(first_error) = session.poll() {
+            std::thread::sleep(IDLE_HEALTH_RECHECK_INTERVAL);
+            session.poll().map_err(|recheck_error| {
+                ServiceError::machine(format!(
+                    "[controller_connection_lost] Controller polling failed during homing and the automatic recheck also failed. Initial error: {first_error}. Recheck error: {recheck_error}"
+                ))
+            })?;
+        }
+        if let MachineSessionHandle::Grbl(grbl) = session
+            && grbl.is_homing()
+        {
+            if grbl
+                .homing_elapsed()
+                .is_some_and(|elapsed| elapsed > HOMING_STATUS_RESPONSE_TIMEOUT)
+            {
+                return Err(ServiceError::machine(
+                    "[controller_connection_lost] The controller did not finish or report an alarm within ten minutes of starting homing.",
+                ));
+            }
+            grbl.poll_status().map_err(|error| {
+                ServiceError::machine(format!(
+                    "Controller status query failed during homing: {error}"
+                ))
+            })?;
+        }
+        return Ok(());
+    }
+
     if let Err(first_error) = refresh_idle_session_once(session) {
         std::thread::sleep(IDLE_HEALTH_RECHECK_INTERVAL);
         return refresh_idle_session_once(session).map_err(|recheck_error| {
@@ -2998,6 +3032,18 @@ fn handle_idle_connection_loss(ctx: &ServiceContext, error: &ServiceError) {
     );
 }
 
+fn finalize_completed_grbl_homing(ctx: &ServiceContext, session: &mut MachineSessionHandle) {
+    let completed = if let MachineSessionHandle::Grbl(grbl) = session {
+        grbl.take_homing_completed()
+    } else {
+        false
+    };
+    if completed {
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        ctx.emit_event("machine.homed", json!({}));
+    }
+}
+
 pub fn runtime_state(ctx: &ServiceContext) -> ServiceResult<MachineRuntimeState> {
     let (job_progress, job_tick_error) = match tick_job(ctx) {
         Ok(p) => (p, None),
@@ -3015,6 +3061,7 @@ pub fn runtime_state(ctx: &ServiceContext) -> ServiceResult<MachineRuntimeState>
             handle_idle_connection_loss(ctx, &error);
             return Ok(runtime_summary(None, None, false));
         }
+        finalize_completed_grbl_homing(ctx, session);
     }
     let machine_coordinates_valid = ctx.machine_coordinates_valid.load(Ordering::Acquire);
     let mut state = runtime_summary(
@@ -3148,6 +3195,7 @@ pub fn machine_status(ctx: &ServiceContext) -> ServiceResult<MachineStatus> {
             handle_idle_connection_loss(ctx, &error);
             return Err(error);
         }
+        finalize_completed_grbl_homing(ctx, session);
     }
     let status = session.machine_status();
     drop(session_lock);
@@ -3173,6 +3221,7 @@ pub fn session_state(ctx: &ServiceContext) -> ServiceResult<SessionState> {
                     handle_idle_connection_loss(ctx, &error);
                     return Ok(SessionState::Disconnected);
                 }
+                finalize_completed_grbl_homing(ctx, session);
             }
             Ok(session.session_state())
         }
@@ -3190,13 +3239,20 @@ pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    require_ready_for_motion(session, "Home")?;
-    match session {
+    require_idle_ready_for_motion(session, "Home")?;
+    let emit_completed = match session {
         MachineSessionHandle::Grbl(session) => {
+            // Remove acknowledgements from earlier commands so only responses
+            // observed after `$H` can complete this homing cycle.
+            session
+                .poll()
+                .map_err(|e| ServiceError::machine(e.to_string()))?;
+            ctx.machine_coordinates_valid
+                .store(false, Ordering::Release);
             session
                 .home()
                 .map_err(|e| ServiceError::machine(e.to_string()))?;
-            ctx.machine_coordinates_valid.store(true, Ordering::Release);
+            false
         }
         MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
             return Err(invalid_capability("Home", ControllerFamily::Gcode));
@@ -3210,21 +3266,26 @@ pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
             // controller has not reported.
             ctx.machine_coordinates_valid
                 .store(false, Ordering::Release);
+            true
         }
         MachineSessionHandle::Lihuiyu(session) => {
             session.home().map_err(ServiceError::machine)?;
             ctx.machine_coordinates_valid
                 .store(false, Ordering::Release);
+            true
         }
         MachineSessionHandle::Dsp(session) => {
             session.home();
             ctx.machine_coordinates_valid.store(true, Ordering::Release);
+            true
         }
         MachineSessionHandle::Galvo(_) => {
             return Err(invalid_capability("Home", ControllerFamily::Galvo));
         }
+    };
+    if emit_completed {
+        ctx.emit_event("machine.homed", json!({}));
     }
-    ctx.emit_event("machine.homed", json!({}));
     Ok(())
 }
 
@@ -5246,16 +5307,26 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
 /// Capture the current work position and store it as user_origin on the project.
 /// Returns the captured (x, y) coordinates.
 pub fn set_work_origin(ctx: &ServiceContext) -> ServiceResult<(f64, f64)> {
-    // Read work_position from the session (release lock before touching project)
+    // Capture a position reported after the button press. A cached status can
+    // predate the user's most recent jog on controllers that report slowly.
     let captured = {
-        let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
         let session = session_lock
-            .as_ref()
+            .as_mut()
             .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
         match session {
-            MachineSessionHandle::Grbl(session) => {
-                let status = session.last_status();
-                (status.work_position.x, status.work_position.y)
+            session @ MachineSessionHandle::Grbl(_) => {
+                let position = session
+                    .fresh_work_position(Duration::from_secs(1))
+                    .map_err(|error| {
+                        ServiceError::machine(format!("Could not set the user origin: {error}"))
+                    })?
+                    .ok_or_else(|| {
+                        ServiceError::invalid_state(
+                            "The connected controller does not report a work position",
+                        )
+                    })?;
+                (position.x, position.y)
             }
             MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
                 return Err(invalid_capability(
@@ -5829,6 +5900,80 @@ mod tests {
         );
         let status_queries = transport.lock().unwrap().bytes.len() - bytes_before;
         assert_eq!(status_queries, 4, "one routine query plus three rechecks");
+    }
+
+    #[test]
+    fn silent_homing_is_not_disconnected_by_the_idle_status_watchdog() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+
+        home(&ctx).unwrap();
+        assert!(!ctx.machine_coordinates_valid.load(Ordering::Acquire));
+        let repeated_home = home(&ctx).unwrap_err();
+        assert!(repeated_home.message.contains("requires an idle machine"));
+        assert_eq!(
+            transport
+                .lock()
+                .unwrap()
+                .lines
+                .iter()
+                .filter(|line| line.as_str() == "$H")
+                .count(),
+            1
+        );
+        {
+            let mut session_lock = ctx.session.lock().unwrap();
+            let session = session_lock.as_mut().unwrap();
+            refresh_idle_session_health_with_timeout(session, Duration::ZERO).unwrap();
+        }
+        assert!(ctx.session.lock().unwrap().is_some());
+
+        // `$H` may remain completely silent until it returns `ok`. The next
+        // explicit status confirms Idle and only then restores coordinate trust.
+        {
+            let mut state = transport.lock().unwrap();
+            state.rx.push_back("ok".to_string());
+            state.status_on_query.push_back(
+                "<Idle|MPos:0.000,0.000,0.000|WCO:0.000,0.000,0.000|FS:0,0>".to_string(),
+            );
+        }
+        assert_eq!(
+            machine_status(&ctx).unwrap().run_state,
+            MachineRunState::Home
+        );
+        assert_eq!(
+            machine_status(&ctx).unwrap().run_state,
+            MachineRunState::Idle
+        );
+        assert!(ctx.machine_coordinates_valid.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn set_origin_and_current_position_use_fresh_post_jog_coordinates() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut project = Project::new("Fresh position placement");
+        project.start_from = StartFromMode::CurrentPosition;
+        *ctx.project.lock().unwrap() = Some(project);
+        {
+            let mut state = transport.lock().unwrap();
+            state.status_on_query.extend([
+                "<Idle|MPos:80.710,59.650,0.000|FS:0,0>".to_string(),
+                "<Idle|MPos:125.000,140.000,0.000|FS:0,0>".to_string(),
+            ]);
+        }
+
+        let captured = set_work_origin(&ctx).unwrap();
+        assert_eq!(captured, (80.71, 59.65));
+        assert_eq!(
+            ctx.project.lock().unwrap().as_ref().unwrap().user_origin,
+            Some((80.71, 59.65))
+        );
+
+        planning::sync_current_position(&ctx).unwrap();
+        assert_eq!(
+            ctx.optimization_runtime.lock().unwrap().current_position,
+            Some((125.0, 140.0))
+        );
     }
 
     #[test]
@@ -7347,6 +7492,7 @@ mod tests {
         open_count: usize,
         close_count: usize,
         rx: VecDeque<String>,
+        status_on_query: VecDeque<String>,
         lines: Vec<String>,
         bytes: Vec<Vec<u8>>,
         fail_m5_writes: usize,
@@ -7396,6 +7542,11 @@ mod tests {
             if data == grbl_commands::soft_reset() && state.open_count > 1 && state.banner_on_reopen
             {
                 state.rx.push_back("Grbl 1.1h".to_string());
+            }
+            if data == grbl_commands::status_query()
+                && let Some(status) = state.status_on_query.pop_front()
+            {
+                state.rx.push_back(status);
             }
             Ok(data.len())
         }
@@ -7654,7 +7805,7 @@ mod tests {
     ) -> (Arc<ServiceContext>, Arc<Mutex<RecordingTransportState>>) {
         ready_grbl_context_with_status(
             profile,
-            "<Idle|MPos:10.000,20.000,0.000|WPos:10.000,20.000,0.000|FS:0,0>",
+            "<Idle|MPos:10.000,20.000,0.000|WCO:0.000,0.000,0.000|FS:0,0>",
         )
     }
 

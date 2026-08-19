@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.2.6
+
+- GRBL homing now remains connected while controllers are legitimately silent,
+  and absolute coordinates become trusted only after a fresh post-home Idle
+  report confirms completion.
+- Current Position and Set Origin now capture a fresh controller position after
+  jogging, while intermittent GRBL `MPos`, `WPos`, and `WCO` reports are merged
+  without replacing omitted coordinates with zero.
+
 ## 0.2.5
 
 - Framing now preserves structured workspace-bound errors, selects the affected

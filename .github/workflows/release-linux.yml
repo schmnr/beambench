@@ -92,6 +92,10 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          # GitHub's Azure mirror can accept the connection and then stop
+          # responding. Use Ubuntu's HTTPS archive directly so release setup
+          # does not consume the entire job timeout.
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
