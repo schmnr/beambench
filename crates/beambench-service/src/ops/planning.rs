@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use crate::context::ServiceContext;
 use crate::error::{ServiceError, ServiceResult};
@@ -316,12 +317,23 @@ pub fn sync_current_position(ctx: &ServiceContext) -> ServiceResult<()> {
     };
 
     let (live_pos, coordinates_trusted) = if start_from == StartFromMode::CurrentPosition {
-        let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
-        match session_lock.as_ref() {
-            Some(MachineSessionHandle::Grbl(session)) => {
-                let status = session.last_status();
+        let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        match session_lock.as_mut() {
+            Some(session @ MachineSessionHandle::Grbl(_)) => {
+                let position = session
+                    .fresh_work_position(Duration::from_secs(1))
+                    .map_err(|error| {
+                        ServiceError::machine(format!(
+                            "Could not capture Current Position: {error}"
+                        ))
+                    })?
+                    .ok_or_else(|| {
+                        ServiceError::invalid_state(
+                            "The connected controller does not report a current position",
+                        )
+                    })?;
                 (
-                    Some((status.work_position.x, status.work_position.y)),
+                    Some((position.x, position.y)),
                     ctx.machine_coordinates_valid.load(Ordering::Acquire),
                 )
             }

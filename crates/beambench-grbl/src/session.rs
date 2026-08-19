@@ -12,7 +12,7 @@ use crate::settings::{GrblSettingId, GrblSettings};
 use crate::state::SessionStateMachine;
 use beambench_common::console::{ConsoleDirection, ConsoleEntry};
 use beambench_common::grbl_family::GrblFamilyIdentity;
-use beambench_common::machine::{MachineRunState, MachineStatus, SessionState};
+use beambench_common::machine::{MachinePosition, MachineRunState, MachineStatus, SessionState};
 use beambench_serial::SerialTransport;
 use chrono::Utc;
 use std::collections::{HashMap, VecDeque};
@@ -33,7 +33,15 @@ pub struct GrblSession {
     console_log: VecDeque<ConsoleEntry>,
     saw_undecodable_data: bool,
     status_report_count: u64,
+    position_report_count: u64,
+    last_work_coordinate_offset: Option<MachinePosition>,
+    machine_position_valid: bool,
+    work_position_valid: bool,
     unanswered_status_since: Option<Instant>,
+    homing_started_at: Option<Instant>,
+    homing_acknowledged: bool,
+    homing_state_observed: bool,
+    homing_completed: bool,
 }
 
 impl GrblSession {
@@ -49,7 +57,15 @@ impl GrblSession {
             console_log: VecDeque::with_capacity(CONSOLE_LOG_CAPACITY),
             saw_undecodable_data: false,
             status_report_count: 0,
+            position_report_count: 0,
+            last_work_coordinate_offset: None,
+            machine_position_valid: false,
+            work_position_valid: false,
             unanswered_status_since: None,
+            homing_started_at: None,
+            homing_acknowledged: false,
+            homing_state_observed: false,
+            homing_completed: false,
         }
     }
 
@@ -58,6 +74,31 @@ impl GrblSession {
     /// must not trust an Idle that predates the job).
     pub fn status_report_count(&self) -> u64 {
         self.status_report_count
+    }
+
+    /// Number of status reports that carried a current `MPos` or `WPos`.
+    pub fn position_report_count(&self) -> u64 {
+        self.position_report_count
+    }
+
+    /// Whether `last_status().work_position` is backed by a reported `WPos`
+    /// or by a reported `MPos` combined with a known `WCO`.
+    pub fn work_position_valid(&self) -> bool {
+        self.work_position_valid
+    }
+
+    pub fn is_homing(&self) -> bool {
+        self.homing_started_at.is_some()
+    }
+
+    pub fn homing_elapsed(&self) -> Option<Duration> {
+        self.homing_started_at.map(|started| started.elapsed())
+    }
+
+    /// Returns true once for each homing cycle that was confirmed complete by
+    /// a fresh Idle report after the controller acknowledged or entered Home.
+    pub fn take_homing_completed(&mut self) -> bool {
+        std::mem::take(&mut self.homing_completed)
     }
 
     /// Time spent waiting for an answer to real-time status queries.
@@ -123,6 +164,17 @@ impl GrblSession {
         // attempts.
         self.identity_detector = GrblFamilyIdentityDetector::default();
         self.last_identity_probe = None;
+        self.last_status = MachineStatus::default();
+        self.status_report_count = 0;
+        self.position_report_count = 0;
+        self.last_work_coordinate_offset = None;
+        self.machine_position_valid = false;
+        self.work_position_valid = false;
+        self.unanswered_status_since = None;
+        self.homing_started_at = None;
+        self.homing_acknowledged = false;
+        self.homing_state_observed = false;
+        self.homing_completed = false;
 
         if let Err(e) = self.transport.open() {
             self.state_machine.force(SessionState::Error);
@@ -175,11 +227,56 @@ impl GrblSession {
             GrblResponse::Status(status) => {
                 self.status_report_count = self.status_report_count.wrapping_add(1);
                 self.unanswered_status_since = None;
+                let report = raw_line
+                    .strip_prefix('<')
+                    .and_then(|line| line.strip_suffix('>'))
+                    .unwrap_or(raw_line);
+                let positions = parser::parse_status_position_fields(report);
+                if let Some(offset) = positions.work_coordinate_offset {
+                    self.last_work_coordinate_offset = Some(offset);
+                }
                 // GRBL only includes `Ov:` (override fields) periodically, not in
                 // every status report.  When Ov is absent, the parser returns 0 for
                 // the override fields.  Preserve the previous override values in
                 // that case so callers always see the real overrides.
                 let mut merged = status.clone();
+                merged.machine_position = self.last_status.machine_position;
+                merged.work_position = self.last_status.work_position;
+                if positions.machine_position.is_some() || positions.work_position.is_some() {
+                    self.position_report_count = self.position_report_count.wrapping_add(1);
+                }
+                if let Some(machine_position) = positions.machine_position {
+                    merged.machine_position = machine_position;
+                    self.machine_position_valid = true;
+                    if let Some(offset) = self.last_work_coordinate_offset {
+                        merged.work_position = parser::subtract_position(machine_position, offset);
+                        self.work_position_valid = true;
+                    } else {
+                        self.work_position_valid = false;
+                    }
+                }
+                if let Some(work_position) = positions.work_position {
+                    merged.work_position = work_position;
+                    self.work_position_valid = true;
+                    if let Some(offset) = self.last_work_coordinate_offset {
+                        merged.machine_position = parser::add_position(work_position, offset);
+                        self.machine_position_valid = true;
+                    } else if positions.machine_position.is_none() {
+                        self.machine_position_valid = false;
+                    }
+                } else if positions.machine_position.is_none()
+                    && let Some(offset) = positions.work_coordinate_offset
+                {
+                    if self.machine_position_valid {
+                        merged.work_position =
+                            parser::subtract_position(merged.machine_position, offset);
+                        self.work_position_valid = true;
+                    } else if self.work_position_valid {
+                        merged.machine_position =
+                            parser::add_position(merged.work_position, offset);
+                        self.machine_position_valid = true;
+                    }
+                }
                 if merged.feed_override == 0 {
                     merged.feed_override = self.last_status.feed_override;
                 }
@@ -195,6 +292,19 @@ impl GrblSession {
                     && merged.run_state == MachineRunState::Idle
                 {
                     let _ = self.state_machine.transition(SessionState::Ready);
+                }
+                if self.is_homing() {
+                    match merged.run_state {
+                        MachineRunState::Home => self.homing_state_observed = true,
+                        MachineRunState::Idle
+                            if self.homing_acknowledged || self.homing_state_observed =>
+                        {
+                            self.homing_started_at = None;
+                            self.homing_completed = true;
+                        }
+                        MachineRunState::Alarm => self.clear_pending_homing(),
+                        _ => {}
+                    }
                 }
                 self.last_status = merged;
             }
@@ -216,10 +326,25 @@ impl GrblSession {
             }
             GrblResponse::Alarm(code) => {
                 warn!(code, "GRBL alarm received");
+                self.clear_pending_homing();
                 self.state_machine.force(SessionState::Alarm);
+            }
+            GrblResponse::Ok if self.is_homing() => {
+                self.homing_acknowledged = true;
+            }
+            GrblResponse::Error(_) if self.is_homing() => {
+                self.clear_pending_homing();
+                self.last_status.run_state = MachineRunState::Idle;
             }
             _ => {}
         }
+    }
+
+    fn clear_pending_homing(&mut self) {
+        self.homing_started_at = None;
+        self.homing_acknowledged = false;
+        self.homing_state_observed = false;
+        self.homing_completed = false;
     }
 
     fn log_console_entry(&mut self, direction: ConsoleDirection, content: &str) {
@@ -276,6 +401,8 @@ impl GrblSession {
         self.identity_detector = GrblFamilyIdentityDetector::default();
         self.last_identity_probe = None;
         self.unanswered_status_since = None;
+        self.clear_pending_homing();
+        self.homing_completed = false;
         self.state_machine.force(SessionState::Disconnected);
         Ok(())
     }
@@ -314,7 +441,14 @@ impl GrblSession {
 
     /// Home all axes ($H).
     pub fn home(&mut self) -> Result<(), GrblError> {
-        self.send_command(&commands::home())
+        self.send_command(&commands::home())?;
+        self.unanswered_status_since = None;
+        self.homing_started_at = Some(Instant::now());
+        self.homing_acknowledged = false;
+        self.homing_state_observed = false;
+        self.homing_completed = false;
+        self.last_status.run_state = MachineRunState::Home;
+        Ok(())
     }
 
     /// Jog to a relative position.
@@ -521,6 +655,78 @@ mod tests {
             .begin_validation_from_fresh_status(baseline)
             .unwrap();
         assert_eq!(session.session_state(), SessionState::Alarm);
+    }
+
+    #[test]
+    fn intermittent_grbl_position_fields_are_merged_without_zeroing_work_position() {
+        let transport = MockSerialTransport::new("position-merge-mock");
+        let handle = transport.handle();
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+
+        handle.enqueue_response("<Idle|MPos:100.000,200.000,0.000|WCO:10.000,20.000,0.000|FS:0,0>");
+        session.poll().unwrap();
+        assert_eq!(session.last_status().work_position.x, 90.0);
+        assert_eq!(session.last_status().work_position.y, 180.0);
+        assert!(session.work_position_valid());
+
+        // Standard GRBL omits WCO from most reports. The retained offset must
+        // still be applied to the new machine position after a jog.
+        handle.enqueue_response("<Jog|MPos:125.000,240.000,0.000|FS:500,0>");
+        session.poll().unwrap();
+        assert_eq!(session.last_status().machine_position.x, 125.0);
+        assert_eq!(session.last_status().machine_position.y, 240.0);
+        assert_eq!(session.last_status().work_position.x, 115.0);
+        assert_eq!(session.last_status().work_position.y, 220.0);
+        assert_eq!(session.position_report_count(), 2);
+    }
+
+    #[test]
+    fn delayed_work_offset_completes_a_work_position_only_report() {
+        let transport = MockSerialTransport::new("delayed-wco-mock");
+        let handle = transport.handle();
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+
+        handle.enqueue_response("<Idle|WPos:40.000,60.000,0.000|FS:0,0>");
+        session.poll().unwrap();
+        assert_eq!(session.last_status().work_position.x, 40.0);
+        assert!(session.work_position_valid());
+
+        handle.enqueue_response("<Idle|WCO:5.000,10.000,0.000|FS:0,0>");
+        session.poll().unwrap();
+        assert_eq!(session.last_status().work_position.x, 40.0);
+        assert_eq!(session.last_status().work_position.y, 60.0);
+        assert_eq!(session.last_status().machine_position.x, 45.0);
+        assert_eq!(session.last_status().machine_position.y, 70.0);
+    }
+
+    #[test]
+    fn homing_completes_only_after_acknowledgement_and_fresh_idle_status() {
+        let transport = MockSerialTransport::new("homing-lifecycle-mock");
+        let handle = transport.handle();
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+        handle.enqueue_response("Grbl 1.1h ['$' for help]");
+        handle.enqueue_response("<Idle|MPos:10.000,20.000,0.000|WCO:0.000,0.000,0.000|FS:0,0>");
+        session.poll().unwrap();
+        session.mark_ready().unwrap();
+
+        session.home().unwrap();
+        assert!(session.is_homing());
+        assert_eq!(session.last_status().run_state, MachineRunState::Home);
+        assert!(!session.take_homing_completed());
+
+        handle.enqueue_response("ok");
+        session.poll().unwrap();
+        assert!(session.is_homing());
+        assert!(!session.take_homing_completed());
+
+        handle.enqueue_response("<Idle|MPos:0.000,0.000,0.000|WCO:0.000,0.000,0.000|FS:0,0>");
+        session.poll().unwrap();
+        assert!(!session.is_homing());
+        assert!(session.take_homing_completed());
+        assert!(!session.take_homing_completed());
     }
 
     struct ScriptedIdentityTransport {

@@ -19,6 +19,19 @@ pub enum GrblResponse {
     Unknown(String),
 }
 
+/// Position fields carried by a single GRBL status report.
+///
+/// GRBL 1.1 normally reports either `MPos` or `WPos`, not both, and only
+/// includes `WCO` periodically. Keeping presence separate from the parsed
+/// snapshot lets the session merge those intermittent fields without
+/// mistaking an omitted value for zero.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct StatusPositionFields {
+    pub machine_position: Option<MachinePosition>,
+    pub work_position: Option<MachinePosition>,
+    pub work_coordinate_offset: Option<MachinePosition>,
+}
+
 /// Parse a single line from GRBL into a structured response.
 pub fn parse_response(line: &str) -> GrblResponse {
     let trimmed = line.trim();
@@ -77,24 +90,15 @@ pub fn parse_response(line: &str) -> GrblResponse {
 pub fn parse_status_report(report: &str) -> MachineStatus {
     let mut status = MachineStatus::default();
     let parts: Vec<&str> = report.split('|').collect();
+    let positions = parse_status_position_fields(report);
 
     if let Some(state_str) = parts.first() {
         status.run_state = parse_run_state(state_str);
     }
 
     for part in parts.iter().skip(1) {
-        if let Some(rest) = part.strip_prefix("MPos:") {
-            status.machine_position = parse_position(rest);
-        } else if let Some(rest) = part.strip_prefix("WPos:") {
-            status.work_position = parse_position(rest);
-        } else if let Some(rest) = part.strip_prefix("WCO:") {
-            // Work coordinate offset — compute work position from machine position
-            let offset = parse_position(rest);
-            status.work_position = MachinePosition {
-                x: status.machine_position.x - offset.x,
-                y: status.machine_position.y - offset.y,
-                z: status.machine_position.z - offset.z,
-            };
+        if part.starts_with("MPos:") || part.starts_with("WPos:") || part.starts_with("WCO:") {
+            continue;
         } else if let Some(rest) = part.strip_prefix("Bf:") {
             // Buffer state: planner,rx — not directly mapped
             let _ = rest;
@@ -124,7 +128,52 @@ pub fn parse_status_report(report: &str) -> MachineStatus {
         }
     }
 
+    if let Some(machine_position) = positions.machine_position {
+        status.machine_position = machine_position;
+    }
+    if let Some(work_position) = positions.work_position {
+        status.work_position = work_position;
+    }
+    if let Some(offset) = positions.work_coordinate_offset {
+        if let Some(machine_position) = positions.machine_position {
+            status.work_position = subtract_position(machine_position, offset);
+        } else if let Some(work_position) = positions.work_position {
+            status.machine_position = add_position(work_position, offset);
+        }
+    }
+
     status
+}
+
+/// Parse only the position-bearing fields from a status report.
+pub fn parse_status_position_fields(report: &str) -> StatusPositionFields {
+    let mut fields = StatusPositionFields::default();
+    for part in report.split('|').skip(1) {
+        if let Some(rest) = part.strip_prefix("MPos:") {
+            fields.machine_position = Some(parse_position(rest));
+        } else if let Some(rest) = part.strip_prefix("WPos:") {
+            fields.work_position = Some(parse_position(rest));
+        } else if let Some(rest) = part.strip_prefix("WCO:") {
+            fields.work_coordinate_offset = Some(parse_position(rest));
+        }
+    }
+    fields
+}
+
+pub(crate) fn add_position(a: MachinePosition, b: MachinePosition) -> MachinePosition {
+    MachinePosition {
+        x: a.x + b.x,
+        y: a.y + b.y,
+        z: a.z + b.z,
+    }
+}
+
+pub(crate) fn subtract_position(a: MachinePosition, b: MachinePosition) -> MachinePosition {
+    MachinePosition {
+        x: a.x - b.x,
+        y: a.y - b.y,
+        z: a.z - b.z,
+    }
 }
 
 /// Parse a GRBL run state string.
@@ -314,6 +363,16 @@ mod tests {
             }
             _ => panic!("expected status"),
         }
+    }
+
+    #[test]
+    fn parse_status_derives_machine_position_from_work_position_and_offset() {
+        let status = parse_status_report("Idle|WPos:12.000,34.000,0.000|WCO:5.000,6.000,0.000");
+
+        assert_eq!(status.work_position.x, 12.0);
+        assert_eq!(status.work_position.y, 34.0);
+        assert_eq!(status.machine_position.x, 17.0);
+        assert_eq!(status.machine_position.y, 40.0);
     }
 
     #[test]
