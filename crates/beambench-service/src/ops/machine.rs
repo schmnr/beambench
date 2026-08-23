@@ -83,6 +83,12 @@ const HOMING_STATUS_RESPONSE_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const IDLE_HEALTH_RECHECK_ATTEMPTS: usize = 3;
 const IDLE_HEALTH_RECHECK_INTERVAL: Duration = Duration::from_millis(100);
 const EMERGENCY_STOP_CONFIRM_POLLS: usize = 12;
+const EMERGENCY_STOP_RECONNECT_DELAYS: [Duration; 4] = [
+    Duration::from_millis(100),
+    Duration::from_millis(250),
+    Duration::from_millis(500),
+    Duration::from_millis(1_000),
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SerialControllerProtocol {
@@ -5195,6 +5201,72 @@ fn send_grbl_emergency_stop(session: &mut GrblRuntimeSession) -> Result<(), Stri
     Ok(())
 }
 
+fn reconnect_and_recheck_grbl_emergency_stop(
+    ctx: &ServiceContext,
+    session: &mut GrblRuntimeSession,
+) -> Result<(), String> {
+    session.disconnect().map_err(|error| error.to_string())?;
+    let mut last_open_error = None;
+    for (index, delay) in EMERGENCY_STOP_RECONNECT_DELAYS.iter().enumerate() {
+        std::thread::sleep(*delay);
+        let attempt = index + 1;
+        ctx.push_connection_event(
+            "emergency_stop_reconnect_attempt",
+            Some(session.port_name().to_string()),
+            None,
+            Some(format!(
+                "Emergency Stop reconnect attempt {attempt} of {}",
+                EMERGENCY_STOP_RECONNECT_DELAYS.len()
+            )),
+            None,
+        );
+        match session.connect() {
+            Ok(()) => {
+                ctx.push_connection_event(
+                    "emergency_stop_reconnect_opened",
+                    Some(session.port_name().to_string()),
+                    None,
+                    Some(format!(
+                        "Emergency Stop reconnect opened the controller on attempt {attempt}"
+                    )),
+                    None,
+                );
+                return send_grbl_emergency_stop(session).map_err(|error| {
+                    ctx.push_connection_event(
+                        "emergency_stop_recheck_failed",
+                        Some(session.port_name().to_string()),
+                        None,
+                        None,
+                        Some(error.clone()),
+                    );
+                    format!(
+                        "controller reopened on attempt {attempt}, but the stop recheck failed: {error}"
+                    )
+                });
+            }
+            Err(error) => {
+                let error = error.to_string();
+                ctx.push_connection_event(
+                    "emergency_stop_reconnect_failed",
+                    Some(session.port_name().to_string()),
+                    None,
+                    Some(format!(
+                        "Emergency Stop reconnect attempt {attempt} of {} failed",
+                        EMERGENCY_STOP_RECONNECT_DELAYS.len()
+                    )),
+                    Some(error.clone()),
+                );
+                last_open_error = Some(error);
+            }
+        }
+    }
+    Err(format!(
+        "controller reconnect failed after {} attempts; last error: {}",
+        EMERGENCY_STOP_RECONNECT_DELAYS.len(),
+        last_open_error.unwrap_or_else(|| "unknown connection error".to_string())
+    ))
+}
+
 pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     let _ = force_laser_fire_stop(ctx, "emergency_stop");
     ctx.machine_coordinates_valid
@@ -5210,15 +5282,11 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
         MachineSessionHandle::Grbl(session) => match send_grbl_emergency_stop(session) {
             Ok(()) => Ok(()),
             Err(initial_error) => {
-                // A Windows USB/CH340 reset can invalidate an open handle while
-                // leaving the same COM port available. Close that stale handle,
-                // reopen the exact same endpoint, and resend only the stop/reset.
+                // USB serial resets can invalidate an open handle or briefly
+                // remove the endpoint on any desktop platform. Retry the
+                // connection for a bounded period, then resend only the stop.
                 // Never rebuild or resume the interrupted job.
-                let recheck_result = session
-                    .disconnect()
-                    .map_err(|error| error.to_string())
-                    .and_then(|()| session.connect().map_err(|error| error.to_string()))
-                    .and_then(|()| send_grbl_emergency_stop(session));
+                let recheck_result = reconnect_and_recheck_grbl_emergency_stop(ctx, session);
                 match recheck_result {
                     Ok(()) => {
                         recovered_after_reopen = true;
@@ -5838,6 +5906,47 @@ mod tests {
             "the failed reset should be resent on the reopened endpoint"
         );
         drop(state);
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn grbl_emergency_stop_retries_transient_reopen_failures() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_byte_writes = 1;
+            state.fail_open_attempts = 2;
+            state.banner_on_reopen = true;
+        }
+
+        emergency_stop(&ctx).unwrap();
+
+        let state = transport.lock().unwrap();
+        assert_eq!(
+            state.open_count, 4,
+            "the initial connection plus three recovery opens should be attempted"
+        );
+        assert_eq!(state.fail_open_attempts, 0);
+        drop(state);
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn grbl_emergency_stop_bounds_reopen_failures() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_byte_writes = 1;
+            state.fail_open_attempts = EMERGENCY_STOP_RECONNECT_DELAYS.len();
+        }
+
+        let error = emergency_stop(&ctx).unwrap_err();
+
+        assert!(error.message.contains("reconnect failed after 4 attempts"));
+        assert!(error.message.contains("physical emergency stop"));
+        assert_eq!(transport.lock().unwrap().open_count, 5);
         assert!(ctx.session.lock().unwrap().is_none());
         assert!(ctx.job.lock().unwrap().is_none());
     }
@@ -7490,6 +7599,7 @@ mod tests {
     struct RecordingTransportState {
         open: bool,
         open_count: usize,
+        fail_open_attempts: usize,
         close_count: usize,
         rx: VecDeque<String>,
         status_on_query: VecDeque<String>,
@@ -7514,8 +7624,15 @@ mod tests {
     impl SerialTransport for RecordingTransport {
         fn open(&mut self) -> Result<(), SerialError> {
             let mut state = self.state.lock().unwrap();
-            state.open = true;
             state.open_count += 1;
+            if state.fail_open_attempts > 0 {
+                state.fail_open_attempts -= 1;
+                state.open = false;
+                return Err(SerialError::ConnectionFailed(
+                    "injected Invalid argument".to_string(),
+                ));
+            }
+            state.open = true;
             Ok(())
         }
 
