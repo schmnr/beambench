@@ -14,6 +14,8 @@ struct SerialTrafficRing {
 
 static SERIAL_TRAFFIC: LazyLock<Mutex<SerialTrafficRing>> =
     LazyLock::new(|| Mutex::new(SerialTrafficRing::default()));
+#[cfg(test)]
+pub(crate) static SERIAL_TRAFFIC_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 pub fn reset_serial_traffic() {
     if let Ok(mut ring) = SERIAL_TRAFFIC.lock() {
@@ -103,6 +105,7 @@ mod tests {
 
     #[test]
     fn captures_recent_tx_and_rx_as_hex_and_ascii() {
+        let _guard = SERIAL_TRAFFIC_TEST_LOCK.lock().unwrap();
         reset_serial_traffic();
         record_tx(b"$I\n");
         record_rx(b"Grbl 1.1h ['$' for help]\r\n");
@@ -117,6 +120,7 @@ mod tests {
 
     #[test]
     fn keeps_only_recent_bytes() {
+        let _guard = SERIAL_TRAFFIC_TEST_LOCK.lock().unwrap();
         reset_serial_traffic();
         let bytes = vec![b'a'; MAX_RING_BYTES + 20];
         record_tx(&bytes);

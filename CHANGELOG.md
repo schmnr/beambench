@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.2.8
+
+- GRBL emergency-stop recovery now retries transient USB serial reconnections
+  on every desktop platform and follows an unambiguous port rename by USB
+  VID/PID before resending and confirming the stop. Unconfirmed stops still
+  disconnect the session and require the machine's physical stop.
+- Failed serial opens now preserve the previous TX/RX evidence, and connection
+  diagnostics record each emergency-stop recovery attempt and its result.
+
 ## 0.2.7
 
 - Raster images now keep their rotation, mirroring, shear, scale, and position
