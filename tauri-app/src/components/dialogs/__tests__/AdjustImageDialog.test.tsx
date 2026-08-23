@@ -188,6 +188,46 @@ describe('AdjustImageDialog', () => {
     });
   });
 
+  it('requests a planned-resolution crop when 1:1 sample is enabled', async () => {
+    render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
+    await waitFor(() => expect(mockedImportService.adjustImagePreview).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('adjust-pixel-sample'));
+
+    await waitFor(() => {
+      expect(mockedImportService.adjustImagePreview).toHaveBeenLastCalledWith(
+        expect.objectContaining({ pixelSample: true }),
+      );
+    });
+    expect(screen.getByTestId('adjust-pixel-sample').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows the raster object rotation in both image previews', async () => {
+    const project = useProjectStore.getState().project!;
+    useProjectStore.setState({
+      project: {
+        ...project,
+        objects: project.objects.map((object) =>
+          object.id === 'img1'
+            ? { ...object, transform: { a: 0, b: 1, c: -1, d: 0, tx: 0, ty: 0 } }
+            : object,
+        ),
+      },
+    });
+
+    render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByAltText('Original')).toBeDefined());
+    expect((screen.getByAltText('Original') as HTMLImageElement).style.transform).toContain(
+      'matrix(0, 1, -1, 0, 0, 0)',
+    );
+    await waitFor(() => {
+      expect((screen.getByAltText('Processed') as HTMLImageElement).style.transform).toContain(
+        'matrix(0, 1, -1, 0, 0, 0)',
+      );
+    });
+  });
+
   it('closes when its source object disappears', async () => {
     const onClose = vi.fn();
     render(<AdjustImageDialog objectId="img1" onClose={onClose} />);

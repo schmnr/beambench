@@ -14,6 +14,12 @@ use crate::events;
 use crate::ops::project;
 use crate::persist::persist_settings_to_disk;
 
+fn project_name_from_path(path: &Path) -> Option<String> {
+    path.file_stem()
+        .map(|stem| stem.to_string_lossy().trim().to_string())
+        .filter(|name| !name.is_empty())
+}
+
 fn unique_migrated_layer_name(project: &Project, base: &str, operation: OperationType) -> String {
     let mode = match operation {
         OperationType::Image => "Image",
@@ -269,15 +275,22 @@ fn discard_current_project_recovery_from_dir(
 
 pub fn save_project_to_path(ctx: &ServiceContext, save_path: &Path) -> ServiceResult<String> {
     let project_id_str;
+    let saved_project_name = project_name_from_path(save_path);
     {
-        let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let project = project_guard
-            .as_ref()
+            .as_mut()
             .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
         project_id_str = project.metadata.project_id.to_string();
-        save_project(project, save_path)
-            .map_err(|e| ServiceError::persistence(format!("Save failed: {e}")))?;
+        let previous_name = project.metadata.project_name.clone();
+        if let Some(name) = &saved_project_name {
+            project.metadata.project_name.clone_from(name);
+        }
+        if let Err(error) = save_project(project, save_path) {
+            project.metadata.project_name = previous_name;
+            return Err(ServiceError::persistence(format!("Save failed: {error}")));
+        }
     }
 
     {
@@ -291,6 +304,9 @@ pub fn save_project_to_path(ctx: &ServiceContext, save_path: &Path) -> ServiceRe
     {
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         if let Some(p) = project_guard.as_mut() {
+            if let Some(name) = &saved_project_name {
+                p.metadata.project_name.clone_from(name);
+            }
             p.dirty = false;
         }
     }
@@ -302,9 +318,8 @@ pub fn save_project_to_path(ctx: &ServiceContext, save_path: &Path) -> ServiceRe
 
     {
         let mut settings_guard = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
-        let name = save_path
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
+        let name = saved_project_name
+            .clone()
             .unwrap_or_else(|| "Unknown".to_string());
         settings_guard.push_recent_file(&save_path.to_string_lossy(), &name);
     }
@@ -339,6 +354,9 @@ pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceR
     let open_path = PathBuf::from(file_path);
     let mut project = load_project(&open_path)
         .map_err(|e| ServiceError::persistence(format!("Failed to open project: {e}")))?;
+    if let Some(name) = project_name_from_path(&open_path) {
+        project.metadata.project_name = name;
+    }
 
     // Normalize legacy tool-color siblings first, then split non-tool mixed raster/vector layers.
     let mut migration_warnings = migrate_tool_layers(&mut project);
@@ -371,10 +389,7 @@ pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceR
 
     {
         let mut settings_guard = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
-        let name = open_path
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_else(|| "Unknown".to_string());
+        let name = project_name_from_path(&open_path).unwrap_or_else(|| "Unknown".to_string());
         settings_guard.push_recent_file(&open_path.to_string_lossy(), &name);
     }
 

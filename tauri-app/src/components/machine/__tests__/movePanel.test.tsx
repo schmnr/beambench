@@ -223,6 +223,26 @@ describe('MovePanel', () => {
     expect(z).toBeNull();
   });
 
+  it('preserves edited Go coordinates while machine position polling updates', async () => {
+    connectMachine();
+    render(<MovePanel />);
+
+    const xInput = screen.getByLabelText('X (mm)') as HTMLInputElement;
+    await waitFor(() => expect(xInput.value).toBe('12'));
+    fireEvent.change(xInput, { target: { value: '99' } });
+
+    act(() => {
+      useMachineStore.setState({
+        machineStatus: makeMachineStatus({
+          run_state: 'idle',
+          work_position: { x: 13, y: 35, z: 0 },
+        }),
+      });
+    });
+
+    expect(xInput.value).toBe('99');
+  });
+
   it('shows the Go toast coordinates in display units', async () => {
     connectMachine();
     useMachineStore.setState({

@@ -337,6 +337,7 @@ impl ProjectObject {
         bounds: Bounds,
         data: ObjectData,
     ) -> Self {
+        let lock_aspect_ratio = matches!(&data, ObjectData::RasterImage { .. });
         Self {
             id: ObjectId::new(),
             name: name.into(),
@@ -347,7 +348,7 @@ impl ProjectObject {
             layer_id,
             z_index: 0,
             data,
-            lock_aspect_ratio: false,
+            lock_aspect_ratio,
             transform_locks: TransformLocks::default(),
             power_scale: 1.0,
             priority: 0,
@@ -796,6 +797,24 @@ mod tests {
     #[test]
     fn text_alignment_v_defaults() {
         assert_eq!(TextAlignmentV::default(), TextAlignmentV::Top);
+    }
+
+    #[test]
+    fn new_raster_images_lock_aspect_ratio_by_default() {
+        let object = ProjectObject::new(
+            "image",
+            LayerRef::new(),
+            sample_bounds(),
+            ObjectData::RasterImage {
+                asset_key: "asset".to_string(),
+                original_width_px: 100,
+                original_height_px: 50,
+                adjustments: None,
+                masks: Vec::new(),
+            },
+        );
+
+        assert!(object.lock_aspect_ratio);
     }
 
     #[test]

@@ -919,6 +919,7 @@ fn adjust_preview_cache_hit_on_identical_second_call() {
     let input = AdjustImagePreviewInput {
         object_id: obj_id,
         preview_request_id: None,
+        pixel_sample: false,
         brightness: 0.0,
         contrast: 0.0,
         gamma: 1.0,
@@ -931,7 +932,7 @@ fn adjust_preview_cache_hit_on_identical_second_call() {
         enhance_amount: 0.0,
         enhance_denoise: 0.0,
         mode: "floyd_steinberg".to_string(),
-        dpi: 254,
+        dpi: 600,
         negative: false,
         pass_through: false,
         halftone_cells_per_inch: 10,
@@ -949,7 +950,7 @@ fn adjust_preview_cache_hit_on_identical_second_call() {
     );
 
     // Second identical call — should hit the preview full-result cache
-    let result2 = adjust_image_preview(&ctx, input).unwrap();
+    let result2 = adjust_image_preview(&ctx, input.clone()).unwrap();
     assert_eq!(
         ctx.preview_cache.hit_count(),
         1,
@@ -960,6 +961,12 @@ fn adjust_preview_cache_hit_on_identical_second_call() {
     assert_eq!(result1.width, result2.width);
     assert_eq!(result1.height, result2.height);
     assert_eq!(result1.png_base64, result2.png_base64);
+
+    let mut sample_input = input;
+    sample_input.pixel_sample = true;
+    let sample = adjust_image_preview(&ctx, sample_input).unwrap();
+    assert_eq!((sample.width, sample.height), (512, 512));
+    assert!(sample.width > result1.width);
 }
 
 #[test]
@@ -974,6 +981,7 @@ fn stale_adjust_preview_request_returns_stale_revision_error() {
     let input = AdjustImagePreviewInput {
         object_id: obj_id,
         preview_request_id: Some(1),
+        pixel_sample: false,
         brightness: 0.0,
         contrast: 0.0,
         gamma: 1.0,
@@ -1037,6 +1045,7 @@ fn staged_cache_reuses_decoded_image_across_brightness_changes() {
     let base_input = AdjustImagePreviewInput {
         object_id: obj_id,
         preview_request_id: None,
+        pixel_sample: false,
         brightness: 0.0,
         contrast: 0.0,
         gamma: 1.0,
@@ -1085,6 +1094,7 @@ fn staged_cache_invalidates_on_saturation_change() {
     let base_input = AdjustImagePreviewInput {
         object_id: obj_id,
         preview_request_id: None,
+        pixel_sample: false,
         brightness: 0.0,
         contrast: 0.0,
         gamma: 1.0,
@@ -1134,6 +1144,7 @@ fn preview_does_not_pollute_planner_cache() {
     let input = AdjustImagePreviewInput {
         object_id: obj_id,
         preview_request_id: None,
+        pixel_sample: false,
         brightness: 0.3,
         contrast: 0.0,
         gamma: 1.0,
