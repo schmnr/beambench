@@ -5,12 +5,19 @@ function basename(path: string): string {
   return parts[parts.length - 1] ?? path;
 }
 
+export function projectDisplayName(
+  projectPath: string | null,
+  projectName: string | null,
+): string | null {
+  return projectPath ? basename(projectPath) : projectName?.trim() || null;
+}
+
 export function projectWindowTitle(
   projectPath: string | null,
   projectName: string | null,
   dirty: boolean,
 ): string {
-  const visibleName = projectPath ? basename(projectPath) : projectName?.trim();
+  const visibleName = projectDisplayName(projectPath, projectName);
   if (!visibleName) return APP_NAME;
   return `${visibleName}${dirty ? ' *' : ''} - ${APP_NAME}`;
 }

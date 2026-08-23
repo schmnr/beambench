@@ -2109,6 +2109,10 @@ pub struct AdjustImagePreviewInput {
     pub object_id: ObjectId,
     /// Frontend-owned monotonic id. `None` keeps non-interactive callers compatible.
     pub preview_request_id: Option<u64>,
+    /// Render a bounded crop at the job's planned resolution instead of a
+    /// downscaled whole-image preview.
+    #[serde(default)]
+    pub pixel_sample: bool,
     // Per-object adjustments
     pub brightness: f64,
     pub contrast: f64,
@@ -2271,23 +2275,68 @@ pub fn adjust_image_preview(
     let mode: RasterMode = serde_json::from_value(serde_json::Value::String(input.mode.clone()))
         .unwrap_or(RasterMode::FloydSteinberg);
 
-    // Cap preview resolution to reduce PNG encode time. The dialog preview
-    // is ~400px wide — processing at full 600 DPI is wasteful. Cap so the
-    // larger dimension stays under 500px.
+    // Whole-image previews are capped for responsiveness. The optional pixel
+    // sample instead crops the source before processing so it can use the
+    // planned DPI without allocating the full job-sized bitmap.
     let (bw, bh) = (bounds.width(), bounds.height());
-    let full_w = (bw / 25.4 * input.dpi as f64).round();
-    let full_h = (bh / 25.4 * input.dpi as f64).round();
+    let full_w = (bw / 25.4 * input.dpi as f64).round().max(1.0) as u32;
+    let full_h = (bh / 25.4 * input.dpi as f64).round().max(1.0) as u32;
     let max_preview_px = 500.0;
-    let preview_dpi = if full_w > max_preview_px || full_h > max_preview_px {
-        let scale_down = max_preview_px / full_w.max(full_h);
+    let mut preview_source = image_data;
+    let mut preview_bounds = (bw, bh);
+    let preview_dpi = if input.pixel_sample {
+        const SAMPLE_EDGE_PX: u32 = 512;
+        let decoded = image::load_from_memory(&preview_source)
+            .map_err(|e| ServiceError::invalid_input(format!("Failed to decode image: {e}")))?;
+        let planned_w = if input.pass_through {
+            decoded.width().max(1)
+        } else {
+            full_w
+        };
+        let planned_h = if input.pass_through {
+            decoded.height().max(1)
+        } else {
+            full_h
+        };
+        let sample_w = planned_w.min(SAMPLE_EDGE_PX);
+        let sample_h = planned_h.min(SAMPLE_EDGE_PX);
+
+        if sample_w < planned_w || sample_h < planned_h {
+            let source_w = decoded.width().max(1);
+            let source_h = decoded.height().max(1);
+            let crop_w =
+                ((u64::from(source_w) * u64::from(sample_w)).div_ceil(u64::from(planned_w)) as u32)
+                    .clamp(1, source_w);
+            let crop_h =
+                ((u64::from(source_h) * u64::from(sample_h)).div_ceil(u64::from(planned_h)) as u32)
+                    .clamp(1, source_h);
+            let crop_x = (source_w - crop_w) / 2;
+            let crop_y = (source_h - crop_h) / 2;
+            let cropped = decoded.crop_imm(crop_x, crop_y, crop_w, crop_h);
+            let mut cropped_png = Vec::new();
+            cropped
+                .write_to(
+                    &mut std::io::Cursor::new(&mut cropped_png),
+                    image::ImageFormat::Png,
+                )
+                .map_err(|e| ServiceError::internal(format!("Sample crop encode failed: {e}")))?;
+            preview_source = cropped_png;
+            preview_bounds = (
+                bw * f64::from(sample_w) / f64::from(planned_w),
+                bh * f64::from(sample_h) / f64::from(planned_h),
+            );
+        }
+        input.dpi
+    } else if f64::from(full_w) > max_preview_px || f64::from(full_h) > max_preview_px {
+        let scale_down = max_preview_px / f64::from(full_w.max(full_h));
         ((input.dpi as f64 * scale_down).round() as u32).max(1)
     } else {
         input.dpi
     };
 
     let params = RasterProcessingParams {
-        source_bytes: image_data,
-        bounds_mm: (bw, bh),
+        source_bytes: preview_source,
+        bounds_mm: preview_bounds,
         dpi: preview_dpi,
         mode,
         adjustments,

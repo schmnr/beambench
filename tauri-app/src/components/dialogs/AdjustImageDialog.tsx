@@ -219,6 +219,7 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
   const requestIdRef = useRef(0);
 
   const [invertDisplay, setInvertDisplay] = useState(false);
+  const [pixelSample, setPixelSample] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -341,6 +342,7 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
           halftoneAngleDeg: halftoneAngle,
           newsprintAngleDeg: newsprintAngle,
           newsprintFrequency: newsprintFreq,
+          pixelSample,
           requestId,
         })
         .then((data) => {
@@ -374,6 +376,7 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
     newsprintAngle,
     newsprintFreq,
     objectId,
+    pixelSample,
     previewRefreshToken,
     rasterSettings?.pass_through,
     saturation,
@@ -592,13 +595,17 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
     object?.data.type === 'raster_image'
       ? (object.data as { original_height_px: number }).original_height_px
       : 0;
+  const geometry = object?.transform ?? { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 };
+  const geometryTransform = `matrix(${geometry.a}, ${geometry.b}, ${geometry.c}, ${geometry.d}, 0, 0)`;
   const previewTransform = {
-    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+    transform: `${pixelSample ? 'translate(-50%, -50%) ' : ''}translate(${pan.x}px, ${pan.y}px) scale(${zoom}) ${geometryTransform}`,
     transformOrigin: 'center center',
     filter: invertDisplay ? 'invert(1)' : undefined,
+    width: pixelSample && previewData ? `${previewData.width}px` : undefined,
+    height: pixelSample && previewData ? `${previewData.height}px` : undefined,
   };
   const originalTransform = {
-    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom}) ${geometryTransform}`,
     transformOrigin: 'center center',
   };
   const busy = applying || autoAdjusting || presetSaving || presetDeleting;
@@ -695,6 +702,20 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
             >
               {t('dialog.trace_image.fit')}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPixelSample((enabled) => !enabled);
+                resetView();
+              }}
+              aria-label={`${t('dialog.adjust_image.processed')} 1:1`}
+              title={`${t('dialog.adjust_image.processed')} 1:1`}
+              aria-pressed={pixelSample}
+              data-testid="adjust-pixel-sample"
+              className="h-8 rounded-lg border border-bb-border bg-bb-bg px-2.5 text-xs text-bb-text transition-colors hover:border-bb-accent/40 hover:bg-bb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bb-accent aria-pressed:border-bb-accent/50 aria-pressed:bg-bb-accent/10"
+            >
+              1:1
+            </button>
             <IconButton
               icon={<Plus size={14} />}
               label={t('menus.view.zoom_in')}
@@ -773,7 +794,11 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
                   <img
                     src={`data:image/png;base64,${previewData.png_base64}`}
                     alt={t('dialog.adjust_image.processed')}
-                    className="h-full w-full select-none object-contain pointer-events-none"
+                    className={
+                      pixelSample
+                        ? 'absolute left-1/2 top-1/2 max-h-none max-w-none select-none pointer-events-none'
+                        : 'h-full w-full select-none object-contain pointer-events-none'
+                    }
                     style={previewTransform}
                   />
                 )}

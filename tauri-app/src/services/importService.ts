@@ -132,6 +132,7 @@ export const importService = {
     mode: RasterMode; dpi: number; negative: boolean; passThrough: boolean;
     halftoneCellsPerInch: number; halftoneAngleDeg: number;
     newsprintAngleDeg: number; newsprintFrequency: number;
+    pixelSample: boolean;
     requestId: number;
   }): Promise<{ png_base64: string; width: number; height: number }> {
     return invoke<{ png_base64: string; width: number; height: number }>('adjust_image_preview', params);

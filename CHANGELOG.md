@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.2.7
+
+- Raster images now keep their rotation, mirroring, shear, scale, and position
+  through planning and laser output, so Preview matches the Design canvas.
+- Adjust Image now shows object transforms and offers a bounded 1:1 sample at
+  the job's planned resolution without processing the full job-sized bitmap.
+- Go To coordinates now remain editable while controller position polling
+  continues. Finite jog controls also re-enable sooner after two fresh Idle
+  reports without issuing overlapping jog commands.
+- New raster imports lock their aspect ratio by default. Saved filenames,
+  project metadata, toolbar labels, and window titles now stay in sync.
+
 ## 0.2.6
 
 - GRBL homing now remains connected while controllers are legitimately silent,

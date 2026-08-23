@@ -186,6 +186,7 @@ export function MovePanel(): React.ReactElement {
   const continuousJogActiveRef = useRef(false);
   const finiteJogOnlyRef = useRef(false);
   const finiteJogPendingRef = useRef(false);
+  const goPositionInitializedRef = useRef(false);
   const fireTokenRef = useRef<string | null>(null);
   const fireStartPendingRef = useRef(false);
   const fireReleasePendingRef = useRef(false);
@@ -207,9 +208,8 @@ export function MovePanel(): React.ReactElement {
     const deadline = Date.now() + 2_000;
     let consecutiveIdle = 0;
     do {
-      await new Promise((resolve) => window.setTimeout(resolve, 100));
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
       await refreshStatus();
-      await refreshSessionState();
       const runState = useMachineStore.getState().machineStatus?.run_state;
       if (runState === 'idle') {
         consecutiveIdle += 1;
@@ -220,7 +220,7 @@ export function MovePanel(): React.ReactElement {
         return;
       }
     } while (Date.now() < deadline);
-  }, [refreshSessionState, refreshStatus]);
+  }, [refreshStatus]);
 
   const runFiniteJog = useCallback(
     async (vector: JogVector) => {
@@ -267,11 +267,18 @@ export function MovePanel(): React.ReactElement {
   }, [loadProfiles, reloadSavedPositions]);
 
   useEffect(() => {
-    if (!workPosition) return;
+    if (!connected || !workPosition || goPositionInitializedRef.current) return;
+    goPositionInitializedRef.current = true;
     setGoX(workPosition.x);
     setGoY(workPosition.y);
     setGoZ(workPosition.z ?? 0);
-  }, [workPosition]);
+  }, [connected, workPosition]);
+
+  useEffect(() => {
+    if (sessionState === 'disconnected') {
+      goPositionInitializedRef.current = false;
+    }
+  }, [sessionState]);
 
   const stopFire = useCallback(async () => {
     const token = fireTokenRef.current;

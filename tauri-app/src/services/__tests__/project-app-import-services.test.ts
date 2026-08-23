@@ -650,6 +650,7 @@ describe('importService methods', () => {
       halftoneAngleDeg: 15,
       newsprintAngleDeg: 45,
       newsprintFrequency: 10,
+      pixelSample: false,
       requestId: 41,
     });
 
@@ -657,6 +658,7 @@ describe('importService methods', () => {
       objectId: 'obj-1',
       mode: 'halftone',
       dpi: 254,
+      pixelSample: false,
       requestId: 41,
     }));
   });

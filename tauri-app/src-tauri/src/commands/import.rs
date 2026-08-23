@@ -737,6 +737,7 @@ pub async fn adjust_image_preview(
     halftone_angle_deg: f64,
     newsprint_angle_deg: f64,
     newsprint_frequency: f64,
+    pixel_sample: bool,
     request_id: u64,
 ) -> Result<imports::AdjustImagePreviewOutput, String> {
     let svc = svc.inner().clone();
@@ -745,6 +746,7 @@ pub async fn adjust_image_preview(
     let input = imports::AdjustImagePreviewInput {
         object_id: parse_id(&object_id)?,
         preview_request_id: Some(request_id),
+        pixel_sample,
         brightness,
         contrast,
         gamma,

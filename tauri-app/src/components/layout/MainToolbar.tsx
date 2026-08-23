@@ -36,6 +36,7 @@ import {
   DockToEdgeIcon,
 } from '../icons/ArrangeIcons';
 import { GridSpacingControl } from './GridSpacingControl';
+import { projectDisplayName } from '../../utils/windowTitle';
 
 function Separator() {
   return <div className="w-px h-4 bg-bb-border mx-0.5" />;
@@ -83,6 +84,7 @@ export function MainToolbar() {
   const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const importFiles = useProjectStore((s) => s.importFiles);
   const project = useProjectStore((s) => s.project);
+  const projectPath = useProjectStore((s) => s.projectPath);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const selectedObjectIds = useProjectStore((s) => s.selectedObjectIds);
   const flipObjects = useProjectStore((s) => s.flipObjects);
@@ -221,7 +223,8 @@ export function MainToolbar() {
         B
       </span>
       <span className="mx-2 max-w-64 truncate text-xs font-medium text-bb-text">
-        {project?.metadata.project_name ?? t('toolbars.main.untitled_project')}
+        {projectDisplayName(projectPath, project?.metadata.project_name ?? null) ??
+          t('toolbars.main.untitled_project')}
         {project?.dirty ? (
           <span className="text-bb-accent ml-1" title={t('status.unsaved_changes')}>*</span>
         ) : null}

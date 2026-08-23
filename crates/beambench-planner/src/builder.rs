@@ -1947,6 +1947,172 @@ fn build_cardinal_raster_scanlines(
     }
 }
 
+/// Bake a raster object's affine transform into an axis-aligned world-space
+/// bitmap. Raster plan segments only carry a scan angle, so leaving rotation,
+/// mirroring, shear, or transform translation on the object makes Preview and
+/// emitted motion disagree with the design canvas.
+fn bake_raster_object_transform(
+    raster: &beambench_raster::ProcessedRaster,
+    object: &ProjectObject,
+) -> Option<(beambench_raster::ProcessedRaster, Bounds)> {
+    if object.transform.is_identity() {
+        return Some((raster.clone(), object.bounds));
+    }
+
+    let inverse = object.transform.inverse()?;
+    let center = Point2D::new(
+        (object.bounds.min.x + object.bounds.max.x) / 2.0,
+        (object.bounds.min.y + object.bounds.max.y) / 2.0,
+    );
+    let corners = [
+        object.bounds.min,
+        Point2D::new(object.bounds.max.x, object.bounds.min.y),
+        object.bounds.max,
+        Point2D::new(object.bounds.min.x, object.bounds.max.y),
+    ];
+    let transformed = corners.map(|point| object.transform.apply_around_center(&point, &center));
+    let min_x = transformed
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::INFINITY, f64::min);
+    let min_y = transformed
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let max_x = transformed
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let max_y = transformed
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    if ![min_x, min_y, max_x, max_y]
+        .iter()
+        .all(|value| value.is_finite())
+    {
+        return None;
+    }
+
+    let x_step = raster.effective_x_pixel_mm();
+    let y_step = raster.line_interval_mm;
+    if x_step <= 0.0 || y_step <= 0.0 {
+        return None;
+    }
+    let width_px = ((max_x - min_x) / x_step).ceil().max(1.0) as u32;
+    let height_px = ((max_y - min_y) / y_step).ceil().max(1.0) as u32;
+    let output_bounds = Bounds::new(
+        Point2D::new(min_x, min_y),
+        Point2D::new(
+            min_x + f64::from(width_px) * x_step,
+            min_y + f64::from(height_px) * y_step,
+        ),
+    );
+
+    let output_len = match raster.format {
+        RasterPixelFormat::Binary => (width_px as usize).div_ceil(8) * height_px as usize,
+        RasterPixelFormat::Grayscale8 => width_px as usize * height_px as usize,
+    };
+    let mut output = beambench_raster::ProcessedRaster {
+        width_px,
+        height_px,
+        line_interval_mm: y_step,
+        x_pixel_mm: x_step,
+        format: raster.format,
+        data: vec![0xFF; output_len],
+    };
+
+    for y in 0..height_px {
+        for x in 0..width_px {
+            let world = Point2D::new(
+                min_x + (f64::from(x) + 0.5) * x_step,
+                min_y + (f64::from(y) + 0.5) * y_step,
+            );
+            let local = inverse.apply_around_center(&world, &center);
+            let source_x = ((local.x - object.bounds.min.x) / x_step - 0.5).round() as i64;
+            let source_y = ((local.y - object.bounds.min.y) / y_step - 0.5).round() as i64;
+            if source_x < 0
+                || source_y < 0
+                || source_x >= i64::from(raster.width_px)
+                || source_y >= i64::from(raster.height_px)
+            {
+                continue;
+            }
+            copy_raster_pixel(raster, source_x as u32, source_y as u32, &mut output, x, y);
+        }
+    }
+
+    // Inverse sampling can miss a source-pixel center when a shear places it
+    // exactly between output centers. Splat every source center as well so an
+    // affine transform never drops burn data at that sampling boundary.
+    for source_y in 0..raster.height_px {
+        for source_x in 0..raster.width_px {
+            let local = Point2D::new(
+                object.bounds.min.x + (f64::from(source_x) + 0.5) * x_step,
+                object.bounds.min.y + (f64::from(source_y) + 0.5) * y_step,
+            );
+            let world = object.transform.apply_around_center(&local, &center);
+            let target_x = ((world.x - min_x) / x_step - 0.5).round() as i64;
+            let target_y = ((world.y - min_y) / y_step - 0.5).round() as i64;
+            if target_x >= 0
+                && target_y >= 0
+                && target_x < i64::from(width_px)
+                && target_y < i64::from(height_px)
+            {
+                copy_raster_pixel(
+                    raster,
+                    source_x,
+                    source_y,
+                    &mut output,
+                    target_x as u32,
+                    target_y as u32,
+                );
+            }
+        }
+    }
+
+    Some((output, output_bounds))
+}
+
+fn copy_raster_pixel(
+    source: &beambench_raster::ProcessedRaster,
+    source_x: u32,
+    source_y: u32,
+    target: &mut beambench_raster::ProcessedRaster,
+    target_x: u32,
+    target_y: u32,
+) {
+    match source.format {
+        RasterPixelFormat::Grayscale8 => {
+            let source_index = source_y as usize * source.width_px as usize + source_x as usize;
+            let target_index = target_y as usize * target.width_px as usize + target_x as usize;
+            if let (Some(value), Some(slot)) = (
+                source.data.get(source_index),
+                target.data.get_mut(target_index),
+            ) {
+                *slot = (*slot).min(*value);
+            }
+        }
+        RasterPixelFormat::Binary => {
+            let source_row_bytes = (source.width_px as usize).div_ceil(8);
+            let source_byte = source_y as usize * source_row_bytes + source_x as usize / 8;
+            let source_bit = 7 - source_x as usize % 8;
+            let burns = source
+                .data
+                .get(source_byte)
+                .is_some_and(|byte| byte & (1 << source_bit) == 0);
+            if burns {
+                let target_row_bytes = (target.width_px as usize).div_ceil(8);
+                let target_byte = target_y as usize * target_row_bytes + target_x as usize / 8;
+                let target_bit = 7 - target_x as usize % 8;
+                if let Some(byte) = target.data.get_mut(target_byte) {
+                    *byte &= !(1 << target_bit);
+                }
+            }
+        }
+    }
+}
+
 /// Apply flood fill to clear background pixels connected to image edges.
 ///
 /// This fills connected background regions from all four corners with white (255),
@@ -2407,7 +2573,26 @@ fn build_plan_inner(
                                 processed,
                                 &mut failed_entries,
                             );
-                            let processed: &beambench_raster::ProcessedRaster = &masked_processed;
+                            let baked_transform = if obj.transform.is_identity() {
+                                None
+                            } else {
+                                match bake_raster_object_transform(&masked_processed, obj) {
+                                    Some(baked) => Some(baked),
+                                    None => {
+                                        warnings.push(PlanWarning {
+                                            message: format!(
+                                                "Image '{}' has an invalid transform and was skipped",
+                                                obj.name
+                                            ),
+                                        });
+                                        continue;
+                                    }
+                                }
+                            };
+                            let (processed, raster_bounds) = match baked_transform.as_ref() {
+                                Some((raster, bounds)) => (raster, *bounds),
+                                None => (&masked_processed, obj.bounds),
+                            };
 
                             // Determine direction_mode and power_mode
                             let direction_mode = if bidirectional {
@@ -2437,8 +2622,8 @@ fn build_plan_inner(
 
                             // Object center (rotation origin)
                             let obj_center = Point2D::new(
-                                (obj.bounds.min.x + obj.bounds.max.x) / 2.0,
-                                (obj.bounds.min.y + obj.bounds.max.y) / 2.0,
+                                (raster_bounds.min.x + raster_bounds.max.x) / 2.0,
+                                (raster_bounds.min.y + raster_bounds.max.y) / 2.0,
                             );
 
                             for ai in 0..effective_angle_passes {
@@ -2452,8 +2637,8 @@ fn build_plan_inner(
                                     // always emit scan_angle_deg: 0.0 (world-space coords)
                                     let (scanlines, li, scan_axis) =
                                         build_cardinal_raster_scanlines(
-                                            &processed,
-                                            &obj.bounds,
+                                            processed,
+                                            &raster_bounds,
                                             axis,
                                             needs_flip,
                                             bidirectional,
@@ -2490,10 +2675,10 @@ fn build_plan_inner(
                                     use beambench_raster::rotate_raster;
 
                                     let rotated = rotate_raster(
-                                        &processed,
+                                        processed,
                                         -effective_angle,
-                                        obj.bounds.width(),
-                                        obj.bounds.height(),
+                                        raster_bounds.width(),
+                                        raster_bounds.height(),
                                     );
 
                                     let local_scanlines = generate_scanlines(
@@ -3826,6 +4011,7 @@ fn update_bounds(
 mod tests {
     use super::*;
     use beambench_common::Id;
+    use beambench_common::geometry::Transform2D;
     use beambench_common::markers::ProjectMarker;
     use beambench_core::asset::{Asset, AssetMediaType};
     use beambench_core::layer::{CutEntry, Layer, OffsetFillGroupingMode, OperationType};
@@ -4849,8 +5035,8 @@ mod tests {
         assert!(!raster.is_empty());
         for scanline in raster {
             assert_eq!(scanline.runs.len(), 1);
-            assert!((scanline.runs[0].start_x_mm - 2.0).abs() < 1e-9);
-            assert!((scanline.runs[0].end_x_mm - 4.0).abs() < 1e-9);
+            assert!((scanline.runs[0].start_x_mm - 0.0).abs() < 1e-9);
+            assert!((scanline.runs[0].end_x_mm - 2.0).abs() < 1e-9);
         }
     }
 
@@ -6973,6 +7159,75 @@ mod tests {
         assert_eq!(axis, ScanAxis::Vertical);
         assert!(li > 0.0);
         assert!(!scanlines.is_empty());
+    }
+
+    fn transformed_raster_test_object(transform: Transform2D) -> ProjectObject {
+        let mut object = ProjectObject::new(
+            "transformed image",
+            beambench_core::layer::LayerId::new(),
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(3.0, 2.0)),
+            ObjectData::RasterImage {
+                asset_key: "test".to_string(),
+                original_width_px: 3,
+                original_height_px: 2,
+                adjustments: None,
+                masks: Vec::new(),
+            },
+        );
+        object.transform = transform;
+        object
+    }
+
+    fn asymmetric_test_raster() -> beambench_raster::ProcessedRaster {
+        beambench_raster::ProcessedRaster {
+            width_px: 3,
+            height_px: 2,
+            data: vec![10, 20, 30, 40, 50, 60],
+            format: RasterPixelFormat::Grayscale8,
+            line_interval_mm: 1.0,
+            x_pixel_mm: 1.0,
+        }
+    }
+
+    #[test]
+    fn raster_object_rotation_is_baked_into_pixels_and_bounds() {
+        let object =
+            transformed_raster_test_object(Transform2D::rotate(std::f64::consts::FRAC_PI_2));
+
+        let (rotated, bounds) =
+            bake_raster_object_transform(&asymmetric_test_raster(), &object).unwrap();
+
+        assert_eq!((rotated.width_px, rotated.height_px), (2, 3));
+        assert_eq!(rotated.data, vec![40, 10, 50, 20, 60, 30]);
+        assert!((bounds.min.x - 0.5).abs() < 1e-9);
+        assert!((bounds.min.y + 0.5).abs() < 1e-9);
+        assert!((bounds.max.x - 2.5).abs() < 1e-9);
+        assert!((bounds.max.y - 2.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn raster_object_mirror_is_baked_into_pixels() {
+        let object = transformed_raster_test_object(Transform2D::scale(-1.0, 1.0));
+
+        let (mirrored, bounds) =
+            bake_raster_object_transform(&asymmetric_test_raster(), &object).unwrap();
+
+        assert_eq!((mirrored.width_px, mirrored.height_px), (3, 2));
+        assert_eq!(mirrored.data, vec![30, 20, 10, 60, 50, 40]);
+        assert_eq!(bounds, object.bounds);
+    }
+
+    #[test]
+    fn raster_object_shear_expands_output_bounds_without_losing_pixels() {
+        let object = transformed_raster_test_object(Transform2D::shear(1.0, 0.0));
+
+        let (sheared, bounds) =
+            bake_raster_object_transform(&asymmetric_test_raster(), &object).unwrap();
+
+        assert_eq!((sheared.width_px, sheared.height_px), (5, 2));
+        assert_eq!(sheared.data.iter().filter(|pixel| **pixel < 255).count(), 6);
+        assert!((bounds.min.x + 1.0).abs() < 1e-9);
+        assert!((bounds.max.x - 4.0).abs() < 1e-9);
     }
 
     #[test]
