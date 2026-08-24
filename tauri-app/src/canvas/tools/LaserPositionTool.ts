@@ -5,7 +5,6 @@ import { useMachineStore } from '../../stores/machineStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
-import { canvasToMachinePoint } from '../../utils/workspaceCoordinates';
 import i18n from '../../i18n';
 
 export class LaserPositionTool implements CanvasTool {
@@ -18,7 +17,6 @@ export class LaserPositionTool implements CanvasTool {
       return;
     }
 
-    // Apply start-from offset (matches planner's apply_start_from_offset)
     const project = useProjectStore.getState().project;
     const clickedPoint = { x: e.worldX, y: e.worldY };
     const workspace = project?.workspace ?? ctx.workspace;
@@ -32,19 +30,6 @@ export class LaserPositionTool implements CanvasTool {
       return;
     }
 
-    const machinePoint = workspace
-      ? canvasToMachinePoint(clickedPoint, workspace)
-      : clickedPoint;
-    const startFrom = project?.start_from ?? 'absolute_coords';
-    let ox = 0, oy = 0;
-    if (startFrom === 'user_origin') {
-      const uo = project?.user_origin;
-      if (uo) { ox = uo[0]; oy = uo[1]; }
-    } else if (startFrom === 'current_position') {
-      const wp = useMachineStore.getState().machineStatus?.work_position;
-      if (wp) { ox = wp.x; oy = wp.y; }
-    }
-
     const ui = useUiStore.getState();
     const feedRate = ui.moveWindowJogFeedRateMmMin;
     // Positioning is a one-shot action. Disarm as soon as a valid move is
@@ -53,7 +38,7 @@ export class LaserPositionTool implements CanvasTool {
 
     void (async () => {
       try {
-        await machineService.moveLaserTo(machinePoint.x + ox, machinePoint.y + oy, feedRate);
+        await machineService.moveLaserToProjectPoint(clickedPoint.x, clickedPoint.y, feedRate);
       } catch (error) {
         const message = String(error);
         ctx.setStatusMessage(message);

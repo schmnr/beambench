@@ -7,6 +7,7 @@ const LIHUIYU_INCOMPATIBLE_WINDOWS_DRIVER = '[lihuiyu_incompatible_windows_drive
 const USER_ORIGIN_NOT_SET = 'User Origin is selected, but no user origin has been set.';
 const CURRENT_POSITION_UNAVAILABLE =
   'Current Position requires a connected machine with a reported work position.';
+const RASTER_PLAN_TOO_COMPLEX = '[raster_plan_too_complex]';
 const DXF_NO_USABLE_GEOMETRY =
   /^DXF import found no usable 2D vector geometry\.(?: Unsupported or malformed entities: (.+)\.)?$/u;
 const DXF_SKIPPED_ENTITIES =
@@ -40,6 +41,9 @@ export function wrapBackendError(detail: string): string {
   }
   if (normalized.startsWith(CURRENT_POSITION_UNAVAILABLE)) {
     return i18n.t('errors.current_position_unavailable');
+  }
+  if (normalized.includes(RASTER_PLAN_TOO_COMPLEX)) {
+    return i18n.t('errors.raster_plan_too_complex');
   }
   const noUsableDxfGeometry = normalized.match(DXF_NO_USABLE_GEOMETRY);
   if (noUsableDxfGeometry) {

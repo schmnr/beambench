@@ -32,56 +32,8 @@ pub fn apply_threshold(img: &GrayImage, threshold: u8) -> Vec<u8> {
 ///
 /// Returns packed 1-bit-per-pixel data, MSB first, rows padded to byte boundaries.
 pub fn floyd_steinberg(img: &GrayImage) -> Vec<u8> {
-    let width = img.width() as usize;
-    let height = img.height() as usize;
-    let row_stride = width.div_ceil(8);
-
-    // Flat working buffer — better cache locality than Vec<Vec<f64>>
-    let mut working = Vec::with_capacity(width * height);
-    for y in 0..height {
-        for x in 0..width {
-            working.push(img.get_pixel(x as u32, y as u32)[0] as f64);
-        }
-    }
-
-    // Precomputed error distribution weights (avoid per-pixel division)
-    const W_RIGHT: f64 = 7.0 / 16.0;
-    const W_BOTTOM_LEFT: f64 = 3.0 / 16.0;
-    const W_BOTTOM: f64 = 5.0 / 16.0;
-    const W_BOTTOM_RIGHT: f64 = 1.0 / 16.0;
-
-    let mut data = vec![0u8; row_stride * height];
-
-    for y in 0..height {
-        let row_off = y * width;
-        let next_row_off = (y + 1) * width;
-        for x in 0..width {
-            let old_pixel = working[row_off + x];
-            let new_pixel = if old_pixel >= 128.0 { 255.0 } else { 0.0 };
-            let error = old_pixel - new_pixel;
-
-            let byte_idx = y * row_stride + x / 8;
-            let bit_idx = 7 - (x % 8);
-            if new_pixel >= 128.0 {
-                data[byte_idx] |= 1 << bit_idx;
-            }
-
-            if x + 1 < width {
-                working[row_off + x + 1] += error * W_RIGHT;
-            }
-            if y + 1 < height {
-                if x > 0 {
-                    working[next_row_off + x - 1] += error * W_BOTTOM_LEFT;
-                }
-                working[next_row_off + x] += error * W_BOTTOM;
-                if x + 1 < width {
-                    working[next_row_off + x + 1] += error * W_BOTTOM_RIGHT;
-                }
-            }
-        }
-    }
-
-    data
+    const WEIGHTS: &[DiffusionWeight] = &[(1, 0, 7.0), (-1, 1, 3.0), (0, 1, 5.0), (1, 1, 1.0)];
+    error_diffusion(img, WEIGHTS, 16.0)
 }
 
 /// Apply ordered (Bayer) dithering with a 4x4 matrix.
@@ -131,13 +83,23 @@ fn error_diffusion(img: &GrayImage, weights: &[DiffusionWeight], divisor: f64) -
     let height = img.height() as usize;
     let row_stride = width.div_ceil(8);
 
-    // Flat working buffer — better cache locality than Vec<Vec<f64>>
-    let mut working = Vec::with_capacity(width * height);
-    for y in 0..height {
-        for x in 0..width {
-            working.push(img.get_pixel(x as u32, y as u32)[0] as f64);
-        }
+    if width == 0 || height == 0 {
+        return Vec::new();
     }
+
+    // Error-diffusion kernels only reach the current row and the next two
+    // rows. Keep that rolling window instead of an f64 copy of the entire
+    // image. A 4380 x 4380 preview previously allocated about 154 MB here;
+    // the rolling window uses about 105 KB and produces the same pixels.
+    let max_dy = weights
+        .iter()
+        .map(|&(_, dy, _)| dy.max(0) as usize)
+        .max()
+        .unwrap_or(0);
+    let row_count = max_dy + 1;
+    let mut working_rows: Vec<Vec<f64>> = (0..row_count)
+        .map(|row| source_row(img, row, width, height))
+        .collect();
 
     // Precompute normalized weights (avoid per-pixel division)
     let inv_divisor = 1.0 / divisor;
@@ -150,8 +112,7 @@ fn error_diffusion(img: &GrayImage, weights: &[DiffusionWeight], divisor: f64) -
 
     for y in 0..height {
         for x in 0..width {
-            let idx = y * width + x;
-            let old_pixel = working[idx];
+            let old_pixel = working_rows[0][x];
             let new_pixel = if old_pixel >= 128.0 { 255.0 } else { 0.0 };
             let error = old_pixel - new_pixel;
 
@@ -163,15 +124,42 @@ fn error_diffusion(img: &GrayImage, weights: &[DiffusionWeight], divisor: f64) -
 
             for &(dx, dy, nw) in &norm_weights {
                 let nx = x as i32 + dx;
-                let ny = y as i32 + dy;
-                if nx >= 0 && (nx as usize) < width && ny >= 0 && (ny as usize) < height {
-                    working[ny as usize * width + nx as usize] += error * nw;
+                let target_y = y as i32 + dy;
+                if nx >= 0
+                    && (nx as usize) < width
+                    && dy >= 0
+                    && (dy as usize) < working_rows.len()
+                    && target_y >= 0
+                    && (target_y as usize) < height
+                {
+                    working_rows[dy as usize][nx as usize] += error * nw;
                 }
             }
+        }
+
+        working_rows.rotate_left(1);
+        if let Some(last) = working_rows.last_mut() {
+            fill_source_row(last, img, y + row_count, width, height);
         }
     }
 
     data
+}
+
+fn source_row(img: &GrayImage, y: usize, width: usize, height: usize) -> Vec<f64> {
+    let mut row = vec![0.0; width];
+    fill_source_row(&mut row, img, y, width, height);
+    row
+}
+
+fn fill_source_row(row: &mut [f64], img: &GrayImage, y: usize, width: usize, height: usize) {
+    if y >= height {
+        row.fill(0.0);
+        return;
+    }
+    for (x, value) in row.iter_mut().take(width).enumerate() {
+        *value = img.get_pixel(x as u32, y as u32)[0] as f64;
+    }
 }
 
 /// Apply Stucki error diffusion dithering.
@@ -426,6 +414,38 @@ mod tests {
     use super::*;
     use image::Luma;
 
+    fn full_buffer_error_diffusion(
+        img: &GrayImage,
+        weights: &[DiffusionWeight],
+        divisor: f64,
+    ) -> Vec<u8> {
+        let width = img.width() as usize;
+        let height = img.height() as usize;
+        let row_stride = width.div_ceil(8);
+        let mut working: Vec<f64> = img.as_raw().iter().map(|value| *value as f64).collect();
+        let mut data = vec![0u8; row_stride * height];
+
+        for y in 0..height {
+            for x in 0..width {
+                let index = y * width + x;
+                let old_pixel = working[index];
+                let new_pixel = if old_pixel >= 128.0 { 255.0 } else { 0.0 };
+                let error = old_pixel - new_pixel;
+                if new_pixel >= 128.0 {
+                    data[y * row_stride + x / 8] |= 1 << (7 - x % 8);
+                }
+                for &(dx, dy, weight) in weights {
+                    let nx = x as i32 + dx;
+                    let ny = y as i32 + dy;
+                    if nx >= 0 && nx < width as i32 && ny >= 0 && ny < height as i32 {
+                        working[ny as usize * width + nx as usize] += error * (weight / divisor);
+                    }
+                }
+            }
+        }
+        data
+    }
+
     #[test]
     fn threshold_all_white_produces_all_ones() {
         let img = GrayImage::from_pixel(8, 2, Luma([255u8]));
@@ -496,6 +516,43 @@ mod tests {
         let data = floyd_steinberg(&img);
         // 10 pixels = 2 bytes per row, 2 rows = 4 bytes
         assert_eq!(data.len(), 4);
+    }
+
+    #[test]
+    fn rolling_error_diffusion_matches_full_buffer_output() {
+        let mut img = GrayImage::new(17, 13);
+        for y in 0..img.height() {
+            for x in 0..img.width() {
+                img.put_pixel(x, y, Luma([((x * 37 + y * 61 + x * y * 3) % 256) as u8]));
+            }
+        }
+        let kernels: &[(&[DiffusionWeight], f64)] = &[
+            (&[(1, 0, 7.0), (-1, 1, 3.0), (0, 1, 5.0), (1, 1, 1.0)], 16.0),
+            (
+                &[
+                    (1, 0, 8.0),
+                    (2, 0, 4.0),
+                    (-2, 1, 2.0),
+                    (-1, 1, 4.0),
+                    (0, 1, 8.0),
+                    (1, 1, 4.0),
+                    (2, 1, 2.0),
+                    (-2, 2, 1.0),
+                    (-1, 2, 2.0),
+                    (0, 2, 4.0),
+                    (1, 2, 2.0),
+                    (2, 2, 1.0),
+                ],
+                42.0,
+            ),
+        ];
+
+        for &(weights, divisor) in kernels {
+            assert_eq!(
+                error_diffusion(&img, weights, divisor),
+                full_buffer_error_diffusion(&img, weights, divisor)
+            );
+        }
     }
 
     #[test]

@@ -2613,6 +2613,7 @@
     "dxf_no_usable_geometry": "Le fichier DXF ne contient aucune géométrie vectorielle 2D exploitable.",
     "dxf_no_usable_geometry_with_entities": "Le fichier DXF ne contient aucune géométrie vectorielle 2D exploitable. Entités non prises en charge ou incorrectes : {entities}.",
     "operation_failed_with_detail": "Échec de l’opération : {detail}",
+    "raster_plan_too_complex": "Cette image crée trop de mouvements raster individuels avec sa taille et son DPI actuels. Réduisez le DPI ou la taille physique, ou choisissez un mode d’image moins fragmenté, puis générez à nouveau l’aperçu.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Impossible d’ouvrir {port}. Une autre application utilise peut-être ce port, ou le contrôleur a été déconnecté. Fermez les autres logiciels laser ou série, reconnectez le contrôleur, puis réessayez.",
     "lihuiyu_incompatible_windows_driver": "Ce contrôleur Lihuiyu utilise un pilote USB Windows incompatible. Beam Bench nécessite WinUSB pour l’appareil 1a86:5512. Changez le pilote, reconnectez le contrôleur, puis actualisez la liste USB. Le changement de pilote peut empêcher le logiciel du fabricant d’utiliser le contrôleur jusqu’à la restauration du pilote d’origine.",

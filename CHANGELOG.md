@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 0.2.9
+
+- Current Position and User Origin framing no longer rejects safe homed jobs
+  because of a synthetic travel point outside the workspace. Frames and jobs
+  now use the same object bounds for placement, including raster margins, and
+  work-coordinate offsets are applied before checking physical machine edges.
+  Homed GRBL output also converts Absolute Coordinates from physical bed
+  coordinates into the controller's active work-coordinate frame. Preview,
+  exported G-code, canvas laser positioning, framing, and burning now share the
+  same workspace and job-origin conversion.
+- Adjust Image now warns when legacy image and layer inversion settings cancel
+  each other. Selecting either inversion control turns the other one off.
+- Large error-diffusion rasters now use a rolling memory window, and raster
+  preview detail sent to the canvas is bounded. Images that would create more
+  than one million individual burn runs now stop with localized guidance to
+  reduce DPI, physical size, or fragmentation instead of exhausting memory
+  and closing the application.
+
 ## 0.2.8
 
 - GRBL emergency-stop recovery now retries transient USB serial reconnections

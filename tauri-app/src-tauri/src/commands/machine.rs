@@ -853,6 +853,26 @@ pub fn move_laser_to(
 }
 
 #[tauri::command]
+pub fn move_laser_to_project_point(
+    svc: State<'_, Arc<ServiceContext>>,
+    x: f64,
+    y: f64,
+    z: Option<f64>,
+    feed_rate: Option<f64>,
+) -> Result<(), String> {
+    machine::move_laser_to_project_point(
+        &svc,
+        machine::MoveLaserInput {
+            x,
+            y,
+            z,
+            feed_rate: feed_rate.unwrap_or(3000.0),
+        },
+    )
+    .map_err(Into::into)
+}
+
+#[tauri::command]
 pub fn move_laser_to_machine(
     svc: State<'_, Arc<ServiceContext>>,
     x: f64,

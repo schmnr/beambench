@@ -549,6 +549,7 @@ fn main() {
             commands::machine::import_macros,
             commands::machine::get_controller_info,
             commands::machine::move_laser_to,
+            commands::machine::move_laser_to_project_point,
             commands::machine::move_laser_to_machine,
             commands::machine::laser_fire_start,
             commands::machine::laser_fire_keepalive,

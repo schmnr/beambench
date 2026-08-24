@@ -926,6 +926,29 @@ impl MachineSessionHandle {
         }
     }
 
+    /// Offset that converts controller work coordinates to machine coordinates.
+    pub fn work_to_machine_offset(&self) -> Option<(f64, f64)> {
+        match self {
+            Self::Grbl(session)
+                if session.work_position_valid() && session.machine_position_valid() =>
+            {
+                let status = session.last_status();
+                Some((
+                    status.machine_position.x - status.work_position.x,
+                    status.machine_position.y - status.work_position.y,
+                ))
+            }
+            Self::Grbl(_) => None,
+            _ => {
+                let status = self.machine_status();
+                Some((
+                    status.machine_position.x - status.work_position.x,
+                    status.machine_position.y - status.work_position.y,
+                ))
+            }
+        }
+    }
+
     pub fn controller_info(&self) -> Option<HashMap<String, String>> {
         match self {
             Self::Grbl(session) => Some(session.controller_info().clone()),

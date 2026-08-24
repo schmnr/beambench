@@ -1,11 +1,11 @@
 use beambench_common::StartFromMode;
-use beambench_common::geometry::Bounds;
+use beambench_common::geometry::{Bounds, Point2D};
 use beambench_core::object::ProjectObject;
 use beambench_core::{DisplayUnit, MachineProfile, Project, WorkspaceOrigin};
 use beambench_grbl::generate_gcode;
 use beambench_planner::{
     BoundsAxis, BoundsBoundary, BoundsViolation, ExecutionPlan, PlanStats, PlannerCancellation,
-    PlannerError, PlannerInput, build_plan_with_input_and_cache,
+    PlannerError, PlannerInput, build_plan_with_input_and_cache, translate_segments,
 };
 use beambench_preview::{PreviewData, distill_preview};
 use serde::{Deserialize, Serialize};
@@ -334,7 +334,8 @@ pub fn sync_current_position(ctx: &ServiceContext) -> ServiceResult<()> {
                     })?;
                 (
                     Some((position.x, position.y)),
-                    ctx.machine_coordinates_valid.load(Ordering::Acquire),
+                    ctx.machine_coordinates_valid.load(Ordering::Acquire)
+                        && session.work_to_machine_offset().is_some(),
                 )
             }
             Some(MachineSessionHandle::Dsp(session)) => {
@@ -346,8 +347,14 @@ pub fn sync_current_position(ctx: &ServiceContext) -> ServiceResult<()> {
         }
     } else {
         let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
-        let trusted = !matches!(session_lock.as_ref(), Some(MachineSessionHandle::Grbl(_)))
-            || ctx.machine_coordinates_valid.load(Ordering::Acquire);
+        let trusted = match session_lock.as_ref() {
+            Some(session @ MachineSessionHandle::Grbl(_)) => {
+                ctx.machine_coordinates_valid.load(Ordering::Acquire)
+                    && session.work_to_machine_offset().is_some()
+            }
+            Some(_) => true,
+            None => false,
+        };
         (None, trusted)
     };
 
@@ -373,6 +380,13 @@ pub fn generate_plan_with_options(
     options: &SessionJobOptions,
 ) -> ServiceResult<ExecutionPlan> {
     sync_current_position(ctx)?;
+    generate_plan_with_options_after_sync(ctx, options)
+}
+
+fn generate_plan_with_options_after_sync(
+    ctx: &ServiceContext,
+    options: &SessionJobOptions,
+) -> ServiceResult<ExecutionPlan> {
     let project = current_project(ctx)?;
     let use_project_cache = !options.affects_plan();
     let (effective_project, selection_origin_bounds) =
@@ -439,7 +453,7 @@ pub fn ensure_current_plan_with_options(
         }
     }
 
-    generate_plan_with_options(ctx, options)
+    generate_plan_with_options_after_sync(ctx, options)
 }
 
 pub fn require_current_plan(ctx: &ServiceContext) -> ServiceResult<ExecutionPlan> {
@@ -471,14 +485,17 @@ pub fn generate_preview_with_options(
     options: &SessionJobOptions,
 ) -> ServiceResult<PreviewData> {
     let plan = ensure_current_plan_with_options(ctx, options)?;
-    let preview = distill_preview(&plan);
+    let project = current_project(ctx)?;
+    let offset = trusted_grbl_work_to_machine_offset(ctx)?;
+    let display_plan = plan_in_machine_coordinates(&plan, &project, offset);
+    let preview = distill_preview(&display_plan);
     ctx.emit_event(
         "preview.generated",
         json!({
-            "project_id": plan.project_id,
-            "revision_hash": plan.revision_hash,
+            "project_id": display_plan.project_id,
+            "revision_hash": display_plan.revision_hash,
             "segment_count": preview.stats.segment_count,
-            "bounds": plan.bounds,
+            "bounds": display_plan.bounds,
         }),
     );
     Ok(preview)
@@ -525,7 +542,9 @@ pub fn export_gcode_to_path_with_options(
             .map_err(ServiceError::invalid_state)?;
     }
     output::validate_rotary_feed_limit(&plan, &profile).map_err(ServiceError::invalid_state)?;
-    let gcode_lines = generate_gcode(&plan, &gcode_config)
+    let offset = trusted_grbl_work_to_machine_offset(ctx)?;
+    let output_plan = plan_in_grbl_coordinates(&plan, &project, offset);
+    let gcode_lines = generate_gcode(&output_plan, &gcode_config)
         .map_err(|e| ServiceError::invalid_state(format!("G-code generation failed: {e}")))?;
     std::fs::write(path, gcode_lines.join("\n"))
         .map_err(|e| ServiceError::persistence(format!("Failed to write G-code file: {e}")))?;
@@ -539,6 +558,53 @@ pub fn export_gcode_to_path_with_options(
         }),
     );
     Ok(path.to_string_lossy().to_string())
+}
+
+fn trusted_grbl_work_to_machine_offset(ctx: &ServiceContext) -> ServiceResult<Option<(f64, f64)>> {
+    if !ctx.machine_coordinates_valid.load(Ordering::Acquire) {
+        return Ok(None);
+    }
+    let session = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+    Ok(match session.as_ref() {
+        Some(session @ MachineSessionHandle::Grbl(_)) => session.work_to_machine_offset(),
+        _ => None,
+    })
+}
+
+fn translated_plan(plan: &ExecutionPlan, dx: f64, dy: f64) -> ExecutionPlan {
+    let mut translated = plan.clone();
+    translate_segments(&mut translated.segments, dx, dy);
+    translated.bounds = Bounds::new(
+        Point2D::new(plan.bounds.min.x + dx, plan.bounds.min.y + dy),
+        Point2D::new(plan.bounds.max.x + dx, plan.bounds.max.y + dy),
+    );
+    translated
+}
+
+pub(crate) fn plan_in_machine_coordinates(
+    plan: &ExecutionPlan,
+    project: &Project,
+    work_to_machine_offset: Option<(f64, f64)>,
+) -> ExecutionPlan {
+    if project.start_from != StartFromMode::AbsoluteCoords
+        && let Some((dx, dy)) = work_to_machine_offset
+    {
+        return translated_plan(plan, dx, dy);
+    }
+    plan.clone()
+}
+
+pub(crate) fn plan_in_grbl_coordinates(
+    plan: &ExecutionPlan,
+    project: &Project,
+    work_to_machine_offset: Option<(f64, f64)>,
+) -> ExecutionPlan {
+    if project.start_from == StartFromMode::AbsoluteCoords
+        && let Some((dx, dy)) = work_to_machine_offset
+    {
+        return translated_plan(plan, -dx, -dy);
+    }
+    plan.clone()
 }
 
 #[cfg(test)]

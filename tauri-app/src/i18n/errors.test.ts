@@ -40,6 +40,16 @@ describe('wrapBackendError', () => {
     );
   });
 
+  it('turns an oversized raster plan into actionable localized guidance', () => {
+    expect(
+      wrapBackendError(
+        "Plan generation failed: Invalid planner settings: [raster_plan_too_complex] Image 'photo' creates more than 1000000 raster burn runs",
+      ),
+    ).toBe(
+      'This image creates too many individual raster moves at its current size and DPI. Reduce the DPI or physical size, or choose a less fragmented image mode, then generate the preview again.',
+    );
+  });
+
   it('keeps internal safety markers out of user-facing warnings', () => {
     expect(
       wrapBackendError(

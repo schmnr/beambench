@@ -89,7 +89,7 @@ describe('LaserPositionTool', () => {
     vi.clearAllMocks();
   });
 
-  it('calls machineService.moveLaserTo on mouseDown', async () => {
+  it('sends the canvas point to the backend placement mapper on mouseDown', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     const { useUiStore } = await import('../../../stores/uiStore');
 
@@ -97,7 +97,7 @@ describe('LaserPositionTool', () => {
 
     tool.onMouseDown(makeMouseEvent({ worldX: 50, worldY: 75 }), ctx);
 
-    expect(invoke).toHaveBeenCalledWith('move_laser_to', {
+    expect(invoke).toHaveBeenCalledWith('move_laser_to_project_point', {
       x: 50,
       y: 75,
       feedRate: 1500,
@@ -137,7 +137,7 @@ describe('LaserPositionTool', () => {
     expect(useUiStore.getState().setActiveTool).not.toHaveBeenCalled();
   });
 
-  it('applies user_origin offset in UserOrigin mode', async () => {
+  it('leaves User Origin placement arithmetic to the backend', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     const { useMachineStore } = await import('../../../stores/machineStore');
     const { useProjectStore } = await import('../../../stores/projectStore');
@@ -153,14 +153,14 @@ describe('LaserPositionTool', () => {
 
     tool.onMouseDown(makeMouseEvent({ worldX: 50, worldY: 30 }), makeToolContext());
 
-    expect(invoke).toHaveBeenCalledWith('move_laser_to', {
-      x: 250,
-      y: 130,
+    expect(invoke).toHaveBeenCalledWith('move_laser_to_project_point', {
+      x: 50,
+      y: 30,
       feedRate: 1500,
     });
   });
 
-  it('applies work_position offset in CurrentPosition mode', async () => {
+  it('leaves Current Position placement arithmetic to the backend', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     const { useMachineStore } = await import('../../../stores/machineStore');
     const { useProjectStore } = await import('../../../stores/projectStore');
@@ -177,9 +177,9 @@ describe('LaserPositionTool', () => {
 
     tool.onMouseDown(makeMouseEvent({ worldX: 20, worldY: 10 }), makeToolContext());
 
-    expect(invoke).toHaveBeenCalledWith('move_laser_to', {
-      x: 120,
-      y: 60,
+    expect(invoke).toHaveBeenCalledWith('move_laser_to_project_point', {
+      x: 20,
+      y: 10,
       feedRate: 1500,
     });
   });
@@ -200,7 +200,7 @@ describe('LaserPositionTool', () => {
 
     tool.onMouseDown(makeMouseEvent({ worldX: 50, worldY: 75 }), makeToolContext());
 
-    expect(invoke).toHaveBeenCalledWith('move_laser_to', {
+    expect(invoke).toHaveBeenCalledWith('move_laser_to_project_point', {
       x: 50,
       y: 75,
       feedRate: 1500,
@@ -223,14 +223,14 @@ describe('LaserPositionTool', () => {
 
     tool.onMouseDown(makeMouseEvent({ worldX: 50, worldY: 75 }), makeToolContext());
 
-    expect(invoke).toHaveBeenCalledWith('move_laser_to', {
+    expect(invoke).toHaveBeenCalledWith('move_laser_to_project_point', {
       x: 50,
       y: 75,
       feedRate: 1500,
     });
   });
 
-  it('converts bottom-left workspace clicks to machine Y coordinates', async () => {
+  it('leaves bottom-left workspace conversion to the backend', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     const { useMachineStore } = await import('../../../stores/machineStore');
     const { useProjectStore } = await import('../../../stores/projectStore');
@@ -250,19 +250,19 @@ describe('LaserPositionTool', () => {
     tool.onMouseDown(makeMouseEvent({ worldX: 400, worldY: 0 }), makeToolContext());
     tool.onMouseDown(makeMouseEvent({ worldX: 400, worldY: 300 }), makeToolContext());
 
-    expect(invoke).toHaveBeenNthCalledWith(1, 'move_laser_to', {
-      x: 400,
-      y: 300,
-      feedRate: 1500,
-    });
-    expect(invoke).toHaveBeenNthCalledWith(2, 'move_laser_to', {
+    expect(invoke).toHaveBeenNthCalledWith(1, 'move_laser_to_project_point', {
       x: 400,
       y: 0,
       feedRate: 1500,
     });
+    expect(invoke).toHaveBeenNthCalledWith(2, 'move_laser_to_project_point', {
+      x: 400,
+      y: 300,
+      feedRate: 1500,
+    });
   });
 
-  it('converts bottom-left clicks before applying user-origin offsets', async () => {
+  it('does not combine bottom-left and User Origin offsets in the frontend', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     const { useMachineStore } = await import('../../../stores/machineStore');
     const { useProjectStore } = await import('../../../stores/projectStore');
@@ -282,9 +282,9 @@ describe('LaserPositionTool', () => {
 
     tool.onMouseDown(makeMouseEvent({ worldX: 50, worldY: 30 }), makeToolContext());
 
-    expect(invoke).toHaveBeenCalledWith('move_laser_to', {
-      x: 250,
-      y: 370,
+    expect(invoke).toHaveBeenCalledWith('move_laser_to_project_point', {
+      x: 50,
+      y: 30,
       feedRate: 1500,
     });
   });

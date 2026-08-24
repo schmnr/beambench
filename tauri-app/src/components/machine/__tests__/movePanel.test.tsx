@@ -35,6 +35,7 @@ vi.mock('../../../services/machineService', () => ({
     savePosition: vi.fn().mockResolvedValue([]),
     deleteSavedPosition: vi.fn().mockResolvedValue([]),
     moveLaserTo: vi.fn().mockResolvedValue(undefined),
+    moveLaserToProjectPoint: vi.fn().mockResolvedValue(undefined),
     moveLaserToMachine: vi.fn().mockResolvedValue(undefined),
     jog: vi.fn().mockResolvedValue(undefined),
     jogCancel: vi.fn().mockResolvedValue(undefined),
@@ -385,7 +386,7 @@ describe('MovePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Laser to Selection' }));
 
     await waitFor(() => {
-      expect(machineService.moveLaserTo).toHaveBeenCalled();
+      expect(machineService.moveLaserToProjectPoint).toHaveBeenCalled();
     });
   });
 

@@ -11,7 +11,7 @@ import {
   isTransformLocked,
   notifyTransformLocked,
 } from '../utils/transformLocks';
-import { canvasToMachinePoint, machineToCanvasPoint } from '../utils/workspaceCoordinates';
+import { machineToCanvasPoint } from '../utils/workspaceCoordinates';
 
 export type SelectionAnchor =
   | 'center'
@@ -65,20 +65,6 @@ export function anchorPoint(bounds: SelectionBounds, anchor: SelectionAnchor): {
   }
 }
 
-export function startFromOffset(
-  project: Pick<Project, 'start_from' | 'user_origin'> | null,
-  workPosition: { x: number; y: number } | null | undefined,
-): { x: number; y: number } {
-  const startFrom = project?.start_from ?? 'absolute_coords';
-  if (startFrom === 'user_origin' && project?.user_origin) {
-    return { x: project.user_origin[0], y: project.user_origin[1] };
-  }
-  if (startFrom === 'current_position' && workPosition) {
-    return { x: workPosition.x, y: workPosition.y };
-  }
-  return { x: 0, y: 0 };
-}
-
 function moveTopLeftForAnchor(
   bounds: SelectionBounds,
   anchor: SelectionAnchor,
@@ -113,13 +99,13 @@ export async function moveSelectedToLaserPosition(): Promise<void> {
   const ps = useProjectStore.getState();
   const project = ps.project;
   const machineStatus = useMachineStore.getState().machineStatus;
-  if (!project || !machineStatus?.work_position || ps.selectedObjectIds.length === 0) return;
+  if (!project || !machineStatus?.machine_position || ps.selectedObjectIds.length === 0) return;
   const selectedObjects = project.objects.filter((object) => ps.selectedObjectIds.includes(object.id));
   if (isTransformLocked(effectiveTransformLocks(selectedObjects), 'position')) {
     notifyTransformLocked('position');
     return;
   }
-  const { x, y } = machineToCanvasPoint(machineStatus.work_position, project.workspace);
+  const { x, y } = machineToCanvasPoint(machineStatus.machine_position, project.workspace);
   await ps.moveObjectsTo(ps.selectedObjectIds, x, y);
 }
 
@@ -128,11 +114,9 @@ export async function moveLaserToSelection(anchor: SelectionAnchor): Promise<voi
   const project = ps.project;
   const bounds = getSelectionBounds(project, ps.selectedObjectIds);
   if (!project || !bounds) return;
-  const machineStatus = useMachineStore.getState().machineStatus;
-  const pt = canvasToMachinePoint(anchorPoint(bounds, anchor), project.workspace);
-  const offset = startFromOffset(project, machineStatus?.work_position);
+  const point = anchorPoint(bounds, anchor);
   const feedRate = useUiStore.getState().moveWindowJogFeedRateMmMin;
-  await machineService.moveLaserTo(pt.x + offset.x, pt.y + offset.y, feedRate);
+  await machineService.moveLaserToProjectPoint(point.x, point.y, feedRate);
   useNotificationStore.getState().push(i18n.t('notifications.moving_laser_to_selection'), 'info');
 }
 

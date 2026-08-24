@@ -17,6 +17,11 @@ use crate::types::{
 /// are scaled down uniformly so aspect ratio is preserved (no scanline
 /// dropping, unlike the old `MAX_TONE_STRIPS` cap).
 const MAX_PREVIEW_BITMAP_PIXELS: u64 = 16_000_000;
+/// Detail extents support animation and fallbacks; the bitmap remains the
+/// exact static preview. Bounding these arrays prevents large dithered images
+/// from being duplicated into multi-million-object JSON payloads.
+const MAX_PREVIEW_RUN_EXTENTS: usize = 4_000;
+const MAX_PREVIEW_SCANLINE_EXTENTS: usize = 10_000;
 
 /// Distill an ExecutionPlan into lightweight PreviewData.
 ///
@@ -99,7 +104,16 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                 let mut scanline_extents: Vec<RasterRunExtent> = Vec::new();
                 let mut overscan_run_extents: Vec<RasterRunExtent> = Vec::new();
 
-                for scanline in scanlines {
+                let total_run_count: usize =
+                    scanlines.iter().map(|scanline| scanline.runs.len()).sum();
+                let run_stride = total_run_count.div_ceil(MAX_PREVIEW_RUN_EXTENTS).max(1);
+                let scanline_stride = scanlines
+                    .len()
+                    .div_ceil(MAX_PREVIEW_SCANLINE_EXTENTS)
+                    .max(1);
+                let mut run_index = 0usize;
+
+                for (scanline_index, scanline) in scanlines.iter().enumerate() {
                     min_y_local = min_y_local.min(scanline.y_mm);
                     max_y_local = max_y_local.max(scanline.y_mm);
                     let mut row_min = f64::INFINITY;
@@ -114,28 +128,41 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                         total_run_width += (run.end_x_mm - run.start_x_mm).abs();
                         burn_distance_mm += (run.end_x_mm - run.start_x_mm).abs();
 
-                        run_extents.push(RasterRunExtent {
-                            y_mm: scanline.y_mm,
-                            start_x_mm: run.start_x_mm,
-                            end_x_mm: run.end_x_mm,
-                            direction: scanline.direction,
-                        });
-                        if run.power_values.is_empty() {
-                            overscan_run_extents.push(RasterRunExtent {
+                        let retain_run_extent = run_index.is_multiple_of(run_stride)
+                            && run_extents.len() < MAX_PREVIEW_RUN_EXTENTS;
+                        if retain_run_extent {
+                            run_extents.push(RasterRunExtent {
                                 y_mm: scanline.y_mm,
                                 start_x_mm: run.start_x_mm,
                                 end_x_mm: run.end_x_mm,
                                 direction: scanline.direction,
                             });
-                        } else {
-                            overscan_run_extents.extend(grayscale_burn_extents(
-                                scanline.y_mm,
-                                run.start_x_mm,
-                                run.end_x_mm,
-                                &run.power_values,
-                                scanline.direction,
-                            ));
+                            if run.power_values.is_empty() {
+                                if overscan_run_extents.len() < MAX_PREVIEW_RUN_EXTENTS {
+                                    overscan_run_extents.push(RasterRunExtent {
+                                        y_mm: scanline.y_mm,
+                                        start_x_mm: run.start_x_mm,
+                                        end_x_mm: run.end_x_mm,
+                                        direction: scanline.direction,
+                                    });
+                                }
+                            } else if overscan_run_extents.len() < MAX_PREVIEW_RUN_EXTENTS {
+                                let remaining = MAX_PREVIEW_RUN_EXTENTS
+                                    .saturating_sub(overscan_run_extents.len());
+                                overscan_run_extents.extend(
+                                    grayscale_burn_extents(
+                                        scanline.y_mm,
+                                        run.start_x_mm,
+                                        run.end_x_mm,
+                                        &run.power_values,
+                                        scanline.direction,
+                                    )
+                                    .into_iter()
+                                    .take(remaining),
+                                );
+                            }
                         }
+                        run_index += 1;
 
                         // Accumulate avg-power stats (histogram) as before.
                         if run.power_values.is_empty() {
@@ -180,7 +207,10 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                             }
                         }
                     }
-                    if row_min.is_finite() {
+                    if row_min.is_finite()
+                        && scanline_index.is_multiple_of(scanline_stride)
+                        && scanline_extents.len() < MAX_PREVIEW_SCANLINE_EXTENTS
+                    {
                         scanline_extents.push(RasterRunExtent {
                             y_mm: scanline.y_mm,
                             start_x_mm: row_min,
@@ -188,6 +218,16 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                             direction: scanline.direction,
                         });
                     }
+                }
+
+                if total_run_count > MAX_PREVIEW_RUN_EXTENTS
+                    || scanlines.len() > MAX_PREVIEW_SCANLINE_EXTENTS
+                {
+                    distill_warnings.push(format!(
+                        "Raster preview detail was summarized for performance ({} burn runs across {} scanlines); the preview bitmap and generated output remain exact",
+                        total_run_count,
+                        scanlines.len()
+                    ));
                 }
 
                 raster_line_count += scanlines.len();
@@ -2309,6 +2349,56 @@ mod tests {
             !raster.run_extents.is_empty(),
             "should still have some strips after downsampling"
         );
+    }
+
+    #[test]
+    fn fragmented_binary_preview_caps_ipc_extents_but_keeps_bitmap() {
+        let scanlines = (0..500)
+            .map(|row| Scanline {
+                y_mm: row as f64 * 0.1,
+                runs: (0..10)
+                    .map(|run| ScanRun {
+                        start_x_mm: run as f64,
+                        end_x_mm: run as f64 + 0.5,
+                        power_values: vec![],
+                    })
+                    .collect(),
+                direction: if row % 2 == 0 {
+                    ScanDirection::LeftToRight
+                } else {
+                    ScanDirection::RightToLeft
+                },
+            })
+            .collect();
+        let plan = make_plan(vec![PlanSegment::Raster {
+            scanlines,
+            line_interval_mm: 0.1,
+            direction_mode: DirectionMode::Bidirectional,
+            power_mode: PowerMode::Binary,
+            speed_mm_min: 2000.0,
+            layer_id: "layer1".to_string(),
+            cut_entry_id: String::new(),
+            scan_angle_deg: 0.0,
+            scan_origin: Point2D::new(0.0, 0.0),
+            overscan_mm: 0.0,
+            outlines: vec![],
+            scan_axis: ScanAxis::default(),
+            power_max_percent: 100.0,
+            power_min_percent: 0.0,
+            dot_width_correction_mm: 0.0,
+            ramp_length_mm: 0.0,
+            x_pixel_mm: 0.1,
+        }]);
+
+        let preview = distill_preview(&plan);
+        let raster = &preview.layers[0].raster_regions[0];
+
+        assert!(raster.preview_bitmap.is_some());
+        assert!(raster.run_extents.len() <= MAX_PREVIEW_RUN_EXTENTS);
+        assert!(raster.overscan_run_extents.len() <= MAX_PREVIEW_RUN_EXTENTS);
+        assert!(preview.warnings.iter().any(|warning| {
+            warning.contains("Raster preview detail was summarized for performance")
+        }));
     }
 
     #[test]

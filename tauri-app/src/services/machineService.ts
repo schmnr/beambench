@@ -323,6 +323,15 @@ export const machineService = {
     return invoke<void>('move_laser_to', { x, y, z, feedRate });
   },
 
+  async moveLaserToProjectPoint(
+    x: number,
+    y: number,
+    feedRate: number,
+    z?: number | null,
+  ): Promise<void> {
+    return invoke<void>('move_laser_to_project_point', { x, y, z, feedRate });
+  },
+
   async moveLaserToMachine(
     x: number,
     y: number,

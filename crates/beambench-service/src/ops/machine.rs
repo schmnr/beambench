@@ -36,7 +36,8 @@ use beambench_marlin::{
 use beambench_planner::PlannerError;
 use beambench_planner::{
     ExecutionPlan, anchor_segments_to_target, apply_workspace_origin_transform, build_frame_plan,
-    build_hull_frame_plan, calculate_plan_bounds, calculate_work_bounds, flip_bounds_y,
+    build_hull_frame_plan, calculate_job_origin_bounds, calculate_plan_bounds,
+    calculate_work_bounds, flip_bounds_y, job_anchor_point, object_contributes_to_job,
     translate_segments,
 };
 use beambench_ruida::{
@@ -3576,6 +3577,22 @@ fn relative_frame_fingerprint(
     )))
 }
 
+fn controller_output_plan(
+    ctx: &ServiceContext,
+    plan: &ExecutionPlan,
+    project: &Project,
+    session: &MachineSessionHandle,
+) -> ExecutionPlan {
+    let offset = if ctx.machine_coordinates_valid.load(Ordering::Acquire)
+        && matches!(session, MachineSessionHandle::Grbl(_))
+    {
+        session.work_to_machine_offset()
+    } else {
+        None
+    };
+    planning::plan_in_grbl_coordinates(plan, project, offset)
+}
+
 fn raster_overscan_advisory(
     plan: &ExecutionPlan,
     profile: &MachineProfile,
@@ -3631,6 +3648,13 @@ pub fn run_preflight_check_with_options(
     ctx: &ServiceContext,
     job_options: &planning::SessionJobOptions,
 ) -> ServiceResult<PreflightReport> {
+    run_preflight_check_with_plan(ctx, job_options).map(|(report, _)| report)
+}
+
+fn run_preflight_check_with_plan(
+    ctx: &ServiceContext,
+    job_options: &planning::SessionJobOptions,
+) -> ServiceResult<(PreflightReport, Option<ExecutionPlan>)> {
     // Check tool layers before plan generation — this must run even if the
     // plan is empty (e.g. all enabled layers are tool layers).
     let (has_project, tool_layer_check) = {
@@ -3669,7 +3693,7 @@ pub fn run_preflight_check_with_options(
                     "check_count": report.checks.len(),
                 }),
             );
-            return Ok(report);
+            return Ok((report, None));
         }
         Err(e) => return Err(e),
     };
@@ -3682,16 +3706,23 @@ pub fn run_preflight_check_with_options(
     let profile = active_profile(ctx)?;
     let relative_fingerprint = relative_frame_fingerprint(ctx, &project_for_controller, &profile)?;
     let relative_untrusted = relative_fingerprint.is_some();
-    let mut relative_plan;
+    let mut adjusted_plan;
     let plan_for_checks = if relative_untrusted {
-        relative_plan = plan.clone();
-        let work_bounds = calculate_work_bounds(&relative_plan.segments);
+        adjusted_plan = plan.clone();
+        let work_bounds = calculate_work_bounds(&adjusted_plan.segments);
         let (machine_width_mm, machine_height_mm) = profile.workspace_dimensions_mm();
         let dx = machine_width_mm * 0.5 - (work_bounds.min.x + work_bounds.max.x) * 0.5;
         let dy = machine_height_mm * 0.5 - (work_bounds.min.y + work_bounds.max.y) * 0.5;
-        translate_segments(&mut relative_plan.segments, dx, dy);
-        relative_plan.bounds = calculate_work_bounds(&relative_plan.segments);
-        &relative_plan
+        translate_segments(&mut adjusted_plan.segments, dx, dy);
+        adjusted_plan.bounds = calculate_work_bounds(&adjusted_plan.segments);
+        &adjusted_plan
+    } else if project_for_controller.start_from != StartFromMode::AbsoluteCoords
+        && let Some((dx, dy)) = session.work_to_machine_offset()
+    {
+        adjusted_plan = plan.clone();
+        translate_segments(&mut adjusted_plan.segments, dx, dy);
+        adjusted_plan.bounds = calculate_plan_bounds(&adjusted_plan.segments);
+        &adjusted_plan
     } else {
         &plan
     };
@@ -3736,7 +3767,7 @@ pub fn run_preflight_check_with_options(
     let (machine_width_mm, machine_height_mm) = profile.workspace_dimensions_mm();
     if !relative_untrusted
         && let Err(error) = beambench_planner::validate::validate_bounds(
-            &plan.segments,
+            &plan_for_checks.segments,
             machine_width_mm,
             machine_height_mm,
         )
@@ -3926,7 +3957,7 @@ pub fn run_preflight_check_with_options(
             "check_count": report.checks.len(),
         }),
     );
-    Ok(report)
+    Ok((report, Some(plan)))
 }
 
 pub fn start_job(ctx: &ServiceContext) -> ServiceResult<JobProgress> {
@@ -3953,7 +3984,7 @@ pub fn start_job_with_options_confirming_advisories(
         ));
     }
 
-    let preflight = run_preflight_check_with_options(ctx, job_options)?;
+    let (preflight, preflight_plan) = run_preflight_check_with_plan(ctx, job_options)?;
     match preflight.outcome {
         PreflightOutcome::Pass => {}
         PreflightOutcome::PassWithWarnings if allow_advisories => {}
@@ -3975,9 +4006,9 @@ pub fn start_job_with_options_confirming_advisories(
         .lock()
         .map_err(|e| lock_err("pending_relative_frame_confirmation", e))? = None;
 
-    // Force fresh plan for job start (ensure_current_plan syncs live position automatically)
-    planning::invalidate_plan_cache(ctx)?;
-    let plan = planning::ensure_current_plan_with_options(ctx, job_options)?;
+    let plan = preflight_plan.ok_or_else(|| {
+        ServiceError::invalid_state("Preflight did not produce an executable plan")
+    })?;
 
     // Build GcodeConfig from the project's persisted optimization + active machine profile.
     // Runtime overlay (current_position) isn't read here — G-code emission
@@ -3995,6 +4026,7 @@ pub fn start_job_with_options_confirming_advisories(
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+    let output_plan = controller_output_plan(ctx, &plan, &project_for_gcode, session);
     let job = match session {
         MachineSessionHandle::Grbl(session) => {
             if profile.rotary_enabled && !session.capabilities().supports_rotary {
@@ -4010,7 +4042,7 @@ pub fn start_job_with_options_confirming_advisories(
             )
             .map_err(ServiceError::invalid_state)?;
             let config = gcode_config;
-            let mut job = JobController::prepare(&plan, &config)
+            let mut job = JobController::prepare(&output_plan, &config)
                 .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?;
             job.start(session)
                 .map_err(|e| ServiceError::machine(format!("Job start failed: {e}")))?;
@@ -4018,7 +4050,7 @@ pub fn start_job_with_options_confirming_advisories(
         }
         MachineSessionHandle::Marlin(session) => {
             let driver = session.driver();
-            let commands = acknowledged_gcode_commands(driver, &plan, gcode_config)
+            let commands = acknowledged_gcode_commands(driver, &output_plan, gcode_config)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Marlin(
                 MarlinRuntimeJob::start_with_duration(
@@ -4032,7 +4064,7 @@ pub fn start_job_with_options_confirming_advisories(
             )
         }
         MachineSessionHandle::Smoothieware(session) => {
-            let commands = smoothieware_gcode_commands(session, &plan, gcode_config)
+            let commands = smoothieware_gcode_commands(session, &output_plan, gcode_config)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Smoothieware(
                 SmoothiewareRuntimeJob::start_with_duration(
@@ -4046,21 +4078,24 @@ pub fn start_job_with_options_confirming_advisories(
             )
         }
         MachineSessionHandle::Ruida(session) => {
-            let compiled = compile_ruida_execution_plan(&plan, &project_for_gcode, &profile)
+            let compiled = compile_ruida_execution_plan(&output_plan, &project_for_gcode, &profile)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Ruida(session.start_job(&compiled, false).map_err(|error| {
                 ServiceError::machine(format!("Ruida job start failed: {error}"))
             })?)
         }
         MachineSessionHandle::Lihuiyu(session) => {
-            let compiled = compile_lihuiyu_execution_plan(&plan, &project_for_gcode, &profile)
-                .map_err(ServiceError::machine)?;
+            let compiled =
+                compile_lihuiyu_execution_plan(&output_plan, &project_for_gcode, &profile)
+                    .map_err(ServiceError::machine)?;
             ActiveJobHandle::Lihuiyu(session.start_job(&compiled, false).map_err(|error| {
                 ServiceError::machine(format!("Lihuiyu job start failed: {error}"))
             })?)
         }
-        MachineSessionHandle::Dsp(session) => ActiveJobHandle::Dsp(session.start_job(&plan)),
-        MachineSessionHandle::Galvo(session) => ActiveJobHandle::Galvo(session.start_job(&plan)),
+        MachineSessionHandle::Dsp(session) => ActiveJobHandle::Dsp(session.start_job(&output_plan)),
+        MachineSessionHandle::Galvo(session) => {
+            ActiveJobHandle::Galvo(session.start_job(&output_plan))
+        }
     };
     let progress = job.progress();
     clear_retained_terminal_job(ctx)?;
@@ -4371,15 +4406,6 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
     Ok(())
 }
 
-fn object_layer_is_tool(
-    project: &beambench_core::Project,
-    object: &beambench_core::ProjectObject,
-) -> bool {
-    project
-        .find_layer(object.layer_id)
-        .is_some_and(|layer| layer.is_tool_layer)
-}
-
 /// Which objects to include in frame job bounds and physical frame motion.
 fn frame_objects(
     ctx: &ServiceContext,
@@ -4394,7 +4420,7 @@ fn frame_objects(
         let frameable: Vec<_> = project
             .objects
             .iter()
-            .filter(|o| o.visible && !o.locked && !object_layer_is_tool(&project, o))
+            .filter(|object| object_contributes_to_job(&project, object))
             .cloned()
             .collect();
         (frameable.clone(), frameable)
@@ -4455,9 +4481,10 @@ pub fn frame_job(
     // Sync live machine position so CurrentPosition mode uses fresh data
     planning::sync_current_position(ctx)?;
 
+    let project = planning::current_project(ctx)?;
     let (bounds_objects, physical_objects) = frame_objects(ctx, selected_object_ids)?;
-    let raw_bounds = if bounds_objects.is_empty() {
-        bounds_of(&physical_objects)
+    let raw_bounds = if selected_object_ids.is_empty() {
+        calculate_job_origin_bounds(&project).unwrap_or_else(|| bounds_of(&physical_objects))
     } else {
         bounds_of(&bounds_objects)
     };
@@ -4503,8 +4530,6 @@ pub fn frame_job(
 
     // Apply the same coordinate transforms the real plan uses so the frame
     // traces the area the actual job will engrave.
-    let project = planning::current_project(ctx)?;
-
     if project.start_from == StartFromMode::UserOrigin && project.user_origin.is_none() {
         return Err(ServiceError::invalid_state(
             "User Origin is selected, but no user origin has been set. Move the laser to the intended origin and choose Set Here before framing.",
@@ -4533,7 +4558,7 @@ pub fn frame_job(
         .with_details(json!({ "kind": "current_position_unavailable" })));
     } else if project.start_from != StartFromMode::AbsoluteCoords {
         // Anchor the frame exactly like the job: job-origin anchor of the
-        // content lands on the start-from target, in machine space.
+        // content lands on the start-from target in controller work space.
         let y_flipped =
             project.workspace.origin != beambench_core::workspace::WorkspaceOrigin::TopLeft;
         let content_bounds = if y_flipped {
@@ -4583,8 +4608,26 @@ pub fn frame_job(
         .lock()
         .map_err(|e| lock_err("settings", e))?
         .display_unit;
+    let work_to_machine_offset =
+        if project.start_from != StartFromMode::AbsoluteCoords && coordinates_trusted {
+            ctx.session
+                .lock()
+                .map_err(|e| lock_err("session", e))?
+                .as_ref()
+                .and_then(MachineSessionHandle::work_to_machine_offset)
+        } else {
+            None
+        };
     let relative_untrusted =
-        project.start_from != StartFromMode::AbsoluteCoords && !coordinates_trusted;
+        project.start_from != StartFromMode::AbsoluteCoords && work_to_machine_offset.is_none();
+    let mut machine_segments;
+    let segments_for_validation = if let Some((dx, dy)) = work_to_machine_offset {
+        machine_segments = frame_plan.segments.clone();
+        translate_segments(&mut machine_segments, dx, dy);
+        &machine_segments
+    } else {
+        &frame_plan.segments
+    };
     if relative_untrusted {
         let work_bounds = calculate_work_bounds(&frame_plan.segments);
         if work_bounds.width() > project.workspace.bed_width_mm + 1e-6
@@ -4600,7 +4643,7 @@ pub fn frame_job(
         }
     } else {
         beambench_planner::validate::validate_bounds(
-            &frame_plan.segments,
+            segments_for_validation,
             project.workspace.bed_width_mm,
             project.workspace.bed_height_mm,
         )
@@ -4628,7 +4671,7 @@ pub fn frame_job(
         }
     } else {
         beambench_planner::validate::validate_bounds(
-            &frame_plan.segments,
+            segments_for_validation,
             machine_width_mm,
             machine_height_mm,
         )
@@ -4663,6 +4706,7 @@ pub fn frame_job(
     }
     super::output::validate_rotary_feed_limit(&frame_plan, &profile)
         .map_err(ServiceError::invalid_state)?;
+    let output_plan = controller_output_plan(ctx, &frame_plan, &project, session);
     let job = match session {
         MachineSessionHandle::Grbl(session) => {
             let mut config = frame_gcode_config;
@@ -4673,7 +4717,7 @@ pub fn frame_job(
                 session.last_status(),
             )
             .map_err(ServiceError::invalid_state)?;
-            let mut job = JobController::prepare(&frame_plan, &config)
+            let mut job = JobController::prepare(&output_plan, &config)
                 .map_err(|e| ServiceError::machine(format!("Frame prepare failed: {e}")))?;
             job.start(session)
                 .map_err(|e| ServiceError::machine(format!("Frame start failed: {e}")))?;
@@ -4681,7 +4725,7 @@ pub fn frame_job(
         }
         MachineSessionHandle::Marlin(session) => {
             let driver = session.driver();
-            let commands = acknowledged_gcode_commands(driver, &frame_plan, frame_gcode_config)
+            let commands = acknowledged_gcode_commands(driver, &output_plan, frame_gcode_config)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Marlin(
                 MarlinRuntimeJob::start_with_duration(
@@ -4695,7 +4739,7 @@ pub fn frame_job(
             )
         }
         MachineSessionHandle::Smoothieware(session) => {
-            let commands = smoothieware_gcode_commands(session, &frame_plan, frame_gcode_config)
+            let commands = smoothieware_gcode_commands(session, &output_plan, frame_gcode_config)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Smoothieware(
                 SmoothiewareRuntimeJob::start_with_duration(
@@ -4709,14 +4753,14 @@ pub fn frame_job(
             )
         }
         MachineSessionHandle::Ruida(session) => {
-            let compiled = compile_ruida_execution_plan(&frame_plan, &project, &profile)
+            let compiled = compile_ruida_execution_plan(&output_plan, &project, &profile)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Ruida(session.start_job(&compiled, true).map_err(|error| {
                 ServiceError::machine(format!("Ruida frame start failed: {error}"))
             })?)
         }
         MachineSessionHandle::Lihuiyu(session) => {
-            let compiled = compile_lihuiyu_execution_plan(&frame_plan, &project, &profile)
+            let compiled = compile_lihuiyu_execution_plan(&output_plan, &project, &profile)
                 .map_err(ServiceError::machine)?;
             ActiveJobHandle::Lihuiyu(session.start_job(&compiled, true).map_err(|error| {
                 ServiceError::machine(format!("Lihuiyu frame start failed: {error}"))
@@ -4743,6 +4787,82 @@ pub fn frame_job(
         }),
     );
     Ok(progress)
+}
+
+pub fn move_laser_to_project_point(
+    ctx: &ServiceContext,
+    input: MoveLaserInput,
+) -> ServiceResult<()> {
+    require_finite(input.x, "x")?;
+    require_finite(input.y, "y")?;
+    planning::sync_current_position(ctx)?;
+    let project = planning::current_project(ctx)?;
+    if input.x < 0.0
+        || input.y < 0.0
+        || input.x > project.workspace.bed_width_mm
+        || input.y > project.workspace.bed_height_mm
+    {
+        return Err(ServiceError::invalid_input(
+            "The requested canvas point is outside the project workspace",
+        ));
+    }
+
+    let y_flipped = project.workspace.origin != beambench_core::WorkspaceOrigin::TopLeft;
+    let machine_y = if y_flipped {
+        project.workspace.bed_height_mm - input.y
+    } else {
+        input.y
+    };
+    let mut mapped = MoveLaserInput {
+        x: input.x,
+        y: machine_y,
+        ..input
+    };
+
+    if project.start_from != StartFromMode::AbsoluteCoords {
+        let canvas_bounds = calculate_job_origin_bounds(&project).ok_or_else(|| {
+            ServiceError::invalid_state("The project has no enabled output to position")
+        })?;
+        let machine_bounds = if y_flipped {
+            flip_bounds_y(&canvas_bounds, project.workspace.bed_height_mm)
+        } else {
+            canvas_bounds
+        };
+        let anchor = job_anchor_point(project.job_origin, &machine_bounds, y_flipped);
+        let target = match project.start_from {
+            StartFromMode::CurrentPosition => ctx
+                .optimization_runtime
+                .lock()
+                .map_err(|e| lock_err("optimization_runtime", e))?
+                .current_position
+                .ok_or_else(|| {
+                    ServiceError::invalid_state(
+                        "Current Position is selected, but no live machine position is available",
+                    )
+                })?,
+            StartFromMode::UserOrigin => project.user_origin.ok_or_else(|| {
+                ServiceError::invalid_state(
+                    "User Origin is selected, but no user origin has been set",
+                )
+            })?,
+            StartFromMode::AbsoluteCoords => unreachable!(),
+        };
+        mapped.x += target.0 - anchor.0;
+        mapped.y += target.1 - anchor.1;
+        return move_laser_to(ctx, mapped);
+    }
+
+    let grbl = ctx
+        .session
+        .lock()
+        .map_err(|e| lock_err("session", e))?
+        .as_ref()
+        .is_some_and(|session| matches!(session, MachineSessionHandle::Grbl(_)));
+    if grbl {
+        move_laser_to_machine(ctx, mapped)
+    } else {
+        move_laser_to(ctx, mapped)
+    }
 }
 
 pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResult<()> {
@@ -7930,6 +8050,39 @@ mod tests {
         state.lock().unwrap().lines.clone()
     }
 
+    fn contains_xy(lines: &[String], expected_x: f64, expected_y: f64) -> bool {
+        lines.iter().any(|line| {
+            let mut x = None;
+            let mut y = None;
+            for token in line.split_whitespace() {
+                if let Some(value) = token.strip_prefix('X') {
+                    x = value.parse::<f64>().ok();
+                } else if let Some(value) = token.strip_prefix('Y') {
+                    y = value.parse::<f64>().ok();
+                }
+            }
+            x.zip(y).is_some_and(|(x, y)| {
+                (x - expected_x).abs() < 0.002 && (y - expected_y).abs() < 0.002
+            })
+        })
+    }
+
+    fn finish_recorded_job(ctx: &ServiceContext, transport: &Arc<Mutex<RecordingTransportState>>) {
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .extend((0..100).map(|_| "ok".to_string()));
+        for _ in 0..100 {
+            let Some(progress) = tick_job(ctx).unwrap() else {
+                break;
+            };
+            if progress.state == JobState::Completed {
+                break;
+            }
+        }
+    }
+
     fn sent_bytes(state: &Arc<Mutex<RecordingTransportState>>) -> Vec<Vec<u8>> {
         state.lock().unwrap().bytes.clone()
     }
@@ -7984,6 +8137,25 @@ mod tests {
                 corner_radius: 0.0,
             },
         ));
+        project
+    }
+
+    fn relative_frame_project(start_from: StartFromMode) -> Project {
+        let mut project = frame_project();
+        project.workspace = Workspace {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            origin: beambench_core::WorkspaceOrigin::BottomLeft,
+        };
+        project.objects[0].bounds = Bounds::new(
+            Point2D::new(94.218, 116.188),
+            Point2D::new(211.842, 233.812),
+        );
+        project.start_from = start_from;
+        project.job_origin = beambench_common::AnchorPoint::Center;
+        if start_from == StartFromMode::UserOrigin {
+            project.user_origin = Some((80.0, 80.0));
+        }
         project
     }
 
@@ -8154,6 +8326,65 @@ mod tests {
     }
 
     #[test]
+    fn absolute_project_point_uses_physical_machine_coordinates() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        let mut project = frame_project();
+        project.workspace.origin = beambench_core::WorkspaceOrigin::BottomLeft;
+        *ctx.project.lock().unwrap() = Some(project);
+
+        move_laser_to_project_point(
+            &ctx,
+            MoveLaserInput {
+                x: 25.0,
+                y: 40.0,
+                z: None,
+                feed_rate: 1500.0,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            sent_lines(&transport).last().map(String::as_str),
+            Some("G53 G0 X25.000 Y360.000 F1500")
+        );
+    }
+
+    #[test]
+    fn current_position_project_point_uses_the_planners_job_anchor() {
+        let profile = MachineProfile {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        let status = "<Idle|MPos:150.000,140.000,0.000|WPos:80.707,49.646,0.000|WCO:69.293,90.354,0.000|FS:0,0>";
+        let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back(status.to_string());
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        *ctx.project.lock().unwrap() = Some(relative_frame_project(StartFromMode::CurrentPosition));
+
+        move_laser_to_project_point(
+            &ctx,
+            MoveLaserInput {
+                x: 153.03,
+                y: 175.0,
+                z: None,
+                feed_rate: 1500.0,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            sent_lines(&transport).last().map(String::as_str),
+            Some("G1 X80.707 Y49.646 F1500")
+        );
+    }
+
+    #[test]
     fn runtime_state_reports_current_session_machine_coordinate_validity() {
         let (ctx, _transport) = ready_grbl_context(MachineProfile::default());
 
@@ -8183,6 +8414,267 @@ mod tests {
                 .any(|line| line.contains("F1234")),
             "frame job should stream commands with the requested move feed"
         );
+    }
+
+    #[test]
+    fn absolute_frame_converts_machine_bed_coordinates_to_grbl_work_coordinates() {
+        let profile = MachineProfile {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        let status = "<Idle|MPos:150.000,140.000,0.000|WPos:80.707,49.646,0.000|WCO:69.293,90.354,0.000|FS:0,0>";
+        let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        let mut project = frame_project();
+        project.workspace = Workspace {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            origin: beambench_core::WorkspaceOrigin::TopLeft,
+        };
+        project.objects[0].bounds =
+            Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(110.0, 110.0));
+        *ctx.project.lock().unwrap() = Some(project);
+
+        frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+
+        assert!(
+            sent_lines(&transport)
+                .iter()
+                .any(|line| line.starts_with("G0 X30.707 Y9.646")),
+            "physical bed point (100,100) should be emitted in the active GRBL work frame"
+        );
+    }
+
+    #[test]
+    fn absolute_export_uses_the_connected_grbl_work_frame() {
+        let profile = MachineProfile {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        let status = "<Idle|MPos:150.000,140.000,0.000|WPos:80.707,49.646,0.000|WCO:69.293,90.354,0.000|FS:0,0>";
+        let (ctx, _transport) = ready_grbl_context_with_status(profile, status);
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        let mut project = frame_project();
+        project.workspace = Workspace {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            origin: beambench_core::WorkspaceOrigin::TopLeft,
+        };
+        project.objects[0].bounds =
+            Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(110.0, 110.0));
+        *ctx.project.lock().unwrap() = Some(project);
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("absolute-offset.gcode");
+
+        planning::export_gcode_to_path(&ctx, &path).unwrap();
+
+        let gcode = std::fs::read_to_string(path).unwrap();
+        assert!(
+            gcode
+                .lines()
+                .any(|line| line.starts_with("G0 X30.707 Y9.646")),
+            "physical bed point (100,100) should be exported in the active GRBL work frame"
+        );
+    }
+
+    #[test]
+    fn current_position_preview_uses_physical_machine_coordinates() {
+        let profile = MachineProfile {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        let status = "<Idle|MPos:150.000,140.000,0.000|WPos:80.707,49.646,0.000|WCO:69.293,90.354,0.000|FS:0,0>";
+        let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back(status.to_string());
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        *ctx.project.lock().unwrap() = Some(relative_frame_project(StartFromMode::CurrentPosition));
+
+        let preview = planning::generate_preview(&ctx).unwrap();
+
+        assert!(
+            (preview.bounds.min.x - 91.188).abs() < 0.01,
+            "unexpected physical preview bounds: {:?}",
+            preview.bounds
+        );
+        assert!((preview.bounds.max.x - 208.812).abs() < 0.01);
+        assert!((preview.bounds.min.y - 81.188).abs() < 0.01);
+        assert!((preview.bounds.max.y - 198.812).abs() < 0.01);
+    }
+
+    #[test]
+    fn frame_and_burn_share_endpoints_for_every_start_mode_and_workspace_origin() {
+        let status = "<Idle|MPos:150.000,140.000,0.000|WPos:80.707,49.646,0.000|WCO:69.293,90.354,0.000|FS:0,0>";
+        for origin in [
+            beambench_core::WorkspaceOrigin::TopLeft,
+            beambench_core::WorkspaceOrigin::BottomLeft,
+        ] {
+            for start_from in [
+                StartFromMode::AbsoluteCoords,
+                StartFromMode::CurrentPosition,
+                StartFromMode::UserOrigin,
+            ] {
+                let make_context = || {
+                    let profile = MachineProfile {
+                        bed_width_mm: 300.0,
+                        bed_height_mm: 300.0,
+                        ..MachineProfile::default()
+                    };
+                    let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+                    if start_from == StartFromMode::CurrentPosition {
+                        transport
+                            .lock()
+                            .unwrap()
+                            .status_on_query
+                            .push_back(status.to_string());
+                    }
+                    ctx.machine_coordinates_valid.store(true, Ordering::Release);
+                    let mut project = relative_frame_project(start_from);
+                    project.workspace.origin = origin;
+                    if start_from == StartFromMode::UserOrigin {
+                        project.user_origin = Some((80.707, 49.646));
+                    }
+                    *ctx.project.lock().unwrap() = Some(project);
+                    (ctx, transport)
+                };
+
+                let expected = if start_from == StartFromMode::AbsoluteCoords {
+                    let (min_y, max_y) = if origin == beambench_core::WorkspaceOrigin::TopLeft {
+                        (25.834, 143.458)
+                    } else {
+                        (-24.166, 93.458)
+                    };
+                    (24.925, 142.549, min_y, max_y)
+                } else {
+                    (21.895, 139.519, -9.166, 108.458)
+                };
+                let corners = [
+                    (expected.0, expected.2),
+                    (expected.0, expected.3),
+                    (expected.1, expected.2),
+                    (expected.1, expected.3),
+                ];
+
+                let (frame_ctx, frame_transport) = make_context();
+                frame_job(&frame_ctx, "rectangular", &[], false, None).unwrap();
+                finish_recorded_job(&frame_ctx, &frame_transport);
+                let frame_lines = sent_lines(&frame_transport);
+
+                let (burn_ctx, burn_transport) = make_context();
+                start_job_with_options_confirming_advisories(
+                    &burn_ctx,
+                    &planning::SessionJobOptions::default(),
+                    true,
+                )
+                .unwrap();
+                finish_recorded_job(&burn_ctx, &burn_transport);
+                let burn_lines = sent_lines(&burn_transport);
+
+                for (x, y) in corners {
+                    assert!(
+                        contains_xy(&frame_lines, x, y),
+                        "frame missed ({x:.3},{y:.3}) for {start_from:?}/{origin:?}: {frame_lines:?}"
+                    );
+                    assert!(
+                        contains_xy(&burn_lines, x, y),
+                        "burn missed ({x:.3},{y:.3}) for {start_from:?}/{origin:?}: {burn_lines:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn current_position_frame_accepts_safe_placement_before_and_after_homing() {
+        for coordinates_trusted in [false, true] {
+            let profile = MachineProfile {
+                bed_width_mm: 300.0,
+                bed_height_mm: 300.0,
+                ..MachineProfile::default()
+            };
+            let status = "<Idle|MPos:150.000,140.000,0.000|WPos:80.000,80.000,0.000|WCO:70.000,60.000,0.000|FS:0,0>";
+            let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+            transport
+                .lock()
+                .unwrap()
+                .status_on_query
+                .push_back(status.to_string());
+            ctx.machine_coordinates_valid
+                .store(coordinates_trusted, Ordering::Release);
+            *ctx.project.lock().unwrap() =
+                Some(relative_frame_project(StartFromMode::CurrentPosition));
+
+            frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+        }
+    }
+
+    #[test]
+    fn homed_frame_validates_offset_work_position_in_machine_coordinates() {
+        let profile = MachineProfile {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        let status = "<Idle|MPos:150.000,140.000,0.000|WPos:80.707,49.646,0.000|WCO:69.293,90.354,0.000|FS:0,0>";
+        let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back(status.to_string());
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        *ctx.project.lock().unwrap() = Some(relative_frame_project(StartFromMode::CurrentPosition));
+
+        frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+    }
+
+    #[test]
+    fn homed_frame_still_rejects_a_real_machine_edge_violation() {
+        let profile = MachineProfile {
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        let status = "<Idle|MPos:50.000,50.000,0.000|WPos:80.000,80.000,0.000|WCO:-30.000,-30.000,0.000|FS:0,0>";
+        let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back(status.to_string());
+        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+        *ctx.project.lock().unwrap() = Some(relative_frame_project(StartFromMode::CurrentPosition));
+
+        let error = frame_job(&ctx, "rectangular", &[], false, None).unwrap_err();
+        let violation = &error.details.as_ref().unwrap()["violation"];
+
+        assert_eq!(violation["axis"], "y");
+        assert_eq!(violation["boundary"], "min");
+        assert!((violation["amount_mm"].as_f64().unwrap() - 8.812).abs() < 0.01);
+        assert!(error.message.contains("bottom edge"));
+    }
+
+    #[test]
+    fn user_origin_frame_accepts_safe_placement_before_and_after_homing() {
+        for coordinates_trusted in [false, true] {
+            let profile = MachineProfile {
+                bed_width_mm: 300.0,
+                bed_height_mm: 300.0,
+                ..MachineProfile::default()
+            };
+            let (ctx, _transport) = ready_grbl_context(profile);
+            ctx.machine_coordinates_valid
+                .store(coordinates_trusted, Ordering::Release);
+            *ctx.project.lock().unwrap() = Some(relative_frame_project(StartFromMode::UserOrigin));
+
+            frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+        }
     }
 
     #[test]
