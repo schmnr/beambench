@@ -527,6 +527,7 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
     setContrast(preset.adjustments.contrast);
     setGamma(preset.adjustments.gamma);
     setInvertAdjust(preset.adjustments.invert);
+    if (preset.adjustments.invert) setNegative(false);
     setThreshold(preset.adjustments.threshold);
     setSaturation(preset.adjustments.saturation);
     setSharpen(preset.adjustments.sharpen ?? 0);
@@ -975,7 +976,16 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
                     <RangeInput label={t('dialog.adjust_image.saturation')} value={saturation} onChange={setSaturation} min={0} max={2} step={0.01} disabled={busy} testId="adjust-saturation" />
                     <RangeInput label={t('dialog.adjust_image.sharpen')} value={sharpen} onChange={setSharpen} min={0} max={2} step={0.01} disabled={busy} testId="adjust-sharpen" />
                     <div className="grid grid-cols-2 gap-1.5">
-                      <OptionChip label={t('dialog.adjust_image.invert')} checked={invertAdjust} onChange={setInvertAdjust} disabled={busy} fullWidth />
+                      <OptionChip
+                        label={t('dialog.adjust_image.invert')}
+                        checked={invertAdjust}
+                        onChange={(checked) => {
+                          setInvertAdjust(checked);
+                          if (checked) setNegative(false);
+                        }}
+                        disabled={busy}
+                        fullWidth
+                      />
                       <OptionChip label={t('dialog.adjust_image.edge_enhance')} checked={edgeEnhance} onChange={setEdgeEnhance} disabled={busy} fullWidth />
                     </div>
                     <div className={INSPECTOR_HELP_TEXT_CLASS}>
@@ -1011,8 +1021,22 @@ export function AdjustImageDialog({ objectId, onClose }: AdjustImageDialogProps)
                     ))}
                   </select>
                 </label>
-                <OptionChip label={t('dialog.adjust_image.negative_image')} checked={negative} onChange={setNegative} disabled={busy} fullWidth />
-                <div className={INSPECTOR_HELP_TEXT_CLASS}>
+                <OptionChip
+                  label={t('dialog.adjust_image.negative_image')}
+                  checked={negative}
+                  onChange={(checked) => {
+                    setNegative(checked);
+                    if (checked) setInvertAdjust(false);
+                  }}
+                  disabled={busy}
+                  fullWidth
+                />
+                <div
+                  data-testid={invertAdjust && negative ? 'double-invert-warning' : undefined}
+                  className={invertAdjust && negative
+                    ? 'rounded-md border border-bb-warning-border bg-bb-warning-bg px-2 py-1.5 text-xs text-bb-warning-fg'
+                    : INSPECTOR_HELP_TEXT_CLASS}
+                >
                   {t('dialog.adjust_image.negative_image_help', {
                     defaultValue: 'Negative Image inverts the layer output. If Invert above is also on, the two inversions can cancel.',
                   })}

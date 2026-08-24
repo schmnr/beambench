@@ -2609,6 +2609,7 @@
   },
   "errors": {
     "operation_failed_with_detail": "操作失敗：{detail}",
+    "raster_plan_too_complex": "此影像在目前尺寸和 DPI 下會產生過多的獨立點陣移動。請降低 DPI 或實體尺寸，或選擇碎片較少的影像模式，然後重新產生預覽。",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",

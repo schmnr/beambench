@@ -87,6 +87,10 @@ impl GrblSession {
         self.work_position_valid
     }
 
+    pub fn machine_position_valid(&self) -> bool {
+        self.machine_position_valid
+    }
+
     pub fn is_homing(&self) -> bool {
         self.homing_started_at.is_some()
     }

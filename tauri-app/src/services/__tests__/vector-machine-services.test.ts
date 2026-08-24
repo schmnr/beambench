@@ -252,6 +252,19 @@ describe('machineService methods', () => {
     expect(invoke).toHaveBeenCalledWith('get_machine_coordinates_valid');
   });
 
+  it('sends project canvas points to the backend placement mapper', async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+
+    await machineService.moveLaserToProjectPoint(12, 34, 1500);
+
+    expect(invoke).toHaveBeenCalledWith('move_laser_to_project_point', {
+      x: 12,
+      y: 34,
+      z: undefined,
+      feedRate: 1500,
+    });
+  });
+
   it('setGrblSetting preserves the full unsigned 16-bit identifier range', async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     for (const key of [0, 255, 256, 376, 65535]) {

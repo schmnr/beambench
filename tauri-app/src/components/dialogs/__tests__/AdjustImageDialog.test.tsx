@@ -126,6 +126,29 @@ describe('AdjustImageDialog', () => {
     expect((screen.getByTestId('adjust-sharpen') as HTMLInputElement).value).toBe('0.2');
   });
 
+  it('exposes legacy double inversion and prevents selecting both controls again', async () => {
+    render(<AdjustImageDialog objectId="img1" onClose={vi.fn()} />);
+
+    expect(screen.getByTestId('double-invert-warning')).toBeDefined();
+    const imageInvert = screen.getByRole('checkbox', { name: 'Invert' }) as HTMLInputElement;
+    const layerInvert = screen.getByRole('checkbox', { name: 'Negative Image' }) as HTMLInputElement;
+
+    fireEvent.click(imageInvert);
+    fireEvent.click(imageInvert);
+    expect(imageInvert.checked).toBe(true);
+    expect(layerInvert.checked).toBe(false);
+    expect(screen.queryByTestId('double-invert-warning')).toBeNull();
+
+    fireEvent.click(layerInvert);
+    expect(layerInvert.checked).toBe(true);
+    expect(imageInvert.checked).toBe(false);
+    await waitFor(() => {
+      expect(mockedImportService.adjustImagePreview).toHaveBeenLastCalledWith(
+        expect.objectContaining({ invert: false, negative: true }),
+      );
+    });
+  });
+
   it('Reset All clears hidden image adjustments before save', async () => {
     const onClose = vi.fn();
     render(<AdjustImageDialog objectId="img1" onClose={onClose} />);

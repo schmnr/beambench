@@ -75,7 +75,7 @@ use crate::optimize::{
     start_point,
 };
 use crate::plan::*;
-use crate::scanline::generate_scanlines;
+use crate::scanline::{MAX_IMAGE_RASTER_RUNS, generate_scanlines, generate_scanlines_checked};
 use crate::stats::{calculate_distance, calculate_duration, calculate_duration_with_calibration};
 use crate::validate::validate_bounds;
 
@@ -1892,59 +1892,64 @@ fn build_cardinal_raster_scanlines(
     needs_flip: bool,
     bidirectional: bool,
     overscan_mm: f64,
-) -> (Vec<Scanline>, f64, ScanAxis) {
+    max_runs: Option<usize>,
+) -> Result<(Vec<Scanline>, f64, ScanAxis), usize> {
     use beambench_raster::{rotate_raster, transpose_raster};
+
+    let build = |raster: &beambench_raster::ProcessedRaster, origin_x, origin_y| {
+        if let Some(limit) = max_runs {
+            generate_scanlines_checked(
+                raster,
+                origin_x,
+                origin_y,
+                bidirectional,
+                overscan_mm,
+                limit,
+            )
+        } else {
+            Ok(generate_scanlines(
+                raster,
+                origin_x,
+                origin_y,
+                bidirectional,
+                overscan_mm,
+            ))
+        }
+    };
 
     match (scan_axis, needs_flip) {
         // 0°: horizontal scan, no flip
         (ScanAxis::Horizontal, false) => {
-            let sl = generate_scanlines(
-                processed,
-                bounds.min.x,
-                bounds.min.y,
-                bidirectional,
-                overscan_mm,
-            );
-            (sl, processed.line_interval_mm, ScanAxis::Horizontal)
+            let sl = build(processed, bounds.min.x, bounds.min.y)?;
+            Ok((sl, processed.line_interval_mm, ScanAxis::Horizontal))
         }
         // 90°: vertical scan via transpose, no flip
         (ScanAxis::Vertical, false) => {
             let transposed = transpose_raster(processed);
-            let sl = generate_scanlines(
-                &transposed,
-                bounds.min.y,
-                bounds.min.x,
-                bidirectional,
-                overscan_mm,
-            );
-            (sl, transposed.line_interval_mm, ScanAxis::Vertical)
+            let sl = build(&transposed, bounds.min.y, bounds.min.x)?;
+            Ok((sl, transposed.line_interval_mm, ScanAxis::Vertical))
         }
         // 180°: horizontal scan, flipped (reverse scanline and run order)
         (ScanAxis::Horizontal, true) => {
             let rotated = rotate_raster(processed, 180.0, bounds.width(), bounds.height());
-            let sl = generate_scanlines(
-                &rotated.raster,
-                bounds.min.x,
-                bounds.min.y,
-                bidirectional,
-                overscan_mm,
-            );
-            (sl, rotated.raster.line_interval_mm, ScanAxis::Horizontal)
+            let sl = build(&rotated.raster, bounds.min.x, bounds.min.y)?;
+            Ok((sl, rotated.raster.line_interval_mm, ScanAxis::Horizontal))
         }
         // 270°: vertical scan via transpose of 180°-flipped raster
         (ScanAxis::Vertical, true) => {
             let rotated = rotate_raster(processed, 180.0, bounds.width(), bounds.height());
             let transposed = transpose_raster(&rotated.raster);
-            let sl = generate_scanlines(
-                &transposed,
-                bounds.min.y,
-                bounds.min.x,
-                bidirectional,
-                overscan_mm,
-            );
-            (sl, transposed.line_interval_mm, ScanAxis::Vertical)
+            let sl = build(&transposed, bounds.min.y, bounds.min.x)?;
+            Ok((sl, transposed.line_interval_mm, ScanAxis::Vertical))
         }
     }
+}
+
+fn raster_complexity_error(object_name: &str, observed_runs: usize) -> PlannerError {
+    PlannerError::InvalidSettings(format!(
+        "[raster_plan_too_complex] Image '{}' creates more than {} raster burn runs (at least {} were found). Reduce its DPI or physical size, or choose a less fragmented image mode before previewing.",
+        object_name, MAX_IMAGE_RASTER_RUNS, observed_runs
+    ))
 }
 
 /// Bake a raster object's affine transform into an axis-aligned world-space
@@ -2643,7 +2648,11 @@ fn build_plan_inner(
                                             needs_flip,
                                             bidirectional,
                                             overscan_mm,
-                                        );
+                                            Some(MAX_IMAGE_RASTER_RUNS),
+                                        )
+                                        .map_err(
+                                            |count| raster_complexity_error(&obj.name, count),
+                                        )?;
 
                                     all_segments.push(PlanSegment::Raster {
                                         scanlines,
@@ -2681,13 +2690,15 @@ fn build_plan_inner(
                                         raster_bounds.height(),
                                     );
 
-                                    let local_scanlines = generate_scanlines(
+                                    let local_scanlines = generate_scanlines_checked(
                                         &rotated.raster,
                                         -rotated.width_mm / 2.0,
                                         -rotated.height_mm / 2.0,
                                         bidirectional,
                                         overscan_mm,
-                                    );
+                                        MAX_IMAGE_RASTER_RUNS,
+                                    )
+                                    .map_err(|count| raster_complexity_error(&obj.name, count))?;
 
                                     all_segments.push(PlanSegment::Raster {
                                         scanlines: local_scanlines,
@@ -3163,7 +3174,9 @@ fn build_plan_inner(
                                         needs_flip,
                                         bidirectional,
                                         overscan_mm,
-                                    );
+                                        None,
+                                    )
+                                    .expect("unbounded fill raster generation cannot fail");
 
                                     if scanlines.is_empty() {
                                         continue;
@@ -3512,7 +3525,7 @@ fn build_plan_inner(
     // 6b. Anchor non-absolute jobs: translate so the job-origin anchor of
     //     the content lands exactly on the start-from target. This must run
     //     AFTER the workspace transform: the target (live head position /
-    //     stored user origin) is a machine-space work coordinate, and a
+    //     stored user origin) is a controller work coordinate, and a
     //     canvas-space rebase would be displaced by the Y flip.
     if project.start_from == StartFromMode::UserOrigin && project.user_origin.is_none() {
         warnings.push(PlanWarning {
@@ -3528,15 +3541,20 @@ fn build_plan_inner(
         // Skip offset entirely — do NOT fall back to (0,0)
     } else if project.start_from != StartFromMode::AbsoluteCoords {
         let y_flipped = project.workspace.origin != WorkspaceOrigin::TopLeft;
-        // Selection-only runs anchor on the selection's bounds (supplied in
-        // canvas space); otherwise anchor on the machine-space plan content.
-        let content_bounds = match input.job_origin_bounds_override {
-            Some(canvas_bounds) if y_flipped => {
-                flip_bounds_y(&canvas_bounds, project.workspace.bed_height_mm)
-            }
-            Some(canvas_bounds) => canvas_bounds,
-            None => calculate_plan_bounds(&all_segments),
-        };
+        // Frame and output must use the same object bounds for placement.
+        // Emitted raster runs may omit white or transparent margins, so their
+        // bounds are not a stable definition of the selected job origin.
+        let content_bounds = input
+            .job_origin_bounds_override
+            .or_else(|| calculate_job_origin_bounds(project))
+            .map(|canvas_bounds| {
+                if y_flipped {
+                    flip_bounds_y(&canvas_bounds, project.workspace.bed_height_mm)
+                } else {
+                    canvas_bounds
+                }
+            })
+            .unwrap_or_else(|| calculate_plan_bounds(&all_segments));
         // Guaranteed Some by the guards above for their respective modes.
         let target = match project.start_from {
             StartFromMode::CurrentPosition => runtime_current_position.unwrap_or((0.0, 0.0)),
@@ -3586,11 +3604,10 @@ fn build_plan_inner(
     let mut segments = travel::insert_travel_segments(all_segments);
 
     // 7. Validate bounds (after offsets have been applied, before finish travel).
-    // An unhomed controller's work-coordinate zero is arbitrary. For relative
-    // placement modes, validate the physical job size without pretending that
-    // those coordinates identify the bed edges. Absolute jobs and homed
-    // relative jobs retain strict edge validation.
-    if project.start_from != StartFromMode::AbsoluteCoords && !input.runtime.coordinates_trusted {
+    // Relative placement is expressed in controller work coordinates, whose
+    // zero may differ from machine zero even after homing. Validate its size
+    // here; the service translates it to machine coordinates for edge checks.
+    if project.start_from != StartFromMode::AbsoluteCoords {
         let work_bounds = calculate_work_bounds(&segments);
         if work_bounds.width() > project.workspace.bed_width_mm + 1e-6
             || work_bounds.height() > project.workspace.bed_height_mm + 1e-6
@@ -3796,7 +3813,10 @@ pub fn build_hull_frame_plan(
     }
 
     let travel = PlanSegment::Travel {
-        start: Point2D::zero(),
+        // The controller's live position is not known in the planner. Keep
+        // this metadata inside the frame bounds; emitters use `end` for the
+        // laser-off move to the first corner.
+        start,
         end: start,
     };
     let frame = PlanSegment::Frame {
@@ -3840,7 +3860,10 @@ pub fn build_frame_plan(bounds: &Bounds, power_percent: f64, speed_mm_min: f64) 
     ];
 
     let travel = PlanSegment::Travel {
-        start: Point2D::zero(),
+        // The controller's live position is not known in the planner. Keep
+        // this metadata inside the frame bounds; emitters use `end` for the
+        // laser-off move to the first corner.
+        start,
         end: start,
     };
     let frame = PlanSegment::Frame {
@@ -3889,6 +3912,43 @@ fn get_last_point(segments: &[PlanSegment]) -> Option<Point2D> {
 /// Calculate bounding box for all segments.
 pub fn calculate_plan_bounds(segments: &[PlanSegment]) -> Bounds {
     calculate_bounds(segments, true)
+}
+
+/// Canvas-space bounds used to place a whole-project job origin.
+///
+/// This deliberately follows output eligibility rather than emitted burn
+/// pixels. A raster's white or transparent margins must not move its selected
+/// center between framing and engraving.
+pub fn calculate_job_origin_bounds(project: &Project) -> Option<Bounds> {
+    project
+        .objects
+        .iter()
+        .filter(|object| object_contributes_to_job(project, object))
+        .map(|object| object.bounds)
+        .reduce(|bounds, object_bounds| bounds.union(&object_bounds))
+}
+
+/// Whether an object's bounds belong to a whole-project frame and job origin.
+pub fn object_contributes_to_job(project: &Project, object: &ProjectObject) -> bool {
+    if !object.visible {
+        return false;
+    }
+    let Some(layer) = project.find_layer(object.layer_id) else {
+        return false;
+    };
+    if !layer.enabled
+        || layer.is_tool_layer
+        || layer.primary_entry().operation == OperationType::Tool
+        || !layer.entries.iter().any(|entry| entry.output_enabled)
+    {
+        return false;
+    }
+    !matches!(object.data, ObjectData::Group { .. })
+        && !matches!(
+            &object.data,
+            ObjectData::VectorPath { path_data, .. }
+                if !vector_path_has_drawable_geometry(path_data)
+        )
 }
 
 /// Calculate burn/work bounds without including connector travel metadata.
@@ -4641,6 +4701,17 @@ mod tests {
             image::ExtendedColorType::L8,
         )
         .unwrap();
+        buf
+    }
+
+    fn create_sparse_test_png() -> Vec<u8> {
+        use image::{GrayImage, Luma};
+        let mut img = GrayImage::from_pixel(4, 4, Luma([255]));
+        img.put_pixel(0, 0, Luma([0]));
+        let mut buf = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(&mut buf);
+        image::ImageEncoder::write_image(encoder, img.as_raw(), 4, 4, image::ExtendedColorType::L8)
+            .unwrap();
         buf
     }
 
@@ -5768,10 +5839,11 @@ mod tests {
         let plan = build_frame_plan(&bounds, 1.0, 3000.0);
 
         assert_eq!(plan.segments.len(), 2);
-        // First segment is travel from origin
+        // First segment is a laser-off move to the first corner. Its start is
+        // metadata only, so keep it inside the frame bounds.
         match &plan.segments[0] {
             PlanSegment::Travel { start, end } => {
-                assert_eq!(*start, Point2D::zero());
+                assert_eq!(*start, Point2D::new(10.0, 20.0));
                 assert_eq!(*end, Point2D::new(10.0, 20.0));
             }
             _ => panic!("Expected Travel segment first"),
@@ -6538,15 +6610,59 @@ mod tests {
     }
 
     #[test]
-    fn untrusted_current_position_validates_size_without_assuming_bed_edges() {
+    fn current_position_uses_object_bounds_when_raster_burn_pixels_are_off_center() {
+        let mut project = create_test_project();
+        let layer = Layer::new("Sparse image", OperationType::Image);
+        let layer_id = layer.id;
+        project.layers.push(layer);
+        let png_bytes = create_sparse_test_png();
+        let asset = Asset::new(
+            "sparse.png",
+            AssetMediaType::Png,
+            png_bytes.len() as u64,
+            Some(4),
+            Some(4),
+        );
+        let asset_id = asset.id;
+        project.add_asset(asset, png_bytes);
+        let object_bounds = Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(104.0, 104.0));
+        project.objects.push(ProjectObject::new(
+            "Sparse image",
+            layer_id,
+            object_bounds,
+            ObjectData::RasterImage {
+                asset_key: asset_id.to_string(),
+                original_width_px: 4,
+                original_height_px: 4,
+                adjustments: None,
+                masks: Vec::new(),
+            },
+        ));
+
+        let absolute_plan = build_plan(&project).unwrap();
+        let absolute_bounds = calculate_work_bounds(&absolute_plan.segments);
+        project.start_from = beambench_common::StartFromMode::CurrentPosition;
+        project.job_origin = beambench_common::AnchorPoint::Center;
+        let target = (150.0, 140.0);
+        let relative_plan =
+            build_plan_with_input(&project, &input_with_position(target.0, target.1)).unwrap();
+        let relative_bounds = calculate_work_bounds(&relative_plan.segments);
+
+        let expected_dx = target.0 - (object_bounds.min.x + object_bounds.max.x) * 0.5;
+        let expected_dy = target.1 - (object_bounds.min.y + object_bounds.max.y) * 0.5;
+        assert!((relative_bounds.min.x - absolute_bounds.min.x - expected_dx).abs() < 0.01);
+        assert!((relative_bounds.min.y - absolute_bounds.min.y - expected_dy).abs() < 0.01);
+    }
+
+    #[test]
+    fn relative_current_position_validates_size_without_assuming_work_zero_is_bed_edge() {
         let mut project = anchoring_test_project(Bounds::new(
             Point2D::new(100.0, 100.0),
             Point2D::new(200.0, 200.0),
         ));
         project.start_from = beambench_common::StartFromMode::CurrentPosition;
         project.job_origin = beambench_common::AnchorPoint::Center;
-        let mut input = input_with_position(0.0, 0.0);
-        input.runtime.coordinates_trusted = false;
+        let input = input_with_position(0.0, 0.0);
 
         let plan = build_plan_with_input(&project, &input).unwrap();
         let (min_x, min_y, max_x, max_y) = vector_bbox(&plan);
@@ -7128,7 +7244,9 @@ mod tests {
             false,
             true,
             2.0,
-        );
+            None,
+        )
+        .unwrap();
 
         assert_eq!(axis, ScanAxis::Horizontal);
         assert!(li > 0.0);
@@ -7154,7 +7272,9 @@ mod tests {
             false,
             true,
             2.0,
-        );
+            None,
+        )
+        .unwrap();
 
         assert_eq!(axis, ScanAxis::Vertical);
         assert!(li > 0.0);
@@ -7249,7 +7369,9 @@ mod tests {
             false,
             true,
             0.0,
-        );
+            None,
+        )
+        .unwrap();
         let (scanlines_180, _, _) = build_cardinal_raster_scanlines(
             &processed,
             &bounds,
@@ -7257,7 +7379,9 @@ mod tests {
             true,
             true,
             0.0,
-        );
+            None,
+        )
+        .unwrap();
 
         // 180° should produce different scanline content (flipped)
         assert_eq!(scanlines_0.len(), scanlines_180.len());
@@ -7297,7 +7421,9 @@ mod tests {
             true,
             true,
             2.0,
-        );
+            None,
+        )
+        .unwrap();
 
         assert_eq!(axis, ScanAxis::Vertical);
         assert!(li > 0.0);

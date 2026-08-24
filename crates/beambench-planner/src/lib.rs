@@ -16,8 +16,8 @@ pub mod validate;
 pub use beambench_core::layer::OperationType;
 pub use builder::{
     build_frame_plan, build_hull_frame_plan, build_plan, build_plan_with_input,
-    build_plan_with_input_and_cache, calculate_plan_bounds, calculate_work_bounds,
-    offset_fill_boolean_tolerances_mm,
+    build_plan_with_input_and_cache, calculate_job_origin_bounds, calculate_plan_bounds,
+    calculate_work_bounds, object_contributes_to_job, offset_fill_boolean_tolerances_mm,
 };
 pub use error::{BoundsAxis, BoundsBoundary, BoundsViolation, PlannerError};
 pub use extensions::{

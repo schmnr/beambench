@@ -3,6 +3,37 @@
 use crate::plan::{ScanDirection, ScanRun, Scanline};
 use beambench_raster::types::{ProcessedRaster, RasterPixelFormat};
 
+/// Upper bound for the number of independently emitted burn islands in one
+/// image plan. Jobs beyond this point generate impractically large command
+/// streams and previously exhausted memory while building their preview.
+pub const MAX_IMAGE_RASTER_RUNS: usize = 1_000_000;
+
+/// Generate scanlines while bounding the number of allocated run records.
+///
+/// The returned count is the first observed total above `max_runs`; callers
+/// can turn it into a user-facing resolution/size error without risking an
+/// out-of-memory process termination.
+pub fn generate_scanlines_checked(
+    raster: &ProcessedRaster,
+    origin_x_mm: f64,
+    origin_y_mm: f64,
+    bidirectional: bool,
+    overscan_mm: f64,
+    max_runs: usize,
+) -> Result<Vec<Scanline>, usize> {
+    let run_count = count_runs_up_to(raster, max_runs);
+    if run_count > max_runs {
+        return Err(run_count);
+    }
+    Ok(generate_scanlines(
+        raster,
+        origin_x_mm,
+        origin_y_mm,
+        bidirectional,
+        overscan_mm,
+    ))
+}
+
 /// Generate scanlines from a processed raster.
 ///
 /// # Arguments
@@ -58,6 +89,36 @@ pub fn generate_scanlines(
     }
 
     scanlines
+}
+
+fn count_runs_up_to(raster: &ProcessedRaster, limit: usize) -> usize {
+    let width = raster.width_px as usize;
+    let binary_row_stride = width.div_ceil(8);
+    let mut total = 0usize;
+    for y in 0..raster.height_px as usize {
+        let mut in_run = false;
+        for x in 0..width {
+            let is_burn = match raster.format {
+                RasterPixelFormat::Binary => {
+                    let byte_index = y * binary_row_stride + x / 8;
+                    byte_index < raster.data.len()
+                        && (raster.data[byte_index] & (1 << (7 - x % 8))) == 0
+                }
+                RasterPixelFormat::Grayscale8 => {
+                    let index = y * width + x;
+                    index < raster.data.len() && raster.data[index] < 255
+                }
+            };
+            if is_burn && !in_run {
+                total = total.saturating_add(1);
+                if total > limit {
+                    return total;
+                }
+            }
+            in_run = is_burn;
+        }
+    }
+    total
 }
 
 /// Find runs of burn pixels in a binary format raster row.
@@ -411,5 +472,22 @@ mod tests {
         assert_eq!(scanlines.len(), 2);
         // In RTL, the first run in the list should be the rightmost run
         assert_eq!(scanlines[1].direction, ScanDirection::RightToLeft);
+    }
+
+    #[test]
+    fn checked_generation_stops_before_allocating_an_excessive_plan() {
+        let raster = ProcessedRaster {
+            width_px: 8,
+            height_px: 2,
+            line_interval_mm: 0.1,
+            x_pixel_mm: 0.1,
+            format: RasterPixelFormat::Binary,
+            // 10101010: four isolated burn pixels per row (zero bits burn).
+            data: vec![0xAA, 0xAA],
+        };
+
+        let result = generate_scanlines_checked(&raster, 0.0, 0.0, true, 0.0, 5);
+
+        assert_eq!(result, Err(6));
     }
 }
