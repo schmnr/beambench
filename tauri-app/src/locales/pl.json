@@ -404,7 +404,9 @@
         "frame_completed": "Rama ukończona dokładnie dla tego projektu i miejsca docelowego",
         "frame_required": "Ten kontroler nie jest ustawiony, więc Beam Bench nie może zweryfikować fizycznych krawędzi łóżka. Wykadruj zadanie po ustawieniu lasera i sprawdź ponownie przed rozpoczęciem.",
         "segment_count_one": "1 segment",
-        "segment_count_other": "Liczba segmentów: {count}"
+        "segment_count_other": "Liczba segmentów: {count}",
+        "plan_bounds_exceed": "Planowane granice ({minX}, {minY} do {maxX}, {maxY}) wykraczają poza stół maszyny o wymiarach {width} × {height} mm.",
+        "raster_motion_exceeds": "Ruch rastrowy obejmuje od {lo} do {hi} mm na osi {axis}, której zakres wynosi od 0 do {limit} mm. Naddatek skanowania i przesunięcie skanowania dodają {margin} mm poza obszarem grawerowania. {startFrom, select, current_position {Zmniejsz naddatek skanowania lub odsuń laser od krawędzi stołu.} user_origin {Zmniejsz naddatek skanowania lub przesuń albo ustaw ponownie Początek użytkownika dalej od krawędzi stołu.} other {Zmniejsz naddatek skanowania lub odsuń projekt od krawędzi stołu.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "górną",
     "workspace_edge_bottom": "dolną",
     "artwork_outside_workspace": "{hasObject, select, yes {„{object}” wystaje o {amount} {unit} poza {edge} krawędź obszaru roboczego. Obiekt został zaznaczony. Przesuń go do obszaru roboczego przed wyświetleniem podglądu lub uruchomieniem zadania.} other {Część projektu wystaje o {amount} {unit} poza {edge} krawędź obszaru roboczego. Przesuń ją do obszaru roboczego przed wyświetleniem podglądu lub uruchomieniem zadania.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Bieżąca pozycja umieszcza początek zadania {anchor} przy głowicy lasera. To położenie wystaje o {amount} {unit} poza {edge} krawędź. Przesuń laser co najmniej {amount} {unit} od {edge} krawędzi, wybierz inny początek zadania lub użyj współrzędnych bezwzględnych.} user_origin {Początek użytkownika umieszcza początek zadania {anchor} w zapisanym początku użytkownika. To położenie wystaje o {amount} {unit} poza {edge} krawędź. Przesuń lub ustaw ponownie początek użytkownika co najmniej {amount} {unit} od {edge} krawędzi, wybierz inny początek zadania lub użyj współrzędnych bezwzględnych.} other {Planowana pozycja zadania wystaje o {amount} {unit} poza {edge} krawędź. Popraw położenie przed podglądem lub uruchomieniem zadania.}}",
     "ui_error_title": "W Beam Bench wystąpił błąd interfejsu",
     "reload": "Załaduj ponownie",
     "user_origin_not_set": "Wybrano pochodzenie użytkownika, ale nie ustawiono. Przesuń laser do zamierzonego punktu początkowego i wybierz opcję Ustaw tutaj przed kadrowaniem lub rozpoczęciem.",

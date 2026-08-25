@@ -404,7 +404,9 @@
         "frame_completed": "Cadrage terminé pour ce projet et ce placement précis",
         "frame_required": "Cette machine n’est pas référencée. Beam Bench ne peut donc pas vérifier les bords physiques. Cadrez le travail après avoir positionné le laser, puis relancez la vérification.",
         "segment_count_one": "1 segment",
-        "segment_count_other": "{count} segments"
+        "segment_count_other": "{count} segments",
+        "plan_bounds_exceed": "Les limites prévues ({minX}, {minY} à {maxX}, {maxY}) dépassent la zone de travail de la machine de {width} × {height} mm.",
+        "raster_motion_exceeds": "Le mouvement de gravure s’étend de {lo} à {hi} mm sur l’axe {axis}, dont la plage va de 0 à {limit} mm. Le surbalayage et le décalage de numérisation ajoutent {margin} mm au-delà de la zone gravée. {startFrom, select, current_position {Réduisez le surbalayage ou éloignez le laser du bord de la zone de travail.} user_origin {Réduisez le surbalayage ou déplacez ou redéfinissez l’origine utilisateur plus loin du bord de la zone de travail.} other {Réduisez le surbalayage ou éloignez le dessin du bord de la zone de travail.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2622,6 +2624,7 @@
     "workspace_edge_top": "supérieur",
     "workspace_edge_bottom": "inférieur",
     "artwork_outside_workspace": "{hasObject, select, yes {La position prévue de « {object} » dépasse de {amount} {unit} le bord {edge} de la zone de travail. L’objet a été sélectionné. Ajustez le placement du travail ou déplacez l’objet dans la zone de travail avant de prévisualiser ou de lancer le travail.} other {La position prévue du travail dépasse de {amount} {unit} le bord {edge} de la zone de travail. Ajustez le placement du travail avant de prévisualiser ou de lancer le travail.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Position actuelle place l’origine du travail {anchor} sur la tête laser. Ce placement dépasse de {amount} {unit} le bord {edge}. Éloignez le laser d’au moins {amount} {unit} du bord {edge}, choisissez une autre origine du travail ou utilisez Coordonnées absolues.} user_origin {Origine utilisateur place l’origine du travail {anchor} sur l’origine utilisateur enregistrée. Ce placement dépasse de {amount} {unit} le bord {edge}. Déplacez ou redéfinissez l’origine utilisateur à au moins {amount} {unit} du bord {edge}, choisissez une autre origine du travail ou utilisez Coordonnées absolues.} other {La position prévue du travail dépasse de {amount} {unit} le bord {edge}. Ajustez le placement du travail avant de prévisualiser ou de lancer le travail.}}",
     "ui_error_title": "Beam Bench a rencontré une erreur d'interface",
     "reload": "Recharger"
   },

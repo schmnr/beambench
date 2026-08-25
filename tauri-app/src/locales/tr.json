@@ -404,7 +404,9 @@
         "frame_completed": "Tam olarak bu proje ve yerleştirme için çerçeve tamamlandı",
         "frame_required": "Bu denetleyici homlu olmadığından Beam Bench fiziksel yatak kenarlarını doğrulayamaz. Lazeri konumlandırdıktan sonra işi çerçeveleyin ve başlamadan önce yeniden kontrol edin.",
         "segment_count_one": "1 bölüm",
-        "segment_count_other": "{count} segment"
+        "segment_count_other": "{count} segment",
+        "plan_bounds_exceed": "Planlanan sınırlar ({minX}, {minY} ile {maxX}, {maxY}) {width} × {height} mm makine yatağını aşıyor.",
+        "raster_motion_exceeds": "Raster hareketi, 0 ile {limit} mm aralığındaki {axis} ekseninde {lo} ile {hi} mm arasında uzanıyor. Fazla tarama ve tarama ofseti, kazıma alanının dışına {margin} mm ekliyor. {startFrom, select, current_position {Fazla taramayı azaltın veya lazeri yatak kenarından uzaklaştırın.} user_origin {Fazla taramayı azaltın veya Kullanıcı Başlangıcını yatak kenarından daha uzağa taşıyın ya da yeniden ayarlayın.} other {Fazla taramayı azaltın veya tasarımı yatak kenarından uzaklaştırın.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "üst",
     "workspace_edge_bottom": "alt",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}” çalışma alanının {edge} kenarından {amount} {unit} taşıyor. Nesne seçildi. Önizleme yapmadan veya işi çalıştırmadan önce nesneyi çalışma alanının içine taşıyın.} other {Tasarımınızın bir bölümü çalışma alanının {edge} kenarından {amount} {unit} taşıyor. Önizleme yapmadan veya işi çalıştırmadan önce bu bölümü çalışma alanının içine taşıyın.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Geçerli Konum, {anchor} iş başlangıcını lazer kafasına yerleştirir. Bu yerleşim {edge} kenarını {amount} {unit} aşıyor. Lazeri {edge} kenarından en az {amount} {unit} uzaklaştırın, başka bir iş başlangıcı seçin veya Mutlak Koordinatları kullanın.} user_origin {Kullanıcı Başlangıcı, {anchor} iş başlangıcını kaydedilmiş kullanıcı başlangıcına yerleştirir. Bu yerleşim {edge} kenarını {amount} {unit} aşıyor. Kullanıcı başlangıcını {edge} kenarından en az {amount} {unit} uzağa taşıyın veya yeniden ayarlayın, başka bir iş başlangıcı seçin ya da Mutlak Koordinatları kullanın.} other {Planlanan iş konumu {edge} kenarını {amount} {unit} aşıyor. Önizleme veya çalıştırmadan önce yerleşimi düzeltin.}}",
     "ui_error_title": "Beam Bench bir arayüz hatasıyla karşılaştı",
     "reload": "Yeniden yükle",
     "user_origin_not_set": "Kullanıcı Kaynağı seçili ancak ayarlanmadı. Lazeri istenilen başlangıç ​​noktasına taşıyın ve çerçevelemeden veya başlamadan önce Buraya ayarla seçeneğini seçin.",

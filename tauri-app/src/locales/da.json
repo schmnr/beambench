@@ -404,7 +404,9 @@
         "frame_completed": "Ramme færdiggjort til netop dette projekt og placering",
         "frame_required": "Denne controller er ikke hjemmebaseret, så Beam Bench kan ikke verificere de fysiske sengekanter. Indram jobbet efter placering af laseren, og kontroller derefter igen, før du starter.",
         "segment_count_one": "1 segment",
-        "segment_count_other": "{count} segmenter"
+        "segment_count_other": "{count} segmenter",
+        "plan_bounds_exceed": "De planlagte grænser ({minX}, {minY} til {maxX}, {maxY}) overskrider maskinens arbejdsområde på {width} × {height} mm.",
+        "raster_motion_exceeds": "Rasterbevægelsen går fra {lo} til {hi} mm på {axis}-aksen, hvis område er 0 til {limit} mm. Overscanning og scanningsforskydning tilføjer {margin} mm uden for graveringsområdet. {startFrom, select, current_position {Reducer overscanning, eller flyt laseren længere fra kanten.} user_origin {Reducer overscanning, eller flyt eller nulstil Brugeroprindelse længere fra kanten.} other {Reducer overscanning, eller flyt motivet længere fra kanten.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "øverste",
     "workspace_edge_bottom": "nederste",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}” strækker sig {amount} {unit} ud over arbejdsområdets {edge} kant. Objektet er valgt. Flyt det ind på arbejdsområdet, før du forhåndsviser eller kører jobbet.} other {En del af motivet strækker sig {amount} {unit} ud over arbejdsområdets {edge} kant. Flyt den ind på arbejdsområdet, før du forhåndsviser eller kører jobbet.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Aktuel position placerer joboprindelsen {anchor} ved laserhovedet. Placeringen går {amount} {unit} ud over den {edge} kant. Flyt laseren mindst {amount} {unit} væk fra den {edge} kant, vælg en anden joboprindelse, eller brug absolutte koordinater.} user_origin {Brugeroprindelse placerer joboprindelsen {anchor} ved den gemte brugeroprindelse. Placeringen går {amount} {unit} ud over den {edge} kant. Flyt eller nulstil brugeroprindelsen mindst {amount} {unit} fra den {edge} kant, vælg en anden joboprindelse, eller brug absolutte koordinater.} other {Den planlagte jobposition går {amount} {unit} ud over den {edge} kant. Juster placeringen før forhåndsvisning eller kørsel.}}",
     "ui_error_title": "Beam Bench stødte på en UI-fejl",
     "reload": "Genindlæs",
     "user_origin_not_set": "Brugeroprindelse er valgt, men er ikke blevet indstillet. Flyt laseren til den tilsigtede oprindelse, og vælg Indstil her før indramning eller start.",

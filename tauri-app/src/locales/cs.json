@@ -404,7 +404,9 @@
         "frame_completed": "Rám dokončen pro tento přesný projekt a umístění",
         "frame_required": "Tento ovladač není umístěn, takže Beam Bench nemůže ověřit fyzické okraje postele. Po umístění laseru zarámujte úlohu a před zahájením znovu zkontrolujte.",
         "segment_count_one": "1 segment",
-        "segment_count_other": "{count} segmentů"
+        "segment_count_other": "{count} segmentů",
+        "plan_bounds_exceed": "Plánované hranice ({minX}, {minY} až {maxX}, {maxY}) přesahují pracovní plochu stroje {width} × {height} mm.",
+        "raster_motion_exceeds": "Rastrový pohyb sahá od {lo} do {hi} mm na ose {axis}, jejíž rozsah je 0 až {limit} mm. Přeskenování a posun skenování přidávají {margin} mm mimo gravírovanou oblast. {startFrom, select, current_position {Snižte přeskenování nebo posuňte laser dál od okraje plochy.} user_origin {Snižte přeskenování nebo posuňte či znovu nastavte Uživatelský počátek dál od okraje plochy.} other {Snižte přeskenování nebo posuňte návrh dál od okraje plochy.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "horní",
     "workspace_edge_bottom": "dolní",
     "artwork_outside_workspace": "{hasObject, select, yes {„{object}“ přesahuje o {amount} {unit} přes {edge} okraj pracovní plochy. Objekt byl vybrán. Před náhledem nebo spuštěním úlohy jej přesuňte dovnitř pracovní plochy.} other {Část návrhu přesahuje o {amount} {unit} přes {edge} okraj pracovní plochy. Před náhledem nebo spuštěním úlohy ji přesuňte dovnitř pracovní plochy.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Aktuální poloha umístí počátek úlohy {anchor} na hlavu laseru. Toto umístění přesahuje o {amount} {unit} přes {edge} okraj. Posuňte laser alespoň o {amount} {unit} od {edge} okraje, zvolte jiný počátek úlohy nebo použijte absolutní souřadnice.} user_origin {Uživatelský počátek umístí počátek úlohy {anchor} na uložený uživatelský počátek. Toto umístění přesahuje o {amount} {unit} přes {edge} okraj. Posuňte nebo znovu nastavte uživatelský počátek alespoň {amount} {unit} od {edge} okraje, zvolte jiný počátek úlohy nebo použijte absolutní souřadnice.} other {Plánovaná poloha úlohy přesahuje o {amount} {unit} přes {edge} okraj. Před náhledem nebo spuštěním upravte umístění.}}",
     "ui_error_title": "V Beam Bench došlo k chybě uživatelského rozhraní",
     "reload": "Načíst znovu",
     "user_origin_not_set": "Uživatelský původ je vybrán, ale nebyl nastaven. Přesuňte laser na zamýšlený počátek a před rámováním nebo zahájením vyberte možnost Nastavit zde.",

@@ -533,7 +533,9 @@
         "frame_completed": "Frame completed for this exact project and placement",
         "frame_required": "This controller is not homed, so Beam Bench cannot verify the physical bed edges. Frame the job after positioning the laser, then recheck before starting.",
         "segment_count_one": "1 segment",
-        "segment_count_other": "{count} segments"
+        "segment_count_other": "{count} segments",
+        "plan_bounds_exceed": "The planned bounds ({minX}, {minY} to {maxX}, {maxY}) exceed the {width} × {height} mm machine bed.",
+        "raster_motion_exceeds": "Raster motion spans {lo} to {hi} mm on the 0 to {limit} mm {axis} axis. Overscan and scanning offset add {margin} mm beyond the burn area. {startFrom, select, current_position {Reduce overscan or move the laser farther from the bed edge.} user_origin {Reduce overscan or move or reset User Origin farther from the bed edge.} other {Reduce overscan or move the artwork farther from the bed edge.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2622,6 +2624,7 @@
     "workspace_edge_top": "top",
     "workspace_edge_bottom": "bottom",
     "artwork_outside_workspace": "{hasObject, select, yes {The planned position of “{object}” extends {amount} {unit} beyond the {edge} edge of the workspace. It has been selected. Adjust the job placement or move the object inside the workspace before previewing or running the job.} other {The planned job position extends {amount} {unit} beyond the {edge} edge of the workspace. Adjust the job placement before previewing or running the job.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Current Position places the {anchor} Job Origin at the laser head. This placement extends {amount} {unit} beyond the {edge} edge. Move the laser at least {amount} {unit} away from the {edge} edge, choose another Job Origin, or use Absolute Coordinates.} user_origin {User Origin places the {anchor} Job Origin at the saved user origin. This placement extends {amount} {unit} beyond the {edge} edge. Move or reset User Origin at least {amount} {unit} away from the {edge} edge, choose another Job Origin, or use Absolute Coordinates.} other {The planned job position extends {amount} {unit} beyond the {edge} edge. Adjust the job placement before previewing or running the job.}}",
     "ui_error_title": "Beam Bench hit a UI error",
     "reload": "Reload"
   },

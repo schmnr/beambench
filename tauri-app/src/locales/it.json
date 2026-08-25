@@ -404,7 +404,9 @@
         "frame_completed": "Telaio completato per questo esatto progetto e posizionamento",
         "frame_required": "Questo controller non è in home, quindi Beam Bench non può verificare i bordi fisici del letto. Inquadrare il lavoro dopo aver posizionato il laser, quindi ricontrollare prima di iniziare.",
         "segment_count_one": "1 segmento",
-        "segment_count_other": "{count} segmenti"
+        "segment_count_other": "{count} segmenti",
+        "plan_bounds_exceed": "I limiti previsti ({minX}, {minY} a {maxX}, {maxY}) superano il piano macchina di {width} × {height} mm.",
+        "raster_motion_exceeds": "Il movimento raster va da {lo} a {hi} mm sull’asse {axis}, il cui intervallo è da 0 a {limit} mm. L’overscan e l’offset di scansione aggiungono {margin} mm oltre l’area incisa. {startFrom, select, current_position {Riduci l’overscan o allontana il laser dal bordo del piano.} user_origin {Riduci l’overscan oppure sposta o reimposta l’Origine utente più lontano dal bordo del piano.} other {Riduci l’overscan o allontana il disegno dal bordo del piano.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "superiore",
     "workspace_edge_bottom": "inferiore",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}” supera di {amount} {unit} il bordo {edge} dell’area di lavoro. L’oggetto è stato selezionato. Spostalo all’interno dell’area di lavoro prima di visualizzare l’anteprima o avviare il lavoro.} other {Una parte del disegno supera di {amount} {unit} il bordo {edge} dell’area di lavoro. Spostala all’interno dell’area di lavoro prima di visualizzare l’anteprima o avviare il lavoro.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Posizione corrente colloca l’origine lavoro {anchor} sulla testa laser. Questa posizione supera di {amount} {unit} il bordo {edge}. Allontana il laser di almeno {amount} {unit} dal bordo {edge}, scegli un’altra origine lavoro o usa Coordinate assolute.} user_origin {Origine utente colloca l’origine lavoro {anchor} sull’origine utente salvata. Questa posizione supera di {amount} {unit} il bordo {edge}. Sposta o reimposta l’origine utente ad almeno {amount} {unit} dal bordo {edge}, scegli un’altra origine lavoro o usa Coordinate assolute.} other {La posizione prevista del lavoro supera di {amount} {unit} il bordo {edge}. Regola la posizione prima dell’anteprima o dell’esecuzione.}}",
     "ui_error_title": "Beam Bench ha riscontrato un errore dell'interfaccia",
     "reload": "Ricarica",
     "user_origin_not_set": "L'origine utente è selezionata ma non è stata impostata. Spostare il laser sull'origine prevista e scegliere Imposta qui prima di inquadrare o iniziare.",

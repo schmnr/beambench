@@ -404,7 +404,9 @@
         "frame_completed": "Marco completado para este proyecto y ubicación exactos.",
         "frame_required": "Este controlador no está referenciado, por lo que Beam Bench no puede verificar los bordes físicos de la cama. Encuadre el trabajo después de colocar el láser y luego vuelva a verificar antes de comenzar.",
         "segment_count_one": "1 segmento",
-        "segment_count_other": "{count} segmentos"
+        "segment_count_other": "{count} segmentos",
+        "plan_bounds_exceed": "Los límites previstos ({minX}, {minY} a {maxX}, {maxY}) superan la cama de la máquina de {width} × {height} mm.",
+        "raster_motion_exceeds": "El movimiento de grabado abarca de {lo} a {hi} mm en el eje {axis}, cuyo intervalo es de 0 a {limit} mm. El sobreescaneo y el desplazamiento de escaneo añaden {margin} mm fuera del área grabada. {startFrom, select, current_position {Reduce el sobreescaneo o aleja el láser del borde de la cama.} user_origin {Reduce el sobreescaneo o mueve o redefine el Origen del usuario más lejos del borde de la cama.} other {Reduce el sobreescaneo o aleja el diseño del borde de la cama.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "superior",
     "workspace_edge_bottom": "inferior",
     "artwork_outside_workspace": "{hasObject, select, yes {«{object}» sobresale {amount} {unit} del borde {edge} del área de trabajo. El objeto se ha seleccionado. Muévelo dentro del área de trabajo antes de previsualizar o ejecutar el trabajo.} other {Parte del diseño sobresale {amount} {unit} del borde {edge} del área de trabajo. Muévela dentro del área de trabajo antes de previsualizar o ejecutar el trabajo.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Posición actual coloca el origen del trabajo {anchor} en el cabezal láser. Esta posición sobresale {amount} {unit} del borde {edge}. Aleja el láser al menos {amount} {unit} del borde {edge}, elige otro origen del trabajo o usa Coordenadas absolutas.} user_origin {Origen del usuario coloca el origen del trabajo {anchor} en el origen del usuario guardado. Esta posición sobresale {amount} {unit} del borde {edge}. Mueve o vuelve a definir el origen del usuario al menos {amount} {unit} lejos del borde {edge}, elige otro origen del trabajo o usa Coordenadas absolutas.} other {La posición prevista del trabajo sobresale {amount} {unit} del borde {edge}. Ajusta la posición antes de previsualizar o ejecutar el trabajo.}}",
     "ui_error_title": "Beam Bench tuvo un error de interfaz",
     "reload": "Recargar",
     "user_origin_not_set": "El origen del usuario está seleccionado pero no se ha configurado. Mueva el láser al origen deseado y elija Establecer aquí antes de encuadrar o comenzar.",

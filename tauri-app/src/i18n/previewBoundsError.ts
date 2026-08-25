@@ -122,6 +122,21 @@ export function formatWorkspaceBoundsError(
   const amount = new Intl.NumberFormat(i18n.resolvedLanguage ?? i18n.language, {
     maximumFractionDigits: displayUnit === 'inches' ? 4 : 2,
   }).format(displayAmount);
+  const startFrom = project?.start_from ?? 'absolute_coords';
+
+  if (startFrom !== 'absolute_coords') {
+    const anchor = i18n.t(`panels.machine.laser.anchor.${project?.job_origin ?? 'top_left'}`);
+    return {
+      message: i18n.t('errors.relative_job_outside_workspace', {
+        mode: startFrom,
+        anchor,
+        amount,
+        unit: lengthUnitLabel(displayUnit),
+        edge,
+      }),
+      sourceObjectId: null,
+    };
+  }
 
   return {
     message: i18n.t('errors.artwork_outside_workspace', {

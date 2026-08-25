@@ -18,15 +18,27 @@ impl BufferLayer {
     }
 }
 
-/// Visitor that extracts the `message` field from a tracing event.
+/// Visitor that retains the message and structured fields from a tracing event.
 struct MessageVisitor {
     message: String,
+    fields: Vec<String>,
 }
 
 impl MessageVisitor {
     fn new() -> Self {
         Self {
             message: String::new(),
+            fields: Vec::new(),
+        }
+    }
+
+    fn line(self) -> String {
+        if self.fields.is_empty() {
+            self.message
+        } else if self.message.is_empty() {
+            self.fields.join(" ")
+        } else {
+            format!("{} {}", self.message, self.fields.join(" "))
         }
     }
 }
@@ -35,12 +47,16 @@ impl Visit for MessageVisitor {
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
         if field.name() == "message" {
             self.message = format!("{:?}", value);
+        } else {
+            self.fields.push(format!("{}={value:?}", field.name()));
         }
     }
 
     fn record_str(&mut self, field: &Field, value: &str) {
         if field.name() == "message" {
             self.message = value.to_string();
+        } else {
+            self.fields.push(format!("{}={value}", field.name()));
         }
     }
 }
@@ -58,7 +74,7 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for BufferLayer {
         let mut visitor = MessageVisitor::new();
         event.record(&mut visitor);
 
-        let line = format!("{level} {target}: {}", visitor.message);
+        let line = format!("{level} {target}: {}", visitor.line());
 
         self.ctx.push_log(line.clone());
 

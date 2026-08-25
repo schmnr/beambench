@@ -404,7 +404,9 @@
         "frame_completed": "Kehys valmis juuri tätä projektia ja sijoitusta varten",
         "frame_required": "Tätä ohjainta ei ole asennettu, joten Beam Bench ei voi tarkistaa sängyn fyysisiä reunoja. Kehystä työ laserin sijoittamisen jälkeen ja tarkista sitten ennen aloittamista.",
         "segment_count_one": "1 segmentti",
-        "segment_count_other": "{count} segmenttiä"
+        "segment_count_other": "{count} segmenttiä",
+        "plan_bounds_exceed": "Suunnitellut rajat ({minX}, {minY}–{maxX}, {maxY}) ylittävät koneen {width} × {height} mm työalueen.",
+        "raster_motion_exceeds": "Rasteriliike ulottuu {axis}-akselilla välille {lo}–{hi} mm, kun akselin alue on 0–{limit} mm. Yliskannaus ja skannauspoikkeama lisäävät {margin} mm kaiverrusalueen ulkopuolelle. {startFrom, select, current_position {Vähennä yliskannausta tai siirrä laser kauemmas työalueen reunasta.} user_origin {Vähennä yliskannausta tai siirrä tai aseta Käyttäjän alkupiste uudelleen kauemmas työalueen reunasta.} other {Vähennä yliskannausta tai siirrä kuva kauemmas työalueen reunasta.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "yläreunan",
     "workspace_edge_bottom": "alareunan",
     "artwork_outside_workspace": "{hasObject, select, yes {”{object}” ulottuu {amount} {unit} työalueen {edge} yli. Objekti on valittu. Siirrä se työalueen sisään ennen esikatselua tai työn suorittamista.} other {Osa kuviosta ulottuu {amount} {unit} työalueen {edge} yli. Siirrä se työalueen sisään ennen esikatselua tai työn suorittamista.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Nykyinen sijainti asettaa työn alkupisteen {anchor} laserpään kohdalle. Sijoitus ylittää {edge} reunan {amount} {unit}. Siirrä laseria vähintään {amount} {unit} poispäin {edge} reunasta, valitse toinen työn alkupiste tai käytä absoluuttisia koordinaatteja.} user_origin {Käyttäjän alkupiste asettaa työn alkupisteen {anchor} tallennettuun käyttäjän alkupisteeseen. Sijoitus ylittää {edge} reunan {amount} {unit}. Siirrä tai aseta käyttäjän alkupiste uudelleen vähintään {amount} {unit} päähän {edge} reunasta, valitse toinen työn alkupiste tai käytä absoluuttisia koordinaatteja.} other {Suunniteltu työn sijainti ylittää {edge} reunan {amount} {unit}. Korjaa sijoitus ennen esikatselua tai työn suorittamista.}}",
     "ui_error_title": "Beam Benchissä tapahtui käyttöliittymävirhe",
     "reload": "Lataa uudelleen",
     "user_origin_not_set": "Käyttäjän alkuperä on valittu, mutta sitä ei ole asetettu. Siirrä laser aiottuun lähtökohtaan ja valitse Aseta tästä ennen kehystämistä tai aloittamista.",
