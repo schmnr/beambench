@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.2.10
+
+- Workspace-bound and raster-overrun messages now match the selected start
+  mode. Current Position tells the user to move the laser, User Origin tells
+  them to move or reset the saved origin, and Absolute Coordinates continues
+  to identify artwork placement. Preflight bounds, overscan, and segment-count
+  messages are now localized in every supported language.
+- Bug reports now retain structured GRBL alarm fields, including the alarm
+  number and description, and include a larger recent serial-traffic snapshot
+  so controller failures can be diagnosed from the report itself.
+
 ## 0.2.9
 
 - Current Position and User Origin framing no longer rejects safe homed jobs

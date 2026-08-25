@@ -404,7 +404,9 @@
         "frame_completed": "為該專案和佈局完成的框架",
         "frame_required": "此控制器未歸位，因此 Beam Bench 無法驗證實體床邊緣。定位雷射後對作業進行構圖，然後在開始前重新檢查。",
         "segment_count_one": "1 段",
-        "segment_count_other": "{count} 個片段"
+        "segment_count_other": "{count} 個片段",
+        "plan_bounds_exceed": "計畫範圍（{minX}, {minY} 到 {maxX}, {maxY}）超出 {width} × {height} mm 的機器工作區域。",
+        "raster_motion_exceeds": "光柵移動在 {axis} 軸上從 {lo} 延伸到 {hi} mm，該軸的範圍為 0 到 {limit} mm。過掃描和掃描偏移在雕刻區域之外增加了 {margin} mm。{startFrom, select, current_position {請減少過掃描或將雷射頭移離工作區域邊緣。} user_origin {請減少過掃描，或將使用者原點移到離工作區域邊緣更遠的位置並重新設定。} other {請減少過掃描或將設計移離工作區域邊緣。}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "上邊緣",
     "workspace_edge_bottom": "下邊緣",
     "artwork_outside_workspace": "{hasObject, select, yes {「{object}」超出工作區{edge} {amount} {unit}。該物件已選取。請在預覽或執行工作前將它移入工作區。} other {圖稿的一部分超出工作區{edge} {amount} {unit}。請在預覽或執行工作前將它移入工作區。}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {目前位置會將{anchor}工作原點放在雷射頭位置。此放置超出工作區{edge}邊緣 {amount} {unit}。請將雷射頭移到距離{edge}邊緣至少 {amount} {unit} 的位置，選擇其他工作原點，或使用絕對座標。} user_origin {使用者原點會將{anchor}工作原點放在已儲存的使用者原點。此放置超出工作區{edge}邊緣 {amount} {unit}。請將使用者原點移動或重新設定到距離{edge}邊緣至少 {amount} {unit} 的位置，選擇其他工作原點，或使用絕對座標。} other {計畫的工作位置超出工作區{edge}邊緣 {amount} {unit}。請在預覽或執行前調整放置。}}",
     "ui_error_title": "Beam Bench 發生介面錯誤",
     "reload": "重新載入",
     "user_origin_not_set": "用戶原點已選擇但尚未設定。將雷射移至預期原點，並在取景或開始之前選擇在此處設定。",

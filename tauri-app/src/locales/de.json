@@ -404,7 +404,9 @@
         "frame_completed": "Der Rahmen wurde für genau dieses Projekt und diese Platzierung fertiggestellt",
         "frame_required": "Dieser Controller ist nicht referenziert, daher kann Beam Bench die physischen Bettkanten nicht überprüfen. Richten Sie den Auftrag nach der Positionierung des Lasers ein und überprüfen Sie ihn erneut, bevor Sie beginnen.",
         "segment_count_one": "1 Segment",
-        "segment_count_other": "{count} Segmente"
+        "segment_count_other": "{count} Segmente",
+        "plan_bounds_exceed": "Die geplanten Grenzen ({minX}, {minY} bis {maxX}, {maxY}) überschreiten das {width} × {height} mm große Maschinenbett.",
+        "raster_motion_exceeds": "Die Rasterbewegung reicht auf der {axis}-Achse von {lo} bis {hi} mm. Der Achsbereich reicht von 0 bis {limit} mm. Overscan und Scanversatz fügen außerhalb des Gravurbereichs {margin} mm hinzu. {startFrom, select, current_position {Verringere den Overscan oder bewege den Laser weiter vom Bettrand weg.} user_origin {Verringere den Overscan oder verschiebe beziehungsweise setze den Benutzerursprung weiter vom Bettrand entfernt neu.} other {Verringere den Overscan oder bewege das Motiv weiter vom Bettrand weg.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "oberen",
     "workspace_edge_bottom": "unteren",
     "artwork_outside_workspace": "{hasObject, select, yes {„{object}“ ragt {amount} {unit} über den {edge} Rand des Arbeitsbereichs hinaus. Das Objekt wurde ausgewählt. Verschiebe es in den Arbeitsbereich, bevor du die Vorschau öffnest oder den Auftrag startest.} other {Ein Teil deines Designs ragt {amount} {unit} über den {edge} Rand des Arbeitsbereichs hinaus. Verschiebe ihn in den Arbeitsbereich, bevor du die Vorschau öffnest oder den Auftrag startest.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Aktuelle Position setzt den {anchor} Auftragsursprung auf den Laserkopf. Diese Platzierung ragt {amount} {unit} über den {edge} Rand hinaus. Bewege den Laser mindestens {amount} {unit} vom {edge} Rand weg, wähle einen anderen Auftragsursprung oder verwende Absolute Koordinaten.} user_origin {Benutzerursprung setzt den {anchor} Auftragsursprung auf den gespeicherten Benutzerursprung. Diese Platzierung ragt {amount} {unit} über den {edge} Rand hinaus. Verschiebe oder setze den Benutzerursprung mindestens {amount} {unit} vom {edge} Rand entfernt neu, wähle einen anderen Auftragsursprung oder verwende Absolute Koordinaten.} other {Die geplante Auftragsposition ragt {amount} {unit} über den {edge} Rand hinaus. Passe die Platzierung vor der Vorschau oder Ausführung an.}}",
     "ui_error_title": "In Beam Bench ist ein UI-Fehler aufgetreten",
     "reload": "Neu laden",
     "user_origin_not_set": "Der Benutzerursprung ist ausgewählt, wurde jedoch nicht festgelegt. Bewegen Sie den Laser zum vorgesehenen Ursprung und wählen Sie „Hier festlegen“, bevor Sie den Bildausschnitt festlegen oder beginnen.",

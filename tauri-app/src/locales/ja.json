@@ -404,7 +404,9 @@
         "frame_completed": "このプロジェクトと配置に合わせて完成したフレーム",
         "frame_required": "このコントローラーはホームに接続されていないため、Beam Bench は物理的なベッドの端を確認できません。レーザーの位置を決めた後、ジョブのフレームを設定し、開始する前に再確認します。",
         "segment_count_one": "1セグメント",
-        "segment_count_other": "{count} セグメント"
+        "segment_count_other": "{count} セグメント",
+        "plan_bounds_exceed": "予定された範囲（{minX}, {minY} から {maxX}, {maxY}）が、{width} × {height} mm の機械作業領域を超えています。",
+        "raster_motion_exceeds": "ラスター移動は {axis} 軸上の {lo} から {hi} mm に及びます。この軸の範囲は 0 から {limit} mm です。オーバースキャンとスキャンオフセットにより、彫刻領域の外側に {margin} mm が追加されます。{startFrom, select, current_position {オーバースキャンを減らすか、レーザーを作業領域の端から遠ざけてください。} user_origin {オーバースキャンを減らすか、ユーザー原点を作業領域の端から遠い位置へ移動または再設定してください。} other {オーバースキャンを減らすか、デザインを作業領域の端から遠ざけてください。}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "上端",
     "workspace_edge_bottom": "下端",
     "artwork_outside_workspace": "{hasObject, select, yes {「{object}」が作業領域の{edge}から {amount} {unit} はみ出しています。このオブジェクトを選択しました。プレビューまたはジョブの実行前に、作業領域内へ移動してください。} other {アートワークの一部が作業領域の{edge}から {amount} {unit} はみ出しています。プレビューまたはジョブの実行前に、作業領域内へ移動してください。}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {現在位置では、ジョブ原点 {anchor} がレーザーヘッドの位置に配置されます。この配置は{edge}端から {amount} {unit} はみ出します。レーザーを{edge}端から少なくとも {amount} {unit} 離すか、別のジョブ原点を選ぶか、絶対座標を使用してください。} user_origin {ユーザー原点では、ジョブ原点 {anchor} が保存済みのユーザー原点に配置されます。この配置は{edge}端から {amount} {unit} はみ出します。ユーザー原点を{edge}端から少なくとも {amount} {unit} 離して移動または再設定するか、別のジョブ原点を選ぶか、絶対座標を使用してください。} other {予定されたジョブ位置は{edge}端から {amount} {unit} はみ出します。プレビューまたは実行前に配置を修正してください。}}",
     "ui_error_title": "Beam Bench で UI エラーが発生しました",
     "reload": "再読み込み",
     "user_origin_not_set": "ユーザー原点が選択されていますが、設定されていません。レーザーを目的の原点に移動し、フレーミングまたは開始する前に「ここに設定」を選択します。",

@@ -404,7 +404,9 @@
         "frame_completed": "A keret pontosan ehhez a projekthez és elhelyezéshez készült",
         "frame_required": "Ez a vezérlő nincs otthon, így a Beam Bench nem tudja ellenőrizni a fizikai ágy széleit. A lézer pozicionálása után keretezze be a munkát, majd indítsa el újra.",
         "segment_count_one": "1 szegmens",
-        "segment_count_other": "{count} szegmens"
+        "segment_count_other": "{count} szegmens",
+        "plan_bounds_exceed": "A tervezett határok ({minX}, {minY}–{maxX}, {maxY}) túllépik a gép {width} × {height} mm-es munkaterületét.",
+        "raster_motion_exceeds": "A rasztermozgás a(z) {axis} tengelyen {lo} és {hi} mm között halad, miközben a tengely tartománya 0–{limit} mm. A túlpásztázás és a pásztázási eltolás {margin} mm-rel növeli a gravírozási területet. {startFrom, select, current_position {Csökkentse a túlpásztázást, vagy vigye a lézert távolabb a munkaterület szélétől.} user_origin {Csökkentse a túlpásztázást, vagy helyezze át vagy állítsa be újra a Felhasználói origót távolabb a munkaterület szélétől.} other {Csökkentse a túlpásztázást, vagy vigye a tervet távolabb a munkaterület szélétől.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "felső",
     "workspace_edge_bottom": "alsó",
     "artwork_outside_workspace": "{hasObject, select, yes {A(z) „{object}” {amount} {unit}-rel túlnyúlik a munkaterület {edge} szélén. Az objektum ki lett jelölve. Előnézet vagy a munka indítása előtt helyezze a munkaterületen belülre.} other {A terv egy része {amount} {unit}-rel túlnyúlik a munkaterület {edge} szélén. Előnézet vagy a munka indítása előtt helyezze a munkaterületen belülre.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Az Aktuális pozíció a(z) {anchor} munkaorigót a lézerfejhez helyezi. Ez az elhelyezés {amount} {unit}-rel túlnyúlik a(z) {edge} szélen. Mozgassa a lézert legalább {amount} {unit} távolságra a(z) {edge} széltől, válasszon másik munkaorigót, vagy használjon abszolút koordinátákat.} user_origin {A Felhasználói origó a(z) {anchor} munkaorigót a mentett felhasználói origóhoz helyezi. Ez az elhelyezés {amount} {unit}-rel túlnyúlik a(z) {edge} szélen. Helyezze át vagy állítsa be újra a felhasználói origót legalább {amount} {unit} távolságra a(z) {edge} széltől, válasszon másik munkaorigót, vagy használjon abszolút koordinátákat.} other {A tervezett munkapozíció {amount} {unit}-rel túlnyúlik a(z) {edge} szélen. Előnézet vagy futtatás előtt módosítsa az elhelyezést.}}",
     "ui_error_title": "A Beam Benchben felhasználói felületi hiba történt",
     "reload": "Újratöltés",
     "user_origin_not_set": "Felhasználói eredet ki van választva, de nincs beállítva. Mozgassa a lézert a kívánt eredetbe, és válassza a Beállítás itt lehetőséget a keretezés vagy a indítás előtt.",

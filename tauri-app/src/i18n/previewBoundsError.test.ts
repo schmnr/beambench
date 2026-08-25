@@ -66,4 +66,42 @@ describe('formatWorkspaceBoundsError', () => {
     expect(result?.sourceObjectId).toBe('bitmap-1');
     expect(result?.message).toContain('planned position');
   });
+
+  it('explains current-position placement without selecting or moving canvas artwork', () => {
+    const layer = makeLayer({ id: 'image-layer', operation: 'image' });
+    const object = makeProjectObject({ id: 'bitmap-1', layer_id: layer.id });
+    const result = formatWorkspaceBoundsError({
+      details: {
+        kind: 'bounds_exceeded',
+        workspace_origin: 'bottom_left',
+        violation: { axis: 'y', boundary: 'min', amount_mm: 37.044444 },
+      },
+    }, makeProject({
+      start_from: 'current_position',
+      job_origin: 'center',
+      workspace: { bed_width_mm: 300, bed_height_mm: 300, origin: 'bottom_left' },
+      layers: [layer],
+      objects: [object],
+    }));
+
+    expect(result?.sourceObjectId).toBeNull();
+    expect(result?.message).toContain('Current Position');
+    expect(result?.message).toContain('Center Job Origin');
+    expect(result?.message).toContain('Move the laser at least 37.04 mm away from the bottom edge');
+    expect(result?.message).not.toContain('move the object');
+  });
+
+  it('explains how to correct a user-origin placement', () => {
+    const result = formatWorkspaceBoundsError({
+      details: {
+        kind: 'bounds_exceeded',
+        violation: { axis: 'x', boundary: 'max', amount_mm: 12.5 },
+      },
+    }, makeProject({ start_from: 'user_origin', job_origin: 'bottom_right' }));
+
+    expect(result?.sourceObjectId).toBeNull();
+    expect(result?.message).toContain('User Origin');
+    expect(result?.message).toContain('Bottom right Job Origin');
+    expect(result?.message).toContain('Move or reset User Origin at least 12.5 mm away');
+  });
 });

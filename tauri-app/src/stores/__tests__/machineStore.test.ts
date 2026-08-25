@@ -322,7 +322,7 @@ describe('machineStore frame-selected toggle', () => {
     const result = await useMachineStore.getState().frameJob('rectangular', ['obj-1'], true);
 
     expect(result).toBeNull();
-    expect(useProjectStore.getState().selectedObjectIds).toEqual(['obj-1']);
+    expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
     const notifications = useNotificationStore.getState().notifications;
     const notification = notifications[notifications.length - 1];
     expect(notification).toMatchObject({
@@ -336,6 +336,8 @@ describe('machineStore frame-selected toggle', () => {
         error_code: 'planning_failed',
       },
     });
+    expect(notification?.message).toContain('Current Position');
+    expect(notification?.message).toContain('Move the laser at least 151.81 mm away from the left edge');
     expect(notification?.feedbackContext?.error_details).toMatchObject({
       kind: 'bounds_exceeded',
     });

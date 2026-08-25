@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { PreflightReport } from '../../types/machine';
+import type { StartFromMode } from '../../types/project';
 
 interface PreflightDialogProps {
   report: PreflightReport;
@@ -10,6 +11,7 @@ interface PreflightDialogProps {
   onReduceSpeed?: (value: number) => void;
   onContinue?: () => void;
   busy?: boolean;
+  startFrom?: StartFromMode;
 }
 
 export function PreflightDialog({
@@ -19,6 +21,7 @@ export function PreflightDialog({
   onReduceSpeed,
   onContinue,
   busy = false,
+  startFrom = 'absolute_coords',
 }: PreflightDialogProps) {
   const { t } = useTranslation();
   useEffect(() => {
@@ -74,7 +77,34 @@ export function PreflightDialog({
     };
     const segmentMatch = message.match(/^(\d+) segments$/);
     if (segmentMatch) {
-      return t('dialog.preflight.messages.segment_count', { count: Number(segmentMatch[1]) });
+      const count = Number(segmentMatch[1]);
+      return t(`dialog.preflight.messages.segment_count_${count === 1 ? 'one' : 'other'}`, { count });
+    }
+    const boundsMatch = message.match(
+      /^Plan bounds \(([-\d.]+),([-\d.]+) to ([-\d.]+),([-\d.]+)\) exceed bed \(([\d.]+)x([\d.]+)mm\)$/,
+    );
+    if (boundsMatch) {
+      return t('dialog.preflight.messages.plan_bounds_exceed', {
+        minX: boundsMatch[1],
+        minY: boundsMatch[2],
+        maxX: boundsMatch[3],
+        maxY: boundsMatch[4],
+        width: boundsMatch[5],
+        height: boundsMatch[6],
+      });
+    }
+    const rasterMatch = message.match(
+      /^Raster motion spans ([-\d.]+) to ([-\d.]+)mm on the 0 to ([\d.]+)mm ([XY]) axis \(([\d.]+)mm of overscan and scanning offset beyond the burn area\)\. Reduce overscan or move the design further from the bed edge\.$/,
+    );
+    if (rasterMatch) {
+      return t('dialog.preflight.messages.raster_motion_exceeds', {
+        startFrom,
+        lo: rasterMatch[1],
+        hi: rasterMatch[2],
+        limit: rasterMatch[3],
+        axis: rasterMatch[4],
+        margin: rasterMatch[5],
+      });
     }
     const key = keyByMessage[message];
     return key ? t(`dialog.preflight.messages.${key}`, { defaultValue: message }) : message;

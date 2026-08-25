@@ -404,7 +404,9 @@
         "frame_completed": "Estrutura concluída para este projeto e posicionamento exatos",
         "frame_required": "Este controlador não está localizado, portanto o Beam Bench não pode verificar as bordas físicas da cama. Enquadre o trabalho após posicionar o laser e verifique novamente antes de começar.",
         "segment_count_one": "1 segmento",
-        "segment_count_other": "{count} segmentos"
+        "segment_count_other": "{count} segmentos",
+        "plan_bounds_exceed": "Os limites planejados ({minX}, {minY} a {maxX}, {maxY}) ultrapassam a mesa da máquina de {width} × {height} mm.",
+        "raster_motion_exceeds": "O movimento raster vai de {lo} a {hi} mm no eixo {axis}, cujo intervalo é de 0 a {limit} mm. A sobrevarredura e o deslocamento de varredura acrescentam {margin} mm além da área gravada. {startFrom, select, current_position {Reduza a sobrevarredura ou afaste o laser da borda da mesa.} user_origin {Reduza a sobrevarredura ou mova ou redefina a Origem do usuário mais longe da borda da mesa.} other {Reduza a sobrevarredura ou afaste o desenho da borda da mesa.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "superior",
     "workspace_edge_bottom": "inferior",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}” ultrapassa em {amount} {unit} a borda {edge} da área de trabalho. O objeto foi selecionado. Mova-o para dentro da área de trabalho antes de visualizar ou executar o trabalho.} other {Parte do seu desenho ultrapassa em {amount} {unit} a borda {edge} da área de trabalho. Mova-a para dentro da área de trabalho antes de visualizar ou executar o trabalho.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Posição atual coloca a origem do trabalho {anchor} no cabeçote do laser. Esse posicionamento ultrapassa em {amount} {unit} a borda {edge}. Afaste o laser pelo menos {amount} {unit} da borda {edge}, escolha outra origem do trabalho ou use Coordenadas absolutas.} user_origin {Origem do usuário coloca a origem do trabalho {anchor} na origem do usuário salva. Esse posicionamento ultrapassa em {amount} {unit} a borda {edge}. Mova ou redefina a origem do usuário a pelo menos {amount} {unit} da borda {edge}, escolha outra origem do trabalho ou use Coordenadas absolutas.} other {A posição planejada do trabalho ultrapassa em {amount} {unit} a borda {edge}. Ajuste o posicionamento antes de visualizar ou executar.}}",
     "ui_error_title": "O Beam Bench encontrou um erro de interface",
     "reload": "Recarregar",
     "user_origin_not_set": "A origem do usuário está selecionada, mas não foi definida. Mova o laser para a origem pretendida e escolha Definir aqui antes de enquadrar ou iniciar.",

@@ -4,7 +4,7 @@ use std::sync::{LazyLock, Mutex};
 use beambench_common::feedback::DiagnosticSerialTraffic;
 
 const MAX_RING_BYTES: usize = 1024;
-const SNAPSHOT_BYTES: usize = 50;
+const SNAPSHOT_BYTES: usize = 512;
 
 #[derive(Default)]
 struct SerialTrafficRing {

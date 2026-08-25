@@ -404,7 +404,9 @@
         "frame_completed": "Okvir je dokončan za točno ta projekt in postavitev",
         "frame_required": "Ta krmilnik ni domač, zato Beam Bench ne more preveriti fizičnih robov postelje. Po namestitvi laserja uokvirite opravilo in ga pred začetkom ponovno preverite.",
         "segment_count_one": "1 segment",
-        "segment_count_other": "{count} segmentov"
+        "segment_count_other": "{count} segmentov",
+        "plan_bounds_exceed": "Načrtovane meje ({minX}, {minY} do {maxX}, {maxY}) presegajo delovno območje stroja {width} × {height} mm.",
+        "raster_motion_exceeds": "Rastrsko gibanje sega od {lo} do {hi} mm na osi {axis}, katere območje je od 0 do {limit} mm. Prekoračitev in zamik skeniranja dodata {margin} mm zunaj območja graviranja. {startFrom, select, current_position {Zmanjšajte prekoračitev ali premaknite laser dlje od roba delovnega območja.} user_origin {Zmanjšajte prekoračitev ali premaknite oziroma znova nastavite Uporabniško izhodišče dlje od roba delovnega območja.} other {Zmanjšajte prekoračitev ali premaknite motiv dlje od roba delovnega območja.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "zgornji",
     "workspace_edge_bottom": "spodnji",
     "artwork_outside_workspace": "{hasObject, select, yes {»{object}« sega {amount} {unit} čez {edge} rob delovnega območja. Predmet je izbran. Pred predogledom ali zagonom opravila ga premaknite v delovno območje.} other {Del vašega načrta sega {amount} {unit} čez {edge} rob delovnega območja. Pred predogledom ali zagonom opravila ga premaknite v delovno območje.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Trenutni položaj postavi izhodišče opravila {anchor} na lasersko glavo. Postavitev sega {amount} {unit} čez {edge} rob. Premaknite laser najmanj {amount} {unit} stran od {edge} roba, izberite drugo izhodišče opravila ali uporabite absolutne koordinate.} user_origin {Uporabniško izhodišče postavi izhodišče opravila {anchor} na shranjeno uporabniško izhodišče. Postavitev sega {amount} {unit} čez {edge} rob. Premaknite ali znova nastavite uporabniško izhodišče najmanj {amount} {unit} stran od {edge} roba, izberite drugo izhodišče opravila ali uporabite absolutne koordinate.} other {Načrtovani položaj opravila sega {amount} {unit} čez {edge} rob. Pred predogledom ali zagonom popravite postavitev.}}",
     "ui_error_title": "V Beam Bench je prišlo do napake vmesnika",
     "reload": "Ponovno naloži",
     "user_origin_not_set": "Uporabniški izvor je izbran, vendar ni nastavljen. Premaknite laser na predvideno izhodišče in izberite Set here pred okvirjanjem ali začetkom.",

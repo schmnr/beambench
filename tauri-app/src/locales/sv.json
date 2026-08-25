@@ -404,7 +404,9 @@
         "frame_completed": "Ram färdig för just detta projekt och placering",
         "frame_required": "Den här kontrollern är inte hemlig, så Beam Bench kan inte verifiera de fysiska sängkanterna. Rama in jobbet efter att ha placerat lasern och kontrollera sedan innan du startar.",
         "segment_count_one": "1 segment",
-        "segment_count_other": "{count} segment"
+        "segment_count_other": "{count} segment",
+        "plan_bounds_exceed": "De planerade gränserna ({minX}, {minY} till {maxX}, {maxY}) överskrider maskinbädden på {width} × {height} mm.",
+        "raster_motion_exceeds": "Rasterrörelsen sträcker sig från {lo} till {hi} mm på {axis}-axeln, vars område är 0 till {limit} mm. Överskanning och skanningsförskjutning lägger till {margin} mm utanför gravyrens område. {startFrom, select, current_position {Minska överskanningen eller flytta lasern längre från bäddkanten.} user_origin {Minska överskanningen eller flytta eller återställ Användarorigin längre från bäddkanten.} other {Minska överskanningen eller flytta motivet längre från bäddkanten.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "övre",
     "workspace_edge_bottom": "nedre",
     "artwork_outside_workspace": "{hasObject, select, yes {”{object}” sträcker sig {amount} {unit} utanför arbetsytans {edge} kant. Objektet har markerats. Flytta in det på arbetsytan innan du förhandsgranskar eller kör jobbet.} other {En del av motivet sträcker sig {amount} {unit} utanför arbetsytans {edge} kant. Flytta in den på arbetsytan innan du förhandsgranskar eller kör jobbet.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Aktuell position placerar jobborigin {anchor} vid laserhuvudet. Placeringen sträcker sig {amount} {unit} utanför den {edge} kanten. Flytta lasern minst {amount} {unit} från den {edge} kanten, välj en annan jobborigin eller använd absoluta koordinater.} user_origin {Användarorigin placerar jobborigin {anchor} vid den sparade användaroriginen. Placeringen sträcker sig {amount} {unit} utanför den {edge} kanten. Flytta eller återställ användaroriginen minst {amount} {unit} från den {edge} kanten, välj en annan jobborigin eller använd absoluta koordinater.} other {Den planerade jobbpositionen sträcker sig {amount} {unit} utanför den {edge} kanten. Justera placeringen före förhandsgranskning eller körning.}}",
     "ui_error_title": "Beam Bench råkade ut för ett gränssnittsfel",
     "reload": "Läs in igen",
     "user_origin_not_set": "Användarursprung är valt men har inte ställts in. Flytta lasern till det avsedda ursprunget och välj Ställ in här innan du ramar in eller startar.",

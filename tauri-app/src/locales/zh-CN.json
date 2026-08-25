@@ -404,7 +404,9 @@
         "frame_completed": "为该项目和布局完成的框架",
         "frame_required": "该控制器未归位，因此 Beam Bench 无法验证物理床边缘。定位激光器后对作业进行构图，然后在开始前重新检查。",
         "segment_count_one": "1 段",
-        "segment_count_other": "{count} 个片段"
+        "segment_count_other": "{count} 个片段",
+        "plan_bounds_exceed": "计划范围（{minX}, {minY} 到 {maxX}, {maxY}）超出 {width} × {height} mm 的机器工作区域。",
+        "raster_motion_exceeds": "光栅运动在 {axis} 轴上从 {lo} 延伸到 {hi} mm，该轴的范围为 0 到 {limit} mm。过扫描和扫描偏移在雕刻区域之外增加了 {margin} mm。{startFrom, select, current_position {请减少过扫描或将激光头移离工作区域边缘。} user_origin {请减少过扫描，或将用户原点移到离工作区域边缘更远的位置并重新设置。} other {请减少过扫描或将设计移离工作区域边缘。}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "上边缘",
     "workspace_edge_bottom": "下边缘",
     "artwork_outside_workspace": "{hasObject, select, yes {“{object}”超出工作区{edge} {amount} {unit}。该对象已被选中。请在预览或运行任务前将其移入工作区。} other {图稿的一部分超出工作区{edge} {amount} {unit}。请在预览或运行任务前将其移入工作区。}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {当前位置会将{anchor}作业原点放在激光头位置。此放置超出工作区{edge}边缘 {amount} {unit}。请将激光头移到距离{edge}边缘至少 {amount} {unit} 的位置，选择其他作业原点，或使用绝对坐标。} user_origin {用户原点会将{anchor}作业原点放在已保存的用户原点。此放置超出工作区{edge}边缘 {amount} {unit}。请将用户原点移动或重新设置到距离{edge}边缘至少 {amount} {unit} 的位置，选择其他作业原点，或使用绝对坐标。} other {计划的作业位置超出工作区{edge}边缘 {amount} {unit}。请在预览或运行前调整放置。}}",
     "ui_error_title": "Beam Bench 遇到界面错误",
     "reload": "重新加载",
     "user_origin_not_set": "用户原点已选择但尚未设置。将激光移动到预期原点，并在取景或开始之前选择在此处设置。",

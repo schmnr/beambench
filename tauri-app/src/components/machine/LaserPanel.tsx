@@ -1099,6 +1099,7 @@ export function LaserPanel() {
           onApplyOverscan={handleApplyRecommendedOverscan}
           onReduceSpeed={handleApplyRecommendedSpeed}
           onContinue={() => void handleContinueAfterAdvisories()}
+          startFrom={startFrom}
         />
       )}
 

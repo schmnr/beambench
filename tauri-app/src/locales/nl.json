@@ -404,7 +404,9 @@
         "frame_completed": "Frame voltooid voor dit exacte project en plaatsing",
         "frame_required": "Deze controller is niet thuis, dus Beam Bench kan de fysieke bedranden niet verifiëren. Kadreer de taak na het positioneren van de laser en controleer opnieuw voordat u begint.",
         "segment_count_one": "1 segment",
-        "segment_count_other": "{count} segmenten"
+        "segment_count_other": "{count} segmenten",
+        "plan_bounds_exceed": "De geplande grenzen ({minX}, {minY} tot {maxX}, {maxY}) overschrijden het machinebed van {width} × {height} mm.",
+        "raster_motion_exceeds": "De rasterbeweging loopt van {lo} tot {hi} mm op de {axis}-as, met een bereik van 0 tot {limit} mm. Overscan en scanverschuiving voegen {margin} mm buiten het graveergebied toe. {startFrom, select, current_position {Verminder de overscan of verplaats de laser verder van de bedrand.} user_origin {Verminder de overscan of verplaats of stel de Gebruikersoorsprong verder van de bedrand opnieuw in.} other {Verminder de overscan of verplaats het ontwerp verder van de bedrand.}}"
       },
       "advisories": {
         "raster_overscan": {
@@ -2618,6 +2620,7 @@
     "workspace_edge_top": "bovenste",
     "workspace_edge_bottom": "onderste",
     "artwork_outside_workspace": "{hasObject, select, yes {‘{object}’ steekt {amount} {unit} buiten de {edge} rand van het werkgebied. Het object is geselecteerd. Verplaats het naar binnen voordat je een voorbeeld bekijkt of de taak uitvoert.} other {Een deel van je ontwerp steekt {amount} {unit} buiten de {edge} rand van het werkgebied. Verplaats het naar binnen voordat je een voorbeeld bekijkt of de taak uitvoert.}}",
+    "relative_job_outside_workspace": "{mode, select, current_position {Huidige positie plaatst de {anchor} taakoorsprong bij de laserkop. Deze plaatsing steekt {amount} {unit} buiten de {edge} rand. Verplaats de laser minstens {amount} {unit} van de {edge} rand af, kies een andere taakoorsprong of gebruik Absolute coördinaten.} user_origin {Gebruikersoorsprong plaatst de {anchor} taakoorsprong bij de opgeslagen gebruikersoorsprong. Deze plaatsing steekt {amount} {unit} buiten de {edge} rand. Verplaats of stel de gebruikersoorsprong opnieuw in op minstens {amount} {unit} van de {edge} rand, kies een andere taakoorsprong of gebruik Absolute coördinaten.} other {De geplande taakpositie steekt {amount} {unit} buiten de {edge} rand. Pas de plaatsing aan voor je een voorbeeld bekijkt of de taak uitvoert.}}",
     "ui_error_title": "Beam Bench liep tegen een UI-fout aan",
     "reload": "Opnieuw laden",
     "user_origin_not_set": "Gebruikersoorsprong is geselecteerd maar niet ingesteld. Verplaats de laser naar de beoogde oorsprong en kies Hier instellen voordat u gaat kadreren of starten.",

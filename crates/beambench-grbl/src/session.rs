@@ -329,7 +329,8 @@ impl GrblSession {
                 }
             }
             GrblResponse::Alarm(code) => {
-                warn!(code, "GRBL alarm received");
+                let message = parser::alarm_message(*code);
+                warn!(code, description = message, "GRBL alarm received");
                 self.clear_pending_homing();
                 self.state_machine.force(SessionState::Alarm);
             }
