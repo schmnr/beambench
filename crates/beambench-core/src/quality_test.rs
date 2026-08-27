@@ -304,6 +304,10 @@ pub enum QualityTestError {
     NoActiveMachineProfile,
     #[error("a job is already active; cancel or wait for it to finish")]
     JobInProgress,
+    #[error("Current Position requires a connected machine with a reported work position")]
+    CurrentPositionUnavailable,
+    #[error("User Origin is selected, but no user origin has been set")]
+    UserOriginNotSet,
     #[error("{message}")]
     Internal { message: String },
 }

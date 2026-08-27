@@ -131,6 +131,11 @@ jobs:
         working-directory: tauri-app
         run: npm ci
 
+      - name: Verify release source
+        run: |
+          cargo test -p beambench-service -p beambench-planner -p beambench-grbl
+          npm --prefix tauri-app test
+
       - name: Build and verify x64 CLI
         run: |
           set -euo pipefail

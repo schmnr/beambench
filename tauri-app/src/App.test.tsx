@@ -691,6 +691,7 @@ describe('App bootstrap', () => {
   });
 
   it('warns when subscribing to the app event bridge fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockListen.mockRejectedValueOnce(new Error('listen failed'));
 
     render(<App />);
@@ -705,6 +706,11 @@ describe('App bootstrap', () => {
         ),
       ).toBe(true);
     });
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[Beam Bench] Failed to subscribe to app-event bridge',
+      expect.any(Error),
+    );
+    errorSpy.mockRestore();
   });
 
   it('refreshes profiles and invalidates preview on backend profile events', async () => {

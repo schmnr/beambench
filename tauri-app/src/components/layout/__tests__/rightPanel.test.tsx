@@ -9,7 +9,9 @@ import { createDefaultLayout } from '../../../panels';
 import { PanelDndProvider } from '../../../panels/DndContext';
 import { makeProject, makeProjectObject } from '../../../test-utils/projectFixtures';
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockReturnValue(new Promise(() => {})),
+}));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
 vi.mock('../../../services/appService', () => ({
   appService: { persistLayout: vi.fn() },
@@ -115,7 +117,9 @@ describe('RightPanel', () => {
 
     expect(screen.getByRole('tab', { name: 'Move' })).toBeDefined();
     expect(screen.getByTestId('empty-zone-panel-picker-middle-left')).toBeDefined();
-    useUiStore.getState().movePanelBetweenZones('camera', 'middle-right', 'middle-left');
+    act(() => {
+      useUiStore.getState().movePanelBetweenZones('camera', 'middle-right', 'middle-left');
+    });
     expect(useUiStore.getState().panelLayout.runZones['middle-left'].panelIds).toContain('camera');
   });
 

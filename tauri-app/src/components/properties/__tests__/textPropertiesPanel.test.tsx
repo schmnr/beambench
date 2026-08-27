@@ -15,7 +15,7 @@ import {
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn((cmd: string) => {
-    if (cmd === 'get_system_fonts') return Promise.resolve(['Arial', 'Helvetica']);
+    if (cmd === 'get_system_fonts') return new Promise(() => {});
     return Promise.resolve(null);
   }),
 }));

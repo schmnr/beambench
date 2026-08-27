@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { invoke } from '@tauri-apps/api/core';
 import { SettingsDialog } from '../SettingsDialog';
 import { useAppStore } from '../../../stores/appStore';
@@ -64,25 +64,27 @@ describe('SettingsDialog', () => {
     expect(screen.getByText('Loading settings...')).toBeDefined();
     expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(true);
 
-    useAppStore.setState({
-      settings: makeSettings({
-        display_unit: 'inches',
-        autosave_enabled: false,
-        autosave_interval_secs: 240,
-        api_enabled: true,
-        api_port: 6100,
-        api_localhost_only: false,
-        dark_mode: true,
-        antialiasing: true,
-        filled_rendering: true,
-        reduce_motion: true,
-        show_palette_labels: true,
-        cursor_size: 'large',
-        toolbar_icon_size: 'small',
-        click_tolerance_px: 9,
-        snap_threshold_px: 11,
-        scroll_zoom: false,
-      }),
+    act(() => {
+      useAppStore.setState({
+        settings: makeSettings({
+          display_unit: 'inches',
+          autosave_enabled: false,
+          autosave_interval_secs: 240,
+          api_enabled: true,
+          api_port: 6100,
+          api_localhost_only: false,
+          dark_mode: true,
+          antialiasing: true,
+          filled_rendering: true,
+          reduce_motion: true,
+          show_palette_labels: true,
+          cursor_size: 'large',
+          toolbar_icon_size: 'small',
+          click_tolerance_px: 9,
+          snap_threshold_px: 11,
+          scroll_zoom: false,
+        }),
+      });
     });
 
     await waitFor(() => {
@@ -545,8 +547,10 @@ describe('SettingsDialog', () => {
     render(<SettingsDialog onClose={vi.fn()} />);
 
     fireEvent.click(screen.getByText('Units & Grid'));
-    useAppStore.setState({
-      settings: makeSettings({ display_unit: 'inches', autosave_enabled: false }),
+    act(() => {
+      useAppStore.setState({
+        settings: makeSettings({ display_unit: 'inches', autosave_enabled: false }),
+      });
     });
 
     await waitFor(() => {

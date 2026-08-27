@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
 import { CanvasRenderer, sortObjectsForLayerStack } from './CanvasRenderer';
 import type { RenderParams } from './CanvasRenderer';
 import type { PreviewData } from '../types/preview';
@@ -134,9 +134,11 @@ const mockPreviewData: PreviewData = {
 describe('CanvasRenderer', () => {
   let ctx: CanvasRenderingContext2D;
   let renderer: CanvasRenderer;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
   const initialNotificationState = useNotificationStore.getState();
 
   beforeEach(() => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mockGetContext.mockImplementation(() => createMockCtx());
     resetTransformedPath2DProbeForTests();
     ctx = createMockCtx();
@@ -145,6 +147,10 @@ describe('CanvasRenderer', () => {
       .__BB_FORCE_FULL_BASE_REDRAW;
     useNotificationStore.setState(initialNotificationState, true);
     vi.mocked(invoke).mockReset();
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
   });
 
   it('draws later layer tabs behind earlier tabs while preserving z-order within a layer', () => {
@@ -421,6 +427,33 @@ describe('CanvasRenderer', () => {
     expect(w).toBeLessThan(baseParams.vp.canvasWidth);
     expect(h).toBeLessThan(baseParams.vp.canvasHeight);
     expect(ctx.clip).toHaveBeenCalled();
+  });
+
+  it('forces a full base redraw after the backing bitmap is resized', () => {
+    const obj: ProjectObject = makeProjectObject({
+      id: 'resized-backing-object',
+      bounds: { min: { x: 10, y: 10 }, max: { x: 30, y: 30 } },
+      layer_id: 'layer1',
+      data: { type: 'shape', kind: 'rectangle', width: 20, height: 20, corner_radius: 0 },
+    });
+    const layer: Layer = makeLayer({ id: 'layer1', name: 'Layer 1' });
+
+    renderer.renderBaseScene({ ...baseParams, objects: [obj], layers: [layer] });
+    vi.mocked(ctx.fillRect).mockClear();
+    vi.mocked(ctx.clip).mockClear();
+
+    obj.bounds.min.x += 40;
+    obj.bounds.max.x += 40;
+    renderer.invalidateBaseScene();
+    renderer.renderBaseScene({ ...baseParams, objects: [obj], layers: [layer] });
+
+    expect(ctx.clip).not.toHaveBeenCalled();
+    expect(ctx.fillRect).toHaveBeenCalledWith(
+      0,
+      0,
+      baseParams.vp.canvasWidth,
+      baseParams.vp.canvasHeight,
+    );
   });
 
   it('falls back to a full base redraw when the debug toggle is enabled', () => {

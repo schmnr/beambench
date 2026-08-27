@@ -8,6 +8,7 @@ import { usePreviewStore } from '../../../stores/previewStore';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
+import { useAppStore } from '../../../stores/appStore';
 import { previewService } from '../../../services/previewService';
 import { persistenceService } from '../../../services/persistenceService';
 import { appService } from '../../../services/appService';
@@ -45,6 +46,7 @@ const initialMachineState = useMachineStore.getState();
 const initialPreviewState = usePreviewStore.getState();
 const initialUiState = useUiStore.getState();
 const initialNotificationState = useNotificationStore.getState();
+const initialAppState = useAppStore.getState();
 
 if (!('createObjectURL' in URL)) {
   Object.defineProperty(URL, 'createObjectURL', {
@@ -62,6 +64,8 @@ function mockDefaultInvoke() {
 
 mockDefaultInvoke();
 
+useAppStore.setState({ fetchSettings: vi.fn().mockResolvedValue(undefined) });
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -76,6 +80,8 @@ afterEach(() => {
   useProjectStore.setState(initialProjectState, true);
   useUiStore.setState(initialUiState, true);
   useNotificationStore.setState(initialNotificationState, true);
+  useAppStore.setState(initialAppState, true);
+  useAppStore.setState({ fetchSettings: vi.fn().mockResolvedValue(undefined) });
 });
 
 function setProjectWithSelection(selection: string[] = ['txt1', 'path1']) {
@@ -240,8 +246,10 @@ describe('MenuBar', () => {
     expect(screen.getByText('Position Laser').closest('button')?.disabled).toBe(true);
 
     fireEvent.click(screen.getByText('Laser Tools'));
-    useUiStore.getState().setWorkspaceMode('run');
-    setMachineReady();
+    act(() => {
+      useUiStore.getState().setWorkspaceMode('run');
+      setMachineReady();
+    });
     fireEvent.click(screen.getByText('Laser Tools'));
     expect(screen.getByText('Position Laser').closest('button')?.disabled).toBe(false);
   });
@@ -300,15 +308,16 @@ describe('MenuBar', () => {
     expect(assignImageMask).not.toHaveBeenCalled();
   });
 
-  it('Tools menu opens Adjust Image dialog for a raster selection', () => {
+  it('Tools menu opens Adjust Image dialog for a raster selection', async () => {
     setProjectWithSelection(['img1']);
     render(<MenuBar />);
     fireEvent.click(screen.getByText('Tools'));
     fireEvent.click(screen.getByText('Adjust Image'));
     expect(screen.getByText('Adjust Image')).toBeDefined();
+    await act(async () => Promise.resolve());
   });
 
-  it('menu-launched Adjust Image stays bound to the launch selection', () => {
+  it('menu-launched Adjust Image stays bound to the launch selection', async () => {
     setProjectWithSelection(['img1']);
     render(<MenuBar />);
 
@@ -320,9 +329,10 @@ describe('MenuBar', () => {
       useProjectStore.setState({ selectedObjectIds: [] });
     });
     expect(screen.getByText('Adjust Image')).toBeDefined();
+    await act(async () => Promise.resolve());
   });
 
-  it('menu-launched Trace Image stays bound to the launch selection', () => {
+  it('menu-launched Trace Image stays bound to the launch selection', async () => {
     setProjectWithSelection(['img1']);
     render(<MenuBar />);
 
@@ -334,6 +344,7 @@ describe('MenuBar', () => {
       useProjectStore.setState({ selectedObjectIds: [] });
     });
     expect(screen.getByText('Trace Image')).toBeDefined();
+    await act(async () => Promise.resolve());
   });
 
   it('Edit menu exposes image-options submenu items', () => {
@@ -428,7 +439,7 @@ describe('MenuBar', () => {
     expect(openedMenuButton('Paste').disabled).toBe(false);
     expect(openedMenuButton('Paste in Place').disabled).toBe(true);
 
-    useUiStore.setState({ hasClipboard: true });
+    act(() => useUiStore.setState({ hasClipboard: true }));
     rerender(<MenuBar />);
     expect(openedMenuButton('Paste').disabled).toBe(false);
     expect(openedMenuButton('Paste in Place').disabled).toBe(false);
@@ -664,7 +675,7 @@ describe('MenuBar', () => {
     expect(openExternalUrl).toHaveBeenCalledWith('https://beambench.com/docs');
   });
 
-  it('captures the launch-time layer for Create Barcode', () => {
+  it('captures the launch-time layer for Create Barcode', async () => {
     const addObject = vi.fn().mockResolvedValue({ id: 'barcode-1' });
     useProjectStore.setState({ addObject } as never);
     setProjectWithSelection(['txt1']);
@@ -682,12 +693,14 @@ describe('MenuBar', () => {
     fireEvent.change(dataInput!, { target: { value: 'ABC123' } });
     fireEvent.click(screen.getByTestId('barcode-submit'));
 
-    expect(addObject).toHaveBeenCalledWith(
-      expect.stringContaining('Barcode'),
-      'l1',
-      expect.objectContaining({ type: 'barcode', data: 'ABC123' }),
-      expect.any(Object),
-    );
+    await waitFor(() => {
+      expect(addObject).toHaveBeenCalledWith(
+        expect.stringContaining('Barcode'),
+        'l1',
+        expect.objectContaining({ type: 'barcode', data: 'ABC123' }),
+        expect.any(Object),
+      );
+    });
   });
 
   it('captures the launch-time selection for the Grid Array Properties session', () => {
@@ -926,6 +939,6 @@ describe('MenuBar', () => {
     fireEvent.click(screen.getByText('Machine'));
     expect(screen.getByRole('button', { name: 'Start Job' }).hasAttribute('disabled')).toBe(true);
 
-    resolvePreview(true);
+    await act(async () => resolvePreview(true));
   });
 });

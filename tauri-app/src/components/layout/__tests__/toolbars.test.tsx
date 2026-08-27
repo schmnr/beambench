@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { MainToolbar } from '../MainToolbar';
 import { CreationToolbar } from '../CreationToolbar';
 import { useUndoStore } from '../../../stores/undoStore';
@@ -21,6 +21,10 @@ const initialNotificationState = useNotificationStore.getState();
 const initialMacroState = useMacroStore.getState();
 const initialCameraState = useCameraStore.getState();
 const initialAppState = useAppStore.getState();
+
+beforeEach(() => {
+  useMacroStore.setState({ loadMacros: vi.fn().mockResolvedValue(undefined) });
+});
 
 afterEach(() => {
   cleanup();
@@ -162,7 +166,7 @@ describe('MainToolbar', () => {
     expect(screen.getByTitle('Mirror Across Line')).toBeDefined();
     expect(screen.getByTitle('Dock')).toBeDefined();
 
-    useUiStore.setState({ workspaceMode: 'run' });
+    act(() => useUiStore.setState({ workspaceMode: 'run' }));
     rerender(<MainToolbar />);
 
     expect(screen.queryByTitle('Flip Horizontal')).toBeNull();

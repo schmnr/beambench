@@ -121,6 +121,11 @@ jobs:
         working-directory: tauri-app
         run: npm ci
 
+      - name: Verify release source
+        run: |
+          cargo test -p beambench-service -p beambench-planner -p beambench-grbl
+          npm --prefix tauri-app test
+
       - name: Import Apple Developer ID certificate
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

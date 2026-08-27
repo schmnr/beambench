@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { GridArrayDialog } from '../GridArrayDialog';
 import { CircularArrayDialog } from '../CircularArrayDialog';
 import { CopyAlongPathDialog } from '../CopyAlongPathDialog';
@@ -101,13 +101,15 @@ describe('GridArrayDialog', () => {
     const onClose = vi.fn();
     render(<GridArrayDialog objectIds={['obj-1']} onClose={onClose} />);
 
-    useProjectStore.setState({
-      project: {
-        metadata: { project_id: 'p2', project_name: 'Project B', created_at: '', modified_at: '' },
-        workspace: { bed_width_mm: 400, bed_height_mm: 400 },
-        layers: [],
-        objects: [],
-      } as never,
+    act(() => {
+      useProjectStore.setState({
+        project: {
+          metadata: { project_id: 'p2', project_name: 'Project B', created_at: '', modified_at: '' },
+          workspace: { bed_width_mm: 400, bed_height_mm: 400 },
+          layers: [],
+          objects: [],
+        } as never,
+      });
     });
 
     fireEvent.click(screen.getByTestId('grid-array-submit'));
@@ -236,13 +238,15 @@ describe('CircularArrayDialog', () => {
     const onClose = vi.fn();
     render(<CircularArrayDialog objectIds={['obj-1']} onClose={onClose} />);
 
-    useProjectStore.setState({
-      project: {
-        metadata: { project_id: 'p2', project_name: 'Project B', created_at: '', modified_at: '' },
-        workspace: { bed_width_mm: 400, bed_height_mm: 400 },
-        layers: [],
-        objects: [],
-      } as never,
+    act(() => {
+      useProjectStore.setState({
+        project: {
+          metadata: { project_id: 'p2', project_name: 'Project B', created_at: '', modified_at: '' },
+          workspace: { bed_width_mm: 400, bed_height_mm: 400 },
+          layers: [],
+          objects: [],
+        } as never,
+      });
     });
 
     fireEvent.click(screen.getByTestId('circular-array-submit'));
@@ -297,13 +301,15 @@ describe('CopyAlongPathDialog', () => {
     const onClose = vi.fn();
     render(<CopyAlongPathDialog objectIds={['obj-1']} pathObjectId="path-1" onClose={onClose} />);
 
-    useProjectStore.setState({
-      project: {
-        metadata: { project_id: 'p2', project_name: 'Project B', created_at: '', modified_at: '' },
-        workspace: { bed_width_mm: 400, bed_height_mm: 400 },
-        layers: [],
-        objects: [],
-      } as never,
+    act(() => {
+      useProjectStore.setState({
+        project: {
+          metadata: { project_id: 'p2', project_name: 'Project B', created_at: '', modified_at: '' },
+          workspace: { bed_width_mm: 400, bed_height_mm: 400 },
+          layers: [],
+          objects: [],
+        } as never,
+      });
     });
 
     await waitFor(() => {

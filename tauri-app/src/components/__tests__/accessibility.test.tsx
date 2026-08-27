@@ -9,7 +9,9 @@ import { useUndoStore } from '../../stores/undoStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockReturnValue(new Promise(() => {})),
+}));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
 
 const initialUndoState = useUndoStore.getState();

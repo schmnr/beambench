@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.2.11
+
+- Quality-test framing and execution now use the same physical placement for
+  Absolute Coordinates, Current Position, and User Origin, including machines
+  with a bottom-left workspace origin. Current Position is refreshed from the
+  connected controller, and missing live or user origins now stop safely with
+  clear guidance instead of falling back to an unintended location.
+- Canvas rendering now keeps a stable backing surface at fractional Windows
+  display scales and presents interaction overlays atomically. This prevents
+  canvas clears, resizes, and redraws from briefly restoring stale artwork or
+  flashing an incomplete frame.
+- Release builds now run the critical planner, controller, service, and
+  frontend regression suites on every platform before packaging.
+
 ## 0.2.10
 
 - Workspace-bound and raster-overrun messages now match the selected start

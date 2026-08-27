@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { AdjustImageDialog } from '../AdjustImageDialog';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { useProjectStore } from '../../../stores/projectStore';
@@ -255,11 +255,13 @@ describe('AdjustImageDialog', () => {
     const onClose = vi.fn();
     render(<AdjustImageDialog objectId="img1" onClose={onClose} />);
 
-    useProjectStore.setState({
-      project: {
-        ...useProjectStore.getState().project!,
-        objects: [],
-      },
+    act(() => {
+      useProjectStore.setState({
+        project: {
+          ...useProjectStore.getState().project!,
+          objects: [],
+        },
+      });
     });
 
     await waitFor(() => {
@@ -458,7 +460,7 @@ describe('AdjustImageDialog', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
-  it('Escape cancels preset naming without closing Adjust Image', () => {
+  it('Escape cancels preset naming without closing Adjust Image', async () => {
     const onClose = vi.fn();
     render(<AdjustImageDialog objectId="img1" onClose={onClose} />);
 
@@ -468,9 +470,10 @@ describe('AdjustImageDialog', () => {
 
     expect(screen.queryByPlaceholderText('Name')).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
+    await act(async () => Promise.resolve());
   });
 
-  it('keeps settings scrolling and preview zoom from reaching the canvas behind the dialog', () => {
+  it('keeps settings scrolling and preview zoom from reaching the canvas behind the dialog', async () => {
     const backgroundWheel = vi.fn();
     render(
       <div onWheel={backgroundWheel}>
@@ -483,6 +486,7 @@ describe('AdjustImageDialog', () => {
 
     fireEvent.wheel(screen.getByTestId('adjust-original-preview'), { deltaY: -120 });
     expect(screen.getByText('115%')).toBeDefined();
+    await act(async () => Promise.resolve());
     expect(backgroundWheel).not.toHaveBeenCalled();
   });
 });

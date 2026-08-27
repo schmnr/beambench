@@ -28,14 +28,14 @@ use beambench_core::{
 use beambench_grbl::{GcodeConfig, generate_gcode};
 use beambench_planner::{
     ExecutionPlan, OptimizationRuntime, PlanSegment, PlannerInput, anchor_segments_to_target,
-    build_frame_plan, build_plan_with_input, calculate_plan_bounds,
+    build_frame_plan, build_plan_with_input, calculate_work_bounds,
 };
 use beambench_preview::{PreviewData, distill_preview};
 use beambench_streamer::JobController;
 
 use crate::context::ServiceContext;
 use crate::error::{ServiceError, ServiceResult};
-use crate::ops::output;
+use crate::ops::{output, planning};
 use crate::runtime::{
     ActiveJobHandle, MachineSessionHandle, MarlinRuntimeJob, SmoothiewareRuntimeJob,
 };
@@ -959,25 +959,38 @@ pub fn quality_test_create_material_on_canvas(
 /// engraving will burn on the bed. The plan arrives in machine space (the builder applies the
 /// workspace transform internally but skips anchoring because the transient runtime carries no
 /// live position), so the anchor translation happens here with the real position.
-fn apply_project_transforms(plan: &mut ExecutionPlan, synthetic: &Project, ctx: &ServiceContext) {
-    let current_pos = ctx
-        .optimization_runtime
-        .lock()
-        .ok()
-        .and_then(|g| g.current_position);
-    if synthetic.start_from == StartFromMode::UserOrigin && synthetic.user_origin.is_none() {
-        // No offset
-    } else if synthetic.start_from == StartFromMode::CurrentPosition && current_pos.is_none() {
-        // No offset
-    } else if synthetic.start_from != StartFromMode::AbsoluteCoords {
+fn apply_project_transforms(
+    plan: &mut ExecutionPlan,
+    synthetic: &Project,
+    ctx: &ServiceContext,
+) -> ServiceResult<()> {
+    let target = match synthetic.start_from {
+        StartFromMode::AbsoluteCoords => None,
+        StartFromMode::UserOrigin => Some(synthetic.user_origin.ok_or_else(|| {
+            ServiceError::invalid_state(
+                "User Origin is selected, but no user origin has been set. Move the laser to the intended origin and choose Set Here before framing.",
+            )
+            .with_details(serde_json::json!({ "kind": "user_origin_not_set" }))
+        })?),
+        StartFromMode::CurrentPosition => Some(
+            ctx.optimization_runtime
+                .lock()
+                .map_err(|e| {
+                    ServiceError::internal(format!("Failed to lock optimization_runtime: {e}"))
+                })?
+                .current_position
+                .ok_or_else(|| {
+                    ServiceError::invalid_state(
+                        "Current Position requires a connected machine with a reported work position.",
+                    )
+                    .with_details(serde_json::json!({ "kind": "current_position_unavailable" }))
+                })?,
+        ),
+    };
+    if let Some(target) = target {
         let y_flipped =
             synthetic.workspace.origin != beambench_core::workspace::WorkspaceOrigin::TopLeft;
-        let content_bounds = plan.bounds;
-        let target = if synthetic.start_from == StartFromMode::CurrentPosition {
-            current_pos.unwrap_or((0.0, 0.0))
-        } else {
-            synthetic.user_origin.unwrap_or((0.0, 0.0))
-        };
+        let content_bounds = calculate_work_bounds(&plan.segments);
         anchor_segments_to_target(
             &mut plan.segments,
             synthetic.job_origin,
@@ -986,7 +999,8 @@ fn apply_project_transforms(plan: &mut ExecutionPlan, synthetic: &Project, ctx: 
             target,
         );
     }
-    plan.bounds = calculate_plan_bounds(&plan.segments);
+    plan.bounds = calculate_work_bounds(&plan.segments);
+    Ok(())
 }
 
 fn material_center(request: &QualityTestRequest) -> Option<(f64, f64)> {
@@ -1023,6 +1037,21 @@ fn bounds_exceeded_error(bounds: &Bounds, profile: &MachineProfile) -> Option<Qu
 fn no_geometry_error() -> QualityTestError {
     QualityTestError::Internal {
         message: "No geometry generated".to_string(),
+    }
+}
+
+fn live_placement_error(error: ServiceError) -> QualityTestError {
+    match error
+        .details
+        .as_ref()
+        .and_then(|details| details.get("kind"))
+        .and_then(serde_json::Value::as_str)
+    {
+        Some("current_position_unavailable") => QualityTestError::CurrentPositionUnavailable,
+        Some("user_origin_not_set") => QualityTestError::UserOriginNotSet,
+        _ => QualityTestError::Internal {
+            message: error.to_string(),
+        },
     }
 }
 
@@ -1185,21 +1214,34 @@ fn build_placed_transient_plan(
     Ok(plan)
 }
 
-fn place_quality_test_frame_plan(
-    plan: &mut ExecutionPlan,
+fn build_live_quality_test_plan(
     synthetic: &Project,
+    profile: &MachineProfile,
     ctx: &ServiceContext,
     request: &QualityTestRequest,
-) {
-    if let Some((x, y)) = material_center(request) {
-        translate_plan_to_center(plan, x, y);
-    } else {
-        apply_project_transforms(plan, synthetic, ctx);
+) -> ServiceResult<ExecutionPlan> {
+    // Build once in physical machine space, then apply the live placement anchor.
+    // Frame and Start must use this same positioned plan or bottom-left workspaces
+    // and Current Position jobs can target different parts of the bed.
+    let mut plan = build_placed_transient_plan(synthetic, profile, request, false)?;
+    if material_center(request).is_none() {
+        apply_project_transforms(&mut plan, synthetic, ctx)?;
     }
+    Ok(plan)
+}
+
+fn build_live_quality_test_frame_plan(
+    synthetic: &Project,
+    profile: &MachineProfile,
+    ctx: &ServiceContext,
+    request: &QualityTestRequest,
+) -> ServiceResult<ExecutionPlan> {
+    let placed_plan = build_live_quality_test_plan(synthetic, profile, ctx, request)?;
+    Ok(build_frame_plan(&placed_plan.bounds, 1.0, 3000.0))
 }
 
 fn translate_plan_to_center(plan: &mut ExecutionPlan, x: f64, y: f64) {
-    let bounds = calculate_plan_bounds(&plan.segments);
+    let bounds = calculate_work_bounds(&plan.segments);
     let center_x = bounds.min.x + bounds.width() * 0.5;
     let center_y = bounds.min.y + bounds.height() * 0.5;
     translate_plan(plan, x - center_x, y - center_y);
@@ -1212,7 +1254,7 @@ fn translate_plan(plan: &mut ExecutionPlan, dx: f64, dy: f64) {
     for segment in plan.segments.iter_mut() {
         translate_segment(segment, dx, dy);
     }
-    plan.bounds = calculate_plan_bounds(&plan.segments);
+    plan.bounds = calculate_work_bounds(&plan.segments);
 }
 
 fn translate_point(point: &mut Point2D, dx: f64, dy: f64) {
@@ -1296,15 +1338,15 @@ pub fn quality_test_frame(
         snapshot_context(ctx, request, &profile).map_err(|e| QualityTestError::Internal {
             message: e.to_string(),
         })?;
-    let (synthetic, _warnings) = build_synthetic_project(request, &proj_ctx, &profile);
-    let bbox = union_bounds(&synthetic.objects).ok_or_else(no_geometry_error)?;
-    if let Some(error) = bounds_exceeded_error(&bbox, &profile) {
-        return Err(error);
+    if proj_ctx.start_from == StartFromMode::CurrentPosition {
+        planning::sync_current_position(ctx).map_err(live_placement_error)?;
     }
-
-    // Build a rectangular frame plan around the union bbox at low power, then transform.
-    let mut frame_plan = build_frame_plan(&bbox, 1.0, 3000.0);
-    place_quality_test_frame_plan(&mut frame_plan, &synthetic, ctx, request);
+    let (synthetic, _warnings) = build_synthetic_project(request, &proj_ctx, &profile);
+    if union_bounds(&synthetic.objects).is_none() {
+        return Err(no_geometry_error());
+    }
+    let frame_plan = build_live_quality_test_frame_plan(&synthetic, &profile, ctx, request)
+        .map_err(live_placement_error)?;
     if let Some(error) = bounds_exceeded_error(&frame_plan.bounds, &profile) {
         return Err(error);
     }
@@ -1343,16 +1385,15 @@ pub fn quality_test_start(
         snapshot_context(ctx, request, &profile).map_err(|e| QualityTestError::Internal {
             message: e.to_string(),
         })?;
-    let (synthetic, _warnings) = build_synthetic_project(request, &proj_ctx, &profile);
-    let bbox = union_bounds(&synthetic.objects).ok_or_else(no_geometry_error)?;
-    if let Some(error) = bounds_exceeded_error(&bbox, &profile) {
-        return Err(error);
+    if proj_ctx.start_from == StartFromMode::CurrentPosition {
+        planning::sync_current_position(ctx).map_err(live_placement_error)?;
     }
-    let plan = build_placed_transient_plan(&synthetic, &profile, request, true).map_err(|e| {
-        QualityTestError::Internal {
-            message: e.to_string(),
-        }
-    })?;
+    let (synthetic, _warnings) = build_synthetic_project(request, &proj_ctx, &profile);
+    if union_bounds(&synthetic.objects).is_none() {
+        return Err(no_geometry_error());
+    }
+    let plan = build_live_quality_test_plan(&synthetic, &profile, ctx, request)
+        .map_err(live_placement_error)?;
     if let Some(error) = bounds_exceeded_error(&plan.bounds, &profile) {
         return Err(error);
     }
@@ -2002,9 +2043,8 @@ mod tests {
             build_placed_transient_plan(&synthetic, &profile, &request, true).expect("plan");
         assert_bounds_center(start_plan.bounds, 75.0, 45.0);
 
-        let raw_bbox = union_bounds(&synthetic.objects).expect("bbox");
-        let mut frame_plan = build_frame_plan(&raw_bbox, 1.0, 3000.0);
-        place_quality_test_frame_plan(&mut frame_plan, &synthetic, &ctx, &request);
+        let frame_plan = build_live_quality_test_frame_plan(&synthetic, &profile, &ctx, &request)
+            .expect("frame plan");
         assert_bounds_center(frame_plan.bounds, 75.0, 45.0);
     }
 
@@ -2041,14 +2081,130 @@ mod tests {
             "Absolute Coords should ignore saved Job Origin anchors without changing geometry"
         );
 
-        let ctx = ServiceContext::with_settings(settings_with_active_profile(profile));
-        let top_bbox = union_bounds(&top_left_project.objects).expect("top-left bbox");
-        let mut top_frame = build_frame_plan(&top_bbox, 1.0, 3000.0);
-        place_quality_test_frame_plan(&mut top_frame, &top_left_project, &ctx, &request);
-        let bottom_bbox = union_bounds(&bottom_right_project.objects).expect("bottom-right bbox");
-        let mut bottom_frame = build_frame_plan(&bottom_bbox, 1.0, 3000.0);
-        place_quality_test_frame_plan(&mut bottom_frame, &bottom_right_project, &ctx, &request);
+        let ctx = ServiceContext::with_settings(settings_with_active_profile(profile.clone()));
+        let top_frame =
+            build_live_quality_test_frame_plan(&top_left_project, &profile, &ctx, &request)
+                .expect("top-left frame");
+        let bottom_frame =
+            build_live_quality_test_frame_plan(&bottom_right_project, &profile, &ctx, &request)
+                .expect("bottom-right frame");
         assert_eq!(bottom_frame.bounds, top_frame.bounds);
+    }
+
+    #[test]
+    fn material_frame_and_start_share_bottom_left_absolute_placement() {
+        let request = QualityTestRequest::Material(material_settings());
+        let mut profile = MachineProfile::default();
+        profile.bed_width_mm = 400.0;
+        profile.bed_height_mm = 400.0;
+        profile.origin = beambench_core::workspace::WorkspaceOrigin::BottomLeft;
+        let ctx = ServiceContext::with_settings(settings_with_active_profile(profile.clone()));
+        let proj_ctx = ProjectContext {
+            workspace: profile_workspace(&profile),
+            job_origin: AnchorPoint::TopLeft,
+            user_origin: None,
+            start_from: StartFromMode::AbsoluteCoords,
+            optimization: ProjectOptimization::default(),
+            material_height_mm: None,
+            seed_entry: make_seed(),
+        };
+        let (synthetic, _warnings) = build_synthetic_project(&request, &proj_ctx, &profile);
+        let raw_bounds = union_bounds(&synthetic.objects).expect("raw bounds");
+        let start_plan =
+            build_live_quality_test_plan(&synthetic, &profile, &ctx, &request).expect("start plan");
+        let frame_plan = build_live_quality_test_frame_plan(&synthetic, &profile, &ctx, &request)
+            .expect("frame plan");
+
+        assert_ne!(
+            raw_bounds, start_plan.bounds,
+            "bottom-left workspace conversion must move generated canvas geometry into machine space"
+        );
+        assert_eq!(frame_plan.bounds, start_plan.bounds);
+    }
+
+    #[test]
+    fn material_frame_and_start_share_live_anchor_placement() {
+        let request = QualityTestRequest::Material(material_settings());
+        let mut profile = MachineProfile::default();
+        profile.bed_width_mm = 400.0;
+        profile.bed_height_mm = 400.0;
+        profile.origin = beambench_core::workspace::WorkspaceOrigin::BottomLeft;
+        let ctx = ServiceContext::with_settings(settings_with_active_profile(profile.clone()));
+        ctx.optimization_runtime
+            .lock()
+            .expect("runtime lock")
+            .current_position = Some((125.0, 90.0));
+
+        for (start_from, user_origin, expected_target) in [
+            (StartFromMode::CurrentPosition, None, (125.0, 90.0)),
+            (StartFromMode::UserOrigin, Some((70.0, 55.0)), (70.0, 55.0)),
+        ] {
+            let proj_ctx = ProjectContext {
+                workspace: profile_workspace(&profile),
+                job_origin: AnchorPoint::TopLeft,
+                user_origin,
+                start_from,
+                optimization: ProjectOptimization::default(),
+                material_height_mm: None,
+                seed_entry: make_seed(),
+            };
+            let (synthetic, _warnings) = build_synthetic_project(&request, &proj_ctx, &profile);
+            let start_plan = build_live_quality_test_plan(&synthetic, &profile, &ctx, &request)
+                .expect("start plan");
+            let frame_plan =
+                build_live_quality_test_frame_plan(&synthetic, &profile, &ctx, &request)
+                    .expect("frame plan");
+
+            assert_eq!(frame_plan.bounds, start_plan.bounds);
+            let anchor =
+                beambench_planner::job_anchor_point(synthetic.job_origin, &start_plan.bounds, true);
+            assert!(
+                (anchor.0 - expected_target.0).abs() < 1e-6,
+                "{start_from:?} X anchor {anchor:?} did not match {expected_target:?}; bounds {:?}",
+                start_plan.bounds
+            );
+            assert!(
+                (anchor.1 - expected_target.1).abs() < 1e-6,
+                "{start_from:?} Y anchor {anchor:?} did not match {expected_target:?}; bounds {:?}",
+                start_plan.bounds
+            );
+        }
+    }
+
+    #[test]
+    fn live_quality_test_placement_rejects_missing_relative_origins() {
+        let request = QualityTestRequest::Material(material_settings());
+        let profile = MachineProfile::default();
+        let ctx = ServiceContext::with_settings(settings_with_active_profile(profile.clone()));
+
+        for start_from in [StartFromMode::CurrentPosition, StartFromMode::UserOrigin] {
+            let proj_ctx = ProjectContext {
+                workspace: profile_workspace(&profile),
+                job_origin: AnchorPoint::TopLeft,
+                user_origin: None,
+                start_from,
+                optimization: ProjectOptimization::default(),
+                material_height_mm: None,
+                seed_entry: make_seed(),
+            };
+            let (synthetic, _warnings) = build_synthetic_project(&request, &proj_ctx, &profile);
+
+            let error = build_live_quality_test_plan(&synthetic, &profile, &ctx, &request)
+                .expect_err("missing relative origin must reject start");
+            assert!(matches!(
+                (start_from, live_placement_error(error)),
+                (
+                    StartFromMode::CurrentPosition,
+                    QualityTestError::CurrentPositionUnavailable,
+                ) | (
+                    StartFromMode::UserOrigin,
+                    QualityTestError::UserOriginNotSet
+                )
+            ));
+            assert!(
+                build_live_quality_test_frame_plan(&synthetic, &profile, &ctx, &request).is_err()
+            );
+        }
     }
 
     #[test]
@@ -2307,9 +2463,8 @@ mod tests {
         let request = QualityTestRequest::Focus(settings);
         let proj_ctx = snapshot_context(&ctx, &request, &profile).expect("context");
         let (synthetic, _warnings) = build_synthetic_project(&request, &proj_ctx, &profile);
-        let bbox = union_bounds(&synthetic.objects).expect("bounds");
-        let mut frame_plan = build_frame_plan(&bbox, 1.0, 3000.0);
-        place_quality_test_frame_plan(&mut frame_plan, &synthetic, &ctx, &request);
+        let frame_plan = build_live_quality_test_frame_plan(&synthetic, &profile, &ctx, &request)
+            .expect("frame plan");
         let config = quality_test_frame_gcode_config(&synthetic, &profile, &request);
         let gcode = beambench_grbl::generate_gcode(&frame_plan, &config).expect("gcode");
 

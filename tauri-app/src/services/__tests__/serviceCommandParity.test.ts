@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
@@ -11,6 +11,26 @@ function extractInvokedCommands(source: string): string[] {
 }
 
 describe('service command parity', () => {
+  it('registers every literal command exposed by a frontend service', () => {
+    const serviceDirectory = `${process.cwd()}/src/services`;
+    const mainSource = read('../../../src-tauri/src/main.rs');
+    const serviceFiles = readdirSync(serviceDirectory)
+      .filter((file) => file.endsWith('Service.ts'))
+      .sort();
+
+    expect(serviceFiles.length).toBeGreaterThanOrEqual(18);
+
+    for (const serviceFile of serviceFiles) {
+      const source = read(`../${serviceFile}`);
+      for (const command of new Set(extractInvokedCommands(source))) {
+        expect(
+          mainSource,
+          `${serviceFile} invokes ${command}, but the command is not registered with Tauri`,
+        ).toMatch(new RegExp(`commands::[a-z_]+::${command}\\b`));
+      }
+    }
+  });
+
   it('every vectorService command is registered in the Tauri vector command table', () => {
     const vectorServiceSource = read('../vectorService.ts');
     const mainSource = read('../../../src-tauri/src/main.rs');
