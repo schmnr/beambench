@@ -122,6 +122,11 @@ jobs:
         working-directory: tauri-app
         run: npm ci
 
+      - name: Verify release source
+        run: |
+          cargo test -p beambench-service -p beambench-planner -p beambench-grbl
+          npm --prefix tauri-app test
+
       - name: Install Artifact Signing CLI
         run: |
           cargo install artifact-signing-cli --locked

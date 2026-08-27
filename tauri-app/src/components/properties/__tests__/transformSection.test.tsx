@@ -221,7 +221,7 @@ describe('TransformSection — position/size', () => {
       shear_enabled: false,
     });
     lockedProject.objects[0].lock_aspect_ratio = true;
-    useProjectStore.setState({ project: lockedProject });
+    act(() => useProjectStore.setState({ project: lockedProject }));
     rerender(<TransformSection />);
 
     const unlockAllButton = screen.getByRole('button', { name: 'Unlock all transforms' });
@@ -423,7 +423,7 @@ describe('TransformSection — position/size', () => {
     const { rerender } = render(<TransformSection />);
     expect(screen.getByRole('button', { name: 'Move' }).getAttribute('aria-pressed')).toBe('true');
 
-    useProjectStore.setState({ selectedObjectIds: ['obj2'] });
+    act(() => useProjectStore.setState({ selectedObjectIds: ['obj2'] }));
     rerender(<TransformSection />);
     expect(screen.getByRole('button', { name: 'Move' }).getAttribute('aria-pressed')).toBe('false');
   });

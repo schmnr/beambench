@@ -255,6 +255,9 @@ describe('MaterialTestDialog', () => {
     expect(
       mockInvoke.mock.calls.some((call) => call[0] === 'quality_test_create_material_on_canvas'),
     ).toBe(false);
+    await waitFor(() => {
+      expect(mockInvoke.mock.calls.some((call) => call[0] === 'get_material_presets')).toBe(true);
+    });
   });
 });
 
@@ -346,7 +349,9 @@ describe('Profile switching', () => {
     expect(colsInputA).toBeDefined();
 
     // Switch active profile while the dialog stays mounted.
-    useMachineStore.setState({ profiles: [profileA, profileB], activeProfileId: 'B' });
+    act(() => {
+      useMachineStore.setState({ profiles: [profileA, profileB], activeProfileId: 'B' });
+    });
     rerender(<MaterialTestDialog onClose={vi.fn()} />);
 
     await waitFor(() => {
@@ -725,7 +730,7 @@ describe('Material Test recipes and job controls', () => {
     }
   });
 
-  it('disables Frame and Start when no machine profile is active', () => {
+  it('disables Frame and Start when no machine profile is active', async () => {
     useMachineStore.setState({
       profiles: [],
       activeProfileId: null,
@@ -736,6 +741,7 @@ describe('Material Test recipes and job controls', () => {
 
     expect((screen.getByTestId('qt-material-frame') as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByTestId('qt-material-start') as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => Promise.resolve());
   });
 
   it('shows Stop (not Start or Pause) while a staged transfer is Preparing', async () => {

@@ -399,7 +399,7 @@ describe('LaserPanel', () => {
       expect((startButton as HTMLButtonElement).disabled).toBe(true);
     });
 
-    resolvePreview(true);
+    await act(async () => resolvePreview(true));
   });
 
   it('does not emit an error toast when Save GCode is cancelled', async () => {

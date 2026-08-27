@@ -25,11 +25,11 @@ Reviewed product inventories:
 Manual case inventory in this suite:
 
 - `NL-001` through `NL-074`: software-only executable cases
-- `HW-001` through `HW-034`: connected-machine executable cases
+- `HW-001` through `HW-036`: connected-machine executable cases
 - `CAM-001` through `CAM-007`: camera executable cases
 - `DSP-001` through `DSP-005`: DSP-family executable cases
 - `GAL-001` through `GAL-004`: galvo-family executable cases
-- `GAP-001` through `GAP-012`: explicit unimplemented/deferred/N/A records
+- `7` explicit unimplemented, missing, partial, or N/A `GAP-*` records
 - `I18N-001` through `I18N-013`: i18n release smoke cases (pre-tag verification)
 
 ## Suite Summary
@@ -37,11 +37,11 @@ Manual case inventory in this suite:
 | Suite | Hardware Requirement | Count | Primary Document |
 | --- | --- | ---: | --- |
 | `NL` | `None` | 74 | [manual-test-cases-no-laser.md](manual-test-cases-no-laser.md) |
-| `HW` | `Laser` | 34 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
+| `HW` | `Laser` | 36 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
 | `CAM` | `Laser+Camera` | 7 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
 | `DSP` | `DSP` | 5 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
 | `GAL` | `Galvo` | 4 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
-| `GAP` | `N/A` | 12 | This matrix |
+| `GAP` | `N/A` | 7 | This matrix |
 | `I18N` | `None` | 13 | [i18n-release-smoke.md](i18n-release-smoke.md) |
 
 ## Coverage Summary By Subsystem
@@ -60,7 +60,7 @@ Manual case inventory in this suite:
 | Raster/image workflows | `NL-060` to `NL-061` | `None` |
 | Import/export/preview | `NL-062` to `NL-064` | `None` |
 | Libraries, macros, settings, diagnostics, shortcuts, accessibility | `NL-065` to `NL-074` | `None` |
-| Profiles, discovery, connection, console, jog, positioning, job runtime | `HW-001` to `HW-034` | `Laser` |
+| Profiles, discovery, connection, console, jog, positioning, job runtime | `HW-001` to `HW-036` | `Laser` |
 | Camera capture, overlay, calibration, alignment | `CAM-001` to `CAM-007` | `Laser+Camera` |
 | DSP capability/runtime verification | `DSP-001` to `DSP-005` | `DSP` |
 | Galvo capability/runtime verification | `GAL-001` to `GAL-004` | `Galvo` |
@@ -95,11 +95,11 @@ Manual case inventory in this suite:
 | `FSW-024` | Desktop shell/menus/toolbars/panels/shortcuts | `NL-008` to `NL-022`, `NL-073`, `NL-074` | Mapped |
 | `FSW-025` | API/CLI headless parity | `GAP-009` | `N/A` headless/automated |
 | `FSW-026` | Beginner Mode | `GAP-001` | Unimplemented |
-| `FSW-027` | Multi-language support | `GAP-002` | Unimplemented |
-| `FSW-028` | Hotkey customization | `GAP-003` | Unimplemented |
+| `FSW-027` | Multi-language support | `I18N-001` to `I18N-013` | Mapped |
+| `FSW-028` | Hotkey customization | `NL-073` | Mapped |
 | `FSW-029` | Settings bundles / backup restore | `GAP-004` | Unimplemented |
 | `FSW-030` | Nesting | `GAP-005` | Unimplemented |
-| `FSW-031` | Material test / focus test / interval test | `GAP-006`, `GAP-007`, `GAP-008` | Deferred/incomplete |
+| `FSW-031` | Material test / focus test / interval test | `HW-036` | Mapped |
 | `FSW-032` | Rotary and cylinder workflows | `HW-035`, `GAL-004`, `GAP-012` | Partial |
 | `FSW-033` | Accessibility | `NL-074` | Mapped |
 
@@ -115,7 +115,7 @@ Manual case inventory in this suite:
 | `Tools` | `NL-011`, `NL-036` to `NL-061` |
 | `Arrange` | `NL-011`, `NL-046` to `NL-059` |
 | `Machine` | `HW-001` to `HW-034` |
-| `Laser Tools` | `NL-012`, `GAP-006`, `GAP-007`, `GAP-008` |
+| `Laser Tools` | `NL-012`, `HW-036` |
 | `Help` | `NL-012`, `NL-017`, `NL-072` |
 | `Window` | `NL-010`, `NL-013` to `NL-016` |
 
@@ -158,14 +158,14 @@ Manual case inventory in this suite:
 | `CopyAlongPathDialog` | `NL-059` |
 | `DeviceSettingsDialog` | `HW-002`, `DSP-004`, `GAL-004` |
 | `DockDialog` | `NL-059` |
-| `FocusTestDialog` | `GAP-007` |
+| `FocusTestDialog` | `HW-036` |
 | `GridArrayDialog` | `NL-058` |
-| `IntervalTestDialog` | `GAP-008` |
-| `MaterialTestDialog` | `GAP-006` |
+| `IntervalTestDialog` | `HW-036` |
+| `MaterialTestDialog` | `HW-036` |
 | `NotesDialog` | `NL-017`, `NL-071` |
 | `OffsetDialog` | `NL-058` |
 | `PreviewWindow` | `NL-016`, `NL-064` |
-| `QualityTestShell` | `GAP-006`, `GAP-007`, `GAP-008` |
+| `QualityTestShell` | `HW-036` |
 | `ResizeSlotsDialog` | `NL-059` |
 | `TraceImageDialog` | `NL-061` |
 
@@ -174,13 +174,8 @@ Manual case inventory in this suite:
 | Gap ID | Description | Source Ref | Status |
 | --- | --- | --- | --- |
 | `GAP-001` | Beginner Mode is not implemented | `FSW-026` | Unimplemented |
-| `GAP-002` | Localization / multi-language support is not implemented | `FSW-027` | Unimplemented |
-| `GAP-003` | User-customizable hotkeys are not implemented | `FSW-028` | Unimplemented |
 | `GAP-004` | Settings bundles / manual settings backup-restore / preference-pack workflows are not implemented | `FSW-029`, `LB 16`, `LB 19.*` | Unimplemented |
 | `GAP-005` | Nesting workflow is not implemented | `FSW-030` | Unimplemented |
-| `GAP-006` | Material Test dialog exists but the full product workflow is deferred/incomplete | `FSW-031`, `LB 11` | Deferred |
-| `GAP-007` | Focus Test dialog exists but the full product workflow is deferred/incomplete | `FSW-031`, `LB 11` | Deferred |
-| `GAP-008` | Interval Test dialog exists but the full product workflow is deferred/incomplete | `FSW-031`, `LB 11` | Deferred |
 | `GAP-009` | Build health, eventing, API/CLI parity, and summary rows are not manual desktop cases; they remain automated/headless verification | `FSW-001`, `FSW-023`, `FSW-025`, `LB Summary Counts` | `N/A` |
 | `GAP-010` | File parity gaps remain for unsupported formats or features: run saved machine files, PLT/HPGL import, raster workspace export, print, new window | `LB 1.1`, `LB 1.5`, `LB 2.5` | Missing |
 | `GAP-011` | Selection/shape parity gaps remain for tab-cycle, contained-size filters, immediate post-create handles, center-out creation, and shape-specific handles | `LB 1.2`, `LB 1.4`, `LB 2.2` | Missing |

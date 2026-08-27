@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
 import { MacrosWindow } from '../MacrosWindow.js';
@@ -11,6 +11,10 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Pr
 
 const initialState = useMacroStore.getState();
 const initialNotificationState = useNotificationStore.getState();
+
+beforeEach(() => {
+  useMacroStore.setState({ loadMacros: vi.fn().mockResolvedValue(undefined) });
+});
 
 afterEach(() => {
   cleanup();

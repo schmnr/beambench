@@ -87,6 +87,7 @@ import {
 } from '../../canvas/drawObjects';
 import { adaptiveMeshPreviewFrameInterval } from '../../canvas/meshDeformPreview';
 import { shouldAnimateSelectionDashes } from '../../canvas/selectionDashAnimation';
+import { prepareCanvasSurface, presentCanvasBuffer } from '../../canvas/canvasSurface';
 import { offsetPreviewTranslation } from '../../canvas/offsetPreview';
 import { machineToCanvasPoint } from '../../utils/workspaceCoordinates';
 import type { SimilarityTransform } from '../../types/camera';
@@ -151,6 +152,7 @@ export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const baseCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayBufferRef = useRef<HTMLCanvasElement | null>(null);
   const baseRendererRef = useRef<CanvasRenderer | null>(null);
   const overlayRendererRef = useRef<CanvasRenderer | null>(null);
   const sceneRafRef = useRef<number>(0);
@@ -515,10 +517,12 @@ export function Canvas() {
     const overlayCanvas = overlayCanvasRef.current;
     if (!baseCanvas || !overlayCanvas) return;
     const baseCtx = baseCanvas.getContext('2d');
-    const overlayCtx = overlayCanvas.getContext('2d');
+    const overlayBuffer = document.createElement('canvas');
+    const overlayCtx = overlayBuffer.getContext('2d');
     if (!baseCtx || !overlayCtx) return;
     const baseRenderer = new CanvasRenderer(baseCtx);
     const overlayRenderer = new CanvasRenderer(overlayCtx);
+    overlayBufferRef.current = overlayBuffer;
     baseRendererRef.current = baseRenderer;
     overlayRendererRef.current = overlayRenderer;
     return () => {
@@ -526,6 +530,7 @@ export function Canvas() {
       overlayRenderer.dispose();
       baseRendererRef.current = null;
       overlayRendererRef.current = null;
+      overlayBufferRef.current = null;
     };
   }, []);
 
@@ -554,17 +559,8 @@ export function Canvas() {
 
   const prepareCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
     if (!canvas) return null;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
     const dpr = window.devicePixelRatio || 1;
-    const targetWidth = width * dpr;
-    const targetHeight = height * dpr;
-    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return ctx;
+    return prepareCanvasSurface(canvas, width, height, dpr);
   }, [width, height]);
 
   const buildEffectiveOverlay = useCallback(() => {
@@ -669,7 +665,9 @@ export function Canvas() {
   const renderBaseScene = useCallback(() => {
     const renderer = baseRendererRef.current;
     if (!renderer || !project) return;
-    if (!prepareCanvas(baseCanvasRef.current)) return;
+    const prepared = prepareCanvas(baseCanvasRef.current);
+    if (!prepared) return;
+    if (prepared.resized) renderer.invalidateBaseScene();
 
     const effectiveOverlay = buildEffectiveOverlay();
     renderer.renderBaseScene({
@@ -735,7 +733,10 @@ export function Canvas() {
   const renderToolOverlay = useCallback(() => {
     const renderer = overlayRendererRef.current;
     if (!renderer || !project) return;
-    if (!prepareCanvas(overlayCanvasRef.current)) return;
+    const visible = prepareCanvas(overlayCanvasRef.current);
+    const buffer = overlayBufferRef.current;
+    const preparedBuffer = prepareCanvas(buffer);
+    if (!visible || !buffer || !preparedBuffer) return;
 
     const filteredTabMarkerSnapshots =
       activeTool === 'tabs' && selectedObjectIds[0]
@@ -779,6 +780,7 @@ export function Canvas() {
       flashedLayerId,
       interactionState,
     });
+    presentCanvasBuffer(visible.ctx, buffer);
     const renderDuration = performance.now() - renderStartedAt;
     overlayLastRenderAtRef.current = performance.now();
     if (effectiveOverlay.type === 'mesh-deform' && effectiveOverlay.previewActive) {
@@ -1950,7 +1952,15 @@ export function Canvas() {
     >
       <canvas
         ref={baseCanvasRef}
-        style={{ width, height, display: 'block', position: 'absolute', inset: 0, pointerEvents: 'none' }}
+        style={{
+          width,
+          height,
+          display: 'block',
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          backgroundColor: theme.canvasBg,
+        }}
       />
       <canvas
         ref={overlayCanvasRef}

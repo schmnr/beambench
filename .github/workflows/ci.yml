@@ -102,3 +102,41 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  windows-source:
+    name: Windows source regression
+    runs-on: windows-2025
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri-app/package-lock.json
+
+      - name: Cache Cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-source-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Test planning and machine-service behavior
+        run: cargo test -p beambench-service -p beambench-planner -p beambench-grbl
+
+      - name: Install frontend dependencies
+        working-directory: tauri-app
+        run: npm ci
+
+      - name: Test frontend contracts
+        working-directory: tauri-app
+        run: npm test

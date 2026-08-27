@@ -226,6 +226,10 @@ export function formatQualityTestError(e: QualityTestError | string | unknown): 
       return 'No active machine profile selected.';
     case 'job_in_progress':
       return 'A job is already active. Cancel it or wait for it to finish before starting another quality test.';
+    case 'current_position_unavailable':
+      return 'Current Position needs a connected machine with a reported position. Reconnect or home the machine, then try again.';
+    case 'user_origin_not_set':
+      return 'User Origin is selected, but no origin has been set. Move the laser to the intended origin and choose Set Here before framing.';
     case 'internal': {
       const detail = err.message;
       return detail ? `Internal error: ${detail}` : 'Internal error while running quality test.';

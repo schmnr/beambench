@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MovePanel } from '../MovePanel';
 import { useMachineStore } from '../../../stores/machineStore';
@@ -65,6 +65,10 @@ const initialProjectState = useProjectStore.getState();
 const initialUiState = useUiStore.getState();
 const initialNotificationState = useNotificationStore.getState();
 const initialAppState = useAppStore.getState();
+
+beforeEach(() => {
+  useMachineStore.setState({ loadProfiles: vi.fn().mockResolvedValue(undefined) });
+});
 
 afterEach(() => {
   cleanup();
@@ -419,7 +423,7 @@ describe('MovePanel', () => {
     });
   });
 
-  it('offers Lihuiyu only capability-backed controls instead of erroring buttons', () => {
+  it('offers Lihuiyu only capability-backed controls instead of erroring buttons', async () => {
     connectMachine();
     useMachineStore.setState({
       controllerSelection: { mode: 'known_driver', driver: 'lihuiyu' },
@@ -446,6 +450,7 @@ describe('MovePanel', () => {
     });
 
     render(<MovePanel />);
+    await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
 
     // The backend rejects manual fire and continuous jog on Lihuiyu; the
     // controls must not render as always-erroring buttons.
@@ -456,7 +461,7 @@ describe('MovePanel', () => {
     );
   });
 
-  it('disables Home and jog when the controller lacks those capabilities', () => {
+  it('disables Home and jog when the controller lacks those capabilities', async () => {
     connectMachine();
     useMachineStore.setState({
       // Mirrors experimental_acknowledged_gcode (Marlin/Smoothieware).
@@ -479,6 +484,7 @@ describe('MovePanel', () => {
     });
 
     render(<MovePanel />);
+    await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
 
     // The backend rejects home/jog for these controllers; the buttons must
     // not present as live controls that always error.

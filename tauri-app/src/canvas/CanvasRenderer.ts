@@ -501,6 +501,12 @@ export class CanvasRenderer {
     this.cameraOverlayWarpCache.clear();
   }
 
+  /** A backing-store resize clears the bitmap outside the renderer. */
+  invalidateBaseScene(): void {
+    this.lastBaseSceneSignature = null;
+    this.lastBaseObjectSnapshots.clear();
+  }
+
   markImageLoadError(assetKey: string, error: string): void {
     this.imageCache.delete(assetKey);
     this.imageErrorCache.set(assetKey, error);

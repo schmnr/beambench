@@ -304,7 +304,9 @@ describe('drawRasterImage image masks', () => {
     const ctx = createRasterMockCtx();
     const imageCache = new Map<string, HTMLImageElement | HTMLCanvasElement>([['asset-1', makeLoadedImage()]]);
 
-    drawRasterImage(ctx, makeRasterObject(), '#111111', vp, imageCache, undefined, null);
+    withMockedCanvases(() => {
+      drawRasterImage(ctx, makeRasterObject(), '#111111', vp, imageCache, undefined, null);
+    });
 
     expect(ctx.drawImage).toHaveBeenCalledTimes(1);
     expect(ctx.fillText).not.toHaveBeenCalledWith('Loading...', expect.any(Number), expect.any(Number));

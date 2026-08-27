@@ -469,6 +469,22 @@ Shared fixtures:
 - Undo / Redo Expectation: Profile settings and runtime motion are outside project undo history.
 - Status: Active
 
+## Quality Tests
+
+### HW-036 — Quality Tests Share Preview, Frame, And Start Placement
+
+- Source Ref: `FSW-031`; `LB 11`
+- Feature / Function: Material, focus, and interval test placement
+- Hardware Requirement: Laser
+- Prerequisites: Connected, homed machine with a known bed size and a safely marked test area
+- Setup / Fixture: Small conservative quality-test recipes; repeat with top-left and bottom-left workspace origins
+- Steps: For each quality test, generate Preview, then Frame and Start using Absolute Coordinates, Current Position, and User Origin. Cancel immediately after motion is confirmed when material output is not required.
+- Expected Result: Preview geometry is stable; Frame and Start use the identical bounds and selected anchor; changing workspace origin converts coordinates without mirroring or moving the job to the opposite side of the bed.
+- Edge / Negative Cases: Missing user origin, near-edge bounds, alarm state, disconnected state, and a second Start must be rejected before unintended motion.
+- Persistence / Reopen Check: Reopen the project and confirm its Start From and workspace-origin settings still produce the same placement.
+- Undo / Redo Expectation: Quality-test preview, framing, and execution must not mutate the project or undo stack.
+- Status: Active
+
 ## Camera
 
 ### CAM-001 — Camera Device Refresh, Select, And No-Profile State

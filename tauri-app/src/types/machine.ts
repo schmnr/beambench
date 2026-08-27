@@ -623,6 +623,8 @@ export type QualityTestError =
   | { kind: 'unsupported_z_backend' }
   | { kind: 'no_active_machine_profile' }
   | { kind: 'job_in_progress' }
+  | { kind: 'current_position_unavailable' }
+  | { kind: 'user_origin_not_set' }
   | { kind: 'internal'; message?: string; value?: string; 0?: string };
 
 const DEFAULT_SAMPLE_ENTRY: CutEntry = {

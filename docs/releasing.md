@@ -10,15 +10,22 @@ CLI archives, checksums, and corresponding source.
 2. Set the same version in the workspace `Cargo.toml`, `tauri-app/package.json`,
    and `tauri-app/src-tauri/tauri.conf.json`.
 3. Refresh both lockfiles and run the project quality checks.
-4. Build the corresponding-source archives with
+4. Copy `docs/testing/release-smoke-record.md`, complete the high-risk smoke
+   record, and commit it with the release source. Record unavailable hardware or
+   platforms as `Not run`; do not silently treat them as passed.
+5. Build the corresponding-source archives with
    `scripts/build-gpl-source-archives`.
-5. Commit the exact release source and create a matching `v<version>` tag.
+6. Commit the exact release source and create a matching `v<version>` tag.
 
 ## Build and publish
 
 Run the macOS, Windows, and Linux release workflows for the same tag. Verify the
 signatures, checksums, installers, CLI archives, and source archives before
 publishing the release or updating the application manifest.
+
+Each platform workflow runs the critical planner, machine-service, and frontend
+tests against the checked-out tag before packaging. A source-test failure is a
+release failure even if an installer can still be built locally.
 
 The macOS workflow retries the Tauri packaging command up to three times. This
 covers temporary Apple timestamp or notarization service failures that can
