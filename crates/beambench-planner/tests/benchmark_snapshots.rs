@@ -42,8 +42,17 @@ fn check_or_update_snapshot(name: &str, actual: &str) {
             path.display()
         )
     });
+    let actual_json: serde_json::Value = serde_json::from_str(actual)
+        .unwrap_or_else(|error| panic!("Generated snapshot {name} is invalid JSON: {error}"));
+    let expected_json: serde_json::Value =
+        serde_json::from_str(&expected).unwrap_or_else(|error| {
+            panic!(
+                "Stored snapshot {} is invalid JSON: {error}",
+                path.display()
+            )
+        });
     assert_eq!(
-        actual, expected,
+        actual_json, expected_json,
         "Snapshot mismatch for {name}. Run with UPDATE_SNAPSHOTS=1 to update."
     );
 }
