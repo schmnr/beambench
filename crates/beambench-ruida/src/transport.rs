@@ -19,7 +19,7 @@ use crate::{
         normalize_upload_filename, parse_document_name_reply, parse_memory_reply,
         parse_memory_text_reply,
     },
-    target::{RuidaCompatibilityTarget, target_for_card_id},
+    target::{RuidaCompatibilityTarget, target_for_card_id, target_for_probe},
 };
 
 pub const RUIDA_UDP_REPLY_PORT: u16 = 40_200;
@@ -326,6 +326,7 @@ impl RuidaUploadReceipt {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuidaProbeClassification {
     Recognized,
+    Experimental,
     UnknownVariant,
 }
 
@@ -339,11 +340,13 @@ pub struct RuidaIdentityProbe {
 }
 
 impl RuidaIdentityProbe {
-    pub const fn classification(&self) -> RuidaProbeClassification {
-        if self.target.is_some() {
-            RuidaProbeClassification::Recognized
-        } else {
-            RuidaProbeClassification::UnknownVariant
+    pub fn classification(&self) -> RuidaProbeClassification {
+        match self.target {
+            Some(_) if target_for_card_id(self.card_id).is_some() => {
+                RuidaProbeClassification::Recognized
+            }
+            Some(_) => RuidaProbeClassification::Experimental,
+            None => RuidaProbeClassification::UnknownVariant,
         }
     }
 }
@@ -420,6 +423,7 @@ pub struct RuidaStorageClient<I> {
     codec: RuidaCodec,
     config: RuidaTransferConfig,
     verified_target: Option<RuidaCompatibilityTarget>,
+    identity_probe: Option<RuidaIdentityProbe>,
     send_attempts: usize,
     recovery_required: bool,
 }
@@ -437,6 +441,7 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
             codec: RuidaCodec::default(),
             config,
             verified_target: None,
+            identity_probe: None,
             send_attempts: 0,
             recovery_required: false,
         })
@@ -465,6 +470,10 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
         self.verified_target
     }
 
+    pub fn identity_probe(&self) -> Option<&RuidaIdentityProbe> {
+        self.identity_probe.as_ref()
+    }
+
     pub const fn recovery_required(&self) -> bool {
         self.recovery_required
     }
@@ -478,11 +487,13 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
         };
         self.codec = RuidaCodec::new(target.magic);
         self.verified_target = Some(target);
+        self.identity_probe = Some(probe);
         Ok(target.card_id)
     }
 
-    /// Read-only compatibility probe. Unknown targets are described but never
-    /// marked as connected, so every mutating method remains blocked.
+    /// Read-only compatibility probe. A controller with working identity and
+    /// status replies may enter the explicitly selected experimental Ruida
+    /// path even when its card ID has no dedicated registry row.
     pub fn probe(&mut self) -> Result<RuidaIdentityProbe, RuidaTransferError> {
         if self.recovery_required {
             return Err(RuidaTransferError::RecoveryRequired);
@@ -515,12 +526,13 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
                 None
             }
         };
+        let target = target_for_probe(card_id, mainboard_version.as_deref(), machine_status);
         Ok(RuidaIdentityProbe {
             card_id,
             mainboard_version,
             machine_status,
             probe_notes,
-            target: None,
+            target,
         })
     }
 
@@ -943,7 +955,7 @@ mod tests {
     use crate::{
         DEFAULT_MAGIC, KNOWN_MACHINE_STATUS_BITS, RDC6442S_CARD_ID, RUIDA_UDP_PORT,
         RuidaCompatibilityTarget, RuidaCompilationConfig, RuidaVirtualController,
-        RuidaVirtualExecutionState, compile_ruida_job,
+        compile_ruida_job,
     };
 
     fn compiled_job() -> RuidaCompiledJob {
@@ -990,7 +1002,7 @@ mod tests {
     }
 
     #[test]
-    fn unknown_variant_probe_collects_read_only_evidence_and_blocks_mutation() {
+    fn rdc6445g_probe_enables_the_experimental_storage_path() {
         let unknown_target = RuidaCompatibilityTarget {
             model: "unverified-test-target",
             card_id: 0x1234_5678,
@@ -1006,24 +1018,23 @@ mod tests {
         )
         .unwrap();
 
-        let error = client.connect().unwrap_err();
-        let RuidaTransferError::UnknownVariant { probe } = error else {
-            panic!("unexpected probe error: {error}");
-        };
+        let probe = client.probe().unwrap();
         assert_eq!(
             probe.classification(),
-            RuidaProbeClassification::UnknownVariant
+            RuidaProbeClassification::Experimental
         );
         assert_eq!(probe.card_id, 0x1234_5678);
         assert_eq!(probe.mainboard_version.as_deref(), Some("RDC6445G-V1.0"));
         assert_eq!(probe.machine_status, Some(0));
         assert!(probe.probe_notes.is_empty());
-        assert_eq!(client.verified_target(), None);
+        assert_eq!(probe.target.unwrap().model, "RDC6445G");
+
+        client.connect().unwrap();
+        assert_eq!(client.verified_target().unwrap().model, "RDC6445G");
+        let receipt = client.upload_job(&compiled_job()).unwrap();
+        assert_eq!(receipt.controller_card_id(), 0x1234_5678);
+        client.delete_receipt(&receipt).unwrap();
         assert!(client.io().controller().files().is_empty());
-        assert_eq!(
-            client.io().controller().execution_state(),
-            RuidaVirtualExecutionState::Idle
-        );
     }
 
     #[test]

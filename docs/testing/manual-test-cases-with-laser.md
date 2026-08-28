@@ -645,16 +645,16 @@ Shared fixtures:
 - Undo / Redo Expectation: Runtime motion and app-profile settings, not project history.
 - Status: Active
 
-### DSP-006 — Unknown Ruida Read-Only Compatibility Probe
+### DSP-006 — Experimental Ruida Ethernet Compatibility
 - Source Ref: `FSW-019`, `FSW-021`
-- Feature / Function: Safe identification and diagnostic retention for an unrecognized Ruida controller
-- Hardware Requirement: Unrecognized Ethernet Ruida controller, such as an RDC6445G candidate
+- Feature / Function: Opt-in connection and job lifecycle for an Ethernet Ruida controller without a dedicated card-ID row
+- Hardware Requirement: Ethernet Ruida controller, preferably RDC6445G for the first community test
 - Prerequisites: Controller and test computer isolated on a trusted network; model and firmware visible on the controller panel
 - Setup / Fixture: Record the panel model and firmware, then configure the controller IP and UDP port 50200 in Beam Bench
-- Steps: Select Ruida and connect; confirm the connection is refused; open **Help > Report a Bug...** and inspect the diagnostic preview.
-- Expected Result: The message says the controller is not yet recognized and that no file or motion command was sent. Diagnostics include the UDP endpoint, card ID, mainboard version when returned, raw status, and `ruida_unknown_variant` error code.
-- Edge / Negative Cases: Disconnect the network during the probe and confirm an inconclusive read-only error appears without entering Ready state.
-- Persistence / Reopen Check: Reconnect after relaunch and confirm the same fingerprint is retained in a new diagnostic report.
+- Steps: Select **Ruida (Experimental)** and connect; confirm Controller Info shows the model or unverified label plus card ID; generate Preview; run a zero-output frame; if placement and motion are correct, run one small job; wait for Beam Bench to report completion and confirm its temporary `BB*` controller file was removed.
+- Expected Result: The session enters Ready, framing follows the preview bounds, the job starts once, completion comes from controller status rather than upload acknowledgement, and Beam Bench removes only its own temporary file.
+- Edge / Negative Cases: Disconnect during the read-only probe, upload, and active job in separate tests. Confirm Beam Bench reports the failed stage, never claims completion without the required status transition, and requires recovery after an ambiguous transfer.
+- Persistence / Reopen Check: Reconnect after relaunch and confirm the same model/card ID and capability set are shown.
 - Undo / Redo Expectation: Runtime-only.
 - Status: Active
 

@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.2.13
+
+- Ruida (Experimental) no longer rejects every controller except one
+  hard-coded RDC6442S card ID. A controller that answers the Ruida identity
+  and machine-status queries can use the shared Ethernet job, framing,
+  completion, cleanup, home, and finite-jog paths. RDC6445G version replies are
+  identified by name, while other responding variants remain clearly marked
+  as unverified.
+- Experimental Ruida targets retain the controller's card ID and continue to
+  require acknowledged uploads, verified controller-file cleanup, observed
+  start and completion transitions, and confirmed stop behavior.
 
 ## 0.2.12
 

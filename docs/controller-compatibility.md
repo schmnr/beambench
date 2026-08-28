@@ -25,6 +25,7 @@ Experimental confirmation.
 | Snapmaker 2.0 | Serial | Experimental | Requires an exact Snapmaker 2.0 firmware identity and uses its documented laser-power commands. Jobs and framing are supported; manual motion and pause/resume are not yet exposed, and cancel requires reconnecting. Artisan is not included in this row. |
 | Smoothieware | Serial | Experimental | Requires an exact Smoothieware identity and an enabled laser configuration. Jobs and framing are supported; manual motion and pause/resume are not yet exposed, and cancel requires reconnecting. |
 | Ruida RDC6442S | Network (UDP port 50200) | Experimental | Exact Ethernet controller row with native vector/raster jobs, zero-output framing, XY home, finite output-disabled XY jogging, configurable Z- or U-channel lift-table jogging, pause/resume, cancel, completion confirmation, and controller-file cleanup. |
+| Ruida RDC6445G and compatible Ethernet variants | Network (UDP port 50200) | Experimental | Opt-in community-test path using the shared native Ruida jobs and controls. Connection requires working Ruida identity and machine-status replies. RDC6445G is software-tested but still awaiting reports from physical controllers. |
 | Lihuiyu M2/M3 Nano | USB (`1a86:5512`) | Experimental | Stock K40-class CH341 board in M2-compatible mode. Supports vector/raster jobs, perforation, zero-output framing, home, unlock, finite XY jogging, pause/resume, cancel, and completion status. |
 
 Auto-detect is also available for Serial and Network connections. It activates a
@@ -47,7 +48,8 @@ For LaserPecker LX2, choose **LaserPecker (Experimental)** with the Network
 connection; the form defaults to `192.168.253.1` and TCP port `8888`. For the
 other listed LaserPecker models, choose Serial and apply the matching built-in
 machine preset; it supplies the 460800 baud rate and model-specific job settings.
-For Ruida RDC6442S, use the controller's IP address and UDP port 50200. For a
+For Ruida Ethernet controllers, including RDC6442S and RDC6445G, use the
+controller's IP address and UDP port 50200. For a
 stock K40/Lihuiyu board, choose USB; Beam Bench lists only matching CH341
 `1a86:5512` devices and validates the controller before entering Ready.
 
@@ -142,15 +144,19 @@ then reconnect the controller and refresh the USB list.
 
 ### Ruida Notes
 
-The first Ruida row is deliberately exact: RDC6442S over Ethernet using the
-identified card and protocol variant. Other Ruida models are not silently
-treated as compatible. When an unrecognized Ruida controller responds, Beam
-Bench performs a bounded read-only compatibility check and retains the card ID,
-mainboard version when available, raw status, and network endpoint in the bug
-report. It sends no file or motion command to an unknown variant. Submit that
-report with the model and firmware shown on the controller panel so support can
-be added from observed evidence. RDC6445G remains a candidate, not a supported
-target, until this fingerprint and its real-controller behavior are verified.
+RDC6442S has a dedicated card-ID row. Other Ethernet Ruida controllers enter
+the shared adapter only after answering the same read-only identity and
+machine-status queries. A version containing `6445G` is shown as RDC6445G;
+otherwise Controller Info labels the target unverified and shows its card ID.
+Selecting **Ruida (Experimental)** is the opt-in. Beam Bench does not require a
+second confirmation or refuse the connection merely because the card ID is new.
+
+The experimental path uses the same acknowledged upload, uniquely named
+temporary file, verified cleanup, start/stop status, and completion checks as
+RDC6442S. A failed or ambiguous transfer stops the workflow instead of retrying
+a command whose effect is unknown. Physical RDC6445G compatibility has not yet
+been confirmed, so start with Preview and a zero-output frame and keep the
+machine's physical stop accessible for the first job.
 
 For a motorized bed, set **Ruida lift table axis** to Z
 or U in the active machine profile, matching the channel shown by the machine's

@@ -6605,7 +6605,7 @@ mod tests {
     }
 
     #[test]
-    fn unknown_ruida_variant_is_read_only_and_retained_in_diagnostics() {
+    fn rdc6445g_connects_through_the_experimental_ruida_path() {
         let _udp_guard = RUIDA_UDP_TEST_LOCK.lock().unwrap();
         let unknown_target = beambench_ruida::RuidaCompatibilityTarget {
             model: "unverified-test-target",
@@ -6620,7 +6620,7 @@ mod tests {
         );
         let ctx = ServiceContext::new();
 
-        let error = begin_network_controller_connection(
+        let result = begin_network_controller_connection(
             &ctx,
             BeginNetworkControllerConnectionInput {
                 host: "127.0.0.1".to_string(),
@@ -6630,36 +6630,56 @@ mod tests {
                 },
             },
         )
-        .unwrap_err();
+        .unwrap();
 
-        let detail = error.to_string();
-        assert!(detail.contains("[ruida_unknown_variant]"));
-        assert!(detail.contains("card ID 0x12345678"));
-        assert!(detail.contains("RDC6445G-V1.0"));
-        assert!(ctx.session.lock().unwrap().is_none());
-        let events = ctx.recent_connection_events();
-        let failure = events.last().expect("identity failure event");
-        assert_eq!(failure.stage, "identity_failed");
-        assert_eq!(failure.error_code.as_deref(), Some("ruida_unknown_variant"));
-        assert_eq!(failure.transport_kind.as_deref(), Some("udp"));
-        assert!(
-            failure
-                .error
-                .as_deref()
-                .is_some_and(|value| value.contains("card ID 0x12345678"))
-        );
-        let controller = fixture.controller.lock().unwrap();
-        assert!(controller.files().is_empty());
+        assert!(matches!(
+            result,
+            ControllerConnectionResult::Connected { ref choice, .. }
+                if choice.detected_identity.as_ref().is_some_and(|identity| {
+                    identity.firmware_identity.as_deref() == Some("RDC6445G")
+                })
+        ));
+        let state = runtime_state(&ctx).unwrap();
+        let capabilities = state.capabilities.unwrap();
+        assert!(state.experimental_mode);
+        assert!(capabilities.can_run_job);
+        assert!(capabilities.can_frame);
+        assert!(capabilities.can_home);
+        assert!(capabilities.can_jog);
         assert_eq!(
-            controller.execution_state(),
-            beambench_ruida::RuidaVirtualExecutionState::Idle
+            state
+                .controller_info
+                .as_ref()
+                .unwrap()
+                .get("Card ID")
+                .map(String::as_str),
+            Some("0x12345678")
         );
+        assert_eq!(
+            state
+                .controller_info
+                .unwrap()
+                .get("Mainboard version")
+                .map(String::as_str),
+            Some("RDC6445G-V1.0")
+        );
+        disconnect_machine(&ctx).unwrap();
     }
 
     #[test]
-    fn ruida_public_job_path_uploads_runs_and_confirms_completion() {
+    fn rdc6445g_public_job_path_uploads_runs_and_confirms_completion() {
         let _udp_guard = RUIDA_UDP_TEST_LOCK.lock().unwrap();
-        let fixture = spawn_network_ruida_fixture();
+        let target = beambench_ruida::RuidaCompatibilityTarget {
+            model: "unverified-test-target",
+            card_id: 0x1234_5678,
+            transport: "ethernet_udp",
+            port: beambench_ruida::RUIDA_UDP_PORT,
+            magic: beambench_ruida::DEFAULT_MAGIC,
+            known_machine_status_bits: beambench_ruida::KNOWN_MACHINE_STATUS_BITS,
+        };
+        let fixture = spawn_network_ruida_fixture_with(
+            beambench_ruida::RuidaVirtualController::for_target(target, "RDC6445G-V1.0"),
+        );
         let profile = MachineProfile {
             bed_width_mm: 500.0,
             bed_height_mm: 500.0,

@@ -1,7 +1,7 @@
 # Ruida RDC6445G support plan
 
-Status: **In progress. Read-only diagnostic probe implemented; RDC6445G
-fingerprint pending.**
+Status: **Experimental execution path implemented; physical RDC6445G testing
+pending.**
 
 Target: **RDC6445G over Ethernet/UDP**
 
@@ -9,15 +9,11 @@ Initial product tier: **Experimental**
 
 ## Goal
 
-Extend Beam Bench's existing RDC6442S Ruida adapter to the RDC6445G without
-assuming that the two controllers share every identity value, status bit,
-storage behavior, or motion command. Keep the current RDC6442S path unchanged
-until captured RDC6445G behavior proves which parts can safely be shared.
-
-The first useful release should identify an RDC6445G, report what it found, and
-fail safely when the controller differs from the known protocol. Later releases
-can enable storage, job execution, and manual motion as each behavior passes its
-own evidence gate.
+Extend Beam Bench's existing RDC6442S Ruida adapter to the RDC6445G as an
+explicitly selected Experimental controller. Reuse the shared protocol when the
+controller answers the established Ruida identity and status queries. Keep the
+acknowledgement, scoped cleanup, status-transition, stop, and completion checks
+active during community testing.
 
 ## Boundaries
 
@@ -25,10 +21,11 @@ own evidence gate.
   project even though Ruida documents USB connectivity for the controller.
 - Keep the existing `ruida` controller driver ID and shared compiler where the
   wire behavior is identical. Do not create a second copy of the Ruida stack.
-- Do not treat an RDC6445G as an RDC6442S merely because it answers on the same
-  port or accepts the same swizzle key.
-- No controller mutation occurs until Beam Bench has matched an accepted,
-  model-specific compatibility target using read-only evidence.
+- Do not report an RDC6445G as hardware-validated merely because it answers on
+  the same port or accepts the same swizzle key.
+- A controller may enter the Experimental runtime after its Ruida identity and
+  machine-status queries succeed. A dedicated card-ID registry row is not a
+  prerequisite for community testing.
 - Preserve the existing no-blind-retry, scoped-file cleanup, recovery-required,
   and completion-confirmation rules.
 - Keep unsupported features disabled. This includes absolute-position
@@ -92,11 +89,10 @@ registry before any mutation is allowed.
 
 ### Phase 1 gate
 
-Record the observed RDC6445G identity and reply fixtures in the plan before
-enabling any mutation. If the controller does not expose a unique model value,
-define the compatibility target from the exact observable protocol fingerprint
-and document that the tested hardware carried an RDC6445G label. A manual model
-selection alone is not positive controller identity.
+The explicit **Ruida (Experimental)** selection and successful read-only
+identity and status replies are enough to enter the community-test runtime. A
+real report is still required before claiming hardware validation or adding a
+dedicated card-ID row.
 
 ## Phase 2: make Ruida targets explicit
 
@@ -107,7 +103,9 @@ in transport and service logic.
   card ID, display model, transport, port, swizzle key, and supported status
   mask for each target. The target-aware adapter supplies its capability set.
 - [x] Preserve `RDC6442S_ETHERNET_TARGET` with its existing values and behavior.
-- [ ] Add an RDC6445G target only after Phase 1 supplies a defensible fingerprint.
+- [x] Create an RDC6445G experimental target from a successful read-only probe;
+  retain its actual card ID and show the model when the mainboard version
+  identifies the 6445 family.
 - [x] Make `RuidaStorageClient`, `RuidaRuntime`, and `RuidaRuntimeSession` carry
   the matched target rather than comparing against `RDC6442S_CARD_ID` globally.
 - [x] Derive positive identity, controller information, diagnostics, and error
@@ -122,32 +120,38 @@ in transport and service logic.
 
 ### Phase 2 gate
 
-All existing RDC6442S tests must pass without fixture changes. An unknown card
-ID must still refuse upload, execution, home, jog, and table motion.
+All existing RDC6442S tests must pass without fixture changes. A new card ID may
+use the experimental capabilities only after both identity and status replies
+succeed. A failed status query still refuses the connection.
 
-## Phase 3: verify read-only and storage behavior
+## Phase 3: exercise read-only and storage behavior
 
-Build the RDC6445G corpus from captured responses rather than copying the
-RDC6442S corpus and renaming it.
+The shared virtual controller covers the expected protocol. Add real RDC6445G
+responses to the corpus as testers provide them instead of blocking the test
+path until those captures exist.
 
 - [ ] Add golden fixtures for enquiry, identity, machine status, file count, and
   document names using sanitized RDC6445G observations.
 - [ ] Exercise acknowledgement, negative acknowledgement, error, checksum,
   timeout, duplicate reply, and unexpected reply behavior against the new
   virtual target.
-- [ ] Confirm the recognized machine-status bits and fail on unknown bits.
+- [x] Preserve unknown status bits in diagnostics without failing solely
+  because an experimental controller reports additional flags. Required job
+  transitions still depend on the established running, moving, and part-end
+  bits.
 - [ ] Upload Beam Bench's zero-output storage sentinel under a unique `BB*`
   filename, verify it appears exactly once, then delete and verify removal.
 - [ ] Confirm packet size, chunking, filename limits, reply port, timeout, and
-  retry behavior rather than inheriting those values without evidence.
+  retry behavior from the first hardware report; correct any difference found.
 - [ ] Preserve recovery-required behavior after an ambiguous write or partial
   upload. Never blindly resend a command whose effect is unknown.
 
 ### Phase 3 gate
 
-The target may gain controller-storage access only after upload receipt and
-scoped deletion work on both the virtual controller and one real RDC6445G.
-Failure must leave unrelated controller files untouched.
+The virtual RDC6445G path must prove upload receipt and scoped deletion before
+release. The first hardware test uses the same checks. Failure must leave
+unrelated controller files untouched and produce enough diagnostics to correct
+the adapter.
 
 ## Phase 4: prove job compatibility
 
@@ -170,15 +174,16 @@ shows an actual difference.
 
 ### Phase 4 gate
 
-Enable `can_frame` and `can_run_job` for the RDC6445G target only after the
-controller reports a complete lifecycle for real vector and raster jobs and
-Beam Bench removes its temporary file. A failed lifecycle remains Experimental
-and enters recovery rather than guessing that the job completed.
+Expose `can_frame` and `can_run_job` in the opt-in Experimental path after the
+virtual controller reports a complete lifecycle and Beam Bench removes its
+temporary file. A failed hardware lifecycle remains Experimental and enters
+recovery rather than guessing that the job completed.
 
-## Phase 5: enable controls one at a time
+## Phase 5: test the shared controls
 
-Do not inherit the RDC6442S capability set as a block. Promote each operation
-after its command and status transition have been observed on the RDC6445G.
+Expose the implemented Ruida capability set in Experimental mode. Test each
+operation separately on the first RDC6445G and disable or specialize only the
+commands that the hardware report shows are different.
 
 - [ ] Select, start, pause, resume, stop, natural completion, and requested-stop
   races.
@@ -195,9 +200,9 @@ not acceptance requirements for RDC6445G support.
 
 ## Product and diagnostic work
 
-- [ ] Continue showing `Ruida (Experimental)` in the connection selector unless
+- [x] Continue showing `Ruida (Experimental)` in the connection selector unless
   evidence requires an explicit model choice.
-- [ ] Show the exact matched target, card ID, transport, endpoint, evidence
+- [x] Show the exact matched target, card ID, transport, endpoint, evidence
   state, and enabled capabilities in Controller Info and diagnostic reports.
 - [x] Give unknown variants a useful read-only error that asks for a report
   without implying the controller is defective.
@@ -205,9 +210,9 @@ not acceptance requirements for RDC6445G support.
   model or message. Give the French text a human review because the first
   prospective tester is communicating in French.
 - [x] Update `docs/controller-compatibility.md`, this plan,
-  `docs/ruida-feasibility.md`, and `CHANGELOG.md` for the diagnostic-probe
-  stage. Release notes and website compatibility copy remain tied to the next
-  release rather than claiming RDC6445G support now.
+  `docs/ruida-feasibility.md`, and `CHANGELOG.md` for the experimental runtime.
+  Release notes and website compatibility copy remain tied to the next release
+  and must say physical RDC6445G testing is still pending.
 - [ ] Do not claim general Ruida or all-RDC6445G compatibility. Name the exact
   tested transport, fingerprint, firmware if known, and capabilities.
 
@@ -228,34 +233,34 @@ npm run build
 Before a release, run the repository's full Rust and frontend checks from
 `CONTRIBUTING.md`, then complete a packaged-app smoke test on each release
 platform. The desktop smoke should cover connection, identity display,
-diagnostic-report preview, refusal of an unknown target, and the capability
-controls appropriate to the matched target.
+diagnostic-report preview, refusal when the required status query fails, and
+the capability controls appropriate to the matched target.
 
 The release sequence is:
 
-1. Ship or privately provide a diagnostic probe build that cannot mutate an
-   unknown RDC6445G.
-2. Record the returned fingerprint and add deterministic virtual-controller
-   coverage.
-3. Enable storage and zero-output framing for the exact target.
-4. Enable job execution after the tester confirms the required real-controller
-   lifecycle.
-5. Add home and finite jog only after their separate tests pass.
+1. Complete the shared adapter, RDC6445G virtual-controller, service, and
+   packaged-app checks.
+2. Ship the opt-in Experimental path with card ID and mainboard version in
+   Controller Info and bug reports.
+3. Ask the tester to connect, preview, zero-output frame, and run a small job.
+4. Use the existing status and cleanup diagnostics to correct any
+   controller-specific difference found on hardware.
+5. Add a dedicated card-ID row when a report supplies the real fingerprint.
 
 ## Completion criteria
 
-RDC6445G support is ready to remain available as Experimental when all of the
-following are true:
+RDC6445G support is ready to release as Experimental when all of the following
+are true:
 
-- Beam Bench recognizes an evidence-backed RDC6445G protocol fingerprint and
-  rejects unknown Ruida targets before mutation.
+- Beam Bench identifies RDC6445G version replies and retains the actual card ID
+  for every experimental target.
 - RDC6442S behavior and fixtures remain unchanged.
-- Vector and raster jobs frame, start, pause, resume, stop, complete, and clean
-  up their scoped controller files on the real test machine.
+- The RDC6445G virtual target frames, starts, pauses, resumes, stops, completes,
+  and cleans up its scoped controller files through the product service path.
 - Every exposed motion command has a captured success path, bounded failure
   path, output-inactive rule where required, and virtual-controller test.
-- Diagnostics identify the target and preserve enough sanitized evidence to
-  investigate a failure.
+- Diagnostics identify the target, card ID, and mainboard version and preserve
+  enough sanitized evidence to investigate a hardware difference.
 - UI strings, translations, compatibility documentation, release notes,
   website copy, GPL source archive, and third-party notices agree with the
   shipped behavior.

@@ -39,6 +39,7 @@ pub use runtime::{
 };
 pub use target::{
     KNOWN_RUIDA_TARGETS, RDC6442S_ETHERNET_TARGET, RuidaCompatibilityTarget, target_for_card_id,
+    target_for_probe,
 };
 pub use transport::{
     RUIDA_UDP_REPLY_PORT, RuidaDatagramIo, RuidaIdentityProbe, RuidaProbeClassification,

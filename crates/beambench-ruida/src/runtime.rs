@@ -179,6 +179,10 @@ impl<I: RuidaDatagramIo> RuidaRuntime<I> {
         self.storage.verified_target()
     }
 
+    pub fn identity_probe(&self) -> Option<&crate::RuidaIdentityProbe> {
+        self.storage.identity_probe()
+    }
+
     pub fn receipt(&self) -> Option<&RuidaUploadReceipt> {
         self.receipt.as_ref()
     }
