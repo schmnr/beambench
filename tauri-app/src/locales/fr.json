@@ -2619,6 +2619,8 @@
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Impossible d’ouvrir {port}. Une autre application utilise peut-être ce port, ou le contrôleur a été déconnecté. Fermez les autres logiciels laser ou série, reconnectez le contrôleur, puis réessayez.",
     "lihuiyu_incompatible_windows_driver": "Ce contrôleur Lihuiyu utilise un pilote USB Windows incompatible. Beam Bench nécessite WinUSB pour l’appareil 1a86:5512. Changez le pilote, reconnectez le contrôleur, puis actualisez la liste USB. Le changement de pilote peut empêcher le logiciel du fabricant d’utiliser le contrôleur jusqu’à la restauration du pilote d’origine.",
+    "ruida_unknown_variant": "Beam Bench a détecté un contrôleur Ruida qu’il ne reconnaît pas encore. Aucun fichier ni aucune commande de mouvement n’a été envoyé. Envoyez un rapport d’erreur en indiquant le modèle du contrôleur et la version du micrologiciel affichée sur son écran.",
+    "ruida_probe_inconclusive": "Beam Bench n’a pas pu terminer la vérification de compatibilité Ruida en lecture seule. Aucun fichier ni aucune commande de mouvement n’a été envoyé. Vérifiez la connexion réseau, puis envoyez un rapport d’erreur si le problème se reproduit.",
     "workspace_edge_left": "gauche",
     "workspace_edge_right": "droit",
     "workspace_edge_top": "supérieur",

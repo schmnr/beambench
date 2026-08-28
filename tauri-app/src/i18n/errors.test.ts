@@ -40,6 +40,26 @@ describe('wrapBackendError', () => {
     );
   });
 
+  it('explains that an unknown Ruida probe did not send motion', () => {
+    expect(
+      wrapBackendError(
+        '[ruida_unknown_variant] Beam Bench found an unrecognized Ruida controller using read-only queries (card ID 0x1234).',
+      ),
+    ).toBe(
+      'Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.',
+    );
+  });
+
+  it('explains an inconclusive Ruida probe without exposing its backend detail', () => {
+    expect(
+      wrapBackendError(
+        '[ruida_probe_inconclusive] Ruida adapter validation failed: reply timed out',
+      ),
+    ).toBe(
+      'Beam Bench could not complete the read-only Ruida compatibility check. No file or motion command was sent. Check the network connection, then submit a bug report if it happens again.',
+    );
+  });
+
   it('turns an oversized raster plan into actionable localized guidance', () => {
     expect(
       wrapBackendError(

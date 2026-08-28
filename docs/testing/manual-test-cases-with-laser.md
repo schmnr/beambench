@@ -645,6 +645,19 @@ Shared fixtures:
 - Undo / Redo Expectation: Runtime motion and app-profile settings, not project history.
 - Status: Active
 
+### DSP-006 — Unknown Ruida Read-Only Compatibility Probe
+- Source Ref: `FSW-019`, `FSW-021`
+- Feature / Function: Safe identification and diagnostic retention for an unrecognized Ruida controller
+- Hardware Requirement: Unrecognized Ethernet Ruida controller, such as an RDC6445G candidate
+- Prerequisites: Controller and test computer isolated on a trusted network; model and firmware visible on the controller panel
+- Setup / Fixture: Record the panel model and firmware, then configure the controller IP and UDP port 50200 in Beam Bench
+- Steps: Select Ruida and connect; confirm the connection is refused; open **Help > Report a Bug...** and inspect the diagnostic preview.
+- Expected Result: The message says the controller is not yet recognized and that no file or motion command was sent. Diagnostics include the UDP endpoint, card ID, mainboard version when returned, raw status, and `ruida_unknown_variant` error code.
+- Edge / Negative Cases: Disconnect the network during the probe and confirm an inconclusive read-only error appears without entering Ready state.
+- Persistence / Reopen Check: Reconnect after relaunch and confirm the same fingerprint is retained in a new diagnostic report.
+- Undo / Redo Expectation: Runtime-only.
+- Status: Active
+
 ## Galvo Family
 
 ### GAL-001 — Galvo Capability-Aware Profile Activation And UI

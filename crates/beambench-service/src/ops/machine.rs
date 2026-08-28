@@ -313,7 +313,7 @@ pub(crate) fn compile_ruida_execution_plan(
 ) -> Result<RuidaCompiledJob, String> {
     if project.start_from == StartFromMode::CurrentPosition {
         return Err(
-            "Ruida RDC6442S does not report an absolute current position; choose Absolute Coordinates or User Origin before running the job"
+            "The connected Ruida controller does not report an absolute current position; choose Absolute Coordinates or User Origin before running the job"
                 .to_string(),
         );
     }
@@ -449,7 +449,7 @@ fn run_ruida_preflight(
     let compilation_ok = compilation.is_ok();
     checks.push(PreflightCheck {
         category: "controller".to_string(),
-        description: "Plan compiles for Ruida RDC6442S".to_string(),
+        description: "Plan compiles for the connected Ruida target".to_string(),
         passed: compilation_ok,
         message: compilation
             .map(|job| {
@@ -1751,17 +1751,38 @@ fn finish_ruida_network_connection(
         .map_err(|error| ServiceError::machine(format!("Ruida host resolution failed: {error}")))?
         .next()
         .ok_or_else(|| ServiceError::machine("Ruida host did not resolve to an IP address"))?;
-    ctx.push_connection_event(
+    ctx.push_udp_connection_event(
         "transport_open",
-        Some(endpoint.display_name()),
-        None,
+        endpoint.display_name(),
         Some("Opening Ruida Ethernet/UDP transport".to_string()),
         None,
     );
-    let io = RuidaUdpIo::for_target(target)
-        .map_err(|error| ServiceError::machine(format!("Ruida UDP transport failed: {error}")))?;
+    let io = RuidaUdpIo::for_target(target).map_err(|error| {
+        let detail = format!("Ruida UDP transport failed: {error}");
+        ctx.push_udp_connection_event(
+            "transport_open_failed",
+            endpoint.display_name(),
+            None,
+            Some(detail.clone()),
+        );
+        ServiceError::machine(detail)
+    })?;
     let session = RuidaRuntimeSession::connect(io, endpoint.display_name()).map_err(|error| {
-        ServiceError::machine(format!("Ruida adapter validation failed: {error}"))
+        let detail = if error.contains("[ruida_unknown_variant]") {
+            error
+        } else {
+            format!("[ruida_probe_inconclusive] Ruida adapter validation failed: {error}")
+        };
+        ctx.push_udp_connection_event(
+            "identity_failed",
+            endpoint.display_name(),
+            Some(
+                "Ruida read-only compatibility probe did not establish a supported target"
+                    .to_string(),
+            ),
+            Some(detail.clone()),
+        );
+        ServiceError::machine(detail)
     })?;
     let detected_identity = session.detected_identity();
     let choice = ResolvedControllerChoice {
@@ -6317,14 +6338,18 @@ mod tests {
     }
 
     fn spawn_network_ruida_fixture() -> NetworkRuidaFixture {
+        spawn_network_ruida_fixture_with(beambench_ruida::RuidaVirtualController::rdc6442s())
+    }
+
+    fn spawn_network_ruida_fixture_with(
+        virtual_controller: beambench_ruida::RuidaVirtualController,
+    ) -> NetworkRuidaFixture {
         let socket = UdpSocket::bind(("127.0.0.1", 0)).unwrap();
         socket
             .set_read_timeout(Some(Duration::from_millis(100)))
             .unwrap();
         let port = socket.local_addr().unwrap().port();
-        let controller = Arc::new(Mutex::new(
-            beambench_ruida::RuidaVirtualController::rdc6442s(),
-        ));
+        let controller = Arc::new(Mutex::new(virtual_controller));
         let controller_for_server = Arc::clone(&controller);
         let stop = Arc::new(AtomicBool::new(false));
         let stop_for_server = Arc::clone(&stop);
@@ -6577,6 +6602,58 @@ mod tests {
         assert!(state.experimental_mode);
 
         disconnect_machine(&ctx).unwrap();
+    }
+
+    #[test]
+    fn unknown_ruida_variant_is_read_only_and_retained_in_diagnostics() {
+        let _udp_guard = RUIDA_UDP_TEST_LOCK.lock().unwrap();
+        let unknown_target = beambench_ruida::RuidaCompatibilityTarget {
+            model: "unverified-test-target",
+            card_id: 0x1234_5678,
+            transport: "ethernet_udp",
+            port: beambench_ruida::RUIDA_UDP_PORT,
+            magic: beambench_ruida::DEFAULT_MAGIC,
+            known_machine_status_bits: beambench_ruida::KNOWN_MACHINE_STATUS_BITS,
+        };
+        let fixture = spawn_network_ruida_fixture_with(
+            beambench_ruida::RuidaVirtualController::for_target(unknown_target, "RDC6445G-V1.0"),
+        );
+        let ctx = ServiceContext::new();
+
+        let error = begin_network_controller_connection(
+            &ctx,
+            BeginNetworkControllerConnectionInput {
+                host: "127.0.0.1".to_string(),
+                port: fixture.port,
+                selection: ControllerSelection::KnownDriver {
+                    driver: ControllerDriverId::Ruida,
+                },
+            },
+        )
+        .unwrap_err();
+
+        let detail = error.to_string();
+        assert!(detail.contains("[ruida_unknown_variant]"));
+        assert!(detail.contains("card ID 0x12345678"));
+        assert!(detail.contains("RDC6445G-V1.0"));
+        assert!(ctx.session.lock().unwrap().is_none());
+        let events = ctx.recent_connection_events();
+        let failure = events.last().expect("identity failure event");
+        assert_eq!(failure.stage, "identity_failed");
+        assert_eq!(failure.error_code.as_deref(), Some("ruida_unknown_variant"));
+        assert_eq!(failure.transport_kind.as_deref(), Some("udp"));
+        assert!(
+            failure
+                .error
+                .as_deref()
+                .is_some_and(|value| value.contains("card ID 0x12345678"))
+        );
+        let controller = fixture.controller.lock().unwrap();
+        assert!(controller.files().is_empty());
+        assert_eq!(
+            controller.execution_state(),
+            beambench_ruida::RuidaVirtualExecutionState::Idle
+        );
     }
 
     #[test]

@@ -4,6 +4,8 @@ import type { FeedbackSourceContext } from '../types/feedback';
 const MACHINE_ZERO_REQUIRES_HOME = 'Machine-zero moves require homing in the current session first';
 const SERIAL_PORT_UNAVAILABLE = /\[serial_port_unavailable\]\s+Could not open ([^:]+):/u;
 const LIHUIYU_INCOMPATIBLE_WINDOWS_DRIVER = '[lihuiyu_incompatible_windows_driver]';
+const RUIDA_UNKNOWN_VARIANT = '[ruida_unknown_variant]';
+const RUIDA_PROBE_INCONCLUSIVE = '[ruida_probe_inconclusive]';
 const USER_ORIGIN_NOT_SET = 'User Origin is selected, but no user origin has been set.';
 const CURRENT_POSITION_UNAVAILABLE =
   'Current Position requires a connected machine with a reported work position.';
@@ -35,6 +37,12 @@ export function wrapBackendError(detail: string): string {
   }
   if (normalized.includes(LIHUIYU_INCOMPATIBLE_WINDOWS_DRIVER)) {
     return i18n.t('errors.lihuiyu_incompatible_windows_driver');
+  }
+  if (normalized.includes(RUIDA_UNKNOWN_VARIANT)) {
+    return i18n.t('errors.ruida_unknown_variant');
+  }
+  if (normalized.includes(RUIDA_PROBE_INCONCLUSIVE)) {
+    return i18n.t('errors.ruida_probe_inconclusive');
   }
   if (normalized.startsWith(USER_ORIGIN_NOT_SET)) {
     return i18n.t('errors.user_origin_not_set');

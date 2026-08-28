@@ -7,12 +7,13 @@ use beambench_common::{
     MachineRunState, MachineStatus, PositiveControllerIdentity, SessionState,
 };
 use beambench_ruida::{
-    RDC6442S_CARD_ID, RuidaCompiledJob, RuidaEthernetAdapter, RuidaJogAxis, RuidaRuntime,
+    RuidaCompatibilityTarget, RuidaCompiledJob, RuidaEthernetAdapter, RuidaJogAxis, RuidaRuntime,
     RuidaRuntimeConfig, RuidaRuntimePhase, RuidaRuntimeSnapshot, RuidaTransferConfig, RuidaUdpIo,
 };
 
 pub struct RuidaRuntimeSession {
     runtime: RuidaRuntime<RuidaUdpIo>,
+    target: RuidaCompatibilityTarget,
     endpoint: String,
     capabilities: DeviceCapabilities,
     machine_status: MachineStatus,
@@ -21,7 +22,6 @@ pub struct RuidaRuntimeSession {
 
 impl RuidaRuntimeSession {
     pub fn connect(io: RuidaUdpIo, endpoint: String) -> Result<Self, String> {
-        let descriptor = RuidaEthernetAdapter::new().descriptor();
         let mut runtime = RuidaRuntime::new(
             io,
             RuidaTransferConfig::default(),
@@ -35,9 +35,14 @@ impl RuidaRuntimeSession {
                 snapshot.phase
             ));
         }
+        let target = runtime
+            .compatibility_target()
+            .ok_or_else(|| "Ruida runtime reached Ready without a verified target".to_string())?;
+        let descriptor = RuidaEthernetAdapter::for_target(target).descriptor();
         let machine_status = machine_status_from_snapshot(&snapshot);
         Ok(Self {
             runtime,
+            target,
             endpoint,
             capabilities: descriptor.capabilities,
             machine_status,
@@ -69,10 +74,11 @@ impl RuidaRuntimeSession {
         PositiveControllerIdentity {
             family: ControllerFamily::Dsp,
             model: ControllerModel::Ruida,
-            firmware_identity: Some("RDC6442S".to_string()),
+            firmware_identity: Some(self.target.model.to_string()),
             firmware_version: None,
             evidence: vec![format!(
-                "Read-only Ruida card ID matched {RDC6442S_CARD_ID:#x}"
+                "Read-only Ruida card ID matched {:#x}",
+                self.target.card_id
             )],
         }
     }
@@ -108,8 +114,11 @@ impl RuidaRuntimeSession {
 
     pub fn controller_info(&self) -> HashMap<String, String> {
         HashMap::from([
-            ("Controller".to_string(), "Ruida RDC6442S".to_string()),
-            ("Card ID".to_string(), format!("{RDC6442S_CARD_ID:#x}")),
+            (
+                "Controller".to_string(),
+                format!("Ruida {}", self.target.model),
+            ),
+            ("Card ID".to_string(), format!("{:#x}", self.target.card_id)),
             ("Transport".to_string(), "Ethernet / UDP".to_string()),
             ("Endpoint".to_string(), self.endpoint.clone()),
             ("Support tier".to_string(), "Experimental".to_string()),
