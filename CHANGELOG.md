@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.2.12
+
+- Ruida connections now identify known controller targets through an explicit
+  compatibility registry. Unrecognized variants are limited to a bounded,
+  read-only fingerprint that records card, firmware, status, and network
+  evidence in bug reports while refusing file upload and motion commands.
+- Unknown Ruida variants now show localized connection guidance and retain the
+  fingerprint in diagnostic reports so support can identify the exact target
+  without asking the controller to upload a file or move the machine.
+
 ## 0.2.11
 
 - Quality-test framing and execution now use the same physical placement for

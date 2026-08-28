@@ -368,11 +368,7 @@ impl ServiceContext {
         message: Option<String>,
         error: Option<String>,
     ) {
-        let error_code = error.as_deref().and_then(|detail| {
-            detail
-                .contains("[serial_port_unavailable]")
-                .then(|| "serial_port_unavailable".to_owned())
-        });
+        let error_code = error.as_deref().and_then(connection_error_code);
         self.push_connection_event_entry(DiagnosticConnectionEvent {
             ts: Utc::now().to_rfc3339(),
             stage: stage.into(),
@@ -380,6 +376,29 @@ impl ServiceContext {
             port_name,
             baud_rate,
             transport_kind: None,
+            vendor_id: None,
+            product_id: None,
+            usb_driver: None,
+            message,
+            error,
+        });
+    }
+
+    pub fn push_udp_connection_event(
+        &self,
+        stage: impl Into<String>,
+        endpoint: String,
+        message: Option<String>,
+        error: Option<String>,
+    ) {
+        let error_code = error.as_deref().and_then(connection_error_code);
+        self.push_connection_event_entry(DiagnosticConnectionEvent {
+            ts: Utc::now().to_rfc3339(),
+            stage: stage.into(),
+            error_code,
+            port_name: Some(endpoint),
+            baud_rate: None,
+            transport_kind: Some("udp".to_owned()),
             vendor_id: None,
             product_id: None,
             usb_driver: None,
@@ -1245,6 +1264,17 @@ impl ServiceContext {
             .cloned()
             .ok_or_else(|| format!("Item '{item_id}' not found"))
     }
+}
+
+fn connection_error_code(detail: &str) -> Option<String> {
+    [
+        "serial_port_unavailable",
+        "ruida_unknown_variant",
+        "ruida_probe_inconclusive",
+    ]
+    .into_iter()
+    .find(|code| detail.contains(&format!("[{code}]")))
+    .map(str::to_owned)
 }
 
 impl Default for ServiceContext {

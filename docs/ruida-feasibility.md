@@ -6,6 +6,9 @@ Candidate first row: **RDC6442S, Ethernet/UDP port 50200, swizzle key `0x88`**
 
 Hardware evidence: **not yet collected**
 
+The evidence-gated extension for the RDC6445G is tracked in the
+[RDC6445G support plan](ruida-rdc6445g-support-plan.md).
+
 ## Implementation And Licensing Route
 
 Beam Bench will use a clean Rust implementation of the publicly observed Ruida

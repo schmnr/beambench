@@ -144,7 +144,15 @@ then reconnect the controller and refresh the USB list.
 
 The first Ruida row is deliberately exact: RDC6442S over Ethernet using the
 identified card and protocol variant. Other Ruida models are not silently
-treated as compatible. For a motorized bed, set **Ruida lift table axis** to Z
+treated as compatible. When an unrecognized Ruida controller responds, Beam
+Bench performs a bounded read-only compatibility check and retains the card ID,
+mainboard version when available, raw status, and network endpoint in the bug
+report. It sends no file or motion command to an unknown variant. Submit that
+report with the model and firmware shown on the controller panel so support can
+be added from observed evidence. RDC6445G remains a candidate, not a supported
+target, until this fingerprint and its real-controller behavior are verified.
+
+For a motorized bed, set **Ruida lift table axis** to Z
 or U in the active machine profile, matching the channel shown by the machine's
 Ruida controller; Beam Bench does not guess the wiring. This enables finite
 manual table steps only. It does not enable automated job Z offsets or Focus

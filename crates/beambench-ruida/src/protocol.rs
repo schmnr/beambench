@@ -11,6 +11,8 @@ pub const ERR: u8 = 0xCD;
 pub const ENQ: u8 = 0xCE;
 
 pub const MEMORY_CARD_ID: u16 = 0x057E;
+/// Encoded address 0x057F, decoded memory address 0x02FF.
+pub const MEMORY_MAINBOARD_VERSION: u16 = 0x057F;
 pub const MEMORY_MACHINE_STATUS: u16 = 0x0400;
 pub const MEMORY_FILE_COUNT: u16 = 0x0405;
 pub const RDC6442S_CARD_ID: u64 = 0x6510_6510;
@@ -65,6 +67,10 @@ pub enum RuidaProtocolError {
     },
     #[error("Ruida memory reply has an invalid command header")]
     InvalidMemoryReply,
+    #[error("Ruida text-memory reply has an invalid header, address, or terminator")]
+    InvalidMemoryTextReply,
+    #[error("Ruida text-memory reply is not printable ASCII or is too long")]
+    InvalidMemoryText,
     #[error("Ruida controller file index {index} must be between 1 and {maximum}")]
     InvalidFileIndex { index: u16, maximum: u16 },
     #[error(
@@ -359,6 +365,23 @@ pub fn memory_reply(address: u16, value: u64) -> Result<[u8; 9], RuidaProtocolEr
     ])
 }
 
+pub fn memory_text_reply(address: u16, value: &str) -> Result<Vec<u8>, RuidaProtocolError> {
+    if value.is_empty()
+        || value.len() > 128
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_graphic() || byte == b' ')
+    {
+        return Err(RuidaProtocolError::InvalidMemoryText);
+    }
+    let mut reply = Vec::with_capacity(value.len() + 5);
+    reply.extend_from_slice(&SETTING_REPLY);
+    reply.extend_from_slice(&address.to_be_bytes());
+    reply.extend_from_slice(value.as_bytes());
+    reply.push(0);
+    Ok(reply)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RuidaMemoryReply {
     pub address: u16,
@@ -380,6 +403,29 @@ pub fn parse_memory_reply(bytes: &[u8]) -> Result<RuidaMemoryReply, RuidaProtoco
         address: u16::from_be_bytes([bytes[2], bytes[3]]),
         value: decode_u35(&bytes[4..])?,
     })
+}
+
+pub fn parse_memory_text_reply(
+    bytes: &[u8],
+    expected_address: u16,
+) -> Result<String, RuidaProtocolError> {
+    if bytes.len() < 6
+        || bytes.len() > 133
+        || bytes[..2] != SETTING_REPLY
+        || bytes[2..4] != expected_address.to_be_bytes()
+        || bytes.last() != Some(&0)
+    {
+        return Err(RuidaProtocolError::InvalidMemoryTextReply);
+    }
+    let value = &bytes[4..bytes.len() - 1];
+    if value.is_empty()
+        || !value
+            .iter()
+            .all(|byte| byte.is_ascii_graphic() || *byte == b' ')
+    {
+        return Err(RuidaProtocolError::InvalidMemoryText);
+    }
+    String::from_utf8(value.to_vec()).map_err(|_| RuidaProtocolError::InvalidMemoryText)
 }
 
 pub fn normalize_upload_filename(filename: &str) -> Result<String, RuidaProtocolError> {

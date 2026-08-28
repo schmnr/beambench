@@ -3,8 +3,8 @@ use std::time::Duration;
 use thiserror::Error;
 
 use crate::{
-    KNOWN_MACHINE_STATUS_BITS, MACHINE_STATUS_JOB_RUNNING, MACHINE_STATUS_MOVING,
-    MACHINE_STATUS_PART_END, RuidaCompiledJob, RuidaDatagramIo, RuidaJogAxis, RuidaProcessAction,
+    MACHINE_STATUS_JOB_RUNNING, MACHINE_STATUS_MOVING, MACHINE_STATUS_PART_END,
+    RuidaCompatibilityTarget, RuidaCompiledJob, RuidaDatagramIo, RuidaJogAxis, RuidaProcessAction,
     RuidaStorageClient, RuidaStoredFile, RuidaTransferConfig, RuidaTransferError,
     RuidaUploadProgress, RuidaUploadReceipt, home_xy_command, jog_speed_command,
     process_control_command, relative_jog_command, select_document_command,
@@ -175,6 +175,10 @@ impl<I: RuidaDatagramIo> RuidaRuntime<I> {
         self.phase
     }
 
+    pub const fn compatibility_target(&self) -> Option<RuidaCompatibilityTarget> {
+        self.storage.verified_target()
+    }
+
     pub fn receipt(&self) -> Option<&RuidaUploadReceipt> {
         self.receipt.as_ref()
     }
@@ -200,7 +204,7 @@ impl<I: RuidaDatagramIo> RuidaRuntime<I> {
         self.require_phase("connect", &[RuidaRuntimePhase::Disconnected])?;
         self.storage.connect()?;
         let raw = self.read_status()?;
-        validate_known_status(raw)?;
+        validate_known_status(raw, self.known_machine_status_bits())?;
         self.phase = if machine_is_active(raw) || machine_is_part_end(raw) {
             RuidaRuntimePhase::BusyUnowned
         } else {
@@ -508,7 +512,7 @@ impl<I: RuidaDatagramIo> RuidaRuntime<I> {
     }
 
     fn apply_status(&mut self, raw: u64) -> Result<(), RuidaRuntimeError> {
-        let unknown = raw & !KNOWN_MACHINE_STATUS_BITS;
+        let unknown = raw & !self.known_machine_status_bits();
         if unknown != 0 {
             self.mark_recovery(RuidaRecoveryReason::UnknownStatusBits { raw, unknown });
             return Err(RuidaRuntimeError::UnknownStatusBits { raw, unknown });
@@ -668,10 +672,17 @@ impl<I: RuidaDatagramIo> RuidaRuntime<I> {
         self.phase = RuidaRuntimePhase::RecoveryRequired;
         self.recovery_reason = Some(reason);
     }
+
+    fn known_machine_status_bits(&self) -> u64 {
+        self.storage
+            .verified_target()
+            .expect("Ruida status is read only after target verification")
+            .known_machine_status_bits
+    }
 }
 
-fn validate_known_status(raw: u64) -> Result<(), RuidaRuntimeError> {
-    let unknown = raw & !KNOWN_MACHINE_STATUS_BITS;
+fn validate_known_status(raw: u64, known_bits: u64) -> Result<(), RuidaRuntimeError> {
+    let unknown = raw & !known_bits;
     if unknown == 0 {
         Ok(())
     } else {

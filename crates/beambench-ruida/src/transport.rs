@@ -1,6 +1,6 @@
 use std::{
     collections::VecDeque,
-    io,
+    fmt, io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket},
     time::Duration,
 };
@@ -13,11 +13,13 @@ use crate::{
     RuidaCompiledJob, RuidaVirtualController,
     protocol::{
         ACK, ERR, MAX_CONTROLLER_FILES, MAX_UDP_DATAGRAM_SIZE, MAX_UDP_PAYLOAD_SIZE,
-        MEMORY_CARD_ID, MEMORY_FILE_COUNT, MEMORY_MACHINE_STATUS, NAK, RDC6442S_CARD_ID,
+        MEMORY_CARD_ID, MEMORY_FILE_COUNT, MEMORY_MACHINE_STATUS, MEMORY_MAINBOARD_VERSION, NAK,
         RUIDA_UDP_PORT, RuidaCodec, RuidaProtocolError, decode_u35, delete_document_command,
         document_name_command, enquiry_command, file_transfer_command, memory_read_command,
         normalize_upload_filename, parse_document_name_reply, parse_memory_reply,
+        parse_memory_text_reply,
     },
+    target::{RuidaCompatibilityTarget, target_for_card_id},
 };
 
 pub const RUIDA_UDP_REPLY_PORT: u16 = 40_200;
@@ -100,8 +102,12 @@ impl Default for RuidaVirtualIo {
 
 impl RuidaVirtualIo {
     pub fn rdc6442s() -> Self {
+        Self::from_controller(RuidaVirtualController::rdc6442s())
+    }
+
+    pub fn from_controller(controller: RuidaVirtualController) -> Self {
         Self {
-            controller: RuidaVirtualController::rdc6442s(),
+            controller,
             replies: VecDeque::new(),
             drop_next_sends: 0,
             nak_next_sends: 0,
@@ -317,6 +323,49 @@ impl RuidaUploadReceipt {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuidaProbeClassification {
+    Recognized,
+    UnknownVariant,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuidaIdentityProbe {
+    pub card_id: u64,
+    pub mainboard_version: Option<String>,
+    pub machine_status: Option<u64>,
+    pub probe_notes: Vec<String>,
+    pub target: Option<RuidaCompatibilityTarget>,
+}
+
+impl RuidaIdentityProbe {
+    pub const fn classification(&self) -> RuidaProbeClassification {
+        if self.target.is_some() {
+            RuidaProbeClassification::Recognized
+        } else {
+            RuidaProbeClassification::UnknownVariant
+        }
+    }
+}
+
+impl fmt::Display for RuidaIdentityProbe {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "card ID {:#x}", self.card_id)?;
+        match &self.mainboard_version {
+            Some(version) => write!(formatter, ", mainboard version {version:?}")?,
+            None => write!(formatter, ", mainboard version unavailable")?,
+        }
+        match self.machine_status {
+            Some(status) => write!(formatter, ", machine status {status:#x}")?,
+            None => write!(formatter, ", machine status unavailable")?,
+        }
+        if !self.probe_notes.is_empty() {
+            write!(formatter, ", probe notes: {}", self.probe_notes.join("; "))?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum RuidaTransferError {
     #[error(transparent)]
@@ -346,9 +395,9 @@ pub enum RuidaTransferError {
     )]
     RecoveryRequired,
     #[error(
-        "Ruida identity mismatch: expected RDC6442S card ID {expected:#x}, received {actual:#x}"
+        "[ruida_unknown_variant] Beam Bench found an unrecognized Ruida controller using read-only queries ({probe}). No upload or motion command was sent. Please submit a bug report and include the controller model and firmware shown on its panel."
     )]
-    IdentityMismatch { expected: u64, actual: u64 },
+    UnknownVariant { probe: Box<RuidaIdentityProbe> },
     #[error("Ruida controller reported an invalid stored-file count: {0}")]
     InvalidFileCount(u64),
     #[error("Ruida controller storage is full (99 files)")]
@@ -370,7 +419,7 @@ pub struct RuidaStorageClient<I> {
     io: I,
     codec: RuidaCodec,
     config: RuidaTransferConfig,
-    verified_card_id: Option<u64>,
+    verified_target: Option<RuidaCompatibilityTarget>,
     send_attempts: usize,
     recovery_required: bool,
 }
@@ -387,7 +436,7 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
             io,
             codec: RuidaCodec::default(),
             config,
-            verified_card_id: None,
+            verified_target: None,
             send_attempts: 0,
             recovery_required: false,
         })
@@ -406,7 +455,14 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
     }
 
     pub const fn verified_card_id(&self) -> Option<u64> {
-        self.verified_card_id
+        match self.verified_target {
+            Some(target) => Some(target.card_id),
+            None => None,
+        }
+    }
+
+    pub const fn verified_target(&self) -> Option<RuidaCompatibilityTarget> {
+        self.verified_target
     }
 
     pub const fn recovery_required(&self) -> bool {
@@ -414,19 +470,58 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
     }
 
     pub fn connect(&mut self) -> Result<u64, RuidaTransferError> {
+        let probe = self.probe()?;
+        let Some(target) = probe.target else {
+            return Err(RuidaTransferError::UnknownVariant {
+                probe: Box::new(probe),
+            });
+        };
+        self.codec = RuidaCodec::new(target.magic);
+        self.verified_target = Some(target);
+        Ok(target.card_id)
+    }
+
+    /// Read-only compatibility probe. Unknown targets are described but never
+    /// marked as connected, so every mutating method remains blocked.
+    pub fn probe(&mut self) -> Result<RuidaIdentityProbe, RuidaTransferError> {
         if self.recovery_required {
             return Err(RuidaTransferError::RecoveryRequired);
         }
         self.exchange(&enquiry_command(), false)?;
         let card_id = self.read_memory_unverified(MEMORY_CARD_ID)?;
-        if card_id != RDC6442S_CARD_ID {
-            return Err(RuidaTransferError::IdentityMismatch {
-                expected: RDC6442S_CARD_ID,
-                actual: card_id,
+        let target = target_for_card_id(card_id);
+        if target.is_some() {
+            return Ok(RuidaIdentityProbe {
+                card_id,
+                mainboard_version: None,
+                machine_status: None,
+                probe_notes: Vec::new(),
+                target,
             });
         }
-        self.verified_card_id = Some(card_id);
-        Ok(card_id)
+
+        let mut probe_notes = Vec::new();
+        let mainboard_version = match self.read_memory_text_unverified(MEMORY_MAINBOARD_VERSION) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                probe_notes.push(format!("mainboard version query failed: {error}"));
+                None
+            }
+        };
+        let machine_status = match self.read_memory_unverified(MEMORY_MACHINE_STATUS) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                probe_notes.push(format!("machine status query failed: {error}"));
+                None
+            }
+        };
+        Ok(RuidaIdentityProbe {
+            card_id,
+            mainboard_version,
+            machine_status,
+            probe_notes,
+            target: None,
+        })
     }
 
     pub fn list_files(&mut self) -> Result<Vec<RuidaStoredFile>, RuidaTransferError> {
@@ -552,7 +647,7 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
                     .ok_or(RuidaTransferError::UploadNotConfirmed)?;
                 Ok(RuidaUploadStep::Complete(RuidaUploadReceipt {
                     controller_card_id: self
-                        .verified_card_id
+                        .verified_card_id()
                         .expect("upload requires an exact verified controller identity"),
                     file,
                     clear_byte_len: job.clear_bytes.len(),
@@ -615,7 +710,7 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
         receipt: &RuidaUploadReceipt,
     ) -> Result<RuidaStoredFile, RuidaTransferError> {
         self.ensure_connected()?;
-        if receipt.controller_card_id != self.verified_card_id.unwrap_or_default() {
+        if receipt.controller_card_id != self.verified_card_id().unwrap_or_default() {
             return Err(RuidaTransferError::ReceiptNoLongerUnique);
         }
         let matches: Vec<_> = self
@@ -671,7 +766,7 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
         if self.recovery_required {
             return Err(RuidaTransferError::RecoveryRequired);
         }
-        if self.verified_card_id.is_none() {
+        if self.verified_target.is_none() {
             self.connect()?;
         }
         Ok(())
@@ -729,6 +824,13 @@ impl<I: RuidaDatagramIo> RuidaStorageClient<I> {
             )));
         }
         Ok(reply.value)
+    }
+
+    fn read_memory_text_unverified(&mut self, address: u16) -> Result<String, RuidaTransferError> {
+        let reply = self
+            .exchange(&memory_read_command(address), true)?
+            .expect("memory query requests a reply");
+        Ok(parse_memory_text_reply(&reply, address)?)
     }
 
     fn exchange(
@@ -838,7 +940,11 @@ mod tests {
     use beambench_planner::{ExecutionPlan, PlanSegment};
 
     use super::*;
-    use crate::{RuidaCompilationConfig, compile_ruida_job};
+    use crate::{
+        DEFAULT_MAGIC, KNOWN_MACHINE_STATUS_BITS, RDC6442S_CARD_ID, RUIDA_UDP_PORT,
+        RuidaCompatibilityTarget, RuidaCompilationConfig, RuidaVirtualController,
+        RuidaVirtualExecutionState, compile_ruida_job,
+    };
 
     fn compiled_job() -> RuidaCompiledJob {
         compiled_vector_job(vec![Point2D::new(1.0, 2.0), Point2D::new(11.0, 12.0)])
@@ -881,6 +987,62 @@ mod tests {
             failed_entries: Vec::new(),
         };
         compile_ruida_job(&plan, &RuidaCompilationConfig::default()).unwrap()
+    }
+
+    #[test]
+    fn unknown_variant_probe_collects_read_only_evidence_and_blocks_mutation() {
+        let unknown_target = RuidaCompatibilityTarget {
+            model: "unverified-test-target",
+            card_id: 0x1234_5678,
+            transport: "ethernet_udp",
+            port: RUIDA_UDP_PORT,
+            magic: DEFAULT_MAGIC,
+            known_machine_status_bits: KNOWN_MACHINE_STATUS_BITS,
+        };
+        let controller = RuidaVirtualController::for_target(unknown_target, "RDC6445G-V1.0");
+        let mut client = RuidaStorageClient::new(
+            RuidaVirtualIo::from_controller(controller),
+            RuidaTransferConfig::default(),
+        )
+        .unwrap();
+
+        let error = client.connect().unwrap_err();
+        let RuidaTransferError::UnknownVariant { probe } = error else {
+            panic!("unexpected probe error: {error}");
+        };
+        assert_eq!(
+            probe.classification(),
+            RuidaProbeClassification::UnknownVariant
+        );
+        assert_eq!(probe.card_id, 0x1234_5678);
+        assert_eq!(probe.mainboard_version.as_deref(), Some("RDC6445G-V1.0"));
+        assert_eq!(probe.machine_status, Some(0));
+        assert!(probe.probe_notes.is_empty());
+        assert_eq!(client.verified_target(), None);
+        assert!(client.io().controller().files().is_empty());
+        assert_eq!(
+            client.io().controller().execution_state(),
+            RuidaVirtualExecutionState::Idle
+        );
+    }
+
+    #[test]
+    fn recognized_probe_selects_the_registered_target() {
+        let mut client =
+            RuidaStorageClient::new(RuidaVirtualIo::rdc6442s(), RuidaTransferConfig::default())
+                .unwrap();
+
+        let probe = client.probe().unwrap();
+        assert_eq!(probe.classification(), RuidaProbeClassification::Recognized);
+        assert_eq!(probe.card_id, RDC6442S_CARD_ID);
+        assert_eq!(probe.target, Some(crate::RDC6442S_ETHERNET_TARGET));
+        assert_eq!(client.verified_target(), None);
+
+        client.connect().unwrap();
+        assert_eq!(
+            client.verified_target(),
+            Some(crate::RDC6442S_ETHERNET_TARGET)
+        );
     }
 
     #[test]

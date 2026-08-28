@@ -1,28 +1,12 @@
 use crate::protocol::{
-    ACK, DEFAULT_MAGIC, ENQ, ERR, MACHINE_STATUS_JOB_RUNNING, MACHINE_STATUS_MOVING,
-    MACHINE_STATUS_PART_END, MAX_CONTROLLER_FILES, MEMORY_CARD_ID, MEMORY_FILE_COUNT,
-    MEMORY_MACHINE_STATUS, NAK, RDC6442S_CARD_ID, RUIDA_UDP_PORT, RuidaCodec, RuidaJogAxis,
-    RuidaManualMotionCommand, RuidaProcessAction, RuidaProtocolError, document_name_reply,
-    memory_reply, parse_delete_document_command, parse_file_transfer_command,
-    parse_manual_motion_command, parse_process_control_command, parse_select_document_command,
+    ACK, ENQ, ERR, MACHINE_STATUS_JOB_RUNNING, MACHINE_STATUS_MOVING, MACHINE_STATUS_PART_END,
+    MAX_CONTROLLER_FILES, MEMORY_CARD_ID, MEMORY_FILE_COUNT, MEMORY_MACHINE_STATUS,
+    MEMORY_MAINBOARD_VERSION, NAK, RuidaCodec, RuidaJogAxis, RuidaManualMotionCommand,
+    RuidaProcessAction, RuidaProtocolError, document_name_reply, memory_reply, memory_text_reply,
+    parse_delete_document_command, parse_file_transfer_command, parse_manual_motion_command,
+    parse_process_control_command, parse_select_document_command,
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RuidaCompatibilityTarget {
-    pub model: &'static str,
-    pub card_id: u64,
-    pub transport: &'static str,
-    pub port: u16,
-    pub magic: u8,
-}
-
-pub const RDC6442S_ETHERNET_TARGET: RuidaCompatibilityTarget = RuidaCompatibilityTarget {
-    model: "RDC6442S",
-    card_id: RDC6442S_CARD_ID,
-    transport: "ethernet_udp",
-    port: RUIDA_UDP_PORT,
-    magic: DEFAULT_MAGIC,
-};
+use crate::target::{RDC6442S_ETHERNET_TARGET, RuidaCompatibilityTarget};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuidaVirtualResponse {
@@ -59,6 +43,7 @@ struct PendingUpload {
 pub struct RuidaVirtualController {
     codec: RuidaCodec,
     target: RuidaCompatibilityTarget,
+    mainboard_version: String,
     machine_status: u64,
     files: Vec<RuidaVirtualFile>,
     pending_upload: Option<PendingUpload>,
@@ -77,9 +62,17 @@ impl Default for RuidaVirtualController {
 
 impl RuidaVirtualController {
     pub fn rdc6442s() -> Self {
+        Self::for_target(RDC6442S_ETHERNET_TARGET, "RDC6442S")
+    }
+
+    pub fn for_target(
+        target: RuidaCompatibilityTarget,
+        mainboard_version: impl Into<String>,
+    ) -> Self {
         Self {
-            codec: RuidaCodec::new(RDC6442S_ETHERNET_TARGET.magic),
-            target: RDC6442S_ETHERNET_TARGET,
+            codec: RuidaCodec::new(target.magic),
+            target,
+            mainboard_version: mainboard_version.into(),
             machine_status: 0,
             files: Vec::new(),
             pending_upload: None,
@@ -229,6 +222,12 @@ impl RuidaVirtualController {
             [0xDA, 0x00, 0x05, 0x7E] => {
                 replies.push(self.reply_memory(MEMORY_CARD_ID, self.target.card_id))
             }
+            [0xDA, 0x00, 0x05, 0x7F] => replies.push(
+                self.reply_clear(
+                    &memory_text_reply(MEMORY_MAINBOARD_VERSION, &self.mainboard_version)
+                        .expect("virtual mainboard version is valid"),
+                ),
+            ),
             [0xDA, 0x00, 0x04, 0x00] => {
                 replies.push(self.reply_memory(MEMORY_MACHINE_STATUS, self.machine_status))
             }

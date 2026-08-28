@@ -5,6 +5,8 @@ use beambench_common::{
     DeviceCapabilities, TransportKind,
 };
 
+use crate::{RDC6442S_ETHERNET_TARGET, RuidaCompatibilityTarget};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuidaAdapterDescriptor {
     pub driver: ControllerDriverId,
@@ -15,23 +17,30 @@ pub struct RuidaAdapterDescriptor {
     pub capabilities: DeviceCapabilities,
 }
 
-/// Exact RDC6442S Ethernet/UDP adapter contract.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct RuidaEthernetAdapter;
+/// Capability contract for one verified Ruida Ethernet target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RuidaEthernetAdapter {
+    target: RuidaCompatibilityTarget,
+}
+
+impl Default for RuidaEthernetAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl RuidaEthernetAdapter {
     pub const fn new() -> Self {
-        Self
+        Self::for_target(RDC6442S_ETHERNET_TARGET)
+    }
+
+    pub const fn for_target(target: RuidaCompatibilityTarget) -> Self {
+        Self { target }
     }
 
     pub fn descriptor(self) -> RuidaAdapterDescriptor {
-        RuidaAdapterDescriptor {
-            driver: ControllerDriverId::Ruida,
-            controller_model: ControllerModel::Ruida,
-            product_tier: ControllerProductTier::Experimental,
-            evidence_state: ControllerEvidenceState::Emulated,
-            transport_kind: TransportKind::Udp,
-            capabilities: DeviceCapabilities {
+        let capabilities = if self.target == RDC6442S_ETHERNET_TARGET {
+            DeviceCapabilities {
                 can_home: true,
                 can_jog: true,
                 can_jog_continuous: false,
@@ -46,7 +55,17 @@ impl RuidaEthernetAdapter {
                 supports_rotary: false,
                 supports_cylinder: false,
                 supports_camera_alignment: false,
-            },
+            }
+        } else {
+            DeviceCapabilities::disabled()
+        };
+        RuidaAdapterDescriptor {
+            driver: ControllerDriverId::Ruida,
+            controller_model: ControllerModel::Ruida,
+            product_tier: ControllerProductTier::Experimental,
+            evidence_state: ControllerEvidenceState::Emulated,
+            transport_kind: TransportKind::Udp,
+            capabilities,
         }
     }
 }
@@ -70,5 +89,13 @@ mod tests {
         assert!(descriptor.capabilities.can_jog);
         assert!(!descriptor.capabilities.can_set_origin);
         assert!(!descriptor.capabilities.can_unlock);
+    }
+
+    #[test]
+    fn unregistered_target_capabilities_fail_closed() {
+        let mut unknown = RDC6442S_ETHERNET_TARGET;
+        unknown.card_id = 0x1234_5678;
+        let descriptor = RuidaEthernetAdapter::for_target(unknown).descriptor();
+        assert_eq!(descriptor.capabilities, DeviceCapabilities::disabled());
     }
 }

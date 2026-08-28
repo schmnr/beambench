@@ -27,7 +27,7 @@ Manual case inventory in this suite:
 - `NL-001` through `NL-074`: software-only executable cases
 - `HW-001` through `HW-036`: connected-machine executable cases
 - `CAM-001` through `CAM-007`: camera executable cases
-- `DSP-001` through `DSP-005`: DSP-family executable cases
+- `DSP-001` through `DSP-006`: DSP-family executable cases
 - `GAL-001` through `GAL-004`: galvo-family executable cases
 - `7` explicit unimplemented, missing, partial, or N/A `GAP-*` records
 - `I18N-001` through `I18N-013`: i18n release smoke cases (pre-tag verification)
@@ -39,7 +39,7 @@ Manual case inventory in this suite:
 | `NL` | `None` | 74 | [manual-test-cases-no-laser.md](manual-test-cases-no-laser.md) |
 | `HW` | `Laser` | 36 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
 | `CAM` | `Laser+Camera` | 7 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
-| `DSP` | `DSP` | 5 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
+| `DSP` | `DSP` | 6 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
 | `GAL` | `Galvo` | 4 | [manual-test-cases-with-laser.md](manual-test-cases-with-laser.md) |
 | `GAP` | `N/A` | 7 | This matrix |
 | `I18N` | `None` | 13 | [i18n-release-smoke.md](i18n-release-smoke.md) |
@@ -62,7 +62,7 @@ Manual case inventory in this suite:
 | Libraries, macros, settings, diagnostics, shortcuts, accessibility | `NL-065` to `NL-074` | `None` |
 | Profiles, discovery, connection, console, jog, positioning, job runtime | `HW-001` to `HW-036` | `Laser` |
 | Camera capture, overlay, calibration, alignment | `CAM-001` to `CAM-007` | `Laser+Camera` |
-| DSP capability/runtime verification | `DSP-001` to `DSP-005` | `DSP` |
+| DSP capability/runtime verification | `DSP-001` to `DSP-006` | `DSP` |
 | Galvo capability/runtime verification | `GAL-001` to `GAL-004` | `Galvo` |
 
 ## Feature Sweep Traceability
@@ -87,9 +87,9 @@ Manual case inventory in this suite:
 | `FSW-016` | Materials library | `NL-065`, `NL-066` | Mapped |
 | `FSW-017` | Macros and console | `NL-069`, `NL-070`, `HW-013`, `HW-014` | Mapped |
 | `FSW-018` | Device settings and profiles | `HW-001`, `HW-002`, `DSP-004`, `DSP-005`, `GAL-004` | Mapped |
-| `FSW-019` | Machine session and jobs | `HW-003`, `HW-007` to `HW-035`, `DSP-005` | Mapped |
+| `FSW-019` | Machine session and jobs | `HW-003`, `HW-007` to `HW-035`, `DSP-005`, `DSP-006` | Mapped |
 | `FSW-020` | Discovery and profile bootstrap | `HW-005`, `HW-006`, `DSP-002`, `GAL-002` | Mapped |
-| `FSW-021` | DSP/Galvo runtime support | `DSP-001` to `DSP-005`, `GAL-001` to `GAL-004` | Mapped |
+| `FSW-021` | DSP/Galvo runtime support | `DSP-001` to `DSP-006`, `GAL-001` to `GAL-004` | Mapped |
 | `FSW-022` | Camera calibration/alignment/overlay | `CAM-001` to `CAM-007` | Mapped |
 | `FSW-023` | Eventing and observability | `GAP-009` | `N/A` headless/automated |
 | `FSW-024` | Desktop shell/menus/toolbars/panels/shortcuts | `NL-008` to `NL-022`, `NL-073`, `NL-074` | Mapped |
