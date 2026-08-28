@@ -1,11 +1,11 @@
-//! Product and capability metadata for the exact Ruida Ethernet target.
+//! Product and capability metadata for the Ruida Ethernet adapter.
 
 use beambench_common::{
     ControllerDriverId, ControllerEvidenceState, ControllerModel, ControllerProductTier,
     DeviceCapabilities, TransportKind,
 };
 
-use crate::{RDC6442S_ETHERNET_TARGET, RuidaCompatibilityTarget};
+use crate::RuidaCompatibilityTarget;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuidaAdapterDescriptor {
@@ -17,11 +17,10 @@ pub struct RuidaAdapterDescriptor {
     pub capabilities: DeviceCapabilities,
 }
 
-/// Capability contract for one verified Ruida Ethernet target.
+/// Capability contract for a Ruida Ethernet target accepted by the read-only
+/// compatibility probe.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RuidaEthernetAdapter {
-    target: RuidaCompatibilityTarget,
-}
+pub struct RuidaEthernetAdapter;
 
 impl Default for RuidaEthernetAdapter {
     fn default() -> Self {
@@ -31,33 +30,29 @@ impl Default for RuidaEthernetAdapter {
 
 impl RuidaEthernetAdapter {
     pub const fn new() -> Self {
-        Self::for_target(RDC6442S_ETHERNET_TARGET)
+        Self
     }
 
-    pub const fn for_target(target: RuidaCompatibilityTarget) -> Self {
-        Self { target }
+    pub const fn for_target(_target: RuidaCompatibilityTarget) -> Self {
+        Self
     }
 
     pub fn descriptor(self) -> RuidaAdapterDescriptor {
-        let capabilities = if self.target == RDC6442S_ETHERNET_TARGET {
-            DeviceCapabilities {
-                can_home: true,
-                can_jog: true,
-                can_jog_continuous: false,
-                can_unlock: false,
-                can_pause_resume: true,
-                can_set_origin: false,
-                can_frame: true,
-                can_run_job: true,
-                reports_absolute_position: false,
-                can_manual_fire: false,
-                can_adjust_overrides: false,
-                supports_rotary: false,
-                supports_cylinder: false,
-                supports_camera_alignment: false,
-            }
-        } else {
-            DeviceCapabilities::disabled()
+        let capabilities = DeviceCapabilities {
+            can_home: true,
+            can_jog: true,
+            can_jog_continuous: false,
+            can_unlock: false,
+            can_pause_resume: true,
+            can_set_origin: false,
+            can_frame: true,
+            can_run_job: true,
+            reports_absolute_position: false,
+            can_manual_fire: false,
+            can_adjust_overrides: false,
+            supports_rotary: false,
+            supports_cylinder: false,
+            supports_camera_alignment: false,
         };
         RuidaAdapterDescriptor {
             driver: ControllerDriverId::Ruida,
@@ -73,6 +68,7 @@ impl RuidaEthernetAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::RDC6442S_ETHERNET_TARGET;
 
     #[test]
     fn descriptor_exposes_only_implemented_actions() {
@@ -92,10 +88,13 @@ mod tests {
     }
 
     #[test]
-    fn unregistered_target_capabilities_fail_closed() {
+    fn experimental_target_uses_the_shared_ruida_capabilities() {
         let mut unknown = RDC6442S_ETHERNET_TARGET;
         unknown.card_id = 0x1234_5678;
         let descriptor = RuidaEthernetAdapter::for_target(unknown).descriptor();
-        assert_eq!(descriptor.capabilities, DeviceCapabilities::disabled());
+        assert!(descriptor.capabilities.can_run_job);
+        assert!(descriptor.capabilities.can_frame);
+        assert!(descriptor.capabilities.can_home);
+        assert!(descriptor.capabilities.can_jog);
     }
 }

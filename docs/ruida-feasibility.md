@@ -2,11 +2,11 @@
 
 Status: **Software-ready as Experimental / Emulated**
 
-Candidate first row: **RDC6442S, Ethernet/UDP port 50200, swizzle key `0x88`**
+Dedicated first row: **RDC6442S, Ethernet/UDP port 50200, swizzle key `0x88`**
 
 Hardware evidence: **not yet collected**
 
-The evidence-gated extension for the RDC6445G is tracked in the
+The opt-in experimental extension for the RDC6445G is tracked in the
 [RDC6445G support plan](ruida-rdc6445g-support-plan.md).
 
 ## Implementation And Licensing Route
@@ -47,9 +47,10 @@ native vector/raster jobs; exercise bounded upload, list, inspect, and uniquely
 scoped delete behavior; and verify selection, start, pause, resume, natural
 completion, requested stop, and recovery against that virtual controller.
 
-The desktop product now exposes an explicit **Ruida (Experimental)** Network
-choice. It requires the exact RDC6442S card identity before any mutation, then
-uses the native UDP path for compiled jobs, zero-output framing, XY homing,
+The desktop product exposes an explicit **Ruida (Experimental)** Network
+choice. RDC6442S uses its dedicated card-ID row. Other variants may enter the
+same adapter after successful Ruida identity and machine-status replies. The
+native UDP path provides compiled jobs, zero-output framing, XY homing,
 finite output-disabled XY step jogging, configurable finite Z- or U-channel
 lift-table jogging, pause, resume, cancel, verified completion, and
 controller-file cleanup. It does not fall back to GRBL or a generic DSP
@@ -57,22 +58,24 @@ simulation.
 
 ## Decision
 
-Proceed with the exact-row native adapter and expose it as **Ruida
+Proceed with the shared native adapter and expose it as **Ruida
 (Experimental)**. The software distribution gate requires:
 
 1. deterministic vector and raster job compilation;
 2. bounded UDP acknowledgement, retry, and timeout handling;
-3. an exact read-only RDC6442S identity match before mutation or execution;
+3. successful read-only Ruida identity and machine-status replies before an
+   unregistered card ID enters the experimental runtime;
 4. truthful upload and execution progress against the virtual controller; and
 5. diagnostics sufficient for beta testers to submit sanitized protocol
    transcripts when a controller variant diverges.
 
-Hardware reports may broaden or change the candidate row. They do not justify
-silently treating another Ruida card ID or swizzle key as RDC6442S.
+Hardware reports may add dedicated compatibility rows or reveal a protocol
+difference. Until then, Controller Info labels unmatched variants as
+unverified instead of claiming they are RDC6442S.
 
 All five software requirements now pass through the same service and desktop
 paths used by the product. Hardware evidence remains open, so this is not a
-claim of broad Ruida compatibility or hardware-validated support. Absolute
+claim of hardware-validated support. Absolute
 positioning, Start From Current Position placement, controller work-origin
 mutation, continuous jog, automated job Z/U motion, rotary, dual-head, USB,
 manual fire, and controller parameter writes remain disabled for this first

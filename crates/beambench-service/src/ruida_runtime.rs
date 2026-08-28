@@ -14,6 +14,7 @@ use beambench_ruida::{
 pub struct RuidaRuntimeSession {
     runtime: RuidaRuntime<RuidaUdpIo>,
     target: RuidaCompatibilityTarget,
+    mainboard_version: Option<String>,
     endpoint: String,
     capabilities: DeviceCapabilities,
     machine_status: MachineStatus,
@@ -38,11 +39,15 @@ impl RuidaRuntimeSession {
         let target = runtime
             .compatibility_target()
             .ok_or_else(|| "Ruida runtime reached Ready without a verified target".to_string())?;
+        let mainboard_version = runtime
+            .identity_probe()
+            .and_then(|probe| probe.mainboard_version.clone());
         let descriptor = RuidaEthernetAdapter::for_target(target).descriptor();
         let machine_status = machine_status_from_snapshot(&snapshot);
         Ok(Self {
             runtime,
             target,
+            mainboard_version,
             endpoint,
             capabilities: descriptor.capabilities,
             machine_status,
@@ -75,7 +80,7 @@ impl RuidaRuntimeSession {
             family: ControllerFamily::Dsp,
             model: ControllerModel::Ruida,
             firmware_identity: Some(self.target.model.to_string()),
-            firmware_version: None,
+            firmware_version: self.mainboard_version.clone(),
             evidence: vec![format!(
                 "Read-only Ruida card ID matched {:#x}",
                 self.target.card_id
@@ -113,7 +118,7 @@ impl RuidaRuntimeSession {
     }
 
     pub fn controller_info(&self) -> HashMap<String, String> {
-        HashMap::from([
+        let mut info = HashMap::from([
             (
                 "Controller".to_string(),
                 format!("Ruida {}", self.target.model),
@@ -122,7 +127,11 @@ impl RuidaRuntimeSession {
             ("Transport".to_string(), "Ethernet / UDP".to_string()),
             ("Endpoint".to_string(), self.endpoint.clone()),
             ("Support tier".to_string(), "Experimental".to_string()),
-        ])
+        ]);
+        if let Some(version) = &self.mainboard_version {
+            info.insert("Mainboard version".to_string(), version.clone());
+        }
+        info
     }
 
     pub fn poll(&mut self) -> Result<RuidaRuntimeSnapshot, String> {
