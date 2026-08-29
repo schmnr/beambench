@@ -107,6 +107,8 @@ fn main() {
         }
     }
 
+    let startup_diagnostics_path = logging::install_startup_diagnostics();
+
     panic_reports::install_panic_hook();
     let ctx = Arc::new(ServiceContext::new());
     panic_reports::load_startup_panics_into_context(&ctx);
@@ -115,7 +117,7 @@ fn main() {
     let env_filter =
         tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
 
-    let fmt_layer = tracing_subscriber::fmt::layer();
+    let fmt_layer = tracing_subscriber::fmt::layer().with_writer(std::io::stderr);
     let buffer_layer = logging::BufferLayer::new(Arc::clone(&ctx));
 
     tracing_subscriber::registry()
@@ -607,7 +609,7 @@ fn main() {
             commands::art_library::move_art_library_item,
             commands::art_library::insert_art_library_item_to_project,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             native_menu::install(app)?;
             let ctx = app.state::<Arc<ServiceContext>>();
             let api_runtime = app.state::<ApiRuntime>().inner().clone();
@@ -684,6 +686,7 @@ fn main() {
             // English-only by necessity: the i18n layer lives in the dead
             // frontend.
             let handle = app.handle().clone();
+            let startup_diagnostics_path = startup_diagnostics_path.clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(std::time::Duration::from_secs(20)).await;
                 let ready = handle
@@ -696,20 +699,50 @@ fn main() {
                 tracing::error!(
                     "Frontend never signalled ready; the webview likely failed to boot"
                 );
-                use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
-                handle
+                use tauri_plugin_dialog::{
+                    DialogExt, MessageDialogButtons, MessageDialogKind,
+                };
+                let diagnostics_note = startup_diagnostics_path
+                    .as_ref()
+                    .map(|path| {
+                        format!(
+                            "Startup diagnostics were saved to:\n{}\n\n\
+                             Please attach that file to the bug report or Facebook post.",
+                            path.display()
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        "Please send the terminal output from launching Beam Bench in the \
+                         Beam Bench Facebook group: facebook.com/groups/beambench"
+                            .to_owned()
+                    });
+                let dialog = handle
                     .dialog()
-                    .message(
+                    .message(format!(
                         "Beam Bench opened, but its interface failed to load.\n\n\
                          This usually means the operating system or graphics stack could \
                          not start the embedded webview. On Linux, this can be caused by \
                          WebKitGTK, Wayland, EGL, or AppImage library compatibility.\n\n\
-                         Please send the terminal output from launching Beam Bench in \
-                         the Beam Bench Facebook group: facebook.com/groups/beambench",
-                    )
+                         {diagnostics_note}",
+                    ))
                     .title("Beam Bench Could Not Start")
-                    .kind(MessageDialogKind::Warning)
-                    .show(|_| {});
+                    .kind(MessageDialogKind::Warning);
+                if let Some(path) = startup_diagnostics_path {
+                    use tauri_plugin_opener::OpenerExt;
+                    let reveal_handle = handle.clone();
+                    dialog
+                        .buttons(MessageDialogButtons::OkCancelCustom(
+                            "Open Diagnostics Folder".to_owned(),
+                            "Close".to_owned(),
+                        ))
+                        .show(move |open| {
+                            if open {
+                                let _ = reveal_handle.opener().reveal_item_in_dir(path);
+                            }
+                        });
+                } else {
+                    dialog.show(|_| {});
+                }
             });
             Ok(())
         })

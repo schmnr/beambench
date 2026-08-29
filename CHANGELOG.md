@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+## 0.2.14
+
+- Serial controller detection now preserves every probe attempt, begins with a
+  non-resetting status query, and sweeps the common GRBL-family, Marlin, and
+  Smoothieware baud rates. FluidNC, grblHAL, and Auto-detect are no longer
+  subjected to an arbitrary DTR reset.
+- Connectivity reports now distinguish a port that could not be opened from a
+  port that opened but stayed silent or returned an unrecognized protocol,
+  retain a larger bounded event/TX/RX history, and require the
+  machine/controller model plus a short description.
+- Automatically generated machine profile names no longer retain stale serial
+  port suffixes after the device moves to a different port.
+- Linux now saves early GTK, WebKit, EGL, and Rust startup output to a native
+  diagnostics log. If the embedded interface cannot load, the native error
+  dialog shows the log location and can open its folder without relying on the
+  failed webview.
+
 ## 0.2.13
 
 - Ruida (Experimental) no longer rejects every controller except one

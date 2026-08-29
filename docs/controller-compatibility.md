@@ -28,10 +28,17 @@ Experimental confirmation.
 | Ruida RDC6445G and compatible Ethernet variants | Network (UDP port 50200) | Experimental | Opt-in community-test path using the shared native Ruida jobs and controls. Connection requires working Ruida identity and machine-status replies. RDC6445G is software-tested but still awaiting reports from physical controllers. |
 | Lihuiyu M2/M3 Nano | USB (`1a86:5512`) | Experimental | Stock K40-class CH341 board in M2-compatible mode. Supports vector/raster jobs, perforation, zero-output framing, home, unlock, finite XY jogging, pause/resume, cancel, and completion status. |
 
-Auto-detect is also available for Serial and Network connections. It activates a
-named adapter only when the controller provides matching identity evidence. If
-identity is inconclusive, Beam Bench asks the user to choose a controller
-instead of silently treating the machine as GRBL.
+Auto-detect is also available for Serial and Network connections. Serial
+detection first uses non-resetting, read-only probes. It preserves each attempt
+in the diagnostic report and distinguishes an unavailable port, a port that
+opened but remained silent, unreadable traffic, and an inconclusive identity.
+GRBL-family detection tries the configured rate and the common rates from 9600
+through 921600; Marlin tries the configured rate, 250000, and 115200; and
+Smoothieware tries the configured rate and 115200. Beam Bench activates a named
+adapter only when the controller provides matching identity evidence. If
+identity is inconclusive, it asks the user to choose a controller instead of
+silently treating the machine as GRBL. The complete probe and reset policy is
+recorded in the [controller detection matrix](controller-detection-matrix.md).
 
 ## Connecting
 
@@ -210,4 +217,6 @@ They are not presented as live controller choices in this release.
 
 Detailed interoperability and licensing boundaries are recorded in the
 [Ruida feasibility decision](ruida-feasibility.md) and
-[Lihuiyu feasibility decision](lihuiyu-feasibility.md).
+[Lihuiyu feasibility decision](lihuiyu-feasibility.md). The cross-controller
+research and reporting requirements are recorded in the
+[controller detection matrix](controller-detection-matrix.md).

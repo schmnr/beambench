@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Rascunho de relatório",
       "validation_description_required": "A descrição é necessária antes de enviar um relatório de bug.",
+      "validation_connection_note_required": "Informe o modelo da máquina ou do controlador e descreva brevemente o que aconteceu.",
       "validation_title_max": "O título deve ter caracteres {max} ou menos.",
       "validation_description_max": "A descrição deve ter caracteres {max} ou menos.",
       "validation_note_max": "A nota deve ter caracteres {max} ou menos.",
@@ -780,6 +781,7 @@
       "title_bug": "Reportar um bug",
       "field_title": "Título",
       "field_note": "Nota",
+      "field_connection_details": "Modelo da máquina/controlador e descrição do problema",
       "field_optional_comment": "Comentário opcional",
       "field_description": "Descrição",
       "field_reply_to": "E-mail de resposta",

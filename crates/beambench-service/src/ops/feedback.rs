@@ -267,6 +267,7 @@ pub fn build_submit_request_for_transport(
     ctx: &ServiceContext,
     input: FeedbackReportInput,
 ) -> ServiceResult<SubmitTransportRequest> {
+    validate_feedback_submission(&input)?;
     let mut bundle = preview_feedback_report(ctx, input.clone())?;
     let project_blob = if input.include_project_file {
         let project_bytes = project_attachment_bytes(ctx)?;
@@ -390,6 +391,26 @@ fn validate_feedback_input(input: &FeedbackReportInput) -> ServiceResult<()> {
         )));
     }
 
+    Ok(())
+}
+
+fn validate_feedback_submission(input: &FeedbackReportInput) -> ServiceResult<()> {
+    validate_feedback_input(input)?;
+    let note_chars = input
+        .notes
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .chars()
+        .count();
+    if input.kind == FeedbackKind::Connectivity
+        && !is_successful_job_compatibility_report(input)
+        && note_chars == 0
+    {
+        return Err(ServiceError::invalid_input(
+            "Machine/controller model and a short description are required for connection reports",
+        ));
+    }
     Ok(())
 }
 
@@ -651,7 +672,6 @@ fn build_machine_diagnostics(
         })
     });
     let profile_baud_rate = profile.as_ref().map(|profile| profile.default_baud_rate);
-    let profile_model = profile.as_ref().map(|profile| profile.name.clone());
     let profile_fields = MachineProfileDiagnosticFields::from_profile(profile.as_ref());
 
     let session = ctx.session.lock().ok();
@@ -678,7 +698,9 @@ fn build_machine_diagnostics(
         let waiting_for_choice = pending_endpoint.is_some();
         return DiagnosticMachine {
             connected: false,
-            model: profile_model,
+            // A profile label is not a controller model. This remains unknown
+            // until a live protocol identity has been established.
+            model: None,
             profile_id: profile_fields.profile_id,
             profile_name: profile_fields.profile_name,
             profile_preset_id: profile_fields.profile_preset_id,
@@ -754,9 +776,7 @@ fn build_machine_diagnostics(
 
     DiagnosticMachine {
         connected: !matches!(session.session_state(), SessionState::Disconnected),
-        model: profile_model
-            .clone()
-            .or_else(|| Some(format!("{:?}", session.controller_model()))),
+        model: serialized_enum_string(session.controller_model()),
         profile_id: profile_fields.profile_id,
         profile_name: profile_fields.profile_name,
         profile_preset_id: profile_fields.profile_preset_id,
@@ -917,6 +937,22 @@ fn connection_failure_summary(event: &DiagnosticConnectionEvent) -> String {
             None => "Beam Bench could not open the serial port. Another application may be using it, or the controller may have been disconnected.".to_owned(),
         };
     }
+    if event.error_code.as_deref() == Some("serial_open_no_response") {
+        return match event.port_name.as_deref() {
+            Some(port) => format!(
+                "Beam Bench opened {port}, but no supported controller replied. The USB driver and port access worked; confirm the controller model, power, and selected port."
+            ),
+            None => "Beam Bench opened the serial port, but no supported controller replied. Confirm the controller model, power, and selected port.".to_owned(),
+        };
+    }
+    if event.error_code.as_deref() == Some("serial_protocol_unrecognized") {
+        return match event.port_name.as_deref() {
+            Some(port) => format!(
+                "Beam Bench received data from {port}, but it did not match a supported controller protocol. Confirm the controller-board model and its documented serial settings."
+            ),
+            None => "Beam Bench received serial data, but it did not match a supported controller protocol. Confirm the controller-board model and its documented serial settings.".to_owned(),
+        };
+    }
 
     event
         .error
@@ -1032,6 +1068,30 @@ fn known_issues_for(
             0,
             KnownIssueWarning {
                 code: "lihuiyu_incompatible_windows_driver".to_owned(),
+                severity: "warning".to_owned(),
+                message: connection_failure_summary(failure),
+            },
+        );
+    } else if let Some(failure) = latest_connection_failure(connection_events)
+        && failure.error_code.as_deref() == Some("serial_open_no_response")
+    {
+        issues.retain(|issue| issue.code != "no_grbl_response");
+        issues.insert(
+            0,
+            KnownIssueWarning {
+                code: "serial_open_no_response".to_owned(),
+                severity: "warning".to_owned(),
+                message: connection_failure_summary(failure),
+            },
+        );
+    } else if let Some(failure) = latest_connection_failure(connection_events)
+        && failure.error_code.as_deref() == Some("serial_protocol_unrecognized")
+    {
+        issues.retain(|issue| issue.code != "no_grbl_response");
+        issues.insert(
+            0,
+            KnownIssueWarning {
+                code: "serial_protocol_unrecognized".to_owned(),
                 severity: "warning".to_owned(),
                 message: connection_failure_summary(failure),
             },
@@ -1333,6 +1393,88 @@ mod tests {
     }
 
     #[test]
+    fn preview_distinguishes_an_open_but_silent_controller_from_a_driver_failure() {
+        let ctx = ServiceContext::new();
+        ctx.push_connection_event(
+            "transport_open",
+            Some("COM5".to_owned()),
+            Some(115_200),
+            Some("Serial transport opened".to_owned()),
+            None,
+        );
+        ctx.push_connection_event(
+            "auto_detect_failed",
+            Some("COM5".to_owned()),
+            Some(115_200),
+            None,
+            Some(
+                "[serial_open_no_response] The serial port opened, but no supported controller replied."
+                    .to_owned(),
+            ),
+        );
+
+        let bundle = preview_feedback_report(&ctx, bug_input()).unwrap();
+
+        assert_eq!(
+            bundle.connection_events[1].error_code.as_deref(),
+            Some("serial_open_no_response")
+        );
+        assert!(
+            bundle
+                .machine
+                .handshake_message
+                .as_deref()
+                .is_some_and(|message| message.contains("opened COM5"))
+        );
+        assert!(
+            bundle
+                .known_issues
+                .iter()
+                .any(|issue| issue.code == "serial_open_no_response")
+        );
+        assert!(
+            bundle
+                .known_issues
+                .iter()
+                .all(|issue| issue.code != "serial_port_unavailable")
+        );
+    }
+
+    #[test]
+    fn preview_preserves_unrecognized_serial_traffic_as_a_distinct_failure() {
+        let ctx = ServiceContext::new();
+        ctx.push_connection_event(
+            "auto_detect_failed",
+            Some("COM5".to_owned()),
+            Some(115_200),
+            None,
+            Some(
+                "[serial_protocol_unrecognized] The serial port returned data, but no supported controller protocol was recognized."
+                    .to_owned(),
+            ),
+        );
+
+        let bundle = preview_feedback_report(&ctx, bug_input()).unwrap();
+
+        assert_eq!(
+            bundle.connection_events[0].error_code.as_deref(),
+            Some("serial_protocol_unrecognized")
+        );
+        assert!(
+            bundle
+                .known_issues
+                .iter()
+                .any(|issue| issue.code == "serial_protocol_unrecognized")
+        );
+        assert!(
+            bundle
+                .known_issues
+                .iter()
+                .all(|issue| issue.code != "serial_open_no_response")
+        );
+    }
+
+    #[test]
     fn preview_preserves_incompatible_lihuiyu_windows_driver_diagnostics() {
         let ctx = ServiceContext::new();
         ctx.push_usb_connection_event(
@@ -1526,6 +1668,34 @@ mod tests {
         let error = preview_feedback_report(&ctx, input).unwrap_err();
 
         assert!(error.to_string().contains("cannot be attached"));
+    }
+
+    #[test]
+    fn connection_submission_requires_controller_context() {
+        let ctx = ServiceContext::new();
+        let input = FeedbackReportInput {
+            kind: FeedbackKind::Connectivity,
+            title: Some("Connection problem".to_owned()),
+            description: None,
+            notes: None,
+            reply_to_email: None,
+            include_project_file: false,
+            source_context: None,
+        };
+
+        let error = build_submit_request_for_transport(&ctx, input).unwrap_err();
+
+        assert!(error.to_string().contains("Machine/controller model"));
+    }
+
+    #[test]
+    fn successful_job_compatibility_submission_keeps_comment_optional() {
+        let ctx = ServiceContext::new();
+
+        let transport =
+            build_submit_request_for_transport(&ctx, successful_job_compatibility_input()).unwrap();
+
+        assert_eq!(transport.bundle.kind, FeedbackKind::Connectivity);
     }
 
     #[test]

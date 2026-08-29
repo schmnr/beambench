@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "报告草稿",
       "validation_description_required": "提交错误报告之前需要进行描述。",
+      "validation_connection_note_required": "请输入机器或控制器型号，并简要说明发生了什么。",
       "validation_title_max": "标题不得超过 {max} 个字符。",
       "validation_description_max": "说明必须为 {max} 字符或更少。",
       "validation_note_max": "注意必须为 {max} 字符或更少。",
@@ -780,6 +781,7 @@
       "title_bug": "报告错误",
       "field_title": "标题",
       "field_note": "注意事项",
+      "field_connection_details": "机器/控制器型号和问题说明",
       "field_optional_comment": "可选备注",
       "field_description": "描述",
       "field_reply_to": "回复电子邮件",

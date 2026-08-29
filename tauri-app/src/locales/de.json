@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Berichtsentwurf",
       "validation_description_required": "Vor dem Absenden eines Fehlerberichts ist eine Beschreibung erforderlich.",
+      "validation_connection_note_required": "Geben Sie das Maschinen- oder Controller-Modell an und beschreiben Sie kurz, was passiert ist.",
       "validation_title_max": "Der Titel darf höchstens {max} Zeichen lang sein.",
       "validation_description_max": "Die Beschreibung darf maximal {max} Zeichen umfassen.",
       "validation_note_max": "Der Hinweis darf höchstens {max} Zeichen lang sein.",
@@ -780,6 +781,7 @@
       "title_bug": "Melden Sie einen Fehler",
       "field_title": "Titel",
       "field_note": "Hinweis",
+      "field_connection_details": "Maschinen-/Controller-Modell und Problembeschreibung",
       "field_optional_comment": "Optionaler Kommentar",
       "field_description": "Beschreibung",
       "field_reply_to": "Antwort-E-Mail",

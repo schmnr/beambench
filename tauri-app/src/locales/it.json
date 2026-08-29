@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Bozza di rapporto",
       "validation_description_required": "La descrizione è richiesta prima di inviare una segnalazione di bug.",
+      "validation_connection_note_required": "Inserisci il modello della macchina o del controller e descrivi brevemente cosa è successo.",
       "validation_title_max": "Il titolo deve contenere caratteri {max} o meno.",
       "validation_description_max": "La descrizione deve contenere caratteri {max} o meno.",
       "validation_note_max": "La nota deve contenere caratteri {max} o meno.",
@@ -780,6 +781,7 @@
       "title_bug": "Segnala un bug",
       "field_title": "Titolo",
       "field_note": "Nota",
+      "field_connection_details": "Modello macchina/controller e descrizione del problema",
       "field_optional_comment": "Commento facoltativo",
       "field_description": "Descrizione",
       "field_reply_to": "Rispondi all'e-mail",

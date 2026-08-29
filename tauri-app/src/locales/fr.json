@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Projet de rapport",
       "validation_description_required": "Une description est requise avant de soumettre un rapport de bug.",
+      "validation_connection_note_required": "Indiquez le modèle de la machine ou du contrôleur et décrivez brièvement ce qui s'est passé.",
       "validation_title_max": "Le titre doit contenir au maximum des caractères {max}.",
       "validation_description_max": "La description doit contenir au maximum des caractères {max}.",
       "validation_note_max": "La note doit contenir au maximum des caractères {max}.",
@@ -780,6 +781,7 @@
       "title_bug": "Signaler un bug",
       "field_title": "Titre",
       "field_note": "Remarque",
+      "field_connection_details": "Modèle de machine/contrôleur et description du problème",
       "field_optional_comment": "Commentaire facultatif",
       "field_description": "Descriptif",
       "field_reply_to": "E-mail de réponse",

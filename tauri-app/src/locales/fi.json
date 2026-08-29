@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Raporttiluonnos",
       "validation_description_required": "Kuvaus vaaditaan ennen vikailmoituksen lähettämistä.",
+      "validation_connection_note_required": "Anna koneen tai ohjaimen malli ja kuvaile lyhyesti, mitä tapahtui.",
       "validation_title_max": "Otsikossa saa olla enintään {max} merkkiä.",
       "validation_description_max": "Kuvauksessa saa olla enintään {max} merkkiä.",
       "validation_note_max": "Huomautus saa olla enintään {max} merkkiä.",
@@ -780,6 +781,7 @@
       "title_bug": "Ilmoita virheestä",
       "field_title": "Otsikko",
       "field_note": "Huom",
+      "field_connection_details": "Koneen/ohjaimen malli ja ongelman kuvaus",
       "field_optional_comment": "Valinnainen kommentti",
       "field_description": "Kuvaus",
       "field_reply_to": "Vastaus sähköpostiin",

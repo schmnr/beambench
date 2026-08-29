@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Udkast til rapport",
       "validation_description_required": "Beskrivelse er påkrævet, før du indsender en fejlrapport.",
+      "validation_connection_note_required": "Angiv maskinens eller controllerens model, og beskriv kort, hvad der skete.",
       "validation_title_max": "Titlen skal være på {max}-tegn eller færre.",
       "validation_description_max": "Beskrivelsen skal være på {max}-tegn eller færre.",
       "validation_note_max": "Bemærkningen skal være på {max}-tegn eller færre.",
@@ -780,6 +781,7 @@
       "title_bug": "Rapporter en fejl",
       "field_title": "Titel",
       "field_note": "Bemærk",
+      "field_connection_details": "Maskin-/controllermodel og hvad der skete",
       "field_optional_comment": "Valgfri kommentar",
       "field_description": "Beskrivelse",
       "field_reply_to": "Svar på e-mail",

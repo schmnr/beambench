@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Conceptrapport",
       "validation_description_required": "Beschrijving is vereist voordat een bugrapport wordt ingediend.",
+      "validation_connection_note_required": "Voer het machine- of controllermodel in en beschrijf kort wat er is gebeurd.",
       "validation_title_max": "Titel moet uit {max}-tekens of minder bestaan.",
       "validation_description_max": "Beschrijving moet uit {max}-tekens of minder bestaan.",
       "validation_note_max": "Opmerking moet uit {max}-tekens of minder bestaan.",
@@ -780,6 +781,7 @@
       "title_bug": "Rapporteer een bug",
       "field_title": "Titel",
       "field_note": "Let op",
+      "field_connection_details": "Machine-/controllermodel en probleembeschrijving",
       "field_optional_comment": "Optionele opmerking",
       "field_description": "Beschrijving",
       "field_reply_to": "Antwoord op e-mail",
