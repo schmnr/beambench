@@ -850,6 +850,7 @@
     "feedback": {
       "draft_report": "Draft report",
       "validation_description_required": "Description is required before submitting a bug report.",
+      "validation_connection_note_required": "Enter the machine or controller model and briefly describe what happened.",
       "validation_title_max": "Title must be {max} characters or fewer.",
       "validation_description_max": "Description must be {max} characters or fewer.",
       "validation_note_max": "Note must be {max} characters or fewer.",
@@ -867,6 +868,7 @@
       "title_bug": "Report a Bug",
       "field_title": "Title",
       "field_note": "Note",
+      "field_connection_details": "Machine/controller model and what happened",
       "field_optional_comment": "Optional comment",
       "field_description": "Description",
       "field_reply_to": "Reply-to email",

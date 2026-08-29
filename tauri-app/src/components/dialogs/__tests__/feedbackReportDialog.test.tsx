@@ -112,6 +112,27 @@ describe('FeedbackReportDialog', () => {
     await waitFor(() => expect(feedbackService.submitReport).toHaveBeenCalled());
   });
 
+  it('requires the controller model and symptom for connection diagnostics', async () => {
+    render(<FeedbackReportDialog kind="connectivity" onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send to Beam Bench' }));
+
+    expect(await screen.findByText('Enter the machine or controller model and briefly describe what happened.')).toBeDefined();
+    expect(feedbackService.submitReport).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Machine/controller model and what happened'), {
+      target: { value: 'Ortur LM2, CH340 port opens but the controller does not respond.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send to Beam Bench' }));
+
+    await waitFor(() => expect(feedbackService.submitReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'connectivity',
+        notes: 'Ortur LM2, CH340 port opens but the controller does not respond.',
+      }),
+    ));
+  });
+
   it('submits through the feedback service and shows the returned report ID', async () => {
     render(<FeedbackReportDialog kind="bug" title="Connection failure" description="GRBL never responds." onClose={vi.fn()} />);
 

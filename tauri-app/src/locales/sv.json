@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Utkast till rapport",
       "validation_description_required": "Beskrivning krävs innan du skickar en felrapport.",
+      "validation_connection_note_required": "Ange maskinens eller styrenhetens modell och beskriv kort vad som hände.",
       "validation_title_max": "Titeln måste innehålla {max}-tecken eller färre.",
       "validation_description_max": "Beskrivningen måste vara {max}-tecken eller färre.",
       "validation_note_max": "Anteckningen måste vara {max}-tecken eller färre.",
@@ -780,6 +781,7 @@
       "title_bug": "Rapportera en bugg",
       "field_title": "Titel",
       "field_note": "Obs",
+      "field_connection_details": "Maskin-/styrenhetsmodell och problembeskrivning",
       "field_optional_comment": "Valfri kommentar",
       "field_description": "Beskrivning",
       "field_reply_to": "Svara på e-post",

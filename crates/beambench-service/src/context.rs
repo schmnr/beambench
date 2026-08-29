@@ -38,7 +38,7 @@ const LOG_BUFFER_CAP: usize = 500;
 /// Maximum number of entries in the active errors list.
 const ACTIVE_ERRORS_CAP: usize = 100;
 /// Maximum number of connection lifecycle events retained for diagnostics.
-const CONNECTION_EVENTS_CAP: usize = 32;
+const CONNECTION_EVENTS_CAP: usize = 128;
 /// Maximum number of entries in the console log.
 const CONSOLE_LOG_CAP: usize = 2000;
 /// Maximum number of decoded grayscale trace-preview sources to retain.
@@ -1269,6 +1269,8 @@ impl ServiceContext {
 fn connection_error_code(detail: &str) -> Option<String> {
     [
         "serial_port_unavailable",
+        "serial_open_no_response",
+        "serial_protocol_unrecognized",
         "ruida_unknown_variant",
         "ruida_probe_inconclusive",
     ]
@@ -1366,9 +1368,9 @@ mod tests {
     }
 
     #[test]
-    fn connection_events_keep_newest_32_entries() {
+    fn connection_events_keep_a_complete_multi_protocol_detection_run() {
         let ctx = ServiceContext::new();
-        for index in 0..40 {
+        for index in 0..140 {
             ctx.push_connection_event(
                 format!("stage_{index}"),
                 Some(format!("port_{index}")),
@@ -1379,9 +1381,9 @@ mod tests {
         }
 
         let events = ctx.recent_connection_events();
-        assert_eq!(events.len(), 32);
-        assert_eq!(events[0].stage, "stage_8");
-        assert_eq!(events[31].stage, "stage_39");
+        assert_eq!(events.len(), 128);
+        assert_eq!(events[0].stage, "stage_12");
+        assert_eq!(events[127].stage, "stage_139");
     }
 
     #[test]

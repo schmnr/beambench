@@ -2,7 +2,7 @@
 
 use crate::error::SerialError;
 use crate::port_list::list_available_ports;
-use crate::telemetry::{record_rx, record_tx, reset_serial_traffic};
+use crate::telemetry::{record_rx, record_tx};
 use crate::transport::SerialTransport;
 use beambench_common::machine::PortInfo;
 use std::io::{Read, Write};
@@ -151,9 +151,6 @@ impl SerialTransport for RealSerialTransport {
             .open()
             .map_err(|e| map_open_error(&self.port_name, e))?;
 
-        // Keep the previous session's traffic when an open fails. It is often
-        // the only evidence left after a USB controller drops off the bus.
-        reset_serial_traffic();
         self.port = Some(port);
         self.line_buffer.clear();
 
@@ -284,7 +281,7 @@ impl SerialTransport for RealSerialTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::telemetry::{SERIAL_TRAFFIC_TEST_LOCK, recent_serial_traffic};
+    use crate::telemetry::{SERIAL_TRAFFIC_TEST_LOCK, recent_serial_traffic, reset_serial_traffic};
 
     fn usb_port(port_name: &str, vid: u16, pid: u16) -> PortInfo {
         PortInfo {

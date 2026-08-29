@@ -44,7 +44,9 @@ use beambench_ruida::{
     RuidaCompilationConfig, RuidaCompiledJob, RuidaCoordinateTransform, RuidaJogAxis,
     RuidaPowerOverride, RuidaUdpIo, compile_ruida_job,
 };
-use beambench_serial::{RealSerialTransport, TcpLineTransport, list_available_ports};
+use beambench_serial::{
+    RealSerialTransport, TcpLineTransport, list_available_ports, reset_serial_traffic,
+};
 use beambench_smoothieware::{
     SmoothiewareGcodeConfig, SmoothiewarePowerMode, SmoothiewarePowerScale,
     SmoothiewareSerialSession, SmoothiewareSerialSessionConfig, generate_smoothieware_gcode,
@@ -1053,101 +1055,208 @@ enum GrblBannerAttempt {
 }
 
 const STANDARD_GRBL_BAUD_RATE: u32 = 115_200;
+const GRBL_STATUS_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
+const GRBL_DETECTION_BAUD_RATES: &[u32] = &[
+    115_200, 921_600, 460_800, 230_400, 57_600, 38_400, 19_200, 9_600,
+];
+const MARLIN_DETECTION_BAUD_RATES: &[u32] = &[250_000, 115_200];
+const SMOOTHIEWARE_DETECTION_BAUD_RATES: &[u32] = &[115_200];
 
-/// VMS LX2b controllers use this rate and can remain completely silent when
-/// opened at GRBL's usual 115200 baud, so this fallback must not depend on
-/// receiving unreadable bytes first.
-const LX2B_BAUD_RATE: u32 = 921_600;
-
-/// Older GRBL builds and clone boards sometimes use these rates. Trying them
-/// remains gated on unreadable data so a silent non-GRBL port does not turn
-/// every connection attempt into a long baud-rate sweep.
-const LEGACY_FALLBACK_BAUD_RATES: &[u32] = &[9_600, 57_600];
-
-fn grbl_fallback_baud_rates(configured_baud: u32, unreadable_data_seen: bool) -> Vec<u32> {
-    let mut rates = Vec::with_capacity(3);
-    if configured_baud != LX2B_BAUD_RATE
-        && (configured_baud == STANDARD_GRBL_BAUD_RATE || unreadable_data_seen)
-    {
-        rates.push(LX2B_BAUD_RATE);
-    }
-    if unreadable_data_seen {
-        rates.extend(
-            LEGACY_FALLBACK_BAUD_RATES
-                .iter()
-                .copied()
-                .filter(|&rate| rate != configured_baud),
-        );
+fn ordered_baud_rates(configured_baud: u32, known_rates: &[u32]) -> Vec<u32> {
+    let mut rates = Vec::with_capacity(known_rates.len() + 1);
+    rates.push(configured_baud);
+    for &rate in known_rates {
+        if !rates.contains(&rate) {
+            rates.push(rate);
+        }
     }
     rates
+}
+
+fn grbl_detection_baud_rates(configured_baud: u32) -> Vec<u32> {
+    ordered_baud_rates(configured_baud, GRBL_DETECTION_BAUD_RATES)
+}
+
+fn marlin_detection_baud_rates(configured_baud: u32) -> Vec<u32> {
+    ordered_baud_rates(configured_baud, MARLIN_DETECTION_BAUD_RATES)
+}
+
+fn smoothieware_detection_baud_rates(configured_baud: u32) -> Vec<u32> {
+    ordered_baud_rates(configured_baud, SMOOTHIEWARE_DETECTION_BAUD_RATES)
+}
+
+enum GrblStatusAttempt {
+    Connected(Box<GrblSession>),
+    NoResponse {
+        garbage_seen: bool,
+        readable_data_seen: bool,
+    },
+}
+
+/// Probe an already-running GRBL-family controller without resetting it.
+/// A fresh `?` response works for classic GRBL, FluidNC, grblHAL, and silent
+/// OEM variants that do not replay a startup banner when a sender connects.
+fn try_grbl_status_handshake(
+    ctx: &ServiceContext,
+    port_name: &str,
+    baud_rate: u32,
+) -> ServiceResult<GrblStatusAttempt> {
+    ctx.push_connection_event(
+        "open_attempt",
+        Some(port_name.to_string()),
+        Some(baud_rate),
+        Some("Opening GRBL-family serial connection without resetting the controller".to_string()),
+        None,
+    );
+    let transport = RealSerialTransport::new_without_dtr(port_name, baud_rate);
+    let mut session = Box::new(GrblSession::new(Box::new(transport)));
+    if let Err(error) = session.connect() {
+        let message = error.to_string();
+        ctx.push_connection_event(
+            "open_failed",
+            Some(port_name.to_string()),
+            Some(baud_rate),
+            None,
+            Some(message.clone()),
+        );
+        return Err(ServiceError::machine(message));
+    }
+    ctx.push_connection_event(
+        "transport_open",
+        Some(port_name.to_string()),
+        Some(baud_rate),
+        Some("Serial transport opened".to_string()),
+        None,
+    );
+
+    let status_count = session.status_report_count();
+    ctx.push_connection_event(
+        "status_query",
+        Some(port_name.to_string()),
+        Some(baud_rate),
+        Some("Sending a read-only GRBL-family status query".to_string()),
+        None,
+    );
+    session
+        .poll_status()
+        .map_err(|error| ServiceError::machine(error.to_string()))?;
+    let deadline = Instant::now() + GRBL_STATUS_PROBE_TIMEOUT;
+    while session.status_report_count() == status_count && Instant::now() < deadline {
+        session
+            .poll()
+            .map_err(|error| ServiceError::machine(error.to_string()))?;
+        if session.status_report_count() == status_count {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    if session.status_report_count() > status_count {
+        session
+            .begin_validation_from_fresh_status(status_count)
+            .map_err(|error| ServiceError::machine(error.to_string()))?;
+        ctx.push_connection_event(
+            "protocol_response",
+            Some(port_name.to_string()),
+            Some(baud_rate),
+            Some("Received a fresh GRBL-family status response".to_string()),
+            None,
+        );
+        return Ok(GrblStatusAttempt::Connected(session));
+    }
+
+    let garbage_seen = session.saw_undecodable_data();
+    let readable_data_seen = !session.get_console_log(1).is_empty();
+    session.disconnect().ok();
+    ctx.push_connection_event(
+        "probe_no_response",
+        Some(port_name.to_string()),
+        Some(baud_rate),
+        Some(if garbage_seen {
+            "Received unreadable serial data but no GRBL-family status response".to_string()
+        } else if readable_data_seen {
+            "Received serial data but no GRBL-family status response".to_string()
+        } else {
+            "The open port returned no data to the GRBL-family status query".to_string()
+        }),
+        None,
+    );
+    Ok(GrblStatusAttempt::NoResponse {
+        garbage_seen,
+        readable_data_seen,
+    })
 }
 
 fn open_grbl_for_connection(
     ctx: &ServiceContext,
     port_name: String,
     baud_rate: u32,
+    allow_reset_fallback: bool,
 ) -> ServiceResult<(Box<GrblSession>, u32)> {
-    let mut active_baud = baud_rate;
-    let mut attempt = try_grbl_banner_handshake(ctx, &port_name, active_baud)?;
-    let mut unreadable_data_seen =
-        matches!(attempt, GrblBannerAttempt::NoBanner { garbage_seen: true });
-    let mut attempted_bauds = vec![active_baud];
+    let attempted_bauds = grbl_detection_baud_rates(baud_rate);
+    let mut any_data_seen = false;
+    let mut unreadable_data_seen = false;
 
-    if matches!(attempt, GrblBannerAttempt::NoBanner { .. }) {
-        for fallback in grbl_fallback_baud_rates(baud_rate, unreadable_data_seen) {
-            ctx.push_connection_event(
-                "baud_retry",
-                Some(port_name.clone()),
-                Some(fallback),
-                Some(format!(
-                    "No valid GRBL banner at {active_baud} baud; retrying at {fallback}"
-                )),
-                None,
-            );
-            attempt = try_grbl_banner_handshake(ctx, &port_name, fallback)?;
-            active_baud = fallback;
-            attempted_bauds.push(fallback);
-            if matches!(attempt, GrblBannerAttempt::NoBanner { garbage_seen: true }) {
-                unreadable_data_seen = true;
-            }
-            if matches!(attempt, GrblBannerAttempt::Connected(_)) {
-                break;
+    for &candidate_baud in &attempted_bauds {
+        match try_grbl_status_handshake(ctx, &port_name, candidate_baud)? {
+            GrblStatusAttempt::Connected(session) => return Ok((session, candidate_baud)),
+            GrblStatusAttempt::NoResponse {
+                garbage_seen,
+                readable_data_seen,
+            } => {
+                unreadable_data_seen |= garbage_seen;
+                any_data_seen |= garbage_seen || readable_data_seen;
             }
         }
     }
 
-    let session = match attempt {
-        GrblBannerAttempt::Connected(session) => session,
-        GrblBannerAttempt::NoBanner { garbage_seen } => {
+    // An explicitly selected classic GRBL adapter may reset a controller that
+    // is stuck before it can answer `?`. Auto-detect and named FluidNC/grblHAL
+    // connections remain non-resetting.
+    if allow_reset_fallback {
+        for reset_baud in ordered_baud_rates(baud_rate, &[STANDARD_GRBL_BAUD_RATE]) {
             ctx.push_connection_event(
-                "banner_timeout",
+                "reset_retry",
                 Some(port_name.clone()),
-                Some(active_baud),
+                Some(reset_baud),
+                Some("No active status response; retrying classic GRBL with a reset".to_string()),
                 None,
-                Some("Timeout waiting for GRBL banner".to_string()),
             );
-            let tried_bauds = attempted_bauds
-                .iter()
-                .map(u32::to_string)
-                .collect::<Vec<_>>()
-                .join(", ");
-            return Err(ServiceError::machine(
-                if garbage_seen || unreadable_data_seen {
-                    format!(
-                        "The controller sent unreadable data. Tried {tried_bauds} baud without a \
-                     valid GRBL response. Check the controller's baud rate and \
-                     select it in the connection panel."
-                    )
-                } else {
-                    format!(
-                        "Timeout waiting for GRBL banner after trying {tried_bauds} baud. \
-                     Is this a GRBL device?"
-                    )
-                },
-            ));
+            match try_grbl_banner_handshake(ctx, &port_name, reset_baud)? {
+                GrblBannerAttempt::Connected(session) => return Ok((session, reset_baud)),
+                GrblBannerAttempt::NoBanner { garbage_seen } => {
+                    unreadable_data_seen |= garbage_seen;
+                    any_data_seen |= garbage_seen;
+                }
+            }
         }
+    }
+
+    let tried_bauds = attempted_bauds
+        .iter()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let error = if unreadable_data_seen {
+        format!(
+            "[serial_protocol_unrecognized] The controller sent unreadable data but no GRBL-family response. Tried {tried_bauds} baud."
+        )
+    } else if any_data_seen {
+        format!(
+            "[serial_protocol_unrecognized] The controller sent data, but it was not a GRBL-family status response. Tried {tried_bauds} baud."
+        )
+    } else {
+        format!(
+            "[serial_open_no_response] The serial port opened, but the controller sent no data. Tried GRBL-family detection at {tried_bauds} baud."
+        )
     };
-    Ok((session, active_baud))
+    ctx.push_connection_event(
+        "grbl_probe_failed",
+        Some(port_name),
+        Some(baud_rate),
+        None,
+        Some(error.clone()),
+    );
+    Err(ServiceError::machine(error))
 }
 
 fn finish_grbl_connection(
@@ -1311,7 +1420,7 @@ fn connect_grbl(
     port_name: String,
     baud_rate: u32,
 ) -> ServiceResult<(MachineSessionHandle, u32)> {
-    let (session, active_baud) = open_grbl_for_connection(ctx, port_name.clone(), baud_rate)?;
+    let (session, active_baud) = open_grbl_for_connection(ctx, port_name.clone(), baud_rate, true)?;
     let session = finish_grbl_connection(
         ctx,
         session,
@@ -1479,8 +1588,15 @@ fn finish_grbl_connection_attempt(
     selection: ControllerSelection,
     device_identity: DeviceIdentity,
 ) -> ServiceResult<ControllerConnectionResult> {
+    let allow_reset_fallback = matches!(
+        &selection,
+        ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::Grbl
+        } | ControllerSelection::GenericGrblCompatible
+            | ControllerSelection::Unknown
+    );
     let (mut session, active_baud_rate) =
-        open_grbl_for_connection(ctx, port_name.clone(), baud_rate)?;
+        open_grbl_for_connection(ctx, port_name.clone(), baud_rate, allow_reset_fallback)?;
     ctx.push_connection_event(
         "identity_probe",
         Some(port_name.clone()),
@@ -2310,6 +2426,10 @@ fn continue_auto_detection_after_grbl(
     device_identity: DeviceIdentity,
     grbl_error: Option<String>,
 ) -> ServiceResult<ControllerConnectionResult> {
+    let grbl_probe_failed = grbl_error.is_some();
+    let grbl_port_was_silent = grbl_error
+        .as_deref()
+        .is_some_and(|error| error.contains("[serial_open_no_response]"));
     clear_pending_controller_connection(ctx)?;
     ctx.push_connection_event(
         "protocol_retry",
@@ -2318,80 +2438,152 @@ fn continue_auto_detection_after_grbl(
         Some("GRBL identity was not established; trying Marlin M115".to_string()),
         grbl_error,
     );
-    match finish_marlin_connection_attempt(
-        ctx,
-        port_name.clone(),
-        baud_rate,
-        ControllerSelection::AutoDetect,
-        device_identity.clone(),
-    ) {
-        Ok(ControllerConnectionResult::Challenge { resolution, .. })
-            if matches!(
-                resolution.outcome,
-                ControllerChoiceOutcome::SelectionRequired
-            ) =>
-        {
-            clear_pending_controller_connection(ctx)?;
-        }
-        Ok(result) => return Ok(result),
-        Err(error) => {
-            ctx.push_connection_event(
-                "protocol_retry",
-                Some(port_name.clone()),
-                Some(baud_rate),
-                Some("Marlin identity was not established; trying Smoothieware".to_string()),
-                Some(error.to_string()),
-            );
-        }
-    }
-
-    ctx.push_connection_event(
-        "protocol_retry",
-        Some(port_name.clone()),
-        Some(baud_rate),
-        Some("Trying Smoothieware firmware and laser configuration probes".to_string()),
-        None,
-    );
-    match finish_smoothieware_connection_attempt(
-        ctx,
-        port_name.clone(),
-        baud_rate,
-        ControllerSelection::AutoDetect,
-        device_identity.clone(),
-    ) {
-        Ok(ControllerConnectionResult::Challenge { resolution, .. })
-            if matches!(
-                resolution.outcome,
-                ControllerChoiceOutcome::SelectionRequired
-            ) =>
-        {
-            clear_pending_controller_connection(ctx)?;
-        }
-        Ok(result) => return Ok(result),
-        Err(error) => {
-            ctx.push_connection_event(
-                "protocol_retry",
-                Some(port_name.clone()),
-                Some(baud_rate),
-                Some(
-                    "Smoothieware identity was not established; offering controller choices"
-                        .to_string(),
-                ),
-                Some(error.to_string()),
-            );
+    let marlin_bauds = marlin_detection_baud_rates(baud_rate);
+    for &candidate_baud in &marlin_bauds {
+        ctx.push_connection_event(
+            "protocol_probe",
+            Some(port_name.clone()),
+            Some(candidate_baud),
+            Some("Trying the read-only Marlin M115 identity query".to_string()),
+            None,
+        );
+        match finish_marlin_connection_attempt(
+            ctx,
+            port_name.clone(),
+            candidate_baud,
+            ControllerSelection::AutoDetect,
+            device_identity.clone(),
+        ) {
+            Ok(ControllerConnectionResult::Challenge { resolution, .. })
+                if matches!(
+                    resolution.outcome,
+                    ControllerChoiceOutcome::SelectionRequired
+                ) =>
+            {
+                clear_pending_controller_connection(ctx)?;
+                ctx.push_connection_event(
+                    "probe_no_response",
+                    Some(port_name.clone()),
+                    Some(candidate_baud),
+                    Some("No exact Marlin identity was returned".to_string()),
+                    None,
+                );
+            }
+            Ok(result) => return Ok(result),
+            Err(error) => {
+                ctx.push_connection_event(
+                    "probe_no_response",
+                    Some(port_name.clone()),
+                    Some(candidate_baud),
+                    Some("Marlin identity probe did not succeed".to_string()),
+                    Some(error.to_string()),
+                );
+            }
         }
     }
 
-    // No exact adapter identified the controller. Reopen the established GRBL
-    // choice session so every explicit controller option remains available.
+    let smoothieware_bauds = smoothieware_detection_baud_rates(baud_rate);
+    for &candidate_baud in &smoothieware_bauds {
+        ctx.push_connection_event(
+            "protocol_probe",
+            Some(port_name.clone()),
+            Some(candidate_baud),
+            Some("Trying Smoothieware firmware and laser configuration probes".to_string()),
+            None,
+        );
+        match finish_smoothieware_connection_attempt(
+            ctx,
+            port_name.clone(),
+            candidate_baud,
+            ControllerSelection::AutoDetect,
+            device_identity.clone(),
+        ) {
+            Ok(ControllerConnectionResult::Challenge { resolution, .. })
+                if matches!(
+                    resolution.outcome,
+                    ControllerChoiceOutcome::SelectionRequired
+                ) =>
+            {
+                clear_pending_controller_connection(ctx)?;
+                ctx.push_connection_event(
+                    "probe_no_response",
+                    Some(port_name.clone()),
+                    Some(candidate_baud),
+                    Some("No exact Smoothieware identity was returned".to_string()),
+                    None,
+                );
+            }
+            Ok(result) => return Ok(result),
+            Err(error) => {
+                ctx.push_connection_event(
+                    "probe_no_response",
+                    Some(port_name.clone()),
+                    Some(candidate_baud),
+                    Some("Smoothieware identity probe did not succeed".to_string()),
+                    Some(error.to_string()),
+                );
+            }
+        }
+    }
+
+    if grbl_probe_failed {
+        clear_pending_controller_connection(ctx)?;
+        let grbl_bauds = grbl_detection_baud_rates(baud_rate)
+            .iter()
+            .map(u32::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let marlin_bauds = marlin_bauds
+            .iter()
+            .map(u32::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let smoothieware_bauds = smoothieware_bauds
+            .iter()
+            .map(u32::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let error = if grbl_port_was_silent {
+            format!(
+                "[serial_open_no_response] The serial port opened, but no supported controller replied. GRBL-family baud rates: {grbl_bauds}. Marlin baud rates: {marlin_bauds}. Smoothieware baud rates: {smoothieware_bauds}. Confirm the controller model, power, and selected port."
+            )
+        } else {
+            format!(
+                "[serial_protocol_unrecognized] The serial port returned data, but no supported controller protocol was recognized. GRBL-family baud rates: {grbl_bauds}. Marlin baud rates: {marlin_bauds}. Smoothieware baud rates: {smoothieware_bauds}. Confirm the controller model and its documented serial settings."
+            )
+        };
+        ctx.push_connection_event(
+            "auto_detect_failed",
+            Some(port_name),
+            Some(baud_rate),
+            None,
+            Some(error.clone()),
+        );
+        return Err(ServiceError::machine(error));
+    }
+
+    // GRBL answered but did not provide an exact identity. Reopen that
+    // non-resetting session so the user can choose a compatible adapter.
     clear_pending_controller_connection(ctx)?;
-    finish_grbl_connection_attempt(
+    match finish_grbl_connection_attempt(
         ctx,
-        port_name,
+        port_name.clone(),
         baud_rate,
         ControllerSelection::AutoDetect,
         device_identity,
-    )
+    ) {
+        Ok(result) => Ok(result),
+        Err(error) => {
+            ctx.push_connection_event(
+                "auto_detect_failed",
+                Some(port_name),
+                Some(baud_rate),
+                None,
+                Some(error.to_string()),
+            );
+            Err(error)
+        }
+    }
 }
 
 pub fn begin_controller_connection(
@@ -2421,6 +2613,7 @@ pub fn begin_controller_connection(
         ));
     }
     clear_pending_controller_connection(ctx)?;
+    reset_serial_traffic();
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
@@ -3135,6 +3328,7 @@ pub fn connect_machine(
         ));
     }
     clear_pending_controller_connection(ctx)?;
+    reset_serial_traffic();
     clear_relative_frame_confirmation(ctx)?;
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
@@ -6290,26 +6484,30 @@ mod tests {
     }
 
     #[test]
-    fn silent_default_grbl_connection_retries_lx2b_baud_only() {
-        assert_eq!(grbl_fallback_baud_rates(115_200, false), vec![921_600]);
-    }
-
-    #[test]
-    fn configured_lx2b_baud_is_not_retried_after_silence() {
-        assert!(grbl_fallback_baud_rates(921_600, false).is_empty());
-    }
-
-    #[test]
-    fn explicitly_configured_legacy_baud_is_not_retried_after_silence() {
-        assert!(grbl_fallback_baud_rates(57_600, false).is_empty());
-    }
-
-    #[test]
-    fn unreadable_default_connection_also_retries_legacy_baud_rates() {
+    fn grbl_detection_sweeps_known_rates_after_the_selected_rate() {
         assert_eq!(
-            grbl_fallback_baud_rates(115_200, true),
-            vec![921_600, 9_600, 57_600]
+            grbl_detection_baud_rates(921_600),
+            vec![
+                921_600, 115_200, 460_800, 230_400, 57_600, 38_400, 19_200, 9_600
+            ]
         );
+    }
+
+    #[test]
+    fn grbl_detection_includes_silent_legacy_rates() {
+        let rates = grbl_detection_baud_rates(115_200);
+        assert!(rates.contains(&9_600));
+        assert!(rates.contains(&57_600));
+    }
+
+    #[test]
+    fn marlin_detection_includes_its_documented_default_rate() {
+        assert_eq!(marlin_detection_baud_rates(115_200), vec![115_200, 250_000]);
+    }
+
+    #[test]
+    fn selected_baud_is_not_duplicated_in_detection_order() {
+        assert_eq!(smoothieware_detection_baud_rates(115_200), vec![115_200]);
     }
 
     #[derive(Debug, Clone, Copy)]

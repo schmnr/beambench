@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Taslak rapor",
       "validation_description_required": "Bir hata raporu gönderilmeden önce açıklama gereklidir.",
+      "validation_connection_note_required": "Makine veya kontrolcü modelini girin ve ne olduğunu kısaca açıklayın.",
       "validation_title_max": "Başlık {max} karakter veya daha az olmalıdır.",
       "validation_description_max": "Açıklama {max} karakter veya daha az olmalıdır.",
       "validation_note_max": "Not, {max} karakter veya daha az olmalıdır.",
@@ -780,6 +781,7 @@
       "title_bug": "Hata Bildir",
       "field_title": "Başlık",
       "field_note": "Not",
+      "field_connection_details": "Makine/kontrolcü modeli ve sorun açıklaması",
       "field_optional_comment": "İsteğe bağlı yorum",
       "field_description": "Açıklama",
       "field_reply_to": "E-postayı yanıtla",

@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Jelentéstervezet",
       "validation_description_required": "A hibajelentés elküldése előtt leírás szükséges.",
+      "validation_connection_note_required": "Adja meg a gép vagy a vezérlő típusát, és röviden írja le, mi történt.",
       "validation_title_max": "A cím legfeljebb {max} karakterből állhat.",
       "validation_description_max": "A leírás legfeljebb {max} karakterből állhat.",
       "validation_note_max": "A megjegyzés legfeljebb {max} karakterből állhat.",
@@ -780,6 +781,7 @@
       "title_bug": "Hiba bejelentése",
       "field_title": "Cím",
       "field_note": "Megjegyzés",
+      "field_connection_details": "Gép-/vezérlőtípus és a probléma leírása",
       "field_optional_comment": "Opcionális megjegyzés",
       "field_description": "Leírás",
       "field_reply_to": "Válasz e-mailre",

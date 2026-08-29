@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Проект отчета",
       "validation_description_required": "Описание необходимо перед отправкой отчета об ошибке.",
+      "validation_connection_note_required": "Укажите модель станка или контроллера и кратко опишите, что произошло.",
       "validation_title_max": "Название должно содержать не более символов {max}.",
       "validation_description_max": "Описание должно содержать не более символов {max}.",
       "validation_note_max": "Примечание должно содержать не более символов {max}.",
@@ -780,6 +781,7 @@
       "title_bug": "Сообщить об ошибке",
       "field_title": "Название",
       "field_note": "Примечание",
+      "field_connection_details": "Модель станка/контроллера и описание проблемы",
       "field_optional_comment": "Необязательный комментарий",
       "field_description": "Описание",
       "field_reply_to": "Ответ на электронное письмо",

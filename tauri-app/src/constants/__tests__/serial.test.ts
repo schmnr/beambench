@@ -6,6 +6,10 @@ describe('serial baud rates', () => {
     expect(SERIAL_BAUD_RATES).toContain(921600);
   });
 
+  it('includes the documented Marlin default and high-speed rates', () => {
+    expect(SERIAL_BAUD_RATES).toEqual(expect.arrayContaining([250000, 500000, 1000000]));
+  });
+
   it('keeps selector options synchronized with the supported rates', () => {
     expect(SERIAL_BAUD_RATE_OPTIONS).toEqual(
       SERIAL_BAUD_RATES.map((rate) => ({

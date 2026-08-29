@@ -67,8 +67,9 @@ export function FeedbackReportDialog({
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const previewRequestVersion = useRef(0);
 
-  const requiresDescription = kind === 'bug' || kind === 'crash';
   const isJobCompatibility = presentation === 'job_compatibility';
+  const requiresDescription = kind === 'bug' || kind === 'crash';
+  const requiresConnectionNote = kind === 'connectivity' && !isJobCompatibility;
   const busy = busyAction !== null;
   const projectTooLarge = projectSize !== null && projectSize > MAX_PROJECT_ATTACHMENT_RAW_BYTES;
 
@@ -105,9 +106,12 @@ export function FeedbackReportDialog({
     return () => { cancelled = true; };
   }, [input, requiresDescription, t]);
 
-  const validationMessage = (): string | null => {
+  const validationMessage = (requireSubmissionContext = true): string | null => {
     if (requiresDescription && description.trim().length === 0) {
       return t('dialog.feedback.validation_description_required');
+    }
+    if (requireSubmissionContext && requiresConnectionNote && notes.trim().length === 0) {
+      return t('dialog.feedback.validation_connection_note_required');
     }
     if (title.length > MAX_FEEDBACK_TITLE_CHARS) {
       return t('dialog.feedback.validation_title_max', { max: MAX_FEEDBACK_TITLE_CHARS });
@@ -130,8 +134,8 @@ export function FeedbackReportDialog({
     return null;
   };
 
-  const ensureValid = (): boolean => {
-    const message = validationMessage();
+  const ensureValid = (requireSubmissionContext = true): boolean => {
+    const message = validationMessage(requireSubmissionContext);
     if (message) {
       setError(message);
       return false;
@@ -142,7 +146,9 @@ export function FeedbackReportDialog({
   const loadPreview = async () => {
     if (busy) return;
     setError(null);
-    if (!ensureValid()) return;
+    // Users may inspect the privacy preview before they have written the
+    // controller details required to save or submit the report.
+    if (!ensureValid(false)) return;
     setBusyAction('preview');
     const requestVersion = previewRequestVersion.current;
     try {
@@ -314,12 +320,12 @@ export function FeedbackReportDialog({
               <span className="font-medium">{isJobCompatibility
                 ? t('dialog.feedback.field_optional_comment')
                 : kind === 'connectivity'
-                  ? t('dialog.feedback.field_note')
+                  ? t('dialog.feedback.field_connection_details')
                   : t('dialog.feedback.field_description')}</span>
               <textarea
                 value={kind === 'connectivity' ? notes : description}
                 maxLength={MAX_FEEDBACK_DESCRIPTION_CHARS}
-                required={requiresDescription}
+                required={requiresDescription || requiresConnectionNote}
                 rows={5}
                 onChange={(event) => {
                   if (kind === 'connectivity') setNotes(event.target.value);

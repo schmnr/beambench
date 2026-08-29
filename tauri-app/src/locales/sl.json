@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Osnutek poročila",
       "validation_description_required": "Pred oddajo poročila o napaki je potreben opis.",
+      "validation_connection_note_required": "Vnesite model stroja ali krmilnika in na kratko opišite, kaj se je zgodilo.",
       "validation_title_max": "Naslov mora vsebovati {max} znakov ali manj.",
       "validation_description_max": "Opis mora vsebovati {max} znakov ali manj.",
       "validation_note_max": "Opomba mora imeti {max} znakov ali manj.",
@@ -780,6 +781,7 @@
       "title_bug": "Prijavi napako",
       "field_title": "Naslov",
       "field_note": "Opomba",
+      "field_connection_details": "Model stroja/krmilnika in opis težave",
       "field_optional_comment": "Izbirni komentar",
       "field_description": "Opis",
       "field_reply_to": "Odgovor na e-pošto",

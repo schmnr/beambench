@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Návrh zprávy",
       "validation_description_required": "Před odesláním hlášení o chybě je vyžadován popis.",
+      "validation_connection_note_required": "Zadejte model stroje nebo řídicí jednotky a stručně popište, co se stalo.",
       "validation_title_max": "Název musí mít maximálně {max} znaků.",
       "validation_description_max": "Popis musí obsahovat maximálně {max} znaků.",
       "validation_note_max": "Poznámka musí obsahovat {max} nebo méně znaků.",
@@ -780,6 +781,7 @@
       "title_bug": "Nahlásit chybu",
       "field_title": "Název",
       "field_note": "Poznámka",
+      "field_connection_details": "Model stroje/řídicí jednotky a popis problému",
       "field_optional_comment": "Volitelný komentář",
       "field_description": "Popis",
       "field_reply_to": "Odpověď na email",

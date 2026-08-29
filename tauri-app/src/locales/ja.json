@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "報告書草案",
       "validation_description_required": "バグレポートを送信する前に説明が必要です。",
+      "validation_connection_note_required": "機械またはコントローラーのモデルと、発生した問題を簡潔に入力してください。",
       "validation_title_max": "タイトルは {max} 文字以下にする必要があります。",
       "validation_description_max": "説明は {max} 文字以下にする必要があります。",
       "validation_note_max": "注は {max} 文字以下である必要があります。",
@@ -780,6 +781,7 @@
       "title_bug": "バグを報告する",
       "field_title": "タイトル",
       "field_note": "注記",
+      "field_connection_details": "機械/コントローラーのモデルと問題の説明",
       "field_optional_comment": "任意のコメント",
       "field_description": "説明",
       "field_reply_to": "返信メール",

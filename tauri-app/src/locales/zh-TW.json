@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "報告草稿",
       "validation_description_required": "提交錯誤報告之前需要進行描述。",
+      "validation_connection_note_required": "請輸入機器或控制器型號，並簡要說明發生了什麼。",
       "validation_title_max": "標題不得超過 {max} 個字元。",
       "validation_description_max": "說明必須為 {max} 字元或更少。",
       "validation_note_max": "注意必須為 {max} 字元或更少。",
@@ -780,6 +781,7 @@
       "title_bug": "報告錯誤",
       "field_title": "標題",
       "field_note": "注意事項",
+      "field_connection_details": "機器/控制器型號和問題說明",
       "field_optional_comment": "選填備註",
       "field_description": "描述",
       "field_reply_to": "回覆電子郵件",

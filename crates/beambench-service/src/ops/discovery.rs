@@ -180,6 +180,20 @@ fn firmware_type_for_model(model: ControllerModel) -> String {
     .to_string()
 }
 
+fn stable_profile_name(display_name: &str) -> String {
+    let trimmed = display_name.trim();
+    if let Some((name, suffix)) = trimmed.rsplit_once(" (COM")
+        && let Some(port_number) = suffix.strip_suffix(')')
+        && !port_number.is_empty()
+        && port_number
+            .chars()
+            .all(|character| character.is_ascii_digit())
+    {
+        return name.trim().to_owned();
+    }
+    trimmed.to_owned()
+}
+
 pub fn bootstrap_profile(
     ctx: &ServiceContext,
     input: BootstrapProfileInput,
@@ -187,7 +201,7 @@ pub fn bootstrap_profile(
     let candidate = find_candidate(ctx, &input.candidate_id)?;
     let profile_name = input
         .profile_name
-        .unwrap_or_else(|| candidate.identity.display_name.clone());
+        .unwrap_or_else(|| stable_profile_name(&candidate.identity.display_name));
     let profile_notes = if candidate.controller_model == ControllerModel::Unknown {
         let transport_label = match candidate.transport_kind {
             TransportKind::Serial => "serial",
@@ -319,6 +333,18 @@ mod tests {
         assert_eq!(
             firmware_type_for_model(ControllerModel::Smoothieware),
             "smoothieware"
+        );
+    }
+
+    #[test]
+    fn generated_profile_name_does_not_embed_a_renumbered_windows_port() {
+        assert_eq!(
+            stable_profile_name("USB-SERIAL CH340 (COM7)"),
+            "USB-SERIAL CH340"
+        );
+        assert_eq!(
+            stable_profile_name("Ortur Laser Master 3"),
+            "Ortur Laser Master 3"
         );
     }
 

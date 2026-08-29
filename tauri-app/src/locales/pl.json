@@ -763,6 +763,7 @@
     "feedback": {
       "draft_report": "Projekt raportu",
       "validation_description_required": "Opis jest wymagany przed przesłaniem raportu o błędzie.",
+      "validation_connection_note_required": "Podaj model maszyny lub kontrolera i krótko opisz, co się stało.",
       "validation_title_max": "Tytuł musi zawierać maksymalnie {max} znaków.",
       "validation_description_max": "Opis musi zawierać maksymalnie {max} znaków.",
       "validation_note_max": "Uwaga musi zawierać maksymalnie {max} znaków.",
@@ -780,6 +781,7 @@
       "title_bug": "Zgłoś błąd",
       "field_title": "Tytuł",
       "field_note": "Uwaga",
+      "field_connection_details": "Model maszyny/kontrolera i opis problemu",
       "field_optional_comment": "Komentarz opcjonalny",
       "field_description": "Opis",
       "field_reply_to": "Odpowiedź na e-mail",

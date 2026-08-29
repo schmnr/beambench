@@ -63,6 +63,9 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "std",
 ] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
