@@ -39,6 +39,12 @@ An MSI failure does not discard a valid signed NSIS build, and the workflow
 uploads the generated WiX inputs as a diagnostic artifact when MSI packaging
 fails.
 
+The Linux workflow repairs the generated AppImage before signing it. The repair
+removes host-level Wayland, GLib, and GStreamer libraries that linuxdeploy can
+copy from the build runner even though the host graphics and WebKit stack must
+provide them. `scripts/harden-linux-appimage --check <artifact>` is the
+deterministic release audit and must pass on the final signed binary.
+
 Dispatch the platform workflows one at a time. They share a same-tag concurrency
 group, and GitHub retains at most one pending run in that group.
 
