@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: scripts/harden-linux-appimage [--check] <path-to-AppImage>" >&2
+}
+
+mode="repair"
+if [ "${1:-}" = "--check" ]; then
+  mode="check"
+  shift
+fi
+
+if [ "$#" -ne 1 ]; then
+  usage
+  exit 2
+fi
+
+appimage="$1"
+if [ ! -f "$appimage" ]; then
+  echo "AppImage not found: $appimage" >&2
+  exit 1
+fi
+
+for command_name in grep mksquashfs unsquashfs; do
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "Required command not found: $command_name" >&2
+    exit 1
+  fi
+done
+
+work_dir="$(mktemp -d)"
+cleanup() {
+  rm -rf "$work_dir"
+}
+trap cleanup EXIT
+
+find_squashfs_offset() {
+  local candidate
+  while IFS=: read -r candidate _; do
+    if unsquashfs -s -o "$candidate" "$appimage" >/dev/null 2>&1; then
+      echo "$candidate"
+      return 0
+    fi
+  done < <(LC_ALL=C grep -aob 'hsqs' "$appimage")
+  echo "Could not locate the AppImage SquashFS payload." >&2
+  return 1
+}
+
+extract_appimage() {
+  local destination="$1"
+  unsquashfs -q -no-progress -o "$squashfs_offset" -d "$destination" "$appimage"
+}
+
+find_incompatible_libraries() {
+  local app_dir="$1"
+  find "$app_dir/usr/lib" \( -type f -o -type l \) \( \
+    -name 'libwayland-*.so*' -o \
+    -name 'libglib-2.0.so*' -o \
+    -name 'libgio-2.0.so*' -o \
+    -name 'libgobject-2.0.so*' -o \
+    -name 'libgmodule-2.0.so*' -o \
+    -name 'libgst*.so*' -o \
+    -name 'libmount.so*' -o \
+    -name 'libblkid.so*' -o \
+    -name 'libselinux.so*' -o \
+    -name 'libpcre2-8.so*' -o \
+    -name 'libzstd.so*' -o \
+    -name 'libelf.so*' -o \
+    -name 'libffi.so*' \
+  \) -print
+}
+
+squashfs_offset="$(find_squashfs_offset)"
+extracted_dir="$work_dir/AppDir"
+extract_appimage "$extracted_dir"
+
+mapfile -t incompatible_libraries < <(find_incompatible_libraries "$extracted_dir")
+if [ "$mode" = "check" ]; then
+  if [ "${#incompatible_libraries[@]}" -ne 0 ]; then
+    printf 'AppImage contains host-incompatible runtime libraries:\n' >&2
+    printf '  %s\n' "${incompatible_libraries[@]}" >&2
+    exit 1
+  fi
+  echo "AppImage runtime library audit passed: $appimage"
+  exit 0
+fi
+
+if [ "${#incompatible_libraries[@]}" -eq 0 ]; then
+  echo "AppImage did not contain host-incompatible runtime libraries."
+  exit 0
+fi
+
+printf 'Removing %d host-incompatible runtime libraries.\n' "${#incompatible_libraries[@]}"
+rm -f -- "${incompatible_libraries[@]}"
+
+remaining="$(find_incompatible_libraries "$extracted_dir" | head -n 1)"
+if [ -n "$remaining" ]; then
+  echo "Failed to remove incompatible library: $remaining" >&2
+  exit 1
+fi
+
+rebuilt_squashfs="$work_dir/AppDir.squashfs"
+mksquashfs "$extracted_dir" "$rebuilt_squashfs" \
+  -noappend \
+  -all-root \
+  -no-xattrs \
+  -comp zstd \
+  -b 131072 \
+  -mkfs-time 0 \
+  -no-progress \
+  -quiet
+
+rebuilt_appimage="$work_dir/rebuilt.AppImage"
+dd if="$appimage" of="$rebuilt_appimage" bs=1 count="$squashfs_offset" status=none
+dd if="$rebuilt_squashfs" of="$rebuilt_appimage" bs=1 seek="$squashfs_offset" conv=notrunc status=none
+chmod --reference="$appimage" "$rebuilt_appimage"
+mv "$rebuilt_appimage" "$appimage"
+
+# The updater signature was created for the pre-repair binary and is invalid.
+# The release workflow signs the repaired artifact immediately after this step.
+rm -f "${appimage}.sig"
+
+echo "Hardened AppImage runtime libraries: $appimage"

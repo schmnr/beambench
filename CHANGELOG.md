@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.2.15
+
+- Linux AppImages no longer bundle the older Wayland, GLib, and GStreamer
+  runtime libraries that can conflict with newer Mesa drivers and abort the
+  embedded WebKit interface with `EGL_BAD_PARAMETER` on Kubuntu and other
+  current distributions.
+- The Linux release workflow now rebuilds and signs the corrected AppImage,
+  then audits its contents so a release fails if any incompatible host-level
+  runtime library is reintroduced.
+
 ## 0.2.14
 
 - Serial controller detection now preserves every probe attempt, begins with a
