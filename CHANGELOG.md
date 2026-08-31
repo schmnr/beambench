@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.2.17
+
+- Machine profiles with Z movement enabled now show finite `Z-` and `Z+`
+  controls in the Move panel. Z jogging uses the same distance selected for XY
+  movement and the profile's dedicated Z feed rate.
+- Manual Z controls stay hidden for profiles without Z support and while rotary
+  mode is enabled. Ruida lift-table jogging continues to use the same guarded,
+  serialized motion path.
+
 ## 0.2.16
 
 - The original xTool M1 5W and 10W can now connect through its native HTTP

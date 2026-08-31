@@ -72,7 +72,7 @@ const SECTION = 'space-y-2.5 border-t border-bb-border pt-3';
 const SECTION_HEADER = 'text-xs font-medium text-bb-accent uppercase tracking-wider';
 const FIRE_SECTION = 'space-y-2.5 border-t border-red-500/50 bg-red-500/5 px-2 pb-2 pt-3 -mx-1';
 
-type JogVector = { x: number; y: number };
+type JogVector = { x: number; y: number; z?: number };
 
 function positionText(
   pos: { x: number; y: number; z?: number | null } | null | undefined,
@@ -142,8 +142,14 @@ export function MovePanel(): React.ReactElement {
     profileList.find((profile) => profile.id === activeProfileId) ?? profileList[0];
   const isRuidaProfile = activeProfile?.firmware_type.trim().toLowerCase() === 'ruida';
   const supportsZ = !isRuidaProfile && activeProfile?.supports_z_moves === true;
+  const supportsManualZJog = supportsZ && activeProfile?.rotary_enabled !== true;
   const ruidaTableAxis = activeProfile?.ruida_table_axis ?? 'disabled';
   const supportsRuidaTableJog = isRuidaProfile && ruidaTableAxis !== 'disabled';
+  const auxiliaryJogAxis = supportsRuidaTableJog
+    ? ruidaTableAxis.toUpperCase()
+    : supportsManualZJog
+      ? 'Z'
+      : null;
   const fireEnabled = activeProfile?.enable_laser_fire_button === true;
   const connected = sessionState !== 'disconnected';
   const alarmLocked = sessionState === 'alarm' || machineStatus?.run_state === 'alarm';
@@ -229,8 +235,12 @@ export function MovePanel(): React.ReactElement {
       setFiniteJogPending(true);
       const xMm = vector.x * jogDistance;
       const yMm = vector.y * jogDistance;
+      const zMm = vector.z ? vector.z * jogDistance : null;
+      const feedRate = zMm === null
+        ? moveFeedRate
+        : activeProfile?.z_move_feed_mm_min ?? 300;
       try {
-        await machineService.jog(xMm, yMm, moveFeedRate);
+        await machineService.jog(xMm, yMm, feedRate, zMm);
         await recheckFiniteJog();
       } catch (error) {
         notifyError(error, {
@@ -239,8 +249,8 @@ export function MovePanel(): React.ReactElement {
           jog_request: {
             x_mm: xMm,
             y_mm: yMm,
-            z_mm: null,
-            feed_rate_mm_min: moveFeedRate,
+            z_mm: zMm,
+            feed_rate_mm_min: feedRate,
             continuous: false,
           },
         });
@@ -249,7 +259,7 @@ export function MovePanel(): React.ReactElement {
         setFiniteJogPending(false);
       }
     },
-    [jogDistance, moveFeedRate, notifyError, recheckFiniteJog],
+    [activeProfile?.z_move_feed_mm_min, jogDistance, moveFeedRate, notifyError, recheckFiniteJog],
   );
 
   const reloadSavedPositions = useCallback(async () => {
@@ -434,22 +444,6 @@ export function MovePanel(): React.ReactElement {
         }),
         'info',
       );
-    } catch (error) {
-      notifyError(error);
-    }
-  };
-
-  const handleRuidaTableJog = async (direction: -1 | 1) => {
-    if (!supportsRuidaTableJog || !jogSupported || !readyIdle) return;
-    try {
-      await machineService.jog(
-        0,
-        0,
-        activeProfile?.z_move_feed_mm_min ?? 300,
-        direction * jogDistance,
-      );
-      await refreshStatus();
-      await refreshSessionState();
     } catch (error) {
       notifyError(error);
     }
@@ -864,29 +858,31 @@ export function MovePanel(): React.ReactElement {
             {continuousJogSupported && (
               <div className="text-bb-text-muted">{t('panels.move.hold_to_jog')}</div>
             )}
-            {supportsRuidaTableJog && (
+            {auxiliaryJogAxis && (
               <div>
                 <div className="mb-1 text-bb-text-muted">
-                  {t('panels.move.lift_table_axis', { axis: ruidaTableAxis.toUpperCase() })}
+                  {supportsRuidaTableJog
+                    ? t('panels.move.lift_table_axis', { axis: auxiliaryJogAxis })
+                    : t('panels.move.axis_z')}
                 </div>
                 <div className="grid grid-cols-2 gap-1">
                   <button
                     className={BTN}
                     disabled={!jogSupported || !readyIdle || finiteJogPending}
-                    onClick={() => void handleRuidaTableJog(-1)}
-                    data-testid="ruida-table-jog-negative"
+                    onClick={() => void runFiniteJog({ x: 0, y: 0, z: -1 })}
+                    data-testid="auxiliary-axis-jog-negative"
                   >
                     <ArrowDown size={14} />
-                    {ruidaTableAxis.toUpperCase()}−
+                    {auxiliaryJogAxis}−
                   </button>
                   <button
                     className={BTN}
                     disabled={!jogSupported || !readyIdle || finiteJogPending}
-                    onClick={() => void handleRuidaTableJog(1)}
-                    data-testid="ruida-table-jog-positive"
+                    onClick={() => void runFiniteJog({ x: 0, y: 0, z: 1 })}
+                    data-testid="auxiliary-axis-jog-positive"
                   >
                     <ArrowUp size={14} />
-                    {ruidaTableAxis.toUpperCase()}+
+                    {auxiliaryJogAxis}+
                   </button>
                 </div>
               </div>

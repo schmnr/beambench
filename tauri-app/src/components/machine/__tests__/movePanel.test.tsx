@@ -329,6 +329,55 @@ describe('MovePanel', () => {
     );
   });
 
+  it('jogs a configured GRBL Z axis with the shared distance and profile Z feed', async () => {
+    connectMachine();
+    useUiStore.setState({
+      moveWindowJogDistanceMm: 2.5,
+      moveWindowJogFeedRateMmMin: 1500,
+    });
+    useMachineStore.setState({
+      profiles: [
+        makeMachineProfile({
+          supports_z_moves: true,
+          z_move_feed_mm_min: 240,
+        }),
+      ],
+      loadProfiles: vi.fn().mockResolvedValue(undefined),
+    });
+
+    render(<MovePanel />);
+    const positive = screen.getByTestId('auxiliary-axis-jog-positive');
+    const negative = screen.getByTestId('auxiliary-axis-jog-negative');
+
+    fireEvent.click(positive);
+    await waitFor(() => {
+      expect(machineService.jog).toHaveBeenCalledWith(0, 0, 240, 2.5);
+      expect((negative as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(negative);
+    await waitFor(() => {
+      expect(machineService.jog).toHaveBeenCalledWith(0, 0, 240, -2.5);
+    });
+  });
+
+  it('keeps manual Z jog hidden unless the active profile enables safe Z movement', async () => {
+    connectMachine();
+    render(<MovePanel />);
+    await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
+    expect(screen.queryByTestId('auxiliary-axis-jog-positive')).toBeNull();
+
+    cleanup();
+    connectMachine();
+    useMachineStore.setState({
+      profiles: [makeMachineProfile({ supports_z_moves: true, rotary_enabled: true })],
+      loadProfiles: vi.fn().mockResolvedValue(undefined),
+    });
+    render(<MovePanel />);
+    await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
+    expect(screen.queryByTestId('auxiliary-axis-jog-positive')).toBeNull();
+  });
+
   it('jogs the configured Ruida lift-table channel in finite profile-speed steps', async () => {
     connectMachine();
     useUiStore.setState({ moveWindowJogDistanceMm: 2.5 });
@@ -346,18 +395,18 @@ describe('MovePanel', () => {
     render(<MovePanel />);
     expect(screen.getByText('Lift table (U axis)')).toBeDefined();
 
-    fireEvent.click(screen.getByTestId('ruida-table-jog-positive'));
+    fireEvent.click(screen.getByTestId('auxiliary-axis-jog-positive'));
     await waitFor(() => {
       expect(machineService.jog).toHaveBeenCalledWith(0, 0, 240, 2.5);
     });
 
     await waitFor(() => {
-      expect((screen.getByTestId('ruida-table-jog-negative') as HTMLButtonElement).disabled).toBe(
+      expect((screen.getByTestId('auxiliary-axis-jog-negative') as HTMLButtonElement).disabled).toBe(
         false,
       );
     });
 
-    fireEvent.click(screen.getByTestId('ruida-table-jog-negative'));
+    fireEvent.click(screen.getByTestId('auxiliary-axis-jog-negative'));
     await waitFor(() => {
       expect(machineService.jog).toHaveBeenCalledWith(0, 0, 240, -2.5);
     });
@@ -374,7 +423,7 @@ describe('MovePanel', () => {
     await waitFor(() => {
       expect(machineService.getSavedPositions).toHaveBeenCalled();
     });
-    expect(screen.queryByTestId('ruida-table-jog-positive')).toBeNull();
+    expect(screen.queryByTestId('auxiliary-axis-jog-positive')).toBeNull();
   });
 
   it('keeps Move Laser to Selection as machine motion', async () => {
@@ -481,6 +530,8 @@ describe('MovePanel', () => {
         supports_cylinder: false,
         supports_camera_alignment: false,
       },
+      profiles: [makeMachineProfile({ supports_z_moves: true })],
+      activeProfileId: 'profile-1',
     });
 
     render(<MovePanel />);
@@ -491,6 +542,9 @@ describe('MovePanel', () => {
     expect((screen.getByRole('button', { name: 'Home' }) as HTMLButtonElement).disabled).toBe(true);
     const jogUp = screen.getByTitle('Jog Up');
     expect((jogUp as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByTestId('auxiliary-axis-jog-positive') as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('offers Ruida only the manual controls implemented by its native adapter', async () => {
