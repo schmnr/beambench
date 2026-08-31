@@ -305,17 +305,17 @@ async fn connect_controller_network(
     State(ctx): State<Arc<ServiceContext>>,
     Json(body): Json<NetworkControllerConnectBody>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let port = body.port.unwrap_or_else(|| {
-        if matches!(
-            &body.selection,
-            ControllerSelection::KnownDriver {
-                driver: ControllerDriverId::Ruida
-            }
-        ) {
-            50200
-        } else {
-            23
-        }
+    let port = body.port.unwrap_or_else(|| match &body.selection {
+        ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::Ruida,
+        } => 50200,
+        ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::LaserPecker,
+        } => 8888,
+        ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::XToolM1,
+        } => 8080,
+        _ => 23,
     });
     let connection_ctx = ctx.clone();
     let result = tokio::task::spawn_blocking(move || {

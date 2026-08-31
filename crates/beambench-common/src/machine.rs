@@ -24,6 +24,8 @@ pub enum ControllerModel {
     FluidNc,
     GrblHal,
     LaserPecker,
+    #[serde(rename = "xtool_m1")]
+    XToolM1,
     Marlin,
     Snapmaker,
     Smoothieware,
@@ -491,6 +493,14 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&ControllerModel::LaserPecker).unwrap(),
             r#""laser_pecker""#
+        );
+    }
+
+    #[test]
+    fn xtool_m1_controller_model_has_a_stable_wire_name() {
+        assert_eq!(
+            serde_json::to_string(&ControllerModel::XToolM1).unwrap(),
+            r#""xtool_m1""#
         );
     }
 

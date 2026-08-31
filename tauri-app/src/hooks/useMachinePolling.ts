@@ -48,7 +48,7 @@ export function useMachinePolling() {
     return () => clearInterval(interval);
   }, [sessionState, refreshStatus, refreshSessionState]);
 
-  // Job polling: active when job is running or paused
+  // Job polling: active while a staged, ready, running, or paused job can change state
   // Auto-clear terminal job states after a brief display period
   const prevJobStateRef = useRef<string | null>(null);
   useEffect(() => {
@@ -66,7 +66,7 @@ export function useMachinePolling() {
     // Preparing is a potentially long staged transfer (Ruida upload, Lihuiyu
     // packet stream); poll it so progress and terminal transitions don't rely
     // solely on event delivery.
-    const activeJobStates = ['preparing', 'running', 'paused'];
+    const activeJobStates = ['preparing', 'ready_to_run', 'running', 'paused'];
     if (activeJobStates.includes(jobProgress.state)) {
       const interval = setInterval(() => {
         refreshJobProgress();

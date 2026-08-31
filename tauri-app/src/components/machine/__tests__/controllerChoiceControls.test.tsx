@@ -33,6 +33,10 @@ describe('ControllerChoiceControls', () => {
       mode: 'known_driver',
       driver: 'laser_pecker',
     });
+    expect(controllerSelectionFromValue('xtool_m1')).toEqual({
+      mode: 'known_driver',
+      driver: 'xtool_m1',
+    });
     expect(controllerSelectionFromValue('marlin')).toEqual({
       mode: 'known_driver',
       driver: 'marlin',
@@ -60,6 +64,7 @@ describe('ControllerChoiceControls', () => {
     expect(controllerSelectionValue({ mode: 'known_driver', driver: 'laser_pecker' })).toBe(
       'laser_pecker',
     );
+    expect(controllerSelectionValue({ mode: 'known_driver', driver: 'xtool_m1' })).toBe('xtool_m1');
     expect(controllerSelectionValue({ mode: 'known_driver', driver: 'marlin' })).toBe('marlin');
     expect(controllerSelectionValue({ mode: 'known_driver', driver: 'snapmaker' })).toBe(
       'snapmaker',
@@ -144,6 +149,7 @@ describe('ControllerChoiceControls', () => {
       'FluidNC (Experimental)',
       'grblHAL (Experimental)',
       'LaserPecker (Experimental)',
+      'Original xTool M1 (Experimental)',
       'Ruida (Experimental)',
     ]);
   });

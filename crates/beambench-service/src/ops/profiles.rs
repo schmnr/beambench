@@ -368,6 +368,34 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             preferred_default_origin: Some(WorkspaceOrigin::BottomLeft),
         },
         MachineProfilePreset {
+            id: "xtool_m1_original",
+            version: 1,
+            name: "xTool M1 (Original)",
+            description: "Experimental original xTool M1 HTTP profile for the 385 × 300 mm workspace.",
+            advisory_text: Some(
+                "Connect through Network on port 8080. Set Material Thickness before each job. Beam Bench uploads the job, then the M1 waits for its physical start button.",
+            ),
+            firmware_type: "xtool_m1",
+            default_baud_rate: 115200,
+            bed_width_mm: 385.0,
+            bed_height_mm: 300.0,
+            max_speed_mm_min: 9600.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::TopLeft,
+            use_constant_power: false,
+            emit_s_every_g1: true,
+            use_g0_for_overscan: true,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
+        },
+        MachineProfilePreset {
             id: "laserpecker_lx1",
             version: 1,
             name: "LaserPecker LX1",
@@ -866,6 +894,12 @@ pub fn suggest_profile_preset(ctx: &ServiceContext) -> ServiceResult<PresetSugge
         return Ok(PresetSuggestion {
             suggestion: None,
             reason: "not_connected",
+        });
+    }
+    if runtime.controller_model == Some(beambench_common::machine::ControllerModel::XToolM1) {
+        return Ok(PresetSuggestion {
+            suggestion: Some("xtool_m1_original"),
+            reason: "matched",
         });
     }
     let Some(info) = runtime.controller_info else {

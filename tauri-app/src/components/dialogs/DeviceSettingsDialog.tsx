@@ -26,6 +26,7 @@ import {
   USB_TRANSPORT,
   connectionEndpointMissing,
   defaultPortForDriverSwitch,
+  xtoolM1DefaultHost,
   type ConnectionTransportKind,
 } from '../../utils/controllerConnection';
 import {
@@ -117,7 +118,10 @@ function normalizeStringRecord(payload: unknown): Record<string, string> {
   return Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, String(value)]));
 }
 
-export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: DeviceSettingsDialogProps) {
+export function DeviceSettingsDialog({
+  onClose,
+  initialTab = 'connection',
+}: DeviceSettingsDialogProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [machineCloseGuard, setMachineCloseGuard] = useState<CloseGuard | null>(null);
@@ -149,12 +153,36 @@ export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: Dev
   };
 
   const tabs: { id: TabId; label: string; icon: ReactNode }[] = [
-    { id: 'connection', label: t('dialog.device_settings.tab_connection'), icon: <Cable size={14} /> },
-    { id: 'machine', label: t('dialog.device_settings.tab_machine'), icon: <Settings2 size={14} /> },
-    { id: 'grbl', label: t('dialog.device_settings.tab_grbl'), icon: <SlidersHorizontal size={14} /> },
-    { id: 'controller', label: t('dialog.device_settings.tab_controller'), icon: <Cpu size={14} /> },
-    { id: 'discovery', label: t('dialog.device_settings.tab_discovery'), icon: <Radar size={14} /> },
-    { id: 'profiles', label: t('dialog.device_settings.tab_profiles'), icon: <HardDrive size={14} /> },
+    {
+      id: 'connection',
+      label: t('dialog.device_settings.tab_connection'),
+      icon: <Cable size={14} />,
+    },
+    {
+      id: 'machine',
+      label: t('dialog.device_settings.tab_machine'),
+      icon: <Settings2 size={14} />,
+    },
+    {
+      id: 'grbl',
+      label: t('dialog.device_settings.tab_grbl'),
+      icon: <SlidersHorizontal size={14} />,
+    },
+    {
+      id: 'controller',
+      label: t('dialog.device_settings.tab_controller'),
+      icon: <Cpu size={14} />,
+    },
+    {
+      id: 'discovery',
+      label: t('dialog.device_settings.tab_discovery'),
+      icon: <Radar size={14} />,
+    },
+    {
+      id: 'profiles',
+      label: t('dialog.device_settings.tab_profiles'),
+      icon: <HardDrive size={14} />,
+    },
   ];
 
   return createPortal(
@@ -168,7 +196,13 @@ export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: Dev
       minHeight={520}
       onRequestClose={handleRequestClose}
       closeOnBackdropClick
-      footer={<DialogFooter><DialogButton tone={DIALOG_TONE.secondary} onClick={handleRequestClose}>{t('common.close')}</DialogButton></DialogFooter>}
+      footer={
+        <DialogFooter>
+          <DialogButton tone={DIALOG_TONE.secondary} onClick={handleRequestClose}>
+            {t('common.close')}
+          </DialogButton>
+        </DialogFooter>
+      }
     >
       <div className="flex min-h-0 flex-1 flex-col bg-bb-bg/20">
         {closePromptVisible && machineCloseGuard && (
@@ -176,13 +210,25 @@ export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: Dev
             <DialogNotice
               tone={DIALOG_TONE.warning}
               role="alert"
-              actions={(
+              actions={
                 <>
-                  <DialogButton tone={DIALOG_TONE.quiet} onClick={() => setClosePromptVisible(false)}>{t('dialog.device_settings.keep_editing')}</DialogButton>
-                  <DialogButton tone={DIALOG_TONE.danger} onClick={handleDiscardAndClose}>{t('dialog.device_settings.discard')}</DialogButton>
-                  <DialogButton tone={DIALOG_TONE.primary} onClick={() => void handleSaveAndClose()}>{t('dialog.device_settings.save_and_close')}</DialogButton>
+                  <DialogButton
+                    tone={DIALOG_TONE.quiet}
+                    onClick={() => setClosePromptVisible(false)}
+                  >
+                    {t('dialog.device_settings.keep_editing')}
+                  </DialogButton>
+                  <DialogButton tone={DIALOG_TONE.danger} onClick={handleDiscardAndClose}>
+                    {t('dialog.device_settings.discard')}
+                  </DialogButton>
+                  <DialogButton
+                    tone={DIALOG_TONE.primary}
+                    onClick={() => void handleSaveAndClose()}
+                  >
+                    {t('dialog.device_settings.save_and_close')}
+                  </DialogButton>
                 </>
-              )}
+              }
             >
               {t('dialog.device_settings.save_before_closing')}
             </DialogNotice>
@@ -201,7 +247,10 @@ export function DeviceSettingsDialog({ onClose, initialTab = 'connection' }: Dev
             />
             <div className="p-4">
               <ConnectionTab active={activeTab === 'connection'} />
-              <MachineTab active={activeTab === 'machine'} onCloseGuardChange={setMachineCloseGuard} />
+              <MachineTab
+                active={activeTab === 'machine'}
+                onCloseGuardChange={setMachineCloseGuard}
+              />
               {activeTab === 'grbl' && <GrblTab />}
               {activeTab === 'controller' && <ControllerTab />}
               {activeTab === 'discovery' && <DiscoveryTab />}
@@ -245,10 +294,13 @@ function ConnectionTab({ active }: { active: boolean }) {
   const [networkHost, setNetworkHost] = useState('');
   const [networkPort, setNetworkPort] = useState(GCODE_DEFAULT_PORT);
   const [selectedUsbDeviceId, setSelectedUsbDeviceId] = useState('');
+  const xtoolM1Host = xtoolM1DefaultHost();
   const ruidaSelected =
     controllerSelection.mode === 'known_driver' && controllerSelection.driver === 'ruida';
   const laserPeckerSelected =
     controllerSelection.mode === 'known_driver' && controllerSelection.driver === 'laser_pecker';
+  const xtoolM1Selected =
+    controllerSelection.mode === 'known_driver' && controllerSelection.driver === 'xtool_m1';
 
   useEffect(() => {
     refreshPorts();
@@ -272,19 +324,35 @@ function ConnectionTab({ active }: { active: boolean }) {
 
   useEffect(() => {
     if (transportKind !== NETWORK_TRANSPORT) return;
-    const controller = ruidaSelected ? 'ruida' : laserPeckerSelected ? 'laserpecker' : 'gcode';
+    const controller = ruidaSelected
+      ? 'ruida'
+      : laserPeckerSelected
+        ? 'laserpecker'
+        : xtoolM1Selected
+          ? 'xtool_m1'
+          : 'gcode';
     setNetworkPort((current) => defaultPortForDriverSwitch(current, controller));
     setNetworkHost((current) => {
       const host = current.trim();
       if (laserPeckerSelected && (host === '' || host === RUIDA_HOST_PLACEHOLDER)) {
         return LASERPECKER_HOST_PLACEHOLDER;
       }
-      if (!laserPeckerSelected && host === LASERPECKER_HOST_PLACEHOLDER) {
+      if (
+        xtoolM1Selected &&
+        (host === '' || host === RUIDA_HOST_PLACEHOLDER || host === LASERPECKER_HOST_PLACEHOLDER)
+      ) {
+        return xtoolM1Host;
+      }
+      if (
+        !laserPeckerSelected &&
+        !xtoolM1Selected &&
+        (host === LASERPECKER_HOST_PLACEHOLDER || host === xtoolM1Host)
+      ) {
         return '';
       }
       return current;
     });
-  }, [laserPeckerSelected, ruidaSelected, transportKind]);
+  }, [laserPeckerSelected, ruidaSelected, transportKind, xtoolM1Host, xtoolM1Selected]);
 
   const selectedUsbDevice = availableLihuiyuUsbDevices.find(
     (candidate) => lihuiyuUsbDeviceId(candidate) === selectedUsbDeviceId,
@@ -314,7 +382,8 @@ function ConnectionTab({ active }: { active: boolean }) {
     selectedUsbDeviceId,
     selectedPort,
   );
-  const isConnectDisabled = endpointMissing || loading || connectionPending || incompatibleUsbDriver;
+  const isConnectDisabled =
+    endpointMissing || loading || connectionPending || incompatibleUsbDriver;
 
   const visiblePorts = visibleSerialPorts(availablePorts ?? [], showAllPorts, selectedPort);
   const hiddenPortCount = hiddenSerialPortCount(availablePorts ?? [], selectedPort);
@@ -450,7 +519,9 @@ function ConnectionTab({ active }: { active: boolean }) {
                   ? RUIDA_HOST_PLACEHOLDER
                   : laserPeckerSelected
                     ? LASERPECKER_HOST_PLACEHOLDER
-                    : GCODE_HOST_PLACEHOLDER
+                    : xtoolM1Selected
+                      ? xtoolM1Host
+                      : GCODE_HOST_PLACEHOLDER
               }
               className="min-w-0 rounded border border-bb-border bg-bb-bg px-2 py-1 text-bb-text disabled:opacity-60"
               data-testid="device-settings-network-host"
@@ -504,9 +575,7 @@ function ConnectionTab({ active }: { active: boolean }) {
                   driver: selectedUsbDevice?.driver || t('common.unknown'),
                 })}
               </p>
-              <p className="mt-1">
-                {t('controller_choice.lihuiyu_windows_driver_tradeoff')}
-              </p>
+              <p className="mt-1">{t('controller_choice.lihuiyu_windows_driver_tradeoff')}</p>
             </div>
           )}
         </>
@@ -809,8 +878,14 @@ function MachineTab({
                 label={t('dialog.device_settings.rotary_type')}
                 value={editProfile.rotary_type ?? ROTARY_TYPE_ROLLER}
                 options={[
-                  { value: ROTARY_TYPE_ROLLER, label: t('dialog.device_settings.rotary_type_roller') },
-                  { value: ROTARY_TYPE_CHUCK, label: t('dialog.device_settings.rotary_type_chuck') },
+                  {
+                    value: ROTARY_TYPE_ROLLER,
+                    label: t('dialog.device_settings.rotary_type_roller'),
+                  },
+                  {
+                    value: ROTARY_TYPE_CHUCK,
+                    label: t('dialog.device_settings.rotary_type_chuck'),
+                  },
                 ]}
                 onChange={(v) => updateField('rotary_type', v as 'roller' | 'chuck')}
               />

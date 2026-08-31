@@ -5,6 +5,7 @@ import { useMachineStore } from '../../../stores/machineStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { useAppStore } from '../../../stores/appStore';
 import type { MachineProfile } from '../../../types/machine';
+import { xtoolM1DefaultHost } from '../../../utils/controllerConnection';
 
 const mockInvoke = vi.fn().mockResolvedValue(null);
 const mockOpen = vi.fn().mockResolvedValue(null);
@@ -1043,19 +1044,21 @@ describe('DeviceSettingsDialog', () => {
       sessionState: 'disconnected',
       connectedPort: null,
       availablePorts: [],
-      availableLihuiyuUsbDevices: [{
-        bus_id: 'PCIROOT(0)#PCI(1400)#USBROOT(0)',
-        device_address: 7,
-        port_numbers: [1],
-        vendor_id: 0x1a86,
-        product_id: 0x5512,
-        manufacturer: null,
-        product: 'CH341 USB',
-        serial_number: null,
-        has_required_bulk_endpoints: true,
-        driver: 'CH341PAR',
-        windows_driver_compatible: false,
-      }],
+      availableLihuiyuUsbDevices: [
+        {
+          bus_id: 'PCIROOT(0)#PCI(1400)#USBROOT(0)',
+          device_address: 7,
+          port_numbers: [1],
+          vendor_id: 0x1a86,
+          product_id: 0x5512,
+          manufacturer: null,
+          product: 'CH341 USB',
+          serial_number: null,
+          has_required_bulk_endpoints: true,
+          driver: 'CH341PAR',
+          windows_driver_compatible: false,
+        },
+      ],
       profiles: [],
       activeProfileId: null,
       loading: false,
@@ -1146,6 +1149,40 @@ describe('DeviceSettingsDialog', () => {
     fireEvent.click(screen.getByText('Connect'));
 
     expect(connectNetwork).toHaveBeenCalledWith('192.168.253.1', 8888);
+  });
+
+  it('uses the original xTool M1 HTTP endpoint defaults without an extra confirmation', async () => {
+    const connectNetwork = vi.fn();
+    useMachineStore.setState({
+      sessionState: 'disconnected',
+      connectedPort: null,
+      availablePorts: [],
+      profiles: [],
+      activeProfileId: null,
+      loading: false,
+      controllerConnectionChallenge: null,
+      controllerSelection: { mode: 'known_driver', driver: 'grbl' },
+      connect: vi.fn(),
+      connectNetwork,
+      disconnect: vi.fn(),
+      refreshPorts: vi.fn().mockResolvedValue(undefined),
+      setActiveProfile: vi.fn().mockResolvedValue(undefined),
+    });
+
+    render(<DeviceSettingsDialog onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('Connection'), { target: { value: 'tcp' } });
+    fireEvent.change(screen.getByLabelText('Controller'), { target: { value: 'xtool_m1' } });
+    await waitFor(() => {
+      expect((screen.getByLabelText('TCP port') as HTMLInputElement).value).toBe('8080');
+    });
+    const host = screen.getByLabelText('Host') as HTMLInputElement;
+    const expectedHost = xtoolM1DefaultHost();
+    expect(host.placeholder).toBe(expectedHost);
+    expect(host.value).toBe(expectedHost);
+    fireEvent.click(screen.getByText('Connect'));
+
+    expect(connectNetwork).toHaveBeenCalledWith(expectedHost, 8080);
   });
 
   it('filters obvious non-machine ports in the Devices connection tab', async () => {

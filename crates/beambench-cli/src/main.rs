@@ -299,6 +299,7 @@ enum ControllerArg {
     FluidNc,
     GrblHal,
     LaserPecker,
+    XtoolM1,
     Marlin,
     Snapmaker,
     Smoothieware,
@@ -315,6 +316,7 @@ impl ControllerArg {
             Self::FluidNc => known_controller_selection("fluid_nc"),
             Self::GrblHal => known_controller_selection("grbl_hal"),
             Self::LaserPecker => known_controller_selection("laser_pecker"),
+            Self::XtoolM1 => known_controller_selection("xtool_m1"),
             Self::Marlin => known_controller_selection("marlin"),
             Self::Snapmaker => known_controller_selection("snapmaker"),
             Self::Smoothieware => known_controller_selection("smoothieware"),
@@ -362,6 +364,7 @@ enum NetworkControllerArg {
     FluidNc,
     GrblHal,
     LaserPecker,
+    XtoolM1,
     Ruida,
 }
 
@@ -372,6 +375,7 @@ impl NetworkControllerArg {
             Self::FluidNc => ControllerArg::FluidNc.selection_json(),
             Self::GrblHal => ControllerArg::GrblHal.selection_json(),
             Self::LaserPecker => ControllerArg::LaserPecker.selection_json(),
+            Self::XtoolM1 => ControllerArg::XtoolM1.selection_json(),
             Self::Ruida => ControllerArg::Ruida.selection_json(),
         }
     }
@@ -380,6 +384,7 @@ impl NetworkControllerArg {
         match self {
             Self::Ruida => 50200,
             Self::LaserPecker => 8888,
+            Self::XtoolM1 => 8080,
             Self::AutoDetect | Self::FluidNc | Self::GrblHal => 23,
         }
     }
@@ -430,7 +435,7 @@ enum MachineCmd {
         /// Controller hostname or IP address
         #[arg(long)]
         host: String,
-        /// TCP or UDP port; defaults to 23, 8888 for LaserPecker, or 50200 for Ruida
+        /// TCP or UDP port; defaults to 23, 8080 for xTool M1, 8888 for LaserPecker, or 50200 for Ruida
         #[arg(long)]
         port: Option<u16>,
         /// Controller adapter to use
@@ -5079,6 +5084,7 @@ mod tests {
                 "fluid-nc",
                 "grbl-hal",
                 "laser-pecker",
+                "xtool-m1",
                 "marlin",
                 "snapmaker",
                 "smoothieware",
@@ -5120,10 +5126,12 @@ mod tests {
                 "fluid-nc",
                 "grbl-hal",
                 "laser-pecker",
+                "xtool-m1",
                 "ruida"
             ]
         );
         assert_eq!(NetworkControllerArg::LaserPecker.default_port(), 8888);
+        assert_eq!(NetworkControllerArg::XtoolM1.default_port(), 8080);
     }
 
     #[test]

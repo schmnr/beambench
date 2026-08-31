@@ -23,17 +23,23 @@ export function JobControlPanel({ onShowPreflight }: JobControlPanelProps) {
   const previewState = usePreviewStore((s) => s.state);
   const generatePreview = usePreviewStore((s) => s.generatePreview);
 
+  const jobActive =
+    jobProgress?.state === 'preparing' ||
+    jobProgress?.state === 'ready_to_run' ||
+    jobProgress?.state === 'running' ||
+    jobProgress?.state === 'paused';
+
   const canStart =
     sessionState === 'ready' &&
     machineStatus?.run_state === 'idle' &&
     !loading &&
     previewState !== 'generating' &&
-    !startInFlight;
+    !startInFlight &&
+    !jobActive;
 
   const canPause = jobProgress?.state === 'running';
   const canResume = jobProgress?.state === 'paused';
-  const canCancel =
-    jobProgress?.state === 'preparing' || jobProgress?.state === 'running' || jobProgress?.state === 'paused';
+  const canCancel = jobActive;
 
   const handleStart = async () => {
     if (startInFlightRef.current) return;

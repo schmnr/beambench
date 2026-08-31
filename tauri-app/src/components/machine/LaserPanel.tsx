@@ -270,6 +270,7 @@ export function LaserPanel() {
   const positioningReady = startFrom !== 'user_origin' || project?.user_origin != null;
   const isJobActive =
     jobProgress?.state === 'preparing' ||
+    jobProgress?.state === 'ready_to_run' ||
     jobProgress?.state === 'running' ||
     jobProgress?.state === 'paused';
   const canStart =
@@ -278,12 +279,14 @@ export function LaserPanel() {
     !loading &&
     previewState !== 'generating' &&
     !startInFlight &&
+    !isJobActive &&
     positioningReady;
   const canFrame = canUseMotionControls && positioningReady;
   const canPause = jobProgress?.state === 'running';
   const canResume = jobProgress?.state === 'paused';
   const canStop =
     jobProgress?.state === 'preparing' ||
+    jobProgress?.state === 'ready_to_run' ||
     jobProgress?.state === 'running' ||
     jobProgress?.state === 'paused';
 

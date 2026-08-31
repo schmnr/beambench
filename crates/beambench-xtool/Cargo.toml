@@ -1,0 +1,18 @@
+[package]
+name = "beambench-xtool"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+beambench-grbl = { path = "../beambench-grbl" }
+beambench-planner = { path = "../beambench-planner" }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+beambench-common = { path = "../beambench-common" }
+chrono = { workspace = true }
+uuid = { workspace = true }

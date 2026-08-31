@@ -15,6 +15,7 @@ members = [
     "crates/beambench-smoothieware",
     "crates/beambench-serial",
     "crates/beambench-streamer",
+    "crates/beambench-xtool",
     "crates/beambench-raster",
     "crates/beambench-planner",
     "crates/beambench-preview",
@@ -27,7 +28,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.15"
+version = "0.2.16"
 edition = "2024"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/schmnr/beambench"

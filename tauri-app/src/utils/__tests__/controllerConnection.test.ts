@@ -3,8 +3,12 @@ import {
   GCODE_DEFAULT_PORT,
   LASERPECKER_DEFAULT_PORT,
   RUIDA_DEFAULT_PORT,
+  XTOOL_M1_DEFAULT_PORT,
+  XTOOL_M1_MAC_HOST,
+  XTOOL_M1_WINDOWS_LINUX_HOST,
   connectionEndpointMissing,
   defaultPortForDriverSwitch,
+  xtoolM1DefaultHost,
 } from '../controllerConnection';
 
 describe('defaultPortForDriverSwitch', () => {
@@ -25,10 +29,16 @@ describe('defaultPortForDriverSwitch', () => {
     );
   });
 
+  it('switches to the original xTool M1 HTTP default', () => {
+    expect(defaultPortForDriverSwitch(GCODE_DEFAULT_PORT, 'xtool_m1')).toBe(XTOOL_M1_DEFAULT_PORT);
+    expect(defaultPortForDriverSwitch(RUIDA_DEFAULT_PORT, 'xtool_m1')).toBe(XTOOL_M1_DEFAULT_PORT);
+  });
+
   it('preserves a user-entered custom port across a driver switch', () => {
-    expect(defaultPortForDriverSwitch(8080, 'ruida')).toBe(8080);
-    expect(defaultPortForDriverSwitch(8080, 'laserpecker')).toBe(8080);
-    expect(defaultPortForDriverSwitch(8080, 'gcode')).toBe(8080);
+    expect(defaultPortForDriverSwitch(9000, 'ruida')).toBe(9000);
+    expect(defaultPortForDriverSwitch(9000, 'laserpecker')).toBe(9000);
+    expect(defaultPortForDriverSwitch(9000, 'xtool_m1')).toBe(9000);
+    expect(defaultPortForDriverSwitch(9000, 'gcode')).toBe(9000);
   });
 });
 
@@ -48,5 +58,17 @@ describe('connectionEndpointMissing', () => {
   it('requires a selected port for serial transport', () => {
     expect(connectionEndpointMissing('serial', '', 0, '', '')).toBe(true);
     expect(connectionEndpointMissing('serial', '', 0, '', '/dev/ttyUSB0')).toBe(false);
+  });
+});
+
+describe('xtoolM1DefaultHost', () => {
+  it('uses the M1 USB-network address for the current platform family', () => {
+    expect(xtoolM1DefaultHost({ platform: 'MacIntel', userAgent: '' })).toBe(XTOOL_M1_MAC_HOST);
+    expect(xtoolM1DefaultHost({ platform: 'Win32', userAgent: '' })).toBe(
+      XTOOL_M1_WINDOWS_LINUX_HOST,
+    );
+    expect(xtoolM1DefaultHost({ platform: 'Linux x86_64', userAgent: '' })).toBe(
+      XTOOL_M1_WINDOWS_LINUX_HOST,
+    );
   });
 });
