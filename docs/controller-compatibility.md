@@ -20,6 +20,7 @@ Experimental confirmation.
 | grblHAL | Serial or Network (TCP, normally port 23) | Experimental | Requires exact grblHAL firmware identity and uses the normal GRBL-family job and machine controls. |
 | LaserPecker LX1 / LX1 Max, LP2 Plus, LP4 / LP4 Safeguard, LP5 | Serial (460800 baud) | Experimental | Explicit LaserPecker adapter with official-profile workspaces, power scales, top-left coordinates, regular-mode commands, dual-laser selection for LP4/LP5, and shared GRBL-family jobs and controls. |
 | LaserPecker LX2 | Network (GRBL/TCP port 8888) | Experimental | Explicit LaserPecker adapter with the official 500 x 305 mm, S0-1000 profile and required `START_PRINT` job header. |
+| xTool M1 (original 5W/10W, not M1 Ultra) | Network (HTTP port 8080 over Wi-Fi or the USB network interface) | Experimental | Native M1 file upload with vector and raster jobs, material-thickness focus calculation, physical-button start, status polling, pause/resume, cancel, and emergency stop. Framing, camera alignment, blade mode, rotary mode, riser/open-plane focusing, jogging, homing, and raw G-code are not exposed. |
 | Generic GRBL-compatible | Serial | Experimental | Explicit fallback for unidentified or rebranded GRBL-compatible firmware. Job, frame, jog, unlock, origin, and pause/resume are available; homing remains hidden. |
 | Standard Marlin | Serial | Experimental | Requires a standard Marlin `M115` identity. Vector, raster, perforation, frame, custom G-code, air-assist, Z-offset, and finish-position output are supported. Manual motion and pause/resume are not yet exposed; cancel requires reconnecting. |
 | Snapmaker 2.0 | Serial | Experimental | Requires an exact Snapmaker 2.0 firmware identity and uses its documented laser-power commands. Jobs and framing are supported; manual motion and pause/resume are not yet exposed, and cancel requires reconnecting. Artisan is not included in this row. |
@@ -55,6 +56,13 @@ For LaserPecker LX2, choose **LaserPecker (Experimental)** with the Network
 connection; the form defaults to `192.168.253.1` and TCP port `8888`. For the
 other listed LaserPecker models, choose Serial and apply the matching built-in
 machine preset; it supplies the 460800 baud rate and model-specific job settings.
+For the original xTool M1, choose **Original xTool M1 (Experimental)** with the
+Network connection and port `8080`. Enter the Wi-Fi address shown by XCS, or use
+the USB network address when the machine is connected by USB. The form defaults
+to `201.234.3.1` on Windows/Linux and `201.234.4.1` on macOS. Apply the built-in
+**xTool M1 (Original)** preset, then set **Material Thickness** before sending a
+job. Beam Bench uploads the job and shows **Ready to run**; close the lid and
+press the physical button on the M1 to start it.
 For Ruida Ethernet controllers, including RDC6442S and RDC6445G, use the
 controller's IP address and UDP port 50200. For a
 stock K40/Lihuiyu board, choose USB; Beam Bench lists only matching CH341
@@ -104,6 +112,7 @@ machine's transport:
 beambench-cli machine connect-serial --port /dev/ttyUSB0 --controller marlin
 beambench-cli machine connect-serial --port /dev/ttyUSB0 --baud 460800 --controller laser-pecker
 beambench-cli machine connect-network --host 192.168.253.1 --controller laser-pecker
+beambench-cli machine connect-network --host 201.234.3.1 --controller xtool-m1
 beambench-cli machine connect-network --host 192.168.1.100 --controller ruida
 beambench-cli machine list-lihuiyu-usb
 ```
@@ -111,9 +120,10 @@ beambench-cli machine list-lihuiyu-usb
 Serial controller values are `auto-detect`, `grbl`, `fluid-nc`, `grbl-hal`,
 `laser-pecker`, `marlin`, `snapmaker`, `smoothieware`, and
 `generic-grbl-compatible`. Network controller values are `auto-detect`,
-`fluid-nc`, `grbl-hal`, `laser-pecker`, and `ruida`. LaserPecker defaults to TCP
-port 8888, Ruida defaults to UDP port 50200, and the other Network choices
-default to TCP port 23. `list-lihuiyu-usb` returns the bus, address, and physical port chain needed
+`fluid-nc`, `grbl-hal`, `laser-pecker`, `xtool-m1`, and `ruida`. xTool M1
+defaults to HTTP port 8080, LaserPecker defaults to TCP port 8888, Ruida defaults
+to UDP port 50200, and the other Network choices default to TCP port 23.
+`list-lihuiyu-usb` returns the bus, address, and physical port chain needed
 by `connect-lihuiyu`.
 
 The corresponding Local API routes are:
@@ -129,6 +139,36 @@ needs a controller choice or when detected identity disagrees with the selected
 adapter. Pass its `attempt_id`, the chosen `selection`, and any returned mismatch
 decision to the continuation route. The CLI prints the equivalent
 `continue-controller` command when this occurs.
+
+### Original xTool M1 Notes
+
+This row targets the original enclosed xTool M1 5W and 10W machines. It does
+not target M1 Ultra. The original M1 is not a serial GRBL device. Its USB cable
+creates a network interface, and the same HTTP controller can be reached at the
+machine's Wi-Fi address. xTool documents USB and Wi-Fi connectivity, a 385 ×
+300 mm laser work area, a 0 to 16 mm baseplate focusing range, and the physical
+button step that starts processing after software preparation.
+
+Beam Bench probes the read-only M1 status and identity endpoints before it
+enables controls. It recognizes explicit M1 model/name evidence and the known
+40.18 firmware family, but the upload protocol is selected by observed
+capabilities rather than by one hard-coded patch version. Optional identity
+calls may be absent on older firmware. An unknown status or ambiguous upload
+enters recovery and is never retried automatically.
+
+The first Experimental scope intentionally uses **Process on baseplate** only.
+Material thickness must be from 0 through 16 mm. Beam Bench calculates the M1
+focus target from the observed 17 mm zero-thickness reference and rejects an
+unsafe result. The compiler emits the small command subset accepted by the M1,
+uses integer S0-1000 power, stores exactly one `gcodes.txt` member in an
+uncompressed ZIP, selects the Laser tool, and uploads it once. Custom header or
+footer G-code and air-assist G-code are rejected instead of forwarded.
+
+The protocol implementation is based on independent interoperability research
+from the MIT-licensed [xtm1_toolkit](https://github.com/fritzw/xtm1_toolkit).
+Workspace, focusing, connectivity, and physical-start behavior are checked
+against xTool's [M1 specifications](https://support.xtool.com/article/1912) and
+[XCS M1 operating guide](https://support.xtool.com/article/1650).
 
 ### Stock K40/Lihuiyu Notes
 

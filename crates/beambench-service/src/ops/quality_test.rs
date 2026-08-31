@@ -32,6 +32,7 @@ use beambench_planner::{
 };
 use beambench_preview::{PreviewData, distill_preview};
 use beambench_streamer::JobController;
+use beambench_xtool::{M1CompileConfig, compile_m1_job};
 
 use crate::context::ServiceContext;
 use crate::error::{ServiceError, ServiceResult};
@@ -39,6 +40,7 @@ use crate::ops::{output, planning};
 use crate::runtime::{
     ActiveJobHandle, MachineSessionHandle, MarlinRuntimeJob, SmoothiewareRuntimeJob,
 };
+use crate::xtool_runtime::XToolM1RuntimeJob;
 
 const SAMPLES_LAYER_PREFIX: &str = "QT/Samples";
 const LABELS_LAYER_NAME: &str = "QT/Labels";
@@ -1540,6 +1542,37 @@ fn stream_job(
                     .start_job(&compiled, event_name == "job.frame.started")
                     .map_err(|error| {
                         ServiceError::machine(format!("Lihuiyu quality-test start failed: {error}"))
+                    })?,
+            )
+        }
+        MachineSessionHandle::XToolM1(session) => {
+            if event_name == "job.frame.started" {
+                return Err(ServiceError::invalid_state(
+                    "Quality-test framing is not yet available for the xTool M1 Experimental adapter",
+                ));
+            }
+            let material_thickness_mm = project.material_height_mm.ok_or_else(|| {
+                ServiceError::invalid_state(
+                    "Set Material Thickness before sending a quality-test job to the xTool M1",
+                )
+            })?;
+            let compiled = compile_m1_job(
+                &plan,
+                &gcode_config,
+                M1CompileConfig {
+                    material_thickness_mm,
+                    ..M1CompileConfig::default()
+                },
+            )
+            .map_err(|error| {
+                ServiceError::machine(format!("xTool M1 quality-test prepare failed: {error}"))
+            })?;
+            ActiveJobHandle::XToolM1(
+                XToolM1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
+                    .map_err(|error| {
+                        ServiceError::machine(format!(
+                            "xTool M1 quality-test upload failed: {error}"
+                        ))
                     })?,
             )
         }

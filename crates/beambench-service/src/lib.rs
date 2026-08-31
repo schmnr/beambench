@@ -14,6 +14,7 @@ pub mod persist;
 mod ruida_runtime;
 pub mod runtime;
 pub mod validation;
+mod xtool_runtime;
 
 pub use context::ServiceContext;
 pub use error::{ServiceError, ServiceErrorCode, ServiceResult};

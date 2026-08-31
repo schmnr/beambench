@@ -166,6 +166,7 @@ fn firmware_type_for_model(model: ControllerModel) -> String {
         ControllerModel::FluidNc => "fluid_nc",
         ControllerModel::GrblHal => "grbl_hal",
         ControllerModel::LaserPecker => "laser_pecker",
+        ControllerModel::XToolM1 => "xtool_m1",
         ControllerModel::Marlin => "marlin",
         ControllerModel::Snapmaker => "snapmaker",
         ControllerModel::Smoothieware => "smoothieware",

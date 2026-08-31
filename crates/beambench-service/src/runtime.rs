@@ -31,6 +31,7 @@ use beambench_streamer::JobController;
 use crate::{
     lihuiyu_runtime::{LihuiyuRuntimeJob, LihuiyuRuntimeSession},
     ruida_runtime::{RuidaRuntimeJob, RuidaRuntimeSession},
+    xtool_runtime::{XToolM1RuntimeJob, XToolM1RuntimeSession},
 };
 
 fn grbl_capabilities() -> DeviceCapabilities {
@@ -104,6 +105,7 @@ impl GrblRuntimeSession {
                     ControllerDriverId::FluidNc => ControllerModel::FluidNc,
                     ControllerDriverId::GrblHal => ControllerModel::GrblHal,
                     ControllerDriverId::LaserPecker => ControllerModel::LaserPecker,
+                    ControllerDriverId::XToolM1 => ControllerModel::XToolM1,
                     ControllerDriverId::Marlin => ControllerModel::Marlin,
                     ControllerDriverId::Snapmaker => ControllerModel::Snapmaker,
                     ControllerDriverId::Smoothieware => ControllerModel::Smoothieware,
@@ -157,6 +159,7 @@ impl GrblRuntimeSession {
             | ControllerDriverId::Smoothieware
             | ControllerDriverId::Ruida
             | ControllerDriverId::Lihuiyu
+            | ControllerDriverId::XToolM1
             | ControllerDriverId::Unknown => DeviceCapabilities::disabled(),
         };
         let (product_tier, evidence_state) = if let Some(descriptor) = adapter_descriptor {
@@ -785,6 +788,7 @@ pub enum MachineSessionHandle {
     Smoothieware(SmoothiewareRuntimeSession),
     Ruida(RuidaRuntimeSession),
     Lihuiyu(LihuiyuRuntimeSession),
+    XToolM1(XToolM1RuntimeSession),
     Dsp(DspSession),
     Galvo(GalvoSession),
 }
@@ -792,7 +796,9 @@ pub enum MachineSessionHandle {
 impl MachineSessionHandle {
     pub fn controller_family(&self) -> ControllerFamily {
         match self {
-            Self::Grbl(_) | Self::Marlin(_) | Self::Smoothieware(_) => ControllerFamily::Gcode,
+            Self::Grbl(_) | Self::Marlin(_) | Self::Smoothieware(_) | Self::XToolM1(_) => {
+                ControllerFamily::Gcode
+            }
             Self::Ruida(_) | Self::Lihuiyu(_) | Self::Dsp(_) => ControllerFamily::Dsp,
             Self::Galvo(_) => ControllerFamily::Galvo,
         }
@@ -805,6 +811,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => session.controller_model(),
             Self::Ruida(session) => session.controller_model(),
             Self::Lihuiyu(session) => session.controller_model(),
+            Self::XToolM1(session) => session.controller_model(),
             Self::Dsp(session) => session.model,
             Self::Galvo(session) => session.model,
         }
@@ -816,6 +823,7 @@ impl MachineSessionHandle {
             Self::Marlin(_) | Self::Smoothieware(_) => TransportKind::Serial,
             Self::Ruida(_) => TransportKind::Udp,
             Self::Lihuiyu(_) => TransportKind::UsbPacket,
+            Self::XToolM1(_) => TransportKind::Tcp,
             Self::Dsp(_) => TransportKind::Tcp,
             Self::Galvo(_) => TransportKind::UsbPacket,
         }
@@ -828,6 +836,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => session.capabilities(),
             Self::Ruida(session) => session.capabilities(),
             Self::Lihuiyu(session) => session.capabilities(),
+            Self::XToolM1(session) => session.capabilities(),
             Self::Dsp(_) => dsp_capabilities(),
             Self::Galvo(_) => galvo_capabilities(),
         }
@@ -840,6 +849,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => Some(session.driver()),
             Self::Ruida(session) => Some(session.driver()),
             Self::Lihuiyu(session) => Some(session.driver()),
+            Self::XToolM1(session) => Some(session.driver()),
             Self::Dsp(_) | Self::Galvo(_) => None,
         }
     }
@@ -849,7 +859,7 @@ impl MachineSessionHandle {
             Self::Grbl(session) => session.experimental_mode(),
             Self::Marlin(_) => true,
             Self::Smoothieware(_) => true,
-            Self::Ruida(_) | Self::Lihuiyu(_) => true,
+            Self::Ruida(_) | Self::Lihuiyu(_) | Self::XToolM1(_) => true,
             Self::Dsp(_) | Self::Galvo(_) => false,
         }
     }
@@ -861,6 +871,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => Some(session.product_tier()),
             Self::Ruida(session) => Some(session.product_tier()),
             Self::Lihuiyu(session) => Some(session.product_tier()),
+            Self::XToolM1(session) => Some(session.product_tier()),
             Self::Dsp(_) | Self::Galvo(_) => Some(ControllerProductTier::Unavailable),
         }
     }
@@ -872,6 +883,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => Some(session.evidence_state()),
             Self::Ruida(session) => Some(session.evidence_state()),
             Self::Lihuiyu(session) => Some(session.evidence_state()),
+            Self::XToolM1(session) => Some(session.evidence_state()),
             Self::Dsp(_) | Self::Galvo(_) => Some(ControllerEvidenceState::Emulated),
         }
     }
@@ -887,6 +899,7 @@ impl MachineSessionHandle {
             Self::Lihuiyu(session) => Some(ExplicitControllerSelection::KnownDriver {
                 driver: session.driver(),
             }),
+            Self::XToolM1(session) => Some(session.selection()),
             Self::Dsp(_) | Self::Galvo(_) => None,
         }
     }
@@ -898,6 +911,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => session.detected_identity(),
             Self::Ruida(session) => Some(session.detected_identity()),
             Self::Lihuiyu(session) => Some(session.detected_identity()),
+            Self::XToolM1(session) => Some(session.detected_identity()),
             Self::Dsp(_) | Self::Galvo(_) => None,
         }
     }
@@ -909,6 +923,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => session.session_state(),
             Self::Ruida(session) => session.session_state(),
             Self::Lihuiyu(session) => session.session_state(),
+            Self::XToolM1(session) => session.session_state(),
             Self::Dsp(session) => session.session_state,
             Self::Galvo(session) => session.session_state,
         }
@@ -921,6 +936,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => session.machine_status().clone(),
             Self::Ruida(session) => session.machine_status().clone(),
             Self::Lihuiyu(session) => session.machine_status().clone(),
+            Self::XToolM1(session) => session.machine_status().clone(),
             Self::Dsp(session) => session.status(),
             Self::Galvo(session) => session.status(),
         }
@@ -956,6 +972,7 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => Some(session.controller_info()),
             Self::Ruida(session) => Some(session.controller_info()),
             Self::Lihuiyu(session) => Some(session.controller_info()),
+            Self::XToolM1(session) => Some(session.controller_info()),
             Self::Dsp(_) | Self::Galvo(_) => None,
         }
     }
@@ -965,6 +982,7 @@ impl MachineSessionHandle {
             Self::Grbl(session) => Some(session.port_name().to_owned()),
             Self::Marlin(session) => Some(session.port_name().to_owned()),
             Self::Smoothieware(session) => Some(session.port_name().to_owned()),
+            Self::XToolM1(session) => Some(session.endpoint_name()),
             Self::Ruida(_) | Self::Lihuiyu(_) => None,
             Self::Dsp(_) | Self::Galvo(_) => None,
         }
@@ -975,7 +993,7 @@ impl MachineSessionHandle {
             Self::Grbl(session) => Some(session.settings().as_string_map()),
             Self::Marlin(_) => None,
             Self::Smoothieware(_) => None,
-            Self::Ruida(_) | Self::Lihuiyu(_) => None,
+            Self::Ruida(_) | Self::Lihuiyu(_) | Self::XToolM1(_) => None,
             Self::Dsp(_) | Self::Galvo(_) => None,
         }
     }
@@ -994,6 +1012,7 @@ impl MachineSessionHandle {
                 .poll()
                 .map(|_| ())
                 .map_err(|error| error.to_string()),
+            Self::XToolM1(_) => Ok(()),
             _ => Ok(()),
         }
     }
@@ -1074,7 +1093,7 @@ impl MachineSessionHandle {
             Self::Grbl(session) => session.get_console_log(limit),
             Self::Marlin(_) => Vec::new(),
             Self::Smoothieware(_) => Vec::new(),
-            Self::Ruida(_) | Self::Lihuiyu(_) => Vec::new(),
+            Self::Ruida(_) | Self::Lihuiyu(_) | Self::XToolM1(_) => Vec::new(),
             Self::Dsp(_) | Self::Galvo(_) => Vec::new(),
         }
     }
@@ -1092,6 +1111,10 @@ impl MachineSessionHandle {
             Self::Smoothieware(session) => session.disconnect(),
             Self::Ruida(session) => session.disconnect(),
             Self::Lihuiyu(session) => session.disconnect(),
+            Self::XToolM1(session) => {
+                session.disconnect();
+                Ok(())
+            }
             Self::Dsp(session) => {
                 session.disconnect();
                 Ok(())
@@ -1124,7 +1147,7 @@ impl MachineSessionHandle {
             Self::Grbl(_) => {}
             Self::Marlin(session) => session.machine_status.run_state = MachineRunState::Run,
             Self::Smoothieware(session) => session.machine_status.run_state = MachineRunState::Run,
-            Self::Ruida(_) | Self::Lihuiyu(_) => {}
+            Self::Ruida(_) | Self::Lihuiyu(_) | Self::XToolM1(_) => {}
             Self::Dsp(session) => session.machine_status.run_state = MachineRunState::Run,
             Self::Galvo(session) => session.machine_status.run_state = MachineRunState::Run,
         }
@@ -1137,6 +1160,7 @@ pub enum ActiveJobHandle {
     Smoothieware(SmoothiewareRuntimeJob),
     Ruida(RuidaRuntimeJob),
     Lihuiyu(LihuiyuRuntimeJob),
+    XToolM1(XToolM1RuntimeJob),
     Dsp(DspJob),
     Galvo(GalvoJob),
 }
@@ -1149,6 +1173,7 @@ impl ActiveJobHandle {
             Self::Smoothieware(job) => job.progress(),
             Self::Ruida(job) => job.progress(),
             Self::Lihuiyu(job) => job.progress(),
+            Self::XToolM1(job) => job.progress(),
             Self::Dsp(job) => job.progress(),
             Self::Galvo(job) => job.progress(),
         }
@@ -1166,6 +1191,7 @@ impl ActiveJobHandle {
             }
             (Self::Ruida(job), MachineSessionHandle::Ruida(session)) => job.cancel(session),
             (Self::Lihuiyu(job), MachineSessionHandle::Lihuiyu(session)) => job.cancel(session),
+            (Self::XToolM1(job), MachineSessionHandle::XToolM1(session)) => job.cancel(session),
             (Self::Dsp(job), MachineSessionHandle::Dsp(session)) => {
                 session.machine_status.run_state = MachineRunState::Idle;
                 Ok(job.cancel())
@@ -1203,6 +1229,9 @@ impl ActiveJobHandle {
             (Self::Lihuiyu(job), Some(MachineSessionHandle::Lihuiyu(session))) => {
                 Ok(job.tick(session))
             }
+            (Self::XToolM1(job), Some(MachineSessionHandle::XToolM1(session))) => {
+                Ok(job.tick(session))
+            }
             (Self::Dsp(job), Some(MachineSessionHandle::Dsp(session))) => {
                 let progress = job.tick();
                 if matches!(
@@ -1230,6 +1259,7 @@ impl ActiveJobHandle {
             (Self::Smoothieware(job), None) => Ok(job.progress()),
             (Self::Ruida(job), None) => Ok(job.progress()),
             (Self::Lihuiyu(job), None) => Ok(job.progress()),
+            (Self::XToolM1(job), None) => Ok(job.progress()),
             _ => Err("Active job does not match connected controller".to_string()),
         }
     }
@@ -1244,7 +1274,10 @@ impl ActiveJobHandle {
     }
 
     pub fn supports_pause_resume(&self) -> bool {
-        matches!(self, Self::Grbl(_) | Self::Ruida(_) | Self::Lihuiyu(_))
+        matches!(
+            self,
+            Self::Grbl(_) | Self::Ruida(_) | Self::Lihuiyu(_) | Self::XToolM1(_)
+        )
     }
 
     pub fn console_entries(&self, limit: usize) -> Vec<ConsoleEntry> {
@@ -1252,7 +1285,7 @@ impl ActiveJobHandle {
             Self::Grbl(job) => job.get_console_entries(limit),
             Self::Marlin(_) => Vec::new(),
             Self::Smoothieware(_) => Vec::new(),
-            Self::Ruida(_) | Self::Lihuiyu(_) => Vec::new(),
+            Self::Ruida(_) | Self::Lihuiyu(_) | Self::XToolM1(_) => Vec::new(),
             Self::Dsp(_) | Self::Galvo(_) => Vec::new(),
         }
     }
@@ -1265,6 +1298,7 @@ impl ActiveJobHandle {
             }
             (Self::Ruida(job), MachineSessionHandle::Ruida(session)) => job.pause(session),
             (Self::Lihuiyu(job), MachineSessionHandle::Lihuiyu(session)) => job.pause(session),
+            (Self::XToolM1(job), MachineSessionHandle::XToolM1(session)) => job.pause(session),
             _ => Err("Pause is not supported by the connected controller".to_string()),
         }
     }
@@ -1277,6 +1311,7 @@ impl ActiveJobHandle {
             }
             (Self::Ruida(job), MachineSessionHandle::Ruida(session)) => job.resume(session),
             (Self::Lihuiyu(job), MachineSessionHandle::Lihuiyu(session)) => job.resume(session),
+            (Self::XToolM1(job), MachineSessionHandle::XToolM1(session)) => job.resume(session),
             _ => Err("Resume is not supported by the connected controller".to_string()),
         }
     }

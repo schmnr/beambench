@@ -1,4 +1,5 @@
 import type { SessionState } from '../types/machine';
+import { isMacPlatform } from './platform';
 
 // Controller connection-form policy for DeviceSettingsDialog: transport
 // constants, host placeholders, the driver-family default-port toggle, and
@@ -15,14 +16,23 @@ export type ConnectionTransportKind =
 
 export const RUIDA_HOST_PLACEHOLDER = '192.168.1.100';
 export const LASERPECKER_HOST_PLACEHOLDER = '192.168.253.1';
+export const XTOOL_M1_WINDOWS_LINUX_HOST = '201.234.3.1';
+export const XTOOL_M1_MAC_HOST = '201.234.4.1';
 export const GCODE_HOST_PLACEHOLDER = 'fluidnc.local';
 
 /** Ruida controllers listen on UDP 50200; G-code network controllers on Telnet 23. */
 export const RUIDA_DEFAULT_PORT = 50200;
 export const LASERPECKER_DEFAULT_PORT = 8888;
+export const XTOOL_M1_DEFAULT_PORT = 8080;
 export const GCODE_DEFAULT_PORT = 23;
 
-export type NetworkControllerKind = 'gcode' | 'laserpecker' | 'ruida';
+export type NetworkControllerKind = 'gcode' | 'laserpecker' | 'xtool_m1' | 'ruida';
+
+export function xtoolM1DefaultHost(
+  navigatorLike: Pick<Navigator, 'platform' | 'userAgent'> = navigator,
+): string {
+  return isMacPlatform(navigatorLike) ? XTOOL_M1_MAC_HOST : XTOOL_M1_WINDOWS_LINUX_HOST;
+}
 
 export const ACTIVE_CONNECTION_STATES: SessionState[] = ['ready', 'running', 'paused', 'alarm'];
 
@@ -34,9 +44,15 @@ export function defaultPortForDriverSwitch(
   current: number,
   controller: NetworkControllerKind,
 ): number {
-  const defaults = [GCODE_DEFAULT_PORT, LASERPECKER_DEFAULT_PORT, RUIDA_DEFAULT_PORT];
+  const defaults = [
+    GCODE_DEFAULT_PORT,
+    LASERPECKER_DEFAULT_PORT,
+    XTOOL_M1_DEFAULT_PORT,
+    RUIDA_DEFAULT_PORT,
+  ];
   if (!defaults.includes(current)) return current;
   if (controller === 'laserpecker') return LASERPECKER_DEFAULT_PORT;
+  if (controller === 'xtool_m1') return XTOOL_M1_DEFAULT_PORT;
   if (controller === 'ruida') return RUIDA_DEFAULT_PORT;
   return GCODE_DEFAULT_PORT;
 }

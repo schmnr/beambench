@@ -34,6 +34,7 @@
     "option_fluidnc": "FluidNC (Experimental)",
     "option_grblhal": "grblHAL (Experimental)",
     "option_laserpecker": "LaserPecker (Experimental)",
+    "option_xtool_m1": "Original xTool M1 (Experimental)",
     "option_marlin": "Marlin (Experimental)",
     "option_snapmaker": "Snapmaker 2.0 (Experimental)",
     "option_smoothieware": "Smoothieware (Experimental)",

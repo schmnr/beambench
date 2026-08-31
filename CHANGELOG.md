@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.2.16
+
+- The original xTool M1 5W and 10W can now connect through its native HTTP
+  controller over Wi-Fi or the USB network interface. This Experimental adapter
+  is for the original M1, not M1 Ultra.
+- Vector, raster, and quality-test jobs use the M1's native ZIP upload format,
+  baseplate material-thickness focusing, physical-button start, status polling,
+  pause, resume, cancel, and emergency stop.
+- M1 connection and job handling fail closed on inconclusive identity, unknown
+  status, unsafe focus values, and ambiguous uploads. The adapter recognizes
+  observed status aliases and firmware response variations without binding
+  support to one firmware patch version.
+- The desktop app and CLI include an xTool M1 network choice, a 385 x 300 mm
+  machine preset, platform-specific USB network defaults, compatibility notes,
+  and a hardware test record for community validation.
+
 ## 0.2.15
 
 - Linux AppImages no longer bundle the older Wayland, GLib, and GStreamer

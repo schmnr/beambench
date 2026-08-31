@@ -24,6 +24,8 @@ pub enum ControllerDriverId {
     FluidNc,
     GrblHal,
     LaserPecker,
+    #[serde(rename = "xtool_m1")]
+    XToolM1,
     Marlin,
     Snapmaker,
     Smoothieware,
@@ -435,6 +437,13 @@ mod tests {
             })
             .unwrap(),
             serde_json::json!({ "mode": "known_driver", "driver": "laser_pecker" })
+        );
+        assert_eq!(
+            serde_json::to_value(ControllerSelection::KnownDriver {
+                driver: ControllerDriverId::XToolM1,
+            })
+            .unwrap(),
+            serde_json::json!({ "mode": "known_driver", "driver": "xtool_m1" })
         );
         assert_eq!(
             serde_json::to_value(ControllerSelection::KnownDriver {

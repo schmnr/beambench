@@ -485,6 +485,19 @@ Shared fixtures:
 - Undo / Redo Expectation: Quality-test preview, framing, and execution must not mutate the project or undo stack.
 - Status: Active
 
+### HW-037 — Original xTool M1 Experimental Job Lifecycle
+- Source Ref: `FSW-019`, `FSW-021`
+- Feature / Function: Original xTool M1 identity, upload, physical-button start, status, pause/resume, cancel, and recovery
+- Hardware Requirement: Original xTool M1 5W or 10W with the normal baseplate installed; physical stop and power switch accessible
+- Prerequisites: M1 and test computer on a trusted Wi-Fi network or connected through the M1 USB network interface; a low-risk scrap material; material thickness measured with calipers
+- Setup / Fixture: Apply **xTool M1 (Original)**, enter the M1 address and port 8080, set Material Thickness, and create a small low-power vector plus a small raster well inside the 385 × 300 mm workspace
+- Steps: Connect with **Original xTool M1 (Experimental)**; record Controller Info and firmware; send the job; verify Beam Bench shows Ready to run and the laser remains off; close the lid and press the physical M1 button; observe Running; pause and resume once; let the job complete; repeat with a second job and cancel it while running
+- Expected Result: Read-only identity completes before Ready; one ZIP upload occurs; no motion or laser output starts at upload time; the physical button starts the job; Beam Bench follows ready/running/paused/completed states; cancel stops the active job; power and placement match the preview within the limits of the initial profile
+- Edge / Negative Cases: Try a missing Material Thickness, thickness above 16 mm, wrong host, non-M1 HTTP endpoint, unknown status, disconnect during upload, and disconnect while running. Unsafe focus is rejected. Inconclusive identity enables no controls. An ambiguous upload is not retried and requires reconnect/recovery. Use the physical stop or remove laser power if software stop is unconfirmed.
+- Persistence / Reopen Check: Relaunch, confirm the xTool preset persists, reconnect, and verify Controller Info reports the same M1 identity and firmware
+- Undo / Redo Expectation: Runtime actions do not enter project history; Material Thickness follows the existing project-field undo/persistence behavior
+- Status: Active, awaiting physical-machine results
+
 ## Camera
 
 ### CAM-001 — Camera Device Refresh, Select, And No-Profile State

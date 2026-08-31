@@ -15,6 +15,7 @@ type ControllerSelectionValue =
   | 'fluid_nc'
   | 'grbl_hal'
   | 'laser_pecker'
+  | 'xtool_m1'
   | 'marlin'
   | 'snapmaker'
   | 'smoothieware'
@@ -29,6 +30,7 @@ export function controllerSelectionValue(selection: ControllerSelection): Contro
     if (selection.driver === 'fluid_nc') return 'fluid_nc';
     if (selection.driver === 'grbl_hal') return 'grbl_hal';
     if (selection.driver === 'laser_pecker') return 'laser_pecker';
+    if (selection.driver === 'xtool_m1') return 'xtool_m1';
     if (selection.driver === 'marlin') return 'marlin';
     if (selection.driver === 'snapmaker') return 'snapmaker';
     if (selection.driver === 'smoothieware') return 'smoothieware';
@@ -45,6 +47,7 @@ export function controllerSelectionFromValue(value: string): ControllerSelection
     case 'fluid_nc':
     case 'grbl_hal':
     case 'laser_pecker':
+    case 'xtool_m1':
     case 'marlin':
     case 'snapmaker':
     case 'smoothieware':
@@ -121,6 +124,7 @@ export function ControllerChoiceControls({
     { value: 'fluid_nc', label: t('controller_choice.option_fluidnc') },
     { value: 'grbl_hal', label: t('controller_choice.option_grblhal') },
     { value: 'laser_pecker', label: t('controller_choice.option_laserpecker') },
+    { value: 'xtool_m1', label: t('controller_choice.option_xtool_m1') },
     { value: 'ruida', label: t('controller_choice.option_ruida') },
   ];
   const usbOptions = [{ value: 'lihuiyu', label: t('controller_choice.option_lihuiyu') }];
@@ -135,7 +139,7 @@ export function ControllerChoiceControls({
     const value = controllerSelectionValue(selection);
     const allowed =
       transportKind === 'tcp'
-        ? ['auto_detect', 'fluid_nc', 'grbl_hal', 'laser_pecker', 'ruida']
+        ? ['auto_detect', 'fluid_nc', 'grbl_hal', 'laser_pecker', 'xtool_m1', 'ruida']
         : transportKind === 'usb_packet'
           ? ['lihuiyu']
           : [

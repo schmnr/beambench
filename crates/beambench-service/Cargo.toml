@@ -20,6 +20,7 @@ beambench-marlin = { path = "../beambench-marlin" }
 beambench-smoothieware = { path = "../beambench-smoothieware" }
 beambench-serial = { path = "../beambench-serial" }
 beambench-streamer = { path = "../beambench-streamer" }
+beambench-xtool = { path = "../beambench-xtool" }
 beambench-planner = { path = "../beambench-planner" }
 beambench-preview = { path = "../beambench-preview" }
 beambench-ruida = { path = "../beambench-ruida" }
@@ -39,5 +40,6 @@ sha2 = "0.10"
 base64 = { workspace = true }
 zip = { workspace = true }
 u-nesting-d2 = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 
 [dev-dependencies]

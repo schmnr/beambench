@@ -54,6 +54,7 @@ use beambench_smoothieware::{
 use beambench_streamer::{
     JobController, check_raster_motion_bounds, check_tool_layers, run_preflight,
 };
+use beambench_xtool::{M1CompileConfig, compile_m1_job};
 use serde::Serialize;
 use serde_json::json;
 
@@ -69,6 +70,7 @@ use crate::runtime::{
     MarlinRuntimeSession, PendingControllerConnection, PendingControllerSession,
     SmoothiewareRuntimeJob, SmoothiewareRuntimeSession,
 };
+use crate::xtool_runtime::{XToolM1RuntimeJob, XToolM1RuntimeSession};
 
 const MAX_BANNER_POLLS: usize = 50;
 const DEFAULT_MOVE_FEED_RATE_MM_MIN: f64 = 3000.0;
@@ -109,7 +111,8 @@ fn protocol_for_selection(selection: &ControllerSelection) -> Option<SerialContr
             driver: ControllerDriverId::Smoothieware,
         } => Some(SerialControllerProtocol::Smoothieware),
         ControllerSelection::KnownDriver {
-            driver: ControllerDriverId::Ruida | ControllerDriverId::Lihuiyu,
+            driver:
+                ControllerDriverId::Ruida | ControllerDriverId::Lihuiyu | ControllerDriverId::XToolM1,
         } => None,
         ControllerSelection::KnownDriver { .. } | ControllerSelection::GenericGrblCompatible => {
             Some(SerialControllerProtocol::Grbl)
@@ -1931,6 +1934,57 @@ fn finish_ruida_network_connection(
     })
 }
 
+fn finish_xtool_m1_network_connection(
+    ctx: &ServiceContext,
+    host: String,
+    port: u16,
+) -> ServiceResult<ControllerConnectionResult> {
+    let endpoint = ControllerConnectionEndpoint::Tcp {
+        host: host.clone(),
+        port,
+    };
+    let device_identity = network_device_identity(&host, port);
+    ctx.push_connection_event(
+        "identity_probe",
+        Some(endpoint.display_name()),
+        None,
+        Some("Probing the original xTool M1 HTTP controller API".to_string()),
+        None,
+    );
+    let session = XToolM1RuntimeSession::connect(&host, port).map_err(|error| {
+        ServiceError::machine(format!("xTool M1 adapter validation failed: {error}"))
+    })?;
+    let detected_identity = session.detected_identity();
+    let choice = ResolvedControllerChoice {
+        selection: ExplicitControllerSelection::KnownDriver {
+            driver: ControllerDriverId::XToolM1,
+        },
+        driver: ControllerDriverId::XToolM1,
+        source: beambench_common::controller_choice::ControllerChoiceSource::KnownDriverSelection,
+        detected_identity: Some(detected_identity),
+        requires_experimental_mode: true,
+        mismatch: false,
+        override_scope: None,
+        requires_experimental_compatibility_handshake: false,
+    };
+    let state = register_machine_session(
+        ctx,
+        MachineSessionHandle::XToolM1(session),
+        json!({
+            "target": endpoint,
+            "device": device_identity,
+            "selection": choice.selection,
+        }),
+        None,
+        Some(&choice),
+    )?;
+    Ok(ControllerConnectionResult::Connected {
+        session_state: state,
+        endpoint,
+        choice,
+    })
+}
+
 fn open_grbl_network_for_connection(
     ctx: &ServiceContext,
     host: &str,
@@ -2167,6 +2221,7 @@ fn register_machine_session(
         | MachineSessionHandle::Smoothieware(_)
         | MachineSessionHandle::Ruida(_)
         | MachineSessionHandle::Lihuiyu(_)
+        | MachineSessionHandle::XToolM1(_)
         | MachineSessionHandle::Dsp(_)
         | MachineSessionHandle::Galvo(_) => None,
     };
@@ -2302,6 +2357,9 @@ fn validate_resolved_controller_adapter(
         )),
         ControllerDriverId::Lihuiyu => Err(ServiceError::invalid_state(
             "The resolved Lihuiyu driver requires a dedicated CH341 USB session",
+        )),
+        ControllerDriverId::XToolM1 => Err(ServiceError::invalid_state(
+            "The resolved xTool M1 driver requires a dedicated HTTP session",
         )),
         ControllerDriverId::Unknown => Err(ServiceError::invalid_state(
             "The resolved controller driver is not available in this build",
@@ -2643,6 +2701,16 @@ pub fn begin_controller_connection(
     if matches!(
         input.selection,
         ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::XToolM1
+        }
+    ) {
+        return Err(ServiceError::invalid_input(
+            "Original xTool M1 (Experimental) uses the Network connection on port 8080",
+        ));
+    }
+    if matches!(
+        input.selection,
+        ControllerSelection::KnownDriver {
             driver: ControllerDriverId::Marlin | ControllerDriverId::Snapmaker
         }
     ) {
@@ -2751,7 +2819,8 @@ pub fn begin_network_controller_connection(
                 ControllerDriverId::FluidNc
                 | ControllerDriverId::GrblHal
                 | ControllerDriverId::LaserPecker
-                | ControllerDriverId::Ruida,
+                | ControllerDriverId::Ruida
+                | ControllerDriverId::XToolM1,
         } => {}
         ControllerSelection::KnownDriver {
             driver: ControllerDriverId::Lihuiyu,
@@ -2802,6 +2871,14 @@ pub fn begin_network_controller_connection(
         }
     ) {
         return finish_ruida_network_connection(ctx, host, input.port);
+    }
+    if matches!(
+        input.selection,
+        ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::XToolM1
+        }
+    ) {
+        return finish_xtool_m1_network_connection(ctx, host, input.port);
     }
     let device_identity = network_device_identity(&host, input.port);
     if matches!(
@@ -3476,7 +3553,9 @@ pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
                 .map_err(|e| ServiceError::machine(e.to_string()))?;
             false
         }
-        MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
+        MachineSessionHandle::Marlin(_)
+        | MachineSessionHandle::Smoothieware(_)
+        | MachineSessionHandle::XToolM1(_) => {
             return Err(invalid_capability("Home", ControllerFamily::Gcode));
         }
         MachineSessionHandle::Ruida(session) => {
@@ -3531,7 +3610,9 @@ pub fn unlock(ctx: &ServiceContext) -> ServiceResult<()> {
                     .map_err(|e| ServiceError::machine(e.to_string()))?;
             }
         }
-        MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
+        MachineSessionHandle::Marlin(_)
+        | MachineSessionHandle::Smoothieware(_)
+        | MachineSessionHandle::XToolM1(_) => {
             return Err(invalid_capability("Unlock", ControllerFamily::Gcode));
         }
         MachineSessionHandle::Ruida(_) => {
@@ -3646,7 +3727,9 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
                 ServiceError::machine(e.to_string())
             })?;
         }
-        MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
+        MachineSessionHandle::Marlin(_)
+        | MachineSessionHandle::Smoothieware(_)
+        | MachineSessionHandle::XToolM1(_) => {
             validate_optional_z(&profile, input.z_mm, "Jog")?;
             return Err(invalid_capability("Jog", ControllerFamily::Gcode));
         }
@@ -3734,7 +3817,9 @@ pub fn jog_cancel(ctx: &ServiceContext) -> ServiceResult<()> {
                 .map_err(|e| ServiceError::machine(e.to_string()))?;
             ctx.active_jog.store(false, Ordering::Release);
         }
-        MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
+        MachineSessionHandle::Marlin(_)
+        | MachineSessionHandle::Smoothieware(_)
+        | MachineSessionHandle::XToolM1(_) => {
             return Err(invalid_capability("Jog cancel", ControllerFamily::Gcode));
         }
         MachineSessionHandle::Ruida(_) => {
@@ -4307,6 +4392,30 @@ pub fn start_job_with_options_confirming_advisories(
                 ServiceError::machine(format!("Lihuiyu job start failed: {error}"))
             })?)
         }
+        MachineSessionHandle::XToolM1(session) => {
+            let material_thickness_mm = project_for_gcode.material_height_mm.ok_or_else(|| {
+                ServiceError::invalid_state(
+                    "Set Material Thickness before sending a job to the xTool M1 so Beam Bench can calculate the focus height",
+                )
+            })?;
+            let compiled = compile_m1_job(
+                &output_plan,
+                &gcode_config,
+                M1CompileConfig {
+                    material_thickness_mm,
+                    ..M1CompileConfig::default()
+                },
+            )
+            .map_err(|error| {
+                ServiceError::machine(format!("xTool M1 job prepare failed: {error}"))
+            })?;
+            ActiveJobHandle::XToolM1(
+                XToolM1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
+                    .map_err(|error| {
+                        ServiceError::machine(format!("xTool M1 job upload failed: {error}"))
+                    })?,
+            )
+        }
         MachineSessionHandle::Dsp(session) => ActiveJobHandle::Dsp(session.start_job(&output_plan)),
         MachineSessionHandle::Galvo(session) => {
             ActiveJobHandle::Galvo(session.start_job(&output_plan))
@@ -4497,6 +4606,17 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
 /// throughput far below a normal 115200-baud serial link and starves dense
 /// raster motion.
 fn job_tick_interval(ctx: &ServiceContext) -> Duration {
+    let xtool_m1_job = ctx
+        .job
+        .lock()
+        .ok()
+        .is_some_and(|guard| matches!(guard.as_ref(), Some(ActiveJobHandle::XToolM1(_))));
+    if xtool_m1_job {
+        // The M1 exposes job state through HTTP rather than a streaming
+        // serial buffer. Two polls per second is responsive without
+        // needlessly loading the embedded controller.
+        return Duration::from_millis(500);
+    }
     let fast_tick = ctx.job.lock().ok().is_some_and(|guard| {
         matches!(
             guard.as_ref(),
@@ -4981,6 +5101,9 @@ pub fn frame_job(
                 ServiceError::machine(format!("Lihuiyu frame start failed: {error}"))
             })?)
         }
+        MachineSessionHandle::XToolM1(_) => {
+            return Err(invalid_capability("Frame", ControllerFamily::Gcode));
+        }
         MachineSessionHandle::Dsp(session) => ActiveJobHandle::Dsp(session.frame_job()),
         MachineSessionHandle::Galvo(session) => ActiveJobHandle::Galvo(session.frame_job()),
     };
@@ -5107,7 +5230,9 @@ pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResu
                 ))
                 .map_err(|e| ServiceError::machine(e.to_string()))?;
         }
-        MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
+        MachineSessionHandle::Marlin(_)
+        | MachineSessionHandle::Smoothieware(_)
+        | MachineSessionHandle::XToolM1(_) => {
             return Err(invalid_capability("Go", ControllerFamily::Gcode));
         }
         MachineSessionHandle::Ruida(_) => {
@@ -5645,6 +5770,9 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
         MachineSessionHandle::Lihuiyu(session) => session
             .emergency_stop()
             .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::XToolM1(session) => session
+            .emergency_stop()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
         MachineSessionHandle::Dsp(session) => {
             session.machine_status.run_state = MachineRunState::Idle;
             Ok(())
@@ -5731,7 +5859,9 @@ pub fn set_work_origin(ctx: &ServiceContext) -> ServiceResult<(f64, f64)> {
                     })?;
                 (position.x, position.y)
             }
-            MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
+            MachineSessionHandle::Marlin(_)
+            | MachineSessionHandle::Smoothieware(_)
+            | MachineSessionHandle::XToolM1(_) => {
                 return Err(invalid_capability(
                     "Set work origin",
                     ControllerFamily::Gcode,
@@ -5781,7 +5911,9 @@ pub fn reset_work_origin(ctx: &ServiceContext) -> ServiceResult<()> {
             .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
         match session {
             MachineSessionHandle::Grbl(_) | MachineSessionHandle::Dsp(_) => {}
-            MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_) => {
+            MachineSessionHandle::Marlin(_)
+            | MachineSessionHandle::Smoothieware(_)
+            | MachineSessionHandle::XToolM1(_) => {
                 return Err(invalid_capability(
                     "Reset work origin",
                     ControllerFamily::Gcode,
@@ -5882,6 +6014,7 @@ fn send_air_assist_lines(ctx: &ServiceContext, gcode: &str) -> ServiceResult<()>
         | MachineSessionHandle::Smoothieware(_)
         | MachineSessionHandle::Ruida(_)
         | MachineSessionHandle::Lihuiyu(_)
+        | MachineSessionHandle::XToolM1(_)
         | MachineSessionHandle::Dsp(_)
         | MachineSessionHandle::Galvo(_) => Err(ServiceError::invalid_state(
             "Air-assist G-code diagnostics are only supported for GRBL sessions",
