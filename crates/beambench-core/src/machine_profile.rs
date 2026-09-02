@@ -4,7 +4,7 @@ use crate::quality_test::QualityTestSettings;
 use crate::workspace::WorkspaceOrigin;
 use beambench_common::id::Id;
 use beambench_common::markers::MachineProfileMarker;
-use beambench_common::{CameraAlignment, CameraCalibration};
+use beambench_common::{CameraAlignment, CameraCalibration, ControllerSelection};
 use serde::{Deserialize, Serialize};
 
 /// Typed ID for machine profiles.
@@ -99,6 +99,25 @@ fn default_rotary_object_diameter_mm() -> f64 {
     75.0
 }
 
+/// Local connection details remembered for a machine profile.
+///
+/// USB bus addresses are intentionally excluded because they are not stable
+/// device identities across reconnects or hosts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum MachineConnectionPreference {
+    Serial {
+        port_name: String,
+        baud_rate: u32,
+        controller_selection: ControllerSelection,
+    },
+    Network {
+        host: String,
+        port: u16,
+        controller_selection: ControllerSelection,
+    },
+}
+
 /// A machine profile describing a laser engraver's capabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MachineProfile {
@@ -121,6 +140,9 @@ pub struct MachineProfile {
     pub default_baud_rate: u32,
     pub firmware_type: String,
     pub notes: String,
+    /// Last successful serial or network endpoint for this profile.
+    #[serde(default)]
+    pub connection_preference: Option<MachineConnectionPreference>,
     #[serde(default)]
     pub selected_camera_id: Option<String>,
     #[serde(default)]
@@ -253,6 +275,7 @@ impl Default for MachineProfile {
             default_baud_rate: 115200,
             firmware_type: "grbl".to_string(),
             notes: String::new(),
+            connection_preference: None,
             selected_camera_id: None,
             camera_calibration: None,
             camera_alignment: None,
@@ -376,6 +399,7 @@ mod tests {
         assert_eq!(p.bed_width_mm, 200.0);
         assert_eq!(p.default_baud_rate, 115200);
         assert_eq!(p.firmware_type, "grbl");
+        assert!(p.connection_preference.is_none());
         assert!(p.selected_camera_id.is_none());
         assert_eq!(p.z_move_feed_mm_min, 300.0);
         assert_eq!(p.ruida_table_axis, RuidaTableAxis::Disabled);
@@ -387,10 +411,32 @@ mod tests {
 
     #[test]
     fn profile_serialization_roundtrip() {
-        let p = MachineProfile::default();
+        let p = MachineProfile {
+            connection_preference: Some(MachineConnectionPreference::Network {
+                host: "10.0.1.155".to_string(),
+                port: 8080,
+                controller_selection: ControllerSelection::KnownDriver {
+                    driver: beambench_common::ControllerDriverId::GrblHal,
+                },
+            }),
+            ..MachineProfile::default()
+        };
         let json = serde_json::to_string(&p).unwrap();
         let restored: MachineProfile = serde_json::from_str(&json).unwrap();
         assert_eq!(p, restored);
+    }
+
+    #[test]
+    fn legacy_profile_without_connection_preference_still_loads() {
+        let profile = MachineProfile::default();
+        let mut json = serde_json::to_value(profile).unwrap();
+        json.as_object_mut()
+            .unwrap()
+            .remove("connection_preference");
+
+        let restored: MachineProfile = serde_json::from_value(json).unwrap();
+
+        assert!(restored.connection_preference.is_none());
     }
 
     #[test]

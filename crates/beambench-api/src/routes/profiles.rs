@@ -185,6 +185,7 @@ fn create_save_input(
         default_baud_rate: body.default_baud_rate.unwrap_or(default_baud_rate()),
         firmware_type: body.firmware_type.unwrap_or_else(default_firmware_type),
         notes: body.notes.unwrap_or_default(),
+        connection_preference: None,
         selected_camera_id: body.selected_camera_id.unwrap_or(None),
         camera_calibration: body.camera_calibration.unwrap_or(None),
         camera_alignment: body.camera_alignment.unwrap_or(None),
@@ -285,6 +286,7 @@ fn merge_save_input(
         default_baud_rate: body.default_baud_rate.unwrap_or(existing.default_baud_rate),
         firmware_type: body.firmware_type.unwrap_or(existing.firmware_type),
         notes: body.notes.unwrap_or(existing.notes),
+        connection_preference: existing.connection_preference,
         selected_camera_id: body
             .selected_camera_id
             .unwrap_or(existing.selected_camera_id),

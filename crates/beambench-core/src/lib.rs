@@ -72,8 +72,8 @@ pub use layer::{
     LayerPatch, OperationType, RasterSettings, VectorSettings,
 };
 pub use machine_profile::{
-    MachineProfile, MachineProfileId, MachineProfileSnapshot, RotaryAxis, RotaryType,
-    RuidaTableAxis, ScanningOffsetEntry, TransferMode,
+    MachineConnectionPreference, MachineProfile, MachineProfileId, MachineProfileSnapshot,
+    RotaryAxis, RotaryType, RuidaTableAxis, ScanningOffsetEntry, TransferMode,
 };
 pub use macros::MacroDefinition;
 pub use material::{CutSettings, MaterialPreset};

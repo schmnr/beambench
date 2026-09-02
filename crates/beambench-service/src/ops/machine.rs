@@ -6043,6 +6043,7 @@ pub fn save_profile(
             default_baud_rate: profile.default_baud_rate,
             firmware_type: profile.firmware_type,
             notes: profile.notes,
+            connection_preference: profile.connection_preference,
             selected_camera_id: profile.selected_camera_id,
             camera_calibration: profile.camera_calibration,
             camera_alignment: profile.camera_alignment,

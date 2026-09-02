@@ -4,8 +4,8 @@ use std::path::Path;
 use beambench_common::{CameraAlignment, CameraCalibration};
 use beambench_core::WorkspaceOrigin;
 use beambench_core::{
-    MachineProfile, MachineProfileId, QualityTestSettings, RotaryAxis, RotaryType, RuidaTableAxis,
-    ScanningOffsetEntry, TransferMode,
+    MachineConnectionPreference, MachineProfile, MachineProfileId, QualityTestSettings, RotaryAxis,
+    RotaryType, RuidaTableAxis, ScanningOffsetEntry, TransferMode,
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -22,9 +22,9 @@ pub const MACHINE_PROFILE_FILE_FORMAT_VERSION: &str = "1.0";
 
 /// Portable, versioned wrapper for sharing one machine profile.
 ///
-/// Camera selection and calibration are deliberately excluded from exported
-/// and imported profiles because those values describe a specific host and
-/// physical camera setup rather than the machine itself.
+/// Connection and camera details are deliberately excluded from exported and
+/// imported profiles because those values describe a specific host or local
+/// network rather than portable machine capabilities.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MachineProfileFile {
     pub format: String,
@@ -50,6 +50,7 @@ pub struct SaveProfileInput {
     pub default_baud_rate: u32,
     pub firmware_type: String,
     pub notes: String,
+    pub connection_preference: Option<MachineConnectionPreference>,
     pub selected_camera_id: Option<String>,
     pub camera_calibration: Option<CameraCalibration>,
     pub camera_alignment: Option<CameraAlignment>,
@@ -151,6 +152,7 @@ fn lock_err(name: &str, e: impl std::fmt::Display) -> ServiceError {
 }
 
 fn portable_profile(mut profile: MachineProfile) -> MachineProfile {
+    profile.connection_preference = None;
     profile.selected_camera_id = None;
     profile.camera_calibration = None;
     profile.camera_alignment = None;
@@ -181,6 +183,29 @@ fn validate_profile(profile: &MachineProfile) -> ServiceResult<()> {
         return Err(ServiceError::invalid_input(
             "Machine profile acceleration must be zero (unknown) or a positive finite number",
         ));
+    }
+
+    if let Some(connection) = &profile.connection_preference {
+        match connection {
+            MachineConnectionPreference::Serial {
+                port_name,
+                baud_rate,
+                ..
+            } => {
+                if port_name.trim().is_empty() || *baud_rate == 0 {
+                    return Err(ServiceError::invalid_input(
+                        "Machine profile serial connection must have a port and baud rate",
+                    ));
+                }
+            }
+            MachineConnectionPreference::Network { host, port, .. } => {
+                if host.trim().is_empty() || *port == 0 {
+                    return Err(ServiceError::invalid_input(
+                        "Machine profile network connection must have a host and port",
+                    ));
+                }
+            }
+        }
     }
 
     for (label, value) in [
@@ -295,7 +320,7 @@ fn parse_machine_profile_payload(path: &Path) -> ServiceResult<MachineProfileFil
             payload.format_version
         )));
     }
-    validate_profile(&payload.profile)?;
+    validate_profile(&portable_profile(payload.profile.clone()))?;
     Ok(payload)
 }
 
@@ -1032,6 +1057,7 @@ pub fn save_profile(
         default_baud_rate: input.default_baud_rate,
         firmware_type: input.firmware_type,
         notes: input.notes,
+        connection_preference: input.connection_preference,
         selected_camera_id: input.selected_camera_id,
         camera_calibration: input.camera_calibration,
         camera_alignment: input.camera_alignment,
@@ -1172,6 +1198,7 @@ mod tests {
             default_baud_rate: 115200,
             firmware_type: "grbl".to_string(),
             notes: "notes".to_string(),
+            connection_preference: None,
             selected_camera_id: None,
             camera_calibration: None,
             camera_alignment: None,
@@ -1280,6 +1307,13 @@ mod tests {
             bed_height_mm: 440.0,
             max_speed_mm_min: 12_000.0,
             job_header_gcode: "T10M6".to_string(),
+            connection_preference: Some(MachineConnectionPreference::Network {
+                host: "10.0.1.155".to_string(),
+                port: 8080,
+                controller_selection: beambench_common::ControllerSelection::KnownDriver {
+                    driver: beambench_common::ControllerDriverId::GrblHal,
+                },
+            }),
             selected_camera_id: Some("host-camera".to_string()),
             camera_calibration: Some(sample_camera_calibration()),
             camera_alignment: Some(sample_camera_alignment()),
@@ -1310,12 +1344,18 @@ mod tests {
         assert_eq!(payload.format_version, MACHINE_PROFILE_FILE_FORMAT_VERSION);
         assert!(!payload.app_version.is_empty());
         assert!(!payload.created_at.is_empty());
+        assert!(payload.profile.connection_preference.is_none());
         assert!(payload.profile.selected_camera_id.is_none());
         assert!(payload.profile.camera_calibration.is_none());
         assert!(payload.profile.camera_alignment.is_none());
 
-        // A hand-edited/shared file may try to carry another host's camera
-        // state; import must strip it independently of export sanitization.
+        // A hand-edited/shared file may try to carry another host's connection
+        // or camera state; import must strip it independently of export sanitization.
+        payload.profile.connection_preference = Some(MachineConnectionPreference::Serial {
+            port_name: "/dev/ttyUSB9".to_string(),
+            baud_rate: 115_200,
+            controller_selection: beambench_common::ControllerSelection::AutoDetect,
+        });
         payload.profile.selected_camera_id = Some("other-host-camera".to_string());
         payload.profile.camera_calibration = Some(sample_camera_calibration());
         payload.profile.camera_alignment = Some(sample_camera_alignment());
@@ -1325,6 +1365,7 @@ mod tests {
         assert_ne!(imported.id, original_id);
         assert_eq!(imported.name, "Alpha (Imported)");
         assert_eq!(imported.job_header_gcode, "T10M6");
+        assert!(imported.connection_preference.is_none());
         assert!(imported.selected_camera_id.is_none());
         assert!(imported.camera_calibration.is_none());
         assert!(imported.camera_alignment.is_none());
@@ -1489,9 +1530,18 @@ mod tests {
     #[test]
     fn create_update_roundtrip_by_id() {
         let ctx = ServiceContext::with_settings(AppSettings::default());
-        let created = save_profile(&ctx, sample_input()).unwrap();
+        let mut input = sample_input();
+        input.connection_preference = Some(MachineConnectionPreference::Network {
+            host: "10.0.1.155".to_string(),
+            port: 8080,
+            controller_selection: beambench_common::ControllerSelection::KnownDriver {
+                driver: beambench_common::ControllerDriverId::GrblHal,
+            },
+        });
+        let created = save_profile(&ctx, input).unwrap();
         let loaded = get_profile(&ctx, ProfileLookup::Id(created.id)).unwrap();
         assert_eq!(loaded.name, "Alpha");
+        assert_eq!(loaded.connection_preference, created.connection_preference);
 
         let mut update = sample_input();
         update.profile_id = Some(created.id);

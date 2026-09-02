@@ -421,6 +421,20 @@ export interface ScanningOffsetEntry {
   offset_mm: number;
 }
 
+export type MachineConnectionPreference =
+  | {
+      type: 'serial';
+      port_name: string;
+      baud_rate: number;
+      controller_selection: ControllerSelection;
+    }
+  | {
+      type: 'network';
+      host: string;
+      port: number;
+      controller_selection: ControllerSelection;
+    };
+
 export interface MachineProfile {
   id: string;
   name: string;
@@ -436,6 +450,8 @@ export interface MachineProfile {
   default_baud_rate: number;
   firmware_type: string;
   notes: string;
+  /** Last successful local endpoint. Omitted by portable profile exports. */
+  connection_preference?: MachineConnectionPreference | null;
   origin: 'top_left' | 'bottom_left';
   laser_offset_x: number;
   laser_offset_y: number;

@@ -1038,6 +1038,75 @@ describe('DeviceSettingsDialog', () => {
     expect(connectNetwork).toHaveBeenCalledWith('grblhal.local', 23);
   });
 
+  it('accepts a pasted host and port without creating a malformed endpoint', async () => {
+    const connectNetwork = vi.fn();
+    useMachineStore.setState({
+      sessionState: 'disconnected',
+      connectedPort: null,
+      availablePorts: [],
+      profiles: [],
+      activeProfileId: null,
+      loading: false,
+      controllerConnectionChallenge: null,
+      controllerSelection: { mode: 'known_driver', driver: 'grbl_hal' },
+      connect: vi.fn(),
+      connectNetwork,
+      disconnect: vi.fn(),
+      refreshPorts: vi.fn().mockResolvedValue(undefined),
+      setActiveProfile: vi.fn().mockResolvedValue(undefined),
+    });
+
+    render(<DeviceSettingsDialog onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('Connection'), { target: { value: 'tcp' } });
+    fireEvent.change(screen.getByLabelText('Host'), {
+      target: { value: '10.0.1.155:8080' },
+    });
+    fireEvent.click(screen.getByText('Connect'));
+
+    expect(connectNetwork).toHaveBeenCalledWith('10.0.1.155', 8080);
+    expect((screen.getByLabelText('Host') as HTMLInputElement).value).toBe('10.0.1.155');
+    expect((screen.getByLabelText('TCP port') as HTMLInputElement).value).toBe('8080');
+  });
+
+  it('restores the active profile network connection without auto-connecting', async () => {
+    const connectNetwork = vi.fn();
+    useMachineStore.setState({
+      sessionState: 'disconnected',
+      connectedPort: null,
+      availablePorts: [],
+      profiles: [
+        makeProfile({
+          connection_preference: {
+            type: 'network',
+            host: '10.0.1.155',
+            port: 8080,
+            controller_selection: { mode: 'known_driver', driver: 'grbl_hal' },
+          },
+        }),
+      ],
+      activeProfileId: 'prof-1',
+      loading: false,
+      controllerConnectionChallenge: null,
+      controllerSelection: { mode: 'known_driver', driver: 'grbl' },
+      connect: vi.fn(),
+      connectNetwork,
+      disconnect: vi.fn(),
+      refreshPorts: vi.fn().mockResolvedValue(undefined),
+      setActiveProfile: vi.fn().mockResolvedValue(undefined),
+    });
+
+    render(<DeviceSettingsDialog onClose={vi.fn()} />);
+
+    await waitFor(() => {
+      expect((screen.getByLabelText('Connection') as HTMLSelectElement).value).toBe('tcp');
+      expect((screen.getByLabelText('Host') as HTMLInputElement).value).toBe('10.0.1.155');
+      expect((screen.getByLabelText('TCP port') as HTMLInputElement).value).toBe('8080');
+      expect((screen.getByLabelText('Controller') as HTMLSelectElement).value).toBe('grbl_hal');
+    });
+    expect(connectNetwork).not.toHaveBeenCalled();
+  });
+
   it('blocks an incompatible Lihuiyu Windows driver with actionable guidance', async () => {
     const connectUsb = vi.fn();
     useMachineStore.setState({

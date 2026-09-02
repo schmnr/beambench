@@ -12,6 +12,7 @@ import type {
   ControllerConnectionEndpoint,
   ControllerMismatchDecision,
   ControllerSelection,
+  MachineConnectionPreference,
   DeviceCapabilities,
   LihuiyuUsbDeviceInfo,
 } from '../types/machine';
@@ -84,6 +85,61 @@ export function controllerEndpointDisplayName(endpoint: ControllerConnectionEndp
   const displayHost =
     host.includes(':') && !(host.startsWith('[') && host.endsWith(']')) ? `[${host}]` : host;
   return `${displayHost}:${endpoint.port}`;
+}
+
+function connectionPreferenceFromEndpoint(
+  endpoint: ControllerConnectionEndpoint,
+  controllerSelection: ControllerSelection,
+): MachineConnectionPreference | null {
+  if (endpoint.type === 'serial') {
+    return {
+      type: 'serial',
+      port_name: endpoint.port_name,
+      baud_rate: endpoint.baud_rate,
+      controller_selection: controllerSelection,
+    };
+  }
+  if (endpoint.type === 'tcp' || endpoint.type === 'udp') {
+    return {
+      type: 'network',
+      host: endpoint.host.trim(),
+      port: endpoint.port,
+      controller_selection: controllerSelection,
+    };
+  }
+  return null;
+}
+
+async function rememberSuccessfulConnection(
+  endpoint: ControllerConnectionEndpoint,
+  controllerSelection: ControllerSelection,
+): Promise<void> {
+  const preference = connectionPreferenceFromEndpoint(endpoint, controllerSelection);
+  if (!preference) return;
+
+  const state = useMachineStore.getState();
+  const profile = state.profiles.find((candidate) => candidate.id === state.activeProfileId);
+  if (!profile || JSON.stringify(profile.connection_preference) === JSON.stringify(preference)) {
+    return;
+  }
+
+  suppressProfileEvent('profile.saved', profile.id);
+  try {
+    const saved = await machineService.saveMachineProfile({
+      ...profile,
+      connection_preference: preference,
+    });
+    useMachineStore.setState((current) => ({
+      profiles: current.profiles.map((candidate) =>
+        candidate.id === saved.id ? saved : candidate,
+      ),
+    }));
+  } catch (error) {
+    releaseSuppressedProfileEvent('profile.saved', profile.id);
+    const message = `The machine connected, but its connection settings could not be saved: ${String(error)}`;
+    useMachineStore.setState({ error: message });
+    notifyError(message);
+  }
 }
 
 function makePreviewMachineStatus(): MachineStatus {
@@ -335,6 +391,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         loading: false,
       });
       void get().loadRuntimeCapabilities();
+      await rememberSuccessfulConnection(result.endpoint, controllerSelection);
       notifySuccess(`Connected to ${controllerEndpointDisplayName(result.endpoint)}`);
     } catch (e) {
       const msg = String(e);
@@ -401,6 +458,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         loading: false,
       });
       void get().loadRuntimeCapabilities();
+      await rememberSuccessfulConnection(result.endpoint, controllerSelection);
       notifySuccess(`Connected to ${endpointName}`);
     } catch (e) {
       const msg = String(e);
@@ -468,9 +526,10 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
     if (!challenge) return;
     set({ loading: true, error: null });
     try {
+      const controllerSelection = get().controllerSelection;
       const result = await machineService.continueControllerConnection(
         challenge.attempt_id,
-        get().controllerSelection,
+        controllerSelection,
         decision,
       );
       if (result.status === 'challenge') {
@@ -505,6 +564,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         loading: false,
       });
       void get().loadRuntimeCapabilities();
+      await rememberSuccessfulConnection(result.endpoint, controllerSelection);
       notifySuccess(`Connected to ${controllerEndpointDisplayName(result.endpoint)}`);
     } catch (e) {
       const msg = String(e);

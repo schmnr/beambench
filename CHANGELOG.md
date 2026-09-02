@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.2.18
+
+- Machine profiles now remember the last successful serial or network
+  connection, including the selected controller, and restore those choices
+  after restarting or switching profiles without connecting automatically.
+- Pasted network endpoints such as `10.0.1.155:8080` now populate the host and
+  port correctly, including bracketed IPv6 addresses. Discovery-created
+  profiles also retain the endpoint that found the machine.
+- Portable machine-profile exports continue to omit local connection addresses
+  and ports.
+
 ## 0.2.17
 
 - Machine profiles with Z movement enabled now show finite `Z-` and `Z+`

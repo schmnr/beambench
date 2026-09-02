@@ -337,7 +337,9 @@ describe('machineStore frame-selected toggle', () => {
       },
     });
     expect(notification?.message).toContain('Current Position');
-    expect(notification?.message).toContain('Move the laser at least 151.81 mm away from the left edge');
+    expect(notification?.message).toContain(
+      'Move the laser at least 151.81 mm away from the left edge',
+    );
     expect(notification?.feedbackContext?.error_details).toMatchObject({
       kind: 'bounds_exceeded',
     });
@@ -392,6 +394,7 @@ describe('machineStore frame-selected toggle', () => {
 
   it('connectNetwork preserves a TCP endpoint without inventing serial fields', async () => {
     const status = makeMachineStatus({ run_state: 'idle' });
+    const profile = makeProfile();
     mockedMachine.beginNetworkControllerConnection.mockResolvedValue({
       status: 'connected',
       session_state: 'ready',
@@ -408,6 +411,8 @@ describe('machineStore frame-selected toggle', () => {
       },
     });
     mockedMachine.getMachineStatus.mockResolvedValue(status);
+    mockedMachine.saveMachineProfile.mockImplementation(async (saved) => saved);
+    useMachineStore.setState({ profiles: [profile], activeProfileId: profile.id });
 
     await useMachineStore
       .getState()
@@ -424,6 +429,21 @@ describe('machineStore frame-selected toggle', () => {
       machineStatus: status,
       controllerConnectionChallenge: null,
       loading: false,
+    });
+    expect(mockedMachine.saveMachineProfile).toHaveBeenCalledWith({
+      ...profile,
+      connection_preference: {
+        type: 'network',
+        host: 'fluidnc.local',
+        port: 23,
+        controller_selection: { mode: 'known_driver', driver: 'fluid_nc' },
+      },
+    });
+    expect(useMachineStore.getState().profiles[0].connection_preference).toEqual({
+      type: 'network',
+      host: 'fluidnc.local',
+      port: 23,
+      controller_selection: { mode: 'known_driver', driver: 'fluid_nc' },
     });
   });
 

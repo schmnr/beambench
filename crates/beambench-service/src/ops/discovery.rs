@@ -2,7 +2,8 @@ use beambench_common::machine::{
     ControllerModel, DiscoveryCandidate, DiscoveryPhase, DiscoveryScanState, DiscoveryTcpTarget,
     DiscoveryUsbTarget, TransportKind,
 };
-use beambench_core::MachineProfile;
+use beambench_common::{ControllerDriverId, ControllerSelection};
+use beambench_core::{MachineConnectionPreference, MachineProfile};
 use beambench_discovery::{DiscoveryRequest, completed_scan_state};
 use beambench_serial::list_available_ports;
 use serde_json::json;
@@ -195,6 +196,61 @@ fn stable_profile_name(display_name: &str) -> String {
     trimmed.to_owned()
 }
 
+fn controller_selection_for_model(model: ControllerModel) -> ControllerSelection {
+    let driver = match model {
+        ControllerModel::Grbl => ControllerDriverId::Grbl,
+        ControllerModel::FluidNc => ControllerDriverId::FluidNc,
+        ControllerModel::GrblHal => ControllerDriverId::GrblHal,
+        ControllerModel::LaserPecker => ControllerDriverId::LaserPecker,
+        ControllerModel::XToolM1 => ControllerDriverId::XToolM1,
+        ControllerModel::Marlin => ControllerDriverId::Marlin,
+        ControllerModel::Snapmaker => ControllerDriverId::Snapmaker,
+        ControllerModel::Smoothieware => ControllerDriverId::Smoothieware,
+        ControllerModel::Ruida => ControllerDriverId::Ruida,
+        ControllerModel::LihuiyuM2Nano => ControllerDriverId::Lihuiyu,
+        ControllerModel::Unknown
+        | ControllerModel::Trocen
+        | ControllerModel::Topwisdom
+        | ControllerModel::Ezcad2
+        | ControllerModel::Ezcad2Lite
+        | ControllerModel::Bsl => return ControllerSelection::AutoDetect,
+    };
+    ControllerSelection::KnownDriver { driver }
+}
+
+fn connection_preference_for_candidate(
+    candidate: &DiscoveryCandidate,
+) -> Option<MachineConnectionPreference> {
+    let controller_selection = controller_selection_for_model(candidate.controller_model);
+    match candidate.transport_kind {
+        TransportKind::Serial => candidate.identity.port_name.as_ref().map(|port_name| {
+            MachineConnectionPreference::Serial {
+                port_name: port_name.clone(),
+                baud_rate: 115_200,
+                controller_selection,
+            }
+        }),
+        TransportKind::Tcp | TransportKind::Udp => {
+            let port = match candidate.transport_kind {
+                TransportKind::Tcp => candidate.identity.tcp_port,
+                TransportKind::Udp => candidate.identity.udp_port,
+                _ => None,
+            };
+            candidate
+                .identity
+                .host
+                .as_ref()
+                .zip(port)
+                .map(|(host, port)| MachineConnectionPreference::Network {
+                    host: host.clone(),
+                    port,
+                    controller_selection,
+                })
+        }
+        TransportKind::UsbPacket => None,
+    }
+}
+
 pub fn bootstrap_profile(
     ctx: &ServiceContext,
     input: BootstrapProfileInput,
@@ -254,6 +310,7 @@ pub fn bootstrap_profile(
             default_baud_rate: 115200,
             firmware_type: firmware_type_for_model(candidate.controller_model),
             notes: profile_notes,
+            connection_preference: connection_preference_for_candidate(&candidate),
             selected_camera_id: None,
             camera_calibration: None,
             camera_alignment: None,
@@ -388,6 +445,14 @@ mod tests {
         .unwrap();
         assert_eq!(profile.firmware_type, "unknown");
         assert!(!profile.homing_enabled);
+        assert_eq!(
+            profile.connection_preference,
+            Some(MachineConnectionPreference::Network {
+                host: "192.168.0.20".to_string(),
+                port: 50200,
+                controller_selection: ControllerSelection::AutoDetect,
+            })
+        );
         assert!(
             profile
                 .notes
