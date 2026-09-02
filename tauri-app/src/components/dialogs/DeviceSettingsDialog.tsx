@@ -26,8 +26,10 @@ import {
   USB_TRANSPORT,
   connectionEndpointMissing,
   defaultPortForDriverSwitch,
+  normalizeNetworkEndpoint,
   xtoolM1DefaultHost,
   type ConnectionTransportKind,
+  type NetworkControllerKind,
 } from '../../utils/controllerConnection';
 import {
   hiddenSerialPortCount,
@@ -283,11 +285,12 @@ function ConnectionTab({ active }: { active: boolean }) {
   const refreshPorts = useMachineStore((s) => s.refreshPorts);
   const refreshLihuiyuUsbDevices = useMachineStore((s) => s.refreshLihuiyuUsbDevices);
   const setActiveProfile = useMachineStore((s) => s.setActiveProfile);
+  const setControllerSelection = useMachineStore((s) => s.setControllerSelection);
 
   const activeProfile = (profiles ?? []).find((p) => p.id === activeProfileId);
   const defaultBaudRate = activeProfile?.default_baud_rate ?? 115200;
 
-  const [selectedPort, setSelectedPort] = useState(connectedPort ?? '');
+  const [selectedPort, setSelectedPort] = useState('');
   const [baudRate, setBaudRate] = useState(defaultBaudRate);
   const [showAllPorts, setShowAllPorts] = useState(false);
   const [transportKind, setTransportKind] = useState<ConnectionTransportKind>(SERIAL_TRANSPORT);
@@ -301,6 +304,15 @@ function ConnectionTab({ active }: { active: boolean }) {
     controllerSelection.mode === 'known_driver' && controllerSelection.driver === 'laser_pecker';
   const xtoolM1Selected =
     controllerSelection.mode === 'known_driver' && controllerSelection.driver === 'xtool_m1';
+  const networkController: NetworkControllerKind = ruidaSelected
+    ? 'ruida'
+    : laserPeckerSelected
+      ? 'laserpecker'
+      : xtoolM1Selected
+        ? 'xtool_m1'
+        : 'gcode';
+  const previousNetworkController = useRef<NetworkControllerKind>('gcode');
+  const restoredProfileId = useRef<string | null>(null);
 
   useEffect(() => {
     refreshPorts();
@@ -317,21 +329,57 @@ function ConnectionTab({ active }: { active: boolean }) {
   }, [defaultBaudRate]);
 
   useEffect(() => {
-    if (connectedPort) {
+    if (connectedPort && availablePorts.some((port) => port.port_name === connectedPort)) {
       setSelectedPort(connectedPort);
     }
-  }, [connectedPort]);
+  }, [availablePorts, connectedPort]);
+
+  useEffect(() => {
+    if (!activeProfile || restoredProfileId.current === activeProfile.id) return;
+    restoredProfileId.current = activeProfile.id;
+    const preference = activeProfile.connection_preference;
+    if (!preference) {
+      previousNetworkController.current = 'gcode';
+      setTransportKind(SERIAL_TRANSPORT);
+      setSelectedPort('');
+      setBaudRate(activeProfile.default_baud_rate);
+      setNetworkHost('');
+      setNetworkPort(GCODE_DEFAULT_PORT);
+      setControllerSelection({ mode: 'known_driver', driver: 'grbl' });
+      return;
+    }
+
+    previousNetworkController.current =
+      preference.controller_selection.mode === 'known_driver' &&
+      preference.controller_selection.driver === 'ruida'
+        ? 'ruida'
+        : preference.controller_selection.mode === 'known_driver' &&
+            preference.controller_selection.driver === 'laser_pecker'
+          ? 'laserpecker'
+          : preference.controller_selection.mode === 'known_driver' &&
+              preference.controller_selection.driver === 'xtool_m1'
+            ? 'xtool_m1'
+            : 'gcode';
+    setControllerSelection(preference.controller_selection);
+    if (preference.type === 'serial') {
+      setTransportKind(SERIAL_TRANSPORT);
+      setSelectedPort(preference.port_name);
+      setBaudRate(preference.baud_rate);
+      return;
+    }
+
+    setTransportKind(NETWORK_TRANSPORT);
+    setNetworkHost(preference.host);
+    setNetworkPort(preference.port);
+  }, [activeProfile, setControllerSelection]);
 
   useEffect(() => {
     if (transportKind !== NETWORK_TRANSPORT) return;
-    const controller = ruidaSelected
-      ? 'ruida'
-      : laserPeckerSelected
-        ? 'laserpecker'
-        : xtoolM1Selected
-          ? 'xtool_m1'
-          : 'gcode';
-    setNetworkPort((current) => defaultPortForDriverSwitch(current, controller));
+    const previousController = previousNetworkController.current;
+    previousNetworkController.current = networkController;
+    setNetworkPort((current) =>
+      defaultPortForDriverSwitch(current, previousController, networkController),
+    );
     setNetworkHost((current) => {
       const host = current.trim();
       if (laserPeckerSelected && (host === '' || host === RUIDA_HOST_PLACEHOLDER)) {
@@ -352,17 +400,21 @@ function ConnectionTab({ active }: { active: boolean }) {
       }
       return current;
     });
-  }, [laserPeckerSelected, ruidaSelected, transportKind, xtoolM1Host, xtoolM1Selected]);
+  }, [laserPeckerSelected, networkController, transportKind, xtoolM1Host, xtoolM1Selected]);
 
   const selectedUsbDevice = availableLihuiyuUsbDevices.find(
     (candidate) => lihuiyuUsbDeviceId(candidate) === selectedUsbDeviceId,
   );
   const incompatibleUsbDriver = lihuiyuUsbHasIncompatibleWindowsDriver(selectedUsbDevice);
 
+  const normalizedNetworkEndpoint = normalizeNetworkEndpoint(networkHost, networkPort);
+
   const handleConnect = () => {
     if (!ACTIVE_CONNECTION_STATES.includes(sessionState)) {
       if (transportKind === NETWORK_TRANSPORT) {
-        connectNetwork(networkHost, networkPort);
+        setNetworkHost(normalizedNetworkEndpoint.host);
+        setNetworkPort(normalizedNetworkEndpoint.port);
+        connectNetwork(normalizedNetworkEndpoint.host, normalizedNetworkEndpoint.port);
       } else if (transportKind === USB_TRANSPORT) {
         if (selectedUsbDevice) connectUsb(selectedUsbDevice);
       } else {
@@ -377,8 +429,8 @@ function ConnectionTab({ active }: { active: boolean }) {
   const connectionPending = controllerConnectionChallenge !== null;
   const endpointMissing = connectionEndpointMissing(
     transportKind,
-    networkHost,
-    networkPort,
+    normalizedNetworkEndpoint.host,
+    normalizedNetworkEndpoint.port,
     selectedUsbDeviceId,
     selectedPort,
   );
@@ -588,7 +640,7 @@ function ConnectionTab({ active }: { active: boolean }) {
         value={activeProfileId ?? ''}
         options={profileOptions}
         onChange={(v) => setActiveProfile(v || null)}
-        disabled={isConnected || connectionPending || (profiles ?? []).length === 0}
+        disabled={isConnected || loading || connectionPending || (profiles ?? []).length === 0}
       />
 
       <button

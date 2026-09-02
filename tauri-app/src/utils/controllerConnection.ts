@@ -28,6 +28,13 @@ export const GCODE_DEFAULT_PORT = 23;
 
 export type NetworkControllerKind = 'gcode' | 'laserpecker' | 'xtool_m1' | 'ruida';
 
+function defaultPortForController(controller: NetworkControllerKind): number {
+  if (controller === 'laserpecker') return LASERPECKER_DEFAULT_PORT;
+  if (controller === 'xtool_m1') return XTOOL_M1_DEFAULT_PORT;
+  if (controller === 'ruida') return RUIDA_DEFAULT_PORT;
+  return GCODE_DEFAULT_PORT;
+}
+
 export function xtoolM1DefaultHost(
   navigatorLike: Pick<Navigator, 'platform' | 'userAgent'> = navigator,
 ): string {
@@ -42,19 +49,45 @@ export const ACTIVE_CONNECTION_STATES: SessionState[] = ['ready', 'running', 'pa
  */
 export function defaultPortForDriverSwitch(
   current: number,
-  controller: NetworkControllerKind,
+  previousController: NetworkControllerKind,
+  nextController: NetworkControllerKind,
 ): number {
-  const defaults = [
-    GCODE_DEFAULT_PORT,
-    LASERPECKER_DEFAULT_PORT,
-    XTOOL_M1_DEFAULT_PORT,
-    RUIDA_DEFAULT_PORT,
-  ];
-  if (!defaults.includes(current)) return current;
-  if (controller === 'laserpecker') return LASERPECKER_DEFAULT_PORT;
-  if (controller === 'xtool_m1') return XTOOL_M1_DEFAULT_PORT;
-  if (controller === 'ruida') return RUIDA_DEFAULT_PORT;
-  return GCODE_DEFAULT_PORT;
+  if (current !== defaultPortForController(previousController)) return current;
+  return defaultPortForController(nextController);
+}
+
+export interface NormalizedNetworkEndpoint {
+  host: string;
+  port: number;
+}
+
+/**
+ * Accept a host copied as `host:port` while leaving bare IPv6 addresses intact.
+ * A bracketed IPv6 endpoint such as `[fe80::1]:8080` is also supported.
+ */
+export function normalizeNetworkEndpoint(
+  hostInput: string,
+  fallbackPort: number,
+): NormalizedNetworkEndpoint {
+  const value = hostInput.trim();
+  const bracketed = /^\[([^\]]+)](?::(\d+))?$/.exec(value);
+  if (bracketed) {
+    return {
+      host: bracketed[1],
+      port: bracketed[2] === undefined ? fallbackPort : Number(bracketed[2]),
+    };
+  }
+
+  if ((value.match(/:/g) ?? []).length === 1) {
+    const separator = value.lastIndexOf(':');
+    const host = value.slice(0, separator).trim();
+    const portText = value.slice(separator + 1).trim();
+    if (host !== '' && /^\d+$/.test(portText)) {
+      return { host, port: Number(portText) };
+    }
+  }
+
+  return { host: value, port: fallbackPort };
 }
 
 /** Whether the connection form has a usable endpoint for the chosen transport. */
