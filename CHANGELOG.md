@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## 0.2.19
+
+- LightBurn imports preserve shared curved paths and closed outlines. The
+  selected object reference point now stays consistent during the editing
+  session, including after another import.
+- Framing, previews, and output preserve transformed groups, clones, masked
+  images, and workspace placement. DXF imports respect declared units and
+  report unsupported or invalid content more clearly.
+- Project switching, undo, raster planning, job pause/resume/stop, and update
+  handling include additional safeguards against stale state, lost edits,
+  incomplete plans, and invalid placement.
+- Object and layer names remain responsive while typing, and Measure
+  coordinates agree with the bottom-left coordinates shown in Properties.
+- The CLI gains shared desktop editing and workflow commands for project and
+  vector operations, nesting, quality tests, variable text, art libraries,
+  material settings, macros, machine profiles, previews, and job controls.
+  Command discovery and JSON schemas support automation and AI agents.
+- CLI fixes cover saved machine profiles during offline G-code export,
+  negative coordinates, redirected output, paths, connection conflicts,
+  confirmations, feedback, and camera rendering.
+- macOS serial initialization handles inherited nonstandard baud settings
+  that could cause an `Invalid argument` failure. Connection errors preserve
+  the original port or transport failure instead of misreporting an
+  unsupported controller protocol.
+- The website documentation has been audited and refreshed for Beam Bench
+  0.2, including CLI guides, screenshots, and translations.
+
 ## 0.2.18
 
 - Machine profiles now remember the last successful serial or network
