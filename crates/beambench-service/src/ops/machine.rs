@@ -18,6 +18,7 @@ use beambench_common::machine::{
     MachineRunState, MachineStatus, PortInfo, PreflightAdvisory, PreflightCheck, PreflightOutcome,
     PreflightReport, SessionState, TransportKind,
 };
+use beambench_core::object::ObjectData;
 use beambench_core::{MachineProfile, MachineProfileId, Project, RuidaTableAxis, Workspace};
 use beambench_grbl::{
     FluidNcNetworkAdapter, FluidNcSerialAdapter, GrblFamilyAdapter, GrblFamilyIdentityProbeConfig,
@@ -2212,6 +2213,11 @@ fn register_machine_session(
     baud_rate_for_profile: Option<u32>,
     choice: Option<&ResolvedControllerChoice>,
 ) -> ServiceResult<SessionState> {
+    if ctx.shutting_down.load(Ordering::Acquire) {
+        return Err(ServiceError::invalid_state(
+            "The application is shutting down",
+        ));
+    }
     let profile_sync = match &session {
         MachineSessionHandle::Grbl(grbl) if !grbl.experimental_mode() => {
             sync_active_profile_from_grbl_settings(ctx, grbl.settings(), baud_rate_for_profile)?
@@ -3954,7 +3960,10 @@ pub fn run_preflight_check_with_options(
 fn run_preflight_check_with_plan(
     ctx: &ServiceContext,
     job_options: &planning::SessionJobOptions,
-) -> ServiceResult<(PreflightReport, Option<ExecutionPlan>)> {
+) -> ServiceResult<(
+    PreflightReport,
+    Option<(ExecutionPlan, Project, MachineProfile)>,
+)> {
     // Check tool layers before plan generation — this must run even if the
     // plan is empty (e.g. all enabled layers are tool layers).
     let (has_project, tool_layer_check) = {
@@ -3969,41 +3978,41 @@ fn run_preflight_check_with_plan(
     // (e.g. all enabled layers are tool layers → EmptyPlan), return a Fail
     // report that still includes the tool-layer informational warning.
     // If no project is loaded, let the error propagate normally.
-    let plan = match planning::ensure_current_plan_with_options(ctx, job_options) {
-        Ok(p) => p,
-        Err(plan_err) if has_project => {
-            let mut checks = vec![PreflightCheck {
-                category: "plan".to_string(),
-                description: "Plan generation".to_string(),
-                passed: false,
-                message: format!("{plan_err}"),
-            }];
-            if let Some(tool_check) = tool_layer_check {
-                checks.push(tool_check);
+    let (plan, project_for_controller, profile) =
+        match planning::prepare_job_snapshot(ctx, job_options) {
+            Ok(p) => p,
+            Err(plan_err) if has_project => {
+                let mut checks = vec![PreflightCheck {
+                    category: "plan".to_string(),
+                    description: "Plan generation".to_string(),
+                    passed: false,
+                    message: format!("{plan_err}"),
+                }];
+                if let Some(tool_check) = tool_layer_check {
+                    checks.push(tool_check);
+                }
+                let report = PreflightReport {
+                    outcome: PreflightOutcome::Fail,
+                    checks,
+                    advisories: Vec::new(),
+                };
+                ctx.emit_event(
+                    "job.preflight.completed",
+                    json!({
+                        "outcome": report.outcome,
+                        "check_count": report.checks.len(),
+                    }),
+                );
+                return Ok((report, None));
             }
-            let report = PreflightReport {
-                outcome: PreflightOutcome::Fail,
-                checks,
-                advisories: Vec::new(),
-            };
-            ctx.emit_event(
-                "job.preflight.completed",
-                json!({
-                    "outcome": report.outcome,
-                    "check_count": report.checks.len(),
-                }),
-            );
-            return Ok((report, None));
-        }
-        Err(e) => return Err(e),
-    };
+            Err(e) => return Err(e),
+        };
 
-    let project_for_controller = planning::current_project(ctx)?;
+    let tool_layer_check = check_tool_layers(&project_for_controller);
     let session_guard = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_guard
         .as_ref()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    let profile = active_profile(ctx)?;
     let relative_fingerprint = relative_frame_fingerprint(ctx, &project_for_controller, &profile)?;
     let relative_untrusted = relative_fingerprint.is_some();
     let mut adjusted_plan;
@@ -4257,7 +4266,7 @@ fn run_preflight_check_with_plan(
             "check_count": report.checks.len(),
         }),
     );
-    Ok((report, Some(plan)))
+    Ok((report, Some((plan, project_for_controller, profile))))
 }
 
 pub fn start_job(ctx: &ServiceContext) -> ServiceResult<JobProgress> {
@@ -4306,7 +4315,7 @@ pub fn start_job_with_options_confirming_advisories(
         .lock()
         .map_err(|e| lock_err("pending_relative_frame_confirmation", e))? = None;
 
-    let plan = preflight_plan.ok_or_else(|| {
+    let (plan, project_for_gcode, profile) = preflight_plan.ok_or_else(|| {
         ServiceError::invalid_state("Preflight did not produce an executable plan")
     })?;
 
@@ -4314,8 +4323,6 @@ pub fn start_job_with_options_confirming_advisories(
     // Runtime overlay (current_position) isn't read here — G-code emission
     // only needs the finish-position fields; the planner consumed the
     // runtime overlay upstream via the offset pass.
-    let project_for_gcode = planning::current_project(ctx)?;
-    let profile = active_profile(ctx)?;
     let mut gcode_config =
         super::output::build_gcode_config(&project_for_gcode.optimization, &profile);
     super::output::apply_project_gcode_metadata(&mut gcode_config, &project_for_gcode);
@@ -4670,8 +4677,17 @@ pub fn spawn_job_tick_loop(ctx: Arc<ServiceContext>) {
             std::thread::sleep(job_tick_interval(&ctx));
         }
 
-        ctx.job_tick_loop_running.store(false, Ordering::Release);
+        finish_job_tick_loop(ctx);
     });
+}
+
+fn finish_job_tick_loop(ctx: Arc<ServiceContext>) {
+    // Publish vacancy before checking for a replacement job. A concurrent start
+    // either acquires the flag itself or is picked up by this final check.
+    ctx.job_tick_loop_running.store(false, Ordering::Release);
+    if ctx.job.lock().is_ok_and(|job| job.is_some()) {
+        spawn_job_tick_loop(ctx);
+    }
 }
 
 pub fn pause_job(ctx: &ServiceContext) -> ServiceResult<()> {
@@ -4717,14 +4733,12 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    let progress = match job.cancel(session) {
-        Ok(progress) => progress,
-        Err(err) => {
-            let progress = job.progress();
-            ctx.push_error(format!("Job cancel failed while clearing stale job: {err}"));
-            progress
-        }
-    };
+    let progress = job.cancel(session).map_err(|err| {
+        ctx.push_error(format!(
+            "Job cancellation failed; stop is not confirmed: {err}"
+        ));
+        ServiceError::machine(err)
+    })?;
     retain_terminal_job_diagnostic(
         ctx,
         "cancelled",
@@ -4743,35 +4757,72 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
 
 /// Which objects to include in frame job bounds and physical frame motion.
 fn frame_objects(
-    ctx: &ServiceContext,
+    project: &Project,
     selected_object_ids: &[String],
 ) -> ServiceResult<(
     Vec<beambench_core::ProjectObject>,
     Vec<beambench_core::ProjectObject>,
 )> {
-    let project = planning::current_project(ctx)?;
-
     let (bounds_objects, physical_objects): (Vec<_>, Vec<_>) = if selected_object_ids.is_empty() {
         let frameable: Vec<_> = project
             .objects
             .iter()
-            .filter(|object| object_contributes_to_job(&project, object))
+            .filter(|object| object_contributes_to_job(project, object))
             .cloned()
             .collect();
         (frameable.clone(), frameable)
     } else {
-        let selected: Vec<_> = project
-            .objects
+        let selected = planning::selected_objects_with_children(project, selected_object_ids);
+        let physical = selected
             .iter()
-            .filter(|o| selected_object_ids.contains(&o.id.to_string()))
+            .filter(|object| !matches!(object.data, ObjectData::Group { .. }))
             .cloned()
             .collect();
-        (selected.clone(), selected)
+        (selected, physical)
     };
     if physical_objects.is_empty() {
         return Err(ServiceError::invalid_state("No objects to frame"));
     }
+    let physical_objects = physical_objects
+        .into_iter()
+        .map(|object| {
+            if matches!(object.data, ObjectData::VirtualClone { .. }) {
+                project.resolve_clone(&object).ok_or_else(|| {
+                    ServiceError::invalid_state("Cannot frame a clone whose source is missing")
+                })
+            } else {
+                Ok(object)
+            }
+        })
+        .collect::<ServiceResult<Vec<_>>>()?;
     Ok((bounds_objects, physical_objects))
+}
+
+fn world_bounds_of(objects: &[beambench_core::ProjectObject]) -> Option<Bounds> {
+    objects
+        .iter()
+        .filter_map(|object| {
+            if let Some(bounds) = beambench_core::vector::convert::object_to_world_vecpath(object)
+                .and_then(|path| path.visual_bounds())
+            {
+                return Some(bounds);
+            }
+            let center = Point2D::new(
+                (object.bounds.min.x + object.bounds.max.x) / 2.0,
+                (object.bounds.min.y + object.bounds.max.y) / 2.0,
+            );
+            [
+                object.bounds.min,
+                Point2D::new(object.bounds.max.x, object.bounds.min.y),
+                object.bounds.max,
+                Point2D::new(object.bounds.min.x, object.bounds.max.y),
+            ]
+            .into_iter()
+            .map(|point| object.transform.apply_around_center(&point, &center))
+            .map(|point| Bounds::new(point, point))
+            .reduce(|acc, bounds| acc.union(&bounds))
+        })
+        .reduce(|acc, bounds| acc.union(&bounds))
 }
 
 fn bounds_of(objects: &[beambench_core::ProjectObject]) -> Bounds {
@@ -4817,13 +4868,14 @@ pub fn frame_job(
     planning::sync_current_position(ctx)?;
 
     let project = planning::current_project(ctx)?;
-    let (bounds_objects, physical_objects) = frame_objects(ctx, selected_object_ids)?;
+    let (bounds_objects, physical_objects) = frame_objects(&project, selected_object_ids)?;
     let raw_bounds = if selected_object_ids.is_empty() {
         calculate_job_origin_bounds(&project).unwrap_or_else(|| bounds_of(&physical_objects))
     } else {
         bounds_of(&bounds_objects)
     };
-    let physical_bounds = bounds_of(&physical_objects);
+    let physical_bounds = world_bounds_of(&physical_objects)
+        .ok_or_else(|| ServiceError::invalid_state("No geometry to frame"))?;
 
     let profile = active_profile(ctx)?;
     let ruida_frame = {
@@ -4848,12 +4900,12 @@ pub fn frame_job(
                 .map(|sp| {
                     sp.commands
                         .iter()
-                        .map(|cmd| match cmd {
+                        .filter_map(|cmd| match cmd {
                             beambench_common::path::PathCommand::MoveTo { x, y }
                             | beambench_common::path::PathCommand::LineTo { x, y } => {
-                                Point2D::new(*x, *y)
+                                Some(Point2D::new(*x, *y))
                             }
-                            _ => Point2D::zero(),
+                            _ => None,
                         })
                         .collect()
                 })
@@ -5628,6 +5680,12 @@ fn send_grbl_emergency_stop(session: &mut GrblRuntimeSession) -> Result<(), Stri
             break;
         }
         if session.status_report_count() > status_report_count {
+            if !matches!(
+                session.last_status().run_state,
+                MachineRunState::Idle | MachineRunState::Alarm
+            ) {
+                return Err("controller still reports active motion after the stop".into());
+            }
             fresh_status_received = true;
             break;
         }
@@ -5727,6 +5785,87 @@ fn reconnect_and_recheck_grbl_emergency_stop(
     ))
 }
 
+fn stop_session_output(session: &mut MachineSessionHandle) -> Result<(), String> {
+    match session {
+        MachineSessionHandle::Grbl(session) => send_grbl_emergency_stop(session),
+        MachineSessionHandle::Marlin(session) => session
+            .emergency_shutdown()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::Smoothieware(session) => session
+            .emergency_shutdown()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::Ruida(session) => session
+            .emergency_stop()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::Lihuiyu(session) => session
+            .emergency_stop()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::XToolM1(session) => session
+            .emergency_stop()
+            .map_err(|error| format!("Emergency stop failed: {error}")),
+        MachineSessionHandle::Dsp(session) => {
+            session.machine_status.run_state = MachineRunState::Idle;
+            Ok(())
+        }
+        MachineSessionHandle::Galvo(session) => {
+            session.machine_status.run_state = MachineRunState::Idle;
+            Ok(())
+        }
+    }
+}
+
+/// Stop output before allowing the desktop to close. A failed stop retains
+/// the connection so the open window can offer retry/reconnect controls.
+pub fn prepare_shutdown(ctx: &ServiceContext) -> ServiceResult<()> {
+    ctx.shutting_down.store(true, Ordering::Release);
+    let result = (|| {
+        let _connection_gate = ctx
+            .controller_connection_gate
+            .lock()
+            .map_err(|e| lock_err("controller_connection_gate", e))?;
+        clear_pending_controller_connection(ctx)?;
+        ctx.active_laser_fire
+            .lock()
+            .map_err(|e| lock_err("active_laser_fire", e))?
+            .take();
+        let mut job = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+        // Stop local streaming first, even if the controller refuses the stop.
+        let mut progress = job.take().map(|job| job.progress());
+        let mut session = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        let stop_result = if let Some(session) = session.as_mut() {
+            stop_session_output(session).and_then(|()| session.disconnect())
+        } else {
+            Ok(())
+        };
+        if stop_result.is_ok() {
+            *session = None;
+        }
+        ctx.active_jog.store(false, Ordering::Release);
+        ctx.machine_coordinates_valid
+            .store(false, Ordering::Release);
+        drop(session);
+        drop(job);
+        if let Some(progress) = progress.as_mut() {
+            progress.state = if stop_result.is_ok() {
+                JobState::Cancelled
+            } else {
+                JobState::Failed
+            };
+            progress.error_message = stop_result.as_ref().err().cloned();
+        }
+        remember_job_progress(ctx, progress)?;
+        stop_result.map_err(|error| ServiceError::machine(format!(
+            "The machine stop could not be confirmed. Beam Bench will stay open. Use the physical emergency stop or disconnect laser power, then retry. {error}"
+        )))?;
+        ctx.emit_event("machine.disconnected", json!({ "reason": "app_shutdown" }));
+        Ok(())
+    })();
+    if result.is_err() {
+        ctx.shutting_down.store(false, Ordering::Release);
+    }
+    result
+}
+
 pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     let _ = force_laser_fire_stop(ctx, "emergency_stop");
     ctx.machine_coordinates_valid
@@ -5758,29 +5897,7 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
                 }
             }
         },
-        MachineSessionHandle::Marlin(session) => session
-            .emergency_shutdown()
-            .map_err(|error| format!("Emergency stop failed: {error}")),
-        MachineSessionHandle::Smoothieware(session) => session
-            .emergency_shutdown()
-            .map_err(|error| format!("Emergency stop failed: {error}")),
-        MachineSessionHandle::Ruida(session) => session
-            .emergency_stop()
-            .map_err(|error| format!("Emergency stop failed: {error}")),
-        MachineSessionHandle::Lihuiyu(session) => session
-            .emergency_stop()
-            .map_err(|error| format!("Emergency stop failed: {error}")),
-        MachineSessionHandle::XToolM1(session) => session
-            .emergency_stop()
-            .map_err(|error| format!("Emergency stop failed: {error}")),
-        MachineSessionHandle::Dsp(session) => {
-            session.machine_status.run_state = MachineRunState::Idle;
-            Ok(())
-        }
-        MachineSessionHandle::Galvo(session) => {
-            session.machine_status.run_state = MachineRunState::Idle;
-            Ok(())
-        }
+        _ => stop_session_output(session),
     };
     let stop_result = stop_result.map_err(|error| {
         if error.contains("[emergency_stop_unconfirmed]") {
@@ -8475,6 +8592,74 @@ mod tests {
         )
     }
 
+    #[test]
+    fn shutdown_stops_controller_before_disconnecting() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(
+            beambench_streamer::JobController::prepare(
+                &dummy_plan(),
+                &beambench_grbl::GcodeConfig::default(),
+            )
+            .unwrap(),
+        ));
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        prepare_shutdown(&ctx).unwrap();
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.shutting_down.load(Ordering::Acquire));
+        assert!(ctx.job.lock().unwrap().is_none());
+        let rejected = register_machine_session(
+            &ctx,
+            MachineSessionHandle::Grbl(
+                GrblSession::new(Box::new(beambench_serial::MockSerialTransport::new("late")))
+                    .into(),
+            ),
+            json!({}),
+            None,
+            None,
+        );
+        assert!(rejected.is_err());
+        assert!(
+            sent_bytes(&transport)
+                .iter()
+                .any(|bytes| bytes == grbl_commands::soft_reset())
+        );
+        assert_eq!(transport.lock().unwrap().close_count, 1);
+    }
+
+    #[test]
+    fn shutdown_rejects_a_controller_that_still_reports_running() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Run|MPos:0,0,0|FS:100,10>".into());
+        assert!(prepare_shutdown(&ctx).is_err());
+        assert!(ctx.session.lock().unwrap().is_some());
+        assert_eq!(transport.lock().unwrap().close_count, 0);
+    }
+
+    #[test]
+    fn shutdown_failure_keeps_connection_available_for_retry() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport.lock().unwrap().fail_byte_writes = 1;
+        assert!(prepare_shutdown(&ctx).is_err());
+        assert!(ctx.session.lock().unwrap().is_some());
+        assert!(!ctx.shutting_down.load(Ordering::Acquire));
+        assert_eq!(transport.lock().unwrap().close_count, 0);
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        prepare_shutdown(&ctx).unwrap();
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
     fn sent_lines(state: &Arc<Mutex<RecordingTransportState>>) -> Vec<String> {
         state.lock().unwrap().lines.clone()
     }
@@ -8826,6 +9011,97 @@ mod tests {
     }
 
     #[test]
+    fn rubber_band_frame_does_not_visit_the_origin_to_close_the_path() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut project = frame_project();
+        project.workspace.origin = beambench_core::WorkspaceOrigin::TopLeft;
+        project.objects[0].bounds =
+            Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(120.0, 110.0));
+        *ctx.project.lock().unwrap() = Some(project);
+
+        frame_job(&ctx, "rubber_band", &[], true, None).unwrap();
+        finish_recorded_job(&ctx, &transport);
+        let lines = sent_lines(&transport);
+        assert!(
+            !contains_xy(&lines, 0.0, 0.0),
+            "unintended origin move: {lines:?}"
+        );
+        for (x, y) in [
+            (100.0, 100.0),
+            (120.0, 100.0),
+            (120.0, 110.0),
+            (100.0, 110.0),
+        ] {
+            assert!(contains_xy(&lines, x, y), "missing frame corner: {lines:?}");
+        }
+    }
+
+    #[test]
+    fn selected_group_frame_encloses_its_rotated_clone_in_both_modes() {
+        for mode in ["rectangular", "rubber_band"] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+            let mut project = frame_project();
+            project.workspace.origin = beambench_core::WorkspaceOrigin::TopLeft;
+            project.objects[0].visible = false;
+            let source = &project.objects[0];
+            let mut clone = ProjectObject::new(
+                "Clone",
+                source.layer_id,
+                Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(120.0, 110.0)),
+                ObjectData::VirtualClone {
+                    source_id: source.id,
+                },
+            );
+            clone.transform = beambench_common::Transform2D::rotate(std::f64::consts::FRAC_PI_2);
+            let group = ProjectObject::new(
+                "Group",
+                clone.layer_id,
+                clone.bounds,
+                ObjectData::Group {
+                    children: vec![clone.id],
+                },
+            );
+            let group_id = group.id.to_string();
+            project.add_object(clone);
+            project.add_object(group);
+            *ctx.project.lock().unwrap() = Some(project);
+
+            frame_job(&ctx, mode, &[group_id], false, None).unwrap();
+            finish_recorded_job(&ctx, &transport);
+            let lines = sent_lines(&transport);
+            for (x, y) in [(105.0, 95.0), (115.0, 95.0), (115.0, 115.0), (105.0, 115.0)] {
+                assert!(
+                    contains_xy(&lines, x, y),
+                    "{mode} missing transformed corner: {lines:?}"
+                );
+            }
+            assert!(!contains_xy(&lines, 0.0, 0.0), "{mode}: {lines:?}");
+        }
+    }
+
+    #[test]
+    fn rectangular_frame_encloses_rotated_artwork() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut project = frame_project();
+        project.workspace.origin = beambench_core::WorkspaceOrigin::TopLeft;
+        project.objects[0].bounds =
+            Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(120.0, 110.0));
+        project.objects[0].transform =
+            beambench_common::Transform2D::rotate(std::f64::consts::FRAC_PI_2);
+        *ctx.project.lock().unwrap() = Some(project);
+
+        frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+        finish_recorded_job(&ctx, &transport);
+        let lines = sent_lines(&transport);
+        for (x, y) in [(105.0, 95.0), (115.0, 95.0), (115.0, 115.0), (105.0, 115.0)] {
+            assert!(
+                contains_xy(&lines, x, y),
+                "frame ignores rotation: {lines:?}"
+            );
+        }
+    }
+
+    #[test]
     fn frame_job_uses_supplied_feed_rate() {
         let profile = MachineProfile {
             bed_width_mm: 400.0,
@@ -9014,6 +9290,90 @@ mod tests {
                         contains_xy(&burn_lines, x, y),
                         "burn missed ({x:.3},{y:.3}) for {start_from:?}/{origin:?}: {burn_lines:?}"
                     );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rotated_frame_and_burn_bounds_match_across_coordinate_modes() {
+        let status = "<Idle|MPos:150.000,140.000,0.000|WPos:80.000,80.000,0.000|WCO:70.000,60.000,0.000|FS:0,0>";
+        let motion_bounds = |lines: &[String]| {
+            lines
+                .iter()
+                .filter_map(|line| {
+                    let x = line
+                        .split_whitespace()
+                        .find_map(|word| word.strip_prefix('X')?.parse::<f64>().ok())?;
+                    let y = line
+                        .split_whitespace()
+                        .find_map(|word| word.strip_prefix('Y')?.parse::<f64>().ok())?;
+                    let point = Point2D::new(x, y);
+                    Some(Bounds::new(point, point))
+                })
+                .reduce(|acc, bounds| acc.union(&bounds))
+                .expect("job must emit motion")
+        };
+        for angle in [-90.0_f64, -30.0, 0.0, 30.0, 90.0, 180.0] {
+            for origin in [
+                beambench_core::WorkspaceOrigin::TopLeft,
+                beambench_core::WorkspaceOrigin::BottomLeft,
+            ] {
+                for start_from in [
+                    StartFromMode::AbsoluteCoords,
+                    StartFromMode::CurrentPosition,
+                    StartFromMode::UserOrigin,
+                ] {
+                    let make_context = || {
+                        let profile = MachineProfile {
+                            bed_width_mm: 300.0,
+                            bed_height_mm: 300.0,
+                            ..Default::default()
+                        };
+                        let (ctx, transport) = ready_grbl_context_with_status(profile, status);
+                        transport
+                            .lock()
+                            .unwrap()
+                            .status_on_query
+                            .push_back(status.to_string());
+                        ctx.machine_coordinates_valid.store(true, Ordering::Release);
+                        let mut project = relative_frame_project(start_from);
+                        project.workspace.origin = origin;
+                        // Compare artwork motion, excluding the optional
+                        // laser-off return to the machine origin.
+                        project.optimization.finish_position =
+                            beambench_core::FinishPosition::DontMove;
+                        project.objects[0].bounds =
+                            Bounds::new(Point2D::new(140.0, 160.0), Point2D::new(160.0, 170.0));
+                        project.objects[0].transform =
+                            beambench_common::Transform2D::rotate(angle.to_radians());
+                        *ctx.project.lock().unwrap() = Some(project);
+                        (ctx, transport)
+                    };
+                    let (frame_ctx, frame_transport) = make_context();
+                    frame_job(&frame_ctx, "rectangular", &[], false, None).unwrap();
+                    finish_recorded_job(&frame_ctx, &frame_transport);
+                    let (burn_ctx, burn_transport) = make_context();
+                    start_job_with_options_confirming_advisories(
+                        &burn_ctx,
+                        &planning::SessionJobOptions::default(),
+                        true,
+                    )
+                    .unwrap();
+                    finish_recorded_job(&burn_ctx, &burn_transport);
+                    let frame = motion_bounds(&sent_lines(&frame_transport));
+                    let burn = motion_bounds(&sent_lines(&burn_transport));
+                    for (actual, expected) in [
+                        (frame.min.x, burn.min.x),
+                        (frame.max.x, burn.max.x),
+                        (frame.min.y, burn.min.y),
+                        (frame.max.y, burn.max.y),
+                    ] {
+                        assert!(
+                            (actual - expected).abs() < 0.002,
+                            "angle={angle}, {origin:?}, {start_from:?}: frame {frame:?}, burn {burn:?}"
+                        );
+                    }
                 }
             }
         }
@@ -9951,7 +10311,8 @@ mod tests {
         project.add_object(tool_obj);
         *ctx.project.lock().unwrap() = Some(project);
 
-        let (bounds_objects, physical_objects) = frame_objects(&ctx, &[]).unwrap();
+        let (bounds_objects, physical_objects) =
+            frame_objects(&planning::current_project(&ctx).unwrap(), &[]).unwrap();
 
         assert_eq!(bounds_objects.len(), 1);
         assert_eq!(physical_objects.len(), 1);
@@ -9984,7 +10345,8 @@ mod tests {
         project.add_object(tool_obj);
         *ctx.project.lock().unwrap() = Some(project);
 
-        let (bounds_objects, physical_objects) = frame_objects(&ctx, &[tool_obj_id]).unwrap();
+        let (bounds_objects, physical_objects) =
+            frame_objects(&planning::current_project(&ctx).unwrap(), &[tool_obj_id]).unwrap();
 
         assert_eq!(bounds_objects.len(), 1);
         assert_eq!(physical_objects.len(), 1);
@@ -10015,7 +10377,7 @@ mod tests {
         ));
         *ctx.project.lock().unwrap() = Some(project);
 
-        let err = frame_objects(&ctx, &[]).unwrap_err();
+        let err = frame_objects(&planning::current_project(&ctx).unwrap(), &[]).unwrap_err();
 
         assert!(err.to_string().contains("No objects to frame"));
     }
@@ -10059,6 +10421,37 @@ mod tests {
         assert_eq!(ctx.job.lock().unwrap().is_some(), false);
         let details = err.details.expect("preflight details should be attached");
         assert_ne!(details["preflight"]["outcome"], "pass");
+    }
+
+    #[test]
+    fn job_start_keeps_preflight_snapshot_when_profile_changes_before_emission() {
+        let ctx = Arc::new(profile_switch_preflight_context(100.0));
+        let mut events = ctx.events.subscribe();
+        // Start pauses immediately after preflight while this mutex is held.
+        let gate = ctx.pending_relative_frame_confirmation.lock().unwrap();
+        let worker_ctx = ctx.clone();
+        let worker = std::thread::spawn(move || start_job(&worker_ctx));
+        let deadline = Instant::now() + Duration::from_secs(3);
+        loop {
+            if let Ok(event) = events.try_recv() {
+                if serde_json::from_str::<serde_json::Value>(&event).unwrap()["type"]
+                    == "job.preflight.completed"
+                {
+                    break;
+                }
+            }
+            assert!(Instant::now() < deadline, "preflight did not finish");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        // This header would fail GRBL command validation if emission reread it.
+        ctx.settings.lock().unwrap().machine_profiles[0].job_header_gcode = "x".repeat(130);
+        *ctx.project.lock().unwrap() = Some(Project::new("replacement after preflight"));
+        drop(gate);
+        assert_eq!(
+            worker.join().unwrap().unwrap().state,
+            beambench_common::machine::JobState::Running
+        );
+        cancel_job(&ctx).unwrap();
     }
 
     fn profile_switch_preflight_context(design_height_mm: f64) -> ServiceContext {
@@ -10154,5 +10547,40 @@ mod tests {
                 .iter()
                 .any(|check| check.category == "bounds" && !check.passed)
         );
+    }
+}
+
+#[cfg(test)]
+mod worker_handoff_regressions {
+    use super::*;
+    #[test]
+    fn replacement_job_gets_worker_when_old_worker_finishes() {
+        let ctx = Arc::new(ServiceContext::with_settings(
+            beambench_core::AppSettings::default(),
+        ));
+        let mut session = beambench_dsp::DspSession::connect(ControllerModel::Ruida, "mock".into());
+        let job = session.frame_job();
+        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Dsp(session));
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Dsp(job));
+        // Deterministically enter the gap between old-job removal and worker exit.
+        ctx.job_tick_loop_running.store(true, Ordering::Release);
+        spawn_job_tick_loop(ctx.clone());
+        assert_eq!(
+            ctx.job
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .progress()
+                .sent_lines,
+            0
+        );
+        finish_job_tick_loop(ctx.clone());
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while ctx.job_tick_loop_running.load(Ordering::Acquire) {
+            assert!(Instant::now() < deadline, "replacement job lost its worker");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(ctx.job.lock().unwrap().is_none());
     }
 }

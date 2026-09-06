@@ -62,7 +62,30 @@ fn write_project_archive<W: Write + Seek>(
     zip.write_all(manifest.as_bytes())?;
 
     // Write project.json (full project minus asset_data which is serde(skip))
-    let project_json = serde_json::to_string_pretty(project)?;
+    let project_json = serde_json::to_string_pretty(&project.document_value()?)?;
+    // Never overwrite a file with an archive this loader would refuse to open.
+    let limits = LoadLimits::default();
+    let mut expanded_size = (manifest.len() + project_json.len()) as u64;
+    if project_json.len() as u64 > limits.json_bytes
+        || manifest.len() as u64 > limits.json_bytes
+        || project.objects.len() > limits.objects
+        || project.assets.len() > limits.assets
+    {
+        return Err(PersistenceError::Validation(
+            "Project exceeds supported archive limits".into(),
+        ));
+    }
+    for asset in &project.assets {
+        let data = project.asset_data.get(&asset.id).ok_or_else(|| {
+            PersistenceError::Validation(format!("Missing bytes for asset {}", asset.id))
+        })?;
+        expanded_size = expanded_size.saturating_add(data.len() as u64);
+        if data.len() as u64 > limits.asset_bytes || expanded_size > limits.total_bytes {
+            return Err(PersistenceError::Validation(
+                "Project is too large to save. Split it into smaller files.".into(),
+            ));
+        }
+    }
     zip.start_file("project.json", options)?;
     zip.write_all(project_json.as_bytes())?;
 
@@ -80,8 +103,68 @@ fn write_project_archive<W: Write + Seek>(
 
 /// Load a project from a `.lzrproj` zip archive.
 pub fn load_project(path: &Path) -> Result<Project, PersistenceError> {
+    load_project_with_limits(path, LoadLimits::default())
+}
+
+#[derive(Clone, Copy)]
+struct LoadLimits {
+    json_bytes: u64,
+    asset_bytes: u64,
+    total_bytes: u64,
+    objects: usize,
+    assets: usize,
+}
+
+impl Default for LoadLimits {
+    fn default() -> Self {
+        Self {
+            json_bytes: 64 * 1024 * 1024,
+            asset_bytes: 256 * 1024 * 1024,
+            total_bytes: 512 * 1024 * 1024,
+            objects: 250_000,
+            assets: 10_000,
+        }
+    }
+}
+
+fn read_bounded(mut reader: impl Read, limit: u64) -> Result<Vec<u8>, PersistenceError> {
+    let mut bytes = Vec::new();
+    reader
+        .by_ref()
+        .take(limit.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > limit {
+        return Err(PersistenceError::Validation(format!(
+            "Project archive exceeds the expanded size limit of {limit} bytes. Split the project into smaller files."
+        )));
+    }
+    Ok(bytes)
+}
+
+fn load_project_with_limits(path: &Path, limits: LoadLimits) -> Result<Project, PersistenceError> {
     let file = std::fs::File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
+
+    if archive.len() > limits.assets + 2 {
+        return Err(PersistenceError::Validation(
+            "Project archive has too many entries".into(),
+        ));
+    }
+    let mut declared_total = 0u64;
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index)?;
+        let limit = if entry.name().ends_with(".json") {
+            limits.json_bytes
+        } else {
+            limits.asset_bytes
+        };
+        declared_total = declared_total.saturating_add(entry.size());
+        if entry.size() > limit || declared_total > limits.total_bytes {
+            return Err(PersistenceError::Validation(
+                "Project archive is too large when expanded. Split it into smaller files.".into(),
+            ));
+        }
+    }
 
     // Verify required entries exist
     if archive.by_name("manifest.json").is_err() {
@@ -91,24 +174,31 @@ pub fn load_project(path: &Path) -> Result<Project, PersistenceError> {
     }
 
     // Read project.json
-    let mut project_json = String::new();
-    {
-        let mut entry = archive
+    let project_json = {
+        let entry = archive
             .by_name("project.json")
             .map_err(|_| PersistenceError::Validation("missing project.json in archive".into()))?;
-        entry.read_to_string(&mut project_json)?;
-    }
+        read_bounded(entry, limits.json_bytes.min(limits.total_bytes))?
+    };
 
-    let mut project: Project = serde_json::from_str(&project_json)?;
+    let mut project: Project = serde_json::from_slice(&project_json)?;
+    if project.objects.len() > limits.objects || project.assets.len() > limits.assets {
+        return Err(PersistenceError::Validation(
+            "Project has too many objects or assets".into(),
+        ));
+    }
+    let mut remaining = limits.total_bytes.saturating_sub(project_json.len() as u64);
 
     // Read asset files
     for asset in &project.assets {
         let entry_name = format!("assets/asset-{}.{}", asset.id, asset.media_type.extension());
         match archive.by_name(&entry_name) {
-            Ok(mut entry) => {
-                let mut data = Vec::new();
-                entry.read_to_end(&mut data)?;
-                project.asset_data.insert(asset.id, data);
+            Ok(entry) => {
+                let data = read_bounded(entry, limits.asset_bytes.min(remaining))?;
+                remaining -= data.len() as u64;
+                project
+                    .asset_data
+                    .insert(asset.id, std::sync::Arc::new(data));
             }
             Err(_) => {
                 return Err(PersistenceError::Validation(format!(
@@ -642,5 +732,69 @@ mod tests {
     #[test]
     fn discard_recovery_nonexistent_is_ok() {
         discard_recovery(Path::new("/nonexistent/file.recovery")).unwrap();
+    }
+    #[test]
+    fn archive_expansion_and_collection_limits_are_enforced() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("limits.lzrproj");
+        let project = test_project_with_asset();
+        save_project(&project, &path).unwrap();
+        for limits in [
+            LoadLimits {
+                json_bytes: 1,
+                ..LoadLimits::default()
+            },
+            LoadLimits {
+                asset_bytes: 1,
+                ..LoadLimits::default()
+            },
+            LoadLimits {
+                total_bytes: 1,
+                ..LoadLimits::default()
+            },
+            LoadLimits {
+                objects: 0,
+                ..LoadLimits::default()
+            },
+            LoadLimits {
+                assets: 0,
+                ..LoadLimits::default()
+            },
+        ] {
+            assert!(matches!(
+                load_project_with_limits(&path, limits),
+                Err(PersistenceError::Validation(_))
+            ));
+        }
+        assert!(load_project(&path).is_ok());
+        assert!(read_bounded(Cursor::new(vec![0; 11]), 10).is_err());
+        assert_eq!(
+            read_bounded(Cursor::new(vec![0; 10]), 10).unwrap().len(),
+            10
+        );
+    }
+
+    #[test]
+    fn archive_omits_runtime_dirty_and_rejects_missing_asset_bytes() {
+        let mut project = test_project_with_asset();
+        project.dirty = true;
+        let bytes = save_project_to_bytes(&project).unwrap();
+        let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+        let mut json = String::new();
+        zip.by_name("project.json")
+            .unwrap()
+            .read_to_string(&mut json)
+            .unwrap();
+        assert!(
+            serde_json::from_str::<serde_json::Value>(&json)
+                .unwrap()
+                .get("dirty")
+                .is_none()
+        );
+        project.asset_data.clear();
+        assert!(matches!(
+            save_project_to_bytes(&project),
+            Err(PersistenceError::Validation(_))
+        ));
     }
 }

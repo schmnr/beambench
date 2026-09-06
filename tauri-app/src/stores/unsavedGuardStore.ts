@@ -5,6 +5,7 @@ import { useProjectStore } from './projectStore';
 export interface PendingUnsavedAction {
   /** Runs once the user has saved or chosen to discard changes. */
   execute: () => void | Promise<void>;
+  cancel?: () => void;
 }
 
 interface UnsavedGuardState {

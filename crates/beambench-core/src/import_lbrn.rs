@@ -124,6 +124,12 @@ struct Primitive {
     to: usize,
 }
 
+#[derive(Default)]
+struct SharedPaths<'a, 'input> {
+    vertices: HashMap<&'a str, Node<'a, 'input>>,
+    primitives: HashMap<&'a str, Node<'a, 'input>>,
+}
+
 /// Parse either a Lbrn 2 (`FormatVersion="1"`) or legacy Lbrn
 /// (`FormatVersion="0"`) project from XML bytes.
 pub fn parse_lbrn_project(bytes: &[u8]) -> Result<LbrnDocument, String> {
@@ -327,7 +333,7 @@ fn parse_shape(
     node: Node<'_, '_>,
     parent_transform: Transform2D,
     inherited_layer_index: Option<u32>,
-    shared_paths: &HashMap<(String, String), VecPath>,
+    shared_paths: &SharedPaths<'_, '_>,
     shared_bitmaps: &HashMap<(String, String), Vec<u8>>,
     warnings: &mut Vec<String>,
 ) -> Option<LbrnShape> {
@@ -536,29 +542,33 @@ fn normalize_percent_adjustment(value: Option<f64>) -> f64 {
     }
 }
 
-fn shared_path_key(node: Node<'_, '_>) -> Option<(String, String)> {
-    Some((
-        node.attribute("VertID")?.to_string(),
-        node.attribute("PrimID")?.to_string(),
-    ))
-}
-
 fn has_inline_vertices(node: Node<'_, '_>) -> bool {
     node.children()
         .any(|child| child.has_tag_name("V") || child.has_tag_name("VertList"))
 }
 
-fn collect_shared_paths(root: Node<'_, '_>) -> HashMap<(String, String), VecPath> {
-    let mut shared = HashMap::new();
+fn has_inline_primitives(node: Node<'_, '_>) -> bool {
+    node.children()
+        .any(|child| child.has_tag_name("P") || child.has_tag_name("PrimList"))
+}
+
+fn collect_shared_paths<'a, 'input>(root: Node<'a, 'input>) -> SharedPaths<'a, 'input> {
+    let mut shared = SharedPaths::default();
     for node in root
         .descendants()
-        .filter(|node| node.attribute("Type") == Some("Path") && has_inline_vertices(*node))
+        .filter(|node| node.attribute("Type") == Some("Path"))
     {
-        let Some(key) = shared_path_key(node) else {
-            continue;
-        };
-        if let Ok(path) = parse_inline_path(node, Transform2D::identity()) {
-            shared.entry(key).or_insert(path);
+        // The two lists are deduplicated independently. Different outlines can
+        // share the same curve/closure instructions while supplying new points.
+        if has_inline_vertices(node) {
+            if let Some(id) = node.attribute("VertID") {
+                shared.vertices.entry(id).or_insert(node);
+            }
+        }
+        if has_inline_primitives(node) {
+            if let Some(id) = node.attribute("PrimID") {
+                shared.primitives.entry(id).or_insert(node);
+            }
         }
     }
     shared
@@ -567,30 +577,35 @@ fn collect_shared_paths(root: Node<'_, '_>) -> HashMap<(String, String), VecPath
 fn parse_path(
     node: Node<'_, '_>,
     transform: Transform2D,
-    shared_paths: &HashMap<(String, String), VecPath>,
+    shared_paths: &SharedPaths<'_, '_>,
 ) -> Result<VecPath, String> {
-    if has_inline_vertices(node) {
-        return parse_inline_path(node, transform);
-    }
-    if let Some(key) = shared_path_key(node) {
-        let path = shared_paths.get(&key).ok_or_else(|| {
-            format!(
-                "path references missing shared geometry {} / {}",
-                key.0, key.1
-            )
-        })?;
-        return Ok(transform_path(path, transform));
-    }
-    parse_inline_path(node, transform)
-}
+    let vertex_node = if has_inline_vertices(node) {
+        node
+    } else if let Some(id) = node.attribute("VertID") {
+        *shared_paths
+            .vertices
+            .get(id)
+            .ok_or_else(|| format!("path references missing shared vertices {id}"))?
+    } else {
+        node
+    };
+    let primitive_node = if has_inline_primitives(node) {
+        node
+    } else if let Some(id) = node.attribute("PrimID") {
+        *shared_paths
+            .primitives
+            .get(id)
+            .ok_or_else(|| format!("path references missing shared primitives {id}"))?
+    } else {
+        node
+    };
 
-fn parse_inline_path(node: Node<'_, '_>, transform: Transform2D) -> Result<VecPath, String> {
-    let vertices = parse_vertices(node)?;
+    let vertices = parse_vertices(vertex_node)?;
     if vertices.is_empty() {
         return Err("path has no vertices".to_string());
     }
 
-    if let Some(prim_list) = node
+    if let Some(prim_list) = primitive_node
         .children()
         .find(|child| child.has_tag_name("PrimList"))
         .and_then(|child| child.text())
@@ -604,66 +619,12 @@ fn parse_inline_path(node: Node<'_, '_>, transform: Transform2D) -> Result<VecPa
         }
     }
 
-    let primitives = parse_primitives(node)?;
+    let primitives = parse_primitives(primitive_node)?;
     if primitives.is_empty() {
         return Ok(line_path(&vertices, transform, false));
     }
 
     build_primitive_path(&vertices, &primitives, transform)
-}
-
-fn transform_path(path: &VecPath, transform: Transform2D) -> VecPath {
-    let subpaths = path
-        .subpaths
-        .iter()
-        .map(|source| {
-            let commands = source
-                .commands
-                .iter()
-                .map(|command| match *command {
-                    PathCommand::MoveTo { x, y } => {
-                        let (x, y) = transformed_point(transform, x, y);
-                        PathCommand::MoveTo { x, y }
-                    }
-                    PathCommand::LineTo { x, y } => {
-                        let (x, y) = transformed_point(transform, x, y);
-                        PathCommand::LineTo { x, y }
-                    }
-                    PathCommand::QuadTo { cx, cy, x, y } => {
-                        let (cx, cy) = transformed_point(transform, cx, cy);
-                        let (x, y) = transformed_point(transform, x, y);
-                        PathCommand::QuadTo { cx, cy, x, y }
-                    }
-                    PathCommand::CubicTo {
-                        c1x,
-                        c1y,
-                        c2x,
-                        c2y,
-                        x,
-                        y,
-                    } => {
-                        let (c1x, c1y) = transformed_point(transform, c1x, c1y);
-                        let (c2x, c2y) = transformed_point(transform, c2x, c2y);
-                        let (x, y) = transformed_point(transform, x, y);
-                        PathCommand::CubicTo {
-                            c1x,
-                            c1y,
-                            c2x,
-                            c2y,
-                            x,
-                            y,
-                        }
-                    }
-                    PathCommand::Close => PathCommand::Close,
-                })
-                .collect();
-            SubPath {
-                commands,
-                closed: source.closed,
-            }
-        })
-        .collect();
-    VecPath { subpaths }
 }
 
 fn parse_vertices(node: Node<'_, '_>) -> Result<Vec<Vertex>, String> {
@@ -1137,6 +1098,132 @@ mod tests {
             path.subpaths[0].commands[0],
             PathCommand::MoveTo { x: 12.0, y: 34.0 }
         );
+    }
+
+    #[test]
+    fn preserves_curves_when_new_vertices_reuse_a_primitive_list() {
+        let xml = project_xml(
+            r#"<LBRN_PROJECT_ROOT FormatVersion="1">
+          <Shape Type="Path" VertID="1" PrimID="9">
+            <VertList>V0 0c0x0c0y5c1x0c1y-5V10 0c0x10c0y-5c1x10c1y5</VertList>
+            <PrimList>B0 1B1 0</PrimList>
+          </Shape>
+          <Shape Type="Group"><XForm>1 0 0 1 30 40</XForm><Children>
+            <Shape Type="Path" VertID="2" PrimID="9">
+              <XForm>0 1 -1 0 2 3</XForm>
+              <VertList>V0 0c0x0c0y10c1x0c1y-10V20 0c0x20c0y-10c1x20c1y10</VertList>
+            </Shape>
+          </Children></Shape>
+        </LBRN_PROJECT_ROOT>"#,
+        );
+        let parsed = parse_lbrn_project(xml.as_bytes()).unwrap();
+        assert!(parsed.warnings.is_empty());
+        let LbrnShape::Path { path, .. } = &parsed.shapes[1] else {
+            panic!("expected transformed leaf")
+        };
+        assert_eq!(
+            path.subpaths,
+            vec![SubPath {
+                commands: vec![
+                    PathCommand::MoveTo { x: 32.0, y: 43.0 },
+                    PathCommand::CubicTo {
+                        c1x: 22.0,
+                        c1y: 43.0,
+                        c2x: 22.0,
+                        c2y: 63.0,
+                        x: 32.0,
+                        y: 63.0,
+                    },
+                    PathCommand::CubicTo {
+                        c1x: 42.0,
+                        c1y: 63.0,
+                        c2x: 42.0,
+                        c2y: 43.0,
+                        x: 32.0,
+                        y: 43.0,
+                    },
+                    PathCommand::Close,
+                ],
+                closed: true,
+            }]
+        );
+    }
+
+    #[test]
+    fn resolves_vertex_and_primitive_ids_independently_in_any_order() {
+        let xml = project_xml(
+            r#"<LBRN_PROJECT_ROOT FormatVersion="1">
+          <Shape Type="Path" VertID="1" PrimID="2"/>
+          <Shape Type="Path" VertID="1" PrimID="1">
+            <VertList>V0 0V10 0V10 10</VertList><PrimList>LineClosed</PrimList>
+          </Shape>
+          <Shape Type="Path" VertID="1" PrimID="2">
+            <PrimList>L0 2</PrimList>
+          </Shape>
+        </LBRN_PROJECT_ROOT>"#,
+        );
+        let parsed = parse_lbrn_project(xml.as_bytes()).unwrap();
+        assert!(parsed.warnings.is_empty(), "{:?}", parsed.warnings);
+        assert_eq!(parsed.shapes.len(), 3);
+        for index in [0, 2] {
+            let LbrnShape::Path { path, .. } = &parsed.shapes[index] else {
+                panic!("expected diagonal")
+            };
+            assert_eq!(
+                path.subpaths[0].commands,
+                vec![
+                    PathCommand::MoveTo { x: 0.0, y: 0.0 },
+                    PathCommand::LineTo { x: 10.0, y: 10.0 },
+                ]
+            );
+            assert!(!path.subpaths[0].closed);
+        }
+    }
+
+    #[test]
+    fn preserves_shared_line_open_and_closed_primitives() {
+        for (primitive_list, closed) in [("LineClosed", true), ("LineOpen", false)] {
+            let xml = project_xml(&format!(
+                r#"<LBRN_PROJECT_ROOT FormatVersion="1">
+                  <Shape Type="Path" VertID="1" PrimID="9">
+                    <VertList>V0 0V10 0V10 10</VertList><PrimList>{primitive_list}</PrimList>
+                  </Shape>
+                  <Shape Type="Path" VertID="2" PrimID="9">
+                    <VertList>V20 0V40 0V40 20</VertList>
+                  </Shape>
+                </LBRN_PROJECT_ROOT>"#,
+            ));
+            let parsed = parse_lbrn_project(xml.as_bytes()).unwrap();
+            assert!(parsed.warnings.is_empty());
+            let LbrnShape::Path { path, .. } = &parsed.shapes[1] else {
+                panic!("expected reused line primitives")
+            };
+            assert_eq!(path.subpaths[0].closed, closed, "{primitive_list}");
+            assert_eq!(
+                path.subpaths[0].commands[2],
+                PathCommand::LineTo { x: 40.0, y: 20.0 }
+            );
+        }
+    }
+
+    #[test]
+    fn warns_on_missing_shared_geometry_instead_of_importing_straight_lines() {
+        let xml = project_xml(
+            r#"<LBRN_PROJECT_ROOT FormatVersion="1">
+              <Shape Type="Ellipse" Rx="5" Ry="5"/>
+              <Shape Type="Path" VertID="7" PrimID="99">
+                <VertList>V0 0V10 10</VertList>
+              </Shape>
+              <Shape Type="Path" VertID="99" PrimID="7">
+                <PrimList>LineClosed</PrimList>
+              </Shape>
+            </LBRN_PROJECT_ROOT>"#,
+        );
+        let parsed = parse_lbrn_project(xml.as_bytes()).unwrap();
+        assert_eq!(parsed.shapes.len(), 1);
+        assert_eq!(parsed.warnings.len(), 2);
+        assert!(parsed.warnings[0].contains("99"));
+        assert!(parsed.warnings[1].contains("99"));
     }
 
     #[test]

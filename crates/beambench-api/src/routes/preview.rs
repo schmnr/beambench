@@ -168,7 +168,16 @@ mod tests {
         use beambench_core::Project;
         use beambench_core::object::{ObjectData, ShapeKind};
 
-        let ctx = Arc::new(ServiceContext::new());
+        let profile = beambench_core::MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            ..Default::default()
+        };
+        let ctx = Arc::new(ServiceContext::with_settings(beambench_core::AppSettings {
+            active_profile_id: Some(profile.id),
+            machine_profiles: vec![profile],
+            ..Default::default()
+        }));
         let mut project = Project::new("GCode Export Test");
         let layer_id = project.ensure_default_layer();
         project.add_object(beambench_core::object::ProjectObject::new(

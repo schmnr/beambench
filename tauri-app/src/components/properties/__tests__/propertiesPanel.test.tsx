@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
 import { PropertiesPanel } from '../PropertiesPanel';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useMeasurementStore } from '../../../stores/measurementStore';
+import { importService } from '../../../services/importService';
+import { projectService } from '../../../services/projectService';
 import { makeLayer, makeProject as makeProjectFixture, makeProjectObject, makeStarObjectData, makeTextObjectData } from '../../../test-utils/projectFixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -38,6 +40,7 @@ const initialUiState = useUiStore.getState();
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   useProjectStore.setState(initialState, true);
   useUiStore.setState(initialUiState, true);
   useMeasurementStore.getState().clear();
@@ -45,6 +48,39 @@ afterEach(() => {
 });
 
 describe('PropertiesPanel', () => {
+  it('keeps the chosen reference point after deselecting and importing another object', async () => {
+    const project = makeProject();
+    project.workspace.origin = 'bottom_left';
+    project.workspace.bed_height_mm = 300;
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'], selectedLayerId: 'l1' });
+    render(<PropertiesPanel />);
+
+    fireEvent.click(screen.getByTitle('Bottom left'));
+    expect(screen.getAllByRole('spinbutton')[1]).toHaveProperty('value', '230');
+
+    act(() => useProjectStore.getState().selectObjects([]));
+    expect(screen.queryByTitle('Bottom left')).toBeNull();
+
+    const importedObject = makeProjectObject({
+      id: 'imported', layer_id: 'l1',
+      bounds: { min: { x: 100, y: 50 }, max: { x: 140, y: 80 } },
+    });
+    vi.spyOn(importService, 'importFilePaths').mockResolvedValue([importedObject]);
+    vi.spyOn(projectService, 'getProject').mockResolvedValue({
+      ...project, objects: [...project.objects, importedObject],
+    });
+    vi.spyOn(projectService, 'getUndoState').mockResolvedValue({ can_undo: false, can_redo: false });
+
+    await act(async () => {
+      await useProjectStore.getState().importFilePaths(['/tmp/medal.lbrn2'], 'l1');
+    });
+
+    expect(useProjectStore.getState().selectedObjectIds).toEqual(['imported']);
+    expect(screen.getByTitle('Bottom left').className).toContain('bg-bb-accent');
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveProperty('value', '100');
+    expect(screen.getAllByRole('spinbutton')[1]).toHaveProperty('value', '220');
+  });
+
   it('shows contextual Measure modes even when nothing is selected', () => {
     useProjectStore.setState({ project: makeProjectFixture({ objects: [] }), selectedObjectIds: [] });
     useUiStore.setState({ activeTool: 'measure' });

@@ -729,10 +729,19 @@ pub fn rubber_band_outline(objects: &[ProjectObject]) -> VecPath {
             }
         }
         if !pushed_geometry {
-            points.push(Point::new(obj.bounds.min.x, obj.bounds.min.y));
-            points.push(Point::new(obj.bounds.max.x, obj.bounds.min.y));
-            points.push(Point::new(obj.bounds.max.x, obj.bounds.max.y));
-            points.push(Point::new(obj.bounds.min.x, obj.bounds.max.y));
+            let center = Point2D::new(
+                (obj.bounds.min.x + obj.bounds.max.x) / 2.0,
+                (obj.bounds.min.y + obj.bounds.max.y) / 2.0,
+            );
+            for corner in [
+                obj.bounds.min,
+                Point2D::new(obj.bounds.max.x, obj.bounds.min.y),
+                obj.bounds.max,
+                Point2D::new(obj.bounds.min.x, obj.bounds.max.y),
+            ] {
+                let world = obj.transform.apply_around_center(&corner, &center);
+                points.push(Point::new(world.x, world.y));
+            }
         }
     }
 
@@ -1776,6 +1785,24 @@ mod tests {
 
         assert!(!result.is_empty());
         assert!(result.subpaths[0].closed);
+    }
+
+    #[test]
+    fn rubber_band_outline_encloses_rotated_raster_corners() {
+        let mut object = make_test_object(100.0, 100.0, 20.0, 10.0);
+        object.data = crate::ObjectData::RasterImage {
+            asset_key: "image".into(),
+            original_width_px: 20,
+            original_height_px: 10,
+            adjustments: None,
+            masks: vec![],
+        };
+        object.transform = Transform2D::rotate(std::f64::consts::FRAC_PI_2);
+        let bounds = rubber_band_outline(&[object]).bounds().unwrap();
+        assert!((bounds.min.x - 105.0).abs() < 1e-8);
+        assert!((bounds.max.x - 115.0).abs() < 1e-8);
+        assert!((bounds.min.y - 95.0).abs() < 1e-8);
+        assert!((bounds.max.y - 115.0).abs() < 1e-8);
     }
 
     #[test]

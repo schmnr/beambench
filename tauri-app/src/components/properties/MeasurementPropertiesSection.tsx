@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import type { MeasurementMode } from '../../canvas/measurement';
 import { useAppStore } from '../../stores/appStore';
 import { useMeasurementStore } from '../../stores/measurementStore';
-import type { Point2D } from '../../types/project';
+import { useProjectStore } from '../../stores/projectStore';
+import type { Point2D, Workspace } from '../../types/project';
+import { canvasToMachinePoint } from '../../utils/workspaceCoordinates';
 import { ContextualToolSection } from './ContextualToolSection';
 
 type DisplayUnit = 'mm' | 'inches';
@@ -32,7 +34,8 @@ function formatArea(valueMm2: number | null, unit: DisplayUnit, notApplicable: s
     : `${valueMm2.toFixed(2)} mm²`;
 }
 
-function formatPoint(point: Point2D, unit: DisplayUnit): string {
+function formatPoint(canvasPoint: Point2D, unit: DisplayUnit, workspace: Workspace | undefined): string {
+  const point = workspace ? canvasToMachinePoint(canvasPoint, workspace) : canvasPoint;
   const x = unit === 'inches' ? point.x / 25.4 : point.x;
   const y = unit === 'inches' ? point.y / 25.4 : point.y;
   const suffix = unit === 'inches' ? 'in' : 'mm';
@@ -48,6 +51,7 @@ export function MeasurementPropertiesSection() {
   const { t } = useTranslation();
   const measurement = useMeasurementStore((state) => state);
   const unit = displayUnit(useAppStore((state) => state.settings?.display_unit));
+  const workspace = useProjectStore((state) => state.project?.workspace);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,9 +71,9 @@ export function MeasurementPropertiesSection() {
         { key: 'horizontal', label: t('panels.measurement.horizontal', { defaultValue: 'Horizontal' }), value: formatLength(Math.abs(linear.dxMm), unit) },
         { key: 'vertical', label: t('panels.measurement.vertical', { defaultValue: 'Vertical' }), value: formatLength(Math.abs(linear.dyMm), unit) },
         { key: 'angle', label: t('panels.measurement.angle'), value: `${linear.angleDeg.toFixed(1)}°` },
-        { key: 'start', label: t('panels.measurement.start'), value: formatPoint(linear.start, unit) },
-        { key: 'end', label: t('panels.measurement.end'), value: formatPoint(linear.end, unit) },
-        { key: 'midpoint', label: t('panels.measurement.midpoint'), value: formatPoint(midpoint(linear.start, linear.end), unit) },
+        { key: 'start', label: t('panels.measurement.start'), value: formatPoint(linear.start, unit, workspace) },
+        { key: 'end', label: t('panels.measurement.end'), value: formatPoint(linear.end, unit, workspace) },
+        { key: 'midpoint', label: t('panels.measurement.midpoint'), value: formatPoint(midpoint(linear.start, linear.end), unit, workspace) },
       ];
       if (result?.kind === 'gap') {
         baseRows.splice(3, 0,
@@ -91,7 +95,7 @@ export function MeasurementPropertiesSection() {
         return [
           { key: 'radius', label: t('panels.measurement.radius', { defaultValue: 'Radius' }), value: formatLength(result.radiusXmm, unit) },
           { key: 'diameter', label: t('panels.measurement.diameter', { defaultValue: 'Diameter' }), value: formatLength(result.diameterXmm, unit) },
-          { key: 'center', label: t('panels.measurement.center'), value: formatPoint(result.center, unit) },
+          { key: 'center', label: t('panels.measurement.center'), value: formatPoint(result.center, unit, workspace) },
         ];
       }
       return [
@@ -99,7 +103,7 @@ export function MeasurementPropertiesSection() {
         { key: 'radius-y', label: t('panels.measurement.radius_y', { defaultValue: 'Radius Y' }), value: formatLength(result.radiusYmm, unit) },
         { key: 'diameter-x', label: t('panels.measurement.diameter_x', { defaultValue: 'Diameter X' }), value: formatLength(result.diameterXmm, unit) },
         { key: 'diameter-y', label: t('panels.measurement.diameter_y', { defaultValue: 'Diameter Y' }), value: formatLength(result.diameterYmm, unit) },
-        { key: 'center', label: t('panels.measurement.center'), value: formatPoint(result.center, unit) },
+        { key: 'center', label: t('panels.measurement.center'), value: formatPoint(result.center, unit, workspace) },
       ];
     }
     if (measurement.hover) {
@@ -116,7 +120,7 @@ export function MeasurementPropertiesSection() {
       return hoverRows;
     }
     return [];
-  }, [measurement.draft, measurement.hover, measurement.result, t, unit]);
+  }, [measurement.draft, measurement.hover, measurement.result, t, unit, workspace]);
 
   const hint = (() => {
     if (measurement.pending?.kind === 'linear') return t('panels.measurement.linear_second_hint', { defaultValue: 'Click the second point' });

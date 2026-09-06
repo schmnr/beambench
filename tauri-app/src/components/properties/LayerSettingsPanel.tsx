@@ -23,6 +23,8 @@ export function LayerSettingsPanel() {
     <div className="flex flex-col gap-3 px-2">
       <div className="flex flex-col gap-2 rounded border border-bb-border bg-bb-bg-alt/60 p-2">
         <TextInput
+          key={selectedLayer.id}
+          commitOnBlur
           label={t('panels.layer_settings.name')}
           value={displayLayerName(selectedLayer)}
           onChange={(name) => void updateLayer(selectedLayer.id, { name })}

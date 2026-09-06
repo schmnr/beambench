@@ -17,8 +17,14 @@ beambench-streamer = { path = "../beambench-streamer" }
 beambench-project = { path = "../beambench-project" }
 serde = { workspace = true }
 serde_json = { workspace = true }
-clap = { version = "4", features = ["derive"] }
+base64 = { workspace = true }
+clap = { version = "4", features = ["derive", "string"] }
 chrono = { workspace = true }
 dirs = { workspace = true }
 uuid = { workspace = true }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+beambench-api = { path = "../beambench-api" }
+tokio = { workspace = true }

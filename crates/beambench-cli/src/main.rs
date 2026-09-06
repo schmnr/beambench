@@ -11,6 +11,8 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
+mod workflows;
+
 const DESIGN_RENDER_SCHEMA_VERSION: u32 = 1;
 const DESIGN_RENDER_TEMP_PREFIX: &str = "beambench-design-render-";
 const DESIGN_RENDER_DEFAULT_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
@@ -59,6 +61,26 @@ struct ConfirmFlags {
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)]
 enum Commands {
+    /// Native art-library workflows, including insertion and selection snapshots
+    ArtLibrary {
+        #[command(subcommand)]
+        command: workflows::ArtLibraryCmd,
+    },
+    /// CSV, merge-field resolution and variable-text batches
+    VariableText {
+        #[command(subcommand)]
+        command: workflows::VariableTextCmd,
+    },
+    /// Material, focus and interval tests, and recipe files
+    QualityTest {
+        #[command(subcommand)]
+        command: workflows::QualityTestCmd,
+    },
+    /// Read or patch application settings through the running app
+    Settings {
+        #[command(subcommand)]
+        command: workflows::SettingsCmd,
+    },
     /// Agent-oriented discovery, state, and guide commands
     Agent {
         #[command(subcommand)]
@@ -152,6 +174,8 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum AgentCmd {
+    /// Discover all native workflow commands, fields, and example request shapes
+    Workflows,
     /// Print the agent capability registry
     Capabilities,
     /// Print current app/project/machine/selection state
@@ -166,6 +190,11 @@ enum AgentCmd {
 
 #[derive(Subcommand)]
 enum ProjectCmd {
+    /// Native desktop workflows; use edit schema to discover typed inputs
+    Edit {
+        #[command(subcommand)]
+        command: workflows::ProjectCmd,
+    },
     /// Create a new project
     Create {
         /// Project name
@@ -219,7 +248,13 @@ enum ProjectCmd {
 
 #[derive(Subcommand)]
 enum ExportCmd {
-    /// Export G-code from a project
+    /// Export the current project with its live machine position and placement settings
+    GcodeCurrent {
+        output: String,
+        #[command(flatten)]
+        selection: workflows::SelectionArgs,
+    },
+    /// Export checked G-code using the project's configured machine profile
     Gcode {
         /// Path to .lzrproj file
         input: String,
@@ -409,6 +444,18 @@ impl ControllerDecisionArg {
 
 #[derive(Subcommand)]
 enum MachineCmd {
+    /// Adjust feed rate during a job (GRBL controllers)
+    FeedOverride {
+        #[arg(value_enum)]
+        action: workflows::OverrideAction,
+    },
+    /// Adjust laser power during a job (GRBL controllers)
+    PowerOverride {
+        #[arg(value_enum)]
+        action: workflows::OverrideAction,
+    },
+    /// Reset feed and power overrides
+    ResetOverrides,
     /// Connect to a machine through the legacy GRBL serial path
     Connect {
         /// Serial port name
@@ -490,13 +537,16 @@ enum MachineCmd {
     /// Jog the machine via the local API
     Jog {
         /// Jog delta X in mm
-        #[arg(allow_hyphen_values = true)]
+        #[arg(allow_negative_numbers = true, value_parser = parse_finite_number)]
         x_mm: f64,
         /// Jog delta Y in mm
-        #[arg(allow_hyphen_values = true)]
+        #[arg(allow_negative_numbers = true, value_parser = parse_finite_number)]
         y_mm: f64,
+        /// Jog delta Z in mm
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
+        z_mm: Option<f64>,
         /// Feed rate in mm/min
-        #[arg(short, long, default_value = "1500")]
+        #[arg(short, long, default_value = "1500", allow_negative_numbers = true, value_parser = parse_finite_number)]
         feed: f64,
     },
     /// Set the current work origin via the local API
@@ -586,7 +636,10 @@ enum CameraOverlayCmd {
     /// Hide the camera overlay
     Hide,
     /// Set camera overlay opacity, 0.0 to 1.0
-    Opacity { value: f64 },
+    Opacity {
+        #[arg(allow_negative_numbers = true, value_parser = parse_finite_number)]
+        value: f64,
+    },
     /// Fit the current frame to the bed as a draft transform
     FitToBed,
     /// Discard unsaved draft overlay edits
@@ -595,30 +648,30 @@ enum CameraOverlayCmd {
     SaveAlignment,
     /// Set absolute transform fields, preserving omitted values
     SetTransform {
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         x: Option<f64>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         y: Option<f64>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         scale: Option<f64>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         rotation_deg: Option<f64>,
     },
     /// Translate the overlay in workspace millimeters
     Nudge {
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         dx: f64,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         dy: f64,
     },
     /// Multiply the current overlay scale by a factor
     Scale {
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         factor: f64,
     },
     /// Add rotation in degrees
     Rotate {
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         deg: f64,
     },
 }
@@ -640,6 +693,13 @@ impl CameraOverlayViewArg {
 
 #[derive(Subcommand)]
 enum PreviewCmd {
+    /// Preview the current project using the live connection and placement settings
+    Current {
+        #[command(flatten)]
+        selection: workflows::SelectionArgs,
+    },
+    /// Get execution statistics for the current project
+    CurrentStats,
     /// Generate preview data for a project file
     Generate {
         /// Path to .lzrproj file
@@ -654,6 +714,11 @@ enum PreviewCmd {
 
 #[derive(Subcommand)]
 enum VectorCmd {
+    /// Native desktop workflows; use edit schema to discover typed inputs
+    Edit {
+        #[command(subcommand)]
+        command: workflows::VectorCmd,
+    },
     /// Convert an object into a vector path in the current project
     ConvertToPath { object_id: String },
     /// Boolean-union two objects in the current project
@@ -673,9 +738,9 @@ enum VectorCmd {
         subpath: usize,
         #[arg(long)]
         command: usize,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         x: f64,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         y: f64,
         #[arg(long)]
         handle: Option<String>,
@@ -695,19 +760,19 @@ enum VectorCmd {
         subpath: usize,
         #[arg(long)]
         command: usize,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         t: f64,
     },
     /// Scale a vector path to new bounds
     ScaleToBounds {
         object_id: String,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         min_x: f64,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         min_y: f64,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         max_x: f64,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         max_y: f64,
     },
     /// Normalize selected objects for planner use
@@ -716,6 +781,11 @@ enum VectorCmd {
 
 #[derive(Subcommand)]
 enum DesignCmd {
+    /// Nest selected object IDs inside the selected container using native nesting
+    Nest {
+        /// JSON with selected_ids and options
+        input: String,
+    },
     /// Describe the current app canvas
     Describe,
     /// Print the agent design operation schema
@@ -735,7 +805,7 @@ enum DesignCmd {
         #[arg(long, value_delimiter = ',')]
         selected_ids: Vec<String>,
         /// PNG resolution in pixels per millimeter
-        #[arg(long, default_value_t = 4.0)]
+        #[arg(long, default_value_t = 4.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         pixels_per_mm: f64,
     },
     /// Delete temporary design render artifacts
@@ -842,6 +912,8 @@ impl From<CliFeedbackKind> for FeedbackKind {
 
 #[derive(Subcommand)]
 enum ProfileCmd {
+    /// Apply a sparse JSON profile patch, including rotary, Z, camera and advanced settings
+    Configure { lookup: String, input: String },
     /// List all machine profiles
     List,
     /// Show details of a machine profile by id or name
@@ -872,17 +944,17 @@ enum ProfileCmd {
         #[arg(long, default_value_t = false)]
         confirm_diff: bool,
     },
-    /// Create a machine profile in local settings
+    /// Create a machine profile through the running app
     Create {
         #[arg(long)]
         name: String,
-        #[arg(long, default_value_t = 200.0)]
+        #[arg(long, default_value_t = 200.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         bed_width_mm: f64,
-        #[arg(long, default_value_t = 200.0)]
+        #[arg(long, default_value_t = 200.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         bed_height_mm: f64,
-        #[arg(long, default_value_t = 3000.0)]
+        #[arg(long, default_value_t = 3000.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         max_speed_mm_min: f64,
-        #[arg(long, default_value_t = 100.0)]
+        #[arg(long, default_value_t = 100.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         max_power_percent: f64,
         #[arg(long, default_value_t = 1000)]
         s_value_max: u32,
@@ -896,9 +968,9 @@ enum ProfileCmd {
         notes: String,
         #[arg(long, default_value = "top_left")]
         origin: String,
-        #[arg(long, default_value_t = 0.0)]
+        #[arg(long, default_value_t = 0.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         laser_offset_x: f64,
-        #[arg(long, default_value_t = 0.0)]
+        #[arg(long, default_value_t = 0.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         laser_offset_y: f64,
         #[arg(long, default_value_t = false)]
         enable_laser_offset: bool,
@@ -908,7 +980,7 @@ enum ProfileCmd {
         job_checklist: bool,
         #[arg(long, default_value_t = false)]
         frame_continuously: bool,
-        #[arg(long, default_value_t = 0.0)]
+        #[arg(long, default_value_t = 0.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         tab_pulse_width_ms: f64,
         #[arg(long, default_value_t = false)]
         cnc_machine: bool,
@@ -918,30 +990,30 @@ enum ProfileCmd {
         use_constant_power: bool,
         #[arg(long, default_value_t = false)]
         emit_s_every_g1: bool,
-        #[arg(long, default_value_t = true)]
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
         use_g0_for_overscan: bool,
         #[arg(long, default_value_t = false)]
         enable_scanning_offset: bool,
         #[arg(long = "scanning-offset")]
         scanning_offsets: Vec<String>,
-        #[arg(long, default_value_t = 0.0)]
+        #[arg(long, default_value_t = 0.0, allow_negative_numbers = true, value_parser = parse_finite_number)]
         dot_width_mm: f64,
         #[arg(long, default_value_t = false)]
         enable_dot_width: bool,
     },
-    /// Update a machine profile in local settings
+    /// Update a machine profile through the running app
     Update {
         /// Profile id or name
         lookup: String,
         #[arg(long)]
         name: Option<String>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         bed_width_mm: Option<f64>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         bed_height_mm: Option<f64>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         max_speed_mm_min: Option<f64>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         max_power_percent: Option<f64>,
         #[arg(long)]
         s_value_max: Option<u32>,
@@ -955,9 +1027,9 @@ enum ProfileCmd {
         notes: Option<String>,
         #[arg(long)]
         origin: Option<String>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         laser_offset_x: Option<f64>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         laser_offset_y: Option<f64>,
         #[arg(long)]
         enable_laser_offset: Option<bool>,
@@ -967,7 +1039,7 @@ enum ProfileCmd {
         job_checklist: Option<bool>,
         #[arg(long)]
         frame_continuously: Option<bool>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         tab_pulse_width_ms: Option<f64>,
         #[arg(long)]
         cnc_machine: Option<bool>,
@@ -983,22 +1055,22 @@ enum ProfileCmd {
         enable_scanning_offset: Option<bool>,
         #[arg(long = "scanning-offset")]
         scanning_offsets: Option<Vec<String>>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         dot_width_mm: Option<f64>,
         #[arg(long)]
         enable_dot_width: Option<bool>,
     },
-    /// Delete a machine profile from local settings
+    /// Delete a machine profile through the running app
     Delete {
         /// Profile id or name
         lookup: String,
     },
-    /// Activate a machine profile in local settings
+    /// Activate a machine profile through the running app
     Activate {
         /// Profile id or name
         lookup: String,
     },
-    /// Clear the active machine profile in local settings
+    /// Clear the active machine profile through the running app
     Deactivate,
     /// Bootstrap a machine profile from a discovery candidate
     Bootstrap {
@@ -1041,6 +1113,19 @@ enum AssetCmd {
 
 #[derive(Subcommand)]
 enum JobCmd {
+    /// Preflight the open project using the current serial, network or USB connection
+    Check {
+        #[command(flatten)]
+        selection: workflows::SelectionArgs,
+    },
+    /// Start the open project on the current connection; poll job progress to follow it
+    Start {
+        #[command(flatten)]
+        selection: workflows::SelectionArgs,
+        /// Accept the advisories reported by preflight (never bypasses failures)
+        #[arg(long)]
+        confirm_advisories: bool,
+    },
     /// Run preflight against the current project after opening the given file via the local API
     Preflight {
         /// Path to .lzrproj file
@@ -1057,7 +1142,7 @@ enum JobCmd {
         #[arg(short, long, default_value = "115200")]
         baud: u32,
     },
-    /// Load, plan, generate G-code, report stats (no machine needed)
+    /// Check output using the configured profile and report stats without streaming
     DryRun {
         /// Path to .lzrproj file
         input: String,
@@ -1106,6 +1191,12 @@ enum ConsoleCmd {
 
 #[derive(Subcommand)]
 enum MaterialCmd {
+    /// Apply a material preset to a layer in the current project
+    Apply { id: String, layer_id: String },
+    /// Import a JSON library, merging with existing items
+    Import { input: String },
+    /// Export the library as JSON to a file
+    Export { output: String },
     /// List all material presets
     List,
     /// Add a new material preset
@@ -1114,9 +1205,9 @@ enum MaterialCmd {
         name: String,
         #[arg(long)]
         material: String,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         speed: f64,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true, value_parser = parse_finite_number)]
         power: f64,
         #[arg(long)]
         passes: usize,
@@ -1130,6 +1221,10 @@ enum MaterialCmd {
 
 #[derive(Subcommand)]
 enum MacroCmd {
+    /// Import a JSON library, merging with existing items
+    Import { input: String },
+    /// Export the library as JSON to a file
+    Export { output: String },
     /// List all macros
     List,
     /// Add a new macro
@@ -1274,12 +1369,45 @@ fn format_cli_error_json(e: &(dyn std::error::Error + 'static)) -> serde_json::V
             }
         });
     }
+    if let Some(error) = e.downcast_ref::<beambench_service::ServiceError>() {
+        return serde_json::json!({ "error": error });
+    }
     serde_json::json!({
         "error": {
             "code": "cli_error",
             "message": e.to_string(),
         }
     })
+}
+
+fn parse_finite_number(value: &str) -> Result<f64, String> {
+    let number: f64 = value.parse().map_err(|e| format!("Invalid number: {e}"))?;
+    if !number.is_finite() {
+        return Err("Expected a finite number".to_string());
+    }
+    Ok(number)
+}
+
+/// Resolve paths before asking the desktop API to read or write them. Its
+/// working directory can differ from the shell's. Canonicalizing the parent
+/// also removes '..' without changing how symlinks are traversed.
+fn api_file_path(raw: &str) -> Result<String, Box<dyn std::error::Error>> {
+    if raw.is_empty() {
+        return Err("File path cannot be empty".into());
+    }
+    let path = std::path::absolute(raw)?;
+    let resolved = if path.exists() {
+        path.canonicalize()?
+    } else {
+        let parent = path.parent().ok_or("File path has no parent")?;
+        parent
+            .canonicalize()?
+            .join(path.file_name().ok_or("File path has no filename")?)
+    };
+    resolved
+        .into_os_string()
+        .into_string()
+        .map_err(|_| "File path is not valid UTF-8".into())
 }
 
 fn parse_workspace_origin(
@@ -1299,13 +1427,17 @@ fn parse_scanning_offset_entry(
         .split_once(':')
         .ok_or_else(|| format!("Invalid scanning offset '{value}', expected speed:offset"))?;
     Ok(beambench_core::ScanningOffsetEntry {
-        speed_mm_min: speed.parse()?,
-        offset_mm: offset.parse()?,
+        speed_mm_min: parse_finite_number(speed)?,
+        offset_mm: parse_finite_number(offset)?,
     })
 }
 
 fn handle_agent(cmd: AgentCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        AgentCmd::Workflows => println!(
+            "{}",
+            serde_json::to_string_pretty(&beambench_service::ops::workflows::schema())?
+        ),
         AgentCmd::Capabilities => {
             let response = local_api_json_request(Method::GET, "/api/v1/agent/capabilities", None)?;
             if json {
@@ -1362,6 +1494,10 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         confirm_air_assist: cli.confirm_air_assist,
     };
     match cli.command {
+        Commands::ArtLibrary { command } => command.run(confirmations)?,
+        Commands::VariableText { command } => command.run(confirmations)?,
+        Commands::QualityTest { command } => command.run(confirmations)?,
+        Commands::Settings { command } => command.run()?,
         Commands::Version => {
             if cli.json {
                 println!(
@@ -1406,7 +1542,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Job { command } => handle_job(command, cli.json, confirmations)?,
         Commands::Console { command } => handle_console(command, cli.json, confirmations)?,
         Commands::Material { command } => handle_material(command, cli.json)?,
-        Commands::Macro { command } => handle_macro(command, cli.json)?,
+        Commands::Macro { command } => handle_macro(command, cli.json, confirmations)?,
         Commands::Import { command } => handle_import(command, cli.json)?,
     }
     Ok(())
@@ -1414,6 +1550,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
 fn handle_project(cmd: ProjectCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        ProjectCmd::Edit { command } => command.run(workflows::no_confirmations())?,
         ProjectCmd::Info { path } => {
             let project = beambench_project::load_project(std::path::Path::new(&path))?;
             if json {
@@ -1439,7 +1576,7 @@ fn handle_project(cmd: ProjectCmd, json: bool) -> Result<(), Box<dyn std::error:
             let response = local_api_json_request(
                 Method::POST,
                 "/api/v1/projects/open",
-                Some(serde_json::json!({ "path": path })),
+                Some(serde_json::json!({ "path": api_file_path(&path)? })),
             )?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&response)?);
@@ -1477,7 +1614,7 @@ fn handle_project(cmd: ProjectCmd, json: bool) -> Result<(), Box<dyn std::error:
             let response = local_api_json_request(
                 Method::POST,
                 "/api/v1/projects/save-as",
-                Some(serde_json::json!({ "path": path })),
+                Some(serde_json::json!({ "path": api_file_path(&path)? })),
             )?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&response)?);
@@ -1527,7 +1664,7 @@ fn handle_project(cmd: ProjectCmd, json: bool) -> Result<(), Box<dyn std::error:
                 Method::POST,
                 "/api/v1/projects/import/svg",
                 Some(serde_json::json!({
-                    "file_path": file,
+                    "file_path": api_file_path(&file)?,
                     "layer_id": layer,
                 })),
             )?;
@@ -1545,7 +1682,7 @@ fn handle_project(cmd: ProjectCmd, json: bool) -> Result<(), Box<dyn std::error:
                 Method::POST,
                 "/api/v1/projects/import/image",
                 Some(serde_json::json!({
-                    "file_path": file,
+                    "file_path": api_file_path(&file)?,
                     "layer_id": layer,
                 })),
             )?;
@@ -1563,7 +1700,7 @@ fn handle_project(cmd: ProjectCmd, json: bool) -> Result<(), Box<dyn std::error:
                 Method::POST,
                 "/api/v1/projects/import/files",
                 Some(serde_json::json!({
-                    "file_paths": files,
+                    "file_paths": files.iter().map(|file| api_file_path(file)).collect::<Result<Vec<_>, _>>()?,
                     "layer_id": layer,
                 })),
             )?;
@@ -1582,18 +1719,20 @@ fn handle_project(cmd: ProjectCmd, json: bool) -> Result<(), Box<dyn std::error:
 
 fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        ExportCmd::GcodeCurrent { output, selection } => {
+            let mut body = selection.body();
+            body["output_path"] = api_file_path(&output)?.into();
+            workflows::request(Method::POST, "/api/v1/preview/export/gcode", Some(body))?;
+        }
         ExportCmd::Gcode { input, output } => {
-            // 1. Load project
-            let project = beambench_project::load_project(std::path::Path::new(&input))?;
-
-            // 2. Build execution plan
-            let plan = beambench_planner::build_plan(&project)?;
-
-            // 3. Generate G-code
-            let config = gcode_config_for_project(&project);
-            let gcode_lines = beambench_grbl::generate_gcode(&plan, &config)?;
-
-            // 4. Write to file
+            let input_path = api_file_path(&input)?;
+            let output = api_file_path(&output)?;
+            if input_path == output {
+                return Err("G-code output must not overwrite the input project".into());
+            }
+            let ctx = offline_project_context(&input_path, true)?;
+            let (_, gcode_lines) =
+                beambench_service::ops::planning::prepare_gcode_export(&ctx, &Default::default())?;
             let gcode_content = gcode_lines.join("\n");
             std::fs::write(&output, &gcode_content)?;
 
@@ -1623,16 +1762,12 @@ fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 Method::POST,
                 "/api/v1/export/svg",
                 Some(serde_json::json!({
-                    "path": path,
+                    "path": path.as_deref().map(api_file_path).transpose()?,
                     "selection_only": selection_only,
                     "selected_ids": selected_ids,
                 })),
             )?;
-            if json {
-                println!("{}", serde_json::to_string_pretty(&response)?);
-            } else {
-                println!("SVG export requested");
-            }
+            print_export_response(&response, json, "SVG")?;
         }
         ExportCmd::Dxf {
             path,
@@ -1643,16 +1778,12 @@ fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 Method::POST,
                 "/api/v1/export/dxf",
                 Some(serde_json::json!({
-                    "path": path,
+                    "path": path.as_deref().map(api_file_path).transpose()?,
                     "selection_only": selection_only,
                     "selected_ids": selected_ids,
                 })),
             )?;
-            if json {
-                println!("{}", serde_json::to_string_pretty(&response)?);
-            } else {
-                println!("DXF export requested");
-            }
+            print_export_response(&response, json, "DXF")?;
         }
         ExportCmd::Pdf {
             path,
@@ -1663,16 +1794,12 @@ fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 Method::POST,
                 "/api/v1/export/pdf",
                 Some(serde_json::json!({
-                    "path": path,
+                    "path": path.as_deref().map(api_file_path).transpose()?,
                     "selection_only": selection_only,
                     "selected_ids": selected_ids,
                 })),
             )?;
-            if json {
-                println!("{}", serde_json::to_string_pretty(&response)?);
-            } else {
-                println!("PDF export requested");
-            }
+            print_export_response(&response, json, "PDF")?;
         }
         ExportCmd::Eps {
             path,
@@ -1683,16 +1810,12 @@ fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 Method::POST,
                 "/api/v1/export/eps",
                 Some(serde_json::json!({
-                    "path": path,
+                    "path": path.as_deref().map(api_file_path).transpose()?,
                     "selection_only": selection_only,
                     "selected_ids": selected_ids,
                 })),
             )?;
-            if json {
-                println!("{}", serde_json::to_string_pretty(&response)?);
-            } else {
-                println!("EPS export requested");
-            }
+            print_export_response(&response, json, "EPS")?;
         }
         ExportCmd::Ai {
             path,
@@ -1703,34 +1826,74 @@ fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 Method::POST,
                 "/api/v1/export/ai",
                 Some(serde_json::json!({
-                    "path": path,
+                    "path": path.as_deref().map(api_file_path).transpose()?,
                     "selection_only": selection_only,
                     "selected_ids": selected_ids,
                 })),
             )?;
-            if json {
-                println!("{}", serde_json::to_string_pretty(&response)?);
-            } else {
-                println!("AI export requested");
-            }
+            print_export_response(&response, json, "AI")?;
         }
     }
     Ok(())
 }
 
-fn gcode_config_for_project(project: &beambench_core::Project) -> beambench_grbl::GcodeConfig {
-    let mut config = beambench_grbl::GcodeConfig::default();
-    // `build_plan` already includes finish-position travel. Avoid adding a
-    // second postamble move to the same finish point.
-    config.finish_position = beambench_core::FinishPosition::DontMove;
-    config.air_assist_cut_entry_ids = project
-        .layers
-        .iter()
-        .flat_map(|layer| layer.entries.iter())
-        .filter(|entry| entry.air_assist)
-        .map(|entry| entry.id.to_string())
-        .collect();
-    config
+fn print_export_response(
+    response: &Value,
+    json: bool,
+    format: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use base64::Engine;
+    use std::io::Write;
+    if json {
+        println!("{}", serde_json::to_string_pretty(response)?);
+    } else if let Some(path) = response["path"].as_str() {
+        println!("Exported {format} to {path}");
+    } else if let Some(content) = response["content"].as_str() {
+        std::io::stdout().lock().write_all(content.as_bytes())?;
+    } else if let Some(content) = response["content_base64"].as_str() {
+        let bytes = base64::engine::general_purpose::STANDARD.decode(content)?;
+        std::io::stdout().lock().write_all(&bytes)?;
+    } else {
+        return Err(
+            format!("{format} export response contained neither a file path nor content").into(),
+        );
+    }
+    Ok(())
+}
+
+fn offline_project_context(
+    input: &str,
+    require_profile: bool,
+) -> Result<beambench_service::ServiceContext, Box<dyn std::error::Error>> {
+    let project = beambench_service::ops::persistence::load_project_from_path(input)?;
+    let mut settings = load_settings()?.unwrap_or_default();
+    // Prefer the profile associated with the file. A snapshot stores only bed
+    // and speed metadata, so it cannot supply the emitter's power/Z settings.
+    let profile_id = project.machine_profile_id.or(settings.active_profile_id);
+    match profile_id {
+        Some(id) if settings.machine_profiles.iter().any(|profile| profile.id == id) => {
+            settings.active_profile_id = Some(id);
+        }
+        Some(id) => return Err(format!("Machine profile {id} is not configured on this computer. Open the project in Beam Bench and assign a profile before exporting.").into()),
+        None if require_profile => return Err("G-code output requires a configured machine profile. Assign one to the project or activate a profile in Beam Bench first.".into()),
+        None => {}
+    }
+    let ctx = beambench_service::ServiceContext::with_settings(settings);
+    *ctx.project
+        .lock()
+        .map_err(|e| format!("Failed to load project: {e}"))? = Some(project);
+    Ok(ctx)
+}
+
+fn offline_preview_plan(
+    input: &str,
+) -> Result<beambench_planner::ExecutionPlan, Box<dyn std::error::Error>> {
+    let ctx = offline_project_context(input, false)?;
+    let plan = beambench_service::ops::planning::generate_plan(&ctx)?;
+    if !plan.failed_entries.is_empty() {
+        return Err("One or more operations failed planning. Correct the layer or mask errors before previewing.".into());
+    }
+    Ok(plan)
 }
 
 fn print_controller_connection_response(
@@ -1770,6 +1933,19 @@ fn handle_machine(
     confirmations: ConfirmFlags,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        MachineCmd::FeedOverride { action } => workflows::request(
+            Method::POST,
+            "/api/v1/machine/overrides/feed",
+            Some(serde_json::json!({"action": action.api_name()})),
+        )?,
+        MachineCmd::PowerOverride { action } => workflows::request(
+            Method::POST,
+            "/api/v1/machine/overrides/spindle",
+            Some(serde_json::json!({"action": action.api_name()})),
+        )?,
+        MachineCmd::ResetOverrides => {
+            workflows::request(Method::POST, "/api/v1/machine/overrides/reset", None)?
+        }
         MachineCmd::Connect { port, baud } => {
             let response = local_api_json_request(
                 Method::POST,
@@ -1966,13 +2142,19 @@ fn handle_machine(
                 println!("Machine unlock requested successfully");
             }
         }
-        MachineCmd::Jog { x_mm, y_mm, feed } => {
+        MachineCmd::Jog {
+            x_mm,
+            y_mm,
+            z_mm,
+            feed,
+        } => {
             let response = local_api_json_request(
                 Method::POST,
                 "/api/v1/machine/jog",
                 Some(serde_json::json!({
                     "x_mm": x_mm,
                     "y_mm": y_mm,
+                    "z_mm": z_mm,
                     "feed_rate": feed,
                     "confirm_motion": confirmations.confirm_motion,
                 })),
@@ -2038,9 +2220,14 @@ fn handle_machine(
 
 fn handle_preview(cmd: PreviewCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        PreviewCmd::Current { selection } => workflows::request(
+            Method::POST,
+            "/api/v1/preview/generate",
+            Some(selection.body()),
+        )?,
+        PreviewCmd::CurrentStats => workflows::request(Method::GET, "/api/v1/preview/stats", None)?,
         PreviewCmd::Generate { input } => {
-            let project = beambench_project::load_project(std::path::Path::new(&input))?;
-            let plan = beambench_planner::build_plan(&project)?;
+            let plan = offline_preview_plan(&input)?;
             let preview = beambench_preview::distill_preview(&plan);
 
             if json {
@@ -2068,8 +2255,7 @@ fn handle_preview(cmd: PreviewCmd, json: bool) -> Result<(), Box<dyn std::error:
             }
         }
         PreviewCmd::Stats { input } => {
-            let project = beambench_project::load_project(std::path::Path::new(&input))?;
-            let plan = beambench_planner::build_plan(&project)?;
+            let plan = offline_preview_plan(&input)?;
 
             let segment_count = plan.segments.len();
             let travel_distance_mm = plan.total_distance_mm;
@@ -2107,14 +2293,7 @@ fn camera_doctor_report() -> Value {
     let settings_error = settings_result.as_ref().err().map(|e| e.to_string());
     let settings = settings_result.ok().flatten();
     let effective_settings = settings.clone().unwrap_or_default();
-    let api_base_url = {
-        let host = if effective_settings.api_localhost_only {
-            "127.0.0.1"
-        } else {
-            "localhost"
-        };
-        format!("http://{host}:{}", effective_settings.api_port)
-    };
+    let api_base_url = format!("http://127.0.0.1:{}", effective_settings.api_port);
 
     let mut checks = Vec::new();
     let mut next_steps = Vec::new();
@@ -2136,11 +2315,20 @@ fn camera_doctor_report() -> Value {
         ));
     }
 
+    let agent_state = local_api_json_request_with_status(Method::GET, "/api/v1/agent/state", None)
+        .map_err(|e| e.to_string());
+    let api_reachable = matches!(agent_state, Ok((status, _)) if status.is_success());
     if effective_settings.api_enabled {
         checks.push(camera_doctor_check(
             "api.enabled",
             "ok",
             "Local API is enabled in effective settings",
+        ));
+    } else if api_reachable {
+        checks.push(camera_doctor_check(
+            "api.enabled",
+            "warn",
+            "Saved settings say the API is disabled, but the running app is responding",
         ));
     } else {
         checks.push(camera_doctor_check(
@@ -2153,9 +2341,6 @@ fn camera_doctor_report() -> Value {
         );
     }
 
-    let agent_state = local_api_json_request_with_status(Method::GET, "/api/v1/agent/state", None)
-        .map_err(|e| e.to_string());
-    let api_reachable = matches!(agent_state, Ok((status, _)) if status.is_success());
     if api_reachable {
         checks.push(camera_doctor_check(
             "api.reachable",
@@ -2384,7 +2569,9 @@ fn handle_camera(cmd: CameraCmd, json: bool) -> Result<(), Box<dyn std::error::E
             let response = local_api_json_request(
                 Method::POST,
                 "/api/v1/camera/capture",
-                Some(serde_json::json!({ "camera_id": camera, "output_path": output })),
+                Some(
+                    serde_json::json!({ "camera_id": camera, "output_path": output.as_deref().map(api_file_path).transpose()? }),
+                ),
             )?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&response)?);
@@ -2525,11 +2712,11 @@ fn handle_camera_overlay(
     match cmd {
         CameraOverlayCmd::Render { output, view, keep } => {
             let (path, temporary, cleaned) = if let Some(output) = output {
-                (output, false, 0)
+                (api_file_path(&output)?, false, 0)
             } else {
                 let cache_dir = camera_render_cache_dir();
                 let cleaned = cleanup_camera_render_artifacts(&cache_dir)?;
-                let path = camera_render_temp_path(&cache_dir)?;
+                let path = camera_render_path(&cache_dir, keep)?;
                 (path.to_string_lossy().to_string(), !keep, cleaned)
             };
             let response = local_api_json_request(
@@ -2690,10 +2877,15 @@ fn camera_render_cache_dir() -> PathBuf {
         .join("camera-renders")
 }
 
-fn camera_render_temp_path(cache_dir: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn camera_render_path(cache_dir: &Path, keep: bool) -> Result<PathBuf, Box<dyn std::error::Error>> {
     std::fs::create_dir_all(cache_dir)
         .map_err(|e| format!("Failed to create camera render cache directory: {e}"))?;
-    Ok(cache_dir.join(format!("{CAMERA_RENDER_TEMP_PREFIX}latest.png")))
+    let prefix = if keep {
+        "beambench-camera-kept-"
+    } else {
+        CAMERA_RENDER_TEMP_PREFIX
+    };
+    Ok(cache_dir.join(format!("{prefix}{}.png", uuid::Uuid::new_v4())))
 }
 
 fn cleanup_camera_render_artifacts(cache_dir: &Path) -> Result<usize, Box<dyn std::error::Error>> {
@@ -2711,6 +2903,13 @@ fn cleanup_camera_render_artifacts(cache_dir: &Path) -> Result<usize, Box<dyn st
         };
         if file_name.starts_with(CAMERA_RENDER_TEMP_PREFIX)
             && path.extension().and_then(|ext| ext.to_str()) == Some("png")
+            && entry.file_type()?.is_file()
+            && entry.metadata()?.modified().ok().is_some_and(|modified| {
+                SystemTime::now()
+                    .duration_since(modified)
+                    .unwrap_or_default()
+                    >= DESIGN_RENDER_DEFAULT_MAX_AGE
+            })
         {
             std::fs::remove_file(&path)
                 .map_err(|e| format!("Failed to delete camera render artifact: {e}"))?;
@@ -2722,6 +2921,7 @@ fn cleanup_camera_render_artifacts(cache_dir: &Path) -> Result<usize, Box<dyn st
 
 fn handle_vector(cmd: VectorCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        VectorCmd::Edit { command } => command.run(workflows::no_confirmations())?,
         VectorCmd::ConvertToPath { object_id } => {
             let response = local_api_json_request(
                 Method::POST,
@@ -2932,6 +3132,9 @@ fn handle_vector(cmd: VectorCmd, json: bool) -> Result<(), Box<dyn std::error::E
 
 fn handle_design(cmd: DesignCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        DesignCmd::Nest { input } => {
+            workflows::request_file(Method::POST, "/api/v1/workflows/nest", &input)?
+        }
         DesignCmd::Describe => {
             let response = design_api_json_request(Method::GET, "/api/v1/design/describe", None)?;
             print_design_describe(&response, json)?;
@@ -2987,7 +3190,7 @@ fn render_design(
     let format = if svg.is_some() { "svg" } else { "png" };
     let explicit_path = svg.or(png);
     let (path, temporary, cleaned) = if let Some(path) = explicit_path {
-        (path, false, 0)
+        (api_file_path(&path)?, false, 0)
     } else {
         let cache_dir = design_render_cache_dir();
         let cleaned = cleanup_design_render_artifacts(
@@ -3187,7 +3390,7 @@ fn apply_design_transaction(
             Some(plan.clone()),
         )?;
         let is_busy = status == StatusCode::CONFLICT
-            && response.pointer("/error/code").and_then(Value::as_str) == Some("BUSY");
+            && response.pointer("/error/code").and_then(Value::as_str) == Some("busy");
         if !is_busy || wait_ms == 0 {
             return Ok((status, response));
         }
@@ -3287,12 +3490,12 @@ fn print_design_schema(response: &Value, json: bool) -> Result<(), Box<dyn std::
 }
 
 fn print_design_warnings(response: &Value) {
-    if let Some(warnings) = response.get("warnings").and_then(Value::as_array) {
-        if !warnings.is_empty() {
-            println!("Warnings:");
-            for warning in warnings {
-                println!("  - {}", warning.as_str().unwrap_or("<unknown>"));
-            }
+    if let Some(warnings) = response.get("warnings").and_then(Value::as_array)
+        && !warnings.is_empty()
+    {
+        println!("Warnings:");
+        for warning in warnings {
+            println!("  - {}", warning.as_str().unwrap_or("<unknown>"));
         }
     }
 }
@@ -3417,9 +3620,21 @@ fn handle_feedback(cmd: FeedbackCmd, json: bool) -> Result<(), Box<dyn std::erro
 fn feedback_context(
     project_path: Option<&str>,
 ) -> Result<beambench_service::ServiceContext, Box<dyn std::error::Error>> {
-    let ctx = beambench_service::ServiceContext::new();
+    let ctx =
+        beambench_service::ServiceContext::with_settings(load_settings()?.unwrap_or_default());
     if let Some(path) = project_path {
-        beambench_service::ops::persistence::open_project_from_path(&ctx, path)?;
+        // Preparing a report must not update recent files or rewrite settings
+        // behind a running desktop instance.
+        let path = PathBuf::from(api_file_path(path)?);
+        let project = beambench_service::ops::persistence::load_project_from_path(
+            path.to_str().ok_or("Project path is not valid UTF-8")?,
+        )?;
+        *ctx.project
+            .lock()
+            .map_err(|e| format!("Failed to load project: {e}"))? = Some(project);
+        *ctx.project_path
+            .lock()
+            .map_err(|e| format!("Failed to set project path: {e}"))? = Some(path);
     }
     Ok(ctx)
 }
@@ -3535,9 +3750,11 @@ fn feedback_status_error(status: StatusCode, text: String) -> Box<dyn std::error
 }
 
 fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let ctx = beambench_service::ServiceContext::new();
-
     match cmd {
+        ProfileCmd::Configure { lookup, input } => {
+            let id = resolve_api_profile_id(Some(&lookup))?;
+            workflows::request_file(Method::PATCH, &format!("/api/v1/profiles/{id}"), &input)?;
+        }
         ProfileCmd::Presets => {
             let response = local_api_json_request(Method::GET, "/api/v1/profiles/presets", None)?;
             if json {
@@ -3604,8 +3821,11 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
             }
         }
         ProfileCmd::List => {
-            let profiles = beambench_service::ops::profiles::list_profiles(&ctx)?;
-            let active_profile_id = beambench_service::ops::profiles::get_active_profile_id(&ctx)?;
+            let response = local_api_json_request(Method::GET, "/api/v1/profiles", None)?;
+            let profiles: Vec<beambench_core::MachineProfile> =
+                serde_json::from_value(response["profiles"].clone())?;
+            let active_profile_id: Option<beambench_core::MachineProfileId> =
+                serde_json::from_value(response["active_profile_id"].clone())?;
             if json {
                 let profiles: Vec<_> = profiles
                     .iter()
@@ -3641,7 +3861,7 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
             }
         }
         ProfileCmd::Show { lookup } => {
-            let profile = resolve_profile_lookup(&ctx, &lookup)?;
+            let profile = resolve_api_profile(&lookup)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&profile)?);
             } else {
@@ -3697,66 +3917,40 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
                 .iter()
                 .map(|value| parse_scanning_offset_entry(value))
                 .collect::<Result<Vec<_>, _>>()?;
-            let profile = beambench_service::ops::profiles::save_profile(
-                &ctx,
-                beambench_service::ops::profiles::SaveProfileInput {
-                    profile_id: None,
-                    name,
-                    preset_id: None,
-                    preset_version: None,
-                    bed_width_mm,
-                    bed_height_mm,
-                    max_speed_mm_min,
-                    acceleration_mm_s2: 0.0,
-                    max_power_percent,
-                    s_value_max,
-                    homing_enabled,
-                    default_baud_rate,
-                    firmware_type,
-                    notes,
-                    connection_preference: None,
-                    selected_camera_id,
-                    camera_calibration: None,
-                    camera_alignment: None,
-                    origin: parse_workspace_origin(&origin)?,
-                    laser_offset_x,
-                    laser_offset_y,
-                    enable_laser_offset,
-                    swap_xy,
-                    job_checklist,
-                    frame_continuously,
-                    laser_on_when_framing: false,
-                    tab_pulse_width_ms,
-                    cnc_machine,
-                    use_constant_power,
-                    emit_s_every_g1,
-                    use_g0_for_overscan,
-                    air_assist_on_gcode: "M7".to_string(),
-                    air_assist_off_gcode: "M9".to_string(),
-                    air_assist_on_delay_ms: 0,
-                    job_header_gcode: String::new(),
-                    job_footer_gcode: String::new(),
-                    transfer_mode: beambench_core::TransferMode::Buffered,
-                    preferred_default_origin: None,
-                    scanning_offsets,
-                    enable_scanning_offset,
-                    dot_width_mm,
-                    enable_dot_width,
-                    supports_z_moves: false,
-                    z_move_feed_mm_min: 300.0,
-                    ruida_table_axis: beambench_core::RuidaTableAxis::Disabled,
-                    enable_laser_fire_button: false,
-                    default_fire_power_percent: 1.0,
-                    quality_test_settings: Default::default(),
-                    rotary_enabled: false,
-                    rotary_type: beambench_core::RotaryType::Roller,
-                    rotary_axis: beambench_core::RotaryAxis::Y,
-                    rotary_mm_per_rotation: 50.0,
-                    rotary_roller_diameter_mm: 16.0,
-                    rotary_object_diameter_mm: 75.0,
-                    rotary_reverse_direction: false,
-                },
-            )?;
+            let profile: beambench_core::MachineProfile =
+                serde_json::from_value(local_api_json_request(
+                    Method::POST,
+                    "/api/v1/profiles",
+                    Some(serde_json::json!({
+                        "name": name,
+                        "bed_width_mm": bed_width_mm,
+                        "bed_height_mm": bed_height_mm,
+                        "max_speed_mm_min": max_speed_mm_min,
+                        "max_power_percent": max_power_percent,
+                        "s_value_max": s_value_max,
+                        "homing_enabled": homing_enabled,
+                        "default_baud_rate": default_baud_rate,
+                        "firmware_type": firmware_type,
+                        "notes": notes,
+                        "origin": parse_workspace_origin(&origin)?,
+                        "laser_offset_x": laser_offset_x,
+                        "laser_offset_y": laser_offset_y,
+                        "enable_laser_offset": enable_laser_offset,
+                        "swap_xy": swap_xy,
+                        "job_checklist": job_checklist,
+                        "frame_continuously": frame_continuously,
+                        "tab_pulse_width_ms": tab_pulse_width_ms,
+                        "cnc_machine": cnc_machine,
+                        "selected_camera_id": selected_camera_id,
+                        "use_constant_power": use_constant_power,
+                        "emit_s_every_g1": emit_s_every_g1,
+                        "use_g0_for_overscan": use_g0_for_overscan,
+                        "enable_scanning_offset": enable_scanning_offset,
+                        "scanning_offsets": scanning_offsets,
+                        "dot_width_mm": dot_width_mm,
+                        "enable_dot_width": enable_dot_width,
+                    })),
+                )?)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&profile)?);
             } else {
@@ -3793,7 +3987,7 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
             dot_width_mm,
             enable_dot_width,
         } => {
-            let existing = resolve_profile_lookup(&ctx, &lookup)?;
+            let existing = resolve_api_profile(&lookup)?;
             let scanning_offsets = scanning_offsets
                 .map(|entries| {
                     entries
@@ -3802,73 +3996,47 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
                         .collect::<Result<Vec<_>, _>>()
                 })
                 .transpose()?;
-            let profile = beambench_service::ops::profiles::save_profile(
-                &ctx,
-                beambench_service::ops::profiles::SaveProfileInput {
-                    profile_id: Some(existing.id),
-                    name: name.unwrap_or(existing.name),
-                    preset_id: existing.preset_id,
-                    preset_version: existing.preset_version,
-                    bed_width_mm: bed_width_mm.unwrap_or(existing.bed_width_mm),
-                    bed_height_mm: bed_height_mm.unwrap_or(existing.bed_height_mm),
-                    max_speed_mm_min: max_speed_mm_min.unwrap_or(existing.max_speed_mm_min),
-                    acceleration_mm_s2: existing.acceleration_mm_s2,
-                    max_power_percent: max_power_percent.unwrap_or(existing.max_power_percent),
-                    s_value_max: s_value_max.unwrap_or(existing.s_value_max),
-                    homing_enabled: homing_enabled.unwrap_or(existing.homing_enabled),
-                    default_baud_rate: default_baud_rate.unwrap_or(existing.default_baud_rate),
-                    firmware_type: firmware_type.unwrap_or(existing.firmware_type),
-                    notes: notes.unwrap_or(existing.notes),
-                    connection_preference: existing.connection_preference,
-                    selected_camera_id: selected_camera_id.or(existing.selected_camera_id),
-                    camera_calibration: existing.camera_calibration,
-                    camera_alignment: existing.camera_alignment,
-                    origin: origin
-                        .as_deref()
-                        .map(parse_workspace_origin)
-                        .transpose()?
-                        .unwrap_or(existing.origin),
-                    laser_offset_x: laser_offset_x.unwrap_or(existing.laser_offset_x),
-                    laser_offset_y: laser_offset_y.unwrap_or(existing.laser_offset_y),
-                    enable_laser_offset: enable_laser_offset
-                        .unwrap_or(existing.enable_laser_offset),
-                    swap_xy: swap_xy.unwrap_or(existing.swap_xy),
-                    job_checklist: job_checklist.unwrap_or(existing.job_checklist),
-                    frame_continuously: frame_continuously.unwrap_or(existing.frame_continuously),
-                    laser_on_when_framing: existing.laser_on_when_framing,
-                    tab_pulse_width_ms: tab_pulse_width_ms.unwrap_or(existing.tab_pulse_width_ms),
-                    cnc_machine: cnc_machine.unwrap_or(existing.cnc_machine),
-                    use_constant_power: use_constant_power.unwrap_or(existing.use_constant_power),
-                    emit_s_every_g1: emit_s_every_g1.unwrap_or(existing.emit_s_every_g1),
-                    use_g0_for_overscan: use_g0_for_overscan
-                        .unwrap_or(existing.use_g0_for_overscan),
-                    air_assist_on_gcode: existing.air_assist_on_gcode,
-                    air_assist_off_gcode: existing.air_assist_off_gcode,
-                    air_assist_on_delay_ms: existing.air_assist_on_delay_ms,
-                    job_header_gcode: existing.job_header_gcode,
-                    job_footer_gcode: existing.job_footer_gcode,
-                    transfer_mode: existing.transfer_mode,
-                    preferred_default_origin: existing.preferred_default_origin,
-                    scanning_offsets: scanning_offsets.unwrap_or(existing.scanning_offsets),
-                    enable_scanning_offset: enable_scanning_offset
-                        .unwrap_or(existing.enable_scanning_offset),
-                    dot_width_mm: dot_width_mm.unwrap_or(existing.dot_width_mm),
-                    enable_dot_width: enable_dot_width.unwrap_or(existing.enable_dot_width),
-                    supports_z_moves: existing.supports_z_moves,
-                    z_move_feed_mm_min: existing.z_move_feed_mm_min,
-                    ruida_table_axis: existing.ruida_table_axis,
-                    enable_laser_fire_button: existing.enable_laser_fire_button,
-                    default_fire_power_percent: existing.default_fire_power_percent,
-                    quality_test_settings: existing.quality_test_settings,
-                    rotary_enabled: existing.rotary_enabled,
-                    rotary_type: existing.rotary_type,
-                    rotary_axis: existing.rotary_axis,
-                    rotary_mm_per_rotation: existing.rotary_mm_per_rotation,
-                    rotary_roller_diameter_mm: existing.rotary_roller_diameter_mm,
-                    rotary_object_diameter_mm: existing.rotary_object_diameter_mm,
-                    rotary_reverse_direction: existing.rotary_reverse_direction,
-                },
-            )?;
+            let mut patch = serde_json::json!({
+                "name": name,
+                "bed_width_mm": bed_width_mm,
+                "bed_height_mm": bed_height_mm,
+                "max_speed_mm_min": max_speed_mm_min,
+                "max_power_percent": max_power_percent,
+                "s_value_max": s_value_max,
+                "homing_enabled": homing_enabled,
+                "default_baud_rate": default_baud_rate,
+                "firmware_type": firmware_type,
+                "notes": notes,
+                "origin": origin.as_deref().map(parse_workspace_origin).transpose()?,
+                "laser_offset_x": laser_offset_x,
+                "laser_offset_y": laser_offset_y,
+                "enable_laser_offset": enable_laser_offset,
+                "swap_xy": swap_xy,
+                "job_checklist": job_checklist,
+                "frame_continuously": frame_continuously,
+                "tab_pulse_width_ms": tab_pulse_width_ms,
+                "cnc_machine": cnc_machine,
+                "selected_camera_id": selected_camera_id,
+                "use_constant_power": use_constant_power,
+                "emit_s_every_g1": emit_s_every_g1,
+                "use_g0_for_overscan": use_g0_for_overscan,
+                "enable_scanning_offset": enable_scanning_offset,
+                "scanning_offsets": scanning_offsets,
+                "dot_width_mm": dot_width_mm,
+                "enable_dot_width": enable_dot_width,
+            });
+            // Send only requested changes. The server merges against its live
+            // profile so an unrelated field edited in the app is preserved.
+            patch
+                .as_object_mut()
+                .expect("profile patch is an object")
+                .retain(|_, value| !value.is_null());
+            let profile: beambench_core::MachineProfile =
+                serde_json::from_value(local_api_json_request(
+                    Method::PATCH,
+                    &format!("/api/v1/profiles/{}", existing.id),
+                    Some(patch),
+                )?)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&profile)?);
             } else {
@@ -3876,8 +4044,12 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
             }
         }
         ProfileCmd::Delete { lookup } => {
-            let profile = resolve_profile_lookup(&ctx, &lookup)?;
-            beambench_service::ops::profiles::delete_profile(&ctx, profile.id)?;
+            let profile = resolve_api_profile(&lookup)?;
+            local_api_json_request(
+                Method::DELETE,
+                &format!("/api/v1/profiles/{}", profile.id),
+                None,
+            )?;
             if json {
                 println!(
                     "{}",
@@ -3888,8 +4060,12 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
             }
         }
         ProfileCmd::Activate { lookup } => {
-            let profile = resolve_profile_lookup(&ctx, &lookup)?;
-            beambench_service::ops::profiles::set_active_profile(&ctx, Some(profile.id))?;
+            let profile = resolve_api_profile(&lookup)?;
+            local_api_json_request(
+                Method::POST,
+                "/api/v1/profiles/active",
+                Some(serde_json::json!({"profile_id": profile.id})),
+            )?;
             if json {
                 println!(
                     "{}",
@@ -3900,7 +4076,11 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
             }
         }
         ProfileCmd::Deactivate => {
-            beambench_service::ops::profiles::set_active_profile(&ctx, None)?;
+            local_api_json_request(
+                Method::POST,
+                "/api/v1/profiles/active",
+                Some(serde_json::json!({"profile_id": null})),
+            )?;
             if json {
                 println!(
                     "{}",
@@ -3937,6 +4117,17 @@ fn handle_profile(cmd: ProfileCmd, json: bool) -> Result<(), Box<dyn std::error:
         }
     }
     Ok(())
+}
+
+fn resolve_api_profile(
+    lookup: &str,
+) -> Result<beambench_core::MachineProfile, Box<dyn std::error::Error>> {
+    let id = resolve_api_profile_id(Some(lookup))?;
+    Ok(serde_json::from_value(local_api_json_request(
+        Method::GET,
+        &format!("/api/v1/profiles/{id}"),
+        None,
+    )?)?)
 }
 
 fn resolve_api_profile_id(lookup: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
@@ -4101,10 +4292,8 @@ fn handle_asset(cmd: AssetCmd, json: bool) -> Result<(), Box<dyn std::error::Err
 }
 
 fn settings_path() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    Ok(dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("beam-bench")
-        .join("settings.json"))
+    beambench_service::persist::settings_path()
+        .ok_or_else(|| "Could not determine config directory".into())
 }
 
 fn load_settings() -> Result<Option<beambench_core::AppSettings>, Box<dyn std::error::Error>> {
@@ -4115,25 +4304,11 @@ fn load_settings() -> Result<Option<beambench_core::AppSettings>, Box<dyn std::e
 
     let contents =
         std::fs::read_to_string(&path).map_err(|e| format!("Failed to read settings: {e}"))?;
-    let settings: beambench_core::AppSettings =
+    let mut settings: beambench_core::AppSettings =
         serde_json::from_str(&contents).map_err(|e| format!("Failed to parse settings: {e}"))?;
+    beambench_core::settings::normalize_display_language(&mut settings);
+    beambench_core::settings::migrate_settings(&mut settings);
     Ok(Some(settings))
-}
-
-fn resolve_profile_lookup(
-    ctx: &beambench_service::ServiceContext,
-    lookup: &str,
-) -> Result<beambench_core::MachineProfile, Box<dyn std::error::Error>> {
-    let profile_lookup = match uuid::Uuid::parse_str(lookup) {
-        Ok(uuid) => beambench_service::ops::profiles::ProfileLookup::Id(
-            beambench_common::Id::from_uuid(uuid),
-        ),
-        Err(_) => beambench_service::ops::profiles::ProfileLookup::Name(lookup.to_string()),
-    };
-    Ok(beambench_service::ops::profiles::get_profile(
-        ctx,
-        profile_lookup,
-    )?)
 }
 
 fn parse_tcp_target(value: &str) -> Result<DiscoveryTcpTarget, Box<dyn std::error::Error>> {
@@ -4159,12 +4334,8 @@ fn local_api_base_url() -> Result<String, Box<dyn std::error::Error>> {
     // authoritative availability gate. The running app can enable/reload the
     // local API before the settings file catches up; if no listener exists the
     // request path below will still return the documented API-unreachable exit.
-    let host = if settings.api_localhost_only {
-        "127.0.0.1"
-    } else {
-        "localhost"
-    };
-    Ok(format!("http://{host}:{}", settings.api_port))
+    // The API binds IPv4 in both modes, including when LAN access is enabled.
+    Ok(format!("http://127.0.0.1:{}", settings.api_port))
 }
 
 fn post_job_control(action: &str, json: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -4194,6 +4365,7 @@ fn local_api_error_message(status: StatusCode, path: &str, value: &Value) -> Str
     value["message"]
         .as_str()
         .or_else(|| value["error"]["message"].as_str())
+        .or_else(|| value["error"].as_str())
         .map(str::to_string)
         .unwrap_or_else(|| format!("API request failed ({status}) for {path}"))
 }
@@ -4223,12 +4395,19 @@ fn local_api_json_request_with_status(
     // Marlin and Smoothieware with bootloader sleeps and identity timeouts —
     // roughly 45s worst case. reqwest's default 30s total timeout made the
     // CLI report failure while the backend went on to connect anyway.
-    let timeout = if path.contains("/machine/connect") {
-        Duration::from_secs(120)
+    let timeout = if path.starts_with("/api/v1/workflows/") {
+        // Nesting can explicitly have no time limit. Do not abandon a native
+        // mutation while the app is still completing it.
+        None
+    } else if path.contains("/machine/connect") {
+        Some(Duration::from_secs(120))
     } else {
-        Duration::from_secs(30)
+        Some(Duration::from_secs(30))
     };
     let client = reqwest::blocking::Client::builder()
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(5))
         .timeout(timeout)
         .build()
         .map_err(|e| cli_exit(2, format!("Failed to build HTTP client: {e}")))?;
@@ -4244,7 +4423,12 @@ fn local_api_json_request_with_status(
             .map_err(|e| cli_exit(2, format!("Failed to reach local API at {url}: {e}")))?
     };
     let status = response.status();
-    let text = response.text().unwrap_or_default();
+    let text = response.text().map_err(|e| {
+        cli_exit(
+            2,
+            format!("Failed to read local API response from {path}: {e}"),
+        )
+    })?;
     if text.trim().is_empty() {
         Ok((status, serde_json::json!({})))
     } else {
@@ -4262,9 +4446,23 @@ fn api_open_project(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     local_api_json_request(
         Method::POST,
         "/api/v1/projects/open",
-        Some(serde_json::json!({ "path": path })),
+        Some(serde_json::json!({ "path": api_file_path(path)? })),
     )?;
     Ok(())
+}
+
+fn preflight_error(
+    report: &beambench_common::machine::PreflightReport,
+) -> Result<Box<dyn std::error::Error>, serde_json::Error> {
+    let message = format!(
+        "Preflight did not clear the job: {}",
+        serde_json::to_string(report)?
+    );
+    Ok(cli_exit_with_body(
+        1,
+        message,
+        serde_json::to_value(report)?,
+    ))
 }
 
 fn handle_job(
@@ -4273,16 +4471,48 @@ fn handle_job(
     confirmations: ConfirmFlags,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        JobCmd::Check { selection } => {
+            let report: beambench_common::machine::PreflightReport =
+                serde_json::from_value(local_api_json_request(
+                    Method::POST,
+                    "/api/v1/jobs/preflight",
+                    Some(selection.body()),
+                )?)?;
+            if report.outcome == beambench_common::machine::PreflightOutcome::Fail {
+                return Err(preflight_error(&report)?);
+            }
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
+        JobCmd::Start {
+            selection,
+            confirm_advisories,
+        } => {
+            if !confirmations.confirm_motion || !confirmations.confirm_laser_on {
+                return Err(confirmation_required_error(&[
+                    "confirm_motion",
+                    "confirm_laser_on",
+                ]));
+            }
+            let mut body = selection.body();
+            body["confirm_motion"] = confirmations.confirm_motion.into();
+            body["confirm_laser_on"] = confirmations.confirm_laser_on.into();
+            body["confirm_advisories"] = confirm_advisories.into();
+            workflows::request(Method::POST, "/api/v1/jobs/start", Some(body))?;
+        }
         JobCmd::Preflight { input } => {
             api_open_project(&input)?;
-            let report = local_api_json_request(Method::POST, "/api/v1/jobs/preflight", None)?;
+            let report: beambench_common::machine::PreflightReport = serde_json::from_value(
+                local_api_json_request(Method::POST, "/api/v1/jobs/preflight", None)?,
+            )?;
+            if report.outcome == beambench_common::machine::PreflightOutcome::Fail {
+                return Err(preflight_error(&report)?);
+            }
             println!("{}", serde_json::to_string_pretty(&report)?);
         }
         JobCmd::DryRun { input } => {
-            let project = beambench_project::load_project(std::path::Path::new(&input))?;
-            let plan = beambench_planner::build_plan(&project)?;
-            let config = gcode_config_for_project(&project);
-            let gcode_lines = beambench_grbl::generate_gcode(&plan, &config)?;
+            let ctx = offline_project_context(&input, true)?;
+            let (plan, gcode_lines) =
+                beambench_service::ops::planning::prepare_gcode_export(&ctx, &Default::default())?;
 
             if json {
                 println!(
@@ -4333,22 +4563,11 @@ fn handle_job(
                 })),
             )?;
             if !connect_status.is_success() {
-                let message = local_api_error_message(
+                return Err(local_api_status_error(
                     connect_status,
                     "/api/v1/machine/connect",
-                    &connect_body,
-                );
-                if connect_status == StatusCode::CONFLICT && message.contains("Already connected") {
-                    if !json {
-                        eprintln!("Already connected; using the active machine session.");
-                    }
-                } else {
-                    return Err(local_api_status_error(
-                        connect_status,
-                        "/api/v1/machine/connect",
-                        connect_body,
-                    ));
-                }
+                    connect_body,
+                ));
             }
             if !json {
                 eprintln!("Connected.");
@@ -4364,21 +4583,11 @@ fn handle_job(
             let report: beambench_common::machine::PreflightReport = serde_json::from_value(
                 local_api_json_request(Method::POST, "/api/v1/jobs/preflight", None)?,
             )?;
-            match report.outcome {
-                beambench_common::machine::PreflightOutcome::Fail => {
-                    if json {
-                        println!("{}", serde_json::to_string_pretty(&report)?);
-                    }
-                    return Err("Preflight checks failed".into());
-                }
-                beambench_common::machine::PreflightOutcome::PassWithWarnings => {
-                    return Err("Preflight passed with warnings".into());
-                }
-                beambench_common::machine::PreflightOutcome::Pass => {
-                    if !json {
-                        eprintln!("Preflight passed.");
-                    }
-                }
+            if report.outcome != beambench_common::machine::PreflightOutcome::Pass {
+                return Err(preflight_error(&report)?);
+            }
+            if !json {
+                eprintln!("Preflight passed.");
             }
 
             // 4. Start job
@@ -4398,17 +4607,10 @@ fn handle_job(
             // 5. Poll loop
             let mut last_print = std::time::Instant::now();
             let mut last_ack = 0usize;
-            let mut saw_active_job = false;
             loop {
                 let progress: beambench_common::machine::JobProgress = serde_json::from_value(
                     local_api_json_request(Method::GET, "/api/v1/jobs/progress", None)?,
                 )?;
-                if progress.total_lines > 0
-                    || !matches!(progress.state, beambench_common::machine::JobState::Idle)
-                {
-                    saw_active_job = true;
-                }
-
                 // Print progress every second or when significant progress occurs
                 if !json {
                     let now = std::time::Instant::now();
@@ -4446,14 +4648,23 @@ fn handle_job(
                         break;
                     }
                     beambench_common::machine::JobState::Failed => {
-                        return Err("Job failed during streaming".into());
+                        return Err(cli_exit_with_body(
+                            1,
+                            progress
+                                .error_message
+                                .clone()
+                                .unwrap_or_else(|| "Job failed during streaming".into()),
+                            serde_json::to_value(&progress)?,
+                        ));
                     }
                     beambench_common::machine::JobState::Cancelled => {
-                        return Err("Job was cancelled".into());
+                        return Err(cli_exit_with_body(
+                            1,
+                            "Job was cancelled",
+                            serde_json::to_value(&progress)?,
+                        ));
                     }
-                    beambench_common::machine::JobState::Idle
-                        if progress.total_lines == 0 && saw_active_job =>
-                    {
+                    beambench_common::machine::JobState::Idle => {
                         return Err(
                             "Job stopped before completion; it may have been cancelled or interrupted"
                                 .into(),
@@ -4478,6 +4689,12 @@ fn handle_job(
             selected_ids,
             laser_on,
         } => {
+            if !confirmations.confirm_motion {
+                return Err(confirmation_required_error(&["confirm_motion"]));
+            }
+            if laser_on && !confirmations.confirm_laser_on {
+                return Err(confirmation_required_error(&["confirm_laser_on"]));
+            }
             if let Some(path) = input {
                 api_open_project(&path)?;
             }
@@ -4599,6 +4816,15 @@ fn handle_console(
 
 fn handle_material(cmd: MaterialCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        MaterialCmd::Apply { id, layer_id } => workflows::request(
+            Method::POST,
+            &format!("/api/v1/materials/{id}/apply"),
+            Some(serde_json::json!({"layer_id": layer_id})),
+        )?,
+        MaterialCmd::Import { input } => {
+            workflows::request_file(Method::POST, "/api/v1/materials/import", &input)?
+        }
+        MaterialCmd::Export { output } => workflows::export_library("materials", &output)?,
         MaterialCmd::List => {
             let response = local_api_json_request(Method::GET, "/api/v1/materials", None)?;
             if json {
@@ -4668,8 +4894,16 @@ fn build_material_add_preset(
     })
 }
 
-fn handle_macro(cmd: MacroCmd, json: bool) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_macro(
+    cmd: MacroCmd,
+    json: bool,
+    confirmations: ConfirmFlags,
+) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
+        MacroCmd::Import { input } => {
+            workflows::request_file(Method::POST, "/api/v1/macros/import", &input)?
+        }
+        MacroCmd::Export { output } => workflows::export_library("macros", &output)?,
         MacroCmd::List => {
             let response = local_api_json_request(Method::GET, "/api/v1/macros", None)?;
             if json {
@@ -4715,8 +4949,14 @@ fn handle_macro(cmd: MacroCmd, json: bool) -> Result<(), Box<dyn std::error::Err
             }
         }
         MacroCmd::Run { id } => {
-            let response =
-                local_api_json_request(Method::POST, &format!("/api/v1/macros/{id}/run"), None)?;
+            let response = local_api_json_request(
+                Method::POST,
+                &format!("/api/v1/macros/{id}/run"),
+                Some(serde_json::json!({
+                    "confirm_raw_gcode": confirmations.confirm_raw_gcode,
+                    "confirm_laser_on": confirmations.confirm_laser_on,
+                })),
+            )?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&response)?);
             } else {
@@ -4735,7 +4975,7 @@ fn handle_import(cmd: ImportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 Method::POST,
                 "/api/v1/projects/import/dxf",
                 Some(serde_json::json!({
-                    "file_path": file,
+                    "file_path": api_file_path(&file)?,
                     "layer_id": layer,
                 })),
             )?;
@@ -4750,7 +4990,7 @@ fn handle_import(cmd: ImportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 Method::POST,
                 "/api/v1/projects/import/pdf",
                 Some(serde_json::json!({
-                    "file_path": file,
+                    "file_path": api_file_path(&file)?,
                     "layer_id": layer,
                 })),
             )?;
@@ -4765,7 +5005,7 @@ fn handle_import(cmd: ImportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 Method::POST,
                 "/api/v1/projects/import/ai",
                 Some(serde_json::json!({
-                    "file_path": file,
+                    "file_path": api_file_path(&file)?,
                     "layer_id": layer,
                 })),
             )?;
@@ -4778,6 +5018,9 @@ fn handle_import(cmd: ImportCmd, json: bool) -> Result<(), Box<dyn std::error::E
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod audit_tests;
 
 #[cfg(test)]
 mod tests {
@@ -5293,7 +5536,13 @@ mod tests {
         .unwrap();
         match cli.command {
             Commands::Machine {
-                command: MachineCmd::Jog { x_mm, y_mm, feed },
+                command:
+                    MachineCmd::Jog {
+                        x_mm,
+                        y_mm,
+                        z_mm: _,
+                        feed,
+                    },
             } => {
                 assert_eq!(x_mm, 1.5);
                 assert_eq!(y_mm, 2.0);
@@ -5309,7 +5558,13 @@ mod tests {
             .unwrap();
         match cli.command {
             Commands::Machine {
-                command: MachineCmd::Jog { x_mm, y_mm, feed },
+                command:
+                    MachineCmd::Jog {
+                        x_mm,
+                        y_mm,
+                        z_mm: _,
+                        feed,
+                    },
             } => {
                 assert_eq!(x_mm, -5.0);
                 assert_eq!(y_mm, 0.0);

@@ -17,9 +17,8 @@ use beambench_core::vector::transform::bake_transform;
 use beambench_core::{
     AssetId, LayerId, LbrnCutEntry, LbrnDocument, LbrnShape, ObjectData, ObjectId, ProjectObject,
     ShapeKind, TextAlignment, TextAlignmentV, TextCirclePlacement, TextLayoutMode,
-    TextTransformStyle, TraceConfig, import_gcode_as_vecpaths, import_image, import_svg,
-    parse_dxf_with_report, parse_eps_paths, parse_lbrn_project, parse_pdf_painted_paths,
-    trace_image,
+    TextTransformStyle, TraceConfig, import_image, import_svg, parse_dxf_with_report,
+    parse_eps_paths, parse_lbrn_project, parse_pdf_painted_paths, trace_image,
 };
 use beambench_core::{
     CutEntry, Layer, OperationType, PdfPaintMode, PdfPaintedPath, PdfRgbColor, RasterSettings,
@@ -341,7 +340,7 @@ struct TraceSourceSnapshot {
     asset_key: String,
     width_px: u32,
     height_px: u32,
-    image_data: Vec<u8>,
+    image_data: Arc<Vec<u8>>,
 }
 
 fn load_trace_source_snapshot(
@@ -1903,7 +1902,8 @@ pub fn import_gcode_from_path(
         .unwrap_or("GCode Import");
     let content = std::fs::read_to_string(&input.file_path)
         .map_err(|e| ServiceError::persistence(format!("Failed to read G-code: {e}")))?;
-    let paths: Vec<_> = import_gcode_as_vecpaths(&content)
+    let paths: Vec<_> = beambench_core::import_gcode::import_gcode_checked(&content)
+        .map_err(ServiceError::invalid_input)?
         .into_iter()
         .map(ImportedVectorPath::uncolored)
         .collect();
@@ -2282,7 +2282,7 @@ pub fn adjust_image_preview(
     let full_w = (bw / 25.4 * input.dpi as f64).round().max(1.0) as u32;
     let full_h = (bh / 25.4 * input.dpi as f64).round().max(1.0) as u32;
     let max_preview_px = 500.0;
-    let mut preview_source = image_data;
+    let mut preview_source = image_data.as_ref().clone();
     let mut preview_bounds = (bw, bh);
     let preview_dpi = if input.pixel_sample {
         const SAMPLE_EDGE_PX: u32 = 512;

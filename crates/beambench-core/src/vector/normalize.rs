@@ -9,7 +9,6 @@ use crate::vector::cleanup::{
 };
 use crate::vector::convert::{object_to_vecpath, object_to_world_vecpath};
 use crate::vector::flatten::{DEFAULT_TOLERANCE_MM, flatten_vecpath};
-use crate::vector::transform::bake_transform;
 
 pub(crate) const VECTOR_PATH_FLATTEN_TOLERANCE_MM: f64 = 0.02;
 
@@ -82,15 +81,10 @@ pub fn normalize_object_with_tolerance(
     // Step 1: Convert to VecPath
     let mut vec_path = object_to_vecpath(&obj.data)?;
 
-    // Step 2: Bake transform into coordinates
-    if !obj.transform.is_identity() {
-        vec_path = bake_transform(&vec_path, &obj.transform);
-    }
-
-    // Step 3: Cleanup (before flattening to remove degenerate commands)
+    // Step 2: Cleanup (before flattening to remove degenerate commands)
     cleanup_vecpath_for_planner(&mut vec_path, flatten_tolerance);
 
-    // Step 4: Flatten curves to polylines FIRST.
+    // Step 3: Flatten curves to polylines FIRST.
     // This must happen before coordinate mapping so that we compute the
     // bounding box from actual curve points, not from control points.
     // VecPath::bounds() includes cubic/quad control points which can be
@@ -102,7 +96,7 @@ pub fn normalize_object_with_tolerance(
         return None;
     }
 
-    // Step 5: Map flattened polylines from their actual bbox to object bounds.
+    // Step 4: Map flattened polylines from their actual bbox to object bounds.
     // Uses the exact polyline bounding box (no control-point inflation).
     if let Some(poly_bbox) = compute_polylines_bounds(&polylines) {
         let path_w = poly_bbox.width();
@@ -120,6 +114,22 @@ pub fn normalize_object_with_tolerance(
                 pt.x = pt.x * sx + tx;
                 pt.y = pt.y * sy + ty;
             }
+        }
+    }
+
+    // Apply the object transform in world space, around the same center as
+    // the canvas. Fitting the already-transformed path to nominal bounds
+    // cancels translations and distorts rotations and nonuniform scales.
+    if !obj.transform.is_identity() {
+        let center = Point2D::new(
+            (obj.bounds.min.x + obj.bounds.max.x) / 2.0,
+            (obj.bounds.min.y + obj.bounds.max.y) / 2.0,
+        );
+        for point in polylines
+            .iter_mut()
+            .flat_map(|polyline| &mut polyline.points)
+        {
+            *point = obj.transform.apply_around_center(point, &center);
         }
     }
 
@@ -179,6 +189,38 @@ mod tests {
                 corner_radius: 0.0,
             },
         )
+    }
+
+    #[test]
+    fn normalize_preserves_rotation_translation_and_scale() {
+        for (transform, expected) in [
+            (
+                Transform2D::rotate(std::f64::consts::FRAC_PI_2),
+                (105.0, 95.0, 115.0, 115.0),
+            ),
+            (
+                Transform2D::translate(30.0, -20.0),
+                (130.0, 80.0, 150.0, 90.0),
+            ),
+            (Transform2D::scale(2.0, 3.0), (90.0, 90.0, 130.0, 120.0)),
+        ] {
+            let mut object = make_rect_object();
+            object.bounds = Bounds::new(Point2D::new(100.0, 100.0), Point2D::new(120.0, 110.0));
+            object.transform = transform;
+            let normalized = normalize_object(&object).unwrap();
+            let actual = compute_polylines_bounds(&normalized.polylines).unwrap();
+            for (actual, expected) in [
+                (actual.min.x, expected.0),
+                (actual.min.y, expected.1),
+                (actual.max.x, expected.2),
+                (actual.max.y, expected.3),
+            ] {
+                assert!(
+                    (actual - expected).abs() < 1e-8,
+                    "{transform:?}: {actual} != {expected}"
+                );
+            }
+        }
     }
 
     #[test]

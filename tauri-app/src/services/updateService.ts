@@ -1,6 +1,8 @@
 import { check, type DownloadEvent, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { invoke } from '@tauri-apps/api/core';
+import { useProjectStore } from '../stores/projectStore';
+import { useUnsavedGuardStore } from '../stores/unsavedGuardStore';
 import { useMachineStore } from '../stores/machineStore';
 import type { JobState, MachineRunState, SessionState } from '../types/machine';
 
@@ -120,6 +122,22 @@ export async function downloadAndInstallUpdate(
   }
   pendingUpdate = update;
 
+  let approvedProject: ReturnType<typeof useProjectStore.getState>['project'] | undefined;
+  const protectUnsavedChanges = async () => {
+    const project = useProjectStore.getState().project;
+    if (!project?.dirty || project === approvedProject) return;
+    await new Promise<void>((resolve, reject) => {
+      useUnsavedGuardStore.getState().request({
+        execute: () => {
+          approvedProject = useProjectStore.getState().project;
+          resolve();
+        },
+        cancel: () => reject(new UpdateInstallBlockedError('Update cancelled. Your project has not been discarded.')),
+      });
+    });
+  };
+  await protectUnsavedChanges();
+
   const beforeDownloadBlocker = getUpdateInstallBlocker();
   if (beforeDownloadBlocker) {
     throw new UpdateInstallBlockedError(beforeDownloadBlocker);
@@ -159,6 +177,7 @@ export async function downloadAndInstallUpdate(
     }
   });
 
+  await protectUnsavedChanges();
   const beforeInstallBlocker = getUpdateInstallBlocker();
   if (beforeInstallBlocker) {
     throw new UpdateInstallBlockedError(beforeInstallBlocker);
@@ -166,6 +185,7 @@ export async function downloadAndInstallUpdate(
 
   await update.install();
 
+  await protectUnsavedChanges();
   const beforeRelaunchBlocker = getUpdateInstallBlocker();
   if (beforeRelaunchBlocker) {
     throw new UpdateInstallBlockedError(beforeRelaunchBlocker);

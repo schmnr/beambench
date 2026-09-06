@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState, useId } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface NumberStepperProps {
@@ -14,6 +14,7 @@ interface NumberStepperProps {
   containerClassName?: string;
   placeholder?: string;
   'data-testid'?: string;
+  'aria-label'?: string;
 }
 
 export function NumberStepper({
@@ -29,7 +30,14 @@ export function NumberStepper({
   containerClassName = 'w-fit',
   placeholder,
   'data-testid': testId,
+  'aria-label': explicitLabel,
 }: NumberStepperProps) {
+  const inputId = useId();
+  const [fieldLabel, setFieldLabel] = useState(explicitLabel ?? 'value');
+  useEffect(() => {
+    const labels = Array.from(inputRef.current?.labels ?? []).map(label => label.textContent?.trim()).filter(Boolean);
+    setFieldLabel(explicitLabel ?? (labels.join(' ') || 'value'));
+  }, [explicitLabel]);
   const inputRef = useRef<HTMLInputElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,6 +96,8 @@ export function NumberStepper({
     <div className={`inline-flex items-stretch relative ${containerClassName}`}>
       <input
         ref={inputRef}
+        id={inputId}
+        aria-label={explicitLabel ?? fieldLabel}
         type="number"
         value={value}
         onChange={onChange}
@@ -105,7 +115,9 @@ export function NumberStepper({
         <div className="absolute right-0 top-0 bottom-0 flex flex-col w-4 border-l border-bb-border">
           <button
             type="button"
-            tabIndex={-1}
+            aria-label={`Increase ${fieldLabel}`}
+            aria-controls={inputId}
+            onClick={(event) => { if (event.detail === 0) doStep(1); }}
             disabled={atMax}
             onPointerDown={(e) => { e.preventDefault(); if (!atMax) startRepeat(1); }}
             onPointerUp={stopRepeat}
@@ -117,7 +129,9 @@ export function NumberStepper({
           </button>
           <button
             type="button"
-            tabIndex={-1}
+            aria-label={`Decrease ${fieldLabel}`}
+            aria-controls={inputId}
+            onClick={(event) => { if (event.detail === 0) doStep(-1); }}
             disabled={atMin}
             onPointerDown={(e) => { e.preventDefault(); if (!atMin) startRepeat(-1); }}
             onPointerUp={stopRepeat}

@@ -5,6 +5,37 @@ use beambench_common::path::{PathCommand, Polyline, VecPath};
 /// At typical laser resolution (~0.1mm), 0.05mm yields sub-pixel accuracy.
 pub const DEFAULT_TOLERANCE_MM: f64 = 0.05;
 
+/// Convert quadratic curves exactly for formats that support cubic Beziers.
+pub fn convert_quadratics_to_cubics(path: &mut VecPath) {
+    for subpath in &mut path.subpaths {
+        let mut current = Point2D::zero();
+        let mut start = current;
+        for command in &mut subpath.commands {
+            match *command {
+                PathCommand::MoveTo { x, y } => {
+                    current = Point2D::new(x, y);
+                    start = current;
+                }
+                PathCommand::QuadTo { cx, cy, x, y } => {
+                    *command = PathCommand::CubicTo {
+                        c1x: current.x + (cx - current.x) * 2.0 / 3.0,
+                        c1y: current.y + (cy - current.y) * 2.0 / 3.0,
+                        c2x: x + (cx - x) * 2.0 / 3.0,
+                        c2y: y + (cy - y) * 2.0 / 3.0,
+                        x,
+                        y,
+                    };
+                    current = Point2D::new(x, y);
+                }
+                PathCommand::LineTo { x, y } | PathCommand::CubicTo { x, y, .. } => {
+                    current = Point2D::new(x, y);
+                }
+                PathCommand::Close => current = start,
+            }
+        }
+    }
+}
+
 /// Flatten a VecPath into polylines by converting all bezier curves
 /// to line segments within the given tolerance.
 pub fn flatten_vecpath(path: &VecPath, tolerance: f64) -> Vec<Polyline> {

@@ -1,9 +1,9 @@
 use beambench_common::Bounds;
 use beambench_common::path::{PathCommand, SubPath, VecPath};
 use i_overlay::core::fill_rule::FillRule;
+use i_overlay::core::overlay::ContourDirection;
 use i_overlay::core::overlay_rule::OverlayRule;
-use i_overlay::float::filter::ContourFilter;
-use i_overlay::float::overlay::FloatOverlay;
+use i_overlay::float::overlay::{FloatOverlay, OverlayOptions};
 
 use crate::vector::flatten::{DEFAULT_TOLERANCE_MM, flatten_vecpath};
 use crate::vector::path_ops::optimize_path;
@@ -78,15 +78,16 @@ pub fn normalize_subject_evenodd_with_tolerance(
         return VecPath { subpaths: vec![] };
     }
 
-    let shapes = FloatOverlay::with_subj(&subject_contours).overlay_with_filter_and_solver(
-        OverlayRule::Subject,
-        FillRule::EvenOdd,
-        ContourFilter {
-            min_area: 0.0,
-            simplify: false,
+    let shapes = FloatOverlay::with_subj_custom(
+        &subject_contours,
+        OverlayOptions {
+            output_direction: ContourDirection::Clockwise,
+            clean_result: false,
+            ..Default::default()
         },
         Default::default(),
-    );
+    )
+    .overlay(OverlayRule::Subject, FillRule::EvenOdd);
 
     overlay_shapes_to_vecpath(&shapes, simplify_tolerance)
 }
@@ -183,16 +184,17 @@ fn binary_overlay_with_tolerance(
         };
     }
 
-    let shapes = FloatOverlay::with_subj_and_clip(&subject_contours, &clip_contours)
-        .overlay_with_filter_and_solver(
-            rule,
-            FillRule::EvenOdd,
-            ContourFilter {
-                min_area: 0.0,
-                simplify: false,
-            },
-            Default::default(),
-        );
+    let shapes = FloatOverlay::with_subj_and_clip_custom(
+        &subject_contours,
+        &clip_contours,
+        OverlayOptions {
+            output_direction: ContourDirection::Clockwise,
+            clean_result: false,
+            ..Default::default()
+        },
+        Default::default(),
+    )
+    .overlay(rule, FillRule::EvenOdd);
 
     overlay_shapes_to_vecpath(&shapes, tolerance)
 }
@@ -316,6 +318,41 @@ mod tests {
         assert!(result.subpaths.iter().all(|sp| sp.closed));
         assert!(point_is_filled_evenodd(&result, 2.0, 2.0));
         assert!(!point_is_filled_evenodd(&result, 10.0, 10.0));
+    }
+
+    #[test]
+    fn overlay_upgrade_preserves_outer_and_hole_traversal_direction() {
+        let outer = VecPath::parse_svg_d("M0 0 L20 0 L20 20 L0 20 Z");
+        let inner = VecPath::parse_svg_d("M5 5 L15 5 L15 15 L5 15 Z");
+        let difference = path_subtract(&outer, &inner);
+        let normalized = normalize_subject_evenodd_with_tolerance(
+            &[outer, inner],
+            DEFAULT_TOLERANCE_MM,
+            DEFAULT_TOLERANCE_MM,
+        );
+        for result in [difference, normalized] {
+            let mut areas: Vec<f64> = vecpath_to_overlay_contours(&result, DEFAULT_TOLERANCE_MM)
+                .iter()
+                .map(|points| {
+                    points
+                        .iter()
+                        .zip(points.iter().cycle().skip(1))
+                        .map(|(a, b)| a[0] * b[1] - b[0] * a[1])
+                        .sum::<f64>()
+                        * 0.5
+                })
+                .collect();
+            areas.sort_by(f64::total_cmp);
+            assert_eq!(areas.len(), 2);
+            assert!(
+                (areas[0] + 400.0).abs() < 0.001,
+                "outer must remain clockwise: {areas:?}"
+            );
+            assert!(
+                (areas[1] - 100.0).abs() < 0.001,
+                "hole must remain counterclockwise: {areas:?}"
+            );
+        }
     }
 
     #[test]

@@ -11,6 +11,8 @@ support.
   [Beam Bench Support](https://beambench.com/support).
 - To set up a fixed overhead camera, follow the
   [camera calibration guide](docs/camera-calibration.md).
+- For command-line automation and offline export requirements, read the
+  [CLI reference](docs/cli.md).
 - For reproducible bugs and feature proposals, use the repository's
   [issue forms](https://github.com/schmnr/beambench/issues/new/choose).
 - To contribute code, start with [CONTRIBUTING.md](CONTRIBUTING.md).

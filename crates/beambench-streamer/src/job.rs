@@ -39,6 +39,7 @@ impl JobController {
     /// Prepare a job from an execution plan.
     pub fn prepare(plan: &ExecutionPlan, config: &GcodeConfig) -> Result<Self, StreamerError> {
         let commands = generate_gcode(plan, config)?;
+        StreamingEngine::validate_commands(&commands)?;
         let total = commands.len();
         let engine = StreamingEngine::new_with_transfer_mode(commands, config.transfer_mode);
         let progress = ProgressTracker::with_buckets_and_duration(
@@ -161,9 +162,9 @@ impl JobController {
 
     /// Resume the job.
     pub fn resume(&mut self, session: &mut GrblSession) -> Result<(), StreamerError> {
-        self.engine.resume();
         session.cycle_start()?;
         session.resume()?;
+        self.engine.resume();
         self.progress.set_state(JobState::Running);
         Ok(())
     }
@@ -282,6 +283,69 @@ mod tests {
         session.poll().unwrap();
         session.mark_ready().unwrap();
         session
+    }
+
+    #[test]
+    fn failed_resume_does_not_restart_streaming() {
+        use beambench_serial::{SerialError, SerialTransport};
+        struct RejectResume(MockSerialTransport);
+        impl SerialTransport for RejectResume {
+            fn open(&mut self) -> Result<(), SerialError> {
+                self.0.open()
+            }
+            fn close(&mut self) -> Result<(), SerialError> {
+                self.0.close()
+            }
+            fn is_open(&self) -> bool {
+                self.0.is_open()
+            }
+            fn write_bytes(&mut self, data: &[u8]) -> Result<usize, SerialError> {
+                if data == b"~" {
+                    return Err(SerialError::WriteFailed("injected resume failure".into()));
+                }
+                self.0.write_bytes(data)
+            }
+            fn write_line(&mut self, line: &str) -> Result<(), SerialError> {
+                self.0.write_line(line)
+            }
+            fn read_available(&mut self) -> Result<Vec<u8>, SerialError> {
+                self.0.read_available()
+            }
+            fn read_line(&mut self) -> Result<Option<String>, SerialError> {
+                self.0.read_line()
+            }
+            fn flush(&mut self) -> Result<(), SerialError> {
+                self.0.flush()
+            }
+            fn port_name(&self) -> &str {
+                self.0.port_name()
+            }
+        }
+        let mut transport = MockSerialTransport::new("failed-resume");
+        transport.enqueue_response("Grbl 1.1h");
+        let responses = transport.handle();
+        let mut session = GrblSession::new(Box::new(RejectResume(transport)));
+        session.connect().unwrap();
+        session.poll().unwrap();
+        session.mark_ready().unwrap();
+        let config = GcodeConfig {
+            transfer_mode: beambench_core::TransferMode::Synchronous,
+            ..Default::default()
+        };
+        let mut job = JobController::prepare(&make_plan(), &config).unwrap();
+        job.start(&mut session).unwrap();
+        job.pause(&mut session).unwrap();
+        let sent_before_resume = job.progress().sent_lines;
+        assert!(job.resume(&mut session).is_err());
+        responses.enqueue_response("ok");
+        job.tick(&mut session).unwrap();
+        assert_eq!(job.progress().state, JobState::Paused);
+        assert_eq!(
+            job.progress().sent_lines,
+            sent_before_resume,
+            "failed resume sent another command"
+        );
+        assert!(job.engine.is_paused());
     }
 
     #[test]
@@ -481,5 +545,13 @@ mod tests {
         assert_eq!(progress.buckets.len(), 2);
         assert_eq!(progress.buckets[0].cut_entry_id, "entry-1");
         assert_eq!(progress.buckets[1].cut_entry_id, "entry-2");
+    }
+    #[test]
+    fn prepare_rejects_oversized_custom_commands_before_start() {
+        let config = GcodeConfig {
+            gcode_suffix: format!("G1 X{}", "1".repeat(130)),
+            ..GcodeConfig::default()
+        };
+        assert!(JobController::prepare(&make_plan(), &config).is_err());
     }
 }

@@ -11,6 +11,10 @@ pub struct GcodeLine {
     pub line_number: usize,
     pub raw: String,
     pub command: Option<String>,
+    #[serde(default)]
+    pub commands: Vec<String>,
+    #[serde(default)]
+    pub errors: Vec<String>,
     pub params: HashMap<char, f64>,
 }
 
@@ -46,8 +50,18 @@ pub fn import_gcode_as_vecpaths(content: &str) -> Vec<VecPath> {
     let mut paths = Vec::new();
 
     for line in lines {
-        if let Some(command) = line.command.as_deref() {
-            match command {
+        if line
+            .commands
+            .iter()
+            .any(|command| matches!(command.as_str(), "M2" | "M30"))
+        {
+            break;
+        }
+        if line.commands.iter().any(|command| command == "G4") {
+            continue;
+        }
+        for command in &line.commands {
+            match command.as_str() {
                 "G0" | "G00" => {
                     motion_mode = MotionMode::Rapid;
                     finish_current_subpath(&mut current_subpath, &mut paths);
@@ -141,6 +155,41 @@ pub fn import_gcode_as_vecpaths(content: &str) -> Vec<VecPath> {
     paths
 }
 
+/// Refuse partial geometry when the source uses unsupported motion/modal commands.
+pub fn import_gcode_checked(content: &str) -> Result<Vec<VecPath>, String> {
+    for line in parse_gcode(content) {
+        if let Some(error) = line.errors.first() {
+            return Err(format!("G-code line {}: {error}", line.line_number));
+        }
+        for command in &line.commands {
+            if !matches!(
+                command.as_str(),
+                "G0" | "G1"
+                    | "G4"
+                    | "G17"
+                    | "G20"
+                    | "G21"
+                    | "G90"
+                    | "G91"
+                    | "G94"
+                    | "M2"
+                    | "M3"
+                    | "M4"
+                    | "M5"
+                    | "M8"
+                    | "M9"
+                    | "M30"
+            ) {
+                return Err(format!(
+                    "G-code line {} uses {command}, which geometry import cannot preserve. Convert arcs and other motion to linear moves before importing.",
+                    line.line_number
+                ));
+            }
+        }
+    }
+    Ok(import_gcode_as_vecpaths(content))
+}
+
 /// Parse a single line of G-code.
 fn parse_line(line_number: usize, line: &str) -> GcodeLine {
     let raw = line.to_string();
@@ -154,37 +203,62 @@ fn parse_line(line_number: usize, line: &str) -> GcodeLine {
             line_number,
             raw,
             command: None,
+            commands: Vec::new(),
+            errors: Vec::new(),
             params: HashMap::new(),
         };
     }
 
-    let tokens: Vec<&str> = trimmed.split_whitespace().collect();
     let mut command = None;
+    let mut commands = Vec::new();
     let mut params = HashMap::new();
-
-    for token in tokens {
-        if token.is_empty() {
+    let mut errors = Vec::new();
+    let bytes = trimmed.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_whitespace() || bytes[i] == b'%' {
+            i += 1;
             continue;
         }
-
-        let first_char = token.chars().next().unwrap();
-
-        // Commands start with G or M
-        if first_char == 'G' || first_char == 'M' {
-            command = Some(token.to_uppercase());
-        } else if first_char.is_ascii_alphabetic() {
-            // Parameter: letter followed by number
-            let letter = first_char.to_ascii_uppercase();
-            if let Ok(value) = token[1..].parse::<f64>() {
-                params.insert(letter, value);
+        if bytes[i] == b'*' {
+            break;
+        } // optional transport checksum
+        if !bytes[i].is_ascii_alphabetic() {
+            errors.push(format!("Unexpected character at column {}", i + 1));
+            i += 1;
+            continue;
+        }
+        let letter = (bytes[i] as char).to_ascii_uppercase();
+        i += 1;
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        let start = i;
+        if i < bytes.len() && matches!(bytes[i], b'+' | b'-') {
+            i += 1;
+        }
+        while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+            i += 1;
+        }
+        match trimmed[start..i].parse::<f64>() {
+            Ok(value) if value.is_finite() => {
+                if letter == 'G' || letter == 'M' {
+                    let word = format!("{letter}{value}");
+                    command = Some(word.clone());
+                    commands.push(word);
+                } else {
+                    params.insert(letter, value);
+                }
             }
+            _ => errors.push(format!("Invalid {letter} word")),
         }
     }
-
     GcodeLine {
         line_number,
         raw,
         command,
+        commands,
+        errors,
         params,
     }
 }
@@ -305,5 +379,25 @@ mod tests {
         assert_eq!(paths.len(), 2);
         assert_eq!(paths[0].to_svg_d(), "M0 0 L10 0 L20 0");
         assert_eq!(paths[1].to_svg_d(), "M40 0 L50 0");
+    }
+}
+
+#[cfg(test)]
+mod review_tests {
+    use super::*;
+    #[test]
+    fn compact_lowercase_and_multiple_modal_words_preserve_geometry() {
+        let compact = "m3s100\ng0x10y10\ng91g1x2y3\nx2y3";
+        let spaced = "M3 S100\nG0 X10 Y10\nG91\nG1 X2 Y3\nX2 Y3";
+        assert_eq!(
+            import_gcode_checked(compact).unwrap(),
+            import_gcode_checked(spaced).unwrap()
+        );
+    }
+    #[test]
+    fn unsupported_motion_and_malformed_words_are_errors() {
+        for content in ["G2 X10 I5", "G92 X0", "G1 Xwat", "G1 X1.2.3"] {
+            assert!(import_gcode_checked(content).is_err());
+        }
     }
 }

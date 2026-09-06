@@ -14,6 +14,13 @@ use beambench_service::ServiceContext;
 #[derive(Default)]
 pub struct CloseConfirmed(pub std::sync::atomic::AtomicBool);
 
+/// An asynchronous controller stop must finish before window close is accepted.
+#[derive(Default)]
+pub struct CloseShutdown {
+    pub pending: std::sync::atomic::AtomicBool,
+    pub ready: std::sync::atomic::AtomicBool,
+}
+
 /// Set by `mark_frontend_ready` once React has mounted inside the webview.
 /// While unset, the webview may be dead (a too-old system WebKit cannot run
 /// the bundled JS), so menu events emitted to it go nowhere: the startup

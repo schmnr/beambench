@@ -4,10 +4,11 @@ use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use beambench_core::MacroDefinition;
-use beambench_service::ServiceContext;
 use beambench_service::persist;
+use beambench_service::{ServiceContext, agent};
+use serde::Deserialize;
 
-use crate::response::ApiError;
+use crate::response::{ApiError, confirmation_required};
 
 fn bad_request(error: impl Into<String>) -> ApiError {
     (
@@ -78,10 +79,19 @@ async fn delete_macro(
     })))
 }
 
+#[derive(Default, Deserialize)]
+struct RunMacroBody {
+    #[serde(default)]
+    confirm_raw_gcode: bool,
+    #[serde(default)]
+    confirm_laser_on: bool,
+}
+
 /// Run a macro by ID (executes all commands in sequence).
 async fn run_macro(
     State(ctx): State<Arc<ServiceContext>>,
     Path(id): Path<String>,
+    body: Option<Json<RunMacroBody>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let uuid = uuid::Uuid::parse_str(&id).map_err(|e| {
         (
@@ -95,6 +105,21 @@ async fn run_macro(
         .iter()
         .find(|m| m.id == uuid)
         .ok_or_else(|| bad_request(format!("Macro {uuid} not found")))?;
+
+    let confirmation = body.map(|Json(body)| body).unwrap_or_default();
+    if !confirmation.confirm_raw_gcode {
+        return Err(confirmation_required(&["confirm_raw_gcode"]));
+    }
+    // Check the whole macro before sending its first command. Otherwise an
+    // unconfirmed laser command later in the macro could leave partial motion.
+    if !confirmation.confirm_laser_on
+        && macro_def
+            .commands
+            .iter()
+            .any(|line| agent::raw_gcode_requires_laser_confirmation(line))
+    {
+        return Err(confirmation_required(&["confirm_laser_on"]));
+    }
 
     // Execute each command in the macro
     for command in &macro_def.commands {
@@ -224,13 +249,54 @@ mod tests {
             .oneshot(
                 axum::http::Request::builder()
                     .method("POST")
-                    .uri(&format!("/api/v1/macros/{}/run", macro_def.id))
-                    .body(axum::body::Body::empty())
+                    .uri(format!("/api/v1/macros/{}/run", macro_def.id))
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(r#"{"confirm_raw_gcode":true}"#))
                     .unwrap(),
             )
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn macro_checks_all_confirmations_before_sending_any_command() {
+        use http_body_util::BodyExt;
+        for (body, missing) in [
+            (serde_json::json!({}), "confirm_raw_gcode"),
+            (
+                serde_json::json!({"confirm_raw_gcode":true}),
+                "confirm_laser_on",
+            ),
+        ] {
+            let ctx = Arc::new(ServiceContext::with_settings(Default::default()));
+            let macro_def = MacroDefinition {
+                id: uuid::Uuid::new_v4(),
+                name: "Motion then fire".into(),
+                description: String::new(),
+                commands: vec!["G0 X10".into(), "M3 S10".into()],
+                hotkey: None,
+                show_in_toolbar: false,
+            };
+            ctx.replace_macros(vec![macro_def.clone()]).unwrap();
+            let response = crate::routes::build_router(ctx.clone())
+                .oneshot(
+                    axum::http::Request::builder()
+                        .method("POST")
+                        .uri(format!("/api/v1/macros/{}/run", macro_def.id))
+                        .header("content-type", "application/json")
+                        .body(axum::body::Body::from(body.to_string()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::PRECONDITION_REQUIRED);
+            let body: serde_json::Value =
+                serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes())
+                    .unwrap();
+            assert_eq!(body["missing"], serde_json::json!([missing]));
+            assert!(ctx.get_console_log(100).unwrap().is_empty());
+        }
     }
 }

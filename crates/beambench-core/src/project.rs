@@ -68,12 +68,21 @@ pub struct Project {
     #[serde(default)]
     pub material_height_mm: Option<f64>,
     #[serde(skip)]
-    pub asset_data: HashMap<AssetId, Vec<u8>>,
-    #[serde(skip)]
+    pub asset_data: HashMap<AssetId, std::sync::Arc<Vec<u8>>>,
+    #[serde(default, skip_deserializing)]
     pub dirty: bool,
 }
 
 impl Project {
+    /// Persisted document fields, excluding runtime state exposed over IPC.
+    pub fn document_value(&self) -> Result<serde_json::Value, serde_json::Error> {
+        let mut value = serde_json::to_value(self)?;
+        if let Some(fields) = value.as_object_mut() {
+            fields.remove("dirty");
+        }
+        Ok(value)
+    }
+
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             metadata: ProjectMetadata::new(name),
@@ -467,7 +476,7 @@ impl Project {
     pub fn add_asset(&mut self, asset: Asset, data: Vec<u8>) -> &Asset {
         let id = asset.id;
         self.assets.push(asset);
-        self.asset_data.insert(id, data);
+        self.asset_data.insert(id, std::sync::Arc::new(data));
         self.dirty = true;
         self.assets.last().unwrap()
     }

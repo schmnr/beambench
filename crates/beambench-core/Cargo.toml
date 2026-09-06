@@ -19,7 +19,7 @@ tiny-skia = { workspace = true }
 image = { workspace = true }
 base64 = { workspace = true }
 geo = { workspace = true }
-i_overlay = "1.9.4"
+i_overlay = "~4.0.6"
 ab_glyph = { workspace = true }
 ttf-parser = { workspace = true }
 fontdb = { workspace = true }
@@ -30,6 +30,8 @@ pdf417 = { workspace = true }
 clipper2 = { workspace = true }
 roxmltree = { workspace = true }
 flate2 = { workspace = true }
+
+lopdf = { version = "0.44", default-features = false }
 
 [dev-dependencies]
 tempfile = { workspace = true }

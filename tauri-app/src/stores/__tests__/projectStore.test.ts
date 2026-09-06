@@ -973,6 +973,96 @@ describe('projectStore — new actions', () => {
     );
   });
 
+  it('loadAssetData retains concurrent image loads and releases every URL on close', async () => {
+    const urlApi = mockUrlApi();
+    let resolveFirst!: (bytes: number[]) => void;
+    let resolveSecond!: (bytes: number[]) => void;
+    mockedPersistence.getAssetData
+      .mockImplementationOnce(
+        () =>
+          new Promise<number[]>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<number[]>((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+    mockedProject.closeProject.mockResolvedValue(undefined);
+    try {
+      const first = useProjectStore.getState().loadAssetData('first');
+      const second = useProjectStore.getState().loadAssetData('second');
+      resolveSecond([1, 2]);
+      await second;
+      resolveFirst([1]);
+      await first;
+      expect([...useProjectStore.getState().assetCache.keys()].sort()).toEqual(['first', 'second']);
+      await useProjectStore.getState().closeProject();
+      expect(urlApi.revokeObjectURL).toHaveBeenCalledWith('blob:1');
+      expect(urlApi.revokeObjectURL).toHaveBeenCalledWith('blob:2');
+    } finally {
+      urlApi.restore();
+    }
+  });
+
+  it('loadAssetData does not repopulate the cache after the project closes', async () => {
+    const urlApi = mockUrlApi();
+    let resolve!: (bytes: number[]) => void;
+    useProjectStore.setState({ project: makeProject() });
+    mockedPersistence.getAssetData.mockImplementationOnce(
+      () =>
+        new Promise<number[]>((r) => {
+          resolve = r;
+        }),
+    );
+    mockedProject.closeProject.mockResolvedValue(undefined);
+    try {
+      const pending = useProjectStore.getState().loadAssetData('late-image');
+      const rejected = expect(pending).rejects.toThrow('Project changed');
+      await useProjectStore.getState().closeProject();
+      resolve([1, 2, 3]);
+      await rejected;
+      expect(useProjectStore.getState().assetCache.size).toBe(0);
+      expect(useProjectStore.getState().assetLoadErrors.size).toBe(0);
+      expect(urlApi.createObjectURL).not.toHaveBeenCalled();
+    } finally {
+      urlApi.restore();
+    }
+  });
+
+  it('loadAssetData shares the URL when two consumers load the same asset', async () => {
+    const urlApi = mockUrlApi();
+    let resolveFirst!: (bytes: number[]) => void;
+    let resolveSecond!: (bytes: number[]) => void;
+    mockedPersistence.getAssetData
+      .mockImplementationOnce(
+        () =>
+          new Promise<number[]>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<number[]>((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+    try {
+      const first = useProjectStore.getState().loadAssetData('same-image');
+      const second = useProjectStore.getState().loadAssetData('same-image');
+      resolveSecond([1, 2]);
+      const secondUrl = await second;
+      resolveFirst([1, 2]);
+      expect(await first).toBe(secondUrl);
+      expect(urlApi.createObjectURL).toHaveBeenCalledTimes(1);
+      expect(useProjectStore.getState().assetCache.get('same-image')).toBe(secondUrl);
+    } finally {
+      urlApi.restore();
+    }
+  });
+
   it('loadProject prunes stale asset URLs and cached asset errors', async () => {
     const urlApi = mockUrlApi();
     const reloaded = makeProject();

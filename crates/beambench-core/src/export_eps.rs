@@ -81,7 +81,8 @@ fn export_ps(
         // Text exports as geometry only. Emitting PostScript text operators
         // plus path fallback duplicates geometry and loses Beam Bench layout
         // fidelity for alignment, spacing, welded, and distorted text.
-        if let Some(path) = object_to_world_vecpath(obj) {
+        if let Some(mut path) = object_to_world_vecpath(obj) {
+            crate::vector::flatten::convert_quadratics_to_cubics(&mut path);
             for subpath in &path.subpaths {
                 for cmd in &subpath.commands {
                     match cmd {
@@ -109,10 +110,8 @@ fn export_ps(
                                 y * scale
                             ));
                         }
-                        PathCommand::QuadTo { cx, cy, x, y } => {
-                            // Approximate quad as line to endpoint
-                            let _ = (cx, cy);
-                            ps.push_str(&format!("{:.4} {:.4} lineto\n", x * scale, y * scale));
+                        PathCommand::QuadTo { .. } => {
+                            unreachable!("quadratics were converted above")
                         }
                         PathCommand::Close => {
                             ps.push_str("closepath\n");

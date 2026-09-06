@@ -2124,6 +2124,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
   loadAssetData: async (assetId) => {
     const { assetCache, assetLoadErrors } = get();
+    const projectId = get().project?.metadata.project_id;
     const cached = assetCache.get(assetId);
     if (cached) return cached;
     const cachedError = assetLoadErrors.get(assetId);
@@ -2133,17 +2134,27 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
     try {
       const bytes = await persistenceService.getAssetData(assetId);
+      if (get().project?.metadata.project_id !== projectId) {
+        throw new Error('Project changed while loading image');
+      }
+      // Another canvas consumer may have finished the same request first.
+      const loaded = get().assetCache.get(assetId);
+      if (loaded) return loaded;
       const uint8 = new Uint8Array(bytes);
       const blob = new Blob([uint8]);
       const dataUrl = URL.createObjectURL(blob);
 
-      const newCache = new Map(assetCache);
-      newCache.set(assetId, dataUrl);
-      const newErrors = new Map(assetLoadErrors);
-      newErrors.delete(assetId);
-      set({ assetCache: newCache, assetLoadErrors: newErrors });
+      set((state) => {
+        const nextErrors = new Map(state.assetLoadErrors);
+        nextErrors.delete(assetId);
+        return {
+          assetCache: new Map(state.assetCache).set(assetId, dataUrl),
+          assetLoadErrors: nextErrors,
+        };
+      });
       return dataUrl;
     } catch (error) {
+      if (get().project?.metadata.project_id !== projectId) throw error;
       const message = String(error);
       const newErrors = new Map(get().assetLoadErrors);
       newErrors.set(assetId, message);
@@ -3650,7 +3661,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const result = await projectService.closeSelectedPathsWithTolerance(objectIds, toleranceMm, mode);
       const project = await projectService.getProject();
       if (project) {
-        set({ project: { ...project, dirty: result.shapesClosed > 0 }, selectedObjectIds: result.objectIds });
+        set({ project: { ...project, dirty: project.dirty || result.shapesClosed > 0 }, selectedObjectIds: result.objectIds });
         if (result.shapesClosed > 0) {
           invalidatePreview();
           await refreshUndo();

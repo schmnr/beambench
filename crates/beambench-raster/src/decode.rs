@@ -21,6 +21,12 @@ pub fn decode_image_oriented(bytes: &[u8]) -> Result<DynamicImage, RasterError> 
     let mut decoder = reader
         .into_decoder()
         .map_err(|e| RasterError::DecodeError(e.to_string()))?;
+    let (width, height) = decoder.dimensions();
+    if u64::from(width) * u64::from(height) > 64 * 1024 * 1024 {
+        return Err(RasterError::InvalidDimensions(
+            "Source image exceeds the 64 megapixel processing limit".into(),
+        ));
+    }
     let orientation = decoder
         .orientation()
         .map_err(|e| RasterError::DecodeError(e.to_string()))?;

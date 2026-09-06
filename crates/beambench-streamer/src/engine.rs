@@ -35,6 +35,20 @@ pub struct StreamingEngine {
 }
 
 impl StreamingEngine {
+    /// Reject unsendable lines before any machine output occurs.
+    pub fn validate_commands(commands: &[String]) -> Result<(), StreamerError> {
+        for (index, command) in commands.iter().enumerate() {
+            if command.len() >= GRBL_RX_BUFFER_SIZE || command.contains(['\r', '\n']) {
+                return Err(StreamerError::JobFailed(format!(
+                    "G-code line {} cannot fit the GRBL receive buffer. Each line must be at most {} bytes and contain no embedded newline.",
+                    index + 1,
+                    GRBL_RX_BUFFER_SIZE - 1
+                )));
+            }
+        }
+        Ok(())
+    }
+
     pub fn new(commands: Vec<String>) -> Self {
         Self::new_with_transfer_mode(commands, TransferMode::Buffered)
     }
@@ -114,6 +128,15 @@ impl StreamingEngine {
             }
             let cmd = &self.commands[self.next_index];
             let cmd_size = cmd.len() + 1; // +1 for \n
+
+            if cmd_size > GRBL_RX_BUFFER_SIZE || cmd.contains(['\r', '\n']) {
+                let message = format!(
+                    "G-code line {} exceeds the GRBL line limit",
+                    self.next_index + 1
+                );
+                self.fail(message.clone(), progress);
+                return Err(StreamerError::JobFailed(message));
+            }
 
             if self.bytes_in_flight + cmd_size > GRBL_RX_BUFFER_SIZE {
                 break;

@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use beambench_service::ServiceContext;
-use state::{ApiRuntime, CloseConfirmed, FrontendReady};
+use state::{ApiRuntime, CloseConfirmed, CloseShutdown, FrontendReady};
 use tauri::{Emitter, Manager};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -175,6 +175,7 @@ fn main() {
         .manage(single_instance_lock)
         .manage(native_menu::NativeMenuRegistry::default())
         .manage(CloseConfirmed::default())
+        .manage(CloseShutdown::default())
         .manage(FrontendReady::default())
         .on_window_event({
             let ctx = ctx.clone();
@@ -190,6 +191,10 @@ fn main() {
                     }
                 }
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if window.state::<CloseShutdown>().pending.load(std::sync::atomic::Ordering::Acquire) {
+                        api.prevent_close();
+                        return;
+                    }
                     // swap(false) consumes the confirmation: each close
                     // attempt needs its own Save / Don't Save decision, so a
                     // confirmed close of one window can't bypass the prompt
@@ -199,13 +204,15 @@ fn main() {
                         .inner()
                         .0
                         .swap(false, std::sync::atomic::Ordering::AcqRel);
-                    let project_dirty = ctx
+                    let closing_project = ctx
                         .project
                         .lock()
                         .ok()
-                        .and_then(|guard| guard.as_ref().map(|project| project.dirty))
-                        .unwrap_or(false);
+                        .and_then(|guard| guard.clone());
+                    let project_dirty = closing_project.as_ref().is_some_and(|project| project.dirty);
                     if project_dirty && !close_confirmed {
+                        window.state::<CloseShutdown>().ready.store(false, std::sync::atomic::Ordering::Release);
+                        ctx.shutting_down.store(false, std::sync::atomic::Ordering::Release);
                         // Hold the window open and let the frontend show the
                         // Save / Don't Save / Cancel prompt. It re-closes via
                         // confirm_window_close once the user decides.
@@ -215,6 +222,46 @@ fn main() {
                             "app.close_requested",
                             serde_json::json!({}),
                         );
+                        return;
+                    }
+                    let shutdown = window.state::<CloseShutdown>();
+                    if !shutdown.ready.swap(false, std::sync::atomic::Ordering::AcqRel) {
+                        api.prevent_close();
+                        if shutdown.pending.swap(true, std::sync::atomic::Ordering::AcqRel) {
+                            return;
+                        }
+                        let window = window.clone();
+                        let ctx = ctx.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let stop_ctx = ctx.clone();
+                            let result = tauri::async_runtime::spawn_blocking(move || {
+                                beambench_service::ops::machine::prepare_shutdown(&stop_ctx)
+                            }).await;
+                            let error = match result {
+                                Ok(Ok(())) => None,
+                                Ok(Err(error)) => Some(error.to_string()),
+                                Err(error) => Some(format!("Machine shutdown failed: {error}")),
+                            };
+                            if let Some(error) = error {
+                                use tauri_plugin_dialog::DialogExt;
+                                ctx.shutting_down.store(false, std::sync::atomic::Ordering::Release);
+                                window.state::<CloseShutdown>().pending.store(false, std::sync::atomic::Ordering::Release);
+                                window.dialog().message(error)
+                                    .title("Machine stop not confirmed")
+                                    .kind(tauri_plugin_dialog::MessageDialogKind::Error)
+                                    .show(|_| {});
+                                return;
+                            }
+                            let unchanged = ctx.project.lock().map(|guard| *guard == closing_project).unwrap_or(false);
+                            window.state::<CloseConfirmed>().0.store(close_confirmed && unchanged, std::sync::atomic::Ordering::Release);
+                            window.state::<CloseShutdown>().ready.store(true, std::sync::atomic::Ordering::Release);
+                            window.state::<CloseShutdown>().pending.store(false, std::sync::atomic::Ordering::Release);
+                            if let Err(error) = window.close() {
+                                ctx.shutting_down.store(false, std::sync::atomic::Ordering::Release);
+                                window.state::<CloseShutdown>().ready.store(false, std::sync::atomic::Ordering::Release);
+                                tracing::warn!(%error, "Failed to close window after machine shutdown");
+                            }
+                        });
                         return;
                     }
                     // Reaching this point means the close is intentional:

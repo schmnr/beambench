@@ -1,0 +1,94 @@
+{
+  "review": "CLI feature implementation follow-up",
+  "date": "2026-09-06",
+  "version": "0.2.18",
+  "status": "software_checks_passed",
+  "published": false,
+  "scope": "Implementation of the CLI/API gaps in 2026-09-06-cli-feature-coverage.md, on the existing unpublished working tree.",
+  "native_command_catalog": {
+    "project": 75,
+    "vector": 72,
+    "art_library": 14,
+    "variable_text": 5,
+    "quality_test": 7,
+    "total": 173,
+    "note": "Includes operations overlapping existing API functionality; this is not a count of distinct new features."
+  },
+  "tests": {
+    "unique_rust_tests_passed": 1016,
+    "api": 103,
+    "cli_unit": 125,
+    "cli_integration": 27,
+    "service": 761,
+    "ui_app": 57,
+    "runs": [
+      {
+        "command": "cargo test -p beambench-api -p beambench-cli -p beambench-service",
+        "result": "API, CLI unit and CLI integration suites passed. One service capability-category invariant failed; corrected and validated by the full service rerun below.",
+        "local_log": "/tmp/beam-cli-parity-final-tests.log"
+      },
+      {
+        "command": "cargo test -p beambench-service",
+        "result": "761 passed; 0 failed",
+        "local_log": "/tmp/beam-cli-parity-service-final.log"
+      },
+      {
+        "command": "cargo test -p beambench-cli -p beambench-service agent",
+        "result": "9 passed; 0 failed, including generated agent-document parity and capability invariants after the metadata correction. These tests are already included in the unique totals.",
+        "local_log": "/tmp/beam-cli-parity-agent-validation.log"
+      },
+      {
+        "command": "npx vitest run src/App.test.tsx",
+        "cwd": "tauri-app",
+        "result": "57 passed; 0 failed",
+        "local_log": "/tmp/beam-cli-parity-ui-tests.log"
+      }
+    ]
+  },
+  "other_checks": [
+    {
+      "command": "cargo check -p beambench-tauri",
+      "result": "passed",
+      "local_log": "/tmp/beam-cli-parity-tauri-check2.log"
+    },
+    {
+      "command": "cargo clippy -p beambench-cli -p beambench-api -p beambench-service --all-targets",
+      "result": "passed with warnings in existing and relocated code",
+      "note": "Run before the final CLI request-timeout adjustment and capability-category metadata correction; subsequent compilation and tests cover those changes.",
+      "local_log": "/tmp/beam-cli-parity-clippy-final.log"
+    },
+    {
+      "command": "./node_modules/.bin/tsc --noEmit",
+      "cwd": "tauri-app",
+      "result": "passed"
+    },
+    {
+      "command": "./node_modules/.bin/eslint src/App.tsx src/App.test.tsx",
+      "cwd": "tauri-app",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ],
+  "integration_evidence": [
+    "The shipped CLI was tested against a private real API server through edit, preview, G-code export and undo.",
+    "Native workflow coverage compares desktop command names and arguments with the shared typed catalog, and parses every catalog operation as a CLI command.",
+    "Current-session job starts, selection/advisory forwarding, Z jog, runtime overrides, caller-relative file paths and input-file confirmation rejection have CLI integration coverage.",
+    "API tests cover native nesting, quality tests, variable text, art libraries, node and image editing, sparse profile updates, undo, preview preservation and concurrent-design rejection."
+  ],
+  "limits": [
+    "No physical controller or laser was operated during this validation.",
+    "Windows and Linux platform behavior was not tested.",
+    "Camera capture and overlay rendering still depend on the desktop frontend bridge.",
+    "Physical setup, device-button presses and operating-system UI actions are not established as CLI workflows.",
+    "The native field catalog is a typed field reference, not JSON Schema.",
+    "Local logs are temporary evidence; this record preserves the results after those logs expire."
+  ],
+  "release_decision": {
+    "additional_physical_controller_testing": "declined_by_user",
+    "additional_windows_linux_validation": "declined_by_user",
+    "note": "The user confirmed these additional checks are not required for this update. The untested-platform and hardware limits above remain factual."
+  }
+}

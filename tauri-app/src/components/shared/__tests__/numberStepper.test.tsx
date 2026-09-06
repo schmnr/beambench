@@ -87,3 +87,17 @@ describe('NumberStepper', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 });
+
+it('names step controls and supports assistive activation without double pointer steps', () => {
+  const onChange = vi.fn();
+  const { getByRole } = render(<NumberStepper aria-label="Power" value={5} onChange={onChange} />);
+  const increase = getByRole('button', {name:'Increase Power'});
+  expect(increase.tabIndex).toBe(0);
+  fireEvent.click(increase, {detail:0});
+  expect(onChange).toHaveBeenCalledTimes(1);
+  onChange.mockClear();
+  fireEvent.pointerDown(increase);
+  fireEvent.pointerUp(increase);
+  fireEvent.click(increase, {detail:1});
+  expect(onChange).toHaveBeenCalledTimes(1);
+});

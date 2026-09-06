@@ -1,0 +1,9 @@
+
+running 4 tests
+test pdf_import_reads_unreferenced_form ... ok
+test compact_gcode_loses_coordinates ... ok
+test cancel_returns_success_after_reset_write_fails ... ok
+Export accepted 1 failed entries and emitted 7639 bytes
+test invalid_mask_still_exports_gcode ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

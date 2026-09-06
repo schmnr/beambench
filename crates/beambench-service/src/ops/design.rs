@@ -249,7 +249,8 @@ pub fn schema() -> Value {
         "error_codes": [
             "MISSING_REF", "INVALID_REF_TYPE", "UNKNOWN_OP", "INVALID_FIELD",
             "LAYER_NOT_FOUND", "OBJECT_NOT_FOUND", "OUT_OF_BOUNDS",
-            "BOOLEAN_PRECONDITION", "INVALID_BOUNDS", "UNSUPPORTED_SCHEMA_VERSION", "BUSY"
+            "BOOLEAN_PRECONDITION", "INVALID_BOUNDS", "UNSUPPORTED_SCHEMA_VERSION", "BUSY",
+            "STALE_REVISION"
         ],
         "operations": operation_schemas()
     })
@@ -919,12 +920,7 @@ pub fn run_transaction(
             transaction_id,
             &result.warnings,
         ) {
-            result.error = Some(DesignError {
-                op_index: None,
-                op: None,
-                code: "INVALID_FIELD",
-                message: err.message,
-            });
+            result.error = Some(design_error_from_service(err));
             return result;
         }
         result.applied = true;
@@ -940,14 +936,19 @@ fn commit_design_project(
     transaction_id: Uuid,
     warnings: &[String],
 ) -> ServiceResult<()> {
-    ctx.push_project_undo_snapshot(&original)
-        .map_err(ServiceError::internal)?;
-    project.dirty = true;
     {
         let mut guard = ctx
             .project
             .lock()
             .map_err(|e| ServiceError::internal(format!("Failed to lock project: {e}")))?;
+        if guard.as_ref() != Some(&original) {
+            return Err(ServiceError::stale_revision(
+                "The project changed while the design transaction was running. Retry against the current project.",
+            ));
+        }
+        ctx.push_project_undo_snapshot(&original)
+            .map_err(ServiceError::internal)?;
+        project.dirty = true;
         *guard = Some(project);
     }
     planning::invalidate_plan_cache(ctx)?;
@@ -1134,6 +1135,7 @@ fn design_error_from_service(error: ServiceError) -> DesignError {
             }
         }
         ServiceErrorCode::Busy | ServiceErrorCode::Conflict => "BUSY",
+        ServiceErrorCode::StaleRevision => "STALE_REVISION",
         ServiceErrorCode::InvalidInput | ServiceErrorCode::InvalidState => "INVALID_FIELD",
         _ => "INVALID_FIELD",
     };
@@ -3852,6 +3854,51 @@ mod tests {
         let project = ctx.project.lock().unwrap();
         assert_eq!(project.as_ref().unwrap().objects.len(), 0);
         assert!(!ctx.undo_state().unwrap().can_undo);
+    }
+
+    #[test]
+    fn transaction_commit_rejects_intervening_edits_project_switches_and_close() {
+        for scenario in ["edit", "switch", "close", "asset"] {
+            let ctx = ctx_with_project();
+            let original = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+            let mut proposed = original.clone();
+            proposed.notes = "transaction result".into();
+            let mut edited = original.clone();
+            edited.notes = "newer user edit".into();
+            let current = match scenario {
+                "edit" => Some(edited),
+                "switch" => Some(Project::new("another project")),
+                "close" => None,
+                "asset" => {
+                    let mut changed_asset = original.clone();
+                    changed_asset
+                        .asset_data
+                        .insert(beambench_core::AssetId::new(), std::sync::Arc::new(vec![1]));
+                    Some(changed_asset)
+                }
+                _ => unreachable!(),
+            };
+            *ctx.project.lock().unwrap() = current.clone();
+
+            let result = commit_design_project(
+                &ctx,
+                original,
+                proposed,
+                &DesignTransactionSummary::default(),
+                Uuid::new_v4(),
+                &[],
+            );
+
+            assert!(
+                result.is_err(),
+                "stale transaction committed after {scenario}"
+            );
+            assert_eq!(*ctx.project.lock().unwrap(), current, "{scenario}");
+            assert!(
+                !ctx.undo_state().unwrap().can_undo,
+                "stale commit polluted undo history"
+            );
+        }
     }
 
     #[test]

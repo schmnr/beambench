@@ -12,11 +12,13 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [ab_glyph_rasterizer](https://github.com/alexheretic/ab-glyph) | 0.1.10 | Apache-2.0 |
 | Cargo | [ab_glyph](https://github.com/alexheretic/ab-glyph) | 0.2.32 | Apache-2.0 |
 | Cargo | [adler2](https://github.com/oyvindln/adler2) | 2.0.1 | 0BSD OR MIT OR Apache-2.0 |
+| Cargo | [aes](https://github.com/RustCrypto/block-ciphers) | 0.9.3 | MIT OR Apache-2.0 |
 | Cargo | [aho-corasick](https://github.com/BurntSushi/aho-corasick) | 1.1.4 | Unlicense OR MIT |
 | Cargo | [alloc-no-stdlib](https://github.com/dropbox/rust-alloc-no-stdlib) | 2.0.4 | BSD-3-Clause |
 | Cargo | [alloc-stdlib](https://github.com/dropbox/rust-alloc-no-stdlib) | 0.2.2 | BSD-3-Clause |
 | Cargo | [allocator-api2](https://github.com/zakarumych/allocator-api2) | 0.2.21 | MIT OR Apache-2.0 |
 | Cargo | [android_system_properties](https://github.com/nical/android_system_properties) | 0.1.5 | MIT/Apache-2.0 |
+| Cargo | [anes](https://github.com/zrzka/anes-rs) | 0.1.6 | MIT OR Apache-2.0 |
 | Cargo | [anstream](https://github.com/rust-cli/anstyle.git) | 1.0.0 | MIT OR Apache-2.0 |
 | Cargo | [anstyle-parse](https://github.com/rust-cli/anstyle.git) | 1.0.0 | MIT OR Apache-2.0 |
 | Cargo | [anstyle-query](https://github.com/rust-cli/anstyle.git) | 1.1.5 | MIT OR Apache-2.0 |
@@ -53,8 +55,10 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [bit-set](https://github.com/contain-rs/bit-set) | 0.8.0 | Apache-2.0 OR MIT |
 | Cargo | [bit-vec](https://github.com/contain-rs/bit-vec) | 0.8.0 | Apache-2.0 OR MIT |
 | Cargo | [bitflags](https://github.com/bitflags/bitflags) | 1.3.2 | MIT/Apache-2.0 |
-| Cargo | [bitflags](https://github.com/bitflags/bitflags) | 2.11.0 | MIT OR Apache-2.0 |
+| Cargo | [bitflags](https://github.com/bitflags/bitflags) | 2.13.1 | MIT OR Apache-2.0 |
 | Cargo | [block-buffer](https://github.com/RustCrypto/utils) | 0.10.4 | MIT OR Apache-2.0 |
+| Cargo | [block-buffer](https://github.com/RustCrypto/utils) | 0.12.1 | MIT OR Apache-2.0 |
+| Cargo | [block-padding](https://github.com/RustCrypto/utils) | 0.4.2 | MIT OR Apache-2.0 |
 | Cargo | [block](http://github.com/SSheldon/rust-block) | 0.1.6 | MIT |
 | Cargo | [block2](https://github.com/madsmtm/objc2) | 0.6.2 | MIT |
 | Cargo | [blocking](https://github.com/smol-rs/blocking) | 1.6.2 | Apache-2.0 OR MIT |
@@ -74,6 +78,8 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [cargo_toml](https://gitlab.com/lib.rs/cargo_toml) | 0.22.3 | Apache-2.0 OR MIT |
 | Cargo | [cargo-platform](https://github.com/rust-lang/cargo) | 0.1.9 | MIT OR Apache-2.0 |
 | Cargo | [cargo-platform](https://github.com/rust-lang/cargo) | 0.3.3 | MIT OR Apache-2.0 |
+| Cargo | [cast](https://github.com/japaric/cast.rs) | 0.3.0 | MIT OR Apache-2.0 |
+| Cargo | [cbc](https://github.com/RustCrypto/block-modes) | 0.2.1 | MIT OR Apache-2.0 |
 | Cargo | [cc](https://github.com/rust-lang/cc-rs) | 1.2.57 | MIT OR Apache-2.0 |
 | Cargo | [cesu8](https://github.com/emk/cesu8-rs) | 1.1.0 | Apache-2.0/MIT |
 | Cargo | [cexpr](https://github.com/jethrogb/rust-cexpr) | 0.6.0 | Apache-2.0/MIT |
@@ -84,6 +90,10 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [cfg-if](https://github.com/rust-lang/cfg-if) | 1.0.4 | MIT OR Apache-2.0 |
 | Cargo | [chacha20](https://github.com/RustCrypto/stream-ciphers) | 0.10.1 | MIT OR Apache-2.0 |
 | Cargo | [chrono](https://github.com/chronotope/chrono) | 0.4.44 | MIT OR Apache-2.0 |
+| Cargo | [ciborium-io](https://github.com/enarx/ciborium) | 0.2.2 | Apache-2.0 |
+| Cargo | [ciborium-ll](https://github.com/enarx/ciborium) | 0.2.2 | Apache-2.0 |
+| Cargo | [ciborium](https://github.com/enarx/ciborium) | 0.2.2 | Apache-2.0 |
+| Cargo | [cipher](https://github.com/RustCrypto/traits) | 0.5.2 | MIT OR Apache-2.0 |
 | Cargo | [clang-sys](https://github.com/KyleMayes/clang-sys) | 1.8.1 | Apache-2.0 |
 | Cargo | [clap_builder](https://github.com/clap-rs/clap) | 4.6.0 | MIT OR Apache-2.0 |
 | Cargo | [clap_derive](https://github.com/clap-rs/clap) | 4.6.0 | MIT OR Apache-2.0 |
@@ -99,6 +109,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [combine](https://github.com/Marwes/combine) | 4.6.7 | MIT |
 | Cargo | [concurrent-queue](https://github.com/smol-rs/concurrent-queue) | 2.5.0 | Apache-2.0 OR MIT |
 | Cargo | [const_fn](https://github.com/taiki-e/const_fn) | 0.4.12 | Apache-2.0 OR MIT |
+| Cargo | [const-oid](https://github.com/RustCrypto/formats) | 0.10.2 | Apache-2.0 OR MIT |
 | Cargo | [cookie](https://github.com/SergioBenitez/cookie-rs) | 0.18.1 | MIT OR Apache-2.0 |
 | Cargo | [core_maths](https://github.com/robertbastian/core_maths) | 0.1.1 | MIT |
 | Cargo | [core-foundation-sys](https://github.com/servo/core-foundation-rs) | 0.7.0 | MIT / Apache-2.0 |
@@ -110,15 +121,19 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [core-graphics](https://github.com/servo/core-foundation-rs) | 0.25.0 | MIT OR Apache-2.0 |
 | Cargo | [core-media-sys](https://github.com/luozijun/rust-core-media-sys) | 0.1.2 | MIT |
 | Cargo | [core-video-sys](https://github.com/luozijun/rust-core-video-sys) | 0.1.4 | MIT |
+| Cargo | [cpubits](https://github.com/RustCrypto/utils) | 0.1.1 | MIT OR Apache-2.0 |
 | Cargo | [cpufeatures](https://github.com/RustCrypto/utils) | 0.2.17 | MIT OR Apache-2.0 |
 | Cargo | [cpufeatures](https://github.com/RustCrypto/utils) | 0.3.0 | MIT OR Apache-2.0 |
 | Cargo | [crc32fast](https://github.com/srijs/rust-crc32fast) | 1.5.0 | MIT OR Apache-2.0 |
+| Cargo | [criterion-plot](https://github.com/bheisler/criterion.rs) | 0.5.0 | MIT/Apache-2.0 |
+| Cargo | [criterion](https://github.com/bheisler/criterion.rs) | 0.5.1 | Apache-2.0 OR MIT |
 | Cargo | [crossbeam-channel](https://github.com/crossbeam-rs/crossbeam) | 0.5.15 | MIT OR Apache-2.0 |
 | Cargo | [crossbeam-deque](https://github.com/crossbeam-rs/crossbeam) | 0.8.6 | MIT OR Apache-2.0 |
 | Cargo | [crossbeam-epoch](https://github.com/crossbeam-rs/crossbeam) | 0.9.20 | MIT OR Apache-2.0 |
 | Cargo | [crossbeam-utils](https://github.com/crossbeam-rs/crossbeam) | 0.8.21 | MIT OR Apache-2.0 |
 | Cargo | [crunchy](https://github.com/eira-fransham/crunchy) | 0.2.4 | MIT |
 | Cargo | [crypto-common](https://github.com/RustCrypto/traits) | 0.1.7 | MIT OR Apache-2.0 |
+| Cargo | [crypto-common](https://github.com/RustCrypto/traits) | 0.2.2 | MIT OR Apache-2.0 |
 | Cargo | [cssparser-macros](https://github.com/servo/rust-cssparser) | 0.6.1 | MPL-2.0 |
 | Cargo | [cssparser](https://github.com/servo/rust-cssparser) | 0.36.0 | MPL-2.0 |
 | Cargo | [ctor-proc-macro](https://github.com/mmastrac/rust-ctor) | 0.0.7 | Apache-2.0 OR MIT |
@@ -141,6 +156,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [derive_more-impl](https://github.com/JelteF/derive_more) | 2.1.1 | MIT |
 | Cargo | [derive_more](https://github.com/JelteF/derive_more) | 2.1.1 | MIT |
 | Cargo | [digest](https://github.com/RustCrypto/traits) | 0.10.7 | MIT OR Apache-2.0 |
+| Cargo | [digest](https://github.com/RustCrypto/traits) | 0.11.3 | MIT OR Apache-2.0 |
 | Cargo | [dirs-sys](https://github.com/dirs-dev/dirs-sys-rs) | 0.5.0 | MIT OR Apache-2.0 |
 | Cargo | [dirs](https://github.com/soc/dirs-rs) | 6.0.0 | MIT OR Apache-2.0 |
 | Cargo | [dispatch2](https://github.com/madsmtm/objc2) | 0.3.1 | Zlib OR Apache-2.0 OR MIT |
@@ -156,6 +172,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [dunce](https://gitlab.com/kornelski/dunce) | 1.0.5 | CC0-1.0 OR MIT-0 OR Apache-2.0 |
 | Cargo | [dyn-clone](https://github.com/dtolnay/dyn-clone) | 1.0.20 | MIT OR Apache-2.0 |
 | Cargo | [earcutr](https://github.com/frewsxcv/earcutr/) | 0.4.3 | ISC |
+| Cargo | [ecb](https://github.com/RustCrypto/block-modes) | 0.2.1 | MIT OR Apache-2.0 |
 | Cargo | [either](https://github.com/rayon-rs/either) | 1.15.0 | MIT OR Apache-2.0 |
 | Cargo | [embed_plist](https://github.com/nvzqz/embed-plist-rs) | 1.2.2 | MIT OR Apache-2.0 |
 | Cargo | [embed-resource](https://github.com/nabijaczleweli/rust-embed-resource) | 3.0.7 | MIT |
@@ -169,7 +186,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [error-code](https://github.com/DoumanAsh/error-code) | 3.3.2 | BSL-1.0 |
 | Cargo | [euclid](https://github.com/servo/euclid) | 0.22.13 | MIT OR Apache-2.0 |
 | Cargo | [event-listener-strategy](https://github.com/smol-rs/event-listener-strategy) | 0.5.4 | Apache-2.0 OR MIT |
-| Cargo | [event-listener](https://github.com/smol-rs/event-listener) | 5.4.1 | Apache-2.0 OR MIT |
+| Cargo | [event-listener](https://github.com/smol-rs/event-listener) | 5.4.2 | Apache-2.0 OR MIT |
 | Cargo | [fastrand](https://github.com/smol-rs/fastrand) | 2.3.0 | Apache-2.0 OR MIT |
 | Cargo | [fax_derive](https://github.com/pdf-rs/fax) | 0.2.0 | MIT |
 | Cargo | [fax](https://github.com/pdf-rs/fax) | 0.2.6 | MIT |
@@ -211,7 +228,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [gdkx11](https://github.com/gtk-rs/gtk3-rs) | 0.18.2 | MIT |
 | Cargo | [generic-array](https://github.com/fizyk20/generic-array.git) | 0.14.7 | MIT |
 | Cargo | [geo-types](https://github.com/georust/geo) | 0.7.18 | MIT OR Apache-2.0 |
-| Cargo | [geo](https://github.com/georust/geo) | 0.29.3 | MIT OR Apache-2.0 |
+| Cargo | [geo](https://github.com/georust/geo) | 0.31.0 | MIT OR Apache-2.0 |
 | Cargo | [geographiclib-rs](https://github.com/georust/geographiclib-rs) | 0.2.7 | MIT |
 | Cargo | [gethostname](https://codeberg.org/swsnr/gethostname.rs.git) | 1.1.0 | Apache-2.0 |
 | Cargo | [getrandom](https://github.com/rust-random/getrandom) | 0.2.17 | MIT OR Apache-2.0 |
@@ -233,7 +250,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [hash32](https://github.com/japaric/hash32) | 0.3.1 | MIT OR Apache-2.0 |
 | Cargo | [hashbrown](https://github.com/rust-lang/hashbrown) | 0.12.3 | MIT OR Apache-2.0 |
 | Cargo | [hashbrown](https://github.com/rust-lang/hashbrown) | 0.15.5 | MIT OR Apache-2.0 |
-| Cargo | [hashbrown](https://github.com/rust-lang/hashbrown) | 0.16.1 | MIT OR Apache-2.0 |
+| Cargo | [hashbrown](https://github.com/rust-lang/hashbrown) | 0.17.1 | MIT OR Apache-2.0 |
 | Cargo | [heapless](https://github.com/rust-embedded/heapless) | 0.8.0 | MIT OR Apache-2.0 |
 | Cargo | [heck](https://github.com/withoutboats/heck) | 0.4.1 | MIT OR Apache-2.0 |
 | Cargo | [heck](https://github.com/withoutboats/heck) | 0.5.0 | MIT OR Apache-2.0 |
@@ -247,14 +264,15 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [http](https://github.com/hyperium/http) | 1.4.0 | MIT OR Apache-2.0 |
 | Cargo | [httparse](https://github.com/seanmonstar/httparse) | 1.10.1 | MIT OR Apache-2.0 |
 | Cargo | [httpdate](https://github.com/pyfisch/httpdate) | 1.0.3 | MIT OR Apache-2.0 |
+| Cargo | [hybrid-array](https://github.com/RustCrypto/hybrid-array) | 0.4.14 | MIT OR Apache-2.0 |
 | Cargo | [hyper-rustls](https://github.com/rustls/hyper-rustls) | 0.27.7 | Apache-2.0 OR ISC OR MIT |
 | Cargo | [hyper-util](https://github.com/hyperium/hyper-util) | 0.1.20 | MIT |
 | Cargo | [hyper](https://github.com/hyperium/hyper) | 1.8.1 | MIT |
-| Cargo | [i_float](https://github.com/iShape-Rust/iFloat) | 1.6.0 | MIT |
-| Cargo | [i_key_sort](https://github.com/iShape-Rust/iKeySort) | 0.2.0 | MIT |
-| Cargo | [i_overlay](https://github.com/iShape-Rust/iOverlay) | 1.9.4 | MIT |
-| Cargo | [i_shape](https://github.com/iShape-Rust/iShape) | 1.6.0 | MIT |
-| Cargo | [i_tree](https://github.com/iShape-Rust/iTree) | 0.8.3 | MIT |
+| Cargo | [i_float](https://github.com/iShape-Rust/iFloat) | 1.15.0 | MIT |
+| Cargo | [i_key_sort](https://github.com/iShape-Rust/iKeySort) | 0.6.0 | MIT |
+| Cargo | [i_overlay](https://github.com/iShape-Rust/iOverlay) | 4.0.7 | MIT |
+| Cargo | [i_shape](https://github.com/iShape-Rust/iShape) | 1.14.0 | MIT |
+| Cargo | [i_tree](https://github.com/iShape-Rust/iTree) | 0.16.0 | MIT |
 | Cargo | [iana-time-zone-haiku](https://github.com/strawlab/iana-time-zone) | 0.1.2 | MIT OR Apache-2.0 |
 | Cargo | [iana-time-zone](https://github.com/strawlab/iana-time-zone) | 0.1.65 | MIT OR Apache-2.0 |
 | Cargo | [ico](https://github.com/mdsteele/rust-ico) | 0.5.0 | MIT |
@@ -273,15 +291,18 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [image](https://github.com/image-rs/image) | 0.25.10 | MIT OR Apache-2.0 |
 | Cargo | [imagesize](https://github.com/Roughsketch/imagesize) | 0.13.0 | MIT |
 | Cargo | [indexmap](https://github.com/bluss/indexmap) | 1.9.3 | Apache-2.0 OR MIT |
-| Cargo | [indexmap](https://github.com/indexmap-rs/indexmap) | 2.13.0 | Apache-2.0 OR MIT |
+| Cargo | [indexmap](https://github.com/indexmap-rs/indexmap) | 2.14.1 | Apache-2.0 OR MIT |
 | Cargo | [infer](https://github.com/bojand/infer) | 0.19.0 | MIT |
+| Cargo | [inout](https://github.com/RustCrypto/utils) | 0.2.2 | MIT OR Apache-2.0 |
 | Cargo | [io-kit-sys](https://github.com/jtakakura/io-kit-rs) | 0.4.1 | MIT / Apache-2.0 |
 | Cargo | [io-kit-sys](https://github.com/jtakakura/io-kit-rs) | 0.5.0 | MIT OR Apache-2.0 |
 | Cargo | [ipnet](https://github.com/krisprice/ipnet) | 2.12.0 | MIT OR Apache-2.0 |
 | Cargo | [iri-string](https://github.com/lo48576/iri-string) | 0.7.10 | MIT OR Apache-2.0 |
 | Cargo | [is_terminal_polyfill](https://github.com/polyfill-rs/is_terminal_polyfill) | 1.70.2 | MIT OR Apache-2.0 |
 | Cargo | [is-docker](https://github.com/TheLarkInn/is-docker) | 0.2.0 | MIT |
+| Cargo | [is-terminal](https://github.com/sunfishcode/is-terminal) | 0.4.17 | MIT |
 | Cargo | [is-wsl](https://github.com/TheLarkInn/is-wsl) | 0.4.0 | MIT |
+| Cargo | [itertools](https://github.com/rust-itertools/itertools) | 0.10.5 | MIT/Apache-2.0 |
 | Cargo | [itertools](https://github.com/rust-itertools/itertools) | 0.11.0 | MIT OR Apache-2.0 |
 | Cargo | [itoa](https://github.com/dtolnay/itoa) | 1.0.17 | MIT OR Apache-2.0 |
 | Cargo | [javascriptcore-rs-sys](https://github.com/tauri-apps/javascriptcore-rs) | 1.1.1 | MIT |
@@ -312,6 +333,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [litemap](https://github.com/unicode-org/icu4x) | 0.8.1 | Unicode-3.0 |
 | Cargo | [lock_api](https://github.com/Amanieu/parking_lot) | 0.4.14 | MIT OR Apache-2.0 |
 | Cargo | [log](https://github.com/rust-lang/log) | 0.4.29 | MIT OR Apache-2.0 |
+| Cargo | [lopdf](https://github.com/J-F-Liu/lopdf.git) | 0.44.0 | MIT |
 | Cargo | [lru-slab](https://github.com/Ralith/lru-slab) | 0.1.2 | MIT OR Apache-2.0 OR Zlib |
 | Cargo | [mach2](https://github.com/JohnTitor/mach2) | 0.4.3 | BSD-2-Clause OR MIT OR Apache-2.0 |
 | Cargo | [mach2](https://github.com/JohnTitor/mach2) | 0.5.0 | BSD-2-Clause OR MIT OR Apache-2.0 |
@@ -320,6 +342,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [matchers](https://github.com/hawkw/matchers) | 0.2.0 | MIT |
 | Cargo | [matchit](https://github.com/ibraheemdev/matchit) | 0.8.4 | MIT AND BSD-3-Clause |
 | Cargo | [matrixmultiply](https://github.com/bluss/matrixmultiply/) | 0.3.10 | MIT/Apache-2.0 |
+| Cargo | [md-5](https://github.com/RustCrypto/hashes) | 0.11.0 | MIT OR Apache-2.0 |
 | Cargo | [memchr](https://github.com/BurntSushi/memchr) | 2.8.0 | Unlicense OR MIT |
 | Cargo | [memmap2](https://github.com/RazrFalcon/memmap2-rs) | 0.9.11 | MIT OR Apache-2.0 |
 | Cargo | [memoffset](https://github.com/Gilnaa/memoffset) | 0.9.1 | MIT |
@@ -347,6 +370,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [nokhwa-core](https://github.com/l1npengtul/nokhwa) | 0.1.9 | Apache-2.0 |
 | Cargo | [nokhwa](https://github.com/l1npengtul/nokhwa) | 0.10.11 | Apache-2.0 |
 | Cargo | [nom](https://github.com/Geal/nom) | 7.1.3 | MIT |
+| Cargo | [nom](https://github.com/rust-bakery/nom) | 8.0.0 | MIT |
 | Cargo | [nu-ansi-term](https://github.com/nushell/nu-ansi-term) | 0.50.3 | MIT |
 | Cargo | [num_enum_derive](https://github.com/illicitonion/num_enum) | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 |
 | Cargo | [num_enum](https://github.com/illicitonion/num_enum) | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 |
@@ -380,6 +404,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [objc2](https://github.com/madsmtm/objc2) | 0.6.4 | MIT |
 | Cargo | [once_cell_polyfill](https://github.com/polyfill-rs/once_cell_polyfill) | 1.70.2 | MIT OR Apache-2.0 |
 | Cargo | [once_cell](https://github.com/matklad/once_cell) | 1.21.4 | MIT OR Apache-2.0 |
+| Cargo | [oorandom](https://hg.sr.ht/~icefox/oorandom) | 11.1.5 | MIT |
 | Cargo | [open](https://github.com/Byron/open-rs) | 5.3.3 | MIT |
 | Cargo | [openssl-probe](https://github.com/rustls/openssl-probe) | 0.2.1 | MIT OR Apache-2.0 |
 | Cargo | [option-ext](https://github.com/soc/option-ext.git) | 0.2.0 | MPL-2.0 |
@@ -394,6 +419,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [parking](https://github.com/smol-rs/parking) | 2.2.1 | Apache-2.0 OR MIT |
 | Cargo | [paste](https://github.com/dtolnay/paste) | 1.0.15 | MIT OR Apache-2.0 |
 | Cargo | [pathdiff](https://github.com/Manishearth/pathdiff) | 0.2.3 | MIT/Apache-2.0 |
+| Cargo | [pdf417](https://github.com/Sofiman/pdf417/) | 0.2.1 | Not declared in package metadata |
 | Cargo | [peeking_take_while](https://github.com/fitzgen/peeking_take_while) | 0.1.2 | Apache-2.0/MIT |
 | Cargo | [percent-encoding](https://github.com/servo/rust-url/) | 2.3.2 | MIT OR Apache-2.0 |
 | Cargo | [phf_codegen](https://github.com/rust-phf/rust-phf) | 0.13.1 | MIT |
@@ -407,6 +433,9 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [piper](https://github.com/smol-rs/piper) | 0.2.5 | MIT OR Apache-2.0 |
 | Cargo | [pkg-config](https://github.com/rust-lang/pkg-config-rs) | 0.3.32 | MIT OR Apache-2.0 |
 | Cargo | [plist](https://github.com/ebarnard/rust-plist/) | 1.10.0 | MIT |
+| Cargo | [plotters-backend](https://github.com/plotters-rs/plotters) | 0.3.7 | MIT |
+| Cargo | [plotters-svg](https://github.com/plotters-rs/plotters.git) | 0.3.7 | MIT |
+| Cargo | [plotters](https://github.com/plotters-rs/plotters) | 0.3.7 | MIT |
 | Cargo | [png](https://github.com/image-rs/image-png) | 0.17.16 | MIT OR Apache-2.0 |
 | Cargo | [png](https://github.com/image-rs/image-png) | 0.18.1 | MIT OR Apache-2.0 |
 | Cargo | [polling](https://github.com/smol-rs/polling) | 3.11.0 | Apache-2.0 OR MIT |
@@ -421,8 +450,10 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [proc-macro-error-attr](https://gitlab.com/CreepySkeleton/proc-macro-error) | 1.0.4 | MIT OR Apache-2.0 |
 | Cargo | [proc-macro-error](https://gitlab.com/CreepySkeleton/proc-macro-error) | 1.0.4 | MIT OR Apache-2.0 |
 | Cargo | [proc-macro2](https://github.com/dtolnay/proc-macro2) | 1.0.106 | MIT OR Apache-2.0 |
+| Cargo | [proptest](https://github.com/proptest-rs/proptest) | 1.11.0 | MIT OR Apache-2.0 |
 | Cargo | [pxfm](https://github.com/awxkee/pxfm) | 0.1.28 | BSD-3-Clause OR Apache-2.0 |
 | Cargo | [qrcodegen](https://github.com/nayuki/QR-Code-generator) | 1.8.0 | MIT |
+| Cargo | [quick-error](http://github.com/tailhook/quick-error) | 1.2.3 | MIT/Apache-2.0 |
 | Cargo | [quick-error](http://github.com/tailhook/quick-error) | 2.0.1 | MIT/Apache-2.0 |
 | Cargo | [quick-xml](https://github.com/tafia/quick-xml) | 0.41.0 | MIT |
 | Cargo | [quinn-proto](https://github.com/quinn-rs/quinn) | 0.11.16 | MIT OR Apache-2.0 |
@@ -435,8 +466,10 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [rand_core](https://github.com/rust-random/rand_core) | 0.10.1 | MIT OR Apache-2.0 |
 | Cargo | [rand_core](https://github.com/rust-random/rand) | 0.9.5 | MIT OR Apache-2.0 |
 | Cargo | [rand_pcg](https://github.com/rust-random/rngs) | 0.10.2 | MIT OR Apache-2.0 |
+| Cargo | [rand_xorshift](https://github.com/rust-random/rngs) | 0.4.0 | MIT OR Apache-2.0 |
 | Cargo | [rand](https://github.com/rust-random/rand) | 0.10.2 | MIT OR Apache-2.0 |
 | Cargo | [rand](https://github.com/rust-random/rand) | 0.9.5 | MIT OR Apache-2.0 |
+| Cargo | [rangemap](https://github.com/jeffparsons/rangemap) | 1.8.0 | MIT/Apache-2.0 |
 | Cargo | [raw-window-handle](https://github.com/rust-windowing/raw-window-handle) | 0.6.2 | MIT OR Apache-2.0 OR Zlib |
 | Cargo | [rawpointer](https://github.com/bluss/rawpointer/) | 0.2.1 | MIT/Apache-2.0 |
 | Cargo | [rayon-core](https://github.com/rayon-rs/rayon) | 1.13.0 | MIT OR Apache-2.0 |
@@ -469,6 +502,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [rustls-webpki](https://github.com/rustls/webpki) | 0.103.13 | ISC |
 | Cargo | [rustls](https://github.com/rustls/rustls) | 0.23.37 | Apache-2.0 OR ISC OR MIT |
 | Cargo | [rustversion](https://github.com/dtolnay/rustversion) | 1.0.22 | MIT OR Apache-2.0 |
+| Cargo | [rusty-fork](https://github.com/altsysrq/rusty-fork) | 0.3.1 | MIT/Apache-2.0 |
 | Cargo | [rustybuzz](https://github.com/harfbuzz/rustybuzz) | 0.20.1 | MIT |
 | Cargo | [ryu](https://github.com/dtolnay/ryu) | 1.0.23 | Apache-2.0 OR BSL-1.0 |
 | Cargo | [safe_arch](https://github.com/Lokathor/safe_arch) | 0.7.4 | Zlib OR Apache-2.0 OR MIT |
@@ -502,6 +536,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [servo_arc](https://github.com/servo/stylo) | 0.4.3 | MIT OR Apache-2.0 |
 | Cargo | [sha1](https://github.com/RustCrypto/hashes) | 0.10.6 | MIT OR Apache-2.0 |
 | Cargo | [sha2](https://github.com/RustCrypto/hashes) | 0.10.9 | MIT OR Apache-2.0 |
+| Cargo | [sha2](https://github.com/RustCrypto/hashes) | 0.11.0 | MIT OR Apache-2.0 |
 | Cargo | [sharded-slab](https://github.com/hawkw/sharded-slab) | 0.1.7 | MIT |
 | Cargo | [shared_child](https://github.com/oconnor663/shared_child.rs) | 1.1.1 | MIT |
 | Cargo | [shlex](https://github.com/comex/rust-shlex) | 1.3.0 | MIT OR Apache-2.0 |
@@ -525,6 +560,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [strict-num](https://github.com/RazrFalcon/strict-num) | 0.1.1 | MIT |
 | Cargo | [string_cache_codegen](https://github.com/servo/string-cache) | 0.6.1 | MIT OR Apache-2.0 |
 | Cargo | [string_cache](https://github.com/servo/string-cache) | 0.9.0 | MIT OR Apache-2.0 |
+| Cargo | [stringprep](https://github.com/sfackler/rust-stringprep) | 0.1.5 | MIT/Apache-2.0 |
 | Cargo | [strsim](https://github.com/rapidfuzz/strsim-rs) | 0.11.1 | MIT |
 | Cargo | [subtle](https://github.com/dalek-cryptography/subtle) | 2.6.1 | BSD-3-Clause |
 | Cargo | [svgtypes](https://github.com/linebender/svgtypes) | 0.15.3 | Apache-2.0 OR MIT |
@@ -568,6 +604,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [tiny-skia-path](https://github.com/RazrFalcon/tiny-skia/tree/master/path) | 0.11.4 | BSD-3-Clause |
 | Cargo | [tiny-skia](https://github.com/RazrFalcon/tiny-skia) | 0.11.4 | BSD-3-Clause |
 | Cargo | [tinystr](https://github.com/unicode-org/icu4x) | 0.8.2 | Unicode-3.0 |
+| Cargo | [tinytemplate](https://github.com/bheisler/TinyTemplate) | 1.2.1 | Apache-2.0 OR MIT |
 | Cargo | [tinyvec_macros](https://github.com/Soveu/tinyvec_macros) | 0.1.1 | MIT OR Apache-2.0 OR Zlib |
 | Cargo | [tinyvec](https://github.com/Lokathor/tinyvec) | 1.11.0 | Zlib OR Apache-2.0 OR MIT |
 | Cargo | [tokio-macros](https://github.com/tokio-rs/tokio) | 2.6.1 | MIT |
@@ -600,13 +637,14 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [ttf-parser](https://github.com/harfbuzz/ttf-parser) | 0.25.1 | MIT OR Apache-2.0 |
 | Cargo | [tungstenite](https://github.com/snapview/tungstenite-rs) | 0.28.0 | MIT OR Apache-2.0 |
 | Cargo | [typeid](https://github.com/dtolnay/typeid) | 1.0.3 | MIT OR Apache-2.0 |
-| Cargo | [typenum](https://github.com/paholg/typenum) | 1.19.0 | MIT OR Apache-2.0 |
+| Cargo | [typenum](https://github.com/paholg/typenum) | 1.20.1 | MIT OR Apache-2.0 |
 | Cargo | [u-geometry](https://github.com/iyulab/u-geometry) | 0.1.0 | MIT |
 | Cargo | [u-metaheur](https://github.com/iyulab/u-metaheur) | 0.2.0 | MIT |
 | Cargo | [u-nesting-core](https://github.com/iyulab/U-Nesting) | 0.3.1 | MIT |
 | Cargo | [u-nesting-d2](https://github.com/iyulab/U-Nesting) | 0.3.1 | MIT |
 | Cargo | [u-numflow](https://github.com/iyulab/u-numflow) | 0.2.1 | MIT |
 | Cargo | [uds_windows](https://github.com/haraldh/rust_uds_windows) | 1.2.1 | MIT |
+| Cargo | [unarray](https://github.com/cameron1024/unarray) | 0.1.4 | MIT OR Apache-2.0 |
 | Cargo | [unescaper](https://github.com/hack-ink/unescaper) | 0.1.8 | GPL-3.0/MIT |
 | Cargo | [unic-char-property](https://github.com/open-i18n/rust-unic/) | 0.9.0 | MIT/Apache-2.0 |
 | Cargo | [unic-char-range](https://github.com/open-i18n/rust-unic/) | 0.9.0 | MIT/Apache-2.0 |
@@ -617,6 +655,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [unicode-bidi](https://github.com/servo/unicode-bidi) | 0.3.18 | MIT OR Apache-2.0 |
 | Cargo | [unicode-ccc](https://github.com/RazrFalcon/unicode-ccc) | 0.4.0 | MIT/Apache-2.0 |
 | Cargo | [unicode-ident](https://github.com/dtolnay/unicode-ident) | 1.0.24 | (MIT OR Apache-2.0) AND Unicode-3.0 |
+| Cargo | [unicode-normalization](https://github.com/unicode-rs/unicode-normalization) | 0.1.25 | MIT OR Apache-2.0 |
 | Cargo | [unicode-properties](https://github.com/unicode-rs/unicode-properties) | 0.1.4 | MIT/Apache-2.0 |
 | Cargo | [unicode-script](https://github.com/unicode-rs/unicode-script) | 0.5.8 | MIT OR Apache-2.0 |
 | Cargo | [unicode-segmentation](https://github.com/unicode-rs/unicode-segmentation) | 1.12.0 | MIT OR Apache-2.0 |
@@ -639,6 +678,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [version-compare](https://gitlab.com/timvisee/version-compare) | 0.2.1 | MIT |
 | Cargo | [vswhom-sys](https://github.com/nabijaczleweli/vswhom-sys.rs) | 0.1.3 | MIT |
 | Cargo | [vswhom](https://github.com/nabijaczleweli/vswhom.rs) | 0.1.0 | MIT |
+| Cargo | [wait-timeout](https://github.com/alexcrichton/wait-timeout) | 0.2.1 | MIT/Apache-2.0 |
 | Cargo | [walkdir](https://github.com/BurntSushi/walkdir) | 2.5.0 | Unlicense/MIT |
 | Cargo | [want](https://github.com/seanmonstar/want) | 0.3.1 | MIT |
 | Cargo | [wasi](https://github.com/bytecodealliance/wasi) | 0.11.1+wasi-snapshot-preview1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
@@ -664,6 +704,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | Cargo | [webview2-com-sys](https://github.com/wravery/webview2-rs) | 0.38.2 | MIT |
 | Cargo | [webview2-com](https://github.com/wravery/webview2-rs) | 0.38.2 | MIT |
 | Cargo | [weezl](https://github.com/image-rs/weezl) | 0.1.12 | MIT OR Apache-2.0 |
+| Cargo | [weezl](https://github.com/image-rs/weezl) | 0.2.1 | MIT OR Apache-2.0 |
 | Cargo | [which](https://github.com/harryfei/which-rs.git) | 4.4.2 | MIT |
 | Cargo | [wide](https://github.com/Lokathor/wide) | 0.7.33 | Zlib OR Apache-2.0 OR MIT |
 | Cargo | [winapi-i686-pc-windows-gnu](https://github.com/retep998/winapi-rs) | 0.4.0 | MIT/Apache-2.0 |
@@ -832,8 +873,9 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | @formatjs/icu-messageformat-parser | 2.11.4 | MIT |
 | npm | @formatjs/icu-skeleton-parser | 1.8.16 | MIT |
 | npm | @formatjs/intl-localematcher | 0.6.2 | MIT |
-| npm | @humanfs/core | 0.19.1 | Apache-2.0 |
-| npm | @humanfs/node | 0.16.7 | Apache-2.0 |
+| npm | @humanfs/core | 0.19.2 | Apache-2.0 |
+| npm | @humanfs/node | 0.16.8 | Apache-2.0 |
+| npm | @humanfs/types | 0.15.0 | Apache-2.0 |
 | npm | @humanwhocodes/module-importer | 1.0.1 | Apache-2.0 |
 | npm | @humanwhocodes/retry | 0.4.3 | Apache-2.0 |
 | npm | @jridgewell/gen-mapping | 0.3.13 | MIT |
@@ -934,15 +976,15 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | asynckit | 0.4.0 | MIT |
 | npm | autoprefixer | 10.4.27 | MIT |
 | npm | balanced-match | 4.0.4 | MIT |
-| npm | baseline-browser-mapping | 2.10.8 | Apache-2.0 |
+| npm | baseline-browser-mapping | 2.11.21 | Apache-2.0 |
 | npm | binary-extensions | 2.3.0 | MIT |
 | npm | brace-expansion | 5.0.9 | MIT |
 | npm | braces | 3.0.3 | MIT |
-| npm | browserslist | 4.28.1 | MIT |
+| npm | browserslist | 4.28.9 | MIT |
 | npm | cac | 6.7.14 | MIT |
 | npm | call-bind-apply-helpers | 1.0.2 | MIT |
 | npm | camelcase-css | 2.0.1 | MIT |
-| npm | caniuse-lite | 1.0.30001780 | CC-BY-4.0 |
+| npm | caniuse-lite | 1.0.30001810 | CC-BY-4.0 |
 | npm | chai | 5.3.3 | MIT |
 | npm | check-error | 2.1.3 | MIT |
 | npm | chokidar | 3.6.0 | MIT |
@@ -966,7 +1008,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | dom-accessibility-api | 0.5.16 | MIT |
 | npm | dom-accessibility-api | 0.6.3 | MIT |
 | npm | dunder-proto | 1.0.1 | MIT |
-| npm | electron-to-chromium | 1.5.313 | ISC |
+| npm | electron-to-chromium | 1.5.422 | ISC |
 | npm | entities | 6.0.1 | BSD-2-Clause |
 | npm | es-define-property | 1.0.1 | MIT |
 | npm | es-errors | 1.3.0 | MIT |
@@ -1068,7 +1110,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | mz | 2.7.0 | MIT |
 | npm | nanoid | 3.3.18 | MIT |
 | npm | natural-compare | 1.4.0 | MIT |
-| npm | node-releases | 2.0.36 | MIT |
+| npm | node-releases | 2.0.54 | MIT |
 | npm | normalize-path | 3.0.0 | MIT |
 | npm | nwsapi | 2.2.23 | MIT |
 | npm | object-assign | 4.1.1 | MIT |
@@ -1093,7 +1135,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | postcss-js | 4.1.0 | MIT |
 | npm | postcss-load-config | 6.0.1 | MIT |
 | npm | postcss-nested | 6.2.0 | MIT |
-| npm | postcss-selector-parser | 6.1.2 | MIT |
+| npm | postcss-selector-parser | 6.1.4 | MIT |
 | npm | postcss-value-parser | 4.2.0 | MIT |
 | npm | postcss | 8.5.23 | MIT |
 | npm | prelude-ls | 1.2.1 | MIT |
@@ -1154,7 +1196,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | type-check | 0.4.0 | MIT |
 | npm | typescript-eslint | 8.65.0 | MIT |
 | npm | typescript | 5.9.3 | Apache-2.0 |
-| npm | update-browserslist-db | 1.2.3 | MIT |
+| npm | update-browserslist-db | 1.3.2 | MIT |
 | npm | uri-js | 4.4.1 | BSD-2-Clause |
 | npm | util-deprecate | 1.0.2 | MIT |
 | npm | vite-node | 3.2.4 | MIT |
@@ -1316,7 +1358,7 @@ THE SOFTWARE.
 
 ### 033a9383ff21
 
-Packages: Cargo:heck@0.4.1, Cargo:heck@0.5.0, Cargo:peeking_take_while@0.1.2, Cargo:unicode-bidi@0.3.18, Cargo:unicode-properties@0.1.4, Cargo:unicode-segmentation@1.12.0, Cargo:unicode-xid@0.2.6
+Packages: Cargo:heck@0.4.1, Cargo:heck@0.5.0, Cargo:peeking_take_while@0.1.2, Cargo:unicode-bidi@0.3.18, Cargo:unicode-normalization@0.1.25, Cargo:unicode-properties@0.1.4, Cargo:unicode-segmentation@1.12.0, Cargo:unicode-xid@0.2.6
 
 ```text
 Copyright (c) 2015 The Rust Project Developers
@@ -2245,6 +2287,33 @@ Permission is granted to anyone to use this software for any purpose, including 
 3. This notice may not be removed or altered from any source distribution.
 ```
 
+### 1017334f27eb
+
+Packages: npm:update-browserslist-db@1.3.2
+
+```text
+The MIT License (MIT)
+
+Copyright 2022 Andrey Sitnik <andrey@sitnik.es> and other contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
 ### 1038b7737a0a
 
 Packages: Cargo:chacha20@0.10.1
@@ -2439,7 +2508,7 @@ DEALINGS IN THE SOFTWARE.
 
 ### 134b172bc327
 
-Packages: Cargo:u-geometry@0.1.0, Cargo:u-metaheur@0.2.0, Cargo:u-numflow@0.2.1
+Packages: Cargo:u-geometry@0.1.0, Cargo:u-metaheur@0.2.0, Cargo:u-nesting-d2@0.3.1, Cargo:u-numflow@0.2.1
 
 ```text
 MIT License
@@ -2673,6 +2742,39 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
+### 13ec53eb1d4d
+
+Packages: Cargo:inout@0.2.2
+
+```text
+Copyright (c) 2022-2025 The RustCrypto Project Developers
+Copyright (c) 2022 Artyom Pavlov
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ### 13ffba3573c2
 
 Packages: npm:cac@6.7.14
@@ -2719,7 +2821,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### 14435fbcd271
 
-Packages: Cargo:bitflags@1.3.2, Cargo:bitflags@2.11.0, Cargo:glob@0.3.3, Cargo:log@0.4.29, Cargo:num-bigint@0.4.6, Cargo:num-complex@0.4.6, Cargo:num-integer@0.1.46, Cargo:num-rational@0.4.2, Cargo:num-traits@0.2.19, Cargo:regex-automata@0.4.14, Cargo:regex-syntax@0.8.10, Cargo:regex@1.12.3
+Packages: Cargo:bitflags@1.3.2, Cargo:bitflags@2.13.1, Cargo:glob@0.3.3, Cargo:log@0.4.29, Cargo:num-bigint@0.4.6, Cargo:num-complex@0.4.6, Cargo:num-integer@0.1.46, Cargo:num-rational@0.4.2, Cargo:num-traits@0.2.19, Cargo:regex-automata@0.4.14, Cargo:regex-syntax@0.8.10, Cargo:regex@1.12.3
 
 ```text
 Copyright (c) 2014 The Rust Project Developers
@@ -2861,6 +2963,38 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+### 161e57564453
+
+Packages: Cargo:criterion-plot@0.5.0, Cargo:criterion@0.5.1
+
+```text
+Copyright (c) 2014 Jorge Aparicio
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ```
 
 ### 179c83ef07a5
@@ -3683,7 +3817,7 @@ SOFTWARE.
 
 ### 1e881ecf2862
 
-Packages: Cargo:nalgebra-macros@0.2.2
+Packages: Cargo:nalgebra-macros@0.2.2, Cargo:plotters-backend@0.3.7, Cargo:plotters-svg@0.3.7, Cargo:plotters@0.3.7
 
 ```text
 ../LICENSE
@@ -4068,7 +4202,7 @@ DEALINGS IN THE SOFTWARE.
 
 ### 20cec30ad778
 
-Packages: Cargo:unicode-properties@0.1.4, Cargo:unicode-segmentation@1.12.0, Cargo:unicode-xid@0.2.6
+Packages: Cargo:unicode-normalization@0.1.25, Cargo:unicode-properties@0.1.4, Cargo:unicode-segmentation@1.12.0, Cargo:unicode-xid@0.2.6
 
 ```text
 Licensed under the Apache License, Version 2.0
@@ -4327,7 +4461,7 @@ THE SOFTWARE.
 
 ### 2411d70acb18
 
-Packages: Cargo:rand@0.10.2, Cargo:rand@0.9.5, Cargo:rand_chacha@0.9.0, Cargo:rand_core@0.9.5, Cargo:rand_pcg@0.10.2
+Packages: Cargo:rand@0.10.2, Cargo:rand@0.9.5, Cargo:rand_chacha@0.9.0, Cargo:rand_core@0.9.5, Cargo:rand_pcg@0.10.2, Cargo:rand_xorshift@0.4.0
 
 ```text
 Copyrights in the Rand project are retained by their contributors. No
@@ -4724,7 +4858,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### 283ea6cc2997
 
-Packages: Cargo:approx@0.5.1, Cargo:clang-sys@1.8.1, Cargo:datamatrix@0.3.2, Cargo:embed_plist@1.2.2, Cargo:encoding_rs@0.8.35, Cargo:flagset@0.4.7, Cargo:flume@0.11.1, Cargo:iri-string@0.7.10, Cargo:kurbo@0.11.3, Cargo:lru-slab@0.1.2, Cargo:nokhwa@0.10.11, Cargo:quinn-proto@0.11.16, Cargo:quinn-udp@0.5.14, Cargo:quinn@0.11.9, Cargo:rustls-platform-verifier@0.6.2, Cargo:serialize-to-javascript-impl@0.1.2, Cargo:serialize-to-javascript@0.1.2, Cargo:spade@2.15.0, Cargo:tinyvec@1.11.0, Cargo:utf8_iter@1.0.4, Cargo:x11rb-protocol@0.13.2, Cargo:x11rb@0.13.2, Cargo:zeroize@1.8.2, Cargo:zune-core@0.5.1, Cargo:zune-jpeg@0.5.13, npm:@eslint/config-array@0.23.5, npm:@eslint/config-helpers@0.7.0, npm:@eslint/core@1.2.1, npm:@eslint/object-schema@3.0.5, npm:@eslint/plugin-kit@0.7.2, npm:@humanfs/core@0.19.1, npm:@humanfs/node@0.16.7, npm:@humanwhocodes/module-importer@1.0.1, npm:@humanwhocodes/retry@0.4.3, npm:baseline-browser-mapping@2.10.8
+Packages: Cargo:approx@0.5.1, Cargo:ciborium-io@0.2.2, Cargo:ciborium-ll@0.2.2, Cargo:ciborium@0.2.2, Cargo:clang-sys@1.8.1, Cargo:datamatrix@0.3.2, Cargo:embed_plist@1.2.2, Cargo:encoding_rs@0.8.35, Cargo:flagset@0.4.7, Cargo:flume@0.11.1, Cargo:iri-string@0.7.10, Cargo:kurbo@0.11.3, Cargo:lru-slab@0.1.2, Cargo:nokhwa@0.10.11, Cargo:quinn-proto@0.11.16, Cargo:quinn-udp@0.5.14, Cargo:quinn@0.11.9, Cargo:rustls-platform-verifier@0.6.2, Cargo:serialize-to-javascript-impl@0.1.2, Cargo:serialize-to-javascript@0.1.2, Cargo:spade@2.15.0, Cargo:tinyvec@1.11.0, Cargo:unarray@0.1.4, Cargo:utf8_iter@1.0.4, Cargo:x11rb-protocol@0.13.2, Cargo:x11rb@0.13.2, Cargo:zeroize@1.8.2, Cargo:zune-core@0.5.1, Cargo:zune-jpeg@0.5.13, npm:@eslint/config-array@0.23.5, npm:@eslint/config-helpers@0.7.0, npm:@eslint/core@1.2.1, npm:@eslint/object-schema@3.0.5, npm:@eslint/plugin-kit@0.7.2, npm:@humanfs/core@0.19.2, npm:@humanfs/node@0.16.8, npm:@humanwhocodes/module-importer@1.0.1, npm:@humanwhocodes/retry@0.4.3, npm:baseline-browser-mapping@2.11.21
 
 ```text
 Apache License
@@ -4955,6 +5089,38 @@ PackageDownloadLocation: git+ssh://github.com/tauri-apps/tao.git
 Creator: Person: Daniel Thompson-Yvetot
 ```
 
+### 28afb21f14a0
+
+Packages: Cargo:cipher@0.5.2
+
+```text
+Copyright (c) 2016-2025 RustCrypto Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ### 2970d8b03b77
 
 Packages: Cargo:version-compare@0.2.1
@@ -4995,6 +5161,38 @@ Rustls is distributed under the following three licenses:
 These are included as LICENSE-APACHE, LICENSE-MIT and LICENSE-ISC
 respectively.  You may use this software under the terms of any
 of these licenses, at your option.
+```
+
+### 29ff9a98c414
+
+Packages: Cargo:cast@0.3.0
+
+```text
+Copyright (c) 2014-2017 Jorge Aparicio
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ```
 
 ### 2a57418d6b10
@@ -5086,6 +5284,34 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+### 2ab44a816cde
+
+Packages: Cargo:pdf417@0.2.1
+
+```text
+MIT License
+
+Copyright (c) 2023 Sofiane
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ### 2aca90f05dbb
@@ -5375,6 +5601,33 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+```
+
+### 2bccca04141d
+
+Packages: npm:browserslist@4.28.9
+
+```text
+The MIT License (MIT)
+
+Copyright 2014 Andrey Sitnik <andrey@sitnik.es> and other contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
 ### 2c01a01133de
@@ -5786,7 +6039,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### 30fefc3a7d6a
 
-Packages: Cargo:adler2@2.0.1, Cargo:allocator-api2@0.2.21, Cargo:anyhow@1.0.104, Cargo:async-channel@2.5.0, Cargo:async-executor@1.14.0, Cargo:async-io@2.6.0, Cargo:async-lock@3.4.2, Cargo:async-process@2.5.0, Cargo:async-recursion@1.1.1, Cargo:async-signal@0.2.14, Cargo:async-task@4.7.1, Cargo:async-trait@0.1.89, Cargo:atomic-waker@1.1.2, Cargo:blocking@1.6.2, Cargo:camino@1.2.2, Cargo:cargo-platform@0.1.9, Cargo:cargo-platform@0.3.3, Cargo:cargo_metadata@0.19.2, Cargo:cargo_metadata@0.23.1, Cargo:concurrent-queue@2.5.0, Cargo:const_fn@0.4.12, Cargo:displaydoc@0.2.5, Cargo:dtoa@1.0.11, Cargo:dyn-clone@1.0.20, Cargo:endi@1.1.1, Cargo:erased-serde@0.4.10, Cargo:event-listener-strategy@0.5.4, Cargo:event-listener@5.4.1, Cargo:fastrand@2.3.0, Cargo:flume@0.11.1, Cargo:futures-lite@2.6.1, Cargo:hermit-abi@0.5.2, Cargo:home@0.5.12, Cargo:itoa@1.0.17, Cargo:leb128fmt@0.1.0, Cargo:linux-raw-sys@0.12.1, Cargo:linux-raw-sys@0.4.15, Cargo:minimal-lexical@0.2.1, Cargo:num_enum@0.7.6, Cargo:num_enum_derive@0.7.6, Cargo:nusb@0.2.5, Cargo:once_cell@1.21.4, Cargo:ordered-stream@0.2.0, Cargo:parking@2.2.1, Cargo:paste@1.0.15, Cargo:pathdiff@0.2.3, Cargo:pin-project-lite@0.2.17, Cargo:piper@0.2.5, Cargo:polling@3.11.0, Cargo:prettyplease@0.2.37, Cargo:proc-macro-crate@1.3.1, Cargo:proc-macro-crate@2.0.2, Cargo:proc-macro-crate@3.5.0, Cargo:proc-macro2@1.0.106, Cargo:quote@1.0.45, Cargo:ref-cast-impl@1.0.25, Cargo:ref-cast@1.0.25, Cargo:rustc-hash@1.1.0, Cargo:rustc-hash@2.1.1, Cargo:rustix@0.38.44, Cargo:rustix@1.1.4, Cargo:rustversion@1.0.22, Cargo:semver@1.0.27, Cargo:serde-untagged@0.1.9, Cargo:serde@1.0.228, Cargo:serde_core@1.0.228, Cargo:serde_derive@1.0.228, Cargo:serde_derive_internals@0.29.1, Cargo:serde_json@1.0.149, Cargo:serde_path_to_error@0.1.20, Cargo:serde_repr@0.1.20, Cargo:servo_arc@0.4.3, Cargo:syn@1.0.109, Cargo:syn@2.0.117, Cargo:system-deps@6.2.2, Cargo:thiserror-impl@1.0.69, Cargo:thiserror-impl@2.0.18, Cargo:thiserror@1.0.69, Cargo:thiserror@2.0.18, Cargo:typeid@1.0.3, Cargo:unicode-ident@1.0.24, Cargo:utf-8@0.7.6, Cargo:wasi@0.11.1+wasi-snapshot-preview1, Cargo:wasm-streams@0.5.0, Cargo:wit-bindgen-core@0.51.0, Cargo:wit-bindgen-rust-macro@0.51.0, Cargo:wit-bindgen-rust@0.51.0, Cargo:wit-bindgen@0.51.0, Cargo:x11-dl@2.21.0, Cargo:x11@2.21.0, Cargo:zmij@1.0.21, Cargo:zvariant_utils@3.3.1
+Packages: Cargo:adler2@2.0.1, Cargo:allocator-api2@0.2.21, Cargo:anyhow@1.0.104, Cargo:async-channel@2.5.0, Cargo:async-executor@1.14.0, Cargo:async-io@2.6.0, Cargo:async-lock@3.4.2, Cargo:async-process@2.5.0, Cargo:async-recursion@1.1.1, Cargo:async-signal@0.2.14, Cargo:async-task@4.7.1, Cargo:async-trait@0.1.89, Cargo:atomic-waker@1.1.2, Cargo:blocking@1.6.2, Cargo:camino@1.2.2, Cargo:cargo-platform@0.1.9, Cargo:cargo-platform@0.3.3, Cargo:cargo_metadata@0.19.2, Cargo:cargo_metadata@0.23.1, Cargo:concurrent-queue@2.5.0, Cargo:const_fn@0.4.12, Cargo:displaydoc@0.2.5, Cargo:dtoa@1.0.11, Cargo:dyn-clone@1.0.20, Cargo:endi@1.1.1, Cargo:erased-serde@0.4.10, Cargo:event-listener-strategy@0.5.4, Cargo:event-listener@5.4.2, Cargo:fastrand@2.3.0, Cargo:flume@0.11.1, Cargo:futures-lite@2.6.1, Cargo:hermit-abi@0.5.2, Cargo:home@0.5.12, Cargo:is-terminal@0.4.17, Cargo:itoa@1.0.17, Cargo:leb128fmt@0.1.0, Cargo:linux-raw-sys@0.12.1, Cargo:linux-raw-sys@0.4.15, Cargo:minimal-lexical@0.2.1, Cargo:num_enum@0.7.6, Cargo:num_enum_derive@0.7.6, Cargo:nusb@0.2.5, Cargo:once_cell@1.21.4, Cargo:ordered-stream@0.2.0, Cargo:parking@2.2.1, Cargo:paste@1.0.15, Cargo:pathdiff@0.2.3, Cargo:pin-project-lite@0.2.17, Cargo:piper@0.2.5, Cargo:polling@3.11.0, Cargo:prettyplease@0.2.37, Cargo:proc-macro-crate@1.3.1, Cargo:proc-macro-crate@2.0.2, Cargo:proc-macro-crate@3.5.0, Cargo:proc-macro2@1.0.106, Cargo:quote@1.0.45, Cargo:ref-cast-impl@1.0.25, Cargo:ref-cast@1.0.25, Cargo:rustc-hash@1.1.0, Cargo:rustc-hash@2.1.1, Cargo:rustix@0.38.44, Cargo:rustix@1.1.4, Cargo:rustversion@1.0.22, Cargo:semver@1.0.27, Cargo:serde-untagged@0.1.9, Cargo:serde@1.0.228, Cargo:serde_core@1.0.228, Cargo:serde_derive@1.0.228, Cargo:serde_derive_internals@0.29.1, Cargo:serde_json@1.0.149, Cargo:serde_path_to_error@0.1.20, Cargo:serde_repr@0.1.20, Cargo:servo_arc@0.4.3, Cargo:syn@1.0.109, Cargo:syn@2.0.117, Cargo:system-deps@6.2.2, Cargo:thiserror-impl@1.0.69, Cargo:thiserror-impl@2.0.18, Cargo:thiserror@1.0.69, Cargo:thiserror@2.0.18, Cargo:typeid@1.0.3, Cargo:unicode-ident@1.0.24, Cargo:utf-8@0.7.6, Cargo:wasi@0.11.1+wasi-snapshot-preview1, Cargo:wasm-streams@0.5.0, Cargo:wit-bindgen-core@0.51.0, Cargo:wit-bindgen-rust-macro@0.51.0, Cargo:wit-bindgen-rust@0.51.0, Cargo:wit-bindgen@0.51.0, Cargo:x11-dl@2.21.0, Cargo:x11@2.21.0, Cargo:zmij@1.0.21, Cargo:zvariant_utils@3.3.1
 
 ```text
 Permission is hereby granted, free of charge, to any
@@ -5988,6 +6241,38 @@ Packages: Cargo:iana-time-zone-haiku@0.1.2, Cargo:iana-time-zone@0.1.65
 
 ```text
 Copyright (c) 2020 Andrew D. Straw
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+### 34a493355890
+
+Packages: Cargo:cpubits@0.1.1
+
+```text
+Copyright (c) 2023-2026 The RustCrypto Project Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -6754,7 +7039,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTH
 
 ### 419039f9aad7
 
-Packages: Cargo:i_float@1.6.0, Cargo:i_overlay@1.9.4, Cargo:i_shape@1.6.0
+Packages: Cargo:i_float@1.15.0, Cargo:i_shape@1.14.0
 
 ```text
 MIT License
@@ -7834,6 +8119,36 @@ Packages: npm:iconv-lite@0.6.3
 
 ```text
 Copyright (c) 2011 Alexander Shtuchkin
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+### 4847d869d2f9
+
+Packages: Cargo:is-terminal@0.4.17
+
+```text
+Portions of this project are derived from atty, which bears the following
+copyright notice and permission notice:
+
+Copyright (c) 2015-2019 Doug Tangren
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -9103,7 +9418,7 @@ THE SOFTWARE.
 
 ### 4f2ac128e429
 
-Packages: Cargo:indexmap@1.9.3, Cargo:indexmap@2.13.0
+Packages: Cargo:indexmap@1.9.3, Cargo:indexmap@2.14.1
 
 ```text
 Copyright (c) 2016--2017
@@ -9167,6 +9482,41 @@ Packages: Cargo:bytes@1.11.1
 
 ```text
 Copyright (c) 2018 Carl Lerche
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+### 535a6aa345e8
+
+Packages: Cargo:md-5@0.11.0, Cargo:sha2@0.11.0
+
+```text
+Copyright (c) 2016-2026 The RustCrypto Project Developers
+Copyright (c) 2016 Artyom Pavlov
+Copyright (c) 2009-2013 Mozilla Foundation
+Copyright (c) 2006-2009 Graydon Hoare
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -9273,60 +9623,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-```
-
-### 5615587b2b53
-
-Packages: npm:update-browserslist-db@1.2.3
-
-```text
-The MIT License (MIT)
-
-Copyright 2022 Andrey Sitnik <andrey@sitnik.ru> and other contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
-
-### 563603cb6ef4
-
-Packages: npm:browserslist@4.28.1
-
-```text
-The MIT License (MIT)
-
-Copyright 2014 Andrey Sitnik <andrey@sitnik.ru> and other contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
 ### 5662394bebb1
@@ -13067,7 +13363,7 @@ DEALINGS IN THE SOFTWARE.
 
 ### 603c83c4c200
 
-Packages: Cargo:weezl@0.1.12
+Packages: Cargo:weezl@0.1.12, Cargo:weezl@0.2.1
 
 ```text
 The MIT License (MIT)
@@ -13296,7 +13592,7 @@ You may use this code under the terms of either license.
 
 ### 65dc2a869ff7
 
-Packages: Cargo:typenum@1.19.0
+Packages: Cargo:typenum@1.20.1
 
 ```text
 Apache License
@@ -13502,6 +13798,203 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
+### 669312b448b7
+
+Packages: Cargo:rangemap@1.8.0
+
+```text
+Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   Copyright 2019-2022 Jeff Parsons, and [contributors](https://github.com/jeffparsons/rangemap/contributors)
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+```
+
 ### 66a2ea9ed607
 
 Packages: Cargo:arbitrary@1.4.2, Cargo:derive_arbitrary@1.4.2, Cargo:unicode-script@0.5.8
@@ -13621,6 +14114,38 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+### 69df782a022a
+
+Packages: Cargo:proptest@1.11.0, Cargo:rusty-fork@0.3.1
+
+```text
+Copyright (c) 2016 FullContact, Inc
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ```
 
 ### 6a8da4c78c72
@@ -13972,7 +14497,7 @@ express Statement of Purpose.
 
 ### 6dc0e068dcf3
 
-Packages: Cargo:anstream@1.0.0, Cargo:anstyle-parse@1.0.0, Cargo:anstyle-query@1.1.5, Cargo:anstyle-wincon@3.0.11, Cargo:anstyle@1.0.14, Cargo:barcoders@2.0.0, Cargo:clap@4.6.0, Cargo:clap_builder@4.6.0, Cargo:clap_derive@4.6.0, Cargo:clap_lex@1.1.0, Cargo:colorchoice@1.0.5, Cargo:crc32fast@1.5.0, Cargo:ctor-proc-macro@0.0.7, Cargo:ctor@0.8.0, Cargo:derive_builder@0.20.2, Cargo:derive_builder_core@0.20.2, Cargo:derive_builder_macro@0.20.2, Cargo:dpi@0.1.2, Cargo:dtor-proc-macro@0.0.6, Cargo:dtor@0.3.0, Cargo:foreign-types-macros@0.2.3, Cargo:foreign-types-shared@0.1.1, Cargo:foreign-types-shared@0.3.1, Cargo:foreign-types@0.3.2, Cargo:foreign-types@0.5.0, Cargo:hex@0.4.3, Cargo:is_terminal_polyfill@1.70.2, Cargo:jni-sys@0.3.0, Cargo:json-patch@3.0.1, Cargo:once_cell_polyfill@1.70.2, Cargo:quick-error@2.0.1, Cargo:serde_spanned@0.6.9, Cargo:serde_spanned@1.0.4, Cargo:tao@0.35.3, Cargo:toml@0.8.2, Cargo:toml@0.9.12+spec-1.1.0, Cargo:toml@1.0.7+spec-1.1.0, Cargo:toml_datetime@0.7.5+spec-1.1.0, Cargo:toml_datetime@1.0.1+spec-1.1.0, Cargo:toml_edit@0.19.15, Cargo:toml_edit@0.20.2, Cargo:toml_edit@0.25.5+spec-1.1.0, Cargo:toml_parser@1.0.10+spec-1.1.0, Cargo:toml_writer@1.0.7+spec-1.1.0, Cargo:winapi@0.3.9, npm:ts-interface-checker@0.1.13
+Packages: Cargo:anstream@1.0.0, Cargo:anstyle-parse@1.0.0, Cargo:anstyle-query@1.1.5, Cargo:anstyle-wincon@3.0.11, Cargo:anstyle@1.0.14, Cargo:barcoders@2.0.0, Cargo:clap@4.6.0, Cargo:clap_builder@4.6.0, Cargo:clap_derive@4.6.0, Cargo:clap_lex@1.1.0, Cargo:colorchoice@1.0.5, Cargo:crc32fast@1.5.0, Cargo:ctor-proc-macro@0.0.7, Cargo:ctor@0.8.0, Cargo:derive_builder@0.20.2, Cargo:derive_builder_core@0.20.2, Cargo:derive_builder_macro@0.20.2, Cargo:dpi@0.1.2, Cargo:dtor-proc-macro@0.0.6, Cargo:dtor@0.3.0, Cargo:foreign-types-macros@0.2.3, Cargo:foreign-types-shared@0.1.1, Cargo:foreign-types-shared@0.3.1, Cargo:foreign-types@0.3.2, Cargo:foreign-types@0.5.0, Cargo:hex@0.4.3, Cargo:is_terminal_polyfill@1.70.2, Cargo:jni-sys@0.3.0, Cargo:json-patch@3.0.1, Cargo:once_cell_polyfill@1.70.2, Cargo:quick-error@1.2.3, Cargo:quick-error@2.0.1, Cargo:serde_spanned@0.6.9, Cargo:serde_spanned@1.0.4, Cargo:stringprep@0.1.5, Cargo:tao@0.35.3, Cargo:toml@0.8.2, Cargo:toml@0.9.12+spec-1.1.0, Cargo:toml@1.0.7+spec-1.1.0, Cargo:toml_datetime@0.7.5+spec-1.1.0, Cargo:toml_datetime@1.0.1+spec-1.1.0, Cargo:toml_edit@0.19.15, Cargo:toml_edit@0.20.2, Cargo:toml_edit@0.25.5+spec-1.1.0, Cargo:toml_parser@1.0.10+spec-1.1.0, Cargo:toml_writer@1.0.7+spec-1.1.0, Cargo:winapi@0.3.9, npm:ts-interface-checker@0.1.13
 
 ```text
 Apache License
@@ -14381,7 +14906,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### 7183ef9749eb
 
-Packages: npm:caniuse-lite@1.0.30001780
+Packages: npm:caniuse-lite@1.0.30001810
 
 ```text
 Attribution 4.0 International
@@ -14783,7 +15308,7 @@ Creative Commons may be contacted at creativecommons.org.
 
 ### 71878c02c23e
 
-Packages: npm:postcss-selector-parser@6.1.2
+Packages: npm:postcss-selector-parser@6.1.4
 
 ```text
 Copyright (c) Ben Briggs <beneb.info@gmail.com> (http://beneb.info)
@@ -15435,6 +15960,38 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+### 775a3e20a9af
+
+Packages: Cargo:block-buffer@0.12.1, Cargo:block-padding@0.4.2
+
+```text
+Copyright (c) 2018-2025 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ```
 
 ### 777eb7417541
@@ -18357,7 +18914,7 @@ limitations under the License.
 
 ### 84e1bbfebd74
 
-Packages: Cargo:cc@1.2.57, Cargo:cfg-if@0.1.10, Cargo:cfg-if@1.0.4, Cargo:filetime@0.2.29, Cargo:find-msvc-tools@0.1.9, Cargo:id-arena@2.3.0, Cargo:jobserver@0.1.34, Cargo:js-sys@0.3.91, Cargo:openssl-probe@0.2.1, Cargo:pkg-config@0.3.32, Cargo:socket2@0.6.3, Cargo:toml_datetime@0.6.3, Cargo:wasm-bindgen-futures@0.4.64, Cargo:wasm-bindgen-macro-support@0.2.114, Cargo:wasm-bindgen-macro@0.2.114, Cargo:wasm-bindgen-shared@0.2.114, Cargo:wasm-bindgen@0.2.114, Cargo:web-sys@0.3.91
+Packages: Cargo:cc@1.2.57, Cargo:cfg-if@0.1.10, Cargo:cfg-if@1.0.4, Cargo:filetime@0.2.29, Cargo:find-msvc-tools@0.1.9, Cargo:id-arena@2.3.0, Cargo:jobserver@0.1.34, Cargo:js-sys@0.3.91, Cargo:openssl-probe@0.2.1, Cargo:pkg-config@0.3.32, Cargo:socket2@0.6.3, Cargo:toml_datetime@0.6.3, Cargo:wait-timeout@0.2.1, Cargo:wasm-bindgen-futures@0.4.64, Cargo:wasm-bindgen-macro-support@0.2.114, Cargo:wasm-bindgen-macro@0.2.114, Cargo:wasm-bindgen-shared@0.2.114, Cargo:wasm-bindgen@0.2.114, Cargo:web-sys@0.3.91
 
 ```text
 Copyright (c) 2014 Alex Crichton
@@ -18707,7 +19264,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### 87ebb37988ef
 
-Packages: Cargo:typenum@1.19.0
+Packages: Cargo:typenum@1.20.1
 
 ```text
 The MIT License (MIT)
@@ -20585,7 +21142,7 @@ DEALINGS IN THE SOFTWARE.
 
 ### 94e2d6f90264
 
-Packages: npm:electron-to-chromium@1.5.313
+Packages: npm:electron-to-chromium@1.5.422
 
 ```text
 Copyright 2018 Kilian Valkhof
@@ -20597,7 +21154,7 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH RE
 
 ### 954f335b8baf
 
-Packages: Cargo:arbitrary@1.4.2, Cargo:arrayvec@0.7.6, Cargo:async-channel@2.5.0, Cargo:async-executor@1.14.0, Cargo:async-io@2.6.0, Cargo:async-lock@3.4.2, Cargo:async-process@2.5.0, Cargo:async-recursion@1.1.1, Cargo:async-signal@0.2.14, Cargo:async-task@4.7.1, Cargo:atomic-waker@1.1.2, Cargo:autocfg@1.5.0, Cargo:base64@0.21.7, Cargo:base64@0.22.1, Cargo:bitflags@1.3.2, Cargo:bitflags@2.11.0, Cargo:blocking@1.6.2, Cargo:bs58@0.5.1, Cargo:bumpalo@3.20.2, Cargo:camino@1.2.2, Cargo:cc@1.2.57, Cargo:cexpr@0.6.0, Cargo:cfg-if@0.1.10, Cargo:cfg-if@1.0.4, Cargo:cocoa-foundation@0.2.1, Cargo:cocoa@0.20.2, Cargo:concurrent-queue@2.5.0, Cargo:core-foundation-sys@0.7.0, Cargo:core-foundation-sys@0.8.7, Cargo:core-foundation@0.10.1, Cargo:core-foundation@0.7.0, Cargo:core-graphics-types@0.2.0, Cargo:core-graphics@0.19.2, Cargo:core-graphics@0.25.0, Cargo:crossbeam-channel@0.5.15, Cargo:crossbeam-deque@0.8.6, Cargo:crossbeam-epoch@0.9.20, Cargo:crossbeam-utils@0.8.21, Cargo:data-url@0.3.2, Cargo:derive_arbitrary@1.4.2, Cargo:displaydoc@0.2.5, Cargo:either@1.15.0, Cargo:equivalent@1.0.2, Cargo:errno@0.3.14, Cargo:euclid@0.22.13, Cargo:event-listener-strategy@0.5.4, Cargo:event-listener@5.4.1, Cargo:fastrand@2.3.0, Cargo:filetime@0.2.29, Cargo:find-msvc-tools@0.1.9, Cargo:flate2@1.1.9, Cargo:fnv@1.0.7, Cargo:form_urlencoded@1.2.2, Cargo:futures-lite@2.6.1, Cargo:gethostname@1.1.0, Cargo:gif@0.13.3, Cargo:gif@0.14.1, Cargo:glob@0.3.3, Cargo:hash32@0.3.1, Cargo:hashbrown@0.12.3, Cargo:hashbrown@0.15.5, Cargo:hashbrown@0.16.1, Cargo:heapless@0.8.0, Cargo:heck@0.4.1, Cargo:heck@0.5.0, Cargo:hermit-abi@0.5.2, Cargo:html5ever@0.38.0, Cargo:httparse@1.10.1, Cargo:hyper-rustls@0.27.7, Cargo:id-arena@2.3.0, Cargo:idna@1.1.0, Cargo:idna_adapter@1.2.1, Cargo:indexmap@1.9.3, Cargo:indexmap@2.13.0, Cargo:itertools@0.11.0, Cargo:jni@0.21.1, Cargo:jobserver@0.1.34, Cargo:js-sys@0.3.91, Cargo:keyboard-types@0.7.0, Cargo:lazy_static@1.5.0, Cargo:lazycell@1.3.0, Cargo:leb128fmt@0.1.0, Cargo:libappindicator@0.9.0, Cargo:linux-raw-sys@0.12.1, Cargo:linux-raw-sys@0.4.15, Cargo:lock_api@0.4.14, Cargo:log@0.4.29, Cargo:markup5ever@0.38.0, Cargo:matrixmultiply@0.3.10, Cargo:metal@0.18.0, Cargo:mime@0.3.17, Cargo:muda@0.19.3, Cargo:nasm-rs@0.3.2, Cargo:num-bigint@0.4.6, Cargo:num-complex@0.4.6, Cargo:num-integer@0.1.46, Cargo:num-rational@0.4.2, Cargo:num-traits@0.2.19, Cargo:nusb@0.2.5, Cargo:once_cell@1.21.4, Cargo:openssl-probe@0.2.1, Cargo:ordered-stream@0.2.0, Cargo:parking@2.2.1, Cargo:parking_lot@0.12.5, Cargo:parking_lot_core@0.9.12, Cargo:peeking_take_while@0.1.2, Cargo:percent-encoding@2.3.2, Cargo:piper@0.2.5, Cargo:pkg-config@0.3.32, Cargo:png@0.17.16, Cargo:png@0.18.1, Cargo:polling@3.11.0, Cargo:rawpointer@0.2.1, Cargo:rayon-core@1.13.0, Cargo:rayon@1.11.0, Cargo:regex-automata@0.4.14, Cargo:regex-syntax@0.8.10, Cargo:regex@1.12.3, Cargo:robust@1.2.0, Cargo:roxmltree@0.20.0, Cargo:rustc-hash@1.1.0, Cargo:rustc_version@0.4.1, Cargo:rustix@0.38.44, Cargo:rustix@1.1.4, Cargo:rustls-native-certs@0.8.3, Cargo:rustls@0.23.37, Cargo:scopeguard@1.2.0, Cargo:security-framework-sys@2.17.0, Cargo:security-framework@3.7.0, Cargo:serde_with@3.21.0, Cargo:serde_with_macros@3.21.0, Cargo:servo_arc@0.4.3, Cargo:signal-hook-registry@1.4.8, Cargo:signal-hook@0.3.18, Cargo:simplecss@0.2.2, Cargo:smallvec@1.15.1, Cargo:socket2@0.6.3, Cargo:stable_deref_trait@1.2.1, Cargo:string_cache@0.9.0, Cargo:string_cache_codegen@0.6.1, Cargo:svgtypes@0.15.3, Cargo:syn@1.0.109, Cargo:system-deps@6.2.2, Cargo:tar@0.4.46, Cargo:tempfile@3.27.0, Cargo:tendril@0.5.0, Cargo:thread_local@1.1.9, Cargo:toml_datetime@0.6.3, Cargo:tray-icon@0.24.1, Cargo:ttf-parser@0.25.1, Cargo:tungstenite@0.28.0, Cargo:unicode-bidi-mirroring@0.4.0, Cargo:unicode-bidi@0.3.18, Cargo:unicode-ccc@0.4.0, Cargo:unicode-properties@0.1.4, Cargo:unicode-segmentation@1.12.0, Cargo:unicode-vo@0.1.0, Cargo:unicode-xid@0.2.6, Cargo:url@2.5.8, Cargo:uuid@1.22.0, Cargo:version_check@0.9.5, Cargo:wasi@0.11.1+wasi-snapshot-preview1, Cargo:wasm-bindgen-futures@0.4.64, Cargo:wasm-bindgen-macro-support@0.2.114, Cargo:wasm-bindgen-macro@0.2.114, Cargo:wasm-bindgen-shared@0.2.114, Cargo:wasm-bindgen@0.2.114, Cargo:web-sys@0.3.91, Cargo:web_atoms@0.2.3, Cargo:weezl@0.1.12, Cargo:window-vibrancy@0.6.0, Cargo:wit-bindgen-core@0.51.0, Cargo:wit-bindgen-rust-macro@0.51.0, Cargo:wit-bindgen-rust@0.51.0, Cargo:wit-bindgen@0.51.0, Cargo:wry@0.55.1, Cargo:xattr@1.6.1
+Packages: Cargo:arbitrary@1.4.2, Cargo:arrayvec@0.7.6, Cargo:async-channel@2.5.0, Cargo:async-executor@1.14.0, Cargo:async-io@2.6.0, Cargo:async-lock@3.4.2, Cargo:async-process@2.5.0, Cargo:async-recursion@1.1.1, Cargo:async-signal@0.2.14, Cargo:async-task@4.7.1, Cargo:atomic-waker@1.1.2, Cargo:autocfg@1.5.0, Cargo:base64@0.21.7, Cargo:base64@0.22.1, Cargo:bitflags@1.3.2, Cargo:bitflags@2.13.1, Cargo:blocking@1.6.2, Cargo:bs58@0.5.1, Cargo:bumpalo@3.20.2, Cargo:camino@1.2.2, Cargo:cast@0.3.0, Cargo:cc@1.2.57, Cargo:cexpr@0.6.0, Cargo:cfg-if@0.1.10, Cargo:cfg-if@1.0.4, Cargo:cocoa-foundation@0.2.1, Cargo:cocoa@0.20.2, Cargo:concurrent-queue@2.5.0, Cargo:core-foundation-sys@0.7.0, Cargo:core-foundation-sys@0.8.7, Cargo:core-foundation@0.10.1, Cargo:core-foundation@0.7.0, Cargo:core-graphics-types@0.2.0, Cargo:core-graphics@0.19.2, Cargo:core-graphics@0.25.0, Cargo:criterion-plot@0.5.0, Cargo:criterion@0.5.1, Cargo:crossbeam-channel@0.5.15, Cargo:crossbeam-deque@0.8.6, Cargo:crossbeam-epoch@0.9.20, Cargo:crossbeam-utils@0.8.21, Cargo:data-url@0.3.2, Cargo:derive_arbitrary@1.4.2, Cargo:displaydoc@0.2.5, Cargo:either@1.15.0, Cargo:equivalent@1.0.2, Cargo:errno@0.3.14, Cargo:euclid@0.22.13, Cargo:event-listener-strategy@0.5.4, Cargo:event-listener@5.4.2, Cargo:fastrand@2.3.0, Cargo:filetime@0.2.29, Cargo:find-msvc-tools@0.1.9, Cargo:flate2@1.1.9, Cargo:fnv@1.0.7, Cargo:form_urlencoded@1.2.2, Cargo:futures-lite@2.6.1, Cargo:gethostname@1.1.0, Cargo:gif@0.13.3, Cargo:gif@0.14.1, Cargo:glob@0.3.3, Cargo:hash32@0.3.1, Cargo:hashbrown@0.12.3, Cargo:hashbrown@0.15.5, Cargo:hashbrown@0.17.1, Cargo:heapless@0.8.0, Cargo:heck@0.4.1, Cargo:heck@0.5.0, Cargo:hermit-abi@0.5.2, Cargo:html5ever@0.38.0, Cargo:httparse@1.10.1, Cargo:hyper-rustls@0.27.7, Cargo:id-arena@2.3.0, Cargo:idna@1.1.0, Cargo:idna_adapter@1.2.1, Cargo:indexmap@1.9.3, Cargo:indexmap@2.14.1, Cargo:itertools@0.10.5, Cargo:itertools@0.11.0, Cargo:jni@0.21.1, Cargo:jobserver@0.1.34, Cargo:js-sys@0.3.91, Cargo:keyboard-types@0.7.0, Cargo:lazy_static@1.5.0, Cargo:lazycell@1.3.0, Cargo:leb128fmt@0.1.0, Cargo:libappindicator@0.9.0, Cargo:linux-raw-sys@0.12.1, Cargo:linux-raw-sys@0.4.15, Cargo:lock_api@0.4.14, Cargo:log@0.4.29, Cargo:markup5ever@0.38.0, Cargo:matrixmultiply@0.3.10, Cargo:metal@0.18.0, Cargo:mime@0.3.17, Cargo:muda@0.19.3, Cargo:nasm-rs@0.3.2, Cargo:num-bigint@0.4.6, Cargo:num-complex@0.4.6, Cargo:num-integer@0.1.46, Cargo:num-rational@0.4.2, Cargo:num-traits@0.2.19, Cargo:nusb@0.2.5, Cargo:once_cell@1.21.4, Cargo:openssl-probe@0.2.1, Cargo:ordered-stream@0.2.0, Cargo:parking@2.2.1, Cargo:parking_lot@0.12.5, Cargo:parking_lot_core@0.9.12, Cargo:peeking_take_while@0.1.2, Cargo:percent-encoding@2.3.2, Cargo:piper@0.2.5, Cargo:pkg-config@0.3.32, Cargo:png@0.17.16, Cargo:png@0.18.1, Cargo:polling@3.11.0, Cargo:proptest@1.11.0, Cargo:rawpointer@0.2.1, Cargo:rayon-core@1.13.0, Cargo:rayon@1.11.0, Cargo:regex-automata@0.4.14, Cargo:regex-syntax@0.8.10, Cargo:regex@1.12.3, Cargo:robust@1.2.0, Cargo:roxmltree@0.20.0, Cargo:rustc-hash@1.1.0, Cargo:rustc_version@0.4.1, Cargo:rustix@0.38.44, Cargo:rustix@1.1.4, Cargo:rustls-native-certs@0.8.3, Cargo:rustls@0.23.37, Cargo:rusty-fork@0.3.1, Cargo:scopeguard@1.2.0, Cargo:security-framework-sys@2.17.0, Cargo:security-framework@3.7.0, Cargo:serde_with@3.21.0, Cargo:serde_with_macros@3.21.0, Cargo:servo_arc@0.4.3, Cargo:signal-hook-registry@1.4.8, Cargo:signal-hook@0.3.18, Cargo:simplecss@0.2.2, Cargo:smallvec@1.15.1, Cargo:socket2@0.6.3, Cargo:stable_deref_trait@1.2.1, Cargo:string_cache@0.9.0, Cargo:string_cache_codegen@0.6.1, Cargo:svgtypes@0.15.3, Cargo:syn@1.0.109, Cargo:system-deps@6.2.2, Cargo:tar@0.4.46, Cargo:tempfile@3.27.0, Cargo:tendril@0.5.0, Cargo:thread_local@1.1.9, Cargo:tinytemplate@1.2.1, Cargo:toml_datetime@0.6.3, Cargo:tray-icon@0.24.1, Cargo:ttf-parser@0.25.1, Cargo:tungstenite@0.28.0, Cargo:unicode-bidi-mirroring@0.4.0, Cargo:unicode-bidi@0.3.18, Cargo:unicode-ccc@0.4.0, Cargo:unicode-normalization@0.1.25, Cargo:unicode-properties@0.1.4, Cargo:unicode-segmentation@1.12.0, Cargo:unicode-vo@0.1.0, Cargo:unicode-xid@0.2.6, Cargo:url@2.5.8, Cargo:uuid@1.22.0, Cargo:version_check@0.9.5, Cargo:wait-timeout@0.2.1, Cargo:wasi@0.11.1+wasi-snapshot-preview1, Cargo:wasm-bindgen-futures@0.4.64, Cargo:wasm-bindgen-macro-support@0.2.114, Cargo:wasm-bindgen-macro@0.2.114, Cargo:wasm-bindgen-shared@0.2.114, Cargo:wasm-bindgen@0.2.114, Cargo:web-sys@0.3.91, Cargo:web_atoms@0.2.3, Cargo:weezl@0.1.12, Cargo:weezl@0.2.1, Cargo:window-vibrancy@0.6.0, Cargo:wit-bindgen-core@0.51.0, Cargo:wit-bindgen-rust-macro@0.51.0, Cargo:wit-bindgen-rust@0.51.0, Cargo:wit-bindgen@0.51.0, Cargo:wry@0.55.1, Cargo:xattr@1.6.1
 
 ```text
 Apache License
@@ -22170,6 +22727,38 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
+### a1aa15c3898d
+
+Packages: Cargo:hybrid-array@0.4.14
+
+```text
+Copyright (c) 2022-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ### a1fff3442978
 
 Packages: Cargo:untrusted@0.9.0
@@ -22413,6 +23002,34 @@ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
 CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+### a406579cd136
+
+Packages: Cargo:unarray@0.1.4
+
+```text
+MIT License
+
+Copyright (c) [year] [fullname]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ### a4446ea76437
@@ -23251,6 +23868,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+### acd31f1bfb5a
+
+Packages: Cargo:lopdf@0.44.0
+
+```text
+MIT License
+
+Copyright (c) 2016 Junfeng Liu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ### acddfb05f07a
 
 Packages: Cargo:tokio-rustls@0.26.4
@@ -23548,7 +24193,7 @@ DEALINGS IN THE SOFTWARE.
 
 ### ae9791f02f2b
 
-Packages: Cargo:hashbrown@0.12.3, Cargo:hashbrown@0.15.5, Cargo:hashbrown@0.16.1
+Packages: Cargo:hashbrown@0.12.3, Cargo:hashbrown@0.15.5, Cargo:hashbrown@0.17.1
 
 ```text
 Copyright (c) 2016 Amanieu d'Antras
@@ -23657,7 +24302,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### b02a61dfa2f1
 
-Packages: npm:node-releases@2.0.36
+Packages: npm:node-releases@2.0.54
 
 ```text
 The MIT License
@@ -25796,6 +26441,38 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
+### bf1efbbc61d7
+
+Packages: Cargo:ecb@0.2.1
+
+```text
+Copyright (c) 2026 RustCrypto Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ### bf23df5f4fa1
 
 Packages: Cargo:resvg@0.45.1, Cargo:usvg@0.45.1
@@ -27339,6 +28016,65 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
+### c881b8347510
+
+Packages: Cargo:stringprep@0.1.5
+
+```text
+Copyright (c) 2017 The rust-stringprep Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### c8d7f4fd612a
+
+Packages: Cargo:digest@0.11.3
+
+```text
+Copyright (c) 2017-2025 RustCrypto Developers
+Copyright (c) 2017 Artyom Pavlov
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ### c9027c55c930
 
 Packages: Cargo:rand_core@0.10.1
@@ -27516,7 +28252,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### cc367a7134c2
 
-Packages: Cargo:rand@0.10.2, Cargo:rand@0.9.5, Cargo:rand_chacha@0.9.0, Cargo:rand_core@0.9.5
+Packages: Cargo:rand@0.10.2, Cargo:rand@0.9.5, Cargo:rand_chacha@0.9.0, Cargo:rand_core@0.9.5, Cargo:rand_xorshift@0.4.0
 
 ```text
 Copyright 2018 Developers of the Rand project
@@ -28046,7 +28782,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### cf798811e9a0
 
-Packages: Cargo:quick-error@2.0.1
+Packages: Cargo:quick-error@1.2.3, Cargo:quick-error@2.0.1
 
 ```text
 Copyright (c) 2015 The quick-error Developers
@@ -28983,6 +29719,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
+### d67de7009d65
+
+Packages: Cargo:rangemap@1.8.0
+
+```text
+Copyright 2019 Jeffrey Parsons
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
 ### d68cfda21300
 
 Packages: npm:thenify-all@1.6.0
@@ -29384,7 +30134,7 @@ SOFTWARE.
 
 ### db11fec99467
 
-Packages: Cargo:typenum@1.19.0
+Packages: Cargo:typenum@1.20.1
 
 ```text
 MIT OR Apache-2.0
@@ -29557,6 +30307,38 @@ Packages: Cargo:enumflags2@0.7.12
 
 ```text
 Copyright (c) 2017-2023 Maik Klein, Maja Kądziołka
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+### dec912e37f88
+
+Packages: Cargo:crypto-common@0.2.2
+
+```text
+Copyright (c) 2021-2026 RustCrypto Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -29816,6 +30598,38 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+### e298f3a2b24d
+
+Packages: Cargo:tinytemplate@1.2.1
+
+```text
+Copyright (c) 2019 Brook Heisler
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ### e2caf5443f76
 
 Packages: npm:tinypool@1.1.1
@@ -29855,6 +30669,34 @@ Packages: Cargo:crunchy@0.2.4
 The MIT License (MIT)
 
 Copyright 2017-2023 Eira Fransham.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### e3f96201e81e
+
+Packages: Cargo:oorandom@11.1.5
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2019 Simon Heath
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30306,7 +31148,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### e8541ea93f02
 
-Packages: Cargo:block-buffer@0.10.4, Cargo:chacha20@0.10.1, Cargo:cpufeatures@0.2.17, Cargo:cpufeatures@0.3.0, Cargo:crypto-common@0.1.7, Cargo:digest@0.10.7, Cargo:sha1@0.10.6, Cargo:sha2@0.10.9
+Packages: Cargo:aes@0.9.3, Cargo:block-buffer@0.10.4, Cargo:block-buffer@0.12.1, Cargo:block-padding@0.4.2, Cargo:cbc@0.2.1, Cargo:chacha20@0.10.1, Cargo:cipher@0.5.2, Cargo:const-oid@0.10.2, Cargo:cpubits@0.1.1, Cargo:cpufeatures@0.2.17, Cargo:cpufeatures@0.3.0, Cargo:crypto-common@0.1.7, Cargo:crypto-common@0.2.2, Cargo:digest@0.10.7, Cargo:digest@0.11.3, Cargo:ecb@0.2.1, Cargo:hybrid-array@0.4.14, Cargo:inout@0.2.2, Cargo:md-5@0.11.0, Cargo:sha1@0.10.6, Cargo:sha2@0.10.9, Cargo:sha2@0.11.0
 
 ```text
 Apache License
@@ -30975,7 +31817,7 @@ SOFTWARE.
 
 ### e9f8a16f9ed6
 
-Packages: Cargo:nom@7.1.3
+Packages: Cargo:nom@7.1.3, Cargo:nom@8.0.0
 
 ```text
 Copyright (c) 2014-2019 Geoffroy Couprie
@@ -31032,9 +31874,41 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
+### ea753cf1e3ec
+
+Packages: Cargo:const-oid@0.10.2
+
+```text
+Copyright (c) 2020-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ### ea93a2d0af98
 
-Packages: Cargo:i_key_sort@0.2.0, Cargo:i_tree@0.8.3
+Packages: Cargo:i_key_sort@0.6.0, Cargo:i_tree@0.16.0
 
 ```text
 MIT License
@@ -31670,6 +32544,39 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+### f3bd9e2e7745
+
+Packages: Cargo:cbc@0.2.1
+
+```text
+Copyright (c) 2018-2022 RustCrypto Developers
+Copyright (c) 2018 Artyom Pavlov
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 ```
 
 ### f47894ff9c86
@@ -32663,6 +33570,39 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
   defined by the Mozilla Public License, v. 2.0.
 ```
 
+### fc794e17e5ea
+
+Packages: Cargo:aes@0.9.3
+
+```text
+Copyright (c) 2018-2024 The RustCrypto Project Developers
+Copyright (c) 2018 Artyom Pavlov
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ### fdb3f0dc5ffa
 
 Packages: npm:has-symbols@1.1.0
@@ -32693,7 +33633,7 @@ SOFTWARE.
 
 ### fdd1c2117bcf
 
-Packages: Cargo:either@1.15.0, Cargo:itertools@0.11.0, Cargo:rawpointer@0.2.1, Cargo:serde_with@3.21.0, Cargo:serde_with_macros@3.21.0
+Packages: Cargo:either@1.15.0, Cargo:itertools@0.10.5, Cargo:itertools@0.11.0, Cargo:rawpointer@0.2.1, Cargo:serde_with@3.21.0, Cargo:serde_with_macros@3.21.0
 
 ```text
 Copyright (c) 2015
@@ -33707,7 +34647,7 @@ Public License instead of this License.  But first, please read
 
 ### fee4d7ce394c
 
-Packages: Cargo:rand@0.10.2, Cargo:rand@0.9.5, Cargo:rand_chacha@0.9.0
+Packages: Cargo:rand@0.10.2, Cargo:rand@0.9.5, Cargo:rand_chacha@0.9.0, Cargo:rand_xorshift@0.4.0
 
 ```text
 Apache License

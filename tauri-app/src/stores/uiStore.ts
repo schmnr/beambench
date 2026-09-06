@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  AnchorPoint,
   CutEntryTemplate,
   DockOptions,
   NestOptions,
@@ -222,6 +223,10 @@ interface UiStoreState {
   lockAspect: boolean;
   setLockAspect: (locked: boolean) => void;
   toggleLockAspect: () => void;
+
+  // Keep the transform reference point when selection changes remount the inspector.
+  transformAnchor: AnchorPoint;
+  setTransformAnchor: (anchor: AnchorPoint) => void;
 
   // Default corner radius for rectangle tool
   defaultCornerRadius: number;
@@ -532,6 +537,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   flashedLayerId: null,
   showLastPosition: false,
   lockAspect: false,
+  transformAnchor: 'top_left',
   defaultCornerRadius: 0,
   textDefaults: { ...DEFAULT_TEXT_DEFAULTS },
   radiusToolValue: null,
@@ -1452,6 +1458,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   toggleShowLastPosition: () => set((s) => ({ showLastPosition: !s.showLastPosition })),
   setLockAspect: (locked) => set({ lockAspect: locked }),
   toggleLockAspect: () => set((s) => ({ lockAspect: !s.lockAspect })),
+  setTransformAnchor: (anchor) => set({ transformAnchor: anchor }),
   setDefaultCornerRadius: (r) => set({ defaultCornerRadius: Math.max(0, r) }),
   updateTextDefaults: (partial) => set((s) => ({ textDefaults: { ...s.textDefaults, ...partial } })),
   setRadiusToolValue: (v) => set({ radiusToolValue: v }),
