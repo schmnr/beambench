@@ -1,14 +1,14 @@
-use std::sync::Arc;
 use beambench_common::{AnchorPoint, Bounds, StartFromMode, Transform2D, TransformLocks};
 use beambench_core::{
-    CutEntry, CutEntryPatch, CutEntryTemplate, Layer, LayerBatchToggle, LayerPatch,
-    ObjectData, OperationType, Project, ProjectObject, ProjectOptimization,
-    ProjectOptimizationPatch, RasterSettings,
+    CutEntry, CutEntryPatch, CutEntryTemplate, Layer, LayerBatchToggle, LayerPatch, ObjectData,
+    OperationType, Project, ProjectObject, ProjectOptimization, ProjectOptimizationPatch,
+    RasterSettings,
 };
 use beambench_service::ops::project as project_ops;
-use beambench_service::{ServiceContext, UndoState};
-use tauri::State;
 pub use beambench_service::ops::workflows::project::*;
+use beambench_service::{ServiceContext, UndoState};
+use std::sync::Arc;
+use tauri::State;
 #[tauri::command]
 pub fn create_project(
     svc: State<'_, Arc<ServiceContext>>,
@@ -17,9 +17,7 @@ pub fn create_project(
     beambench_service::ops::workflows::project::create_project(&svc, name)
 }
 #[tauri::command]
-pub fn get_project(
-    svc: State<'_, Arc<ServiceContext>>,
-) -> Result<Option<Project>, String> {
+pub fn get_project(svc: State<'_, Arc<ServiceContext>>) -> Result<Option<Project>, String> {
     beambench_service::ops::workflows::project::get_project(&svc)
 }
 #[tauri::command]
@@ -39,9 +37,7 @@ pub fn redo_project(svc: State<'_, Arc<ServiceContext>>) -> Result<Project, Stri
     beambench_service::ops::workflows::project::redo_project(&svc)
 }
 #[tauri::command]
-pub fn get_project_layers(
-    svc: State<'_, Arc<ServiceContext>>,
-) -> Result<Vec<Layer>, String> {
+pub fn get_project_layers(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<Layer>, String> {
     beambench_service::ops::workflows::project::get_project_layers(&svc)
 }
 #[tauri::command]
@@ -61,10 +57,7 @@ pub fn update_layer(
     beambench_service::ops::workflows::project::update_layer(&svc, layer_id, patch)
 }
 #[tauri::command]
-pub fn remove_layer(
-    svc: State<'_, Arc<ServiceContext>>,
-    layer_id: String,
-) -> Result<(), String> {
+pub fn remove_layer(svc: State<'_, Arc<ServiceContext>>, layer_id: String) -> Result<(), String> {
     beambench_service::ops::workflows::project::remove_layer(&svc, layer_id)
 }
 #[tauri::command]
@@ -128,17 +121,11 @@ pub fn add_cut_entry(
     layer_id: String,
     after_entry_id: Option<String>,
 ) -> Result<CutEntry, String> {
-    beambench_service::ops::workflows::project::add_cut_entry(
-        &svc,
-        layer_id,
-        after_entry_id,
-    )
+    beambench_service::ops::workflows::project::add_cut_entry(&svc, layer_id, after_entry_id)
 }
 /// M4: re-stamp every layer's order_index per the cut-strength heuristic. Atomic.
 #[tauri::command]
-pub fn sort_layers_cut_last(
-    svc: State<'_, Arc<ServiceContext>>,
-) -> Result<Vec<Layer>, String> {
+pub fn sort_layers_cut_last(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<Layer>, String> {
     beambench_service::ops::workflows::project::sort_layers_cut_last(&svc)
 }
 /// M4: batch toggle Layer.enabled (Output column) — Enable/Disable all, Invert, OnlyThisOn.
@@ -165,9 +152,7 @@ pub fn reset_cut_entry_to_defaults(
     entry_id: String,
 ) -> Result<CutEntry, String> {
     beambench_service::ops::workflows::project::reset_cut_entry_to_defaults(
-        &svc,
-        layer_id,
-        entry_id,
+        &svc, layer_id, entry_id,
     )
 }
 /// M4: replace a layer's `entries[]` from a clipboard template (Copy/Paste settings).
@@ -177,11 +162,7 @@ pub fn paste_layer_entries(
     layer_id: String,
     entries: Vec<CutEntryTemplate>,
 ) -> Result<Layer, String> {
-    beambench_service::ops::workflows::project::paste_layer_entries(
-        &svc,
-        layer_id,
-        entries,
-    )
+    beambench_service::ops::workflows::project::paste_layer_entries(&svc, layer_id, entries)
 }
 #[tauri::command]
 pub fn remove_cut_entry(
@@ -189,11 +170,7 @@ pub fn remove_cut_entry(
     layer_id: String,
     entry_id: String,
 ) -> Result<(), String> {
-    beambench_service::ops::workflows::project::remove_cut_entry(
-        &svc,
-        layer_id,
-        entry_id,
-    )
+    beambench_service::ops::workflows::project::remove_cut_entry(&svc, layer_id, entry_id)
 }
 #[tauri::command]
 pub fn reorder_cut_entry(
@@ -203,10 +180,7 @@ pub fn reorder_cut_entry(
     new_index: usize,
 ) -> Result<Layer, String> {
     beambench_service::ops::workflows::project::reorder_cut_entry(
-        &svc,
-        layer_id,
-        entry_id,
-        new_index,
+        &svc, layer_id, entry_id, new_index,
     )
 }
 #[tauri::command]
@@ -216,12 +190,7 @@ pub fn update_cut_entry(
     entry_id: String,
     patch: CutEntryPatch,
 ) -> Result<CutEntry, String> {
-    beambench_service::ops::workflows::project::update_cut_entry(
-        &svc,
-        layer_id,
-        entry_id,
-        patch,
-    )
+    beambench_service::ops::workflows::project::update_cut_entry(&svc, layer_id, entry_id, patch)
 }
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
@@ -316,17 +285,10 @@ pub fn resize_shape_object(
     object_id: String,
     bounds: Bounds,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::project::resize_shape_object(
-        &svc,
-        object_id,
-        bounds,
-    )
+    beambench_service::ops::workflows::project::resize_shape_object(&svc, object_id, bounds)
 }
 #[tauri::command]
-pub fn remove_object(
-    svc: State<'_, Arc<ServiceContext>>,
-    object_id: String,
-) -> Result<(), String> {
+pub fn remove_object(svc: State<'_, Arc<ServiceContext>>, object_id: String) -> Result<(), String> {
     beambench_service::ops::workflows::project::remove_object(&svc, object_id)
 }
 #[tauri::command]
@@ -342,11 +304,7 @@ pub fn set_text_guide_path(
     text_id: String,
     guide_path_id: Option<String>,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::project::set_text_guide_path(
-        &svc,
-        text_id,
-        guide_path_id,
-    )
+    beambench_service::ops::workflows::project::set_text_guide_path(&svc, text_id, guide_path_id)
 }
 #[tauri::command]
 pub fn nudge_objects(
@@ -376,20 +334,14 @@ pub fn duplicate_object_in_place(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::project::duplicate_object_in_place(
-        &svc,
-        object_id,
-    )
+    beambench_service::ops::workflows::project::duplicate_object_in_place(&svc, object_id)
 }
 #[tauri::command]
 pub fn duplicate_objects_in_place(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
 ) -> Result<Vec<ProjectObject>, String> {
-    beambench_service::ops::workflows::project::duplicate_objects_in_place(
-        &svc,
-        object_ids,
-    )
+    beambench_service::ops::workflows::project::duplicate_objects_in_place(&svc, object_ids)
 }
 #[tauri::command]
 pub fn paste_objects(
@@ -419,11 +371,7 @@ pub fn distribute_objects(
     object_ids: Vec<String>,
     direction: String,
 ) -> Result<Vec<ProjectObject>, String> {
-    beambench_service::ops::workflows::project::distribute_objects(
-        &svc,
-        object_ids,
-        direction,
-    )
+    beambench_service::ops::workflows::project::distribute_objects(&svc, object_ids, direction)
 }
 #[tauri::command]
 pub fn move_objects_together(
@@ -445,11 +393,7 @@ pub fn mirror_across_line(
     object_ids: Vec<String>,
     axis_object_id: String,
 ) -> Result<Vec<ProjectObject>, String> {
-    beambench_service::ops::workflows::project::mirror_across_line(
-        &svc,
-        object_ids,
-        axis_object_id,
-    )
+    beambench_service::ops::workflows::project::mirror_across_line(&svc, object_ids, axis_object_id)
 }
 #[tauri::command]
 pub fn make_same_size(
@@ -474,12 +418,7 @@ pub fn dock_objects(
     direction: project_ops::DockDirection,
     options: project_ops::DockOptions,
 ) -> Result<Vec<ProjectObject>, String> {
-    beambench_service::ops::workflows::project::dock_objects(
-        &svc,
-        object_ids,
-        direction,
-        options,
-    )
+    beambench_service::ops::workflows::project::dock_objects(&svc, object_ids, direction, options)
 }
 #[tauri::command]
 pub fn resize_slots(
@@ -490,9 +429,7 @@ pub fn resize_slots(
     beambench_service::ops::workflows::project::resize_slots(&svc, object_ids, options)
 }
 #[tauri::command]
-pub fn bind_machine_profile(
-    svc: State<'_, Arc<ServiceContext>>,
-) -> Result<Project, String> {
+pub fn bind_machine_profile(svc: State<'_, Arc<ServiceContext>>) -> Result<Project, String> {
     beambench_service::ops::workflows::project::bind_machine_profile(&svc)
 }
 #[tauri::command]
@@ -508,11 +445,7 @@ pub fn set_layer_visible(
     layer_id: String,
     visible: bool,
 ) -> Result<bool, String> {
-    beambench_service::ops::workflows::project::set_layer_visible(
-        &svc,
-        layer_id,
-        visible,
-    )
+    beambench_service::ops::workflows::project::set_layer_visible(&svc, layer_id, visible)
 }
 #[tauri::command]
 pub fn set_layer_air_assist(
@@ -520,11 +453,7 @@ pub fn set_layer_air_assist(
     layer_id: String,
     air_assist: bool,
 ) -> Result<bool, String> {
-    beambench_service::ops::workflows::project::set_layer_air_assist(
-        &svc,
-        layer_id,
-        air_assist,
-    )
+    beambench_service::ops::workflows::project::set_layer_air_assist(&svc, layer_id, air_assist)
 }
 #[tauri::command]
 pub fn select_all_in_layer(
@@ -539,11 +468,7 @@ pub fn push_draw_order(
     object_id: String,
     direction: String,
 ) -> Result<(), String> {
-    beambench_service::ops::workflows::project::push_draw_order(
-        &svc,
-        object_id,
-        direction,
-    )
+    beambench_service::ops::workflows::project::push_draw_order(&svc, object_id, direction)
 }
 #[tauri::command]
 pub fn lock_objects(
@@ -568,11 +493,7 @@ pub fn flip_objects(
     pivot_y: Option<f64>,
 ) -> Result<(), String> {
     beambench_service::ops::workflows::project::flip_objects(
-        &svc,
-        object_ids,
-        horizontal,
-        pivot_x,
-        pivot_y,
+        &svc, object_ids, horizontal, pivot_x, pivot_y,
     )
 }
 #[tauri::command]
@@ -584,11 +505,7 @@ pub fn rotate_objects(
     pivot_y: Option<f64>,
 ) -> Result<(), String> {
     beambench_service::ops::workflows::project::rotate_objects(
-        &svc,
-        object_ids,
-        degrees,
-        pivot_x,
-        pivot_y,
+        &svc, object_ids, degrees, pivot_x, pivot_y,
     )
 }
 #[tauri::command]
@@ -619,12 +536,7 @@ pub fn shear_objects(
     pivot_y: Option<f64>,
 ) -> Result<(), String> {
     beambench_service::ops::workflows::project::shear_objects(
-        &svc,
-        object_ids,
-        shear_x,
-        shear_y,
-        pivot_x,
-        pivot_y,
+        &svc, object_ids, shear_x, shear_y, pivot_x, pivot_y,
     )
 }
 /// Batch-update object bounds. Vector path objects are refitted atomically within
@@ -660,11 +572,7 @@ pub fn set_job_origin(
     beambench_service::ops::workflows::project::set_job_origin(&svc, anchor)
 }
 #[tauri::command]
-pub fn set_user_origin(
-    svc: State<'_, Arc<ServiceContext>>,
-    x: f64,
-    y: f64,
-) -> Result<(), String> {
+pub fn set_user_origin(svc: State<'_, Arc<ServiceContext>>, x: f64, y: f64) -> Result<(), String> {
     beambench_service::ops::workflows::project::set_user_origin(&svc, x, y)
 }
 /// Merge a partial [`ProjectOptimizationPatch`] onto the open project's
@@ -716,11 +624,7 @@ pub fn set_objects_visible(
     object_ids: Vec<String>,
     visible: bool,
 ) -> Result<(), String> {
-    beambench_service::ops::workflows::project::set_objects_visible(
-        &svc,
-        object_ids,
-        visible,
-    )
+    beambench_service::ops::workflows::project::set_objects_visible(&svc, object_ids, visible)
 }
 #[tauri::command]
 pub fn reassign_layer(
@@ -728,11 +632,7 @@ pub fn reassign_layer(
     object_ids: Vec<String>,
     target_layer_id: String,
 ) -> Result<(), String> {
-    beambench_service::ops::workflows::project::reassign_layer(
-        &svc,
-        object_ids,
-        target_layer_id,
-    )
+    beambench_service::ops::workflows::project::reassign_layer(&svc, object_ids, target_layer_id)
 }
 #[tauri::command]
 pub fn move_objects_in_outliner(
@@ -749,9 +649,7 @@ pub fn move_objects_in_outliner(
     )
 }
 #[tauri::command]
-pub fn select_open_shapes(
-    svc: State<'_, Arc<ServiceContext>>,
-) -> Result<Vec<String>, String> {
+pub fn select_open_shapes(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<String>, String> {
     beambench_service::ops::workflows::project::select_open_shapes(&svc)
 }
 #[tauri::command]
@@ -773,8 +671,7 @@ pub fn select_shapes_smaller_than_selected(
     object_ids: Vec<String>,
 ) -> Result<Vec<String>, String> {
     beambench_service::ops::workflows::project::select_shapes_smaller_than_selected(
-        &svc,
-        object_ids,
+        &svc, object_ids,
     )
 }
 #[tauri::command]
@@ -797,11 +694,7 @@ pub fn auto_join_shapes(
     object_ids: Vec<String>,
     tolerance: f64,
 ) -> Result<Vec<ProjectObject>, String> {
-    beambench_service::ops::workflows::project::auto_join_shapes(
-        &svc,
-        object_ids,
-        tolerance,
-    )
+    beambench_service::ops::workflows::project::auto_join_shapes(&svc, object_ids, tolerance)
 }
 #[tauri::command]
 pub fn optimize_shapes(
@@ -809,9 +702,5 @@ pub fn optimize_shapes(
     object_ids: Vec<String>,
     tolerance: f64,
 ) -> Result<Vec<ProjectObject>, String> {
-    beambench_service::ops::workflows::project::optimize_shapes(
-        &svc,
-        object_ids,
-        tolerance,
-    )
+    beambench_service::ops::workflows::project::optimize_shapes(&svc, object_ids, tolerance)
 }

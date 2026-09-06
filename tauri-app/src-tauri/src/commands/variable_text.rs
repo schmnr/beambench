@@ -1,9 +1,9 @@
-use std::sync::Arc;
 use beambench_core::variable_text::{MergeFieldInfo, VariableTextConfig};
 use beambench_service::context::ServiceContext;
 use beambench_service::ops::project::BatchResult;
-use tauri::State;
 pub use beambench_service::ops::workflows::variable_text::*;
+use std::sync::Arc;
+use tauri::State;
 /// Parse merge fields from text content.
 #[tauri::command]
 pub fn parse_merge_fields(text: String) -> Vec<MergeFieldInfo> {
@@ -25,10 +25,7 @@ pub fn resolve_variable_text(
     row: usize,
 ) -> Result<String, String> {
     beambench_service::ops::workflows::variable_text::resolve_variable_text(
-        &svc,
-        object_id,
-        config,
-        row,
+        &svc, object_id, config, row,
     )
 }
 /// Generate batch: resolve text for all rows/copies.
@@ -41,9 +38,7 @@ pub fn generate_batch_preview(
     config: VariableTextConfig,
 ) -> Result<Vec<String>, String> {
     beambench_service::ops::workflows::variable_text::generate_batch_preview(
-        &svc,
-        object_id,
-        config,
+        &svc, object_id, config,
     )
 }
 /// Atomic batch generation: resolve text, create offset duplicates — all

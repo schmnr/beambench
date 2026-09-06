@@ -1,9 +1,9 @@
-use std::sync::Arc;
 use beambench_common::machine::JobProgress;
 use beambench_core::{MaterialTestRecipe, QualityTestError, QualityTestRequest};
 use beambench_service::ServiceContext;
-use tauri::State;
 pub use beambench_service::ops::workflows::quality_test::*;
+use std::sync::Arc;
+use tauri::State;
 #[tauri::command]
 pub fn quality_test_preview(
     svc: State<'_, Arc<ServiceContext>>,
@@ -17,11 +17,7 @@ pub fn quality_test_export_gcode(
     request: QualityTestRequest,
     path: String,
 ) -> Result<QualityTestExportResponse, QualityTestError> {
-    beambench_service::ops::workflows::quality_test::quality_test_export_gcode(
-        &svc,
-        request,
-        path,
-    )
+    beambench_service::ops::workflows::quality_test::quality_test_export_gcode(&svc, request, path)
 }
 #[tauri::command]
 pub fn quality_test_frame(
@@ -43,8 +39,7 @@ pub fn quality_test_create_material_on_canvas(
     request: QualityTestRequest,
 ) -> Result<QualityTestCanvasResponse, QualityTestError> {
     beambench_service::ops::workflows::quality_test::quality_test_create_material_on_canvas(
-        &svc,
-        request,
+        &svc, request,
     )
 }
 #[tauri::command]
@@ -52,14 +47,9 @@ pub fn export_material_test_recipes(
     path: String,
     recipes: Vec<MaterialTestRecipe>,
 ) -> Result<(), String> {
-    beambench_service::ops::workflows::quality_test::export_material_test_recipes(
-        path,
-        recipes,
-    )
+    beambench_service::ops::workflows::quality_test::export_material_test_recipes(path, recipes)
 }
 #[tauri::command]
-pub fn import_material_test_recipes(
-    path: String,
-) -> Result<Vec<MaterialTestRecipe>, String> {
+pub fn import_material_test_recipes(path: String) -> Result<Vec<MaterialTestRecipe>, String> {
     beambench_service::ops::workflows::quality_test::import_material_test_recipes(path)
 }

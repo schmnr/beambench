@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use beambench_common::{BarcodeOptions, BarcodeType, Bounds, Point2D};
 use beambench_core::vector::node_edit::EditablePath;
 use beambench_core::vector::normalize::NormalizedVector;
@@ -6,8 +5,9 @@ use beambench_core::vector::path_ops::PathVertex;
 use beambench_core::{ImageMaskPolarity, ProjectObject};
 use beambench_service::ServiceContext;
 use beambench_service::ops::vector;
-use tauri::State;
 pub use beambench_service::ops::workflows::vector::*;
+use std::sync::Arc;
+use tauri::State;
 #[tauri::command]
 pub fn convert_to_path(
     svc: State<'_, Arc<ServiceContext>>,
@@ -21,11 +21,7 @@ pub fn boolean_union(
     object_id_a: String,
     object_id_b: String,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::boolean_union(
-        &svc,
-        object_id_a,
-        object_id_b,
-    )
+    beambench_service::ops::workflows::vector::boolean_union(&svc, object_id_a, object_id_b)
 }
 #[tauri::command]
 pub fn boolean_subtract(
@@ -33,11 +29,7 @@ pub fn boolean_subtract(
     object_id_a: String,
     object_id_b: String,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::boolean_subtract(
-        &svc,
-        object_id_a,
-        object_id_b,
-    )
+    beambench_service::ops::workflows::vector::boolean_subtract(&svc, object_id_a, object_id_b)
 }
 #[tauri::command]
 pub fn boolean_exclude(
@@ -45,11 +37,7 @@ pub fn boolean_exclude(
     object_id_a: String,
     object_id_b: String,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::boolean_exclude(
-        &svc,
-        object_id_a,
-        object_id_b,
-    )
+    beambench_service::ops::workflows::vector::boolean_exclude(&svc, object_id_a, object_id_b)
 }
 #[tauri::command]
 pub fn group_objects(
@@ -107,11 +95,7 @@ pub fn extract_nodes_to_path(
     object_id: String,
     node_ids: Vec<serde_json::Value>,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::extract_nodes_to_path(
-        &svc,
-        object_id,
-        node_ids,
-    )
+    beambench_service::ops::workflows::vector::extract_nodes_to_path(&svc, object_id, node_ids)
 }
 #[tauri::command]
 pub fn update_node(
@@ -139,11 +123,7 @@ pub fn update_nodes_batch(
     object_id: String,
     updates: Vec<serde_json::Value>,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::update_nodes_batch(
-        &svc,
-        object_id,
-        updates,
-    )
+    beambench_service::ops::workflows::vector::update_nodes_batch(&svc, object_id, updates)
 }
 #[tauri::command]
 pub fn set_node_type(
@@ -321,11 +301,7 @@ pub fn toggle_path_closed(
     object_id: String,
     subpath_idx: usize,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::toggle_path_closed(
-        &svc,
-        object_id,
-        subpath_idx,
-    )
+    beambench_service::ops::workflows::vector::toggle_path_closed(&svc, object_id, subpath_idx)
 }
 #[tauri::command]
 pub fn scale_path_to_bounds(
@@ -337,12 +313,7 @@ pub fn scale_path_to_bounds(
     new_max_y: f64,
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::scale_path_to_bounds(
-        &svc,
-        object_id,
-        new_min_x,
-        new_min_y,
-        new_max_x,
-        new_max_y,
+        &svc, object_id, new_min_x, new_min_y, new_max_x, new_max_y,
     )
 }
 #[tauri::command]
@@ -355,14 +326,14 @@ pub async fn mesh_deform_selection(
     perspective: bool,
 ) -> Result<Vec<ProjectObject>, String> {
     beambench_service::ops::workflows::vector::mesh_deform_selection(
-            &svc,
-            object_ids,
-            source_bounds,
-            handles,
-            grid_size,
-            perspective,
-        )
-        .await
+        &svc,
+        object_ids,
+        source_bounds,
+        handles,
+        grid_size,
+        perspective,
+    )
+    .await
 }
 #[tauri::command]
 pub fn normalize_for_planner(
@@ -378,9 +349,7 @@ pub fn boolean_assistant_preview(
     operation: String,
 ) -> Result<BooleanAssistantPreview, String> {
     beambench_service::ops::workflows::vector::boolean_assistant_preview(
-        &svc,
-        object_ids,
-        operation,
+        &svc, object_ids, operation,
     )
 }
 #[tauri::command]
@@ -389,11 +358,7 @@ pub fn boolean_intersection(
     object_id_a: String,
     object_id_b: String,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::boolean_intersection(
-        &svc,
-        object_id_a,
-        object_id_b,
-    )
+    beambench_service::ops::workflows::vector::boolean_intersection(&svc, object_id_a, object_id_b)
 }
 #[tauri::command]
 pub fn boolean_weld(
@@ -407,10 +372,7 @@ pub fn boolean_intersection_many(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::boolean_intersection_many(
-        &svc,
-        object_ids,
-    )
+    beambench_service::ops::workflows::vector::boolean_intersection_many(&svc, object_ids)
 }
 #[tauri::command]
 pub fn boolean_union_many(
@@ -460,13 +422,13 @@ pub async fn preview_offset_shapes(
     corner_style: Option<String>,
 ) -> Result<OffsetPreview, String> {
     beambench_service::ops::workflows::vector::preview_offset_shapes(
-            &svc,
-            object_ids,
-            distance,
-            direction,
-            corner_style,
-        )
-        .await
+        &svc,
+        object_ids,
+        distance,
+        direction,
+        corner_style,
+    )
+    .await
 }
 #[tauri::command]
 pub fn close_path(
@@ -481,11 +443,7 @@ pub fn close_paths_with_tolerance(
     paths: Vec<String>,
     tolerance: f64,
 ) -> Result<Vec<String>, String> {
-    beambench_service::ops::workflows::vector::close_paths_with_tolerance(
-        &_svc,
-        paths,
-        tolerance,
-    )
+    beambench_service::ops::workflows::vector::close_paths_with_tolerance(&_svc, paths, tolerance)
 }
 #[tauri::command]
 pub fn close_selected_paths_with_tolerance(
@@ -495,10 +453,7 @@ pub fn close_selected_paths_with_tolerance(
     mode: String,
 ) -> Result<CloseSelectedPathsWithToleranceResult, String> {
     beambench_service::ops::workflows::vector::close_selected_paths_with_tolerance(
-        &svc,
-        object_ids,
-        tolerance,
-        mode,
+        &svc, object_ids, tolerance, mode,
     )
 }
 #[tauri::command]
@@ -509,10 +464,7 @@ pub fn count_open_paths_with_tolerance(
     mode: String,
 ) -> Result<CloseSelectedPathsWithToleranceResult, String> {
     beambench_service::ops::workflows::vector::count_open_paths_with_tolerance(
-        &svc,
-        object_ids,
-        tolerance,
-        mode,
+        &svc, object_ids, tolerance, mode,
     )
 }
 #[tauri::command]
@@ -530,13 +482,7 @@ pub fn set_start_point(
     y: f64,
     mode: Option<String>,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::set_start_point(
-        &svc,
-        object_id,
-        x,
-        y,
-        mode,
-    )
+    beambench_service::ops::workflows::vector::set_start_point(&svc, object_id, x, y, mode)
 }
 #[tauri::command]
 pub fn get_path_vertices(
@@ -588,8 +534,7 @@ pub fn grid_array(
     total_height_mm: Option<f64>,
     h_spacing_mm: f64,
     v_spacing_mm: f64,
-    #[allow(unused_variables)]
-    spacing_mode: Option<String>,
+    #[allow(unused_variables)] spacing_mode: Option<String>,
     mirror_alternate_cols: Option<bool>,
     mirror_alternate_rows: Option<bool>,
     x_col_shift_mm: Option<f64>,
@@ -730,11 +675,7 @@ pub fn crop_image(
     image_object_id: String,
     mask_object_id: String,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::crop_image(
-        &svc,
-        image_object_id,
-        mask_object_id,
-    )
+    beambench_service::ops::workflows::vector::crop_image(&svc, image_object_id, mask_object_id)
 }
 #[tauri::command]
 pub fn apply_mask_to_image(
@@ -841,11 +782,7 @@ pub fn close_and_join(
     object_ids: Vec<String>,
     tolerance: Option<f64>,
 ) -> Result<CloseAndJoinResult, String> {
-    beambench_service::ops::workflows::vector::close_and_join(
-        &svc,
-        object_ids,
-        tolerance,
-    )
+    beambench_service::ops::workflows::vector::close_and_join(&svc, object_ids, tolerance)
 }
 #[tauri::command]
 pub fn cut_shapes_apply(
@@ -886,12 +823,7 @@ pub fn place_tab(
     world_x: f64,
     world_y: f64,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::place_tab(
-        &svc,
-        object_id,
-        world_x,
-        world_y,
-    )
+    beambench_service::ops::workflows::vector::place_tab(&svc, object_id, world_x, world_y)
 }
 #[tauri::command]
 pub fn remove_tab(
@@ -900,12 +832,7 @@ pub fn remove_tab(
     world_x: f64,
     world_y: f64,
 ) -> Result<ProjectObject, String> {
-    beambench_service::ops::workflows::vector::remove_tab(
-        &svc,
-        object_id,
-        world_x,
-        world_y,
-    )
+    beambench_service::ops::workflows::vector::remove_tab(&svc, object_id, world_x, world_y)
 }
 #[tauri::command]
 pub fn clear_tabs(

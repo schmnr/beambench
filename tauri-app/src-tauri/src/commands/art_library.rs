@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use beambench_core::{ArtLibraryItem, ProjectObject};
 use beambench_service::ServiceContext;
-use tauri::State;
 pub use beambench_service::ops::workflows::art_library::*;
+use std::sync::Arc;
+use tauri::State;
 #[tauri::command]
 pub fn get_art_libraries(
     ctx: State<'_, Arc<ServiceContext>>,
@@ -37,11 +37,7 @@ pub fn save_art_library_as(
     library_id: String,
     path: String,
 ) -> Result<beambench_service::persist::LoadedArtLibrary, String> {
-    beambench_service::ops::workflows::art_library::save_art_library_as(
-        &ctx,
-        library_id,
-        path,
-    )
+    beambench_service::ops::workflows::art_library::save_art_library_as(&ctx, library_id, path)
 }
 #[tauri::command]
 pub fn rename_art_library(
@@ -49,11 +45,7 @@ pub fn rename_art_library(
     library_id: String,
     name: String,
 ) -> Result<beambench_service::persist::LoadedArtLibrary, String> {
-    beambench_service::ops::workflows::art_library::rename_art_library(
-        &ctx,
-        library_id,
-        name,
-    )
+    beambench_service::ops::workflows::art_library::rename_art_library(&ctx, library_id, name)
 }
 #[tauri::command]
 pub fn delete_art_library(
@@ -72,12 +64,7 @@ pub fn add_art_library_item(
     file_path: String,
 ) -> Result<AddArtLibraryItemResult, String> {
     beambench_service::ops::workflows::art_library::add_art_library_item(
-        &ctx,
-        library_id,
-        name,
-        category,
-        tags,
-        file_path,
+        &ctx, library_id, name, category, tags, file_path,
     )
 }
 #[tauri::command]
@@ -90,12 +77,7 @@ pub fn add_selection_to_art_library(
     tags: Vec<String>,
 ) -> Result<ArtLibraryItem, String> {
     beambench_service::ops::workflows::art_library::add_selection_to_art_library(
-        &ctx,
-        library_id,
-        object_ids,
-        name,
-        category,
-        tags,
+        &ctx, library_id, object_ids, name, category, tags,
     )
 }
 #[tauri::command]
@@ -106,10 +88,7 @@ pub fn rename_art_library_item(
     name: String,
 ) -> Result<beambench_service::persist::LoadedArtLibrary, String> {
     beambench_service::ops::workflows::art_library::rename_art_library_item(
-        &ctx,
-        library_id,
-        item_id,
-        name,
+        &ctx, library_id, item_id, name,
     )
 }
 #[tauri::command]
@@ -119,9 +98,7 @@ pub fn remove_art_library_item(
     item_id: String,
 ) -> Result<beambench_service::persist::LoadedArtLibrary, String> {
     beambench_service::ops::workflows::art_library::remove_art_library_item(
-        &ctx,
-        library_id,
-        item_id,
+        &ctx, library_id, item_id,
     )
 }
 #[tauri::command]
@@ -132,10 +109,7 @@ pub fn commit_art_library_thumbnail(
     thumbnail: Option<String>,
 ) -> Result<beambench_service::persist::LoadedArtLibrary, String> {
     beambench_service::ops::workflows::art_library::commit_art_library_thumbnail(
-        &ctx,
-        library_id,
-        item_id,
-        thumbnail,
+        &ctx, library_id, item_id, thumbnail,
     )
 }
 #[tauri::command]
@@ -164,11 +138,6 @@ pub fn insert_art_library_item_to_project(
     drop_y: Option<f64>,
 ) -> Result<Vec<ProjectObject>, String> {
     beambench_service::ops::workflows::art_library::insert_art_library_item_to_project(
-        &ctx,
-        library_id,
-        item_id,
-        layer_id,
-        drop_x,
-        drop_y,
+        &ctx, library_id, item_id, layer_id, drop_x, drop_y,
     )
 }
