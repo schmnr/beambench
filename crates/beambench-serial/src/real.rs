@@ -330,6 +330,43 @@ mod tests {
         assert!(traffic.tx_ascii.contains("emergency-stop-evidence"));
     }
 
+    // scripts/test-macos-serial-open.py also runs this with a simulated driver
+    // that returns a stale non-POSIX speed and rejects reapplying it.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_reopens_virtual_serial_port_and_exchanges_bytes() {
+        use serialport::SerialPort;
+
+        let _guard = SERIAL_TRAFFIC_TEST_LOCK.lock().unwrap();
+        let (mut master, slave) = serialport::TTYPort::pair().unwrap();
+        let port_name = slave.name().unwrap();
+        drop(slave);
+        // Pseudo terminals do not implement IOSSIOSPEED. Zero skips only that
+        // ioctl; the real open/configuration and byte transport still run.
+        let mut transport = RealSerialTransport::new_without_dtr(&port_name, 0);
+        transport.open().unwrap();
+
+        master.write_all(b"<Idle|MPos:1,2,0>\n").unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        let mut received = Vec::new();
+        while !received.ends_with(b"\n") && std::time::Instant::now() < deadline {
+            received.extend(transport.read_available().unwrap());
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        assert_eq!(received, b"<Idle|MPos:1,2,0>\n");
+        // On macOS tcdrain waits for the pseudo-terminal peer to consume data.
+        // Read concurrently with write_line's flush, as a real controller does.
+        let reader = std::thread::spawn(move || {
+            let mut response = [0; 2];
+            master.read_exact(&mut response).unwrap();
+            (master, response)
+        });
+        transport.write_line("?").unwrap();
+        let (_master, response) = reader.join().unwrap();
+        assert_eq!(&response, b"?\n");
+        transport.close().unwrap();
+    }
+
     #[test]
     fn localized_windows_no_device_error_gets_actionable_message() {
         let error = serialport::Error::new(serialport::ErrorKind::NoDevice, "Accès refusé.");

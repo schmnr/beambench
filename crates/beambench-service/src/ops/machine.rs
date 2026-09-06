@@ -2488,19 +2488,28 @@ fn continue_auto_detection_after_grbl(
     port_name: String,
     baud_rate: u32,
     device_identity: DeviceIdentity,
-    grbl_error: Option<String>,
+    grbl_error: Option<ServiceError>,
 ) -> ServiceResult<ControllerConnectionResult> {
+    // Only a completed, inconclusive protocol probe warrants trying another
+    // protocol. Opening/reading the transport can fail before any bytes arrive.
+    // Preserve that error instead of claiming an unsupported controller replied.
+    if let Some(error) = &grbl_error
+        && !error.message.contains("[serial_open_no_response]")
+        && !error.message.contains("[serial_protocol_unrecognized]")
+    {
+        return Err(error.clone());
+    }
     let grbl_probe_failed = grbl_error.is_some();
     let grbl_port_was_silent = grbl_error
-        .as_deref()
-        .is_some_and(|error| error.contains("[serial_open_no_response]"));
+        .as_ref()
+        .is_some_and(|error| error.message.contains("[serial_open_no_response]"));
     clear_pending_controller_connection(ctx)?;
     ctx.push_connection_event(
         "protocol_retry",
         Some(port_name.clone()),
         Some(baud_rate),
         Some("GRBL identity was not established; trying Marlin M115".to_string()),
-        grbl_error,
+        grbl_error.map(|error| error.to_string()),
     );
     let marlin_bauds = marlin_detection_baud_rates(baud_rate);
     for &candidate_baud in &marlin_bauds {
@@ -2785,7 +2794,7 @@ pub fn begin_controller_connection(
                 port_name,
                 input.baud_rate,
                 device_identity,
-                Some(grbl_error.to_string()),
+                Some(grbl_error),
             )
         }
         Err(error) => Err(error),
@@ -6759,6 +6768,82 @@ mod tests {
     #[test]
     fn selected_baud_is_not_duplicated_in_detection_order() {
         assert_eq!(smoothieware_detection_baud_rates(115_200), vec![115_200]);
+    }
+
+    #[test]
+    fn auto_detection_preserves_transport_errors_without_protocol_retries() {
+        for message in [
+            "transport error: connection failed: Invalid argument",
+            "[serial_port_unavailable] Could not open COM5: Access denied",
+            "I/O error: device disconnected during status query",
+        ] {
+            let ctx = ServiceContext::new();
+            let original = ServiceError::machine(message).with_details(json!({"errno": 22}));
+            let error = continue_auto_detection_after_grbl(
+                &ctx,
+                "beambench-missing-serial-port".to_owned(),
+                115_200,
+                DeviceIdentity::default(),
+                Some(original.clone()),
+            )
+            .unwrap_err();
+            assert_eq!(error.message, original.message);
+            assert_eq!(error.code, original.code);
+            assert_eq!(error.details, original.details);
+            assert!(ctx.recent_connection_events().is_empty());
+            assert!(ctx.pending_controller_connection.lock().unwrap().is_none());
+        }
+    }
+
+    #[test]
+    fn auto_detection_of_a_missing_port_reports_the_open_failure() {
+        let ctx = ServiceContext::new();
+        let error = begin_controller_connection(
+            &ctx,
+            BeginControllerConnectionInput {
+                port_name: "beambench-missing-serial-port".to_owned(),
+                baud_rate: 115_200,
+                selection: ControllerSelection::AutoDetect,
+            },
+        )
+        .unwrap_err();
+        assert!(!error.message.contains("serial_protocol_unrecognized"));
+        assert!(!error.message.contains("serial_open_no_response"));
+        let events = ctx.recent_connection_events();
+        assert_eq!(events.len(), 2, "Unexpected protocol retries: {events:?}");
+        assert_eq!(events[0].stage, "open_attempt");
+        assert_eq!(events[1].stage, "open_failed");
+        assert_eq!(events[1].error.as_deref(), Some(error.message.as_str()));
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn auto_detection_still_probes_other_protocols_after_inconclusive_grbl() {
+        for code in ["serial_open_no_response", "serial_protocol_unrecognized"] {
+            let ctx = ServiceContext::new();
+            let error = continue_auto_detection_after_grbl(
+                &ctx,
+                "beambench-missing-serial-port".to_owned(),
+                115_200,
+                DeviceIdentity::default(),
+                Some(ServiceError::machine(format!(
+                    "[{code}] GRBL probe inconclusive"
+                ))),
+            )
+            .unwrap_err();
+            let events = ctx.recent_connection_events();
+            assert_eq!(events[0].stage, "protocol_retry");
+            assert_eq!(
+                events
+                    .iter()
+                    .filter(|event| event.stage == "protocol_probe")
+                    .count(),
+                3
+            );
+            assert_eq!(events.last().unwrap().error_code.as_deref(), Some(code));
+            assert!(error.message.contains(&format!("[{code}]")));
+            assert!(ctx.pending_controller_connection.lock().unwrap().is_none());
+        }
     }
 
     #[derive(Debug, Clone, Copy)]

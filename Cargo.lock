@@ -5847,8 +5847,6 @@ dependencies = [
 [[package]]
 name = "serialport"
 version = "4.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4d91116f97173694f1642263b2ff837f80d933aa837e2314969f6728f661df3"
 dependencies = [
  "bitflags 2.13.1",
  "cfg-if 1.0.4",

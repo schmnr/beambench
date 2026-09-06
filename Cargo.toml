@@ -67,4 +67,5 @@ regex = "1"
 flate2 = "1"
 
 [patch.crates-io]
+serialport = { path = "vendor/serialport" }
 u-nesting-d2 = { path = "vendor/u-nesting-d2" }
