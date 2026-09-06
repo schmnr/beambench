@@ -1,6 +1,6 @@
 use beambench_common::StartFromMode;
 use beambench_common::geometry::{Bounds, Point2D};
-use beambench_core::object::ProjectObject;
+use beambench_core::object::{ObjectData, ProjectObject};
 use beambench_core::{DisplayUnit, MachineProfile, Project, WorkspaceOrigin};
 use beambench_grbl::generate_gcode;
 use beambench_planner::{
@@ -11,7 +11,7 @@ use beambench_preview::{PreviewData, distill_preview};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -43,7 +43,9 @@ impl SessionJobOptions {
 }
 
 pub fn revision_hash(project: &Project) -> ServiceResult<String> {
-    let json = serde_json::to_string(project)
+    let json = project
+        .document_value()
+        .and_then(|value| serde_json::to_string(&value))
         .map_err(|e| ServiceError::internal(format!("Failed to serialize project: {e}")))?;
     let mut hasher = Sha256::new();
     hasher.update(json.as_bytes());
@@ -97,6 +99,43 @@ fn bounds_of_objects(objects: &[ProjectObject]) -> Option<Bounds> {
         .reduce(|acc, bounds| acc.union(&bounds))
 }
 
+/// UI selections contain group IDs; output needs their visible descendants.
+pub(crate) fn selected_objects_with_children(
+    project: &Project,
+    selected_object_ids: &[String],
+) -> Vec<ProjectObject> {
+    let requested: HashSet<&str> = selected_object_ids.iter().map(String::as_str).collect();
+    let by_id: HashMap<_, _> = project
+        .objects
+        .iter()
+        .map(|object| (object.id, object))
+        .collect();
+    let mut pending: Vec<_> = project
+        .objects
+        .iter()
+        .filter(|object| requested.contains(object.id.to_string().as_str()))
+        .map(|object| object.id)
+        .collect();
+    let mut selected = HashSet::new();
+    while let Some(id) = pending.pop() {
+        let Some(object) = by_id.get(&id) else {
+            continue;
+        };
+        if !object.visible || !selected.insert(id) {
+            continue;
+        }
+        if let ObjectData::Group { children } = &object.data {
+            pending.extend(children.iter().copied());
+        }
+    }
+    project
+        .objects
+        .iter()
+        .filter(|object| selected.contains(&object.id))
+        .cloned()
+        .collect()
+}
+
 fn apply_session_job_options(
     mut project: Project,
     options: &SessionJobOptions,
@@ -117,17 +156,8 @@ fn apply_session_job_options(
         ));
     }
 
-    let selected_ids: HashSet<&str> = options
-        .selected_object_ids
-        .iter()
-        .map(String::as_str)
-        .collect();
-    let selected_objects: Vec<ProjectObject> = project
-        .objects
-        .iter()
-        .filter(|object| selected_ids.contains(object.id.to_string().as_str()) && object.visible)
-        .cloned()
-        .collect();
+    let selected_objects = selected_objects_with_children(&project, &options.selected_object_ids);
+    let selected_ids: HashSet<_> = selected_objects.iter().map(|object| object.id).collect();
 
     if selected_objects.is_empty() {
         return Err(ServiceError::invalid_input(
@@ -144,9 +174,11 @@ fn apply_session_job_options(
     };
 
     if options.cut_selected_graphics {
-        project.objects.retain(|object| {
-            selected_ids.contains(object.id.to_string().as_str()) && object.visible
-        });
+        // Keep dependency geometry available to masks, text guides and clones.
+        // Visibility controls output; resolution does not require visibility.
+        for object in &mut project.objects {
+            object.visible &= selected_ids.contains(&object.id);
+        }
     }
 
     Ok((project, selection_bounds))
@@ -157,13 +189,22 @@ fn build_plan_for_project(
     project: &Project,
     selection_origin_bounds: Option<Bounds>,
 ) -> ServiceResult<ExecutionPlan> {
+    build_plan_for_snapshot(ctx, project, selection_origin_bounds, &active_profile(ctx)?)
+}
+
+fn build_plan_for_snapshot(
+    ctx: &ServiceContext,
+    project: &Project,
+    selection_origin_bounds: Option<Bounds>,
+    profile: &MachineProfile,
+) -> ServiceResult<ExecutionPlan> {
     ensure_positioning_ready(ctx, project)?;
     let runtime = ctx
         .optimization_runtime
         .lock()
         .map_err(|e| lock_err("optimization_runtime", e))?
         .clone();
-    let calibration = output::build_planner_calibration(&active_profile(ctx)?);
+    let calibration = output::build_planner_calibration(profile);
     let display_unit = ctx
         .settings
         .lock()
@@ -418,6 +459,19 @@ fn generate_plan_with_options_after_sync(
     Ok(plan)
 }
 
+/// Capture output inputs once and build without borrowing a potentially stale cache.
+pub(crate) fn prepare_job_snapshot(
+    ctx: &ServiceContext,
+    options: &SessionJobOptions,
+) -> ServiceResult<(ExecutionPlan, Project, MachineProfile)> {
+    sync_current_position(ctx)?;
+    let project = current_project(ctx)?;
+    let profile = active_profile(ctx)?;
+    let (effective, origin) = apply_session_job_options(project.clone(), options)?;
+    let plan = build_plan_for_snapshot(ctx, &effective, origin, &profile)?;
+    Ok((plan, project, profile))
+}
+
 pub fn cancel_planning(ctx: &ServiceContext) -> ServiceResult<()> {
     ctx.latest_planning_request_id
         .fetch_add(1, Ordering::AcqRel);
@@ -510,14 +564,50 @@ pub fn export_gcode_to_path_with_options(
     path: &std::path::Path,
     options: &SessionJobOptions,
 ) -> ServiceResult<String> {
-    let plan = ensure_current_plan_with_options(ctx, options)?;
+    let (plan, gcode_lines) = prepare_gcode_export(ctx, options)?;
+    std::fs::write(path, gcode_lines.join("\n"))
+        .map_err(|e| ServiceError::persistence(format!("Failed to write G-code file: {e}")))?;
+    ctx.emit_event(
+        "preview.gcode.exported",
+        json!({
+            "project_id": plan.project_id,
+            "revision_hash": plan.revision_hash,
+            "path": path.to_string_lossy().to_string(),
+            "line_count": gcode_lines.len(),
+        }),
+    );
+    Ok(path.to_string_lossy().to_string())
+}
+
+/// Generate checked output for the desktop and standalone CLI. No file is
+/// written until the complete plan, machine bounds and runtime requirements pass.
+pub fn prepare_gcode_export(
+    ctx: &ServiceContext,
+    options: &SessionJobOptions,
+) -> ServiceResult<(ExecutionPlan, Vec<String>)> {
+    let (plan, project, profile) = prepare_job_snapshot(ctx, options)?;
     if plan.segments.is_empty() {
         return Err(ServiceError::invalid_state(
             "Cannot export G-code because the job contains no output paths",
         ));
     }
-    let project = current_project(ctx)?;
-    let profile = active_profile(ctx)?;
+    if !plan.failed_entries.is_empty() {
+        return Err(ServiceError::invalid_state(
+            "Cannot export G-code: one or more operations failed planning. Correct the reported mask or layer errors first.",
+        ).with_details(json!({ "failed_entries": plan.failed_entries })));
+    }
+    let raster_bounds = beambench_streamer::check_raster_motion_bounds(&plan, &profile);
+    if let Some(check) = raster_bounds
+        && !check.passed
+    {
+        return Err(ServiceError::invalid_state(check.message));
+    }
+    let (width, height) = profile.workspace_dimensions_mm();
+    beambench_planner::validate::validate_bounds(&plan.segments, width, height).map_err(|err| {
+        ServiceError::invalid_state(format!(
+            "Cannot export G-code outside the machine workspace: {err}"
+        ))
+    })?;
     let mut gcode_config = output::build_gcode_config(&project.optimization, &profile);
     output::apply_project_gcode_metadata(&mut gcode_config, &project);
     if profile.rotary_enabled {
@@ -546,18 +636,7 @@ pub fn export_gcode_to_path_with_options(
     let output_plan = plan_in_grbl_coordinates(&plan, &project, offset);
     let gcode_lines = generate_gcode(&output_plan, &gcode_config)
         .map_err(|e| ServiceError::invalid_state(format!("G-code generation failed: {e}")))?;
-    std::fs::write(path, gcode_lines.join("\n"))
-        .map_err(|e| ServiceError::persistence(format!("Failed to write G-code file: {e}")))?;
-    ctx.emit_event(
-        "preview.gcode.exported",
-        json!({
-            "project_id": plan.project_id,
-            "revision_hash": plan.revision_hash,
-            "path": path.to_string_lossy().to_string(),
-            "line_count": gcode_lines.len(),
-        }),
-    );
-    Ok(path.to_string_lossy().to_string())
+    Ok((plan, gcode_lines))
 }
 
 fn trusted_grbl_work_to_machine_offset(ctx: &ServiceContext) -> ServiceResult<Option<(f64, f64)>> {
@@ -637,7 +716,17 @@ mod tests {
     }
 
     fn create_test_ctx_with_project() -> ServiceContext {
-        let ctx = ServiceContext::with_settings(beambench_core::AppSettings::default());
+        let profile = MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            ..MachineProfile::default()
+        };
+        let settings = beambench_core::AppSettings {
+            active_profile_id: Some(profile.id),
+            machine_profiles: vec![profile],
+            ..Default::default()
+        };
+        let ctx = ServiceContext::with_settings(settings);
 
         let mut project = Project::new("Test");
         let layer = Layer::new("Lines", OperationType::Line);
@@ -662,6 +751,18 @@ mod tests {
 
         *ctx.project.lock().unwrap() = Some(project);
         ctx
+    }
+
+    #[test]
+    fn export_rejects_smaller_machine_without_overwriting_destination() {
+        let ctx = create_test_ctx_with_project();
+        ctx.settings.lock().unwrap().machine_profiles[0].bed_height_mm = 200.0;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("existing.gcode");
+        std::fs::write(&path, "original").unwrap();
+        let err = export_gcode_to_path(&ctx, &path).unwrap_err();
+        assert!(err.message.contains("outside the machine workspace"));
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "original");
     }
 
     #[test]
@@ -986,6 +1087,93 @@ mod tests {
             4,
             "session job options must not mutate or serialize into the open project"
         );
+    }
+
+    #[test]
+    fn selected_only_job_includes_nested_group_children_once() {
+        let ctx = create_test_ctx_with_project();
+        let (group_id, expected_id) = {
+            let mut guard = ctx.project.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            let child = project.objects[0].clone();
+            let inner = ProjectObject::new(
+                "Inner",
+                child.layer_id,
+                child.bounds,
+                ObjectData::Group {
+                    children: vec![child.id],
+                },
+            );
+            let inner_id = inner.id;
+            project.add_object(inner);
+            let outer = ProjectObject::new(
+                "Outer",
+                child.layer_id,
+                child.bounds,
+                ObjectData::Group {
+                    children: vec![inner_id],
+                },
+            );
+            let outer_id = outer.id;
+            project.add_object(outer);
+            (outer_id.to_string(), child.id.to_string())
+        };
+        let plan = generate_plan_with_options(
+            &ctx,
+            &SessionJobOptions {
+                cut_selected_graphics: true,
+                use_selection_origin: false,
+                selected_object_ids: vec![group_id, expected_id.clone()],
+            },
+        )
+        .expect("selected groups must include their artwork");
+        let ids: Vec<_> = plan
+            .segments
+            .iter()
+            .filter_map(|segment| match segment {
+                PlanSegment::Vector {
+                    source_object_id, ..
+                } => source_object_id.clone(),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ids, vec![expected_id]);
+    }
+
+    #[test]
+    fn group_selection_skips_hidden_subtrees_and_terminates_cycles() {
+        let ctx = create_test_ctx_with_project();
+        let mut project = current_project(&ctx).unwrap();
+        let child = project.objects[0].clone();
+        let hidden_child_id = project.objects[1].id;
+        let mut hidden_group = ProjectObject::new(
+            "Hidden",
+            child.layer_id,
+            child.bounds,
+            ObjectData::Group {
+                children: vec![hidden_child_id],
+            },
+        );
+        hidden_group.visible = false;
+        let hidden_group_id = hidden_group.id;
+        project.add_object(hidden_group);
+        let mut root = ProjectObject::new(
+            "Root",
+            child.layer_id,
+            child.bounds,
+            ObjectData::Group { children: vec![] },
+        );
+        let root_id = root.id;
+        root.data = ObjectData::Group {
+            children: vec![child.id, hidden_group_id, root_id],
+        };
+        project.add_object(root);
+
+        let selected =
+            selected_objects_with_children(&project, &[root_id.to_string(), child.id.to_string()]);
+        let ids: HashSet<_> = selected.iter().map(|object| object.id).collect();
+        assert_eq!(ids, HashSet::from([root_id, child.id]));
+        assert_eq!(selected.len(), 2);
     }
 
     #[test]

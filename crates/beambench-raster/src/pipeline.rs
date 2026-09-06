@@ -49,12 +49,12 @@ fn process_raster_inner(
 ) -> Result<ProcessedRaster, RasterError> {
     // 1. Validate parameters
     let (width_mm, height_mm) = params.bounds_mm;
-    if width_mm <= 0.0 {
+    if !width_mm.is_finite() || width_mm <= 0.0 {
         return Err(RasterError::InvalidDimensions(
             "Width must be greater than zero".to_string(),
         ));
     }
-    if height_mm <= 0.0 {
+    if !height_mm.is_finite() || height_mm <= 0.0 {
         return Err(RasterError::InvalidDimensions(
             "Height must be greater than zero".to_string(),
         ));
@@ -94,6 +94,12 @@ fn process_raster_inner(
     // 2-4. Decode + scale (cached when scaled_cache is provided)
     let target_w_px = (width_mm / 25.4 * params.dpi as f64).round() as u32;
     let target_h_px = (height_mm / 25.4 * params.dpi as f64).round() as u32;
+    if u64::from(target_w_px) * u64::from(target_h_px) > 64 * 1024 * 1024 {
+        return Err(RasterError::InvalidDimensions(
+            "Raster exceeds the 64 megapixel processing limit. Reduce its physical size or DPI."
+                .into(),
+        ));
+    }
     let line_interval_mm = 25.4 / params.dpi as f64;
 
     let scaled_key = scaled_cache.map(|_| crate::cache::scaled_image_key(&params));
@@ -307,6 +313,33 @@ mod tests {
             )
             .unwrap();
         bytes
+    }
+
+    #[test]
+    fn rejects_nonfinite_and_oversized_targets_before_decoding() {
+        for bounds in [
+            (f64::NAN, 1.0),
+            (1.0, f64::INFINITY),
+            (1000000.0, 1000000.0),
+        ] {
+            let params = RasterProcessingParams {
+                source_bytes: vec![],
+                bounds_mm: bounds,
+                dpi: 300,
+                mode: RasterMode::Grayscale,
+                adjustments: RasterAdjustments::default(),
+                pass_through: false,
+                halftone_cells_per_inch: 10,
+                halftone_angle_deg: 0.0,
+                newsprint_angle_deg: 45.0,
+                newsprint_frequency: 10.0,
+                invert: false,
+            };
+            assert!(matches!(
+                process_raster(params),
+                Err(RasterError::InvalidDimensions(_))
+            ));
+        }
     }
 
     #[test]

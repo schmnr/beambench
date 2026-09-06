@@ -15,9 +15,12 @@ pub mod preview;
 pub mod profiles;
 pub mod projects;
 pub mod vector;
+pub mod workflows;
 
 #[cfg(test)]
 mod parity_scenarios;
+#[cfg(test)]
+mod workflow_tests;
 
 use std::sync::Arc;
 
@@ -59,6 +62,7 @@ pub fn build_router(ctx: Arc<ServiceContext>) -> Router {
         .nest("/api/v1/materials", materials::router())
         .nest("/api/v1/macros", macros::router())
         .nest("/api/v1/export", export::router())
+        .nest("/api/v1/workflows", workflows::router())
         .layer(middleware::from_fn(reject_browser_origins))
         .with_state(ctx)
 }

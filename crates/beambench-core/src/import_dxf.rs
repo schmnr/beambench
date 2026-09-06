@@ -37,7 +37,7 @@ pub fn parse_dxf_with_report(content: &str) -> Result<DxfParseReport, String> {
     if !content.trim().is_empty() && pairs.is_empty() {
         return Err("File is not a valid ASCII DXF".to_string());
     }
-    let scale = dxf_insunits_scale_to_mm(&pairs);
+    let scale = dxf_insunits_scale_to_mm(&pairs)?;
     let curve_tolerance = DXF_CURVE_TOLERANCE_MM / scale.abs().max(f64::EPSILON);
     let mut entities = Vec::new();
     let mut skipped_entities = BTreeMap::new();
@@ -101,25 +101,52 @@ pub fn parse_dxf_with_report(content: &str) -> Result<DxfParseReport, String> {
 }
 
 /// Millimeter scale factor for the file's `$INSUNITS` header variable.
-/// DXF unit codes: 1=inches, 2=feet, 4=mm, 5=cm, 6=m. Anything else
-/// (including 0 = unitless or a missing header) is treated as already mm.
-fn dxf_insunits_scale_to_mm(pairs: &[(i32, String)]) -> f64 {
+/// Unitless files and missing headers retain the millimeter default. Explicit
+/// units must be converted or rejected, never silently interpreted as mm.
+fn dxf_insunits_scale_to_mm(pairs: &[(i32, String)]) -> Result<f64, String> {
     for (i, pair) in pairs.iter().enumerate() {
-        if pair.0 == 9
-            && pair.1 == "$INSUNITS"
-            && let Some(next) = pairs.get(i + 1)
-            && next.0 == 70
-        {
-            return match next.1.parse::<i32>().unwrap_or(0) {
+        if pair.0 == 9 && pair.1 == "$INSUNITS" {
+            let next = pairs
+                .get(i + 1)
+                .filter(|next| next.0 == 70)
+                .ok_or_else(|| "DXF $INSUNITS is missing its unit code".to_string())?;
+            let unit = next
+                .1
+                .parse::<i32>()
+                .map_err(|_| format!("Invalid DXF $INSUNITS value: {}", next.1))?;
+            let scale = match unit {
+                0 | 4 => 1.0,
                 1 => 25.4,
                 2 => 304.8,
+                3 => 1_609_344.0,
                 5 => 10.0,
                 6 => 1000.0,
-                _ => 1.0,
+                7 => 1_000_000.0,
+                8 => 0.000_025_4,
+                9 => 0.0254,
+                10 => 914.4,
+                11 => 0.000_000_1,
+                12 => 0.000_001,
+                13 => 0.001,
+                14 => 100.0,
+                15 => 10_000.0,
+                16 => 100_000.0,
+                17 => 1_000_000_000_000.0,
+                // US survey units use 1200/3937 meters per foot.
+                21 => 1_200_000.0 / 3937.0,
+                22 => 100_000.0 / 3937.0,
+                23 => 3_600_000.0 / 3937.0,
+                24 => 6_336_000_000.0 / 3937.0,
+                _ => {
+                    return Err(format!(
+                        "Unsupported DXF $INSUNITS code {unit}. Export the drawing in millimeters before importing."
+                    ));
+                }
             };
+            return Ok(scale);
         }
     }
-    1.0
+    Ok(1.0)
 }
 
 /// Parse DXF group codes (integer code + value pairs separated by newlines).
@@ -897,6 +924,43 @@ mod tests {
             }
             _ => panic!("expected LineTo"),
         }
+    }
+
+    #[test]
+    fn dxf_engineering_units_preserve_physical_size() {
+        // Each encoded line represents exactly 25.4 mm in a different unit.
+        for (unit, length) in [
+            (8, 1_000_000.0),
+            (9, 1_000.0),
+            (10, 1.0 / 36.0),
+            (13, 25_400.0),
+            (14, 0.254),
+            (21, 25.4 * 3937.0 / 1_200_000.0),
+        ] {
+            let dxf = format!(
+                "0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n{unit}\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n11\n{length}\n21\n0\n0\nENDSEC\n0\nEOF\n"
+            );
+            let entities = parse_dxf(&dxf).unwrap();
+            let bounds = entities[0].path.bounds().unwrap();
+            assert!(
+                (bounds.width() - 25.4).abs() < 1e-8,
+                "INSUNITS {unit} imported as {} mm",
+                bounds.width()
+            );
+        }
+    }
+
+    #[test]
+    fn dxf_unknown_or_malformed_units_do_not_silently_change_size() {
+        for unit in ["18", "19", "20", "99", "invalid"] {
+            let dxf =
+                format!("0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n{unit}\n0\nENDSEC\n0\nEOF\n");
+            assert!(
+                parse_dxf(&dxf).is_err(),
+                "silently accepted INSUNITS {unit}"
+            );
+        }
+        assert!(parse_dxf("0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n0\nENDSEC\n0\nEOF\n").is_err());
     }
 
     #[test]

@@ -1142,7 +1142,6 @@ fn append_synthetic_project_to_canvas(
         crate::ops::project::refresh_project_text_caches(&mut project);
         project.dirty = true;
         *project_guard = Some(project.clone());
-        drop(project_guard);
         {
             let mut path_guard =
                 ctx.project_path
@@ -1154,6 +1153,7 @@ fn append_synthetic_project_to_canvas(
         }
         ctx.clear_project_history()
             .map_err(|message| QualityTestError::Internal { message })?;
+        drop(project_guard);
         ctx.emit_event(
             "project.created",
             serde_json::json!({

@@ -1,0 +1,160 @@
+   Compiling serde_core v1.0.228
+   Compiling serde_json v1.0.149
+   Compiling tracing v0.1.44
+   Compiling darling_core v0.20.11
+   Compiling hyper v1.8.1
+   Compiling serde v1.0.228
+   Compiling chrono v0.4.44
+   Compiling uuid v1.22.0
+   Compiling i_float v1.6.0
+   Compiling beambench-common v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-common)
+   Compiling beambench-gcode v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-gcode)
+   Compiling darling_macro v0.20.11
+   Compiling i_shape v1.6.0
+   Compiling darling v0.20.11
+   Compiling i_overlay v1.9.4
+   Compiling geo v0.29.3
+   Compiling beambench-raster v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-raster)
+   Compiling beambench-serial v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-serial)
+   Compiling hyper-util v0.1.20
+   Compiling tower v0.5.3
+   Compiling serde_urlencoded v0.7.1
+   Compiling tower-http v0.6.8
+   Compiling hyper-rustls v0.27.7
+   Compiling beambench-discovery v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-discovery)
+   Compiling derive_builder_core v0.20.2
+   Compiling beambench-camera v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-camera)
+   Compiling reqwest v0.12.28
+   Compiling derive_builder_macro v0.20.2
+   Compiling beambench-core v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-core)
+   Compiling derive_builder v0.20.2
+   Compiling beambench-planner v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-planner)
+   Compiling beambench-project v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-project)
+   Compiling beambench-grbl v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-grbl)
+   Compiling beambench-preview v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-preview)
+   Compiling beambench-marlin v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-marlin)
+   Compiling beambench-smoothieware v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-smoothieware)
+   Compiling beambench-ruida v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-ruida)
+   Compiling beambench-lihuiyu v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-lihuiyu)
+   Compiling beambench-xtool v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-xtool)
+   Compiling beambench-streamer v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-streamer)
+   Compiling beambench-galvo v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-galvo)
+   Compiling vergen-lib v9.1.0
+   Compiling beambench-dsp v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-dsp)
+   Compiling u-nesting-d2 v0.3.1
+   Compiling tungstenite v0.28.0
+   Compiling vergen v9.1.0
+   Compiling axum-core v0.5.6
+   Compiling tokio-tungstenite v0.28.0
+   Compiling beambench-buildinfo v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-buildinfo)
+   Compiling serde_path_to_error v0.1.20
+   Compiling clap v4.6.0
+   Compiling axum v0.8.8
+   Compiling beambench-service v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-service)
+   Compiling beambench-api v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-api)
+   Compiling beambench-cli v0.2.18 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12m 38s
+     Running unittests src/lib.rs (target/debug/deps/beambench_api-130bf8f632f23b9f)
+
+running 91 tests
+test config::tests::default_config ... ok
+test config::tests::from_settings ... ok
+test routes::app::tests::get_settings_returns_defaults ... ok
+test routes::app::tests::update_settings_accepts_display_schema_fields ... ok
+test routes::agent::tests::agent_state_returns_warning_array_without_project ... ok
+test routes::app::tests::get_status_returns_version ... ok
+test routes::assets::tests::import_asset_no_project_returns_not_found ... ok
+test routes::assets::tests::get_asset_no_project_returns_not_found ... ok
+test routes::assets::tests::list_assets_no_project_returns_not_found ... ok
+test routes::camera::tests::list_devices_returns_camera_catalog ... ok
+test routes::app::tests::update_settings_writes_snap_threshold_px ... ok
+test routes::assets::tests::list_assets_with_empty_project ... ok
+test routes::agent::tests::agent_guide_returns_bootstrap_and_safety_summary ... ok
+test routes::agent::tests::agent_capabilities_returns_registry_shape ... ok
+test routes::console::tests::get_console_log_returns_empty_when_no_entries ... ok
+test routes::console::tests::send_gcode_line_requires_raw_confirmation_first ... ok
+test routes::console::tests::send_gcode_line_fails_without_session ... ok
+test routes::camera::tests::solve_and_save_calibration_roundtrip ... ok
+test routes::export::tests::export_ai_returns_inline_content ... ok
+test routes::events::tests::system_warning_message_uses_stable_envelope ... ok
+test routes::design::tests::busy_transaction_returns_409 ... ok
+test routes::events::tests::system_snapshot_message_uses_stable_envelope ... ok
+test routes::agent::tests::supported_capability_api_refs_resolve_against_router ... ok
+test routes::app::tests::update_settings_merges_fields ... ok
+test routes::export::tests::export_ai_with_selected_ids_returns_content ... ok
+test routes::design::tests::plan_and_apply_routes_use_same_transaction_contract ... ok
+test routes::export::tests::export_dxf_writes_requested_path ... ok
+test routes::export::tests::export_eps_with_selected_ids_returns_content ... ok
+test routes::export::tests::export_pdf_returns_inline_base64_content ... ok
+test routes::export::tests::export_eps_returns_inline_content ... ok
+test routes::jobs::tests::frame_job_body_deserializes_laser_on_override ... ok
+test routes::export::tests::export_eps_with_invalid_selected_id_returns_error ... ok
+test routes::design::tests::describe_and_schema_routes_return_schema_version ... ok
+test routes::export::tests::export_svg_returns_inline_content ... ok
+test routes::design::tests::render_route_writes_visual_svg ... ok
+test routes::app::tests::update_settings_rejects_invalid_ui_theme ... ok
+test routes::jobs::tests::preflight_without_project_returns_error ... ok
+test routes::jobs::tests::start_job_requires_motion_confirmation ... ok
+test routes::imports::tests::import_pdf_route_imports_objects ... ok
+test routes::imports::tests::import_ai_route_imports_objects ... ok
+test routes::imports::tests::import_svg_route_validates_layer_and_path ... ok
+test routes::imports::tests::import_dxf_route_imports_objects ... ok
+test routes::imports::tests::import_svg_route_imports_objects ... ok
+test routes::machine::tests::controller_continuation_route_rejects_unknown_attempt ... ok
+test routes::jobs::tests::preflight_with_project_but_no_session_returns_error ... ok
+test routes::jobs::tests::get_progress_no_job ... ok
+test routes::jobs::tests::frame_job_uses_selected_object_ids_from_request_body ... ok
+test routes::jobs::tests::start_job_without_project_returns_error ... ok
+test routes::machine::tests::home_requires_motion_confirmation ... ok
+test routes::machine::tests::explicit_serial_controller_route_validates_before_opening_hardware ... ok
+test routes::macros::tests::get_macros_returns_empty_list ... ok
+test routes::machine::tests::explicit_network_controller_route_rejects_serial_driver_before_transport ... ok
+test routes::machine::tests::lihuiyu_usb_connect_route_validates_before_opening_hardware ... ok
+test routes::machine::tests::raw_gcode_requires_raw_and_laser_confirmation ... ok
+test routes::machine::tests::machine_status_disconnected ... ok
+test routes::machine::tests::test_air_requires_air_confirmation ... ok
+test routes::macros::tests::run_macro_fails_without_session ... ok
+test routes::parity_scenarios::tests::create_project_api_matches_service_state ... ok
+test routes::parity_scenarios::tests::add_object_api_matches_direct_read ... ok
+test routes::origin_guard_tests::requests_with_browser_origin_are_rejected ... ok
+test routes::origin_guard_tests::requests_without_origin_pass_through ... ok
+test routes::parity_scenarios::tests::undo_api_reverts_change ... ok
+test routes::macros::tests::save_macro_creates_new_macro ... ok
+test routes::parity_scenarios::tests::export_svg_api_returns_content ... ok
+test routes::materials::tests::apply_material_fails_without_project ... ok
+test routes::parity_scenarios::tests::update_layer_api_matches_service_state ... ok
+test routes::preview::tests::export_gcode_without_project_returns_not_found ... ok
+test routes::preview::tests::generate_preview_no_project_returns_404 ... ok
+test routes::profiles::tests::list_profiles_empty ... ok
+test routes::profiles::tests::profile_suggestion_route_reports_reason_shapes ... ok
+test routes::profiles::tests::set_active_missing_profile_returns_not_found ... ok
+test routes::materials::tests::get_material_presets_returns_empty_list ... ok
+test routes::profiles::tests::create_and_update_profile_roundtrip_phase5_fields ... ok
+test routes::preview::tests::export_gcode_with_project_creates_file ... ok
+test routes::preview::tests::generate_preview_with_project ... ok
+test routes::profiles::tests::create_get_update_activate_delete_profile_roundtrip ... ok
+test routes::projects::tests::create_then_get_current ... ok
+test routes::profiles::tests::profile_presets_diff_and_apply_require_confirmation ... ok
+test routes::projects::tests::create_project_returns_project ... ok
+test routes::projects::tests::add_object_with_missing_layer_falls_back_to_first_layer ... ok
+test routes::projects::tests::replace_route_clears_path_and_history ... ok
+test routes::projects::tests::get_current_no_project_returns_404 ... ok
+test routes::materials::tests::import_then_export_material_presets_roundtrips ... ok
+test routes::projects::tests::save_as_without_project_returns_404 ... ok
+test routes::projects::tests::save_without_project_returns_404 ... ok
+test routes::projects::tests::layer_mutation_routes_participate_in_undo_redo ... ok
+test routes::materials::tests::save_material_preset_creates_new_preset ... ok
+test routes::vector::tests::group_and_undo_round_trip_through_api ... ok
+test routes::vector::tests::editable_path_rejects_non_vector_object ... ok
+test routes::camera::tests::capture_returns_agent_camera_state_with_artifact_path ... ok
+test routes::design::tests::render_route_writes_visual_png ... ok
+
+test result: ok. 91 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running unittests src/lib.rs (target/debug/deps/beambench_buildinfo-960877f689ea9724)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/beambench_camera-a37c197b8f4e0f9d)

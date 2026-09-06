@@ -279,7 +279,18 @@ fn apply_image_masks(
     let mut outside = Vec::new();
     for mask in masks {
         let Some(mask_obj) = project.find_object(mask.object_id) else {
-            continue;
+            failed_entries.push(PlanEntryFailure {
+                layer_id: layer.id.to_string(),
+                cut_entry_id: None,
+                operation: OperationType::Image,
+                reason: PlanEntryFailureReason::ImageMaskSkipped {
+                    object_id: mask.object_id.to_string(),
+                    message: "Referenced image mask is missing".to_string(),
+                },
+            });
+            let mut blank = processed.clone();
+            blank.data.fill(255);
+            return blank;
         };
         let Some(path) =
             beambench_core::vector::convert::object_to_world_vecpath_resolved(mask_obj, project)
@@ -293,7 +304,9 @@ fn apply_image_masks(
                     message: "Mask object is not vector-like".to_string(),
                 },
             });
-            continue;
+            let mut blank = processed.clone();
+            blank.data.fill(255);
+            return blank;
         };
         let polylines: Vec<Polyline> = flatten_vecpath(&path, DEFAULT_TOLERANCE_MM)
             .into_iter()
@@ -309,7 +322,9 @@ fn apply_image_masks(
                     message: "Mask object is open or has no usable area".to_string(),
                 },
             });
-            continue;
+            let mut blank = processed.clone();
+            blank.data.fill(255);
+            return blank;
         }
         match mask.polarity {
             ImageMaskPolarity::KeepInside => inside.extend(polylines),
@@ -2370,9 +2385,12 @@ fn build_plan_inner(
     let calibration = &input.calibration;
     let runtime_current_position = input.runtime.current_position;
     // 1. Compute revision hash
-    let project_json = serde_json::to_string(project).map_err(|e| {
-        PlannerError::InvalidSettings(format!("Failed to serialize project: {}", e))
-    })?;
+    let project_json = project
+        .document_value()
+        .and_then(|value| serde_json::to_string(&value))
+        .map_err(|e| {
+            PlannerError::InvalidSettings(format!("Failed to serialize project: {}", e))
+        })?;
     let mut hasher = Sha256::new();
     hasher.update(project_json.as_bytes());
     let revision_hash = format!("{:x}", hasher.finalize());
@@ -3893,12 +3911,12 @@ pub fn build_frame_plan(bounds: &Bounds, power_percent: f64, speed_mm_min: f64) 
 
 /// Find asset data by asset_key string.
 fn find_asset_data(
-    asset_data: &std::collections::HashMap<AssetId, Vec<u8>>,
+    asset_data: &std::collections::HashMap<AssetId, std::sync::Arc<Vec<u8>>>,
     asset_key: &str,
 ) -> Option<Vec<u8>> {
     for (id, data) in asset_data {
         if id.to_string() == asset_key {
-            return Some(data.clone());
+            return Some(data.as_ref().clone());
         }
     }
     None

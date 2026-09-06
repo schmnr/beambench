@@ -250,6 +250,8 @@ export interface GcodeLine {
   line_number: number;
   raw: string;
   command: string | null;
+  commands?: string[];
+  errors?: string[];
   params: Record<string, number>;
 }
 

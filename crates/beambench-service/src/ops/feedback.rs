@@ -1441,6 +1441,34 @@ mod tests {
     }
 
     #[test]
+    fn preview_preserves_invalid_argument_open_failure_without_claiming_rx() {
+        let ctx = ServiceContext::new();
+        ctx.push_connection_event(
+            "open_failed",
+            Some("/dev/cu.usbserial-10".to_owned()),
+            Some(115_200),
+            None,
+            Some("transport error: connection failed: Invalid argument".to_owned()),
+        );
+        let bundle = preview_feedback_report(&ctx, bug_input()).unwrap();
+        assert_eq!(
+            bundle.machine.session_state,
+            DiagnosticSessionState::HandshakeFailed
+        );
+        assert_eq!(
+            bundle.machine.handshake_message.as_deref(),
+            Some("transport error: connection failed: Invalid argument")
+        );
+        assert!(bundle.known_issues.iter().all(|issue| {
+            issue.code != "serial_protocol_unrecognized" && issue.code != "serial_open_no_response"
+        }));
+        assert_eq!(
+            bundle.machine.port_name.as_deref(),
+            Some("/dev/cu.usbserial-10")
+        );
+    }
+
+    #[test]
     fn preview_preserves_unrecognized_serial_traffic_as_a_distinct_failure() {
         let ctx = ServiceContext::new();
         ctx.push_connection_event(

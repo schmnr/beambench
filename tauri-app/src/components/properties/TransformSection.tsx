@@ -5,7 +5,7 @@ import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
 import { Focus, Link2, Lock, Move, Search, Unlink2, Unlock } from 'lucide-react';
 import { NumberStepper } from '../shared/NumberStepper';
-import type { AnchorPoint, TransformLocks } from '../../types/project';
+import type { TransformLocks } from '../../types/project';
 import { useNotificationStore } from '../../stores/notificationStore';
 import {
   isTransformLocked,
@@ -159,7 +159,8 @@ export function TransformSection() {
   const posStep = displayUnit === DISPLAY_UNIT_INCHES ? 0.005 : 0.1;
   const sizeMin = displayUnit === DISPLAY_UNIT_INCHES ? 0.001 : 0.01;
 
-  const [anchor, setAnchor] = useState<AnchorPoint>('top_left');
+  const anchor = useUiStore((s) => s.transformAnchor);
+  const setAnchor = useUiStore((s) => s.setTransformAnchor);
   const [scaleXPercent, setScaleXPercent] = useState(100);
   const [scaleYPercent, setScaleYPercent] = useState(100);
 

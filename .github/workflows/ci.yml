@@ -72,6 +72,21 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
 
+  macos-serial:
+    name: macOS serial initialization regression
+    runs-on: macos-15
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Test serial transport without hardware
+        run: cargo test -p beambench-serial --lib
+
+      - name: Reproduce stale-speed driver behavior
+        run: python3 scripts/test-macos-serial-open.py
+
   frontend:
     name: Frontend (build, test, lint)
     runs-on: ubuntu-latest

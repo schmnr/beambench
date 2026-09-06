@@ -214,7 +214,7 @@ export function MainToolbar() {
   });
 
   return (
-    <div className="no-select relative flex items-center h-11 bg-bb-panel px-3 gap-0.5 text-xs border-b border-bb-border">
+    <div className="no-select relative flex flex-wrap items-center min-h-11 shrink-0 py-1 bg-bb-panel px-3 gap-0.5 text-xs border-b border-bb-border">
       {/* Brand + project identity */}
       <span
         aria-hidden="true"

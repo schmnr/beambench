@@ -33,6 +33,20 @@ beambench-cli design plan plan.json --json
 
 | ID | Status | Kind | CLI | API | Confirmations |
 | --- | --- | --- | --- | --- | --- |
+| `agent.workflows` | `supported` | `observe` | `beambench-cli agent workflows --json` | `GET /api/v1/workflows/schema` |  |
+| `project.native_edit` | `supported` | `mutate_project` | `beambench-cli project edit schema --json` | `POST /api/v1/workflows/project` |  |
+| `vector.native_edit` | `supported` | `mutate_project` | `beambench-cli vector edit schema --json` | `POST /api/v1/workflows/vector` |  |
+| `design.nest` | `supported` | `mutate_project` | `beambench-cli design nest <plan.json> --json` | `POST /api/v1/workflows/nest` |  |
+| `variable_text.batch` | `supported` | `mutate_project` | `beambench-cli variable-text schema --json` | `POST /api/v1/workflows/variable_text` |  |
+| `quality_test.prepare` | `supported` | `job_prepare` | `beambench-cli quality-test schema --json` | `POST /api/v1/workflows/quality_test` |  |
+| `quality_test.start` | `supported` | `hardware_laser` | `beambench-cli quality-test start --input <plan.json> --confirm-motion --confirm-laser-on --json` | `POST /api/v1/workflows/quality_test` | confirm_motion, confirm_laser_on |
+| `profile.configure` | `supported` | `machine_config` | `beambench-cli profile configure <profile> <plan.json> --json` | `PATCH /api/v1/profiles/{id}` |  |
+| `settings.configure` | `supported` | `machine_config` | `beambench-cli settings show; beambench-cli settings update <plan.json> --json` | `POST /api/v1/app/settings` |  |
+| `preview.live` | `supported` | `observe` | `beambench-cli preview current; beambench-cli preview current-stats --json` | `POST /api/v1/preview/generate` |  |
+| `export.live_gcode` | `supported` | `job_prepare` | `beambench-cli export gcode-current <path> --json` | `POST /api/v1/preview/export/gcode` |  |
+| `machine.overrides` | `supported` | `machine_config` | `beambench-cli machine feed-override increase10; beambench-cli machine power-override decrease1; beambench-cli machine reset-overrides --json` | `POST /api/v1/machine/overrides/feed` |  |
+| `materials.library` | `supported` | `mutate_project` | `beambench-cli material apply <id> <layer-id>; beambench-cli material import <plan.json>; beambench-cli material export <path> --json` | `POST /api/v1/materials/import` |  |
+| `macros.library` | `supported` | `machine_config` | `beambench-cli macro import <plan.json>; beambench-cli macro export <path> --json` | `POST /api/v1/macros/import` |  |
 | `agent.capabilities` | `supported` | `observe` | `beambench-cli agent capabilities --json` | `GET /api/v1/agent/capabilities` |  |
 | `agent.state` | `supported` | `observe` | `beambench-cli agent state --json` | `GET /api/v1/agent/state` |  |
 | `agent.guide` | `supported` | `observe` | `beambench-cli agent guide --json` | `GET /api/v1/agent/guide` |  |
@@ -49,20 +63,21 @@ beambench-cli design plan plan.json --json
 | `machine.discovery` | `supported` | `machine_config` | `beambench-cli machine discover --json; beambench-cli machine connect --port <port> --baud <baud> --json` | `POST /api/v1/machine/connect` |  |
 | `machine.controller_connection` | `supported` | `machine_config` | `beambench-cli machine connect-serial --port <port> --controller <controller> --json; beambench-cli machine connect-network --host <host> --controller <controller> --json; beambench-cli machine list-lihuiyu-usb --json; beambench-cli machine connect-lihuiyu --bus-id <bus> --device-address <address> --port-numbers <chain> --json` | `POST /api/v1/machine/connect/controller/serial` |  |
 | `machine.home` | `supported` | `hardware_motion` | `beambench-cli machine home --confirm-motion --json` | `POST /api/v1/machine/home` | confirm_motion |
-| `machine.jog` | `supported` | `hardware_motion` | `beambench-cli machine jog <x_mm> <y_mm> --feed <rate> --confirm-motion --json` | `POST /api/v1/machine/jog` | confirm_motion |
+| `machine.jog` | `supported` | `hardware_motion` | `beambench-cli machine jog <x_mm> <y_mm> --z-mm 1 --feed <rate> --confirm-motion --json` | `POST /api/v1/machine/jog` | confirm_motion |
 | `machine.frame` | `supported` | `hardware_motion` | `beambench-cli job frame --confirm-motion --json` | `POST /api/v1/jobs/frame` | confirm_motion |
 | `machine.emergency_stop` | `supported` | `hardware_motion` | `beambench-cli machine emergency-stop --json` | `POST /api/v1/machine/emergency-stop` |  |
 | `machine.raw_gcode` | `supported` | `raw_gcode` | `beambench-cli console send <line> --confirm-raw-gcode --json` | `POST /api/v1/console` | confirm_raw_gcode |
 | `machine.test_air` | `supported` | `machine_config` | `beambench-cli machine test-air --duration-ms 1000 --confirm-air-assist --json` | `POST /api/v1/machine/test-air` | confirm_air_assist |
-| `job.preflight` | `supported` | `job_prepare` | `beambench-cli job preflight <project.lzrproj> --json` | `POST /api/v1/jobs/preflight` |  |
-| `job.start` | `supported` | `hardware_laser` | `beambench-cli job run <project.lzrproj> --port <port> --confirm-motion --confirm-laser-on --json` | `POST /api/v1/jobs/start` | confirm_motion, confirm_laser_on |
+| `job.preflight` | `supported` | `job_prepare` | `beambench-cli job check --json; beambench-cli job preflight <project.lzrproj> --json` | `POST /api/v1/jobs/preflight` |  |
+| `job.start` | `supported` | `hardware_laser` | `beambench-cli job start --confirm-motion --confirm-laser-on --json; beambench-cli job run <project.lzrproj> --port <port> --confirm-motion --confirm-laser-on --json` | `POST /api/v1/jobs/start` | confirm_motion, confirm_laser_on |
 | `job.pause_cancel` | `supported` | `job_prepare` | `beambench-cli job pause --json; beambench-cli job resume --json; beambench-cli job cancel --json` | `POST /api/v1/jobs/cancel` |  |
 | `profiles.manage` | `supported` | `machine_config` | `beambench-cli profile list --json; beambench-cli profile show <profile> --json; beambench-cli profile create --name <name> --json; beambench-cli profile update <profile> --name <name> --json; beambench-cli profile delete <profile> --json; beambench-cli profile activate <profile> --json` | `GET /api/v1/profiles` |  |
 | `profiles.presets` | `supported` | `machine_config` | `beambench-cli profile presets --json; beambench-cli profile suggest --json; beambench-cli profile apply-preset <preset-id> --confirm-diff --json` | `GET /api/v1/profiles/presets` | confirm_diff |
 | `camera.overlay` | `supported` | `observe` | `beambench-cli camera doctor --json; beambench-cli camera list --json; beambench-cli camera state --json; beambench-cli camera capture --camera <camera-id> --json; beambench-cli camera overlay render --view fit --json; beambench-cli camera overlay show --json; beambench-cli camera overlay hide --json; beambench-cli camera overlay opacity 0.45 --json; beambench-cli camera overlay fit-to-bed --json; beambench-cli camera overlay discard --json; beambench-cli camera overlay save-alignment --json; beambench-cli camera overlay set-transform --x 0 --y 0 --scale 1 --rotation-deg 0 --json; beambench-cli camera overlay nudge --dx 1 --dy 0 --json; beambench-cli camera overlay scale --factor 1.1 --json; beambench-cli camera overlay rotate --deg 90 --json` | `GET /api/v1/camera/state` |  |
 | `materials.manage` | `supported` | `machine_config` | `beambench-cli material list --json; beambench-cli material add --name <name> --material <material> --speed <rate> --power <percent> --passes <passes> --json; beambench-cli material remove <id> --json` | `GET /api/v1/materials` |  |
-| `macros.manage` | `partial` | `machine_config` | `beambench-cli macro list --json; beambench-cli macro add --name <name> --description <description> --commands <commands> --json; beambench-cli macro remove <id> --json; beambench-cli macro run <id> --json` | `GET /api/v1/macros` |  |
-| `art_library.manage` | `ui_only` | `ui_only` |  |  |  |
+| `macros.manage` | `supported` | `machine_config` | `beambench-cli macro list --json; beambench-cli macro add --name <name> --description <description> --commands <commands> --json; beambench-cli macro remove <id> --json` | `GET /api/v1/macros` |  |
+| `macros.run` | `supported` | `raw_gcode` | `beambench-cli macro run <id> --confirm-raw-gcode --json` | `POST /api/v1/macros/{id}/run` | confirm_raw_gcode |
+| `art_library.manage` | `supported` | `mutate_project` | `beambench-cli art-library schema --json` | `POST /api/v1/workflows/art_library` |  |
 | `window.view_controls` | `ui_only` | `ui_only` |  |  |  |
 | `view.canvas_controls` | `ui_only` | `ui_only` |  |  |  |
 | `help.menu` | `ignored` | `ui_only` |  |  |  |

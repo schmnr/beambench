@@ -119,6 +119,8 @@ impl TracePreviewSourceCache {
 /// Framework-agnostic service context that owns all runtime state.
 /// Shared by Tauri (via `Arc`), HTTP API, and CLI.
 pub struct ServiceContext {
+    /// Prevent new connections after the desktop has begun a verified shutdown.
+    pub shutting_down: AtomicBool,
     pub project: Mutex<Option<Project>>,
     pub project_path: Mutex<Option<PathBuf>>,
     pub settings: Mutex<AppSettings>,
@@ -238,6 +240,7 @@ impl ServiceContext {
             pending_controller_connection: Mutex::new(None),
             job: Mutex::new(None),
             job_tick_loop_running: AtomicBool::new(false),
+            shutting_down: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
             machine_coordinates_valid: AtomicBool::new(false),
             relative_frame_confirmation: Mutex::new(None),
@@ -292,6 +295,7 @@ impl ServiceContext {
             pending_controller_connection: Mutex::new(None),
             job: Mutex::new(None),
             job_tick_loop_running: AtomicBool::new(false),
+            shutting_down: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
             machine_coordinates_valid: AtomicBool::new(false),
             relative_frame_confirmation: Mutex::new(None),

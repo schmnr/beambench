@@ -19,6 +19,7 @@ export function UnsavedChangesDialog() {
 
   const handleCancel = () => {
     if (busy) return;
+    pendingAction.cancel?.();
     clear();
   };
 

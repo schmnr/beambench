@@ -1,3 +1,4 @@
+import { useArtLibraryStore } from './stores/artLibraryStore';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -1250,8 +1251,11 @@ function App() {
         'warning',
       );
     }
-    if (event.type === 'project.design.transaction_applied') {
+    if (event.type === 'project.design.transaction_applied' || event.type === 'project.workflow.applied') {
       void useProjectStore.getState().loadProject({ invalidatePreview: true });
+    }
+    if (event.type === 'art_library.workflow.applied') {
+      void useArtLibraryStore.getState().loadLibraries();
     }
     if (event.type === 'camera.overlay.runtime.updated') {
       void useCameraStore.getState().refreshOverlayState();

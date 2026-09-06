@@ -290,12 +290,12 @@ fn write_gray_png<W: Write>(img: &GrayImage, writer: W) -> Result<(), String> {
 }
 
 fn find_asset_data_by_key(
-    asset_data: &std::collections::HashMap<AssetId, Vec<u8>>,
+    asset_data: &std::collections::HashMap<AssetId, std::sync::Arc<Vec<u8>>>,
     asset_key: &str,
 ) -> Option<Vec<u8>> {
     for (id, data) in asset_data {
         if id.to_string() == asset_key {
-            return Some(data.clone());
+            return Some(data.as_ref().clone());
         }
     }
     None

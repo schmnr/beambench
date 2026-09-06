@@ -16,6 +16,7 @@ use crate::events;
 use crate::persist::persist_settings_to_disk;
 
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateAppSettingsInput {
     pub display_unit: Option<String>,
     pub speed_time_unit: Option<SpeedTimeUnit>,

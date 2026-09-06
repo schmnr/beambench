@@ -11,7 +11,6 @@ use serde_json::json;
 use crate::context::ServiceContext;
 use crate::error::{ServiceError, ServiceResult};
 use crate::events;
-use crate::ops::project;
 use crate::persist::persist_settings_to_disk;
 
 fn project_name_from_path(path: &Path) -> Option<String> {
@@ -274,83 +273,71 @@ fn discard_current_project_recovery_from_dir(
 }
 
 pub fn save_project_to_path(ctx: &ServiceContext, save_path: &Path) -> ServiceResult<String> {
-    let project_id_str;
-    let saved_project_name = project_name_from_path(save_path);
-    {
-        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        let project = project_guard
-            .as_mut()
-            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    save_project_to_path_impl(ctx, Some(save_path))
+}
 
-        project_id_str = project.metadata.project_id.to_string();
-        let previous_name = project.metadata.project_name.clone();
-        if let Some(name) = &saved_project_name {
-            project.metadata.project_name.clone_from(name);
-        }
-        if let Err(error) = save_project(project, save_path) {
-            project.metadata.project_name = previous_name;
-            return Err(ServiceError::persistence(format!("Save failed: {error}")));
-        }
+pub fn save_project_current_path(ctx: &ServiceContext) -> ServiceResult<String> {
+    save_project_to_path_impl(ctx, None)
+}
+
+fn save_project_to_path_impl(
+    ctx: &ServiceContext,
+    requested_path: Option<&Path>,
+) -> ServiceResult<String> {
+    // Document and destination are one transaction. All document replacements
+    // acquire these locks in the same order: project, then project_path.
+    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let mut path_guard = ctx
+        .project_path
+        .lock()
+        .map_err(|e| lock_err("project_path", e))?;
+    let project = project_guard
+        .as_mut()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    let save_path = requested_path
+        .map(Path::to_path_buf)
+        .or_else(|| path_guard.clone())
+        .ok_or_else(|| {
+            ServiceError::invalid_state("No save path set (project has never been saved)")
+        })?;
+    let previous_name = project.metadata.project_name.clone();
+    if let Some(name) = project_name_from_path(&save_path) {
+        project.metadata.project_name = name;
     }
-
-    {
-        let mut path_guard = ctx
-            .project_path
-            .lock()
-            .map_err(|e| lock_err("project_path", e))?;
-        *path_guard = Some(save_path.to_path_buf());
+    if let Err(error) = save_project(project, &save_path) {
+        project.metadata.project_name = previous_name;
+        return Err(ServiceError::persistence(format!("Save failed: {error}")));
     }
-
-    {
-        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        if let Some(p) = project_guard.as_mut() {
-            if let Some(name) = &saved_project_name {
-                p.metadata.project_name.clone_from(name);
-            }
-            p.dirty = false;
-        }
-    }
-
+    *path_guard = Some(save_path.clone());
+    project.dirty = false;
+    let saved_project = project.clone();
     if let Ok(dir) = recovery_dir() {
-        let recovery_path = dir.join(format!("{project_id_str}.lzrproj.recovery"));
-        let _ = discard_recovery(&recovery_path);
+        let _ = discard_recovery(
+            &dir.join(format!("{}.lzrproj.recovery", project.metadata.project_id)),
+        );
     }
+    drop(path_guard);
+    drop(project_guard);
 
     {
-        let mut settings_guard = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
-        let name = saved_project_name
-            .clone()
-            .unwrap_or_else(|| "Unknown".to_string());
-        settings_guard.push_recent_file(&save_path.to_string_lossy(), &name);
+        let mut settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
+        settings.push_recent_file(
+            &save_path.to_string_lossy(),
+            &saved_project.metadata.project_name,
+        );
     }
-
     persist_settings_to_disk(ctx);
-    let project = project::require_project(ctx)?;
     ctx.emit_event(
         "project.saved",
         json!({
-            "project": events::project_summary(&project, Some(save_path)),
+            "project": events::project_summary(&saved_project, Some(&save_path)),
         }),
     );
     Ok(save_path.to_string_lossy().to_string())
 }
 
-pub fn save_project_current_path(ctx: &ServiceContext) -> ServiceResult<String> {
-    {
-        let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        if project_guard.is_none() {
-            return Err(ServiceError::not_found("No project open"));
-        }
-    }
-    let Some(path) = project::current_project_path(ctx)? else {
-        return Err(ServiceError::invalid_state(
-            "No save path set (project has never been saved)",
-        ));
-    };
-    save_project_to_path(ctx, &path)
-}
-
-pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceResult<Project> {
+/// Load and migrate a project without changing app settings or session state.
+pub fn load_project_from_path(file_path: &str) -> ServiceResult<Project> {
     let open_path = PathBuf::from(file_path);
     let mut project = load_project(&open_path)
         .map_err(|e| ServiceError::persistence(format!("Failed to open project: {e}")))?;
@@ -364,17 +351,22 @@ pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceR
     for w in &migration_warnings {
         eprintln!("[migrate_mixed_layers] {w}");
     }
+    Ok(project)
+}
 
+pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceResult<Project> {
+    let open_path = PathBuf::from(file_path);
+    let project = load_project_from_path(file_path)?;
     {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
-        *path_guard = Some(open_path.clone());
-    }
-    {
-        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         *project_guard = Some(project.clone());
+        *path_guard = Some(open_path.clone());
+        ctx.clear_project_history()
+            .map_err(ServiceError::internal)?;
     }
     {
         let mut cache_guard = ctx
@@ -383,9 +375,6 @@ pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceR
             .map_err(|e| lock_err("plan_cache", e))?;
         *cache_guard = None;
     }
-
-    ctx.clear_project_history()
-        .map_err(ServiceError::internal)?;
 
     {
         let mut settings_guard = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
@@ -422,23 +411,22 @@ pub fn autosave_project(ctx: &ServiceContext) -> ServiceResult<String> {
 fn autosave_project_to_dir(ctx: &ServiceContext, dir: &Path) -> ServiceResult<String> {
     std::fs::create_dir_all(dir)?;
 
-    let project = {
-        let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        project_guard
-            .as_ref()
-            .ok_or_else(|| ServiceError::not_found("No project open"))?
-            .clone()
-    };
+    let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    let project = project_guard
+        .as_ref()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
     // save_recovery takes the recovery *directory* and derives the file name
     // itself — passing a file path here would bury the archive inside a
     // directory named like a file, where check_recovery never finds it.
-    let recovery_path = save_recovery(&project, dir)
+    let recovery_path = save_recovery(project, dir)
         .map_err(|e| ServiceError::persistence(format!("Autosave failed: {e}")))?;
+    let summary = events::project_summary(project, None);
+    drop(project_guard);
     ctx.emit_event(
         "project.autosaved",
         json!({
-            "project": events::project_summary(&project, None),
+            "project": summary,
             "recovery_path": recovery_path.to_string_lossy().to_string(),
         }),
     );
@@ -463,16 +451,17 @@ pub fn restore_recovery_file(ctx: &ServiceContext, recovery_path: &str) -> Servi
     for w in &migration_warnings {
         eprintln!("[migrate_mixed_layers] {w}");
     }
+    project.dirty = true;
     {
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        *project_guard = Some(project.clone());
-    }
-    {
         let mut path_guard = ctx
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
+        *project_guard = Some(project.clone());
         *path_guard = None;
+        ctx.clear_project_history()
+            .map_err(ServiceError::internal)?;
     }
     {
         let mut cache_guard = ctx
@@ -481,8 +470,6 @@ pub fn restore_recovery_file(ctx: &ServiceContext, recovery_path: &str) -> Servi
             .map_err(|e| lock_err("plan_cache", e))?;
         *cache_guard = None;
     }
-    ctx.clear_project_history()
-        .map_err(ServiceError::internal)?;
     discard_recovery(&path)
         .map_err(|e| ServiceError::persistence(format!("Failed to discard recovery: {e}")))?;
     ctx.emit_event(

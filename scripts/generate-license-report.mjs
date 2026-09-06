@@ -3,7 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -37,7 +37,7 @@ function collectCargo() {
     }),
   );
   return metadata.packages
-    .filter((pkg) => pkg.source)
+    .filter((pkg) => pkg.source || relative(root, pkg.manifest_path).split(sep)[0] === 'vendor')
     .map((pkg) => ({
       ecosystem: 'Cargo',
       name: pkg.name,

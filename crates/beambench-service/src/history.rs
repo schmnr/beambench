@@ -37,14 +37,18 @@ impl ProjectHistory {
     }
 
     pub fn undo(&mut self, current: &Project) -> Option<Project> {
-        let previous = self.undo_stack.pop()?;
+        let mut previous = self.undo_stack.pop()?;
         self.redo_stack.push(current.clone());
+        // A historical clean flag describes a different save point. Until
+        // revisions are compared with disk, conservatively protect the edit.
+        previous.dirty = true;
         Some(previous)
     }
 
     pub fn redo(&mut self, current: &Project) -> Option<Project> {
-        let next = self.redo_stack.pop()?;
+        let mut next = self.redo_stack.pop()?;
         self.undo_stack.push(current.clone());
+        next.dirty = true;
         Some(next)
     }
 }
@@ -102,5 +106,26 @@ mod tests {
         let state = history.state();
         assert!(!state.can_undo);
         assert!(!state.can_redo);
+    }
+    #[test]
+    fn snapshots_share_asset_bytes_and_preserve_replacements() {
+        use beambench_core::{Asset, AssetMediaType};
+        use std::sync::Arc;
+        let mut project = sample_project("image");
+        let asset = Asset::new("image.png", AssetMediaType::Png, 1024, Some(32), Some(32));
+        let id = asset.id;
+        project.add_asset(asset, vec![1; 1024]);
+        let original = Arc::clone(&project.asset_data[&id]);
+        let mut history = ProjectHistory::default();
+        for _ in 0..MAX_HISTORY_DEPTH {
+            history.push_snapshot(&project);
+        }
+        for snapshot in &history.undo_stack {
+            assert!(Arc::ptr_eq(&original, &snapshot.asset_data[&id]));
+        }
+        project.asset_data.insert(id, Arc::new(vec![2; 1024]));
+        let restored = history.undo(&project).unwrap();
+        assert_eq!(restored.get_asset_data(id).unwrap(), &[1; 1024]);
+        assert_eq!(project.get_asset_data(id).unwrap(), &[2; 1024]);
     }
 }

@@ -166,7 +166,7 @@ pub fn optimize_path(path: &VecPath, tolerance: f64) -> VecPath {
             .collect();
 
         let line = LineString::new(coords);
-        let simplified = line.simplify(&tolerance);
+        let simplified = line.simplify(tolerance);
 
         let simplified_points: Vec<&Coord<f64>> = simplified.coords().collect();
 

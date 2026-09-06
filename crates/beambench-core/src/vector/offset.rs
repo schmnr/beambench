@@ -534,7 +534,7 @@ fn simplify_points(points: &[Point2D], tolerance: f64) -> Vec<Point2D> {
 
     let coords: Vec<Coord<f64>> = points.iter().map(|p| Coord { x: p.x, y: p.y }).collect();
     let line = LineString::new(coords);
-    let simplified = line.simplify(&tolerance);
+    let simplified = line.simplify(tolerance);
 
     simplified
         .coords()

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "vendor/u-nesting-d2",
     "crates/beambench-buildinfo",
     "crates/beambench-common",
     "crates/beambench-camera",
@@ -28,7 +29,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.18"
+version = "0.2.19"
 edition = "2024"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/schmnr/beambench"
@@ -47,7 +48,7 @@ tiny-skia = "0.11"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "gif", "tiff", "webp", "tga"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 tempfile = "3"
-geo = "0.29"
+geo = "0.31"
 ab_glyph = "0.2"
 ttf-parser = "0.25"
 fontdb = "0.23"
@@ -64,3 +65,7 @@ roxmltree = "0.20"
 u-nesting-d2 = "0.3.1"
 regex = "1"
 flate2 = "1"
+
+[patch.crates-io]
+serialport = { path = "vendor/serialport" }
+u-nesting-d2 = { path = "vendor/u-nesting-d2" }

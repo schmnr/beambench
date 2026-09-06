@@ -1126,19 +1126,17 @@ pub fn create_project(ctx: &ServiceContext, name: &str) -> ServiceResult<Project
 
     {
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        *project_guard = Some(project.clone());
-    }
-    {
         let mut path_guard = ctx
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
+        *project_guard = Some(project.clone());
         *path_guard = None;
+        ctx.clear_project_history()
+            .map_err(ServiceError::internal)?;
     }
     invalidate_plan(ctx)?;
 
-    ctx.clear_project_history()
-        .map_err(ServiceError::internal)?;
     ctx.emit_event(
         "project.created",
         json!({
@@ -1164,25 +1162,17 @@ pub fn require_project(ctx: &ServiceContext) -> ServiceResult<Project> {
 }
 
 pub fn close_project(ctx: &ServiceContext) -> ServiceResult<()> {
-    let closed_project = {
-        let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        project_guard.clone()
-    };
-    let path = current_project_path(ctx)?;
-    {
+    let (closed_project, path) = {
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        *project_guard = None;
-    }
-    {
         let mut path_guard = ctx
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
-        *path_guard = None;
-    }
+        ctx.clear_project_history()
+            .map_err(ServiceError::internal)?;
+        (project_guard.take(), path_guard.take())
+    };
     invalidate_plan(ctx)?;
-    ctx.clear_project_history()
-        .map_err(ServiceError::internal)?;
     if let Some(project) = closed_project {
         ctx.emit_event(
             "project.closed",
@@ -1211,23 +1201,28 @@ pub fn replace_project(ctx: &ServiceContext, project: Project) -> ServiceResult<
     Ok(())
 }
 
-pub fn replace_project_document(ctx: &ServiceContext, project: Project) -> ServiceResult<()> {
-    replace_project(ctx, project)?;
+pub fn replace_project_document(ctx: &ServiceContext, mut project: Project) -> ServiceResult<()> {
     {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
+        project.asset_data = guard
+            .as_ref()
+            .map(|p| p.asset_data.clone())
+            .unwrap_or_default();
+        refresh_project_text_caches(&mut project);
+        project.dirty = true;
+        *guard = Some(project.clone());
         *path_guard = None;
+        ctx.clear_project_history()
+            .map_err(ServiceError::internal)?;
     }
-    ctx.clear_project_history()
-        .map_err(ServiceError::internal)?;
-    let project = require_project(ctx)?;
+    invalidate_plan(ctx)?;
     ctx.emit_event(
         "project.replaced",
-        json!({
-            "project": events::project_summary(&project, None),
-        }),
+        json!({ "project": events::project_summary(&project, None) }),
     );
     Ok(())
 }

@@ -3,7 +3,7 @@
 use crate::object::ObjectId;
 use crate::project::Project;
 use crate::vector::convert::object_to_world_vecpath;
-use beambench_common::path::PathCommand;
+use crate::vector::flatten::{DEFAULT_TOLERANCE_MM, flatten_vecpath};
 
 /// Export project as DXF text.
 pub fn export_dxf(project: &Project, selection_only: bool, selected_ids: &[ObjectId]) -> String {
@@ -52,42 +52,17 @@ pub fn export_dxf(project: &Project, selection_only: bool, selected_ids: &[Objec
         // duplicates laser/CAD geometry and can place the editable text at a
         // different anchor than the resolved glyph outlines.
         if let Some(path) = object_to_world_vecpath(obj) {
-            // Flatten path into line segments
-            for subpath in &path.subpaths {
-                let mut last_point: Option<(f64, f64)> = None;
-
-                for cmd in &subpath.commands {
-                    match cmd {
-                        PathCommand::MoveTo { x, y } => {
-                            last_point = Some((*x, *y));
-                        }
-                        PathCommand::LineTo { x, y } => {
-                            if let Some((x1, y1)) = last_point {
-                                let x2 = *x;
-                                let y2 = *y;
-                                dxf.push_str(&format!(
-                                    "0\nLINE\n8\n{}\n10\n{}\n20\n{}\n11\n{}\n21\n{}\n",
-                                    layer_name, x1, y1, x2, y2
-                                ));
-                                last_point = Some((x2, y2));
-                            }
-                        }
-                        PathCommand::QuadTo { x, y, .. } | PathCommand::CubicTo { x, y, .. } => {
-                            // Approximate curves as straight lines to endpoint
-                            if let Some((x1, y1)) = last_point {
-                                let x2 = *x;
-                                let y2 = *y;
-                                dxf.push_str(&format!(
-                                    "0\nLINE\n8\n{}\n10\n{}\n20\n{}\n11\n{}\n21\n{}\n",
-                                    layer_name, x1, y1, x2, y2
-                                ));
-                                last_point = Some((x2, y2));
-                            }
-                        }
-                        PathCommand::Close => {
-                            // Close path back to first point (stored separately if needed)
-                        }
-                    }
+            for polyline in flatten_vecpath(&path, DEFAULT_TOLERANCE_MM) {
+                let mut points = polyline.points;
+                if polyline.closed && points.len() > 1 {
+                    points.push(points[0]);
+                }
+                for pair in points.windows(2) {
+                    let (start, end) = (pair[0], pair[1]);
+                    dxf.push_str(&format!(
+                        "0\nLINE\n8\n{}\n10\n{}\n20\n{}\n11\n{}\n21\n{}\n",
+                        layer_name, start.x, start.y, end.x, end.y
+                    ));
                 }
             }
         }

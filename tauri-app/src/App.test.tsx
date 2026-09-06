@@ -1448,7 +1448,7 @@ describe('Keyboard shortcuts', () => {
     ).toBe(true);
   });
 
-  it('reloads project state after design transaction events', async () => {
+  it.each(['project.design.transaction_applied', 'project.workflow.applied'])('reloads project state after %s events', async (type) => {
     const loadProject = vi.fn().mockResolvedValue(undefined);
     useProjectStore.setState({ loadProject });
     await renderApp();
@@ -1457,7 +1457,7 @@ describe('Keyboard shortcuts', () => {
 
     await act(async () => {
       await appEventListener({
-        payload: makeAppEvent('project.design.transaction_applied', { transaction_id: 'tx-1' }),
+        payload: makeAppEvent(type, { transaction_id: 'tx-1' }),
       });
     });
 

@@ -34,7 +34,11 @@ pub fn router() -> Router<Arc<ServiceContext>> {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct SaveProfileRequest {
+    quality_test_settings: Option<beambench_core::QualityTestSettings>,
+    supports_z_moves: Option<bool>,
+    z_move_feed_mm_min: Option<f64>,
     name: Option<String>,
     #[serde(default)]
     preset_id: Option<Option<String>>,
@@ -238,8 +242,10 @@ fn create_save_input(
             .unwrap_or(defaults.enable_scanning_offset),
         dot_width_mm: body.dot_width_mm.unwrap_or(defaults.dot_width_mm),
         enable_dot_width: body.enable_dot_width.unwrap_or(defaults.enable_dot_width),
-        supports_z_moves: defaults.supports_z_moves,
-        z_move_feed_mm_min: defaults.z_move_feed_mm_min,
+        supports_z_moves: body.supports_z_moves.unwrap_or(defaults.supports_z_moves),
+        z_move_feed_mm_min: body
+            .z_move_feed_mm_min
+            .unwrap_or(defaults.z_move_feed_mm_min),
         ruida_table_axis: body.ruida_table_axis.unwrap_or(defaults.ruida_table_axis),
         enable_laser_fire_button: body
             .enable_laser_fire_button
@@ -341,8 +347,10 @@ fn merge_save_input(
             .unwrap_or(existing.enable_scanning_offset),
         dot_width_mm: body.dot_width_mm.unwrap_or(existing.dot_width_mm),
         enable_dot_width: body.enable_dot_width.unwrap_or(existing.enable_dot_width),
-        supports_z_moves: existing.supports_z_moves,
-        z_move_feed_mm_min: existing.z_move_feed_mm_min,
+        supports_z_moves: body.supports_z_moves.unwrap_or(existing.supports_z_moves),
+        z_move_feed_mm_min: body
+            .z_move_feed_mm_min
+            .unwrap_or(existing.z_move_feed_mm_min),
         ruida_table_axis: body.ruida_table_axis.unwrap_or(existing.ruida_table_axis),
         enable_laser_fire_button: body
             .enable_laser_fire_button
@@ -350,7 +358,9 @@ fn merge_save_input(
         default_fire_power_percent: body
             .default_fire_power_percent
             .unwrap_or(existing.default_fire_power_percent),
-        quality_test_settings: existing.quality_test_settings,
+        quality_test_settings: body
+            .quality_test_settings
+            .unwrap_or(existing.quality_test_settings),
         rotary_enabled: body.rotary_enabled.unwrap_or(existing.rotary_enabled),
         rotary_type: body.rotary_type.unwrap_or(existing.rotary_type),
         rotary_axis: body.rotary_axis.unwrap_or(existing.rotary_axis),

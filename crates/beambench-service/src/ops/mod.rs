@@ -22,3 +22,5 @@ pub mod vector;
 mod event_stream_scenarios;
 #[cfg(test)]
 mod image_scenarios;
+
+pub mod workflows;

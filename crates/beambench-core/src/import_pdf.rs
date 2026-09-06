@@ -133,6 +133,7 @@ fn scale_vecpath(path: &mut VecPath, scale: f64) {
 }
 
 /// Find the first occurrence of `needle` in `haystack` at or after `from`.
+#[cfg(test)]
 fn find_bytes(haystack: &[u8], needle: &[u8], from: usize) -> Option<usize> {
     if from > haystack.len() || needle.is_empty() {
         return None;
@@ -145,6 +146,7 @@ fn find_bytes(haystack: &[u8], needle: &[u8], from: usize) -> Option<usize> {
 
 /// Check whether the dictionary (`<<...>>`) immediately preceding the
 /// `stream` keyword at `stream_kw_pos` declares `/FlateDecode`.
+#[cfg(test)]
 fn stream_dict_has_flate(content: &[u8], stream_kw_pos: usize) -> bool {
     // Walk back over whitespace between ">>" and "stream".
     let mut end = stream_kw_pos;
@@ -176,23 +178,202 @@ fn stream_dict_has_flate(content: &[u8], stream_kw_pos: usize) -> bool {
 }
 
 /// Decompress a zlib/FlateDecode stream.
+#[cfg(test)]
 fn flate_decode(data: &[u8]) -> Result<Vec<u8>, String> {
     use std::io::Read;
     let mut out = Vec::new();
     flate2::read::ZlibDecoder::new(data)
+        .take((32 * 1024 * 1024 + 1) as u64)
         .read_to_end(&mut out)
         .map_err(|e| format!("FlateDecode error: {e}"))?;
+    if out.len() > 32 * 1024 * 1024 {
+        return Err("PDF expanded content limit exceeded".into());
+    }
     Ok(out)
 }
 
-/// Extract path operators from PDF content.
-///
-/// Operates on raw bytes: finds `stream`/`endstream` pairs (accepting both
-/// `\n` and `\r\n` after the `stream` keyword), inflates FlateDecode-compressed
-/// streams, and feeds each decoded content stream to the operator parser.
-/// No xref/object-graph parsing — encrypted PDFs and exotic filters
-/// (e.g. LZW, predictors via /DecodeParms) are not supported.
+// Bound source bytes and aggregate expanded page content independently.
+const PDF_INPUT_LIMIT: usize = 64 * 1024 * 1024;
+const PDF_CONTENT_LIMIT: usize = 32 * 1024 * 1024;
+
+// These encodings can be expanded during document loading, before the page
+// budget is available. Decode PDF name escapes so they cannot bypass rejection.
+fn has_eager_pdf_encoding(bytes: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'/' {
+            i += 1;
+            continue;
+        }
+        i += 1;
+        let mut name = Vec::new();
+        while i < bytes.len()
+            && !bytes[i].is_ascii_whitespace()
+            && !b"/<>[](){}%\0".contains(&bytes[i])
+        {
+            let mut value = bytes[i];
+            if value == b'#' && i + 2 < bytes.len() {
+                if let (Some(hi), Some(lo)) = (
+                    (bytes[i + 1] as char).to_digit(16),
+                    (bytes[i + 2] as char).to_digit(16),
+                ) {
+                    value = (hi * 16 + lo) as u8;
+                    i += 2;
+                }
+            }
+            // A longer name cannot match either reserved name.
+            if name.len() < 8 {
+                name.push(value);
+            }
+            i += 1;
+        }
+        if name == b"ObjStm" || name == b"Encrypt" {
+            return true;
+        }
+    }
+    false
+}
+
+/// Resolve page content through the PDF object graph. Unsupported painting is
+/// rejected rather than silently importing a different design.
 pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, String> {
+    if content.len() > PDF_INPUT_LIMIT {
+        return Err("PDF exceeds the 64 MiB input limit".into());
+    }
+    if has_eager_pdf_encoding(content) {
+        return Err("Encrypted PDFs and compressed object streams are not supported. Export a plain vector PDF first.".into());
+    }
+    let doc = lopdf::Document::load_mem_with_options(
+        content,
+        lopdf::LoadOptions {
+            strict: true,
+            max_decompressed_size: Some(1024 * 1024),
+            filter: Some(|id, object| {
+                // Object streams are expanded eagerly by the reader. Reject this
+                // unsupported encoding instead of multiplying per-stream budgets.
+                if object
+                    .as_stream()
+                    .is_ok_and(|stream| stream.dict.has_type(b"ObjStm"))
+                {
+                    return None;
+                }
+                Some((id, object.clone()))
+            }),
+            ..Default::default()
+        },
+    )
+    .map_err(|err| format!("Cannot read PDF: {err}"))?;
+    if doc.is_encrypted()
+        || doc
+            .reference_table
+            .entries
+            .values()
+            .any(|entry| matches!(entry, lopdf::xref::XrefEntry::Compressed { .. }))
+    {
+        return Err("Encrypted PDFs and compressed object streams are not supported. Export a plain vector PDF first.".into());
+    }
+    let pages = doc.get_pages();
+    if pages.len() != 1 {
+        return Err(
+            "Import a single-page PDF. Split this document into separate pages first.".into(),
+        );
+    }
+    let page_id = *pages.values().next().unwrap();
+    let mut ancestor = Some(page_id);
+    let mut visited = std::collections::HashSet::new();
+    while let Some(id) = ancestor {
+        if !visited.insert(id) {
+            return Err("PDF contains a cyclic page tree".into());
+        }
+        let page = doc
+            .get_object(id)
+            .and_then(lopdf::Object::as_dict)
+            .map_err(|err| err.to_string())?;
+        if page
+            .get(b"Rotate")
+            .is_ok_and(|value| value.as_i64().unwrap_or(1) % 360 != 0)
+            || page
+                .get(b"UserUnit")
+                .is_ok_and(|value| value.as_float().unwrap_or(0.0) != 1.0)
+            || page.has(b"CropBox")
+        {
+            return Err("PDF page rotation, custom units, or cropping cannot be preserved. Export an uncropped, unrotated vector page first.".into());
+        }
+        ancestor = page
+            .get(b"Parent")
+            .ok()
+            .and_then(|value| value.as_reference().ok());
+    }
+    let mut decoded = Vec::new();
+    for id in doc.get_page_contents(page_id) {
+        if decoded.len() >= PDF_CONTENT_LIMIT {
+            return Err("PDF expanded content limit exceeded".into());
+        }
+        let stream = doc
+            .get_object(id)
+            .and_then(lopdf::Object::as_stream)
+            .map_err(|err| err.to_string())?;
+        let remaining = PDF_CONTENT_LIMIT.saturating_sub(decoded.len() + 1);
+        let bytes = stream
+            .get_plain_content_with_limit(remaining)
+            .map_err(|err| format!("Cannot decode PDF content within the 32 MiB limit: {err}"))?;
+        decoded.extend_from_slice(&bytes);
+        decoded.push(b'\n');
+    }
+    let operations = lopdf::content::Content::decode(&decoded)
+        .map_err(|err| format!("Invalid PDF drawing commands: {err}"))?;
+    for operation in &operations.operations {
+        if !matches!(
+            operation.operator.as_str(),
+            "m" | "l"
+                | "c"
+                | "v"
+                | "y"
+                | "re"
+                | "h"
+                | "q"
+                | "Q"
+                | "cm"
+                | "G"
+                | "g"
+                | "RG"
+                | "rg"
+                | "K"
+                | "k"
+                | "S"
+                | "s"
+                | "f"
+                | "F"
+                | "f*"
+                | "B"
+                | "B*"
+                | "b"
+                | "b*"
+                | "n"
+                | "w"
+                | "J"
+                | "j"
+                | "M"
+        ) {
+            return Err(format!(
+                "PDF drawing operator '{}' cannot be preserved. Convert text to paths and flatten forms, clipping, and effects before importing.",
+                operation.operator
+            ));
+        }
+    }
+    let normalized = operations.encode().map_err(|err| err.to_string())?;
+    let mut paths = parse_content_stream(&String::from_utf8_lossy(&normalized));
+    for path in &mut paths {
+        scale_vecpath(&mut path.path, PT_TO_MM);
+    }
+    if paths.is_empty() {
+        return Err("No paths found in PDF".into());
+    }
+    Ok(paths)
+}
+
+#[cfg(test)]
+fn parse_pdf_stream_fixture(content: &[u8]) -> Result<Vec<PdfPaintedPath>, String> {
     let mut paths = Vec::new();
 
     let mut start = 0;
@@ -732,6 +913,10 @@ pub fn parse_eps_paths(content: &[u8]) -> Result<Vec<VecPath>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn parse_pdf_paths_fixture(content: &[u8]) -> Result<Vec<VecPath>, String> {
+        parse_pdf_stream_fixture(content)
+            .map(|paths| paths.into_iter().map(|path| path.path).collect())
+    }
 
     fn assert_pdf_coord(actual_mm: f64, expected_points: f64) {
         let expected_mm = expected_points * PT_TO_MM;
@@ -757,7 +942,7 @@ mod tests {
     #[test]
     fn parse_pdf_moveto_lineto() {
         let content = b"stream\n10 20 m 30 40 l\nendstream";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].subpaths[0].commands.len(), 2);
     }
@@ -765,7 +950,7 @@ mod tests {
     #[test]
     fn parse_pdf_rectangle() {
         let content = b"stream\n10 20 50 30 re\nendstream";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
         assert_eq!(paths.len(), 1);
         assert!(paths[0].subpaths[0].closed);
         assert_eq!(paths[0].subpaths[0].commands.len(), 5); // M L L L Z
@@ -774,7 +959,7 @@ mod tests {
     #[test]
     fn parse_pdf_curveto() {
         let content = b"stream\n0 0 m 10 20 30 40 50 60 c\nendstream";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].subpaths[0].commands.len(), 2); // M C
     }
@@ -782,7 +967,7 @@ mod tests {
     #[test]
     fn parse_pdf_curve_shorthands_preserve_implicit_controls() {
         let content = b"stream\n1 2 m 3 4 5 6 v 7 8 9 10 y S\nendstream";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
         let commands = &paths[0].subpaths[0].commands;
 
         assert_eq!(commands.len(), 3);
@@ -827,7 +1012,7 @@ mod tests {
     #[test]
     fn parse_pdf_ctm_transforms_all_curve_coordinates() {
         let content = b"stream\n2 0 0 3 10 20 cm 1 2 m 4 5 l 6 7 8 9 10 11 c 12 13 14 15 v 16 17 18 19 y S\nendstream";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
         let commands = &paths[0].subpaths[0].commands;
 
         assert_eq!(commands.len(), 5);
@@ -893,7 +1078,7 @@ mod tests {
     fn parse_pdf_ctm_concatenates_and_restores_with_graphics_state() {
         let content =
             b"stream\n1 0 0 1 10 20 cm q 2 0 0 3 0 0 cm 1 1 m 2 2 l S Q 1 1 m 2 2 l S\nendstream";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
 
         assert_eq!(paths.len(), 2);
         assert_command_endpoint(&paths[0].subpaths[0].commands[0], 12.0, 23.0);
@@ -905,7 +1090,7 @@ mod tests {
     #[test]
     fn parse_pdf_ctm_transforms_rectangle_corners() {
         let content = b"stream\n0 1 -1 0 100 200 cm 10 20 30 40 re f\nendstream";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
         let commands = &paths[0].subpaths[0].commands;
 
         assert_eq!(commands.len(), 5);
@@ -919,7 +1104,7 @@ mod tests {
     #[test]
     fn parse_pdf_separates_painted_paths_and_preserves_rgb_colors() {
         let content = b"stream\n1 0 0 RG 0 0 m 72 0 l S 0 0 1 rg 0 10 72 20 re f\nendstream";
-        let paths = parse_pdf_painted_paths(content).unwrap();
+        let paths = parse_pdf_stream_fixture(content).unwrap();
 
         assert_eq!(paths.len(), 2);
         assert_eq!(paths[0].paint_mode, PdfPaintMode::Stroke);
@@ -951,7 +1136,7 @@ mod tests {
     #[test]
     fn parse_pdf_gray_and_cmyk_are_clamped_and_converted() {
         let content = b"stream\n1.5 G 0 0 m 1 1 l S 0 1 1 0 k 2 2 3 3 re f\nendstream";
-        let paths = parse_pdf_painted_paths(content).unwrap();
+        let paths = parse_pdf_stream_fixture(content).unwrap();
 
         assert_eq!(
             paths[0].stroke_color,
@@ -970,7 +1155,7 @@ mod tests {
     #[test]
     fn parse_pdf_fill_stroke_carries_both_colors() {
         let content = b"stream\n0 1 0 RG 1 0 1 rg 0 0 10 10 re B*\nendstream";
-        let paths = parse_pdf_painted_paths(content).unwrap();
+        let paths = parse_pdf_stream_fixture(content).unwrap();
 
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].paint_mode, PdfPaintMode::FillStroke);
@@ -991,7 +1176,7 @@ mod tests {
     #[test]
     fn parse_pdf_graphics_state_restores_colors() {
         let content = b"stream\n1 0 0 RG q 0 0 1 RG 0 0 m 1 0 l S Q 0 1 m 1 1 l S\nendstream";
-        let paths = parse_pdf_painted_paths(content).unwrap();
+        let paths = parse_pdf_stream_fixture(content).unwrap();
 
         assert_eq!(paths.len(), 2);
         assert_eq!(
@@ -1007,7 +1192,7 @@ mod tests {
     #[test]
     fn parse_pdf_device_color_space_operators() {
         let content = b"stream\n/DeviceRGB CS .25 .5 .75 SCN 0 0 m 1 0 l S /DeviceGray cs .5 sc 0 0 1 1 re f\nendstream";
-        let paths = parse_pdf_painted_paths(content).unwrap();
+        let paths = parse_pdf_stream_fixture(content).unwrap();
 
         assert_eq!(
             paths[0].stroke_color,
@@ -1030,7 +1215,7 @@ mod tests {
     #[test]
     fn parse_pdf_close_and_discard_operators_terminate_paths() {
         let content = b"stream\n0 0 m 1 0 l n 0 0 m 1 0 l s 2 0 m 3 0 l b\nendstream";
-        let paths = parse_pdf_painted_paths(content).unwrap();
+        let paths = parse_pdf_stream_fixture(content).unwrap();
 
         assert_eq!(paths.len(), 2, "the path consumed by n must be discarded");
         assert_eq!(paths[0].paint_mode, PdfPaintMode::Stroke);
@@ -1046,7 +1231,7 @@ mod tests {
     #[test]
     fn parse_pdf_eof_geometry_uses_unspecified_paint_fallback() {
         let content = b"stream\n1 0 0 RG 0 0 m 10 10 l\nendstream";
-        let paths = parse_pdf_painted_paths(content).unwrap();
+        let paths = parse_pdf_stream_fixture(content).unwrap();
 
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].paint_mode, PdfPaintMode::Unspecified);
@@ -1074,7 +1259,7 @@ mod tests {
     #[test]
     fn parse_empty_pdf_returns_error() {
         let content = b"no paths here";
-        let result = parse_pdf_paths(content);
+        let result = parse_pdf_paths_fixture(content);
         assert!(result.is_err());
     }
 
@@ -1083,7 +1268,7 @@ mod tests {
         // Many real-world producers terminate the "stream" keyword with CRLF.
         let content =
             b"4 0 obj\r\n<< /Length 21 >>\r\nstream\r\n10 20 m 30 40 l\r\nendstream\r\nendobj\r\n";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].subpaths[0].commands.len(), 2);
         match paths[0].subpaths[0].commands[0] {
@@ -1115,13 +1300,13 @@ mod tests {
         pdf.extend_from_slice(&compressed);
         pdf.extend_from_slice(b"\nendstream\nendobj\n");
 
-        let compressed_paths = parse_pdf_paths(&pdf).unwrap();
+        let compressed_paths = parse_pdf_paths_fixture(&pdf).unwrap();
 
         let mut plain: Vec<u8> = Vec::new();
         plain.extend_from_slice(b"4 0 obj\n<< /Length 30 >>\nstream\n");
         plain.extend_from_slice(operators);
         plain.extend_from_slice(b"\nendstream\nendobj\n");
-        let plain_paths = parse_pdf_paths(&plain).unwrap();
+        let plain_paths = parse_pdf_paths_fixture(&plain).unwrap();
 
         assert_eq!(
             compressed_paths, plain_paths,
@@ -1139,7 +1324,7 @@ mod tests {
         pdf.extend_from_slice(&compressed);
         pdf.extend_from_slice(b"\nendstream\n");
 
-        let paths = parse_pdf_painted_paths(&pdf).unwrap();
+        let paths = parse_pdf_stream_fixture(&pdf).unwrap();
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].paint_mode, PdfPaintMode::Stroke);
         assert_eq!(
@@ -1159,7 +1344,7 @@ mod tests {
         );
         pdf.extend_from_slice(&compressed);
         pdf.extend_from_slice(b"\nendstream\n");
-        let paths = parse_pdf_paths(&pdf).unwrap();
+        let paths = parse_pdf_paths_fixture(&pdf).unwrap();
         assert_eq!(paths.len(), 1);
         match paths[0].subpaths[0].commands[1] {
             PathCommand::LineTo { x, .. } => assert!((x - 25.4).abs() < 1e-6),
@@ -1171,7 +1356,7 @@ mod tests {
     fn pdf_points_scale_to_mm() {
         // 72 points = 1 inch = 25.4 mm.
         let content = b"stream\n0 0 m 72 0 l\nendstream";
-        let paths = parse_pdf_paths(content).unwrap();
+        let paths = parse_pdf_paths_fixture(content).unwrap();
         match paths[0].subpaths[0].commands[1] {
             PathCommand::LineTo { x, .. } => {
                 assert!((x - 25.4).abs() < 1e-6, "expected 25.4mm, got {x}")
@@ -1190,5 +1375,63 @@ mod tests {
             }
             _ => panic!("expected LineTo"),
         }
+    }
+}
+
+#[cfg(test)]
+mod document_regressions {
+    use super::*;
+    use lopdf::{Document, Object, Stream, dictionary};
+    fn document(content: &[u8]) -> Vec<u8> {
+        let mut doc = Document::with_version("1.4");
+        let pages_id = doc.new_object_id();
+        let content_id = doc.add_object(Stream::new(dictionary! {}, content.to_vec()));
+        // This form is deliberately unreferenced by the page.
+        doc.add_object(Stream::new(dictionary!{"Type"=>"XObject", "Subtype"=>"Form", "BBox"=>vec![0.into(),0.into(),100.into(),100.into()]}, b"0 0 100 100 re f".to_vec()));
+        let page_id = doc.add_object(dictionary!{"Type"=>"Page", "Parent"=>pages_id,"MediaBox"=>vec![0.into(),0.into(),100.into(),100.into()],"Contents"=>content_id});
+        doc.objects.insert(
+            pages_id,
+            Object::Dictionary(
+                dictionary! {"Type"=>"Pages", "Kids"=>vec![page_id.into()],"Count"=>1},
+            ),
+        );
+        let root = doc.add_object(dictionary! {"Type"=>"Catalog","Pages"=>pages_id});
+        doc.trailer.set("Root", root);
+        let mut bytes = Vec::new();
+        doc.compress();
+        doc.save_to(&mut bytes).unwrap();
+        bytes
+    }
+    #[test]
+    fn encoded_metadata_names_cannot_bypass_resource_guards() {
+        assert!(has_eager_pdf_encoding(b"/Type /Obj#53tm"));
+        assert!(has_eager_pdf_encoding(b"/Encr#79pt 8 0 R"));
+        assert!(!has_eager_pdf_encoding(
+            b"/EncryptedTitle /Object /ObjStmOther"
+        ));
+    }
+
+    #[test]
+    fn unused_form_does_not_become_geometry() {
+        let paths = parse_pdf_painted_paths(&document(b"0 0 m 10 10 l S")).unwrap();
+        assert_eq!(paths.len(), 1);
+    }
+    #[test]
+    fn rejects_clipping_and_form_invocation_instead_of_partial_artwork() {
+        for content in [
+            b"0 0 10 10 re W n 0 0 m 20 20 l S".as_slice(),
+            b"0 0 m 10 10 l S /Fm0 Do".as_slice(),
+        ] {
+            assert!(
+                parse_pdf_painted_paths(&document(content))
+                    .unwrap_err()
+                    .contains("cannot be preserved")
+            );
+        }
+    }
+    #[test]
+    fn rejects_oversized_page_content() {
+        let content = vec![b' '; PDF_CONTENT_LIMIT + 1];
+        assert!(parse_pdf_painted_paths(&document(&content)).is_err());
     }
 }

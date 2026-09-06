@@ -308,6 +308,8 @@ export function PropertiesPanel() {
       <TransformSection />
       <section className="flex flex-col gap-2" data-properties-primary>
       <TextInput
+        key={selectedObject.id}
+        commitOnBlur
         label={t('panels.properties.name')}
         value={selectedObject.name}
         onChange={(name) => updateObject(selectedObject.id, { name })}
