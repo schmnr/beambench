@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackReportDialog } from '../FeedbackReportDialog';
 import { feedbackService } from '../../../services/feedbackService';
@@ -92,6 +92,68 @@ afterEach(() => {
 });
 
 describe('FeedbackReportDialog', () => {
+  it('keeps keyboard focus in the report instead of the underlying machine settings', async () => {
+    await act(async () => {
+      render(<><button>Underlying profile settings</button><FeedbackReportDialog
+        kind="connectivity" presentation="machine_request" onClose={vi.fn()}
+      /></>);
+    });
+    expect(document.activeElement).toBe(screen.getByLabelText('Manufacturer and exact model'));
+    const close = screen.getByRole('button', { name: 'Close' });
+    const send = screen.getByRole('button', { name: 'Send to Beam Bench' });
+    close.focus();
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(send);
+    fireEvent.keyDown(send, { key: 'Tab' });
+    expect(document.activeElement).toBe(close);
+  });
+
+  it.each([
+    ['machine_request', 'machine_preset_request', 'Machine details and useful links'],
+    ['machine_test', 'machine_test_report', 'Test results and setup'],
+  ] as const)('supports account-free %s reports with required model and notes', async (presentation, feature, notesLabel) => {
+    render(<FeedbackReportDialog
+      kind="connectivity"
+      presentation={presentation}
+      sourceContext={{ source: 'machine_preset_panel', feature }}
+      onClose={vi.fn()}
+    />);
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByText(/No account needed/)).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'What gets sent' }));
+    await waitFor(() => expect(screen.getByText(/"schema_version": 1/)).toBeDefined());
+    const send = screen.getByRole('button', { name: 'Send to Beam Bench' });
+    fireEvent.click(send);
+    expect(screen.getByRole('alert').textContent).toContain('Enter the manufacturer and exact model.');
+    expect(feedbackService.submitReport).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Manufacturer and exact model'), { target: { value: 'Sculpfun S9' } });
+    fireEvent.click(send);
+    expect(screen.getByRole('alert').textContent).toContain('Add machine details or test results.');
+    fireEvent.change(screen.getByLabelText(notesLabel), { target: { value: 'Stock controller; connection passed, motion not tested.' } });
+    fireEvent.click(send);
+    await waitFor(() => expect(screen.getByText('r-abc12345')).toBeDefined());
+    expect(feedbackService.submitReport).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'connectivity', title: 'Sculpfun S9',
+      notes: 'Stock controller; connection passed, motion not tested.',
+      include_project_file: false, reply_to_email: null,
+      source_context: { source: 'machine_preset_panel', feature },
+    }));
+  });
+
+  it('preserves a machine report after send failure and allows saving it to a file', async () => {
+    vi.mocked(feedbackService.submitReport).mockRejectedValueOnce(new Error('Network unavailable'));
+    render(<FeedbackReportDialog kind="connectivity" presentation="machine_test"
+      title="Sculpfun S9" notes="Vector job passed; raster not tested."
+      sourceContext={{ source: 'machine_preset_panel', feature: 'machine_test_report' }} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Send to Beam Bench' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Network unavailable'));
+    expect((screen.getByLabelText('Test results and setup') as HTMLTextAreaElement).value).toBe('Vector job passed; raster not tested.');
+    fireEvent.click(screen.getByRole('button', { name: 'Save Report to File' }));
+    await waitFor(() => expect(feedbackService.saveReport).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Sculpfun S9', notes: 'Vector job passed; raster not tested.', include_project_file: false,
+    })));
+  });
+
   it('shows a validation message instead of silently ignoring submit without a description', async () => {
     render(<FeedbackReportDialog kind="bug" onClose={vi.fn()} />);
 

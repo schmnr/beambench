@@ -886,7 +886,17 @@
       "save_report_to_file": "Save Report to File",
       "submitting": "Submitting...",
       "send_to_beam_bench": "Send to Beam Bench",
-      "submit": "Submit"
+      "submit": "Submit",
+      "title_machine_request": "Request a machine preset",
+      "title_machine_test": "Share machine test results",
+      "machine_request_help": "No account needed. Include a product or manual link, controller and upgrades if known. Your text, app version and system details are sent.",
+      "machine_test_help": "No account needed. Mark connection, movement, framing, jobs, pause/resume and cancel as passed, failed or not tested. Include firmware and upgrades. Saved active-profile settings and available firmware details are sent, without project data or logs.",
+      "field_machine_model": "Manufacturer and exact model",
+      "field_machine_request": "Machine details and useful links",
+      "field_machine_test": "Test results and setup",
+      "validation_machine_model_required": "Enter the manufacturer and exact model.",
+      "validation_machine_details_required": "Add machine details or test results.",
+      "field_optional_reply_to": "Reply-to email (optional)"
     },
     "material_test": {
       "title": "Material Test",
@@ -2321,11 +2331,17 @@
         "preview": "Preview",
         "no_changes": "No changes.",
         "catalog": {
+          "sculpfun_s9": {
+            "description": "Documentation-based preset for the original Sculpfun S9 with GRBL 1.1f or newer. Hardware testing is pending.",
+            "advisory": "Uses a conservative 410 x 415 mm workspace. Check travel and S-value max against your machine. Homing and automatic air assist are off; enable them only for configured upgrades. Use Current Position or User Origin on a machine without homing switches."
+          },
           "acmer_s2": {
             "description": "Official ACMER S2 workspace and GRBL defaults.",
             "advisory": "ACMER specifies a 300 × 300 mm engraving area. Beam Bench will recheck compatible GRBL controller settings when the machine connects."
           }
-        }
+        },
+        "report_active_profile": "Save and activate this profile to share its settings with your results.",
+        "community_help": "Missing a preset or tried one? Help expand the catalog. No account needed."
       },
       "material_library": {
         "operation": {

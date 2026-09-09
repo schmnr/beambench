@@ -80,8 +80,17 @@ Changes involving machine control must preserve these invariants:
   guard.
 
 Controller changes should include protocol or virtual-controller tests. Claims
-of hardware support should be backed by real-device validation and reflected in
+of physical-machine validation should be backed by recorded device tests,
+including reviewed community reports, and reflected in
 [`docs/controller-compatibility.md`](docs/controller-compatibility.md).
+
+Machine presets for existing controller adapters can ship from documented
+specifications and software tests before physical validation. State that scope
+in the preset and retain its sources and test evidence. See
+[Expanding the machine preset catalog](docs/machine-presets.md) for the process,
+evidence levels, and owner test checklist. Use the machine preset issue form to
+request a model or contribute a working profile; maintainer hardware ownership
+is not required.
 
 ## Licensing
 

@@ -128,8 +128,28 @@ pub fn build_bundle(
     if is_successful_job_compatibility_report(input) {
         minimize_successful_job_compatibility_bundle(&mut bundle);
     }
+    if let Some(feature) = machine_catalog_feature(input) {
+        minimize_successful_job_compatibility_bundle(&mut bundle);
+        // These are owner-written reports, not evidence about the last job.
+        bundle.terminal_job = None;
+        if feature == "machine_preset_request" {
+            // The requested model may be unrelated to the active machine.
+            bundle.machine = Default::default();
+        }
+    }
 
     Ok(bundle)
+}
+
+fn machine_catalog_feature(input: &FeedbackReportInput) -> Option<&str> {
+    if input.kind != FeedbackKind::Connectivity {
+        return None;
+    }
+    input
+        .source_context
+        .as_ref()
+        .and_then(|context| context.feature.as_deref())
+        .filter(|feature| matches!(*feature, "machine_preset_request" | "machine_test_report"))
 }
 
 fn is_successful_job_compatibility_report(input: &FeedbackReportInput) -> bool {
@@ -338,6 +358,11 @@ fn submit_request(
 }
 
 fn validate_feedback_input(input: &FeedbackReportInput) -> ServiceResult<()> {
+    if machine_catalog_feature(input).is_some() && input.include_project_file {
+        return Err(ServiceError::invalid_input(
+            "Project files cannot be attached to machine catalog reports",
+        ));
+    }
     if is_successful_job_compatibility_report(input) && input.include_project_file {
         return Err(ServiceError::invalid_input(
             "Project files cannot be attached to successful job compatibility reports",
@@ -396,6 +421,13 @@ fn validate_feedback_input(input: &FeedbackReportInput) -> ServiceResult<()> {
 
 fn validate_feedback_submission(input: &FeedbackReportInput) -> ServiceResult<()> {
     validate_feedback_input(input)?;
+    if machine_catalog_feature(input).is_some()
+        && input.title.as_deref().unwrap_or_default().trim().is_empty()
+    {
+        return Err(ServiceError::invalid_input(
+            "Manufacturer and exact model are required for machine catalog reports",
+        ));
+    }
     let note_chars = input
         .notes
         .as_deref()
@@ -408,7 +440,11 @@ fn validate_feedback_submission(input: &FeedbackReportInput) -> ServiceResult<()
         && note_chars == 0
     {
         return Err(ServiceError::invalid_input(
-            "Machine/controller model and a short description are required for connection reports",
+            if machine_catalog_feature(input).is_some() {
+                "Machine details or test results are required for machine catalog reports"
+            } else {
+                "Machine/controller model and a short description are required for connection reports"
+            },
         ));
     }
     Ok(())
@@ -688,9 +724,25 @@ fn build_machine_diagnostics(
             .find(|event| event.port_name.is_some());
         let port_name = pending_endpoint
             .as_ref()
-            .and_then(serial_port_from_endpoint)
-            .map(str::to_owned)
+            .map(ControllerConnectionEndpoint::display_name)
             .or_else(|| last_port_event.and_then(|event| event.port_name.clone()));
+        let attempt_events = current_connection_attempt(connection_events);
+        let transport_kind = pending_endpoint
+            .as_ref()
+            .and_then(|endpoint| serialized_enum_string(endpoint.transport_kind()))
+            .or_else(|| {
+                attempt_events
+                    .iter()
+                    .rev()
+                    .find_map(|event| event.transport_kind.clone())
+            });
+        let serial_transport = transport_kind
+            .as_deref()
+            .is_none_or(|kind| kind == "serial");
+        let successful_connection = attempt_events
+            .iter()
+            .rev()
+            .find(|event| matches!(event.stage.as_str(), "ready" | "connected"));
         let port = port_name
             .as_deref()
             .and_then(|attempted| ports.iter().find(|port| port.name == attempted));
@@ -708,7 +760,7 @@ fn build_machine_diagnostics(
             firmware_type: profile_fields.firmware_type,
             controller_family: None,
             controller_model: None,
-            transport_kind: last_port_event.and_then(|event| event.transport_kind.clone()),
+            transport_kind,
             transfer_mode: profile_fields.transfer_mode,
             s_value_max: profile_fields.s_value_max,
             homing_enabled: profile_fields.homing_enabled,
@@ -726,18 +778,28 @@ fn build_machine_diagnostics(
             work_position: None,
             machine_coordinates_valid: false,
             firmware_version: None,
-            baud_rate: pending_endpoint
-                .as_ref()
-                .and_then(ControllerConnectionEndpoint::baud_rate)
-                .or_else(|| last_port_event.and_then(|event| event.baud_rate))
-                .or(profile_baud_rate),
+            baud_rate: serial_transport
+                .then(|| {
+                    pending_endpoint
+                        .as_ref()
+                        .and_then(ControllerConnectionEndpoint::baud_rate)
+                        .or_else(|| last_port_event.and_then(|event| event.baud_rate))
+                        .or(profile_baud_rate)
+                })
+                .flatten(),
             port_name,
-            port_vendor_id: port
-                .and_then(|port| port.vendor_id.clone())
-                .or_else(|| last_port_event.and_then(|event| event.vendor_id.clone())),
-            port_product_id: port
-                .and_then(|port| port.product_id.clone())
-                .or_else(|| last_port_event.and_then(|event| event.product_id.clone())),
+            port_vendor_id: port.and_then(|port| port.vendor_id.clone()).or_else(|| {
+                attempt_events
+                    .iter()
+                    .rev()
+                    .find_map(|event| event.vendor_id.clone())
+            }),
+            port_product_id: port.and_then(|port| port.product_id.clone()).or_else(|| {
+                attempt_events
+                    .iter()
+                    .rev()
+                    .find_map(|event| event.product_id.clone())
+            }),
             session_state: if waiting_for_choice {
                 DiagnosticSessionState::Connecting
             } else if failure.is_some() {
@@ -750,6 +812,16 @@ fn build_machine_diagnostics(
             } else {
                 failure
                     .map(connection_failure_summary)
+                    .or_else(|| {
+                        successful_connection.map(|event| {
+                            format!(
+                                "Disconnected. Last connection succeeded. {}",
+                                event.message.as_deref().unwrap_or_default()
+                            )
+                            .trim()
+                            .to_owned()
+                        })
+                    })
                     .or_else(|| Some("Disconnected".to_owned()))
             },
         };
@@ -804,7 +876,9 @@ fn build_machine_diagnostics(
             .machine_coordinates_valid
             .load(std::sync::atomic::Ordering::Acquire),
         firmware_version,
-        baud_rate: profile_baud_rate,
+        baud_rate: (session.transport_kind() == beambench_common::machine::TransportKind::Serial)
+            .then_some(profile_baud_rate)
+            .flatten(),
         port_name,
         port_vendor_id: port.and_then(|port| port.vendor_id.clone()),
         port_product_id: port.and_then(|port| port.product_id.clone()),
@@ -906,12 +980,27 @@ fn latest_connection_failure(
         }
         if matches!(
             event.stage.as_str(),
-            "open_attempt" | "transport_open" | "ready"
+            "open_attempt" | "transport_open" | "connection_attempt" | "ready" | "connected"
         ) {
             return None;
         }
     }
     None
+}
+
+fn current_connection_attempt(
+    events: &[DiagnosticConnectionEvent],
+) -> &[DiagnosticConnectionEvent] {
+    let start = events
+        .iter()
+        .rposition(|event| {
+            matches!(
+                event.stage.as_str(),
+                "open_attempt" | "transport_open" | "connection_attempt" | "open_failed"
+            )
+        })
+        .unwrap_or(0);
+    &events[start..]
 }
 
 fn connection_failure_summary(event: &DiagnosticConnectionEvent) -> String {
@@ -1021,6 +1110,34 @@ fn known_issues_for(
     machine: &DiagnosticMachine,
     connection_events: &[DiagnosticConnectionEvent],
 ) -> Vec<KnownIssueWarning> {
+    let attempt_events = current_connection_attempt(connection_events);
+    let response_detected = machine
+        .firmware_version
+        .as_deref()
+        .is_some_and(|version| !version.trim().is_empty())
+        || matches!(
+            machine.session_state,
+            DiagnosticSessionState::Connected | DiagnosticSessionState::Streaming
+        )
+        || attempt_events.iter().any(|event| {
+            matches!(
+                event.stage.as_str(),
+                "ready" | "connected" | "banner_received"
+            )
+        });
+    let connection_attempted = matches!(
+        machine.session_state,
+        DiagnosticSessionState::Connecting | DiagnosticSessionState::HandshakeFailed
+    ) || attempt_events.iter().any(|event| {
+        matches!(
+            event.stage.as_str(),
+            "open_attempt" | "transport_open" | "connection_attempt" | "open_failed"
+        )
+    });
+    let serial_transport = machine
+        .transport_kind
+        .as_deref()
+        .is_none_or(|kind| kind == "serial");
     let issue_match_text = [
         machine.model.as_deref(),
         machine.firmware_type.as_deref(),
@@ -1052,11 +1169,16 @@ fn known_issues_for(
                 .configured_baud
                 .is_none_or(|baud| machine.baud_rate == Some(baud))
         })
-        .filter(|issue| issue.code != "no_grbl_response" || machine.firmware_version.is_none())
+        .filter(|issue| issue.code != "no_grbl_response" || (connection_attempted && !response_detected))
+        .filter(|issue| issue.code != "grbl_9600_baud" || serial_transport)
         .map(|issue| KnownIssueWarning {
             code: issue.code.to_owned(),
             severity: issue.severity.to_owned(),
-            message: issue.message.to_owned(),
+            message: if issue.code == "no_grbl_response" && matches!(machine.transport_kind.as_deref(), Some("tcp" | "udp")) {
+                "No GRBL response has been detected on this network connection. Check the controller address, port, and network connection.".to_owned()
+            } else {
+                issue.message.to_owned()
+            },
         })
         .collect::<Vec<_>>();
 
@@ -1068,6 +1190,21 @@ fn known_issues_for(
             0,
             KnownIssueWarning {
                 code: "lihuiyu_incompatible_windows_driver".to_owned(),
+                severity: "warning".to_owned(),
+                message: connection_failure_summary(failure),
+            },
+        );
+    } else if let Some(failure) = latest_connection_failure(connection_events)
+        && matches!(machine.transport_kind.as_deref(), Some("tcp" | "udp"))
+    {
+        issues.retain(|issue| issue.code != "no_grbl_response");
+        issues.insert(
+            0,
+            KnownIssueWarning {
+                code: failure
+                    .error_code
+                    .clone()
+                    .unwrap_or_else(|| "network_connection_failed".to_owned()),
                 severity: "warning".to_owned(),
                 message: connection_failure_summary(failure),
             },
@@ -1296,6 +1433,253 @@ mod tests {
                 correlation_ts: Some("2026-05-14T12:34:56Z".to_owned()),
                 ..FeedbackSourceContext::default()
             }),
+        }
+    }
+
+    fn grbl_diagnostic_context() -> ServiceContext {
+        let profile = MachineProfile {
+            default_baud_rate: 9_600,
+            ..MachineProfile::default()
+        };
+        ServiceContext::with_settings(beambench_core::AppSettings {
+            active_profile_id: Some(profile.id),
+            machine_profiles: vec![profile],
+            ..beambench_core::AppSettings::default()
+        })
+    }
+
+    #[test]
+    fn missing_banner_does_not_imply_no_response_in_a_validated_live_session() {
+        let ctx = grbl_diagnostic_context();
+        ctx.push_connection_event(
+            "transport_open",
+            Some("COM5".to_owned()),
+            Some(115_200),
+            None,
+            None,
+        );
+        let events = ctx.recent_connection_events();
+        let mut machine = build_machine_diagnostics(&ctx, &[], &events);
+        for state in [
+            DiagnosticSessionState::Connected,
+            DiagnosticSessionState::Streaming,
+        ] {
+            machine.session_state = state;
+            assert!(
+                known_issues_for(&machine, &events)
+                    .iter()
+                    .all(|issue| issue.code != "no_grbl_response")
+            );
+        }
+    }
+
+    #[test]
+    fn connection_summary_keeps_usb_identifiers_after_disconnect() {
+        let ctx = grbl_diagnostic_context();
+        ctx.push_usb_connection_event(
+            "transport_open",
+            "usb-device".to_owned(),
+            0x1a86,
+            0x5512,
+            Some("WinUSB".to_owned()),
+            None,
+            None,
+            None,
+        );
+        let mut connected = ctx.recent_connection_events().pop().unwrap();
+        connected.stage = "connected".to_owned();
+        connected.transport_kind = Some("usb_packet".to_owned());
+        connected.vendor_id = None;
+        connected.product_id = None;
+        connected.usb_driver = None;
+        ctx.push_connection_event_entry(connected);
+        let snapshot = get_connection_diagnostics(&ctx).unwrap();
+        assert_eq!(snapshot.machine.port_vendor_id.as_deref(), Some("0x1a86"));
+        assert_eq!(snapshot.machine.port_product_id.as_deref(), Some("0x5512"));
+        assert_eq!(snapshot.machine.baud_rate, None);
+    }
+
+    #[test]
+    fn no_response_warning_requires_a_connection_attempt() {
+        let ctx = grbl_diagnostic_context();
+        let machine = build_machine_diagnostics(&ctx, &[], &[]);
+        assert!(
+            known_issues_for(&machine, &[])
+                .iter()
+                .all(|issue| issue.code != "no_grbl_response")
+        );
+    }
+
+    #[test]
+    fn successful_handshake_survives_disconnect_but_not_a_new_attempt() {
+        for endpoint in [
+            ControllerConnectionEndpoint::Serial {
+                port_name: "COM5".to_owned(),
+                baud_rate: 9_600,
+            },
+            ControllerConnectionEndpoint::Tcp {
+                host: "127.0.0.1".to_owned(),
+                port: 23,
+            },
+        ] {
+            let ctx = grbl_diagnostic_context();
+            ctx.push_endpoint_connection_event("transport_open", &endpoint, None, None);
+            ctx.push_endpoint_connection_event(
+                "connected",
+                &endpoint,
+                Some("Controller handshake succeeded".to_owned()),
+                None,
+            );
+            // An untyped later event must not erase the known transport.
+            ctx.push_connection_event(
+                "status_query",
+                Some(endpoint.display_name()),
+                None,
+                None,
+                None,
+            );
+            let snapshot = get_connection_diagnostics(&ctx).unwrap();
+            assert!(!snapshot.machine.connected);
+            assert_eq!(snapshot.machine.baud_rate, endpoint.baud_rate());
+            assert_eq!(
+                snapshot.machine.transport_kind,
+                serialized_enum_string(endpoint.transport_kind())
+            );
+            assert!(
+                snapshot
+                    .machine
+                    .handshake_message
+                    .unwrap()
+                    .contains("Last connection succeeded")
+            );
+            assert!(
+                snapshot
+                    .known_issues
+                    .iter()
+                    .all(|issue| issue.code != "no_grbl_response")
+            );
+            if matches!(endpoint, ControllerConnectionEndpoint::Tcp { .. }) {
+                assert!(
+                    snapshot
+                        .known_issues
+                        .iter()
+                        .all(|issue| issue.code != "grbl_9600_baud")
+                );
+            }
+
+            ctx.push_endpoint_connection_event("transport_open", &endpoint, None, None);
+            let snapshot = get_connection_diagnostics(&ctx).unwrap();
+            let warning = snapshot
+                .known_issues
+                .iter()
+                .find(|issue| issue.code == "no_grbl_response")
+                .unwrap();
+            if matches!(endpoint, ControllerConnectionEndpoint::Tcp { .. }) {
+                assert!(warning.message.contains("network"));
+                assert!(!warning.message.contains("baud"));
+                assert!(!warning.message.contains("USB"));
+            }
+            assert!(
+                !snapshot
+                    .machine
+                    .handshake_message
+                    .unwrap()
+                    .contains("succeeded")
+            );
+        }
+    }
+
+    #[test]
+    fn retained_ready_event_from_report_prevents_false_no_response_warning() {
+        let ctx = grbl_diagnostic_context();
+        ctx.push_connection_event(
+            "transport_open",
+            Some("127.0.0.1:23".to_owned()),
+            None,
+            None,
+            None,
+        );
+        ctx.push_connection_event(
+            "ready",
+            Some("127.0.0.1:23".to_owned()),
+            None,
+            Some("GRBL session is ready".to_owned()),
+            None,
+        );
+        let snapshot = get_connection_diagnostics(&ctx).unwrap();
+        assert!(
+            snapshot
+                .known_issues
+                .iter()
+                .all(|issue| issue.code != "no_grbl_response")
+        );
+    }
+
+    #[test]
+    fn new_serial_failure_does_not_inherit_an_old_network_success() {
+        let ctx = grbl_diagnostic_context();
+        let tcp = ControllerConnectionEndpoint::Tcp {
+            host: "127.0.0.1".to_owned(),
+            port: 23,
+        };
+        ctx.push_endpoint_connection_event("connected", &tcp, None, None);
+        ctx.push_connection_event(
+            "open_attempt",
+            Some("COM5".to_owned()),
+            Some(115_200),
+            None,
+            None,
+        );
+        ctx.push_connection_event(
+            "open_failed",
+            Some("COM5".to_owned()),
+            Some(115_200),
+            None,
+            Some("permission denied".to_owned()),
+        );
+        let snapshot = get_connection_diagnostics(&ctx).unwrap();
+        assert_ne!(snapshot.machine.transport_kind.as_deref(), Some("tcp"));
+        assert_eq!(snapshot.machine.baud_rate, Some(115_200));
+        assert_eq!(
+            snapshot.machine.session_state,
+            DiagnosticSessionState::HandshakeFailed
+        );
+        assert!(
+            snapshot
+                .known_issues
+                .iter()
+                .any(|issue| issue.code == "serial_port_unavailable")
+        );
+    }
+
+    #[test]
+    fn failed_network_attempt_preserves_transport_error_without_serial_advice() {
+        for endpoint in [
+            ControllerConnectionEndpoint::Tcp {
+                host: "127.0.0.1".to_owned(),
+                port: 23,
+            },
+            ControllerConnectionEndpoint::Udp {
+                host: "127.0.0.1".to_owned(),
+                port: 50200,
+            },
+        ] {
+            let ctx = grbl_diagnostic_context();
+            ctx.push_endpoint_connection_event("connection_attempt", &endpoint, None, None);
+            ctx.push_endpoint_connection_event(
+                "connection_failed",
+                &endpoint,
+                None,
+                Some("Network controller did not reply".to_owned()),
+            );
+            let snapshot = get_connection_diagnostics(&ctx).unwrap();
+            assert_eq!(snapshot.machine.baud_rate, None);
+            assert_eq!(snapshot.known_issues.len(), 1);
+            assert_eq!(snapshot.known_issues[0].code, "network_connection_failed");
+            assert_eq!(
+                snapshot.known_issues[0].message,
+                "Network controller did not reply"
+            );
         }
     }
 
@@ -1616,8 +2000,8 @@ mod tests {
     }
 
     #[test]
-    fn successful_job_compatibility_preview_excludes_design_and_trace_data() {
-        let ctx = ServiceContext::new();
+    fn compatibility_and_catalog_previews_exclude_design_and_trace_data() {
+        let ctx = grbl_diagnostic_context();
         ctx.machine_coordinates_valid
             .store(true, std::sync::atomic::Ordering::Release);
         ctx.settings.lock().unwrap().display_language = "fr".to_owned();
@@ -1685,6 +2069,80 @@ mod tests {
                 .correlation_ts
                 .is_none()
         );
+
+        for feature in ["machine_preset_request", "machine_test_report"] {
+            let mut input = successful_job_compatibility_input();
+            input.source_context.as_mut().unwrap().feature = Some(feature.to_owned());
+            let catalog = preview_feedback_report(&ctx, input).unwrap();
+            assert!(catalog.terminal_job.is_none());
+            assert!(catalog.project_metadata.is_none());
+            assert!(!catalog.project_file_attached);
+            assert!(catalog.recent_logs.is_empty());
+            assert!(catalog.recent_panics.is_empty());
+            assert!(catalog.connection_events.is_empty());
+            assert!(catalog.ports_detected.is_empty());
+            assert_eq!(catalog.recent_serial, Default::default());
+            assert!(catalog.machine.profile_id.is_none());
+            assert!(catalog.machine.profile_name.is_none());
+            assert!(catalog.machine.port_name.is_none());
+            assert!(catalog.machine.machine_position.is_none());
+            assert!(
+                catalog
+                    .source_context
+                    .as_ref()
+                    .unwrap()
+                    .correlation_ts
+                    .is_none()
+            );
+            if feature == "machine_preset_request" {
+                assert_eq!(catalog.machine, Default::default());
+            } else {
+                assert_eq!(catalog.machine.s_value_max, bundle.machine.s_value_max);
+                assert!(catalog.machine.s_value_max.is_some());
+                assert_eq!(catalog.machine.bed_width_mm, bundle.machine.bed_width_mm);
+                assert_eq!(catalog.machine.firmware_type, bundle.machine.firmware_type);
+            }
+        }
+    }
+
+    #[test]
+    fn machine_catalog_submissions_require_model_and_details_and_reject_attachments() {
+        let ctx = grbl_diagnostic_context();
+        for feature in ["machine_preset_request", "machine_test_report"] {
+            let mut input = successful_job_compatibility_input();
+            input.source_context.as_mut().unwrap().feature = Some(feature.to_owned());
+            input.title = Some("  ".to_owned());
+            // Privacy previews remain available before the form is complete.
+            preview_feedback_report(&ctx, input.clone()).unwrap();
+            assert!(
+                validate_feedback_submission(&input)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("exact model")
+            );
+            input.title = Some("Sculpfun S9".to_owned());
+            assert!(
+                validate_feedback_submission(&input)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("details or test results")
+            );
+            input.notes =
+                Some("Stock controller; connection passed; motion not tested.".to_owned());
+            validate_feedback_submission(&input).unwrap();
+            let request = build_submit_request_for_transport(&ctx, input.clone()).unwrap();
+            let payload: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+            assert_eq!(payload["bundle"]["source_context"]["feature"], feature);
+            assert_eq!(payload["project_file_attached"], false);
+            assert!(payload["project_file_blob"].is_null());
+            input.include_project_file = true;
+            assert!(
+                preview_feedback_report(&ctx, input)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("cannot be attached")
+            );
+        }
     }
 
     #[test]
@@ -1827,7 +2285,7 @@ mod tests {
     }
 
     #[test]
-    fn known_issues_match_profile_firmware_type() {
+    fn no_response_warning_matches_profile_firmware_type_during_connection() {
         let issues = known_issues_for(
             &DiagnosticMachine {
                 connected: false,
@@ -1861,8 +2319,8 @@ mod tests {
                 port_name: None,
                 port_vendor_id: None,
                 port_product_id: None,
-                session_state: DiagnosticSessionState::Disconnected,
-                handshake_message: Some("Disconnected".to_owned()),
+                session_state: DiagnosticSessionState::Connecting,
+                handshake_message: None,
             },
             &[],
         );

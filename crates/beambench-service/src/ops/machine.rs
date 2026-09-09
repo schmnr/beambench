@@ -10,7 +10,7 @@ use beambench_common::controller_choice::{
     ControllerDriverId, ControllerMismatchDecision, ControllerSelection,
     ExplicitControllerSelection, PositiveControllerIdentity, ResolvedControllerChoice,
 };
-use beambench_common::feedback::DiagnosticTerminalJob;
+use beambench_common::feedback::{DiagnosticConnectionEvent, DiagnosticTerminalJob};
 use beambench_common::geometry::{Bounds, Point2D};
 use beambench_common::machine::{
     ControllerEvidenceState, ControllerFamily, ControllerModel, ControllerProductTier,
@@ -1996,10 +1996,9 @@ fn open_grbl_network_for_connection(
         port,
     };
     let display_name = endpoint.display_name();
-    ctx.push_connection_event(
+    ctx.push_endpoint_connection_event(
         "transport_open",
-        Some(display_name.clone()),
-        None,
+        &endpoint,
         Some("Opening TCP controller transport".to_string()),
         None,
     );
@@ -2246,6 +2245,30 @@ fn register_machine_session(
             "Already connected. Disconnect first.",
         ));
     }
+    let controller_info = session.controller_info().unwrap_or_default();
+    let firmware = controller_info
+        .get("VER")
+        .or_else(|| controller_info.get("Banner"));
+    ctx.push_connection_event_entry(DiagnosticConnectionEvent {
+        ts: chrono::Utc::now().to_rfc3339(),
+        stage: "connected".to_owned(),
+        port_name: session.port_name(),
+        baud_rate: baud_rate_for_profile.filter(|_| transport == TransportKind::Serial),
+        transport_kind: serde_json::to_value(transport)
+            .ok()
+            .and_then(|value| value.as_str().map(str::to_owned)),
+        message: Some(format!(
+            "Controller handshake succeeded: {model:?} via {transport:?}{}",
+            firmware
+                .map(|version| format!(", firmware: {version}"))
+                .unwrap_or_default(),
+        )),
+        error_code: None,
+        vendor_id: None,
+        product_id: None,
+        usb_driver: None,
+        error: None,
+    });
     *session_lock = Some(session);
     drop(session_lock);
     ctx.emit_event(
@@ -2879,38 +2902,70 @@ pub fn begin_network_controller_connection(
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
 
-    if matches!(
+    let endpoint = if matches!(
         input.selection,
         ControllerSelection::KnownDriver {
             driver: ControllerDriverId::Ruida
         }
     ) {
-        return finish_ruida_network_connection(ctx, host, input.port);
-    }
-    if matches!(
+        ControllerConnectionEndpoint::Udp {
+            host: host.clone(),
+            port: input.port,
+        }
+    } else {
+        ControllerConnectionEndpoint::Tcp {
+            host: host.clone(),
+            port: input.port,
+        }
+    };
+    ctx.push_endpoint_connection_event("connection_attempt", &endpoint, None, None);
+    let result = if matches!(
+        input.selection,
+        ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::Ruida
+        }
+    ) {
+        finish_ruida_network_connection(ctx, host, input.port)
+    } else if matches!(
         input.selection,
         ControllerSelection::KnownDriver {
             driver: ControllerDriverId::XToolM1
         }
     ) {
-        return finish_xtool_m1_network_connection(ctx, host, input.port);
-    }
-    let device_identity = network_device_identity(&host, input.port);
-    if matches!(
+        finish_xtool_m1_network_connection(ctx, host, input.port)
+    } else if matches!(
         input.selection,
         ControllerSelection::KnownDriver {
             driver: ControllerDriverId::LaserPecker
         }
     ) {
-        return finish_laserpecker_network_connection_attempt(
+        let device_identity = network_device_identity(&host, input.port);
+        finish_laserpecker_network_connection_attempt(
             ctx,
             host,
             input.port,
             input.selection,
             device_identity,
+        )
+    } else {
+        let device_identity = network_device_identity(&host, input.port);
+        finish_grbl_network_connection_attempt(
+            ctx,
+            host,
+            input.port,
+            input.selection,
+            device_identity,
+        )
+    };
+    if let Err(error) = &result {
+        ctx.push_endpoint_connection_event(
+            "connection_failed",
+            &endpoint,
+            None,
+            Some(error.to_string()),
         );
     }
-    finish_grbl_network_connection_attempt(ctx, host, input.port, input.selection, device_identity)
+    result
 }
 
 pub fn list_lihuiyu_usb_devices() -> ServiceResult<Vec<LihuiyuUsbDeviceInfo>> {
@@ -4485,12 +4540,12 @@ fn handle_fatal_job_tick_error(ctx: &ServiceContext, message: String) {
     );
 }
 
-fn disconnect_failed_running_job(ctx: &ServiceContext, message: String) {
+fn disconnect_failed_active_job(ctx: &ServiceContext, message: String) {
     drop_stale_machine_session(ctx);
     ctx.push_error(message);
     ctx.emit_event(
         "machine.disconnected",
-        json!({ "reason": "job_failed_while_running" }),
+        json!({ "reason": "job_failed_while_active" }),
     );
 }
 
@@ -4540,14 +4595,17 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
         _ => None,
     };
 
-    let failed_running_message = progress.as_ref().and_then(|progress| {
-        let failed_while_session_running = progress.state == JobState::Failed
-            && session_lock
-                .as_ref()
-                .is_some_and(|session| session.session_state() == SessionState::Running);
-        failed_while_session_running.then(|| {
+    let failed_active_message = progress.as_ref().and_then(|progress| {
+        let failed_while_session_active = progress.state == JobState::Failed
+            && session_lock.as_ref().is_some_and(|session| {
+                matches!(
+                    session.session_state(),
+                    SessionState::Running | SessionState::Paused
+                )
+            });
+        failed_while_session_active.then(|| {
             progress.error_message.clone().unwrap_or_else(|| {
-                "Job failed while the machine session was still running".to_string()
+                "Job failed while the machine session was still active".to_string()
             })
         })
     });
@@ -4561,8 +4619,8 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
                 | beambench_common::machine::JobState::Cancelled
         );
         if terminal {
-            let reason = if failed_running_message.is_some() {
-                "failed_while_session_running"
+            let reason = if failed_active_message.is_some() {
+                "failed_while_session_active"
             } else {
                 "terminal_progress"
             };
@@ -4573,7 +4631,7 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
                 progress
                     .error_message
                     .clone()
-                    .or_else(|| failed_running_message.clone()),
+                    .or_else(|| failed_active_message.clone()),
                 job_lock.as_ref(),
                 session_lock.as_ref(),
             );
@@ -4609,8 +4667,8 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
     if let (Some(event_type), Some(progress)) = (terminal_event, progress.as_ref()) {
         ctx.emit_event(event_type, events::job_summary(progress));
     }
-    if let Some(message) = failed_running_message {
-        disconnect_failed_running_job(ctx, message);
+    if let Some(message) = failed_active_message {
+        disconnect_failed_active_job(ctx, message);
     }
 
     Ok(progress)
@@ -7019,6 +7077,23 @@ mod tests {
         assert!(state.experimental_mode);
 
         disconnect_machine(&ctx).unwrap();
+        let diagnostics = crate::ops::feedback::get_connection_diagnostics(&ctx).unwrap();
+        assert_eq!(diagnostics.machine.transport_kind.as_deref(), Some("tcp"));
+        assert_eq!(diagnostics.machine.baud_rate, None);
+        assert!(
+            diagnostics
+                .machine
+                .handshake_message
+                .as_deref()
+                .unwrap()
+                .contains("firmware:")
+        );
+        assert!(
+            diagnostics
+                .known_issues
+                .iter()
+                .all(|issue| issue.code != "no_grbl_response")
+        );
         let commands = server.join().unwrap();
         assert_eq!(commands.first().map(String::as_str), Some("?"));
         assert!(commands.iter().any(|command| command == "$I"));
@@ -7041,6 +7116,46 @@ mod tests {
             ControllerDriverId::GrblHal,
             ControllerModel::GrblHal,
         );
+    }
+
+    #[test]
+    fn failed_tcp_handshake_is_reported_as_a_network_failure() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut query = [0_u8; 1];
+            stream.read_exact(&mut query).unwrap();
+            assert_eq!(query, [b'?']);
+            stream.write_all(b"not a controller\n").unwrap();
+        });
+        let ctx = ServiceContext::new();
+        let error = begin_network_controller_connection(
+            &ctx,
+            BeginNetworkControllerConnectionInput {
+                host: "127.0.0.1".to_owned(),
+                port,
+                selection: ControllerSelection::AutoDetect,
+            },
+        )
+        .unwrap_err();
+        server.join().unwrap();
+        let diagnostics = crate::ops::feedback::get_connection_diagnostics(&ctx).unwrap();
+        assert_eq!(diagnostics.machine.transport_kind.as_deref(), Some("tcp"));
+        assert_eq!(diagnostics.machine.baud_rate, None);
+        assert_eq!(
+            diagnostics.machine.handshake_message.as_deref(),
+            Some(error.to_string().as_str())
+        );
+        assert!(
+            diagnostics
+                .known_issues
+                .iter()
+                .any(|issue| issue.code == "network_connection_failed")
+        );
+        assert!(diagnostics.known_issues.iter().all(|issue| issue.code
+            != "serial_port_unavailable"
+            && issue.code != "no_grbl_response"));
     }
 
     #[test]
@@ -8359,6 +8474,7 @@ mod tests {
         fail_m5_writes: usize,
         fail_byte_writes: usize,
         fail_reads: usize,
+        fail_reads_after_rx: bool,
         banner_on_reopen: bool,
     }
 
@@ -8435,7 +8551,7 @@ mod tests {
 
         fn read_line(&mut self) -> Result<Option<String>, SerialError> {
             let mut state = self.state.lock().unwrap();
-            if state.fail_reads > 0 {
+            if state.fail_reads > 0 && (!state.fail_reads_after_rx || state.rx.is_empty()) {
                 state.fail_reads -= 1;
                 return Err(SerialError::IoError(std::io::Error::new(
                     std::io::ErrorKind::BrokenPipe,
@@ -10122,7 +10238,7 @@ mod tests {
         );
         assert_eq!(session_state(&ctx).unwrap(), SessionState::Disconnected);
         let retained = ctx.last_terminal_job.lock().unwrap().clone().unwrap();
-        assert_eq!(retained.reason, "failed_while_session_running");
+        assert_eq!(retained.reason, "failed_while_session_active");
         assert_eq!(
             retained.progress.as_ref().map(|progress| progress.state),
             Some(JobState::Failed)
@@ -10132,6 +10248,214 @@ mod tests {
                 .error
                 .as_deref()
                 .is_some_and(|error| error.to_ascii_lowercase().contains("error"))
+        );
+    }
+
+    fn assert_received_evidence_survives_read_failure(rejected: bool) {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut job = JobController::prepare(&dummy_plan(), &GcodeConfig::default()).unwrap();
+        {
+            let mut guard = ctx.session.lock().unwrap();
+            let MachineSessionHandle::Grbl(session) = guard.as_mut().unwrap() else {
+                panic!("expected GRBL session");
+            };
+            job.start(session).unwrap();
+        }
+        let sent = job.progress().sent_lines;
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+        {
+            let mut state = transport.lock().unwrap();
+            state
+                .rx
+                .extend(["ok", if rejected { "error:20" } else { "ok" }].map(str::to_owned));
+            state.fail_reads = 1;
+            state.fail_reads_after_rx = true;
+        }
+        let result = tick_job(&ctx);
+        if rejected {
+            assert_eq!(result.unwrap().unwrap().state, JobState::Failed);
+        } else {
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("injected read failure")
+            );
+        }
+        let retained = ctx.last_terminal_job.lock().unwrap().clone().unwrap();
+        let progress = retained.progress.as_ref().unwrap();
+        assert_eq!(progress.sent_lines, sent);
+        assert_eq!(progress.acknowledged_lines, if rejected { 1 } else { 2 });
+        if rejected {
+            assert!(
+                retained
+                    .error
+                    .as_deref()
+                    .unwrap()
+                    .contains("G-code line 2: G21")
+            );
+        }
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn received_rejection_is_retained_when_the_next_read_fails() {
+        assert_received_evidence_survives_read_failure(true);
+    }
+
+    #[test]
+    fn received_acknowledgements_survive_a_later_read_failure() {
+        assert_received_evidence_survives_read_failure(false);
+    }
+
+    #[test]
+    fn parser_error_while_paused_releases_the_failed_session() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut job = JobController::prepare(&dummy_plan(), &GcodeConfig::default()).unwrap();
+        {
+            let mut guard = ctx.session.lock().unwrap();
+            let MachineSessionHandle::Grbl(session) = guard.as_mut().unwrap() else {
+                panic!("expected GRBL session");
+            };
+            job.start(session).unwrap();
+            job.pause(session).unwrap();
+        }
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .push_back("error:20".to_owned());
+        assert_eq!(tick_job(&ctx).unwrap().unwrap().state, JobState::Failed);
+        assert!(ctx.job.lock().unwrap().is_none());
+        assert!(
+            ctx.session.lock().unwrap().is_none(),
+            "failed paused job left the machine stranded in Paused"
+        );
+        assert!(
+            transport
+                .lock()
+                .unwrap()
+                .lines
+                .iter()
+                .any(|line| line == "M5")
+        );
+        assert_eq!(session_state(&ctx).unwrap(), SessionState::Disconnected);
+        assert!(
+            ctx.last_terminal_job
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .error
+                .as_deref()
+                .unwrap()
+                .contains("G-code line 1: G90")
+        );
+    }
+
+    #[test]
+    fn missing_ack_failure_resets_the_controller_before_releasing_the_job() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut job = JobController::prepare(&dummy_plan(), &GcodeConfig::default()).unwrap();
+        {
+            let mut guard = ctx.session.lock().unwrap();
+            let MachineSessionHandle::Grbl(session) = guard.as_mut().unwrap() else {
+                panic!("expected GRBL session");
+            };
+            job.start(session).unwrap();
+        }
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+        let mut failed = false;
+        for _ in 0..10 {
+            transport
+                .lock()
+                .unwrap()
+                .rx
+                .push_back("<Idle|MPos:0,0,0|FS:0,0>".to_owned());
+            if tick_job(&ctx).unwrap().unwrap().state == JobState::Failed {
+                failed = true;
+                break;
+            }
+        }
+        assert!(failed, "missing acknowledgements were never detected");
+        assert!(ctx.job.lock().unwrap().is_none());
+        assert!(
+            ctx.session.lock().unwrap().is_none(),
+            "desynchronized controller was left available for another job"
+        );
+        let state = transport.lock().unwrap();
+        assert!(
+            state
+                .bytes
+                .iter()
+                .any(|bytes| bytes == grbl_commands::soft_reset())
+        );
+        assert_eq!(state.lines.last().map(String::as_str), Some("M5"));
+        assert!(!ctx.machine_coordinates_valid.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn rejected_air_assist_retains_the_command_and_never_sends_following_motion() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        ctx.push_connection_event(
+            "ready",
+            Some("mock".to_owned()),
+            Some(115_200),
+            Some("GRBL session is ready".to_owned()),
+            None,
+        );
+        let mut job = JobController::prepare(
+            &dummy_plan(),
+            &GcodeConfig {
+                gcode_prefix: "M7".to_owned(),
+                ..GcodeConfig::default()
+            },
+        )
+        .unwrap();
+        {
+            let mut guard = ctx.session.lock().unwrap();
+            let MachineSessionHandle::Grbl(session) = guard.as_mut().unwrap() else {
+                panic!("expected GRBL");
+            };
+            job.start(session).unwrap();
+        }
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .extend(["ok", "ok", "ok"].map(str::to_owned));
+        let progress = tick_job(&ctx).unwrap().unwrap();
+        assert_eq!(progress.sent_lines, 4);
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .extend(["[echo: M7]", "error:20"].map(str::to_owned));
+        let progress = tick_job(&ctx).unwrap().unwrap();
+        assert_eq!(progress.state, JobState::Failed);
+        assert_eq!(session_state(&ctx).unwrap(), SessionState::Disconnected);
+        let retained = ctx.last_terminal_job.lock().unwrap().clone().unwrap();
+        assert!(
+            retained
+                .error
+                .as_deref()
+                .unwrap()
+                .contains("G-code line 4: M7")
+        );
+        assert!(!retained.job_console.iter().any(|entry| entry.direction
+            == beambench_common::ConsoleDirection::Sent
+            && (entry.content.starts_with("G0")
+                || entry.content.starts_with("G1")
+                || entry.content.starts_with("M4"))));
+        let diagnostics = crate::ops::feedback::get_connection_diagnostics(&ctx).unwrap();
+        assert!(
+            diagnostics
+                .known_issues
+                .iter()
+                .all(|issue| issue.code != "no_grbl_response")
         );
     }
 

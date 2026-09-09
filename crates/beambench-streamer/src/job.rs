@@ -32,6 +32,7 @@ pub struct JobController {
     /// This catches a serial/ack desync where GRBL has drained the job window
     /// and gone Idle but Beam Bench is still waiting for missing `ok`s.
     idle_ack_desync_reports: u8,
+    idle_ack_desync_started: Option<Instant>,
     last_idle_ack_desync_status_count: u64,
 }
 
@@ -55,6 +56,7 @@ impl JobController {
             awaiting_idle_baseline: None,
             job_start_status_baseline: 0,
             idle_ack_desync_reports: 0,
+            idle_ack_desync_started: None,
             last_idle_ack_desync_status_count: 0,
         })
     }
@@ -66,6 +68,7 @@ impl JobController {
         self.awaiting_idle_baseline = None;
         self.job_start_status_baseline = session.status_report_count();
         self.idle_ack_desync_reports = 0;
+        self.idle_ack_desync_started = None;
         self.last_idle_ack_desync_status_count = self.job_start_status_baseline;
         // Send initial batch
         self.engine.send_tick(session, &mut self.progress)?;
@@ -74,10 +77,19 @@ impl JobController {
 
     /// Process one tick: handle responses and send more commands.
     pub fn tick(&mut self, session: &mut GrblSession) -> Result<(), StreamerError> {
-        // Poll for responses
-        let responses = session.poll()?;
-        for response in &responses {
-            self.engine.handle_response(response, &mut self.progress)?;
+        // Apply replies in wire order. A later read failure must not discard
+        // earlier acknowledgements or replace the controller's first error.
+        while let Some(response) = session.poll_response()? {
+            let acknowledged = matches!(response, beambench_grbl::parser::GrblResponse::Ok)
+                && self.engine.bytes_in_flight() > 0;
+            self.engine.handle_response(&response, &mut self.progress)?;
+            if acknowledged
+                || matches!(&response, beambench_grbl::parser::GrblResponse::Status(status) if status.run_state != MachineRunState::Idle)
+            {
+                self.idle_ack_desync_reports = 0;
+                self.idle_ack_desync_started = None;
+                self.last_idle_ack_desync_status_count = session.status_report_count();
+            }
         }
 
         // Send more if possible
@@ -129,6 +141,7 @@ impl JobController {
 
         if !idle_with_unacknowledged_bytes {
             self.idle_ack_desync_reports = 0;
+            self.idle_ack_desync_started = None;
             self.last_idle_ack_desync_status_count = status_count;
             return Ok(());
         }
@@ -136,18 +149,31 @@ impl JobController {
         if status_count != self.last_idle_ack_desync_status_count {
             self.idle_ack_desync_reports = self.idle_ack_desync_reports.saturating_add(1);
             self.last_idle_ack_desync_status_count = status_count;
+            self.idle_ack_desync_started
+                .get_or_insert_with(Instant::now);
         }
 
+        // A G4 delay, including air-assist startup time, legitimately reports
+        // Idle without acknowledging the block until its timer expires. Only
+        // count stalled reports after that delay, allowing the usual response
+        // margin instead of failing at the exact dwell deadline.
+        if let (Some(idle_since), Some(delay)) = (
+            self.idle_ack_desync_started,
+            self.engine.pending_dwell_duration(),
+        ) && idle_since.elapsed() < delay
+        {
+            self.idle_ack_desync_reports = 0;
+            return Ok(());
+        }
         if self.idle_ack_desync_reports < IDLE_ACK_DESYNC_REPORT_LIMIT {
             return Ok(());
         }
 
         let message = format!(
-            "Controller reported Idle while {} bytes were still waiting for acknowledgement. The serial stream is desynchronized, so the job was stopped instead of hanging.",
+            "Controller reported Idle while {} bytes were still waiting for acknowledgement. The command stream is desynchronized, so the job was stopped instead of hanging.",
             self.engine.bytes_in_flight()
         );
         self.engine.fail(message.clone(), &mut self.progress);
-        let _ = session.stop();
         Err(StreamerError::JobFailed(message))
     }
 
@@ -517,7 +543,7 @@ mod tests {
         mock.enqueue_response("<Idle|MPos:24.400,94.875,0.000|FS:0,0>");
         let err = job.tick(&mut session).unwrap_err();
         assert!(
-            err.to_string().contains("serial stream is desynchronized"),
+            err.to_string().contains("command stream is desynchronized"),
             "unexpected error: {err}"
         );
         assert_eq!(job.progress().state, JobState::Failed);
@@ -545,6 +571,165 @@ mod tests {
         assert_eq!(progress.buckets.len(), 2);
         assert_eq!(progress.buckets[0].cut_entry_id, "entry-1");
         assert_eq!(progress.buckets[1].cut_entry_id, "entry-2");
+    }
+
+    #[test]
+    fn healthy_idle_acknowledgements_do_not_fail_a_job() {
+        for mode in [
+            beambench_core::TransferMode::Buffered,
+            beambench_core::TransferMode::Synchronous,
+        ] {
+            let config = GcodeConfig {
+                gcode_prefix: "G4 P0\n".repeat(200),
+                transfer_mode: mode,
+                ..GcodeConfig::default()
+            };
+            let mut job = JobController::prepare(&make_plan(), &config).unwrap();
+            let mut transport = MockSerialTransport::new("healthy-idle");
+            transport.enqueue_response("Grbl 1.1h");
+            let mock = transport.handle();
+            let mut session = GrblSession::new(Box::new(transport));
+            session.connect().unwrap();
+            session.poll().unwrap();
+            session.mark_ready().unwrap();
+            job.start(&mut session).unwrap();
+
+            for _ in 0..job.progress().total_lines + 2 {
+                let progress = job.progress();
+                for _ in progress.acknowledged_lines..progress.sent_lines {
+                    mock.enqueue_response("ok");
+                }
+                mock.enqueue_response("<Idle|MPos:0,0,0|FS:0,0>");
+                job.tick(&mut session).unwrap();
+                if job.is_complete() {
+                    break;
+                }
+            }
+            assert!(job.is_complete(), "healthy {mode:?} job did not complete");
+        }
+    }
+
+    #[test]
+    fn air_assist_dwell_allows_its_delay_but_still_detects_a_missing_ack() {
+        for mode in [
+            beambench_core::TransferMode::Buffered,
+            beambench_core::TransferMode::Synchronous,
+        ] {
+            for expires in [false, true] {
+                let config = GcodeConfig {
+                    air_assist_cut_entry_ids: vec!["entry-1".to_owned()],
+                    air_assist_on_delay_ms: 10_000,
+                    transfer_mode: mode,
+                    ..GcodeConfig::default()
+                };
+                let commands = generate_gcode(&make_plan(), &config).unwrap();
+                let dwell_index = commands
+                    .iter()
+                    .position(|line| line == "G4 P10.000")
+                    .unwrap();
+                let mut job = JobController::prepare(&make_plan(), &config).unwrap();
+                let mut transport = MockSerialTransport::new("air-delay");
+                transport.enqueue_response("Grbl 1.1h");
+                let mock = transport.handle();
+                let mut session = GrblSession::new(Box::new(transport));
+                session.connect().unwrap();
+                session.poll().unwrap();
+                session.mark_ready().unwrap();
+                job.start(&mut session).unwrap();
+                while job.progress().acknowledged_lines < dwell_index {
+                    let progress = job.progress();
+                    assert!(progress.sent_lines > progress.acknowledged_lines);
+                    for _ in progress.acknowledged_lines..progress.sent_lines.min(dwell_index) {
+                        mock.enqueue_response("ok");
+                    }
+                    job.tick(&mut session).unwrap();
+                }
+                assert_eq!(
+                    job.engine.pending_dwell_duration(),
+                    Some(Duration::from_secs(10))
+                );
+                for _ in 0..IDLE_ACK_DESYNC_REPORT_LIMIT + 3 {
+                    mock.enqueue_response("<Idle|MPos:10,0,0|FS:0,0>");
+                    job.tick(&mut session).unwrap();
+                    assert_eq!(job.progress().state, JobState::Running);
+                }
+                if expires {
+                    job.idle_ack_desync_started = Some(Instant::now() - Duration::from_secs(11));
+                    for _ in 0..IDLE_ACK_DESYNC_REPORT_LIMIT - 1 {
+                        mock.enqueue_response("<Idle|MPos:10,0,0|FS:0,0>");
+                        job.tick(&mut session).unwrap();
+                    }
+                    mock.enqueue_response("<Idle|MPos:10,0,0|FS:0,0>");
+                    assert!(job.tick(&mut session).is_err());
+                    assert_eq!(job.progress().state, JobState::Failed);
+                } else {
+                    mock.enqueue_response("ok");
+                    job.tick(&mut session).unwrap();
+                    // Completing the dwell must reset the stall detector for the next block.
+                    for _ in 0..IDLE_ACK_DESYNC_REPORT_LIMIT - 1 {
+                        mock.enqueue_response("<Idle|MPos:10,0,0|FS:0,0>");
+                        job.tick(&mut session).unwrap();
+                    }
+                    for _ in 0..job.progress().total_lines + 2 {
+                        let progress = job.progress();
+                        for _ in progress.acknowledged_lines..progress.sent_lines {
+                            mock.enqueue_response("ok");
+                        }
+                        mock.enqueue_response("<Idle|MPos:20,0,0|FS:0,0>");
+                        job.tick(&mut session).unwrap();
+                        if job.is_complete() {
+                            break;
+                        }
+                    }
+                    assert!(job.is_complete());
+                }
+            }
+        }
+    }
+
+    fn assert_controller_interruption_stops_streaming(response: &str, expected_error: &str) {
+        for paused in [false, true] {
+            let config = GcodeConfig {
+                transfer_mode: beambench_core::TransferMode::Synchronous,
+                ..GcodeConfig::default()
+            };
+            let mut job = JobController::prepare(&make_plan(), &config).unwrap();
+            let mut transport = MockSerialTransport::new("interrupted-job");
+            transport.enqueue_response("Grbl 1.1h");
+            let mock = transport.handle();
+            let mut session = GrblSession::new(Box::new(transport));
+            session.connect().unwrap();
+            session.poll().unwrap();
+            session.mark_ready().unwrap();
+            job.start(&mut session).unwrap();
+            if paused {
+                job.pause(&mut session).unwrap();
+            }
+            let before = job.progress();
+            mock.enqueue_response(response);
+            // A later status in the same receive batch must not hide the interruption.
+            mock.enqueue_response("ok");
+            mock.enqueue_response("<Idle|MPos:0,0,0|FS:0,0>");
+            let error = job.tick(&mut session).unwrap_err();
+            assert!(error.to_string().contains(expected_error), "{error}");
+            assert_eq!(job.progress().state, JobState::Failed);
+            assert_eq!(job.progress().sent_lines, before.sent_lines);
+            assert_eq!(job.progress().acknowledged_lines, before.acknowledged_lines);
+        }
+    }
+
+    #[test]
+    fn controller_restart_aborts_running_and_paused_jobs() {
+        assert_controller_interruption_stops_streaming("Grbl 1.1h ['$' for help]", "restarted");
+        assert_controller_interruption_stops_streaming(
+            "SimpleLaser 1.1h ['$' for help]",
+            "restarted",
+        );
+    }
+
+    #[test]
+    fn alarm_status_alone_aborts_running_and_paused_jobs() {
+        assert_controller_interruption_stops_streaming("<Alarm|MPos:0,0,0|FS:0,0>", "Alarm");
     }
     #[test]
     fn prepare_rejects_oversized_custom_commands_before_start() {

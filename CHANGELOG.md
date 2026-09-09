@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 0.2.20
+
+- Request missing machine presets and share owner test results from the preset
+  picker without an account. Reports offer a privacy preview, optional reply
+  email and save-to-file fallback, and exclude project data and logs.
+- Add a documentation-based Sculpfun S9 preset with a conservative 410 x 415 mm
+  workspace and stock homing/air-assist defaults. Physical testing is pending.
+  Add a machine preset contribution form, evidence records, and a community
+  validation process so catalog growth does not require maintainer ownership
+  of every machine.
+- GRBL jobs stop on controller restarts and alarm status reports, preserve
+  replies received before a transport failure, and clean up failed paused
+  sessions. Stall detection now respects acknowledgement progress and G4
+  delays, including air-assist startup time. Confirmed stalls reset and
+  disconnect the controller instead of leaving a desynchronized session Ready.
+- GRBL streaming waits for acknowledgement of M7, M8 and M9 before sending
+  following motion. Rejected commands identify the G-code line and retain
+  the first failure, with configuration guidance for unsupported air assist.
+- Connection diagnostics retain the successful controller handshake and
+  transport after disconnect. A missing firmware banner no longer implies
+  that a controller never replied, and network errors avoid serial baud and
+  USB-driver advice. Later connection attempts retain their own diagnostics.
+
 ## 0.2.19
 
 - LightBurn imports preserve shared curved paths and closed outlines. The

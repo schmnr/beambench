@@ -798,8 +798,18 @@
       "saving": "저장 중...",
       "save_report_to_file": "보고서를 파일에 저장",
       "submitting": "제출 중...",
-      "send_to_beam_bench": "빔 벤치로 보내기",
-      "submit": "제출"
+      "send_to_beam_bench": "Beam Bench로 보내기",
+      "submit": "제출",
+      "title_machine_request": "기계 프리셋 요청",
+      "title_machine_test": "기계 테스트 결과 공유",
+      "machine_request_help": "계정이 필요하지 않습니다. 제품이나 설명서 링크와 알고 있는 컨트롤러 및 개조 내용을 포함해 주세요. 작성한 내용, 앱 버전, 시스템 정보가 전송됩니다.",
+      "machine_test_help": "계정이 필요하지 않습니다. 연결, 이동, 프레이밍, 작업, 일시 정지/재개, 취소를 성공, 실패 또는 미테스트로 표시해 주세요. 펌웨어와 개조 내용을 포함해 주세요. 활성 프로필의 저장된 설정과 확인 가능한 펌웨어 정보가 전송되며, 프로젝트 데이터와 로그는 제외됩니다.",
+      "field_machine_model": "제조사 및 정확한 모델",
+      "field_machine_request": "기계 정보 및 참고 링크",
+      "field_machine_test": "테스트 결과 및 구성",
+      "validation_machine_model_required": "제조사와 정확한 모델을 입력해 주세요.",
+      "validation_machine_details_required": "기계 정보나 테스트 결과를 추가해 주세요.",
+      "field_optional_reply_to": "답장 이메일 (선택 사항)"
     },
     "material_test": {
       "title": "재료 테스트",
@@ -2175,11 +2185,17 @@
         "preview": "미리보기",
         "no_changes": "변경사항이 없습니다.",
         "catalog": {
+          "sculpfun_s9": {
+            "description": "GRBL 1.1f 이상을 사용하는 초기 Sculpfun S9용 문서 기반 프리셋입니다. 실제 장비 테스트는 아직 진행되지 않았습니다.",
+            "advisory": "보수적으로 410 x 415 mm 작업 영역을 사용합니다. 장비의 이동 범위와 최대 S 값을 확인하세요. 원점 복귀와 자동 에어 어시스트는 꺼져 있으며, 관련 장치를 설치하고 설정한 경우에만 활성화하세요. 원점 스위치가 없는 장비에서는 현재 위치 또는 사용자 원점을 사용하세요."
+          },
           "acmer_s2": {
             "description": "공식 ACMER S2 작업 공간 및 GRBL 기본값.",
             "advisory": "ACMER는 300 × 300mm 조각 영역을 지정합니다. Beam Bench는 기계가 연결될 때 호환되는 GRBL 컨트롤러 설정을 다시 확인합니다."
           }
-        }
+        },
+        "report_active_profile": "결과와 함께 설정을 공유하려면 이 프로필을 저장하고 활성화하세요.",
+        "community_help": "프리셋이 없거나 사용해 보셨나요? 목록을 확장하는 데 도움을 주세요. 계정이 필요하지 않습니다."
       },
       "material_library": {
         "operation": {
@@ -2617,7 +2633,7 @@
     "raster_plan_too_complex": "이 이미지는 현재 크기와 DPI에서 개별 래스터 이동을 너무 많이 생성합니다. DPI 또는 실제 크기를 줄이거나 덜 조각화된 이미지 모드를 선택한 다음 미리보기를 다시 생성하세요.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
-   "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",
     "ruida_probe_inconclusive": "Beam Bench could not complete the read-only Ruida compatibility check. No file or motion command was sent. Check the network connection, then submit a bug report if it happens again.",
     "workspace_edge_left": "왼쪽",

@@ -18,12 +18,14 @@ import {
   type SubmitFeedbackResponse,
 } from '../../types/feedback';
 import { useNotificationStore } from '../../stores/notificationStore';
+import type { FeedbackReportOpenDetail } from '../../feedbackEvents';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 const PRIVACY_POLICY_URL = 'https://beambench.com/privacy#post-job-feedback';
 
 export interface FeedbackReportDialogProps {
   kind: FeedbackKind;
-  presentation?: 'default' | 'job_compatibility';
+  presentation?: FeedbackReportOpenDetail['presentation'];
   title?: string;
   description?: string;
   notes?: string;
@@ -66,8 +68,11 @@ export function FeedbackReportDialog({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const previewRequestVersion = useRef(0);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
 
   const isJobCompatibility = presentation === 'job_compatibility';
+  const isMachineReport = presentation === 'machine_request' || presentation === 'machine_test';
   const requiresDescription = kind === 'bug' || kind === 'crash';
   const requiresConnectionNote = kind === 'connectivity' && !isJobCompatibility;
   const busy = busyAction !== null;
@@ -79,9 +84,9 @@ export function FeedbackReportDialog({
     description: description.trim() || null,
     notes: notes.trim() || null,
     reply_to_email: replyToEmail.trim() || null,
-    include_project_file: isJobCompatibility ? false : includeProjectFile,
+    include_project_file: isJobCompatibility || isMachineReport ? false : includeProjectFile,
     source_context: sourceContext ?? null,
-  }), [description, includeProjectFile, isJobCompatibility, kind, notes, replyToEmail, sourceContext, title]);
+  }), [description, includeProjectFile, isJobCompatibility, isMachineReport, kind, notes, replyToEmail, sourceContext, title]);
 
   useEffect(() => {
     previewRequestVersion.current += 1;
@@ -90,6 +95,7 @@ export function FeedbackReportDialog({
   }, [input]);
 
   useEffect(() => {
+    if (isMachineReport) return;
     let cancelled = false;
     const probe = {
       ...input,
@@ -104,14 +110,19 @@ export function FeedbackReportDialog({
       if (!cancelled) setProjectSize(null);
     });
     return () => { cancelled = true; };
-  }, [input, requiresDescription, t]);
+  }, [input, isMachineReport, requiresDescription, t]);
 
   const validationMessage = (requireSubmissionContext = true): string | null => {
+    if (requireSubmissionContext && isMachineReport && title.trim().length === 0) {
+      return t('dialog.feedback.validation_machine_model_required');
+    }
     if (requiresDescription && description.trim().length === 0) {
       return t('dialog.feedback.validation_description_required');
     }
     if (requireSubmissionContext && requiresConnectionNote && notes.trim().length === 0) {
-      return t('dialog.feedback.validation_connection_note_required');
+      return t(isMachineReport
+        ? 'dialog.feedback.validation_machine_details_required'
+        : 'dialog.feedback.validation_connection_note_required');
     }
     if (title.length > MAX_FEEDBACK_TITLE_CHARS) {
       return t('dialog.feedback.validation_title_max', { max: MAX_FEEDBACK_TITLE_CHARS });
@@ -196,11 +207,11 @@ export function FeedbackReportDialog({
 
   if (success?.type === 'saved') {
     return (
-      <div className="fixed inset-0 z-[9800] flex items-center justify-center bg-black/35 px-4">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="feedback-report-heading" className="fixed inset-0 z-[9800] flex items-center justify-center bg-black/35 px-4">
         <div className="w-[520px] max-w-full rounded-lg border border-bb-border bg-bb-panel shadow-2xl">
           <div className="flex items-center justify-between border-b border-bb-border px-5 py-3">
-            <h2 className="text-sm font-semibold text-bb-text">{t('dialog.feedback.report_saved')}</h2>
-            <button type="button" onClick={onClose} className="rounded p-1 text-bb-text-dim hover:bg-bb-hover">
+            <h2 id="feedback-report-heading" className="text-sm font-semibold text-bb-text">{t('dialog.feedback.report_saved')}</h2>
+            <button type="button" aria-label={t('common.close')} onClick={onClose} className="rounded p-1 text-bb-text-dim hover:bg-bb-hover">
               <X size={16} />
             </button>
           </div>
@@ -232,11 +243,11 @@ export function FeedbackReportDialog({
 
   if (success?.type === 'submitted') {
     return (
-      <div className="fixed inset-0 z-[9800] flex items-center justify-center bg-black/35 px-4">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="feedback-report-heading" className="fixed inset-0 z-[9800] flex items-center justify-center bg-black/35 px-4">
         <div className="w-[520px] max-w-full rounded-lg border border-bb-border bg-bb-panel shadow-2xl">
           <div className="flex items-center justify-between border-b border-bb-border px-5 py-3">
-            <h2 className="text-sm font-semibold text-bb-text">{t('dialog.feedback.report_submitted')}</h2>
-            <button type="button" onClick={onClose} className="rounded p-1 text-bb-text-dim hover:bg-bb-hover">
+            <h2 id="feedback-report-heading" className="text-sm font-semibold text-bb-text">{t('dialog.feedback.report_submitted')}</h2>
+            <button type="button" aria-label={t('common.close')} onClick={onClose} className="rounded p-1 text-bb-text-dim hover:bg-bb-hover">
               <X size={16} />
             </button>
           </div>
@@ -273,23 +284,34 @@ export function FeedbackReportDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[9800] flex items-center justify-center bg-black/35 px-4">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="feedback-report-heading" className="fixed inset-0 z-[9800] flex items-center justify-center bg-black/35 px-4">
       <div className="flex max-h-[90vh] w-[680px] max-w-full flex-col rounded-lg border border-bb-border bg-bb-panel shadow-2xl">
         <div className="flex items-center justify-between border-b border-bb-border px-5 py-3">
-          <h2 className="text-sm font-semibold text-bb-text">
-            {isJobCompatibility
-              ? t('dialog.feedback.title_job_compatibility')
-              : kind === 'connectivity'
-                ? t('dialog.feedback.title_connectivity')
-                : t('dialog.feedback.title_bug')}
+          <h2 id="feedback-report-heading" className="text-sm font-semibold text-bb-text">
+            {isMachineReport
+              ? t(presentation === 'machine_request'
+                ? 'dialog.feedback.title_machine_request'
+                : 'dialog.feedback.title_machine_test')
+              : isJobCompatibility
+                ? t('dialog.feedback.title_job_compatibility')
+                : kind === 'connectivity'
+                  ? t('dialog.feedback.title_connectivity')
+                  : t('dialog.feedback.title_bug')}
           </h2>
-          <button type="button" onClick={onClose} className="rounded p-1 text-bb-text-dim hover:bg-bb-hover">
+          <button type="button" aria-label={t('common.close')} onClick={onClose} className="rounded p-1 text-bb-text-dim hover:bg-bb-hover">
             <X size={16} />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
           <div className="grid gap-3">
+            {isMachineReport && (
+              <p className="rounded border border-bb-border bg-bb-bg/60 p-3 text-xs text-bb-text-muted">
+                {t(presentation === 'machine_request'
+                  ? 'dialog.feedback.machine_request_help'
+                  : 'dialog.feedback.machine_test_help')}
+              </p>
+            )}
             {isJobCompatibility && (
               <div className="rounded border border-bb-border bg-bb-bg/60 p-3 text-xs text-bb-text-dim">
                 <p>{t('dialog.feedback.job_compatibility_help')}</p>
@@ -307,9 +329,13 @@ export function FeedbackReportDialog({
               </div>
             )}
             <label className="grid gap-1 text-xs text-bb-text">
-              <span className="font-medium">{t('dialog.feedback.field_title')}</span>
+              <span className="font-medium">{t(isMachineReport
+                ? 'dialog.feedback.field_machine_model'
+                : 'dialog.feedback.field_title')}</span>
               <input
                 value={title}
+                required={isMachineReport}
+                autoFocus={isMachineReport}
                 maxLength={MAX_FEEDBACK_TITLE_CHARS}
                 onChange={(event) => setTitle(event.target.value)}
                 className="rounded border border-bb-border bg-bb-bg px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-bb-accent"
@@ -317,11 +343,15 @@ export function FeedbackReportDialog({
             </label>
 
             <label className="grid gap-1 text-xs text-bb-text">
-              <span className="font-medium">{isJobCompatibility
-                ? t('dialog.feedback.field_optional_comment')
-                : kind === 'connectivity'
-                  ? t('dialog.feedback.field_connection_details')
-                  : t('dialog.feedback.field_description')}</span>
+              <span className="font-medium">{isMachineReport
+                ? t(presentation === 'machine_request'
+                  ? 'dialog.feedback.field_machine_request'
+                  : 'dialog.feedback.field_machine_test')
+                : isJobCompatibility
+                  ? t('dialog.feedback.field_optional_comment')
+                  : kind === 'connectivity'
+                    ? t('dialog.feedback.field_connection_details')
+                    : t('dialog.feedback.field_description')}</span>
               <textarea
                 value={kind === 'connectivity' ? notes : description}
                 maxLength={MAX_FEEDBACK_DESCRIPTION_CHARS}
@@ -336,7 +366,9 @@ export function FeedbackReportDialog({
             </label>
 
             <label className="grid gap-1 text-xs text-bb-text">
-              <span className="font-medium">{t('dialog.feedback.field_reply_to')}</span>
+              <span className="font-medium">{t(isMachineReport
+                ? 'dialog.feedback.field_optional_reply_to'
+                : 'dialog.feedback.field_reply_to')}</span>
               <input
                 value={replyToEmail}
                 maxLength={MAX_FEEDBACK_REPLY_TO_EMAIL_CHARS}
@@ -345,7 +377,7 @@ export function FeedbackReportDialog({
               />
             </label>
 
-            {!isJobCompatibility && (
+            {!isJobCompatibility && !isMachineReport && (
               <label className={`flex items-start gap-2 rounded border border-bb-border bg-bb-bg/50 p-2 text-xs ${projectTooLarge ? 'text-bb-text-dim' : 'text-bb-text'}`}>
                 <input
                   type="checkbox"
@@ -381,17 +413,21 @@ export function FeedbackReportDialog({
                 <span>{t('dialog.feedback.what_gets_sent')}</span>
                 {previewOpen ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
-              <div className="border-t border-bb-border px-3 py-2 text-xs text-bb-text-dim">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {[...SUBMIT_FEEDBACK_DISCLOSURE_FIELDS, ...DIAGNOSTIC_BUNDLE_DISCLOSURE_FIELDS.map((field) => `bundle.${field}`)]
-                    .map((field) => <div key={field}>{fieldLabel(field)}</div>)}
+              {(!isMachineReport || previewOpen) && (
+                <div className="border-t border-bb-border px-3 py-2 text-xs text-bb-text-dim">
+                  {!isMachineReport && (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                      {[...SUBMIT_FEEDBACK_DISCLOSURE_FIELDS, ...DIAGNOSTIC_BUNDLE_DISCLOSURE_FIELDS.map((field) => `bundle.${field}`)]
+                        .map((field) => <div key={field}>{fieldLabel(field)}</div>)}
+                    </div>
+                  )}
+                  {previewOpen && (
+                    <pre className="mt-3 max-h-64 overflow-auto rounded bg-bb-bg p-3 text-[11px] text-bb-text">
+                      {preview ? JSON.stringify(preview, null, 2) : t('dialog.feedback.loading')}
+                    </pre>
+                  )}
                 </div>
-                {previewOpen && (
-                  <pre className="mt-3 max-h-64 overflow-auto rounded bg-bb-bg p-3 text-[11px] text-bb-text">
-                    {preview ? JSON.stringify(preview, null, 2) : t('dialog.feedback.loading')}
-                  </pre>
-                )}
-              </div>
+              )}
             </div>
 
           </div>

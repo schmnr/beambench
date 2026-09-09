@@ -5,6 +5,8 @@ import { useMachineStore } from '../../../stores/machineStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { useAppStore } from '../../../stores/appStore';
 import type { MachineProfile } from '../../../types/machine';
+import { MachinePresetPanel } from '../MachinePresetPanel';
+import { FEEDBACK_REPORT_OPEN_EVENT } from '../../../feedbackEvents';
 
 const mockInvoke = vi.fn().mockResolvedValue([]);
 const mockOpen = vi.fn().mockResolvedValue(null);
@@ -556,38 +558,45 @@ describe('MachineProfileDialog', () => {
     expect(screen.getByLabelText('Name')).toBeDefined();
   });
 
-  it('previews and applies machine presets with explicit confirmation', async () => {
+  it.each([
+    { presetId: 'sculpfun_s30_pro_max_20w', name: 'Sculpfun S30 Pro Max 20W', airOn: 'M8', width: 370, height: 360, homing: true },
+    { presetId: 'sculpfun_s9', name: 'Sculpfun S9 (5.5W)', airOn: '', width: 410, height: 415, homing: false },
+  ])('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing }) => {
     const profile = makeProfile({ id: 'prof-preset', name: 'Preset Profile' });
     const appliedProfile = {
       ...profile,
-      preset_id: 'sculpfun_s30_pro_max_20w',
+      preset_id: presetId,
       preset_version: 1,
-      air_assist_on_gcode: 'M8',
+      air_assist_on_gcode: airOn,
+      air_assist_off_gcode: airOn ? 'M9' : '',
+      bed_width_mm: width,
+      bed_height_mm: height,
+      homing_enabled: homing,
     };
 
     mockInvoke.mockImplementation((cmd: string, args?: unknown) => {
       if (cmd === 'get_machine_profile_presets') {
         return Promise.resolve([
           {
-            id: 'sculpfun_s30_pro_max_20w',
+            id: presetId,
             version: 1,
-            name: 'Sculpfun S30 Pro Max 20W',
+            name,
             description: 'Sculpfun defaults',
             advisory_text: 'Use a wall outlet if air assist resets the controller.',
             origin: 'bottom_left',
             firmware_type: 'grbl',
             default_baud_rate: 115200,
-            bed_width_mm: 370,
-            bed_height_mm: 360,
+            bed_width_mm: width,
+            bed_height_mm: height,
             max_speed_mm_min: 6000,
             max_power_percent: 100,
             s_value_max: 1000,
-            homing_enabled: true,
+            homing_enabled: homing,
             use_constant_power: false,
             emit_s_every_g1: false,
             use_g0_for_overscan: true,
-            air_assist_on_gcode: 'M8',
-            air_assist_off_gcode: 'M9',
+            air_assist_on_gcode: airOn,
+            air_assist_off_gcode: airOn ? 'M9' : '',
             air_assist_on_delay_ms: 0,
             job_header_gcode: '',
             job_footer_gcode: '',
@@ -599,20 +608,20 @@ describe('MachineProfileDialog', () => {
       if (cmd === 'get_machine_profile_preset_diff') {
         expect(args).toMatchObject({
           profileId: 'prof-preset',
-          presetId: 'sculpfun_s30_pro_max_20w',
+          presetId,
         });
-        return Promise.resolve([{ field: 'air_assist_on_gcode', old: 'M7', new: 'M8' }]);
+        return Promise.resolve([{ field: 'air_assist_on_gcode', old: 'M7', new: airOn }]);
       }
       if (cmd === 'apply_machine_profile_preset') {
         expect(args).toMatchObject({
           profileId: 'prof-preset',
-          presetId: 'sculpfun_s30_pro_max_20w',
+          presetId,
           confirmDiff: true,
         });
         return Promise.resolve({
           applied: true,
           profile: appliedProfile,
-          diff: [{ field: 'air_assist_on_gcode', old: 'M7', new: 'M8' }],
+          diff: [{ field: 'air_assist_on_gcode', old: 'M7', new: airOn }],
         });
       }
       return Promise.resolve([]);
@@ -633,7 +642,14 @@ describe('MachineProfileDialog', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('machine-preset-select')).toBeDefined();
+      expect(screen.getByRole('option', { name })).toBeDefined();
     });
+
+    if (presetId === 'sculpfun_s9') {
+      expect(screen.getByText(/Hardware testing is pending/)).toBeDefined();
+      expect(screen.getByText(/Homing and automatic air assist are off/)).toBeDefined();
+    }
+    expect((screen.getByTestId('machine-preset-apply') as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(screen.getByTestId('machine-preset-preview'));
 
@@ -646,11 +662,45 @@ describe('MachineProfileDialog', () => {
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('apply_machine_profile_preset', {
         profileId: 'prof-preset',
-        presetId: 'sculpfun_s30_pro_max_20w',
+        presetId,
         confirmDiff: true,
       });
-      expect((screen.getByLabelText('Air On G-code') as HTMLInputElement).value).toBe('M8');
+      expect((screen.getByLabelText('Air On G-code') as HTMLInputElement).value).toBe(airOn);
       expect(loadProfiles).toHaveBeenCalled();
     });
+  });
+});
+
+
+describe('Machine preset community reports', () => {
+  it('offers requests with unsaved profiles and only shares settings from a saved active profile', async () => {
+    const profile = makeProfile({ name: 'Sculpfun S9' });
+    useMachineStore.setState({ activeProfileId: null });
+    const listener = vi.fn();
+    window.addEventListener(FEEDBACK_REPORT_OPEN_EVENT, listener);
+    try {
+      const { rerender } = render(<MachinePresetPanel profile={profile} profileExists={false} dirty onApplied={vi.fn()} />);
+      await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('get_machine_profile_presets'));
+      fireEvent.click(screen.getByRole('button', { name: 'Request a machine preset' }));
+      expect(listener.mock.calls[0][0].detail).toEqual({
+        kind: 'connectivity', presentation: 'machine_request',
+        sourceContext: { source: 'machine_preset_panel', feature: 'machine_preset_request' },
+      });
+      const share = () => screen.getByRole('button', { name: 'Share machine test results' }) as HTMLButtonElement;
+      expect(share().disabled).toBe(true);
+      rerender(<MachinePresetPanel profile={profile} profileExists dirty={false} onApplied={vi.fn()} />);
+      expect(share().disabled).toBe(true);
+      act(() => useMachineStore.setState({ activeProfileId: profile.id }));
+      expect(share().disabled).toBe(false);
+      fireEvent.click(share());
+      expect(listener.mock.calls[1][0].detail).toEqual({
+        kind: 'connectivity', presentation: 'machine_test', title: 'Sculpfun S9',
+        sourceContext: { source: 'machine_preset_panel', feature: 'machine_test_report' },
+      });
+      rerender(<MachinePresetPanel profile={profile} profileExists dirty onApplied={vi.fn()} />);
+      expect(share().disabled).toBe(true);
+    } finally {
+      window.removeEventListener(FEEDBACK_REPORT_OPEN_EVENT, listener);
+    }
   });
 });

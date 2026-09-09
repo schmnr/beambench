@@ -799,7 +799,17 @@
       "save_report_to_file": "Rapport opslaan in bestand",
       "submitting": "Verzenden...",
       "send_to_beam_bench": "Stuur naar Beam Bench",
-      "submit": "Verzenden"
+      "submit": "Verzenden",
+      "title_machine_request": "Machinevoorinstelling aanvragen",
+      "title_machine_test": "Machinetestresultaten delen",
+      "machine_request_help": "Geen account nodig. Voeg zo mogelijk een product- of handleidinglink, controller en aanpassingen toe. Je tekst, appversie en systeemgegevens worden verzonden.",
+      "machine_test_help": "Geen account nodig. Geef voor verbinding, beweging, kaderbeweging, taken, pauzeren/hervatten en annuleren aan of ze geslaagd, mislukt of niet getest zijn. Vermeld firmware en aanpassingen. Opgeslagen instellingen van het actieve profiel en beschikbare firmwaregegevens worden verzonden, zonder projectgegevens of logboeken.",
+      "field_machine_model": "Fabrikant en exact model",
+      "field_machine_request": "Machinegegevens en nuttige links",
+      "field_machine_test": "Testresultaten en configuratie",
+      "validation_machine_model_required": "Vul de fabrikant en het exacte model in.",
+      "validation_machine_details_required": "Voeg machinegegevens of testresultaten toe.",
+      "field_optional_reply_to": "Antwoord op e-mail (optioneel)"
     },
     "material_test": {
       "title": "Materiaaltest",
@@ -2175,11 +2185,17 @@
         "preview": "Voorbeeld",
         "no_changes": "Geen wijzigingen.",
         "catalog": {
+          "sculpfun_s9": {
+            "description": "Voorinstelling op basis van documentatie voor de oorspronkelijke Sculpfun S9 met GRBL 1.1f of nieuwer. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "Conservatief werkgebied van 410 x 415 mm. Controleer de asafstanden en maximale S-waarde van uw machine. Homen en automatische luchtondersteuning staan uit; schakel ze alleen in voor geïnstalleerde en geconfigureerde uitbreidingen. Gebruik zonder homingschakelaars Huidige positie of Gebruikersnulpunt."
+          },
           "acmer_s2": {
             "description": "Officiële ACMER S2-werkruimte en GRBL-standaardinstellingen.",
             "advisory": "ACMER specificeert een graveergebied van 300 × 300 mm. Beam Bench controleert de compatibele GRBL-controllerinstellingen opnieuw wanneer de machine verbinding maakt."
           }
-        }
+        },
+        "report_active_profile": "Sla dit profiel op en activeer het om de instellingen met je resultaten te delen.",
+        "community_help": "Ontbreekt een voorinstelling of heb je er een getest? Help de catalogus uit te breiden. Geen account nodig."
       },
       "material_library": {
         "operation": {
@@ -2617,7 +2633,7 @@
     "raster_plan_too_complex": "Deze afbeelding maakt met de huidige grootte en DPI te veel afzonderlijke rasterbewegingen. Verlaag de DPI of de fysieke grootte, of kies een minder gefragmenteerde afbeeldingsmodus, en genereer daarna opnieuw het voorbeeld.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
-   "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",
     "ruida_probe_inconclusive": "Beam Bench could not complete the read-only Ruida compatibility check. No file or motion command was sent. Check the network connection, then submit a bug report if it happens again.",
     "workspace_edge_left": "linker",

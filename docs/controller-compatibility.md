@@ -13,6 +13,12 @@ Experimental confirmation.
 
 ## Current Compatibility
 
+Named machine presets supply model defaults and have their own evidence scope.
+They do not change an adapter's status below. See the
+[preset catalog process and evidence records](machine-presets.md). The original
+[Sculpfun S9 preset](machines/sculpfun-s9.md) uses the existing GRBL adapter and
+is documentation-based, with physical Beam Bench testing pending.
+
 | Controller choice | Connection | Status | Current scope |
 | --- | --- | --- | --- |
 | GRBL | Serial | Supported | Existing GRBL job, framing, homing, jogging, unlock, origin, pause/resume, and status workflow. Experimental generic rotary mode is described below. |

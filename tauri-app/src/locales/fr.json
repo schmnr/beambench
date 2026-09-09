@@ -798,8 +798,18 @@
       "saving": "Sauvegarde...",
       "save_report_to_file": "Enregistrer le rapport dans un fichier",
       "submitting": "Envoi...",
-      "send_to_beam_bench": "Envoyer au banc de poutre",
-      "submit": "Soumettre"
+      "send_to_beam_bench": "Envoyer à Beam Bench",
+      "submit": "Soumettre",
+      "title_machine_request": "Demander un préréglage machine",
+      "title_machine_test": "Partager les résultats de tests",
+      "machine_request_help": "Aucun compte requis. Ajoutez un lien vers le produit ou le manuel, le contrôleur et les modifications si vous les connaissez. Votre texte, la version de l’application et les informations système sont envoyés.",
+      "machine_test_help": "Aucun compte requis. Indiquez si la connexion, les déplacements, le cadrage, les travaux, la pause/reprise et l’annulation ont réussi, échoué ou n’ont pas été testés. Précisez le micrologiciel et les modifications. Les réglages enregistrés du profil actif et les informations disponibles sur le micrologiciel sont envoyés, sans données de projet ni journaux.",
+      "field_machine_model": "Fabricant et modèle exact",
+      "field_machine_request": "Détails de la machine et liens utiles",
+      "field_machine_test": "Résultats des tests et configuration",
+      "validation_machine_model_required": "Indiquez le fabricant et le modèle exact.",
+      "validation_machine_details_required": "Ajoutez des détails sur la machine ou des résultats de tests.",
+      "field_optional_reply_to": "E-mail de réponse (facultatif)"
     },
     "material_test": {
       "title": "Essai de matériau",
@@ -2175,11 +2185,17 @@
         "preview": "Aperçu",
         "no_changes": "Aucun changement.",
         "catalog": {
+          "sculpfun_s9": {
+            "description": "Préréglage basé sur la documentation pour la Sculpfun S9 d’origine avec GRBL 1.1f ou ultérieur. Les essais sur machine restent à faire.",
+            "advisory": "Zone de travail prudente de 410 x 415 mm. Vérifiez les courses et la valeur S maximale de votre machine. Le référencement et l’assistance pneumatique automatique sont désactivés ; activez-les uniquement si les équipements sont installés et configurés. Sans capteurs de référencement, utilisez Position actuelle ou Origine utilisateur."
+          },
           "acmer_s2": {
             "description": "Zone de travail officielle et réglages GRBL par défaut de l’ACMER S2.",
             "advisory": "ACMER indique une zone de gravure de 300 × 300 mm. Beam Bench revérifiera les réglages GRBL compatibles lors de la connexion de la machine."
           }
-        }
+        },
+        "report_active_profile": "Enregistrez et activez ce profil pour joindre ses réglages à vos résultats.",
+        "community_help": "Un préréglage manque ou vous en avez testé un ? Aidez à enrichir le catalogue. Aucun compte requis."
       },
       "material_library": {
         "operation": {

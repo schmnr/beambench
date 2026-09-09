@@ -799,7 +799,17 @@
       "save_report_to_file": "Jelentés mentése fájlba",
       "submitting": "Beküldés...",
       "send_to_beam_bench": "Küldje el a Beam Bench-nek",
-      "submit": "Beküld"
+      "submit": "Beküld",
+      "title_machine_request": "Gép-előbeállítás kérése",
+      "title_machine_test": "Géptesztek eredményeinek megosztása",
+      "machine_request_help": "Nincs szükség fiókra. Adjon meg termék- vagy kézikönyvhivatkozást, vezérlőt és módosításokat, ha ismeri őket. A szöveg, az alkalmazás verziója és a rendszeradatok kerülnek elküldésre.",
+      "machine_test_help": "Nincs szükség fiókra. Jelölje sikeresnek, sikertelennek vagy nem teszteltnek a csatlakozást, mozgást, keretezést, feladatokat, szüneteltetést/folytatást és megszakítást. Adja meg a firmware-t és a módosításokat. Az aktív profil mentett beállításai és az elérhető firmware-adatok kerülnek elküldésre, projektadatok és naplók nélkül.",
+      "field_machine_model": "Gyártó és pontos modell",
+      "field_machine_request": "Gépadatok és hasznos hivatkozások",
+      "field_machine_test": "Teszteredmények és konfiguráció",
+      "validation_machine_model_required": "Adja meg a gyártót és a pontos modellt.",
+      "validation_machine_details_required": "Adjon meg gépadatokat vagy teszteredményeket.",
+      "field_optional_reply_to": "Válasz e-mailre (nem kötelező)"
     },
     "material_test": {
       "title": "Anyagpróba",
@@ -2175,11 +2185,17 @@
         "preview": "Előnézet",
         "no_changes": "Nincs változás.",
         "catalog": {
+          "sculpfun_s9": {
+            "description": "Dokumentáción alapuló előbeállítás az eredeti Sculpfun S9 géphez, GRBL 1.1f vagy újabb verzióval. A gépen végzett tesztek még hátravannak.",
+            "advisory": "Óvatosan meghatározott, 410 x 415 mm-es munkaterület. Ellenőrizze a tengelyutakat és a gép maximális S-értékét. A referenciapont-keresés és az automatikus levegőrásegítés ki van kapcsolva; csak telepített és beállított bővítésekhez engedélyezze őket. Referenciakapcsolók nélkül használja az Aktuális pozíció vagy a Felhasználói origó módot."
+          },
           "acmer_s2": {
             "description": "Hivatalos ACMER S2 munkaterület és GRBL alapbeállítások.",
             "advisory": "Az ACMER 300 × 300 mm-es gravírozási területet határoz meg. A Beam Bench újraellenőrzi a kompatibilis GRBL vezérlő beállításait, amikor a gép csatlakozik."
           }
-        }
+        },
+        "report_active_profile": "Mentse és aktiválja ezt a profilt, hogy beállításait az eredményekkel együtt megoszthassa.",
+        "community_help": "Hiányzik egy előbeállítás, vagy kipróbált egyet? Segítsen bővíteni a katalógust. Nincs szükség fiókra."
       },
       "material_library": {
         "operation": {
@@ -2617,7 +2633,7 @@
     "raster_plan_too_complex": "Ez a kép a jelenlegi méret és DPI mellett túl sok különálló rasztermozgást hoz létre. Csökkentse a DPI-t vagy a fizikai méretet, vagy válasszon kevésbé töredezett képmódot, majd készítse el újra az előnézetet.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
-   "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",
     "ruida_probe_inconclusive": "Beam Bench could not complete the read-only Ruida compatibility check. No file or motion command was sent. Check the network connection, then submit a bug report if it happens again.",
     "workspace_edge_left": "bal",
