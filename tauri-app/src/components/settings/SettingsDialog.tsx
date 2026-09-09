@@ -442,7 +442,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <div className="px-5 py-8 text-sm text-bb-text-muted">{t('dialog.settings.loading')}</div>
         ) : (
           <div className="flex min-h-0 flex-1 bg-bb-bg/20">
-            <div className="w-48 shrink-0 border-r border-bb-border bg-bb-surface/30">
+            <div className="w-56 shrink-0 border-r border-bb-border bg-bb-surface/30">
               <DialogTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} orientation={DIALOG_TAB_ORIENTATION.vertical} />
             </div>
 
