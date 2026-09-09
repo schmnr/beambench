@@ -490,15 +490,15 @@ create_sandbox_safe_dmg() {
 
 load_bundle_paths() {
   local dmg_count archive_count signature_count
-  dmg_count="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.dmg' 2>/dev/null | wc -l | tr -d ' ')"
+  dmg_count="$(find "$UNIVERSAL_DIR/bundle" -type f -name "Beam Bench_${VERSION}_universal.dmg" 2>/dev/null | wc -l | tr -d ' ')"
   archive_count="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.app.tar.gz' 2>/dev/null | wc -l | tr -d ' ')"
   signature_count="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.app.tar.gz.sig' 2>/dev/null | wc -l | tr -d ' ')"
 
-  [[ "$dmg_count" == "1" ]] || die "Expected one DMG, found $dmg_count."
+  [[ "$dmg_count" == "1" ]] || die "Expected one DMG for $VERSION, found $dmg_count."
   [[ "$archive_count" == "1" ]] || die "Expected one updater archive, found $archive_count."
   [[ "$signature_count" == "1" ]] || die "Expected one updater signature, found $signature_count."
 
-  DMG="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.dmg' | head -n 1)"
+  DMG="$(find "$UNIVERSAL_DIR/bundle" -type f -name "Beam Bench_${VERSION}_universal.dmg" | head -n 1)"
   APP_ARCHIVE="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.app.tar.gz' | head -n 1)"
   APP_SIGNATURE="$(find "$UNIVERSAL_DIR/bundle" -type f -name '*.app.tar.gz.sig' | head -n 1)"
 }
