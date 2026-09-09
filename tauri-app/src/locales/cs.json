@@ -799,7 +799,17 @@
       "save_report_to_file": "Uložit zprávu do souboru",
       "submitting": "Odesílání...",
       "send_to_beam_bench": "Odeslat do Beam Bench",
-      "submit": "Odeslat"
+      "submit": "Odeslat",
+      "title_machine_request": "Požádat o předvolbu stroje",
+      "title_machine_test": "Sdílet výsledky testů stroje",
+      "machine_request_help": "Účet není potřeba. Přidejte odkaz na produkt nebo návod, řídicí jednotku a úpravy, pokud je znáte. Odešle se váš text, verze aplikace a údaje o systému.",
+      "machine_test_help": "Účet není potřeba. U připojení, pohybu, orámování, úloh, pozastavení/pokračování a zrušení uveďte úspěch, neúspěch nebo netestováno. Uveďte firmware a úpravy. Odešle se uložené nastavení aktivního profilu a dostupné údaje o firmwaru, bez dat projektu a protokolů.",
+      "field_machine_model": "Výrobce a přesný model",
+      "field_machine_request": "Údaje o stroji a užitečné odkazy",
+      "field_machine_test": "Výsledky testů a konfigurace",
+      "validation_machine_model_required": "Zadejte výrobce a přesný model.",
+      "validation_machine_details_required": "Doplňte údaje o stroji nebo výsledky testů.",
+      "field_optional_reply_to": "Odpověď na email (volitelné)"
     },
     "material_test": {
       "title": "Zkouška materiálu",
@@ -2175,11 +2185,17 @@
         "preview": "Náhled",
         "no_changes": "Žádné změny.",
         "catalog": {
+          "sculpfun_s9": {
+            "description": "Předvolba podle dokumentace pro původní Sculpfun S9 s GRBL 1.1f nebo novějším. Testy na stroji zatím nebyly provedeny.",
+            "advisory": "Konzervativní pracovní plocha 410 x 415 mm. Ověřte rozsah pojezdu a maximální hodnotu S stroje. Referování a automatický ofuk jsou vypnuté; zapněte je pouze pro nainstalovaná a nastavená rozšíření. Bez referenčních spínačů použijte Aktuální polohu nebo Uživatelský počátek."
+          },
           "acmer_s2": {
             "description": "Oficiální pracovní prostor ACMER S2 a výchozí nastavení GRBL.",
             "advisory": "ACMER specifikuje gravírovací plochu 300 × 300 mm. Beam Bench po připojení stroje znovu zkontroluje kompatibilní nastavení ovladače GRBL."
           }
-        }
+        },
+        "report_active_profile": "Uložte a aktivujte tento profil, chcete-li sdílet jeho nastavení s výsledky.",
+        "community_help": "Chybí předvolba nebo jste některou vyzkoušeli? Pomozte rozšířit katalog. Účet není potřeba."
       },
       "material_library": {
         "operation": {
@@ -2617,7 +2633,7 @@
     "raster_plan_too_complex": "Tento obrázek při aktuální velikosti a DPI vytváří příliš mnoho jednotlivých rastrových pohybů. Snižte DPI nebo fyzickou velikost, případně zvolte méně fragmentovaný režim obrázku, a poté náhled vytvořte znovu.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
-   "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",
     "ruida_probe_inconclusive": "Beam Bench could not complete the read-only Ruida compatibility check. No file or motion command was sent. Check the network connection, then submit a bug report if it happens again.",
     "workspace_edge_left": "levý",

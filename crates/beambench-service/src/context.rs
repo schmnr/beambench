@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use beambench_common::controller_choice::ControllerConnectionEndpoint;
 use beambench_common::feedback::{
     DiagnosticConnectionEvent, DiagnosticPanic, DiagnosticTerminalJob,
 };
@@ -411,6 +412,30 @@ impl ServiceContext {
         });
     }
 
+    pub fn push_endpoint_connection_event(
+        &self,
+        stage: &str,
+        endpoint: &ControllerConnectionEndpoint,
+        message: Option<String>,
+        error: Option<String>,
+    ) {
+        self.push_connection_event_entry(DiagnosticConnectionEvent {
+            ts: Utc::now().to_rfc3339(),
+            stage: stage.to_owned(),
+            error_code: error.as_deref().and_then(connection_error_code),
+            port_name: Some(endpoint.display_name()),
+            baud_rate: endpoint.baud_rate(),
+            transport_kind: serde_json::to_value(endpoint.transport_kind())
+                .ok()
+                .and_then(|value| value.as_str().map(str::to_owned)),
+            vendor_id: None,
+            product_id: None,
+            usb_driver: None,
+            message,
+            error,
+        });
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn push_usb_connection_event(
         &self,
@@ -438,7 +463,7 @@ impl ServiceContext {
         });
     }
 
-    fn push_connection_event_entry(&self, event: DiagnosticConnectionEvent) {
+    pub(crate) fn push_connection_event_entry(&self, event: DiagnosticConnectionEvent) {
         if let Ok(mut events) = self.connection_events.lock() {
             events.push_back(event);
             while events.len() > CONNECTION_EVENTS_CAP {

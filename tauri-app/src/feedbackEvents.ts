@@ -4,7 +4,7 @@ export const FEEDBACK_REPORT_OPEN_EVENT = 'beam-bench-open-feedback-report';
 
 export interface FeedbackReportOpenDetail {
   kind: FeedbackKind;
-  presentation?: 'default' | 'job_compatibility';
+  presentation?: 'default' | 'job_compatibility' | 'machine_request' | 'machine_test';
   title?: string;
   description?: string;
   notes?: string;

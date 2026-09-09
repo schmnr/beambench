@@ -196,23 +196,25 @@ impl GrblSession {
     /// Process incoming data. Returns parsed responses.
     pub fn poll(&mut self) -> Result<Vec<GrblResponse>, GrblError> {
         let mut responses = Vec::new();
-
-        loop {
-            match self.transport.read_line()? {
-                Some(line) if !line.is_empty() => {
-                    if line.contains('\u{FFFD}') {
-                        self.saw_undecodable_data = true;
-                    }
-                    self.identity_detector.observe_line(&line);
-                    let response = parser::parse_response(&line);
-                    self.handle_response(&response, &line);
-                    responses.push(response);
-                }
-                _ => break,
-            }
+        while let Some(response) = self.poll_response()? {
+            responses.push(response);
         }
-
         Ok(responses)
+    }
+
+    /// Read and apply one response so a job can handle it before a later read
+    /// fails or a later status changes the session state again.
+    pub fn poll_response(&mut self) -> Result<Option<GrblResponse>, GrblError> {
+        let Some(line) = self.transport.read_line()?.filter(|line| !line.is_empty()) else {
+            return Ok(None);
+        };
+        if line.contains('\u{FFFD}') {
+            self.saw_undecodable_data = true;
+        }
+        self.identity_detector.observe_line(&line);
+        let response = parser::parse_response(&line);
+        self.handle_response(&response, &line);
+        Ok(Some(response))
     }
 
     fn handle_response(&mut self, response: &GrblResponse, raw_line: &str) {

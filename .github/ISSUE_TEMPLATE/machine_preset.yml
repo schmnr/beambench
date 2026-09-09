@@ -1,0 +1,72 @@
+name: Machine preset request or test report
+description: Request a machine preset, share working settings, or report test results
+title: "[Machine]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You do not need to write code or own a machine to request a preset. Owner test reports help us expand the catalog without the maintainer owning every model. Read the [catalog process](https://github.com/schmnr/beambench/blob/main/docs/machine-presets.md).
+        This issue is public. Remove personal information from notes, profiles, and console output. Send private diagnostics through [Beam Bench Support](https://beambench.com/support).
+  - type: dropdown
+    id: request_type
+    attributes:
+      label: What are you sharing?
+      options:
+        - Request a preset
+        - Working profile or test results
+        - Incorrect preset settings or a regression
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Exact manufacturer and model
+      description: Include laser/module variant. Avoid just the brand name.
+      placeholder: Sculpfun S9 5.5W
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Controller and modifications
+      description: Board/firmware if known, connection type, extension frame, limit switches, air-assist upgrades, or rotary attachment. Unknown is fine for a request.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Manuals and settings sources
+      description: Link manufacturer documentation or published profiles. Distinguish documented values from your measurements or estimates.
+  - type: textarea
+    id: version
+    attributes:
+      label: Test environment
+      description: For a test report, include Beam Bench version, preset ID/version or Generic GRBL, operating system, firmware banner, and test date.
+  - type: textarea
+    id: settings
+    attributes:
+      label: Working settings or profile
+      description: Export a .bbprofile from Machine Profiles and attach it, zipped if needed, or list the settings. Exports omit connection/camera details but retain names, notes, and custom G-code; review before sharing. For GRBL, read-only $I and $$ output can help. Do not send commands that change firmware settings for this report.
+      placeholder: Workspace, origin, baud rate, S-value maximum, homing, air on/off commands, header/footer, and any settings changed from the preset.
+  - type: textarea
+    id: results
+    attributes:
+      label: Checks performed
+      description: Replace Not run with Pass, Fail, or Not applicable and add details. A preset request can leave this blank. Only test operations appropriate for your configured machine.
+      value: |
+        | Check | Result | Details |
+        | --- | --- | --- |
+        | Connect and reconnect | Not run | |
+        | Jog with laser off | Not run | |
+        | Frame with laser off | Not run | Start From mode: |
+        | Small vector job | Not run | |
+        | Small raster job | Not run | |
+        | Pause and resume | Not run | |
+        | Cancel and recovery | Not run | |
+        | Homing, if fitted | Not run | |
+        | Automatic air assist, if fitted | Not run | |
+  - type: textarea
+    id: failures
+    attributes:
+      label: Failures or limitations
+      description: Include reproducible steps, actual behavior, and relevant error messages. A successful connection alone does not establish job compatibility.

@@ -3,6 +3,8 @@ import { wrapBackendError } from '../../i18n/errors';
 import { useTranslation } from 'react-i18next';
 import { machineService } from '../../services/machineService';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { useMachineStore } from '../../stores/machineStore';
+import { openFeedbackReport } from '../../feedbackEvents';
 import type { MachineProfile, MachineProfilePreset, ProfileFieldDiff } from '../../types/machine';
 
 interface MachinePresetPanelProps {
@@ -26,6 +28,8 @@ export function MachinePresetPanel({
 }: MachinePresetPanelProps) {
   const { t } = useTranslation();
   const pushNotification = useNotificationStore((s) => s.push);
+  const activeProfileId = useMachineStore((s) => s.activeProfileId);
+  const canShareTest = profileExists && !dirty && activeProfileId === profile.id;
   const [presets, setPresets] = useState<MachineProfilePreset[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState<string>('');
   const [diff, setDiff] = useState<ProfileFieldDiff[] | null>(null);
@@ -167,6 +171,39 @@ export function MachinePresetPanel({
           </div>
         )}
         {disabledReason && <div className="text-[11px] text-bb-warning-fg">{disabledReason}</div>}
+        <div className="space-y-1 border-t border-bb-border pt-2">
+          <p className="text-[11px] text-bb-text-muted">{t('panels.machine.preset.community_help')}</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded border border-bb-border px-2 py-1 text-xs text-bb-text hover:bg-bb-hover focus-visible:outline focus-visible:outline-bb-accent"
+              onClick={() => openFeedbackReport({
+                kind: 'connectivity',
+                presentation: 'machine_request',
+                sourceContext: { source: 'machine_preset_panel', feature: 'machine_preset_request' },
+              })}
+            >
+              {t('dialog.feedback.title_machine_request')}
+            </button>
+            <button
+              type="button"
+              className="rounded border border-bb-border px-2 py-1 text-xs text-bb-text hover:bg-bb-hover focus-visible:outline focus-visible:outline-bb-accent disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canShareTest}
+              onClick={() => {
+                if (!canShareTest) return;
+                openFeedbackReport({
+                  kind: 'connectivity',
+                  presentation: 'machine_test',
+                  title: profile.name,
+                  sourceContext: { source: 'machine_preset_panel', feature: 'machine_test_report' },
+                });
+              }}
+            >
+              {t('dialog.feedback.title_machine_test')}
+            </button>
+          </div>
+          {!canShareTest && <p className="text-[11px] text-bb-text-muted">{t('panels.machine.preset.report_active_profile')}</p>}
+        </div>
         {error && <div className="text-[11px] text-bb-error-fg">{error}</div>}
         {diff && (
           <div className="max-h-32 overflow-y-auto rounded border border-bb-border">

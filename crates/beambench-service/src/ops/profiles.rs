@@ -392,6 +392,36 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             transfer_mode: TransferMode::Buffered,
             preferred_default_origin: Some(WorkspaceOrigin::BottomLeft),
         },
+        // Sources, conflicting travel specifications, and test scope:
+        // docs/machines/sculpfun-s9.md. Keep upgrades separate from stock defaults.
+        MachineProfilePreset {
+            id: "sculpfun_s9",
+            version: 1,
+            name: "Sculpfun S9 (5.5W)",
+            description: "Documentation-based preset for the original Sculpfun S9 with GRBL 1.1f or newer. Hardware testing is pending.",
+            advisory_text: Some(
+                "Uses a conservative 410 x 415 mm workspace. Check travel and S-value max against your machine. Homing and automatic air assist are off; enable them only for configured upgrades. Use Current Position or User Origin on a machine without homing switches.",
+            ),
+            firmware_type: "grbl",
+            default_baud_rate: 115200,
+            bed_width_mm: 410.0,
+            bed_height_mm: 415.0,
+            max_speed_mm_min: 3000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::BottomLeft,
+            use_constant_power: false,
+            emit_s_every_g1: false,
+            use_g0_for_overscan: true,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::BottomLeft),
+        },
         MachineProfilePreset {
             id: "xtool_m1_original",
             version: 1,
@@ -1590,6 +1620,116 @@ mod tests {
         let second_diff =
             profile_preset_diff(&ctx, created.id, "sculpfun_s30_pro_max_20w").unwrap();
         assert!(second_diff.is_empty());
+    }
+
+    #[test]
+    fn catalog_presets_have_unique_ids_and_valid_machine_settings() {
+        let mut ids = std::collections::HashSet::new();
+        for preset in profile_presets() {
+            assert!(ids.insert(preset.id), "duplicate preset: {}", preset.id);
+            assert!(!preset.id.is_empty());
+            assert!(!preset.name.trim().is_empty(), "{}", preset.id);
+            assert!(preset.version > 0, "{}", preset.id);
+            let mut profile = MachineProfile::default();
+            apply_preset_fields(&mut profile, &preset);
+            validate_profile(&profile)
+                .unwrap_or_else(|error| panic!("invalid preset {}: {}", preset.id, error.message));
+            assert_eq!(
+                preset.air_assist_on_gcode.trim().is_empty(),
+                preset.air_assist_off_gcode.trim().is_empty(),
+                "{} must specify both air commands or neither",
+                preset.id
+            );
+            if preset.air_assist_on_gcode.trim().is_empty() {
+                assert_eq!(preset.air_assist_on_delay_ms, 0, "{}", preset.id);
+            }
+        }
+    }
+
+    #[test]
+    fn sculpfun_s9_preset_applies_stock_settings_and_generates_grbl_output() {
+        use beambench_core::layer::{Layer, OperationType};
+        use beambench_core::object::{ObjectData, ProjectObject, ShapeKind};
+        use beambench_grbl::generate_gcode;
+        use beambench_planner::build_plan;
+
+        let ctx = ServiceContext::with_settings(AppSettings::default());
+        let created = save_profile(&ctx, sample_input()).unwrap();
+        set_active_profile(&ctx, Some(created.id)).unwrap();
+        let mut project = Project::new("S9 stock setup");
+        project.machine_profile_id = Some(created.id);
+        project.workspace.origin = WorkspaceOrigin::BottomLeft;
+        let mut layer = Layer::new("Line", OperationType::Line);
+        layer.primary_entry_mut().air_assist = true;
+        layer.primary_entry_mut().power_percent = 25.0;
+        let layer_id = layer.id;
+        project.layers.push(layer);
+        project.add_object(ProjectObject::new(
+            "rectangle",
+            layer_id,
+            Bounds::new(Point2D::new(10.0, 395.0), Point2D::new(20.0, 405.0)),
+            ObjectData::Shape {
+                kind: ShapeKind::Rectangle,
+                width: 10.0,
+                height: 10.0,
+                corner_radius: 0.0,
+            },
+        ));
+        *ctx.project.lock().unwrap() = Some(project);
+
+        let result = apply_profile_preset(&ctx, created.id, "sculpfun_s9").unwrap();
+        let profile = get_profile(&ctx, ProfileLookup::Id(created.id)).unwrap();
+        assert_eq!(profile.preset_id.as_deref(), Some("sculpfun_s9"));
+        assert_eq!(profile.preset_version, Some(1));
+        assert_eq!(profile.firmware_type, "grbl");
+        assert_eq!(profile.default_baud_rate, 115_200);
+        assert_eq!(profile.bed_width_mm, 410.0);
+        assert_eq!(profile.bed_height_mm, 415.0);
+        assert_eq!(profile.max_speed_mm_min, 3000.0);
+        assert_eq!(profile.s_value_max, 1000);
+        assert_eq!(profile.origin, WorkspaceOrigin::BottomLeft);
+        assert!(!profile.homing_enabled);
+        assert!(!profile.use_constant_power);
+        assert!(profile.air_assist_on_gcode.is_empty());
+        assert!(profile.air_assist_off_gcode.is_empty());
+        assert!(
+            result
+                .diff
+                .iter()
+                .any(|change| { change.field == "air_assist_on_gcode" && change.new == "" })
+        );
+        assert!(
+            profile_preset_diff(&ctx, created.id, "sculpfun_s9")
+                .unwrap()
+                .is_empty()
+        );
+
+        let project = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+        assert_eq!(project.workspace.bed_width_mm, 410.0);
+        assert_eq!(project.workspace.bed_height_mm, 415.0);
+        let plan = build_plan(&project).unwrap();
+        let mut config = super::super::output::build_gcode_config(&project.optimization, &profile);
+        super::super::output::apply_project_gcode_metadata(&mut config, &project);
+        assert!(!config.air_assist_cut_entry_ids.is_empty());
+        let gcode = generate_gcode(&plan, &config).unwrap();
+        assert!(
+            gcode.iter().any(|line| line.starts_with("M4 S250")),
+            "{gcode:?}"
+        );
+        assert!(
+            gcode.iter().any(|line| line.contains("Y10.000")),
+            "{gcode:?}"
+        );
+        assert!(
+            gcode.iter().any(|line| line.contains("Y20.000")),
+            "{gcode:?}"
+        );
+        assert!(gcode.iter().any(|line| line == "M5"));
+        assert!(
+            gcode
+                .iter()
+                .all(|line| !matches!(line.as_str(), "M7" | "M8" | "M9" | "$H"))
+        );
     }
 
     #[test]

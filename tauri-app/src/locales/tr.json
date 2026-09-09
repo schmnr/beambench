@@ -799,7 +799,17 @@
       "save_report_to_file": "Raporu Dosyaya Kaydet",
       "submitting": "Gönderiliyor...",
       "send_to_beam_bench": "Beam Bench'e gönder",
-      "submit": "Gönder"
+      "submit": "Gönder",
+      "title_machine_request": "Makine ön ayarı iste",
+      "title_machine_test": "Makine test sonuçlarını paylaş",
+      "machine_request_help": "Hesap gerekmez. Biliyorsanız ürün veya kılavuz bağlantısı, kontrolcü ve değişiklikleri ekleyin. Metniniz, uygulama sürümü ve sistem bilgileri gönderilir.",
+      "machine_test_help": "Hesap gerekmez. Bağlantı, hareket, çerçeveleme, işler, duraklatma/devam etme ve iptal için başarılı, başarısız veya test edilmedi yazın. Donanım yazılımını ve değişiklikleri belirtin. Etkin profilin kayıtlı ayarları ve mevcut donanım yazılımı bilgileri, proje verileri veya günlükler olmadan gönderilir.",
+      "field_machine_model": "Üretici ve tam model",
+      "field_machine_request": "Makine ayrıntıları ve yararlı bağlantılar",
+      "field_machine_test": "Test sonuçları ve yapılandırma",
+      "validation_machine_model_required": "Üreticiyi ve tam modeli girin.",
+      "validation_machine_details_required": "Makine ayrıntılarını veya test sonuçlarını ekleyin.",
+      "field_optional_reply_to": "E-postayı yanıtla (isteğe bağlı)"
     },
     "material_test": {
       "title": "Malzeme Testi",
@@ -2175,11 +2185,17 @@
         "preview": "Önizleme",
         "no_changes": "Değişiklik yok.",
         "catalog": {
+          "sculpfun_s9": {
+            "description": "GRBL 1.1f veya daha yeni sürüm kullanan orijinal Sculpfun S9 için belgelere dayalı ön ayar. Makine testleri henüz yapılmadı.",
+            "advisory": "Temkinli olarak 410 x 415 mm çalışma alanı kullanılır. Eksen hareket mesafelerini ve makinenizin en yüksek S değerini kontrol edin. Referanslama ve otomatik hava desteği kapalıdır; yalnızca takılı ve yapılandırılmış yükseltmeler için etkinleştirin. Referans anahtarları yoksa Geçerli Konum veya Kullanıcı Başlangıç Noktası kullanın."
+          },
           "acmer_s2": {
             "description": "Resmi ACMER S2 çalışma alanı ve GRBL varsayılanları.",
             "advisory": "ACMER, 300 × 300 mm'lik bir gravür alanı belirtir. Beam Bench, makine bağlandığında uyumlu GRBL denetleyici ayarlarını yeniden kontrol edecektir."
           }
-        }
+        },
+        "report_active_profile": "Ayarlarını sonuçlarınızla paylaşmak için bu profili kaydedip etkinleştirin.",
+        "community_help": "Bir ön ayar eksik mi veya birini denediniz mi? Kataloğu genişletmeye yardım edin. Hesap gerekmez."
       },
       "material_library": {
         "operation": {
@@ -2617,7 +2633,7 @@
     "raster_plan_too_complex": "Bu görüntü mevcut boyut ve DPI ile çok fazla ayrı raster hareketi oluşturuyor. DPI değerini veya fiziksel boyutu azaltın ya da daha az parçalı bir görüntü modu seçin ve ardından önizlemeyi yeniden oluşturun.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
-   "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",
     "ruida_probe_inconclusive": "Beam Bench could not complete the read-only Ruida compatibility check. No file or motion command was sent. Check the network connection, then submit a bug report if it happens again.",
     "workspace_edge_left": "sol",

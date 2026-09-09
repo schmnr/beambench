@@ -798,8 +798,18 @@
       "saving": "正在儲存...",
       "save_report_to_file": "將報告儲存到文件",
       "submitting": "正在提交...",
-      "send_to_beam_bench": "發送到梁台",
-      "submit": "提交"
+      "send_to_beam_bench": "傳送至 Beam Bench",
+      "submit": "提交",
+      "title_machine_request": "申請新增機器預設",
+      "title_machine_test": "分享機器測試結果",
+      "machine_request_help": "無需帳號。請提供產品或手冊連結，以及已知的控制器和改裝資訊。將傳送您填寫的文字、應用程式版本和系統資訊。",
+      "machine_test_help": "無需帳號。請將連線、移動、走框、工作、暫停/繼續和取消標為通過、失敗或未測試，並填寫韌體和改裝資訊。將傳送目前啟用設定檔的已儲存設定及可取得的韌體資訊，不含專案資料或記錄。",
+      "field_machine_model": "製造商和確切型號",
+      "field_machine_request": "機器詳情與參考連結",
+      "field_machine_test": "測試結果與組態",
+      "validation_machine_model_required": "請輸入製造商和確切型號。",
+      "validation_machine_details_required": "請新增機器詳情或測試結果。",
+      "field_optional_reply_to": "回覆電子郵件 (選填)"
     },
     "material_test": {
       "title": "材料測試",
@@ -2175,11 +2185,17 @@
         "preview": "預覽",
         "no_changes": "沒有變化。",
         "catalog": {
+          "sculpfun_s9": {
+            "description": "適用於執行 GRBL 1.1f 或更新版本的初代 Sculpfun S9，預設依據公開文件制定。尚未進行實機測試。",
+            "advisory": "採用保守的 410 x 415 mm 工作區域。請核對機器的行程和最大 S 值。歸零與自動氣輔預設關閉，僅在安裝並設定相應升級設備後啟用。沒有歸零開關的機器請使用目前位置或使用者原點。"
+          },
           "acmer_s2": {
             "description": "官方 ACMER S2 工作區和 GRBL 預設值。",
             "advisory": "ACMER 指定雕刻區域為 300 × 300 mm。當機器連接時，Beam Bench 將重新檢查相容的 GRBL 控制器設定。"
           }
-        }
+        },
+        "report_active_profile": "請儲存並啟用此設定檔，以便隨測試結果分享其設定。",
+        "community_help": "缺少預設，或已試用某個預設？幫助我們擴充目錄，無需帳號。"
       },
       "material_library": {
         "operation": {
@@ -2617,7 +2633,7 @@
     "raster_plan_too_complex": "此影像在目前尺寸和 DPI 下會產生過多的獨立點陣移動。請降低 DPI 或實體尺寸，或選擇碎片較少的影像模式，然後重新產生預覽。",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
     "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
-   "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
+    "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",
     "ruida_probe_inconclusive": "Beam Bench could not complete the read-only Ruida compatibility check. No file or motion command was sent. Check the network connection, then submit a bug report if it happens again.",
     "workspace_edge_left": "左邊緣",
