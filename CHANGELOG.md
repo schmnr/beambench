@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.2.22
+
+- Fix a canvas crash on system webviews that do not support rounded rectangle
+  drawing. Selection labels, marquee counts, text-box dimensions, rounded
+  rectangles, and their drawing previews now use a compatible fallback that
+  preserves rounded corners.
+
 ## 0.2.21
 
 - Numeric fields can be cleared completely while typing a replacement value.

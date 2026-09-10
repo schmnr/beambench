@@ -292,6 +292,25 @@ describe('getSelectionHandles', () => {
 });
 
 describe('drawShapePreview', () => {
+  it('preserves rounded corners without roundRect support when dragging backwards', () => {
+    const ctx = {
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      arcTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+    } as unknown as CanvasRenderingContext2D;
+
+    drawShapePreview(ctx, { x: 110, y: 70 }, { x: 10, y: 20 }, 'rectangle', 8);
+
+    expect(ctx.moveTo).toHaveBeenCalledWith(18, 20);
+    expect(ctx.arcTo).toHaveBeenCalledTimes(4);
+    expect(ctx.closePath).toHaveBeenCalledTimes(1);
+    expect(ctx.fill).toHaveBeenCalledTimes(1);
+    expect(ctx.stroke).toHaveBeenCalledTimes(1);
+  });
+
   it('uses a rounded rectangle preview when a corner radius is provided', () => {
     const ctx = {
       fillStyle: '',

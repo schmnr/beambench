@@ -4,6 +4,7 @@ import type { ViewportParams } from './ViewportTransform';
 import type { CanvasTheme } from './constants';
 import { worldToScreen, worldToScreenDist, pxPerMm } from './ViewportTransform';
 import { RASTER_PLACEHOLDER_STROKE } from './constants';
+import { roundRectPath } from './roundRectPath';
 
 export interface RasterMaskRenderContext {
   inside: Path2D[];
@@ -61,7 +62,7 @@ export function drawShape(
     if (corner_radius > 0) {
       const r = Math.min(worldToScreenDist(corner_radius, vp.zoom), w / 2, h / 2);
       ctx.beginPath();
-      ctx.roundRect(topLeft.x, topLeft.y, w, h, r);
+      roundRectPath(ctx, topLeft.x, topLeft.y, w, h, r);
       if (filled) {
         ctx.fillStyle = color;
         ctx.fill();
