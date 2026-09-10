@@ -2842,6 +2842,60 @@ mod tests {
     }
 
     #[test]
+    fn lbrn_smooth_circle_preserves_project_contours_for_line_and_fill() {
+        use base64::Engine;
+
+        let legacy = include_str!("../../../beambench-core/tests/fixtures/lbrn/smooth-circle.lbrn");
+        let compact =
+            include_str!("../../../beambench-core/tests/fixtures/lbrn/smooth-circle.lbrn2");
+        for (cut_type, operation) in [("Cut", OperationType::Line), ("Scan", OperationType::Fill)] {
+            let import = |xml: &str, filename: &str| {
+                let ctx = ServiceContext::new();
+                let mut project = Project::new("Smooth curve import");
+                let layer_id = project.ensure_default_layer();
+                *ctx.project.lock().unwrap() = Some(project);
+                let xml = xml.replace(
+                    "<Shape",
+                    &format!(
+                        "<CutSetting type=\"{cut_type}\"><index Value=\"0\"/></CutSetting><Shape"
+                    ),
+                );
+                let objects = import_files_from_data(
+                    &ctx,
+                    ImportFilesDataInput {
+                        files: vec![ImportFileData {
+                            filename: filename.to_string(),
+                            data_base64: base64::engine::general_purpose::STANDARD.encode(xml),
+                        }],
+                        layer_id,
+                    },
+                )
+                .unwrap();
+                assert_eq!(objects.len(), 1);
+                let object = objects.into_iter().next().unwrap();
+                let project = ctx.project.lock().unwrap();
+                let layer = project
+                    .as_ref()
+                    .unwrap()
+                    .layers
+                    .iter()
+                    .find(|layer| layer.id == object.layer_id)
+                    .unwrap();
+                assert_eq!(layer.primary_entry().operation, operation);
+                assert!(matches!(
+                    &object.data,
+                    ObjectData::VectorPath { closed: true, .. }
+                ));
+                object
+            };
+            let legacy = import(legacy, "circle.lbrn");
+            let compact = import(compact, "circle.lbrn2");
+            assert_eq!(compact.data, legacy.data, "{cut_type}");
+            assert_eq!(compact.bounds, legacy.bounds, "{cut_type}");
+        }
+    }
+
+    #[test]
     fn lbrn_import_maps_bottom_left_coordinates_and_inherited_t2_layer() {
         let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
 <LBRN_PROJECT_ROOT AppVersion="1.6.03" FormatVersion="1" MirrorX="False" MirrorY="False">

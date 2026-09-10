@@ -104,7 +104,8 @@ export function useBufferedNumericField(
   };
 
   return {
-    value: buffer ?? committedValue,
+    // A string tells NumberStepper this hook owns the editing buffer.
+    value: buffer ?? String(committedValue),
     onChange: (e) => {
       if (isStepperCommitEvent(e)) {
         setBuffer(null);

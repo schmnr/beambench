@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.2.21
+
+- Numeric fields can be cleared completely while typing a replacement value.
+  Leaving a field blank restores its last valid value. This also fixes feed
+  rate and network port editing.
+- Home is available when a homing-capable GRBL controller starts in Alarm.
+  Delayed Idle replies no longer end the homing state prematurely. Active
+  jobs, rotary mode, and unsupported controllers still prevent homing.
+- LightBurn imports preserve curve handles on smooth nodes in `.lbrn2` files,
+  preventing distorted outlines and fills when a coordinate ends with the
+  smooth-node marker.
+
 ## 0.2.20
 
 - Request missing machine presets and share owner test results from the preset

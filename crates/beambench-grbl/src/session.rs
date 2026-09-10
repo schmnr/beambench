@@ -292,13 +292,6 @@ impl GrblSession {
                 if merged.spindle_override == 0 {
                     merged.spindle_override = self.last_status.spindle_override;
                 }
-                if merged.run_state == MachineRunState::Alarm {
-                    self.state_machine.force(SessionState::Alarm);
-                } else if self.state_machine.state() == SessionState::Alarm
-                    && merged.run_state == MachineRunState::Idle
-                {
-                    let _ = self.state_machine.transition(SessionState::Ready);
-                }
                 if self.is_homing() {
                     match merged.run_state {
                         MachineRunState::Home => self.homing_state_observed = true,
@@ -308,9 +301,19 @@ impl GrblSession {
                             self.homing_started_at = None;
                             self.homing_completed = true;
                         }
+                        // A pre-homing status query may reply after `$H` was
+                        // sent. Keep motion blocked until homing is confirmed.
+                        MachineRunState::Idle => merged.run_state = MachineRunState::Home,
                         MachineRunState::Alarm => self.clear_pending_homing(),
                         _ => {}
                     }
+                }
+                if merged.run_state == MachineRunState::Alarm {
+                    self.state_machine.force(SessionState::Alarm);
+                } else if self.state_machine.state() == SessionState::Alarm
+                    && merged.run_state == MachineRunState::Idle
+                {
+                    let _ = self.state_machine.transition(SessionState::Ready);
                 }
                 self.last_status = merged;
             }
@@ -706,6 +709,39 @@ mod tests {
         assert_eq!(session.last_status().work_position.y, 60.0);
         assert_eq!(session.last_status().machine_position.x, 45.0);
         assert_eq!(session.last_status().machine_position.y, 70.0);
+    }
+
+    #[test]
+    fn homing_keeps_busy_state_when_an_earlier_idle_reply_arrives() {
+        for initial_state in ["Idle", "Alarm"] {
+            let transport = MockSerialTransport::new("delayed-idle-homing");
+            let handle = transport.handle();
+            let mut session = GrblSession::new(Box::new(transport));
+            session.connect().unwrap();
+            handle.enqueue_response("Grbl 1.1h ['$' for help]");
+            handle.enqueue_response(&format!("<{initial_state}|MPos:10,20,0|FS:0,0>"));
+            session.poll().unwrap();
+            if initial_state == "Idle" {
+                session.mark_ready().unwrap();
+            }
+            let initial_session_state = session.session_state();
+            session.home().unwrap();
+
+            // A response to `?` sent before `$H` is not homing completion.
+            handle.enqueue_response("<Idle|MPos:10,20,0|FS:0,0>");
+            session.poll().unwrap();
+            assert_eq!(session.last_status().run_state, MachineRunState::Home);
+            assert_eq!(session.session_state(), initial_session_state);
+            assert!(session.is_homing());
+            assert!(!session.take_homing_completed());
+
+            handle.enqueue_response("ok");
+            handle.enqueue_response("<Idle|MPos:0,0,0|FS:0,0>");
+            session.poll().unwrap();
+            assert_eq!(session.session_state(), SessionState::Ready);
+            assert_eq!(session.last_status().run_state, MachineRunState::Idle);
+            assert!(session.take_homing_completed());
+        }
     }
 
     #[test]

@@ -1032,6 +1032,9 @@ describe('DeviceSettingsDialog', () => {
 
     fireEvent.change(screen.getByLabelText('Connection'), { target: { value: 'tcp' } });
     fireEvent.change(screen.getByLabelText('Host'), { target: { value: 'grblhal.local' } });
+    const portInput = screen.getByLabelText('TCP port') as HTMLInputElement;
+    fireEvent.change(portInput, { target: { value: '' } });
+    expect(portInput.value).toBe('');
     fireEvent.change(screen.getByLabelText('TCP port'), { target: { value: '23' } });
     fireEvent.click(screen.getByText('Connect'));
 

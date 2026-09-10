@@ -816,13 +816,15 @@ describe('TransformSection — buffered commit semantics', () => {
     expect(updateObject).not.toHaveBeenCalled();
   });
 
-  it('clearing the field and blurring reverts without committing', () => {
+  it.each(['blur', 'Enter', 'Escape'])('clearing the field and finishing with %s reverts without committing', (finish) => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'], updateObject });
     render(<TransformSection />);
     const inputs = screen.getAllByRole('spinbutton');
     fireEvent.change(inputs[IDX_W], { target: { value: '' } });
-    fireEvent.blur(inputs[IDX_W]);
+    expect(inputs[IDX_W]).toHaveProperty('value', '');
+    if (finish === 'blur') fireEvent.blur(inputs[IDX_W]);
+    else fireEvent.keyDown(inputs[IDX_W], { key: finish });
     expect(updateObject).not.toHaveBeenCalled();
     expect(inputs[IDX_W]).toHaveProperty('value', '50');
   });
