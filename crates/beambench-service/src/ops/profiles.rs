@@ -47,6 +47,7 @@ pub struct SaveProfileInput {
     pub max_power_percent: f64,
     pub s_value_max: u32,
     pub homing_enabled: bool,
+    pub home_on_connect: bool,
     pub default_baud_rate: u32,
     pub firmware_type: String,
     pub notes: String,
@@ -153,6 +154,7 @@ fn lock_err(name: &str, e: impl std::fmt::Display) -> ServiceError {
 
 fn portable_profile(mut profile: MachineProfile) -> MachineProfile {
     profile.connection_preference = None;
+    profile.home_on_connect = false;
     profile.selected_camera_id = None;
     profile.camera_calibration = None;
     profile.camera_alignment = None;
@@ -410,6 +412,35 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             max_power_percent: 100.0,
             s_value_max: 1000,
             homing_enabled: false,
+            origin: WorkspaceOrigin::BottomLeft,
+            use_constant_power: false,
+            emit_s_every_g1: false,
+            use_g0_for_overscan: true,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::BottomLeft),
+        },
+        // Manufacturer manual and owner configuration: docs/machines/blazex-m3.md.
+        MachineProfilePreset {
+            id: "blazex_m3_10w",
+            version: 1,
+            name: "BlazeX M3 (10W)",
+            description: "BlazeX M3 10W GRBL preset based on manufacturer documentation and an owner configuration.",
+            advisory_text: Some(
+                "200 x 150 mm workspace, S1000. Connect by USB at 115200 baud or Network on port 8080. Use Home after connecting, or enable Home on connect in Device Settings. Configure controller homing in the GRBL tab if disabled. The Z socket is for a rotary accessory.",
+            ),
+            firmware_type: "grbl",
+            default_baud_rate: 115200,
+            bed_width_mm: 200.0,
+            bed_height_mm: 150.0,
+            max_speed_mm_min: 7000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: true,
             origin: WorkspaceOrigin::BottomLeft,
             use_constant_power: false,
             emit_s_every_g1: false,
@@ -1084,6 +1115,7 @@ pub fn save_profile(
         max_power_percent: input.max_power_percent,
         s_value_max: input.s_value_max,
         homing_enabled: input.homing_enabled,
+        home_on_connect: input.home_on_connect,
         default_baud_rate: input.default_baud_rate,
         firmware_type: input.firmware_type,
         notes: input.notes,
@@ -1225,6 +1257,7 @@ mod tests {
             max_power_percent: 80.0,
             s_value_max: 1000,
             homing_enabled: true,
+            home_on_connect: false,
             default_baud_rate: 115200,
             firmware_type: "grbl".to_string(),
             notes: "notes".to_string(),
@@ -1644,6 +1677,34 @@ mod tests {
                 assert_eq!(preset.air_assist_on_delay_ms, 0, "{}", preset.id);
             }
         }
+    }
+
+    #[test]
+    fn blazex_preset_keeps_connection_motion_and_accessories_explicit() {
+        let preset = profile_presets()
+            .into_iter()
+            .find(|p| p.id == "blazex_m3_10w")
+            .unwrap();
+        let mut profile = MachineProfile::default();
+        apply_preset_fields(&mut profile, &preset);
+        assert_eq!(
+            (profile.bed_width_mm, profile.bed_height_mm),
+            (200.0, 150.0)
+        );
+        assert_eq!(profile.s_value_max, 1000);
+        assert!(profile.homing_enabled);
+        assert!(!profile.home_on_connect);
+        assert!(!profile.supports_z_moves);
+        assert_eq!(profile.origin, WorkspaceOrigin::BottomLeft);
+        assert!(profile.air_assist_on_gcode.is_empty());
+        assert!(profile.air_assist_off_gcode.is_empty());
+        profile.home_on_connect = true;
+        apply_preset_fields(&mut profile, &preset);
+        assert!(
+            profile.home_on_connect,
+            "reapplying a preset must preserve the owner's preference"
+        );
+        assert!(!portable_profile(profile).home_on_connect);
     }
 
     #[test]

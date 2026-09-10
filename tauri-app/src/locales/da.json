@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Objektdiameter",
       "rotary_circumference": "Overfladens omkreds: {value} {unit}",
       "rotary_reverse": "Vend rotationsretning",
-      "rotary_z_note": "Rotationstilstand på Z-aksen deaktiverer jobbets Z-forskydninger og bevægelser i fokustesten."
+      "rotary_z_note": "Rotationstilstand på Z-aksen deaktiverer jobbets Z-forskydninger og bevægelser i fokustesten.",
+      "home_on_connect": "Referér ved tilslutning",
+      "home_on_connect_help": "Til GRBL: kører til endestoppene efter tilslutning. Springes over i rotationstilstand.",
+      "homing_firmware_help": "Profilens referenceindstilling konfigurerer ikke endestop. Brug fanen GRBL ($22/$23)."
     },
     "machine_profile": {
       "title": "Maskinprofiler",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Stop jog"
+      "stop_jog": "Stop jog",
+      "position_not_homed": "Positionen er ikke refereret. Efter opstart kan 0,0 være startpositionen. Brug referencekørsel på maskiner med endestop."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Officielle ACMER S2-arbejdsområde og GRBL-standarder.",
             "advisory": "ACMER specificerer et 300 × 300 mm graveringsområde. Beam Bench kontrollerer de kompatible GRBL-controllerindstillinger igen, når maskinen tilsluttes."
+          },
+          "blazex_m3_10w": {
+            "description": "BlazeX M3 10W-forudindstilling baseret på dokumentation og en ejers konfiguration.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Netværk: port 8080. Kør referencekørsel, eller aktivér den ved tilslutning. Z-stikket er til rotationstilbehør."
           }
         },
         "report_active_profile": "Gem og aktivér denne profil for at dele dens indstillinger med resultaterne.",

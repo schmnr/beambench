@@ -51,6 +51,7 @@ struct SaveProfileRequest {
     max_power_percent: Option<f64>,
     #[serde(default)]
     homing_enabled: Option<bool>,
+    home_on_connect: Option<bool>,
     default_baud_rate: Option<u32>,
     firmware_type: Option<String>,
     #[serde(default)]
@@ -186,6 +187,7 @@ fn create_save_input(
             .unwrap_or(defaults.acceleration_mm_s2),
         max_power_percent: body.max_power_percent.unwrap_or(default_max_power()),
         homing_enabled: body.homing_enabled.unwrap_or(defaults.homing_enabled),
+        home_on_connect: body.home_on_connect.unwrap_or(defaults.home_on_connect),
         default_baud_rate: body.default_baud_rate.unwrap_or(default_baud_rate()),
         firmware_type: body.firmware_type.unwrap_or_else(default_firmware_type),
         notes: body.notes.unwrap_or_default(),
@@ -289,6 +291,7 @@ fn merge_save_input(
             .unwrap_or(existing.acceleration_mm_s2),
         max_power_percent: body.max_power_percent.unwrap_or(existing.max_power_percent),
         homing_enabled: body.homing_enabled.unwrap_or(existing.homing_enabled),
+        home_on_connect: body.home_on_connect.unwrap_or(existing.home_on_connect),
         default_baud_rate: body.default_baud_rate.unwrap_or(existing.default_baud_rate),
         firmware_type: body.firmware_type.unwrap_or(existing.firmware_type),
         notes: body.notes.unwrap_or(existing.notes),

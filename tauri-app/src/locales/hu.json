@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Tárgy átmérője",
       "rotary_circumference": "Felület kerülete: {value} {unit}",
       "rotary_reverse": "Forgásirány megfordítása",
-      "rotary_z_note": "A Z tengely forgató módja letiltja a feladat Z-eltolásait és a fókuszteszt mozgását."
+      "rotary_z_note": "A Z tengely forgató módja letiltja a feladat Z-eltolásait és a fókuszteszt mozgását.",
+      "home_on_connect": "Alaphelyzet-keresés csatlakozáskor",
+      "home_on_connect_help": "GRBL esetén: csatlakozás után a végálláskapcsolókhoz mozog. Forgató módban kimarad.",
+      "homing_firmware_help": "A profil alaphelyzet-beállítása nem konfigurálja a végálláskapcsolókat. Használja a GRBL lapot ($22/$23)."
     },
     "machine_profile": {
       "title": "Gépprofilok",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Mozgatás leállítása"
+      "stop_jog": "Mozgatás leállítása",
+      "position_not_homed": "A pozíció nincs referenciázva. Bekapcsolás után a 0,0 a kezdőpozíció lehet. Végálláskapcsolós gépen végezzen alaphelyzet-keresést."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Hivatalos ACMER S2 munkaterület és GRBL alapbeállítások.",
             "advisory": "Az ACMER 300 × 300 mm-es gravírozási területet határoz meg. A Beam Bench újraellenőrzi a kompatibilis GRBL vezérlő beállításait, amikor a gép csatlakozik."
+          },
+          "blazex_m3_10w": {
+            "description": "BlazeX M3 10W előbeállítás dokumentáció és egy tulajdonos konfigurációja alapján.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Hálózat: 8080-as port. Végezzen alaphelyzet-keresést, vagy kapcsolja be csatlakozáskor. A Z csatlakozó forgató tartozékhoz való."
           }
         },
         "report_active_profile": "Mentse és aktiválja ezt a profilt, hogy beállításait az eredményekkel együtt megoszthassa.",

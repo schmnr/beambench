@@ -2271,6 +2271,15 @@ fn register_machine_session(
     });
     *session_lock = Some(session);
     drop(session_lock);
+    // This is reached once per completed serial/TCP connection, including
+    // controller-choice continuations. Hydration/status polling never homes.
+    home_after_connect(ctx)?;
+    let state = ctx
+        .session
+        .lock()
+        .map_err(|e| lock_err("session", e))?
+        .as_ref()
+        .map_or(state, MachineSessionHandle::session_state);
     ctx.emit_event(
         "machine.connected",
         json!({
@@ -2289,6 +2298,46 @@ fn register_machine_session(
         }),
     );
     Ok(state)
+}
+
+fn home_after_connect(ctx: &ServiceContext) -> ServiceResult<()> {
+    let profile = active_profile(ctx)?;
+    if !profile.home_on_connect || profile.rotary_enabled {
+        return Ok(());
+    }
+    {
+        let session = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        let Some(MachineSessionHandle::Grbl(grbl)) = session.as_ref() else {
+            return Ok(());
+        };
+        // A profile's Homing checkbox is not a firmware setting. An explicit
+        // opt-in can use OEM firmware that omits $22, but never overrides $22=0.
+        if grbl.settings().get(22) == Some(0.0) {
+            ctx.push_connection_event("home_on_connect_skipped", None, None,
+                Some("Home on connect skipped: controller homing is disabled ($22=0). Configure homing in Machine Settings.".to_string()), None);
+            return Ok(());
+        }
+    }
+    // Reuse all manual Home guards and completion tracking. A failure to home
+    // must not turn a successful connection into a misleading connection error.
+    if let Err(error) = home(ctx) {
+        ctx.push_connection_event(
+            "home_on_connect_failed",
+            None,
+            None,
+            None,
+            Some(error.message),
+        );
+    } else {
+        ctx.push_connection_event(
+            "home_on_connect_started",
+            None,
+            None,
+            Some("Homing requested by this profile's Home on connect setting".to_string()),
+            None,
+        );
+    }
+    Ok(())
 }
 
 fn validate_resolved_controller_adapter(
@@ -6244,6 +6293,7 @@ pub fn save_profile(
             max_power_percent: profile.max_power_percent,
             s_value_max: profile.s_value_max,
             homing_enabled: profile.homing_enabled,
+            home_on_connect: profile.home_on_connect,
             default_baud_rate: profile.default_baud_rate,
             firmware_type: profile.firmware_type,
             notes: profile.notes,
@@ -6682,6 +6732,62 @@ mod tests {
         );
         let status_queries = transport.lock().unwrap().bytes.len() - bytes_before;
         assert_eq!(status_queries, 4, "one routine query plus three rechecks");
+    }
+
+    #[test]
+    fn home_on_connect_runs_once_and_does_not_trust_the_profile_homing_flag() {
+        let profile = MachineProfile {
+            home_on_connect: true,
+            homing_enabled: false,
+            ..MachineProfile::default()
+        };
+        let (ctx, transport) = ready_grbl_context(profile);
+        let session = ctx.session.lock().unwrap().take().unwrap();
+        register_machine_session(&ctx, session, json!({}), None, None).unwrap();
+        assert_eq!(transport.lock().unwrap().lines, vec!["$H"]);
+        assert!(!ctx.machine_coordinates_valid.load(Ordering::Acquire));
+        machine_status(&ctx).unwrap();
+        session_state(&ctx).unwrap();
+        assert_eq!(transport.lock().unwrap().lines, vec!["$H"]);
+    }
+
+    #[test]
+    fn home_on_connect_respects_opt_in_rotary_and_controller_settings() {
+        for (enabled, rotary, setting) in [
+            (false, false, "$22=1"),
+            (true, true, "$22=1"),
+            (true, false, "$22=0"),
+        ] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile {
+                home_on_connect: enabled,
+                rotary_enabled: rotary,
+                ..MachineProfile::default()
+            });
+            transport.lock().unwrap().rx.push_back(setting.into());
+            machine_status(&ctx).unwrap();
+            let session = ctx.session.lock().unwrap().take().unwrap();
+            register_machine_session(&ctx, session, json!({}), None, None).unwrap();
+            assert!(transport.lock().unwrap().lines.is_empty());
+            assert!(!ctx.machine_coordinates_valid.load(Ordering::Acquire));
+        }
+    }
+
+    #[test]
+    fn home_on_connect_works_from_startup_alarm_without_unlocking() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile {
+            home_on_connect: true,
+            ..MachineProfile::default()
+        });
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .push_back("<Alarm|MPos:0,0,0|FS:0,0>".into());
+        machine_status(&ctx).unwrap();
+        let session = ctx.session.lock().unwrap().take().unwrap();
+        register_machine_session(&ctx, session, json!({}), None, None).unwrap();
+        assert_eq!(transport.lock().unwrap().lines, vec!["$H"]);
+        assert!(!ctx.machine_coordinates_valid.load(Ordering::Acquire));
     }
 
     #[test]

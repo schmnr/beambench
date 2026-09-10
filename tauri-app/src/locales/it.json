@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Diametro dell’oggetto",
       "rotary_circumference": "Circonferenza della superficie: {value} {unit}",
       "rotary_reverse": "Inverti direzione di rotazione",
-      "rotary_z_note": "La modalità rotativa sull’asse Z disattiva gli offset Z del lavoro e il movimento della prova di messa a fuoco."
+      "rotary_z_note": "La modalità rotativa sull’asse Z disattiva gli offset Z del lavoro e il movimento della prova di messa a fuoco.",
+      "home_on_connect": "Azzeramento alla connessione",
+      "home_on_connect_help": "Per GRBL: raggiunge i finecorsa dopo la connessione. Disattivato in modalità rotativa.",
+      "homing_firmware_help": "L’impostazione di azzeramento del profilo non configura i finecorsa. Usare la scheda GRBL ($22/$23)."
     },
     "machine_profile": {
       "title": "Profili macchina",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Ferma spostamento"
+      "stop_jog": "Ferma spostamento",
+      "position_not_homed": "Posizione non referenziata. All’accensione, 0,0 può essere la posizione iniziale. Eseguire l’azzeramento sulle macchine con finecorsa."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Area di lavoro ufficiale ACMER S2 e impostazioni predefinite GRBL.",
             "advisory": "ACMER specifica un'area di incisione di 300 × 300 mm. Beam Bench ricontrollerà le impostazioni del controller GRBL compatibile quando la macchina si connette."
+          },
+          "blazex_m3_10w": {
+            "description": "Preimpostazione BlazeX M3 10W basata sulla documentazione e sulla configurazione di un proprietario.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Rete: porta 8080. Eseguire l’azzeramento o abilitarlo alla connessione. Il connettore Z è per un accessorio rotativo."
           }
         },
         "report_active_profile": "Salva e attiva questo profilo per condividere le impostazioni con i risultati.",

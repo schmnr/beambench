@@ -307,6 +307,7 @@ pub fn bootstrap_profile(
             max_power_percent: 100.0,
             s_value_max: 1000,
             homing_enabled: candidate.capabilities.can_home,
+            home_on_connect: false,
             default_baud_rate: 115200,
             firmware_type: firmware_type_for_model(candidate.controller_model),
             notes: profile_notes,

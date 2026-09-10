@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Werkstückdurchmesser",
       "rotary_circumference": "Oberflächenumfang: {value} {unit}",
       "rotary_reverse": "Drehrichtung umkehren",
-      "rotary_z_note": "Der Drehmodus auf der Z-Achse deaktiviert Z-Versätze des Auftrags und Bewegungen des Fokustests."
+      "rotary_z_note": "Der Drehmodus auf der Z-Achse deaktiviert Z-Versätze des Auftrags und Bewegungen des Fokustests.",
+      "home_on_connect": "Referenzfahrt beim Verbinden",
+      "home_on_connect_help": "Für GRBL: fährt nach dem Verbinden zu den Endschaltern. Im Rotationsmodus deaktiviert.",
+      "homing_firmware_help": "Die Referenzfahrt-Einstellung im Profil konfiguriert keine Endschalter. Verwenden Sie den GRBL-Tab ($22/$23)."
     },
     "machine_profile": {
       "title": "Maschinenprofile",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Jog stoppen"
+      "stop_jog": "Jog stoppen",
+      "position_not_homed": "Position nicht referenziert. Nach dem Einschalten kann 0,0 die Startposition sein. Führen Sie bei Maschinen mit Endschaltern eine Referenzfahrt aus."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Offizieller ACMER S2-Arbeitsbereich und GRBL-Standardeinstellungen.",
             "advisory": "ACMER gibt eine Gravurfläche von 300 × 300 mm an. Beam Bench überprüft die kompatiblen GRBL-Controller-Einstellungen erneut, wenn die Maschine eine Verbindung herstellt."
+          },
+          "blazex_m3_10w": {
+            "description": "BlazeX M3 10W-Voreinstellung anhand der Dokumentation und einer Besitzerkonfiguration.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 Baud. Netzwerk: Port 8080. Referenzfahrt ausführen oder beim Verbinden aktivieren. Der Z-Anschluss ist für eine Rotationseinheit."
           }
         },
         "report_active_profile": "Speichern und aktivieren Sie dieses Profil, um seine Einstellungen mit den Ergebnissen zu teilen.",

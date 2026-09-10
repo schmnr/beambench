@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Diámetro del objeto",
       "rotary_circumference": "Circunferencia de la superficie: {value} {unit}",
       "rotary_reverse": "Invertir el sentido de giro",
-      "rotary_z_note": "El modo giratorio en el eje Z desactiva los desplazamientos Z del trabajo y el movimiento de la prueba de enfoque."
+      "rotary_z_note": "El modo giratorio en el eje Z desactiva los desplazamientos Z del trabajo y el movimiento de la prueba de enfoque.",
+      "home_on_connect": "Buscar origen al conectar",
+      "home_on_connect_help": "Para GRBL: se mueve hasta los finales de carrera al conectar. Se omite en modo rotativo.",
+      "homing_firmware_help": "El ajuste de origen del perfil no configura los finales de carrera. Use la pestaña GRBL ($22/$23)."
     },
     "machine_profile": {
       "title": "Perfiles de máquina",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Detener desplazamiento"
+      "stop_jog": "Detener desplazamiento",
+      "position_not_homed": "Posición sin referenciar. Tras encender, 0,0 puede ser la posición inicial. Use Buscar origen en máquinas con finales de carrera."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Espacio de trabajo oficial de ACMER S2 y valores predeterminados de GRBL.",
             "advisory": "ACMER especifica un área de grabado de 300 × 300 mm. Beam Bench volverá a verificar la configuración del controlador GRBL compatible cuando la máquina se conecte."
+          },
+          "blazex_m3_10w": {
+            "description": "Preajuste BlazeX M3 10W basado en la documentación y la configuración de un propietario.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baudios. Red: puerto 8080. Busque el origen o active la búsqueda al conectar. El conector Z es para un accesorio rotativo."
           }
         },
         "report_active_profile": "Guarda y activa este perfil para compartir sus ajustes con los resultados.",

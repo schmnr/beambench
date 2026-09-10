@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Průměr objektu",
       "rotary_circumference": "Obvod povrchu: {value} {unit}",
       "rotary_reverse": "Obrátit směr otáčení",
-      "rotary_z_note": "Rotační režim osy Z zakáže Z-posuny úlohy a pohyb testu zaostření."
+      "rotary_z_note": "Rotační režim osy Z zakáže Z-posuny úlohy a pohyb testu zaostření.",
+      "home_on_connect": "Referování po připojení",
+      "home_on_connect_help": "Pro GRBL: po připojení dojede ke koncovým spínačům. V rotačním režimu se vynechá.",
+      "homing_firmware_help": "Nastavení referování v profilu nekonfiguruje koncové spínače. Použijte kartu GRBL ($22/$23)."
     },
     "machine_profile": {
       "title": "Profily strojů",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Zastavit pohyb"
+      "stop_jog": "Zastavit pohyb",
+      "position_not_homed": "Poloha není referovaná. Po zapnutí může 0,0 označovat výchozí polohu. U strojů s koncovými spínači proveďte referování."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Oficiální pracovní prostor ACMER S2 a výchozí nastavení GRBL.",
             "advisory": "ACMER specifikuje gravírovací plochu 300 × 300 mm. Beam Bench po připojení stroje znovu zkontroluje kompatibilní nastavení ovladače GRBL."
+          },
+          "blazex_m3_10w": {
+            "description": "Předvolba BlazeX M3 10W založená na dokumentaci a konfiguraci majitele.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baudů. Síť: port 8080. Proveďte referování nebo je zapněte při připojení. Konektor Z je určen pro rotační příslušenství."
           }
         },
         "report_active_profile": "Uložte a aktivujte tento profil, chcete-li sdílet jeho nastavení s výsledky.",

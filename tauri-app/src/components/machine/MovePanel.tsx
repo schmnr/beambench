@@ -709,6 +709,13 @@ export function MovePanel(): React.ReactElement {
             </div>
           )}
         </div>
+        {connected && supportsAbsolutePositioning && homeSupported
+          && !machineCoordinatesValid && machineStatus?.run_state !== 'home'
+          && activeProfile?.rotary_enabled !== true && (
+          <p className="text-xs text-bb-text-muted" role="status">
+            {t('panels.move.position_not_homed')}
+          </p>
+        )}
         {connected && <StatusDisplay />}
         {SHOW_CONNECTION_PREVIEW && (
           <label className="flex items-center justify-between gap-2 rounded border border-dashed border-bb-border bg-bb-surface px-2 py-1 text-bb-text-muted">

@@ -89,6 +89,8 @@ export interface DiagnosticMachine {
   workspace_origin?: string | null;
   max_speed_mm_min?: number | null;
   controller_travel_x_mm?: number | null;
+  controller_homing_enabled?: boolean | null;
+  controller_homing_direction?: number | null;
   controller_travel_y_mm?: number | null;
   run_state?: MachineRunState | null;
   machine_position?: { x: number; y: number; z: number } | null;

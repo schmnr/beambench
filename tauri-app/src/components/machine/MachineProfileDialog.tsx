@@ -1,3 +1,4 @@
+import { HomeOnConnectSetting } from './HomeOnConnectSetting';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -493,6 +494,7 @@ export function MachineProfileDialog({ onClose }: MachineProfileDialogProps) {
                     onChange={(v) => updateField('homing_enabled', v)}
                   />
                 </div>
+              <HomeOnConnectSetting value={editingProfile.home_on_connect ?? false} onChange={(v) => updateField('home_on_connect', v)} />
                 <Select
                     label={t('dialog.machine_profile.baud_rate')}
                   value={String(editingProfile.default_baud_rate)}
