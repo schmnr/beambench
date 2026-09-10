@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "물체 지름",
       "rotary_circumference": "표면 둘레: {value} {unit}",
       "rotary_reverse": "회전 방향 반전",
-      "rotary_z_note": "Z축 회전 모드는 작업 Z 오프셋과 초점 테스트 이동을 비활성화합니다."
+      "rotary_z_note": "Z축 회전 모드는 작업 Z 오프셋과 초점 테스트 이동을 비활성화합니다.",
+      "home_on_connect": "연결 시 원점 복귀",
+      "home_on_connect_help": "GRBL용: 연결 후 리미트 스위치까지 이동합니다. 회전 모드에서는 건너뜁니다.",
+      "homing_firmware_help": "프로필의 원점 복귀 설정은 스위치를 구성하지 않습니다. GRBL 탭($22/$23)을 사용하세요."
     },
     "machine_profile": {
       "title": "기계 프로필",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "조그 정지"
+      "stop_jog": "조그 정지",
+      "position_not_homed": "원점 복귀 전입니다. 전원을 켠 후 0,0은 시작 위치일 수 있습니다. 리미트 스위치가 있는 기계는 원점 복귀를 실행하세요."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "공식 ACMER S2 작업 공간 및 GRBL 기본값.",
             "advisory": "ACMER는 300 × 300mm 조각 영역을 지정합니다. Beam Bench는 기계가 연결될 때 호환되는 GRBL 컨트롤러 설정을 다시 확인합니다."
+          },
+          "blazex_m3_10w": {
+            "description": "문서와 소유자 설정에 기반한 BlazeX M3 10W 프리셋입니다.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200보드. 네트워크: 포트 8080. 원점 복귀를 실행하거나 연결 시 원점 복귀를 켜세요. Z 소켓은 회전 액세서리용입니다."
           }
         },
         "report_active_profile": "결과와 함께 설정을 공유하려면 이 프로필을 저장하고 활성화하세요.",

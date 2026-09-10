@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Diamètre de l’objet",
       "rotary_circumference": "Circonférence de la surface : {value} {unit}",
       "rotary_reverse": "Inverser le sens de rotation",
-      "rotary_z_note": "Le mode rotatif sur l’axe Z désactive les décalages Z du travail et les mouvements du test de mise au point."
+      "rotary_z_note": "Le mode rotatif sur l’axe Z désactive les décalages Z du travail et les mouvements du test de mise au point.",
+      "home_on_connect": "Référencement à la connexion",
+      "home_on_connect_help": "Pour GRBL : rejoint les fins de course après la connexion. Désactivé en mode rotatif.",
+      "homing_firmware_help": "Le réglage de référencement du profil ne configure pas les fins de course. Utilisez l’onglet GRBL ($22/$23)."
     },
     "machine_profile": {
       "title": "Profils de machines",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Aperçu de l’interface connectée",
       "preview_connected_help": "Aperçu de développement uniquement. Les commandes sont affichées sans machine.",
       "saved_positions_more": "+{count} autres",
-      "stop_jog": "Arrêter le déplacement"
+      "stop_jog": "Arrêter le déplacement",
+      "position_not_homed": "Position non référencée. Après la mise sous tension, 0,0 peut être la position de démarrage. Utilisez Référencement si la machine possède des fins de course."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Zone de travail officielle et réglages GRBL par défaut de l’ACMER S2.",
             "advisory": "ACMER indique une zone de gravure de 300 × 300 mm. Beam Bench revérifiera les réglages GRBL compatibles lors de la connexion de la machine."
+          },
+          "blazex_m3_10w": {
+            "description": "Préréglage BlazeX M3 10W basé sur la documentation et la configuration d’un propriétaire.",
+            "advisory": "200 x 150 mm, S1000. USB : 115200 bauds. Réseau : port 8080. Lancez le référencement ou activez-le à la connexion. La prise Z est destinée à un accessoire rotatif."
           }
         },
         "report_active_profile": "Enregistrez et activez ce profil pour joindre ses réglages à vos résultats.",

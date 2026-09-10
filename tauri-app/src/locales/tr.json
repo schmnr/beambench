@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Nesne çapı",
       "rotary_circumference": "Yüzey çevresi: {value} {unit}",
       "rotary_reverse": "Dönüş yönünü ters çevir",
-      "rotary_z_note": "Z ekseni döner modu, işin Z ofsetlerini ve odak testi hareketini devre dışı bırakır."
+      "rotary_z_note": "Z ekseni döner modu, işin Z ofsetlerini ve odak testi hareketini devre dışı bırakır.",
+      "home_on_connect": "Bağlantıda referansla",
+      "home_on_connect_help": "GRBL için: bağlandıktan sonra sınır anahtarlarına gider. Döner modda atlanır.",
+      "homing_firmware_help": "Profildeki referanslama ayarı sınır anahtarlarını yapılandırmaz. GRBL sekmesini kullanın ($22/$23)."
     },
     "machine_profile": {
       "title": "Makine Profilleri",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Joglamayı durdur"
+      "stop_jog": "Joglamayı durdur",
+      "position_not_homed": "Konum referanslanmadı. Açılıştan sonra 0,0 başlangıç konumu olabilir. Sınır anahtarı olan makinelerde referanslama yapın."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Resmi ACMER S2 çalışma alanı ve GRBL varsayılanları.",
             "advisory": "ACMER, 300 × 300 mm'lik bir gravür alanı belirtir. Beam Bench, makine bağlandığında uyumlu GRBL denetleyici ayarlarını yeniden kontrol edecektir."
+          },
+          "blazex_m3_10w": {
+            "description": "Belgelere ve bir kullanıcının yapılandırmasına dayalı BlazeX M3 10W ön ayarı.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Ağ: 8080 numaralı bağlantı noktası. Referanslayın veya bağlantıda referanslamayı açın. Z soketi döner aksesuar içindir."
           }
         },
         "report_active_profile": "Ayarlarını sonuçlarınızla paylaşmak için bu profili kaydedip etkinleştirin.",

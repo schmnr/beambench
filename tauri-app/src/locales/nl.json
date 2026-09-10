@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Objectdiameter",
       "rotary_circumference": "Omtrek van het oppervlak: {value} {unit}",
       "rotary_reverse": "Draairichting omkeren",
-      "rotary_z_note": "De draaimodus op de Z-as schakelt Z-offsets van de taak en bewegingen van de focustest uit."
+      "rotary_z_note": "De draaimodus op de Z-as schakelt Z-offsets van de taak en bewegingen van de focustest uit.",
+      "home_on_connect": "Homen bij verbinden",
+      "home_on_connect_help": "Voor GRBL: beweegt na het verbinden naar de eindschakelaars. Overgeslagen in rotatiemodus.",
+      "homing_firmware_help": "De homing-instelling in het profiel configureert geen eindschakelaars. Gebruik het GRBL-tabblad ($22/$23)."
     },
     "machine_profile": {
       "title": "Machineprofielen",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Joggen stoppen"
+      "stop_jog": "Joggen stoppen",
+      "position_not_homed": "Positie niet gerefereerd. Na inschakelen kan 0,0 de startpositie zijn. Gebruik Homen voor machines met eindschakelaars."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Officiële ACMER S2-werkruimte en GRBL-standaardinstellingen.",
             "advisory": "ACMER specificeert een graveergebied van 300 × 300 mm. Beam Bench controleert de compatibele GRBL-controllerinstellingen opnieuw wanneer de machine verbinding maakt."
+          },
+          "blazex_m3_10w": {
+            "description": "BlazeX M3 10W-voorinstelling op basis van documentatie en de configuratie van een eigenaar.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Netwerk: poort 8080. Home de machine of schakel homen bij verbinden in. De Z-aansluiting is voor een rotatieaccessoire."
           }
         },
         "report_active_profile": "Sla dit profiel op en activeer het om de instellingen met je resultaten te delen.",

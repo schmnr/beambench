@@ -447,6 +447,7 @@ export interface MachineProfile {
   max_power_percent: number;
   s_value_max: number;
   homing_enabled: boolean;
+  home_on_connect?: boolean;
   default_baud_rate: number;
   firmware_type: string;
   notes: string;

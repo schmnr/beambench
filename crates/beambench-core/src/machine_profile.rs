@@ -137,6 +137,9 @@ pub struct MachineProfile {
     pub max_power_percent: f64,
     pub s_value_max: u32,
     pub homing_enabled: bool,
+    /// Run GRBL homing once after an explicit connection. Never writes firmware settings.
+    #[serde(default)]
+    pub home_on_connect: bool,
     pub default_baud_rate: u32,
     pub firmware_type: String,
     pub notes: String,
@@ -272,6 +275,7 @@ impl Default for MachineProfile {
             max_power_percent: 100.0,
             s_value_max: 1000,
             homing_enabled: false,
+            home_on_connect: false,
             default_baud_rate: 115200,
             firmware_type: "grbl".to_string(),
             notes: String::new(),

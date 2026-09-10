@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Kappaleen halkaisija",
       "rotary_circumference": "Pinnan ympärysmitta: {value} {unit}",
       "rotary_reverse": "Käännä pyörityssuunta",
-      "rotary_z_note": "Z-akselin pyöritystila poistaa työn Z-siirtymät ja tarkennustestin liikkeet käytöstä."
+      "rotary_z_note": "Z-akselin pyöritystila poistaa työn Z-siirtymät ja tarkennustestin liikkeet käytöstä.",
+      "home_on_connect": "Kotihaku yhdistettäessä",
+      "home_on_connect_help": "GRBL:lle: ajaa rajakytkimille yhdistämisen jälkeen. Ohitetaan pyöritystilassa.",
+      "homing_firmware_help": "Profiilin kotihakuasetus ei määritä rajakytkimiä. Käytä GRBL-välilehteä ($22/$23)."
     },
     "machine_profile": {
       "title": "Koneen profiilit",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Pysäytä siirto"
+      "stop_jog": "Pysäytä siirto",
+      "position_not_homed": "Sijaintia ei ole kotihakettu. Käynnistyksen jälkeen 0,0 voi olla alkusijainti. Tee kotihaku koneille, joissa on rajakytkimet."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Virallinen ACMER S2 -työtila ja GRBL-oletusasetukset.",
             "advisory": "ACMER määrittelee 300 × 300 mm kaiverrusalueen. Beam Bench tarkistaa yhteensopivat GRBL-ohjaimen asetukset uudelleen, kun kone muodostaa yhteyden."
+          },
+          "blazex_m3_10w": {
+            "description": "BlazeX M3 10W -esiasetus perustuu dokumentaatioon ja omistajan kokoonpanoon.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baudia. Verkko: portti 8080. Tee kotihaku tai ota se käyttöön yhdistettäessä. Z-liitin on pyörityslisälaitteelle."
           }
         },
         "report_active_profile": "Tallenna ja aktivoi tämä profiili, jotta voit jakaa sen asetukset tulosten mukana.",

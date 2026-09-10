@@ -772,6 +772,8 @@ fn build_machine_diagnostics(
             workspace_origin: profile_fields.workspace_origin,
             max_speed_mm_min: profile_fields.max_speed_mm_min,
             controller_travel_x_mm: None,
+            controller_homing_enabled: None,
+            controller_homing_direction: None,
             controller_travel_y_mm: None,
             run_state: None,
             machine_position: None,
@@ -868,6 +870,14 @@ fn build_machine_diagnostics(
         workspace_origin: profile_fields.workspace_origin,
         max_speed_mm_min: profile_fields.max_speed_mm_min,
         controller_travel_x_mm,
+        controller_homing_enabled: controller_settings
+            .get("$22")
+            .and_then(|value| value.parse::<f64>().ok())
+            .filter(|value| value.is_finite())
+            .map(|value| value != 0.0),
+        controller_homing_direction: controller_settings
+            .get("$23")
+            .and_then(|value| value.parse::<u8>().ok()),
         controller_travel_y_mm,
         run_state: Some(status.run_state),
         machine_position: Some(status.machine_position),
@@ -2309,6 +2319,8 @@ mod tests {
                 workspace_origin: None,
                 max_speed_mm_min: None,
                 controller_travel_x_mm: None,
+                controller_homing_enabled: None,
+                controller_homing_direction: None,
                 controller_travel_y_mm: None,
                 run_state: None,
                 machine_position: None,

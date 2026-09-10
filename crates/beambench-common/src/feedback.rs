@@ -213,6 +213,10 @@ pub struct DiagnosticMachine {
     pub max_speed_mm_min: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub controller_travel_x_mm: Option<f64>,
+    #[serde(default)]
+    pub controller_homing_enabled: Option<bool>,
+    #[serde(default)]
+    pub controller_homing_direction: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub controller_travel_y_mm: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -571,6 +575,8 @@ mod tests {
                 workspace_origin: None,
                 max_speed_mm_min: None,
                 controller_travel_x_mm: None,
+                controller_homing_enabled: None,
+                controller_homing_direction: None,
                 controller_travel_y_mm: None,
                 run_state: None,
                 machine_position: None,

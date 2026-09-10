@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Diâmetro do objeto",
       "rotary_circumference": "Circunferência da superfície: {value} {unit}",
       "rotary_reverse": "Inverter direção de rotação",
-      "rotary_z_note": "O modo rotativo no eixo Z desativa os deslocamentos Z do trabalho e o movimento do teste de foco."
+      "rotary_z_note": "O modo rotativo no eixo Z desativa os deslocamentos Z do trabalho e o movimento do teste de foco.",
+      "home_on_connect": "Referenciar ao conectar",
+      "home_on_connect_help": "Para GRBL: move até os fins de curso após conectar. Ignorado no modo rotativo.",
+      "homing_firmware_help": "A opção de referência do perfil não configura os fins de curso. Use a aba GRBL ($22/$23)."
     },
     "machine_profile": {
       "title": "Perfis de Máquina",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Parar deslocamento"
+      "stop_jog": "Parar deslocamento",
+      "position_not_homed": "Posição não referenciada. Ao ligar, 0,0 pode ser a posição inicial. Referencie máquinas com fins de curso."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Espaço de trabalho oficial ACMER S2 e padrões GRBL.",
             "advisory": "ACMER especifica uma área de gravação de 300 × 300 mm. O Beam Bench verificará novamente as configurações compatíveis do controlador GRBL quando a máquina for conectada."
+          },
+          "blazex_m3_10w": {
+            "description": "Predefinição BlazeX M3 10W baseada na documentação e na configuração de um proprietário.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Rede: porta 8080. Referencie ou ative a referência ao conectar. O conector Z é para um acessório rotativo."
           }
         },
         "report_active_profile": "Salve e ative este perfil para compartilhar as configurações com os resultados.",

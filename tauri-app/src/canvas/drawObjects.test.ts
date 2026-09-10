@@ -210,6 +210,29 @@ describe('drawPolygon', () => {
 });
 
 describe('drawShape', () => {
+  it.each([false, true])('draws rounded rectangles without roundRect support, filled=%s', (filled) => {
+    const ctx = createMockCtx();
+    Object.assign(ctx, { roundRect: undefined, arcTo: vi.fn() });
+    const vp: ViewportParams = {
+      offset: { x: 0, y: 0 },
+      zoom: 100,
+      canvasWidth: 800,
+      canvasHeight: 600,
+    };
+    const obj = makeProjectObject({
+      bounds: { min: { x: 10, y: 20 }, max: { x: 30, y: 50 } },
+      data: { type: 'shape', kind: 'rectangle', width: 20, height: 30, corner_radius: 4 },
+    });
+
+    drawShape(ctx, obj, '#000000', vp, filled);
+
+    expect(ctx.arcTo).toHaveBeenCalledTimes(4);
+    expect(ctx.closePath).toHaveBeenCalledTimes(1);
+    expect(ctx.fill).toHaveBeenCalledTimes(filled ? 1 : 0);
+    expect(ctx.stroke).toHaveBeenCalledTimes(1);
+    expect(ctx.restore).toHaveBeenCalledTimes(1);
+  });
+
   it('draws zero-radius rectangles via a path instead of fillRect/strokeRect', () => {
     const ctx = {
       ...createMockCtx(),

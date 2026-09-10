@@ -4,6 +4,7 @@ import type { HandleId } from '../types/canvas';
 import type { EditablePath, NodeId, NodeSelectionTarget } from '../types/vector';
 import type { CanvasTheme } from './constants';
 import { worldToScreen } from './ViewportTransform';
+import { roundRectPath } from './roundRectPath';
 import {
   buildPolygonPoints,
   buildStarPath,
@@ -517,7 +518,7 @@ export function drawShapePreview(
     if (cornerRadius > 0) {
       const r = Math.min(cornerRadius, w / 2, h / 2);
       ctx.beginPath();
-      ctx.roundRect(x, y, w, h, r);
+      roundRectPath(ctx, x, y, w, h, r);
       ctx.fill();
       ctx.stroke();
     } else {

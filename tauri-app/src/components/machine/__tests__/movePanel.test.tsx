@@ -679,3 +679,15 @@ describe('MovePanel', () => {
     expect(screen.queryByText('Hold a direction to jog continuously.')).toBeNull();
   });
 });
+
+
+describe('unreferenced position guidance', () => {
+  it('explains a startup zero and removes the hint after homing completes', async () => {
+    connectMachine();
+    render(<MovePanel />);
+    await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
+    expect(screen.getByText(/Position not homed/)).toBeTruthy();
+    act(() => useMachineStore.setState({ machineCoordinatesValid: true }));
+    expect(screen.queryByText(/Position not homed/)).toBeNull();
+  });
+});

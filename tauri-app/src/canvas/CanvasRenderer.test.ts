@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
 import { CanvasRenderer, sortObjectsForLayerStack } from './CanvasRenderer';
-import type { RenderParams } from './CanvasRenderer';
+import type { RenderParams, ToolOverlay } from './CanvasRenderer';
 import type { PreviewData } from '../types/preview';
 import { DARK_THEME, LIGHT_THEME } from './constants';
 import type { ProjectObject, Layer } from '../types/project';
@@ -251,6 +251,40 @@ describe('CanvasRenderer', () => {
 
     expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, baseParams.vp.canvasWidth, baseParams.vp.canvasHeight);
     expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it.each<ToolOverlay>([
+    {
+      type: 'selection-feedback',
+      objectId: 'selected',
+      cursorScreen: { x: 100, y: 100 },
+      label: 'Rectangle',
+      color: '#22d3ee',
+    },
+    {
+      type: 'rubber-band',
+      startScreen: { x: 10, y: 10 },
+      endScreen: { x: 100, y: 100 },
+      candidateObjectIds: ['selected'],
+    },
+    {
+      type: 'text-box-preview',
+      startWorld: { x: 10, y: 20 },
+      endWorld: { x: 70, y: 50 },
+    },
+  ])('renders the $type badge without roundRect support', (toolOverlay) => {
+    Object.assign(ctx, { roundRect: undefined });
+
+    renderer.renderToolOverlay({
+      ...baseParams,
+      objects: [makeProjectObject({ id: 'selected' })],
+      toolOverlay,
+    });
+
+    expect(ctx.arcTo).toHaveBeenCalledTimes(4);
+    expect(ctx.fill).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalled();
+    expect(ctx.restore).toHaveBeenCalledTimes(vi.mocked(ctx.save).mock.calls.length);
   });
 
   it('shows live width and height while a text box is being dragged', () => {

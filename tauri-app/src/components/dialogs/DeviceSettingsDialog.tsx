@@ -1,3 +1,4 @@
+import { HomeOnConnectSetting } from '../machine/HomeOnConnectSetting';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -838,6 +839,7 @@ function MachineTab({
           onChange={(v) => updateField('homing_enabled', v)}
         />
       </div>
+              <HomeOnConnectSetting value={editProfile.home_on_connect ?? false} onChange={(v) => updateField('home_on_connect', v)} />
       <Select
         label={t('dialog.device_settings.origin')}
         value={editProfile.origin ?? 'bottom_left'}
@@ -2044,6 +2046,7 @@ function ProfilesTab() {
                   onChange={(v) => updateField('homing_enabled', v)}
                 />
               </div>
+              <HomeOnConnectSetting value={editingProfile.home_on_connect ?? false} onChange={(v) => updateField('home_on_connect', v)} />
               <Select
                 label={t('dialog.device_settings.baud_rate')}
                 value={String(editingProfile.default_baud_rate)}

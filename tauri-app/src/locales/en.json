@@ -1151,7 +1151,10 @@
       "rotary_object_diameter": "Object Diameter",
       "rotary_circumference": "Surface circumference: {value} {unit}",
       "rotary_reverse": "Reverse Rotary Direction",
-      "rotary_z_note": "Z-axis rotary mode disables job Z offsets and focus-test motion."
+      "rotary_z_note": "Z-axis rotary mode disables job Z offsets and focus-test motion.",
+      "home_on_connect": "Home on connect",
+      "home_on_connect_help": "For GRBL: moves to the endstops after connecting. Skipped in rotary mode.",
+      "homing_firmware_help": "The Homing profile setting does not configure switches. Use the GRBL tab ($22/$23)."
     },
     "machine_profile": {
       "title": "Machine Profiles",
@@ -2052,7 +2055,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Stop Jog"
+      "stop_jog": "Stop Jog",
+      "position_not_homed": "Position not homed. After power-on, 0,0 may be the startup position. Use Home for machines with endstops."
     },
     "machine": {
       "status": {
@@ -2338,6 +2342,10 @@
           "acmer_s2": {
             "description": "Official ACMER S2 workspace and GRBL defaults.",
             "advisory": "ACMER specifies a 300 × 300 mm engraving area. Beam Bench will recheck compatible GRBL controller settings when the machine connects."
+          },
+          "blazex_m3_10w": {
+            "description": "BlazeX M3 10W preset based on documentation and an owner configuration.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Network: port 8080. Use Home or enable Home on connect. The Z socket is for a rotary accessory."
           }
         },
         "report_active_profile": "Save and activate this profile to share its settings with your results.",

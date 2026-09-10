@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "物体直径",
       "rotary_circumference": "表面周长：{value} {unit}",
       "rotary_reverse": "反转旋转方向",
-      "rotary_z_note": "Z 轴旋转模式会禁用任务 Z 偏移和焦点测试移动。"
+      "rotary_z_note": "Z 轴旋转模式会禁用任务 Z 偏移和焦点测试移动。",
+      "home_on_connect": "连接时回零",
+      "home_on_connect_help": "适用于 GRBL：连接后移动至限位开关。旋转模式下跳过。",
+      "homing_firmware_help": "配置文件中的回零设置不会配置限位开关。请使用 GRBL 选项卡（$22/$23）。"
     },
     "machine_profile": {
       "title": "机器简介",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "停止点动"
+      "stop_jog": "停止点动",
+      "position_not_homed": "位置尚未回零。开机后，0,0 可能是启动位置。配有限位开关的机器请执行回零。"
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "官方 ACMER S2 工作区和 GRBL 默认值。",
             "advisory": "ACMER 指定雕刻区域为 300 × 300 mm。当机器连接时，Beam Bench 将重新检查兼容的 GRBL 控制器设置。"
+          },
+          "blazex_m3_10w": {
+            "description": "根据文档和用户配置建立的 BlazeX M3 10W 预设。",
+            "advisory": "200 x 150 mm，S1000。USB：115200 波特率。网络：端口 8080。请回零或启用连接时回零。Z 接口用于旋转附件。"
           }
         },
         "report_active_profile": "请保存并启用此配置，以便随测试结果分享其设置。",

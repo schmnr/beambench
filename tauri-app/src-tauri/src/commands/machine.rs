@@ -393,6 +393,7 @@ pub fn save_machine_profile(
             max_power_percent: profile.max_power_percent,
             s_value_max: profile.s_value_max,
             homing_enabled: profile.homing_enabled,
+            home_on_connect: profile.home_on_connect,
             default_baud_rate: profile.default_baud_rate,
             firmware_type: profile.firmware_type,
             notes: profile.notes,

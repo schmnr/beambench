@@ -6,6 +6,7 @@ import type { CanvasTheme } from './constants';
 import { DARK_THEME } from './constants';
 import type { PreviewState } from '../stores/previewStore';
 import { drawBed, drawGrid, drawOrigin, drawRulers } from './drawWorkspace';
+import { roundRectPath } from './roundRectPath';
 import {
   applyTransform,
   appendObjectScreenFillPath,
@@ -267,7 +268,7 @@ function drawSelectionFeedback(
   const y = Math.max(8, overlay.cursorScreen.y - 32);
   ctx.fillStyle = 'rgba(12, 16, 20, 0.94)';
   ctx.beginPath();
-  ctx.roundRect(x, y, labelWidth, 24, 6);
+  roundRectPath(ctx, x, y, labelWidth, 24, 6);
   ctx.fill();
   ctx.fillStyle = overlay.color;
   ctx.beginPath();
@@ -308,7 +309,7 @@ function drawRubberBandCandidates(
   const y = Math.min(ctx.canvas.height - 29, overlay.endScreen.y + 10);
   ctx.fillStyle = 'rgba(12, 16, 20, 0.94)';
   ctx.beginPath();
-  ctx.roundRect(x, y, width, 23, 6);
+  roundRectPath(ctx, x, y, width, 23, 6);
   ctx.fill();
   ctx.fillStyle = '#e5e7eb';
   ctx.fillText(label, x + 9, y + 15);
@@ -381,7 +382,7 @@ function drawTextBoxPreview(
   ctx.setLineDash([]);
   ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
   ctx.beginPath();
-  ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 4);
+  roundRectPath(ctx, badgeX, badgeY, badgeWidth, badgeHeight, 4);
   ctx.fill();
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';

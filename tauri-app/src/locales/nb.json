@@ -1064,7 +1064,10 @@
       "rotary_object_diameter": "Objektdiameter",
       "rotary_circumference": "Overflatens omkrets: {value} {unit}",
       "rotary_reverse": "Snu rotasjonsretning",
-      "rotary_z_note": "Rotasjonsmodus på Z-aksen deaktiverer jobbens Z-forskyvninger og bevegelser i fokustesten."
+      "rotary_z_note": "Rotasjonsmodus på Z-aksen deaktiverer jobbens Z-forskyvninger og bevegelser i fokustesten.",
+      "home_on_connect": "Referansekjør ved tilkobling",
+      "home_on_connect_help": "For GRBL: kjører til endestoppene etter tilkobling. Hoppes over i rotasjonsmodus.",
+      "homing_firmware_help": "Profilens referanseinnstilling konfigurerer ikke endestopp. Bruk GRBL-fanen ($22/$23)."
     },
     "machine_profile": {
       "title": "Maskinprofiler",
@@ -1906,7 +1909,8 @@
       "preview_connected_ui": "Preview connected UI",
       "preview_connected_help": "Development preview only. Controls are shown without a machine.",
       "saved_positions_more": "+{count} more",
-      "stop_jog": "Stopp jogg"
+      "stop_jog": "Stopp jogg",
+      "position_not_homed": "Posisjonen er ikke referansekjørt. Etter oppstart kan 0,0 være startposisjonen. Referansekjør maskiner med endestopp."
     },
     "machine": {
       "status": {
@@ -2192,6 +2196,10 @@
           "acmer_s2": {
             "description": "Offisielle ACMER S2-arbeidsområde og GRBL-standarder.",
             "advisory": "ACMER spesifiserer et 300 × 300 mm graveringsområde. Beam Bench vil kontrollere kompatible GRBL-kontrollerinnstillinger på nytt når maskinen kobles til."
+          },
+          "blazex_m3_10w": {
+            "description": "BlazeX M3 10W-forhåndsinnstilling basert på dokumentasjon og en eiers konfigurasjon.",
+            "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Nettverk: port 8080. Referansekjør eller aktiver det ved tilkobling. Z-kontakten er for rotasjonstilbehør."
           }
         },
         "report_active_profile": "Lagre og aktiver denne profilen for å dele innstillingene med resultatene dine.",

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.2.22
+
+- Add a BlazeX M3 10W preset with a 200 x 150 mm workspace and GRBL defaults
+  based on manufacturer documentation and an owner configuration.
+- Add optional Home on connect for GRBL machines. It uses the normal homing
+  command once per connection, skips rotary mode and disabled controller homing,
+  and keeps machine coordinates unreferenced until homing completes.
+- Explain unreferenced positions after power-on and distinguish the profile's
+  Homing flag from controller settings. Bug reports now include controller
+  homing enable and direction settings when available.
+
+- Fix a canvas crash on system webviews that do not support rounded rectangle
+  drawing. Selection labels, marquee counts, text-box dimensions, rounded
+  rectangles, and their drawing previews now use a compatible fallback that
+  preserves rounded corners.
+
 ## 0.2.21
 
 - Numeric fields can be cleared completely while typing a replacement value.
