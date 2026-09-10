@@ -10,6 +10,7 @@ import { machineService } from '../../../services/machineService';
 import {
   makeMachineProfile,
   makeMachineStatus,
+  makeJobProgress,
   makeProject,
 } from '../../../test-utils/projectFixtures';
 
@@ -111,6 +112,24 @@ function connectMachine() {
 }
 
 describe('MovePanel', () => {
+  it('lets users clear and replace the move feed rate without storing an empty value as zero', async () => {
+    useUiStore.setState({ moveWindowJogFeedRateMmMin: 1000 });
+    render(<MovePanel />);
+    await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
+    const input = screen.getByRole('spinbutton', { name: 'Feed (mm/min)' }) as HTMLInputElement;
+    for (const value of ['100', '10', '1', '']) {
+      fireEvent.change(input, { target: { value } });
+      expect(input.value).toBe(value);
+    }
+    expect(useUiStore.getState().moveWindowJogFeedRateMmMin).toBe(1);
+    fireEvent.change(input, { target: { value: '2500' } });
+    expect(useUiStore.getState().moveWindowJogFeedRateMmMin).toBe(2500);
+    fireEvent.change(input, { target: { value: '' } });
+    expect(useUiStore.getState().moveWindowJogFeedRateMmMin).toBe(2500);
+    fireEvent.blur(input);
+    expect(input.value).toBe('2500');
+  });
+
   it('renders without an open project and does not show object movement controls', async () => {
     render(<MovePanel />);
 
@@ -156,6 +175,64 @@ describe('MovePanel', () => {
       expect(machineService.home).toHaveBeenCalled();
     });
   });
+
+  it('allows Home from the startup alarm without unlocking or enabling ordinary moves', async () => {
+    connectMachine();
+    useMachineStore.setState({
+      sessionState: 'alarm',
+      machineStatus: makeMachineStatus({ run_state: 'alarm' }),
+    });
+    render(<MovePanel />);
+    await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
+
+    expect((screen.getByRole('button', { name: 'Home' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId('goto-button') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }));
+    await waitFor(() => expect(machineService.home).toHaveBeenCalledOnce());
+    expect(machineService.unlock).not.toHaveBeenCalled();
+  });
+
+  it.each(['home', 'jog', 'run', 'hold', 'door', 'check', 'sleep'] as const)(
+    'keeps Home disabled while the controller reports %s, even if the session is still alarmed',
+    async (run_state) => {
+      connectMachine();
+      useMachineStore.setState({ sessionState: 'alarm', machineStatus: makeMachineStatus({ run_state }) });
+      render(<MovePanel />);
+      await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
+      expect((screen.getByRole('button', { name: 'Home' }) as HTMLButtonElement).disabled).toBe(true);
+    },
+  );
+
+  it.each(['preparing', 'ready_to_run', 'running', 'paused'] as const)(
+    'keeps Home disabled for a %s job even when the controller reports an alarm',
+    async (state) => {
+      connectMachine();
+      useMachineStore.setState({
+        sessionState: 'alarm',
+        machineStatus: makeMachineStatus({ run_state: 'alarm' }),
+        jobProgress: makeJobProgress({ state }),
+      });
+      render(<MovePanel />);
+      await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
+      expect((screen.getByRole('button', { name: 'Home' }) as HTMLButtonElement).disabled).toBe(true);
+    },
+  );
+
+  it.each(['unsupported', 'rotary', 'recovery'])(
+    'keeps Home disabled for an %s configuration in alarm',
+    async (reason) => {
+      connectMachine();
+      useMachineStore.setState({
+        sessionState: reason === 'recovery' ? 'error' : 'alarm',
+        machineStatus: makeMachineStatus({ run_state: 'alarm' }),
+        capabilities: { ...useMachineStore.getState().capabilities!, can_home: reason !== 'unsupported' },
+        profiles: [makeMachineProfile({ rotary_enabled: reason === 'rotary' })],
+      });
+      render(<MovePanel />);
+      await waitFor(() => expect(machineService.getSavedPositions).toHaveBeenCalled());
+      expect((screen.getByRole('button', { name: 'Home' }) as HTMLButtonElement).disabled).toBe(true);
+    },
+  );
 
   it('requires current-session homing before moving to machine zero', async () => {
     connectMachine();

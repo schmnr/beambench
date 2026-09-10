@@ -170,6 +170,12 @@ export function MovePanel(): React.ReactElement {
   const hasSelection = !!project && selectedObjectIds.length > 0;
   const hasProject = !!project;
   const activeJob = isJobActive(jobProgress?.state);
+  // GRBL waits for Home in its startup alarm. Recovery/error sessions and
+  // an in-progress homing cycle must still keep the button disabled.
+  const homingAllowed = homeSupported
+    && !activeJob
+    && activeProfile?.rotary_enabled !== true
+    && (readyIdle || (sessionState === 'alarm' && machineStatus?.run_state === 'alarm'));
   // Controllers without absolute position reporting (Ruida, Lihuiyu) share a
   // zero-valued status placeholder. Do not present it as a measured position
   // or let it seed software absolute-position actions.
@@ -667,7 +673,7 @@ export function MovePanel(): React.ReactElement {
             <button
               className={BTN}
               onClick={() => void home()}
-              disabled={!homeSupported || !readyIdle}
+              disabled={!homingAllowed}
             >
               <Home size={14} />
               {t('panels.machine.jog.home')}

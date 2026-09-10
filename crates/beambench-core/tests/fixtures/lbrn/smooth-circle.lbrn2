@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightBurnProject AppVersion="1.6.03" FormatVersion="1" MaterialHeight="0" MirrorX="False" MirrorY="False">
+    <Shape Type="Path" CutIndex="0" VertID="0">
+        <XForm>1 0 0 1 156.5 233.5</XForm>
+        <VertList>V77.5 0c0x77.5c0y-42.802067c1x77.5c1y42.802067SV0 -77.5c0x-42.802067c0y-77.5c1x42.802067c1y-77.5SV-77.5 0c0x-77.5c0y42.802067c1x-77.5c1y-42.802067SV0 77.5c0x42.802067c0y77.5c1x-42.802067c1y77.5S</VertList>
+        <PrimList>B0 1B1 2B2 3B3 0</PrimList>
+    </Shape>
+</LightBurnProject>

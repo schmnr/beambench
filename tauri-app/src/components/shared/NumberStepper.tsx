@@ -33,6 +33,10 @@ export function NumberStepper({
   'aria-label': explicitLabel,
 }: NumberStepperProps) {
   const inputId = useId();
+  // Numeric parents cannot represent an empty edit. Keep it local until the
+  // user types a number or leaves the field; string parents own their drafts.
+  const [empty, setEmpty] = useState(false);
+  useEffect(() => { setEmpty(false); }, [value, disabled]);
   const [fieldLabel, setFieldLabel] = useState(explicitLabel ?? 'value');
   useEffect(() => {
     const labels = Array.from(inputRef.current?.labels ?? []).map(label => label.textContent?.trim()).filter(Boolean);
@@ -48,7 +52,9 @@ export function NumberStepper({
     (direction: 1 | -1) => {
       const input = inputRef.current;
       if (!input || disabled) return;
-      const cur = parseFloat(input.value) || 0;
+      const cur = input.value === '' && typeof value === 'number'
+        ? value
+        : parseFloat(input.value) || 0;
       let next = cur + numStep * direction;
       if (min !== undefined) next = Math.max(min, next);
       if (max !== undefined) next = Math.min(max, next);
@@ -63,7 +69,7 @@ export function NumberStepper({
       nativeInputValueSetter?.call(input, String(next));
       input.dispatchEvent(new Event('input', { bubbles: true }));
     },
-    [disabled, min, max, numStep],
+    [disabled, min, max, numStep, value],
   );
 
   const stopRepeat = useCallback(() => {
@@ -99,10 +105,27 @@ export function NumberStepper({
         id={inputId}
         aria-label={explicitLabel ?? fieldLabel}
         type="number"
-        value={value}
-        onChange={onChange}
-        onBlur={onBlur}
-        onKeyDown={onKeyDown}
+        value={empty && typeof value === 'number' ? '' : value}
+        onChange={(event) => {
+          if (typeof value === 'number' && (
+            event.target.value === '' || !Number.isFinite(event.target.valueAsNumber)
+          )) {
+            if (!empty) setEmpty(true);
+            return;
+          }
+          if (empty) setEmpty(false);
+          onChange(event);
+        }}
+        onBlur={(event) => {
+          if (empty) setEmpty(false);
+          onBlur?.(event);
+        }}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          if (empty && !event.defaultPrevented && !event.nativeEvent.isComposing && event.key === 'Enter') {
+            setEmpty(false);
+          }
+        }}
         min={min}
         max={max}
         step={step}

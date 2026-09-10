@@ -3599,6 +3599,14 @@ pub fn session_state(ctx: &ServiceContext) -> ServiceResult<SessionState> {
 }
 
 pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
+    // Keep the job lock through dispatch, as Start and Frame do, so a job
+    // cannot begin between the eligibility check and the homing command.
+    let job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+    if job_lock.is_some() {
+        return Err(ServiceError::invalid_state(
+            "Cannot home while a job is active. Cancel the job or wait for it to finish.",
+        ));
+    }
     if active_profile(ctx)?.rotary_enabled {
         return Err(ServiceError::invalid_state(
             "Homing is disabled while rotary mode is active. Disable rotary mode and reconnect the normal axes before homing.",
@@ -3608,14 +3616,25 @@ pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    require_idle_ready_for_motion(session, "Home")?;
+    if !session.supports_home() {
+        return Err(invalid_capability("Home", session.controller_family()));
+    }
+    if let MachineSessionHandle::Grbl(grbl) = session {
+        // Drain earlier acknowledgements and use the latest state before
+        // deciding whether a new homing cycle can start.
+        grbl.poll()
+            .map_err(|e| ServiceError::machine(e.to_string()))?;
+    }
+    // GRBL deliberately starts in Alarm when homing is required. `$H` is
+    // allowed there without `$X`; ordinary motion still requires Ready/Idle.
+    let grbl_homing_lock = matches!(session, MachineSessionHandle::Grbl(_))
+        && session.session_state() == SessionState::Alarm
+        && session.machine_status().run_state == MachineRunState::Alarm;
+    if !grbl_homing_lock {
+        require_idle_ready_for_motion(session, "Home")?;
+    }
     let emit_completed = match session {
         MachineSessionHandle::Grbl(session) => {
-            // Remove acknowledgements from earlier commands so only responses
-            // observed after `$H` can complete this homing cycle.
-            session
-                .poll()
-                .map_err(|e| ServiceError::machine(e.to_string()))?;
             ctx.machine_coordinates_valid
                 .store(false, Ordering::Release);
             session
@@ -3657,6 +3676,7 @@ pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
     if emit_completed {
         ctx.emit_event("machine.homed", json!({}));
     }
+    drop(job_lock);
     Ok(())
 }
 
@@ -6662,6 +6682,178 @@ mod tests {
         );
         let status_queries = transport.lock().unwrap().bytes.len() - bytes_before;
         assert_eq!(status_queries, 4, "one routine query plus three rechecks");
+    }
+
+    #[test]
+    fn homing_from_startup_alarm_sends_home_without_unlock_and_waits_for_completion() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .push_back("<Alarm|MPos:10,20,0|FS:0,0>".into());
+        assert_eq!(
+            machine_status(&ctx).unwrap().run_state,
+            MachineRunState::Alarm
+        );
+
+        home(&ctx).unwrap();
+        assert_eq!(transport.lock().unwrap().lines, vec!["$H"]);
+        assert!(!ctx.machine_coordinates_valid.load(Ordering::Acquire));
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .push_back("<Idle|MPos:10,20,0|FS:0,0>".into());
+        assert_eq!(
+            machine_status(&ctx).unwrap().run_state,
+            MachineRunState::Home
+        );
+        assert!(
+            home(&ctx).is_err(),
+            "a second click must not send another $H"
+        );
+        assert_eq!(transport.lock().unwrap().lines, vec!["$H"]);
+
+        transport.lock().unwrap().rx.push_back("ok".into());
+        assert_eq!(
+            machine_status(&ctx).unwrap().run_state,
+            MachineRunState::Home
+        );
+        assert!(!ctx.machine_coordinates_valid.load(Ordering::Acquire));
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .push_back("<Idle|MPos:0,0,0|WCO:0,0,0|FS:0,0>".into());
+        let state = runtime_state(&ctx).unwrap();
+        assert_eq!(state.session_state, SessionState::Ready);
+        assert!(state.machine_coordinates_valid);
+    }
+
+    #[test]
+    fn homing_rechecks_pending_controller_state_before_sending_home() {
+        for state in ["Run", "Jog", "Hold:0", "Door:0", "Home", "Check", "Sleep"] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+            transport
+                .lock()
+                .unwrap()
+                .rx
+                .push_back(format!("<{state}|MPos:10,20,0|FS:0,0>"));
+            assert!(home(&ctx).is_err(), "Home must reject {state}");
+            assert!(transport.lock().unwrap().lines.is_empty());
+        }
+    }
+
+    #[test]
+    fn homing_from_alarm_rejects_an_active_job() {
+        for job_state in [JobState::Preparing, JobState::Running, JobState::Paused] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+            let mut job = JobController::prepare(&dummy_plan(), &GcodeConfig::default()).unwrap();
+            if job_state != JobState::Preparing {
+                let mut guard = ctx.session.lock().unwrap();
+                let MachineSessionHandle::Grbl(session) = guard.as_mut().unwrap() else {
+                    unreachable!()
+                };
+                job.start(session).unwrap();
+                if job_state == JobState::Paused {
+                    job.pause(session).unwrap();
+                }
+            }
+            *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+            transport
+                .lock()
+                .unwrap()
+                .rx
+                .push_back("<Alarm|MPos:10,20,0|FS:0,0>".into());
+            {
+                let mut guard = ctx.session.lock().unwrap();
+                guard.as_mut().unwrap().poll().unwrap();
+            }
+            let error = home(&ctx).unwrap_err();
+            assert!(error.message.contains("job"), "{job_state:?}: {error}");
+            assert!(
+                !transport
+                    .lock()
+                    .unwrap()
+                    .lines
+                    .iter()
+                    .any(|line| line == "$H" || line == "$X")
+            );
+        }
+    }
+
+    #[test]
+    fn homing_remains_unavailable_for_generic_grbl_even_in_alarm() {
+        use beambench_common::controller_choice::ControllerChoiceSource;
+        let ctx = ServiceContext::new();
+        let transport = MockSerialTransport::new("generic-homing");
+        let handle = transport.handle();
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+        handle.enqueue_response("<Alarm|MPos:0,0,0|FS:0,0>");
+        session.poll().unwrap();
+        let choice = ResolvedControllerChoice {
+            selection: ExplicitControllerSelection::GenericGrblCompatible,
+            driver: ControllerDriverId::Grbl,
+            source: ControllerChoiceSource::UserExperimentalOverride,
+            detected_identity: None,
+            requires_experimental_mode: true,
+            mismatch: false,
+            override_scope: None,
+            requires_experimental_compatibility_handshake: true,
+        };
+        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Grbl(
+            GrblRuntimeSession::from_choice(session, &choice),
+        ));
+        let error = home(&ctx).unwrap_err();
+        assert!(error.message.contains("not supported"));
+        assert!(
+            ctx.session
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .console_entries(100)
+                .iter()
+                .all(|entry| entry.direction != beambench_common::ConsoleDirection::Sent)
+        );
+    }
+
+    #[test]
+    fn homing_from_alarm_remains_unavailable_in_rotary_mode() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile {
+            rotary_enabled: true,
+            ..MachineProfile::default()
+        });
+        transport
+            .lock()
+            .unwrap()
+            .rx
+            .push_back("<Alarm|MPos:0,0,0|FS:0,0>".into());
+        machine_status(&ctx).unwrap();
+        assert!(home(&ctx).unwrap_err().message.contains("rotary"));
+        assert!(transport.lock().unwrap().lines.is_empty());
+    }
+
+    #[test]
+    fn homing_from_alarm_failure_does_not_validate_coordinates() {
+        for failure in ["ALARM:9", "error:5"] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+            transport
+                .lock()
+                .unwrap()
+                .rx
+                .push_back("<Alarm|MPos:10,20,0|FS:0,0>".into());
+            machine_status(&ctx).unwrap();
+            home(&ctx).unwrap();
+            transport.lock().unwrap().rx.push_back(failure.into());
+            machine_status(&ctx).unwrap();
+            assert!(
+                !ctx.machine_coordinates_valid.load(Ordering::Acquire),
+                "{failure}"
+            );
+        }
     }
 
     #[test]

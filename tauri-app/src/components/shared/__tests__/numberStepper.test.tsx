@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { useState } from 'react';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { NumberStepper } from '../NumberStepper';
 
@@ -13,6 +14,104 @@ function getStepperButtons(container: HTMLElement) {
 }
 
 describe('NumberStepper', () => {
+  it('allows an empty edit without sending zero to a numeric parent', () => {
+    const onChange = vi.fn();
+    function Field() {
+      const [value, setValue] = useState(1000);
+      return <NumberStepper value={value} min={1} onChange={(event) => {
+        onChange(Number(event.target.value));
+        setValue(Math.max(1, Number(event.target.value)));
+      }} />;
+    }
+    const { getByRole } = render(<Field />);
+    const input = getByRole('spinbutton') as HTMLInputElement;
+
+    for (const value of ['100', '10', '1', '']) {
+      fireEvent.change(input, { target: { value } });
+      expect(input.value).toBe(value);
+    }
+    expect(onChange.mock.calls.map(([value]) => value)).toEqual([100, 10, 1]);
+    fireEvent.change(input, { target: { value: '2500' } });
+    expect(input.value).toBe('2500');
+    expect(onChange).toHaveBeenLastCalledWith(2500);
+  });
+
+  it.each(['blur', 'Enter'])('restores the last numeric value on %s when left empty', (finish) => {
+    const onChange = vi.fn();
+    const { getByRole } = render(<NumberStepper value={1000} onChange={onChange} />);
+    const input = getByRole('spinbutton') as HTMLInputElement;
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+    if (finish === 'blur') fireEvent.blur(input);
+    else fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input.value).toBe('1000');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('uses an external value update when a numeric field is empty', () => {
+    const onChange = vi.fn();
+    const { getByRole, rerender } = render(<NumberStepper value={1000} onChange={onChange} />);
+    const input = getByRole('spinbutton') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+    rerender(<NumberStepper value={2000} onChange={onChange} />);
+    expect(input.value).toBe('2000');
+  });
+
+  it.each(['0', '-2.5', '0.125'])('accepts %s as a numeric replacement after clearing', (replacement) => {
+    const onChange = vi.fn();
+    function Field() {
+      const [value, setValue] = useState(12);
+      return <NumberStepper value={value} step="any" onChange={(event) => {
+        onChange(event.target.valueAsNumber);
+        setValue(event.target.valueAsNumber);
+      }} />;
+    }
+    const { getByRole } = render(<Field />);
+    const input = getByRole('spinbutton') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.change(input, { target: { value: replacement } });
+    expect(input.value).toBe(replacement);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(Number(replacement));
+  });
+
+  it('steps from the last numeric value after clearing, respecting bounds', () => {
+    function Field() {
+      const [value, setValue] = useState(9);
+      return <NumberStepper aria-label="Count" value={value} min={1} max={10}
+        onChange={(event) => setValue(Number(event.target.value))} />;
+    }
+    const { getByRole } = render(<Field />);
+    const input = getByRole('spinbutton') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(getByRole('button', { name: 'Increase Count' }));
+    expect(input.value).toBe('10');
+    expect((getByRole('button', { name: 'Increase Count' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(getByRole('button', { name: 'Decrease Count' }));
+    expect(input.value).toBe('9');
+  });
+
+  it('preserves empty changes and commit handlers for string-backed fields', () => {
+    const onBlur = vi.fn();
+    const onKeyDown = vi.fn();
+    const onChange = vi.fn();
+    function Field() {
+      const [value, setValue] = useState('12');
+      return <NumberStepper value={value} onBlur={onBlur} onKeyDown={onKeyDown}
+        onChange={(event) => { onChange(event.target.value); setValue(event.target.value); }} />;
+    }
+    const { getByRole } = render(<Field />);
+    const input = getByRole('spinbutton') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    expect(onChange).toHaveBeenLastCalledWith('');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.blur(input);
+    expect(input.value).toBe('');
+    expect(onKeyDown).toHaveBeenCalledOnce();
+    expect(onBlur).toHaveBeenCalledOnce();
+  });
+
   it('renders both stepper buttons enabled when value is within range', () => {
     const { container } = render(
       <NumberStepper value={5} min={0} max={10} onChange={vi.fn()} />,

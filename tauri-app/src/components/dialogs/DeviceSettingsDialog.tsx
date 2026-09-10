@@ -583,14 +583,15 @@ function ConnectionTab({ active }: { active: boolean }) {
             <span>
               {t(ruidaSelected ? 'controller_choice.udp_port' : 'controller_choice.tcp_port')}
             </span>
-            <input
-              type="number"
+            <NumberStepper
+              aria-label={t(ruidaSelected ? 'controller_choice.udp_port' : 'controller_choice.tcp_port')}
               min={1}
               max={65535}
               value={networkPort}
               onChange={(event) => setNetworkPort(Number(event.target.value))}
               disabled={isConnected || connectionPending}
-              className="min-w-0 rounded border border-bb-border bg-bb-bg px-2 py-1 text-bb-text disabled:opacity-60"
+              containerClassName="min-w-0 w-full"
+              className="w-full min-w-0 rounded border border-bb-border bg-bb-bg px-2 py-1 text-bb-text disabled:opacity-60"
               data-testid="device-settings-network-port"
             />
           </label>

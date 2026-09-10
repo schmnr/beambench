@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightBurnProject AppVersion="1.6.03" FormatVersion="0" MaterialHeight="0" MirrorX="False" MirrorY="False">
+    <Shape Type="Path" CutIndex="0">
+        <XForm>1 0 0 1 156.5 233.5</XForm>
+        <V vx="77.5" vy="0" c0x="77.5" c0y="-42.802067" c1x="77.5" c1y="42.802067" sm="1"/>
+        <V vx="0" vy="-77.5" c0x="-42.802067" c0y="-77.5" c1x="42.802067" c1y="-77.5" sm="1"/>
+        <V vx="-77.5" vy="0" c0x="-77.5" c0y="42.802067" c1x="-77.5" c1y="-42.802067" sm="1"/>
+        <V vx="0" vy="77.5" c0x="42.802067" c0y="77.5" c1x="-42.802067" c1y="77.5" sm="1"/>
+        <P T="B" p0="0" p1="1"/>
+        <P T="B" p0="1" p1="2"/>
+        <P T="B" p0="2" p1="3"/>
+        <P T="B" p0="3" p1="0"/>
+    </Shape>
+</LightBurnProject>

@@ -666,7 +666,9 @@ fn parse_vertices(node: Node<'_, '_>) -> Result<Vec<Vertex>, String> {
     let mut vertices = Vec::with_capacity(starts.len());
     for (position, start) in starts.iter().copied().enumerate() {
         let end = starts.get(position + 1).copied().unwrap_or(compact.len());
-        let segment = &compact[start + 1..end];
+        // S marks a smooth node, not part of its last coordinate or handle.
+        let segment = compact[start + 1..end].trim();
+        let segment = segment.strip_suffix('S').unwrap_or(segment);
         let controls_start = segment.find('c').unwrap_or(segment.len());
         let coords = segment[..controls_start]
             .split_whitespace()
@@ -1057,6 +1059,75 @@ mod tests {
                 y: 13.0,
             }
         );
+    }
+
+    #[test]
+    fn native_smooth_circle_matches_legacy_geometry() {
+        let legacy =
+            parse_lbrn_project(include_bytes!("../tests/fixtures/lbrn/smooth-circle.lbrn"))
+                .unwrap();
+        let compact =
+            parse_lbrn_project(include_bytes!("../tests/fixtures/lbrn/smooth-circle.lbrn2"))
+                .unwrap();
+        assert!(legacy.warnings.is_empty());
+        assert!(compact.warnings.is_empty());
+        assert_eq!(compact.shapes, legacy.shapes);
+        let LbrnShape::Path { path, .. } = &compact.shapes[0] else {
+            panic!("expected circle path")
+        };
+        assert_eq!(path.subpaths.len(), 1);
+        assert!(path.subpaths[0].closed);
+        assert_eq!(path.subpaths[0].commands.len(), 6);
+        for command in &path.subpaths[0].commands[1..5] {
+            let PathCommand::CubicTo { c2x, c2y, x, y, .. } = command else {
+                panic!("expected cubic arc")
+            };
+            assert_ne!((c2x, c2y), (x, y), "incoming handle was lost");
+        }
+    }
+
+    #[test]
+    fn smooth_marker_preserves_compact_vertex_numbers() {
+        for compact in [
+            "V1 2c0x3c0y4c1x5c1y6",
+            "V1 2c0x3c0y4",
+            "V1 2c1x5c1y6",
+            "V1 2",
+            "V1 2c0x1c1x1",
+            "V-1.5 2.5c0x-3.25e-2c0y4E+2c1x5e-3c1y-6.125E-2",
+        ] {
+            let parse = |suffix: &str| {
+                let xml = project_xml(&format!(
+                    "<LBRN_PROJECT_ROOT><Shape Type=\"Path\"><VertList>{compact}{suffix}</VertList></Shape></LBRN_PROJECT_ROOT>"
+                ));
+                let doc = roxmltree::Document::parse(&xml).unwrap();
+                parse_vertices(doc.root_element().first_element_child().unwrap()).unwrap()
+            };
+            for suffix in ["S", "S\n  "] {
+                assert_eq!(parse(suffix), parse(""), "{compact}{suffix}");
+            }
+        }
+    }
+
+    #[test]
+    fn smooth_markers_preserve_shared_transformed_curves() {
+        let xml = project_xml(
+            r#"<LBRN_PROJECT_ROOT FormatVersion="1">
+              <Shape Type="Group"><XForm>0 2 -3 0 40 50</XForm><Children>
+                <Shape Type="Path" VertID="7" PrimID="9"><XForm>1 0 0 1 -5 6</XForm></Shape>
+              </Children></Shape>
+              <Shape Type="Path" VertID="7" PrimID="9">
+                <VertList>V0 0c0x0c0y5c1x0c1y-5SV10 0c0x10c0y-5c1x10c1y5S</VertList>
+                <PrimList>B0 1B1 0</PrimList>
+              </Shape>
+            </LBRN_PROJECT_ROOT>"#,
+        );
+        let marked = parse_lbrn_project(xml.as_bytes()).unwrap();
+        let unmarked =
+            parse_lbrn_project(xml.replace("-5S", "-5").replace("5S", "5").as_bytes()).unwrap();
+        assert!(marked.warnings.is_empty());
+        assert_eq!(marked.shapes.len(), 2);
+        assert_eq!(marked.shapes, unmarked.shapes);
     }
 
     #[test]
