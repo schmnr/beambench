@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.2.23
+
+- Fix disabled Home and Home on connect for GRBL compatibility sessions,
+  including the BlazeX M3 connected with a grblHAL compatibility selection.
+- Report Home on connect failures as homing failures instead of network
+  connection failures.
+
 ## 0.2.22
 
 - Add a BlazeX M3 10W preset with a 200 x 150 mm workspace and GRBL defaults

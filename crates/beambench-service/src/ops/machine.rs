@@ -6890,40 +6890,100 @@ mod tests {
     }
 
     #[test]
-    fn homing_remains_unavailable_for_generic_grbl_even_in_alarm() {
+    fn compatibility_sessions_expose_and_dispatch_manual_and_connection_homing() {
         use beambench_common::controller_choice::ControllerChoiceSource;
-        let ctx = ServiceContext::new();
-        let transport = MockSerialTransport::new("generic-homing");
-        let handle = transport.handle();
-        let mut session = GrblSession::new(Box::new(transport));
-        session.connect().unwrap();
-        handle.enqueue_response("<Alarm|MPos:0,0,0|FS:0,0>");
-        session.poll().unwrap();
-        let choice = ResolvedControllerChoice {
-            selection: ExplicitControllerSelection::GenericGrblCompatible,
-            driver: ControllerDriverId::Grbl,
-            source: ControllerChoiceSource::UserExperimentalOverride,
-            detected_identity: None,
-            requires_experimental_mode: true,
-            mismatch: false,
-            override_scope: None,
-            requires_experimental_compatibility_handshake: true,
-        };
-        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Grbl(
-            GrblRuntimeSession::from_choice(session, &choice),
-        ));
-        let error = home(&ctx).unwrap_err();
-        assert!(error.message.contains("not supported"));
-        assert!(
-            ctx.session
-                .lock()
-                .unwrap()
-                .as_ref()
-                .unwrap()
-                .console_entries(100)
-                .iter()
-                .all(|entry| entry.direction != beambench_common::ConsoleDirection::Sent)
-        );
+        for selection in [
+            ExplicitControllerSelection::GenericGrblCompatible,
+            ExplicitControllerSelection::KnownDriver {
+                driver: ControllerDriverId::Grbl,
+            },
+            ExplicitControllerSelection::KnownDriver {
+                driver: ControllerDriverId::FluidNc,
+            },
+            ExplicitControllerSelection::KnownDriver {
+                driver: ControllerDriverId::GrblHal,
+            },
+        ] {
+            for transport_kind in [TransportKind::Serial, TransportKind::Tcp] {
+                for (auto_home, status) in [(false, "Idle"), (true, "Alarm")] {
+                    let profile = MachineProfile {
+                        home_on_connect: auto_home,
+                        ..MachineProfile::default()
+                    };
+                    let ctx = ServiceContext::with_settings(AppSettings {
+                        active_profile_id: Some(profile.id),
+                        machine_profiles: vec![profile],
+                        ..AppSettings::default()
+                    });
+                    let transport = MockSerialTransport::new("generic-homing");
+                    let handle = transport.handle();
+                    let mut session = GrblSession::new(Box::new(transport));
+                    session.connect().unwrap();
+                    handle.enqueue_response("Grbl 1.3a ['$' for help]");
+                    handle.enqueue_response("$22=1");
+                    handle.enqueue_response("$23=7");
+                    handle.enqueue_response(&format!("<{status}|MPos:100,75,0|FS:0,0>"));
+                    session.poll().unwrap();
+                    if status == "Idle" {
+                        session.mark_ready().unwrap();
+                    }
+                    let choice = ResolvedControllerChoice {
+                        selection: selection.clone(),
+                        driver: match selection {
+                            ExplicitControllerSelection::KnownDriver { driver } => driver,
+                            _ => ControllerDriverId::Grbl,
+                        },
+                        source: ControllerChoiceSource::UserExperimentalOverride,
+                        detected_identity: None,
+                        requires_experimental_mode: true,
+                        mismatch: false,
+                        override_scope: None,
+                        requires_experimental_compatibility_handshake: true,
+                    };
+                    register_machine_session(
+                        &ctx,
+                        MachineSessionHandle::Grbl(GrblRuntimeSession::from_choice_with_transport(
+                            session,
+                            &choice,
+                            transport_kind,
+                        )),
+                        json!({}),
+                        None,
+                        Some(&choice),
+                    )
+                    .unwrap();
+                    assert!(
+                        runtime_state(&ctx).unwrap().capabilities.unwrap().can_home,
+                        "{selection:?} via {transport_kind:?}"
+                    );
+                    if !auto_home {
+                        home(&ctx).unwrap();
+                    }
+                    assert!(!machine_coordinates_valid(&ctx));
+                    machine_status(&ctx).unwrap();
+                    let sent: Vec<_> = ctx
+                        .session
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .unwrap()
+                        .console_entries(100)
+                        .into_iter()
+                        .filter(|entry| entry.direction == beambench_common::ConsoleDirection::Sent)
+                        .map(|entry| entry.content)
+                        .collect();
+                    assert_eq!(
+                        sent,
+                        vec!["$H"],
+                        "{selection:?} via {transport_kind:?}, auto={auto_home}"
+                    );
+                    handle.enqueue_response("ok");
+                    handle.enqueue_response("<Idle|MPos:0,0,0|FS:0,0>");
+                    machine_status(&ctx).unwrap();
+                    assert!(machine_coordinates_valid(&ctx));
+                }
+            }
+        }
     }
 
     #[test]
@@ -7206,6 +7266,7 @@ mod tests {
     enum NetworkGrblFixture {
         FluidNc,
         GrblHal,
+        OemGrbl,
         LaserPecker,
     }
 
@@ -7284,6 +7345,9 @@ mod tests {
         let server = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
             let mut commands = Vec::new();
+            if matches!(fixture, NetworkGrblFixture::OemGrbl) {
+                stream.write_all(b"Grbl 1.3a ['$' for help]\n").unwrap();
+            }
             let mut line = Vec::new();
             let mut byte = [0_u8; 1];
             loop {
@@ -7299,6 +7363,12 @@ mod tests {
                         let command = String::from_utf8(std::mem::take(&mut line)).unwrap();
                         commands.push(command.clone());
                         match (fixture, command.as_str()) {
+                            (NetworkGrblFixture::OemGrbl, "$I") => stream
+                                .write_all(b"[VER:1.3a.20211103:]\nok\n").unwrap(),
+                            (NetworkGrblFixture::OemGrbl, "$$") => stream
+                                .write_all(b"$22=1\n$23=7\n$30=1000\n$32=1\n$130=200\n$131=150\nok\n").unwrap(),
+                            (NetworkGrblFixture::OemGrbl, "$H") => stream
+                                .write_all(b"<Home|MPos:100,75,0|FS:0,0>\nok\n<Idle|MPos:0,0,0|FS:0,0>\n").unwrap(),
                             (NetworkGrblFixture::FluidNc, "$I") => stream
                                 .write_all(
                                     b"[VER:4.0 FluidNC v4.0.3 (esp32-wifi) :]\n[OPT:PHSW,15,128]\nok\n",
@@ -7413,6 +7483,77 @@ mod tests {
             NetworkGrblFixture::GrblHal,
             ControllerDriverId::GrblHal,
             ControllerModel::GrblHal,
+        );
+    }
+
+    #[test]
+    fn oem_grbl_tcp_connection_homes_through_compatibility_choice() {
+        let (port, server) = spawn_network_grbl_fixture(NetworkGrblFixture::OemGrbl);
+        let profile = MachineProfile {
+            home_on_connect: true,
+            ..MachineProfile::default()
+        };
+        let ctx = ServiceContext::with_settings(AppSettings {
+            active_profile_id: Some(profile.id),
+            machine_profiles: vec![profile],
+            ..AppSettings::default()
+        });
+        let selection = ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::GrblHal,
+        };
+        let result = begin_network_controller_connection(
+            &ctx,
+            BeginNetworkControllerConnectionInput {
+                host: "127.0.0.1".to_string(),
+                port,
+                selection: selection.clone(),
+            },
+        )
+        .unwrap();
+        let result = match result {
+            ControllerConnectionResult::Challenge { attempt_id, .. } => {
+                continue_controller_connection(
+                    &ctx,
+                    ContinueControllerConnectionInput {
+                        attempt_id,
+                        selection,
+                        decision: Some(ControllerMismatchDecision::ContinueSelectedExperimentally),
+                    },
+                )
+                .unwrap()
+            }
+            result => result,
+        };
+        assert!(
+            matches!(result, ControllerConnectionResult::Connected { ref choice, .. }
+            if choice.requires_experimental_compatibility_handshake)
+        );
+        assert!(runtime_state(&ctx).unwrap().capabilities.unwrap().can_home);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !machine_coordinates_valid(&ctx) && Instant::now() < deadline {
+            machine_status(&ctx).unwrap();
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(machine_coordinates_valid(&ctx));
+        assert!(
+            crate::ops::feedback::get_connection_diagnostics(&ctx)
+                .unwrap()
+                .known_issues
+                .is_empty()
+        );
+        disconnect_machine(&ctx).unwrap();
+        let commands = server.join().unwrap();
+        assert_eq!(
+            commands
+                .iter()
+                .filter(|command| command.as_str() == "$H")
+                .count(),
+            1
+        );
+        assert!(
+            !commands
+                .iter()
+                .any(|command| command == "$X" || command.contains('='))
         );
     }
 

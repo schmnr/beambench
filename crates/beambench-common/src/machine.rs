@@ -168,26 +168,12 @@ impl DeviceCapabilities {
     }
 
     /// Shared GRBL protocol capabilities exposed after an explicit Experimental
-    /// compatibility choice. Homing stays disabled until a named driver can
-    /// verify the controller-specific homing contract; the remaining actions
-    /// use the common streamed-G-code protocol surface.
+    /// compatibility choice and successful GRBL handshake. `$H` is part of that
+    /// shared protocol, including for OEM firmware without an exact named
+    /// identity. Homing eligibility and completion are checked by the service;
+    /// the controller owns its switch configuration and homing axes.
     pub const fn experimental_grbl_compatible() -> Self {
-        Self {
-            can_home: false,
-            can_jog_continuous: true,
-            can_jog: true,
-            can_unlock: true,
-            can_pause_resume: true,
-            can_set_origin: true,
-            can_frame: true,
-            can_run_job: true,
-            reports_absolute_position: true,
-            can_manual_fire: true,
-            can_adjust_overrides: true,
-            supports_rotary: true,
-            supports_cylinder: false,
-            supports_camera_alignment: false,
-        }
+        Self::legacy_grbl()
     }
 
     /// Full shared GRBL-family actions for an exactly identified named adapter.
@@ -587,9 +573,9 @@ mod tests {
     }
 
     #[test]
-    fn experimental_grbl_compatible_capabilities_keep_homing_disabled() {
+    fn experimental_grbl_compatible_capabilities_include_standard_homing() {
         let capabilities = DeviceCapabilities::experimental_grbl_compatible();
-        assert!(!capabilities.can_home);
+        assert!(capabilities.can_home);
         assert!(capabilities.can_jog);
         assert!(capabilities.can_unlock);
         assert!(capabilities.can_pause_resume);

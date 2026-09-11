@@ -1440,7 +1440,7 @@ mod tests {
             handle.controller_evidence_state(),
             Some(ControllerEvidenceState::Emulated)
         );
-        assert!(!handle.capabilities().can_home);
+        assert!(handle.capabilities().can_home);
         assert!(handle.capabilities().can_run_job);
     }
 
