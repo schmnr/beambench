@@ -982,6 +982,10 @@ fn latest_connection_failure(
     events: &[DiagnosticConnectionEvent],
 ) -> Option<&DiagnosticConnectionEvent> {
     for event in events.iter().rev() {
+        // Optional motion after a successful handshake is not a transport failure.
+        if event.stage.starts_with("home_on_connect_") {
+            continue;
+        }
         let failed_stage = event.stage.ends_with("_failed")
             || event.stage.ends_with("_timeout")
             || event.stage == "banner_timeout";
@@ -1256,6 +1260,21 @@ fn known_issues_for(
                 message: connection_failure_summary(failure),
             },
         );
+    }
+
+    if let Some(failure) = attempt_events
+        .iter()
+        .rev()
+        .find(|event| event.stage == "home_on_connect_failed")
+    {
+        issues.push(KnownIssueWarning {
+            code: "home_on_connect_failed".to_owned(),
+            severity: "warning".to_owned(),
+            message: format!(
+                "Home on connect failed after the controller connected: {}",
+                connection_failure_summary(failure)
+            ),
+        });
     }
 
     issues
@@ -1659,6 +1678,45 @@ mod tests {
                 .known_issues
                 .iter()
                 .any(|issue| issue.code == "serial_port_unavailable")
+        );
+    }
+
+    #[test]
+    fn homing_failure_after_connect_is_not_a_network_failure() {
+        let ctx = grbl_diagnostic_context();
+        let endpoint = ControllerConnectionEndpoint::Tcp {
+            host: "127.0.0.1".to_owned(),
+            port: 8080,
+        };
+        ctx.push_endpoint_connection_event("connection_attempt", &endpoint, None, None);
+        ctx.push_endpoint_connection_event("connected", &endpoint, None, None);
+        ctx.push_connection_event(
+            "home_on_connect_failed",
+            None,
+            None,
+            None,
+            Some("Home is not supported by the connected Gcode controller".to_owned()),
+        );
+        let snapshot = get_connection_diagnostics(&ctx).unwrap();
+        assert_eq!(
+            snapshot.machine.session_state,
+            DiagnosticSessionState::Disconnected
+        );
+        assert_eq!(snapshot.known_issues.len(), 1);
+        assert_eq!(snapshot.known_issues[0].code, "home_on_connect_failed");
+        assert!(
+            snapshot.known_issues[0]
+                .message
+                .contains("Home is not supported")
+        );
+        // A later successful connection must not inherit the old Home failure.
+        ctx.push_endpoint_connection_event("connection_attempt", &endpoint, None, None);
+        ctx.push_endpoint_connection_event("connected", &endpoint, None, None);
+        assert!(
+            get_connection_diagnostics(&ctx)
+                .unwrap()
+                .known_issues
+                .is_empty()
         );
     }
 

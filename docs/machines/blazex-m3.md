@@ -65,6 +65,27 @@ New reports include the controller's `$22` and `$23` separately from the saved
 profile flag, when available. This makes community follow-up actionable without
 requiring direct file transfers to the developer.
 
+### Follow-up from 0.2.22
+
+Owner diagnostics confirmed `$22=1` and a successful TCP handshake, followed by
+Beam Bench rejecting Home as unsupported. The shared GRBL compatibility policy
+still disabled homing for generic selections and named-driver compatibility
+overrides, including this OEM firmware using the grblHAL selection. The 0.2.22
+tests used the normal GRBL capability policy and missed this path.
+
+Compatibility sessions now expose the same standard `$H` operation after their
+GRBL protocol handshake. Firmware identity and experimental evidence labels stay
+separate from command availability. No factory settings or homing direction are
+inferred or rewritten. Diagnostics distinguish a failed Home on connect from a
+failed network connection.
+
+Regression coverage includes generic GRBL and GRBL/FluidNC/grblHAL compatibility
+selections, serial and TCP runtime policy, manual Home, startup Alarm, automatic
+Home, and completion before coordinates become valid. A local TCP controller
+fixture with the reported OEM banner and homing settings exercises connection
+selection, compatibility validation, registration and `$H` through the real
+network transport. This verifies the software path, not physical switch behavior.
+
 ## Verification and community follow-up
 
 Software regressions exercise opt-in behavior, startup Alarm, rotary exclusion,
