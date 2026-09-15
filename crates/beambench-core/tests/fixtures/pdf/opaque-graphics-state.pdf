@@ -1,0 +1,37 @@
+%PDF-1.4
+% Synthetic Beam Bench regression fixture; no customer artwork.
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 /Resources << /ExtGState << /GS0 5 0 R >> >> >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 144 72] /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 67 >>
+stream
+/GS0 gs
+1 0 0 RG
+0 0 m 72 0 l 72 36 l h S
+0 0 1 rg
+90 0 36 36 re f
+endstream
+endobj
+5 0 obj
+<< /Type /ExtGState /CA 1 /ca 1 /BM /Normal /SMask /None /LW 0.5 /LC 1 /LJ 1 /ML 10 >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000073 00000 n 
+0000000122 00000 n 
+0000000224 00000 n 
+0000000310 00000 n 
+0000000426 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+528
+%%EOF
