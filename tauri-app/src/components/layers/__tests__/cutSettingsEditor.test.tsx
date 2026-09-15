@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { CutSettingsEditor } from '../CutSettingsEditor';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useMachineStore } from '../../../stores/machineStore';
@@ -39,6 +39,83 @@ afterEach(() => {
 });
 
 describe('CutSettingsEditor', () => {
+  it.each([
+    ['mm', 'minutes', 6000],
+    ['mm', 'seconds', 100],
+    ['inches', 'minutes', 236.2],
+    ['inches', 'seconds', 3.94],
+  ] as const)('uses the profile maximum in %s per %s and reaches the exact machine speed', (display_unit, speed_time_unit, displayMax) => {
+    const layer = makeLayer();
+    const updateCutEntry = vi.fn().mockResolvedValue(true);
+    const profile = makeMachineProfile({ max_speed_mm_min: 6000 });
+    useMachineStore.setState({ profiles: [profile], activeProfileId: profile.id });
+    useAppStore.setState({ settings: makeAppSettings({ display_unit, speed_time_unit }) });
+    useProjectStore.setState({ project: makeProject({ layers: [layer] }), updateCutEntry });
+
+    render(<CutSettingsEditor layerId={layer.id} onClose={vi.fn()} />);
+    const slider = screen.getByTestId(`sub-layer-speed-slider-${layer.entries[0].id}`) as HTMLInputElement;
+    const field = screen.getByRole('spinbutton', { name: /^Speed / }) as HTMLInputElement;
+    expect(Number(slider.max)).toBe(displayMax);
+    expect(Number(field.max)).toBe(displayMax);
+
+    fireEvent.change(slider, { target: { value: slider.max } });
+    expect(slider.validity.stepMismatch).toBe(false);
+    expect(updateCutEntry).toHaveBeenLastCalledWith(layer.id, layer.entries[0].id, { speed_mm_min: 6000 });
+
+    fireEvent.change(field, { target: { value: String(displayMax * 2) } });
+    expect(updateCutEntry).toHaveBeenLastCalledWith(layer.id, layer.entries[0].id, { speed_mm_min: 6000 });
+  });
+
+  it('updates speed limits when saving or switching profiles without rewriting project speeds', () => {
+    const layer = makeLayer({ speed_mm_min: 12000 });
+    const updateCutEntry = vi.fn();
+    const first = makeMachineProfile({ id: 'first', max_speed_mm_min: 6000 });
+    const second = makeMachineProfile({ id: 'second', max_speed_mm_min: 600000 });
+    useMachineStore.setState({ profiles: [first, second], activeProfileId: first.id });
+    useProjectStore.setState({ project: makeProject({ layers: [layer] }), updateCutEntry });
+    render(<CutSettingsEditor layerId={layer.id} onClose={vi.fn()} />);
+    const slider = screen.getByTestId(`sub-layer-speed-slider-${layer.entries[0].id}`) as HTMLInputElement;
+    const field = screen.getByRole('spinbutton', { name: 'Speed (mm/min)' }) as HTMLInputElement;
+    expect(slider.max).toBe('6000');
+    expect(field.value).toBe('12000');
+    expect(screen.getByRole('status').textContent).toBe('Requested speed exceeds the machine limit: 6000 mm/min');
+
+    act(() => useMachineStore.setState({ profiles: [{ ...first, max_speed_mm_min: 7305 }, second] }));
+    expect(slider.max).toBe('7305');
+    expect(screen.getByRole('status').textContent).toContain('7305 mm/min');
+    act(() => useMachineStore.setState({ activeProfileId: second.id }));
+    expect(slider.max).toBe('600000');
+    expect(field.max).toBe('600000');
+    expect(field.value).toBe('12000');
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(updateCutEntry).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().project?.layers[0].entries[0].speed_mm_min).toBe(12000);
+  });
+
+  it('reaches a profile maximum that does not align with the numeric step', () => {
+    const layer = makeLayer();
+    const profile = makeMachineProfile({ max_speed_mm_min: 7305 });
+    const updateCutEntry = vi.fn();
+    useMachineStore.setState({ profiles: [profile], activeProfileId: profile.id });
+    useProjectStore.setState({ project: makeProject({ layers: [layer] }), updateCutEntry });
+    render(<CutSettingsEditor layerId={layer.id} onClose={vi.fn()} />);
+    const slider = screen.getByTestId(`sub-layer-speed-slider-${layer.entries[0].id}`) as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: slider.max } });
+    expect(slider.validity.stepMismatch).toBe(false);
+    expect(updateCutEntry).toHaveBeenLastCalledWith(layer.id, layer.entries[0].id, { speed_mm_min: 7305 });
+  });
+
+  it.each([undefined, 0, -1, NaN, Infinity])('keeps a usable fallback when the profile maximum is %s', (maxSpeed) => {
+    const layer = makeLayer({ speed_mm_min: 600000 });
+    const profile = makeMachineProfile({ max_speed_mm_min: maxSpeed });
+    useMachineStore.setState({ profiles: maxSpeed === undefined ? [] : [profile], activeProfileId: profile.id });
+    useProjectStore.setState({ project: makeProject({ layers: [layer] }) });
+    render(<CutSettingsEditor layerId={layer.id} onClose={vi.fn()} />);
+    const slider = screen.getByTestId(`sub-layer-speed-slider-${layer.entries[0].id}`) as HTMLInputElement;
+    expect(slider.max).toBe('50000');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
   it('renders the shared stacked sub-layer editor inside the dialog', () => {
     const layer = makeLayer();
     useProjectStore.setState({

@@ -9,6 +9,8 @@ interface RangeInputProps {
   min: number;
   max: number;
   step?: number;
+  // Slider endpoints need not align with the numeric field's step size.
+  sliderStep?: number | 'any';
   disabled?: boolean;
   inputWidthClassName?: string;
   testId?: string;
@@ -30,6 +32,7 @@ export function RangeInput({
   min,
   max,
   step = 1,
+  sliderStep = step,
   disabled,
   inputWidthClassName,
   testId,
@@ -66,7 +69,7 @@ export function RangeInput({
         type="range"
         min={min}
         max={max}
-        step={step}
+        step={sliderStep}
         value={value}
         onChange={(event) => markChanged(Number(event.target.value))}
         onPointerUp={(event) => commitIfPending(Number(event.currentTarget.value))}

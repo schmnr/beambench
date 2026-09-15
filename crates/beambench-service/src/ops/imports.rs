@@ -3249,6 +3249,46 @@ mod tests {
     }
 
     #[test]
+    fn pdf_and_ai_import_opaque_graphics_state_with_color_routing_and_undo() {
+        let bytes =
+            include_bytes!("../../../beambench-core/tests/fixtures/pdf/opaque-graphics-state.pdf");
+        for (extension, format) in [
+            ("pdf", VectorImportFormat::Pdf),
+            ("ai", VectorImportFormat::Ai),
+        ] {
+            let (ctx, layer_id, configured_red_id) = colored_pdf_import_context();
+            let before = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+            *ctx.plan_cache.lock().unwrap() = Some(sample_plan(&before));
+            let dir = tempdir().unwrap();
+            let path = dir.path().join(format!("opaque-state.{extension}"));
+            std::fs::write(&path, bytes).unwrap();
+
+            let objects = import_vector_file_from_path(
+                &ctx,
+                ImportVectorFileInput {
+                    file_path: path.to_string_lossy().to_string(),
+                    layer_id,
+                    format,
+                },
+            )
+            .unwrap();
+
+            assert_eq!(objects.len(), 2, "{extension}");
+            assert_eq!(objects[0].layer_id, configured_red_id);
+            let guard = ctx.project.lock().unwrap();
+            let project = guard.as_ref().unwrap();
+            assert_eq!(
+                project.find_layer(objects[1].layer_id).unwrap().color_tag.0,
+                "#0000FF"
+            );
+            assert!((objects[0].bounds.width() - 25.4).abs() < 1e-6);
+            drop(guard);
+            assert!(ctx.plan_cache.lock().unwrap().is_none());
+            assert!(ctx.undo_state().unwrap().can_undo);
+        }
+    }
+
+    #[test]
     fn import_pdf_uses_single_undo_snapshot_and_invalidates_plan() {
         let ctx = ServiceContext::new();
         let mut project = beambench_core::Project::new("Import");

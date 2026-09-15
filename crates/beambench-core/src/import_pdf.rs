@@ -1,4 +1,4 @@
-//! Simplified PDF/AI/EPS path extractor (no external dependencies).
+//! PDF vector path extraction and a simplified PostScript AI/EPS extractor.
 
 use beambench_common::{
     geometry::{Point2D, Transform2D},
@@ -234,6 +234,79 @@ fn has_eager_pdf_encoding(bytes: &[u8]) -> bool {
     false
 }
 
+/// Accept graphics state settings that preserve our vector centerlines and
+/// device colors. Do not discard opacity, masks, dashes or compositing effects:
+/// doing so could turn hidden artwork into laser paths.
+fn validate_pdf_graphics_state(
+    doc: &lopdf::Document,
+    resources: Option<&lopdf::Object>,
+    operation: &lopdf::content::Operation,
+) -> Result<(), String> {
+    let [lopdf::Object::Name(name)] = operation.operands.as_slice() else {
+        return Err("PDF gs requires one graphics state resource name".into());
+    };
+    let label = String::from_utf8_lossy(name);
+    let resolve = || -> lopdf::Result<&lopdf::Dictionary> {
+        let resources = resources
+            .ok_or(lopdf::Error::DictKey("Resources".into()))?
+            .as_dict()?;
+        let states = doc.get_dict_in_dict(resources, b"ExtGState")?;
+        doc.get_dict_in_dict(states, name)
+    };
+    let state =
+        resolve().map_err(|err| format!("Cannot resolve PDF graphics state /{label}: {err}"))?;
+    for (key, value) in state.iter() {
+        let (_, value) = doc
+            .dereference(value)
+            .map_err(|err| format!("Cannot resolve PDF graphics state /{label}: {err}"))?;
+        // A null dictionary value is equivalent to an absent entry in PDF.
+        if matches!(value, lopdf::Object::Null) {
+            continue;
+        }
+        let number = value.as_float().ok().filter(|v| v.is_finite());
+        let name = value.as_name().ok();
+        let supported = match key.as_slice() {
+            b"Type" => name == Some(b"ExtGState"),
+            b"CA" | b"ca" => number == Some(1.0),
+            b"SMask" => name == Some(b"None"),
+            b"BM" => {
+                // The first supported blend mode in an array takes precedence.
+                let mode = value.as_array().ok().and_then(|array| array.first())
+                    .map_or(Ok((None, value)), |first| doc.dereference(first))
+                    .ok().and_then(|(_, mode)| mode.as_name().ok());
+                matches!(mode, Some(b"Normal" | b"Compatible"))
+            }
+            // Same centerline semantics as the accepted w/J/j/M operators.
+            b"LW" => number.is_some_and(|v| v >= 0.0),
+            b"LC" | b"LJ" => value.as_i64().is_ok_and(|v| (0..=2).contains(&v)),
+            b"ML" => number.is_some_and(|v| v >= 1.0),
+            b"D" => value.as_array().is_ok_and(|array| {
+                matches!(array.as_slice(), [pattern, phase]
+                    if doc.dereference(pattern).is_ok_and(|(_, p)| p.as_array().is_ok_and(Vec::is_empty))
+                    && doc.dereference(phase).is_ok_and(|(_, p)| p.as_float().is_ok_and(|v| v.is_finite() && v >= 0.0)))
+            }),
+            b"OP" | b"op" => value.as_bool().is_ok_and(|enabled| !enabled),
+            b"OPM" => value.as_i64().is_ok_and(|v| (0..=1).contains(&v)),
+            b"TR" => name == Some(b"Identity"),
+            b"TR2" => matches!(name, Some(b"Identity" | b"Default")),
+            b"BG2" | b"UCR2" | b"HT" => name == Some(b"Default"),
+            // Rasterization hints do not change the extracted vector geometry.
+            b"RI" => matches!(name, Some(b"AbsoluteColorimetric" | b"RelativeColorimetric" | b"Perceptual" | b"Saturation")),
+            b"FL" => number.is_some_and(|v| (0.0..=100.0).contains(&v)),
+            b"SM" => number.is_some_and(|v| (0.0..=1.0).contains(&v)),
+            b"SA" | b"AIS" | b"TK" => value.as_bool().is_ok(),
+            _ => false,
+        };
+        if !supported {
+            return Err(format!(
+                "PDF graphics state /{label} setting /{} cannot be preserved. Export a vector PDF with full opacity and flatten transparency, masks, dashes, and other effects before importing.",
+                String::from_utf8_lossy(key)
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Resolve page content through the PDF object graph. Unsupported painting is
 /// rejected rather than silently importing a different design.
 pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, String> {
@@ -280,6 +353,7 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
     }
     let page_id = *pages.values().next().unwrap();
     let mut ancestor = Some(page_id);
+    let mut resources = None;
     let mut visited = std::collections::HashSet::new();
     while let Some(id) = ancestor {
         if !visited.insert(id) {
@@ -289,6 +363,16 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
             .get_object(id)
             .and_then(lopdf::Object::as_dict)
             .map_err(|err| err.to_string())?;
+        // Resources are inherited as a whole from the nearest page-tree entry,
+        // rather than merging names from different ancestors.
+        if resources.is_none()
+            && let Ok(value) = page.get(b"Resources")
+        {
+            let (_, value) = doc.dereference(value).map_err(|err| err.to_string())?;
+            if !matches!(value, lopdf::Object::Null) {
+                resources = Some(value);
+            }
+        }
         if page
             .get(b"Rotate")
             .is_ok_and(|value| value.as_i64().unwrap_or(1) % 360 != 0)
@@ -320,9 +404,13 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
         decoded.extend_from_slice(&bytes);
         decoded.push(b'\n');
     }
-    let operations = lopdf::content::Content::decode(&decoded)
+    let mut operations = lopdf::content::Content::decode(&decoded)
         .map_err(|err| format!("Invalid PDF drawing commands: {err}"))?;
     for operation in &operations.operations {
+        if operation.operator == "gs" {
+            validate_pdf_graphics_state(&doc, resources, operation)?;
+            continue;
+        }
         if !matches!(
             operation.operator.as_str(),
             "m" | "l"
@@ -361,6 +449,11 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
             ));
         }
     }
+    // Only validated, geometry-neutral state commands may be omitted. Keep
+    // q/Q, transforms and color operations for the normal path parser.
+    operations
+        .operations
+        .retain(|operation| operation.operator != "gs");
     let normalized = operations.encode().map_err(|err| err.to_string())?;
     let mut paths = parse_content_stream(&String::from_utf8_lossy(&normalized));
     for path in &mut paths {
@@ -1382,6 +1475,179 @@ mod tests {
 mod document_regressions {
     use super::*;
     use lopdf::{Document, Object, Stream, dictionary};
+
+    fn document_with_graphics_state(
+        content: &[u8],
+        state: lopdf::Dictionary,
+        inherited: bool,
+        indirect: bool,
+    ) -> Vec<u8> {
+        let mut doc = Document::load_mem(&document(content)).unwrap();
+        let page_id = *doc.get_pages().values().next().unwrap();
+        let owner = if inherited {
+            doc.get_dictionary(page_id)
+                .unwrap()
+                .get(b"Parent")
+                .unwrap()
+                .as_reference()
+                .unwrap()
+        } else {
+            page_id
+        };
+        let state = if indirect {
+            Object::Reference(doc.add_object(state))
+        } else {
+            Object::Dictionary(state)
+        };
+        let states = dictionary! {"GS0" => state};
+        let states = if indirect {
+            Object::Reference(doc.add_object(states))
+        } else {
+            Object::Dictionary(states)
+        };
+        let resources = dictionary! {"ExtGState" => states};
+        let resources = if indirect {
+            Object::Reference(doc.add_object(resources))
+        } else {
+            Object::Dictionary(resources)
+        };
+        doc.get_dictionary_mut(owner)
+            .unwrap()
+            .set("Resources", resources);
+        let mut bytes = Vec::new();
+        doc.save_to(&mut bytes).unwrap();
+        bytes
+    }
+
+    #[test]
+    fn accepts_opaque_graphics_states_without_changing_geometry_or_colors() {
+        let drawing = b"1 0 0 RG 0 0 m 72 0 l S q 2 0 0 3 10 20 cm 0 0 1 rg 0 0 10 20 re f Q 0 10 m 72 10 l S";
+        let with_state = [b"/GS0 gs ".as_slice(), drawing].concat();
+        let expected = parse_pdf_painted_paths(&document(drawing)).unwrap();
+        // Common exporter defaults, including the line styling already accepted
+        // as standalone PDF operators by this centerline path importer.
+        let state = dictionary! {
+            "Type" => "ExtGState", "CA" => 1, "ca" => 1.0,
+            "BM" => "Normal", "SMask" => "None", "AIS" => false, "TK" => true,
+            "LW" => 0.5, "LC" => 1, "LJ" => 2, "ML" => 10,
+            "D" => vec![Object::Array(vec![]), 0.into()],
+            "OP" => false, "op" => false, "OPM" => 1,
+            "RI" => "RelativeColorimetric", "SA" => true, "FL" => 1,
+            "SM" => 0.02, "TR" => "Identity", "TR2" => "Default"
+        };
+        for inherited in [false, true] {
+            for indirect in [false, true] {
+                let pdf =
+                    document_with_graphics_state(&with_state, state.clone(), inherited, indirect);
+                assert_eq!(parse_pdf_painted_paths(&pdf).unwrap(), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn accepts_empty_and_normal_blend_array_graphics_states() {
+        for state in [
+            dictionary! {},
+            dictionary! {"BM" => vec![Object::Name(b"Normal".to_vec())]},
+        ] {
+            let pdf = document_with_graphics_state(b"/GS0 gs 0 0 72 72 re f", state, false, false);
+            let paths = parse_pdf_painted_paths(&pdf).unwrap();
+            assert_eq!(paths.len(), 1);
+            assert_eq!(paths[0].paint_mode, PdfPaintMode::Fill);
+        }
+    }
+
+    #[test]
+    fn rejects_graphics_state_effects_instead_of_importing_partial_artwork() {
+        for (key, value) in [
+            ("ca", Object::Real(0.5)),
+            ("CA", 0.into()),
+            ("BM", "Multiply".into()),
+            ("SMask", dictionary! {"S" => "Alpha"}.into()),
+            ("OP", true.into()),
+            ("op", true.into()),
+            (
+                "D",
+                vec![Object::Array(vec![2.into(), 3.into()]), 0.into()].into(),
+            ),
+            ("TR", dictionary! {"FunctionType" => 2}.into()),
+            ("UnknownEffect", true.into()),
+        ] {
+            let mut state = dictionary! {};
+            state.set(key, value);
+            let pdf = document_with_graphics_state(
+                b"0 0 m 10 10 l S /GS0 gs 20 20 30 30 re f",
+                state,
+                false,
+                true,
+            );
+            let error = parse_pdf_painted_paths(&pdf).unwrap_err();
+            assert!(error.contains(key), "{key}: {error}");
+            assert!(error.contains("flatten"), "{key}: {error}");
+        }
+    }
+
+    #[test]
+    fn rejects_missing_or_malformed_graphics_state_resources() {
+        for content in [
+            b"/Missing gs 0 0 10 10 re f".as_slice(),
+            b"gs 0 0 10 10 re f",
+            b"12 gs 0 0 10 10 re f",
+        ] {
+            let pdf = document_with_graphics_state(content, dictionary! {}, false, false);
+            assert!(parse_pdf_painted_paths(&pdf).is_err());
+        }
+        for state in [
+            dictionary! {"ca" => "1"},
+            dictionary! {"CA" => 2},
+            dictionary! {"LW" => -1},
+        ] {
+            let pdf = document_with_graphics_state(b"/GS0 gs 0 0 10 10 re f", state, false, false);
+            assert!(parse_pdf_painted_paths(&pdf).is_err());
+        }
+    }
+
+    #[test]
+    fn unused_graphics_state_effects_do_not_block_import() {
+        let drawing = b"0 0 10 10 re f";
+        let pdf = document_with_graphics_state(drawing, dictionary! {"ca" => 0.5}, false, false);
+        assert_eq!(
+            parse_pdf_painted_paths(&pdf).unwrap(),
+            parse_pdf_painted_paths(&document(drawing)).unwrap()
+        );
+    }
+
+    #[test]
+    fn page_resources_replace_inherited_graphics_states() {
+        let bytes = document_with_graphics_state(
+            b"/GS0 gs 0 0 10 10 re f",
+            dictionary! {"ca" => 0.5},
+            true,
+            true,
+        );
+        let mut doc = Document::load_mem(&bytes).unwrap();
+        let page_id = *doc.get_pages().values().next().unwrap();
+        let alpha = doc.add_object(Object::Real(1.0));
+        doc.get_dictionary_mut(page_id).unwrap().set(
+            "Resources",
+            dictionary! {
+                "ExtGState" => dictionary! {"GS0" => dictionary! {"ca" => alpha}}
+            },
+        );
+        let mut bytes = Vec::new();
+        doc.save_to(&mut bytes).unwrap();
+        assert_eq!(parse_pdf_painted_paths(&bytes).unwrap().len(), 1);
+
+        // A page resource dictionary shadows the whole inherited dictionary;
+        // missing names must not fall back to the parent's state.
+        doc.get_dictionary_mut(page_id)
+            .unwrap()
+            .set("Resources", dictionary! {});
+        let mut bytes = Vec::new();
+        doc.save_to(&mut bytes).unwrap();
+        assert!(parse_pdf_painted_paths(&bytes).is_err());
+    }
+
     fn document(content: &[u8]) -> Vec<u8> {
         let mut doc = Document::with_version("1.4");
         let pages_id = doc.new_object_id();

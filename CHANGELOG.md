@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.2.24
+
+- Import vector PDFs and PDF-compatible Illustrator files that use ordinary
+  opaque graphics state settings. Resolve page resources and report unsupported
+  transparency or effects specifically instead of rejecting every `gs` command.
+- Layer speed controls follow the active machine profile's maximum speed,
+  including after profile edits or switches. Slider endpoints reach the exact
+  maximum in every display unit, and new speed edits respect that limit.
+  Existing project speeds are preserved when changing machines, with an inline
+  notice when a saved speed exceeds the selected machine's limit.
 
 ## 0.2.23
 

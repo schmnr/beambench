@@ -26,7 +26,6 @@ import {
   displaySpeedToMmMin,
   formatSpeedForDisplay,
   speedInputValue,
-  speedMmMinToDisplay,
   speedStepForUnit,
   speedUnitLabel,
 } from '../../utils/speedUnits';
@@ -62,6 +61,7 @@ const COLLAPSED_ICON = '▸';
 const MOVE_UP_ICON = '▲';
 const MOVE_DOWN_ICON = '▼';
 const MAX_PASSES = 50;
+const SLIDER_STEP_ANY = 'any' as const;
 const GROUPING_OPTIONS = [
   { value: GROUP_ALL_SHAPES, labelKey: 'panels.sub_layer_stack.group_all_shapes' },
   { value: GROUPS_TOGETHER, labelKey: 'panels.sub_layer_stack.group_groups_together' },
@@ -259,8 +259,12 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
   const speedTimeUnit = appSettings?.speed_time_unit === SPEED_TIME_SECONDS ? SPEED_TIME_SECONDS : SPEED_TIME_MINUTES;
   const speedLabel = speedUnitLabel(displayUnit, speedTimeUnit);
   const speedStep = speedStepForUnit(displayUnit, speedTimeUnit);
-  const maxDisplaySpeed = speedMmMinToDisplay(50000, displayUnit, speedTimeUnit);
-  const minDisplaySpeed = speedMmMinToDisplay(1, displayUnit, speedTimeUnit);
+  const profileMaxSpeed = activeProfile?.max_speed_mm_min;
+  const hasProfileSpeedLimit = profileMaxSpeed !== undefined && Number.isFinite(profileMaxSpeed) && profileMaxSpeed > 0;
+  const maxSpeed = hasProfileSpeedLimit ? profileMaxSpeed : 50000;
+  const minSpeed = Math.min(1, maxSpeed);
+  const maxDisplaySpeed = speedInputValue(maxSpeed, displayUnit, speedTimeUnit);
+  const minDisplaySpeed = speedInputValue(minSpeed, displayUnit, speedTimeUnit);
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
   const offsetFillUnsupportedHelp = t('panels.sub_layer_stack.offset_fill_unsupported_help');
 
@@ -455,14 +459,26 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                   <RangeInput
                     label={t('panels.sub_layer_stack.speed_with_unit', { unit: speedLabel })}
                     value={displaySpeed}
-                    onChange={(speed) => void updateCutEntry(layer.id, entry.id, {
-                      speed_mm_min: displaySpeedToMmMin(speed, displayUnit, speedTimeUnit),
-                    })}
+                    onChange={(speed) => {
+                      // The displayed limit is rounded in inch/second units. Keep
+                      // that endpoint exact and constrain edits in canonical units.
+                      const speed_mm_min = speed >= maxDisplaySpeed
+                        ? maxSpeed
+                        : Math.max(minSpeed, Math.min(maxSpeed, displaySpeedToMmMin(speed, displayUnit, speedTimeUnit)));
+                      void updateCutEntry(layer.id, entry.id, { speed_mm_min });
+                    }}
                     min={minDisplaySpeed}
                     max={maxDisplaySpeed}
                     step={speedStep}
+                    sliderStep={SLIDER_STEP_ANY}
                     testId={`sub-layer-speed-slider-${entry.id}`}
                   />
+                  {hasProfileSpeedLimit && entry.speed_mm_min > maxSpeed && (
+                    <p role="status" className="mt-1 text-xs text-bb-warning-fg">
+                      {t('dialog.preflight.advisories.speed_limited.title')}{': '}
+                      {formatSpeedForDisplay(maxSpeed, displayUnit, speedTimeUnit)}{' '}{speedLabel}
+                    </p>
+                  )}
                 </div>
                 <div data-cut-control="power">
                   <RangeInput
