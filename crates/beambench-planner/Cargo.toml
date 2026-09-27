@@ -21,6 +21,8 @@ rayon = "1.10"
 clipper2 = { workspace = true }
 
 [dev-dependencies]
+beambench-ruida = { path = "../beambench-ruida" }
+beambench-lihuiyu = { path = "../beambench-lihuiyu" }
 beambench-project = { path = "../beambench-project" }
 beambench-grbl = { path = "../beambench-grbl" }
 beambench-preview = { path = "../beambench-preview" }

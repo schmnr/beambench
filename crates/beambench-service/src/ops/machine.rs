@@ -4029,7 +4029,7 @@ fn controller_output_plan(
     } else {
         None
     };
-    planning::plan_in_grbl_coordinates(plan, project, offset)
+    planning::plan_in_grbl_coordinates(plan, project, offset).into_owned()
 }
 
 fn raster_overscan_advisory(
@@ -8911,6 +8911,7 @@ mod tests {
         lines: Vec<String>,
         bytes: Vec<Vec<u8>>,
         fail_m5_writes: usize,
+        fail_line_writes: usize,
         fail_byte_writes: usize,
         fail_reads: usize,
         fail_reads_after_rx: bool,
@@ -8977,6 +8978,10 @@ mod tests {
         fn write_line(&mut self, line: &str) -> Result<(), SerialError> {
             let mut state = self.state.lock().unwrap();
             state.lines.push(line.to_string());
+            if state.fail_line_writes > 0 {
+                state.fail_line_writes -= 1;
+                return Err(SerialError::WriteFailed("injected OS write failure".into()));
+            }
             if line == "M5" && state.fail_m5_writes > 0 {
                 state.fail_m5_writes -= 1;
                 return Err(SerialError::WriteFailed("injected M5 failure".to_string()));
@@ -10646,6 +10651,53 @@ mod tests {
                 .iter()
                 .any(|entry| entry.direction == ConsoleDirection::Sent),
             "fatal teardown should retain job-stream sent command evidence"
+        );
+    }
+
+    #[test]
+    fn job_write_failure_releases_session_and_retains_acknowledged_progress() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let config = GcodeConfig {
+            transfer_mode: beambench_core::TransferMode::Synchronous,
+            ..Default::default()
+        };
+        let mut job = JobController::prepare(&dummy_plan(), &config).unwrap();
+        {
+            let mut session_lock = ctx.session.lock().unwrap();
+            let MachineSessionHandle::Grbl(session) = session_lock.as_mut().unwrap() else {
+                panic!("expected GRBL session");
+            };
+            job.start(session).unwrap();
+        }
+        assert_eq!(job.progress().sent_lines, 1);
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+        {
+            let mut state = transport.lock().unwrap();
+            state.rx.push_back("ok".into());
+            state.fail_line_writes = 1;
+        }
+        assert!(
+            tick_job(&ctx)
+                .unwrap_err()
+                .to_string()
+                .contains("injected OS write failure")
+        );
+        assert!(ctx.job.lock().unwrap().is_none());
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(!transport.lock().unwrap().open);
+        let retained = ctx.last_terminal_job.lock().unwrap().clone().unwrap();
+        assert_eq!(retained.reason, "fatal_tick_error");
+        let progress = retained.progress.unwrap();
+        assert_eq!(
+            progress.sent_lines, 1,
+            "failed write must not count as sent"
+        );
+        assert_eq!(progress.acknowledged_lines, 1);
+        assert!(
+            retained
+                .error
+                .unwrap()
+                .contains("injected OS write failure")
         );
     }
 

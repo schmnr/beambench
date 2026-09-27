@@ -12,24 +12,28 @@ use crate::types::ProcessedRaster;
 
 /// Generic thread-safe LRU cache. Proper LRU: get() promotes, evicts least-recently-used.
 struct LruCache<T> {
-    entries: Vec<(String, Arc<T>)>,
+    entries: Vec<(String, Arc<T>, usize)>,
+    byte_budget: usize,
+    bytes: usize,
     capacity: usize,
     hits: u64,
     misses: u64,
 }
 
 impl<T> LruCache<T> {
-    fn new(capacity: usize) -> Self {
+    fn new(capacity: usize, byte_budget: usize) -> Self {
         Self {
             entries: Vec::with_capacity(capacity),
             capacity,
+            byte_budget,
+            bytes: 0,
             hits: 0,
             misses: 0,
         }
     }
 
     fn get(&mut self, key: &str) -> Option<Arc<T>> {
-        if let Some(pos) = self.entries.iter().position(|(k, _)| k == key) {
+        if let Some(pos) = self.entries.iter().position(|(k, _, _)| k == key) {
             let entry = self.entries.remove(pos);
             let value = entry.1.clone();
             self.entries.push(entry);
@@ -41,12 +45,19 @@ impl<T> LruCache<T> {
         }
     }
 
-    fn insert(&mut self, key: String, value: Arc<T>) {
-        self.entries.retain(|(k, _)| k != &key);
-        while self.entries.len() >= self.capacity {
-            self.entries.remove(0);
+    fn insert(&mut self, key: String, value: Arc<T>, bytes: usize) {
+        if let Some(pos) = self.entries.iter().position(|(k, _, _)| k == &key) {
+            self.bytes -= self.entries.remove(pos).2;
         }
-        self.entries.push((key, value));
+        // A single oversized image remains usable by its caller, but is not cached.
+        if self.capacity == 0 || bytes > self.byte_budget {
+            return;
+        }
+        while self.entries.len() >= self.capacity || self.bytes > self.byte_budget - bytes {
+            self.bytes -= self.entries.remove(0).2;
+        }
+        self.bytes += bytes;
+        self.entries.push((key, value, bytes));
     }
 
     fn hits(&self) -> u64 {
@@ -60,6 +71,24 @@ impl<T> LruCache<T> {
     }
 }
 
+/// Default byte budget for the processed-raster and scaled-image caches.
+///
+/// A single large grayscale raster is substantial on its own (a 5000x5000
+/// `Grayscale8` image is about 25 MB), so a budget of a few tens of megabytes
+/// cannot hold even the two or three images a normal project contains, and
+/// every preview re-runs the whole decode/scale/dither pipeline from source.
+/// 256 MiB keeps the common 1-3 large-image case resident while staying
+/// bounded. `BEAMBENCH_RASTER_CACHE_MB` overrides it for constrained machines.
+fn default_byte_budget() -> usize {
+    const DEFAULT_MB: usize = 256;
+    std::env::var("BEAMBENCH_RASTER_CACHE_MB")
+        .ok()
+        .and_then(|raw| raw.trim().parse::<usize>().ok())
+        .filter(|mb| *mb > 0)
+        .unwrap_or(DEFAULT_MB)
+        .saturating_mul(1024 * 1024)
+}
+
 /// Thread-safe LRU cache for final processed raster results.
 pub struct RasterCache {
     inner: Mutex<LruCache<ProcessedRaster>>,
@@ -67,8 +96,12 @@ pub struct RasterCache {
 
 impl RasterCache {
     pub fn new(capacity: usize) -> Self {
+        Self::with_byte_budget(capacity, default_byte_budget())
+    }
+
+    pub fn with_byte_budget(capacity: usize, byte_budget: usize) -> Self {
         Self {
-            inner: Mutex::new(LruCache::new(capacity)),
+            inner: Mutex::new(LruCache::new(capacity, byte_budget)),
         }
     }
 
@@ -77,7 +110,12 @@ impl RasterCache {
     }
 
     pub fn insert(&self, key: String, value: Arc<ProcessedRaster>) {
-        self.inner.lock().unwrap().insert(key, value);
+        let bytes = value.data.capacity();
+        self.inner.lock().unwrap().insert(key, value, bytes);
+    }
+
+    pub fn retained_bytes(&self) -> usize {
+        self.inner.lock().unwrap().bytes
     }
 
     pub fn hit_count(&self) -> u64 {
@@ -112,8 +150,12 @@ pub struct ScaledImageCache {
 
 impl ScaledImageCache {
     pub fn new(capacity: usize) -> Self {
+        Self::with_byte_budget(capacity, default_byte_budget())
+    }
+
+    pub fn with_byte_budget(capacity: usize, byte_budget: usize) -> Self {
         Self {
-            inner: Mutex::new(LruCache::new(capacity)),
+            inner: Mutex::new(LruCache::new(capacity, byte_budget)),
         }
     }
 
@@ -122,7 +164,12 @@ impl ScaledImageCache {
     }
 
     pub fn insert(&self, key: String, value: Arc<ScaledImage>) {
-        self.inner.lock().unwrap().insert(key, value);
+        let bytes = value.image.as_raw().capacity();
+        self.inner.lock().unwrap().insert(key, value, bytes);
+    }
+
+    pub fn retained_bytes(&self) -> usize {
+        self.inner.lock().unwrap().bytes
     }
 
     pub fn hit_count(&self) -> u64 {
@@ -152,6 +199,44 @@ pub fn scaled_image_key(params: &crate::types::RasterProcessingParams) -> String
 mod tests {
     use super::*;
     use crate::types::{ProcessedRaster, RasterPixelFormat};
+
+    #[test]
+    fn byte_budget_evicts_lru_and_skips_oversized_and_disabled_entries() {
+        let cache = RasterCache::with_byte_budget(32, 200);
+        cache.insert("a".into(), Arc::new(make_raster(1)));
+        cache.insert("b".into(), Arc::new(make_raster(2)));
+        let in_use = cache.get("a").unwrap();
+        cache.insert("c".into(), Arc::new(make_raster(3)));
+        assert!(cache.get("b").is_none());
+        assert_eq!(in_use.data[0], 1);
+        assert_eq!(cache.retained_bytes(), 200);
+        let mut big = make_raster(4);
+        big.data = vec![4; 201];
+        cache.insert("c".into(), Arc::new(big));
+        assert!(cache.get("c").is_none());
+        assert_eq!(cache.retained_bytes(), 100);
+        let disabled = RasterCache::with_byte_budget(0, 200);
+        disabled.insert("a".into(), in_use);
+        assert!(disabled.is_empty());
+    }
+
+    #[test]
+    fn scaled_cache_counts_allocated_pixel_bytes() {
+        let cache = ScaledImageCache::with_byte_budget(16, 100);
+        for key in ["a", "b"] {
+            cache.insert(
+                key.into(),
+                Arc::new(ScaledImage {
+                    image: image::GrayImage::new(10, 10),
+                    target_w: 10,
+                    target_h: 10,
+                }),
+            );
+        }
+        assert!(cache.get("a").is_none());
+        assert!(cache.get("b").is_some());
+        assert_eq!(cache.retained_bytes(), 100);
+    }
 
     fn make_raster(tag: u8) -> ProcessedRaster {
         ProcessedRaster {

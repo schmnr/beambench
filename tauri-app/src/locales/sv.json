@@ -2189,6 +2189,10 @@
         "preview": "Förhandsgranska",
         "no_changes": "Inga ändringar.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Dokumentationsbaserad förinställning för Sculpfun S30 Pro 10W med GRBL 1.1f eller senare. Tester på maskinen återstår.",
+            "advisory": "Arbetsområde 380 x 385 mm, S1000, luftassistans M8/M9. Kontrollera maskinens rörelseområde och maximala S-värde. Aktivera hemkörning först efter att de medföljande brytarna har monterats och den fasta programvaran har konfigurerats. Ramförlängningar kräver egna mått."
+          },
           "sculpfun_s9": {
             "description": "Dokumentationsbaserad förinställning för ursprungliga Sculpfun S9 med GRBL 1.1f eller senare. Tester på maskinen återstår.",
             "advisory": "Konservativ arbetsyta på 410 x 415 mm. Kontrollera axlarnas rörelseområde och maskinens maximala S-värde. Referenskörning och automatisk luftassistans är avstängda; aktivera dem bara för installerade och konfigurerade uppgraderingar. Använd Aktuell position eller Användarorigo utan referensbrytare."
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY körs och USB-serieporten är inte tillgänglig. BRLTTY kan ha tagit över adaptern; kontrollera loggen.",
+      "brltty_help": "Felsök BRLTTY",
+      "brltty_check": "Leta efter att BRLTTY tar över den här USB-enheten, följt av en frånkopplad serieport:",
+      "brltty_stop": "Om loggen bekräftar en konflikt och du inte använder punktskrift, stoppa BRLTTY tillfälligt medan lasern är inaktiv. Anslut sedan USB igen och försök på nytt:",
+      "brltty_restore": "Återställ stöd för punktskrift:",
+      "brltty_persistence": "Stoppet är tillfälligt. Tjänstenamn varierar; om tjänsten startar igen eller saknas, kontrollera distributionens BRLTTY-enhetsregler. Använder du punktskrift, låt BRLTTY vara igång och sök en enhetsspecifik lösning.",
       "none_captured": "Inget fångat",
       "no_snapshot": "Ingen ögonblicksbild",
       "refresh_aria": "Uppdatera diagnostik",

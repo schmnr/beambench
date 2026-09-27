@@ -2189,6 +2189,10 @@
         "preview": "预览",
         "no_changes": "没有变化。",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "适用于搭载 GRBL 1.1f 或更新版本的 Sculpfun S30 Pro 10W 的预设，依据文档配置。尚未进行实机测试。",
+            "advisory": "工作区域 380 x 385 mm，S1000，M8/M9 辅助吹气。请核对机器的行程和最大 S 值。仅在安装随附的限位开关并配置固件后启用回零。扩展机架需要单独设置尺寸。"
+          },
           "sculpfun_s9": {
             "description": "适用于运行 GRBL 1.1f 或更新版本的初代 Sculpfun S9，预设依据公开文档制定。尚未进行实机测试。",
             "advisory": "采用保守的 410 x 415 mm 工作区域。请核对机器的行程和最大 S 值。回零和自动气辅默认关闭，仅在安装并配置相应升级设备后启用。没有回零开关的机器请使用当前位置或用户原点。"
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY 正在运行，USB 串口不可用。它可能占用了适配器，请查看日志确认。",
+      "brltty_help": "排查 BRLTTY 问题",
+      "brltty_check": "查找 BRLTTY 占用此 USB 设备后串口断开的记录：",
+      "brltty_stop": "仅当日志确认存在冲突且您不使用盲文时，在激光器空闲状态下暂时停止 BRLTTY。然后重新连接 USB 并重试：",
+      "brltty_restore": "恢复盲文支持：",
+      "brltty_persistence": "此停止操作是临时的。服务名称可能不同；如果服务重新启动或找不到该服务，请检查发行版的 BRLTTY 设备规则。如果您使用盲文，请保持 BRLTTY 运行并查找针对该设备的解决办法。",
       "none_captured": "未捕获任何内容",
       "no_snapshot": "无快照",
       "refresh_aria": "刷新诊断",

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import type { GcodeLine, ProjectObject, RasterAdjustments, RasterMode } from '../types/project';
+import type { CutEntryPatch, GcodeLine, OperationType, ProjectObject, RasterAdjustments, RasterMode } from '../types/project';
 import { measureAsyncPerf } from './perfMarks';
 import i18n from '../i18n';
 
@@ -9,6 +9,13 @@ export interface TraceBoundaryPx {
   y: number;
   width: number;
   height: number;
+}
+
+export interface ImportLayer {
+  name: string;
+  operation: OperationType;
+  color_tag?: string;
+  entry_patch?: CutEntryPatch;
 }
 
 export const importService = {
@@ -51,16 +58,25 @@ export const importService = {
     return Array.isArray(selected) ? selected : [selected];
   },
 
-  async importFilePaths(filePaths: string[], layerId: string): Promise<ProjectObject[]> {
-    return invoke<ProjectObject[]>('import_files', { filePaths, layerId });
+  async importFilePaths(
+    filePaths: string[],
+    layerId: string,
+    createLayer?: ImportLayer,
+  ): Promise<ProjectObject[]> {
+    return invoke<ProjectObject[]>('import_files', {
+      filePaths, layerId, ...(createLayer ? { createLayer } : {}),
+    });
   },
 
   /** Import files by content (HTML5 drag-drop: the webview has no OS paths). */
   async importFileData(
     files: { filename: string; dataBase64: string }[],
     layerId: string,
+    createLayer?: ImportLayer,
   ): Promise<ProjectObject[]> {
-    return invoke<ProjectObject[]>('import_file_data', { files, layerId });
+    return invoke<ProjectObject[]>('import_file_data', {
+      files, layerId, ...(createLayer ? { createLayer } : {}),
+    });
   },
 
   async pickAndImportFiles(layerId: string): Promise<ProjectObject[]> {

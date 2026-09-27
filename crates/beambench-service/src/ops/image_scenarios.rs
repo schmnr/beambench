@@ -561,19 +561,22 @@ fn trace_raster_image_invalidates_plan_cache() {
     let (ctx, obj_id) = setup_raster_project();
 
     // Pre-populate the plan cache so we can verify it gets cleared
-    *ctx.plan_cache.lock().unwrap() = Some(ExecutionPlan {
-        id: Uuid::new_v4(),
-        project_id: Uuid::new_v4(),
-        revision_hash: "dummy".to_string(),
-        created_at: Utc::now(),
-        bounds: Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
-        total_distance_mm: 0.0,
-        estimated_duration_secs: 0.0,
-        segments: vec![],
-        layer_order: vec![],
-        warnings: vec![],
-        failed_entries: vec![],
-    });
+    *ctx.plan_cache.lock().unwrap() = Some(
+        (ExecutionPlan {
+            id: Uuid::new_v4(),
+            project_id: Uuid::new_v4(),
+            revision_hash: "dummy".to_string(),
+            created_at: Utc::now(),
+            bounds: Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+            total_distance_mm: 0.0,
+            estimated_duration_secs: 0.0,
+            segments: vec![],
+            layer_order: vec![],
+            warnings: vec![],
+            failed_entries: vec![],
+        })
+        .into(),
+    );
     assert!(
         ctx.plan_cache.lock().unwrap().is_some(),
         "Cache should be populated before trace"
@@ -1186,4 +1189,59 @@ fn preview_does_not_pollute_planner_cache() {
         ctx.preview_cache.len() > 0,
         "preview results should be stored in the separate preview_cache"
     );
+}
+
+#[test]
+fn large_checkerboard_preview_and_export_exceed_the_old_run_limit() {
+    let ctx = ServiceContext::with_settings(Default::default());
+    let mut project = Project::new("large checkerboard");
+    // Match the default machine bed so bottom-left coordinate conversion
+    // and export validation use the same physical workspace.
+    project.workspace.bed_width_mm = 200.0;
+    project.workspace.bed_height_mm = 200.0;
+    let width = 2000;
+    let height = 1100;
+    let image = image::GrayImage::from_fn(width, height, |x, y| {
+        image::Luma([if (x + y) % 2 == 0 { 0 } else { 255 }])
+    });
+    let (bytes, asset) = encode_gray_png(&image, "checker.png");
+    let asset_key = asset.id.to_string();
+    project.add_asset(asset, bytes);
+    let mut layer = beambench_core::Layer::new("Image", beambench_core::OperationType::Image);
+    layer
+        .primary_entry_mut()
+        .raster_settings
+        .as_mut()
+        .unwrap()
+        .pass_through = true;
+    project.add_object(ProjectObject::new(
+        "checker",
+        layer.id,
+        Bounds::new(Point2D::new(20.0, 20.0), Point2D::new(180.0, 108.0)),
+        ObjectData::RasterImage {
+            asset_key,
+            original_width_px: width,
+            original_height_px: height,
+            adjustments: None,
+            masks: vec![],
+        },
+    ));
+    project.layers.push(layer);
+    *ctx.project.lock().unwrap() = Some(project);
+    let preview = super::planning::generate_preview(&ctx).unwrap();
+    assert!(!preview.layers.is_empty());
+    let plan = super::planning::require_current_plan(&ctx).unwrap();
+    let runs: usize = plan
+        .segments
+        .iter()
+        .filter_map(|segment| match segment {
+            beambench_planner::PlanSegment::Raster { scanlines, .. } => {
+                Some(scanlines.iter().map(|row| row.runs.len()).sum::<usize>())
+            }
+            _ => None,
+        })
+        .sum();
+    assert_eq!(runs, 1_100_000);
+    let (_, spool) = super::planning::prepare_gcode_export(&ctx, &Default::default()).unwrap();
+    assert!(spool.len() > 2_200_000);
 }

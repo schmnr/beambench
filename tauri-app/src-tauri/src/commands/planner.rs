@@ -108,7 +108,7 @@ mod tests {
         let plan = beambench_planner::build_plan(&project).unwrap();
         let svc = ServiceContext::new();
 
-        *svc.plan_cache.lock().unwrap() = Some(plan.clone());
+        *svc.plan_cache.lock().unwrap() = Some(Arc::new(plan.clone()));
 
         assert!(planning::is_cached_plan_valid(&svc, &project));
     }
@@ -119,7 +119,7 @@ mod tests {
         let plan = beambench_planner::build_plan(&project).unwrap();
         let svc = ServiceContext::new();
 
-        *svc.plan_cache.lock().unwrap() = Some(plan.clone());
+        *svc.plan_cache.lock().unwrap() = Some(Arc::new(plan.clone()));
 
         // Mutate the project — add a second object
         let layer_id = project.layers[0].id;
@@ -144,7 +144,7 @@ mod tests {
         let plan = beambench_planner::build_plan(&project_a).unwrap();
 
         let svc = ServiceContext::new();
-        *svc.plan_cache.lock().unwrap() = Some(plan);
+        *svc.plan_cache.lock().unwrap() = Some(Arc::new(plan));
 
         // Different project (different project_id)
         let project_b = make_project_with_rect("Project B");

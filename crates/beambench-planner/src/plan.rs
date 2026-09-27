@@ -136,7 +136,7 @@ pub enum PlanSegment {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Scanline {
     pub y_mm: f64,
-    pub runs: Vec<ScanRun>,
+    pub runs: crate::runs::ScanRuns,
     pub direction: ScanDirection,
 }
 
@@ -160,16 +160,7 @@ pub fn raster_scanline_motion_points(
     scan_origin: Point2D,
     overscan_mm: f64,
 ) -> Option<(Point2D, Point2D)> {
-    let row_min = scanline
-        .runs
-        .iter()
-        .map(|run| run.start_x_mm.min(run.end_x_mm))
-        .reduce(f64::min)?;
-    let row_max = scanline
-        .runs
-        .iter()
-        .map(|run| run.start_x_mm.max(run.end_x_mm))
-        .reduce(f64::max)?;
+    let (row_min, row_max) = scanline.runs.x_extent()?;
     let (start, end, direction) = match scanline.direction {
         ScanDirection::LeftToRight => (row_min, row_max, 1.0),
         ScanDirection::RightToLeft => (row_max, row_min, -1.0),
@@ -529,7 +520,8 @@ mod tests {
                 start_x_mm: 5.0,
                 end_x_mm: 15.0,
                 power_values: vec![100, 150, 200],
-            }],
+            }]
+            .into(),
             direction: ScanDirection::LeftToRight,
         };
 
@@ -702,7 +694,8 @@ mod tests {
                 start_x_mm: 10.0,
                 end_x_mm: 20.0,
                 power_values: vec![],
-            }],
+            }]
+            .into(),
             direction: ScanDirection::RightToLeft,
         };
 
@@ -727,7 +720,8 @@ mod tests {
                 start_x_mm: 0.0,
                 end_x_mm: 10.0,
                 power_values: vec![],
-            }],
+            }]
+            .into(),
             direction: ScanDirection::LeftToRight,
         };
 

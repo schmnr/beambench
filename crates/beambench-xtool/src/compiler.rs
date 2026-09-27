@@ -228,7 +228,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: Vec::new(),
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,

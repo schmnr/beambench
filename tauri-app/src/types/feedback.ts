@@ -56,6 +56,8 @@ export interface DiagnosticSystem {
   os_version?: string | null;
   arch: string;
   locale?: string | null;
+  brltty_running?: boolean | null;
+  brltty_version?: string | null;
 }
 
 export type DiagnosticSessionState =
@@ -247,6 +249,7 @@ export interface DiagnosticBundleV1 {
 
 export interface ConnectionDiagnosticsSnapshot {
   captured_at: string;
+  system?: DiagnosticSystem | null;
   ports_detected: DiagnosticPort[];
   machine: DiagnosticMachine;
   connection_events: DiagnosticConnectionEvent[];

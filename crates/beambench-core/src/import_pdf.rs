@@ -196,43 +196,8 @@ fn flate_decode(data: &[u8]) -> Result<Vec<u8>, String> {
 const PDF_INPUT_LIMIT: usize = 64 * 1024 * 1024;
 const PDF_CONTENT_LIMIT: usize = 32 * 1024 * 1024;
 
-// These encodings can be expanded during document loading, before the page
-// budget is available. Decode PDF name escapes so they cannot bypass rejection.
-fn has_eager_pdf_encoding(bytes: &[u8]) -> bool {
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] != b'/' {
-            i += 1;
-            continue;
-        }
-        i += 1;
-        let mut name = Vec::new();
-        while i < bytes.len()
-            && !bytes[i].is_ascii_whitespace()
-            && !b"/<>[](){}%\0".contains(&bytes[i])
-        {
-            let mut value = bytes[i];
-            if value == b'#' && i + 2 < bytes.len() {
-                if let (Some(hi), Some(lo)) = (
-                    (bytes[i + 1] as char).to_digit(16),
-                    (bytes[i + 2] as char).to_digit(16),
-                ) {
-                    value = (hi * 16 + lo) as u8;
-                    i += 2;
-                }
-            }
-            // A longer name cannot match either reserved name.
-            if name.len() < 8 {
-                name.push(value);
-            }
-            i += 1;
-        }
-        if name == b"ObjStm" || name == b"Encrypt" {
-            return true;
-        }
-    }
-    false
-}
+// Eager xref/metadata streams have a smaller limit than page artwork.
+const PDF_EAGER_STREAM_LIMIT: usize = 1024 * 1024;
 
 /// Accept graphics state settings that preserve our vector centerlines and
 /// device colors. Do not discard opacity, masks, dashes or compositing effects:
@@ -313,14 +278,30 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
     if content.len() > PDF_INPUT_LIMIT {
         return Err("PDF exceeds the 64 MiB input limit".into());
     }
-    if has_eager_pdf_encoding(content) {
-        return Err("Encrypted PDFs and compressed object streams are not supported. Export a plain vector PDF first.".into());
+    // Inspect the actual trailer, not names occurring in titles, comments or
+    // binary streams. Reject encryption before the full loader can decrypt and
+    // eagerly expand encrypted object streams (that path ignores its filter).
+    let metadata = lopdf::Reader {
+        buffer: content,
+        document: lopdf::Document::new(),
+        encryption_state: None,
+        raw_objects: Default::default(),
+        password: None,
+        strict: true,
+        max_decompressed_size: Some(PDF_EAGER_STREAM_LIMIT),
+    }
+    .read_metadata()
+    .map_err(|err| format!("Cannot read PDF: {err}"))?;
+    if metadata.encrypted {
+        return Err(
+            "Encrypted PDFs are not supported. Export an unencrypted vector PDF first.".into(),
+        );
     }
     let doc = lopdf::Document::load_mem_with_options(
         content,
         lopdf::LoadOptions {
             strict: true,
-            max_decompressed_size: Some(1024 * 1024),
+            max_decompressed_size: Some(PDF_EAGER_STREAM_LIMIT),
             filter: Some(|id, object| {
                 // Object streams are expanded eagerly by the reader. Reject this
                 // unsupported encoding instead of multiplying per-stream budgets.
@@ -336,14 +317,16 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
         },
     )
     .map_err(|err| format!("Cannot read PDF: {err}"))?;
-    if doc.is_encrypted()
-        || doc
-            .reference_table
-            .entries
-            .values()
-            .any(|entry| matches!(entry, lopdf::xref::XrefEntry::Compressed { .. }))
+    if doc
+        .reference_table
+        .entries
+        .values()
+        .any(|entry| matches!(entry, lopdf::xref::XrefEntry::Compressed { .. }))
     {
-        return Err("Encrypted PDFs and compressed object streams are not supported. Export a plain vector PDF first.".into());
+        return Err(
+            "PDF compressed object streams are not supported. Export a plain vector PDF first."
+                .into(),
+        );
     }
     let pages = doc.get_pages();
     if pages.len() != 1 {
@@ -1669,12 +1652,141 @@ mod document_regressions {
         bytes
     }
     #[test]
-    fn encoded_metadata_names_cannot_bypass_resource_guards() {
-        assert!(has_eager_pdf_encoding(b"/Type /Obj#53tm"));
-        assert!(has_eager_pdf_encoding(b"/Encr#79pt 8 0 R"));
-        assert!(!has_eager_pdf_encoding(
-            b"/EncryptedTitle /Object /ObjStmOther"
-        ));
+    fn encoding_names_in_metadata_comments_and_stream_bytes_are_not_encodings() {
+        for title in [
+            "Guide to /Encrypt settings",
+            "Guide to /ObjStm settings",
+            "Nested (title /Encr#79pt) and \"escapes\"",
+        ] {
+            let mut doc =
+                Document::load_mem(&document(b"% /Encrypt /ObjStm\n0 0 m 10 10 l S")).unwrap();
+            let info = doc.add_object(dictionary! {"Title" => Object::string_literal(title)});
+            doc.trailer.set("Info", info);
+            doc.add_object(Stream::new(
+                dictionary! {},
+                b"binary\0/Encrypt /ObjStm /Encr#79pt".to_vec(),
+            ));
+            let mut bytes = Vec::new();
+            doc.save_to(&mut bytes).unwrap();
+            bytes.extend_from_slice(b"\n% /Encrypt /ObjStm\n");
+            assert_eq!(parse_pdf_painted_paths(&bytes).unwrap().len(), 1);
+        }
+    }
+
+    #[test]
+    fn real_object_streams_remain_rejected() {
+        let mut doc = Document::load_mem(&document(b"0 0 m 10 10 l S")).unwrap();
+        let mut bytes = Vec::new();
+        doc.save_modern(&mut bytes).unwrap();
+        assert!(
+            parse_pdf_painted_paths(&bytes)
+                .unwrap_err()
+                .contains("compressed object streams")
+        );
+    }
+
+    #[test]
+    fn referenced_form_and_image_xobjects_are_explicit_compatibility_gaps() {
+        for subtype in ["Form", "Image"] {
+            let mut doc = Document::load_mem(&document(b"0 0 m 10 10 l S /X0 Do")).unwrap();
+            let xobject = if subtype == "Form" {
+                Stream::new(
+                    dictionary! {
+                        "Type" => "XObject", "Subtype" => "Form",
+                        "BBox" => vec![0.into(), 0.into(), 100.into(), 100.into()],
+                        "Matrix" => vec![2.into(), 0.into(), 0.into(), 2.into(), 10.into(), 20.into()],
+                        "Resources" => dictionary! {},
+                    },
+                    b"0 0 10 10 re f".to_vec(),
+                )
+            } else {
+                Stream::new(
+                    dictionary! {
+                        "Type" => "XObject", "Subtype" => "Image",
+                        "Width" => 1, "Height" => 1,
+                        "ColorSpace" => "DeviceGray", "BitsPerComponent" => 8,
+                    },
+                    vec![0],
+                )
+            };
+            let object_id = doc.add_object(xobject);
+            let page_id = *doc.get_pages().values().next().unwrap();
+            doc.get_dictionary_mut(page_id).unwrap().set(
+                "Resources",
+                dictionary! {
+                    "XObject" => dictionary! {"X0" => object_id},
+                },
+            );
+            let mut bytes = Vec::new();
+            doc.save_to(&mut bytes).unwrap();
+            let error = parse_pdf_painted_paths(&bytes).unwrap_err();
+            assert!(
+                error.contains("Do") && error.contains("cannot be preserved"),
+                "{subtype}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn eager_cross_reference_decompression_stays_bounded() {
+        use std::io::Write;
+        let mut encoder =
+            flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder
+            .write_all(&vec![0; PDF_EAGER_STREAM_LIMIT + 1])
+            .unwrap();
+        let compressed = encoder.finish().unwrap();
+        let mut bytes = b"%PDF-1.5\n".to_vec();
+        let offset = bytes.len();
+        bytes.extend_from_slice(format!(
+            "1 0 obj\n<< /Type /XRef /Size 1 /W [1 4 2] /Filter /FlateDecode /Length {} >>\nstream\n",
+            compressed.len(),
+        ).as_bytes());
+        bytes.extend_from_slice(&compressed);
+        bytes.extend_from_slice(
+            format!("\nendstream\nendobj\nstartxref\n{offset}\n%%EOF\n").as_bytes(),
+        );
+        let error = parse_pdf_painted_paths(&bytes).unwrap_err();
+        assert!(error.contains("limit"), "{error}");
+    }
+
+    #[test]
+    fn real_encryption_is_rejected_even_with_an_empty_password() {
+        for password in ["", "secret"] {
+            let mut doc = Document::load_mem(&document(b"0 0 m 10 10 l S")).unwrap();
+            doc.trailer.set(
+                "ID",
+                vec![
+                    Object::string_literal("fixed-test-file-id"),
+                    Object::string_literal("fixed-test-file-id"),
+                ],
+            );
+            let state = lopdf::EncryptionState::try_from(lopdf::EncryptionVersion::V2 {
+                document: &doc,
+                owner_password: "owner",
+                user_password: password,
+                key_length: 128,
+                permissions: lopdf::Permissions::all(),
+            })
+            .unwrap();
+            doc.encrypt(&state).unwrap();
+            let mut bytes = Vec::new();
+            doc.save_to(&mut bytes).unwrap();
+            for escape_name in [false, true] {
+                let mut encoded = bytes.clone();
+                if escape_name {
+                    // Trailer follows all objects, so this does not move any
+                    // offsets recorded in the cross-reference table.
+                    let offset = find_bytes(&encoded, b"/Encrypt", 0).unwrap();
+                    encoded.splice(offset..offset + 8, b"/Encr#79pt".iter().copied());
+                }
+                assert!(
+                    parse_pdf_painted_paths(&encoded)
+                        .unwrap_err()
+                        .contains("Encrypted PDFs")
+                );
+            }
+        }
     }
 
     #[test]

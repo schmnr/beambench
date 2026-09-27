@@ -9,6 +9,13 @@ import i18n from '../../i18n';
 import { wrapBackendError } from '../../i18n/errors';
 import { usePanelHost } from '../../panels';
 
+// Shell syntax is fixed; the surrounding instructions are localized.
+const BRLTTY_COMMANDS = {
+  log: "sudo journalctl -k -b --no-pager | grep -Ei 'brltty|ch341|ftdi_sio|ttyUSB|usbfs'",
+  stop: 'sudo systemctl stop brltty.service',
+  restore: 'sudo systemctl start brltty.service',
+};
+
 function formatState(state: string): string {
   return state.replace(/_/g, ' ');
 }
@@ -152,7 +159,27 @@ export function ConnectionDiagnosticsPanel() {
 
       {snapshot?.known_issues.map((issue) => (
         <div key={issue.code} className="rounded border border-bb-warning-border bg-bb-warning-bg p-2 text-[11px] text-bb-warning-fg">
-          {issue.message}
+          {issue.code === 'linux_brltty_possible_conflict' ? (
+            <div className="space-y-2 break-words leading-relaxed">
+              <p>{t('panels.diagnostics.brltty_message')}</p>
+              <details>
+                <summary className="cursor-pointer rounded font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-bb-accent">
+                  {t('panels.diagnostics.brltty_help')}
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {snapshot.system?.os_version && <p>{snapshot.system.os_version}</p>}
+                  {snapshot.system?.brltty_version && <p>BRLTTY {snapshot.system.brltty_version}</p>}
+                  <p>{t('panels.diagnostics.brltty_check')}</p>
+                  <code className="block select-text break-words">{BRLTTY_COMMANDS.log}</code>
+                  <p>{t('panels.diagnostics.brltty_stop')}</p>
+                  <code className="block select-text break-words">{BRLTTY_COMMANDS.stop}</code>
+                  <p>{t('panels.diagnostics.brltty_restore')}</p>
+                  <code className="block select-text break-words">{BRLTTY_COMMANDS.restore}</code>
+                  <p>{t('panels.diagnostics.brltty_persistence')}</p>
+                </div>
+              </details>
+            </div>
+          ) : issue.message}
         </div>
       ))}
       </section>

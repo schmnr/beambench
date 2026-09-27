@@ -2189,6 +2189,10 @@
         "preview": "Önizleme",
         "no_changes": "Değişiklik yok.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "GRBL 1.1f veya üzerini kullanan Sculpfun S30 Pro 10W için belgelere dayalı ön ayar. Donanım testleri henüz yapılmadı.",
+            "advisory": "380 x 385 mm çalışma alanı, S1000, M8/M9 hava desteği. Makinenizin hareket mesafesini ve en yüksek S değerini kontrol edin. Referansa dönüşü yalnızca verilen anahtarları takıp firmware ayarlarını yaptıktan sonra etkinleştirin. Gövde uzatmaları için ayrı boyutlar gerekir."
+          },
           "sculpfun_s9": {
             "description": "GRBL 1.1f veya daha yeni sürüm kullanan orijinal Sculpfun S9 için belgelere dayalı ön ayar. Makine testleri henüz yapılmadı.",
             "advisory": "Temkinli olarak 410 x 415 mm çalışma alanı kullanılır. Eksen hareket mesafelerini ve makinenizin en yüksek S değerini kontrol edin. Referanslama ve otomatik hava desteği kapalıdır; yalnızca takılı ve yapılandırılmış yükseltmeler için etkinleştirin. Referans anahtarları yoksa Geçerli Konum veya Kullanıcı Başlangıç Noktası kullanın."
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY çalışıyor ve USB seri bağlantı noktası kullanılamıyor. Adaptörü BRLTTY kullanıyor olabilir; doğrulamak için günlüğü kontrol edin.",
+      "brltty_help": "BRLTTY sorunlarını gider",
+      "brltty_check": "BRLTTY’nin bu USB aygıtını devralıp ardından seri bağlantının kesildiğini gösteren kayıtları arayın:",
+      "brltty_stop": "Günlük bir çakışmayı doğruluyorsa ve Braille kullanmıyorsanız, lazer boşta iken BRLTTY’yi geçici olarak durdurun. Ardından USB’yi yeniden bağlayıp tekrar deneyin:",
+      "brltty_restore": "Braille desteğini geri yüklemek için:",
+      "brltty_persistence": "Bu durdurma geçicidir. Hizmet adları değişebilir; yeniden başlarsa veya hizmet yoksa dağıtımınızın BRLTTY aygıt kurallarını kontrol edin. Braille kullanıyorsanız BRLTTY’yi çalışır durumda tutun ve aygıta özel bir çözüm arayın.",
       "none_captured": "Hiçbir şey yakalanmadı",
       "no_snapshot": "Anlık görüntü yok",
       "refresh_aria": "Tanılamayı yenile",

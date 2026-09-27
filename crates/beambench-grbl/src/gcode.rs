@@ -269,12 +269,49 @@ pub fn generate_gcode(
     plan: &ExecutionPlan,
     config: &GcodeConfig,
 ) -> Result<Vec<String>, GrblError> {
+    let mut output = Vec::new();
+    let mut bytes = 0usize;
+    generate_gcode_to(plan, config, &mut |line| {
+        bytes = bytes.saturating_add(line.capacity() + 2 * std::mem::size_of::<String>());
+        if bytes > 256 * 1024 * 1024 {
+            // Marlin, Smoothieware, Snapmaker and xTool share this generator and
+            // have no spooled path, so the guidance has to be something every
+            // caller can actually act on.
+            return Err(GrblError::GcodeError("Generated output exceeds the 256 MiB in-memory command budget. Reduce the job size, image DPI, or number of passes.".into()));
+        }
+        output.push(line);
+        Ok(())
+    })?;
+    Ok(output)
+}
+
+struct LineSink<'a> {
+    write: &'a mut dyn FnMut(String) -> Result<(), GrblError>,
+    error: Option<GrblError>,
+}
+impl LineSink<'_> {
+    fn push(&mut self, line: String) {
+        if self.error.is_none() {
+            self.error = (self.write)(line).err();
+        }
+    }
+    fn check(&mut self) -> Result<(), GrblError> {
+        self.error.take().map_or(Ok(()), Err)
+    }
+}
+
+/// Emit exactly the same commands as `generate_gcode` without retaining them.
+/// Sink failures stop generation before another raster row is expanded.
+pub fn generate_gcode_to(
+    plan: &ExecutionPlan,
+    config: &GcodeConfig,
+    write: &mut dyn FnMut(String) -> Result<(), GrblError>,
+) -> Result<(), GrblError> {
     validate_rotary_config(config)?;
-    let mut lines = vec![
-        "G90".to_string(), // Absolute positioning
-        "G21".to_string(), // Metric units
-        "M5".to_string(),  // Laser off
-    ];
+    let mut lines = LineSink { write, error: None };
+    for line in ["G90", "G21", "M5"] {
+        lines.push(line.into());
+    }
 
     // Inject user prefix
     if !config.gcode_prefix.is_empty() {
@@ -324,7 +361,9 @@ pub fn generate_gcode(
             &mut current_absolute_z,
             &mut current_relative_z_offset,
         );
+        lines.check()?;
         generate_segment(&mut lines, segment, config)?;
+        lines.check()?;
     }
 
     if air_assist_active {
@@ -363,10 +402,10 @@ pub fn generate_gcode(
         }
     }
 
-    Ok(lines)
+    lines.check()
 }
 
-fn push_custom_gcode(lines: &mut Vec<String>, block: &str) {
+fn push_custom_gcode(lines: &mut LineSink<'_>, block: &str) {
     for line in block.lines() {
         let trimmed = line.trim();
         if !trimmed.is_empty() {
@@ -380,7 +419,7 @@ fn z_values_equal(a: f64, b: f64) -> bool {
 }
 
 fn emit_z_if_needed(
-    lines: &mut Vec<String>,
+    lines: &mut LineSink<'_>,
     segment: &PlanSegment,
     config: &GcodeConfig,
     z_offsets: &HashMap<&str, f64>,
@@ -430,7 +469,7 @@ fn emit_z_if_needed(
 }
 
 fn emit_final_z_return(
-    lines: &mut Vec<String>,
+    lines: &mut LineSink<'_>,
     config: &GcodeConfig,
     current_absolute_z: Option<f64>,
     current_relative_z_offset: f64,
@@ -699,7 +738,7 @@ impl RasterLineGeometry {
 }
 
 fn emit_raster_power_move(
-    lines: &mut Vec<String>,
+    lines: &mut LineSink<'_>,
     geometry: RasterLineGeometry,
     end_pos: f64,
     speed_mm_min: f64,
@@ -714,7 +753,7 @@ fn emit_raster_power_move(
 
 #[allow(clippy::too_many_arguments)]
 fn emit_raster_scanline(
-    lines: &mut Vec<String>,
+    lines: &mut LineSink<'_>,
     scanline: &Scanline,
     geometry: RasterLineGeometry,
     power_mode: PowerMode,
@@ -750,8 +789,8 @@ fn emit_raster_scanline(
         if is_ltr { (min, max) } else { (max, min) }
     };
 
-    let (row_start, _) = directed_bounds(runs[0]);
-    let (_, row_end) = directed_bounds(runs[runs.len() - 1]);
+    let (row_start, _) = directed_bounds(&runs[0]);
+    let (_, row_end) = directed_bounds(&runs[runs.len() - 1]);
     let overscan_start = row_start - direction * overscan_mm;
     let overscan_end = row_end + direction * overscan_mm;
 
@@ -769,7 +808,7 @@ fn emit_raster_scanline(
 
     let mut current_pos = row_start;
     for run in runs {
-        let (run_start, run_end) = directed_bounds(run);
+        let (run_start, run_end) = directed_bounds(&run);
         if (run_start - current_pos).abs() > 1e-9 {
             let feed = need_feed.then_some(speed_mm_min);
             lines.push(geometry.feed_move(run_start, feed, 0, config));
@@ -842,7 +881,7 @@ fn emit_raster_scanline(
 }
 
 fn generate_segment(
-    lines: &mut Vec<String>,
+    lines: &mut LineSink<'_>,
     segment: &PlanSegment,
     config: &GcodeConfig,
 ) -> Result<(), GrblError> {
@@ -1064,6 +1103,7 @@ fn generate_segment(
                 lines.push(laser_on_zero(config));
             }
             for scanline in scanlines {
+                lines.check()?;
                 let geometry = match rotated {
                     None => RasterLineGeometry::Orthogonal {
                         axis: *scan_axis,
@@ -1109,6 +1149,95 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
+    #[test]
+    fn spool_matches_legacy_output_across_raster_directions_and_power_modes() {
+        for power in [PowerMode::Binary, PowerMode::Grayscale] {
+            for direction in [ScanDirection::LeftToRight, ScanDirection::RightToLeft] {
+                for angle in [0.0, 37.0, 90.0] {
+                    let runs = vec![ScanRun {
+                        start_x_mm: 10.0,
+                        end_x_mm: 10.8,
+                        power_values: if power == PowerMode::Binary {
+                            vec![]
+                        } else {
+                            vec![0, 64, 255, 255, 128, 0, 200, 200]
+                        },
+                    }];
+                    let plan = make_plan(vec![raster_segment_with_runs(
+                        runs,
+                        direction,
+                        power,
+                        ScanAxis::Horizontal,
+                        angle,
+                        2.0,
+                    )]);
+                    let config = GcodeConfig {
+                        gcode_prefix: "G4 P0.1".into(),
+                        ..Default::default()
+                    };
+                    let expected = generate_gcode(&plan, &config).unwrap();
+                    let mut spool = crate::GcodeSpool::generate(&plan, &config).unwrap();
+                    assert_eq!(spool.len(), expected.len());
+                    assert_eq!(spool.bytes(), expected.join("\n").len() as u64);
+                    for line in &expected {
+                        assert_eq!(spool.next_line().unwrap().as_ref(), Some(line));
+                    }
+                    assert!(spool.next_line().unwrap().is_none());
+                    let mut bytes = Vec::new();
+                    spool.copy_to(&mut bytes).unwrap();
+                    assert_eq!(bytes, expected.join("\n").as_bytes());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn spool_copy_reports_write_failure_and_rewinds_for_retry() {
+        let plan = make_plan(vec![]);
+        let config = GcodeConfig::default();
+        let mut spool = crate::GcodeSpool::generate(&plan, &config).unwrap();
+        let mut short_output = [0u8; 3];
+        let error = spool.copy_to(&mut short_output.as_mut_slice()).unwrap_err();
+        assert!(error.to_string().contains("spool I/O failed"));
+        let mut complete_output = Vec::new();
+        spool.copy_to(&mut complete_output).unwrap();
+        assert_eq!(
+            complete_output,
+            generate_gcode(&plan, &config)
+                .unwrap()
+                .join("\n")
+                .as_bytes()
+        );
+    }
+
+    #[test]
+    fn generation_stops_on_sink_failure_and_rejects_unsendable_spool_lines() {
+        let plan = make_plan(vec![]);
+        let mut calls = 0;
+        let result = generate_gcode_to(&plan, &GcodeConfig::default(), &mut |_| {
+            calls += 1;
+            Err(GrblError::GcodeError("injected disk failure".into()))
+        });
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("injected disk failure")
+        );
+        assert_eq!(calls, 1);
+        let config = GcodeConfig {
+            gcode_suffix: "X".repeat(127),
+            ..Default::default()
+        };
+        assert!(
+            crate::GcodeSpool::generate(&plan, &config)
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("126 bytes")
+        );
+    }
+
     fn make_plan(segments: Vec<PlanSegment>) -> ExecutionPlan {
         ExecutionPlan {
             id: Uuid::new_v4(),
@@ -1136,7 +1265,7 @@ mod tests {
         PlanSegment::Raster {
             scanlines: vec![Scanline {
                 y_mm: 10.0,
-                runs,
+                runs: runs.into(),
                 direction,
             }],
             line_interval_mm: 0.1,
@@ -1676,7 +1805,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1848,7 +1978,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1884,7 +2015,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1918,7 +2050,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 20.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1982,7 +2115,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 20.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2025,7 +2159,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![128, 128, 128],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2062,7 +2197,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 30.0,
                     power_values: vec![255, 128, 64],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2134,7 +2270,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 20.0,
                     power_values: vec![255, 128],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::RightToLeft,
             }],
             line_interval_mm: 0.1,
@@ -2184,7 +2321,8 @@ mod tests {
                 start_x_mm: 0.0,
                 end_x_mm: 10.0,
                 power_values: vec![],
-            }],
+            }]
+            .into(),
             direction,
         };
         let plan = make_plan(vec![PlanSegment::Raster {
@@ -2234,7 +2372,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2269,7 +2408,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![100, 100, 200, 200, 200],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2306,7 +2446,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![255, 128],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2369,7 +2510,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![128],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2403,7 +2545,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2659,7 +2802,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2707,7 +2851,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2780,7 +2925,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2816,7 +2962,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2871,7 +3018,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 30.0,
                     power_values: vec![255, 128, 64],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2928,7 +3076,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::RightToLeft,
             }],
             line_interval_mm: 0.1,
@@ -2979,7 +3128,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3021,7 +3171,8 @@ mod tests {
                     start_x_mm: -5.0,
                     end_x_mm: 5.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3069,7 +3220,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3167,7 +3319,8 @@ mod tests {
                     start_x_mm: -5.0,
                     end_x_mm: 5.0,
                     power_values: vec![100, 100, 200, 200],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3219,7 +3372,8 @@ mod tests {
                     start_x_mm: -5.0,
                     end_x_mm: 5.0,
                     power_values: vec![200, 200],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3257,7 +3411,8 @@ mod tests {
                     start_x_mm: -5.0,
                     end_x_mm: 5.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3294,7 +3449,8 @@ mod tests {
                     start_x_mm: -5.0,
                     end_x_mm: 5.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3383,7 +3539,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3476,7 +3633,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 30.0,
                     power_values: vec![255, 128, 64],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3566,7 +3724,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3599,7 +3758,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3643,7 +3803,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3683,7 +3844,8 @@ mod tests {
                         start_x_mm: 5.0,
                         end_x_mm: 25.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -3692,7 +3854,8 @@ mod tests {
                         start_x_mm: 5.0,
                         end_x_mm: 25.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
             ],
@@ -3736,7 +3899,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -3824,7 +3988,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 15.0,
                     power_values,
-                }],
+                }]
+                .into(),
             }],
             scan_axis,
             speed_mm_min: 3000.0,
@@ -3848,7 +4013,18 @@ mod tests {
             ..GcodeConfig::default()
         };
         let mut lines = Vec::new();
-        generate_segment(&mut lines, &segment, &config).unwrap();
+        generate_segment(
+            &mut LineSink {
+                write: &mut |line| {
+                    lines.push(line);
+                    Ok(())
+                },
+                error: None,
+            },
+            &segment,
+            &config,
+        )
+        .unwrap();
         let gcode = lines.join("\n");
 
         // Find overscan-exit G1 lines: inline S0 immediately before the
@@ -3891,7 +4067,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 15.0,
                     power_values,
-                }],
+                }]
+                .into(),
             }],
             scan_axis,
             speed_mm_min: 3000.0,
@@ -3915,7 +4092,18 @@ mod tests {
             ..GcodeConfig::default()
         };
         let mut lines = Vec::new();
-        generate_segment(&mut lines, &segment, &config).unwrap();
+        generate_segment(
+            &mut LineSink {
+                write: &mut |line| {
+                    lines.push(line);
+                    Ok(())
+                },
+                error: None,
+            },
+            &segment,
+            &config,
+        )
+        .unwrap();
 
         assert!(
             lines.iter().any(|line| line.starts_with("G1")

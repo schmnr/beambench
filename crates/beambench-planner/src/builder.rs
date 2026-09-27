@@ -1,6 +1,7 @@
 //! Execution plan builder - the main orchestrator.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use beambench_common::geometry::{Bounds, Point2D};
@@ -261,18 +262,18 @@ fn raster_has_burn_pixels(raster: &beambench_raster::ProcessedRaster) -> bool {
     }
 }
 
-fn apply_image_masks(
+fn apply_image_masks<'a>(
     project: &Project,
     layer: &Layer,
     obj: &ProjectObject,
-    processed: &beambench_raster::ProcessedRaster,
+    processed: &'a beambench_raster::ProcessedRaster,
     failed_entries: &mut Vec<PlanEntryFailure>,
-) -> beambench_raster::ProcessedRaster {
+) -> std::borrow::Cow<'a, beambench_raster::ProcessedRaster> {
     let ObjectData::RasterImage { masks, .. } = &obj.data else {
-        return processed.clone();
+        return std::borrow::Cow::Borrowed(processed);
     };
     if masks.is_empty() {
-        return processed.clone();
+        return std::borrow::Cow::Borrowed(processed);
     }
 
     let mut inside = Vec::new();
@@ -290,7 +291,7 @@ fn apply_image_masks(
             });
             let mut blank = processed.clone();
             blank.data.fill(255);
-            return blank;
+            return std::borrow::Cow::Owned(blank);
         };
         let Some(path) =
             beambench_core::vector::convert::object_to_world_vecpath_resolved(mask_obj, project)
@@ -306,7 +307,7 @@ fn apply_image_masks(
             });
             let mut blank = processed.clone();
             blank.data.fill(255);
-            return blank;
+            return std::borrow::Cow::Owned(blank);
         };
         let polylines: Vec<Polyline> = flatten_vecpath(&path, DEFAULT_TOLERANCE_MM)
             .into_iter()
@@ -324,7 +325,7 @@ fn apply_image_masks(
             });
             let mut blank = processed.clone();
             blank.data.fill(255);
-            return blank;
+            return std::borrow::Cow::Owned(blank);
         }
         match mask.polarity {
             ImageMaskPolarity::KeepInside => inside.extend(polylines),
@@ -333,7 +334,7 @@ fn apply_image_masks(
     }
 
     if inside.is_empty() && outside.is_empty() {
-        return processed.clone();
+        return std::borrow::Cow::Borrowed(processed);
     }
 
     let mut masked = processed.clone();
@@ -379,7 +380,7 @@ fn apply_image_masks(
         });
     }
 
-    masked
+    std::borrow::Cow::Owned(masked)
 }
 
 /// Check if all points of `inner` are inside `outer` (fully contained).
@@ -1896,22 +1897,36 @@ fn classify_cardinal(norm: f64) -> Option<(ScanAxis, bool)> {
     }
 }
 
+/// Rows of one cardinal pass with their line interval and axis, or the observed
+/// burn-run count when it exceeded the caller's limit.
+type CardinalScanlines = Result<(Vec<Scanline>, f64, ScanAxis), usize>;
+
 /// Build scanlines for a cardinal angle (0/90/180/270) using transpose/flip
 /// instead of expensive bitmap rotation.
 ///
 /// Returns `(scanlines, line_interval_mm, scan_axis)`.
+///
+/// `processed` is shared rather than copied: the 0° orientation scans the very
+/// same allocation the caller holds, and only the transposed/flipped
+/// orientations materialise a derived bitmap. `budget` is pre-checked for each
+/// of those derived bitmaps *before* it is allocated.
+// The parameters are the raster, its bounds, the four orientation/emission
+// options, the run limit and the plan budget; grouping them would only move the
+// same list into a struct built at the single call shape each caller already has.
+#[allow(clippy::too_many_arguments)]
 fn build_cardinal_raster_scanlines(
-    processed: &beambench_raster::ProcessedRaster,
+    processed: &Arc<beambench_raster::ProcessedRaster>,
     bounds: &Bounds,
     scan_axis: ScanAxis,
     needs_flip: bool,
     bidirectional: bool,
     overscan_mm: f64,
     max_runs: Option<usize>,
-) -> Result<(Vec<Scanline>, f64, ScanAxis), usize> {
+    budget: &mut RasterPlanBudget,
+) -> Result<CardinalScanlines, PlannerError> {
     use beambench_raster::{rotate_raster, transpose_raster};
 
-    let build = |raster: &beambench_raster::ProcessedRaster, origin_x, origin_y| {
+    let build = |raster: Arc<beambench_raster::ProcessedRaster>, origin_x, origin_y| {
         if let Some(limit) = max_runs {
             generate_scanlines_checked(
                 raster,
@@ -1932,31 +1947,97 @@ fn build_cardinal_raster_scanlines(
         }
     };
 
-    match (scan_axis, needs_flip) {
-        // 0°: horizontal scan, no flip
+    Ok(match (scan_axis, needs_flip) {
+        // 0°: horizontal scan, no flip — reuses the caller's pixels outright.
         (ScanAxis::Horizontal, false) => {
-            let sl = build(processed, bounds.min.x, bounds.min.y)?;
-            Ok((sl, processed.line_interval_mm, ScanAxis::Horizontal))
+            let line_interval_mm = processed.line_interval_mm;
+            build(Arc::clone(processed), bounds.min.x, bounds.min.y)
+                .map(|sl| (sl, line_interval_mm, ScanAxis::Horizontal))
         }
         // 90°: vertical scan via transpose, no flip
         (ScanAxis::Vertical, false) => {
-            let transposed = transpose_raster(processed);
-            let sl = build(&transposed, bounds.min.y, bounds.min.x)?;
-            Ok((sl, transposed.line_interval_mm, ScanAxis::Vertical))
+            budget.precheck_bitmap(processed.data.len())?;
+            let transposed = Arc::new(transpose_raster(processed));
+            let line_interval_mm = transposed.line_interval_mm;
+            build(transposed, bounds.min.y, bounds.min.x)
+                .map(|sl| (sl, line_interval_mm, ScanAxis::Vertical))
         }
         // 180°: horizontal scan, flipped (reverse scanline and run order)
         (ScanAxis::Horizontal, true) => {
-            let rotated = rotate_raster(processed, 180.0, bounds.width(), bounds.height());
-            let sl = build(&rotated.raster, bounds.min.x, bounds.min.y)?;
-            Ok((sl, rotated.raster.line_interval_mm, ScanAxis::Horizontal))
+            budget.precheck_bitmap(processed.data.len())?;
+            let rotated = Arc::new(
+                rotate_raster(processed, 180.0, bounds.width(), bounds.height()).raster,
+            );
+            let line_interval_mm = rotated.line_interval_mm;
+            build(rotated, bounds.min.x, bounds.min.y)
+                .map(|sl| (sl, line_interval_mm, ScanAxis::Horizontal))
         }
         // 270°: vertical scan via transpose of 180°-flipped raster
         (ScanAxis::Vertical, true) => {
+            budget.precheck_bitmap(processed.data.len())?;
             let rotated = rotate_raster(processed, 180.0, bounds.width(), bounds.height());
-            let transposed = transpose_raster(&rotated.raster);
-            let sl = build(&transposed, bounds.min.y, bounds.min.x)?;
-            Ok((sl, transposed.line_interval_mm, ScanAxis::Vertical))
+            let transposed = Arc::new(transpose_raster(&rotated.raster));
+            drop(rotated);
+            let line_interval_mm = transposed.line_interval_mm;
+            build(transposed, bounds.min.y, bounds.min.x)
+                .map(|sl| (sl, line_interval_mm, ScanAxis::Vertical))
         }
+    })
+}
+
+/// Bound retained image pixels and total output work across images and angle passes.
+///
+/// Bytes are charged *before* the bitmap they describe is allocated, so the cap
+/// prevents the allocation instead of merely reporting it afterwards. Bitmaps
+/// shared between angle passes are charged once, by pointer identity, so
+/// reusing one allocation never counts against the budget twice.
+#[derive(Default)]
+struct RasterPlanBudget {
+    bytes: usize,
+    runs: usize,
+    charged: Vec<usize>,
+}
+
+const RASTER_PLAN_MAX_BYTES: usize = 128 * 1024 * 1024;
+const RASTER_PLAN_MAX_RUNS: usize = 8_000_000;
+
+impl RasterPlanBudget {
+    /// Refuse a bitmap that cannot fit, before it is allocated.
+    ///
+    /// This does not accumulate: what a pass really retains is only known once
+    /// its rows exist, and is charged by [`Self::include`].
+    fn precheck_bitmap(&self, bytes: usize) -> Result<(), PlannerError> {
+        Self::check(self.bytes.saturating_add(bytes), self.runs)
+    }
+
+    /// Charge what a finished pass actually retains.
+    fn include(&mut self, rows: &[Scanline]) -> Result<(), PlannerError> {
+        let bytes = match rows.first().and_then(|row| row.runs.retained_bitmap()) {
+            // Pixel-backed rows all read one bitmap; charge that allocation
+            // once, however many passes go on to share it.
+            Some((identity, len)) => {
+                if self.charged.contains(&identity) {
+                    0
+                } else {
+                    self.charged.push(identity);
+                    len
+                }
+            }
+            // Expanded rows released the bitmap and retain their runs instead.
+            None => rows.iter().map(|row| row.runs.expanded_bytes()).sum(),
+        };
+        self.bytes = self.bytes.saturating_add(bytes);
+        self.runs = self
+            .runs
+            .saturating_add(rows.iter().map(|row| row.runs.len()).sum::<usize>());
+        Self::check(self.bytes, self.runs)
+    }
+
+    fn check(bytes: usize, runs: usize) -> Result<(), PlannerError> {
+        if bytes > RASTER_PLAN_MAX_BYTES || runs > RASTER_PLAN_MAX_RUNS {
+            return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] The combined image plan exceeds its 128 MiB pixel or 8 million burn-run budget. Reduce DPI, image size, or angle passes.".into()));
+        }
+        Ok(())
     }
 }
 
@@ -2418,6 +2499,7 @@ fn build_plan_inner(
     let layer_order: Vec<String> = enabled_layers.iter().map(|l| l.id.to_string()).collect();
 
     let mut all_segments = Vec::new();
+    let mut raster_budget = RasterPlanBudget::default();
     let mut warnings = Vec::new();
     let mut failed_entries = Vec::new();
 
@@ -2430,6 +2512,9 @@ fn build_plan_inner(
 
     // 5. Process each layer
     for layer in enabled_layers {
+        if input.cancellation.should_cancel() {
+            return Err(PlannerError::Cancelled);
+        }
         // Collect visible objects for this layer. Locking is an editing
         // constraint and must not remove an object from the generated job.
         // Priority is an optimization ordering key rather than an unconditional
@@ -2614,8 +2699,13 @@ fn build_plan_inner(
                             };
                             let (processed, raster_bounds) = match baked_transform.as_ref() {
                                 Some((raster, bounds)) => (raster, *bounds),
-                                None => (&masked_processed, obj.bounds),
+                                None => (masked_processed.as_ref(), obj.bounds),
                             };
+
+                            // Keep a single expanded row bounded, including after rotation.
+                            if processed.width_px > 65_536 || processed.height_px > 65_536 {
+                                return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Image scan dimensions exceed 65,536 pixels. Reduce DPI or physical size.".into()));
+                            }
 
                             // Determine direction_mode and power_mode
                             let direction_mode = if bidirectional {
@@ -2627,6 +2717,26 @@ fn build_plan_inner(
                             let power_mode = match processed.format {
                                 RasterPixelFormat::Binary => PowerMode::Binary,
                                 RasterPixelFormat::Grayscale8 => PowerMode::Grayscale,
+                            };
+                            let power_scale = obj.power_scale.clamp(0.0, 1.0);
+                            let entry = layer.primary_entry();
+                            // Grayscale scaling compresses the range above minimum power.
+                            // Dithered images scale the layer's firing power directly.
+                            let (power_min_percent, power_max_percent) = match power_mode {
+                                // A zeroed power scale means "do not fire". Compressing
+                                // the range alone would leave a grayscale image burning
+                                // flat at the layer minimum across its whole area.
+                                _ if power_scale <= f64::EPSILON => (0.0, 0.0),
+                                PowerMode::Grayscale => (
+                                    entry.power_min_percent,
+                                    entry.power_percent
+                                        - (entry.power_percent - entry.power_min_percent)
+                                            * (1.0 - power_scale),
+                                ),
+                                PowerMode::Binary => (
+                                    entry.power_min_percent * power_scale,
+                                    entry.power_percent * power_scale,
+                                ),
                             };
 
                             // Compute effective angle passes
@@ -2649,7 +2759,16 @@ fn build_plan_inner(
                                 (raster_bounds.min.y + raster_bounds.max.y) / 2.0,
                             );
 
+                            // Share one allocation across every angle pass. The
+                            // charge happens first so an image too large for the
+                            // budget is rejected before its pixels are copied.
+                            raster_budget.precheck_bitmap(processed.data.len())?;
+                            let shared_processed = Arc::new(processed.clone());
+
                             for ai in 0..effective_angle_passes {
+                                if input.cancellation.should_cancel() {
+                                    return Err(PlannerError::Cancelled);
+                                }
                                 let effective_angle = scan_angle + ai as f64 * angle_increment;
 
                                 // Normalise to 0..360 for cardinal detection
@@ -2660,18 +2779,20 @@ fn build_plan_inner(
                                     // always emit scan_angle_deg: 0.0 (world-space coords)
                                     let (scanlines, li, scan_axis) =
                                         build_cardinal_raster_scanlines(
-                                            processed,
+                                            &shared_processed,
                                             &raster_bounds,
                                             axis,
                                             needs_flip,
                                             bidirectional,
                                             overscan_mm,
                                             Some(MAX_IMAGE_RASTER_RUNS),
-                                        )
+                                            &mut raster_budget,
+                                        )?
                                         .map_err(
                                             |count| raster_complexity_error(&obj.name, count),
                                         )?;
 
+                                    raster_budget.include(&scanlines)?;
                                     all_segments.push(PlanSegment::Raster {
                                         scanlines,
                                         line_interval_mm: li,
@@ -2685,8 +2806,8 @@ fn build_plan_inner(
                                         overscan_mm,
                                         outlines: vec![],
                                         scan_axis,
-                                        power_max_percent: layer.primary_entry().power_percent,
-                                        power_min_percent: layer.primary_entry().power_min_percent,
+                                        power_max_percent,
+                                        power_min_percent,
                                         dot_width_correction_mm: layer
                                             .primary_entry()
                                             .raster_settings
@@ -2701,26 +2822,37 @@ fn build_plan_inner(
                                     // scanlines in local space
                                     use beambench_raster::rotate_raster;
 
+                                    // A rotated bitmap is a fresh allocation; charge
+                                    // it before rotate_raster produces it.
+                                    raster_budget
+                                        .precheck_bitmap(shared_processed.data.len())?;
                                     let rotated = rotate_raster(
-                                        processed,
+                                        &shared_processed,
                                         -effective_angle,
                                         raster_bounds.width(),
                                         raster_bounds.height(),
                                     );
 
+                                    let (rotated_width_mm, rotated_height_mm) =
+                                        (rotated.width_mm, rotated.height_mm);
+                                    let rotated_raster = Arc::new(rotated.raster);
+                                    let rotated_line_interval_mm = rotated_raster.line_interval_mm;
+                                    let rotated_x_pixel_mm = rotated_raster.effective_x_pixel_mm();
+
                                     let local_scanlines = generate_scanlines_checked(
-                                        &rotated.raster,
-                                        -rotated.width_mm / 2.0,
-                                        -rotated.height_mm / 2.0,
+                                        Arc::clone(&rotated_raster),
+                                        -rotated_width_mm / 2.0,
+                                        -rotated_height_mm / 2.0,
                                         bidirectional,
                                         overscan_mm,
                                         MAX_IMAGE_RASTER_RUNS,
                                     )
                                     .map_err(|count| raster_complexity_error(&obj.name, count))?;
 
+                                    raster_budget.include(&local_scanlines)?;
                                     all_segments.push(PlanSegment::Raster {
                                         scanlines: local_scanlines,
-                                        line_interval_mm: rotated.raster.line_interval_mm,
+                                        line_interval_mm: rotated_line_interval_mm,
                                         direction_mode,
                                         power_mode,
                                         speed_mm_min: layer.primary_entry().speed_mm_min,
@@ -2731,8 +2863,8 @@ fn build_plan_inner(
                                         overscan_mm,
                                         outlines: vec![],
                                         scan_axis: ScanAxis::Horizontal,
-                                        power_max_percent: layer.primary_entry().power_percent,
-                                        power_min_percent: layer.primary_entry().power_min_percent,
+                                        power_max_percent,
+                                        power_min_percent,
                                         dot_width_correction_mm: layer
                                             .primary_entry()
                                             .raster_settings
@@ -2740,7 +2872,7 @@ fn build_plan_inner(
                                             .map(|rs| rs.dot_width_correction_mm)
                                             .unwrap_or(0.0),
                                         ramp_length_mm: effective_layer_ramp_length_mm(layer),
-                                        x_pixel_mm: rotated.raster.effective_x_pixel_mm(),
+                                        x_pixel_mm: rotated_x_pixel_mm,
                                     });
                                 }
                             }
@@ -3180,7 +3312,20 @@ fn build_plan_inner(
                                 continue;
                             };
 
+                            // Keep a single expanded row bounded, including after rotation.
+                            if processed.width_px > 65_536 || processed.height_px > 65_536 {
+                                return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Fill scan dimensions exceed 65,536 pixels. Increase the line interval or reduce the filled area.".into()));
+                            }
+
+                            // Charge the fill bitmap before it is shared, then let
+                            // every angle pass scan that one allocation.
+                            raster_budget.precheck_bitmap(processed.data.len())?;
+                            let processed = Arc::new(processed);
+
                             for ai in 0..effective_angle_passes {
+                                if input.cancellation.should_cancel() {
+                                    return Err(PlannerError::Cancelled);
+                                }
                                 let effective_angle = scan_angle + ai as f64 * angle_increment;
                                 let norm = ((effective_angle % 360.0) + 360.0) % 360.0;
 
@@ -3193,12 +3338,15 @@ fn build_plan_inner(
                                         bidirectional,
                                         overscan_mm,
                                         None,
-                                    )
+                                        &mut raster_budget,
+                                    )?
                                     .expect("unbounded fill raster generation cannot fail");
 
                                     if scanlines.is_empty() {
                                         continue;
                                     }
+
+                                    raster_budget.include(&scanlines)?;
 
                                     all_segments.push(PlanSegment::Raster {
                                         scanlines,
@@ -3227,6 +3375,7 @@ fn build_plan_inner(
                                 } else {
                                     use beambench_raster::rotate_raster;
 
+                                    raster_budget.precheck_bitmap(processed.data.len())?;
                                     let rotated = rotate_raster(
                                         &processed,
                                         -effective_angle,
@@ -3234,10 +3383,16 @@ fn build_plan_inner(
                                         composite_bounds.height(),
                                     );
 
+                                    let (rotated_width_mm, rotated_height_mm) =
+                                        (rotated.width_mm, rotated.height_mm);
+                                    let rotated_raster = Arc::new(rotated.raster);
+                                    let fill_line_interval_mm = rotated_raster.line_interval_mm;
+                                    let fill_x_pixel_mm = rotated_raster.effective_x_pixel_mm();
+
                                     let local_scanlines = generate_scanlines(
-                                        &rotated.raster,
-                                        -rotated.width_mm / 2.0,
-                                        -rotated.height_mm / 2.0,
+                                        rotated_raster,
+                                        -rotated_width_mm / 2.0,
+                                        -rotated_height_mm / 2.0,
                                         bidirectional,
                                         overscan_mm,
                                     );
@@ -3246,9 +3401,11 @@ fn build_plan_inner(
                                         continue;
                                     }
 
+                                    raster_budget.include(&local_scanlines)?;
+
                                     all_segments.push(PlanSegment::Raster {
                                         scanlines: local_scanlines,
-                                        line_interval_mm: rotated.raster.line_interval_mm,
+                                        line_interval_mm: fill_line_interval_mm,
                                         direction_mode,
                                         power_mode: PowerMode::Binary,
                                         speed_mm_min: layer.primary_entry().speed_mm_min,
@@ -3268,7 +3425,7 @@ fn build_plan_inner(
                                             .map(|rs| rs.dot_width_correction_mm)
                                             .unwrap_or(0.0),
                                         ramp_length_mm: effective_layer_ramp_length_mm(layer),
-                                        x_pixel_mm: rotated.raster.effective_x_pixel_mm(),
+                                        x_pixel_mm: fill_x_pixel_mm,
                                     });
                                 }
                             }
@@ -3618,6 +3775,10 @@ fn build_plan_inner(
         );
     }
 
+    if input.cancellation.should_cancel() {
+        return Err(PlannerError::Cancelled);
+    }
+
     // 6f. Insert travel segments (after offsets so travels connect the final positions)
     let mut segments = travel::insert_travel_segments(all_segments);
 
@@ -3794,13 +3955,7 @@ fn apply_dot_width_correction(segments: &mut [PlanSegment], calibration: &Planne
             }
             let trim = total_dwc / 2.0;
             for scanline in scanlines.iter_mut() {
-                scanline.runs.retain_mut(|run| {
-                    // Runs retain canonical ascending coordinates even when
-                    // their scanline is traversed right-to-left.
-                    run.start_x_mm += trim;
-                    run.end_x_mm -= trim;
-                    run.end_x_mm - run.start_x_mm > 1e-9
-                });
+                scanline.runs.trim(trim);
             }
             // A correction can consume every short run on a row. Downstream
             // travel and endpoint logic must never see placeholder empty rows.
@@ -4012,39 +4167,37 @@ fn calculate_bounds(segments: &[PlanSegment], include_travel: bool) -> Bounds {
                 let sin_a = angle_rad.sin();
                 let rotated_scan = scan_angle_deg.abs() > 0.5;
 
+                // Every mapping below is affine and monotone in the run's local X,
+                // so the row's extent carries the same bounds as visiting each run.
                 for scanline in scanlines {
-                    for run in &scanline.runs {
-                        if rotated_scan {
-                            // Non-cardinal raster scanlines are stored in the
-                            // local rotated frame used by the emitter. Convert
-                            // run endpoints back to world space for plan bounds.
-                            let start = rotate_local_raster_point_to_world(
-                                Point2D::new(run.start_x_mm, scanline.y_mm),
+                    let Some((row_min, row_max)) = scanline.runs.x_extent() else {
+                        continue;
+                    };
+                    if rotated_scan {
+                        // Non-cardinal raster scanlines are stored in the
+                        // local rotated frame used by the emitter. Convert
+                        // run endpoints back to world space for plan bounds.
+                        for local_x in [row_min, row_max] {
+                            let point = rotate_local_raster_point_to_world(
+                                Point2D::new(local_x, scanline.y_mm),
                                 *scan_origin,
                                 cos_a,
                                 sin_a,
                             );
-                            let end = rotate_local_raster_point_to_world(
-                                Point2D::new(run.end_x_mm, scanline.y_mm),
-                                *scan_origin,
-                                cos_a,
-                                sin_a,
-                            );
-                            update_bounds(&mut min_x, &mut min_y, &mut max_x, &mut max_y, &start);
-                            update_bounds(&mut min_x, &mut min_y, &mut max_x, &mut max_y, &end);
-                        } else if *scan_axis == ScanAxis::Vertical {
-                            // Vertical scan transposes X/Y in scanlines — un-transpose
-                            // so that plan bounds are in correct world-space.
-                            min_x = min_x.min(scanline.y_mm);
-                            max_x = max_x.max(scanline.y_mm);
-                            min_y = min_y.min(run.start_x_mm.min(run.end_x_mm));
-                            max_y = max_y.max(run.start_x_mm.max(run.end_x_mm));
-                        } else {
-                            min_x = min_x.min(run.start_x_mm);
-                            max_x = max_x.max(run.end_x_mm);
-                            min_y = min_y.min(scanline.y_mm);
-                            max_y = max_y.max(scanline.y_mm);
+                            update_bounds(&mut min_x, &mut min_y, &mut max_x, &mut max_y, &point);
                         }
+                    } else if *scan_axis == ScanAxis::Vertical {
+                        // Vertical scan transposes X/Y in scanlines — un-transpose
+                        // so that plan bounds are in correct world-space.
+                        min_x = min_x.min(scanline.y_mm);
+                        max_x = max_x.max(scanline.y_mm);
+                        min_y = min_y.min(row_min);
+                        max_y = max_y.max(row_max);
+                    } else {
+                        min_x = min_x.min(row_min);
+                        max_x = max_x.max(row_max);
+                        min_y = min_y.min(scanline.y_mm);
+                        max_y = max_y.max(scanline.y_mm);
                     }
                 }
             }
@@ -4176,6 +4329,113 @@ mod tests {
             .iter()
             .filter(|segment| matches!(segment, PlanSegment::Vector { .. }))
             .count()
+    }
+
+    /// Dense dithered bitmap: alternating pixels, so runs vastly outnumber bytes.
+    fn dense_raster() -> beambench_raster::ProcessedRaster {
+        beambench_raster::ProcessedRaster {
+            width_px: 2000,
+            height_px: 4000,
+            line_interval_mm: 0.1,
+            x_pixel_mm: 0.1,
+            format: beambench_raster::RasterPixelFormat::Binary,
+            data: vec![0xAA; 1_000_000],
+        }
+    }
+
+    /// Sparse line art: one narrow burn band per row, mostly white.
+    fn sparse_raster() -> beambench_raster::ProcessedRaster {
+        let width_px = 8_000u32;
+        let height_px = 2_000u32;
+        let stride = (width_px / 8) as usize;
+        let mut data = vec![0xFFu8; stride * height_px as usize];
+        for row in 0..height_px as usize {
+            data[row * stride + 10] = 0x00;
+        }
+        beambench_raster::ProcessedRaster {
+            width_px,
+            height_px,
+            line_interval_mm: 0.1,
+            x_pixel_mm: 0.1,
+            format: beambench_raster::RasterPixelFormat::Binary,
+            data,
+        }
+    }
+
+    #[test]
+    fn combined_image_budget_counts_each_angle_pass() {
+        let raster = Arc::new(dense_raster());
+        let rows = generate_scanlines(Arc::clone(&raster), 0.0, 0.0, true, 0.0);
+        let mut budget = RasterPlanBudget::default();
+        budget.include(&rows).unwrap();
+        budget.include(&rows).unwrap();
+        assert!(
+            budget.include(&rows).is_err(),
+            "run totals accumulate across angle passes"
+        );
+        let full_bytes = RasterPlanBudget {
+            bytes: RASTER_PLAN_MAX_BYTES,
+            ..Default::default()
+        };
+        assert!(full_bytes.precheck_bitmap(1).is_err());
+    }
+
+    #[test]
+    fn a_dense_image_is_retained_as_pixels_and_charged_once_across_passes() {
+        let raster = Arc::new(dense_raster());
+        let rows = generate_scanlines(Arc::clone(&raster), 0.0, 0.0, true, 0.0);
+        // Millions of runs would dwarf the bitmap, so the rows stay pixel-backed.
+        assert!(rows[0].runs.retained_bitmap().is_some());
+
+        let mut budget = RasterPlanBudget::default();
+        budget.include(&rows).unwrap();
+        let after_first = budget.bytes;
+        assert_eq!(after_first, raster.data.len());
+        // Further passes over the same allocation cost nothing more.
+        budget.include(&rows).unwrap();
+        assert_eq!(budget.bytes, after_first);
+    }
+
+    #[test]
+    fn a_sparse_image_is_expanded_so_many_angle_passes_still_fit() {
+        let raster = Arc::new(sparse_raster());
+        let rows = generate_scanlines(Arc::clone(&raster), 0.0, 0.0, true, 0.0);
+        // Expanded runs are cheaper here, so the bitmap is released.
+        assert!(rows[0].runs.retained_bitmap().is_none());
+        assert_eq!(Arc::strong_count(&raster), 1);
+
+        // The regression this guards: charging the full bitmap per orientation
+        // rejected sparse multi-pass plans that the expanded form handles.
+        let mut budget = RasterPlanBudget::default();
+        for _ in 0..8 {
+            budget.include(&rows).expect("8 angle passes of sparse line art must fit");
+        }
+        assert!(
+            budget.bytes < raster.data.len() * 8,
+            "expanded rows must cost less than one bitmap per pass"
+        );
+    }
+
+    #[test]
+    fn budget_rejects_an_oversized_bitmap_before_it_is_allocated() {
+        let budget = RasterPlanBudget::default();
+        // Refused on the pre-check, so the caller never reaches the allocation.
+        assert!(budget.precheck_bitmap(RASTER_PLAN_MAX_BYTES + 1).is_err());
+    }
+
+    #[test]
+    fn cancelled_image_request_does_not_start_planning() {
+        let mut project = create_test_project();
+        project
+            .layers
+            .push(Layer::new("Image", OperationType::Image));
+        let latest = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(2));
+        let input = plan_input_with(project.optimization.clone())
+            .with_cancellation(PlannerCancellation::new(latest, 1));
+        assert!(matches!(
+            build_plan_with_input(&project, &input),
+            Err(PlannerError::Cancelled)
+        ));
     }
 
     #[test]
@@ -4977,8 +5237,8 @@ mod tests {
         assert!(!raster.is_empty());
         for scanline in raster {
             assert_eq!(scanline.runs.len(), 1);
-            assert_eq!(scanline.runs[0].start_x_mm, 0.0);
-            assert!((scanline.runs[0].end_x_mm - 2.0).abs() < 1e-9);
+            assert_eq!(scanline.runs.get(0).unwrap().start_x_mm, 0.0);
+            assert!((scanline.runs.get(0).unwrap().end_x_mm - 2.0).abs() < 1e-9);
         }
     }
 
@@ -5124,8 +5384,8 @@ mod tests {
         assert!(!raster.is_empty());
         for scanline in raster {
             assert_eq!(scanline.runs.len(), 1);
-            assert!((scanline.runs[0].start_x_mm - 0.0).abs() < 1e-9);
-            assert!((scanline.runs[0].end_x_mm - 2.0).abs() < 1e-9);
+            assert!((scanline.runs.get(0).unwrap().start_x_mm - 0.0).abs() < 1e-9);
+            assert!((scanline.runs.get(0).unwrap().end_x_mm - 2.0).abs() < 1e-9);
         }
     }
 
@@ -5195,8 +5455,8 @@ mod tests {
         assert!(!raster.is_empty());
         for scanline in raster {
             assert_eq!(scanline.runs.len(), 1);
-            assert!((scanline.runs[0].start_x_mm - 1.0).abs() < 1e-9);
-            assert!((scanline.runs[0].end_x_mm - 3.0).abs() < 1e-9);
+            assert!((scanline.runs.get(0).unwrap().start_x_mm - 1.0).abs() < 1e-9);
+            assert!((scanline.runs.get(0).unwrap().end_x_mm - 3.0).abs() < 1e-9);
         }
     }
 
@@ -5320,8 +5580,8 @@ mod tests {
         assert!(!raster.is_empty());
         for scanline in raster {
             assert_eq!(scanline.runs.len(), 1);
-            assert_eq!(scanline.runs[0].start_x_mm, 0.0);
-            assert!((scanline.runs[0].end_x_mm - 4.0).abs() < 1e-9);
+            assert_eq!(scanline.runs.get(0).unwrap().start_x_mm, 0.0);
+            assert!((scanline.runs.get(0).unwrap().end_x_mm - 4.0).abs() < 1e-9);
         }
     }
 
@@ -5398,8 +5658,8 @@ mod tests {
             .unwrap();
         for scanline in raster {
             assert_eq!(scanline.runs.len(), 1);
-            assert_eq!(scanline.runs[0].start_x_mm, 0.0);
-            assert!((scanline.runs[0].end_x_mm - 4.0).abs() < 1e-9);
+            assert_eq!(scanline.runs.get(0).unwrap().start_x_mm, 0.0);
+            assert!((scanline.runs.get(0).unwrap().end_x_mm - 4.0).abs() < 1e-9);
         }
     }
 
@@ -5468,8 +5728,8 @@ mod tests {
             .unwrap();
         for scanline in raster {
             assert_eq!(scanline.runs.len(), 1);
-            assert_eq!(scanline.runs[0].start_x_mm, 0.0);
-            assert!((scanline.runs[0].end_x_mm - 2.0).abs() < 1e-9);
+            assert_eq!(scanline.runs.get(0).unwrap().start_x_mm, 0.0);
+            assert!((scanline.runs.get(0).unwrap().end_x_mm - 2.0).abs() < 1e-9);
         }
     }
 
@@ -5541,8 +5801,8 @@ mod tests {
             .unwrap();
         for scanline in raster {
             assert_eq!(scanline.runs.len(), 1);
-            assert_eq!(scanline.runs[0].start_x_mm, 0.0);
-            assert!((scanline.runs[0].end_x_mm - 2.0).abs() < 1e-9);
+            assert_eq!(scanline.runs.get(0).unwrap().start_x_mm, 0.0);
+            assert!((scanline.runs.get(0).unwrap().end_x_mm - 2.0).abs() < 1e-9);
         }
     }
 
@@ -6331,7 +6591,8 @@ mod tests {
                         start_x_mm: 20.0, // This is actually world Y
                         end_x_mm: 80.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -6340,7 +6601,8 @@ mod tests {
                         start_x_mm: 20.0,
                         end_x_mm: 80.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
             ],
@@ -6398,7 +6660,8 @@ mod tests {
                     start_x_mm: 10.0,
                     end_x_mm: 90.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -6438,7 +6701,8 @@ mod tests {
                     start_x_mm: -10.0,
                     end_x_mm: 10.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -7256,14 +7520,16 @@ mod tests {
         let bounds = Bounds::new(Point2D::new(10.0, 20.0), Point2D::new(14.0, 21.0));
 
         let (scanlines, li, axis) = build_cardinal_raster_scanlines(
-            &processed,
+            &Arc::new(processed.clone()),
             &bounds,
             ScanAxis::Horizontal,
             false,
             true,
             2.0,
             None,
+            &mut RasterPlanBudget::default(),
         )
+        .unwrap()
         .unwrap();
 
         assert_eq!(axis, ScanAxis::Horizontal);
@@ -7284,14 +7550,16 @@ mod tests {
         let bounds = Bounds::new(Point2D::new(10.0, 20.0), Point2D::new(14.0, 21.0));
 
         let (scanlines, li, axis) = build_cardinal_raster_scanlines(
-            &processed,
+            &Arc::new(processed.clone()),
             &bounds,
             ScanAxis::Vertical,
             false,
             true,
             2.0,
             None,
+            &mut RasterPlanBudget::default(),
         )
+        .unwrap()
         .unwrap();
 
         assert_eq!(axis, ScanAxis::Vertical);
@@ -7381,24 +7649,28 @@ mod tests {
         let bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(4.0, 1.0));
 
         let (scanlines_0, _, _) = build_cardinal_raster_scanlines(
-            &processed,
+            &Arc::new(processed.clone()),
             &bounds,
             ScanAxis::Horizontal,
             false,
             true,
             0.0,
             None,
+            &mut RasterPlanBudget::default(),
         )
+        .unwrap()
         .unwrap();
         let (scanlines_180, _, _) = build_cardinal_raster_scanlines(
-            &processed,
+            &Arc::new(processed.clone()),
             &bounds,
             ScanAxis::Horizontal,
             true,
             true,
             0.0,
             None,
+            &mut RasterPlanBudget::default(),
         )
+        .unwrap()
         .unwrap();
 
         // 180° should produce different scanline content (flipped)
@@ -7433,14 +7705,16 @@ mod tests {
         let bounds = Bounds::new(Point2D::new(10.0, 20.0), Point2D::new(14.0, 21.0));
 
         let (scanlines, li, axis) = build_cardinal_raster_scanlines(
-            &processed,
+            &Arc::new(processed.clone()),
             &bounds,
             ScanAxis::Vertical,
             true,
             true,
             2.0,
             None,
+            &mut RasterPlanBudget::default(),
         )
+        .unwrap()
         .unwrap();
 
         assert_eq!(axis, ScanAxis::Vertical);
@@ -7457,7 +7731,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -7490,8 +7765,8 @@ mod tests {
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
             panic!("expected raster");
         };
-        assert_eq!(scanlines[0].runs[0].start_x_mm, 0.1);
-        assert_eq!(scanlines[0].runs[0].end_x_mm, 9.9);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 0.1);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 9.9);
     }
 
     #[test]
@@ -7503,7 +7778,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 0.05,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -7561,8 +7837,8 @@ mod tests {
             unreachable!();
         };
         assert_eq!(scanlines.len(), 1);
-        assert_eq!(scanlines[0].runs[0].start_x_mm, 0.1);
-        assert_eq!(scanlines[0].runs[0].end_x_mm, 9.9);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 0.1);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 9.9);
         assert_eq!(scanlines[0].direction, ScanDirection::RightToLeft);
     }
 
@@ -7612,7 +7888,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -7649,8 +7926,8 @@ mod tests {
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
             panic!("expected raster");
         };
-        assert!((scanlines[0].runs[0].start_x_mm - 0.1).abs() < 1e-9);
-        assert!((scanlines[0].runs[0].end_x_mm - 9.9).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().start_x_mm - 0.1).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().end_x_mm - 9.9).abs() < 1e-9);
     }
 
     #[test]
@@ -7668,8 +7945,8 @@ mod tests {
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
             panic!("expected raster");
         };
-        assert!((scanlines[0].runs[0].start_x_mm - 0.2).abs() < 1e-9);
-        assert!((scanlines[0].runs[0].end_x_mm - 9.8).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().start_x_mm - 0.2).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().end_x_mm - 9.8).abs() < 1e-9);
     }
 
     #[test]
@@ -7687,8 +7964,8 @@ mod tests {
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
             panic!("expected raster");
         };
-        assert!((scanlines[0].runs[0].start_x_mm - 0.3).abs() < 1e-9);
-        assert!((scanlines[0].runs[0].end_x_mm - 9.7).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().start_x_mm - 0.3).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().end_x_mm - 9.7).abs() < 1e-9);
     }
 
     #[test]
@@ -7705,8 +7982,8 @@ mod tests {
         let PlanSegment::Raster { scanlines, .. } = &segments[0] else {
             panic!("expected raster");
         };
-        assert!((scanlines[0].runs[0].start_x_mm - 0.0).abs() < 1e-9);
-        assert!((scanlines[0].runs[0].end_x_mm - 10.0).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().start_x_mm - 0.0).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().end_x_mm - 10.0).abs() < 1e-9);
     }
 
     #[test]
@@ -7726,8 +8003,8 @@ mod tests {
             panic!("expected raster");
         };
         // Only layer DWC of 0.2 → trim 0.1 each side
-        assert!((scanlines[0].runs[0].start_x_mm - 0.1).abs() < 1e-9);
-        assert!((scanlines[0].runs[0].end_x_mm - 9.9).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().start_x_mm - 0.1).abs() < 1e-9);
+        assert!((scanlines[0].runs.get(0).unwrap().end_x_mm - 9.9).abs() < 1e-9);
     }
 
     #[test]

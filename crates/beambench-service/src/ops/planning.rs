@@ -2,7 +2,7 @@ use beambench_common::StartFromMode;
 use beambench_common::geometry::{Bounds, Point2D};
 use beambench_core::object::{ObjectData, ProjectObject};
 use beambench_core::{DisplayUnit, MachineProfile, Project, WorkspaceOrigin};
-use beambench_grbl::generate_gcode;
+use beambench_grbl::GcodeSpool;
 use beambench_planner::{
     BoundsAxis, BoundsBoundary, BoundsViolation, ExecutionPlan, PlanStats, PlannerCancellation,
     PlannerError, PlannerInput, build_plan_with_input_and_cache, translate_segments,
@@ -11,6 +11,7 @@ use beambench_preview::{PreviewData, distill_preview};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -224,6 +225,11 @@ fn build_plan_for_snapshot(
         input
     };
 
+    // A build that ran to completion is returned even if a newer request has
+    // since been queued. The planner already aborts stale work from inside its
+    // own loops; re-checking afterwards only discarded finished plans, so an
+    // Export or Start-job build failed whenever a routine preview refresh was
+    // issued while it was running.
     build_plan_with_input_and_cache(project, &input, &ctx.raster_cache, &ctx.scaled_image_cache)
         .map_err(|e| match e {
             PlannerError::Cancelled => ServiceError::stale_revision("Plan generation cancelled"),
@@ -421,18 +427,22 @@ pub fn generate_plan_with_options(
     options: &SessionJobOptions,
 ) -> ServiceResult<ExecutionPlan> {
     sync_current_position(ctx)?;
-    generate_plan_with_options_after_sync(ctx, options)
+    generate_plan_with_options_after_sync(ctx, options).map(|plan| (*plan).clone())
 }
 
 fn generate_plan_with_options_after_sync(
     ctx: &ServiceContext,
     options: &SessionJobOptions,
-) -> ServiceResult<ExecutionPlan> {
+) -> ServiceResult<Arc<ExecutionPlan>> {
     let project = current_project(ctx)?;
     let use_project_cache = !options.affects_plan();
     let (effective_project, selection_origin_bounds) =
         apply_session_job_options(project.clone(), options)?;
-    let plan = build_plan_for_project(ctx, &effective_project, selection_origin_bounds)?;
+    let plan = Arc::new(build_plan_for_project(
+        ctx,
+        &effective_project,
+        selection_origin_bounds,
+    )?);
     if use_project_cache {
         let mut guard = ctx
             .plan_cache
@@ -487,8 +497,16 @@ pub fn ensure_current_plan_with_options(
     ctx: &ServiceContext,
     options: &SessionJobOptions,
 ) -> ServiceResult<ExecutionPlan> {
+    ensure_shared_plan_with_options(ctx, options).map(|plan| (*plan).clone())
+}
+
+fn ensure_shared_plan_with_options(
+    ctx: &ServiceContext,
+    options: &SessionJobOptions,
+) -> ServiceResult<Arc<ExecutionPlan>> {
     if options.affects_plan() {
-        return generate_plan_with_options(ctx, options);
+        sync_current_position(ctx)?;
+        return generate_plan_with_options_after_sync(ctx, options);
     }
 
     // Sync live machine position so CurrentPosition mode always uses fresh data.
@@ -521,13 +539,13 @@ pub fn require_current_plan(ctx: &ServiceContext) -> ServiceResult<ExecutionPlan
         .plan_cache
         .lock()
         .map_err(|e| lock_err("plan_cache", e))?;
-    guard.clone().ok_or_else(|| {
+    guard.as_ref().map(|plan| (**plan).clone()).ok_or_else(|| {
         ServiceError::invalid_state("No execution plan available. Generate a plan first.")
     })
 }
 
 pub fn get_plan_stats(ctx: &ServiceContext) -> ServiceResult<PlanStats> {
-    Ok(ensure_current_plan(ctx)?.stats())
+    Ok(ensure_shared_plan_with_options(ctx, &SessionJobOptions::default())?.stats())
 }
 
 pub fn generate_preview(ctx: &ServiceContext) -> ServiceResult<PreviewData> {
@@ -538,7 +556,7 @@ pub fn generate_preview_with_options(
     ctx: &ServiceContext,
     options: &SessionJobOptions,
 ) -> ServiceResult<PreviewData> {
-    let plan = ensure_current_plan_with_options(ctx, options)?;
+    let plan = ensure_shared_plan_with_options(ctx, options)?;
     let project = current_project(ctx)?;
     let offset = trusted_grbl_work_to_machine_offset(ctx)?;
     let display_plan = plan_in_machine_coordinates(&plan, &project, offset);
@@ -564,9 +582,22 @@ pub fn export_gcode_to_path_with_options(
     path: &std::path::Path,
     options: &SessionJobOptions,
 ) -> ServiceResult<String> {
-    let (plan, gcode_lines) = prepare_gcode_export(ctx, options)?;
-    std::fs::write(path, gcode_lines.join("\n"))
-        .map_err(|e| ServiceError::persistence(format!("Failed to write G-code file: {e}")))?;
+    let (plan, mut gcode_lines) = prepare_gcode_export(ctx, options)?;
+    // Preparation and validation finish before replacing any destination file.
+    // Stage beside the resolved destination so the rename stays within one
+    // filesystem even when the export path is a symlink to another volume.
+    let target = crate::persist::resolve_export_target(path);
+    let parent = target
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(std::path::Path::new("."));
+    let mut output = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|e| ServiceError::persistence(e.to_string()))?;
+    gcode_lines
+        .copy_to(output.as_file_mut())
+        .map_err(|e| ServiceError::persistence(e.to_string()))?;
+    crate::persist::persist_export(output, &target)
+        .map_err(|e| ServiceError::persistence(e.to_string()))?;
     ctx.emit_event(
         "preview.gcode.exported",
         json!({
@@ -584,7 +615,7 @@ pub fn export_gcode_to_path_with_options(
 pub fn prepare_gcode_export(
     ctx: &ServiceContext,
     options: &SessionJobOptions,
-) -> ServiceResult<(ExecutionPlan, Vec<String>)> {
+) -> ServiceResult<(ExecutionPlan, GcodeSpool)> {
     let (plan, project, profile) = prepare_job_snapshot(ctx, options)?;
     if plan.segments.is_empty() {
         return Err(ServiceError::invalid_state(
@@ -634,7 +665,7 @@ pub fn prepare_gcode_export(
     output::validate_rotary_feed_limit(&plan, &profile).map_err(ServiceError::invalid_state)?;
     let offset = trusted_grbl_work_to_machine_offset(ctx)?;
     let output_plan = plan_in_grbl_coordinates(&plan, &project, offset);
-    let gcode_lines = generate_gcode(&output_plan, &gcode_config)
+    let gcode_lines = GcodeSpool::generate(&output_plan, &gcode_config)
         .map_err(|e| ServiceError::invalid_state(format!("G-code generation failed: {e}")))?;
     Ok((plan, gcode_lines))
 }
@@ -660,30 +691,30 @@ fn translated_plan(plan: &ExecutionPlan, dx: f64, dy: f64) -> ExecutionPlan {
     translated
 }
 
-pub(crate) fn plan_in_machine_coordinates(
-    plan: &ExecutionPlan,
+pub(crate) fn plan_in_machine_coordinates<'a>(
+    plan: &'a ExecutionPlan,
     project: &Project,
     work_to_machine_offset: Option<(f64, f64)>,
-) -> ExecutionPlan {
+) -> Cow<'a, ExecutionPlan> {
     if project.start_from != StartFromMode::AbsoluteCoords
         && let Some((dx, dy)) = work_to_machine_offset
     {
-        return translated_plan(plan, dx, dy);
+        return Cow::Owned(translated_plan(plan, dx, dy));
     }
-    plan.clone()
+    Cow::Borrowed(plan)
 }
 
-pub(crate) fn plan_in_grbl_coordinates(
-    plan: &ExecutionPlan,
+pub(crate) fn plan_in_grbl_coordinates<'a>(
+    plan: &'a ExecutionPlan,
     project: &Project,
     work_to_machine_offset: Option<(f64, f64)>,
-) -> ExecutionPlan {
+) -> Cow<'a, ExecutionPlan> {
     if project.start_from == StartFromMode::AbsoluteCoords
         && let Some((dx, dy)) = work_to_machine_offset
     {
-        return translated_plan(plan, -dx, -dy);
+        return Cow::Owned(translated_plan(plan, -dx, -dy));
     }
-    plan.clone()
+    Cow::Borrowed(plan)
 }
 
 #[cfg(test)]
@@ -698,6 +729,27 @@ mod tests {
 
     use crate::ServiceErrorCode;
     use crate::ops::imports::{ImportSvgInput, import_svg_from_path};
+
+    #[test]
+    fn preview_and_stats_share_the_cached_plan_and_borrow_unchanged_coordinates() {
+        let ctx = create_test_ctx_with_project();
+        let options = SessionJobOptions::default();
+        let first = ensure_shared_plan_with_options(&ctx, &options).unwrap();
+        let second = ensure_shared_plan_with_options(&ctx, &options).unwrap();
+        assert!(Arc::ptr_eq(&first, &second));
+        let project = current_project(&ctx).unwrap();
+        assert!(matches!(
+            plan_in_machine_coordinates(&first, &project, None),
+            Cow::Borrowed(_)
+        ));
+        let preview = generate_preview(&ctx).unwrap();
+        assert_eq!(preview.revision_hash, first.revision_hash);
+        get_plan_stats(&ctx).unwrap();
+        assert!(Arc::ptr_eq(
+            ctx.plan_cache.lock().unwrap().as_ref().unwrap(),
+            &first
+        ));
+    }
 
     /// Helper: mutate the currently-open project's `optimization` block
     /// in-place. Persisted optimization state lives on the project, not on

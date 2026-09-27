@@ -148,13 +148,17 @@ pub struct DiagnosticClient {
     pub git_sha: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DiagnosticSystem {
     pub os: String,
     pub os_version: Option<String>,
     pub arch: String,
     pub locale: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brltty_running: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brltty_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -462,6 +466,8 @@ pub struct FeedbackHistoryEntry {
 #[serde(deny_unknown_fields)]
 pub struct ConnectionDiagnosticsSnapshot {
     pub captured_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system: Option<DiagnosticSystem>,
     #[serde(default)]
     pub ports_detected: Vec<DiagnosticPort>,
     pub machine: DiagnosticMachine,
@@ -552,6 +558,7 @@ mod tests {
                 os_version: Some("14.6.0".to_owned()),
                 arch: "aarch64".to_owned(),
                 locale: Some("en-US".to_owned()),
+                ..Default::default()
             },
             machine: DiagnosticMachine {
                 connected: false,
@@ -736,6 +743,21 @@ mod tests {
             object_keys(serde_json::to_value(sample_bundle()).unwrap()),
             expected
         );
+    }
+
+    #[test]
+    fn diagnostic_system_accepts_older_reports_and_round_trips_linux_details() {
+        let legacy = serde_json::to_value(sample_bundle()).unwrap();
+        assert!(legacy["system"].get("brltty_running").is_none());
+        let mut bundle: DiagnosticBundleV1 = serde_json::from_value(legacy).unwrap();
+        assert_eq!(bundle.system.brltty_running, None);
+        assert_eq!(bundle.system.brltty_version, None);
+        bundle.system.os = "linux".into();
+        bundle.system.brltty_running = Some(true);
+        bundle.system.brltty_version = Some("6.4-4ubuntu3".into());
+        let restored: DiagnosticBundleV1 =
+            serde_json::from_value(serde_json::to_value(&bundle).unwrap()).unwrap();
+        assert_eq!(restored.system, bundle.system);
     }
 
     #[test]

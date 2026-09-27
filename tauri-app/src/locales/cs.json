@@ -2189,6 +2189,10 @@
         "preview": "Náhled",
         "no_changes": "Žádné změny.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Předvolba podle dokumentace pro Sculpfun S30 Pro 10W s GRBL 1.1f nebo novějším. Testování na zařízení zatím nebylo provedeno.",
+            "advisory": "Pracovní plocha 380 x 385 mm, S1000, vzduchová asistence M8/M9. Ověřte rozsah pohybu a maximální hodnotu S stroje. Najíždění do výchozí polohy povolte až po instalaci dodaných spínačů a nastavení firmwaru. Prodloužení rámu vyžadují vlastní rozměry."
+          },
           "sculpfun_s9": {
             "description": "Předvolba podle dokumentace pro původní Sculpfun S9 s GRBL 1.1f nebo novějším. Testy na stroji zatím nebyly provedeny.",
             "advisory": "Konzervativní pracovní plocha 410 x 415 mm. Ověřte rozsah pojezdu a maximální hodnotu S stroje. Referování a automatický ofuk jsou vypnuté; zapněte je pouze pro nainstalovaná a nastavená rozšíření. Bez referenčních spínačů použijte Aktuální polohu nebo Uživatelský počátek."
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY běží a sériový port USB není dostupný. BRLTTY možná zabírá adaptér; ověřte to v protokolu.",
+      "brltty_help": "Řešení problémů s BRLTTY",
+      "brltty_check": "Hledejte převzetí tohoto zařízení USB programem BRLTTY následované odpojením sériového portu:",
+      "brltty_stop": "Pokud protokol potvrdí konflikt a nepoužíváte Braillovo písmo, dočasně zastavte BRLTTY při nečinném laseru. Poté znovu připojte USB a zkuste to znovu:",
+      "brltty_restore": "Obnovení podpory Braillova písma:",
+      "brltty_persistence": "Zastavení je dočasné. Názvy služeb se liší; pokud se služba znovu spustí nebo chybí, zkontrolujte pravidla zařízení BRLTTY ve své distribuci. Pokud používáte Braillovo písmo, ponechte BRLTTY spuštěné a hledejte řešení pro konkrétní zařízení.",
       "none_captured": "Nic nezachyceno",
       "no_snapshot": "Žádný snímek",
       "refresh_aria": "Obnovit diagnostiku",

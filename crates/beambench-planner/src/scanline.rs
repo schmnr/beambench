@@ -2,26 +2,27 @@
 
 use crate::plan::{ScanDirection, ScanRun, Scanline};
 use beambench_raster::types::{ProcessedRaster, RasterPixelFormat};
+use std::sync::Arc;
 
 /// Upper bound for the number of independently emitted burn islands in one
-/// image plan. Jobs beyond this point generate impractically large command
-/// streams and previously exhausted memory while building their preview.
-pub const MAX_IMAGE_RASTER_RUNS: usize = 1_000_000;
+/// image plan. Pixel-backed rows and spooled GRBL output keep memory bounded;
+/// this remaining work limit prevents impractically large command streams.
+pub const MAX_IMAGE_RASTER_RUNS: usize = 4_000_000;
 
-/// Generate scanlines while bounding the number of allocated run records.
+/// Generate scanlines while bounding the number of burn runs consumers will visit.
 ///
 /// The returned count is the first observed total above `max_runs`; callers
 /// can turn it into a user-facing resolution/size error without risking an
 /// out-of-memory process termination.
 pub fn generate_scanlines_checked(
-    raster: &ProcessedRaster,
+    raster: Arc<ProcessedRaster>,
     origin_x_mm: f64,
     origin_y_mm: f64,
     bidirectional: bool,
     overscan_mm: f64,
     max_runs: usize,
 ) -> Result<Vec<Scanline>, usize> {
-    let run_count = count_runs_up_to(raster, max_runs);
+    let run_count = count_runs_up_to(&raster, max_runs);
     if run_count > max_runs {
         return Err(run_count);
     }
@@ -43,24 +44,22 @@ pub fn generate_scanlines_checked(
 /// * `bidirectional` - Whether to alternate scan directions
 /// * `overscan_mm` - Extra travel distance beyond the raster edges (for acceleration)
 pub fn generate_scanlines(
-    raster: &ProcessedRaster,
+    raster: Arc<ProcessedRaster>,
     origin_x_mm: f64,
     origin_y_mm: f64,
     bidirectional: bool,
-    overscan_mm: f64,
+    _overscan_mm: f64,
 ) -> Vec<Scanline> {
     let mut scanlines = Vec::new();
+    let height_px = raster.height_px;
+    let line_interval_mm = raster.line_interval_mm;
+    let shared_raster = raster;
 
-    for y in 0..raster.height_px {
-        let y_mm = origin_y_mm + y as f64 * raster.line_interval_mm;
+    for y in 0..height_px {
+        let y_mm = origin_y_mm + y as f64 * line_interval_mm;
 
         // Find runs in this row
-        let mut runs = match raster.format {
-            RasterPixelFormat::Binary => find_binary_runs(raster, y, origin_x_mm, overscan_mm),
-            RasterPixelFormat::Grayscale8 => {
-                find_grayscale_runs(raster, y, origin_x_mm, overscan_mm)
-            }
-        };
+        let mut runs = crate::runs::ScanRuns::from_pixels(shared_raster.clone(), y, origin_x_mm);
 
         // Skip empty scanlines (whitespace optimization)
         if runs.is_empty() {
@@ -86,6 +85,21 @@ pub fn generate_scanlines(
             runs,
             direction,
         });
+    }
+
+    // Keep whichever representation actually costs less to retain. A dense
+    // dithered image is far smaller as a shared bitmap than as millions of
+    // expanded runs, while sparse line art is the reverse by a similar factor,
+    // and holding the bitmap for every angle pass would reject plans the
+    // expanded form handles comfortably.
+    let expanded_bytes: usize = scanlines
+        .iter()
+        .map(|line| line.runs.expanded_bytes())
+        .sum();
+    if expanded_bytes < shared_raster.data.len() {
+        for line in &mut scanlines {
+            line.runs.materialize();
+        }
     }
 
     scanlines
@@ -122,7 +136,7 @@ fn count_runs_up_to(raster: &ProcessedRaster, limit: usize) -> usize {
 }
 
 /// Find runs of burn pixels in a binary format raster row.
-fn find_binary_runs(
+pub(crate) fn find_binary_runs(
     raster: &ProcessedRaster,
     y: u32,
     origin_x_mm: f64,
@@ -180,7 +194,7 @@ fn find_binary_runs(
 }
 
 /// Find runs of non-white pixels in a grayscale format raster row.
-fn find_grayscale_runs(
+pub(crate) fn find_grayscale_runs(
     raster: &ProcessedRaster,
     y: u32,
     origin_x_mm: f64,
@@ -252,6 +266,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn four_million_runs_fit_and_the_next_row_is_rejected() {
+        let raster = ProcessedRaster {
+            width_px: 2000,
+            height_px: 4000,
+            line_interval_mm: 0.1,
+            x_pixel_mm: 0.1,
+            format: RasterPixelFormat::Binary,
+            data: vec![0xAA; 250 * 4000],
+        };
+        let shared = Arc::new(raster.clone());
+        let rows =
+            generate_scanlines_checked(Arc::clone(&shared), 0.0, 0.0, true, 0.0, MAX_IMAGE_RASTER_RUNS)
+                .unwrap();
+        assert_eq!(
+            rows.iter().map(|row| row.runs.len()).sum::<usize>(),
+            4_000_000
+        );
+        // Rows stay pixel-backed and every one of them points at the single
+        // bitmap the caller supplied, so no row or angle pass copies it.
+        assert_eq!(Arc::strong_count(&shared), rows.len() + 1);
+        let mut oversized = raster;
+        oversized.height_px += 1;
+        oversized.data.extend_from_slice(&[0xAA; 250]);
+        assert_eq!(
+            generate_scanlines_checked(Arc::new(oversized.clone()), 0.0, 0.0, true, 0.0, MAX_IMAGE_RASTER_RUNS)
+                .unwrap_err(),
+            4_000_001
+        );
+    }
+
+    #[test]
     fn all_black_raster_binary() {
         let raster = ProcessedRaster {
             width_px: 8,
@@ -262,13 +307,13 @@ mod tests {
             data: vec![0x00, 0x00], // All 0s = all burn
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, false, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, false, 0.0);
 
         assert_eq!(scanlines.len(), 2);
         assert_eq!(scanlines[0].runs.len(), 1);
-        assert_eq!(scanlines[0].runs[0].start_x_mm, 0.0);
-        assert_eq!(scanlines[0].runs[0].end_x_mm, 0.8); // 8 pixels * 0.1mm
-        assert!(scanlines[0].runs[0].power_values.is_empty());
+        assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 0.0);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 0.8); // 8 pixels * 0.1mm
+        assert!(scanlines[0].runs.get(0).unwrap().power_values.is_empty());
     }
 
     #[test]
@@ -282,7 +327,7 @@ mod tests {
             data: vec![0xFF, 0xFF], // All 1s = all white
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, false, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, false, 0.0);
 
         assert_eq!(scanlines.len(), 0); // No scanlines for all-white
     }
@@ -298,7 +343,7 @@ mod tests {
             data: vec![0xAA], // 10101010 = alternating burn/white
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, false, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, false, 0.0);
 
         assert_eq!(scanlines.len(), 1);
         assert_eq!(scanlines[0].runs.len(), 4); // 4 separate burn runs
@@ -315,7 +360,7 @@ mod tests {
             data: vec![0x00, 0x00, 0x00], // All burn
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, true, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, true, 0.0);
 
         assert_eq!(scanlines.len(), 3);
         assert_eq!(scanlines[0].direction, ScanDirection::LeftToRight);
@@ -335,7 +380,7 @@ mod tests {
             data: vec![0x00, 0xFF, 0x00],
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, true, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, true, 0.0);
 
         assert_eq!(scanlines.len(), 2);
         assert_eq!(scanlines[0].direction, ScanDirection::LeftToRight);
@@ -353,7 +398,7 @@ mod tests {
             data: vec![0x00, 0x00, 0x00],
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, false, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, false, 0.0);
 
         assert_eq!(scanlines.len(), 3);
         assert!(
@@ -376,13 +421,13 @@ mod tests {
             data: vec![0x00], // All burn
         };
 
-        let scanlines = generate_scanlines(&raster, 10.0, 5.0, false, 2.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 10.0, 5.0, false, 2.0);
 
         assert_eq!(scanlines.len(), 1);
         assert_eq!(scanlines[0].y_mm, 5.0);
         // Runs contain burn-only coordinates (no overscan)
-        assert_eq!(scanlines[0].runs[0].start_x_mm, 10.0);
-        assert_eq!(scanlines[0].runs[0].end_x_mm, 10.4);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 10.0);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 10.4);
     }
 
     #[test]
@@ -396,11 +441,14 @@ mod tests {
             data: vec![0, 0, 0, 0], // All black
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, false, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, false, 0.0);
 
         assert_eq!(scanlines.len(), 1);
         assert_eq!(scanlines[0].runs.len(), 1);
-        assert_eq!(scanlines[0].runs[0].power_values, vec![255, 255, 255, 255]);
+        assert_eq!(
+            scanlines[0].runs.get(0).unwrap().power_values,
+            vec![255, 255, 255, 255]
+        );
     }
 
     #[test]
@@ -414,7 +462,7 @@ mod tests {
             data: vec![255, 255, 255, 255], // All white
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, false, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, false, 0.0);
 
         assert_eq!(scanlines.len(), 0); // No scanlines for all-white
     }
@@ -430,12 +478,18 @@ mod tests {
             data: vec![100, 150, 255, 200, 50], // Mix with one white
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, false, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, false, 0.0);
 
         assert_eq!(scanlines.len(), 1);
         assert_eq!(scanlines[0].runs.len(), 2); // Split by white pixel
-        assert_eq!(scanlines[0].runs[0].power_values, vec![155, 105]); // 255-100, 255-150
-        assert_eq!(scanlines[0].runs[1].power_values, vec![55, 205]); // 255-200, 255-50
+        assert_eq!(
+            scanlines[0].runs.get(0).unwrap().power_values,
+            vec![155, 105]
+        ); // 255-100, 255-150
+        assert_eq!(
+            scanlines[0].runs.get(1).unwrap().power_values,
+            vec![55, 205]
+        ); // 255-200, 255-50
     }
 
     #[test]
@@ -449,11 +503,11 @@ mod tests {
             data: vec![0x00, 0x00], // All burn
         };
 
-        let scanlines = generate_scanlines(&raster, 10.0, 20.0, false, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 10.0, 20.0, false, 0.0);
 
         assert_eq!(scanlines[0].y_mm, 20.0);
         assert_eq!(scanlines[1].y_mm, 21.0);
-        assert_eq!(scanlines[0].runs[0].start_x_mm, 10.0);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 10.0);
     }
 
     #[test]
@@ -467,7 +521,7 @@ mod tests {
             data: vec![0x0F, 0x0F], // 00001111 - two distinct halves
         };
 
-        let scanlines = generate_scanlines(&raster, 0.0, 0.0, true, 0.0);
+        let scanlines = generate_scanlines(Arc::new(raster.clone()), 0.0, 0.0, true, 0.0);
 
         assert_eq!(scanlines.len(), 2);
         // In RTL, the first run in the list should be the rightmost run
@@ -486,7 +540,7 @@ mod tests {
             data: vec![0xAA, 0xAA],
         };
 
-        let result = generate_scanlines_checked(&raster, 0.0, 0.0, true, 0.0, 5);
+        let result = generate_scanlines_checked(Arc::new(raster.clone()), 0.0, 0.0, true, 0.0, 5);
 
         assert_eq!(result, Err(6));
     }

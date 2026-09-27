@@ -1480,6 +1480,12 @@
       "float_tooltip": "Float panel"
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY is running and the USB serial port is unavailable. It may be claiming the adapter; check the log to confirm.",
+      "brltty_help": "Troubleshoot BRLTTY",
+      "brltty_check": "Look for BRLTTY claiming this USB device, followed by a serial disconnect:",
+      "brltty_stop": "If the log confirms a conflict and you do not use braille, stop BRLTTY temporarily with the laser idle. Then reconnect USB and retry:",
+      "brltty_restore": "To restore braille support:",
+      "brltty_persistence": "This stop is temporary. Service names vary; if it restarts or the service is missing, check your distribution’s BRLTTY device rules. If you use braille, keep BRLTTY running and seek a device-specific fix.",
       "none_captured": "None captured",
       "no_snapshot": "No snapshot",
       "refresh_aria": "Refresh diagnostics",
@@ -2335,6 +2341,10 @@
         "preview": "Preview",
         "no_changes": "No changes.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Documentation-based preset for the Sculpfun S30 Pro 10W with GRBL 1.1f or newer. Hardware testing is pending.",
+            "advisory": "380 x 385 mm workspace, S1000, M8/M9 air assist. Check travel and S-value max against your machine. Enable homing only after installing the supplied switches and configuring firmware. Extension frames need separate dimensions."
+          },
           "sculpfun_s9": {
             "description": "Documentation-based preset for the original Sculpfun S9 with GRBL 1.1f or newer. Hardware testing is pending.",
             "advisory": "Uses a conservative 410 x 415 mm workspace. Check travel and S-value max against your machine. Homing and automatic air assist are off; enable them only for configured upgrades. Use Current Position or User Origin on a machine without homing switches."

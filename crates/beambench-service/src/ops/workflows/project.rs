@@ -2136,22 +2136,25 @@ mod tests {
         project.dirty = false;
         *ctx.project.lock().unwrap() = Some(project);
         // Seed a fake cached plan so we can observe invalidation.
-        *ctx.plan_cache.lock().unwrap() = Some(ExecutionPlan {
-            id: uuid::Uuid::new_v4(),
-            project_id: uuid::Uuid::new_v4(),
-            revision_hash: "sentinel".to_string(),
-            created_at: chrono::Utc::now(),
-            bounds: beambench_common::geometry::Bounds::new(
-                beambench_common::geometry::Point2D::new(0.0, 0.0),
-                beambench_common::geometry::Point2D::new(1.0, 1.0),
-            ),
-            total_distance_mm: 0.0,
-            estimated_duration_secs: 0.0,
-            segments: vec![],
-            layer_order: vec![],
-            warnings: vec![],
-            failed_entries: vec![],
-        });
+        *ctx.plan_cache.lock().unwrap() = Some(
+            (ExecutionPlan {
+                id: uuid::Uuid::new_v4(),
+                project_id: uuid::Uuid::new_v4(),
+                revision_hash: "sentinel".to_string(),
+                created_at: chrono::Utc::now(),
+                bounds: beambench_common::geometry::Bounds::new(
+                    beambench_common::geometry::Point2D::new(0.0, 0.0),
+                    beambench_common::geometry::Point2D::new(1.0, 1.0),
+                ),
+                total_distance_mm: 0.0,
+                estimated_duration_secs: 0.0,
+                segments: vec![],
+                layer_order: vec![],
+                warnings: vec![],
+                failed_entries: vec![],
+            })
+            .into(),
+        );
 
         set_optimization_inner(
             &ctx,
@@ -2172,22 +2175,25 @@ mod tests {
         let project = Project::new("test");
         *ctx.project.lock().unwrap() = Some(project);
         let sentinel_hash = "cached_plan_sentinel".to_string();
-        *ctx.plan_cache.lock().unwrap() = Some(ExecutionPlan {
-            id: uuid::Uuid::new_v4(),
-            project_id: uuid::Uuid::new_v4(),
-            revision_hash: sentinel_hash.clone(),
-            created_at: chrono::Utc::now(),
-            bounds: beambench_common::geometry::Bounds::new(
-                beambench_common::geometry::Point2D::new(0.0, 0.0),
-                beambench_common::geometry::Point2D::new(1.0, 1.0),
-            ),
-            total_distance_mm: 0.0,
-            estimated_duration_secs: 0.0,
-            segments: vec![],
-            layer_order: vec![],
-            warnings: vec![],
-            failed_entries: vec![],
-        });
+        *ctx.plan_cache.lock().unwrap() = Some(
+            (ExecutionPlan {
+                id: uuid::Uuid::new_v4(),
+                project_id: uuid::Uuid::new_v4(),
+                revision_hash: sentinel_hash.clone(),
+                created_at: chrono::Utc::now(),
+                bounds: beambench_common::geometry::Bounds::new(
+                    beambench_common::geometry::Point2D::new(0.0, 0.0),
+                    beambench_common::geometry::Point2D::new(1.0, 1.0),
+                ),
+                total_distance_mm: 0.0,
+                estimated_duration_secs: 0.0,
+                segments: vec![],
+                layer_order: vec![],
+                warnings: vec![],
+                failed_entries: vec![],
+            })
+            .into(),
+        );
 
         set_optimization_inner(
             &ctx,

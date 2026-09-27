@@ -224,9 +224,11 @@ interface UiStoreState {
   setLockAspect: (locked: boolean) => void;
   toggleLockAspect: () => void;
 
-  // Keep the transform reference point when selection changes remount the inspector.
-  transformAnchor: AnchorPoint;
-  setTransformAnchor: (anchor: AnchorPoint) => void;
+  // Reference point chosen but not yet confirmed by a saved settings write.
+  // Held here rather than in the inspector so it survives the remount a
+  // selection change causes while the write is still in flight.
+  pendingTransformAnchor: AnchorPoint | null;
+  setPendingTransformAnchor: (anchor: AnchorPoint | null) => void;
 
   // Default corner radius for rectangle tool
   defaultCornerRadius: number;
@@ -537,7 +539,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   flashedLayerId: null,
   showLastPosition: false,
   lockAspect: false,
-  transformAnchor: 'top_left',
+  pendingTransformAnchor: null,
   defaultCornerRadius: 0,
   textDefaults: { ...DEFAULT_TEXT_DEFAULTS },
   radiusToolValue: null,
@@ -1458,7 +1460,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   toggleShowLastPosition: () => set((s) => ({ showLastPosition: !s.showLastPosition })),
   setLockAspect: (locked) => set({ lockAspect: locked }),
   toggleLockAspect: () => set((s) => ({ lockAspect: !s.lockAspect })),
-  setTransformAnchor: (anchor) => set({ transformAnchor: anchor }),
+  setPendingTransformAnchor: (anchor) => set({ pendingTransformAnchor: anchor }),
   setDefaultCornerRadius: (r) => set({ defaultCornerRadius: Math.max(0, r) }),
   updateTextDefaults: (partial) => set((s) => ({ textDefaults: { ...s.textDefaults, ...partial } })),
   setRadiusToolValue: (v) => set({ radiusToolValue: v }),

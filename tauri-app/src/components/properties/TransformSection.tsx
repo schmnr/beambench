@@ -5,7 +5,7 @@ import { bumpSettingsMutationSeq, useAppStore } from '../../stores/appStore';
 import { appService } from '../../services/appService';
 import { Focus, Link2, Lock, Move, Search, Unlink2, Unlock } from 'lucide-react';
 import { NumberStepper } from '../shared/NumberStepper';
-import type { TransformLocks } from '../../types/project';
+import type { AnchorPoint, TransformLocks } from '../../types/project';
 import { useNotificationStore } from '../../stores/notificationStore';
 import {
   isTransformLocked,
@@ -159,8 +159,32 @@ export function TransformSection() {
   const posStep = displayUnit === DISPLAY_UNIT_INCHES ? 0.005 : 0.1;
   const sizeMin = displayUnit === DISPLAY_UNIT_INCHES ? 0.001 : 0.01;
 
-  const anchor = useUiStore((s) => s.transformAnchor);
-  const setAnchor = useUiStore((s) => s.setTransformAnchor);
+  const persistedAnchor = settings?.transform_anchor ?? 'top_left';
+  const updateSettings = useAppStore((s) => s.updateSettings);
+  // Show the clicked reference point straight away. Waiting for the settings
+  // write to round-trip left the highlight and the derived X/Y/W/H readouts
+  // lagging behind every click.
+  const pendingAnchor = useUiStore((s) => s.pendingTransformAnchor);
+  const setPendingAnchor = useUiStore((s) => s.setPendingTransformAnchor);
+  const anchor = pendingAnchor ?? persistedAnchor;
+  useEffect(() => {
+    if (pendingAnchor !== null && persistedAnchor === pendingAnchor) {
+      setPendingAnchor(null);
+    }
+  }, [pendingAnchor, persistedAnchor]);
+  const setAnchor = (nextAnchor: AnchorPoint) => {
+    if (nextAnchor === anchor) return;
+    setPendingAnchor(nextAnchor);
+    void updateSettings({ transform_anchor: nextAnchor }).catch((error: unknown) => {
+      // Fall back to whatever is actually stored, so the highlight never
+      // claims a reference point that was not saved.
+      setPendingAnchor(null);
+      useNotificationStore.getState().push(
+        error instanceof Error ? error.message : String(error),
+        TOAST_ERROR,
+      );
+    });
+  };
   const [scaleXPercent, setScaleXPercent] = useState(100);
   const [scaleYPercent, setScaleYPercent] = useState(100);
 
@@ -595,6 +619,7 @@ export function TransformSection() {
               <button
                 key={ap}
                 onClick={() => setAnchor(ap)}
+                aria-pressed={anchor === ap}
                 disabled={disabled}
                 className={`shrink-0 rounded-full ${
                   anchor === ap

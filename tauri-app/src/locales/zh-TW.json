@@ -2189,6 +2189,10 @@
         "preview": "預覽",
         "no_changes": "沒有變化。",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "適用於搭載 GRBL 1.1f 或更新版本的 Sculpfun S30 Pro 10W 的預設，依據文件設定。尚未進行實機測試。",
+            "advisory": "工作區域 380 x 385 mm，S1000，M8/M9 輔助吹氣。請核對機器的行程與最大 S 值。僅在安裝隨附的限位開關並設定韌體後啟用歸零。擴充機架需要另行設定尺寸。"
+          },
           "sculpfun_s9": {
             "description": "適用於執行 GRBL 1.1f 或更新版本的初代 Sculpfun S9，預設依據公開文件制定。尚未進行實機測試。",
             "advisory": "採用保守的 410 x 415 mm 工作區域。請核對機器的行程和最大 S 值。歸零與自動氣輔預設關閉，僅在安裝並設定相應升級設備後啟用。沒有歸零開關的機器請使用目前位置或使用者原點。"
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY 正在執行，USB 序列埠無法使用。它可能占用了轉接器，請查看日誌確認。",
+      "brltty_help": "排查 BRLTTY 問題",
+      "brltty_check": "尋找 BRLTTY 占用此 USB 裝置後序列埠斷線的紀錄：",
+      "brltty_stop": "僅當日誌確認存在衝突且您不使用點字時，在雷射閒置狀態下暫時停止 BRLTTY。然後重新連接 USB 並重試：",
+      "brltty_restore": "恢復點字支援：",
+      "brltty_persistence": "此停止操作是暫時的。服務名稱可能不同；如果服務重新啟動或找不到該服務，請檢查發行版的 BRLTTY 裝置規則。如果您使用點字，請保持 BRLTTY 執行並尋找針對該裝置的解決方法。",
       "none_captured": "未擷取任何內容",
       "no_snapshot": "無快照",
       "refresh_aria": "重新整理診斷",

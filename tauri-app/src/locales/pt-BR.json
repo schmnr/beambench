@@ -2189,6 +2189,10 @@
         "preview": "Visualização",
         "no_changes": "Sem alterações.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Predefinição baseada na documentação para Sculpfun S30 Pro 10W com GRBL 1.1f ou posterior. Os testes na máquina estão pendentes.",
+            "advisory": "Área de trabalho de 380 x 385 mm, S1000, assistência de ar M8/M9. Confira o curso e o valor S máximo da sua máquina. Ative a busca da origem somente após instalar os interruptores fornecidos e configurar o firmware. Extensões da estrutura precisam de dimensões próprias."
+          },
           "sculpfun_s9": {
             "description": "Predefinição baseada na documentação para a Sculpfun S9 original com GRBL 1.1f ou posterior. Os testes na máquina estão pendentes.",
             "advisory": "Área de trabalho conservadora de 410 x 415 mm. Verifique os cursos dos eixos e o valor S máximo da máquina. O retorno à origem e a assistência de ar automática estão desativados; ative-os apenas para acessórios instalados e configurados. Sem sensores de origem, use Posição atual ou Origem do usuário."
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY está em execução e a porta serial USB está indisponível. Ele pode estar usando o adaptador; confira o registro.",
+      "brltty_help": "Resolver problemas com BRLTTY",
+      "brltty_check": "Procure uma tomada de controle deste dispositivo USB pelo BRLTTY, seguida de desconexão serial:",
+      "brltty_stop": "Se o registro confirmar um conflito e você não usar braille, pare o BRLTTY temporariamente com o laser ocioso. Depois, reconecte o USB e tente novamente:",
+      "brltty_restore": "Para restaurar o suporte a braille:",
+      "brltty_persistence": "A parada é temporária. Os nomes dos serviços variam; se ele reiniciar ou não existir, confira as regras de dispositivos BRLTTY da sua distribuição. Se você usa braille, mantenha o BRLTTY ativo e procure uma correção específica para o dispositivo.",
       "none_captured": "Nada capturado",
       "no_snapshot": "Sem captura",
       "refresh_aria": "Atualizar diagnóstico",

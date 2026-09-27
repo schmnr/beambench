@@ -2189,6 +2189,10 @@
         "preview": "Podgląd",
         "no_changes": "Żadnych zmian.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Ustawienie wstępne oparte na dokumentacji dla Sculpfun S30 Pro 10W z GRBL 1.1f lub nowszym. Testy na urządzeniu nie zostały jeszcze wykonane.",
+            "advisory": "Obszar roboczy 380 x 385 mm, S1000, nadmuch M8/M9. Sprawdź zakres ruchu i maksymalną wartość S swojej maszyny. Włącz bazowanie dopiero po zamontowaniu dostarczonych wyłączników i skonfigurowaniu firmware. Przedłużenia ramy wymagają własnych wymiarów."
+          },
           "sculpfun_s9": {
             "description": "Ustawienie na podstawie dokumentacji dla oryginalnego Sculpfun S9 z GRBL 1.1f lub nowszym. Testy na maszynie nie zostały jeszcze wykonane.",
             "advisory": "Zachowawczy obszar roboczy 410 x 415 mm. Sprawdź zakresy ruchu i maksymalną wartość S maszyny. Bazowanie i automatyczny nadmuch są wyłączone; włącz je tylko dla zamontowanych i skonfigurowanych rozszerzeń. Bez czujników bazowania używaj Bieżącej pozycji lub Początku użytkownika."
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY działa, a port szeregowy USB jest niedostępny. Program może zajmować adapter; sprawdź dziennik.",
+      "brltty_help": "Rozwiązywanie problemów z BRLTTY",
+      "brltty_check": "Szukaj przejęcia tego urządzenia USB przez BRLTTY, po którym nastąpiło rozłączenie portu szeregowego:",
+      "brltty_stop": "Jeśli dziennik potwierdza konflikt i nie korzystasz z brajla, zatrzymaj BRLTTY tymczasowo, gdy laser jest bezczynny. Następnie podłącz USB ponownie i spróbuj jeszcze raz:",
+      "brltty_restore": "Aby przywrócić obsługę brajla:",
+      "brltty_persistence": "Zatrzymanie jest tymczasowe. Nazwy usług mogą się różnić. Jeśli usługa uruchamia się ponownie lub jej nie ma, sprawdź reguły urządzeń BRLTTY w swojej dystrybucji. Jeśli korzystasz z brajla, pozostaw BRLTTY włączone i poszukaj rozwiązania dla konkretnego urządzenia.",
       "none_captured": "Nic nie przechwycono",
       "no_snapshot": "Brak migawki",
       "refresh_aria": "Odśwież diagnostykę",

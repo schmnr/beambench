@@ -2189,6 +2189,10 @@
         "preview": "Aperçu",
         "no_changes": "Aucun changement.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Préréglage basé sur la documentation pour la Sculpfun S30 Pro 10W avec GRBL 1.1f ou ultérieur. Les tests sur machine restent à effectuer.",
+            "advisory": "Zone de travail de 380 x 385 mm, S1000, assistance air M8/M9. Vérifiez les courses et la valeur S maximale de votre machine. Activez la prise d’origine uniquement après avoir installé les interrupteurs fournis et configuré le firmware. Les extensions nécessitent des dimensions adaptées."
+          },
           "sculpfun_s9": {
             "description": "Préréglage basé sur la documentation pour la Sculpfun S9 d’origine avec GRBL 1.1f ou ultérieur. Les essais sur machine restent à faire.",
             "advisory": "Zone de travail prudente de 410 x 415 mm. Vérifiez les courses et la valeur S maximale de votre machine. Le référencement et l’assistance pneumatique automatique sont désactivés ; activez-les uniquement si les équipements sont installés et configurés. Sans capteurs de référencement, utilisez Position actuelle ou Origine utilisateur."
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY est actif et le port série USB est indisponible. Il utilise peut-être l’adaptateur ; consultez le journal pour le confirmer.",
+      "brltty_help": "Dépanner BRLTTY",
+      "brltty_check": "Recherchez une prise de contrôle de ce périphérique USB par BRLTTY, suivie d’une déconnexion série :",
+      "brltty_stop": "Si le journal confirme un conflit et que vous n’utilisez pas le braille, arrêtez temporairement BRLTTY avec le laser au repos. Rebranchez ensuite l’USB et réessayez :",
+      "brltty_restore": "Pour rétablir la prise en charge du braille :",
+      "brltty_persistence": "Cet arrêt est temporaire. Les noms de services varient ; si le service redémarre ou est introuvable, vérifiez les règles BRLTTY de votre distribution. Si vous utilisez le braille, gardez BRLTTY actif et cherchez une correction propre au périphérique.",
       "none_captured": "Rien de capturé",
       "no_snapshot": "Aucun instantané",
       "refresh_aria": "Actualiser le diagnostic",

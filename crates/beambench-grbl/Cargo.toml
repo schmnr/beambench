@@ -6,6 +6,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+tempfile = { workspace = true }
+dirs = { workspace = true }
 beambench-common = { path = "../beambench-common" }
 beambench-core = { path = "../beambench-core" }
 beambench-serial = { path = "../beambench-serial" }

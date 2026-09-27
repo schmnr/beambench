@@ -183,6 +183,7 @@ pub struct ImportImageInput {
 pub struct ImportFilesInput {
     pub file_paths: Vec<String>,
     pub layer_id: LayerId,
+    pub create_layer: Option<super::project::AddObjectLayerInput>,
 }
 
 /// One dropped/pasted file delivered by content rather than path. The
@@ -200,6 +201,7 @@ pub struct ImportFileData {
 pub struct ImportFilesDataInput {
     pub files: Vec<ImportFileData>,
     pub layer_id: LayerId,
+    pub create_layer: Option<super::project::AddObjectLayerInput>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1123,6 +1125,7 @@ fn import_lbrn_shape(
         }
         LbrnShape::Bitmap {
             layer_index,
+            power_scale,
             transform,
             width_mm,
             height_mm,
@@ -1141,6 +1144,7 @@ fn import_lbrn_shape(
             let object = project
                 .find_object_mut(object_id)
                 .ok_or_else(|| ServiceError::internal("Imported Lbrn bitmap is missing"))?;
+            object.power_scale = power_scale;
             object.bounds = centered_bounds(transform, width_mm, height_mm);
             object.transform = linear_object_transform(transform);
             if let ObjectData::RasterImage {
@@ -1246,23 +1250,43 @@ fn import_pending(
     ctx: &ServiceContext,
     layer_id: LayerId,
     pending: Vec<PendingImport>,
+    create_layer: Option<super::project::AddObjectLayerInput>,
 ) -> ServiceResult<Vec<ProjectObject>> {
     let file_count = pending.len();
     if pending.is_empty() {
         return Ok(Vec::new());
     }
+    let imports_document = pending
+        .iter()
+        .any(|item| matches!(item, PendingImport::Lbrn { .. }));
 
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
+    let original = project_guard
+        .as_ref()
         .ok_or_else(|| ServiceError::not_found("No project open"))?;
-
+    // Stage the entire batch before changing the live project or undo history.
+    // Asset bytes are Arc-backed and stay shared with the original project.
+    let mut working = original.clone();
+    let project = &mut working;
+    let layer_id = if let Some(spec) = create_layer {
+        let mut layer = Layer::new_single_entry(spec.name, spec.operation);
+        if let Some(color_tag) = spec.color_tag {
+            layer.color_tag =
+                ColorTag(beambench_common::canonical_palette_color_tag(&color_tag).to_string());
+            layer.is_tool_layer = beambench_common::is_tool_color(&layer.color_tag.0);
+        }
+        if layer.is_tool_layer || layer.primary_entry().operation == OperationType::Tool {
+            layer.canonicalize_tool_layer();
+        } else if let Some(patch) = spec.entry_patch {
+            layer.entries[0].apply_patch(&patch);
+        }
+        project.add_layer(layer).id
+    } else {
+        layer_id
+    };
     if project.find_layer(layer_id).is_none() {
         return Err(ServiceError::not_found("Layer not found"));
     }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
 
     let allow_tool_imports = ctx
         .settings
@@ -1380,6 +1404,10 @@ fn import_pending(
         }
     }
 
+    if imported_objects.is_empty() && !imports_document {
+        return Ok(imported_objects);
+    }
+
     // Refresh text caches for any imported text objects (SVG text import
     // creates objects with resolved_path_data: None).
     super::project::refresh_project_text_caches(project);
@@ -1440,6 +1468,9 @@ fn import_pending(
             })
     };
 
+    ctx.push_project_undo_snapshot(original)
+        .map_err(ServiceError::internal)?;
+    *project_guard = Some(working);
     drop(project_guard);
     planning::invalidate_plan_cache(ctx)?;
     emit_routing_notices(ctx, &routing_notices);
@@ -1748,6 +1779,7 @@ pub fn import_svg_from_path(
         vec![PendingImport::Svg {
             bytes: read_file_bytes(&input.file_path)?,
         }],
+        None,
     )
 }
 
@@ -1768,6 +1800,7 @@ pub fn import_image_from_path(
             bytes: read_file_bytes(&input.file_path)?,
             source_path: absolute_source_path(&input.file_path),
         }],
+        None,
     )?;
     objects
         .pop()
@@ -1788,6 +1821,7 @@ pub fn import_image_from_bytes(
             bytes,
             source_path: None,
         }],
+        None,
     )?;
     objects
         .pop()
@@ -1808,7 +1842,7 @@ pub fn import_files_from_data(
             })?;
         pending.push(prepare_pending_import(&file.filename, bytes, None)?);
     }
-    import_pending(ctx, input.layer_id, pending)
+    import_pending(ctx, input.layer_id, pending, input.create_layer)
 }
 
 pub fn import_files_from_paths(
@@ -1819,6 +1853,7 @@ pub fn import_files_from_paths(
         ctx,
         input.layer_id,
         prepare_pending_imports(input.file_paths)?,
+        input.create_layer,
     )
 }
 
@@ -1861,7 +1896,7 @@ pub fn import_art_library_item(
         }
     };
 
-    import_pending(ctx, layer_id, vec![pending])
+    import_pending(ctx, layer_id, vec![pending], None)
 }
 
 pub fn import_vector_file_from_path(
@@ -2547,7 +2582,7 @@ mod tests {
 
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
         (ctx, requested_id, configured_red_id)
     }
 
@@ -2561,7 +2596,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
         (ctx, layer_id)
     }
 
@@ -2692,7 +2727,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let svg_path = dir.path().join("demo.svg");
@@ -2703,6 +2738,7 @@ mod tests {
         let objects = import_files_from_paths(
             &ctx,
             ImportFilesInput {
+                create_layer: None,
                 file_paths: vec![
                     svg_path.to_string_lossy().to_string(),
                     svg_path_two.to_string_lossy().to_string(),
@@ -2715,6 +2751,170 @@ mod tests {
         assert_eq!(objects.len(), 2);
         assert!(ctx.undo_state().unwrap().can_undo);
         assert!(ctx.plan_cache.lock().unwrap().is_none());
+    }
+
+    fn new_import_layer(operation: OperationType) -> super::super::project::AddObjectLayerInput {
+        super::super::project::AddObjectLayerInput {
+            name: "Imported".into(),
+            operation,
+            color_tag: Some("#FF0000".into()),
+            entry_patch: Some(beambench_core::CutEntryPatch {
+                speed_mm_min: Some(777.0),
+                power_percent: Some(42.0),
+                air_assist: Some(true),
+                ..Default::default()
+            }),
+        }
+    }
+
+    #[test]
+    fn failed_batch_preserves_project_assets_history_and_plan_for_paths_and_data() {
+        use base64::Engine;
+        for by_path in [true, false] {
+            for fail_early in [true, false] {
+                let (ctx, layer_id) = art_library_import_context();
+                // Leave an existing redo entry to catch accidental history changes.
+                import_pending(
+                    &ctx,
+                    layer_id,
+                    vec![PendingImport::Svg {
+                        bytes: sample_svg().to_vec(),
+                    }],
+                    None,
+                )
+                .unwrap();
+                super::super::project::undo_project(&ctx).unwrap();
+                let before = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+                let plan = std::sync::Arc::new(sample_plan(&before));
+                *ctx.plan_cache.lock().unwrap() = Some(plan.clone());
+                let history = ctx.undo_state().unwrap();
+                assert!(history.can_redo);
+                let mixed_svg = sample_svg_with_embedded_png();
+                // PDF parsing fails before staging; bad PNG fails after SVG
+                // paths, embedded image bytes, and sibling layers were staged.
+                let bad_name = if fail_early { "bad.pdf" } else { "bad.png" };
+                let files = [
+                    ("mixed.svg", mixed_svg.as_slice()),
+                    (bad_name, b"invalid".as_slice()),
+                ];
+                for _ in 0..3 {
+                    let result = if by_path {
+                        let dir = tempdir().unwrap();
+                        let paths = files
+                            .iter()
+                            .map(|(name, bytes)| {
+                                let path = dir.path().join(name);
+                                std::fs::write(&path, bytes).unwrap();
+                                path.to_string_lossy().to_string()
+                            })
+                            .collect();
+                        import_files_from_paths(
+                            &ctx,
+                            ImportFilesInput {
+                                file_paths: paths,
+                                layer_id,
+                                create_layer: Some(new_import_layer(OperationType::Image)),
+                            },
+                        )
+                    } else {
+                        import_files_from_data(
+                            &ctx,
+                            ImportFilesDataInput {
+                                files: files
+                                    .iter()
+                                    .map(|(name, bytes)| ImportFileData {
+                                        filename: (*name).into(),
+                                        data_base64: base64::engine::general_purpose::STANDARD
+                                            .encode(bytes),
+                                    })
+                                    .collect(),
+                                layer_id,
+                                create_layer: Some(new_import_layer(OperationType::Image)),
+                            },
+                        )
+                    };
+                    assert!(result.is_err());
+                    assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &before);
+                    assert_eq!(ctx.undo_state().unwrap().can_undo, history.can_undo);
+                    assert_eq!(ctx.undo_state().unwrap().can_redo, history.can_redo);
+                    assert!(std::sync::Arc::ptr_eq(
+                        ctx.plan_cache.lock().unwrap().as_ref().unwrap(),
+                        &plan
+                    ));
+                }
+                // The earlier successful edit can still be redone after failures.
+                assert_eq!(
+                    super::super::project::redo_project(&ctx)
+                        .unwrap()
+                        .objects
+                        .len(),
+                    1
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn new_import_layer_and_mixed_artwork_commit_as_one_undoable_edit() {
+        use base64::Engine;
+        let ctx = ServiceContext::new();
+        let mut before = Project::new("Empty import target");
+        before.layers.clear();
+        *ctx.project.lock().unwrap() = Some(before.clone());
+        let imported = import_files_from_data(
+            &ctx,
+            ImportFilesDataInput {
+                files: vec![ImportFileData {
+                    filename: "mixed.svg".into(),
+                    data_base64: base64::engine::general_purpose::STANDARD
+                        .encode(sample_svg_with_embedded_png()),
+                }],
+                layer_id: Id::from_uuid(uuid::Uuid::nil()),
+                create_layer: Some(new_import_layer(OperationType::Image)),
+            },
+        )
+        .unwrap();
+        assert_eq!(imported.len(), 2);
+        let after = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+        assert_eq!(after.layers.len(), 2);
+        assert_eq!(after.assets.len(), 1);
+        let image_layer = after
+            .layers
+            .iter()
+            .find(|layer| layer.primary_entry().operation == OperationType::Image)
+            .unwrap();
+        assert_eq!(image_layer.color_tag.0, "#FF0000");
+        assert_eq!(image_layer.primary_entry().speed_mm_min, 777.0);
+        assert_eq!(image_layer.primary_entry().power_percent, 42.0);
+        assert!(image_layer.primary_entry().air_assist);
+        // Undo marks restored projects dirty until they are saved again.
+        let mut expected_undo = before;
+        expected_undo.dirty = true;
+        assert_eq!(
+            super::super::project::undo_project(&ctx).unwrap(),
+            expected_undo
+        );
+        assert!(!ctx.undo_state().unwrap().can_undo);
+        assert_eq!(super::super::project::redo_project(&ctx).unwrap(), after);
+    }
+
+    #[test]
+    fn empty_import_does_not_create_a_layer_or_undo_entry() {
+        let ctx = ServiceContext::new();
+        let before = Project::new("Empty import");
+        *ctx.project.lock().unwrap() = Some(before.clone());
+        let imported = import_pending(
+            &ctx,
+            Id::from_uuid(uuid::Uuid::nil()),
+            vec![PendingImport::Svg {
+                bytes: br#"<svg xmlns="http://www.w3.org/2000/svg"/>"#.to_vec(),
+            }],
+            Some(new_import_layer(OperationType::Line)),
+        )
+        .unwrap();
+        assert!(imported.is_empty());
+        assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &before);
+        assert!(!ctx.undo_state().unwrap().can_undo);
     }
 
     #[test]
@@ -2732,6 +2932,7 @@ mod tests {
         let objects = import_files_from_paths(
             &ctx,
             ImportFilesInput {
+                create_layer: None,
                 file_paths: vec![tif_path.to_string_lossy().to_string()],
                 layer_id,
             },
@@ -2764,6 +2965,7 @@ mod tests {
         let objects = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![
                     ImportFileData {
                         filename: "shape.svg".to_string(),
@@ -2799,6 +3001,7 @@ mod tests {
         let objects = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![ImportFileData {
                     filename: "fixture.lbrn2".to_string(),
                     data_base64: base64::engine::general_purpose::STANDARD
@@ -2842,6 +3045,131 @@ mod tests {
     }
 
     #[test]
+    fn lbrn_image_power_scale_survives_import_planning_and_gcode_export() {
+        use base64::Engine;
+        use beambench_planner::PlanSegment;
+        use std::collections::BTreeSet;
+
+        let mut png = Vec::new();
+        image::ImageEncoder::write_image(
+            image::codecs::png::PngEncoder::new(&mut png),
+            &[0; 16],
+            4,
+            4,
+            image::ExtendedColorType::L8,
+        )
+        .unwrap();
+        let data = base64::engine::general_purpose::STANDARD.encode(png);
+
+        // MGL columns, then native LightBurn 1.6.03 reference cases with
+        // nonzero minimum power. In grayscale mode, 50% scales 20..80 to 20..50.
+        for (mode, min, max, scales, expected) in [
+            (
+                "jarvis",
+                0,
+                100,
+                vec![10, 24, 38, 52, 66, 80],
+                vec![(0, 100), (0, 240), (0, 380), (0, 520), (0, 660), (0, 800)],
+            ),
+            (
+                "threshold",
+                20,
+                80,
+                vec![0, 50, 100],
+                vec![(0, 0), (100, 400), (200, 800)],
+            ),
+            (
+                // A zeroed power scale means "do not fire" in both modes. Only
+                // compressing the range would leave a grayscale image burning
+                // flat at the 20% layer minimum over its whole area.
+                "grayscale",
+                20,
+                80,
+                vec![0, 50, 100],
+                vec![(0, 0), (200, 500), (200, 800)],
+            ),
+        ] {
+            for (angle, transform) in [
+                (0, "1 0 0 1"),
+                (45, "1 0 0 1"),
+                (90, "1 0 0 1"),
+                (0, "0 1 -1 0"),
+            ] {
+                let ctx = ServiceContext::with_settings(Default::default());
+                let mut project = Project::new("Image power scale regression");
+                project.workspace.bed_width_mm = 200.0;
+                project.workspace.bed_height_mm = 200.0;
+                let layer_id = project.ensure_default_layer();
+                *ctx.project.lock().unwrap() = Some(project);
+                let shapes: String = scales.iter().enumerate().map(|(i, scale)| format!(
+                    r#"<Shape Type="Bitmap" CutIndex="1" PowerScale="{scale}" W="4" H="4" Data="{data}"><XForm>{transform} {} 20</XForm></Shape>"#,
+                    20 + 10 * i,
+                )).collect();
+                let xml = format!(
+                    r#"<LightBurnProject FormatVersion="0" MirrorX="False" MirrorY="False">
+                      <CutSetting_Img type="Image"><index Value="1"/><name Value="Calibration"/>
+                        <minPower Value="{min}"/><maxPower Value="{max}"/><speed Value="20"/>
+                        <interval Value="0.25"/><angle Value="{angle}"/><ditherMode Value="{mode}"/>
+                      </CutSetting_Img>{shapes}</LightBurnProject>"#
+                );
+                let objects = import_files_from_data(
+                    &ctx,
+                    ImportFilesDataInput {
+                        create_layer: None,
+                        files: vec![ImportFileData {
+                            filename: "calibration.lbrn".into(),
+                            data_base64: base64::engine::general_purpose::STANDARD.encode(xml),
+                        }],
+                        layer_id,
+                    },
+                )
+                .unwrap();
+                assert_eq!(objects.len(), scales.len());
+                for (object, scale) in objects.iter().zip(&scales) {
+                    assert_eq!(object.power_scale, f64::from(*scale) / 100.0);
+                }
+                let (plan, mut spool) =
+                    super::super::planning::prepare_gcode_export(&ctx, &Default::default())
+                        .unwrap();
+                let mut powers: Vec<_> = plan
+                    .segments
+                    .iter()
+                    .filter_map(|segment| {
+                        let PlanSegment::Raster {
+                            power_min_percent,
+                            power_max_percent,
+                            ..
+                        } = segment
+                        else {
+                            return None;
+                        };
+                        Some((
+                            (power_min_percent * 10.0).round() as u32,
+                            (power_max_percent * 10.0).round() as u32,
+                        ))
+                    })
+                    .collect();
+                powers.sort();
+                assert_eq!(powers, expected, "{mode}, angle {angle}, {transform}");
+                let mut emitted = BTreeSet::from([0]);
+                while let Some(line) = spool.next_line().unwrap() {
+                    for word in line.split_whitespace() {
+                        if let Some(value) =
+                            word.strip_prefix('S').and_then(|s| s.parse::<u32>().ok())
+                        {
+                            emitted.insert(value);
+                        }
+                    }
+                }
+                let wanted: BTreeSet<_> = std::iter::once(0)
+                    .chain(expected.iter().map(|(_, max)| *max))
+                    .collect();
+                assert_eq!(emitted, wanted, "{mode}, angle {angle}, {transform}");
+            }
+        }
+    }
+
+    #[test]
     fn lbrn_smooth_circle_preserves_project_contours_for_line_and_fill() {
         use base64::Engine;
 
@@ -2863,6 +3191,7 @@ mod tests {
                 let objects = import_files_from_data(
                     &ctx,
                     ImportFilesDataInput {
+                        create_layer: None,
                         files: vec![ImportFileData {
                             filename: filename.to_string(),
                             data_base64: base64::engine::general_purpose::STANDARD.encode(xml),
@@ -2992,6 +3321,7 @@ mod tests {
         let err = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![ImportFileData {
                     filename: "shape.svg".to_string(),
                     data_base64: "not!!valid@@base64".to_string(),
@@ -3046,6 +3376,7 @@ mod tests {
         let objects = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![ImportFileData {
                     filename: "big.svg".to_string(),
                     data_base64: base64::engine::general_purpose::STANDARD.encode(svg),
@@ -3172,7 +3503,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let dxf_path = dir.path().join("demo.dxf");
@@ -3258,7 +3589,7 @@ mod tests {
         ] {
             let (ctx, layer_id, configured_red_id) = colored_pdf_import_context();
             let before = ctx.project.lock().unwrap().as_ref().unwrap().clone();
-            *ctx.plan_cache.lock().unwrap() = Some(sample_plan(&before));
+            *ctx.plan_cache.lock().unwrap() = Some((sample_plan(&before)).into());
             let dir = tempdir().unwrap();
             let path = dir.path().join(format!("opaque-state.{extension}"));
             std::fs::write(&path, bytes).unwrap();
@@ -3295,7 +3626,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let pdf_path = dir.path().join("demo.pdf");
@@ -3355,6 +3686,7 @@ mod tests {
         let objects = import_files_from_paths(
             &ctx,
             ImportFilesInput {
+                create_layer: None,
                 file_paths: vec![pdf_path.to_string_lossy().to_string()],
                 layer_id: requested_id,
             },
@@ -3425,6 +3757,7 @@ mod tests {
         let objects = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![ImportFileData {
                     filename: "red-blue.pdf".to_string(),
                     data_base64: base64::engine::general_purpose::STANDARD
@@ -3553,7 +3886,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let ai_path = dir.path().join("demo.ai");
@@ -3641,7 +3974,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let gcode_path = dir.path().join("demo.gcode");

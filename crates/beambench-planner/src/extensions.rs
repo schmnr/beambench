@@ -511,19 +511,13 @@ pub fn translate_segments(segments: &mut [PlanSegment], dx: f64, dy: f64) {
                         crate::plan::ScanAxis::Horizontal => {
                             for scanline in scanlines.iter_mut() {
                                 scanline.y_mm += dy;
-                                for run in scanline.runs.iter_mut() {
-                                    run.start_x_mm += dx;
-                                    run.end_x_mm += dx;
-                                }
+                                scanline.runs.translate(dx);
                             }
                         }
                         crate::plan::ScanAxis::Vertical => {
                             for scanline in scanlines.iter_mut() {
                                 scanline.y_mm += dx;
-                                for run in scanline.runs.iter_mut() {
-                                    run.start_x_mm += dy;
-                                    run.end_x_mm += dy;
-                                }
+                                scanline.runs.translate(dy);
                             }
                         }
                     }
@@ -600,10 +594,7 @@ pub fn apply_workspace_origin_transform(
                         }
                         crate::plan::ScanAxis::Vertical => {
                             for scanline in scanlines.iter_mut() {
-                                for run in scanline.runs.iter_mut() {
-                                    run.start_x_mm = bed_height_mm - run.start_x_mm;
-                                    run.end_x_mm = bed_height_mm - run.end_x_mm;
-                                }
+                                scanline.runs.reflect(bed_height_mm);
                             }
                         }
                     }
@@ -1187,7 +1178,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 15.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1212,8 +1204,8 @@ mod tests {
 
         if let PlanSegment::Raster { scanlines, .. } = &segments[0] {
             assert_eq!(scanlines[0].y_mm, 30.0);
-            assert_eq!(scanlines[0].runs[0].start_x_mm, 15.0);
-            assert_eq!(scanlines[0].runs[0].end_x_mm, 25.0);
+            assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 15.0);
+            assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 25.0);
         }
     }
 
@@ -1229,7 +1221,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 15.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1255,10 +1248,11 @@ mod tests {
         if let PlanSegment::Raster { scanlines, .. } = &segments[0] {
             assert_eq!(scanlines[0].y_mm, 20.0, "y_mm holds X, shifts by dx");
             assert_eq!(
-                scanlines[0].runs[0].start_x_mm, 25.0,
+                scanlines[0].runs.get(0).unwrap().start_x_mm,
+                25.0,
                 "runs hold Y, shift by dy"
             );
-            assert_eq!(scanlines[0].runs[0].end_x_mm, 35.0);
+            assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 35.0);
         }
     }
 
@@ -1273,7 +1267,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 15.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1304,7 +1299,7 @@ mod tests {
         {
             assert_eq!((scan_origin.x, scan_origin.y), (110.0, 220.0));
             assert_eq!(scanlines[0].y_mm, 10.0, "relative scanlines unchanged");
-            assert_eq!(scanlines[0].runs[0].start_x_mm, 5.0);
+            assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 5.0);
         }
     }
 

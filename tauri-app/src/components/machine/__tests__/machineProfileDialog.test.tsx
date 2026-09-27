@@ -559,6 +559,7 @@ describe('MachineProfileDialog', () => {
   });
 
   it.each([
+    { presetId: 'sculpfun_s30_pro_10w', name: 'Sculpfun S30 Pro 10W', airOn: 'M8', width: 380, height: 385, homing: false },
     { presetId: 'sculpfun_s30_pro_max_20w', name: 'Sculpfun S30 Pro Max 20W', airOn: 'M8', width: 370, height: 360, homing: true },
     { presetId: 'sculpfun_s9', name: 'Sculpfun S9 (5.5W)', airOn: '', width: 410, height: 415, homing: false },
   ])('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing }) => {
@@ -648,6 +649,10 @@ describe('MachineProfileDialog', () => {
     if (presetId === 'sculpfun_s9') {
       expect(screen.getByText(/Hardware testing is pending/)).toBeDefined();
       expect(screen.getByText(/Homing and automatic air assist are off/)).toBeDefined();
+    }
+    if (presetId === 'sculpfun_s30_pro_10w') {
+      expect(screen.getByText(/Hardware testing is pending/)).toBeDefined();
+      expect(screen.getByText(/380 x 385 mm workspace, S1000, M8\/M9 air assist/)).toBeDefined();
     }
     expect((screen.getByTestId('machine-preset-apply') as HTMLButtonElement).disabled).toBe(true);
 

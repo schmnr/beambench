@@ -389,6 +389,16 @@ mod tests {
     }
 
     #[test]
+    fn portuguese_windows_access_denied_preserves_os_detail_and_port_guidance() {
+        let error = serialport::Error::new(serialport::ErrorKind::NoDevice, "Acesso negado.");
+        let message = map_open_error_for_platform("COM3", error, true).to_string();
+        assert!(message.contains("[serial_port_unavailable]"));
+        assert!(message.contains("COM3: Acesso negado."));
+        assert!(message.contains("another application"));
+        assert!(!message.contains("dialout"));
+    }
+
+    #[test]
     fn permission_denied_open_error_gets_actionable_message() {
         let error = serialport::Error::new(
             serialport::ErrorKind::Io(std::io::ErrorKind::PermissionDenied),

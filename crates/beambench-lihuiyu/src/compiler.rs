@@ -697,7 +697,7 @@ fn compile_raster_lines(
         }
         let left_to_right = matches!(scanline.direction, ScanDirection::LeftToRight);
         let direction = if left_to_right { 1.0 } else { -1.0 };
-        let mut runs: Vec<&ScanRun> = scanline.runs.iter().collect();
+        let mut runs: Vec<_> = scanline.runs.iter().collect();
         for run in &runs {
             if !run.start_x_mm.is_finite() || !run.end_x_mm.is_finite() {
                 return Err(LihuiyuCompilationError::InvalidNumericValue {
@@ -727,8 +727,8 @@ fn compile_raster_lines(
                 (max, min)
             }
         };
-        let (first_start, _) = directed_bounds(runs[0]);
-        let (_, last_end) = directed_bounds(runs[runs.len() - 1]);
+        let (first_start, _) = directed_bounds(&runs[0]);
+        let (_, last_end) = directed_bounds(&runs[runs.len() - 1]);
         let start_position = first_start - direction * overscan_mm;
         let mut line = NativeRasterLine {
             start: to_native(start_position, scanline.y_mm)?,
@@ -736,7 +736,7 @@ fn compile_raster_lines(
         };
         let mut current_position = start_position;
         for run in runs {
-            let (run_start, run_end) = directed_bounds(run);
+            let (run_start, run_end) = directed_bounds(&run);
             if (run_start - current_position).abs() > f64::EPSILON {
                 push_raster_motion(
                     &mut line.motions,
@@ -1125,7 +1125,8 @@ mod tests {
                     start_x_mm: 1.0,
                     end_x_mm: 5.0,
                     power_values: vec![0, 127, 128, 255],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 1.0,

@@ -2189,6 +2189,10 @@
         "preview": "Esikatselu",
         "no_changes": "Ei muutoksia.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Dokumentaatioon perustuva esiasetus Sculpfun S30 Pro 10W -laitteelle, jossa on GRBL 1.1f tai uudempi. Laitetestaus on vielä tekemättä.",
+            "advisory": "Työalue 380 x 385 mm, S1000, ilma-avustus M8/M9. Tarkista laitteesi liikealue ja S-enimmäisarvo. Ota kotiajo käyttöön vasta mukana toimitettujen kytkinten asennuksen ja laiteohjelmiston määrityksen jälkeen. Rungon laajennukset vaativat omat mitat."
+          },
           "sculpfun_s9": {
             "description": "Dokumentaatioon perustuva esiasetus alkuperäiselle Sculpfun S9:lle, jossa on GRBL 1.1f tai uudempi. Testejä koneella ei ole vielä tehty.",
             "advisory": "Varovainen työalue on 410 x 415 mm. Tarkista akselien liikealueet ja koneen S-enimmäisarvo. Kotihaku ja automaattinen ilmapuhallus ovat pois käytöstä; ota ne käyttöön vain asennetuille ja määritetyille lisävarusteille. Ilman kotikytkimiä käytä Nykyinen sijainti- tai Käyttäjän origo -tilaa."
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY on käynnissä, eikä USB-sarjaportti ole käytettävissä. BRLTTY saattaa varata sovittimen. Varmista asia lokista.",
+      "brltty_help": "BRLTTY-vianmääritys",
+      "brltty_check": "Etsi lokista BRLTTY:n tekemä tämän USB-laitteen varaus ja sitä seuraava sarjayhteyden katkeaminen:",
+      "brltty_stop": "Jos loki vahvistaa ristiriidan etkä käytä pistekirjoitusta, pysäytä BRLTTY tilapäisesti laserin ollessa toimettomana. Kytke USB sitten uudelleen ja yritä uudestaan:",
+      "brltty_restore": "Palauta pistekirjoitustuki:",
+      "brltty_persistence": "Pysäytys on tilapäinen. Palvelujen nimet vaihtelevat. Jos palvelu käynnistyy uudelleen tai puuttuu, tarkista jakelusi BRLTTY-laitesäännöt. Jos käytät pistekirjoitusta, pidä BRLTTY käynnissä ja etsi laitekohtainen ratkaisu.",
       "none_captured": "Mitään ei kaapattu",
       "no_snapshot": "Ei tilannevedosta",
       "refresh_aria": "Päivitä diagnostiikka",

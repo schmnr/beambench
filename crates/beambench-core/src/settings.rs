@@ -1,5 +1,5 @@
 use crate::machine_profile::{MachineProfile, MachineProfileId};
-use beambench_common::RasterAdjustments;
+use beambench_common::{AnchorPoint, RasterAdjustments};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -284,6 +284,9 @@ pub struct AppSettings {
     pub antialiasing: bool,
     #[serde(default)]
     pub artwork_display_mode: ArtworkDisplayMode,
+    /// Reference point for object positioning and resizing, independent of machine origin.
+    #[serde(default)]
+    pub transform_anchor: AnchorPoint,
     /// Legacy preference retained for settings-file compatibility. Canvas
     /// rendering now uses `artwork_display_mode` instead.
     #[serde(default)]
@@ -424,6 +427,7 @@ impl Default for AppSettings {
             dark_mode: false,
             antialiasing: true,
             artwork_display_mode: ArtworkDisplayMode::ByLayer,
+            transform_anchor: AnchorPoint::default(),
             filled_rendering: false,
             reduce_motion: false,
             show_palette_labels: false,
@@ -801,6 +805,7 @@ mod tests {
         assert!(!restored.dark_mode);
         assert!(restored.antialiasing);
         assert_eq!(restored.artwork_display_mode, ArtworkDisplayMode::ByLayer);
+        assert_eq!(restored.transform_anchor, AnchorPoint::TopLeft);
         assert!(!restored.filled_rendering);
         assert!(!restored.reduce_motion);
         assert!(!restored.show_palette_labels);

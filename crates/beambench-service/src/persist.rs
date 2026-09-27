@@ -16,6 +16,34 @@ pub const CONFIG_DIR_ENV: &str = "BEAMBENCH_CONFIG_DIR";
 pub const DATA_DIR_ENV: &str = "BEAMBENCH_DATA_DIR";
 pub const PREFERENCES_BACKUP_RETENTION: usize = 50;
 
+/// Resolve an export destination, following a symlinked destination.
+///
+/// Writing through the link preserves a setup where the user points an export
+/// name at a share or another volume; replacing the link with a regular file
+/// would silently break it.
+pub fn resolve_export_target(path: &Path) -> PathBuf {
+    fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Rename a staged temporary file over `target` with the mode a data file should have.
+///
+/// `NamedTempFile` creates its file 0600 and `persist` keeps that mode, which
+/// would leave exports unreadable to a NAS share or a service running as
+/// another account. An existing destination keeps its own mode; a new file gets
+/// the conventional 0644.
+pub fn persist_export(file: tempfile::NamedTempFile, target: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(target)
+            .map(|meta| meta.permissions().mode() & 0o777)
+            .unwrap_or(0o644);
+        file.as_file()
+            .set_permissions(fs::Permissions::from_mode(mode))?;
+    }
+    file.persist(target).map(|_| ()).map_err(|e| e.error)
+}
+
 /// Return the config directory for Beam Bench.
 /// `$CONFIG_DIR/beam-bench/`
 pub fn config_dir() -> Option<PathBuf> {

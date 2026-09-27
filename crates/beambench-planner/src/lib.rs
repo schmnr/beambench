@@ -9,6 +9,7 @@ pub mod image_params;
 pub mod optimize;
 pub mod plan;
 pub mod ramp;
+pub mod runs;
 pub mod scanline;
 pub mod stats;
 pub mod validate;

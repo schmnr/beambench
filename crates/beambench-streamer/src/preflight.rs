@@ -434,7 +434,8 @@ mod tests {
                     start_x_mm: run_start,
                     end_x_mm: run_end,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,

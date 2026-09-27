@@ -71,12 +71,6 @@ function makeResolvedLayer(
   });
 }
 
-function mockCreatedLayer(layer: ReturnType<typeof makeResolvedLayer>) {
-  mockedProjectService.addLayer.mockResolvedValue(layer);
-  mockedProjectService.updateLayer.mockResolvedValue(layer);
-  mockedProjectService.updateCutEntry.mockResolvedValue(layer.entries[0]);
-}
-
 afterEach(() => {
   cleanup();
   useProjectStore.setState(initialState, true);
@@ -144,6 +138,52 @@ async function emitNativeDragDropEvent(payload: { type: string; paths?: string[]
 }
 
 describe('ImportDropZone', () => {
+  it.each(['paths', 'data'] as const)('keeps project and selection unchanged after repeated failed %s imports', async (source) => {
+    useProjectStore.setState({
+      project: makeProject({ layers: [], objects: [], assets: [], dirty: false }),
+      selectedLayerId: null,
+      pendingPaletteColor: '#0000FF',
+    });
+    const before = useProjectStore.getState();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const failure = new Error('Unsupported PDF drawing operator');
+      if (source === 'paths') {
+        mockImportFilePaths.mockRejectedValueOnce(failure);
+        await expect(before.importFilePaths(['/tmp/design.pdf'])).rejects.toThrow(failure);
+      } else {
+        mockImportFileData.mockRejectedValueOnce(failure);
+        await expect(before.importFileData([{ filename: 'design.pdf', dataBase64: 'JVBERg==' }])).rejects.toThrow(failure);
+      }
+      const after = useProjectStore.getState();
+      expect(after.project).toBe(before.project);
+      expect(after.selectedLayerId).toBe(before.selectedLayerId);
+      expect(after.pendingPaletteColor).toBe(before.pendingPaletteColor);
+      expect(after.project?.dirty).toBe(false);
+    }
+    expect(mockedProjectService.addLayer).not.toHaveBeenCalled();
+    expect(mockedProjectService.updateLayer).not.toHaveBeenCalled();
+    expect(mockedProjectService.updateCutEntry).not.toHaveBeenCalled();
+  });
+
+  it('includes existing family settings in the atomic import request', async () => {
+    setProject();
+    const project = useProjectStore.getState().project!;
+    Object.assign(project.layers[0].entries[0], {
+      speed_mm_min: 777, power_percent: 42, power_min_percent: 5,
+      air_assist: true, z_offset_mm: 2, gcode_prefix: 'M8', gcode_suffix: 'M9',
+    });
+    mockImportFilePaths.mockResolvedValueOnce([]);
+    await useProjectStore.getState().importFilePaths(['/tmp/photo.png']);
+    expect(mockImportFilePaths).toHaveBeenCalledWith(['/tmp/photo.png'], 'l1', {
+      name: 'Layer 1', operation: 'image', color_tag: '#ff0000',
+      entry_patch: {
+        speed_mm_min: 777, power_percent: 42, power_min_percent: 5,
+        air_assist: true, z_offset_mm: 2, gcode_prefix: 'M8', gcode_suffix: 'M9',
+      },
+    });
+    expect(mockedProjectService.addLayer).not.toHaveBeenCalled();
+  });
+
   it('clears the file overlay when a drag leaves from the nested canvas surface', () => {
     setProject();
     const { getByText, queryByText } = render(
@@ -438,13 +478,8 @@ describe('ImportDropZone', () => {
 
   it('batches multiple supported files into one importFilePaths call', async () => {
     setProject(); // active layer l1 is cut, color #ff0000
-    // Mixed batch contains rasters → layer-family resolver creates
-    // an image sibling in the l1 color family first, then hands
-    // the whole batch to the backend with the image sibling id.
-    // (The backend still per-object auto-routes vectors to a
-    // non-image sibling, but the frontend seeds with the raster
-    // destination so post-import selection makes sense.)
-    mockCreatedLayer(makeResolvedLayer('l-img', 'Layer 1', 'image', '#ff0000'));
+    // Submit destination settings with the batch; the backend creates the
+    // image sibling only if every file imports successfully.
     mockedProjectService.getProject.mockResolvedValue({
       ...useProjectStore.getState().project!,
       layers: [
@@ -469,23 +504,17 @@ describe('ImportDropZone', () => {
     });
 
     await waitFor(() => {
-      // Resolver sees raster in batch, no image sibling for the
-      // 'l1' color family, so it creates one (inheriting the name
-      // via the clean "Layer 1" family-name suggestion).
-      expect(mockedProjectService.addLayer).toHaveBeenCalledWith('Layer 1', 'image');
-      // The batch is handed off using the new image sibling id —
-      // the backend splits vectors to their own sibling via
-      // per-object routing.
+      expect(mockedProjectService.addLayer).not.toHaveBeenCalled();
       expect(mockImportFileData).toHaveBeenCalledWith(
         dataFiles(['a.svg', 'b.png', 'c.bmp', 'd.pdf']),
-        'l-img',
+        'l1',
+        expect.objectContaining({ name: 'Layer 1', operation: 'image', color_tag: '#ff0000' }),
       );
     });
   });
 
   it('routes a single raster drop through the family resolver to an image sibling', async () => {
     setProject(); // active layer l1 is cut, color #ff0000
-    mockCreatedLayer(makeResolvedLayer('l-img', 'Layer 1', 'image', '#ff0000'));
     mockedProjectService.getProject.mockResolvedValue({
       ...useProjectStore.getState().project!,
       layers: [
@@ -509,10 +538,13 @@ describe('ImportDropZone', () => {
     });
 
     await waitFor(() => {
-      // Resolver creates the image sibling, then hands the import
-      // to it instead of the caller's l1 (cut) layer.
-      expect(mockedProjectService.addLayer).toHaveBeenCalledWith('Layer 1', 'image');
-      expect(mockImportFileData).toHaveBeenCalledWith(dataFiles(['photo.png']), 'l-img');
+      expect(mockedProjectService.addLayer).not.toHaveBeenCalled();
+      expect(mockedProjectService.updateLayer).not.toHaveBeenCalled();
+      expect(mockImportFileData).toHaveBeenCalledWith(
+        dataFiles(['photo.png']),
+        'l1',
+        expect.objectContaining({ name: 'Layer 1', operation: 'image', color_tag: '#ff0000' }),
+      );
     });
 
     // Final selection matches the layer id returned by the backend
@@ -551,7 +583,6 @@ describe('ImportDropZone', () => {
     // Pending palette matches existing cut layer's color
     useProjectStore.setState({ pendingPaletteColor: '#ff0000' });
 
-    mockCreatedLayer(makeResolvedLayer('l-img', 'Layer 1', 'image', '#ff0000'));
     mockedProjectService.getProject.mockResolvedValue({
       ...useProjectStore.getState().project!,
       layers: [
@@ -575,19 +606,13 @@ describe('ImportDropZone', () => {
     });
 
     await waitFor(() => {
-      // Raster + pending color matching an existing non-image layer →
-      // family resolver creates an image sibling with the layer name
-      // inherited from the existing clean family name ("Layer 1").
-      expect(mockedProjectService.addLayer).toHaveBeenCalledWith('Layer 1', 'image');
-      // updateLayer receives the canonicalised lowercase color_tag
-      // (the resolver normalizes before returning).
-      expect(mockedProjectService.updateLayer).toHaveBeenCalledWith(
-        'l-img',
-        expect.objectContaining({ color_tag: '#ff0000' }),
+      expect(mockedProjectService.addLayer).not.toHaveBeenCalled();
+      expect(mockedProjectService.updateLayer).not.toHaveBeenCalled();
+      expect(mockImportFileData).toHaveBeenCalledWith(
+        dataFiles(['photo.png']),
+        'l1',
+        expect.objectContaining({ name: 'Layer 1', operation: 'image', color_tag: '#ff0000' }),
       );
-      // Raster should route to the newly created image layer, not the
-      // existing cut layer
-      expect(mockImportFileData).toHaveBeenCalledWith(dataFiles(['photo.png']), 'l-img');
     });
 
     expect(useProjectStore.getState().pendingPaletteColor).toBeNull();
@@ -597,7 +622,6 @@ describe('ImportDropZone', () => {
     setProject();
     useProjectStore.setState({ pendingPaletteColor: '#0000FF' });
 
-    mockCreatedLayer(makeResolvedLayer('l-new', 'C03', 'line', '#0000ff'));
     mockedProjectService.getProject.mockResolvedValue({
       ...useProjectStore.getState().project!,
       layers: [
@@ -621,16 +645,11 @@ describe('ImportDropZone', () => {
     });
 
     await waitFor(() => {
-      // Vector import + pending color with no existing family →
-      // resolver requests a same-color sibling named from the
-      // palette family label rather than the generic operation.
-      expect(mockedProjectService.addLayer).toHaveBeenCalledWith('C03', 'line');
-      // color_tag normalized to lowercase
-      expect(mockedProjectService.updateLayer).toHaveBeenCalledWith(
-        'l-new',
-        expect.objectContaining({ color_tag: '#0000ff' }),
-      );
-      expect(mockImportFileData).toHaveBeenCalledWith(dataFiles(['shape.svg']), 'l-new');
+      expect(mockedProjectService.addLayer).not.toHaveBeenCalled();
+      expect(mockedProjectService.updateLayer).not.toHaveBeenCalled();
+      expect(mockImportFileData).toHaveBeenCalledWith(dataFiles(['shape.svg']), 'l1', {
+        name: 'C03', operation: 'line', color_tag: '#0000ff',
+      });
     });
 
     // Pending color should be cleared

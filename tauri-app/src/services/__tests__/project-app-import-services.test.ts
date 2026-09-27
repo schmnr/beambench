@@ -506,6 +506,27 @@ describe('appService methods', () => {
 });
 
 describe('importService methods', () => {
+  it('passes optional layer creation with both import payloads', async () => {
+    vi.mocked(invoke).mockResolvedValue([]);
+    const createLayer = {
+      name: 'Image', operation: 'image' as const, color_tag: '#ff0000',
+      entry_patch: { speed_mm_min: 777, power_percent: 42 },
+    };
+    await importService.importFilePaths(['/tmp/photo.png'], 'layer-1', createLayer);
+    expect(invoke).toHaveBeenCalledWith('import_files', {
+      filePaths: ['/tmp/photo.png'], layerId: 'layer-1', createLayer,
+    });
+    const files = [{ filename: 'photo.png', dataBase64: 'abc' }];
+    await importService.importFileData(files, 'layer-1', createLayer);
+    expect(invoke).toHaveBeenCalledWith('import_file_data', {
+      files, layerId: 'layer-1', createLayer,
+    });
+    await importService.importFilePaths(['/tmp/vector.svg'], 'layer-1');
+    expect(invoke).toHaveBeenLastCalledWith('import_files', {
+      filePaths: ['/tmp/vector.svg'], layerId: 'layer-1',
+    });
+  });
+
   it('pickFiles exposes the full raster filter set including tif', async () => {
     vi.mocked(open).mockResolvedValue(['/path/to/file.tif']);
 

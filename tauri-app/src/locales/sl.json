@@ -2189,6 +2189,10 @@
         "preview": "Predogled",
         "no_changes": "Brez sprememb.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Prednastavitev na podlagi dokumentacije za Sculpfun S30 Pro 10W z GRBL 1.1f ali novejšim. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "Delovna površina 380 x 385 mm, S1000, zračna podpora M8/M9. Preverite območje premikanja in največjo vrednost S naprave. Iskanje izhodišča omogočite šele po namestitvi priloženih stikal in nastavitvi vdelane programske opreme. Podaljški okvirja zahtevajo svoje mere."
+          },
           "sculpfun_s9": {
             "description": "Prednastavitev na podlagi dokumentacije za izvirni Sculpfun S9 z GRBL 1.1f ali novejšim. Preizkusi na stroju še niso opravljeni.",
             "advisory": "Konservativno delovno območje 410 x 415 mm. Preverite hode osi in največjo vrednost S stroja. Referenciranje in samodejni vpih zraka sta izklopljena; omogočite ju le za nameščene in nastavljene nadgradnje. Brez referenčnih stikal uporabite Trenutni položaj ali Uporabniško izhodišče."
@@ -2334,6 +2338,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY deluje, serijska vrata USB pa niso na voljo. Morda uporablja vmesnik; preverite dnevnik.",
+      "brltty_help": "Odpravljanje težav z BRLTTY",
+      "brltty_check": "Poiščite prevzem te naprave USB s strani BRLTTY, ki mu sledi prekinitev serijske povezave:",
+      "brltty_stop": "Če dnevnik potrdi spor in ne uporabljate brajice, začasno ustavite BRLTTY, ko laser miruje. Nato znova priključite USB in poskusite ponovno:",
+      "brltty_restore": "Obnovitev podpore za brajico:",
+      "brltty_persistence": "Ustavitev je začasna. Imena storitev se razlikujejo; če se storitev znova zažene ali manjka, preverite pravila naprav BRLTTY v svoji distribuciji. Če uporabljate brajico, pustite BRLTTY delovati in poiščite rešitev za določeno napravo.",
       "none_captured": "Nič ni zajeto",
       "no_snapshot": "Ni posnetka",
       "refresh_aria": "Osveži diagnostiko",

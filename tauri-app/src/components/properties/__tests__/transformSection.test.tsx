@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
+import { invoke } from '@tauri-apps/api/core';
 import { TransformSection } from '../TransformSection';
 import { useProjectStore } from '../../../stores/projectStore';
 import { useAppStore } from '../../../stores/appStore';
@@ -154,6 +155,56 @@ describe('TransformSection — position/size', () => {
     // Anchor grid has exactly 9 circular buttons
     const anchorButtons = allButtons.filter((b) => b.classList.contains('rounded-full'));
     expect(anchorButtons.length).toBe(9);
+  });
+
+  it('saves the selected reference point and restores it after reloading settings', async () => {
+    const project = makeBottomLeftProject();
+    useProjectStore.setState({ project, selectedObjectIds: ['obj1'] });
+    useAppStore.setState({ settings: makeAppSettings() });
+    const savedSettings = makeAppSettings({ transform_anchor: 'bottom_left' });
+    vi.mocked(invoke).mockResolvedValueOnce(savedSettings);
+    render(<TransformSection />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Bottom left' }));
+    });
+    expect(invoke).toHaveBeenCalledWith('update_app_settings', { transformAnchor: 'bottom_left' });
+    expect(screen.getByRole('button', { name: 'Bottom left' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('spinbutton')[IDX_Y]).toHaveProperty('value', '230');
+
+    cleanup();
+    useUiStore.setState(initialUiState, true);
+    useAppStore.setState(initialAppState, true);
+    vi.mocked(invoke).mockResolvedValueOnce(savedSettings);
+    await act(async () => {
+      await useAppStore.getState().fetchSettings();
+    });
+    render(<TransformSection />);
+    expect(screen.getByRole('button', { name: 'Bottom left' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('spinbutton')[IDX_Y]).toHaveProperty('value', '230');
+    expect(useProjectStore.getState().project).toBe(project);
+  });
+
+  it('keeps a saved reference point independent of the machine origin', () => {
+    useProjectStore.setState({ project: makeBottomLeftProject(), selectedObjectIds: ['obj1'] });
+    useAppStore.setState({ settings: makeAppSettings({ transform_anchor: 'center' }) });
+    render(<TransformSection />);
+    expect(screen.getByRole('button', { name: 'Center' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('spinbutton')[IDX_Y]).toHaveProperty('value', '255');
+  });
+
+  it('retains the saved reference point and reports a failed settings update', async () => {
+    useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'] });
+    useAppStore.setState({ settings: makeAppSettings({ transform_anchor: 'center' }) });
+    useNotificationStore.setState({ notifications: [] });
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('Could not save preferences'));
+    render(<TransformSection />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Bottom left' }));
+    });
+    expect(screen.getByRole('button', { name: 'Center' }).getAttribute('aria-pressed')).toBe('true');
+    const notifications = useNotificationStore.getState().notifications;
+    expect(notifications[notifications.length - 1]?.message).toBe('Could not save preferences');
   });
 
   it('places Fit Selection beside Center on Page before the anchor grid', () => {
@@ -465,14 +516,15 @@ describe('TransformSection — position/size', () => {
     expect(notifications[notifications.length - 1]?.message).toContain('Rotation is locked');
   });
 
-  it('W change with center anchor adjusts both min and max', () => {
+  it('W change with center anchor adjusts both min and max', async () => {
     const updateObject = vi.fn().mockResolvedValue(undefined);
     useProjectStore.setState({ project: makeProject(), selectedObjectIds: ['obj1'], updateObject });
     render(<TransformSection />);
     // Select center anchor (5th button in grid = index 4 of anchor buttons)
     const allButtons = screen.getAllByRole('button');
     const anchorButtons = allButtons.filter((b) => b.classList.contains('rounded-full'));
-    fireEvent.click(anchorButtons[4]); // center anchor
+    vi.mocked(invoke).mockResolvedValueOnce(makeAppSettings({ transform_anchor: 'center' }));
+    await act(async () => { fireEvent.click(anchorButtons[4]); });
     // Change W from 50 to 100 — center should stay fixed at 35 (10 + 50/2)
     const inputs = screen.getAllByRole('spinbutton');
     typeAndCommit(inputs[IDX_W], '100');

@@ -11,51 +11,18 @@ const POSITION_TOLERANCE_MM: f64 = 0.001;
 /// This function examines all consecutive segment pairs and inserts Travel segments where
 /// there are gaps in the path continuity.
 pub fn insert_travel_segments(segments: Vec<PlanSegment>) -> Vec<PlanSegment> {
-    if segments.is_empty() {
-        return vec![];
-    }
-
-    let mut result = Vec::new();
-
-    for (i, segment) in segments.into_iter().enumerate() {
-        // Add the current segment
-        result.push(segment.clone());
-
-        // Check if we need to insert travel after this segment
-        if i < result.len() - 1 {
-            // We'll check against the NEXT segment that will be added
-            // But we need to wait until we have it
+    let mut result = Vec::with_capacity(segments.len());
+    let mut previous_end: Option<Point2D> = None;
+    for segment in segments {
+        if let (Some(start), Some(end)) = (previous_end, segment_start(&segment))
+            && start.distance_to(&end) > POSITION_TOLERANCE_MM
+        {
+            result.push(PlanSegment::Travel { start, end });
         }
+        previous_end = segment_end(&segment);
+        result.push(segment);
     }
-
-    // Now do a second pass to insert travel segments
-    let mut final_result = Vec::new();
-    let original_segments = result;
-
-    for (i, segment) in original_segments.iter().enumerate() {
-        final_result.push(segment.clone());
-
-        // Check if there's a next segment
-        if i + 1 < original_segments.len() {
-            let next_segment = &original_segments[i + 1];
-
-            if let (Some(current_end), Some(next_start)) =
-                (segment_end(segment), segment_start(next_segment))
-            {
-                let distance = current_end.distance_to(&next_start);
-
-                if distance > POSITION_TOLERANCE_MM {
-                    // Insert a travel segment
-                    final_result.push(PlanSegment::Travel {
-                        start: current_end,
-                        end: next_start,
-                    });
-                }
-            }
-        }
-    }
-
-    final_result
+    result
 }
 
 /// Reorder segments using a greedy nearest-neighbor heuristic to minimize travel distance.
@@ -78,48 +45,83 @@ pub fn reorder_segments_nearest_neighbor(
         return segments;
     }
 
-    let mut remaining: Vec<(usize, PlanSegment)> = segments.into_iter().enumerate().collect();
-    let mut result = Vec::with_capacity(remaining.len());
+    // Derive each segment's geometry exactly once. `min_by` re-evaluates both
+    // operands on every comparison, and for a raster segment `segment_start`
+    // reaches into the scanlines; deriving it inline made ordering quadratic in
+    // work rather than just in comparisons.
+    let mut remaining: Vec<Candidate> = Vec::with_capacity(segments.len());
     let mut deferred = Vec::new();
+    for segment in segments {
+        let Some(start) = segment_start(&segment) else {
+            // Segments without a start point (OffsetFill) keep their original order.
+            deferred.push(segment);
+            continue;
+        };
+        remaining.push(Candidate {
+            start,
+            end: segment_end(&segment),
+            entry: reduce_direction_changes
+                .then(|| entry_heading(&segment))
+                .flatten(),
+            exit: reduce_direction_changes
+                .then(|| exit_heading(&segment))
+                .flatten(),
+            segment,
+        });
+    }
+
+    let mut result = Vec::with_capacity(remaining.len() + deferred.len());
     let mut current_pos = start_pos;
     let mut prev_heading: Option<Point2D> = None;
-
-    // Separate segments without a start point (OffsetFill)
-    remaining.retain(|(_, seg)| {
-        if segment_start(seg).is_none() {
-            deferred.push(seg.clone());
-            false
-        } else {
-            true
-        }
-    });
 
     while !remaining.is_empty() {
         let (best_idx, _) = remaining
             .iter()
             .enumerate()
-            .min_by(|(_, (_, a)), (_, (_, b))| {
-                let ca = candidate_cost(a, current_pos, prev_heading, reduce_direction_changes);
-                let cb = candidate_cost(b, current_pos, prev_heading, reduce_direction_changes);
+            .min_by(|(_, a), (_, b)| {
+                let ca = a.cost(current_pos, prev_heading);
+                let cb = b.cost(current_pos, prev_heading);
                 ca.partial_cmp(&cb).unwrap_or(std::cmp::Ordering::Equal)
             })
             .unwrap();
 
-        let (_, seg) = remaining.remove(best_idx);
+        let candidate = remaining.remove(best_idx);
         // Advance current position and capture this segment's exit heading
         // for the next round's direction-change penalty.
         if reduce_direction_changes {
-            prev_heading = exit_heading(&seg);
+            prev_heading = candidate.exit;
         }
-        if let Some(end) = segment_end(&seg) {
+        if let Some(end) = candidate.end {
             current_pos = end;
         }
-        result.push(seg);
+        result.push(candidate.segment);
     }
 
     // Append deferred segments (OffsetFill) at end
     result.extend(deferred);
     result
+}
+
+/// A segment plus the geometry the ordering heuristic needs, derived once up front.
+struct Candidate {
+    segment: PlanSegment,
+    start: Point2D,
+    end: Option<Point2D>,
+    /// Entry/exit headings are only populated when the direction-change
+    /// penalty is active; they are `None` for segments with no defined heading.
+    entry: Option<Point2D>,
+    exit: Option<Point2D>,
+}
+
+impl Candidate {
+    /// Selection cost given the current position and previous exit heading.
+    fn cost(&self, current_pos: Point2D, prev_heading: Option<Point2D>) -> f64 {
+        let distance = current_pos.distance_to(&self.start);
+        let (Some(prev), Some(entry)) = (prev_heading, self.entry) else {
+            return distance;
+        };
+        distance + ANGLE_PENALTY_MM_PER_RAD * angle_between(prev, entry)
+    }
 }
 
 /// Cost penalty per radian of direction change, expressed in millimeters.
@@ -128,33 +130,6 @@ pub fn reorder_segments_nearest_neighbor(
 /// direction changes are nearly free but reversals meaningfully dominate
 /// short-distance ties.
 const ANGLE_PENALTY_MM_PER_RAD: f64 = 10.0;
-
-/// Compute a candidate segment's selection cost given the current state.
-///
-/// Returns `f64::INFINITY` for segments with no start point (treated as
-/// unreachable under distance-based selection; these are pre-filtered).
-fn candidate_cost(
-    segment: &PlanSegment,
-    current_pos: Point2D,
-    prev_heading: Option<Point2D>,
-    reduce_direction_changes: bool,
-) -> f64 {
-    let Some(start) = segment_start(segment) else {
-        return f64::INFINITY;
-    };
-    let distance = current_pos.distance_to(&start);
-    if !reduce_direction_changes {
-        return distance;
-    }
-    let Some(prev) = prev_heading else {
-        return distance;
-    };
-    let Some(entry) = entry_heading(segment) else {
-        return distance;
-    };
-    let angle = angle_between(prev, entry);
-    distance + ANGLE_PENALTY_MM_PER_RAD * angle
-}
 
 /// Unit vector pointing from the candidate's start to its next point —
 /// the heading the tool would travel when the segment begins cutting.
@@ -475,7 +450,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 10.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 }],
                 line_interval_mm: 0.1,
@@ -570,7 +546,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 10.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -579,7 +556,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 10.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
             ],
@@ -618,7 +596,8 @@ mod tests {
                 start_x_mm: 2.0,
                 end_x_mm: 18.0,
                 power_values: vec![],
-            }],
+            }]
+            .into(),
             direction: ScanDirection::RightToLeft,
         };
 
@@ -661,7 +640,8 @@ mod tests {
                 start_x_mm: 2.0,
                 end_x_mm: 18.0,
                 power_values: vec![],
-            }],
+            }]
+            .into(),
             direction: ScanDirection::LeftToRight,
         };
 
@@ -810,7 +790,8 @@ mod tests {
                     start_x_mm: 2.0,
                     end_x_mm: 18.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -857,7 +838,8 @@ mod tests {
                     start_x_mm: 5.0,
                     end_x_mm: 25.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::RightToLeft,
             }],
             line_interval_mm: 0.1,
@@ -918,7 +900,8 @@ mod tests {
                         start_x_mm: 10.0,
                         end_x_mm: 90.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 }],
                 line_interval_mm: 0.1,

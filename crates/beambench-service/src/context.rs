@@ -125,7 +125,7 @@ pub struct ServiceContext {
     pub project: Mutex<Option<Project>>,
     pub project_path: Mutex<Option<PathBuf>>,
     pub settings: Mutex<AppSettings>,
-    pub plan_cache: Mutex<Option<ExecutionPlan>>,
+    pub plan_cache: Mutex<Option<Arc<ExecutionPlan>>>,
     pub history: Mutex<ProjectHistory>,
     pub session: Mutex<Option<MachineSessionHandle>>,
     /// Serializes connect, decision, cancel, and disconnect operations so an
