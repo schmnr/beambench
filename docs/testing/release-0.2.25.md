@@ -17,11 +17,14 @@ after the checks pass. Source version is 0.2.25 throughout Cargo, npm, and Tauri
 - Linux workspace excluding `beambench-tauri` and vendored `pdf417`: 3,509 tests
   pass, zero fail, four ignored. This includes 827 service and 26 serial tests.
   Workspace Clippy passes with existing warnings. Rust formatting passes.
-- Full CI on `a33e91f3` passed all four jobs: desktop Rust build/tests/Clippy,
-  Windows source regression, frontend build/tests/lint/performance budgets, and
-  macOS serial regression. The final UI cancellation commit must pass PR CI too.
+- Final source PR CI and merged-source CI passed all four jobs: desktop Rust
+  build/tests/Clippy, Windows source regression, frontend build/tests/lint/
+  performance budgets, and macOS serial regression. The release tag pins
+  `46bce7b428ddb283bb183df105d2738468b76c5e`.
+  Runs: [PR](https://github.com/schmnr/beambench/actions/runs/36598134553),
+  [merged source](https://github.com/schmnr/beambench/actions/runs/36599985343).
 - Website: 30 feedback tests, lint, production build, all 23 locale catalogs,
-  and 28,888 documentation links pass. Site commit `630b88a` is deployed;
+  and 28,934 documentation links pass. All 23 release-note locales build. Site commit `630b88a` is deployed;
   container health and local/public HTTP 200 responses are verified.
 - Third-party notices include the sleep-protection dependencies. The updater's
   changelog extraction is verified with the existing version-heading format.
@@ -44,7 +47,11 @@ with isolated configuration/data and a synthetic GRBL server listening only on
 | E-stop during preview preparation | Pass after fix | A 1600 x 1600 synthetic raster at 350 mm produces 3,258,529 preview burn runs. Stop during generation returns to idle without starting; only the settings query follows reset, with no motion. |
 | Japanese, Korean, Simplified Chinese | Glyph/menu check passed | Native menu labels update and glyphs/frame-speed labels render. Existing English headings remain in Move/Laser panels; this is not a claim of complete localization. |
 | Physical Windows/Mint USB or Wi-Fi | Not run | No physical controller or those desktop environments available. Network GRBL remains Experimental. |
-| Signed packages and updater install | Pending | Verify final artifacts before publication. |
+| Signed macOS package | Pass | Universal Intel/Apple Silicon app, CLI and DMG signed and notarized. Gatekeeper, stapling, DMG integrity and production updater signature verified. |
+| Windows package | Pass | Required NSIS installer and CLI built; Authenticode validation and independent updater signature checks passed. |
+| Linux package | Pass | AppImage runtime-library audit passed after hardening; CLI version, checksums and updater signature verified. |
+| macOS update from 0.2.24 | Pass | Isolated app copy downloaded the public update and restarted at 0.2.25. Installed code signature and executable hash match the verified release; the user-installed 0.2.24 app is unchanged. |
+| Native Windows/Linux install and update UI | Not run | Those desktop environments were unavailable. CI package/signature checks passed. |
 
 ## Release-blocking issue found and corrected
 
@@ -69,3 +76,46 @@ and corresponding source from the corrected, approved PR commit.
    replace the stable manifest. The website compatibility fix is already live.
 5. Publish the release and website notes/download version. Record unavailable
    hardware explicitly and keep GRBL over Network marked Experimental.
+
+## Final signed macOS package
+
+The signed and notarized package was rebuilt locally with
+`scripts/release-macos-local` from the exact tagged source. The GitHub macOS job
+passed its source checks but was cancelled after a packaging retry selected an
+unfinished `rw.*.dmg` file. [PR #66](https://github.com/schmnr/beambench/pull/66)
+fixes artifact selection and passed all four CI jobs. It changes only the build
+workflow; the tagged application source and packages remain unchanged.
+
+The final signed package was extracted and launched with isolated configuration
+and data. No installed user application or physical controller was changed.
+
+- Fresh `mixed-classic.pdf` import: 10 objects, including images, vector paths
+  and clipping masks, rendered successfully.
+- GRBL TCP, Frame and Frame Continuously: passed against a loopback simulator.
+  At least 27 continuous passes were observed before Stop returned to idle.
+- Immediate E-stop during fresh raster preparation: passed with a 1600 x 1600
+  synthetic raster sized to 351 mm. Preview represented 3,278,361 burn runs over
+  3,510 scanlines. After the reset at Unix timestamp `1790707584.131836`, the only
+  command received was `$$`; no motion or laser-on command followed.
+- Mac updater signature: verified with the production public key using the same
+  `minisign-verify` version as Tauri, independent of the signing script.
+
+## Published application artifacts
+
+The GitHub release and four-target stable updater were published on 2026-09-29.
+All 15 package, signature and source artifacts match their GitHub SHA-256
+digests. The archive checksum files match, and all three distinct updater
+signatures verify against the production key. The versioned download URLs were
+checked before the stable manifest was replaced atomically. Prior installers
+and the previous manifest were retained.
+
+- [Release and corresponding source](https://github.com/schmnr/beambench/releases/tag/v0.2.25)
+- [Windows workflow](https://github.com/schmnr/beambench/actions/runs/36612555395): passed.
+- [Linux workflow](https://github.com/schmnr/beambench/actions/runs/36618354885): passed.
+- [Stable updater manifest](https://updates.beambench.com/stable/latest.json)
+- [Package checksums](https://updates.beambench.com/stable/0.2.25/SHA256SUMS)
+
+The actual updater test used an isolated, signed 0.2.24 macOS app copy. Its
+startup notification found 0.2.25, installation completed, and the app restarted
+successfully. The visible version, installed code signature and executable
+checksum all match the release. The original installed app remains 0.2.24.
