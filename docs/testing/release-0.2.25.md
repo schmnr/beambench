@@ -2,8 +2,9 @@
 
 Date: 2026-09-29. Source: the commit containing this record on
 `codex/raster-memory-budget`. Version is 0.2.25 in Cargo, npm, both lockfiles,
-and the Tauri configuration. No release tag, push, deployment, or publication
-has been performed by this preparation task.
+and the Tauri configuration. The release owner authorized pushing, deployment,
+and publication after the remaining checks on 2026-09-29. The prepared app and
+website branches are pushed. Publication remains conditional on the checks below.
 
 ## Completed checks
 
@@ -58,8 +59,8 @@ smoke checks before approving publication.
 3. Complete the applicable native/controller smoke checks and record results.
 4. After approval, tag the approved source `v0.2.25`, build the corresponding-source
    archives and signed platform packages, and verify their signatures/checksums.
-5. Obtain the release owner's final go-live approval before publishing packages
-   or replacing the updater manifest.
+5. Publish only after the checks pass. The release owner has supplied go-live
+   authorization; no additional approval is needed for the agreed release.
 6. Publish the website release notes only after the app artifacts are verified
    live. Drafts and the publishing handoff are committed in the site repository
    on `codex/release-0-2-25`; they are outside the public docs collection.
@@ -79,3 +80,13 @@ smoke checks before approving publication.
   agree on 0.2.25.
 - Claude's compatibility-table correction is preserved in commit `19b09320`.
   GRBL over Network remains marked Experimental pending physical validation.
+
+## Authorized release execution
+
+- Full CI was dispatched for app commit `a33e91f3`. The macOS serial regression
+  passed. Final CI and packaging results must be checked before publication.
+- Site commit `630b88a` is pushed to main and its production build is underway.
+- Corrected the 0.2.25 changelog heading to the existing release-tool format and
+  verified that the updater extracts only this version's notes.
+- Native macOS compilation was retried. A cached helper runs, but subsequent
+  compilation still stalls; native smoke checks remain outstanding.

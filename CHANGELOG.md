@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## [0.2.25] - 2026-09-29
+## 0.2.25
 
 - Translate the network connection label and job preparation/sleep warnings in
   every supported language.
