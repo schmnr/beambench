@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useMachineStore } from '../../stores/machineStore';
 import { usePreviewStore } from '../../stores/previewStore';
 import { JobControlPanel } from './JobControlPanel';
@@ -66,6 +66,23 @@ describe('JobControlPanel', () => {
     usePreviewStore.setState({
       state: 'idle',
     });
+  });
+
+  it('does not resume Start after E-stop during preflight', async () => {
+    let release!: (value: { outcome: 'pass'; checks: [] }) => void;
+    const runPreflight = vi.fn(() => new Promise<{ outcome: 'pass'; checks: [] }>((resolve) => { release = resolve; }));
+    const startJob = vi.fn();
+    useMachineStore.setState({ sessionState: 'ready', machineStatus: idleMachineStatus, runPreflight, startJob });
+    usePreviewStore.setState({ state: 'current' });
+    render(<JobControlPanel onShowPreflight={onShowPreflight} />);
+    fireEvent.click(screen.getByText('Start'));
+    await waitFor(() => expect(runPreflight).toHaveBeenCalled());
+    await act(async () => {
+      useMachineStore.setState((state) => ({ emergencyStopGeneration: state.emergencyStopGeneration + 1 }));
+      release({ outcome: 'pass', checks: [] });
+    });
+    expect(startJob).not.toHaveBeenCalled();
+    expect(onShowPreflight).not.toHaveBeenCalled();
   });
 
   it('renders all four buttons', () => {

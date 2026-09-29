@@ -211,6 +211,7 @@ interface MachineStoreState {
   // Job
   jobProgress: JobProgress | null;
   activeJobPurpose: 'job' | 'frame' | null;
+  emergencyStopGeneration: number;
   preflightReport: PreflightReport | null;
 
   // Profiles
@@ -292,6 +293,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   capabilities: null,
   jobProgress: null,
   activeJobPurpose: null,
+  emergencyStopGeneration: 0,
   preflightReport: null,
   profiles: [],
   activeProfileId: null,
@@ -806,9 +808,13 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   startJob: async (allowAdvisories = false) => {
+    const stopGeneration = get().emergencyStopGeneration;
     set({ loading: true, error: null, activeJobPurpose: 'job' });
     try {
       await useProjectStore.getState().advanceAutoVariableText();
+      if (get().emergencyStopGeneration !== stopGeneration) {
+        throw new Error('[job_preparation_stopped]');
+      }
       const progress = await machineService.startJob(
         sessionJobOptions(
           useUiStore.getState().jobOptions,
@@ -1128,6 +1134,11 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   emergencyStop: async () => {
+    // Invalidate UI preparation before waiting for the backend stop request.
+    set({
+      emergencyStopGeneration: get().emergencyStopGeneration + 1,
+      showPreflightDialog: false,
+    });
     try {
       await machineService.emergencyStop();
       const sessionState = await machineService.getSessionState().catch(() => null);

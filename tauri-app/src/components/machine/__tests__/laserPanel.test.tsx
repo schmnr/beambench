@@ -34,6 +34,7 @@ vi.mock('../../../services/machineService', () => ({
     resumeJob: vi.fn().mockResolvedValue(undefined),
     cancelJob: vi.fn().mockResolvedValue(undefined),
     emergencyStop: vi.fn().mockResolvedValue(undefined),
+    getSessionState: vi.fn().mockResolvedValue('ready'),
     setWorkOrigin: vi.fn().mockResolvedValue([10, 20]),
     resetWorkOrigin: vi.fn().mockResolvedValue(undefined),
     runPreflightCheck: vi.fn().mockResolvedValue({ outcome: 'pass', checks: [] }),
@@ -406,6 +407,36 @@ describe('LaserPanel', () => {
     });
     expect(runPreflight).not.toHaveBeenCalled();
     expect(startJob).not.toHaveBeenCalled();
+  });
+
+  it.each(['preview', 'preflight'])('E-stop cancels a Start waiting for %s', async (phase) => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const generatePreview = vi.fn(async () => {
+      if (phase === 'preview') await pending;
+      return true;
+    });
+    const runPreflight = vi.fn(async () => {
+      if (phase === 'preflight') await pending;
+      return { outcome: 'pass' as const, checks: [] };
+    });
+    const startJob = vi.fn().mockResolvedValue(undefined);
+    const openPreflightDialog = vi.fn();
+    setConnectedWithProject();
+    useMachineStore.setState({ runPreflight, startJob, openPreflightDialog });
+    usePreviewStore.setState({ state: 'idle', generatePreview });
+    render(<LaserPanel />);
+    fireEvent.click(screen.getByTestId('start-button'));
+    await waitFor(() => expect(phase === 'preview' ? generatePreview : runPreflight).toHaveBeenCalled());
+    await act(async () => { await useMachineStore.getState().emergencyStop(); });
+    await act(async () => { release(); });
+    await waitFor(() => expect(screen.getByTestId('start-button').hasAttribute('disabled')).toBe(false));
+    expect(startJob).not.toHaveBeenCalled();
+    expect(openPreflightDialog).not.toHaveBeenCalled();
+    if (phase === 'preview') expect(runPreflight).not.toHaveBeenCalled();
+    // A new, deliberate click after the stop is allowed.
+    fireEvent.click(screen.getByTestId('start-button'));
+    await waitFor(() => expect(startJob).toHaveBeenCalledOnce());
   });
 
   it('disables Start while preview bootstrap is pending', async () => {

@@ -46,7 +46,8 @@
   guidance to reduce DPI or size, instead of running out of memory.
 - Emergency Stop is sent immediately even while a job or frame is still being
   prepared, and that job no longer starts afterwards. Recheck cancellation after
-  command generation and before sending the first commands.
+  command generation and before sending the first commands. E-stop also cancels
+  a pending Start during UI preview, preflight, or variable-text preparation.
 
 ## 0.2.24
 
