@@ -2053,6 +2053,7 @@
         "finish_position": "마무리 위치",
         "finish_return_to_origin": "원점으로 돌아가기",
         "frame": "프레임",
+        "frame_speed": "프레임 속도",
         "frame_laser_on": "프레임: 레이저 켜짐",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

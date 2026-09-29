@@ -2053,6 +2053,7 @@
         "finish_position": "Финишная позиция",
         "finish_return_to_origin": "Вернуться к началу",
         "frame": "Рамка",
+        "frame_speed": "Скорость обрамления",
         "frame_laser_on": "Рамка: Лазер включен",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

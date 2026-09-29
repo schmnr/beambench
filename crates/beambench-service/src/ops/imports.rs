@@ -18,11 +18,11 @@ use beambench_core::{
     AssetId, LayerId, LbrnCutEntry, LbrnDocument, LbrnShape, ObjectData, ObjectId, ProjectObject,
     ShapeKind, TextAlignment, TextAlignmentV, TextCirclePlacement, TextLayoutMode,
     TextTransformStyle, TraceConfig, import_image, import_svg, parse_dxf_with_report,
-    parse_eps_paths, parse_lbrn_project, parse_pdf_painted_paths, trace_image,
+    parse_eps_paths, parse_lbrn_project, parse_pdf_artwork, trace_image,
 };
 use beambench_core::{
-    CutEntry, Layer, OperationType, PdfPaintMode, PdfPaintedPath, PdfRgbColor, RasterSettings,
-    VectorSettings,
+    CutEntry, Layer, OperationType, PdfImage, PdfPaintMode, PdfPaintedPath, PdfRgbColor,
+    RasterSettings, VectorSettings,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -268,6 +268,7 @@ enum PendingImport {
     Vector {
         name_prefix: String,
         paths: Vec<ImportedVectorPath>,
+        images: Vec<PdfImage>,
         warnings: Vec<String>,
     },
     Lbrn {
@@ -287,6 +288,7 @@ struct ImportedVectorPath {
 #[derive(Debug, Clone)]
 struct ParsedVectorImport {
     paths: Vec<ImportedVectorPath>,
+    images: Vec<PdfImage>,
     warnings: Vec<String>,
 }
 
@@ -294,6 +296,7 @@ fn pending_vector_import(name_prefix: &str, parsed: ParsedVectorImport) -> Pendi
     PendingImport::Vector {
         name_prefix: name_prefix.to_string(),
         paths: parsed.paths,
+        images: parsed.images,
         warnings: parsed.warnings,
     }
 }
@@ -680,11 +683,7 @@ fn prepare_pending_import(
                 .unwrap_or("Import")
                 .to_string();
             let parsed = parse_vector_bytes(&bytes, format)?;
-            Ok(PendingImport::Vector {
-                name_prefix,
-                paths: parsed.paths,
-                warnings: parsed.warnings,
-            })
+            Ok(pending_vector_import(&name_prefix, parsed))
         }
         "lbrn" | "lbrn2" => Ok(PendingImport::Lbrn {
             document: parse_lbrn_project(&bytes).map_err(|error| {
@@ -886,10 +885,10 @@ fn lbrn_world_to_canvas_transform(
     }
 }
 
-/// Rectangles, ellipses, text, and bitmaps are reconstructed from native Beam
+/// Rectangles, ellipses, and text are reconstructed from native Beam
 /// Bench primitives whose local coordinates are already Y-down. Conjugating
 /// the source transform with a local Y flip converts rotation/shear without
-/// turning text or image pixels upside down.
+/// turning text upside down. Bitmaps use LightBurn's row coordinates directly.
 fn lbrn_semantic_object_transform(
     world_to_canvas: Transform2D,
     source: Transform2D,
@@ -1133,7 +1132,9 @@ fn import_lbrn_shape(
             data,
             adjustments,
         } => {
-            let transform = lbrn_semantic_object_transform(world_to_canvas, transform);
+            // LightBurn maps embedded bitmap row zero to local negative Y.
+            // Applying the semantic-shape Y correction here inverts its pixels.
+            let transform = world_to_canvas.compose(&transform);
             let layer_id = *layer_ids
                 .get(&layer_index)
                 .ok_or_else(|| ServiceError::internal("Missing imported Lbrn layer"))?;
@@ -1315,6 +1316,7 @@ fn import_pending(
                 }
                 resolved
             }
+            PendingImport::Vector { paths, .. } if paths.is_empty() => layer_id,
             PendingImport::Svg { .. } | PendingImport::Vector { .. } => {
                 let (resolved, notice) = route_import_with_notice(
                     project,
@@ -1386,6 +1388,7 @@ fn import_pending(
             PendingImport::Vector {
                 name_prefix,
                 paths,
+                images,
                 warnings,
             } => {
                 imported_objects.extend(add_imported_vector_paths(
@@ -1394,6 +1397,86 @@ fn import_pending(
                     &name_prefix,
                     paths,
                 )?);
+                if !images.is_empty() {
+                    let (image_layer_id, notice) = route_import_with_notice(
+                        project,
+                        layer_id,
+                        RoutingTarget::NeedsImage,
+                        allow_tool_imports,
+                    )?;
+                    if let Some(notice) = notice {
+                        routing_notices.push(notice);
+                    }
+                    for (index, image) in images.into_iter().enumerate() {
+                        let name = format!("{name_prefix} image {}", index + 1);
+                        let id = import_image(&image.png, &name, None, project, image_layer_id)
+                            .map_err(|e| {
+                                ServiceError::invalid_input(format!("PDF image import failed: {e}"))
+                            })?;
+                        let mask_object = if let Some(clip) = image.clip {
+                            let mask_layer = if let Some(layer) = project
+                                .layers
+                                .iter()
+                                .find(|l| l.is_tool_layer && l.name == "PDF clipping masks")
+                            {
+                                layer.id
+                            } else {
+                                let mut layer =
+                                    Layer::new("PDF clipping masks", OperationType::Tool);
+                                layer.canonicalize_tool_layer();
+                                layer.visible = false;
+                                project.add_layer(layer).id
+                            };
+                            let mask = vecpath_to_project_object(
+                                mask_layer,
+                                format!("{name} clipping"),
+                                clip,
+                            );
+                            Some(project.add_object(mask).clone())
+                        } else {
+                            None
+                        };
+                        let object = project
+                            .find_object_mut(id)
+                            .ok_or_else(|| ServiceError::internal("Missing imported PDF image"))?;
+                        let t = image.transform;
+                        let width = t.a.hypot(t.b);
+                        let height = t.c.hypot(t.d);
+                        let center = t.apply(&Point2D::new(0.5, 0.5));
+                        object.bounds = Bounds::new(
+                            Point2D::new(center.x - width / 2.0, center.y - height / 2.0),
+                            Point2D::new(center.x + width / 2.0, center.y + height / 2.0),
+                        );
+                        object.transform = Transform2D {
+                            a: t.a / width,
+                            b: t.b / width,
+                            c: t.c / height,
+                            d: t.d / height,
+                            tx: 0.0,
+                            ty: 0.0,
+                        };
+                        if let Some(mask) = &mask_object
+                            && let ObjectData::RasterImage { masks, .. } = &mut object.data
+                        {
+                            masks.push(beambench_core::ImageMaskRef {
+                                object_id: mask.id,
+                                polarity: beambench_core::ImageMaskPolarity::KeepInside,
+                            });
+                        }
+                        imported_objects.push(object.clone());
+                        if let Some(mask) = mask_object {
+                            let mask_id = mask.id;
+                            imported_objects.push(mask);
+                            let group = super::vector::group_objects_in_project(
+                                project,
+                                super::vector::GroupObjectsInput {
+                                    object_ids: vec![id, mask_id],
+                                },
+                            )?;
+                            imported_objects.push(group);
+                        }
+                    }
+                }
                 import_warnings.extend(warnings);
             }
             PendingImport::Lbrn { document } => {
@@ -1706,46 +1789,65 @@ fn parse_vector_bytes(
                     .into_iter()
                     .map(|entity| ImportedVectorPath::uncolored(entity.path))
                     .collect(),
+                images: Vec::new(),
                 warnings,
             })
         }
-        VectorImportFormat::Pdf => parse_pdf_painted_paths(bytes)
+        VectorImportFormat::Pdf => parse_pdf_vector_import(bytes),
+        VectorImportFormat::Ai
+            if bytes[..bytes.len().min(1024)]
+                .windows(5)
+                .any(|w| w == b"%PDF-") =>
+        {
+            parse_pdf_vector_import(bytes)
+        }
+        VectorImportFormat::Ai => parse_eps_paths(bytes)
             .map(|paths| ParsedVectorImport {
                 paths: paths
                     .into_iter()
-                    .map(ImportedVectorPath::from_pdf)
+                    .map(ImportedVectorPath::uncolored)
                     .collect(),
+                images: Vec::new(),
                 warnings: Vec::new(),
             })
-            .map_err(|e| ServiceError::invalid_input(format!("PDF import failed: {e}"))),
-        VectorImportFormat::Ai => match parse_pdf_painted_paths(bytes) {
-            Ok(paths) => Ok(ParsedVectorImport {
-                paths: paths
-                    .into_iter()
-                    .map(ImportedVectorPath::from_pdf)
-                    .collect(),
-                warnings: Vec::new(),
-            }),
-            Err(_) => parse_eps_paths(bytes)
-                .map(|paths| ParsedVectorImport {
-                    paths: paths
-                        .into_iter()
-                        .map(ImportedVectorPath::uncolored)
-                        .collect(),
-                    warnings: Vec::new(),
-                })
-                .map_err(|e| ServiceError::invalid_input(format!("AI import failed: {e}"))),
-        },
+            .map_err(|e| ServiceError::invalid_input(format!("AI import failed: {e}"))),
         VectorImportFormat::Eps => parse_eps_paths(bytes)
             .map(|paths| ParsedVectorImport {
                 paths: paths
                     .into_iter()
                     .map(ImportedVectorPath::uncolored)
                     .collect(),
+                images: Vec::new(),
                 warnings: Vec::new(),
             })
             .map_err(|e| ServiceError::invalid_input(format!("EPS import failed: {e}"))),
     }
+}
+
+fn parse_pdf_vector_import(bytes: &[u8]) -> ServiceResult<ParsedVectorImport> {
+    let artwork = parse_pdf_artwork(bytes)
+        .map_err(|e| ServiceError::invalid_input(format!("PDF import failed: {e}")))?;
+    let canvas = artwork.page_to_canvas;
+    Ok(ParsedVectorImport {
+        paths: artwork
+            .paths
+            .into_iter()
+            .map(|mut path| {
+                path.path = bake_transform(&path.path, &canvas);
+                ImportedVectorPath::from_pdf(path)
+            })
+            .collect(),
+        images: artwork
+            .images
+            .into_iter()
+            .map(|mut image| {
+                image.transform = canvas.compose(&image.transform);
+                image.clip = image.clip.map(|clip| bake_transform(&clip, &canvas));
+                image
+            })
+            .collect(),
+        warnings: Vec::new(),
+    })
 }
 
 fn dxf_skipped_entities_warning(
@@ -1915,13 +2017,11 @@ pub fn import_vector_file_from_path(
             VectorImportFormat::Eps => "EPS Import",
         });
     let parsed = parse_vector_file(&input.file_path, input.format)?;
-    import_vector_paths(
+    import_pending(
         ctx,
         input.layer_id,
-        1,
-        name_prefix,
-        parsed.paths,
-        parsed.warnings,
+        vec![pending_vector_import(name_prefix, parsed)],
+        None,
     )
 }
 
@@ -2855,6 +2955,230 @@ mod tests {
     }
 
     #[test]
+    fn mixed_pdf_entry_points_preserve_size_pixels_layers_planning_and_undo() {
+        use base64::Engine;
+        use beambench_core::WorkspaceOrigin;
+        use beambench_planner::PlanSegment;
+        const MM: f64 = 25.4 / 72.0;
+        let bytes = include_bytes!("../../../beambench-core/tests/fixtures/pdf/mixed-modern.pdf");
+        for origin in [WorkspaceOrigin::TopLeft, WorkspaceOrigin::BottomLeft] {
+            for entry_point in 0..3 {
+                let ctx = ServiceContext::new();
+                let mut project = Project::new("Mixed PDF");
+                project.workspace.origin = origin;
+                project.workspace.bed_height_mm = 100.0;
+                project.workspace.bed_width_mm = 100.0;
+                let layer_id = project.ensure_default_layer();
+                let before = project.clone();
+                *ctx.project.lock().unwrap() = Some(project);
+                let directory = tempdir().unwrap();
+                let file = directory.path().join("mixed.pdf");
+                std::fs::write(&file, bytes).unwrap();
+                let objects = match entry_point {
+                    0 => import_vector_file_from_path(
+                        &ctx,
+                        ImportVectorFileInput {
+                            file_path: file.to_string_lossy().into_owned(),
+                            layer_id,
+                            format: VectorImportFormat::Pdf,
+                        },
+                    ),
+                    1 => import_files_from_data(
+                        &ctx,
+                        ImportFilesDataInput {
+                            files: vec![ImportFileData {
+                                filename: "mixed.ai".into(),
+                                data_base64: base64::engine::general_purpose::STANDARD
+                                    .encode(bytes),
+                            }],
+                            layer_id,
+                            create_layer: None,
+                        },
+                    ),
+                    _ => import_art_library_item(
+                        &ctx,
+                        layer_id,
+                        "Mixed PDF",
+                        "mixed.pdf",
+                        "application/pdf",
+                        bytes.to_vec(),
+                    ),
+                }
+                .unwrap();
+                let after = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+                let images: Vec<_> = objects
+                    .iter()
+                    .filter(|o| matches!(o.data, ObjectData::RasterImage { .. }))
+                    .collect();
+                assert_eq!(images.len(), 3);
+                assert_eq!(after.assets.len(), 3);
+                for image in &images {
+                    assert_eq!(
+                        after
+                            .find_layer(image.layer_id)
+                            .unwrap()
+                            .primary_entry()
+                            .operation,
+                        OperationType::Image
+                    );
+                }
+                assert!((images[0].bounds.width() - 32.0 * MM).abs() < 1e-6);
+                assert!((images[0].bounds.height() - 24.0 * MM).abs() < 1e-6);
+                assert!((images[0].bounds.min.x - 58.0 * MM).abs() < 1e-6);
+                assert!((images[0].bounds.min.y - 10.0 * MM).abs() < 1e-6);
+                // Independently derive the source pixel centers from the PDF
+                // fixture matrices, then probe the actual machine scanlines.
+                // Threshold makes geometry probes deterministic even where
+                // resizing the tiny source blends adjacent black/white pixels.
+                // Error-diffusion modes can legitimately leave a probe unburned.
+                let mut planning_project = after.clone();
+                for layer in &mut planning_project.layers {
+                    if let Some(settings) = layer.primary_entry_mut().raster_settings.as_mut() {
+                        settings.mode = beambench_common::RasterMode::Threshold;
+                    }
+                }
+                let plan = build_plan(&planning_project).unwrap();
+                assert!(plan.failed_entries.is_empty());
+                let rows: Vec<_> = plan
+                    .segments
+                    .iter()
+                    .filter_map(|s| match s {
+                        PlanSegment::Raster { scanlines, .. } => Some(scanlines),
+                        _ => None,
+                    })
+                    .flatten()
+                    .collect();
+                assert!(!rows.is_empty());
+                for (a, c, d, tx, ty) in [
+                    (32.0, 0.0, 24.0, 58.0, 66.0),
+                    (-20.0, 8.0, 18.0, 76.0, 38.0),
+                ] {
+                    for y in 0..3 {
+                        for x in 0..4 {
+                            let u = (x as f64 + 0.5) / 4.0;
+                            let v = 1.0 - (y as f64 + 0.5) / 3.0;
+                            let wx = (a * u + c * v + tx) * MM;
+                            let canvas_y = (100.0 - (d * v + ty)) * MM;
+                            let wy = if origin == WorkspaceOrigin::BottomLeft {
+                                100.0 - canvas_y
+                            } else {
+                                canvas_y
+                            };
+                            let burns = rows.iter().any(|row| {
+                                (row.y_mm - wy).abs() < 0.11
+                                    && row
+                                        .runs
+                                        .iter()
+                                        .any(|run| wx > run.start_x_mm && wx < run.end_x_mm)
+                            });
+                            assert_eq!(
+                                burns,
+                                x < 3 - y,
+                                "origin={origin:?} entry={entry_point} transform={a},{c},{d} pixel={x},{y} machine={wx},{wy}"
+                            );
+                        }
+                    }
+                }
+                let ObjectData::RasterImage { masks, .. } = &images[2].data else {
+                    unreachable!()
+                };
+                assert_eq!(masks.len(), 1);
+                let mask = after.find_object(masks[0].object_id).unwrap();
+                assert!(after.find_layer(mask.layer_id).unwrap().is_tool_layer);
+                assert!(objects.iter().any(|o| matches!(&o.data,ObjectData::Group {children} if children.contains(&images[2].id) && children.contains(&mask.id))));
+                for (x, y, expected) in [
+                    (9.0, 47.0, true),
+                    (9.0, 49.0, false),
+                    (7.0, 47.0, false),
+                    (13.0, 43.0, false),
+                    (11.0, 43.0, true),
+                    (9.0, 40.0, true),
+                    (9.0, 38.5, false),
+                    (19.0, 47.0, true),
+                    (22.0, 47.0, false),
+                ] {
+                    let wx = x * MM;
+                    let canvas_y = (100.0 - y) * MM;
+                    let wy = if origin == WorkspaceOrigin::BottomLeft {
+                        100.0 - canvas_y
+                    } else {
+                        canvas_y
+                    };
+                    let burns = rows.iter().any(|row| {
+                        (row.y_mm - wy).abs() < 0.06
+                            && row
+                                .runs
+                                .iter()
+                                .any(|run| wx > run.start_x_mm && wx < run.end_x_mm)
+                    });
+                    assert_eq!(
+                        burns, expected,
+                        "subpixel clip origin={origin:?} entry={entry_point} PDF={x},{y}"
+                    );
+                }
+                let mut expected_undo = before;
+                expected_undo.dirty = true;
+                assert_eq!(
+                    super::super::project::undo_project(&ctx).unwrap(),
+                    expected_undo
+                );
+                assert!(!ctx.undo_state().unwrap().can_undo);
+                assert_eq!(super::super::project::redo_project(&ctx).unwrap(), after);
+            }
+        }
+    }
+
+    #[test]
+    fn image_only_pdf_does_not_create_an_empty_vector_layer() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Image-only PDF");
+        project.layers.clear();
+        let layer_id = project
+            .add_layer(Layer::new("Image", OperationType::Image))
+            .id;
+        *ctx.project.lock().unwrap() = Some(project);
+        let bytes = include_bytes!("../../../beambench-core/tests/fixtures/pdf/mixed-classic.pdf");
+        let mut parsed = parse_pdf_vector_import(bytes).unwrap();
+        parsed.paths.clear();
+        parsed.images.truncate(1);
+        let objects = import_pending(
+            &ctx,
+            layer_id,
+            vec![pending_vector_import("image", parsed)],
+            None,
+        )
+        .unwrap();
+        assert_eq!(objects.len(), 1);
+        assert_eq!(objects[0].layer_id, layer_id);
+        assert_eq!(
+            ctx.project.lock().unwrap().as_ref().unwrap().layers.len(),
+            1
+        );
+    }
+
+    #[test]
+    fn mixed_pdf_image_failure_rolls_back_vectors_assets_and_layers() {
+        let ctx = ServiceContext::new();
+        let mut before = Project::new("PDF rollback");
+        let layer_id = before.ensure_default_layer();
+        *ctx.project.lock().unwrap() = Some(before.clone());
+        let bytes = include_bytes!("../../../beambench-core/tests/fixtures/pdf/mixed-classic.pdf");
+        let mut parsed = parse_pdf_vector_import(bytes).unwrap();
+        // Fail after at least one vector and image have been staged.
+        parsed.images[1].png = vec![0, 1, 2];
+        assert!(
+            import_pending(
+                &ctx,
+                layer_id,
+                vec![pending_vector_import("mixed", parsed)],
+                None
+            )
+            .is_err()
+        );
+        assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &before);
+        assert!(!ctx.undo_state().unwrap().can_undo);
+    }
+    #[test]
     fn new_import_layer_and_mixed_artwork_commit_as_one_undoable_edit() {
         use base64::Engine;
         let ctx = ServiceContext::new();
@@ -3290,6 +3614,110 @@ mod tests {
     }
 
     #[test]
+    fn lbrn_asymmetric_bitmap_orientation_survives_import_and_planning() {
+        use base64::Engine;
+        use beambench_core::WorkspaceOrigin;
+        use beambench_planner::PlanSegment;
+
+        // Staircase: each row differs, and its white right edge distinguishes
+        // horizontal reflection. Cell centers stay clear of resampling edges.
+        let pixels = [0, 255, 255, 255, 0, 0, 255, 255, 0, 0, 0, 255];
+        let mut png = Vec::new();
+        image::ImageEncoder::write_image(
+            image::codecs::png::PngEncoder::new(&mut png),
+            &pixels,
+            4,
+            3,
+            image::ExtendedColorType::L8,
+        )
+        .unwrap();
+        let data = base64::engine::general_purpose::STANDARD.encode(png);
+        for origin in [WorkspaceOrigin::TopLeft, WorkspaceOrigin::BottomLeft] {
+            for mirror_x in [false, true] {
+                for mirror_y in [false, true] {
+                    for (a, b, c, d) in [
+                        (1.0, 0.0, 0.0, 1.0),
+                        (0.0, 1.0, -1.0, 0.0),
+                        (-1.0, 0.0, 0.0, -1.0),
+                        (0.0, -1.0, 1.0, 0.0),
+                        (-1.0, 0.0, 0.0, 1.0),
+                        (1.0, 0.0, 0.0, -1.0),
+                        (0.8, 0.6, -0.6, 0.8),
+                        (1.0, 0.0, 0.3, 1.0),
+                    ] {
+                        for version in [0, 1] {
+                            // Parent translation exercises nested group composition.
+                            let xml = format!(
+                                r#"<LightBurnProject FormatVersion="{version}" MirrorX="{mirror_x}" MirrorY="{mirror_y}">
+                              <CutSetting_Img type="Image"><index Value="1"/><maxPower Value="30"/><speed Value="20"/><interval Value="1"/><ditherMode Value="threshold"/></CutSetting_Img>
+                              <Shape Type="Group"><XForm>1 0 0 1 10 20</XForm><Children>
+                                <Shape Type="Bitmap" CutIndex="1" W="40" H="30" Data="{data}"><XForm>{a} {b} {c} {d} 90 80</XForm></Shape>
+                              </Children></Shape>
+                            </LightBurnProject>"#
+                            );
+                            let mut project = Project::new("Orientation matrix");
+                            project.workspace.origin = origin;
+                            project.workspace.bed_width_mm = 200.0;
+                            project.workspace.bed_height_mm = 200.0;
+                            import_lbrn_document(
+                                &mut project,
+                                parse_lbrn_project(xml.as_bytes()).unwrap(),
+                            )
+                            .unwrap();
+                            let plan = build_plan(&project).unwrap();
+                            assert!(plan.failed_entries.is_empty());
+                            let rows: Vec<_> = plan
+                                .segments
+                                .iter()
+                                .filter_map(|segment| {
+                                    if let PlanSegment::Raster { scanlines, .. } = segment {
+                                        Some(scanlines)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .flatten()
+                                .collect();
+                            assert!(!rows.is_empty());
+                            for (i, pixel) in pixels.iter().enumerate() {
+                                let x = (i % 4) as f64 * 10.0 - 15.0;
+                                let y = (i / 4) as f64 * 10.0 - 10.0;
+                                let mut wx = a * x + c * y + 100.0;
+                                let mut wy = b * x + d * y + 100.0;
+                                if mirror_x {
+                                    wx = 200.0 - wx;
+                                }
+                                if !mirror_y {
+                                    wy = 200.0 - wy;
+                                }
+                                if origin == WorkspaceOrigin::BottomLeft {
+                                    wy = 200.0 - wy;
+                                }
+                                let row = rows
+                                    .iter()
+                                    .min_by(|left, right| {
+                                        (left.y_mm - wy).abs().total_cmp(&(right.y_mm - wy).abs())
+                                    })
+                                    .unwrap();
+                                let burns = (row.y_mm - wy).abs() < 1.1
+                                    && row
+                                        .runs
+                                        .iter()
+                                        .any(|run| wx > run.start_x_mm && wx < run.end_x_mm);
+                                assert_eq!(
+                                    burns,
+                                    *pixel == 0,
+                                    "origin={origin:?} root={mirror_x}/{mirror_y} matrix={a},{b},{c},{d} version={version} pixel={i} point={wx},{wy}"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn lbrn_world_transform_respects_root_mirror_flags() {
         let mut project = Project::new("Mirrored Lbrn import");
         project.workspace.bed_width_mm = 100.0;
@@ -3673,10 +4101,11 @@ mod tests {
     fn colored_pdf_reuses_configured_layer_and_creates_safe_line_layer() {
         let (ctx, requested_id, configured_red_id) = colored_pdf_import_context();
         let bytes = sample_colored_pdf_bytes();
-        let expected_paths: Vec<_> = parse_pdf_painted_paths(&bytes)
+        let expected_paths: Vec<_> = parse_pdf_vector_import(&bytes)
             .unwrap()
+            .paths
             .into_iter()
-            .map(|painted| painted.path.to_svg_d())
+            .map(|path| path.path.to_svg_d())
             .collect();
         let mut rx = ctx.events.subscribe();
 

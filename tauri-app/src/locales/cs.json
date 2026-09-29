@@ -2053,6 +2053,7 @@
         "finish_position": "Dokončení pozice",
         "finish_return_to_origin": "Návrat k původu",
         "frame": "Rám",
+        "frame_speed": "Rychlost rámování",
         "frame_laser_on": "Rám: Laser zapnutý",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

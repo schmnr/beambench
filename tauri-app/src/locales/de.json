@@ -2053,6 +2053,7 @@
         "finish_position": "Zielposition",
         "finish_return_to_origin": "Zurück zum Ursprung",
         "frame": "Rahmen",
+        "frame_speed": "Rahmengeschwindigkeit",
         "frame_laser_on": "Rahmen: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

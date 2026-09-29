@@ -2053,6 +2053,7 @@
         "finish_position": "フィニッシュポジション",
         "finish_return_to_origin": "原点回帰",
         "frame": "フレーム",
+        "frame_speed": "フレーム速度",
         "frame_laser_on": "フレーム: レーザーオン",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

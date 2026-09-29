@@ -2053,6 +2053,7 @@
         "finish_position": "Posizione finale",
         "finish_return_to_origin": "Ritorno all'origine",
         "frame": "Cornice",
+        "frame_speed": "Velocità di inquadratura",
         "frame_laser_on": "Telaio: laser acceso",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

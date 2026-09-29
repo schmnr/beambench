@@ -156,8 +156,12 @@ impl ScanRuns {
         if truncated_open {
             last_end = width;
         }
-        let extent = first_burn
-            .map(|start| (origin + start as f64 * x_step, origin + last_end as f64 * x_step));
+        let extent = first_burn.map(|start| {
+            (
+                origin + start as f64 * x_step,
+                origin + last_end as f64 * x_step,
+            )
+        });
         Self(Storage::Pixels {
             raster,
             row,
@@ -400,9 +404,7 @@ mod tests {
                     let mut compact = ScanRuns::from_pixels(raster.clone(), row, 19.1234);
                     assert_eq!(
                         compact.x_extent(),
-                        explicit_extent(
-                            &compact.iter().map(Cow::into_owned).collect::<Vec<_>>()
-                        )
+                        explicit_extent(&compact.iter().map(Cow::into_owned).collect::<Vec<_>>())
                     );
                     let original = compact.clone();
                     let expanded = match format {
@@ -430,9 +432,7 @@ mod tests {
                     assert_eq!(compact.x_extent(), explicit.x_extent());
                     assert_eq!(
                         compact.x_extent(),
-                        explicit_extent(
-                            &compact.iter().map(Cow::into_owned).collect::<Vec<_>>()
-                        )
+                        explicit_extent(&compact.iter().map(Cow::into_owned).collect::<Vec<_>>())
                     );
                     let json = serde_json::to_string(&compact).unwrap();
                     assert_eq!(json, serde_json::to_string(&explicit).unwrap());

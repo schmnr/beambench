@@ -146,7 +146,7 @@ jobs:
           key: ${{ runner.os }}-cargo-source-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Test planning and machine-service behavior
-        run: cargo test -p beambench-service -p beambench-planner -p beambench-grbl
+        run: cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-serial
 
       - name: Install frontend dependencies
         working-directory: tauri-app

@@ -2053,6 +2053,7 @@
         "finish_position": "Slutposition",
         "finish_return_to_origin": "Återgå till ursprunget",
         "frame": "Ram",
+        "frame_speed": "Ramhastighet",
         "frame_laser_on": "Ram: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

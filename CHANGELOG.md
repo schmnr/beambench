@@ -1,5 +1,45 @@
 # Changelog
 
+## Unreleased
+
+- Keep the computer awake during active or paused jobs and framing. Release the
+  sleep protection when the job ends, and warn if the OS cannot provide it.
+- Make Frame Continuously repeat the prepared frame until stopped, without
+  changing its placement between passes. Add a framing-speed control beside
+  Frame, sharing the Move panel's speed and display units.
+- Clear interrupted canvas drags and panning when pointer capture is lost or
+  the window loses focus. Prevent delayed node loading from reviving a released
+  drag.
+- Correct vertically inverted bitmaps imported from LightBurn projects and
+  preserve per-image power scales used by MGL calibration grids. Re-import the
+  original `.lbrn` or `.lbrn2` to repair earlier imports. Saved Beam Bench projects
+  are not automatically flipped, since they may contain manual corrections.
+- Release failed GRBL connections when the initial engraving or framing commands
+  cannot be sent, retaining diagnostic progress so a fresh connection can retry.
+- Import compressed-object PDFs, nested vector forms, and embedded grayscale/RGB
+  images with bounded decoding. Preserve form transforms, resource scopes, and
+  clipping; apply image clipping through grouped, non-output vector masks.
+- Correct PDF and PDF-compatible Illustrator orientation on the canvas while
+  keeping vectors and images aligned at their original physical size. Accept
+  solid-stroke dash resets. Unsupported transparency and effects still fail
+  explicitly, without committing partial artwork.
+- Translate port-unavailable troubleshooting guidance into Brazilian Portuguese.
+- Plan large and multi-pass images with much less memory. Dense dithered
+  images share one bitmap across angle passes, and GRBL jobs stream from a
+  disk-backed spool in the user cache folder instead of holding the whole job
+  in memory. Set `BEAMBENCH_RASTER_CACHE_MB` to change the raster cache size.
+- A zero image power scale now keeps the laser off in grayscale mode instead of
+  burning at the layer minimum.
+- Exported G-code keeps an existing file's permissions (new files are readable
+  by other accounts) and writes through symlinked destinations. Exports are not
+  limited by GRBL's streaming line length.
+- On Linux, suggest a BRLTTY conflict only when the port actually fails or is
+  busy while BRLTTY is running, and include BRLTTY status in feedback reports.
+- Very detailed images on controllers other than GRBL now fail preflight with
+  guidance to reduce DPI or size, instead of running out of memory.
+- Emergency Stop is sent immediately even while a job or frame is still being
+  prepared, and that job no longer starts afterwards.
+
 ## 0.2.24
 
 - Import vector PDFs and PDF-compatible Illustrator files that use ordinary

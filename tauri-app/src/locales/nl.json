@@ -2053,6 +2053,7 @@
         "finish_position": "Eindpositie",
         "finish_return_to_origin": "Keer terug naar de oorsprong",
         "frame": "Kader",
+        "frame_speed": "Kadersnelheid",
         "frame_laser_on": "Kader: Laser aan",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

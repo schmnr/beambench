@@ -2053,6 +2053,7 @@
         "finish_position": "Θέση τερματισμού",
         "finish_return_to_origin": "Επιστροφή στην καταγωγή",
         "frame": "Πλαίσιο",
+        "frame_speed": "Ταχύτητα πλαισίωσης",
         "frame_laser_on": "Πλαίσιο: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

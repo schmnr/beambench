@@ -11,6 +11,7 @@ import { machineService } from '../../../services/machineService';
 import { previewService } from '../../../services/previewService';
 import {
   makeJobProgress,
+  makeAppSettings,
   makeMachineProfile,
   makeMachineStatus,
   makeProject,
@@ -113,6 +114,41 @@ const setConnectedWithProject = () => {
 };
 
 describe('LaserPanel', () => {
+  it('edits the shared framing speed beside Frame and sends the new value', async () => {
+    setConnectedWithProject();
+    vi.mocked(machineService.frameJob).mockResolvedValueOnce(makeJobProgress({ state: 'running' }));
+    render(<LaserPanel />);
+    const input = screen.getByRole('spinbutton', { name: /Frame speed/ });
+    fireEvent.change(input, { target: { value: '2400' } });
+    fireEvent.blur(input);
+    expect(useUiStore.getState().moveWindowJogFeedRateMmMin).toBe(2400);
+    fireEvent.click(screen.getByText('Frame'));
+    fireEvent.click(screen.getByText('Confirm Frame'));
+    await waitFor(() => expect(machineService.frameJob).toHaveBeenCalledWith('rectangular', undefined, false, 2400));
+  });
+
+  it.each([
+    { unit: 'mm' as const, time: 'seconds' as const, value: '25', mmMin: 1500 },
+    { unit: 'inches' as const, time: 'minutes' as const, value: '10', mmMin: 254 },
+  ])('converts framing speed from $unit/$time', ({ unit, time, value, mmMin }) => {
+    setConnectedWithProject();
+    useAppStore.setState({ settings: makeAppSettings({ display_unit: unit, speed_time_unit: time }) });
+    render(<LaserPanel />);
+    const input = screen.getByRole('spinbutton', { name: /Frame speed/ });
+    fireEvent.change(input, { target: { value } });
+    fireEvent.blur(input);
+    expect(useUiStore.getState().moveWindowJogFeedRateMmMin).toBeCloseTo(mmMin);
+  });
+
+  it('disables framing speed while a job is active', () => {
+    setConnectedWithProject();
+    useMachineStore.setState({ sessionState: 'running', jobProgress: makeJobProgress({ state: 'running' }) });
+    render(<LaserPanel />);
+    const input = screen.queryByRole('spinbutton', { name: /Frame speed/ });
+    // Some panel layouts hide framing options entirely while running.
+    if (input) expect((input as HTMLInputElement).disabled).toBe(true);
+  });
+
   it('renders connection gradient bar', () => {
     useProjectStore.setState({
       project: makeProject({

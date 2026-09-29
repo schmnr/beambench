@@ -46,18 +46,35 @@ fn create_spool_file() -> Result<File, GrblError> {
     tempfile::tempfile().map_err(spool_error)
 }
 impl GcodeSpool {
+    /// Spool for streaming to a GRBL controller: every line must fit the
+    /// receive buffer, and the total is capped.
     pub fn generate(plan: &ExecutionPlan, config: &GcodeConfig) -> Result<Self, GrblError> {
+        Self::generate_checked(plan, config, true)
+    }
+
+    /// Spool for writing a G-code file. The file may be run by other senders
+    /// or controllers, so GRBL's streaming limits do not apply. Read it back
+    /// with `copy_to`; `next_line` still enforces the streaming line limit.
+    pub fn generate_for_file(plan: &ExecutionPlan, config: &GcodeConfig) -> Result<Self, GrblError> {
+        Self::generate_checked(plan, config, false)
+    }
+
+    fn generate_checked(
+        plan: &ExecutionPlan,
+        config: &GcodeConfig,
+        streaming: bool,
+    ) -> Result<Self, GrblError> {
         let mut writer = BufWriter::new(create_spool_file()?);
         let mut line_count = 0;
         let mut bytes = 0;
         generate_gcode_to(plan, config, &mut |line| {
-            if line.len() >= 127 || line.contains(['\r', '\n']) {
+            if streaming && (line.len() >= 127 || line.contains(['\r', '\n'])) {
                 return Err(GrblError::GcodeError(format!(
                     "G-code line {} cannot fit the GRBL receive buffer. Each line must be at most 126 bytes and contain no embedded newline.",
                     line_count + 1
                 )));
             }
-            if bytes + line.len() as u64 + 1 > 512 * 1024 * 1024 {
+            if streaming && bytes + line.len() as u64 + 1 > 512 * 1024 * 1024 {
                 return Err(GrblError::GcodeError("Generated output exceeds the 512 MiB spool budget. Reduce the job size or DPI.".into()));
             }
             if line_count > 0 {

@@ -326,6 +326,48 @@ describe('NodeTool', () => {
     }));
   });
 
+  it.each(['release', 'reset'])('does not revive a drag when node loading finishes after %s', async (end) => {
+    const pending = deferred<EditablePath[]>();
+    vi.mocked(vectorService.getEditablePath).mockReturnValue(pending.promise);
+    const obj = makeVectorPathObj('path1', { min: { x: 0, y: 0 }, max: { x: 10, y: 0 } });
+    const ctx = makeToolContext({ selectedObjectIds: ['path1'], objects: [obj], vp: originVp });
+    const down = makeMouseEvent({ screenX: 400, screenY: 300, worldX: 0, worldY: 0 });
+    tool.onMouseDown(down, ctx);
+    if (end === 'release') tool.onMouseUp(down, ctx); else tool.reset();
+    pending.resolve([{ closed: false, nodes: [0, 10].map((x, command_idx) => ({
+      id: { subpath_idx: 0, command_idx }, position: { x, y: 0 },
+      handle_in: null, handle_out: null, node_type: 'corner',
+    })) }]);
+    await pending.promise;
+    await Promise.resolve();
+    await Promise.resolve();
+    tool.onMouseMove(makeMouseEvent({ screenX: 440, screenY: 320, worldX: 20, worldY: 10 }), ctx);
+    tool.onMouseUp(down, ctx);
+    expect(vectorService.updateNodesBatch).not.toHaveBeenCalled();
+    expect(tool.getCursor()).not.toBe('grabbing');
+  });
+
+  it('still selects the clicked node when loading finishes after a quick click', async () => {
+    const pending = deferred<EditablePath[]>();
+    vi.mocked(vectorService.getEditablePath).mockReturnValue(pending.promise);
+    const obj = makeVectorPathObj('path1', { min: { x: 0, y: 0 }, max: { x: 10, y: 0 } });
+    const ctx = makeToolContext({ selectedObjectIds: ['path1'], objects: [obj], vp: originVp });
+    const down = makeMouseEvent({ screenX: 400, screenY: 300, worldX: 0, worldY: 0 });
+    tool.onMouseDown(down, ctx);
+    tool.onMouseUp(down, ctx);
+    pending.resolve([{ closed: false, nodes: [0, 10].map((x, command_idx) => ({
+      id: { subpath_idx: 0, command_idx }, position: { x, y: 0 },
+      handle_in: null, handle_out: null, node_type: 'corner',
+    })) }]);
+    await pending.promise;
+    await Promise.resolve();
+    await Promise.resolve();
+    const overlay = tool.getOverlay();
+    if (overlay.type !== 'node-edit') throw new Error('Expected node-edit overlay');
+    expect(overlay.primaryTarget).toMatchObject({ kind: 'node', nodeId: { subpath_idx: 0, command_idx: 0 } });
+    expect(tool.getCursor()).not.toBe('grabbing');
+  });
+
   it('has name "node"', () => {
     expect(tool.name).toBe('node');
   });

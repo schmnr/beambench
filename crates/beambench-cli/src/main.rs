@@ -1733,15 +1733,11 @@ fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::E
             let ctx = offline_project_context(&input_path, true)?;
             let (_, mut gcode_lines) =
                 beambench_service::ops::planning::prepare_gcode_export(&ctx, &Default::default())?;
-            let output_path =
-                beambench_service::persist::resolve_export_target(std::path::Path::new(&output));
-            let parent = output_path
-                .parent()
-                .filter(|path| !path.as_os_str().is_empty())
-                .unwrap_or(std::path::Path::new("."));
-            let mut file = tempfile::NamedTempFile::new_in(parent)?;
-            gcode_lines.copy_to(file.as_file_mut())?;
-            beambench_service::persist::persist_export(file, &output_path)?;
+            beambench_service::ops::planning::write_gcode_export(
+                &mut gcode_lines,
+                std::path::Path::new(&output),
+            )
+            .map_err(|e| e.to_string())?;
 
             if json {
                 println!(

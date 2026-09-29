@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use crate::context::ServiceContext;
@@ -190,7 +190,13 @@ fn build_plan_for_project(
     project: &Project,
     selection_origin_bounds: Option<Bounds>,
 ) -> ServiceResult<ExecutionPlan> {
-    build_plan_for_snapshot(ctx, project, selection_origin_bounds, &active_profile(ctx)?)
+    build_plan_for_snapshot(
+        ctx,
+        project,
+        selection_origin_bounds,
+        &active_profile(ctx)?,
+        &ctx.latest_planning_request_id,
+    )
 }
 
 fn build_plan_for_snapshot(
@@ -198,6 +204,7 @@ fn build_plan_for_snapshot(
     project: &Project,
     selection_origin_bounds: Option<Bounds>,
     profile: &MachineProfile,
+    request_counter: &Arc<AtomicU64>,
 ) -> ServiceResult<ExecutionPlan> {
     ensure_positioning_ready(ctx, project)?;
     let runtime = ctx
@@ -211,13 +218,10 @@ fn build_plan_for_snapshot(
         .lock()
         .map_err(|e| lock_err("settings", e))?
         .display_unit;
-    let request_id = ctx
-        .latest_planning_request_id
-        .fetch_add(1, Ordering::AcqRel)
-        + 1;
+    let request_id = request_counter.fetch_add(1, Ordering::AcqRel) + 1;
     let input =
         PlannerInput::new(project.optimization.clone(), runtime, calibration).with_cancellation(
-            PlannerCancellation::new(Arc::clone(&ctx.latest_planning_request_id), request_id),
+            PlannerCancellation::new(Arc::clone(request_counter), request_id),
         );
     let input = if let Some(bounds) = selection_origin_bounds {
         input.with_job_origin_bounds(bounds)
@@ -478,12 +482,20 @@ pub(crate) fn prepare_job_snapshot(
     let project = current_project(ctx)?;
     let profile = active_profile(ctx)?;
     let (effective, origin) = apply_session_job_options(project.clone(), options)?;
-    let plan = build_plan_for_snapshot(ctx, &effective, origin, &profile)?;
+    let plan = build_plan_for_snapshot(
+        ctx,
+        &effective,
+        origin,
+        &profile,
+        &ctx.latest_job_planning_request_id,
+    )?;
     Ok((plan, project, profile))
 }
 
 pub fn cancel_planning(ctx: &ServiceContext) -> ServiceResult<()> {
     ctx.latest_planning_request_id
+        .fetch_add(1, Ordering::AcqRel);
+    ctx.latest_job_planning_request_id
         .fetch_add(1, Ordering::AcqRel);
     ctx.emit_event("planning.cancelled", json!({}));
     Ok(())
@@ -584,19 +596,7 @@ pub fn export_gcode_to_path_with_options(
 ) -> ServiceResult<String> {
     let (plan, mut gcode_lines) = prepare_gcode_export(ctx, options)?;
     // Preparation and validation finish before replacing any destination file.
-    // Stage beside the resolved destination so the rename stays within one
-    // filesystem even when the export path is a symlink to another volume.
-    let target = crate::persist::resolve_export_target(path);
-    let parent = target
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or(std::path::Path::new("."));
-    let mut output = tempfile::NamedTempFile::new_in(parent)
-        .map_err(|e| ServiceError::persistence(e.to_string()))?;
-    gcode_lines
-        .copy_to(output.as_file_mut())
-        .map_err(|e| ServiceError::persistence(e.to_string()))?;
-    crate::persist::persist_export(output, &target)
+    write_gcode_export(&mut gcode_lines, path)
         .map_err(|e| ServiceError::persistence(e.to_string()))?;
     ctx.emit_event(
         "preview.gcode.exported",
@@ -608,6 +608,51 @@ pub fn export_gcode_to_path_with_options(
         }),
     );
     Ok(path.to_string_lossy().to_string())
+}
+
+/// Write a prepared export to `path`, shared by the desktop and the CLI.
+///
+/// A regular file is staged beside the resolved destination and renamed over
+/// it, so the rename stays within one filesystem even through a symlink to
+/// another volume. Devices and pipes (`/dev/stdout`, a FIFO) cannot be renamed
+/// over and are written directly, as is an existing file in a directory the
+/// user cannot create files in.
+pub fn write_gcode_export(
+    spool: &mut GcodeSpool,
+    path: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let target = crate::persist::resolve_export_target(path);
+    let existing = std::fs::metadata(&target).ok();
+    fn write_in_place(
+        spool: &mut GcodeSpool,
+        target: &std::path::Path,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(target)?;
+        spool.copy_to(&mut file)?;
+        Ok(())
+    }
+    if existing.as_ref().is_some_and(|meta| !meta.is_file()) {
+        return write_in_place(spool, &target);
+    }
+    let parent = target
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(std::path::Path::new("."));
+    let mut output = match tempfile::NamedTempFile::new_in(parent) {
+        Ok(output) => output,
+        Err(error)
+            if error.kind() == std::io::ErrorKind::PermissionDenied && existing.is_some() =>
+        {
+            return write_in_place(spool, &target);
+        }
+        Err(error) => return Err(error.into()),
+    };
+    spool.copy_to(output.as_file_mut())?;
+    crate::persist::persist_export(output, &target)?;
+    Ok(())
 }
 
 /// Generate checked output for the desktop and standalone CLI. No file is
@@ -665,7 +710,7 @@ pub fn prepare_gcode_export(
     output::validate_rotary_feed_limit(&plan, &profile).map_err(ServiceError::invalid_state)?;
     let offset = trusted_grbl_work_to_machine_offset(ctx)?;
     let output_plan = plan_in_grbl_coordinates(&plan, &project, offset);
-    let gcode_lines = GcodeSpool::generate(&output_plan, &gcode_config)
+    let gcode_lines = GcodeSpool::generate_for_file(&output_plan, &gcode_config)
         .map_err(|e| ServiceError::invalid_state(format!("G-code generation failed: {e}")))?;
     Ok((plan, gcode_lines))
 }

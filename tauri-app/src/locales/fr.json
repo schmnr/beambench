@@ -2053,6 +2053,7 @@
         "finish_position": "Position finale",
         "finish_return_to_origin": "Retour à l'origine",
         "frame": "Cadre",
+        "frame_speed": "Vitesse de cadrage",
         "frame_laser_on": "Cadre : Laser activé",
         "frame_mode_hull": "Contour",
         "frame_mode_rect": "Rectangle",

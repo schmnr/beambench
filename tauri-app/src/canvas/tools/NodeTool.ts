@@ -95,12 +95,30 @@ export class NodeTool implements CanvasTool {
   private pendingNodeCommit: Promise<void> | null = null;
   private loadRequestId = 0;
   private localNodeDirty = false;
+  private gestureGeneration = 0;
+  private releasedGeneration = -1;
 
   onMouseDown(e: CanvasMouseEvent, ctx: ToolContext): void {
+    this.gestureGeneration++;
     this.handleMouseDown(e, ctx, true);
   }
 
+  // Replay a click deferred by path loading. A newer gesture or reset drops it.
+  // If the button already came up, finish it as a click so the node is still
+  // selected, without reviving a drag.
+  private replayMouseDown(
+    generation: number,
+    e: CanvasMouseEvent,
+    ctx: ToolContext,
+    allowObjectSwitch: boolean,
+  ): void {
+    if (generation !== this.gestureGeneration) return;
+    this.handleMouseDown(e, ctx, allowObjectSwitch);
+    if (this.releasedGeneration === generation) this.onMouseUp(e, ctx);
+  }
+
   private handleMouseDown(e: CanvasMouseEvent, ctx: ToolContext, allowObjectSwitch: boolean): void {
+    const generation = this.gestureGeneration;
     const screenPt = { x: e.screenX, y: e.screenY };
     const subMode = useUiStore.getState().nodeSubMode;
 
@@ -118,7 +136,7 @@ export class NodeTool implements CanvasTool {
     // Convert supported objects lazily, then replay this click
     if (obj.data.type !== 'vector_path') {
       void this.prepareForSelection(ctx).then(() => {
-        if (this.objectId && this.editablePaths.length > 0) this.onMouseDown(e, ctx);
+        if (this.objectId && this.editablePaths.length > 0) this.replayMouseDown(generation, e, ctx, true);
       });
       return;
     }
@@ -127,7 +145,7 @@ export class NodeTool implements CanvasTool {
     if (this.objectId !== objId) {
       void this.prepareForSelection(ctx).then(() => {
         if (this.objectId === objId && this.editablePaths.length > 0) {
-          this.handleMouseDown(e, ctx, false);
+          this.replayMouseDown(generation, e, ctx, false);
         }
       });
       return;
@@ -138,7 +156,7 @@ export class NodeTool implements CanvasTool {
       if (switchTarget) {
         void this.loadEditablePath(switchTarget.id, ctx).then(() => {
           if (this.objectId === switchTarget.id && this.editablePaths.length > 0) {
-            this.handleMouseDown(e, ctx, false);
+            this.replayMouseDown(generation, e, ctx, false);
           }
         });
         return;
@@ -361,6 +379,7 @@ export class NodeTool implements CanvasTool {
   }
 
   onMouseUp(_e: CanvasMouseEvent, ctx: ToolContext): void {
+    this.releasedGeneration = this.gestureGeneration;
     switch (this.state.type) {
       case 'maybe-drag':
       case 'maybe-drag-segment':
@@ -712,6 +731,7 @@ export class NodeTool implements CanvasTool {
   }
 
   reset(): void {
+    this.gestureGeneration++;
     this.state = { type: 'idle' };
     this.editablePaths = [];
     this.objectId = null;

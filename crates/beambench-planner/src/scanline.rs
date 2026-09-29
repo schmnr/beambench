@@ -276,9 +276,15 @@ mod tests {
             data: vec![0xAA; 250 * 4000],
         };
         let shared = Arc::new(raster.clone());
-        let rows =
-            generate_scanlines_checked(Arc::clone(&shared), 0.0, 0.0, true, 0.0, MAX_IMAGE_RASTER_RUNS)
-                .unwrap();
+        let rows = generate_scanlines_checked(
+            Arc::clone(&shared),
+            0.0,
+            0.0,
+            true,
+            0.0,
+            MAX_IMAGE_RASTER_RUNS,
+        )
+        .unwrap();
         assert_eq!(
             rows.iter().map(|row| row.runs.len()).sum::<usize>(),
             4_000_000
@@ -290,8 +296,15 @@ mod tests {
         oversized.height_px += 1;
         oversized.data.extend_from_slice(&[0xAA; 250]);
         assert_eq!(
-            generate_scanlines_checked(Arc::new(oversized.clone()), 0.0, 0.0, true, 0.0, MAX_IMAGE_RASTER_RUNS)
-                .unwrap_err(),
+            generate_scanlines_checked(
+                Arc::new(oversized.clone()),
+                0.0,
+                0.0,
+                true,
+                0.0,
+                MAX_IMAGE_RASTER_RUNS
+            )
+            .unwrap_err(),
             4_000_001
         );
     }

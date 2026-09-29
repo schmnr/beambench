@@ -344,8 +344,7 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                         let Some((row_min, row_max)) = sl.runs.x_extent() else {
                             continue;
                         };
-                        let row_burn_width =
-                            row_burn_widths.get(row_index).copied().unwrap_or(0.0);
+                        let row_burn_width = row_burn_widths.get(row_index).copied().unwrap_or(0.0);
                         let (start_pos, end_pos, direction) = match sl.direction {
                             ScanDirection::LeftToRight => (row_min, row_max, 1.0),
                             ScanDirection::RightToLeft => (row_max, row_min, -1.0),

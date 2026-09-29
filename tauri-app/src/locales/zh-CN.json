@@ -2053,6 +2053,7 @@
         "finish_position": "Finish position",
         "finish_return_to_origin": "Return to origin",
         "frame": "框架",
+        "frame_speed": "走边速度",
         "frame_laser_on": "Frame: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

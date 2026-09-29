@@ -2053,6 +2053,7 @@
         "finish_position": "Končni položaj",
         "finish_return_to_origin": "Vrnitev v izvor",
         "frame": "Okvir",
+        "frame_speed": "Hitrost okvirjanja",
         "frame_laser_on": "Okvir: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

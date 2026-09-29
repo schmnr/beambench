@@ -2053,6 +2053,7 @@
         "finish_position": "Loppuasento",
         "finish_return_to_origin": "Paluu alkuperään",
         "frame": "Kehys",
+        "frame_speed": "Rajausnopeus",
         "frame_laser_on": "Runko: Laser päällä",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

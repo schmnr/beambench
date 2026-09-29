@@ -1,5 +1,9 @@
 # MGL LightBurn import investigation
 
+**Update, 28 September:** the asymmetric native LightBurn reference check in
+[the follow-up review](2026-09-28-generated-reproductions.md) reproduces a bitmap
+Y-inversion bug. The earlier orientation conclusion below is superseded.
+
 BeamBench was losing the per-image power settings in a generated MGL calibration grid. The local fix retains those settings through import, planning, and G-code export. The reported upside-down import was not reproduced with this sample.
 
 ## Reproduction

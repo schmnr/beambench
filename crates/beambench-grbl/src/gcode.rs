@@ -1236,6 +1236,11 @@ mod tests {
                 .to_string()
                 .contains("126 bytes")
         );
+        // A saved file may be run by other senders, so it keeps long lines.
+        let mut file = crate::GcodeSpool::generate_for_file(&plan, &config).unwrap();
+        let mut bytes = Vec::new();
+        file.copy_to(&mut bytes).unwrap();
+        assert!(String::from_utf8(bytes).unwrap().contains(&"X".repeat(127)));
     }
 
     fn make_plan(segments: Vec<PlanSegment>) -> ExecutionPlan {

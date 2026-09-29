@@ -1169,6 +1169,12 @@ function App() {
     ) {
       useMachineStore.setState({ activeJobPurpose: null });
     }
+    if (event.type === 'job.sleep_protection_failed') {
+      const payload = event.payload as { message?: unknown } | undefined;
+      if (typeof payload?.message === 'string') {
+        useNotificationStore.getState().push(wrapBackendError(payload.message), 'warning');
+      }
+    }
     if (event.type === 'job.tick_failed') {
       const p = event.payload as { message?: unknown } | undefined;
       const message = typeof p?.message === 'string' && p.message.trim().length > 0

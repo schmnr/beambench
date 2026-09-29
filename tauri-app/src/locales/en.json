@@ -2205,6 +2205,7 @@
         "finish_position": "Finish position",
         "finish_return_to_origin": "Return to origin",
         "frame": "Frame",
+        "frame_speed": "Frame speed",
         "frame_laser_on": "Frame: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

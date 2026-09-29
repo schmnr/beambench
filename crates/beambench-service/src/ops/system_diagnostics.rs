@@ -181,4 +181,44 @@ mod linux {
         fs::write(dir.path().join("etc/os-release"), "x".repeat(17 * 1024)).unwrap();
         assert_eq!(read(dir.path()).os_version, None);
     }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn observes_brltty_named_process_through_real_procfs() {
+        // This is a renamed sleep process, not the braille service. It exercises
+        // the kernel's real /proc interface without opening any USB device.
+        let dir = tempfile::tempdir().unwrap();
+        let executable = dir.path().join("brltty");
+        fs::copy("/bin/sleep", &executable).unwrap();
+        struct TestChild(std::process::Child);
+        impl Drop for TestChild {
+            fn drop(&mut self) {
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+            }
+        }
+        let child = TestChild(
+            std::process::Command::new(executable)
+                .arg("30")
+                .spawn()
+                .unwrap(),
+        );
+        let comm = format!("/proc/{}/comm", child.0.id());
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while fs::read_to_string(&comm)
+            .ok()
+            .is_none_or(|name| name.trim() != "brltty")
+        {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "child process did not appear in /proc"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        let system = read(Path::new("/"));
+        assert_eq!(system.os, "linux");
+        assert_eq!(system.brltty_running, Some(true));
+        assert!(system.os_version.is_some());
+        drop(child);
+        assert!(!Path::new(&comm).exists());
+    }
 }

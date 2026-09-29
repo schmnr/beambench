@@ -2053,6 +2053,7 @@
         "finish_position": "Afslut position",
         "finish_return_to_origin": "Tilbage til oprindelsen",
         "frame": "Ramme",
+        "frame_speed": "Rammehastighed",
         "frame_laser_on": "Ramme: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

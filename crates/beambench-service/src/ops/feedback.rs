@@ -1647,9 +1647,27 @@ mod tests {
         // Ubuntu and Mint run brltty by default, so a normal end-of-job
         // disconnect must not accuse the user's braille service.
         let ctx = grbl_diagnostic_context();
-        ctx.push_connection_event("open_attempt", Some("/dev/ttyUSB0".into()), Some(115200), None, None);
-        ctx.push_connection_event("connected", Some("/dev/ttyUSB0".into()), Some(115200), None, None);
-        ctx.push_connection_event("ready", Some("/dev/ttyUSB0".into()), Some(115200), None, None);
+        ctx.push_connection_event(
+            "open_attempt",
+            Some("/dev/ttyUSB0".into()),
+            Some(115200),
+            None,
+            None,
+        );
+        ctx.push_connection_event(
+            "connected",
+            Some("/dev/ttyUSB0".into()),
+            Some(115200),
+            None,
+            None,
+        );
+        ctx.push_connection_event(
+            "ready",
+            Some("/dev/ttyUSB0".into()),
+            Some(115200),
+            None,
+            None,
+        );
         let events = ctx.recent_connection_events();
         let machine = build_machine_diagnostics(&ctx, &[], &events);
         let system = DiagnosticSystem {

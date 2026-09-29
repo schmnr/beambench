@@ -2053,6 +2053,7 @@
         "finish_position": "Bitiş konumu",
         "finish_return_to_origin": "Başlangıç noktasına dön",
         "frame": "Çerçeve",
+        "frame_speed": "Çerçeveleme hızı",
         "frame_laser_on": "Çerçeve: Lazer Açık",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

@@ -2053,6 +2053,7 @@
         "finish_position": "Befejezési pozíció",
         "finish_return_to_origin": "Vissza az eredethez",
         "frame": "Keret",
+        "frame_speed": "Keretezési sebesség",
         "frame_laser_on": "Keret: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

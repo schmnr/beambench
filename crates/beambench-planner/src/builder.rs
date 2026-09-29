@@ -1965,9 +1965,8 @@ fn build_cardinal_raster_scanlines(
         // 180°: horizontal scan, flipped (reverse scanline and run order)
         (ScanAxis::Horizontal, true) => {
             budget.precheck_bitmap(processed.data.len())?;
-            let rotated = Arc::new(
-                rotate_raster(processed, 180.0, bounds.width(), bounds.height()).raster,
-            );
+            let rotated =
+                Arc::new(rotate_raster(processed, 180.0, bounds.width(), bounds.height()).raster);
             let line_interval_mm = rotated.line_interval_mm;
             build(rotated, bounds.min.x, bounds.min.y)
                 .map(|sl| (sl, line_interval_mm, ScanAxis::Horizontal))
@@ -2763,7 +2762,16 @@ fn build_plan_inner(
                             // charge happens first so an image too large for the
                             // budget is rejected before its pixels are copied.
                             raster_budget.precheck_bitmap(processed.data.len())?;
-                            let shared_processed = Arc::new(processed.clone());
+                            // Unmodified cache hits reuse the cached allocation,
+                            // so the plan does not hold a second copy.
+                            let unmodified = !flood_fill_enabled
+                                && baked_transform.is_none()
+                                && matches!(masked_processed, std::borrow::Cow::Borrowed(_));
+                            let shared_processed = if unmodified {
+                                Arc::clone(&processed_arc)
+                            } else {
+                                Arc::new(processed.clone())
+                            };
 
                             for ai in 0..effective_angle_passes {
                                 if input.cancellation.should_cancel() {
@@ -2824,8 +2832,7 @@ fn build_plan_inner(
 
                                     // A rotated bitmap is a fresh allocation; charge
                                     // it before rotate_raster produces it.
-                                    raster_budget
-                                        .precheck_bitmap(shared_processed.data.len())?;
+                                    raster_budget.precheck_bitmap(shared_processed.data.len())?;
                                     let rotated = rotate_raster(
                                         &shared_processed,
                                         -effective_angle,
@@ -4408,7 +4415,9 @@ mod tests {
         // rejected sparse multi-pass plans that the expanded form handles.
         let mut budget = RasterPlanBudget::default();
         for _ in 0..8 {
-            budget.include(&rows).expect("8 angle passes of sparse line art must fit");
+            budget
+                .include(&rows)
+                .expect("8 angle passes of sparse line art must fit");
         }
         assert!(
             budget.bytes < raster.data.len() * 8,

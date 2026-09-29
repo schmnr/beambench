@@ -2053,6 +2053,7 @@
         "finish_position": "Pozycja końcowa",
         "finish_return_to_origin": "Wróć do źródła",
         "frame": "Rama",
+        "frame_speed": "Prędkość kadrowania",
         "frame_laser_on": "Rama: Laser włączony",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",

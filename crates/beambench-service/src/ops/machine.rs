@@ -3591,6 +3591,7 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
     ctx.active_jog.store(false, Ordering::Release);
     let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
     *job_lock = None;
+    clear_job_resources(ctx);
     drop(job_lock);
     remember_job_progress(ctx, None)?;
     ctx.emit_event(
@@ -4016,6 +4017,26 @@ fn relative_frame_fingerprint(
     )))
 }
 
+/// Image burn-run limit for controllers whose output is built in memory
+/// (everything except spooled GRBL). Matches the planner's pre-spool cap.
+const IN_MEMORY_CONTROLLER_MAX_RASTER_RUNS: usize = 1_000_000;
+
+/// Returns the running total once it exceeds `limit`, without visiting the rest.
+fn raster_runs_over(plan: &ExecutionPlan, limit: usize) -> Option<usize> {
+    let mut total = 0usize;
+    for segment in &plan.segments {
+        if let beambench_planner::PlanSegment::Raster { scanlines, .. } = segment {
+            for scanline in scanlines {
+                total += scanline.runs.len();
+                if total > limit {
+                    return Some(total);
+                }
+            }
+        }
+    }
+    None
+}
+
 fn controller_output_plan(
     ctx: &ServiceContext,
     plan: &ExecutionPlan,
@@ -4168,6 +4189,33 @@ fn run_preflight_check_with_plan(
     } else {
         &plan
     };
+    if !matches!(session, MachineSessionHandle::Grbl(_))
+        && let Some(runs) = raster_runs_over(plan_for_checks, IN_MEMORY_CONTROLLER_MAX_RASTER_RUNS)
+    {
+        // Only GRBL output is spooled to disk. Every other controller builds
+        // the whole job in memory, so keep the pre-spool image detail limit
+        // and fail here, before any controller compile allocates for it.
+        let report = PreflightReport {
+            outcome: PreflightOutcome::Fail,
+            checks: vec![PreflightCheck {
+                category: "plan".to_string(),
+                description: "Image detail fits the connected controller".to_string(),
+                passed: false,
+                message: format!(
+                    "Images in this job need more than {runs} separate burn runs. This controller supports up to {IN_MEMORY_CONTROLLER_MAX_RASTER_RUNS}. Reduce the image DPI, physical size, or dithering detail."
+                ),
+            }],
+            advisories: Vec::new(),
+        };
+        ctx.emit_event(
+            "job.preflight.completed",
+            json!({
+                "outcome": report.outcome,
+                "check_count": report.checks.len(),
+            }),
+        );
+        return Ok((report, None));
+    }
     let mut report = match session {
         MachineSessionHandle::Grbl(session) => run_preflight(session, plan_for_checks, &profile),
         MachineSessionHandle::Ruida(session) => {
@@ -4419,7 +4467,14 @@ pub fn start_job_with_options_confirming_advisories(
     allow_advisories: bool,
 ) -> ServiceResult<JobProgress> {
     force_laser_fire_stop(ctx, "job_start")?;
+    let estop_generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
+    // Acquired before any lock: the OS call can block for seconds, and status,
+    // jog and E-stop must not wait on it.
+    let sleep = crate::power::SleepGuard::acquire();
     let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+    if ctx.shutting_down.load(Ordering::Acquire) {
+        return Err(ServiceError::invalid_state("Beam Bench is shutting down"));
+    }
     if job_lock.is_some() {
         return Err(ServiceError::conflict(
             "A job is already active. Cancel or wait for it to finish.",
@@ -4463,6 +4518,7 @@ pub fn start_job_with_options_confirming_advisories(
         .map_err(ServiceError::invalid_state)?;
 
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+    ensure_no_emergency_stop_since(ctx, estop_generation)?;
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
@@ -4484,8 +4540,25 @@ pub fn start_job_with_options_confirming_advisories(
             let config = gcode_config;
             let mut job = JobController::prepare(&output_plan, &config)
                 .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?;
-            job.start(session)
-                .map_err(|e| ServiceError::machine(format!("Job start failed: {e}")))?;
+            if let Err(error) = job.start(session) {
+                let error = ServiceError::machine(format!("Job start failed: {error}"));
+                let job = ActiveJobHandle::Grbl(job);
+                retain_terminal_job_diagnostic(
+                    ctx,
+                    "initial_send_failed",
+                    Some(job.progress()),
+                    Some(error.to_string()),
+                    Some(&job),
+                    session_lock.as_ref(),
+                );
+                drop(session_lock);
+                drop(job_lock);
+                // The first batch can already be partially transmitted. Use the
+                // same stop/disconnect path as a later streaming failure.
+                disconnect_failed_active_job(ctx, error.to_string());
+                let _ = remember_job_progress(ctx, None);
+                return Err(error);
+            }
             ActiveJobHandle::Grbl(job)
         }
         MachineSessionHandle::Marlin(session) => {
@@ -4563,6 +4636,7 @@ pub fn start_job_with_options_confirming_advisories(
     };
     let progress = job.progress();
     clear_retained_terminal_job(ctx)?;
+    install_job_resources(ctx, sleep, None, estop_generation)?;
     *job_lock = Some(job);
     drop(session_lock);
     drop(job_lock);
@@ -4594,6 +4668,7 @@ fn handle_fatal_job_tick_error(ctx: &ServiceContext, message: String) {
 
     if let Ok(mut job) = ctx.job.lock() {
         *job = None;
+        clear_job_resources(ctx);
     }
     let _ = remember_job_progress(ctx, None);
     ctx.push_error(message.clone());
@@ -4622,7 +4697,7 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
     let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
 
-    let progress = match (&mut *job_lock, &mut *session_lock) {
+    let mut progress = match (&mut *job_lock, &mut *session_lock) {
         (Some(job), Some(session)) => match job.tick(Some(session)) {
             Ok(progress) => Some(progress),
             Err(err) => {
@@ -4663,6 +4738,61 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
         },
         _ => None,
     };
+
+    if progress
+        .as_ref()
+        .is_some_and(|p| p.state == JobState::Completed)
+    {
+        let mut resources = ctx
+            .job_resources
+            .lock()
+            .map_err(|e| lock_err("job_resources", e))?;
+        if let Some(frame) = resources.repeat.as_ref()
+            && let Some(session) = session_lock.as_mut()
+            && !ctx.shutting_down.load(Ordering::Acquire)
+            && ctx.emergency_stop_generation.load(Ordering::Acquire) == resources.estop_generation
+        {
+            // Hold job/session throughout the pass boundary. Stop or disconnect
+            // cannot slip between a completion and a queued restart.
+            match frame.start(ctx, session) {
+                Ok(next) => {
+                    if let Some(fingerprint) = ctx
+                        .pending_relative_frame_confirmation
+                        .lock()
+                        .map_err(|e| lock_err("pending_relative_frame_confirmation", e))?
+                        .take()
+                    {
+                        *ctx.relative_frame_confirmation
+                            .lock()
+                            .map_err(|e| lock_err("relative_frame_confirmation", e))? =
+                            Some(fingerprint);
+                    }
+                    progress = Some(next.progress());
+                    *job_lock = Some(next);
+                }
+                Err(FrameStartError { error, sent }) => {
+                    resources.repeat = None;
+                    drop(resources);
+                    drop(session_lock);
+                    let message = format!("Continuous framing stopped: {error}");
+                    if sent {
+                        drop(job_lock);
+                        handle_fatal_job_tick_error(ctx, message);
+                    } else {
+                        // Nothing reached the controller; the previous pass
+                        // finished cleanly, so keep the connection.
+                        *job_lock = None;
+                        clear_job_resources(ctx);
+                        drop(job_lock);
+                        let _ = remember_job_progress(ctx, None);
+                        ctx.push_error(message.clone());
+                        ctx.emit_event("job.tick_failed", json!({ "message": message }));
+                    }
+                    return Err(error);
+                }
+            }
+        }
+    }
 
     let failed_active_message = progress.as_ref().and_then(|progress| {
         let failed_while_session_active = progress.state == JobState::Failed
@@ -4718,6 +4848,7 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
                 }
             }
             *job_lock = None;
+            clear_job_resources(ctx);
         }
     }
 
@@ -4862,6 +4993,10 @@ pub fn resume_job(ctx: &ServiceContext) -> ServiceResult<()> {
 
 pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
     let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+    ctx.job_resources
+        .lock()
+        .map_err(|e| lock_err("job_resources", e))?
+        .repeat = None;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let job = job_lock
         .as_mut()
@@ -4884,6 +5019,7 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
         Some(session),
     );
     *job_lock = None;
+    clear_job_resources(ctx);
     drop(session_lock);
     drop(job_lock);
     remember_job_progress(ctx, None)?;
@@ -4983,6 +5119,135 @@ fn frame_power_percent(laser_on_override: bool, profile: &MachineProfile) -> f64
     }
 }
 
+fn ensure_no_emergency_stop_since(ctx: &ServiceContext, generation: u64) -> ServiceResult<()> {
+    if ctx.emergency_stop_generation.load(Ordering::Acquire) != generation {
+        return Err(ServiceError::invalid_state(
+            "Emergency stop was pressed while the job was being prepared. Nothing was sent.",
+        ));
+    }
+    Ok(())
+}
+
+/// Call only while holding `job`. Reports a sleep-protection failure only for
+/// a job that actually started.
+fn install_job_resources(
+    ctx: &ServiceContext,
+    sleep: Result<crate::power::SleepGuard, String>,
+    repeat: Option<PreparedFrame>,
+    estop_generation: u64,
+) -> ServiceResult<()> {
+    let sleep = match sleep {
+        Ok(guard) => Some(guard),
+        Err(error) => {
+            let message = format!(
+                "Could not prevent computer sleep during this job. Keep the computer awake until the job ends. {error}"
+            );
+            ctx.push_error(message.clone());
+            ctx.emit_event("job.sleep_protection_failed", json!({ "message": message }));
+            None
+        }
+    };
+    *ctx.job_resources
+        .lock()
+        .map_err(|e| lock_err("job_resources", e))? = crate::job_lifecycle::JobResources {
+        _sleep: sleep,
+        repeat,
+        estop_generation,
+    };
+    Ok(())
+}
+
+fn clear_job_resources(ctx: &ServiceContext) {
+    // Call only while holding `job`, so cleanup cannot release a new job's guard.
+    if let Ok(mut resources) = ctx.job_resources.lock() {
+        *resources = Default::default();
+    }
+}
+
+pub(crate) enum PreparedFrame {
+    Grbl(ExecutionPlan, Box<beambench_grbl::GcodeConfig>),
+    Marlin(Vec<String>, f64),
+    Smoothieware(Vec<String>, f64),
+    Ruida(RuidaCompiledJob),
+    Lihuiyu(LihuiyuCompiledJob),
+    Dsp,
+    Galvo,
+}
+
+pub(crate) struct FrameStartError {
+    error: ServiceError,
+    /// True when part of the frame may already be in the controller.
+    sent: bool,
+}
+
+impl From<ServiceError> for FrameStartError {
+    fn from(error: ServiceError) -> Self {
+        Self { error, sent: false }
+    }
+}
+
+impl PreparedFrame {
+    fn start(
+        &self,
+        ctx: &ServiceContext,
+        session: &mut MachineSessionHandle,
+    ) -> Result<ActiveJobHandle, FrameStartError> {
+        match (self, &mut *session) {
+            (Self::Grbl(plan, config), MachineSessionHandle::Grbl(grbl)) => {
+                let mut job = JobController::prepare(plan, config)
+                    .map_err(|e| ServiceError::machine(format!("Frame prepare failed: {e}")))?;
+                if let Err(error) = job.start(grbl) {
+                    let error = ServiceError::machine(format!("Frame start failed: {error}"));
+                    let job = ActiveJobHandle::Grbl(job);
+                    retain_terminal_job_diagnostic(
+                        ctx,
+                        "initial_send_failed",
+                        Some(job.progress()),
+                        Some(error.to_string()),
+                        Some(&job),
+                        Some(session),
+                    );
+                    return Err(FrameStartError { error, sent: true });
+                }
+                Ok(ActiveJobHandle::Grbl(job))
+            }
+            (Self::Marlin(commands, duration), MachineSessionHandle::Marlin(session)) => {
+                MarlinRuntimeJob::start_with_duration(commands.clone(), session, Some(*duration))
+                    .map(ActiveJobHandle::Marlin)
+                    .map_err(|e| ServiceError::machine(e).into())
+            }
+            (
+                Self::Smoothieware(commands, duration),
+                MachineSessionHandle::Smoothieware(session),
+            ) => SmoothiewareRuntimeJob::start_with_duration(
+                commands.clone(),
+                session,
+                Some(*duration),
+            )
+            .map(ActiveJobHandle::Smoothieware)
+            .map_err(|e| ServiceError::machine(e).into()),
+            (Self::Ruida(compiled), MachineSessionHandle::Ruida(session)) => session
+                .start_job(compiled, true)
+                .map(ActiveJobHandle::Ruida)
+                .map_err(|e| ServiceError::machine(e).into()),
+            (Self::Lihuiyu(compiled), MachineSessionHandle::Lihuiyu(session)) => session
+                .start_job(compiled, true)
+                .map(ActiveJobHandle::Lihuiyu)
+                .map_err(|e| ServiceError::machine(e).into()),
+            (Self::Dsp, MachineSessionHandle::Dsp(session)) => {
+                Ok(ActiveJobHandle::Dsp(session.frame_job()))
+            }
+            (Self::Galvo, MachineSessionHandle::Galvo(session)) => {
+                Ok(ActiveJobHandle::Galvo(session.frame_job()))
+            }
+            _ => Err(ServiceError::invalid_state(
+                "Frame no longer matches the connected controller",
+            )
+            .into()),
+        }
+    }
+}
+
 pub fn frame_job(
     ctx: &ServiceContext,
     frame_mode: &str,
@@ -4993,7 +5258,12 @@ pub fn frame_job(
     force_laser_fire_stop(ctx, "frame_start")?;
     let frame_feed_rate = feed_rate.unwrap_or(DEFAULT_MOVE_FEED_RATE_MM_MIN);
     require_positive_finite(frame_feed_rate, "feed_rate")?;
+    let estop_generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
+    let sleep = crate::power::SleepGuard::acquire();
     let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+    if ctx.shutting_down.load(Ordering::Acquire) {
+        return Err(ServiceError::invalid_state("Beam Bench is shutting down"));
+    }
     if job_lock.is_some() {
         return Err(ServiceError::conflict(
             "A job is already active. Cancel or wait for it to finish.",
@@ -5214,6 +5484,7 @@ pub fn frame_job(
     let frame_gcode_config = super::output::build_gcode_config(&project.optimization, &profile);
 
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+    ensure_no_emergency_stop_since(ctx, estop_generation)?;
     let session = session_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
@@ -5230,70 +5501,54 @@ pub fn frame_job(
     super::output::validate_rotary_feed_limit(&frame_plan, &profile)
         .map_err(ServiceError::invalid_state)?;
     let output_plan = controller_output_plan(ctx, &frame_plan, &project, session);
-    let job = match session {
-        MachineSessionHandle::Grbl(session) => {
+    let prepared = match session {
+        MachineSessionHandle::Grbl(grbl) => {
             let mut config = frame_gcode_config;
             super::output::apply_rotary_runtime(
                 &mut config,
                 &project,
                 &profile,
-                session.last_status(),
+                grbl.last_status(),
             )
             .map_err(ServiceError::invalid_state)?;
-            let mut job = JobController::prepare(&output_plan, &config)
-                .map_err(|e| ServiceError::machine(format!("Frame prepare failed: {e}")))?;
-            job.start(session)
-                .map_err(|e| ServiceError::machine(format!("Frame start failed: {e}")))?;
-            ActiveJobHandle::Grbl(job)
+            PreparedFrame::Grbl(output_plan, Box::new(config))
         }
-        MachineSessionHandle::Marlin(session) => {
-            let driver = session.driver();
-            let commands = acknowledged_gcode_commands(driver, &output_plan, frame_gcode_config)
-                .map_err(ServiceError::machine)?;
-            ActiveJobHandle::Marlin(
-                MarlinRuntimeJob::start_with_duration(
-                    commands,
-                    session,
-                    Some(frame_plan.estimated_duration_secs),
-                )
-                .map_err(|error| {
-                    ServiceError::machine(format!("{driver:?} frame start failed: {error}"))
-                })?,
-            )
-        }
-        MachineSessionHandle::Smoothieware(session) => {
-            let commands = smoothieware_gcode_commands(session, &output_plan, frame_gcode_config)
-                .map_err(ServiceError::machine)?;
-            ActiveJobHandle::Smoothieware(
-                SmoothiewareRuntimeJob::start_with_duration(
-                    commands,
-                    session,
-                    Some(frame_plan.estimated_duration_secs),
-                )
-                .map_err(|error| {
-                    ServiceError::machine(format!("Smoothieware frame start failed: {error}"))
-                })?,
-            )
-        }
-        MachineSessionHandle::Ruida(session) => {
-            let compiled = compile_ruida_execution_plan(&output_plan, &project, &profile)
-                .map_err(ServiceError::machine)?;
-            ActiveJobHandle::Ruida(session.start_job(&compiled, true).map_err(|error| {
-                ServiceError::machine(format!("Ruida frame start failed: {error}"))
-            })?)
-        }
-        MachineSessionHandle::Lihuiyu(session) => {
-            let compiled = compile_lihuiyu_execution_plan(&output_plan, &project, &profile)
-                .map_err(ServiceError::machine)?;
-            ActiveJobHandle::Lihuiyu(session.start_job(&compiled, true).map_err(|error| {
-                ServiceError::machine(format!("Lihuiyu frame start failed: {error}"))
-            })?)
-        }
+        MachineSessionHandle::Marlin(marlin) => PreparedFrame::Marlin(
+            acknowledged_gcode_commands(marlin.driver(), &output_plan, frame_gcode_config)
+                .map_err(ServiceError::machine)?,
+            frame_plan.estimated_duration_secs,
+        ),
+        MachineSessionHandle::Smoothieware(smooth) => PreparedFrame::Smoothieware(
+            smoothieware_gcode_commands(smooth, &output_plan, frame_gcode_config)
+                .map_err(ServiceError::machine)?,
+            frame_plan.estimated_duration_secs,
+        ),
+        MachineSessionHandle::Ruida(_) => PreparedFrame::Ruida(
+            compile_ruida_execution_plan(&output_plan, &project, &profile)
+                .map_err(ServiceError::machine)?,
+        ),
+        MachineSessionHandle::Lihuiyu(_) => PreparedFrame::Lihuiyu(
+            compile_lihuiyu_execution_plan(&output_plan, &project, &profile)
+                .map_err(ServiceError::machine)?,
+        ),
         MachineSessionHandle::XToolM1(_) => {
             return Err(invalid_capability("Frame", ControllerFamily::Gcode));
         }
-        MachineSessionHandle::Dsp(session) => ActiveJobHandle::Dsp(session.frame_job()),
-        MachineSessionHandle::Galvo(session) => ActiveJobHandle::Galvo(session.frame_job()),
+        MachineSessionHandle::Dsp(_) => PreparedFrame::Dsp,
+        MachineSessionHandle::Galvo(_) => PreparedFrame::Galvo,
+    };
+    let job = match prepared.start(ctx, session) {
+        Ok(job) => job,
+        Err(FrameStartError { error, sent: false }) => return Err(error),
+        Err(FrameStartError { error, sent: true }) => {
+            // Part of the first batch may be in the controller. Use the same
+            // stop/disconnect path as a later streaming failure.
+            drop(session_lock);
+            drop(job_lock);
+            disconnect_failed_active_job(ctx, error.to_string());
+            let _ = remember_job_progress(ctx, None);
+            return Err(error);
+        }
     };
     let progress = job.progress();
     clear_retained_terminal_job(ctx)?;
@@ -5301,6 +5556,12 @@ pub fn frame_job(
         .lock()
         .map_err(|e| lock_err("pending_relative_frame_confirmation", e))? =
         relative_frame_fingerprint(ctx, &project, &profile)?;
+    install_job_resources(
+        ctx,
+        sleep,
+        profile.frame_continuously.then_some(prepared),
+        estop_generation,
+    )?;
     *job_lock = Some(job);
     drop(session_lock);
     drop(job_lock);
@@ -5967,6 +6228,7 @@ pub fn prepare_shutdown(ctx: &ServiceContext) -> ServiceResult<()> {
         let mut job = ctx.job.lock().map_err(|e| lock_err("job", e))?;
         // Stop local streaming first, even if the controller refuses the stop.
         let mut progress = job.take().map(|job| job.progress());
+        clear_job_resources(ctx);
         let mut session = ctx.session.lock().map_err(|e| lock_err("session", e))?;
         let stop_result = if let Some(session) = session.as_mut() {
             stop_session_output(session).and_then(|()| session.disconnect())
@@ -6007,6 +6269,12 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
+    // Bump before taking any lock. A start still planning under the job lock
+    // aborts instead of sending, and a continuous frame will not restart.
+    ctx.emergency_stop_generation
+        .fetch_add(1, Ordering::AcqRel);
+    // Do not take `job` here: start/frame hold it through planning, which can
+    // take seconds. The stop only needs the session.
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
         .as_mut()
@@ -6056,12 +6324,12 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
         *session_lock = None;
     }
     // Lock-order invariant: job is always acquired BEFORE session (see
-    // tick_job). Holding session while taking job here deadlocked against a
-    // concurrently running tick, so the session lock must drop first.
+    // tick_job), so the session lock must drop first.
     drop(session_lock);
     {
         let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
         *job_lock = None;
+        clear_job_resources(ctx);
     }
     remember_job_progress(ctx, None)?;
     if disconnect_session {
@@ -8905,6 +9173,7 @@ mod tests {
         open: bool,
         open_count: usize,
         fail_open_attempts: usize,
+        fail_open_reason: Option<&'static str>,
         close_count: usize,
         rx: VecDeque<String>,
         status_on_query: VecDeque<String>,
@@ -8912,6 +9181,7 @@ mod tests {
         bytes: Vec<Vec<u8>>,
         fail_m5_writes: usize,
         fail_line_writes: usize,
+        fail_line_after: Option<usize>,
         fail_byte_writes: usize,
         fail_reads: usize,
         fail_reads_after_rx: bool,
@@ -8936,7 +9206,10 @@ mod tests {
                 state.fail_open_attempts -= 1;
                 state.open = false;
                 return Err(SerialError::ConnectionFailed(
-                    "injected Invalid argument".to_string(),
+                    state
+                        .fail_open_reason
+                        .unwrap_or("injected Invalid argument")
+                        .to_string(),
                 ));
             }
             state.open = true;
@@ -8978,6 +9251,13 @@ mod tests {
         fn write_line(&mut self, line: &str) -> Result<(), SerialError> {
             let mut state = self.state.lock().unwrap();
             state.lines.push(line.to_string());
+            if let Some(remaining) = state.fail_line_after.as_mut() {
+                if *remaining == 0 {
+                    state.fail_line_after = None;
+                    return Err(SerialError::WriteFailed("injected OS write failure".into()));
+                }
+                *remaining -= 1;
+            }
             if state.fail_line_writes > 0 {
                 state.fail_line_writes -= 1;
                 return Err(SerialError::WriteFailed("injected OS write failure".into()));
@@ -9744,6 +10024,181 @@ mod tests {
                 "frame ignores rotation: {lines:?}"
             );
         }
+    }
+
+    #[test]
+    fn continuous_frame_reuses_frozen_motion_and_releases_resources_on_all_stop_paths() {
+        for stop in ["cancel", "disconnect", "emergency", "shutdown"] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile {
+                bed_width_mm: 400.0,
+                bed_height_mm: 400.0,
+                frame_continuously: true,
+                ..MachineProfile::default()
+            });
+            *ctx.project.lock().unwrap() = Some(frame_project());
+            frame_job(&ctx, "rectangular", &[], false, Some(1234.0)).unwrap();
+            assert!(ctx.job_resources.lock().unwrap()._sleep.is_some());
+            // Editing the source after Start must not change a later pass.
+            ctx.project.lock().unwrap().as_mut().unwrap().objects[0].bounds =
+                Bounds::new(Point2D::new(201.0, 202.0), Point2D::new(211.0, 212.0));
+            for _ in 0..8 {
+                transport
+                    .lock()
+                    .unwrap()
+                    .rx
+                    .extend((0..100).map(|_| "ok".into()));
+                transport
+                    .lock()
+                    .unwrap()
+                    .rx
+                    .push_back("<Idle|MPos:10,20,0|FS:0,0>".into());
+                let progress = tick_job(&ctx).unwrap().unwrap();
+                assert_ne!(progress.state, JobState::Completed);
+            }
+            let lines = sent_lines(&transport);
+            assert!(
+                lines.iter().filter(|line| line.as_str() == "G21").count() >= 2,
+                "{lines:?}"
+            );
+            assert!(
+                !lines
+                    .iter()
+                    .any(|line| line.contains("X201") || line.contains("X211"))
+            );
+            assert!(ctx.job.lock().unwrap().is_some());
+            transport
+                .lock()
+                .unwrap()
+                .status_on_query
+                .extend((0..5).map(|_| "<Idle|MPos:10,20,0|FS:0,0>".into()));
+            match stop {
+                "cancel" => cancel_job(&ctx).unwrap(),
+                "disconnect" => disconnect_machine(&ctx).unwrap(),
+                "emergency" => emergency_stop(&ctx).unwrap(),
+                _ => prepare_shutdown(&ctx).unwrap(),
+            }
+            assert!(ctx.job_resources.lock().unwrap().repeat.is_none(), "{stop}");
+            assert!(ctx.job_resources.lock().unwrap()._sleep.is_none(), "{stop}");
+            let count = sent_lines(&transport).len();
+            assert!(tick_job(&ctx).unwrap().is_none());
+            assert_eq!(
+                sent_lines(&transport).len(),
+                count,
+                "{stop} restarted a frame"
+            );
+        }
+    }
+
+    #[test]
+    fn frame_failure_and_single_pass_completion_release_sleep_protection() {
+        for fail in [false, true] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile {
+                bed_width_mm: 400.0,
+                bed_height_mm: 400.0,
+                frame_continuously: fail,
+                ..MachineProfile::default()
+            });
+            *ctx.project.lock().unwrap() = Some(frame_project());
+            frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+            assert!(ctx.job_resources.lock().unwrap()._sleep.is_some());
+            if fail {
+                transport.lock().unwrap().fail_reads = 1;
+            }
+            for _ in 0..100 {
+                transport
+                    .lock()
+                    .unwrap()
+                    .rx
+                    .extend((0..100).map(|_| "ok".into()));
+                transport
+                    .lock()
+                    .unwrap()
+                    .rx
+                    .push_back("<Idle|MPos:10,20,0|FS:0,0>".into());
+                let _ = tick_job(&ctx);
+                if ctx.job.lock().unwrap().is_none() {
+                    break;
+                }
+            }
+            assert!(ctx.job.lock().unwrap().is_none());
+            assert!(ctx.job_resources.lock().unwrap()._sleep.is_none());
+            assert!(ctx.job_resources.lock().unwrap().repeat.is_none());
+        }
+    }
+
+    #[test]
+    fn continuous_frame_does_not_restart_after_an_emergency_stop() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            frame_continuously: true,
+            ..MachineProfile::default()
+        });
+        *ctx.project.lock().unwrap() = Some(frame_project());
+        frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+        // An E-stop bumps the generation before it can take the session.
+        ctx.emergency_stop_generation.fetch_add(1, Ordering::AcqRel);
+        for _ in 0..100 {
+            transport
+                .lock()
+                .unwrap()
+                .rx
+                .extend((0..100).map(|_| "ok".into()));
+            transport
+                .lock()
+                .unwrap()
+                .rx
+                .push_back("<Idle|MPos:10,20,0|FS:0,0>".into());
+            let _ = tick_job(&ctx);
+            if ctx.job.lock().unwrap().is_none() {
+                break;
+            }
+        }
+        assert!(ctx.job.lock().unwrap().is_none(), "frame restarted after E-stop");
+        assert_eq!(
+            sent_lines(&transport)
+                .iter()
+                .filter(|line| line.as_str() == "G21")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn frame_that_fails_before_sending_keeps_the_connection() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            job_header_gcode: format!("; {}", "x".repeat(200)),
+            ..MachineProfile::default()
+        });
+        *ctx.project.lock().unwrap() = Some(frame_project());
+        let before = sent_lines(&transport).len();
+        let error = frame_job(&ctx, "rectangular", &[], false, None).unwrap_err();
+        assert!(error.to_string().contains("126 bytes"), "{error}");
+        assert!(ctx.session.lock().unwrap().is_some(), "frame failure disconnected");
+        assert!(ctx.job.lock().unwrap().is_none());
+        assert!(ctx.job_resources.lock().unwrap()._sleep.is_none());
+        assert_eq!(sent_lines(&transport).len(), before);
+    }
+
+    #[test]
+    fn paused_frame_retains_sleep_protection_without_restarting() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            frame_continuously: true,
+            ..MachineProfile::default()
+        });
+        *ctx.project.lock().unwrap() = Some(frame_project());
+        frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+        pause_job(&ctx).unwrap();
+        let count = sent_lines(&transport).len();
+        tick_job(&ctx).unwrap();
+        assert_eq!(sent_lines(&transport).len(), count);
+        assert!(ctx.job_resources.lock().unwrap()._sleep.is_some());
+        cancel_job(&ctx).unwrap();
+        assert!(ctx.job_resources.lock().unwrap()._sleep.is_none());
     }
 
     #[test]
@@ -10652,6 +11107,109 @@ mod tests {
                 .any(|entry| entry.direction == ConsoleDirection::Sent),
             "fatal teardown should retain job-stream sent command evidence"
         );
+    }
+
+    #[test]
+    fn initial_job_write_failure_releases_connection_for_retry() {
+        for frame in [false, true] {
+            for sent_before_failure in [0, 2] {
+                let ctx = profile_switch_preflight_context(100.0);
+                let state = Arc::new(Mutex::new(RecordingTransportState {
+                    fail_line_after: Some(sent_before_failure),
+                    ..Default::default()
+                }));
+                let connect = || {
+                    state.lock().unwrap().rx.extend(
+                        [
+                            "Grbl 1.1h",
+                            "$32=1",
+                            "$22=1",
+                            "<Idle|MPos:0,0,0|WCO:0,0,0|FS:0,0>",
+                        ]
+                        .map(str::to_owned),
+                    );
+                    let mut session =
+                        GrblSession::new(Box::new(RecordingTransport::new(state.clone())));
+                    session.connect().unwrap();
+                    session.poll().unwrap();
+                    session.mark_ready().unwrap();
+                    *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Grbl(session.into()));
+                };
+                connect();
+                let error = if frame {
+                    frame_job(&ctx, "bounds", &[], false, None)
+                } else {
+                    start_job(&ctx)
+                }
+                .unwrap_err();
+                assert!(
+                    error.to_string().contains("injected OS write failure"),
+                    "{error}"
+                );
+                assert!(ctx.job.lock().unwrap().is_none());
+                assert!(
+                    ctx.session.lock().unwrap().is_none(),
+                    "initial write failure left a stale session"
+                );
+                assert!(!state.lock().unwrap().open);
+                let retained = ctx.last_terminal_job.lock().unwrap().clone().unwrap();
+                assert_eq!(retained.progress.unwrap().sent_lines, sent_before_failure);
+                assert!(
+                    retained
+                        .error
+                        .unwrap()
+                        .contains("injected OS write failure")
+                );
+                // A fresh session can start a new job; the failed batch is not
+                // silently resumed or replayed when the port becomes available.
+                connect();
+                assert!(ctx.job.lock().unwrap().is_none());
+                assert_eq!(start_job(&ctx).unwrap().state, JobState::Running);
+                cancel_job(&ctx).unwrap();
+                disconnect_machine(&ctx).unwrap();
+                assert!(!state.lock().unwrap().open);
+            }
+        }
+    }
+
+    #[test]
+    fn denied_open_can_be_retried_without_sending_job_commands() {
+        let state = Arc::new(Mutex::new(RecordingTransportState {
+            fail_open_attempts: 2,
+            fail_open_reason: Some("Acesso negado. (os error 5)"),
+            ..Default::default()
+        }));
+        let mut session = GrblSession::new(Box::new(RecordingTransport::new(state.clone())));
+        for _ in 0..2 {
+            assert!(
+                session
+                    .connect()
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Acesso negado")
+            );
+            assert_eq!(session.session_state(), SessionState::Error);
+            assert!(!state.lock().unwrap().open);
+            assert!(state.lock().unwrap().lines.is_empty());
+            assert!(state.lock().unwrap().bytes.is_empty());
+        }
+        session.connect().unwrap();
+        assert_eq!(session.session_state(), SessionState::WaitingForBanner);
+        let baseline = session.status_report_count();
+        state
+            .lock()
+            .unwrap()
+            .rx
+            .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        session.poll().unwrap();
+        session
+            .begin_validation_from_fresh_status(baseline)
+            .unwrap();
+        session.mark_ready().unwrap();
+        assert_eq!(session.session_state(), SessionState::Ready);
+        assert!(state.lock().unwrap().lines.is_empty());
+        session.disconnect().unwrap();
+        assert!(!state.lock().unwrap().open);
     }
 
     #[test]
