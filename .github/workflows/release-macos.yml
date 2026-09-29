@@ -313,29 +313,28 @@ jobs:
         run: |
           set -euo pipefail
 
-          dmgs=()
-          while IFS= read -r -d '' dmg; do
-            dmgs+=("$dmg")
-          done < <(find target -type f -name '*.dmg' -print0)
+          version="${{ steps.tag.outputs.version }}"
+          bundle_dir="target/universal-apple-darwin/release/bundle"
+          dmg="$bundle_dir/dmg/Beam Bench_${version}_universal.dmg"
 
-          if [ "${#dmgs[@]}" -eq 0 ]; then
-            echo "::error::No DMG produced."
+          # A failed packaging attempt can leave rw.*.dmg scratch images.
+          # Only submit the final installer produced by the successful attempt.
+          if [ ! -s "$dmg" ]; then
+            echo "::error::Final DMG is missing or empty: $dmg"
             exit 1
           fi
 
-          for dmg in "${dmgs[@]}"; do
-            xcrun notarytool submit "$dmg" \
-              --key "$APPLE_API_KEY_PATH" \
-              --key-id "$APPLE_API_KEY" \
-              --issuer "$APPLE_API_ISSUER" \
-              --wait
-            xcrun stapler staple "$dmg"
-            xcrun stapler validate "$dmg"
-            spctl -a -vvv -t install "$dmg"
-          done
+          xcrun notarytool submit "$dmg" \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          spctl -a -vvv -t install "$dmg"
 
-          if ! find target -type f -name '*.app.tar.gz.sig' | grep -q .; then
-            echo "::error::No Tauri updater signature produced for the macOS app archive."
+          if [ ! -s "$bundle_dir/macos/Beam Bench.app.tar.gz.sig" ]; then
+            echo "::error::The final macOS updater signature is missing or empty."
             exit 1
           fi
 
@@ -345,6 +344,7 @@ jobs:
           set -euo pipefail
 
           version="${{ steps.tag.outputs.version }}"
+          bundle_dir="target/universal-apple-darwin/release/bundle"
           cli_dir="target/release-staging/cli/$version/universal-apple-darwin"
           cli_archive="$cli_dir/Beam.Bench.CLI_${version}_universal-apple-darwin.zip"
           cli_checksum="${cli_archive}.sha256"
@@ -353,22 +353,19 @@ jobs:
             exit 1
           fi
 
-          artifacts=()
-          while IFS= read -r -d '' artifact; do
-            artifacts+=("$artifact")
-          done < <(
-            find target -type f \( \
-              -name '*.dmg' -o \
-              -name '*.app.tar.gz' -o \
-              -name '*.app.tar.gz.sig' \
-            \) -print0
+          artifacts=(
+            "$bundle_dir/dmg/Beam Bench_${version}_universal.dmg"
+            "$bundle_dir/macos/Beam Bench.app.tar.gz"
+            "$bundle_dir/macos/Beam Bench.app.tar.gz.sig"
+            "$cli_archive"
+            "$cli_checksum"
           )
-          artifacts+=("$cli_archive" "$cli_checksum")
-
-          if [ "${#artifacts[@]}" -eq 0 ]; then
-            echo "::error::No macOS release artifacts produced."
-            exit 1
-          fi
+          for artifact in "${artifacts[@]}"; do
+            if [ ! -s "$artifact" ]; then
+              echo "::error::Required macOS release artifact is missing or empty: $artifact"
+              exit 1
+            fi
+          done
 
           printf 'Found macOS artifacts:\n'
           printf '  %s\n' "${artifacts[@]}"
