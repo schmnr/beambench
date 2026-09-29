@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "네트워크 (Wi-Fi / 이더넷)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "작업을 준비하는 동안 비상 정지 버튼이 눌렸습니다. 아무것도 전송되지 않았습니다.",
+    "sleep_protection_failed": "이 작업 중 컴퓨터가 절전 모드로 전환되는 것을 막지 못했습니다. 작업이 끝날 때까지 컴퓨터가 절전 모드로 전환되지 않도록 해 주세요.",
     "operation_failed_with_detail": "작업에 실패했습니다: {detail}",
     "raster_plan_too_complex": "이 이미지는 현재 크기와 DPI에서 개별 래스터 이동을 너무 많이 생성합니다. DPI 또는 실제 크기를 줄이거나 덜 조각화된 이미지 모드를 선택한 다음 미리보기를 다시 생성하세요.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

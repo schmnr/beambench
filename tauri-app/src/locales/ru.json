@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Сеть (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "Во время подготовки задания была нажата аварийная остановка. Ничего не отправлено.",
+    "sleep_protection_failed": "Не удалось предотвратить переход компьютера в спящий режим во время этого задания. Не допускайте перехода компьютера в спящий режим до завершения задания.",
     "operation_failed_with_detail": "Не удалось выполнить операцию: {detail}",
     "raster_plan_too_complex": "При текущем размере и DPI это изображение создаёт слишком много отдельных растровых перемещений. Уменьшите DPI или физический размер либо выберите менее фрагментированный режим изображения, затем создайте предпросмотр снова.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

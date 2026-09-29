@@ -2901,9 +2901,11 @@ pub fn begin_network_controller_connection(
     }
     match input.selection {
         ControllerSelection::AutoDetect
+        | ControllerSelection::GenericGrblCompatible
         | ControllerSelection::KnownDriver {
             driver:
-                ControllerDriverId::FluidNc
+                ControllerDriverId::Grbl
+                | ControllerDriverId::FluidNc
                 | ControllerDriverId::GrblHal
                 | ControllerDriverId::LaserPecker
                 | ControllerDriverId::Ruida
@@ -2920,11 +2922,6 @@ pub fn begin_network_controller_connection(
             return Err(ServiceError::invalid_input(format!(
                 "Controller {driver:?} is not available over the Network connection"
             )));
-        }
-        ControllerSelection::GenericGrblCompatible => {
-            return Err(ServiceError::invalid_input(
-                "Generic GRBL-compatible mode currently uses the Serial connection",
-            ));
         }
         ControllerSelection::Unknown => {
             return Err(ServiceError::invalid_input(
@@ -4466,8 +4463,8 @@ pub fn start_job_with_options_confirming_advisories(
     job_options: &planning::SessionJobOptions,
     allow_advisories: bool,
 ) -> ServiceResult<JobProgress> {
-    force_laser_fire_stop(ctx, "job_start")?;
     let estop_generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
+    force_laser_fire_stop(ctx, "job_start")?;
     // Acquired before any lock: the OS call can block for seconds, and status,
     // jog and E-stop must not wait on it.
     let sleep = crate::power::SleepGuard::acquire();
@@ -4540,6 +4537,7 @@ pub fn start_job_with_options_confirming_advisories(
             let config = gcode_config;
             let mut job = JobController::prepare(&output_plan, &config)
                 .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?;
+            ensure_no_emergency_stop_since(ctx, estop_generation)?;
             if let Err(error) = job.start(session) {
                 let error = ServiceError::machine(format!("Job start failed: {error}"));
                 let job = ActiveJobHandle::Grbl(job);
@@ -4565,6 +4563,7 @@ pub fn start_job_with_options_confirming_advisories(
             let driver = session.driver();
             let commands = acknowledged_gcode_commands(driver, &output_plan, gcode_config)
                 .map_err(ServiceError::machine)?;
+            ensure_no_emergency_stop_since(ctx, estop_generation)?;
             ActiveJobHandle::Marlin(
                 MarlinRuntimeJob::start_with_duration(
                     commands,
@@ -4579,6 +4578,7 @@ pub fn start_job_with_options_confirming_advisories(
         MachineSessionHandle::Smoothieware(session) => {
             let commands = smoothieware_gcode_commands(session, &output_plan, gcode_config)
                 .map_err(ServiceError::machine)?;
+            ensure_no_emergency_stop_since(ctx, estop_generation)?;
             ActiveJobHandle::Smoothieware(
                 SmoothiewareRuntimeJob::start_with_duration(
                     commands,
@@ -4593,6 +4593,7 @@ pub fn start_job_with_options_confirming_advisories(
         MachineSessionHandle::Ruida(session) => {
             let compiled = compile_ruida_execution_plan(&output_plan, &project_for_gcode, &profile)
                 .map_err(ServiceError::machine)?;
+            ensure_no_emergency_stop_since(ctx, estop_generation)?;
             ActiveJobHandle::Ruida(session.start_job(&compiled, false).map_err(|error| {
                 ServiceError::machine(format!("Ruida job start failed: {error}"))
             })?)
@@ -4601,6 +4602,7 @@ pub fn start_job_with_options_confirming_advisories(
             let compiled =
                 compile_lihuiyu_execution_plan(&output_plan, &project_for_gcode, &profile)
                     .map_err(ServiceError::machine)?;
+            ensure_no_emergency_stop_since(ctx, estop_generation)?;
             ActiveJobHandle::Lihuiyu(session.start_job(&compiled, false).map_err(|error| {
                 ServiceError::machine(format!("Lihuiyu job start failed: {error}"))
             })?)
@@ -4622,6 +4624,7 @@ pub fn start_job_with_options_confirming_advisories(
             .map_err(|error| {
                 ServiceError::machine(format!("xTool M1 job prepare failed: {error}"))
             })?;
+            ensure_no_emergency_stop_since(ctx, estop_generation)?;
             ActiveJobHandle::XToolM1(
                 XToolM1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
                     .map_err(|error| {
@@ -4754,7 +4757,7 @@ pub fn tick_job(ctx: &ServiceContext) -> ServiceResult<Option<JobProgress>> {
         {
             // Hold job/session throughout the pass boundary. Stop or disconnect
             // cannot slip between a completion and a queued restart.
-            match frame.start(ctx, session) {
+            match frame.start(ctx, session, resources.estop_generation) {
                 Ok(next) => {
                     if let Some(fingerprint) = ctx
                         .pending_relative_frame_confirmation
@@ -5122,7 +5125,7 @@ fn frame_power_percent(laser_on_override: bool, profile: &MachineProfile) -> f64
 fn ensure_no_emergency_stop_since(ctx: &ServiceContext, generation: u64) -> ServiceResult<()> {
     if ctx.emergency_stop_generation.load(Ordering::Acquire) != generation {
         return Err(ServiceError::invalid_state(
-            "Emergency stop was pressed while the job was being prepared. Nothing was sent.",
+            "[job_preparation_stopped] Emergency stop was pressed while the job was being prepared. Nothing was sent.",
         ));
     }
     Ok(())
@@ -5140,7 +5143,7 @@ fn install_job_resources(
         Ok(guard) => Some(guard),
         Err(error) => {
             let message = format!(
-                "Could not prevent computer sleep during this job. Keep the computer awake until the job ends. {error}"
+                "[sleep_protection_failed] Could not prevent computer sleep during this job. Keep the computer awake until the job ends. {error}"
             );
             ctx.push_error(message.clone());
             ctx.emit_event("job.sleep_protection_failed", json!({ "message": message }));
@@ -5191,11 +5194,14 @@ impl PreparedFrame {
         &self,
         ctx: &ServiceContext,
         session: &mut MachineSessionHandle,
+        estop_generation: u64,
     ) -> Result<ActiveJobHandle, FrameStartError> {
+        ensure_no_emergency_stop_since(ctx, estop_generation)?;
         match (self, &mut *session) {
             (Self::Grbl(plan, config), MachineSessionHandle::Grbl(grbl)) => {
                 let mut job = JobController::prepare(plan, config)
                     .map_err(|e| ServiceError::machine(format!("Frame prepare failed: {e}")))?;
+                ensure_no_emergency_stop_since(ctx, estop_generation)?;
                 if let Err(error) = job.start(grbl) {
                     let error = ServiceError::machine(format!("Frame start failed: {error}"));
                     let job = ActiveJobHandle::Grbl(job);
@@ -5255,10 +5261,10 @@ pub fn frame_job(
     laser_on_override: bool,
     feed_rate: Option<f64>,
 ) -> ServiceResult<JobProgress> {
+    let estop_generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
     force_laser_fire_stop(ctx, "frame_start")?;
     let frame_feed_rate = feed_rate.unwrap_or(DEFAULT_MOVE_FEED_RATE_MM_MIN);
     require_positive_finite(frame_feed_rate, "feed_rate")?;
-    let estop_generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
     let sleep = crate::power::SleepGuard::acquire();
     let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
     if ctx.shutting_down.load(Ordering::Acquire) {
@@ -5537,7 +5543,7 @@ pub fn frame_job(
         MachineSessionHandle::Dsp(_) => PreparedFrame::Dsp,
         MachineSessionHandle::Galvo(_) => PreparedFrame::Galvo,
     };
-    let job = match prepared.start(ctx, session) {
+    let job = match prepared.start(ctx, session, estop_generation) {
         Ok(job) => job,
         Err(FrameStartError { error, sent: false }) => return Err(error),
         Err(FrameStartError { error, sent: true }) => {
@@ -6265,14 +6271,12 @@ pub fn prepare_shutdown(ctx: &ServiceContext) -> ServiceResult<()> {
 }
 
 pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
+    // Signal cancellation before any helper can wait for a controller lock.
+    ctx.emergency_stop_generation.fetch_add(1, Ordering::AcqRel);
     let _ = force_laser_fire_stop(ctx, "emergency_stop");
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
-    // Bump before taking any lock. A start still planning under the job lock
-    // aborts instead of sending, and a continuous frame will not restart.
-    ctx.emergency_stop_generation
-        .fetch_add(1, Ordering::AcqRel);
     // Do not take `job` here: start/frame hold it through planning, which can
     // take seconds. The stop only needs the session.
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
@@ -7532,6 +7536,7 @@ mod tests {
 
     #[derive(Debug, Clone, Copy)]
     enum NetworkGrblFixture {
+        Grbl,
         FluidNc,
         GrblHal,
         OemGrbl,
@@ -7631,6 +7636,8 @@ mod tests {
                         let command = String::from_utf8(std::mem::take(&mut line)).unwrap();
                         commands.push(command.clone());
                         match (fixture, command.as_str()) {
+                            (NetworkGrblFixture::Grbl, "$I") => stream
+                                .write_all(b"[VER:1.1h.20190825:]\n[OPT:V,15,128]\nok\n").unwrap(),
                             (NetworkGrblFixture::OemGrbl, "$I") => stream
                                 .write_all(b"[VER:1.3a.20211103:]\nok\n").unwrap(),
                             (NetworkGrblFixture::OemGrbl, "$$") => stream
@@ -7737,6 +7744,74 @@ mod tests {
     }
 
     #[test]
+    fn grbl_tcp_connects_via_auto_explicit_and_generic_selections_without_motion() {
+        for selection in [
+            ControllerSelection::AutoDetect,
+            ControllerSelection::KnownDriver {
+                driver: ControllerDriverId::Grbl,
+            },
+            ControllerSelection::GenericGrblCompatible,
+        ] {
+            let (port, server) = spawn_network_grbl_fixture(NetworkGrblFixture::Grbl);
+            let ctx = ServiceContext::new();
+            let result = begin_network_controller_connection(
+                &ctx,
+                BeginNetworkControllerConnectionInput {
+                    host: "127.0.0.1".to_string(),
+                    port,
+                    selection: selection.clone(),
+                },
+            )
+            .unwrap();
+            let result = match result {
+                ControllerConnectionResult::Challenge {
+                    attempt_id,
+                    resolution,
+                    ..
+                } => {
+                    // A silent GRBL endpoint can prove its protocol without
+                    // identifying its firmware. Keep the user's explicit choice.
+                    assert_eq!(selection, ControllerSelection::AutoDetect);
+                    assert_eq!(
+                        resolution.outcome,
+                        ControllerChoiceOutcome::SelectionRequired
+                    );
+                    continue_controller_connection(
+                        &ctx,
+                        ContinueControllerConnectionInput {
+                            attempt_id,
+                            selection: ControllerSelection::KnownDriver {
+                                driver: ControllerDriverId::Grbl,
+                            },
+                            decision: None,
+                        },
+                    )
+                    .unwrap()
+                }
+                result => result,
+            };
+            assert!(matches!(result, ControllerConnectionResult::Connected {
+                session_state: SessionState::Ready, ref choice, ..
+            } if choice.driver == ControllerDriverId::Grbl
+                && choice.requires_experimental_compatibility_handshake));
+            assert_eq!(
+                runtime_state(&ctx).unwrap().transport_kind,
+                Some(TransportKind::Tcp)
+            );
+            disconnect_machine(&ctx).unwrap();
+            let commands = server.join().unwrap();
+            assert_eq!(commands.first().map(String::as_str), Some("?"));
+            assert!(commands.iter().any(|command| command == "$I"));
+            assert!(
+                commands
+                    .iter()
+                    .all(|command| matches!(command.as_str(), "?" | "$I" | "$I+" | "$$")),
+                "connection must only query the controller: {commands:?}"
+            );
+        }
+    }
+
+    #[test]
     fn fluidnc_tcp_connection_uses_network_adapter_and_runtime() {
         assert_network_grbl_connection(
             NetworkGrblFixture::FluidNc,
@@ -7823,6 +7898,48 @@ mod tests {
                 .iter()
                 .any(|command| command == "$X" || command.contains('='))
         );
+    }
+
+    #[test]
+    fn grbl_tcp_selections_reject_motion_and_active_output() {
+        for selection in [
+            ControllerSelection::AutoDetect,
+            ControllerSelection::KnownDriver {
+                driver: ControllerDriverId::Grbl,
+            },
+            ControllerSelection::GenericGrblCompatible,
+        ] {
+            for (status, expected) in [
+                ("<Run|MPos:0,0,0|FS:100,0>\n", "stop the machine"),
+                ("<Idle|MPos:0,0,0|FS:0,100>\n", "active output"),
+            ] {
+                let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+                let port = listener.local_addr().unwrap().port();
+                let (release, hold) = std::sync::mpsc::channel::<()>();
+                let server = std::thread::spawn(move || {
+                    let (mut stream, _) = listener.accept().unwrap();
+                    let mut query = [0_u8; 1];
+                    stream.read_exact(&mut query).unwrap();
+                    assert_eq!(query, [b'?']);
+                    stream.write_all(status.as_bytes()).unwrap();
+                    let _ = hold.recv_timeout(Duration::from_secs(5));
+                });
+                let ctx = ServiceContext::new();
+                let result = begin_network_controller_connection(
+                    &ctx,
+                    BeginNetworkControllerConnectionInput {
+                        host: "127.0.0.1".to_string(),
+                        port,
+                        selection: selection.clone(),
+                    },
+                );
+                let _ = release.send(());
+                server.join().unwrap();
+                let error = result.unwrap_err();
+                assert!(error.message.contains(expected), "{error}");
+                assert!(ctx.session.lock().unwrap().is_none());
+            }
+        }
     }
 
     #[test]
@@ -8348,9 +8465,6 @@ mod tests {
     fn network_controller_connection_rejects_serial_only_choices_before_opening_transport() {
         for selection in [
             ControllerSelection::KnownDriver {
-                driver: ControllerDriverId::Grbl,
-            },
-            ControllerSelection::KnownDriver {
                 driver: ControllerDriverId::Marlin,
             },
             ControllerSelection::KnownDriver {
@@ -8359,7 +8473,6 @@ mod tests {
             ControllerSelection::KnownDriver {
                 driver: ControllerDriverId::Smoothieware,
             },
-            ControllerSelection::GenericGrblCompatible,
         ] {
             let error = begin_network_controller_connection(
                 &ServiceContext::new(),
@@ -10127,6 +10240,47 @@ mod tests {
     }
 
     #[test]
+    fn pending_emergency_stop_prevents_prepared_frame_from_sending() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,0>".to_string());
+        let ctx = Arc::new(ctx);
+        let generation = ctx.emergency_stop_generation.load(Ordering::Acquire);
+        let before = sent_lines(&transport);
+        let mut session = ctx.session.lock().unwrap();
+        // Also hold the fire lock: cancellation must be signalled before the
+        // stop path waits for either lock held during preparation.
+        let fire = ctx.active_laser_fire.lock().unwrap();
+        let stop_ctx = Arc::clone(&ctx);
+        let stopper = std::thread::spawn(move || emergency_stop(&stop_ctx));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while ctx.emergency_stop_generation.load(Ordering::Acquire) == generation {
+            if Instant::now() >= deadline {
+                drop(fire);
+                drop(session);
+                let _ = stopper.join();
+                panic!("Emergency Stop waited for a preparation lock before cancelling");
+            }
+            std::thread::yield_now();
+        }
+        let frame = PreparedFrame::Grbl(dummy_plan(), Box::new(GcodeConfig::default()));
+        let result = frame.start(&ctx, session.as_mut().unwrap(), generation);
+        assert!(matches!(result, Err(FrameStartError { error, sent: false })
+            if error.message.starts_with("[job_preparation_stopped]")));
+        assert_eq!(
+            sent_lines(&transport),
+            before,
+            "cancelled frame sent commands"
+        );
+        drop(fire);
+        drop(session);
+        stopper.join().unwrap().unwrap();
+    }
+
+    #[test]
     fn continuous_frame_does_not_restart_after_an_emergency_stop() {
         let (ctx, transport) = ready_grbl_context(MachineProfile {
             bed_width_mm: 400.0,
@@ -10154,7 +10308,10 @@ mod tests {
                 break;
             }
         }
-        assert!(ctx.job.lock().unwrap().is_none(), "frame restarted after E-stop");
+        assert!(
+            ctx.job.lock().unwrap().is_none(),
+            "frame restarted after E-stop"
+        );
         assert_eq!(
             sent_lines(&transport)
                 .iter()
@@ -10176,7 +10333,10 @@ mod tests {
         let before = sent_lines(&transport).len();
         let error = frame_job(&ctx, "rectangular", &[], false, None).unwrap_err();
         assert!(error.to_string().contains("126 bytes"), "{error}");
-        assert!(ctx.session.lock().unwrap().is_some(), "frame failure disconnected");
+        assert!(
+            ctx.session.lock().unwrap().is_some(),
+            "frame failure disconnected"
+        );
         assert!(ctx.job.lock().unwrap().is_none());
         assert!(ctx.job_resources.lock().unwrap()._sleep.is_none());
         assert_eq!(sent_lines(&transport).len(), before);

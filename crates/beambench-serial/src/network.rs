@@ -50,7 +50,7 @@ enum TelnetDecodeState {
     Data,
     Iac,
     Negotiate {
-        refusal: u8,
+        refusal: Option<u8>,
     },
     Subnegotiation,
     SubnegotiationIac,
@@ -77,21 +77,28 @@ impl TelnetDecoder {
                         payload.push(TELNET_IAC);
                         self.state = TelnetDecodeState::Data;
                     }
-                    TELNET_DO | TELNET_DONT => {
+                    TELNET_DO => {
                         self.state = TelnetDecodeState::Negotiate {
-                            refusal: TELNET_WONT,
+                            refusal: Some(TELNET_WONT),
                         };
                     }
-                    TELNET_WILL | TELNET_WONT => {
+                    TELNET_WILL => {
                         self.state = TelnetDecodeState::Negotiate {
-                            refusal: TELNET_DONT,
+                            refusal: Some(TELNET_DONT),
                         };
+                    }
+                    // All options remain disabled. A negative acknowledgement
+                    // must not start another negotiation (RFC 854, section 3b).
+                    TELNET_DONT | TELNET_WONT => {
+                        self.state = TelnetDecodeState::Negotiate { refusal: None };
                     }
                     TELNET_SB => self.state = TelnetDecodeState::Subnegotiation,
                     _ => self.state = TelnetDecodeState::Data,
                 },
                 TelnetDecodeState::Negotiate { refusal } => {
-                    replies.extend([TELNET_IAC, refusal, byte]);
+                    if let Some(refusal) = refusal {
+                        replies.extend([TELNET_IAC, refusal, byte]);
+                    }
                     self.state = TelnetDecodeState::Data;
                 }
                 TelnetDecodeState::Subnegotiation if byte == TELNET_IAC => {
@@ -371,6 +378,35 @@ mod tests {
             retry_interval: Duration::from_millis(1),
             max_read_bytes_per_poll: 1024,
             max_line_buffer_bytes: 16 * 1024,
+        }
+    }
+
+    #[test]
+    fn telnet_negative_acknowledgements_are_silent_across_packet_boundaries() {
+        for command in [TELNET_DONT, TELNET_WONT] {
+            for split in 0..=3 {
+                let mut decoder = TelnetDecoder::default();
+                let wire = [TELNET_IAC, command, 1];
+                let (payload, reply) = decoder.decode(&wire[..split]);
+                assert!(payload.is_empty() && reply.is_empty());
+                let (payload, reply) = decoder.decode(&wire[split..]);
+                assert!(payload.is_empty() && reply.is_empty());
+                let (payload, reply) = decoder.decode(b"ok\r\n");
+                assert_eq!(payload, b"ok\r\n");
+                assert!(reply.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn telnet_refusal_exchange_terminates() {
+        for request in [TELNET_DO, TELNET_WILL] {
+            let mut client = TelnetDecoder::default();
+            let mut peer = TelnetDecoder::default();
+            let (_, refusal) = client.decode(&[TELNET_IAC, request, 1]);
+            assert_eq!(refusal.len(), 3);
+            let (_, reply) = peer.decode(&refusal);
+            assert!(reply.is_empty(), "a refusal must not start a reply loop");
         }
     }
 

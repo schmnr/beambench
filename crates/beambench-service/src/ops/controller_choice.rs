@@ -302,6 +302,7 @@ fn driver_supports_transport(driver: ControllerDriverId, transport: TransportKin
             | ControllerDriverId::Smoothieware,
             TransportKind::Serial,
         ) => true,
+        (ControllerDriverId::Grbl, TransportKind::Tcp) => true,
         (ControllerDriverId::FluidNc, TransportKind::Serial) => {
             FluidNcSerialAdapter::new().descriptor().transport_kind == TransportKind::Serial
         }
@@ -1453,6 +1454,17 @@ mod tests {
     }
 
     #[test]
+    fn auto_detect_accepts_identified_grbl_over_tcp() {
+        let mut request = input(ControllerSelection::AutoDetect);
+        request.detected_identity = Some(grbl_identity("1.1h"));
+        request.transport_kind = TransportKind::Tcp;
+        let (choice, _) = expect_resolved(resolve_controller_choice(&request));
+        assert_eq!(choice.driver, ControllerDriverId::Grbl);
+        assert_eq!(choice.source, ControllerChoiceSource::AutoDetected);
+        assert!(!choice.requires_experimental_compatibility_handshake);
+    }
+
+    #[test]
     fn auto_detect_blocks_unavailable_driver_and_unsupported_transport() {
         let mut unavailable = input(ControllerSelection::AutoDetect);
         unavailable.detected_identity = Some(unavailable_dsp_identity());
@@ -1466,7 +1478,7 @@ mod tests {
 
         let mut wrong_transport = input(ControllerSelection::AutoDetect);
         wrong_transport.detected_identity = Some(grbl_identity("1.1h"));
-        wrong_transport.transport_kind = TransportKind::Tcp;
+        wrong_transport.transport_kind = TransportKind::Udp;
         assert!(matches!(
             resolve_controller_choice(&wrong_transport).outcome,
             ControllerChoiceOutcome::Blocked {
@@ -1763,11 +1775,19 @@ mod tests {
         let transport_resolution = resolve_controller_choice(&transport_changed);
         assert!(matches!(
             transport_resolution.outcome,
-            ControllerChoiceOutcome::Blocked {
-                reason: ControllerChoiceBlockReason::UnsupportedTransport,
+            ControllerChoiceOutcome::MismatchDecisionRequired {
+                invalidated_override_reason: Some(
+                    ControllerOverrideInvalidationReason::TransportChanged
+                ),
                 ..
             }
         ));
+        assert_eq!(
+            transport_resolution.override_update,
+            ControllerOverrideUpdate::Clear {
+                reason: ControllerOverrideInvalidationReason::TransportChanged,
+            }
+        );
         assert_eq!(
             override_invalidation_reason(
                 &remembered,

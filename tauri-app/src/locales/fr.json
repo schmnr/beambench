@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Réseau (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "L’arrêt d’urgence a été activé pendant la préparation du travail. Rien n’a été envoyé.",
+    "sleep_protection_failed": "Impossible d’empêcher la mise en veille de l’ordinateur pendant ce travail. Gardez l’ordinateur éveillé jusqu’à la fin du travail.",
     "user_origin_not_set": "L’origine utilisateur est sélectionnée, mais elle n’est pas définie. Placez le laser au point voulu, puis choisissez Définir ici avant de cadrer ou de démarrer.",
     "current_position_unavailable": "Position actuelle nécessite une machine connectée qui transmet sa position.",
     "dxf_no_usable_geometry": "Le fichier DXF ne contient aucune géométrie vectorielle 2D exploitable.",

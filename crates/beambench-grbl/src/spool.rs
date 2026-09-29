@@ -55,7 +55,10 @@ impl GcodeSpool {
     /// Spool for writing a G-code file. The file may be run by other senders
     /// or controllers, so GRBL's streaming limits do not apply. Read it back
     /// with `copy_to`; `next_line` still enforces the streaming line limit.
-    pub fn generate_for_file(plan: &ExecutionPlan, config: &GcodeConfig) -> Result<Self, GrblError> {
+    pub fn generate_for_file(
+        plan: &ExecutionPlan,
+        config: &GcodeConfig,
+    ) -> Result<Self, GrblError> {
         Self::generate_checked(plan, config, false)
     }
 

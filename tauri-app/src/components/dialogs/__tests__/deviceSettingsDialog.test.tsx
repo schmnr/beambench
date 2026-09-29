@@ -1010,7 +1010,8 @@ describe('DeviceSettingsDialog', () => {
     });
   });
 
-  it('connects a network controller from the Devices connection tab', async () => {
+  it.each(['grbl', 'generic_grbl_compatible', 'auto_detect'])(
+    'connects a network controller using %s from the Devices connection tab', async (controller) => {
     const connectNetwork = vi.fn();
     useMachineStore.setState({
       sessionState: 'disconnected',
@@ -1031,6 +1032,9 @@ describe('DeviceSettingsDialog', () => {
     render(<DeviceSettingsDialog onClose={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Connection'), { target: { value: 'tcp' } });
+    expect(screen.getByRole('option', { name: 'Network (Wi-Fi / Ethernet)' })).toBeDefined();
+    fireEvent.change(screen.getByLabelText('Controller'), { target: { value: controller } });
+    expect((screen.getByLabelText('Controller') as HTMLSelectElement).value).toBe(controller);
     fireEvent.change(screen.getByLabelText('Host'), { target: { value: 'grblhal.local' } });
     const portInput = screen.getByLabelText('TCP port') as HTMLInputElement;
     fireEvent.change(portInput, { target: { value: '' } });
@@ -1039,6 +1043,11 @@ describe('DeviceSettingsDialog', () => {
     fireEvent.click(screen.getByText('Connect'));
 
     expect(connectNetwork).toHaveBeenCalledWith('grblhal.local', 23);
+    expect(useMachineStore.getState().controllerSelection).toEqual(
+      controller === 'grbl'
+        ? { mode: 'known_driver', driver: 'grbl' }
+        : { mode: controller },
+    );
   });
 
   it('accepts a pasted host and port without creating a malformed endpoint', async () => {
@@ -1072,7 +1081,8 @@ describe('DeviceSettingsDialog', () => {
     expect((screen.getByLabelText('TCP port') as HTMLInputElement).value).toBe('8080');
   });
 
-  it('restores the active profile network connection without auto-connecting', async () => {
+  it.each(['grbl_hal', 'grbl', 'generic_grbl_compatible'])(
+    'restores the active profile %s network connection without auto-connecting', async (controller) => {
     const connectNetwork = vi.fn();
     useMachineStore.setState({
       sessionState: 'disconnected',
@@ -1084,7 +1094,9 @@ describe('DeviceSettingsDialog', () => {
             type: 'network',
             host: '10.0.1.155',
             port: 8080,
-            controller_selection: { mode: 'known_driver', driver: 'grbl_hal' },
+            controller_selection: controller === 'generic_grbl_compatible'
+              ? { mode: 'generic_grbl_compatible' }
+              : { mode: 'known_driver', driver: controller as 'grbl' | 'grbl_hal' },
           },
         }),
       ],
@@ -1105,7 +1117,7 @@ describe('DeviceSettingsDialog', () => {
       expect((screen.getByLabelText('Connection') as HTMLSelectElement).value).toBe('tcp');
       expect((screen.getByLabelText('Host') as HTMLInputElement).value).toBe('10.0.1.155');
       expect((screen.getByLabelText('TCP port') as HTMLInputElement).value).toBe('8080');
-      expect((screen.getByLabelText('Controller') as HTMLSelectElement).value).toBe('grbl_hal');
+      expect((screen.getByLabelText('Controller') as HTMLSelectElement).value).toBe(controller);
     });
     expect(connectNetwork).not.toHaveBeenCalled();
   });

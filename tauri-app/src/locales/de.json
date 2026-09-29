@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Netzwerk (WLAN / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "Während der Auftragsvorbereitung wurde der Not-Aus betätigt. Es wurde nichts gesendet.",
+    "sleep_protection_failed": "Der Ruhezustand des Computers konnte für diesen Auftrag nicht verhindert werden. Halten Sie den Computer bis zum Auftragsende wach.",
     "operation_failed_with_detail": "Vorgang fehlgeschlagen: {detail}",
     "raster_plan_too_complex": "Dieses Bild erzeugt bei der aktuellen Größe und DPI zu viele einzelne Rasterbewegungen. Verringern Sie die DPI oder die physische Größe oder wählen Sie einen weniger fragmentierten Bildmodus und erstellen Sie die Vorschau erneut.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

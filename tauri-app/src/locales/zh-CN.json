@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "网络 (Wi-Fi / 以太网)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "准备任务时按下了紧急停止。未发送任何内容。",
+    "sleep_protection_failed": "无法阻止计算机在此任务期间进入睡眠。请让计算机保持唤醒状态，直到任务结束。",
     "operation_failed_with_detail": "操作失败：{detail}",
     "raster_plan_too_complex": "此图像在当前尺寸和 DPI 下会产生过多的独立栅格移动。请降低 DPI 或物理尺寸，或选择碎片较少的图像模式，然后重新生成预览。",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

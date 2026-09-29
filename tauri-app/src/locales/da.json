@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Netværk (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "Nødstoppet blev aktiveret, mens jobbet blev klargjort. Intet blev sendt.",
+    "sleep_protection_failed": "Kunne ikke forhindre computeren i at gå i dvale under dette job. Hold computeren vågen, indtil jobbet er færdigt.",
     "operation_failed_with_detail": "Handlingen mislykkedes: {detail}",
     "raster_plan_too_complex": "Dette billede skaber for mange individuelle rasterbevægelser med den aktuelle størrelse og DPI. Reducer DPI eller den fysiske størrelse, eller vælg en mindre fragmenteret billedtilstand, og generer derefter forhåndsvisningen igen.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

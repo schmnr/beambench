@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Rete (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "È stato premuto l’arresto di emergenza durante la preparazione del lavoro. Non è stato inviato nulla.",
+    "sleep_protection_failed": "Non è stato possibile impedire la sospensione del computer durante questo lavoro. Mantieni il computer attivo fino al termine del lavoro.",
     "operation_failed_with_detail": "Operazione non riuscita: {detail}",
     "raster_plan_too_complex": "Questa immagine crea troppi movimenti raster individuali con le dimensioni e i DPI attuali. Riduci i DPI o le dimensioni fisiche, oppure scegli una modalità immagine meno frammentata, quindi genera nuovamente l’anteprima.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

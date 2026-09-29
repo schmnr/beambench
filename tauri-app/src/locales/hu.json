@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Hálózat (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "A feladat előkészítése közben megnyomták a vészleállítót. Semmi sem lett elküldve.",
+    "sleep_protection_failed": "Nem sikerült megakadályozni a számítógép alvó módba lépését a feladat alatt. Tartsa ébren a számítógépet a feladat befejezéséig.",
     "operation_failed_with_detail": "A művelet sikertelen: {detail}",
     "raster_plan_too_complex": "Ez a kép a jelenlegi méret és DPI mellett túl sok különálló rasztermozgást hoz létre. Csökkentse a DPI-t vagy a fizikai méretet, vagy válasszon kevésbé töredezett képmódot, majd készítse el újra az előnézetet.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

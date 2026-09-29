@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.2.25] - 2026-09-29
+
+- Translate the network connection label and job preparation/sleep warnings in
+  every supported language.
+- Allow GRBL and generic GRBL-compatible controllers over TCP, preserving status
+  validation and firmware-choice checks. Label network connections as Wi-Fi /
+  Ethernet, and stop replying to Telnet option refusal acknowledgements.
 - Keep the computer awake during active or paused jobs and framing. Release the
   sleep protection when the job ends, and warn if the OS cannot provide it.
 - Make Frame Continuously repeat the prepared frame until stopped, without
@@ -38,7 +45,8 @@
 - Very detailed images on controllers other than GRBL now fail preflight with
   guidance to reduce DPI or size, instead of running out of memory.
 - Emergency Stop is sent immediately even while a job or frame is still being
-  prepared, and that job no longer starts afterwards.
+  prepared, and that job no longer starts afterwards. Recheck cancellation after
+  command generation and before sending the first commands.
 
 ## 0.2.24
 

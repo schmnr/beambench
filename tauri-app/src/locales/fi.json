@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Verkko (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2648,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "Hätäpysäytystä painettiin työn valmistelun aikana. Mitään ei lähetetty.",
+    "sleep_protection_failed": "Tietokoneen lepotilaan siirtymistä ei voitu estää tämän työn aikana. Pidä tietokone hereillä työn loppuun asti.",
     "operation_failed_with_detail": "Toiminto epäonnistui: {detail}",
     "raster_plan_too_complex": "Tämä kuva luo nykyisellä koolla ja DPI-arvolla liian monta yksittäistä rasteriliikettä. Pienennä DPI-arvoa tai fyysistä kokoa tai valitse vähemmän pirstoutunut kuvatila ja luo esikatselu uudelleen.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
