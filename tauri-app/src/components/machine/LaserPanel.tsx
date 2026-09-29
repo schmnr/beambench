@@ -16,6 +16,8 @@ import {
   labelWithUnit,
 } from '../../utils/lengthUnits';
 import { NumberStepper } from '../shared/NumberStepper';
+import { NumberInput } from '../shared/NumberInput';
+import { speedInputValue, displaySpeedToMmMin, speedStepForUnit, speedUnitLabel } from '../../utils/speedUnits';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
 import { JobProgressBar } from './JobProgressBar';
 import { OverrideControls } from './OverrideControls';
@@ -137,6 +139,9 @@ export function LaserPanel() {
   const { t, i18n } = useTranslation();
   const { orientation } = usePanelHost();
   const displayUnit = useAppStore((s) => s.settings?.display_unit) ?? 'mm';
+  const speedTimeUnit = useAppStore((s) => s.settings?.speed_time_unit) ?? 'minutes';
+  const frameSpeed = useUiStore((s) => s.moveWindowJogFeedRateMmMin);
+  const setFrameSpeed = useUiStore((s) => s.setMoveWindowJogFeedRateMmMin);
   const startInFlightRef = useRef(false);
   const project = useProjectStore((s) => s.project);
   const setStartFrom = useProjectStore((s) => s.setStartFrom);
@@ -336,18 +341,19 @@ export function LaserPanel() {
 
     startInFlightRef.current = true;
     setStartInFlight(true);
+    const stopGeneration = useMachineStore.getState().emergencyStopGeneration;
 
     try {
       let previewReady = previewState === 'current';
       if (!previewReady) {
         previewReady = await generatePreview();
       }
-      if (!previewReady) {
+      if (!previewReady || useMachineStore.getState().emergencyStopGeneration !== stopGeneration) {
         return;
       }
 
       const report = await runPreflight();
-      if (!report) return;
+      if (!report || useMachineStore.getState().emergencyStopGeneration !== stopGeneration) return;
       if (report.outcome === 'pass') {
         await startJob();
       } else {
@@ -566,6 +572,15 @@ export function LaserPanel() {
                 {t('panels.machine.laser.frame_laser_on')}
               </label>
             </div>
+            <NumberInput
+              label={labelWithUnit(t('panels.machine.laser.frame_speed'), speedUnitLabel(displayUnit, speedTimeUnit))}
+              value={speedInputValue(frameSpeed, displayUnit, speedTimeUnit)}
+              onChange={(value) => setFrameSpeed(displaySpeedToMmMin(value, displayUnit, speedTimeUnit))}
+              min={speedInputValue(1, displayUnit, speedTimeUnit)}
+              max={speedInputValue(10000, displayUnit, speedTimeUnit)}
+              step={speedStepForUnit(displayUnit, speedTimeUnit)}
+              disabled={!canUseMotionControls || frameConfirm}
+            />
           </div>
         )}
 

@@ -125,7 +125,7 @@ pub struct ServiceContext {
     pub project: Mutex<Option<Project>>,
     pub project_path: Mutex<Option<PathBuf>>,
     pub settings: Mutex<AppSettings>,
-    pub plan_cache: Mutex<Option<ExecutionPlan>>,
+    pub plan_cache: Mutex<Option<Arc<ExecutionPlan>>>,
     pub history: Mutex<ProjectHistory>,
     pub session: Mutex<Option<MachineSessionHandle>>,
     /// Serializes connect, decision, cancel, and disconnect operations so an
@@ -135,11 +135,16 @@ pub struct ServiceContext {
     /// controller selection or mismatch challenge. Never persisted.
     pub pending_controller_connection: Mutex<Option<PendingControllerConnection>>,
     pub job: Mutex<Option<ActiveJobHandle>>,
+    /// Access only while holding `job`; retains power protection and a frozen frame.
+    pub(crate) job_resources: Mutex<crate::job_lifecycle::JobResources>,
     /// True while the backend-owned job ticker is active. Jobs must keep
     /// streaming even if no frontend panel or CLI command polls progress.
     pub job_tick_loop_running: AtomicBool,
     /// True while a backend-issued continuous jog is outstanding.
     pub active_jog: AtomicBool,
+    /// Bumped by every emergency stop, before it waits on any lock. A job or
+    /// frame start that began planning before the stop must not proceed.
+    pub emergency_stop_generation: AtomicU64,
     /// True only after the current connection has established machine
     /// coordinates. G53 absolute machine-coordinate moves require this.
     pub machine_coordinates_valid: AtomicBool,
@@ -218,6 +223,9 @@ pub struct ServiceContext {
     pub latest_adjust_preview_request_id: AtomicU64,
     /// Latest frontend-owned plan/preview request id used for cooperative cancellation.
     pub latest_planning_request_id: Arc<AtomicU64>,
+    /// Separate counter for Start/Export builds, so a routine preview refresh
+    /// never cancels them. `cancel_planning` bumps both.
+    pub latest_job_planning_request_id: Arc<AtomicU64>,
     /// Serializes agent design transactions so two apply/dry-run requests cannot
     /// race through the same project snapshot.
     pub design_transaction_lock: Mutex<()>,
@@ -240,9 +248,11 @@ impl ServiceContext {
             controller_connection_gate: Mutex::new(()),
             pending_controller_connection: Mutex::new(None),
             job: Mutex::new(None),
+            job_resources: Mutex::new(Default::default()),
             job_tick_loop_running: AtomicBool::new(false),
             shutting_down: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
+            emergency_stop_generation: AtomicU64::new(0),
             machine_coordinates_valid: AtomicBool::new(false),
             relative_frame_confirmation: Mutex::new(None),
             pending_relative_frame_confirmation: Mutex::new(None),
@@ -278,6 +288,7 @@ impl ServiceContext {
             latest_trace_preview_request_id: AtomicU64::new(0),
             latest_adjust_preview_request_id: AtomicU64::new(0),
             latest_planning_request_id: Arc::new(AtomicU64::new(0)),
+            latest_job_planning_request_id: Arc::new(AtomicU64::new(0)),
             design_transaction_lock: Mutex::new(()),
             agent_selection: Mutex::new(None),
         }
@@ -295,9 +306,11 @@ impl ServiceContext {
             controller_connection_gate: Mutex::new(()),
             pending_controller_connection: Mutex::new(None),
             job: Mutex::new(None),
+            job_resources: Mutex::new(Default::default()),
             job_tick_loop_running: AtomicBool::new(false),
             shutting_down: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
+            emergency_stop_generation: AtomicU64::new(0),
             machine_coordinates_valid: AtomicBool::new(false),
             relative_frame_confirmation: Mutex::new(None),
             pending_relative_frame_confirmation: Mutex::new(None),
@@ -333,6 +346,7 @@ impl ServiceContext {
             latest_trace_preview_request_id: AtomicU64::new(0),
             latest_adjust_preview_request_id: AtomicU64::new(0),
             latest_planning_request_id: Arc::new(AtomicU64::new(0)),
+            latest_job_planning_request_id: Arc::new(AtomicU64::new(0)),
             design_transaction_lock: Mutex::new(()),
             agent_selection: Mutex::new(None),
         }

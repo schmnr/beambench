@@ -42,12 +42,13 @@ pub fn validate_bounds(
                     };
                     let mut segment_overshoot = 0.0_f64;
                     for line in scanlines {
-                        for run in &line.runs {
-                            let min_x = run.start_x_mm.min(run.end_x_mm) - overscan_mm;
-                            let max_x = run.start_x_mm.max(run.end_x_mm) + overscan_mm;
-                            segment_overshoot = segment_overshoot.max((-min_x).max(0.0));
-                            segment_overshoot = segment_overshoot.max((max_x - run_limit).max(0.0));
-                        }
+                        let Some((row_min, row_max)) = line.runs.x_extent() else {
+                            continue;
+                        };
+                        let min_x = row_min - overscan_mm;
+                        let max_x = row_max + overscan_mm;
+                        segment_overshoot = segment_overshoot.max((-min_x).max(0.0));
+                        segment_overshoot = segment_overshoot.max((max_x - run_limit).max(0.0));
                     }
                     max_overshoot.max(segment_overshoot)
                 }
@@ -170,7 +171,15 @@ pub fn validate_bounds(
                         );
                     }
 
-                    // Check scan-axis ranges
+                    // Check scan-axis ranges. Violations are reported per run, but
+                    // the row extent bounds every run in it, so a row that fits
+                    // needs no per-run decode at all.
+                    let row_fits = scanline.runs.x_extent().is_none_or(|(lo, hi)| {
+                        lo >= -FP_TOLERANCE_MM && hi <= run_limit + FP_TOLERANCE_MM
+                    });
+                    if row_fits {
+                        continue;
+                    }
                     for (run_idx, run) in scanline.runs.iter().enumerate() {
                         if run.start_x_mm < -FP_TOLERANCE_MM {
                             record_violation(
@@ -338,7 +347,8 @@ mod tests {
                     start_x_mm,
                     end_x_mm,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -563,7 +573,8 @@ mod tests {
                     start_x_mm: 50.0,
                     end_x_mm: 350.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -647,7 +658,8 @@ mod tests {
                     start_x_mm: 50.0,
                     end_x_mm: 100.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -689,7 +701,8 @@ mod tests {
                     start_x_mm: 50.0,
                     end_x_mm: 450.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -735,7 +748,8 @@ mod tests {
                     start_x_mm: 50.0,
                     end_x_mm: 250.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -772,7 +786,8 @@ mod tests {
                     start_x_mm: 50.0,
                     end_x_mm: 350.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -815,7 +830,8 @@ mod tests {
                         start_x_mm: 395.0,
                         end_x_mm: 400.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 }],
                 line_interval_mm: 0.1,

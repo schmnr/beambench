@@ -1,0 +1,4 @@
+<LightBurnProject AppVersion="1.6.03" FormatVersion="1" MirrorX="False" MirrorY="False">
+<CutSetting_Img type="Image"><index Value="1"/><name Value="Asymmetric"/><maxPower Value="30"/><speed Value="20"/><interval Value="1"/><ditherMode Value="threshold"/></CutSetting_Img>
+<Shape Type="Bitmap" CutIndex="1" W="40" H="30" Data="iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAAAAACRn/EaAAAAFElEQVR4nGNg+P//PwMDA5hg+A8AMd0F+428ZpQAAAAASUVORK5CYII="><XForm>1 0 0 1 60 80</XForm></Shape>
+</LightBurnProject>

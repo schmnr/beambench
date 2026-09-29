@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Hálózat (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2053,6 +2053,7 @@
         "finish_position": "Befejezési pozíció",
         "finish_return_to_origin": "Vissza az eredethez",
         "frame": "Keret",
+        "frame_speed": "Keretezési sebesség",
         "frame_laser_on": "Keret: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",
@@ -2189,6 +2190,10 @@
         "preview": "Előnézet",
         "no_changes": "Nincs változás.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Dokumentáció alapján készült előbeállítás a Sculpfun S30 Pro 10W készülékhez GRBL 1.1f vagy újabb firmware-rel. A hardveres tesztelés még hátravan.",
+            "advisory": "380 x 385 mm-es munkaterület, S1000, M8/M9 levegőrásegítés. Ellenőrizze a gép mozgástartományát és maximális S-értékét. A referenciapont-keresést csak a mellékelt kapcsolók felszerelése és a firmware beállítása után engedélyezze. A keretbővítésekhez külön méretek szükségesek."
+          },
           "sculpfun_s9": {
             "description": "Dokumentáción alapuló előbeállítás az eredeti Sculpfun S9 géphez, GRBL 1.1f vagy újabb verzióval. A gépen végzett tesztek még hátravannak.",
             "advisory": "Óvatosan meghatározott, 410 x 415 mm-es munkaterület. Ellenőrizze a tengelyutakat és a gép maximális S-értékét. A referenciapont-keresés és az automatikus levegőrásegítés ki van kapcsolva; csak telepített és beállított bővítésekhez engedélyezze őket. Referenciakapcsolók nélkül használja az Aktuális pozíció vagy a Felhasználói origó módot."
@@ -2334,6 +2339,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "A BRLTTY fut, és az USB-soros port nem érhető el. Lehet, hogy lefoglalta az adaptert; ellenőrizze a naplót.",
+      "brltty_help": "BRLTTY-hibaelhárítás",
+      "brltty_check": "Keresse a naplóban, hogy a BRLTTY átvette-e ezt az USB-eszközt, majd megszakadt-e a soros kapcsolat:",
+      "brltty_stop": "Ha a napló megerősíti az ütközést, és nem használ Braille-támogatást, állítsa le átmenetileg a BRLTTY-t, amikor a lézer nem dolgozik. Ezután csatlakoztassa újra az USB-t, és próbálja meg ismét:",
+      "brltty_restore": "A Braille-támogatás visszaállítása:",
+      "brltty_persistence": "A leállítás átmeneti. A szolgáltatásnevek eltérhetnek. Ha újraindul vagy nem található, ellenőrizze a disztribúció BRLTTY-eszközszabályait. Ha Braille-t használ, hagyja futni a BRLTTY-t, és keressen eszközspecifikus megoldást.",
       "none_captured": "Semmi nem rögzült",
       "no_snapshot": "Nincs pillanatkép",
       "refresh_aria": "Diagnosztika frissítése",
@@ -2637,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "A feladat előkészítése közben megnyomták a vészleállítót. Semmi sem lett elküldve.",
+    "sleep_protection_failed": "Nem sikerült megakadályozni a számítógép alvó módba lépését a feladat alatt. Tartsa ébren a számítógépet a feladat befejezéséig.",
     "operation_failed_with_detail": "A művelet sikertelen: {detail}",
     "raster_plan_too_complex": "Ez a kép a jelenlegi méret és DPI mellett túl sok különálló rasztermozgást hoz létre. Csökkentse a DPI-t vagy a fizikai méretet, vagy válasszon kevésbé töredezett képmódot, majd készítse el újra az előnézetet.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

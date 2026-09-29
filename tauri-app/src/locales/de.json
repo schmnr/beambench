@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Netzwerk (WLAN / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2053,6 +2053,7 @@
         "finish_position": "Zielposition",
         "finish_return_to_origin": "Zurück zum Ursprung",
         "frame": "Rahmen",
+        "frame_speed": "Rahmengeschwindigkeit",
         "frame_laser_on": "Rahmen: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",
@@ -2189,6 +2190,10 @@
         "preview": "Vorschau",
         "no_changes": "Keine Änderungen.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Dokumentationsbasierte Voreinstellung für den Sculpfun S30 Pro 10W mit GRBL 1.1f oder neuer. Hardwaretests stehen noch aus.",
+            "advisory": "Arbeitsbereich 380 x 385 mm, S1000, Luftunterstützung M8/M9. Prüfen Sie Verfahrwege und maximalen S-Wert Ihrer Maschine. Aktivieren Sie die Referenzfahrt erst nach Einbau der mitgelieferten Schalter und Einrichtung der Firmware. Rahmenverlängerungen benötigen eigene Abmessungen."
+          },
           "sculpfun_s9": {
             "description": "Voreinstellung nach Dokumentation für die ursprüngliche Sculpfun S9 mit GRBL 1.1f oder neuer. Tests an der Maschine stehen noch aus.",
             "advisory": "Konservativer Arbeitsbereich von 410 x 415 mm. Prüfen Sie Verfahrwege und maximalen S-Wert an Ihrer Maschine. Referenzfahrt und automatische Luftunterstützung sind aus; nur für eingerichtete Nachrüstungen aktivieren. Ohne Referenzschalter Aktuelle Position oder Benutzerursprung verwenden."
@@ -2334,6 +2339,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY läuft und der USB-Seriell-Port ist nicht verfügbar. Möglicherweise beansprucht BRLTTY den Adapter. Prüfen Sie das Protokoll.",
+      "brltty_help": "BRLTTY-Probleme beheben",
+      "brltty_check": "Suchen Sie nach einer Übernahme dieses USB-Geräts durch BRLTTY mit anschließender serieller Trennung:",
+      "brltty_stop": "Wenn das Protokoll einen Konflikt bestätigt und Sie keine Braille-Unterstützung nutzen, stoppen Sie BRLTTY vorübergehend bei ruhendem Laser. Verbinden Sie USB danach erneut und versuchen Sie es nochmals:",
+      "brltty_restore": "Braille-Unterstützung wiederherstellen:",
+      "brltty_persistence": "Der Stopp ist vorübergehend. Dienstnamen variieren. Wenn der Dienst neu startet oder fehlt, prüfen Sie die BRLTTY-Geräteregeln Ihrer Distribution. Wenn Sie Braille nutzen, lassen Sie BRLTTY laufen und suchen Sie eine gerätespezifische Lösung.",
       "none_captured": "Nichts erfasst",
       "no_snapshot": "Keine Momentaufnahme",
       "refresh_aria": "Diagnose aktualisieren",
@@ -2637,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "Während der Auftragsvorbereitung wurde der Not-Aus betätigt. Es wurde nichts gesendet.",
+    "sleep_protection_failed": "Der Ruhezustand des Computers konnte für diesen Auftrag nicht verhindert werden. Halten Sie den Computer bis zum Auftragsende wach.",
     "operation_failed_with_detail": "Vorgang fehlgeschlagen: {detail}",
     "raster_plan_too_complex": "Dieses Bild erzeugt bei der aktuellen Größe und DPI zu viele einzelne Rasterbewegungen. Verringern Sie die DPI oder die physische Größe oder wählen Sie einen weniger fragmentierten Bildmodus und erstellen Sie die Vorschau erneut.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

@@ -139,6 +139,8 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 
 - [Sculpfun S9, preset version 1](machines/sculpfun-s9.md): documentation-based,
   physical testing pending.
+- [Sculpfun S30 Pro 10W, preset version 1](machines/sculpfun-s30-pro-10w.md):
+  documentation-based, physical testing pending.
 
 Existing S30 Pro Max, ACMER S2, xTool M1, and LaserPecker entries predate this
 record format. Their current scope remains in the controller compatibility

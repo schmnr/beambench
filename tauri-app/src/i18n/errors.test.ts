@@ -1,7 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { localizeImportWarning, wrapBackendError } from './errors';
+import i18n, { SUPPORTED_LOCALES } from './index';
 
 describe('wrapBackendError', () => {
+  it.each(SUPPORTED_LOCALES)('localizes release safety messages in %s', async (locale) => {
+    const previousLanguage = i18n.language;
+    try {
+      await i18n.changeLanguage(locale);
+      for (const key of ['job_preparation_stopped', 'sleep_protection_failed', 'raster_plan_too_complex']) {
+        const translated = wrapBackendError(`Error: [${key}] Backend diagnostic detail`);
+        expect(translated).toBe(i18n.t(`errors.${key}`));
+        expect(translated).not.toContain('Backend diagnostic detail');
+        if (locale !== 'en') {
+          expect(translated).not.toBe(i18n.t(`errors.${key}`, { lng: 'en' }));
+        }
+      }
+      for (const key of ['controller_choice.transport_network', 'panels.machine.laser.frame_speed']) {
+        if (locale !== 'en') expect(i18n.t(key)).not.toBe(i18n.t(key, { lng: 'en' }));
+      }
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it('translates the machine-zero homing gate into a direct instruction', () => {
     expect(
       wrapBackendError('Machine-zero moves require homing in the current session first'),

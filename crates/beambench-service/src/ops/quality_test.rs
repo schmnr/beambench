@@ -1683,7 +1683,8 @@ mod tests {
                     start_x_mm: 1.0,
                     end_x_mm: 3.0,
                     power_values: vec![255],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1716,8 +1717,8 @@ mod tests {
         };
         assert_eq!(scan_origin, Point2D::new(5.0, 7.0));
         assert_eq!(scanlines[0].y_mm, 15.0);
-        assert_eq!(scanlines[0].runs[0].start_x_mm, 8.0);
-        assert_eq!(scanlines[0].runs[0].end_x_mm, 10.0);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 8.0);
+        assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 10.0);
     }
 
     fn material_settings() -> MaterialTestSettings {

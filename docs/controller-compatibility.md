@@ -22,12 +22,13 @@ is documentation-based, with physical Beam Bench testing pending.
 | Controller choice | Connection | Status | Current scope |
 | --- | --- | --- | --- |
 | GRBL | Serial | Supported | Existing GRBL job, framing, homing, jogging, unlock, origin, pause/resume, and status workflow. Experimental generic rotary mode is described below. |
+| GRBL | Network (TCP) | Experimental | Same GRBL controls over a raw TCP/Telnet endpoint, such as a Wi-Fi bridge. Covered by loopback tests; physical Wi-Fi controller testing is still outstanding. |
 | FluidNC | Serial or Network (TCP, normally port 23) | Experimental | Requires an exact FluidNC identity and uses the normal GRBL-family job and machine controls. |
 | grblHAL | Serial or Network (TCP, normally port 23) | Experimental | Requires exact grblHAL firmware identity and uses the normal GRBL-family job and machine controls. |
 | LaserPecker LX1 / LX1 Max, LP2 Plus, LP4 / LP4 Safeguard, LP5 | Serial (460800 baud) | Experimental | Explicit LaserPecker adapter with official-profile workspaces, power scales, top-left coordinates, regular-mode commands, dual-laser selection for LP4/LP5, and shared GRBL-family jobs and controls. |
 | LaserPecker LX2 | Network (GRBL/TCP port 8888) | Experimental | Explicit LaserPecker adapter with the official 500 x 305 mm, S0-1000 profile and required `START_PRINT` job header. |
 | xTool M1 (original 5W/10W, not M1 Ultra) | Network (HTTP port 8080 over Wi-Fi or the USB network interface) | Experimental | Native M1 file upload with vector and raster jobs, material-thickness focus calculation, physical-button start, status polling, pause/resume, cancel, and emergency stop. Framing, camera alignment, blade mode, rotary mode, riser/open-plane focusing, jogging, homing, and raw G-code are not exposed. |
-| Generic GRBL-compatible | Serial | Experimental | Explicit fallback for unidentified or rebranded GRBL-compatible firmware. Job, frame, jog, unlock, origin, and pause/resume are available; homing remains hidden. |
+| Generic GRBL-compatible | Serial or Network (TCP) | Experimental | Explicit fallback for unidentified or rebranded GRBL-compatible firmware. Job, frame, jog, unlock, origin, and pause/resume are available; homing remains hidden. |
 | Standard Marlin | Serial | Experimental | Requires a standard Marlin `M115` identity. Vector, raster, perforation, frame, custom G-code, air-assist, Z-offset, and finish-position output are supported. Manual motion and pause/resume are not yet exposed; cancel requires reconnecting. |
 | Snapmaker 2.0 | Serial | Experimental | Requires an exact Snapmaker 2.0 firmware identity and uses its documented laser-power commands. Jobs and framing are supported; manual motion and pause/resume are not yet exposed, and cancel requires reconnecting. Artisan is not included in this row. |
 | Smoothieware | Serial | Experimental | Requires an exact Smoothieware identity and an enabled laser configuration. Jobs and framing are supported; manual motion and pause/resume are not yet exposed, and cancel requires reconnecting. |
@@ -49,15 +50,27 @@ recorded in the [controller detection matrix](controller-detection-matrix.md).
 
 ## Connecting
 
-1. Open the Laser panel or **Device Settings > Connection**.
-2. Choose **Serial**, **Network**, or **USB** for the machine's actual
+1. Open the Laser panel or **Devices > Connection**.
+2. Choose **Serial**, **Network (Wi-Fi / Ethernet)**, or **USB** for the machine's actual
    connection.
 3. Choose the controller. Experimental choices carry the label directly in
    this list.
 4. Select the serial port, enter the network host and port, or select the USB
    device, then choose **Connect**.
 
-For FluidNC and grblHAL network connections, TCP port 23 is the normal default.
+GRBL-family network connections require a raw TCP/Telnet G-code endpoint.
+Enter the controller's reachable IP address or hostname and its configured
+streaming port. Beam Bench defaults to port 23; use the firmware's port if it
+is different. A browser-based control page or WebSocket-only endpoint is not
+supported by this GRBL connection path.
+
+GRBL and Generic GRBL-compatible can use this connection as well as FluidNC
+and grblHAL. Network validation requires a fresh GRBL status reply, no active
+motion, and no reported laser output. When Auto-detect cannot identify the
+firmware, select GRBL or explicitly opt into Generic GRBL-compatible. Existing
+firmware mismatch checks still apply. The generic TCP paths have loopback
+regression coverage; physical Wi-Fi controller testing remains outstanding.
+
 For LaserPecker LX2, choose **LaserPecker (Experimental)** with the Network
 connection; the form defaults to `192.168.253.1` and TCP port `8888`. For the
 other listed LaserPecker models, choose Serial and apply the matching built-in

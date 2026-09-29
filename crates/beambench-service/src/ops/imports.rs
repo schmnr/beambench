@@ -18,11 +18,11 @@ use beambench_core::{
     AssetId, LayerId, LbrnCutEntry, LbrnDocument, LbrnShape, ObjectData, ObjectId, ProjectObject,
     ShapeKind, TextAlignment, TextAlignmentV, TextCirclePlacement, TextLayoutMode,
     TextTransformStyle, TraceConfig, import_image, import_svg, parse_dxf_with_report,
-    parse_eps_paths, parse_lbrn_project, parse_pdf_painted_paths, trace_image,
+    parse_eps_paths, parse_lbrn_project, parse_pdf_artwork, trace_image,
 };
 use beambench_core::{
-    CutEntry, Layer, OperationType, PdfPaintMode, PdfPaintedPath, PdfRgbColor, RasterSettings,
-    VectorSettings,
+    CutEntry, Layer, OperationType, PdfImage, PdfPaintMode, PdfPaintedPath, PdfRgbColor,
+    RasterSettings, VectorSettings,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -183,6 +183,7 @@ pub struct ImportImageInput {
 pub struct ImportFilesInput {
     pub file_paths: Vec<String>,
     pub layer_id: LayerId,
+    pub create_layer: Option<super::project::AddObjectLayerInput>,
 }
 
 /// One dropped/pasted file delivered by content rather than path. The
@@ -200,6 +201,7 @@ pub struct ImportFileData {
 pub struct ImportFilesDataInput {
     pub files: Vec<ImportFileData>,
     pub layer_id: LayerId,
+    pub create_layer: Option<super::project::AddObjectLayerInput>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -266,6 +268,7 @@ enum PendingImport {
     Vector {
         name_prefix: String,
         paths: Vec<ImportedVectorPath>,
+        images: Vec<PdfImage>,
         warnings: Vec<String>,
     },
     Lbrn {
@@ -285,6 +288,7 @@ struct ImportedVectorPath {
 #[derive(Debug, Clone)]
 struct ParsedVectorImport {
     paths: Vec<ImportedVectorPath>,
+    images: Vec<PdfImage>,
     warnings: Vec<String>,
 }
 
@@ -292,6 +296,7 @@ fn pending_vector_import(name_prefix: &str, parsed: ParsedVectorImport) -> Pendi
     PendingImport::Vector {
         name_prefix: name_prefix.to_string(),
         paths: parsed.paths,
+        images: parsed.images,
         warnings: parsed.warnings,
     }
 }
@@ -678,11 +683,7 @@ fn prepare_pending_import(
                 .unwrap_or("Import")
                 .to_string();
             let parsed = parse_vector_bytes(&bytes, format)?;
-            Ok(PendingImport::Vector {
-                name_prefix,
-                paths: parsed.paths,
-                warnings: parsed.warnings,
-            })
+            Ok(pending_vector_import(&name_prefix, parsed))
         }
         "lbrn" | "lbrn2" => Ok(PendingImport::Lbrn {
             document: parse_lbrn_project(&bytes).map_err(|error| {
@@ -884,10 +885,10 @@ fn lbrn_world_to_canvas_transform(
     }
 }
 
-/// Rectangles, ellipses, text, and bitmaps are reconstructed from native Beam
+/// Rectangles, ellipses, and text are reconstructed from native Beam
 /// Bench primitives whose local coordinates are already Y-down. Conjugating
 /// the source transform with a local Y flip converts rotation/shear without
-/// turning text or image pixels upside down.
+/// turning text upside down. Bitmaps use LightBurn's row coordinates directly.
 fn lbrn_semantic_object_transform(
     world_to_canvas: Transform2D,
     source: Transform2D,
@@ -1123,6 +1124,7 @@ fn import_lbrn_shape(
         }
         LbrnShape::Bitmap {
             layer_index,
+            power_scale,
             transform,
             width_mm,
             height_mm,
@@ -1130,7 +1132,9 @@ fn import_lbrn_shape(
             data,
             adjustments,
         } => {
-            let transform = lbrn_semantic_object_transform(world_to_canvas, transform);
+            // LightBurn maps embedded bitmap row zero to local negative Y.
+            // Applying the semantic-shape Y correction here inverts its pixels.
+            let transform = world_to_canvas.compose(&transform);
             let layer_id = *layer_ids
                 .get(&layer_index)
                 .ok_or_else(|| ServiceError::internal("Missing imported Lbrn layer"))?;
@@ -1141,6 +1145,7 @@ fn import_lbrn_shape(
             let object = project
                 .find_object_mut(object_id)
                 .ok_or_else(|| ServiceError::internal("Imported Lbrn bitmap is missing"))?;
+            object.power_scale = power_scale;
             object.bounds = centered_bounds(transform, width_mm, height_mm);
             object.transform = linear_object_transform(transform);
             if let ObjectData::RasterImage {
@@ -1246,23 +1251,43 @@ fn import_pending(
     ctx: &ServiceContext,
     layer_id: LayerId,
     pending: Vec<PendingImport>,
+    create_layer: Option<super::project::AddObjectLayerInput>,
 ) -> ServiceResult<Vec<ProjectObject>> {
     let file_count = pending.len();
     if pending.is_empty() {
         return Ok(Vec::new());
     }
+    let imports_document = pending
+        .iter()
+        .any(|item| matches!(item, PendingImport::Lbrn { .. }));
 
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
+    let original = project_guard
+        .as_ref()
         .ok_or_else(|| ServiceError::not_found("No project open"))?;
-
+    // Stage the entire batch before changing the live project or undo history.
+    // Asset bytes are Arc-backed and stay shared with the original project.
+    let mut working = original.clone();
+    let project = &mut working;
+    let layer_id = if let Some(spec) = create_layer {
+        let mut layer = Layer::new_single_entry(spec.name, spec.operation);
+        if let Some(color_tag) = spec.color_tag {
+            layer.color_tag =
+                ColorTag(beambench_common::canonical_palette_color_tag(&color_tag).to_string());
+            layer.is_tool_layer = beambench_common::is_tool_color(&layer.color_tag.0);
+        }
+        if layer.is_tool_layer || layer.primary_entry().operation == OperationType::Tool {
+            layer.canonicalize_tool_layer();
+        } else if let Some(patch) = spec.entry_patch {
+            layer.entries[0].apply_patch(&patch);
+        }
+        project.add_layer(layer).id
+    } else {
+        layer_id
+    };
     if project.find_layer(layer_id).is_none() {
         return Err(ServiceError::not_found("Layer not found"));
     }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
 
     let allow_tool_imports = ctx
         .settings
@@ -1291,6 +1316,7 @@ fn import_pending(
                 }
                 resolved
             }
+            PendingImport::Vector { paths, .. } if paths.is_empty() => layer_id,
             PendingImport::Svg { .. } | PendingImport::Vector { .. } => {
                 let (resolved, notice) = route_import_with_notice(
                     project,
@@ -1362,6 +1388,7 @@ fn import_pending(
             PendingImport::Vector {
                 name_prefix,
                 paths,
+                images,
                 warnings,
             } => {
                 imported_objects.extend(add_imported_vector_paths(
@@ -1370,6 +1397,86 @@ fn import_pending(
                     &name_prefix,
                     paths,
                 )?);
+                if !images.is_empty() {
+                    let (image_layer_id, notice) = route_import_with_notice(
+                        project,
+                        layer_id,
+                        RoutingTarget::NeedsImage,
+                        allow_tool_imports,
+                    )?;
+                    if let Some(notice) = notice {
+                        routing_notices.push(notice);
+                    }
+                    for (index, image) in images.into_iter().enumerate() {
+                        let name = format!("{name_prefix} image {}", index + 1);
+                        let id = import_image(&image.png, &name, None, project, image_layer_id)
+                            .map_err(|e| {
+                                ServiceError::invalid_input(format!("PDF image import failed: {e}"))
+                            })?;
+                        let mask_object = if let Some(clip) = image.clip {
+                            let mask_layer = if let Some(layer) = project
+                                .layers
+                                .iter()
+                                .find(|l| l.is_tool_layer && l.name == "PDF clipping masks")
+                            {
+                                layer.id
+                            } else {
+                                let mut layer =
+                                    Layer::new("PDF clipping masks", OperationType::Tool);
+                                layer.canonicalize_tool_layer();
+                                layer.visible = false;
+                                project.add_layer(layer).id
+                            };
+                            let mask = vecpath_to_project_object(
+                                mask_layer,
+                                format!("{name} clipping"),
+                                clip,
+                            );
+                            Some(project.add_object(mask).clone())
+                        } else {
+                            None
+                        };
+                        let object = project
+                            .find_object_mut(id)
+                            .ok_or_else(|| ServiceError::internal("Missing imported PDF image"))?;
+                        let t = image.transform;
+                        let width = t.a.hypot(t.b);
+                        let height = t.c.hypot(t.d);
+                        let center = t.apply(&Point2D::new(0.5, 0.5));
+                        object.bounds = Bounds::new(
+                            Point2D::new(center.x - width / 2.0, center.y - height / 2.0),
+                            Point2D::new(center.x + width / 2.0, center.y + height / 2.0),
+                        );
+                        object.transform = Transform2D {
+                            a: t.a / width,
+                            b: t.b / width,
+                            c: t.c / height,
+                            d: t.d / height,
+                            tx: 0.0,
+                            ty: 0.0,
+                        };
+                        if let Some(mask) = &mask_object
+                            && let ObjectData::RasterImage { masks, .. } = &mut object.data
+                        {
+                            masks.push(beambench_core::ImageMaskRef {
+                                object_id: mask.id,
+                                polarity: beambench_core::ImageMaskPolarity::KeepInside,
+                            });
+                        }
+                        imported_objects.push(object.clone());
+                        if let Some(mask) = mask_object {
+                            let mask_id = mask.id;
+                            imported_objects.push(mask);
+                            let group = super::vector::group_objects_in_project(
+                                project,
+                                super::vector::GroupObjectsInput {
+                                    object_ids: vec![id, mask_id],
+                                },
+                            )?;
+                            imported_objects.push(group);
+                        }
+                    }
+                }
                 import_warnings.extend(warnings);
             }
             PendingImport::Lbrn { document } => {
@@ -1378,6 +1485,10 @@ fn import_pending(
                 import_warnings.extend(warnings);
             }
         }
+    }
+
+    if imported_objects.is_empty() && !imports_document {
+        return Ok(imported_objects);
     }
 
     // Refresh text caches for any imported text objects (SVG text import
@@ -1440,6 +1551,9 @@ fn import_pending(
             })
     };
 
+    ctx.push_project_undo_snapshot(original)
+        .map_err(ServiceError::internal)?;
+    *project_guard = Some(working);
     drop(project_guard);
     planning::invalidate_plan_cache(ctx)?;
     emit_routing_notices(ctx, &routing_notices);
@@ -1675,46 +1789,65 @@ fn parse_vector_bytes(
                     .into_iter()
                     .map(|entity| ImportedVectorPath::uncolored(entity.path))
                     .collect(),
+                images: Vec::new(),
                 warnings,
             })
         }
-        VectorImportFormat::Pdf => parse_pdf_painted_paths(bytes)
+        VectorImportFormat::Pdf => parse_pdf_vector_import(bytes),
+        VectorImportFormat::Ai
+            if bytes[..bytes.len().min(1024)]
+                .windows(5)
+                .any(|w| w == b"%PDF-") =>
+        {
+            parse_pdf_vector_import(bytes)
+        }
+        VectorImportFormat::Ai => parse_eps_paths(bytes)
             .map(|paths| ParsedVectorImport {
                 paths: paths
                     .into_iter()
-                    .map(ImportedVectorPath::from_pdf)
+                    .map(ImportedVectorPath::uncolored)
                     .collect(),
+                images: Vec::new(),
                 warnings: Vec::new(),
             })
-            .map_err(|e| ServiceError::invalid_input(format!("PDF import failed: {e}"))),
-        VectorImportFormat::Ai => match parse_pdf_painted_paths(bytes) {
-            Ok(paths) => Ok(ParsedVectorImport {
-                paths: paths
-                    .into_iter()
-                    .map(ImportedVectorPath::from_pdf)
-                    .collect(),
-                warnings: Vec::new(),
-            }),
-            Err(_) => parse_eps_paths(bytes)
-                .map(|paths| ParsedVectorImport {
-                    paths: paths
-                        .into_iter()
-                        .map(ImportedVectorPath::uncolored)
-                        .collect(),
-                    warnings: Vec::new(),
-                })
-                .map_err(|e| ServiceError::invalid_input(format!("AI import failed: {e}"))),
-        },
+            .map_err(|e| ServiceError::invalid_input(format!("AI import failed: {e}"))),
         VectorImportFormat::Eps => parse_eps_paths(bytes)
             .map(|paths| ParsedVectorImport {
                 paths: paths
                     .into_iter()
                     .map(ImportedVectorPath::uncolored)
                     .collect(),
+                images: Vec::new(),
                 warnings: Vec::new(),
             })
             .map_err(|e| ServiceError::invalid_input(format!("EPS import failed: {e}"))),
     }
+}
+
+fn parse_pdf_vector_import(bytes: &[u8]) -> ServiceResult<ParsedVectorImport> {
+    let artwork = parse_pdf_artwork(bytes)
+        .map_err(|e| ServiceError::invalid_input(format!("PDF import failed: {e}")))?;
+    let canvas = artwork.page_to_canvas;
+    Ok(ParsedVectorImport {
+        paths: artwork
+            .paths
+            .into_iter()
+            .map(|mut path| {
+                path.path = bake_transform(&path.path, &canvas);
+                ImportedVectorPath::from_pdf(path)
+            })
+            .collect(),
+        images: artwork
+            .images
+            .into_iter()
+            .map(|mut image| {
+                image.transform = canvas.compose(&image.transform);
+                image.clip = image.clip.map(|clip| bake_transform(&clip, &canvas));
+                image
+            })
+            .collect(),
+        warnings: Vec::new(),
+    })
 }
 
 fn dxf_skipped_entities_warning(
@@ -1748,6 +1881,7 @@ pub fn import_svg_from_path(
         vec![PendingImport::Svg {
             bytes: read_file_bytes(&input.file_path)?,
         }],
+        None,
     )
 }
 
@@ -1768,6 +1902,7 @@ pub fn import_image_from_path(
             bytes: read_file_bytes(&input.file_path)?,
             source_path: absolute_source_path(&input.file_path),
         }],
+        None,
     )?;
     objects
         .pop()
@@ -1788,6 +1923,7 @@ pub fn import_image_from_bytes(
             bytes,
             source_path: None,
         }],
+        None,
     )?;
     objects
         .pop()
@@ -1808,7 +1944,7 @@ pub fn import_files_from_data(
             })?;
         pending.push(prepare_pending_import(&file.filename, bytes, None)?);
     }
-    import_pending(ctx, input.layer_id, pending)
+    import_pending(ctx, input.layer_id, pending, input.create_layer)
 }
 
 pub fn import_files_from_paths(
@@ -1819,6 +1955,7 @@ pub fn import_files_from_paths(
         ctx,
         input.layer_id,
         prepare_pending_imports(input.file_paths)?,
+        input.create_layer,
     )
 }
 
@@ -1861,7 +1998,7 @@ pub fn import_art_library_item(
         }
     };
 
-    import_pending(ctx, layer_id, vec![pending])
+    import_pending(ctx, layer_id, vec![pending], None)
 }
 
 pub fn import_vector_file_from_path(
@@ -1880,13 +2017,11 @@ pub fn import_vector_file_from_path(
             VectorImportFormat::Eps => "EPS Import",
         });
     let parsed = parse_vector_file(&input.file_path, input.format)?;
-    import_vector_paths(
+    import_pending(
         ctx,
         input.layer_id,
-        1,
-        name_prefix,
-        parsed.paths,
-        parsed.warnings,
+        vec![pending_vector_import(name_prefix, parsed)],
+        None,
     )
 }
 
@@ -2547,7 +2682,7 @@ mod tests {
 
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
         (ctx, requested_id, configured_red_id)
     }
 
@@ -2561,7 +2696,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
         (ctx, layer_id)
     }
 
@@ -2692,7 +2827,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let svg_path = dir.path().join("demo.svg");
@@ -2703,6 +2838,7 @@ mod tests {
         let objects = import_files_from_paths(
             &ctx,
             ImportFilesInput {
+                create_layer: None,
                 file_paths: vec![
                     svg_path.to_string_lossy().to_string(),
                     svg_path_two.to_string_lossy().to_string(),
@@ -2715,6 +2851,394 @@ mod tests {
         assert_eq!(objects.len(), 2);
         assert!(ctx.undo_state().unwrap().can_undo);
         assert!(ctx.plan_cache.lock().unwrap().is_none());
+    }
+
+    fn new_import_layer(operation: OperationType) -> super::super::project::AddObjectLayerInput {
+        super::super::project::AddObjectLayerInput {
+            name: "Imported".into(),
+            operation,
+            color_tag: Some("#FF0000".into()),
+            entry_patch: Some(beambench_core::CutEntryPatch {
+                speed_mm_min: Some(777.0),
+                power_percent: Some(42.0),
+                air_assist: Some(true),
+                ..Default::default()
+            }),
+        }
+    }
+
+    #[test]
+    fn failed_batch_preserves_project_assets_history_and_plan_for_paths_and_data() {
+        use base64::Engine;
+        for by_path in [true, false] {
+            for fail_early in [true, false] {
+                let (ctx, layer_id) = art_library_import_context();
+                // Leave an existing redo entry to catch accidental history changes.
+                import_pending(
+                    &ctx,
+                    layer_id,
+                    vec![PendingImport::Svg {
+                        bytes: sample_svg().to_vec(),
+                    }],
+                    None,
+                )
+                .unwrap();
+                super::super::project::undo_project(&ctx).unwrap();
+                let before = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+                let plan = std::sync::Arc::new(sample_plan(&before));
+                *ctx.plan_cache.lock().unwrap() = Some(plan.clone());
+                let history = ctx.undo_state().unwrap();
+                assert!(history.can_redo);
+                let mixed_svg = sample_svg_with_embedded_png();
+                // PDF parsing fails before staging; bad PNG fails after SVG
+                // paths, embedded image bytes, and sibling layers were staged.
+                let bad_name = if fail_early { "bad.pdf" } else { "bad.png" };
+                let files = [
+                    ("mixed.svg", mixed_svg.as_slice()),
+                    (bad_name, b"invalid".as_slice()),
+                ];
+                for _ in 0..3 {
+                    let result = if by_path {
+                        let dir = tempdir().unwrap();
+                        let paths = files
+                            .iter()
+                            .map(|(name, bytes)| {
+                                let path = dir.path().join(name);
+                                std::fs::write(&path, bytes).unwrap();
+                                path.to_string_lossy().to_string()
+                            })
+                            .collect();
+                        import_files_from_paths(
+                            &ctx,
+                            ImportFilesInput {
+                                file_paths: paths,
+                                layer_id,
+                                create_layer: Some(new_import_layer(OperationType::Image)),
+                            },
+                        )
+                    } else {
+                        import_files_from_data(
+                            &ctx,
+                            ImportFilesDataInput {
+                                files: files
+                                    .iter()
+                                    .map(|(name, bytes)| ImportFileData {
+                                        filename: (*name).into(),
+                                        data_base64: base64::engine::general_purpose::STANDARD
+                                            .encode(bytes),
+                                    })
+                                    .collect(),
+                                layer_id,
+                                create_layer: Some(new_import_layer(OperationType::Image)),
+                            },
+                        )
+                    };
+                    assert!(result.is_err());
+                    assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &before);
+                    assert_eq!(ctx.undo_state().unwrap().can_undo, history.can_undo);
+                    assert_eq!(ctx.undo_state().unwrap().can_redo, history.can_redo);
+                    assert!(std::sync::Arc::ptr_eq(
+                        ctx.plan_cache.lock().unwrap().as_ref().unwrap(),
+                        &plan
+                    ));
+                }
+                // The earlier successful edit can still be redone after failures.
+                assert_eq!(
+                    super::super::project::redo_project(&ctx)
+                        .unwrap()
+                        .objects
+                        .len(),
+                    1
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn mixed_pdf_entry_points_preserve_size_pixels_layers_planning_and_undo() {
+        use base64::Engine;
+        use beambench_core::WorkspaceOrigin;
+        use beambench_planner::PlanSegment;
+        const MM: f64 = 25.4 / 72.0;
+        let bytes = include_bytes!("../../../beambench-core/tests/fixtures/pdf/mixed-modern.pdf");
+        for origin in [WorkspaceOrigin::TopLeft, WorkspaceOrigin::BottomLeft] {
+            for entry_point in 0..3 {
+                let ctx = ServiceContext::new();
+                let mut project = Project::new("Mixed PDF");
+                project.workspace.origin = origin;
+                project.workspace.bed_height_mm = 100.0;
+                project.workspace.bed_width_mm = 100.0;
+                let layer_id = project.ensure_default_layer();
+                let before = project.clone();
+                *ctx.project.lock().unwrap() = Some(project);
+                let directory = tempdir().unwrap();
+                let file = directory.path().join("mixed.pdf");
+                std::fs::write(&file, bytes).unwrap();
+                let objects = match entry_point {
+                    0 => import_vector_file_from_path(
+                        &ctx,
+                        ImportVectorFileInput {
+                            file_path: file.to_string_lossy().into_owned(),
+                            layer_id,
+                            format: VectorImportFormat::Pdf,
+                        },
+                    ),
+                    1 => import_files_from_data(
+                        &ctx,
+                        ImportFilesDataInput {
+                            files: vec![ImportFileData {
+                                filename: "mixed.ai".into(),
+                                data_base64: base64::engine::general_purpose::STANDARD
+                                    .encode(bytes),
+                            }],
+                            layer_id,
+                            create_layer: None,
+                        },
+                    ),
+                    _ => import_art_library_item(
+                        &ctx,
+                        layer_id,
+                        "Mixed PDF",
+                        "mixed.pdf",
+                        "application/pdf",
+                        bytes.to_vec(),
+                    ),
+                }
+                .unwrap();
+                let after = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+                let images: Vec<_> = objects
+                    .iter()
+                    .filter(|o| matches!(o.data, ObjectData::RasterImage { .. }))
+                    .collect();
+                assert_eq!(images.len(), 3);
+                assert_eq!(after.assets.len(), 3);
+                for image in &images {
+                    assert_eq!(
+                        after
+                            .find_layer(image.layer_id)
+                            .unwrap()
+                            .primary_entry()
+                            .operation,
+                        OperationType::Image
+                    );
+                }
+                assert!((images[0].bounds.width() - 32.0 * MM).abs() < 1e-6);
+                assert!((images[0].bounds.height() - 24.0 * MM).abs() < 1e-6);
+                assert!((images[0].bounds.min.x - 58.0 * MM).abs() < 1e-6);
+                assert!((images[0].bounds.min.y - 10.0 * MM).abs() < 1e-6);
+                // Independently derive the source pixel centers from the PDF
+                // fixture matrices, then probe the actual machine scanlines.
+                // Threshold makes geometry probes deterministic even where
+                // resizing the tiny source blends adjacent black/white pixels.
+                // Error-diffusion modes can legitimately leave a probe unburned.
+                let mut planning_project = after.clone();
+                for layer in &mut planning_project.layers {
+                    if let Some(settings) = layer.primary_entry_mut().raster_settings.as_mut() {
+                        settings.mode = beambench_common::RasterMode::Threshold;
+                    }
+                }
+                let plan = build_plan(&planning_project).unwrap();
+                assert!(plan.failed_entries.is_empty());
+                let rows: Vec<_> = plan
+                    .segments
+                    .iter()
+                    .filter_map(|s| match s {
+                        PlanSegment::Raster { scanlines, .. } => Some(scanlines),
+                        _ => None,
+                    })
+                    .flatten()
+                    .collect();
+                assert!(!rows.is_empty());
+                for (a, c, d, tx, ty) in [
+                    (32.0, 0.0, 24.0, 58.0, 66.0),
+                    (-20.0, 8.0, 18.0, 76.0, 38.0),
+                ] {
+                    for y in 0..3 {
+                        for x in 0..4 {
+                            let u = (x as f64 + 0.5) / 4.0;
+                            let v = 1.0 - (y as f64 + 0.5) / 3.0;
+                            let wx = (a * u + c * v + tx) * MM;
+                            let canvas_y = (100.0 - (d * v + ty)) * MM;
+                            let wy = if origin == WorkspaceOrigin::BottomLeft {
+                                100.0 - canvas_y
+                            } else {
+                                canvas_y
+                            };
+                            let burns = rows.iter().any(|row| {
+                                (row.y_mm - wy).abs() < 0.11
+                                    && row
+                                        .runs
+                                        .iter()
+                                        .any(|run| wx > run.start_x_mm && wx < run.end_x_mm)
+                            });
+                            assert_eq!(
+                                burns,
+                                x < 3 - y,
+                                "origin={origin:?} entry={entry_point} transform={a},{c},{d} pixel={x},{y} machine={wx},{wy}"
+                            );
+                        }
+                    }
+                }
+                let ObjectData::RasterImage { masks, .. } = &images[2].data else {
+                    unreachable!()
+                };
+                assert_eq!(masks.len(), 1);
+                let mask = after.find_object(masks[0].object_id).unwrap();
+                assert!(after.find_layer(mask.layer_id).unwrap().is_tool_layer);
+                assert!(objects.iter().any(|o| matches!(&o.data,ObjectData::Group {children} if children.contains(&images[2].id) && children.contains(&mask.id))));
+                for (x, y, expected) in [
+                    (9.0, 47.0, true),
+                    (9.0, 49.0, false),
+                    (7.0, 47.0, false),
+                    (13.0, 43.0, false),
+                    (11.0, 43.0, true),
+                    (9.0, 40.0, true),
+                    (9.0, 38.5, false),
+                    (19.0, 47.0, true),
+                    (22.0, 47.0, false),
+                ] {
+                    let wx = x * MM;
+                    let canvas_y = (100.0 - y) * MM;
+                    let wy = if origin == WorkspaceOrigin::BottomLeft {
+                        100.0 - canvas_y
+                    } else {
+                        canvas_y
+                    };
+                    let burns = rows.iter().any(|row| {
+                        (row.y_mm - wy).abs() < 0.06
+                            && row
+                                .runs
+                                .iter()
+                                .any(|run| wx > run.start_x_mm && wx < run.end_x_mm)
+                    });
+                    assert_eq!(
+                        burns, expected,
+                        "subpixel clip origin={origin:?} entry={entry_point} PDF={x},{y}"
+                    );
+                }
+                let mut expected_undo = before;
+                expected_undo.dirty = true;
+                assert_eq!(
+                    super::super::project::undo_project(&ctx).unwrap(),
+                    expected_undo
+                );
+                assert!(!ctx.undo_state().unwrap().can_undo);
+                assert_eq!(super::super::project::redo_project(&ctx).unwrap(), after);
+            }
+        }
+    }
+
+    #[test]
+    fn image_only_pdf_does_not_create_an_empty_vector_layer() {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("Image-only PDF");
+        project.layers.clear();
+        let layer_id = project
+            .add_layer(Layer::new("Image", OperationType::Image))
+            .id;
+        *ctx.project.lock().unwrap() = Some(project);
+        let bytes = include_bytes!("../../../beambench-core/tests/fixtures/pdf/mixed-classic.pdf");
+        let mut parsed = parse_pdf_vector_import(bytes).unwrap();
+        parsed.paths.clear();
+        parsed.images.truncate(1);
+        let objects = import_pending(
+            &ctx,
+            layer_id,
+            vec![pending_vector_import("image", parsed)],
+            None,
+        )
+        .unwrap();
+        assert_eq!(objects.len(), 1);
+        assert_eq!(objects[0].layer_id, layer_id);
+        assert_eq!(
+            ctx.project.lock().unwrap().as_ref().unwrap().layers.len(),
+            1
+        );
+    }
+
+    #[test]
+    fn mixed_pdf_image_failure_rolls_back_vectors_assets_and_layers() {
+        let ctx = ServiceContext::new();
+        let mut before = Project::new("PDF rollback");
+        let layer_id = before.ensure_default_layer();
+        *ctx.project.lock().unwrap() = Some(before.clone());
+        let bytes = include_bytes!("../../../beambench-core/tests/fixtures/pdf/mixed-classic.pdf");
+        let mut parsed = parse_pdf_vector_import(bytes).unwrap();
+        // Fail after at least one vector and image have been staged.
+        parsed.images[1].png = vec![0, 1, 2];
+        assert!(
+            import_pending(
+                &ctx,
+                layer_id,
+                vec![pending_vector_import("mixed", parsed)],
+                None
+            )
+            .is_err()
+        );
+        assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &before);
+        assert!(!ctx.undo_state().unwrap().can_undo);
+    }
+    #[test]
+    fn new_import_layer_and_mixed_artwork_commit_as_one_undoable_edit() {
+        use base64::Engine;
+        let ctx = ServiceContext::new();
+        let mut before = Project::new("Empty import target");
+        before.layers.clear();
+        *ctx.project.lock().unwrap() = Some(before.clone());
+        let imported = import_files_from_data(
+            &ctx,
+            ImportFilesDataInput {
+                files: vec![ImportFileData {
+                    filename: "mixed.svg".into(),
+                    data_base64: base64::engine::general_purpose::STANDARD
+                        .encode(sample_svg_with_embedded_png()),
+                }],
+                layer_id: Id::from_uuid(uuid::Uuid::nil()),
+                create_layer: Some(new_import_layer(OperationType::Image)),
+            },
+        )
+        .unwrap();
+        assert_eq!(imported.len(), 2);
+        let after = ctx.project.lock().unwrap().as_ref().unwrap().clone();
+        assert_eq!(after.layers.len(), 2);
+        assert_eq!(after.assets.len(), 1);
+        let image_layer = after
+            .layers
+            .iter()
+            .find(|layer| layer.primary_entry().operation == OperationType::Image)
+            .unwrap();
+        assert_eq!(image_layer.color_tag.0, "#FF0000");
+        assert_eq!(image_layer.primary_entry().speed_mm_min, 777.0);
+        assert_eq!(image_layer.primary_entry().power_percent, 42.0);
+        assert!(image_layer.primary_entry().air_assist);
+        // Undo marks restored projects dirty until they are saved again.
+        let mut expected_undo = before;
+        expected_undo.dirty = true;
+        assert_eq!(
+            super::super::project::undo_project(&ctx).unwrap(),
+            expected_undo
+        );
+        assert!(!ctx.undo_state().unwrap().can_undo);
+        assert_eq!(super::super::project::redo_project(&ctx).unwrap(), after);
+    }
+
+    #[test]
+    fn empty_import_does_not_create_a_layer_or_undo_entry() {
+        let ctx = ServiceContext::new();
+        let before = Project::new("Empty import");
+        *ctx.project.lock().unwrap() = Some(before.clone());
+        let imported = import_pending(
+            &ctx,
+            Id::from_uuid(uuid::Uuid::nil()),
+            vec![PendingImport::Svg {
+                bytes: br#"<svg xmlns="http://www.w3.org/2000/svg"/>"#.to_vec(),
+            }],
+            Some(new_import_layer(OperationType::Line)),
+        )
+        .unwrap();
+        assert!(imported.is_empty());
+        assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &before);
+        assert!(!ctx.undo_state().unwrap().can_undo);
     }
 
     #[test]
@@ -2732,6 +3256,7 @@ mod tests {
         let objects = import_files_from_paths(
             &ctx,
             ImportFilesInput {
+                create_layer: None,
                 file_paths: vec![tif_path.to_string_lossy().to_string()],
                 layer_id,
             },
@@ -2764,6 +3289,7 @@ mod tests {
         let objects = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![
                     ImportFileData {
                         filename: "shape.svg".to_string(),
@@ -2799,6 +3325,7 @@ mod tests {
         let objects = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![ImportFileData {
                     filename: "fixture.lbrn2".to_string(),
                     data_base64: base64::engine::general_purpose::STANDARD
@@ -2842,6 +3369,131 @@ mod tests {
     }
 
     #[test]
+    fn lbrn_image_power_scale_survives_import_planning_and_gcode_export() {
+        use base64::Engine;
+        use beambench_planner::PlanSegment;
+        use std::collections::BTreeSet;
+
+        let mut png = Vec::new();
+        image::ImageEncoder::write_image(
+            image::codecs::png::PngEncoder::new(&mut png),
+            &[0; 16],
+            4,
+            4,
+            image::ExtendedColorType::L8,
+        )
+        .unwrap();
+        let data = base64::engine::general_purpose::STANDARD.encode(png);
+
+        // MGL columns, then native LightBurn 1.6.03 reference cases with
+        // nonzero minimum power. In grayscale mode, 50% scales 20..80 to 20..50.
+        for (mode, min, max, scales, expected) in [
+            (
+                "jarvis",
+                0,
+                100,
+                vec![10, 24, 38, 52, 66, 80],
+                vec![(0, 100), (0, 240), (0, 380), (0, 520), (0, 660), (0, 800)],
+            ),
+            (
+                "threshold",
+                20,
+                80,
+                vec![0, 50, 100],
+                vec![(0, 0), (100, 400), (200, 800)],
+            ),
+            (
+                // A zeroed power scale means "do not fire" in both modes. Only
+                // compressing the range would leave a grayscale image burning
+                // flat at the 20% layer minimum over its whole area.
+                "grayscale",
+                20,
+                80,
+                vec![0, 50, 100],
+                vec![(0, 0), (200, 500), (200, 800)],
+            ),
+        ] {
+            for (angle, transform) in [
+                (0, "1 0 0 1"),
+                (45, "1 0 0 1"),
+                (90, "1 0 0 1"),
+                (0, "0 1 -1 0"),
+            ] {
+                let ctx = ServiceContext::with_settings(Default::default());
+                let mut project = Project::new("Image power scale regression");
+                project.workspace.bed_width_mm = 200.0;
+                project.workspace.bed_height_mm = 200.0;
+                let layer_id = project.ensure_default_layer();
+                *ctx.project.lock().unwrap() = Some(project);
+                let shapes: String = scales.iter().enumerate().map(|(i, scale)| format!(
+                    r#"<Shape Type="Bitmap" CutIndex="1" PowerScale="{scale}" W="4" H="4" Data="{data}"><XForm>{transform} {} 20</XForm></Shape>"#,
+                    20 + 10 * i,
+                )).collect();
+                let xml = format!(
+                    r#"<LightBurnProject FormatVersion="0" MirrorX="False" MirrorY="False">
+                      <CutSetting_Img type="Image"><index Value="1"/><name Value="Calibration"/>
+                        <minPower Value="{min}"/><maxPower Value="{max}"/><speed Value="20"/>
+                        <interval Value="0.25"/><angle Value="{angle}"/><ditherMode Value="{mode}"/>
+                      </CutSetting_Img>{shapes}</LightBurnProject>"#
+                );
+                let objects = import_files_from_data(
+                    &ctx,
+                    ImportFilesDataInput {
+                        create_layer: None,
+                        files: vec![ImportFileData {
+                            filename: "calibration.lbrn".into(),
+                            data_base64: base64::engine::general_purpose::STANDARD.encode(xml),
+                        }],
+                        layer_id,
+                    },
+                )
+                .unwrap();
+                assert_eq!(objects.len(), scales.len());
+                for (object, scale) in objects.iter().zip(&scales) {
+                    assert_eq!(object.power_scale, f64::from(*scale) / 100.0);
+                }
+                let (plan, mut spool) =
+                    super::super::planning::prepare_gcode_export(&ctx, &Default::default())
+                        .unwrap();
+                let mut powers: Vec<_> = plan
+                    .segments
+                    .iter()
+                    .filter_map(|segment| {
+                        let PlanSegment::Raster {
+                            power_min_percent,
+                            power_max_percent,
+                            ..
+                        } = segment
+                        else {
+                            return None;
+                        };
+                        Some((
+                            (power_min_percent * 10.0).round() as u32,
+                            (power_max_percent * 10.0).round() as u32,
+                        ))
+                    })
+                    .collect();
+                powers.sort();
+                assert_eq!(powers, expected, "{mode}, angle {angle}, {transform}");
+                let mut emitted = BTreeSet::from([0]);
+                while let Some(line) = spool.next_line().unwrap() {
+                    for word in line.split_whitespace() {
+                        if let Some(value) =
+                            word.strip_prefix('S').and_then(|s| s.parse::<u32>().ok())
+                        {
+                            emitted.insert(value);
+                        }
+                    }
+                }
+                let wanted: BTreeSet<_> = std::iter::once(0)
+                    .chain(expected.iter().map(|(_, max)| *max))
+                    .collect();
+                assert_eq!(emitted, wanted, "{mode}, angle {angle}, {transform}");
+            }
+        }
+    }
+
+    #[test]
     fn lbrn_smooth_circle_preserves_project_contours_for_line_and_fill() {
         use base64::Engine;
 
@@ -2863,6 +3515,7 @@ mod tests {
                 let objects = import_files_from_data(
                     &ctx,
                     ImportFilesDataInput {
+                        create_layer: None,
                         files: vec![ImportFileData {
                             filename: filename.to_string(),
                             data_base64: base64::engine::general_purpose::STANDARD.encode(xml),
@@ -2961,6 +3614,110 @@ mod tests {
     }
 
     #[test]
+    fn lbrn_asymmetric_bitmap_orientation_survives_import_and_planning() {
+        use base64::Engine;
+        use beambench_core::WorkspaceOrigin;
+        use beambench_planner::PlanSegment;
+
+        // Staircase: each row differs, and its white right edge distinguishes
+        // horizontal reflection. Cell centers stay clear of resampling edges.
+        let pixels = [0, 255, 255, 255, 0, 0, 255, 255, 0, 0, 0, 255];
+        let mut png = Vec::new();
+        image::ImageEncoder::write_image(
+            image::codecs::png::PngEncoder::new(&mut png),
+            &pixels,
+            4,
+            3,
+            image::ExtendedColorType::L8,
+        )
+        .unwrap();
+        let data = base64::engine::general_purpose::STANDARD.encode(png);
+        for origin in [WorkspaceOrigin::TopLeft, WorkspaceOrigin::BottomLeft] {
+            for mirror_x in [false, true] {
+                for mirror_y in [false, true] {
+                    for (a, b, c, d) in [
+                        (1.0, 0.0, 0.0, 1.0),
+                        (0.0, 1.0, -1.0, 0.0),
+                        (-1.0, 0.0, 0.0, -1.0),
+                        (0.0, -1.0, 1.0, 0.0),
+                        (-1.0, 0.0, 0.0, 1.0),
+                        (1.0, 0.0, 0.0, -1.0),
+                        (0.8, 0.6, -0.6, 0.8),
+                        (1.0, 0.0, 0.3, 1.0),
+                    ] {
+                        for version in [0, 1] {
+                            // Parent translation exercises nested group composition.
+                            let xml = format!(
+                                r#"<LightBurnProject FormatVersion="{version}" MirrorX="{mirror_x}" MirrorY="{mirror_y}">
+                              <CutSetting_Img type="Image"><index Value="1"/><maxPower Value="30"/><speed Value="20"/><interval Value="1"/><ditherMode Value="threshold"/></CutSetting_Img>
+                              <Shape Type="Group"><XForm>1 0 0 1 10 20</XForm><Children>
+                                <Shape Type="Bitmap" CutIndex="1" W="40" H="30" Data="{data}"><XForm>{a} {b} {c} {d} 90 80</XForm></Shape>
+                              </Children></Shape>
+                            </LightBurnProject>"#
+                            );
+                            let mut project = Project::new("Orientation matrix");
+                            project.workspace.origin = origin;
+                            project.workspace.bed_width_mm = 200.0;
+                            project.workspace.bed_height_mm = 200.0;
+                            import_lbrn_document(
+                                &mut project,
+                                parse_lbrn_project(xml.as_bytes()).unwrap(),
+                            )
+                            .unwrap();
+                            let plan = build_plan(&project).unwrap();
+                            assert!(plan.failed_entries.is_empty());
+                            let rows: Vec<_> = plan
+                                .segments
+                                .iter()
+                                .filter_map(|segment| {
+                                    if let PlanSegment::Raster { scanlines, .. } = segment {
+                                        Some(scanlines)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .flatten()
+                                .collect();
+                            assert!(!rows.is_empty());
+                            for (i, pixel) in pixels.iter().enumerate() {
+                                let x = (i % 4) as f64 * 10.0 - 15.0;
+                                let y = (i / 4) as f64 * 10.0 - 10.0;
+                                let mut wx = a * x + c * y + 100.0;
+                                let mut wy = b * x + d * y + 100.0;
+                                if mirror_x {
+                                    wx = 200.0 - wx;
+                                }
+                                if !mirror_y {
+                                    wy = 200.0 - wy;
+                                }
+                                if origin == WorkspaceOrigin::BottomLeft {
+                                    wy = 200.0 - wy;
+                                }
+                                let row = rows
+                                    .iter()
+                                    .min_by(|left, right| {
+                                        (left.y_mm - wy).abs().total_cmp(&(right.y_mm - wy).abs())
+                                    })
+                                    .unwrap();
+                                let burns = (row.y_mm - wy).abs() < 1.1
+                                    && row
+                                        .runs
+                                        .iter()
+                                        .any(|run| wx > run.start_x_mm && wx < run.end_x_mm);
+                                assert_eq!(
+                                    burns,
+                                    *pixel == 0,
+                                    "origin={origin:?} root={mirror_x}/{mirror_y} matrix={a},{b},{c},{d} version={version} pixel={i} point={wx},{wy}"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn lbrn_world_transform_respects_root_mirror_flags() {
         let mut project = Project::new("Mirrored Lbrn import");
         project.workspace.bed_width_mm = 100.0;
@@ -2992,6 +3749,7 @@ mod tests {
         let err = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![ImportFileData {
                     filename: "shape.svg".to_string(),
                     data_base64: "not!!valid@@base64".to_string(),
@@ -3046,6 +3804,7 @@ mod tests {
         let objects = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![ImportFileData {
                     filename: "big.svg".to_string(),
                     data_base64: base64::engine::general_purpose::STANDARD.encode(svg),
@@ -3172,7 +3931,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let dxf_path = dir.path().join("demo.dxf");
@@ -3258,7 +4017,7 @@ mod tests {
         ] {
             let (ctx, layer_id, configured_red_id) = colored_pdf_import_context();
             let before = ctx.project.lock().unwrap().as_ref().unwrap().clone();
-            *ctx.plan_cache.lock().unwrap() = Some(sample_plan(&before));
+            *ctx.plan_cache.lock().unwrap() = Some((sample_plan(&before)).into());
             let dir = tempdir().unwrap();
             let path = dir.path().join(format!("opaque-state.{extension}"));
             std::fs::write(&path, bytes).unwrap();
@@ -3295,7 +4054,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let pdf_path = dir.path().join("demo.pdf");
@@ -3342,10 +4101,11 @@ mod tests {
     fn colored_pdf_reuses_configured_layer_and_creates_safe_line_layer() {
         let (ctx, requested_id, configured_red_id) = colored_pdf_import_context();
         let bytes = sample_colored_pdf_bytes();
-        let expected_paths: Vec<_> = parse_pdf_painted_paths(&bytes)
+        let expected_paths: Vec<_> = parse_pdf_vector_import(&bytes)
             .unwrap()
+            .paths
             .into_iter()
-            .map(|painted| painted.path.to_svg_d())
+            .map(|path| path.path.to_svg_d())
             .collect();
         let mut rx = ctx.events.subscribe();
 
@@ -3355,6 +4115,7 @@ mod tests {
         let objects = import_files_from_paths(
             &ctx,
             ImportFilesInput {
+                create_layer: None,
                 file_paths: vec![pdf_path.to_string_lossy().to_string()],
                 layer_id: requested_id,
             },
@@ -3425,6 +4186,7 @@ mod tests {
         let objects = import_files_from_data(
             &ctx,
             ImportFilesDataInput {
+                create_layer: None,
                 files: vec![ImportFileData {
                     filename: "red-blue.pdf".to_string(),
                     data_base64: base64::engine::general_purpose::STANDARD
@@ -3553,7 +4315,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let ai_path = dir.path().join("demo.ai");
@@ -3641,7 +4403,7 @@ mod tests {
         let layer_id = project.ensure_default_layer();
         let plan = sample_plan(&project);
         *ctx.project.lock().unwrap() = Some(project);
-        *ctx.plan_cache.lock().unwrap() = Some(plan);
+        *ctx.plan_cache.lock().unwrap() = Some((plan).into());
 
         let dir = tempdir().unwrap();
         let gcode_path = dir.path().join("demo.gcode");

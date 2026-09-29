@@ -5,7 +5,9 @@ use crate::error::StreamerError;
 use crate::progress::ProgressTracker;
 use beambench_common::ConsoleEntry;
 use beambench_common::machine::{JobProgress, JobProgressBucket, JobState, MachineRunState};
-use beambench_grbl::{GcodeConfig, GrblSession, generate_gcode};
+#[cfg(test)]
+use beambench_grbl::generate_gcode;
+use beambench_grbl::{GcodeConfig, GcodeSpool, GrblSession};
 use beambench_planner::{ExecutionPlan, PlanSegment};
 use std::time::{Duration, Instant};
 
@@ -39,10 +41,9 @@ pub struct JobController {
 impl JobController {
     /// Prepare a job from an execution plan.
     pub fn prepare(plan: &ExecutionPlan, config: &GcodeConfig) -> Result<Self, StreamerError> {
-        let commands = generate_gcode(plan, config)?;
-        StreamingEngine::validate_commands(&commands)?;
-        let total = commands.len();
-        let engine = StreamingEngine::new_with_transfer_mode(commands, config.transfer_mode);
+        let spool = GcodeSpool::generate(plan, config)?;
+        let total = spool.len();
+        let engine = StreamingEngine::from_spool(spool, config.transfer_mode);
         let progress = ProgressTracker::with_buckets_and_duration(
             total,
             build_progress_buckets(plan),
@@ -309,6 +310,59 @@ mod tests {
         session.poll().unwrap();
         session.mark_ready().unwrap();
         session
+    }
+
+    #[test]
+    fn spooled_job_preserves_every_command_across_windows_and_pause_resume() {
+        for mode in [
+            beambench_core::TransferMode::Buffered,
+            beambench_core::TransferMode::Synchronous,
+        ] {
+            let mut plan = make_plan();
+            plan.segments.extend((0..200).map(|i| PlanSegment::Travel {
+                start: Point2D::zero(),
+                end: Point2D::new(i as f64, 10.0),
+            }));
+            let config = GcodeConfig {
+                transfer_mode: mode,
+                ..Default::default()
+            };
+            let expected = generate_gcode(&plan, &config).unwrap();
+            let spool = GcodeSpool::generate(&plan, &config).unwrap();
+            let mut engine = StreamingEngine::from_spool(spool, mode);
+            let mut session = make_ready_session();
+            session.clear_console_log();
+            let mut progress = ProgressTracker::new(expected.len());
+            let mut paused = false;
+            for _ in 0..expected.len() + 10 {
+                let sent = engine.send_tick(&mut session, &mut progress).unwrap();
+                if !paused && sent > 0 {
+                    engine.pause();
+                    assert_eq!(engine.send_tick(&mut session, &mut progress).unwrap(), 0);
+                    engine.resume();
+                    paused = true;
+                }
+                for _ in 0..sent {
+                    engine
+                        .handle_response(&beambench_grbl::parser::GrblResponse::Ok, &mut progress)
+                        .unwrap();
+                }
+                if engine.all_acknowledged() {
+                    break;
+                }
+            }
+            assert!(engine.all_acknowledged());
+            let actual: Vec<_> = session
+                .get_console_log(1000)
+                .into_iter()
+                .rev()
+                .filter(|e| e.direction == beambench_common::console::ConsoleDirection::Sent)
+                .map(|e| e.content)
+                .collect();
+            assert_eq!(actual, expected);
+            engine.cancel();
+            assert_eq!(engine.send_tick(&mut session, &mut progress).unwrap(), 0);
+        }
     }
 
     #[test]

@@ -164,6 +164,7 @@ export function Canvas() {
   const pendingPointerMoveRef = useRef<MouseEventLike | null>(null);
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
+  const pointerGestureRef = useRef<{ id: number; button: number; tool: CanvasTool | null } | null>(null);
   const spaceHeldRef = useRef(false);
   const statusMsgRef = useRef('');
   const prevToolRef = useRef<ToolType>('select');
@@ -1091,6 +1092,44 @@ export function Canvas() {
     setSelectionIsolationPath,
   ]);
 
+  const cancelPointerGesture = useCallback(() => {
+    const gesture = pointerGestureRef.current;
+    pointerGestureRef.current = null;
+    pendingPointerMoveRef.current = null;
+    cancelAnimationFrame(pointerMoveRafRef.current);
+    pointerMoveRafRef.current = 0;
+    isPanningRef.current = false;
+    spaceHeldRef.current = false;
+    pointerDragCandidateRef.current = null;
+    rulerDragAxisRef.current = null;
+    setRulerGuidePreview(null);
+    const cameraDrag = cameraOverlayAdjustDragRef.current;
+    if (cameraDrag) {
+      useCameraStore.getState().setDraftOverlayTransform(cameraDrag.startTransform, cameraDrag.preDragDirty);
+      cameraOverlayAdjustDragRef.current = null;
+    }
+    if (gesture?.tool) {
+      const ctx = buildToolContext();
+      const cancellable = gesture.tool as CanvasTool & { cancelDrag?: (ctx: ToolContext) => boolean };
+      if (!cancellable.cancelDrag?.(ctx)) gesture.tool.reset();
+    }
+    const canvas = overlayCanvasRef.current;
+    if (gesture && canvas?.hasPointerCapture(gesture.id)) canvas.releasePointerCapture(gesture.id);
+    scheduleInteractionStop();
+    requestRender();
+  }, [buildToolContext, requestRender, scheduleInteractionStop]);
+
+  // Lost key-up and pointer-up events are common when switching applications.
+  useEffect(() => {
+    const onHidden = () => { if (document.hidden) cancelPointerGesture(); };
+    window.addEventListener('blur', cancelPointerGesture);
+    document.addEventListener('visibilitychange', onHidden);
+    return () => {
+      window.removeEventListener('blur', cancelPointerGesture);
+      document.removeEventListener('visibilitychange', onHidden);
+    };
+  }, [cancelPointerGesture]);
+
   const processPointerMove = useCallback(
     (e: MouseEventLike) => {
       const canvas = overlayCanvasRef.current;
@@ -1234,6 +1273,8 @@ export function Canvas() {
   // Pointer handlers (pointer events + capture so drags work beyond canvas bounds)
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      if (pointerGestureRef.current) cancelPointerGesture();
+      pointerGestureRef.current = { id: e.pointerId, button: e.button, tool: null };
       pendingPointerMoveRef.current = null;
       cancelAnimationFrame(pointerMoveRafRef.current);
       pointerMoveRafRef.current = 0;
@@ -1409,10 +1450,12 @@ export function Canvas() {
         const pointerTool = TOOL_INSTANCES[
           resolveWorkspaceCanvasTool(liveUi.workspaceMode, liveUi.activeTool)
         ];
+        pointerGestureRef.current = { id: e.pointerId, button: e.button, tool: pointerTool };
         pointerTool.onMouseDown(me, ctx);
       }
     },
     [
+      cancelPointerGesture,
       buildMouseEvent,
       buildToolContext,
       beginInteraction,
@@ -1433,6 +1476,12 @@ export function Canvas() {
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      const gesture = pointerGestureRef.current;
+      if (gesture && gesture.id !== e.pointerId) return;
+      if (gesture && (e.buttons & (gesture.button === 1 ? 4 : 1)) === 0) {
+        cancelPointerGesture();
+        return;
+      }
       pendingPointerMoveRef.current = {
         clientX: e.clientX,
         clientY: e.clientY,
@@ -1453,7 +1502,7 @@ export function Canvas() {
         }
       });
     },
-    [processPointerMove],
+    [processPointerMove, cancelPointerGesture],
   );
 
   const flushPointerMove = useCallback(() => {
@@ -1470,6 +1519,9 @@ export function Canvas() {
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      const gesture = pointerGestureRef.current;
+      if (!gesture || gesture.id !== e.pointerId) return;
+      pointerGestureRef.current = null;
       // WebKit can defer every pointermove in a short drag until the same
       // animation frame as pointerup. Commit that final move before releasing
       // the tool gesture; dropping it makes Warp appear completely inert.
@@ -1515,7 +1567,7 @@ export function Canvas() {
         const pointerTool = TOOL_INSTANCES[
           resolveWorkspaceCanvasTool(liveUi.workspaceMode, liveUi.activeTool)
         ];
-        pointerTool.onMouseUp(me, ctx);
+        (gesture.tool ?? pointerTool).onMouseUp(me, ctx);
         scheduleInteractionStop();
       }
     },
@@ -1972,6 +2024,8 @@ export function Canvas() {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={cancelPointerGesture}
+        onLostPointerCapture={() => { if (pointerGestureRef.current) cancelPointerGesture(); }}
         onDoubleClick={handleDoubleClick}
         onPointerLeave={handleMouseLeave}
         onContextMenu={handleCanvasContextMenu}

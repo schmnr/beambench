@@ -55,7 +55,8 @@ fn plan(case: &RasterCase) -> ExecutionPlan {
                     start_x_mm: case.run_start_x_mm,
                     end_x_mm: case.run_end_x_mm,
                     power_values: Vec::new(),
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,

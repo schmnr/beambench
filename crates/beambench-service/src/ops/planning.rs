@@ -2,7 +2,7 @@ use beambench_common::StartFromMode;
 use beambench_common::geometry::{Bounds, Point2D};
 use beambench_core::object::{ObjectData, ProjectObject};
 use beambench_core::{DisplayUnit, MachineProfile, Project, WorkspaceOrigin};
-use beambench_grbl::generate_gcode;
+use beambench_grbl::GcodeSpool;
 use beambench_planner::{
     BoundsAxis, BoundsBoundary, BoundsViolation, ExecutionPlan, PlanStats, PlannerCancellation,
     PlannerError, PlannerInput, build_plan_with_input_and_cache, translate_segments,
@@ -11,9 +11,10 @@ use beambench_preview::{PreviewData, distill_preview};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use crate::context::ServiceContext;
@@ -189,7 +190,13 @@ fn build_plan_for_project(
     project: &Project,
     selection_origin_bounds: Option<Bounds>,
 ) -> ServiceResult<ExecutionPlan> {
-    build_plan_for_snapshot(ctx, project, selection_origin_bounds, &active_profile(ctx)?)
+    build_plan_for_snapshot(
+        ctx,
+        project,
+        selection_origin_bounds,
+        &active_profile(ctx)?,
+        &ctx.latest_planning_request_id,
+    )
 }
 
 fn build_plan_for_snapshot(
@@ -197,6 +204,7 @@ fn build_plan_for_snapshot(
     project: &Project,
     selection_origin_bounds: Option<Bounds>,
     profile: &MachineProfile,
+    request_counter: &Arc<AtomicU64>,
 ) -> ServiceResult<ExecutionPlan> {
     ensure_positioning_ready(ctx, project)?;
     let runtime = ctx
@@ -210,13 +218,10 @@ fn build_plan_for_snapshot(
         .lock()
         .map_err(|e| lock_err("settings", e))?
         .display_unit;
-    let request_id = ctx
-        .latest_planning_request_id
-        .fetch_add(1, Ordering::AcqRel)
-        + 1;
+    let request_id = request_counter.fetch_add(1, Ordering::AcqRel) + 1;
     let input =
         PlannerInput::new(project.optimization.clone(), runtime, calibration).with_cancellation(
-            PlannerCancellation::new(Arc::clone(&ctx.latest_planning_request_id), request_id),
+            PlannerCancellation::new(Arc::clone(request_counter), request_id),
         );
     let input = if let Some(bounds) = selection_origin_bounds {
         input.with_job_origin_bounds(bounds)
@@ -224,6 +229,11 @@ fn build_plan_for_snapshot(
         input
     };
 
+    // A build that ran to completion is returned even if a newer request has
+    // since been queued. The planner already aborts stale work from inside its
+    // own loops; re-checking afterwards only discarded finished plans, so an
+    // Export or Start-job build failed whenever a routine preview refresh was
+    // issued while it was running.
     build_plan_with_input_and_cache(project, &input, &ctx.raster_cache, &ctx.scaled_image_cache)
         .map_err(|e| match e {
             PlannerError::Cancelled => ServiceError::stale_revision("Plan generation cancelled"),
@@ -421,18 +431,22 @@ pub fn generate_plan_with_options(
     options: &SessionJobOptions,
 ) -> ServiceResult<ExecutionPlan> {
     sync_current_position(ctx)?;
-    generate_plan_with_options_after_sync(ctx, options)
+    generate_plan_with_options_after_sync(ctx, options).map(|plan| (*plan).clone())
 }
 
 fn generate_plan_with_options_after_sync(
     ctx: &ServiceContext,
     options: &SessionJobOptions,
-) -> ServiceResult<ExecutionPlan> {
+) -> ServiceResult<Arc<ExecutionPlan>> {
     let project = current_project(ctx)?;
     let use_project_cache = !options.affects_plan();
     let (effective_project, selection_origin_bounds) =
         apply_session_job_options(project.clone(), options)?;
-    let plan = build_plan_for_project(ctx, &effective_project, selection_origin_bounds)?;
+    let plan = Arc::new(build_plan_for_project(
+        ctx,
+        &effective_project,
+        selection_origin_bounds,
+    )?);
     if use_project_cache {
         let mut guard = ctx
             .plan_cache
@@ -468,12 +482,20 @@ pub(crate) fn prepare_job_snapshot(
     let project = current_project(ctx)?;
     let profile = active_profile(ctx)?;
     let (effective, origin) = apply_session_job_options(project.clone(), options)?;
-    let plan = build_plan_for_snapshot(ctx, &effective, origin, &profile)?;
+    let plan = build_plan_for_snapshot(
+        ctx,
+        &effective,
+        origin,
+        &profile,
+        &ctx.latest_job_planning_request_id,
+    )?;
     Ok((plan, project, profile))
 }
 
 pub fn cancel_planning(ctx: &ServiceContext) -> ServiceResult<()> {
     ctx.latest_planning_request_id
+        .fetch_add(1, Ordering::AcqRel);
+    ctx.latest_job_planning_request_id
         .fetch_add(1, Ordering::AcqRel);
     ctx.emit_event("planning.cancelled", json!({}));
     Ok(())
@@ -487,8 +509,16 @@ pub fn ensure_current_plan_with_options(
     ctx: &ServiceContext,
     options: &SessionJobOptions,
 ) -> ServiceResult<ExecutionPlan> {
+    ensure_shared_plan_with_options(ctx, options).map(|plan| (*plan).clone())
+}
+
+fn ensure_shared_plan_with_options(
+    ctx: &ServiceContext,
+    options: &SessionJobOptions,
+) -> ServiceResult<Arc<ExecutionPlan>> {
     if options.affects_plan() {
-        return generate_plan_with_options(ctx, options);
+        sync_current_position(ctx)?;
+        return generate_plan_with_options_after_sync(ctx, options);
     }
 
     // Sync live machine position so CurrentPosition mode always uses fresh data.
@@ -521,13 +551,13 @@ pub fn require_current_plan(ctx: &ServiceContext) -> ServiceResult<ExecutionPlan
         .plan_cache
         .lock()
         .map_err(|e| lock_err("plan_cache", e))?;
-    guard.clone().ok_or_else(|| {
+    guard.as_ref().map(|plan| (**plan).clone()).ok_or_else(|| {
         ServiceError::invalid_state("No execution plan available. Generate a plan first.")
     })
 }
 
 pub fn get_plan_stats(ctx: &ServiceContext) -> ServiceResult<PlanStats> {
-    Ok(ensure_current_plan(ctx)?.stats())
+    Ok(ensure_shared_plan_with_options(ctx, &SessionJobOptions::default())?.stats())
 }
 
 pub fn generate_preview(ctx: &ServiceContext) -> ServiceResult<PreviewData> {
@@ -538,7 +568,7 @@ pub fn generate_preview_with_options(
     ctx: &ServiceContext,
     options: &SessionJobOptions,
 ) -> ServiceResult<PreviewData> {
-    let plan = ensure_current_plan_with_options(ctx, options)?;
+    let plan = ensure_shared_plan_with_options(ctx, options)?;
     let project = current_project(ctx)?;
     let offset = trusted_grbl_work_to_machine_offset(ctx)?;
     let display_plan = plan_in_machine_coordinates(&plan, &project, offset);
@@ -564,9 +594,10 @@ pub fn export_gcode_to_path_with_options(
     path: &std::path::Path,
     options: &SessionJobOptions,
 ) -> ServiceResult<String> {
-    let (plan, gcode_lines) = prepare_gcode_export(ctx, options)?;
-    std::fs::write(path, gcode_lines.join("\n"))
-        .map_err(|e| ServiceError::persistence(format!("Failed to write G-code file: {e}")))?;
+    let (plan, mut gcode_lines) = prepare_gcode_export(ctx, options)?;
+    // Preparation and validation finish before replacing any destination file.
+    write_gcode_export(&mut gcode_lines, path)
+        .map_err(|e| ServiceError::persistence(e.to_string()))?;
     ctx.emit_event(
         "preview.gcode.exported",
         json!({
@@ -579,12 +610,57 @@ pub fn export_gcode_to_path_with_options(
     Ok(path.to_string_lossy().to_string())
 }
 
+/// Write a prepared export to `path`, shared by the desktop and the CLI.
+///
+/// A regular file is staged beside the resolved destination and renamed over
+/// it, so the rename stays within one filesystem even through a symlink to
+/// another volume. Devices and pipes (`/dev/stdout`, a FIFO) cannot be renamed
+/// over and are written directly, as is an existing file in a directory the
+/// user cannot create files in.
+pub fn write_gcode_export(
+    spool: &mut GcodeSpool,
+    path: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let target = crate::persist::resolve_export_target(path);
+    let existing = std::fs::metadata(&target).ok();
+    fn write_in_place(
+        spool: &mut GcodeSpool,
+        target: &std::path::Path,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(target)?;
+        spool.copy_to(&mut file)?;
+        Ok(())
+    }
+    if existing.as_ref().is_some_and(|meta| !meta.is_file()) {
+        return write_in_place(spool, &target);
+    }
+    let parent = target
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(std::path::Path::new("."));
+    let mut output = match tempfile::NamedTempFile::new_in(parent) {
+        Ok(output) => output,
+        Err(error)
+            if error.kind() == std::io::ErrorKind::PermissionDenied && existing.is_some() =>
+        {
+            return write_in_place(spool, &target);
+        }
+        Err(error) => return Err(error.into()),
+    };
+    spool.copy_to(output.as_file_mut())?;
+    crate::persist::persist_export(output, &target)?;
+    Ok(())
+}
+
 /// Generate checked output for the desktop and standalone CLI. No file is
 /// written until the complete plan, machine bounds and runtime requirements pass.
 pub fn prepare_gcode_export(
     ctx: &ServiceContext,
     options: &SessionJobOptions,
-) -> ServiceResult<(ExecutionPlan, Vec<String>)> {
+) -> ServiceResult<(ExecutionPlan, GcodeSpool)> {
     let (plan, project, profile) = prepare_job_snapshot(ctx, options)?;
     if plan.segments.is_empty() {
         return Err(ServiceError::invalid_state(
@@ -634,7 +710,7 @@ pub fn prepare_gcode_export(
     output::validate_rotary_feed_limit(&plan, &profile).map_err(ServiceError::invalid_state)?;
     let offset = trusted_grbl_work_to_machine_offset(ctx)?;
     let output_plan = plan_in_grbl_coordinates(&plan, &project, offset);
-    let gcode_lines = generate_gcode(&output_plan, &gcode_config)
+    let gcode_lines = GcodeSpool::generate_for_file(&output_plan, &gcode_config)
         .map_err(|e| ServiceError::invalid_state(format!("G-code generation failed: {e}")))?;
     Ok((plan, gcode_lines))
 }
@@ -660,30 +736,30 @@ fn translated_plan(plan: &ExecutionPlan, dx: f64, dy: f64) -> ExecutionPlan {
     translated
 }
 
-pub(crate) fn plan_in_machine_coordinates(
-    plan: &ExecutionPlan,
+pub(crate) fn plan_in_machine_coordinates<'a>(
+    plan: &'a ExecutionPlan,
     project: &Project,
     work_to_machine_offset: Option<(f64, f64)>,
-) -> ExecutionPlan {
+) -> Cow<'a, ExecutionPlan> {
     if project.start_from != StartFromMode::AbsoluteCoords
         && let Some((dx, dy)) = work_to_machine_offset
     {
-        return translated_plan(plan, dx, dy);
+        return Cow::Owned(translated_plan(plan, dx, dy));
     }
-    plan.clone()
+    Cow::Borrowed(plan)
 }
 
-pub(crate) fn plan_in_grbl_coordinates(
-    plan: &ExecutionPlan,
+pub(crate) fn plan_in_grbl_coordinates<'a>(
+    plan: &'a ExecutionPlan,
     project: &Project,
     work_to_machine_offset: Option<(f64, f64)>,
-) -> ExecutionPlan {
+) -> Cow<'a, ExecutionPlan> {
     if project.start_from == StartFromMode::AbsoluteCoords
         && let Some((dx, dy)) = work_to_machine_offset
     {
-        return translated_plan(plan, -dx, -dy);
+        return Cow::Owned(translated_plan(plan, -dx, -dy));
     }
-    plan.clone()
+    Cow::Borrowed(plan)
 }
 
 #[cfg(test)]
@@ -698,6 +774,27 @@ mod tests {
 
     use crate::ServiceErrorCode;
     use crate::ops::imports::{ImportSvgInput, import_svg_from_path};
+
+    #[test]
+    fn preview_and_stats_share_the_cached_plan_and_borrow_unchanged_coordinates() {
+        let ctx = create_test_ctx_with_project();
+        let options = SessionJobOptions::default();
+        let first = ensure_shared_plan_with_options(&ctx, &options).unwrap();
+        let second = ensure_shared_plan_with_options(&ctx, &options).unwrap();
+        assert!(Arc::ptr_eq(&first, &second));
+        let project = current_project(&ctx).unwrap();
+        assert!(matches!(
+            plan_in_machine_coordinates(&first, &project, None),
+            Cow::Borrowed(_)
+        ));
+        let preview = generate_preview(&ctx).unwrap();
+        assert_eq!(preview.revision_hash, first.revision_hash);
+        get_plan_stats(&ctx).unwrap();
+        assert!(Arc::ptr_eq(
+            ctx.plan_cache.lock().unwrap().as_ref().unwrap(),
+            &first
+        ));
+    }
 
     /// Helper: mutate the currently-open project's `optimization` block
     /// in-place. Persisted optimization state lives on the project, not on

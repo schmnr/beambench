@@ -145,6 +145,8 @@ describe('ControllerChoiceControls', () => {
         .getAllByRole('option')
         .map((option) => option.textContent),
     ).toEqual([
+      'GRBL',
+      'Generic GRBL-compatible (Experimental)',
       'Auto-detect',
       'FluidNC (Experimental)',
       'grblHAL (Experimental)',

@@ -11,3 +11,6 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 serialport = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

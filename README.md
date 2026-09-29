@@ -9,6 +9,8 @@ support.
 
 - For product help or to submit an in-app diagnostic report, visit
   [Beam Bench Support](https://beambench.com/support).
+- For disappearing USB serial ports on Linux, see
+  [Linux serial troubleshooting](docs/linux-serial-troubleshooting.md).
 - To set up a fixed overhead camera, follow the
   [camera calibration guide](docs/camera-calibration.md).
 - For command-line automation and offline export requirements, read the

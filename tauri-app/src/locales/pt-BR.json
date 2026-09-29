@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Rede (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2053,6 +2053,7 @@
         "finish_position": "Posição final",
         "finish_return_to_origin": "Voltar à origem",
         "frame": "Quadro",
+        "frame_speed": "Velocidade de enquadramento",
         "frame_laser_on": "Quadro: Laser ligado",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",
@@ -2189,6 +2190,10 @@
         "preview": "Visualização",
         "no_changes": "Sem alterações.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Predefinição baseada na documentação para Sculpfun S30 Pro 10W com GRBL 1.1f ou posterior. Os testes na máquina estão pendentes.",
+            "advisory": "Área de trabalho de 380 x 385 mm, S1000, assistência de ar M8/M9. Confira o curso e o valor S máximo da sua máquina. Ative a busca da origem somente após instalar os interruptores fornecidos e configurar o firmware. Extensões da estrutura precisam de dimensões próprias."
+          },
           "sculpfun_s9": {
             "description": "Predefinição baseada na documentação para a Sculpfun S9 original com GRBL 1.1f ou posterior. Os testes na máquina estão pendentes.",
             "advisory": "Área de trabalho conservadora de 410 x 415 mm. Verifique os cursos dos eixos e o valor S máximo da máquina. O retorno à origem e a assistência de ar automática estão desativados; ative-os apenas para acessórios instalados e configurados. Sem sensores de origem, use Posição atual ou Origem do usuário."
@@ -2334,6 +2339,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY está em execução e a porta serial USB está indisponível. Ele pode estar usando o adaptador; confira o registro.",
+      "brltty_help": "Resolver problemas com BRLTTY",
+      "brltty_check": "Procure uma tomada de controle deste dispositivo USB pelo BRLTTY, seguida de desconexão serial:",
+      "brltty_stop": "Se o registro confirmar um conflito e você não usar braille, pare o BRLTTY temporariamente com o laser ocioso. Depois, reconecte o USB e tente novamente:",
+      "brltty_restore": "Para restaurar o suporte a braille:",
+      "brltty_persistence": "A parada é temporária. Os nomes dos serviços variam; se ele reiniciar ou não existir, confira as regras de dispositivos BRLTTY da sua distribuição. Se você usa braille, mantenha o BRLTTY ativo e procure uma correção específica para o dispositivo.",
       "none_captured": "Nada capturado",
       "no_snapshot": "Sem captura",
       "refresh_aria": "Atualizar diagnóstico",
@@ -2637,10 +2648,12 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "A parada de emergência foi acionada durante a preparação do trabalho. Nada foi enviado.",
+    "sleep_protection_failed": "Não foi possível impedir que o computador entrasse em suspensão durante este trabalho. Mantenha o computador ativo até o término do trabalho.",
     "operation_failed_with_detail": "Falha na operação: {detail}",
     "raster_plan_too_complex": "Esta imagem cria movimentos raster individuais demais com o tamanho e o DPI atuais. Reduza o DPI ou o tamanho físico, ou escolha um modo de imagem menos fragmentado, e gere a visualização novamente.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
-    "serial_port_unavailable": "Could not open {port}. Another application may be using this port, or the controller may have been disconnected. Close other laser or serial software, reconnect the controller, and try again.",
+    "serial_port_unavailable": "Não foi possível abrir {port}. Outro aplicativo pode estar usando essa porta, ou o controlador pode ter sido desconectado. Feche outros programas de controle de laser ou de comunicação serial, reconecte o controlador e tente novamente.",
     "lihuiyu_incompatible_windows_driver": "This Lihuiyu controller is using an incompatible Windows USB driver. Beam Bench requires WinUSB for device 1a86:5512. Change the driver, reconnect the controller, then refresh the USB list. Changing the driver may prevent vendor software from using the controller until its original driver is restored.",
     "ruida_unknown_variant": "Beam Bench found a Ruida controller it does not yet recognize. No file or motion command was sent. Submit a bug report and include the controller model and firmware shown on its panel.",
     "ruida_probe_inconclusive": "Beam Bench could not complete the read-only Ruida compatibility check. No file or motion command was sent. Check the network connection, then submit a bug report if it happens again.",

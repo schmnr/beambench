@@ -263,7 +263,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 2.0,
                     power_values: vec![64, 192],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,

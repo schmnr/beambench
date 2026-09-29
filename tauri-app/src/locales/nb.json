@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Nettverk (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2053,6 +2053,7 @@
         "finish_position": "Avslutt posisjon",
         "finish_return_to_origin": "Gå tilbake til opprinnelsen",
         "frame": "Ramme",
+        "frame_speed": "Rammehastighet",
         "frame_laser_on": "Ramme: Laser On",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",
@@ -2189,6 +2190,10 @@
         "preview": "Forhåndsvisning",
         "no_changes": "Ingen endringer.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Dokumentasjonsbasert forhåndsinnstilling for Sculpfun S30 Pro 10W med GRBL 1.1f eller nyere. Testing på maskinen gjenstår.",
+            "advisory": "Arbeidsområde 380 x 385 mm, S1000, luftassistanse M8/M9. Kontroller maskinens vandring og maksimale S-verdi. Aktiver homing først etter at de medfølgende bryterne er montert og fastvaren er konfigurert. Rammeutvidelser krever egne mål."
+          },
           "sculpfun_s9": {
             "description": "Dokumentasjonsbasert forhåndsinnstilling for den opprinnelige Sculpfun S9 med GRBL 1.1f eller nyere. Testing på maskinen gjenstår.",
             "advisory": "Konservativt arbeidsområde på 410 x 415 mm. Kontroller aksenes vandring og maskinens maksimale S-verdi. Referansekjøring og automatisk luftassistanse er av; aktiver bare for installerte og konfigurerte oppgraderinger. Bruk Gjeldende posisjon eller Brukerorigo uten referansebrytere."
@@ -2334,6 +2339,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY kjører, og USB-serieporten er utilgjengelig. BRLTTY bruker kanskje adapteren; kontroller loggen.",
+      "brltty_help": "Feilsøk BRLTTY",
+      "brltty_check": "Se etter at BRLTTY overtar denne USB-enheten, etterfulgt av en brutt seriell forbindelse:",
+      "brltty_stop": "Hvis loggen bekrefter en konflikt og du ikke bruker punktskrift, stopp BRLTTY midlertidig mens laseren er inaktiv. Koble deretter til USB igjen og prøv på nytt:",
+      "brltty_restore": "Gjenopprett støtte for punktskrift:",
+      "brltty_persistence": "Stoppen er midlertidig. Tjenestenavn varierer; hvis tjenesten starter igjen eller mangler, kontroller distribusjonens BRLTTY-enhetsregler. Bruker du punktskrift, la BRLTTY kjøre og finn en enhetsspesifikk løsning.",
       "none_captured": "Ingenting fanget",
       "no_snapshot": "Ingen øyeblikksbilde",
       "refresh_aria": "Oppdater diagnostikk",
@@ -2637,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "Nødstopp ble trykket inn mens jobben ble klargjort. Ingenting ble sendt.",
+    "sleep_protection_failed": "Kunne ikke hindre at datamaskinen går i hvilemodus under denne jobben. Hold datamaskinen våken til jobben er ferdig.",
     "operation_failed_with_detail": "Operasjonen mislyktes: {detail}",
     "raster_plan_too_complex": "Dette bildet lager for mange individuelle rasterbevegelser med gjeldende størrelse og DPI. Reduser DPI eller fysisk størrelse, eller velg en mindre fragmentert bildemodus, og generer deretter forhåndsvisningen på nytt.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

@@ -1,5 +1,5 @@
 import type { MachineProfile } from './machine';
-import type { RasterAdjustments } from './project';
+import type { AnchorPoint, RasterAdjustments } from './project';
 
 // `CommandResult<T>` was a documented-but-never-used shape. Tauri
 // commands return the data type directly and throw on error; no wrapper is
@@ -69,6 +69,7 @@ export interface AppSettings {
   dark_mode: boolean;
   antialiasing: boolean;
   artwork_display_mode?: ArtworkDisplayMode;
+  transform_anchor?: AnchorPoint;
   /** Legacy settings-file field; canvas rendering uses artwork_display_mode. */
   filled_rendering: boolean;
   reduce_motion: boolean;

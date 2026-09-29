@@ -91,6 +91,7 @@ pub enum LbrnShape {
     },
     Bitmap {
         layer_index: u32,
+        power_scale: f64,
         transform: Transform2D,
         width_mm: f64,
         height_mm: f64,
@@ -444,6 +445,10 @@ fn parse_shape(
                 .to_string();
             Some(LbrnShape::Bitmap {
                 layer_index,
+                power_scale: parse_attr_f64(node, "PowerScale")
+                    .unwrap_or(100.0)
+                    .clamp(0.0, 100.0)
+                    / 100.0,
                 transform,
                 width_mm: parse_attr_f64(node, "W").unwrap_or(0.0).abs(),
                 height_mm: parse_attr_f64(node, "H").unwrap_or(0.0).abs(),
@@ -1298,6 +1303,31 @@ mod tests {
     }
 
     #[test]
+    fn bitmap_power_scale_is_normalized_and_defaults_to_full_power() {
+        for version in [0, 1] {
+            for (attribute, expected) in [
+                ("", 1.0),
+                (r#"PowerScale="0""#, 0.0),
+                (r#"PowerScale="68""#, 0.68),
+                (r#"PowerScale="100""#, 1.0),
+                (r#"PowerScale="-10""#, 0.0),
+                (r#"PowerScale="120""#, 1.0),
+            ] {
+                let xml = project_xml(&format!(
+                    r#"<LBRN_PROJECT_ROOT FormatVersion="{version}">
+                      <Shape Type="Bitmap" {attribute} Data="AQID" W="10" H="10"/>
+                    </LBRN_PROJECT_ROOT>"#
+                ));
+                let parsed = parse_lbrn_project(xml.as_bytes()).unwrap();
+                let LbrnShape::Bitmap { power_scale, .. } = &parsed.shapes[0] else {
+                    panic!("expected bitmap")
+                };
+                assert_eq!(*power_scale, expected, "{attribute}, version {version}");
+            }
+        }
+    }
+
+    #[test]
     fn resolves_reused_bitmap_data_by_source_identity() {
         let xml = project_xml(
             r#"<LBRN_PROJECT_ROOT AppVersion="1.6.03" FormatVersion="1">
@@ -1305,7 +1335,7 @@ mod tests {
           <Shape Type="Bitmap" CutIndex="0" File="art.png" SourceHash="7" Data="AQID" W="10" H="20">
             <XForm>1 0 0 1 0 0</XForm>
           </Shape>
-          <Shape Type="Bitmap" CutIndex="0" File="art.png" SourceHash="7" W="10" H="20">
+          <Shape Type="Bitmap" CutIndex="0" File="art.png" SourceHash="7" PowerScale="24" W="10" H="20">
             <XForm>1 0 0 1 30 40</XForm>
           </Shape>
         </LBRN_PROJECT_ROOT>"#,
@@ -1314,7 +1344,10 @@ mod tests {
         assert_eq!(parsed.shapes.len(), 2);
         assert!(parsed.warnings.is_empty());
         let LbrnShape::Bitmap {
-            data, transform, ..
+            data,
+            transform,
+            power_scale,
+            ..
         } = &parsed.shapes[1]
         else {
             panic!("expected reused bitmap")
@@ -1322,5 +1355,6 @@ mod tests {
         assert_eq!(data, &[1, 2, 3]);
         assert_eq!(transform.tx, 30.0);
         assert_eq!(transform.ty, 40.0);
+        assert_eq!(*power_scale, 0.24);
     }
 }

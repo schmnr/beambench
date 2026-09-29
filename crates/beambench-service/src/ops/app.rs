@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use beambench_common::AnchorPoint;
 use beambench_core::diagnostics::{self, DiagnosticsBundle};
 use beambench_core::settings::{ExportSettings, PanelLayout};
 use beambench_core::{
@@ -29,6 +30,7 @@ pub struct UpdateAppSettingsInput {
     pub dark_mode: Option<bool>,
     pub antialiasing: Option<bool>,
     pub artwork_display_mode: Option<ArtworkDisplayMode>,
+    pub transform_anchor: Option<AnchorPoint>,
     pub filled_rendering: Option<bool>,
     pub reduce_motion: Option<bool>,
     pub show_palette_labels: Option<bool>,
@@ -131,6 +133,9 @@ pub fn apply_app_settings_update(
     }
     if let Some(v) = input.artwork_display_mode {
         next_settings.artwork_display_mode = v;
+    }
+    if let Some(anchor) = input.transform_anchor {
+        next_settings.transform_anchor = anchor;
     }
     if let Some(v) = input.filled_rendering {
         next_settings.filled_rendering = v;
@@ -364,6 +369,37 @@ mod tests {
     use crate::ServiceContext;
     use crate::test_support::PersistTestGuard;
     use beambench_core::settings::ZoneState;
+
+    #[test]
+    fn transform_anchor_survives_restarting_the_service() {
+        let _guard = PersistTestGuard::new();
+        let ctx = ServiceContext::new();
+        for anchor in [
+            AnchorPoint::TopLeft,
+            AnchorPoint::TopCenter,
+            AnchorPoint::TopRight,
+            AnchorPoint::CenterLeft,
+            AnchorPoint::Center,
+            AnchorPoint::CenterRight,
+            AnchorPoint::BottomLeft,
+            AnchorPoint::BottomCenter,
+            AnchorPoint::BottomRight,
+        ] {
+            update_app_settings(
+                &ctx,
+                UpdateAppSettingsInput {
+                    transform_anchor: Some(anchor),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let restarted = ServiceContext::new();
+            assert_eq!(
+                get_app_settings(&restarted).unwrap().transform_anchor,
+                anchor
+            );
+        }
+    }
 
     #[test]
     fn update_app_settings_emits_event() {

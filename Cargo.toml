@@ -29,7 +29,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.24"
+version = "0.2.25"
 edition = "2024"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/schmnr/beambench"
@@ -67,5 +67,6 @@ regex = "1"
 flate2 = "1"
 
 [patch.crates-io]
+lopdf = { path = "vendor/lopdf" }
 serialport = { path = "vendor/serialport" }
 u-nesting-d2 = { path = "vendor/u-nesting-d2" }

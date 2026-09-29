@@ -389,6 +389,16 @@ mod tests {
     }
 
     #[test]
+    fn portuguese_windows_access_denied_preserves_os_detail_and_port_guidance() {
+        let error = serialport::Error::new(serialport::ErrorKind::NoDevice, "Acesso negado.");
+        let message = map_open_error_for_platform("COM3", error, true).to_string();
+        assert!(message.contains("[serial_port_unavailable]"));
+        assert!(message.contains("COM3: Acesso negado."));
+        assert!(message.contains("another application"));
+        assert!(!message.contains("dialout"));
+    }
+
+    #[test]
     fn permission_denied_open_error_gets_actionable_message() {
         let error = serialport::Error::new(
             serialport::ErrorKind::Io(std::io::ErrorKind::PermissionDenied),
@@ -415,5 +425,130 @@ mod tests {
 
         assert!(matches!(mapped, SerialError::ConnectionFailed(_)));
         assert_eq!(mapped.to_string(), "connection failed: No such file");
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_real_pty_contention_disconnect_and_reopen() {
+        use serialport::SerialPort;
+        let _guard = SERIAL_TRAFFIC_TEST_LOCK.lock().unwrap();
+        let (mut master, slave) = serialport::TTYPort::pair().unwrap();
+        let name = slave.name().unwrap();
+        drop(slave);
+        let mut first = RealSerialTransport::new_without_dtr(&name, 115_200);
+        first.open().unwrap();
+        let mut second = RealSerialTransport::new_without_dtr(&name, 115_200);
+        assert!(
+            second.open().is_err(),
+            "a second opener must not steal an exclusive port"
+        );
+        assert!(!second.is_open());
+        first.write_bytes(b"?\n").unwrap();
+        let mut query = [0; 2];
+        master.read_exact(&mut query).unwrap();
+        assert_eq!(&query, b"?\n");
+        master.write_all(b"<Idle|MPos:1,2,0>\n").unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        let line = loop {
+            if let Some(line) = first.read_line().unwrap() {
+                break line;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "status reply timed out"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        };
+        assert_eq!(line, "<Idle|MPos:1,2,0>");
+        first.close().unwrap();
+        second.open().unwrap();
+        master.write_all(b"incomplete-old-session").unwrap();
+        // Observe a partial line, then ensure close/open clears it.
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while second.line_buffer.is_empty() {
+            assert_eq!(second.read_line().unwrap(), None);
+            assert!(std::time::Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        second.close().unwrap();
+        second.open().unwrap();
+        assert!(second.line_buffer.is_empty());
+        drop(master);
+        assert!(
+            second.read_available().is_err(),
+            "a removed PTY must not look idle"
+        );
+        assert!(matches!(
+            second.write_bytes(b"?"),
+            Err(SerialError::WriteFailed(_))
+        ));
+        second.close().unwrap();
+        assert!(second.open().is_err());
+        assert!(!second.is_open());
+    }
+
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    fn native_access_denied_is_actionable() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("denied-device");
+        std::fs::write(&path, b"").unwrap();
+        let path = path.canonicalize().unwrap();
+        let original = std::fs::metadata(&path).unwrap().permissions();
+        let mut denied = original.clone();
+        #[cfg(windows)]
+        denied.set_readonly(true);
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::fs::{MetadataExt, PermissionsExt};
+            assert_ne!(
+                std::fs::metadata(&path).unwrap().uid(),
+                0,
+                "run native serial tests as an unprivileged user"
+            );
+            denied.set_mode(0);
+        }
+        std::fs::set_permissions(&path, denied).unwrap();
+        let mut transport = RealSerialTransport::new_without_dtr(path.to_str().unwrap(), 115_200);
+        let result = transport.open();
+        std::fs::set_permissions(&path, original).unwrap();
+        let error = result.unwrap_err();
+        if cfg!(windows) {
+            assert!(
+                matches!(error, SerialError::PortUnavailable { .. }),
+                "{error}"
+            );
+        } else {
+            assert!(matches!(error, SerialError::AccessDenied { .. }), "{error}");
+        }
+        assert!(!transport.is_open());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_native_invalid_device_and_failed_handle_io() {
+        use std::os::windows::io::{FromRawHandle, IntoRawHandle};
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().canonicalize().unwrap().join("missing-device");
+        let mut transport =
+            RealSerialTransport::new_without_dtr(missing.to_str().unwrap(), 115_200);
+        assert!(matches!(
+            transport.open(),
+            Err(SerialError::PortUnavailable { .. })
+        ));
+        let path = dir.path().join("read-only-handle");
+        std::fs::write(&path, b"").unwrap();
+        let file = std::fs::File::open(&path).unwrap();
+        // A real Windows handle that rejects serial ioctls and writes exercises
+        // ClearCommError/WriteFile error propagation without inventing OS text
+        // or installing a virtual COM driver on the runner.
+        let port = unsafe { serialport::COMPort::from_raw_handle(file.into_raw_handle()) };
+        transport.port = Some(Box::new(port));
+        assert!(transport.read_available().is_err());
+        assert!(matches!(
+            transport.write_bytes(b"?"),
+            Err(SerialError::WriteFailed(_))
+        ));
+        transport.close().unwrap();
+        assert!(!transport.is_open());
     }
 }

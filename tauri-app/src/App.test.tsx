@@ -1305,6 +1305,17 @@ describe('Keyboard shortcuts', () => {
     expect(closeSpy).not.toHaveBeenCalled();
   });
 
+  it('warns when the OS cannot protect an active job from sleep', async () => {
+    await renderApp();
+    const appEventListener = getAppEventListener();
+    const message = '[sleep_protection_failed] Could not prevent computer sleep during this job. Keep the computer awake until the job ends. Native power manager unavailable.';
+    await act(async () => {
+      await appEventListener({ payload: makeAppEvent('job.sleep_protection_failed', { message }) });
+    });
+    expect(useNotificationStore.getState().notifications.some((notice) => notice.type === 'warning' && notice.message.includes('Keep the computer awake'))).toBe(true);
+    expect(useNotificationStore.getState().notifications.some((notice) => notice.message.includes('[sleep_protection_failed]'))).toBe(false);
+  });
+
   it('surfaces import completion events as notifications', async () => {
     await renderApp();
     const appEventListener = getAppEventListener();

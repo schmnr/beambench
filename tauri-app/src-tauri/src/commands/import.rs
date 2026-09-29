@@ -327,10 +327,12 @@ pub fn import_files(
     svc: State<'_, Arc<ServiceContext>>,
     file_paths: Vec<String>,
     layer_id: String,
+    create_layer: Option<beambench_service::ops::project::AddObjectLayerInput>,
 ) -> Result<Vec<ProjectObject>, String> {
     imports::import_files_from_paths(
         &svc,
         imports::ImportFilesInput {
+            create_layer,
             file_paths,
             layer_id: parse_id(&layer_id)?,
         },
@@ -345,10 +347,12 @@ pub fn import_file_data(
     svc: State<'_, Arc<ServiceContext>>,
     files: Vec<imports::ImportFileData>,
     layer_id: String,
+    create_layer: Option<beambench_service::ops::project::AddObjectLayerInput>,
 ) -> Result<Vec<ProjectObject>, String> {
     imports::import_files_from_data(
         &svc,
         imports::ImportFilesDataInput {
+            create_layer,
             files,
             layer_id: parse_id(&layer_id)?,
         },
@@ -404,6 +408,7 @@ pub fn pick_and_import_files(
     imports::import_files_from_paths(
         &svc,
         imports::ImportFilesInput {
+            create_layer: None,
             file_paths,
             layer_id: parse_id(&layer_id)?,
         },

@@ -1731,10 +1731,13 @@ fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                 return Err("G-code output must not overwrite the input project".into());
             }
             let ctx = offline_project_context(&input_path, true)?;
-            let (_, gcode_lines) =
+            let (_, mut gcode_lines) =
                 beambench_service::ops::planning::prepare_gcode_export(&ctx, &Default::default())?;
-            let gcode_content = gcode_lines.join("\n");
-            std::fs::write(&output, &gcode_content)?;
+            beambench_service::ops::planning::write_gcode_export(
+                &mut gcode_lines,
+                std::path::Path::new(&output),
+            )
+            .map_err(|e| e.to_string())?;
 
             if json {
                 println!(
@@ -1742,7 +1745,7 @@ fn handle_export(cmd: ExportCmd, json: bool) -> Result<(), Box<dyn std::error::E
                     serde_json::json!({
                         "output": output,
                         "lines": gcode_lines.len(),
-                        "bytes": gcode_content.len(),
+                        "bytes": gcode_lines.bytes(),
                     })
                 );
             } else {

@@ -34,7 +34,7 @@ import type {
   OffsetDirection,
 } from '../types/vector';
 import { projectService, type DrawOrderDirection } from '../services/projectService';
-import { importService } from '../services/importService';
+import { importService, type ImportLayer } from '../services/importService';
 import { persistenceService } from '../services/persistenceService';
 import { previewService } from '../services/previewService';
 import { sessionJobOptions } from '../types/jobOptions';
@@ -341,43 +341,6 @@ function computeMirrorAcrossLineSelection(
     sourceIds: commandIds.filter((objectId) => objectId !== axisObjectId),
     axisObjectId,
   };
-}
-
-/**
- * Execute a `NeedsBackendCreate` request from the layer-family
- * resolver: addLayer + updateLayer(color_tag + speed/power/name
- * inheritance). Returns the new layer with the updated fields
- * pre-applied so callers can splice it into local state without a
- * round-trip refresh.
- */
-async function createFamilySiblingLayer(req: NeedsBackendCreate) {
-  const created = decorateLayer(await projectService.addLayer(req.suggestedName, req.operation));
-  const colorSynced = decorateLayer(await projectService.updateLayer(created.id, { color_tag: req.colorTag }));
-  if (colorSynced.is_tool_layer) {
-    return colorSynced;
-  }
-  let entry = primaryEntryOf(colorSynced);
-  if (req.copyFrom) {
-    const sourceEntry = primaryEntryOf(req.copyFrom);
-    entry = await projectService.updateCutEntry(created.id, entry.id, {
-      speed_mm_min: sourceEntry.speed_mm_min,
-      power_percent: sourceEntry.power_percent,
-      power_min_percent: sourceEntry.power_min_percent,
-      air_assist: sourceEntry.air_assist,
-      z_offset_mm: sourceEntry.z_offset_mm,
-      gcode_prefix: sourceEntry.gcode_prefix,
-      gcode_suffix: sourceEntry.gcode_suffix,
-    });
-  }
-  const paletteEntry = PALETTE_COLORS.find(
-    (c) => c.hex.toLowerCase() === req.colorTag.toLowerCase(),
-  );
-  return decorateLayer({
-    ...colorSynced,
-    color_tag: req.colorTag,
-    entries: [{ ...entry }],
-    is_tool_layer: paletteEntry?.is_tool_layer ?? false,
-  });
 }
 
 interface ProjectStoreState {
@@ -1946,8 +1909,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
   importFilePaths: async (filePaths, layerId) => {
     const artworkPaths = filePaths.filter((path) => !isGcodeImportName(path));
-    await importArtworkBatch(artworkPaths, layerId, (resolvedLayerId) =>
-      importService.importFilePaths(artworkPaths, resolvedLayerId),
+    await importArtworkBatch(artworkPaths, layerId, (resolvedLayerId, createLayer) =>
+      createLayer
+        ? importService.importFilePaths(artworkPaths, resolvedLayerId, createLayer)
+        : importService.importFilePaths(artworkPaths, resolvedLayerId),
     );
   },
 
@@ -1956,7 +1921,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     await importArtworkBatch(
       artworkFiles.map((file) => file.filename),
       layerId,
-      (resolvedLayerId) => importService.importFileData(artworkFiles, resolvedLayerId),
+      (resolvedLayerId, createLayer) => createLayer
+        ? importService.importFileData(artworkFiles, resolvedLayerId, createLayer)
+        : importService.importFileData(artworkFiles, resolvedLayerId),
     );
   },
 
@@ -3796,72 +3763,57 @@ function isGcodeImportName(name: string): boolean {
 async function importArtworkBatch(
   artworkNames: string[],
   requestedLayerId: string | undefined,
-  doImport: (layerId: string) => Promise<ProjectObject[]>,
+  doImport: (layerId: string, createLayer?: ImportLayer) => Promise<ProjectObject[]>,
 ): Promise<void> {
   const store = useProjectStore.getState();
-  let projectSnapshot = store.project;
+  const projectSnapshot = store.project;
   const pendingAtEntry = store.pendingPaletteColor;
   const selectedAtEntry = store.selectedLayerId;
-  const resolveImportLayerId = async (contentKind: 'raster' | 'non_raster') => {
-    let resolvedLayerId =
-      requestedLayerId ?? selectedAtEntry ?? projectSnapshot?.layers[0]?.id ?? null;
+  if (!projectSnapshot || artworkNames.length === 0) return;
 
-    if (projectSnapshot) {
-      let out = resolveDestinationLayer({
-        project: projectSnapshot,
-        requestedLayerId: requestedLayerId ?? null,
-        pendingColor: pendingAtEntry,
-        selectedLayerId: selectedAtEntry,
-        contentKind,
-      });
-      if (out.kind === 'needs_create') {
-        const req = out as NeedsBackendCreate;
-        const newLayer = await createFamilySiblingLayer(req);
-        projectSnapshot = {
-          ...projectSnapshot,
-          layers: [...projectSnapshot.layers, newLayer],
-        };
-        out = resolveDestinationLayer({
-          project: projectSnapshot,
-          requestedLayerId: requestedLayerId ?? null,
-          pendingColor: pendingAtEntry,
-          selectedLayerId: selectedAtEntry,
-          contentKind,
-        });
-        if (out.kind === 'needs_create') {
-          resolvedLayerId = newLayer.id;
-        }
-      }
-      if (out.kind === 'resolved' && out.layerId !== AUTO_LAYER_ID) {
-        resolvedLayerId = out.layerId;
-      }
+  const contentKind = artworkNames.some(isRasterImportName) ? 'raster' : 'non_raster';
+  const destination = resolveDestinationLayer({
+    project: projectSnapshot,
+    requestedLayerId: requestedLayerId ?? null,
+    pendingColor: pendingAtEntry,
+    selectedLayerId: selectedAtEntry,
+    contentKind,
+  });
+  let layerId = requestedLayerId ?? selectedAtEntry ?? projectSnapshot.layers[0]?.id ?? NIL_UUID;
+  let createLayer: ImportLayer | undefined;
+  if (destination.kind === 'needs_create') {
+    const source = destination.copyFrom ? primaryEntryOf(destination.copyFrom) : null;
+    createLayer = {
+      name: destination.suggestedName,
+      operation: destination.operation,
+      color_tag: destination.colorTag,
+    };
+    if (source && destination.operation !== 'tool') {
+      createLayer.entry_patch = {
+        speed_mm_min: source.speed_mm_min,
+        power_percent: source.power_percent,
+        power_min_percent: source.power_min_percent,
+        air_assist: source.air_assist,
+        z_offset_mm: source.z_offset_mm,
+        gcode_prefix: source.gcode_prefix,
+        gcode_suffix: source.gcode_suffix,
+      };
     }
-
-    if (!resolvedLayerId || (projectSnapshot?.layers.length ?? 0) === 0) {
-      const [nextLayerName, nextLayerOp] =
-        contentKind === 'raster' ? ['Image', 'image' as const] : ['Line', 'line' as const];
-      const createdLayer = await projectService.addLayer(nextLayerName, nextLayerOp);
-      projectSnapshot = projectSnapshot
-        ? { ...projectSnapshot, layers: [...projectSnapshot.layers, createdLayer] }
-        : projectSnapshot;
-      resolvedLayerId = createdLayer.id;
-    }
-
-    return resolvedLayerId;
-  };
-
-  const importedObjects: ProjectObject[] = [];
-  if (artworkNames.length > 0) {
-    const artworkContentKind = artworkNames.some(isRasterImportName)
-      ? ('raster' as const)
-      : ('non_raster' as const);
-    const artworkLayerId = await resolveImportLayerId(artworkContentKind);
-    if (artworkLayerId) {
-      importedObjects.push(...(await doImport(artworkLayerId)));
-    }
+  } else if (destination.layerId !== AUTO_LAYER_ID) {
+    layerId = destination.layerId;
   }
-
+  if (!createLayer && (layerId === AUTO_LAYER_ID || projectSnapshot.layers.length === 0)) {
+    createLayer = {
+      name: contentKind === 'raster' ? 'Image' : 'Line',
+      operation: contentKind === 'raster' ? 'image' : 'line',
+      color_tag: PALETTE_COLORS.find((color) => !color.is_tool_layer)?.hex ?? '#000000',
+    };
+  }
+  if (layerId === AUTO_LAYER_ID) layerId = NIL_UUID;
+  // Layer creation and artwork insertion commit together in the backend.
+  const importedObjects = await doImport(layerId, createLayer);
   if (importedObjects.length === 0) return;
+
   const { project } = useProjectStore.getState();
   if (project) {
     // Reload full project to get assets list and layers in sync

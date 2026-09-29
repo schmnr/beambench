@@ -993,6 +993,26 @@ describe('machineStore frame-selected toggle', () => {
     });
   });
 
+  it('E-stop invalidates variable-text preparation before waiting for its backend reply', async () => {
+    let releaseText!: (value: boolean) => void;
+    let releaseStop!: () => void;
+    useProjectStore.setState({
+      advanceAutoVariableText: vi.fn(() => new Promise<boolean>((resolve) => { releaseText = resolve; })),
+    });
+    mockedMachine.emergencyStop.mockImplementationOnce(() => new Promise<void>((resolve) => { releaseStop = resolve; }));
+    mockedMachine.getSessionState.mockResolvedValueOnce('ready');
+    useMachineStore.setState({ showPreflightDialog: true });
+    const start = useMachineStore.getState().startJob();
+    const stop = useMachineStore.getState().emergencyStop();
+    expect(useMachineStore.getState().showPreflightDialog).toBe(false);
+    releaseText(true);
+    await start;
+    expect(mockedMachine.startJob).not.toHaveBeenCalled();
+    expect(useMachineStore.getState().loading).toBe(false);
+    releaseStop();
+    await stop;
+  });
+
   it('startJob advances auto variable text before starting the machine job', async () => {
     const callOrder: string[] = [];
     const advanceAutoVariableText = vi.fn(async () => {

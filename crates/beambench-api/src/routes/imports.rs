@@ -89,6 +89,7 @@ async fn import_files(
     let objects = imports::import_files_from_paths(
         &ctx,
         imports::ImportFilesInput {
+            create_layer: None,
             file_paths: body.file_paths,
             layer_id: parse_layer_id(&body.layer_id)?,
         },

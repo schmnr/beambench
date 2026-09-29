@@ -59,6 +59,37 @@ afterEach(() => {
 });
 
 describe('ConnectionDiagnosticsPanel', () => {
+  it('shows BRLTTY guidance only for the diagnostic warning, with stop and restore kept separate', async () => {
+    vi.mocked(feedbackService.getConnectionDiagnostics).mockResolvedValue({
+      ...snapshot,
+      system: { os: 'linux', os_version: 'Linux Mint 21.3', arch: 'x86_64', brltty_running: true, brltty_version: '6.4-4ubuntu3' },
+      known_issues: [{ code: 'linux_brltty_possible_conflict', severity: 'warning', message: 'Backend fallback' }],
+    });
+    render(<ConnectionDiagnosticsPanel />);
+    const summary = await screen.findByText('Troubleshoot BRLTTY');
+    const details = summary.closest('details')!;
+    expect(details.open).toBe(false);
+    fireEvent.click(summary);
+    expect(details.open).toBe(true);
+    expect(screen.getByText(/It may be claiming the adapter/)).toBeDefined();
+    expect(screen.getByText(/do not use braille/)).toBeDefined();
+    expect(screen.getByText('sudo systemctl stop brltty.service')).toBeDefined();
+    expect(screen.getByText('sudo systemctl start brltty.service')).toBeDefined();
+    expect(screen.getByText('Linux Mint 21.3')).toBeDefined();
+    expect(screen.getByText('BRLTTY 6.4-4ubuntu3')).toBeDefined();
+    expect(feedbackService.saveReport).not.toHaveBeenCalled();
+  });
+
+  it('does not warn merely because BRLTTY is running', async () => {
+    vi.mocked(feedbackService.getConnectionDiagnostics).mockResolvedValue({
+      ...snapshot,
+      system: { os: 'linux', arch: 'x86_64', brltty_running: true },
+    });
+    render(<ConnectionDiagnosticsPanel />);
+    await screen.findByText('/dev/cu.usbserial-test');
+    expect(screen.queryByText('Troubleshoot BRLTTY')).toBeNull();
+  });
+
   it('opens a connectivity report dialog request from Send to Beam Bench', async () => {
     const openHandler = vi.fn();
     window.addEventListener('beam-bench-open-feedback-report', openHandler);

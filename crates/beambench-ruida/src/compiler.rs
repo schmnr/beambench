@@ -1020,8 +1020,8 @@ fn compile_raster_lines(
             let max = run.start_x_mm.max(run.end_x_mm);
             if is_ltr { (min, max) } else { (max, min) }
         };
-        let (row_start, _) = directed_bounds(runs[0]);
-        let (_, row_end) = directed_bounds(runs[runs.len() - 1]);
+        let (row_start, _) = directed_bounds(&runs[0]);
+        let (_, row_end) = directed_bounds(&runs[runs.len() - 1]);
         let overscan_start = row_start - direction * overscan_mm;
         let overscan_end = row_end + direction * overscan_mm;
         let mut motions = Vec::new();
@@ -1038,7 +1038,7 @@ fn compile_raster_lines(
 
         let mut current_pos = row_start;
         for run in runs {
-            let (run_start, run_end) = directed_bounds(run);
+            let (run_start, run_end) = directed_bounds(&run);
             if (run_start - current_pos).abs() > 1e-9 {
                 motions.push(NativeRasterMotion::Move(to_native(
                     run_start,
@@ -1479,7 +1479,8 @@ mod tests {
                     start_x_mm: 1.0,
                     end_x_mm: 3.0,
                     power_values,
-                }],
+                }]
+                .into(),
                 direction,
             }],
             line_interval_mm: 0.1,
@@ -1689,8 +1690,8 @@ mod tests {
         } = &mut raster
         {
             scanlines[0].y_mm = 0.0;
-            scanlines[0].runs[0].start_x_mm = 0.0;
-            scanlines[0].runs[0].end_x_mm = 2.0;
+            scanlines[0].runs.iter_mut().next().unwrap().start_x_mm = 0.0;
+            scanlines[0].runs.iter_mut().next().unwrap().end_x_mm = 2.0;
             *scan_angle_deg = 45.0;
             *scan_origin = Point2D::new(10.0, 20.0);
             *overscan_mm = 0.0;

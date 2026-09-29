@@ -5,8 +5,8 @@ use crate::error::StreamerError;
 use crate::progress::ProgressTracker;
 use beambench_common::console::{ConsoleDirection, ConsoleEntry};
 use beambench_core::TransferMode;
-use beambench_grbl::GrblSession;
 use beambench_grbl::parser::GrblResponse;
+use beambench_grbl::{GcodeSpool, GrblSession};
 use chrono::Utc;
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -28,18 +28,44 @@ fn is_air_assist_command(command: &str) -> bool {
     )
 }
 
+const MAX_CONSOLE_ENTRIES: usize = 1_000;
+
+enum Commands {
+    Memory(Vec<String>),
+    Spool(GcodeSpool),
+}
+impl Commands {
+    fn len(&self) -> usize {
+        match self {
+            Self::Memory(lines) => lines.len(),
+            Self::Spool(spool) => spool.len(),
+        }
+    }
+    fn next(&mut self, index: usize) -> Result<String, StreamerError> {
+        match self {
+            Self::Memory(lines) => Ok(lines[index].clone()),
+            Self::Spool(spool) => spool.next_line()?.ok_or_else(|| {
+                StreamerError::JobFailed(
+                    "G-code spool ended before the validated command count".into(),
+                )
+            }),
+        }
+    }
+}
+
 /// Streaming engine that manages the flow of G-code commands to GRBL.
 pub struct StreamingEngine {
-    commands: Vec<String>,
+    commands: Commands,
     next_index: usize,
     bytes_in_flight: usize,
-    sent_sizes: VecDeque<usize>,
+    sent_commands: VecDeque<String>,
+    pending_command: Option<String>,
     paused: bool,
     cancelled: bool,
     failed: bool,
     transfer_mode: TransferMode,
     error_message: Option<String>,
-    console_log: Vec<ConsoleEntry>,
+    console_log: VecDeque<ConsoleEntry>,
     pause_position: Option<(f64, f64)>,
 }
 
@@ -63,17 +89,26 @@ impl StreamingEngine {
     }
 
     pub fn new_with_transfer_mode(commands: Vec<String>, transfer_mode: TransferMode) -> Self {
+        Self::from_commands(Commands::Memory(commands), transfer_mode)
+    }
+
+    pub fn from_spool(spool: GcodeSpool, transfer_mode: TransferMode) -> Self {
+        Self::from_commands(Commands::Spool(spool), transfer_mode)
+    }
+
+    fn from_commands(commands: Commands, transfer_mode: TransferMode) -> Self {
         Self {
             commands,
             next_index: 0,
             bytes_in_flight: 0,
-            sent_sizes: VecDeque::new(),
+            sent_commands: VecDeque::new(),
+            pending_command: None,
             paused: false,
             cancelled: false,
             failed: false,
             transfer_mode,
             error_message: None,
-            console_log: Vec::new(),
+            console_log: VecDeque::new(),
             pause_position: None,
         }
     }
@@ -112,10 +147,10 @@ impl StreamingEngine {
     /// G4 blocks its acknowledgement while the controller may report Idle.
     /// Read the oldest pending block, including compact/custom G-code forms.
     pub(crate) fn pending_dwell_duration(&self) -> Option<Duration> {
-        if self.sent_sizes.is_empty() {
+        if self.sent_commands.is_empty() {
             return None;
         }
-        let command = &self.commands[self.next_index - self.sent_sizes.len()];
+        let command = self.sent_commands.front()?;
         let mut block = String::new();
         let mut comment = false;
         for byte in command.bytes() {
@@ -157,7 +192,7 @@ impl StreamingEngine {
 
     /// Check if all commands have been acknowledged.
     pub fn all_acknowledged(&self) -> bool {
-        self.all_sent() && self.sent_sizes.is_empty()
+        self.all_sent() && self.sent_commands.is_empty()
     }
 
     /// Send as many commands as fit within the GRBL RX buffer.
@@ -171,7 +206,10 @@ impl StreamingEngine {
         }
         // Optional coolant commands differ across GRBL controllers. Wait for
         // their acknowledgement before putting following motion on the wire.
-        if !self.sent_sizes.is_empty() && is_air_assist_command(&self.commands[self.next_index - 1])
+        if self
+            .sent_commands
+            .back()
+            .is_some_and(|command| is_air_assist_command(command))
         {
             return Ok(0);
         }
@@ -182,7 +220,16 @@ impl StreamingEngine {
             if self.transfer_mode == TransferMode::Synchronous && self.bytes_in_flight > 0 {
                 break;
             }
-            let cmd = &self.commands[self.next_index];
+            if self.pending_command.is_none() {
+                match self.commands.next(self.next_index) {
+                    Ok(command) => self.pending_command = Some(command),
+                    Err(error) => {
+                        self.fail(error.to_string(), progress);
+                        return Err(error);
+                    }
+                }
+            }
+            let cmd = self.pending_command.as_ref().unwrap();
             let cmd_size = cmd.len() + 1; // +1 for \n
             let wait_for_ack = is_air_assist_command(cmd);
             if wait_for_ack && self.bytes_in_flight > 0 {
@@ -204,18 +251,19 @@ impl StreamingEngine {
 
             session.send_command(cmd)?;
             self.bytes_in_flight += cmd_size;
-            self.sent_sizes.push_back(cmd_size);
+            self.sent_commands.push_back(cmd.clone());
             self.next_index += 1;
             progress.record_sent();
             sent_count += 1;
 
             // Log sent command
-            self.console_log.push(ConsoleEntry {
+            self.log(ConsoleEntry {
                 timestamp: Utc::now(),
                 direction: ConsoleDirection::Sent,
                 content: cmd.clone(),
             });
 
+            self.pending_command = None;
             debug!(
                 cmd_index = self.next_index - 1,
                 bytes_in_flight = self.bytes_in_flight,
@@ -237,7 +285,7 @@ impl StreamingEngine {
         progress: &mut ProgressTracker,
     ) -> Result<(), StreamerError> {
         // Log received response
-        self.console_log.push(ConsoleEntry {
+        self.log(ConsoleEntry {
             timestamp: Utc::now(),
             direction: ConsoleDirection::Received,
             content: format!("{:?}", response),
@@ -251,8 +299,8 @@ impl StreamingEngine {
 
         match response {
             GrblResponse::Ok => {
-                if let Some(size) = self.sent_sizes.pop_front() {
-                    self.bytes_in_flight = self.bytes_in_flight.saturating_sub(size);
+                if let Some(command) = self.sent_commands.pop_front() {
+                    self.bytes_in_flight = self.bytes_in_flight.saturating_sub(command.len() + 1);
                     progress.record_acknowledged();
                     progress.set_buffer_fill(self.bytes_in_flight);
                 } else {
@@ -262,9 +310,9 @@ impl StreamingEngine {
             GrblResponse::Error(code) => {
                 let msg = beambench_grbl::parser::error_message(*code);
                 let mut message = format!("GRBL error {code}: {msg}");
-                if !self.sent_sizes.is_empty() {
-                    let index = self.next_index - self.sent_sizes.len();
-                    let command = &self.commands[index];
+                if !self.sent_commands.is_empty() {
+                    let index = self.next_index - self.sent_commands.len();
+                    let command = self.sent_commands.front().unwrap();
                     message.push_str(&format!(" at G-code line {}: {command}", index + 1));
                     if *code == 20 && is_air_assist_command(command) {
                         message.push_str(
@@ -296,6 +344,13 @@ impl StreamingEngine {
             }
         }
         Ok(())
+    }
+
+    fn log(&mut self, entry: ConsoleEntry) {
+        if self.console_log.len() == MAX_CONSOLE_ENTRIES {
+            self.console_log.pop_front();
+        }
+        self.console_log.push_back(entry);
     }
 
     /// Pause the engine.
@@ -344,6 +399,20 @@ mod tests {
         let engine = StreamingEngine::new(commands);
         let progress = ProgressTracker::new(total);
         (session, engine, progress)
+    }
+
+    #[test]
+    fn long_job_retains_only_recent_console_entries() {
+        let (_, mut engine, mut progress) = make_session_and_engine(vec![]);
+        for _ in 0..10_000 {
+            engine
+                .handle_response(&GrblResponse::Ok, &mut progress)
+                .unwrap();
+        }
+        assert_eq!(
+            engine.get_console_entries(20_000).len(),
+            MAX_CONSOLE_ENTRIES
+        );
     }
 
     #[test]

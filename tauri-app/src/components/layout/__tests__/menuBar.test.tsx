@@ -902,6 +902,27 @@ describe('MenuBar', () => {
     expect(startJob).not.toHaveBeenCalled();
   });
 
+  it('does not resume a menu Start after E-stop during preview generation', async () => {
+    let release!: (value: boolean) => void;
+    const generatePreview = vi.fn(() => new Promise<boolean>((resolve) => { release = resolve; }));
+    const runPreflight = vi.fn().mockResolvedValue({ outcome: 'pass', checks: [] });
+    const startJob = vi.fn();
+    setProjectWithSelection(['txt1']);
+    setMachineReady();
+    useMachineStore.setState({ runPreflight, startJob });
+    usePreviewStore.setState({ state: 'idle', generatePreview } as never);
+    render(<MenuBar />);
+    fireEvent.click(screen.getByText('Machine'));
+    fireEvent.click(screen.getByText('Start Job'));
+    await waitFor(() => expect(generatePreview).toHaveBeenCalled());
+    await act(async () => {
+      useMachineStore.setState((state) => ({ emergencyStopGeneration: state.emergencyStopGeneration + 1 }));
+      release(true);
+    });
+    expect(runPreflight).not.toHaveBeenCalled();
+    expect(startJob).not.toHaveBeenCalled();
+  });
+
   it('disables Start Job while preview generation is already running', () => {
     setProjectWithSelection(['txt1']);
     setMachineReady();

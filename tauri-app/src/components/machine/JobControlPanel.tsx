@@ -46,18 +46,19 @@ export function JobControlPanel({ onShowPreflight }: JobControlPanelProps) {
 
     startInFlightRef.current = true;
     setStartInFlight(true);
+    const stopGeneration = useMachineStore.getState().emergencyStopGeneration;
 
     try {
       let previewReady = previewState === 'current';
       if (!previewReady) {
         previewReady = await generatePreview();
       }
-      if (!previewReady) {
+      if (!previewReady || useMachineStore.getState().emergencyStopGeneration !== stopGeneration) {
         return;
       }
 
       const report = await runPreflight();
-      if (!report) return;
+      if (!report || useMachineStore.getState().emergencyStopGeneration !== stopGeneration) return;
       if (report.outcome === 'pass') {
         await startJob();
       } else {

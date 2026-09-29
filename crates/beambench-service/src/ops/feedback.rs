@@ -101,12 +101,7 @@ pub fn build_bundle(
             build_target: beambench_buildinfo::TARGET_TRIPLE.to_owned(),
             git_sha: beambench_buildinfo::GIT_SHA.to_owned(),
         },
-        system: DiagnosticSystem {
-            os: std::env::consts::OS.to_owned(),
-            os_version: None,
-            arch: std::env::consts::ARCH.to_owned(),
-            locale,
-        },
+        system: super::system_diagnostics::collect(locale),
         machine,
         ports_detected,
         connection_events,
@@ -124,6 +119,19 @@ pub fn build_bundle(
         project_file_attached: input.include_project_file,
         source_context: input.source_context.clone(),
     };
+
+    if possible_brltty_conflict(
+        &bundle.system,
+        &bundle.machine,
+        &bundle.ports_detected,
+        &bundle.connection_events,
+    ) {
+        bundle.known_issues.push(KnownIssueWarning {
+            code: "linux_brltty_possible_conflict".to_owned(),
+            severity: "warning".to_owned(),
+            message: "BRLTTY is running and the USB serial port is unavailable. It may be claiming the adapter. Check the kernel log before changing services; BRLTTY may be needed for braille accessibility.".to_owned(),
+        });
+    }
 
     if is_successful_job_compatibility_report(input) {
         minimize_successful_job_compatibility_bundle(&mut bundle);
@@ -166,6 +174,8 @@ fn minimize_successful_job_compatibility_bundle(bundle: &mut DiagnosticBundleV1)
     // OS/controller family, and machine settings completed a job. Keep personal
     // profile/device identifiers and design/command content out of that report.
     bundle.system.locale = None;
+    bundle.system.brltty_running = None;
+    bundle.system.brltty_version = None;
     bundle.machine.model = None;
     bundle.machine.profile_id = None;
     bundle.machine.profile_name = None;
@@ -234,6 +244,7 @@ pub fn get_connection_diagnostics(
     let bundle = preview_feedback_report(ctx, input)?;
     Ok(ConnectionDiagnosticsSnapshot {
         captured_at: bundle.created_at,
+        system: Some(bundle.system),
         ports_detected: bundle.ports_detected,
         machine: bundle.machine,
         connection_events: bundle.connection_events,
@@ -1120,6 +1131,62 @@ fn recent_panic_reports_for_bundle(ctx: &ServiceContext) -> Vec<DiagnosticPanic>
     reports
 }
 
+fn possible_brltty_conflict(
+    system: &DiagnosticSystem,
+    machine: &DiagnosticMachine,
+    ports: &[DiagnosticPort],
+    events: &[DiagnosticConnectionEvent],
+) -> bool {
+    if system.os != "linux"
+        || system.brltty_running != Some(true)
+        || machine.connected
+        || matches!(machine.session_state, DiagnosticSessionState::Connecting)
+        || machine
+            .transport_kind
+            .as_deref()
+            .is_some_and(|kind| kind != "serial")
+    {
+        return false;
+    }
+    let Some(port) = machine.port_name.as_deref().filter(|port| {
+        port.starts_with("/dev/ttyUSB")
+            || port.starts_with("/dev/ttyACM")
+            || port.starts_with("/dev/serial/")
+    }) else {
+        return false;
+    };
+    let failure = latest_connection_failure(events);
+    // Permission errors need their own remedy, even if the port has since vanished.
+    if failure
+        .and_then(|event| event.error.as_deref())
+        .is_some_and(|error| {
+            let error = error.to_ascii_lowercase();
+            error.contains("permission denied")
+                || error.contains("access denied")
+                || error.contains("dialout")
+        })
+    {
+        return false;
+    }
+    // Enumeration uses tty names; an existing by-id/by-path alias is not missing.
+    let missing = !ports.iter().any(|detected| detected.name == port)
+        && (!port.starts_with("/dev/serial/")
+            || matches!(std::path::Path::new(port).try_exists(), Ok(false)));
+    // A device-ownership conflict reads as the port being busy while it is
+    // still enumerated: something else already holds it open.
+    let ownership_conflict = failure
+        .and_then(|event| event.error.as_deref())
+        .is_some_and(|error| {
+            let error = error.to_ascii_lowercase();
+            error.contains("busy") || error.contains("resource temporarily unavailable")
+        });
+    // A vanished port on its own is not evidence: switching the laser off, or
+    // ending a job, removes the port the same way. Ubuntu and Mint ship brltty
+    // running by default, so that alone would accuse every normal disconnect.
+    // Require the session to have actually failed against the missing port.
+    (missing && failure.is_some()) || ownership_conflict
+}
+
 fn known_issues_for(
     machine: &DiagnosticMachine,
     connection_events: &[DiagnosticConnectionEvent],
@@ -1475,6 +1542,189 @@ mod tests {
             machine_profiles: vec![profile],
             ..beambench_core::AppSettings::default()
         })
+    }
+
+    #[test]
+    fn brltty_hint_requires_running_process_and_unavailable_linux_usb_serial_port() {
+        let ctx = grbl_diagnostic_context();
+        ctx.push_connection_event(
+            "open_failed",
+            Some("/dev/ttyUSB0".into()),
+            Some(115200),
+            None,
+            Some("Device or resource busy".into()),
+        );
+        let events = ctx.recent_connection_events();
+        let machine = build_machine_diagnostics(&ctx, &[], &events);
+        let system = DiagnosticSystem {
+            os: "linux".into(),
+            brltty_running: Some(true),
+            ..Default::default()
+        };
+        let port = diagnostic_port(
+            PortInfo {
+                port_name: "/dev/ttyUSB0".into(),
+                description: String::new(),
+                manufacturer: String::new(),
+                vid: Some(0x1a86),
+                pid: Some(0x7523),
+            },
+            None,
+        );
+        assert!(possible_brltty_conflict(
+            &system,
+            &machine,
+            std::slice::from_ref(&port),
+            &events
+        ));
+        // A port that simply went away, with no failure recorded, is an
+        // ordinary disconnect (job finished, laser switched off) and must not
+        // be blamed on brltty.
+        assert!(!possible_brltty_conflict(&system, &machine, &[], &[]));
+        // The same disappearance *with* a failed reconnect is the real symptom.
+        assert!(possible_brltty_conflict(&system, &machine, &[], &events));
+        assert!(!possible_brltty_conflict(
+            &system,
+            &machine,
+            std::slice::from_ref(&port),
+            &[]
+        ));
+        for running in [Some(false), None] {
+            assert!(!possible_brltty_conflict(
+                &DiagnosticSystem {
+                    brltty_running: running,
+                    ..system.clone()
+                },
+                &machine,
+                &[],
+                &events
+            ));
+        }
+        for os in ["macos", "windows"] {
+            assert!(!possible_brltty_conflict(
+                &DiagnosticSystem {
+                    os: os.into(),
+                    ..system.clone()
+                },
+                &machine,
+                &[],
+                &events
+            ));
+        }
+        for other in [
+            DiagnosticMachine {
+                connected: true,
+                ..machine.clone()
+            },
+            DiagnosticMachine {
+                session_state: DiagnosticSessionState::Connecting,
+                ..machine.clone()
+            },
+            DiagnosticMachine {
+                transport_kind: Some("tcp".into()),
+                ..machine.clone()
+            },
+            DiagnosticMachine {
+                port_name: Some("/dev/ttyS0".into()),
+                ..machine.clone()
+            },
+            DiagnosticMachine::default(),
+        ] {
+            assert!(!possible_brltty_conflict(&system, &other, &[], &events));
+        }
+        let mut permission_error = events;
+        permission_error.last_mut().unwrap().error = Some("Permission denied".into());
+        assert!(!possible_brltty_conflict(
+            &system,
+            &machine,
+            &[],
+            &permission_error
+        ));
+    }
+
+    #[test]
+    fn brltty_hint_stays_silent_on_an_ordinary_power_off() {
+        // Ubuntu and Mint run brltty by default, so a normal end-of-job
+        // disconnect must not accuse the user's braille service.
+        let ctx = grbl_diagnostic_context();
+        ctx.push_connection_event(
+            "open_attempt",
+            Some("/dev/ttyUSB0".into()),
+            Some(115200),
+            None,
+            None,
+        );
+        ctx.push_connection_event(
+            "connected",
+            Some("/dev/ttyUSB0".into()),
+            Some(115200),
+            None,
+            None,
+        );
+        ctx.push_connection_event(
+            "ready",
+            Some("/dev/ttyUSB0".into()),
+            Some(115200),
+            None,
+            None,
+        );
+        let events = ctx.recent_connection_events();
+        let machine = build_machine_diagnostics(&ctx, &[], &events);
+        let system = DiagnosticSystem {
+            os: "linux".into(),
+            brltty_running: Some(true),
+            ..Default::default()
+        };
+        // The laser is off: its port is gone, and nothing failed.
+        assert!(!possible_brltty_conflict(&system, &machine, &[], &events));
+    }
+
+    #[test]
+    fn brltty_hint_ignores_an_open_failure_on_a_port_that_is_still_present() {
+        // A wrong-baud or unrelated open failure against a port that is still
+        // enumerated has some other cause.
+        let ctx = grbl_diagnostic_context();
+        ctx.push_connection_event(
+            "open_failed",
+            Some("/dev/ttyUSB0".into()),
+            Some(115200),
+            None,
+            Some("Input/output error".into()),
+        );
+        let events = ctx.recent_connection_events();
+        let machine = build_machine_diagnostics(&ctx, &[], &events);
+        let system = DiagnosticSystem {
+            os: "linux".into(),
+            brltty_running: Some(true),
+            ..Default::default()
+        };
+        let port = diagnostic_port(
+            PortInfo {
+                port_name: "/dev/ttyUSB0".into(),
+                description: String::new(),
+                manufacturer: String::new(),
+                vid: Some(0x1a86),
+                pid: Some(0x7523),
+            },
+            None,
+        );
+        assert!(!possible_brltty_conflict(
+            &system,
+            &machine,
+            std::slice::from_ref(&port),
+            &events
+        ));
+    }
+
+    #[test]
+    fn limited_compatibility_reports_omit_brltty_details() {
+        let ctx = grbl_diagnostic_context();
+        let mut bundle = build_bundle(&bug_input(), &ctx).unwrap();
+        bundle.system.brltty_running = Some(true);
+        bundle.system.brltty_version = Some("6.4".into());
+        minimize_successful_job_compatibility_bundle(&mut bundle);
+        assert!(bundle.system.brltty_running.is_none());
+        assert!(bundle.system.brltty_version.is_none());
     }
 
     #[test]

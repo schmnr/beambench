@@ -196,43 +196,8 @@ fn flate_decode(data: &[u8]) -> Result<Vec<u8>, String> {
 const PDF_INPUT_LIMIT: usize = 64 * 1024 * 1024;
 const PDF_CONTENT_LIMIT: usize = 32 * 1024 * 1024;
 
-// These encodings can be expanded during document loading, before the page
-// budget is available. Decode PDF name escapes so they cannot bypass rejection.
-fn has_eager_pdf_encoding(bytes: &[u8]) -> bool {
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] != b'/' {
-            i += 1;
-            continue;
-        }
-        i += 1;
-        let mut name = Vec::new();
-        while i < bytes.len()
-            && !bytes[i].is_ascii_whitespace()
-            && !b"/<>[](){}%\0".contains(&bytes[i])
-        {
-            let mut value = bytes[i];
-            if value == b'#' && i + 2 < bytes.len() {
-                if let (Some(hi), Some(lo)) = (
-                    (bytes[i + 1] as char).to_digit(16),
-                    (bytes[i + 2] as char).to_digit(16),
-                ) {
-                    value = (hi * 16 + lo) as u8;
-                    i += 2;
-                }
-            }
-            // A longer name cannot match either reserved name.
-            if name.len() < 8 {
-                name.push(value);
-            }
-            i += 1;
-        }
-        if name == b"ObjStm" || name == b"Encrypt" {
-            return true;
-        }
-    }
-    false
-}
+// Eager xref/metadata streams have a smaller limit than page artwork.
+const PDF_EAGER_STREAM_LIMIT: usize = 1024 * 1024;
 
 /// Accept graphics state settings that preserve our vector centerlines and
 /// device colors. Do not discard opacity, masks, dashes or compositing effects:
@@ -307,44 +272,63 @@ fn validate_pdf_graphics_state(
     Ok(())
 }
 
+fn decode_artwork_stream(stream: &lopdf::Stream, limit: usize) -> Result<Vec<u8>, String> {
+    if stream.dict.has(b"Filter") {
+        stream.filters().map_err(|e| e.to_string())?;
+    }
+    if let Ok(params) = stream.dict.get(b"DecodeParms")
+        && !matches!(params, lopdf::Object::Null)
+    {
+        let params = params
+            .as_dict()
+            .map_err(|_| "PDF artwork filter parameter arrays are unsupported")?;
+        if params
+            .get(b"Predictor")
+            .is_ok_and(|value| value.as_i64().ok() != Some(1))
+        {
+            return Err("PDF pixel prediction is only supported in embedded images".into());
+        }
+    }
+    stream
+        .get_plain_content_with_limit(limit)
+        .map_err(|e| format!("PDF stream content limit or decoding error: {e}"))
+}
+
+mod artwork;
+mod objects;
+pub use artwork::{PdfArtwork, PdfImage};
+
 /// Resolve page content through the PDF object graph. Unsupported painting is
 /// rejected rather than silently importing a different design.
-pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, String> {
+pub fn parse_pdf_artwork(content: &[u8]) -> Result<PdfArtwork, String> {
     if content.len() > PDF_INPUT_LIMIT {
         return Err("PDF exceeds the 64 MiB input limit".into());
     }
-    if has_eager_pdf_encoding(content) {
-        return Err("Encrypted PDFs and compressed object streams are not supported. Export a plain vector PDF first.".into());
+    // Reject encryption before any automatic decryption or metadata expansion.
+    // The reader exposes the trailer/xref first and lets us defer ObjStm bodies.
+    let mut doc = lopdf::Reader {
+        buffer: content,
+        document: lopdf::Document::new(),
+        encryption_state: None,
+        raw_objects: Default::default(),
+        password: None,
+        strict: true,
+        max_decompressed_size: Some(PDF_EAGER_STREAM_LIMIT),
     }
-    let doc = lopdf::Document::load_mem_with_options(
-        content,
-        lopdf::LoadOptions {
-            strict: true,
-            max_decompressed_size: Some(1024 * 1024),
-            filter: Some(|id, object| {
-                // Object streams are expanded eagerly by the reader. Reject this
-                // unsupported encoding instead of multiplying per-stream budgets.
-                if object
-                    .as_stream()
-                    .is_ok_and(|stream| stream.dict.has_type(b"ObjStm"))
-                {
-                    return None;
-                }
-                Some((id, object.clone()))
-            }),
-            ..Default::default()
-        },
+    .read_unencrypted(
+        Some(|id, object| {
+            if let Ok(stream) = object.as_stream_mut()
+                && stream.dict.has_type(b"ObjStm")
+            {
+                stream.dict.set("Type", "BeamBenchDeferredObjects");
+            }
+            Some((id, object.clone()))
+        }),
+        100_000,
     )
     .map_err(|err| format!("Cannot read PDF: {err}"))?;
-    if doc.is_encrypted()
-        || doc
-            .reference_table
-            .entries
-            .values()
-            .any(|entry| matches!(entry, lopdf::xref::XrefEntry::Compressed { .. }))
-    {
-        return Err("Encrypted PDFs and compressed object streams are not supported. Export a plain vector PDF first.".into());
-    }
+    let mut remaining = PDF_CONTENT_LIMIT;
+    objects::expand(&mut doc, &mut remaining)?;
     let pages = doc.get_pages();
     if pages.len() != 1 {
         return Err(
@@ -354,6 +338,7 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
     let page_id = *pages.values().next().unwrap();
     let mut ancestor = Some(page_id);
     let mut resources = None;
+    let mut media_box = None;
     let mut visited = std::collections::HashSet::new();
     while let Some(id) = ancestor {
         if !visited.insert(id) {
@@ -372,6 +357,16 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
             if !matches!(value, lopdf::Object::Null) {
                 resources = Some(value);
             }
+        }
+        if media_box.is_none()
+            && let Ok(value) = page.get(b"MediaBox")
+        {
+            let (_, value) = doc.dereference(value).map_err(|e| e.to_string())?;
+            let values = artwork::numbers(value.as_array().map_err(|e| e.to_string())?, 4)?;
+            if values[2] <= values[0] || values[3] <= values[1] {
+                return Err("Invalid PDF MediaBox".into());
+            }
+            media_box = Some([values[0], values[1], values[2], values[3]]);
         }
         if page
             .get(b"Rotate")
@@ -397,72 +392,33 @@ pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, St
             .get_object(id)
             .and_then(lopdf::Object::as_stream)
             .map_err(|err| err.to_string())?;
-        let remaining = PDF_CONTENT_LIMIT.saturating_sub(decoded.len() + 1);
-        let bytes = stream
-            .get_plain_content_with_limit(remaining)
-            .map_err(|err| format!("Cannot decode PDF content within the 32 MiB limit: {err}"))?;
+        let available = remaining.saturating_sub(1);
+        let bytes = decode_artwork_stream(stream, available)?;
+        remaining = remaining
+            .checked_sub(bytes.len() + 1)
+            .ok_or("PDF expanded content limit exceeded")?;
         decoded.extend_from_slice(&bytes);
         decoded.push(b'\n');
     }
-    let mut operations = lopdf::content::Content::decode(&decoded)
-        .map_err(|err| format!("Invalid PDF drawing commands: {err}"))?;
-    for operation in &operations.operations {
-        if operation.operator == "gs" {
-            validate_pdf_graphics_state(&doc, resources, operation)?;
-            continue;
-        }
-        if !matches!(
-            operation.operator.as_str(),
-            "m" | "l"
-                | "c"
-                | "v"
-                | "y"
-                | "re"
-                | "h"
-                | "q"
-                | "Q"
-                | "cm"
-                | "G"
-                | "g"
-                | "RG"
-                | "rg"
-                | "K"
-                | "k"
-                | "S"
-                | "s"
-                | "f"
-                | "F"
-                | "f*"
-                | "B"
-                | "B*"
-                | "b"
-                | "b*"
-                | "n"
-                | "w"
-                | "J"
-                | "j"
-                | "M"
-        ) {
-            return Err(format!(
-                "PDF drawing operator '{}' cannot be preserved. Convert text to paths and flatten forms, clipping, and effects before importing.",
-                operation.operator
-            ));
-        }
+    artwork::extract(
+        &doc,
+        resources,
+        &decoded,
+        remaining,
+        media_box.ok_or("Missing PDF MediaBox")?,
+    )
+}
+
+/// Vector-only compatibility API. Never silently discard embedded images.
+pub fn parse_pdf_painted_paths(content: &[u8]) -> Result<Vec<PdfPaintedPath>, String> {
+    let artwork = parse_pdf_artwork(content)?;
+    if !artwork.images.is_empty() {
+        return Err(
+            "PDF contains embedded images (Do); use the mixed-artwork importer to preserve them"
+                .into(),
+        );
     }
-    // Only validated, geometry-neutral state commands may be omitted. Keep
-    // q/Q, transforms and color operations for the normal path parser.
-    operations
-        .operations
-        .retain(|operation| operation.operator != "gs");
-    let normalized = operations.encode().map_err(|err| err.to_string())?;
-    let mut paths = parse_content_stream(&String::from_utf8_lossy(&normalized));
-    for path in &mut paths {
-        scale_vecpath(&mut path.path, PT_TO_MM);
-    }
-    if paths.is_empty() {
-        return Err("No paths found in PDF".into());
-    }
-    Ok(paths)
+    Ok(artwork.paths)
 }
 
 #[cfg(test)]
@@ -1474,6 +1430,12 @@ mod tests {
 #[cfg(test)]
 mod document_regressions {
     use super::*;
+    fn assert_pdf_coord(mm: f64, points: f64) {
+        assert!(
+            (mm / PT_TO_MM - points).abs() < 1e-4,
+            "{mm} mm != {points} pt"
+        );
+    }
     use lopdf::{Document, Object, Stream, dictionary};
 
     fn document_with_graphics_state(
@@ -1669,12 +1631,220 @@ mod document_regressions {
         bytes
     }
     #[test]
-    fn encoded_metadata_names_cannot_bypass_resource_guards() {
-        assert!(has_eager_pdf_encoding(b"/Type /Obj#53tm"));
-        assert!(has_eager_pdf_encoding(b"/Encr#79pt 8 0 R"));
-        assert!(!has_eager_pdf_encoding(
-            b"/EncryptedTitle /Object /ObjStmOther"
-        ));
+    fn encoding_names_in_metadata_comments_and_stream_bytes_are_not_encodings() {
+        for title in [
+            "Guide to /Encrypt settings",
+            "Guide to /ObjStm settings",
+            "Nested (title /Encr#79pt) and \"escapes\"",
+        ] {
+            let mut doc =
+                Document::load_mem(&document(b"% /Encrypt /ObjStm\n0 0 m 10 10 l S")).unwrap();
+            let info = doc.add_object(dictionary! {"Title" => Object::string_literal(title)});
+            doc.trailer.set("Info", info);
+            doc.add_object(Stream::new(
+                dictionary! {},
+                b"binary\0/Encrypt /ObjStm /Encr#79pt".to_vec(),
+            ));
+            let mut bytes = Vec::new();
+            doc.save_to(&mut bytes).unwrap();
+            bytes.extend_from_slice(b"\n% /Encrypt /ObjStm\n");
+            assert_eq!(parse_pdf_painted_paths(&bytes).unwrap().len(), 1);
+        }
+    }
+
+    #[test]
+    fn ordinary_solid_dash_reset_is_geometry_neutral() {
+        let drawing = b"0 0 m 72 0 l 72 36 l S";
+        assert_eq!(
+            parse_pdf_painted_paths(&document(&[b"[] 0 d ".as_slice(), drawing].concat())).unwrap(),
+            parse_pdf_painted_paths(&document(drawing)).unwrap(),
+        );
+        for pattern in ["[2 3] 0 d", "[] -1 d", "[] /Bad d", "0 d"] {
+            assert!(
+                parse_pdf_painted_paths(&document(format!("{pattern} 0 0 10 10 re S").as_bytes()))
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn compressed_and_split_page_streams_preserve_state_and_geometry() {
+        let parts: [&[u8]; 3] = [
+            b"1 0 0 RG q 2 0 0 3 10 20 cm",
+            b"0 0 m 10 10 l S Q",
+            b"0 0 1 rg 20 20 10 10 re f",
+        ];
+        let expected = parse_pdf_painted_paths(&document(&parts.join(b" ".as_slice()))).unwrap();
+        for compress in [false, true] {
+            let mut doc = Document::load_mem(&document(b"")).unwrap();
+            let ids: Vec<Object> = parts
+                .iter()
+                .map(|part| {
+                    let mut stream = Stream::new(dictionary! {}, part.to_vec());
+                    if compress {
+                        stream.compress().unwrap();
+                    }
+                    doc.add_object(stream).into()
+                })
+                .collect();
+            let page = *doc.get_pages().values().next().unwrap();
+            doc.get_dictionary_mut(page).unwrap().set("Contents", ids);
+            let mut bytes = Vec::new();
+            doc.save_to(&mut bytes).unwrap();
+            assert_eq!(parse_pdf_painted_paths(&bytes).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn compressed_object_streams_match_classic_encoding() {
+        let expected = parse_pdf_painted_paths(&document(b"0 0 m 72 0 l 72 36 l S")).unwrap();
+        let mut doc = Document::load_mem(&document(b"0 0 m 72 0 l 72 36 l S")).unwrap();
+        let mut modern = Vec::new();
+        doc.save_modern(&mut modern).unwrap();
+        assert_eq!(parse_pdf_painted_paths(&modern).unwrap(), expected);
+        // The writer can represent identical objects without compressed xrefs.
+        // This is a fixture conversion, not an unbounded production fallback.
+        let mut expanded = Document::load_mem(&modern).unwrap();
+        let mut classic = Vec::new();
+        expanded.save_to(&mut classic).unwrap();
+        assert_eq!(parse_pdf_painted_paths(&classic).unwrap(), expected);
+    }
+
+    #[test]
+    fn referenced_forms_and_images_preserve_artwork() {
+        for subtype in ["Form", "Image"] {
+            let mut doc = Document::load_mem(&document(b"0 0 m 10 10 l S /X0 Do")).unwrap();
+            let xobject = if subtype == "Form" {
+                Stream::new(
+                    dictionary! {
+                        "Type" => "XObject", "Subtype" => "Form",
+                        "BBox" => vec![0.into(), 0.into(), 100.into(), 100.into()],
+                        "Matrix" => vec![2.into(), 0.into(), 0.into(), 2.into(), 10.into(), 20.into()],
+                        "Resources" => dictionary! {},
+                    },
+                    b"0 0 10 10 re f".to_vec(),
+                )
+            } else {
+                Stream::new(
+                    dictionary! {
+                        "Type" => "XObject", "Subtype" => "Image",
+                        "Width" => 1, "Height" => 1,
+                        "ColorSpace" => "DeviceGray", "BitsPerComponent" => 8,
+                    },
+                    vec![0],
+                )
+            };
+            let object_id = doc.add_object(xobject);
+            let page_id = *doc.get_pages().values().next().unwrap();
+            doc.get_dictionary_mut(page_id).unwrap().set(
+                "Resources",
+                dictionary! {
+                    "XObject" => dictionary! {"X0" => object_id},
+                },
+            );
+            let mut bytes = Vec::new();
+            doc.save_to(&mut bytes).unwrap();
+            let artwork = parse_pdf_artwork(&bytes).unwrap();
+            if subtype == "Image" {
+                assert_eq!(artwork.paths.len(), 1);
+                assert_eq!(artwork.images.len(), 1);
+                let image = image::load_from_memory(&artwork.images[0].png)
+                    .unwrap()
+                    .to_rgba8();
+                assert_eq!(image.get_pixel(0, 0).0, [0, 0, 0, 255]);
+                assert!(
+                    parse_pdf_painted_paths(&bytes)
+                        .unwrap_err()
+                        .contains("embedded images")
+                );
+            } else {
+                assert_eq!(artwork.paths.len(), 2);
+                let bounds = artwork.paths[1].path.visual_bounds().unwrap();
+                assert_pdf_coord(bounds.min.x, 10.0);
+                assert_pdf_coord(bounds.min.y, 20.0);
+                assert_pdf_coord(bounds.max.x, 30.0);
+                assert_pdf_coord(bounds.max.y, 40.0);
+            }
+        }
+    }
+
+    #[test]
+    fn eager_cross_reference_decompression_stays_bounded() {
+        use std::io::Write;
+        let mut encoder =
+            flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder
+            .write_all(&vec![0; PDF_EAGER_STREAM_LIMIT + 1])
+            .unwrap();
+        let compressed = encoder.finish().unwrap();
+        let mut bytes = b"%PDF-1.5\n".to_vec();
+        let offset = bytes.len();
+        bytes.extend_from_slice(format!(
+            "1 0 obj\n<< /Type /XRef /Size 1 /W [1 4 2] /Filter /FlateDecode /Length {} >>\nstream\n",
+            compressed.len(),
+        ).as_bytes());
+        bytes.extend_from_slice(&compressed);
+        bytes.extend_from_slice(
+            format!("\nendstream\nendobj\nstartxref\n{offset}\n%%EOF\n").as_bytes(),
+        );
+        let error = parse_pdf_painted_paths(&bytes).unwrap_err();
+        assert!(error.contains("limit"), "{error}");
+    }
+
+    #[test]
+    fn eager_cross_reference_predictor_rows_are_bounded_before_allocation() {
+        use std::io::Write;
+        let mut encoder =
+            flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(&[0, 0]).unwrap();
+        let compressed = encoder.finish().unwrap();
+        let mut bytes = b"%PDF-1.5\n".to_vec();
+        let offset = bytes.len();
+        bytes.extend_from_slice(format!("1 0 obj\n<< /Type /XRef /Size 1 /W [1 4 2] /Filter /FlateDecode /DecodeParms << /Predictor 12 /Columns 1000000000 /Colors 4 /BitsPerComponent 8 >> /Length {} >>\nstream\n",compressed.len()).as_bytes());
+        bytes.extend_from_slice(&compressed);
+        bytes.extend_from_slice(
+            format!("\nendstream\nendobj\nstartxref\n{offset}\n%%EOF\n").as_bytes(),
+        );
+        assert!(parse_pdf_artwork(&bytes).unwrap_err().contains("limit"));
+    }
+
+    #[test]
+    fn real_encryption_is_rejected_even_with_an_empty_password() {
+        for password in ["", "secret"] {
+            let mut doc = Document::load_mem(&document(b"0 0 m 10 10 l S")).unwrap();
+            doc.trailer.set(
+                "ID",
+                vec![
+                    Object::string_literal("fixed-test-file-id"),
+                    Object::string_literal("fixed-test-file-id"),
+                ],
+            );
+            let state = lopdf::EncryptionState::try_from(lopdf::EncryptionVersion::V2 {
+                document: &doc,
+                owner_password: "owner",
+                user_password: password,
+                key_length: 128,
+                permissions: lopdf::Permissions::all(),
+            })
+            .unwrap();
+            doc.encrypt(&state).unwrap();
+            let mut bytes = Vec::new();
+            doc.save_to(&mut bytes).unwrap();
+            for escape_name in [false, true] {
+                let mut encoded = bytes.clone();
+                if escape_name {
+                    // Trailer follows all objects, so this does not move any
+                    // offsets recorded in the cross-reference table.
+                    let offset = find_bytes(&encoded, b"/Encrypt", 0).unwrap();
+                    encoded.splice(offset..offset + 8, b"/Encr#79pt".iter().copied());
+                }
+                assert!(
+                    parse_pdf_painted_paths(&encoded)
+                        .unwrap_err()
+                        .contains("Encrypted PDFs")
+                );
+            }
+        }
     }
 
     #[test]
@@ -1683,21 +1853,195 @@ mod document_regressions {
         assert_eq!(paths.len(), 1);
     }
     #[test]
-    fn rejects_clipping_and_form_invocation_instead_of_partial_artwork() {
-        for content in [
-            b"0 0 10 10 re W n 0 0 m 20 20 l S".as_slice(),
-            b"0 0 m 10 10 l S /Fm0 Do".as_slice(),
-        ] {
-            assert!(
-                parse_pdf_painted_paths(&document(content))
-                    .unwrap_err()
-                    .contains("cannot be preserved")
-            );
-        }
+    fn clips_visible_paths_and_rejects_missing_forms() {
+        let paths =
+            parse_pdf_painted_paths(&document(b"0 0 10 10 re W n 0 0 m 20 20 l S")).unwrap();
+        let bounds = paths[0].path.visual_bounds().unwrap();
+        assert_pdf_coord(bounds.max.x, 10.0);
+        assert_pdf_coord(bounds.max.y, 10.0);
+        assert!(
+            parse_pdf_painted_paths(&document(b"0 0 m 10 10 l S /Fm0 Do"))
+                .unwrap_err()
+                .contains("resources")
+        );
     }
     #[test]
     fn rejects_oversized_page_content() {
         let content = vec![b' '; PDF_CONTENT_LIMIT + 1];
         assert!(parse_pdf_painted_paths(&document(&content)).is_err());
+    }
+    fn with_xobject(content: &[u8], xobject: Stream) -> Vec<u8> {
+        let mut doc = Document::load_mem(&document(content)).unwrap();
+        let id = doc.add_object(xobject);
+        let page = *doc.get_pages().values().next().unwrap();
+        doc.get_dictionary_mut(page).unwrap().set(
+            "Resources",
+            dictionary! {"XObject" => dictionary! {"X" => id}},
+        );
+        let mut bytes = Vec::new();
+        doc.save_to(&mut bytes).unwrap();
+        bytes
+    }
+
+    fn gray_image(width: i64, height: i64, bits: i64, bytes: Vec<u8>) -> Stream {
+        Stream::new(
+            dictionary! {"Type"=>"XObject", "Subtype"=>"Image", "Width"=>width, "Height"=>height,
+            "ColorSpace"=>"DeviceGray", "BitsPerComponent"=>bits},
+            bytes,
+        )
+    }
+
+    #[test]
+    fn images_preserve_top_row_decode_and_clipping() {
+        let mut image = gray_image(4, 2, 1, vec![0b11100000, 0b10000000]);
+        image.dict.set("Decode", vec![1.into(), 0.into()]);
+        let bytes = with_xobject(b"q 10 10 20 20 re W n 40 0 0 20 10 10 cm /X Do Q", image);
+        let artwork = parse_pdf_artwork(&bytes).unwrap();
+        let source = &artwork.images[0];
+        let pixels = image::load_from_memory(&source.png).unwrap().to_rgba8();
+        assert_eq!(pixels.get_pixel(0, 0).0, [0, 0, 0, 255]);
+        assert_eq!(pixels.get_pixel(1, 0).0, [0, 0, 0, 255]);
+        assert_eq!(pixels.get_pixel(1, 1).0, [255, 255, 255, 255]);
+        assert_eq!(pixels.get_pixel(2, 0).0, [0, 0, 0, 255]);
+        let clip_bounds = source.clip.as_ref().unwrap().visual_bounds().unwrap();
+        assert_pdf_coord(clip_bounds.min.x, 10.0);
+        assert_pdf_coord(clip_bounds.max.x, 30.0);
+        let top = source.transform.apply(&Point2D::new(0.0, 0.0));
+        let bottom = source.transform.apply(&Point2D::new(0.0, 1.0));
+        assert_pdf_coord(top.y, 30.0);
+        assert_pdf_coord(bottom.y, 10.0);
+        assert_pdf_coord(artwork.page_to_canvas.apply(&top).y, 70.0);
+    }
+
+    #[test]
+    fn jpeg_and_png_predictor_images_decode() {
+        let image = image::GrayImage::from_raw(2, 2, vec![0, 80, 160, 255]).unwrap();
+        let mut jpeg = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 100)
+            .encode_image(&image)
+            .unwrap();
+        let mut stream = gray_image(2, 2, 8, jpeg);
+        stream.dict.set("Filter", "DCTDecode");
+        let artwork = parse_pdf_artwork(&with_xobject(b"10 0 0 10 5 5 cm /X Do", stream)).unwrap();
+        let decoded = image::load_from_memory(&artwork.images[0].png)
+            .unwrap()
+            .to_luma8();
+        for (a, b) in decoded.as_raw().iter().zip(image.as_raw()) {
+            assert!(a.abs_diff(*b) < 3);
+        }
+        let mut stream = gray_image(2, 2, 8, vec![0, 0, 80, 2, 160, 175]);
+        {
+            use std::io::Write;
+            let mut encoder =
+                flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(&stream.content).unwrap();
+            stream.set_content(encoder.finish().unwrap());
+            stream.dict.set("Filter", "FlateDecode");
+        }
+        stream.dict.set(
+            "DecodeParms",
+            dictionary! {"Predictor"=>12,"Columns"=>2,"Colors"=>1,"BitsPerComponent"=>8},
+        );
+        let artwork = parse_pdf_artwork(&with_xobject(b"10 0 0 10 5 5 cm /X Do", stream)).unwrap();
+        assert_eq!(
+            image::load_from_memory(&artwork.images[0].png)
+                .unwrap()
+                .to_luma8(),
+            image
+        );
+    }
+
+    #[test]
+    fn unsupported_images_fail_without_returning_partial_paths() {
+        for (key, value) in [
+            ("SMask", Object::Name(b"None".to_vec())),
+            ("ImageMask", true.into()),
+            ("ColorSpace", "Indexed".into()),
+            (
+                "DecodeParms",
+                Object::Dictionary(dictionary! {"Predictor"=>2}),
+            ),
+            ("Width", 100_000_000.into()),
+        ] {
+            let mut image = gray_image(1, 1, 8, vec![0]);
+            image.dict.set(key, value);
+            assert!(
+                parse_pdf_artwork(&with_xobject(b"0 0 m 10 10 l S /X Do", image)).is_err(),
+                "{key}"
+            );
+        }
+    }
+
+    #[test]
+    fn form_cycles_groups_and_missing_resources_fail_atomically() {
+        let form = Stream::new(
+            dictionary! {"Type"=>"XObject", "Subtype"=>"Form", "BBox"=>vec![0.into(),0.into(),100.into(),100.into()]},
+            b"/X Do".to_vec(),
+        );
+        assert!(
+            parse_pdf_artwork(&with_xobject(b"0 0 m 10 10 l S /X Do", form.clone()))
+                .unwrap_err()
+                .contains("cyclic")
+        );
+        let mut grouped = form.clone();
+        grouped.dict.set("Group", dictionary! {"S"=>"Transparency"});
+        assert!(
+            parse_pdf_artwork(&with_xobject(b"/X Do", grouped))
+                .unwrap_err()
+                .contains("compositing")
+        );
+        let mut scoped = form;
+        scoped.dict.set("Resources", dictionary! {});
+        assert!(parse_pdf_artwork(&with_xobject(b"/X Do", scoped)).is_err());
+    }
+
+    #[test]
+    fn repeated_forms_share_the_content_budget() {
+        let mut payload = b"0 0 m 1 1 l S ".to_vec();
+        payload.resize(1024 * 1024, b' ');
+        let mut form = Stream::new(
+            dictionary! {"Type"=>"XObject", "Subtype"=>"Form", "BBox"=>vec![0.into(),0.into(),100.into(),100.into()]},
+            payload,
+        );
+        form.compress().unwrap();
+        let error =
+            parse_pdf_artwork(&with_xobject(b"/X Do ".repeat(33).as_slice(), form)).unwrap_err();
+        assert!(error.contains("limit"), "{error}");
+    }
+
+    #[test]
+    fn repeated_images_share_the_pixel_budget() {
+        let mut image = gray_image(1000, 1000, 1, vec![0; 125_000]);
+        image.compress().unwrap();
+        let error =
+            parse_pdf_artwork(&with_xobject(b"/X Do ".repeat(17).as_slice(), image)).unwrap_err();
+        assert!(error.contains("image pixel limit"), "{error}");
+    }
+
+    #[test]
+    fn clipped_curves_and_graphics_state_restore_preserve_visible_bounds() {
+        let bytes = document(b"q 10 10 10 10 re W n 0 0 m 0 30 30 30 30 0 c S Q 60 60 10 10 re f");
+        let artwork = parse_pdf_artwork(&bytes).unwrap();
+        // The curve rises above the clipping rectangle and never crosses it;
+        // only the subsequent, unclipped rectangle remains.
+        assert_eq!(artwork.paths.len(), 1);
+        let bounds = artwork.paths[0].path.visual_bounds().unwrap();
+        assert_pdf_coord(bounds.min.x, 60.0);
+        assert_pdf_coord(bounds.min.y, 60.0);
+    }
+    #[test]
+    fn content_operation_limit_and_malformed_tail_do_not_return_partial_artwork() {
+        let mut content = b"0 0 m 10 10 l S ".to_vec();
+        content.extend_from_slice(&b"q Q ".repeat(100_000));
+        assert!(
+            parse_pdf_artwork(&document(&content))
+                .unwrap_err()
+                .contains("operation limit")
+        );
+        assert!(
+            parse_pdf_artwork(&document(b"0 0 m 10 10 l S [ 1"))
+                .unwrap_err()
+                .contains("malformed")
+        );
     }
 }

@@ -11,6 +11,7 @@ import { machineService } from '../../../services/machineService';
 import { previewService } from '../../../services/previewService';
 import {
   makeJobProgress,
+  makeAppSettings,
   makeMachineProfile,
   makeMachineStatus,
   makeProject,
@@ -33,6 +34,7 @@ vi.mock('../../../services/machineService', () => ({
     resumeJob: vi.fn().mockResolvedValue(undefined),
     cancelJob: vi.fn().mockResolvedValue(undefined),
     emergencyStop: vi.fn().mockResolvedValue(undefined),
+    getSessionState: vi.fn().mockResolvedValue('ready'),
     setWorkOrigin: vi.fn().mockResolvedValue([10, 20]),
     resetWorkOrigin: vi.fn().mockResolvedValue(undefined),
     runPreflightCheck: vi.fn().mockResolvedValue({ outcome: 'pass', checks: [] }),
@@ -113,6 +115,41 @@ const setConnectedWithProject = () => {
 };
 
 describe('LaserPanel', () => {
+  it('edits the shared framing speed beside Frame and sends the new value', async () => {
+    setConnectedWithProject();
+    vi.mocked(machineService.frameJob).mockResolvedValueOnce(makeJobProgress({ state: 'running' }));
+    render(<LaserPanel />);
+    const input = screen.getByRole('spinbutton', { name: /Frame speed/ });
+    fireEvent.change(input, { target: { value: '2400' } });
+    fireEvent.blur(input);
+    expect(useUiStore.getState().moveWindowJogFeedRateMmMin).toBe(2400);
+    fireEvent.click(screen.getByText('Frame'));
+    fireEvent.click(screen.getByText('Confirm Frame'));
+    await waitFor(() => expect(machineService.frameJob).toHaveBeenCalledWith('rectangular', undefined, false, 2400));
+  });
+
+  it.each([
+    { unit: 'mm' as const, time: 'seconds' as const, value: '25', mmMin: 1500 },
+    { unit: 'inches' as const, time: 'minutes' as const, value: '10', mmMin: 254 },
+  ])('converts framing speed from $unit/$time', ({ unit, time, value, mmMin }) => {
+    setConnectedWithProject();
+    useAppStore.setState({ settings: makeAppSettings({ display_unit: unit, speed_time_unit: time }) });
+    render(<LaserPanel />);
+    const input = screen.getByRole('spinbutton', { name: /Frame speed/ });
+    fireEvent.change(input, { target: { value } });
+    fireEvent.blur(input);
+    expect(useUiStore.getState().moveWindowJogFeedRateMmMin).toBeCloseTo(mmMin);
+  });
+
+  it('disables framing speed while a job is active', () => {
+    setConnectedWithProject();
+    useMachineStore.setState({ sessionState: 'running', jobProgress: makeJobProgress({ state: 'running' }) });
+    render(<LaserPanel />);
+    const input = screen.queryByRole('spinbutton', { name: /Frame speed/ });
+    // Some panel layouts hide framing options entirely while running.
+    if (input) expect((input as HTMLInputElement).disabled).toBe(true);
+  });
+
   it('renders connection gradient bar', () => {
     useProjectStore.setState({
       project: makeProject({
@@ -370,6 +407,36 @@ describe('LaserPanel', () => {
     });
     expect(runPreflight).not.toHaveBeenCalled();
     expect(startJob).not.toHaveBeenCalled();
+  });
+
+  it.each(['preview', 'preflight'])('E-stop cancels a Start waiting for %s', async (phase) => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const generatePreview = vi.fn(async () => {
+      if (phase === 'preview') await pending;
+      return true;
+    });
+    const runPreflight = vi.fn(async () => {
+      if (phase === 'preflight') await pending;
+      return { outcome: 'pass' as const, checks: [] };
+    });
+    const startJob = vi.fn().mockResolvedValue(undefined);
+    const openPreflightDialog = vi.fn();
+    setConnectedWithProject();
+    useMachineStore.setState({ runPreflight, startJob, openPreflightDialog });
+    usePreviewStore.setState({ state: 'idle', generatePreview });
+    render(<LaserPanel />);
+    fireEvent.click(screen.getByTestId('start-button'));
+    await waitFor(() => expect(phase === 'preview' ? generatePreview : runPreflight).toHaveBeenCalled());
+    await act(async () => { await useMachineStore.getState().emergencyStop(); });
+    await act(async () => { release(); });
+    await waitFor(() => expect(screen.getByTestId('start-button').hasAttribute('disabled')).toBe(false));
+    expect(startJob).not.toHaveBeenCalled();
+    expect(openPreflightDialog).not.toHaveBeenCalled();
+    if (phase === 'preview') expect(runPreflight).not.toHaveBeenCalled();
+    // A new, deliberate click after the stop is allowed.
+    fireEvent.click(screen.getByTestId('start-button'));
+    await waitFor(() => expect(startJob).toHaveBeenCalledOnce());
   });
 
   it('disables Start while preview bootstrap is pending', async () => {

@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Síť (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2053,6 +2053,7 @@
         "finish_position": "Dokončení pozice",
         "finish_return_to_origin": "Návrat k původu",
         "frame": "Rám",
+        "frame_speed": "Rychlost rámování",
         "frame_laser_on": "Rám: Laser zapnutý",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",
@@ -2189,6 +2190,10 @@
         "preview": "Náhled",
         "no_changes": "Žádné změny.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Předvolba podle dokumentace pro Sculpfun S30 Pro 10W s GRBL 1.1f nebo novějším. Testování na zařízení zatím nebylo provedeno.",
+            "advisory": "Pracovní plocha 380 x 385 mm, S1000, vzduchová asistence M8/M9. Ověřte rozsah pohybu a maximální hodnotu S stroje. Najíždění do výchozí polohy povolte až po instalaci dodaných spínačů a nastavení firmwaru. Prodloužení rámu vyžadují vlastní rozměry."
+          },
           "sculpfun_s9": {
             "description": "Předvolba podle dokumentace pro původní Sculpfun S9 s GRBL 1.1f nebo novějším. Testy na stroji zatím nebyly provedeny.",
             "advisory": "Konzervativní pracovní plocha 410 x 415 mm. Ověřte rozsah pojezdu a maximální hodnotu S stroje. Referování a automatický ofuk jsou vypnuté; zapněte je pouze pro nainstalovaná a nastavená rozšíření. Bez referenčních spínačů použijte Aktuální polohu nebo Uživatelský počátek."
@@ -2334,6 +2339,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY běží a sériový port USB není dostupný. BRLTTY možná zabírá adaptér; ověřte to v protokolu.",
+      "brltty_help": "Řešení problémů s BRLTTY",
+      "brltty_check": "Hledejte převzetí tohoto zařízení USB programem BRLTTY následované odpojením sériového portu:",
+      "brltty_stop": "Pokud protokol potvrdí konflikt a nepoužíváte Braillovo písmo, dočasně zastavte BRLTTY při nečinném laseru. Poté znovu připojte USB a zkuste to znovu:",
+      "brltty_restore": "Obnovení podpory Braillova písma:",
+      "brltty_persistence": "Zastavení je dočasné. Názvy služeb se liší; pokud se služba znovu spustí nebo chybí, zkontrolujte pravidla zařízení BRLTTY ve své distribuci. Pokud používáte Braillovo písmo, ponechte BRLTTY spuštěné a hledejte řešení pro konkrétní zařízení.",
       "none_captured": "Nic nezachyceno",
       "no_snapshot": "Žádný snímek",
       "refresh_aria": "Obnovit diagnostiku",
@@ -2637,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "Během přípravy úlohy bylo stisknuto nouzové zastavení. Nic nebylo odesláno.",
+    "sleep_protection_failed": "Během této úlohy se nepodařilo zabránit uspání počítače. Udržujte počítač vzhůru až do dokončení úlohy.",
     "operation_failed_with_detail": "Operace se nezdařila: {detail}",
     "raster_plan_too_complex": "Tento obrázek při aktuální velikosti a DPI vytváří příliš mnoho jednotlivých rastrových pohybů. Snižte DPI nebo fyzickou velikost, případně zvolte méně fragmentovaný režim obrázku, a poté náhled vytvořte znovu.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Netwerk (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2053,6 +2053,7 @@
         "finish_position": "Eindpositie",
         "finish_return_to_origin": "Keer terug naar de oorsprong",
         "frame": "Kader",
+        "frame_speed": "Kadersnelheid",
         "frame_laser_on": "Kader: Laser aan",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",
@@ -2189,6 +2190,10 @@
         "preview": "Voorbeeld",
         "no_changes": "Geen wijzigingen.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Voorinstelling op basis van documentatie voor de Sculpfun S30 Pro 10W met GRBL 1.1f of nieuwer. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "Werkgebied 380 x 385 mm, S1000, luchtondersteuning M8/M9. Controleer het bereik en de maximale S-waarde van uw machine. Schakel homing pas in na het installeren van de meegeleverde schakelaars en het instellen van de firmware. Frame-uitbreidingen vereisen eigen afmetingen."
+          },
           "sculpfun_s9": {
             "description": "Voorinstelling op basis van documentatie voor de oorspronkelijke Sculpfun S9 met GRBL 1.1f of nieuwer. Tests op de machine zijn nog niet uitgevoerd.",
             "advisory": "Conservatief werkgebied van 410 x 415 mm. Controleer de asafstanden en maximale S-waarde van uw machine. Homen en automatische luchtondersteuning staan uit; schakel ze alleen in voor geïnstalleerde en geconfigureerde uitbreidingen. Gebruik zonder homingschakelaars Huidige positie of Gebruikersnulpunt."
@@ -2334,6 +2339,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY is actief en de USB-seriële poort is niet beschikbaar. Mogelijk neemt BRLTTY de adapter over; controleer het logboek.",
+      "brltty_help": "Problemen met BRLTTY oplossen",
+      "brltty_check": "Zoek naar BRLTTY dat dit USB-apparaat overneemt, gevolgd door een verbroken seriële verbinding:",
+      "brltty_stop": "Als het logboek een conflict bevestigt en u geen braille gebruikt, stop BRLTTY dan tijdelijk terwijl de laser inactief is. Sluit USB daarna opnieuw aan en probeer het nogmaals:",
+      "brltty_restore": "Braille-ondersteuning herstellen:",
+      "brltty_persistence": "De stop is tijdelijk. Servicenamen verschillen; als de service opnieuw start of ontbreekt, controleer dan de BRLTTY-apparaatregels van uw distributie. Gebruikt u braille, laat BRLTTY dan actief en zoek een apparaatspecifieke oplossing.",
       "none_captured": "Niets vastgelegd",
       "no_snapshot": "Geen momentopname",
       "refresh_aria": "Diagnose vernieuwen",
@@ -2637,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "De noodstop is ingedrukt terwijl de opdracht werd voorbereid. Er is niets verzonden.",
+    "sleep_protection_failed": "De slaapstand van de computer kon tijdens deze opdracht niet worden voorkomen. Houd de computer wakker totdat de opdracht klaar is.",
     "operation_failed_with_detail": "Bewerking mislukt: {detail}",
     "raster_plan_too_complex": "Deze afbeelding maakt met de huidige grootte en DPI te veel afzonderlijke rasterbewegingen. Verlaag de DPI of de fysieke grootte, of kies een minder gefragmenteerde afbeeldingsmodus, en genereer daarna opnieuw het voorbeeld.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

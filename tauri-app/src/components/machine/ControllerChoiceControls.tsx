@@ -120,6 +120,8 @@ export function ControllerChoiceControls({
     { value: 'generic_grbl_compatible', label: t('controller_choice.option_generic') },
   ];
   const networkOptions = [
+    { value: 'grbl', label: t('controller_choice.option_grbl') },
+    { value: 'generic_grbl_compatible', label: t('controller_choice.option_generic') },
     { value: 'auto_detect', label: t('controller_choice.option_auto') },
     { value: 'fluid_nc', label: t('controller_choice.option_fluidnc') },
     { value: 'grbl_hal', label: t('controller_choice.option_grblhal') },
@@ -139,7 +141,16 @@ export function ControllerChoiceControls({
     const value = controllerSelectionValue(selection);
     const allowed =
       transportKind === 'tcp'
-        ? ['auto_detect', 'fluid_nc', 'grbl_hal', 'laser_pecker', 'xtool_m1', 'ruida']
+        ? [
+            'auto_detect',
+            'grbl',
+            'generic_grbl_compatible',
+            'fluid_nc',
+            'grbl_hal',
+            'laser_pecker',
+            'xtool_m1',
+            'ruida',
+          ]
         : transportKind === 'usb_packet'
           ? ['lihuiyu']
           : [

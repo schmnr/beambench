@@ -10,6 +10,8 @@ const USER_ORIGIN_NOT_SET = 'User Origin is selected, but no user origin has bee
 const CURRENT_POSITION_UNAVAILABLE =
   'Current Position requires a connected machine with a reported work position.';
 const RASTER_PLAN_TOO_COMPLEX = '[raster_plan_too_complex]';
+const JOB_PREPARATION_STOPPED = '[job_preparation_stopped]';
+const SLEEP_PROTECTION_FAILED = '[sleep_protection_failed]';
 const DXF_NO_USABLE_GEOMETRY =
   /^DXF import found no usable 2D vector geometry\.(?: Unsupported or malformed entities: (.+)\.)?$/u;
 const DXF_SKIPPED_ENTITIES =
@@ -52,6 +54,12 @@ export function wrapBackendError(detail: string): string {
   }
   if (normalized.includes(RASTER_PLAN_TOO_COMPLEX)) {
     return i18n.t('errors.raster_plan_too_complex');
+  }
+  if (normalized.startsWith(JOB_PREPARATION_STOPPED)) {
+    return i18n.t('errors.job_preparation_stopped');
+  }
+  if (normalized.startsWith(SLEEP_PROTECTION_FAILED)) {
+    return i18n.t('errors.sleep_protection_failed');
   }
   const noUsableDxfGeometry = normalized.match(DXF_NO_USABLE_GEOMETRY);
   if (noUsableDxfGeometry) {

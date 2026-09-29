@@ -16,6 +16,7 @@ pub mod preferences;
 pub mod profiles;
 pub mod project;
 pub mod quality_test;
+mod system_diagnostics;
 pub mod vector;
 
 #[cfg(test)]

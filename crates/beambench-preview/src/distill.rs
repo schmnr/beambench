@@ -101,6 +101,10 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                 let mut power_sum: f64 = 0.0;
                 let mut power_count: usize = 0;
                 let mut run_extents: Vec<RasterRunExtent> = Vec::new();
+                // Burn width per scanline, captured here so the travel-distance
+                // pass further down reuses it instead of decoding every row a
+                // second time.
+                let mut row_burn_widths: Vec<f64> = Vec::with_capacity(scanlines.len());
                 let mut scanline_extents: Vec<RasterRunExtent> = Vec::new();
                 let mut overscan_run_extents: Vec<RasterRunExtent> = Vec::new();
 
@@ -118,6 +122,7 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                     max_y_local = max_y_local.max(scanline.y_mm);
                     let mut row_min = f64::INFINITY;
                     let mut row_max = f64::NEG_INFINITY;
+                    let mut row_burn_width = 0.0;
                     for run in &scanline.runs {
                         let run_min = run.start_x_mm.min(run.end_x_mm);
                         let run_max = run.start_x_mm.max(run.end_x_mm);
@@ -125,6 +130,7 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                         row_max = row_max.max(run_max);
                         min_x_local = min_x_local.min(run_min);
                         max_x_local = max_x_local.max(run_max);
+                        row_burn_width += (run.end_x_mm - run.start_x_mm).abs();
                         total_run_width += (run.end_x_mm - run.start_x_mm).abs();
                         burn_distance_mm += (run.end_x_mm - run.start_x_mm).abs();
 
@@ -207,6 +213,7 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                             }
                         }
                     }
+                    row_burn_widths.push(row_burn_width);
                     if row_min.is_finite()
                         && scanline_index.is_multiple_of(scanline_stride)
                         && scanline_extents.len() < MAX_PREVIEW_SCANLINE_EXTENTS
@@ -333,18 +340,11 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                 {
                     let mut prev_end: Option<(f64, f64)> = None;
 
-                    for sl in scanlines {
-                        let mut row_min = f64::INFINITY;
-                        let mut row_max = f64::NEG_INFINITY;
-                        let mut row_burn_width = 0.0;
-                        for run in &sl.runs {
-                            row_min = row_min.min(run.start_x_mm.min(run.end_x_mm));
-                            row_max = row_max.max(run.start_x_mm.max(run.end_x_mm));
-                            row_burn_width += (run.end_x_mm - run.start_x_mm).abs();
-                        }
-                        if !row_min.is_finite() {
+                    for (row_index, sl) in scanlines.iter().enumerate() {
+                        let Some((row_min, row_max)) = sl.runs.x_extent() else {
                             continue;
-                        }
+                        };
+                        let row_burn_width = row_burn_widths.get(row_index).copied().unwrap_or(0.0);
                         let (start_pos, end_pos, direction) = match sl.direction {
                             ScanDirection::LeftToRight => (row_min, row_max, 1.0),
                             ScanDirection::RightToLeft => (row_max, row_min, -1.0),
@@ -906,7 +906,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 100.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -915,7 +916,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 100.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
             ],
@@ -979,7 +981,8 @@ mod tests {
                         end_x_mm: 10.0,
                         power_values: vec![],
                     },
-                ],
+                ]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1024,7 +1027,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 50.0,
                         power_values: vec![128, 128],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -1033,7 +1037,8 @@ mod tests {
                         start_x_mm: 50.0,
                         end_x_mm: 100.0,
                         power_values: vec![200],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
             ],
@@ -1154,7 +1159,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 50.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 }],
                 line_interval_mm: 0.1,
@@ -1200,7 +1206,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 100.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -1209,7 +1216,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 100.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
             ],
@@ -1309,7 +1317,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 10.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -1318,7 +1327,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 10.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
                 Scanline {
@@ -1327,7 +1337,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 10.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
             ],
@@ -1514,7 +1525,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 50.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1554,7 +1566,8 @@ mod tests {
                     start_x_mm: -5.0,
                     end_x_mm: 5.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1595,7 +1608,8 @@ mod tests {
                         start_x_mm: -5.0,
                         end_x_mm: 5.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -1604,7 +1618,8 @@ mod tests {
                         start_x_mm: -5.0,
                         end_x_mm: 5.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
             ],
@@ -1653,7 +1668,8 @@ mod tests {
                     start_x_mm: 10.0,
                     end_x_mm: 20.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1690,7 +1706,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![255, 255, 255, 255],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1724,7 +1741,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![128],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1759,7 +1777,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1861,7 +1880,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 50.0,
                     power_values: vec![255, 128, 0, 128, 255],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1903,7 +1923,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 20.0,
                     power_values: vec![0, 255],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1941,7 +1962,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![128],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -1986,7 +2008,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2035,7 +2058,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![0, 255],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2096,7 +2120,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![0, 255],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2171,7 +2196,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 10.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2210,7 +2236,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 20.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2253,7 +2280,8 @@ mod tests {
                     start_x_mm: 0.0,
                     end_x_mm: 20.0,
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2309,7 +2337,8 @@ mod tests {
                     end_x_mm: 100.0,
                     // Alternating pixel values creates many sub-runs
                     power_values: (0..100).map(|j| if j % 2 == 0 { 255 } else { 0 }).collect(),
-                }],
+                }]
+                .into(),
                 direction: if i % 2 == 0 {
                     ScanDirection::LeftToRight
                 } else {
@@ -2411,7 +2440,8 @@ mod tests {
                     start_x_mm: 5.0, // This is world-Y start
                     end_x_mm: 25.0,  // This is world-Y end
                     power_values: vec![200],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2472,7 +2502,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 50.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::LeftToRight,
                 },
                 Scanline {
@@ -2481,7 +2512,8 @@ mod tests {
                         start_x_mm: 0.0,
                         end_x_mm: 50.0,
                         power_values: vec![],
-                    }],
+                    }]
+                    .into(),
                     direction: ScanDirection::RightToLeft,
                 },
             ],
@@ -2531,7 +2563,8 @@ mod tests {
                     start_x_mm: 5.0, // world-Y start
                     end_x_mm: 25.0,  // world-Y end
                     power_values: vec![],
-                }],
+                }]
+                .into(),
                 direction: ScanDirection::LeftToRight,
             }],
             line_interval_mm: 0.1,
@@ -2612,7 +2645,8 @@ mod tests {
                         end_x_mm: offset + 1.5,
                         power_values: vec![],
                     },
-                ],
+                ]
+                .into(),
                 direction: if i % 2 == 0 {
                     ScanDirection::LeftToRight
                 } else {

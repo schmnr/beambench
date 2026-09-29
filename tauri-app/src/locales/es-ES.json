@@ -18,7 +18,7 @@
     "controller": "Controller",
     "transport": "Connection",
     "transport_serial": "Serial",
-    "transport_network": "Network",
+    "transport_network": "Red (Wi-Fi / Ethernet)",
     "transport_usb": "USB",
     "usb_device": "USB device",
     "select_usb_device": "Select a Lihuiyu controller",
@@ -2053,6 +2053,7 @@
         "finish_position": "Posición final",
         "finish_return_to_origin": "Regreso al origen",
         "frame": "marco",
+        "frame_speed": "Velocidad de encuadre",
         "frame_laser_on": "Marco: Láser encendido",
         "frame_mode_hull": "Outline",
         "frame_mode_rect": "Box",
@@ -2189,6 +2190,10 @@
         "preview": "Vista previa",
         "no_changes": "Sin cambios.",
         "catalog": {
+          "sculpfun_s30_pro_10w": {
+            "description": "Preajuste basado en la documentación para Sculpfun S30 Pro 10W con GRBL 1.1f o posterior. Las pruebas en la máquina están pendientes.",
+            "advisory": "Área de trabajo de 380 x 385 mm, S1000, asistencia de aire M8/M9. Comprueba el recorrido y el valor S máximo de tu máquina. Activa la búsqueda de origen solo después de instalar los interruptores incluidos y configurar el firmware. Las extensiones del bastidor necesitan sus propias dimensiones."
+          },
           "sculpfun_s9": {
             "description": "Preajuste basado en documentación para la Sculpfun S9 original con GRBL 1.1f o posterior. Las pruebas con la máquina están pendientes.",
             "advisory": "Área de trabajo conservadora de 410 x 415 mm. Compruebe los recorridos y el valor S máximo de su máquina. El retorno al origen y la asistencia de aire automática están desactivados; actívelos solo con las mejoras instaladas y configuradas. Sin interruptores de origen, use Posición actual u Origen del usuario."
@@ -2334,6 +2339,12 @@
       }
     },
     "diagnostics": {
+      "brltty_message": "BRLTTY está activo y el puerto serie USB no está disponible. Puede estar ocupando el adaptador; comprueba el registro.",
+      "brltty_help": "Resolver problemas con BRLTTY",
+      "brltty_check": "Busca si BRLTTY toma el control de este dispositivo USB y después se desconecta el puerto serie:",
+      "brltty_stop": "Si el registro confirma un conflicto y no usas braille, detén BRLTTY temporalmente con el láser inactivo. Después, vuelve a conectar el USB e inténtalo de nuevo:",
+      "brltty_restore": "Para restaurar la compatibilidad con braille:",
+      "brltty_persistence": "La parada es temporal. Los nombres de servicio varían; si se reinicia o no existe, consulta las reglas de dispositivos BRLTTY de tu distribución. Si usas braille, mantén BRLTTY activo y busca una solución específica para el dispositivo.",
       "none_captured": "Nada capturado",
       "no_snapshot": "Sin captura",
       "refresh_aria": "Actualizar diagnóstico",
@@ -2637,6 +2648,8 @@
     }
   },
   "errors": {
+    "job_preparation_stopped": "Se pulsó la parada de emergencia mientras se preparaba el trabajo. No se envió nada.",
+    "sleep_protection_failed": "No se pudo impedir que el ordenador entrara en suspensión durante este trabajo. Mantén el ordenador activo hasta que termine.",
     "operation_failed_with_detail": "La operación falló: {detail}",
     "raster_plan_too_complex": "Esta imagen crea demasiados movimientos de trama individuales con su tamaño y DPI actuales. Reduce el DPI o el tamaño físico, o elige un modo de imagen menos fragmentado, y vuelve a generar la vista previa.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

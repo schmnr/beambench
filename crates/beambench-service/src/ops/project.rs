@@ -47,7 +47,7 @@ pub struct AddObjectInput {
     pub bounds: Bounds,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct AddObjectLayerInput {
     pub name: String,
     pub color_tag: Option<String>,
