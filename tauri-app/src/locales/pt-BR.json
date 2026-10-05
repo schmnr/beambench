@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "A parada de emergência foi acionada durante a preparação do trabalho. Nada foi enviado.",
     "sleep_protection_failed": "Não foi possível impedir que o computador entrasse em suspensão durante este trabalho. Mantenha o computador ativo até o término do trabalho.",
+    "project_file_missing": "Este arquivo de projeto foi movido ou excluído, por isso foi removido de {recent}. Use {open} para encontrá-lo.",
     "operation_failed_with_detail": "Falha na operação: {detail}",
     "raster_plan_too_complex": "Esta imagem cria movimentos raster individuais demais com o tamanho e o DPI atuais. Reduza o DPI ou o tamanho físico, ou escolha um modo de imagem menos fragmentado, e gere a visualização novamente.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

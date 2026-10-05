@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "Med pripravo opravila je bila pritisnjena zaustavitev v sili. Nič ni bilo poslano.",
     "sleep_protection_failed": "Med tem opravilom ni bilo mogoče preprečiti prehoda računalnika v stanje spanja. Računalnik naj ostane buden do konca opravila.",
+    "project_file_missing": "Ta projektna datoteka je bila premaknjena ali izbrisana, zato je bila odstranjena iz menija {recent}. Poiščite jo z {open}.",
     "operation_failed_with_detail": "Operacija ni uspela: {detail}",
     "raster_plan_too_complex": "Ta slika pri trenutni velikosti in ločljivosti DPI ustvari preveč posameznih rastrskih premikov. Zmanjšajte DPI ali fizično velikost oziroma izberite manj razdrobljen slikovni način, nato znova ustvarite predogled.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

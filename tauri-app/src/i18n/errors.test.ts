@@ -15,6 +15,16 @@ describe('wrapBackendError', () => {
           expect(translated).not.toBe(i18n.t(`errors.${key}`, { lng: 'en' }));
         }
       }
+      const missing = wrapBackendError('Error: [project_file_missing] The project file was moved or deleted: C:\\gone.lzrproj');
+      expect(missing).toContain(i18n.t('menus.recent_projects.label'));
+      expect(missing).toContain(i18n.t('menus.file.open'));
+      expect(missing).not.toMatch(/\{(recent|open)\}/);
+      expect(missing).not.toContain('gone.lzrproj');
+      if (locale !== 'en') {
+        expect(i18n.getResource(locale, 'translation', 'errors.project_file_missing')).not.toBe(
+          i18n.getResource('en', 'translation', 'errors.project_file_missing'),
+        );
+      }
       for (const key of ['controller_choice.transport_network', 'panels.machine.laser.frame_speed']) {
         if (locale !== 'en') expect(i18n.t(key)).not.toBe(i18n.t(key, { lng: 'en' }));
       }

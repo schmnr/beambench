@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "Během přípravy úlohy bylo stisknuto nouzové zastavení. Nic nebylo odesláno.",
     "sleep_protection_failed": "Během této úlohy se nepodařilo zabránit uspání počítače. Udržujte počítač vzhůru až do dokončení úlohy.",
+    "project_file_missing": "Tento soubor projektu byl přesunut nebo odstraněn, proto byl odebrán z nabídky {recent}. Najděte ho pomocí {open}.",
     "operation_failed_with_detail": "Operace se nezdařila: {detail}",
     "raster_plan_too_complex": "Tento obrázek při aktuální velikosti a DPI vytváří příliš mnoho jednotlivých rastrových pohybů. Snižte DPI nebo fyzickou velikost, případně zvolte méně fragmentovaný režim obrázku, a poté náhled vytvořte znovu.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

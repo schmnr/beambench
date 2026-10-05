@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Keep asking a GRBL network controller for its status for up to 3 seconds,
+  so Wi-Fi bridges that are slow to answer the first query can connect. Only
+  read-only status and identity queries are sent while connecting.
+- Include network controller traffic in feedback reports, as serial
+  connections already do, so failed Wi-Fi connections show what the controller
+  sent back.
+- Opening a project that was moved or deleted now explains what happened and
+  removes it from Recent Projects, instead of showing a raw file system error.
+
 ## 0.2.25
 
 - Translate the network connection label and job preparation/sleep warnings in

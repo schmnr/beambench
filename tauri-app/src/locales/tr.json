@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "İş hazırlanırken acil durdurma düğmesine basıldı. Hiçbir şey gönderilmedi.",
     "sleep_protection_failed": "Bu iş sırasında bilgisayarın uyku moduna geçmesi engellenemedi. İş bitene kadar bilgisayarı uyanık tutun.",
+    "project_file_missing": "Bu proje dosyası taşındı veya silindi, bu yüzden {recent} listesinden kaldırıldı. Bulmak için {open} seçeneğini kullanın.",
     "operation_failed_with_detail": "İşlem başarısız: {detail}",
     "raster_plan_too_complex": "Bu görüntü mevcut boyut ve DPI ile çok fazla ayrı raster hareketi oluşturuyor. DPI değerini veya fiziksel boyutu azaltın ya da daha az parçalı bir görüntü modu seçin ve ardından önizlemeyi yeniden oluşturun.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

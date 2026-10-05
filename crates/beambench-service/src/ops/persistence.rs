@@ -356,7 +356,29 @@ pub fn load_project_from_path(file_path: &str) -> ServiceResult<Project> {
 
 pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceResult<Project> {
     let open_path = PathBuf::from(file_path);
-    let project = load_project_from_path(file_path)?;
+    let project = match load_project_from_path(file_path) {
+        Ok(project) => project,
+        Err(error)
+            if std::fs::metadata(&open_path)
+                .is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound) =>
+        {
+            // Usually a Recent Projects entry for a file that was moved or
+            // deleted. Drop the stale entry so it is not offered again.
+            let removed = ctx
+                .settings
+                .lock()
+                .map_err(|e| lock_err("settings", e))?
+                .remove_recent_file(file_path);
+            if removed {
+                persist_settings_to_disk(ctx);
+            }
+            tracing::debug!("project open failed for a missing file: {error}");
+            return Err(ServiceError::not_found(format!(
+                "[project_file_missing] The project file was moved or deleted: {file_path}"
+            )));
+        }
+        Err(error) => return Err(error),
+    };
     {
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
@@ -501,6 +523,50 @@ mod tests {
     use beambench_common::{Bounds, ColorTag, Point2D};
     use beambench_core::{ObjectData, ProjectObject};
     use tempfile::tempdir;
+
+    #[test]
+    fn opening_a_missing_project_drops_it_from_recent_projects() {
+        let ctx = ServiceContext::new();
+        let dir = tempdir().unwrap();
+        let missing = dir.path().join("moved.lzrproj");
+        let missing = missing.to_string_lossy().into_owned();
+        let kept = dir.path().join("kept.lzrproj").to_string_lossy().into_owned();
+        {
+            let mut settings = ctx.settings.lock().unwrap();
+            settings.push_recent_file(&kept, "kept");
+            settings.push_recent_file(&missing, "moved");
+        }
+
+        let error = open_project_from_path(&ctx, &missing).unwrap_err();
+        assert!(error.message.starts_with("[project_file_missing]"), "{error}");
+        let recent: Vec<_> = ctx
+            .settings
+            .lock()
+            .unwrap()
+            .get_recent_files()
+            .iter()
+            .map(|file| file.path.clone())
+            .collect();
+        assert_eq!(recent, vec![kept]);
+        assert!(ctx.project.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn opening_an_unreadable_project_keeps_it_in_recent_projects() {
+        let ctx = ServiceContext::new();
+        let dir = tempdir().unwrap();
+        let corrupt = dir.path().join("corrupt.lzrproj");
+        std::fs::write(&corrupt, b"not a project").unwrap();
+        let corrupt = corrupt.to_string_lossy().into_owned();
+        ctx.settings
+            .lock()
+            .unwrap()
+            .push_recent_file(&corrupt, "corrupt");
+
+        let error = open_project_from_path(&ctx, &corrupt).unwrap_err();
+        assert!(!error.message.contains("[project_file_missing]"), "{error}");
+        assert_eq!(ctx.settings.lock().unwrap().get_recent_files().len(), 1);
+    }
 
     #[test]
     fn restore_recovery_discards_source_file() {

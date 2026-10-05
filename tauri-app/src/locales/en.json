@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "Emergency stop was pressed while the job was being prepared. Nothing was sent.",
     "sleep_protection_failed": "Could not prevent computer sleep during this job. Keep the computer awake until the job ends.",
+    "project_file_missing": "This project file was moved or deleted, so it was removed from {recent}. Use {open} to find it.",
     "user_origin_not_set": "User Origin is selected but has not been set. Move the laser to the intended origin and choose Set here before framing or starting.",
     "current_position_unavailable": "Current Position needs a connected machine with a reported position.",
     "dxf_no_usable_geometry": "The DXF file contains no usable 2D vector geometry.",

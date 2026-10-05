@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "Nødstopp ble trykket inn mens jobben ble klargjort. Ingenting ble sendt.",
     "sleep_protection_failed": "Kunne ikke hindre at datamaskinen går i hvilemodus under denne jobben. Hold datamaskinen våken til jobben er ferdig.",
+    "project_file_missing": "Prosjektfilen er flyttet eller slettet, så den er fjernet fra {recent}. Bruk {open} for å finne den.",
     "operation_failed_with_detail": "Operasjonen mislyktes: {detail}",
     "raster_plan_too_complex": "Dette bildet lager for mange individuelle rasterbevegelser med gjeldende størrelse og DPI. Reduser DPI eller fysisk størrelse, eller velg en mindre fragmentert bildemodus, og generer deretter forhåndsvisningen på nytt.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

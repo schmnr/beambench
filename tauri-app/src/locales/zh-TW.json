@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "準備工作時按下了緊急停止。未傳送任何內容。",
     "sleep_protection_failed": "無法阻止電腦在此工作期間進入睡眠。請讓電腦保持喚醒狀態，直到工作結束。",
+    "project_file_missing": "此專案檔案已被移動或刪除，因此已從「{recent}」中移除。請使用「{open}」尋找它。",
     "operation_failed_with_detail": "操作失敗：{detail}",
     "raster_plan_too_complex": "此影像在目前尺寸和 DPI 下會產生過多的獨立點陣移動。請降低 DPI 或實體尺寸，或選擇碎片較少的影像模式，然後重新產生預覽。",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

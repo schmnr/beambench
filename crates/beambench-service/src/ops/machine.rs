@@ -2956,6 +2956,7 @@ pub fn begin_network_controller_connection(
         ));
     }
     clear_pending_controller_connection(ctx)?;
+    reset_serial_traffic();
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);

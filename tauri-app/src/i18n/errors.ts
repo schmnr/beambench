@@ -12,6 +12,7 @@ const CURRENT_POSITION_UNAVAILABLE =
 const RASTER_PLAN_TOO_COMPLEX = '[raster_plan_too_complex]';
 const JOB_PREPARATION_STOPPED = '[job_preparation_stopped]';
 const SLEEP_PROTECTION_FAILED = '[sleep_protection_failed]';
+const PROJECT_FILE_MISSING = '[project_file_missing]';
 const DXF_NO_USABLE_GEOMETRY =
   /^DXF import found no usable 2D vector geometry\.(?: Unsupported or malformed entities: (.+)\.)?$/u;
 const DXF_SKIPPED_ENTITIES =
@@ -60,6 +61,13 @@ export function wrapBackendError(detail: string): string {
   }
   if (normalized.startsWith(SLEEP_PROTECTION_FAILED)) {
     return i18n.t('errors.sleep_protection_failed');
+  }
+  if (normalized.includes(PROJECT_FILE_MISSING)) {
+    // Name the menus exactly as this language's menu bar shows them.
+    return i18n.t('errors.project_file_missing', {
+      recent: i18n.t('menus.recent_projects.label'),
+      open: `${i18n.t('menus.file.label')} > ${i18n.t('menus.file.open')}`,
+    });
   }
   const noUsableDxfGeometry = normalized.match(DXF_NO_USABLE_GEOMETRY);
   if (noUsableDxfGeometry) {

@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "De noodstop is ingedrukt terwijl de opdracht werd voorbereid. Er is niets verzonden.",
     "sleep_protection_failed": "De slaapstand van de computer kon tijdens deze opdracht niet worden voorkomen. Houd de computer wakker totdat de opdracht klaar is.",
+    "project_file_missing": "Dit projectbestand is verplaatst of verwijderd en daarom uit {recent} gehaald. Gebruik {open} om het te zoeken.",
     "operation_failed_with_detail": "Bewerking mislukt: {detail}",
     "raster_plan_too_complex": "Deze afbeelding maakt met de huidige grootte en DPI te veel afzonderlijke rasterbewegingen. Verlaag de DPI of de fysieke grootte, of kies een minder gefragmenteerde afbeeldingsmodus, en genereer daarna opnieuw het voorbeeld.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",

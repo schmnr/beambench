@@ -475,6 +475,13 @@ impl AppSettings {
         self.recent_files.truncate(24);
     }
 
+    /// Remove a recent file entry. Returns true when one was removed.
+    pub fn remove_recent_file(&mut self, path: &str) -> bool {
+        let before = self.recent_files.len();
+        self.recent_files.retain(|r| r.path != path);
+        self.recent_files.len() != before
+    }
+
     /// Get the list of recent files.
     pub fn get_recent_files(&self) -> &[RecentFile] {
         &self.recent_files

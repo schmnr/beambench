@@ -2650,6 +2650,7 @@
   "errors": {
     "job_preparation_stopped": "Se pulsó la parada de emergencia mientras se preparaba el trabajo. No se envió nada.",
     "sleep_protection_failed": "No se pudo impedir que el ordenador entrara en suspensión durante este trabajo. Mantén el ordenador activo hasta que termine.",
+    "project_file_missing": "Este archivo de proyecto se ha movido o eliminado, así que se ha quitado de {recent}. Usa {open} para encontrarlo.",
     "operation_failed_with_detail": "La operación falló: {detail}",
     "raster_plan_too_complex": "Esta imagen crea demasiados movimientos de trama individuales con su tamaño y DPI actuales. Reduce el DPI o el tamaño físico, o elige un modo de imagen menos fragmentado, y vuelve a generar la vista previa.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
