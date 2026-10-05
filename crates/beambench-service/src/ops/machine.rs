@@ -3582,15 +3582,32 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
     clear_pending_controller_connection(ctx)?;
     clear_relative_frame_confirmation(ctx)?;
     let mut disconnect_warning: Option<String> = None;
+    // Read before taking the session (job before session lock order).
+    let job_active = ctx.job.lock().map_err(|e| lock_err("job", e))?.is_some();
     {
         let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        if let Some(MachineSessionHandle::Grbl(grbl)) = session_lock.as_mut()
+            && (job_active || ctx.active_jog.load(Ordering::Acquire))
+        {
+            // Closing the port does not stop a GRBL controller: commands it
+            // already buffered keep running, possibly with the laser on. Stop
+            // it first. An unconfirmed stop still releases the session, with
+            // the same physical-stop guidance as Emergency Stop.
+            if let Err(error) = send_grbl_emergency_stop(grbl) {
+                disconnect_warning = Some(format!(
+                    "[emergency_stop_unconfirmed] Beam Bench disconnected during an active job but could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
+                ));
+            }
+        }
         if let Some(ref mut session) = *session_lock {
             // Disconnect must always release the session: the phases where the
             // controller refuses a software stop (recovery, unowned activity,
             // power fault) are exactly the ones whose remedy is reconnecting.
             // Surface the failed stop as a warning instead of trapping the
             // user with an undroppable session.
-            if let Err(error) = session.disconnect() {
+            if let Err(error) = session.disconnect()
+                && disconnect_warning.is_none()
+            {
                 disconnect_warning = Some(error);
             }
         }
@@ -3832,15 +3849,12 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
                     profile.rotary_enabled && profile.rotary_axis == beambench_core::RotaryAxis::X;
                 let rotary_y =
                     profile.rotary_enabled && profile.rotary_axis != beambench_core::RotaryAxis::X;
-                if !rotary_x && x_mm > 0.0 {
-                    x_mm = x_mm.min((profile.bed_width_mm - status.work_position.x).max(0.0));
-                } else if !rotary_x && x_mm < 0.0 {
-                    x_mm = -(-x_mm).min(status.work_position.x.max(0.0));
+                if !rotary_x {
+                    x_mm = continuous_jog_travel(status.work_position.x, profile.bed_width_mm, x_mm);
                 }
-                if !rotary_y && y_mm > 0.0 {
-                    y_mm = y_mm.min((profile.bed_height_mm - status.work_position.y).max(0.0));
-                } else if !rotary_y && y_mm < 0.0 {
-                    y_mm = -(-y_mm).min(status.work_position.y.max(0.0));
+                if !rotary_y {
+                    y_mm =
+                        continuous_jog_travel(status.work_position.y, profile.bed_height_mm, y_mm);
                 }
             }
             let mut z_mm = input.z_mm;
@@ -3953,6 +3967,31 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
         }),
     );
     Ok(())
+}
+
+/// Limit a press-and-hold jog to the travel left inside the bed.
+///
+/// GRBL machines use either 0..size coordinates or, with the standard homing
+/// convention, -size..0. Work offsets can put the position outside both; then
+/// the frame of reference is unknown and one press never travels more than the
+/// bed size. Controller soft limits remain the final guard.
+fn continuous_jog_travel(position: f64, size: f64, requested: f64) -> f64 {
+    const TOLERANCE_MM: f64 = 0.001;
+    let (room_positive, room_negative) =
+        if (-TOLERANCE_MM..=size + TOLERANCE_MM).contains(&position) {
+            ((size - position).max(0.0), position.max(0.0))
+        } else if (-size - TOLERANCE_MM..=TOLERANCE_MM).contains(&position) {
+            ((-position).max(0.0), (size + position).max(0.0))
+        } else {
+            (size, size)
+        };
+    if requested > 0.0 {
+        requested.min(room_positive)
+    } else if requested < 0.0 {
+        -(-requested).min(room_negative)
+    } else {
+        0.0
+    }
 }
 
 pub fn jog_cancel(ctx: &ServiceContext) -> ServiceResult<()> {
@@ -6080,8 +6119,11 @@ pub fn reset_all_overrides(ctx: &ServiceContext) -> ServiceResult<()> {
 
 fn send_grbl_emergency_stop(session: &mut GrblRuntimeSession) -> Result<(), String> {
     // Drain pre-existing responses so only traffic observed after Ctrl-X can
-    // confirm delivery of this stop.
-    session.poll().map_err(|error| error.to_string())?;
+    // confirm delivery of this stop. The drain is best effort: a read error
+    // must never prevent the reset write on a handle that may still accept it.
+    // The status count is taken either way, so stale traffic still cannot
+    // count as confirmation.
+    let _ = session.poll();
     let status_report_count = session.status_report_count();
     session.soft_reset().map_err(|error| error.to_string())?;
     let mut banner_received = false;
@@ -6096,11 +6138,17 @@ fn send_grbl_emergency_stop(session: &mut GrblRuntimeSession) -> Result<(), Stri
             break;
         }
         if session.status_report_count() > status_report_count {
+            let status = session.last_status();
             if !matches!(
-                session.last_status().run_state,
+                status.run_state,
                 MachineRunState::Idle | MachineRunState::Alarm
             ) {
                 return Err("controller still reports active motion after the stop".into());
+            }
+            // Idle describes motion only. Apply the same output rule as the
+            // connection handshake: a reported laser output is not stopped.
+            if status.spindle_speed > 0.0 {
+                return Err("controller still reports active laser output after the stop".into());
             }
             fresh_status_received = true;
             break;
@@ -9924,6 +9972,157 @@ mod tests {
         profile.laser_on_when_framing = true;
         assert_eq!(frame_power_percent(false, &profile), 1.0);
         assert_eq!(frame_power_percent(true, &profile), 1.0);
+    }
+
+    fn sent_soft_resets(transport: &Arc<Mutex<RecordingTransportState>>) -> usize {
+        sent_bytes(transport)
+            .iter()
+            .filter(|bytes| bytes.as_slice() == grbl_commands::soft_reset())
+            .count()
+    }
+
+    #[test]
+    fn emergency_stop_sends_reset_even_when_the_first_read_fails() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_reads = 1;
+            state
+                .status_on_query
+                .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        }
+        let opens_before = transport.lock().unwrap().open_count;
+        emergency_stop(&ctx).unwrap();
+        assert_eq!(sent_soft_resets(&transport), 1);
+        assert_eq!(
+            transport.lock().unwrap().open_count,
+            opens_before,
+            "the stop must go out on the original handle, not after a reconnect"
+        );
+    }
+
+    #[test]
+    fn emergency_stop_tries_the_original_handle_before_giving_up() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_reads = 1_000;
+            state.fail_open_attempts = 4;
+        }
+        let error = emergency_stop(&ctx).unwrap_err();
+        assert!(error.message.contains("emergency_stop_unconfirmed"), "{error}");
+        assert!(
+            sent_soft_resets(&transport) >= 1,
+            "Ctrl-X was never attempted on the writable original handle"
+        );
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn stop_confirmation_rejects_idle_with_active_laser_output() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,1000>".into());
+        let error = prepare_shutdown(&ctx).unwrap_err();
+        assert!(error.message.contains("could not be confirmed"), "{error}");
+        assert!(!ctx.shutting_down.load(Ordering::Acquire));
+        assert!(ctx.session.lock().unwrap().is_some(), "window must stay connected");
+
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,1000>".into());
+        let error = emergency_stop(&ctx).unwrap_err();
+        assert!(error.message.contains("emergency_stop_unconfirmed"), "{error}");
+    }
+
+    #[test]
+    fn disconnect_during_a_grbl_job_stops_the_machine_first() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut job = JobController::prepare(&dummy_plan(), &GcodeConfig::default()).unwrap();
+        {
+            let mut session = ctx.session.lock().unwrap();
+            if let Some(MachineSessionHandle::Grbl(grbl)) = session.as_mut() {
+                job.start(grbl).unwrap();
+            }
+        }
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(sent_soft_resets(&transport), 1, "no stop sent before closing");
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn idle_disconnect_does_not_reset_the_controller() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(sent_soft_resets(&transport), 0);
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn continuous_jog_handles_negative_and_offset_coordinates() {
+        let profile = MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        // Standard GRBL homing at the max corner: coordinates run 0 to -size.
+        for (x, y, expected) in [
+            (-1000.0, 0.0, "$J=G21G91X-200.000Y0.000F1000"),
+            (1000.0, 0.0, "$J=G21G91X200.000Y0.000F1000"),
+            (0.0, -1000.0, "$J=G21G91X0.000Y-200.000F1000"),
+            (0.0, 1000.0, "$J=G21G91X0.000Y100.000F1000"),
+        ] {
+            let (ctx, transport) = ready_grbl_context_with_status(
+                profile.clone(),
+                "<Idle|MPos:-200.000,-100.000,0.000|WPos:-200.000,-100.000,0.000|FS:0,0>",
+            );
+            jog(
+                &ctx,
+                JogMachineInput {
+                    x_mm: x,
+                    y_mm: y,
+                    z_mm: None,
+                    feed_rate: 1000.0,
+                    continuous: true,
+                },
+            )
+            .unwrap();
+            assert_eq!(sent_lines(&transport).last().map(String::as_str), Some(expected));
+        }
+        // A work offset outside both conventions: never travel more than the
+        // bed size in one press.
+        let (ctx, transport) = ready_grbl_context_with_status(
+            profile,
+            "<Idle|MPos:0.000,0.000,0.000|WPos:900.000,-900.000,0.000|FS:0,0>",
+        );
+        jog(
+            &ctx,
+            JogMachineInput {
+                x_mm: 100_000.0,
+                y_mm: -100_000.0,
+                z_mm: None,
+                feed_rate: 1000.0,
+                continuous: true,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            sent_lines(&transport).last().map(String::as_str),
+            Some("$J=G21G91X400.000Y-300.000F1000")
+        );
     }
 
     #[test]
