@@ -82,6 +82,8 @@ const FIRE_DEADMAN_POLL: Duration = Duration::from_millis(100);
 const TERMINAL_JOB_CONSOLE_LIMIT: usize = 120;
 const CONTROLLER_CONNECTION_CHALLENGE_TTL: Duration = Duration::from_secs(120);
 const CONTROLLER_COMPATIBILITY_STATUS_TIMEOUT: Duration = Duration::from_secs(1);
+const NETWORK_STATUS_TIMEOUT: Duration = Duration::from_secs(3);
+const NETWORK_STATUS_RETRY_INTERVAL: Duration = Duration::from_millis(250);
 const CONTROLLER_SETTINGS_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
 const CONTROLLER_QUERY_POLL_INTERVAL: Duration = Duration::from_millis(20);
 const IDLE_STATUS_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
@@ -2022,12 +2024,22 @@ fn open_grbl_network_for_connection(
     session
         .poll_status()
         .map_err(|error| ServiceError::machine(error.to_string()))?;
-    let deadline = Instant::now() + CONTROLLER_COMPATIBILITY_STATUS_TIMEOUT;
+    let deadline = Instant::now() + NETWORK_STATUS_TIMEOUT;
+    let mut next_status_query = Instant::now() + NETWORK_STATUS_RETRY_INTERVAL;
     while session.status_report_count() == status_count && Instant::now() < deadline {
         session
             .poll()
             .map_err(|error| ServiceError::machine(error.to_string()))?;
         if session.status_report_count() == status_count {
+            // A Wi-Fi bridge may still be starting when the first query arrives.
+            // Retry only the read-only status byte, within the overall deadline.
+            let now = Instant::now();
+            if now < deadline && now >= next_status_query {
+                session
+                    .poll_status()
+                    .map_err(|error| ServiceError::machine(error.to_string()))?;
+                next_status_query = now + NETWORK_STATUS_RETRY_INTERVAL;
+            }
             std::thread::sleep(Duration::from_millis(20));
         }
     }
@@ -7613,6 +7625,14 @@ mod tests {
     fn spawn_network_grbl_fixture(
         fixture: NetworkGrblFixture,
     ) -> (u16, std::thread::JoinHandle<Vec<String>>) {
+        spawn_network_grbl_fixture_with_status_delay(fixture, Duration::ZERO, false)
+    }
+
+    fn spawn_network_grbl_fixture_with_status_delay(
+        fixture: NetworkGrblFixture,
+        first_status_delay: Duration,
+        ignore_first_query: bool,
+    ) -> (u16, std::thread::JoinHandle<Vec<String>>) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = listener.local_addr().unwrap().port();
         let server = std::thread::spawn(move || {
@@ -7628,6 +7648,12 @@ mod tests {
                     Ok(0) => break,
                     Ok(_) if byte[0] == b'?' && line.is_empty() => {
                         commands.push("?".to_string());
+                        if commands.len() == 1 {
+                            if ignore_first_query {
+                                continue;
+                            }
+                            std::thread::sleep(first_status_delay);
+                        }
                         stream
                             .write_all(b"<Idle|MPos:0.000,0.000,0.000|FS:0,0>\n")
                             .unwrap();
@@ -7809,6 +7835,83 @@ mod tests {
                 "connection must only query the controller: {commands:?}"
             );
         }
+    }
+
+    #[test]
+    fn grbl_tcp_retries_ignored_query_and_accepts_delayed_status() {
+        for (delay, ignore_first_query) in
+            [(Duration::from_millis(1200), false), (Duration::ZERO, true)]
+        {
+            let (port, server) = spawn_network_grbl_fixture_with_status_delay(
+                NetworkGrblFixture::Grbl,
+                delay,
+                ignore_first_query,
+            );
+            let ctx = ServiceContext::new();
+            let result = begin_network_controller_connection(
+                &ctx,
+                BeginNetworkControllerConnectionInput {
+                    host: "127.0.0.1".to_string(),
+                    port,
+                    selection: ControllerSelection::KnownDriver {
+                        driver: ControllerDriverId::Grbl,
+                    },
+                },
+            )
+            .unwrap();
+            assert!(matches!(
+                result,
+                ControllerConnectionResult::Connected {
+                    session_state: SessionState::Ready,
+                    ..
+                }
+            ));
+            disconnect_machine(&ctx).unwrap();
+            let commands = server.join().unwrap();
+            assert!(
+                commands
+                    .iter()
+                    .take_while(|command| *command == "?")
+                    .count()
+                    >= 2
+            );
+            assert!(
+                commands
+                    .iter()
+                    .all(|command| matches!(command.as_str(), "?" | "$I" | "$I+" | "$$"))
+            );
+        }
+    }
+
+    #[test]
+    fn grbl_tcp_silent_controller_times_out_and_closes_transport() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut bytes = Vec::new();
+            stream.read_to_end(&mut bytes).unwrap();
+            bytes
+        });
+        let started = Instant::now();
+        let ctx = ServiceContext::new();
+        let error = open_grbl_network_for_connection(&ctx, "127.0.0.1", port)
+            .err()
+            .expect("silent controller must be rejected");
+        assert!(
+            error
+                .message
+                .contains("did not return a GRBL status report")
+        );
+        assert!(started.elapsed() >= NETWORK_STATUS_TIMEOUT);
+        assert!(started.elapsed() < Duration::from_secs(5));
+        let bytes = server.join().unwrap();
+        assert!(bytes.len() >= 2 && bytes.len() <= 12, "{bytes:?}");
+        assert!(bytes.iter().all(|byte| *byte == b'?'));
+        assert!(ctx.session.lock().unwrap().is_none());
     }
 
     #[test]
