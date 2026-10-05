@@ -109,7 +109,9 @@ pub fn list_serial_ports(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<Port
     Ok(ports)
 }
 
-#[tauri::command]
+// Off the main thread so this slow command neither freezes the window
+// nor delays Emergency Stop.
+#[tauri::command(async)]
 pub fn connect_machine(
     port_name: String,
     baud_rate: Option<u32>,
@@ -127,7 +129,9 @@ pub fn connect_machine(
     .map_err(Into::into)
 }
 
-#[tauri::command]
+// Off the main thread so this slow command neither freezes the window
+// nor delays Emergency Stop.
+#[tauri::command(async)]
 pub fn connect_machine_candidate(
     candidate_id: String,
     svc: State<'_, Arc<ServiceContext>>,
@@ -316,7 +320,9 @@ pub fn machine_jog_cancel(svc: State<'_, Arc<ServiceContext>>) -> Result<(), Str
     machine::jog_cancel(&svc).map_err(Into::into)
 }
 
-#[tauri::command]
+// Off the main thread so this slow command neither freezes the window
+// nor delays Emergency Stop.
+#[tauri::command(async)]
 pub fn run_preflight_check(
     svc: State<'_, Arc<ServiceContext>>,
     job_options: Option<SessionJobOptions>,
@@ -610,7 +616,10 @@ pub fn reset_all_overrides(svc: State<'_, Arc<ServiceContext>>) -> Result<(), St
     machine::reset_all_overrides(&svc).map_err(Into::into)
 }
 
-#[tauri::command]
+// Off the main thread: synchronous commands run there one at a time, so a
+// slow one (a large preflight plan, a connection handshake) would make
+// Emergency Stop wait in line. The backend locks are designed for this.
+#[tauri::command(async)]
 pub fn emergency_stop(svc: State<'_, Arc<ServiceContext>>) -> Result<(), String> {
     machine::emergency_stop(&svc).map_err(Into::into)
 }

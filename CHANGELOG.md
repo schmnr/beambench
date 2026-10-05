@@ -45,6 +45,14 @@
   boards). A renamed port is followed only when it is clearly the same device.
 - Replies already received from the controller are no longer lost when a later
   read fails, and USB input without line endings is now bounded.
+- Press-and-hold jogging keeps moving while the button is held. It previously
+  stopped itself as soon as the machine reported it was jogging.
+- Test fire: if starting fails after the command may have reached the machine,
+  the laser is turned back off; moving, jogging and homing are refused while
+  test fire is held; and a failed laser-off during disconnect now falls back to
+  a controller reset instead of being ignored.
+- Emergency Stop no longer waits behind slow actions such as Check Job on a
+  large image or connecting, and those actions no longer freeze the window.
 
 ## 0.2.25
 

@@ -3579,7 +3579,9 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
         .controller_connection_gate
         .lock()
         .map_err(|e| lock_err("controller_connection_gate", e))?;
-    let _ = force_laser_fire_stop(ctx, "disconnect");
+    // A failed M5 must not be silently dropped: fall back to a controller
+    // reset below, and clear the fire state either way once disconnected.
+    let fire_stop_failed = force_laser_fire_stop(ctx, "disconnect").is_err();
     clear_pending_controller_connection(ctx)?;
     clear_relative_frame_confirmation(ctx)?;
     let mut disconnect_warning: Option<String> = None;
@@ -3595,7 +3597,7 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
         // standalone.)
         let stop_result = match session_lock.as_mut() {
             Some(MachineSessionHandle::Grbl(grbl))
-                if job_active || ctx.active_jog.load(Ordering::Acquire) =>
+                if job_active || ctx.active_jog.load(Ordering::Acquire) || fire_stop_failed =>
             {
                 Some(send_grbl_emergency_stop(grbl))
             }
@@ -3617,6 +3619,9 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
             disconnect_warning = Some(format!(
                 "[emergency_stop_unconfirmed] Beam Bench disconnected during an active job but could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
             ));
+        }
+        if let Ok(mut fire) = ctx.active_laser_fire.lock() {
+            fire.take();
         }
         if let Some(ref mut session) = *session_lock {
             // Disconnect must always release the session: the phases where the
@@ -3695,6 +3700,7 @@ pub fn session_state(ctx: &ServiceContext) -> ServiceResult<SessionState> {
 }
 
 pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
+    refuse_motion_during_test_fire(ctx)?;
     // Keep the job lock through dispatch, as Start and Frame do, so a job
     // cannot begin between the eligibility check and the homing command.
     let job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
@@ -3819,6 +3825,7 @@ pub fn unlock(ctx: &ServiceContext) -> ServiceResult<()> {
 }
 
 pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
+    refuse_motion_during_test_fire(ctx)?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
     require_finite(input.x_mm, "x_mm")?;
     require_finite(input.y_mm, "y_mm")?;
@@ -5671,6 +5678,7 @@ pub fn move_laser_to_project_point(
     ctx: &ServiceContext,
     input: MoveLaserInput,
 ) -> ServiceResult<()> {
+    refuse_motion_during_test_fire(ctx)?;
     require_finite(input.x, "x")?;
     require_finite(input.y, "y")?;
     planning::sync_current_position(ctx)?;
@@ -5744,6 +5752,7 @@ pub fn move_laser_to_project_point(
 }
 
 pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResult<()> {
+    refuse_motion_during_test_fire(ctx)?;
     require_finite(input.x, "x")?;
     require_finite(input.y, "y")?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
@@ -5810,6 +5819,7 @@ pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResu
 }
 
 pub fn move_laser_to_machine(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResult<()> {
+    refuse_motion_during_test_fire(ctx)?;
     require_finite(input.x, "x")?;
     require_finite(input.y, "y")?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
@@ -5862,6 +5872,22 @@ fn fire_s_value(profile: &MachineProfile, power_percent: f64) -> u32 {
         .clamp(0.0, 100.0);
     ((profile.s_value_max as f64 * capped_percent / 100.0).round() as u32)
         .clamp(1, profile.s_value_max.max(1))
+}
+
+/// Moving with test fire on would drag a live beam across the work. Refuse
+/// motion until the fire button is released.
+fn refuse_motion_during_test_fire(ctx: &ServiceContext) -> ServiceResult<()> {
+    let firing = ctx
+        .active_laser_fire
+        .lock()
+        .map_err(|e| lock_err("active_laser_fire", e))?
+        .is_some();
+    if firing {
+        return Err(ServiceError::invalid_state(
+            "Release test fire before moving the laser",
+        ));
+    }
+    Ok(())
 }
 
 fn force_laser_fire_stop(ctx: &ServiceContext, reason: &str) -> ServiceResult<()> {
@@ -5985,9 +6011,17 @@ pub fn laser_fire_start(
                 "Manual fire is only supported on GCode/GRBL controllers",
             ));
         };
-        session
-            .send_command(&grbl_commands::laser_fire_on(s_value))
-            .map_err(|e| ServiceError::machine(e.to_string()))?;
+        if let Err(error) = session.send_command(&grbl_commands::laser_fire_on(s_value)) {
+            // The M3 line may have reached the controller before the write
+            // reported failure (for example a flush timeout). No deadman
+            // exists yet, so turn the output off here.
+            return Err(match session.send_command(grbl_commands::laser_fire_off()) {
+                Ok(()) => ServiceError::machine(format!("Manual fire could not start: {error}")),
+                Err(stop_error) => ServiceError::machine(format!(
+                    "[emergency_stop_unconfirmed] Manual fire failed to start and the laser-off command also failed: {error}; {stop_error}. Use the machine's physical emergency stop or disconnect laser power now."
+                )),
+            });
+        }
         *active_guard = Some(LaserFireState {
             token: token.clone(),
             expires_at: now + FIRE_KEEPALIVE_GRACE,
@@ -11254,6 +11288,76 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn fire_profile() -> MachineProfile {
+        MachineProfile {
+            enable_laser_fire_button: true,
+            default_fire_power_percent: 1.0,
+            s_value_max: 1000,
+            ..MachineProfile::default()
+        }
+    }
+
+    #[test]
+    fn a_failed_fire_start_turns_the_laser_back_off() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        // The M3 line is written, then the write reports failure (as a flush
+        // timeout after delivery would): the laser may be on.
+        transport.lock().unwrap().fail_line_writes = 1;
+        assert!(laser_fire_start(Arc::clone(&ctx), None).is_err());
+        let lines = sent_lines(&transport);
+        assert_eq!(lines.last().map(String::as_str), Some("M5"), "{lines:?}");
+        assert!(ctx.active_laser_fire.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn disconnect_resets_when_the_fire_stop_fails() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        laser_fire_start(Arc::clone(&ctx), None).unwrap();
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_m5_writes = 100;
+            state
+                .status_on_query
+                .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        }
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(sent_soft_resets(&transport), 1, "a failed M5 must fall back to a reset");
+        assert!(ctx.active_laser_fire.lock().unwrap().is_none());
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn motion_is_refused_while_test_fire_is_active() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        laser_fire_start(Arc::clone(&ctx), None).unwrap();
+        let before = sent_lines(&transport).len();
+        let move_input = MoveLaserInput {
+            x: 10.0,
+            y: 10.0,
+            z: None,
+            feed_rate: 1000.0,
+        };
+        for result in [
+            move_laser_to(&ctx, move_input.clone()),
+            move_laser_to_machine(&ctx, move_input.clone()),
+            jog(
+                &ctx,
+                JogMachineInput {
+                    x_mm: 5.0,
+                    y_mm: 0.0,
+                    z_mm: None,
+                    feed_rate: 1000.0,
+                    continuous: false,
+                },
+            ),
+            home(&ctx),
+        ] {
+            let error = result.unwrap_err();
+            assert!(error.message.contains("test fire"), "{error}");
+        }
+        assert_eq!(sent_lines(&transport).len(), before, "no motion while firing");
     }
 
     #[test]

@@ -154,6 +154,11 @@ export function MovePanel(): React.ReactElement {
   const connected = sessionState !== 'disconnected';
   const alarmLocked = sessionState === 'alarm' || machineStatus?.run_state === 'alarm';
   const readyIdle = sessionState === 'ready' && machineStatus?.run_state === 'idle';
+  // A held continuous jog makes the controller report Jog. That must not
+  // count as "not idle" for jog controls, or the jog cancels itself.
+  const jogControlsReady =
+    sessionState === 'ready' &&
+    (machineStatus?.run_state === 'idle' || machineStatus?.run_state === 'jog');
   // Gate manual controls on the connected controller's reported capabilities
   // (null while unknown - gates fail closed). Driver-string checks are not a
   // substitute: multiple controllers share the same constraints.
@@ -348,41 +353,48 @@ export function MovePanel(): React.ReactElement {
     }
   }, [notifyError, readyIdle, refreshSessionState, refreshStatus, runFiniteJog]);
 
+  // Latest callbacks for the window listeners below. The listeners are set
+  // up once: re-running that effect when a callback changes (machine status
+  // updates change them) would run its cleanup, which releases the jog and
+  // cancelled every held jog at its first Jog status report.
+  const releaseJogRef = useRef(releaseJog);
+  const stopFireRef = useRef(stopFire);
+  releaseJogRef.current = releaseJog;
+  stopFireRef.current = stopFire;
+
   useEffect(() => {
-    const handleWindowBlur = () => {
-      void releaseJog();
-      void stopFire();
-    };
-    const handlePointerRelease = () => {
-      void releaseJog();
-      void stopFire();
+    const releaseAll = () => {
+      void releaseJogRef.current();
+      void stopFireRef.current();
     };
     const handleVisibility = () => {
-      if (document.hidden) {
-        void releaseJog();
-        void stopFire();
-      }
+      if (document.hidden) releaseAll();
     };
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('pointerup', handlePointerRelease);
-    window.addEventListener('pointercancel', handlePointerRelease);
+    window.addEventListener('blur', releaseAll);
+    window.addEventListener('pointerup', releaseAll);
+    window.addEventListener('pointercancel', releaseAll);
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('pointerup', handlePointerRelease);
-      window.removeEventListener('pointercancel', handlePointerRelease);
+      window.removeEventListener('blur', releaseAll);
+      window.removeEventListener('pointerup', releaseAll);
+      window.removeEventListener('pointercancel', releaseAll);
       document.removeEventListener('visibilitychange', handleVisibility);
-      void releaseJog();
-      void stopFire();
+      // Unmount only: the panel closed while a jog or fire may be held.
+      releaseAll();
     };
-  }, [releaseJog, stopFire]);
+  }, []);
+
+  useEffect(() => {
+    if (!jogControlsReady || !connected) {
+      void releaseJog();
+    }
+  }, [connected, jogControlsReady, releaseJog]);
 
   useEffect(() => {
     if (!readyIdle || !connected) {
-      void releaseJog();
       void stopFire();
     }
-  }, [connected, readyIdle, releaseJog, stopFire]);
+  }, [connected, readyIdle, stopFire]);
 
   const handleStopJog = async () => {
     // Clear any pending/active jog bookkeeping so releaseJog doesn't double-cancel.
@@ -835,7 +847,7 @@ export function MovePanel(): React.ReactElement {
                   key={button.key}
                   className={ICON_BTN}
                   title={button.title}
-                  disabled={!jogSupported || !readyIdle || finiteJogPending}
+                  disabled={!jogSupported || !jogControlsReady || finiteJogPending}
                   onPointerDown={(event) => startJogPointer(event, button.vector)}
                   onPointerUp={() => void releaseJog()}
                   onPointerCancel={() => void releaseJog()}
