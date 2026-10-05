@@ -12,6 +12,7 @@ pub struct MockSerialTransport {
     rx_queue: Arc<Mutex<VecDeque<String>>>,
     tx_log: Vec<String>,
     tx_bytes: Arc<Mutex<Vec<Vec<u8>>>>,
+    tx_lines: Arc<Mutex<Vec<String>>>,
     fail_byte_writes: Arc<Mutex<usize>>,
     line_buffer: String,
 }
@@ -22,6 +23,7 @@ pub struct MockSerialTransport {
 pub struct MockSerialHandle {
     rx_queue: Arc<Mutex<VecDeque<String>>>,
     tx_bytes: Arc<Mutex<Vec<Vec<u8>>>>,
+    tx_lines: Arc<Mutex<Vec<String>>>,
     fail_byte_writes: Arc<Mutex<usize>>,
 }
 
@@ -39,6 +41,11 @@ impl MockSerialHandle {
         self.tx_bytes.lock().expect("mock tx log poisoned").clone()
     }
 
+    /// Every `write_line` line, in order.
+    pub fn sent_lines(&self) -> Vec<String> {
+        self.tx_lines.lock().expect("mock tx log poisoned").clone()
+    }
+
     /// Make the next `count` byte writes fail, as a broken link would.
     pub fn fail_next_byte_writes(&self, count: usize) {
         *self.fail_byte_writes.lock().expect("mock fail count poisoned") = count;
@@ -53,6 +60,7 @@ impl MockSerialTransport {
             rx_queue: Arc::new(Mutex::new(VecDeque::new())),
             tx_log: Vec::new(),
             tx_bytes: Arc::new(Mutex::new(Vec::new())),
+            tx_lines: Arc::new(Mutex::new(Vec::new())),
             fail_byte_writes: Arc::new(Mutex::new(0)),
             line_buffer: String::new(),
         }
@@ -71,6 +79,7 @@ impl MockSerialTransport {
         MockSerialHandle {
             rx_queue: Arc::clone(&self.rx_queue),
             tx_bytes: Arc::clone(&self.tx_bytes),
+            tx_lines: Arc::clone(&self.tx_lines),
             fail_byte_writes: Arc::clone(&self.fail_byte_writes),
         }
     }
@@ -130,6 +139,10 @@ impl SerialTransport for MockSerialTransport {
             return Err(SerialError::NotOpen);
         }
         self.tx_log.push(line.to_string());
+        self.tx_lines
+            .lock()
+            .expect("mock tx log poisoned")
+            .push(line.to_string());
         Ok(())
     }
 

@@ -1,3 +1,4 @@
+use std::time::Duration;
 use thiserror::Error;
 
 use crate::M1CompiledJob;
@@ -42,7 +43,21 @@ pub enum M1RuntimeError {
     UnknownStatus(String),
     #[error("xTool M1 is busy with a job that Beam Bench did not start")]
     BusyUnowned,
+    #[error("xTool M1 accepted the stop but still reports {0}; use the machine's button or power switch")]
+    StopUnconfirmed(String),
 }
+
+/// Status reads after a stop before it counts as unconfirmed (about two
+/// seconds at the default interval).
+pub(crate) const STOP_CONFIRM_ATTEMPTS: usize = 8;
+const STOP_CONFIRM_INTERVAL: Duration = Duration::from_millis(250);
+pub(crate) const STOPPABLE_PHASES: &[M1RuntimePhase] = &[
+    M1RuntimePhase::ReadyToRun,
+    M1RuntimePhase::Running,
+    M1RuntimePhase::Paused,
+    M1RuntimePhase::BusyUnowned,
+    M1RuntimePhase::RecoveryRequired,
+];
 
 pub struct M1Runtime<I> {
     io: I,
@@ -50,6 +65,7 @@ pub struct M1Runtime<I> {
     status: Option<M1Status>,
     identity: Option<M1Identity>,
     recovery_reason: Option<String>,
+    stop_confirm_interval: Duration,
 }
 
 impl<I: M1HttpIo> M1Runtime<I> {
@@ -60,6 +76,7 @@ impl<I: M1HttpIo> M1Runtime<I> {
             status: None,
             identity: None,
             recovery_reason: None,
+            stop_confirm_interval: STOP_CONFIRM_INTERVAL,
         }
     }
 
@@ -82,7 +99,7 @@ impl<I: M1HttpIo> M1Runtime<I> {
             identity: self.identity.clone(),
             output_may_be_active: matches!(
                 self.phase,
-                M1RuntimePhase::Running | M1RuntimePhase::Paused
+                M1RuntimePhase::Running | M1RuntimePhase::Paused | M1RuntimePhase::BusyUnowned
             ),
             recovery_reason: self.recovery_reason.clone(),
         }
@@ -158,21 +175,29 @@ impl<I: M1HttpIo> M1Runtime<I> {
         Ok(self.snapshot())
     }
 
+    /// Request a stop and confirm it from the machine's own status. An
+    /// accepted request alone does not prove the machine stopped.
     pub fn stop(&mut self) -> Result<M1RuntimeSnapshot, M1RuntimeError> {
-        self.require_phase(
-            "stop",
-            &[
-                M1RuntimePhase::ReadyToRun,
-                M1RuntimePhase::Running,
-                M1RuntimePhase::Paused,
-                M1RuntimePhase::BusyUnowned,
-                M1RuntimePhase::RecoveryRequired,
-            ],
-        )?;
+        self.require_phase("stop", STOPPABLE_PHASES)?;
         self.send_action("stop")?;
-        self.phase = M1RuntimePhase::Stopped;
-        self.status = Some(M1Status::Idle);
-        Ok(self.snapshot())
+        for attempt in 0..STOP_CONFIRM_ATTEMPTS {
+            if attempt > 0 {
+                std::thread::sleep(self.stop_confirm_interval);
+            }
+            let status = read_m1_status(&mut self.io).map_err(|error| {
+                self.mark_recovery(format!("stop could not be confirmed: {error}"));
+                error
+            })?;
+            let idle = status.is_idle();
+            self.status = Some(status);
+            if idle {
+                self.phase = M1RuntimePhase::Stopped;
+                return Ok(self.snapshot());
+            }
+        }
+        let reported = format!("{:?}", self.status.clone().unwrap_or(M1Status::Working));
+        self.mark_recovery(format!("stop was accepted but the machine still reports {reported}"));
+        Err(M1RuntimeError::StopUnconfirmed(reported))
     }
 
     pub fn disconnect(&mut self) {
@@ -261,7 +286,15 @@ impl<I: M1HttpIo> M1Runtime<I> {
             status if status.is_idle() && matches!(self.phase, M1RuntimePhase::Ready) => {
                 M1RuntimePhase::Ready
             }
-            _ if matches!(self.phase, M1RuntimePhase::Ready) => M1RuntimePhase::BusyUnowned,
+            // Activity after Ready, Stopped or Completed is not ours to assume
+            // finished: report it as busy so a later stop is actually sent.
+            _ if matches!(
+                self.phase,
+                M1RuntimePhase::Ready | M1RuntimePhase::Stopped | M1RuntimePhase::Completed
+            ) =>
+            {
+                M1RuntimePhase::BusyUnowned
+            }
             _ => self.phase,
         };
         Ok(())
@@ -322,6 +355,49 @@ mod tests {
             status: 200,
             body: body.as_bytes().to_vec(),
         })
+    }
+
+    fn running_runtime(replies: Vec<Result<M1HttpResponse, String>>) -> M1Runtime<ScriptedIo> {
+        let mut runtime = M1Runtime::new(ScriptedIo {
+            replies: VecDeque::from(replies),
+            requests: Vec::new(),
+        });
+        runtime.phase = M1RuntimePhase::Running;
+        runtime.stop_confirm_interval = Duration::ZERO;
+        runtime
+    }
+
+    #[test]
+    fn stop_waits_for_an_observed_idle_status() {
+        let mut runtime = running_runtime(vec![
+            ok(r#"{"result":"ok"}"#),
+            ok(r#"{"STATUS":"P_WORKING"}"#),
+            ok(r#"{"STATUS":"P_IDLE"}"#),
+        ]);
+        let snapshot = runtime.stop().unwrap();
+        assert_eq!(snapshot.phase, M1RuntimePhase::Stopped);
+        assert_eq!(snapshot.status, Some(M1Status::Idle));
+        assert_eq!(runtime.io.requests.len(), 3, "stop must poll until idle");
+    }
+
+    #[test]
+    fn stop_is_unconfirmed_while_the_machine_keeps_working() {
+        let mut replies = vec![ok(r#"{"result":"ok"}"#)];
+        replies.extend((0..STOP_CONFIRM_ATTEMPTS).map(|_| ok(r#"{"STATUS":"P_WORKING"}"#)));
+        let mut runtime = running_runtime(replies);
+        assert!(runtime.stop().is_err(), "a stop the machine ignored must not report success");
+        assert_eq!(runtime.snapshot().phase, M1RuntimePhase::RecoveryRequired);
+        // Recovery still allows another stop request.
+        assert!(runtime.require_phase("stop", STOPPABLE_PHASES).is_ok());
+    }
+
+    #[test]
+    fn a_stopped_machine_that_reports_working_is_active_again() {
+        let mut runtime = running_runtime(vec![ok(r#"{"STATUS":"P_WORKING"}"#)]);
+        runtime.phase = M1RuntimePhase::Stopped;
+        let snapshot = runtime.poll().unwrap();
+        assert_eq!(snapshot.phase, M1RuntimePhase::BusyUnowned);
+        assert!(snapshot.output_may_be_active);
     }
 
     #[test]

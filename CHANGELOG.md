@@ -28,6 +28,18 @@
   instead of stalling while still showing Running.
 - Air-assist commands combined with other words (for example `M7 S0`) now wait
   for the controller's acknowledgement before any following motion is sent.
+- Marlin, Snapmaker and Smoothieware: a job that fails partway now sends the
+  controller's emergency halt (M112) instead of leaving queued moves running,
+  Emergency Stop can resend it afterwards, and disconnecting during a job halts
+  the machine first.
+- xTool M1: Emergency Stop now confirms from the machine's own status that it
+  stopped, reports an unconfirmed stop instead of assuming success, and is no
+  longer held up by a slow Wi-Fi status check for more than a few seconds.
+  Disconnecting during a job explains that the job keeps running on the
+  machine.
+- If a job fails and the automatic stop that follows also fails, Beam Bench now
+  says so and asks you to use the machine's physical stop.
+- Ruida and Lihuiyu recovery errors now include physical-stop guidance.
 
 ## 0.2.25
 

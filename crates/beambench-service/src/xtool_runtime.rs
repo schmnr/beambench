@@ -32,9 +32,14 @@ impl ReqwestM1HttpIo {
         } else {
             format!("{host}:{port}")
         };
+        // Status polls and stop actions run while the job tick holds the
+        // machine session, which Emergency Stop also needs. Keep them short so
+        // a slow Wi-Fi reply delays a stop by seconds, not tens of seconds.
+        // Only the job upload (below) may take longer; the M1 cannot be moving
+        // then, because it starts only from its physical button.
         let client = Client::builder()
-            .connect_timeout(Duration::from_secs(3))
-            .timeout(Duration::from_secs(10))
+            .connect_timeout(Duration::from_secs(2))
+            .timeout(Duration::from_secs(3))
             .redirect(Policy::none())
             .build()
             .map_err(|error| format!("could not create xTool M1 HTTP client: {error}"))?;

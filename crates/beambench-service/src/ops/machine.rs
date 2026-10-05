@@ -3448,7 +3448,8 @@ fn refresh_idle_session_health(session: &mut MachineSessionHandle) -> ServiceRes
 
 fn handle_idle_connection_loss(ctx: &ServiceContext, error: &ServiceError) {
     let message = error.to_string();
-    drop_stale_machine_session(ctx);
+    // The machine was idle, so a failed stop here carries no extra risk.
+    let _ = drop_stale_machine_session(ctx);
     ctx.push_error(message.clone());
     ctx.emit_event(
         "machine.disconnected",
@@ -3586,18 +3587,36 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
     let job_active = ctx.job.lock().map_err(|e| lock_err("job", e))?.is_some();
     {
         let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
-        if let Some(MachineSessionHandle::Grbl(grbl)) = session_lock.as_mut()
-            && (job_active || ctx.active_jog.load(Ordering::Acquire))
-        {
-            // Closing the port does not stop a GRBL controller: commands it
-            // already buffered keep running, possibly with the laser on. Stop
-            // it first. An unconfirmed stop still releases the session, with
-            // the same physical-stop guidance as Emergency Stop.
-            if let Err(error) = send_grbl_emergency_stop(grbl) {
-                disconnect_warning = Some(format!(
-                    "[emergency_stop_unconfirmed] Beam Bench disconnected during an active job but could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
-                ));
+        // Closing the port does not stop a streaming controller: commands it
+        // already buffered keep running, possibly with the laser on. Stop it
+        // first. An unconfirmed stop still releases the session, with the same
+        // physical-stop guidance as Emergency Stop. (Ruida and Lihuiyu stop
+        // inside their own disconnect; the xTool M1 runs its uploaded file
+        // standalone.)
+        let stop_result = match session_lock.as_mut() {
+            Some(MachineSessionHandle::Grbl(grbl))
+                if job_active || ctx.active_jog.load(Ordering::Acquire) =>
+            {
+                Some(send_grbl_emergency_stop(grbl))
             }
+            Some(
+                session @ (MachineSessionHandle::Marlin(_)
+                | MachineSessionHandle::Smoothieware(_)),
+            ) if job_active => Some(stop_session_output(session)),
+            _ => None,
+        };
+        if job_active && matches!(session_lock.as_ref(), Some(MachineSessionHandle::XToolM1(_))) {
+            // The M1 runs its uploaded file standalone; disconnecting does not
+            // and cannot stop it.
+            disconnect_warning = Some(
+                "The xTool M1 keeps running its job after Beam Bench disconnects. Use the machine's button to stop it, or reconnect and stop it."
+                    .to_string(),
+            );
+        }
+        if let Some(Err(error)) = stop_result {
+            disconnect_warning = Some(format!(
+                "[emergency_stop_unconfirmed] Beam Bench disconnected during an active job but could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
+            ));
         }
         if let Some(ref mut session) = *session_lock {
             // Disconnect must always release the session: the phases where the
@@ -4700,14 +4719,23 @@ pub fn start_job_with_options_confirming_advisories(
     Ok(progress)
 }
 
-fn drop_stale_machine_session(ctx: &ServiceContext) {
+/// Stop and release a session after a failure. Returns a warning when the
+/// stop attempt itself failed, so callers can tell the user the machine may
+/// still be running. (For controllers other than GRBL, `disconnect` is the
+/// stop attempt.)
+fn drop_stale_machine_session(ctx: &ServiceContext) -> Option<String> {
+    let mut stop_error = None;
     if let Ok(mut session_lock) = ctx.session.lock() {
         if let Some(MachineSessionHandle::Grbl(session)) = session_lock.as_mut() {
-            let _ = session.soft_reset();
+            if let Err(error) = session.soft_reset() {
+                stop_error = Some(error.to_string());
+            }
             let _ = session.send_command("M5");
         }
-        if let Some(session) = session_lock.as_mut() {
-            let _ = session.disconnect();
+        if let Some(session) = session_lock.as_mut()
+            && let Err(error) = session.disconnect()
+        {
+            stop_error.get_or_insert(error);
         }
         *session_lock = None;
     }
@@ -4716,10 +4744,15 @@ fn drop_stale_machine_session(ctx: &ServiceContext) {
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
     let _ = clear_relative_frame_confirmation(ctx);
+    stop_error.map(|error| {
+        format!(
+            "[emergency_stop_unconfirmed] The job stopped with an error and Beam Bench could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
+        )
+    })
 }
 
 fn handle_fatal_job_tick_error(ctx: &ServiceContext, message: String) {
-    drop_stale_machine_session(ctx);
+    let stop_warning = drop_stale_machine_session(ctx);
 
     if let Ok(mut job) = ctx.job.lock() {
         *job = None;
@@ -4735,16 +4768,16 @@ fn handle_fatal_job_tick_error(ctx: &ServiceContext, message: String) {
     );
     ctx.emit_event(
         "machine.disconnected",
-        json!({ "reason": "job_tick_failed" }),
+        json!({ "reason": "job_tick_failed", "stop_warning": stop_warning }),
     );
 }
 
 fn disconnect_failed_active_job(ctx: &ServiceContext, message: String) {
-    drop_stale_machine_session(ctx);
+    let stop_warning = drop_stale_machine_session(ctx);
     ctx.push_error(message);
     ctx.emit_event(
         "machine.disconnected",
-        json!({ "reason": "job_failed_while_active" }),
+        json!({ "reason": "job_failed_while_active", "stop_warning": stop_warning }),
     );
 }
 
@@ -10064,6 +10097,64 @@ mod tests {
     }
 
     #[test]
+    fn disconnect_during_a_marlin_job_sends_the_shutdown_first() {
+        use beambench_common::controller_choice::{
+            ControllerChoiceSource, ExplicitControllerSelection, ResolvedControllerChoice,
+        };
+        let mut transport = beambench_serial::MockSerialTransport::new("marlin");
+        for line in [
+            "FIRMWARE_NAME:Marlin 2.1.3 SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin PROTOCOL_VERSION:1.0 MACHINE_TYPE:Laser Cutter",
+            "Cap:EMERGENCY_PARSER:1",
+            "ok",
+        ] {
+            transport.enqueue_response(line);
+        }
+        let handle = transport.handle();
+        let mut serial = MarlinSerialSession::new(
+            Box::new(transport),
+            MarlinSerialSessionConfig {
+                identity_timeout: Duration::from_millis(200),
+                poll_interval: Duration::ZERO,
+                ..MarlinSerialSessionConfig::default()
+            },
+        );
+        serial.connect().unwrap();
+        serial.probe_identity().unwrap();
+        serial.activate().unwrap();
+        let choice = ResolvedControllerChoice {
+            selection: ExplicitControllerSelection::KnownDriver {
+                driver: ControllerDriverId::Marlin,
+            },
+            driver: ControllerDriverId::Marlin,
+            source: ControllerChoiceSource::KnownDriverSelection,
+            detected_identity: None,
+            requires_experimental_mode: true,
+            mismatch: false,
+            override_scope: None,
+            requires_experimental_compatibility_handshake: false,
+        };
+        let mut session = MarlinRuntimeSession::from_choice(serial, &choice);
+        let job = MarlinRuntimeJob::start_with_duration(
+            vec!["G1 X10 F1000".into(), "M5".into(), "M400".into()],
+            &mut session,
+            None,
+        )
+        .unwrap();
+        let ctx = ServiceContext::new();
+        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Marlin(session));
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Marlin(job));
+
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(
+            handle.sent_lines().last().map(String::as_str),
+            Some("M112"),
+            "disconnect must halt a running Marlin job, not just close the port"
+        );
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
     fn idle_disconnect_does_not_reset_the_controller() {
         let (ctx, transport) = ready_grbl_context(MachineProfile::default());
         disconnect_machine(&ctx).unwrap();
@@ -11673,6 +11764,52 @@ mod tests {
         assert!(state.lock().unwrap().lines.is_empty());
         session.disconnect().unwrap();
         assert!(!state.lock().unwrap().open);
+    }
+
+    #[test]
+    fn a_failed_automatic_stop_after_a_job_error_is_reported() {
+        for stop_write_fails in [false, true] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+            let mut job = JobController::prepare(
+                &dummy_plan(),
+                &GcodeConfig {
+                    transfer_mode: beambench_core::TransferMode::Synchronous,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            {
+                let mut session_lock = ctx.session.lock().unwrap();
+                let MachineSessionHandle::Grbl(session) = session_lock.as_mut().unwrap() else {
+                    panic!("expected GRBL session");
+                };
+                job.start(session).unwrap();
+            }
+            *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+            let mut events = ctx.events.subscribe();
+            {
+                let mut state = transport.lock().unwrap();
+                state.rx.push_back("ok".into());
+                state.fail_line_writes = 1;
+                if stop_write_fails {
+                    state.fail_byte_writes = 100;
+                }
+            }
+            assert!(tick_job(&ctx).is_err());
+            let mut warning = None;
+            while let Ok(raw) = events.try_recv() {
+                let event: serde_json::Value = serde_json::from_str(&raw).unwrap();
+                if event["type"] == "machine.disconnected" {
+                    warning = event["payload"]["stop_warning"].as_str().map(str::to_owned);
+                }
+            }
+            if stop_write_fails {
+                let warning = warning.expect("an unconfirmed automatic stop must be reported");
+                assert!(warning.contains("[emergency_stop_unconfirmed]"), "{warning}");
+            } else {
+                assert_eq!(warning, None);
+            }
+        }
     }
 
     #[test]

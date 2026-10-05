@@ -365,7 +365,11 @@ impl RuidaRuntimeJob {
                     self.state = JobState::Failed;
                     self.error_message = snapshot
                         .recovery_reason
-                        .map(|reason| format!("Ruida recovery required: {reason:?}"));
+                        .map(|reason| {
+                            format!(
+                                "Ruida recovery required: {reason:?}. If the machine is still moving, use its physical stop, then reconnect."
+                            )
+                        });
                 }
                 phase => {
                     self.state = JobState::Failed;

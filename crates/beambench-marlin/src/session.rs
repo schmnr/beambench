@@ -294,6 +294,13 @@ impl MarlinSerialSession {
         self.require_state("advance a job", MarlinSessionState::Running)?;
         let result = self.tick_inner(now);
         if result.is_err() {
+            // A failed job (lost acknowledgements, a controller error, a link
+            // fault) does not prove the controller stopped: queued moves may
+            // still be running with the laser on. Halt it, best effort.
+            if let Some(flow) = self.job_flow.as_mut() {
+                flow.cancel();
+            }
+            let _ = self.transport.write_line(MARLIN_CANCEL_COMMAND);
             self.state = MarlinSessionState::RecoveryRequired;
             self.job_outcome = Some(MarlinJobOutcome::FailedRecoveryRequired);
         }
@@ -351,9 +358,11 @@ impl MarlinSerialSession {
     /// Send Marlin's full-shutdown command from either Ready or Running and
     /// require reconnect/recovery before any further command.
     pub fn emergency_shutdown(&mut self) -> Result<(), MarlinSessionError> {
+        // RecoveryRequired is included: after a failed job or a first
+        // shutdown attempt, the halt must still be sendable.
         if !matches!(
             self.state,
-            MarlinSessionState::Ready | MarlinSessionState::Running
+            MarlinSessionState::Ready | MarlinSessionState::Running | MarlinSessionState::RecoveryRequired
         ) {
             return Err(MarlinSessionError::InvalidState {
                 action: "request emergency shutdown",
@@ -612,6 +621,28 @@ mod tests {
         let probe = session.probe_identity().unwrap();
         assert_eq!(probe.outcome, MarlinIdentityProbeOutcome::Succeeded);
         session.activate().unwrap();
+    }
+
+    #[test]
+    fn failed_job_sends_shutdown_and_estop_can_resend_it() {
+        let (mut session, handle) = session(&standard_identity(true), false);
+        connect_and_activate(&mut session);
+        session.start_job(vec!["M5".into(), "M400".into()]).unwrap();
+        let now = Instant::now();
+        session.tick(now).unwrap();
+        assert!(session.tick(now + Duration::from_secs(2)).is_err());
+        assert_eq!(session.state(), MarlinSessionState::RecoveryRequired);
+        // Lost acknowledgements do not prove the controller stopped.
+        assert_eq!(
+            handle.sent_lines().last().map(String::as_str),
+            Some(MARLIN_CANCEL_COMMAND),
+            "a failed job must send the shutdown command"
+        );
+        let sent = handle.sent_lines().len();
+        session.emergency_shutdown().unwrap();
+        assert_eq!(handle.sent_lines().len(), sent + 1, "E-stop must resend M112");
+        assert_eq!(handle.sent_lines().last().map(String::as_str), Some(MARLIN_CANCEL_COMMAND));
+        session.disconnect().unwrap();
     }
 
     #[test]
