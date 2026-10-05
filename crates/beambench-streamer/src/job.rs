@@ -16,6 +16,10 @@ use std::time::{Duration, Instant};
 /// reports to act on.
 const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(200);
 const IDLE_ACK_DESYNC_REPORT_LIMIT: u8 = 5;
+/// A controller that accepts writes but answers no status query for this
+/// long during a job is treated as lost. GRBL answers `?` immediately even
+/// while executing long moves or dwells. Matches the idle health timeout.
+const STATUS_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Orchestrates a complete job lifecycle: prepare → start → tick → complete.
 pub struct JobController {
@@ -36,6 +40,10 @@ pub struct JobController {
     idle_ack_desync_reports: u8,
     idle_ack_desync_started: Option<Instant>,
     last_idle_ack_desync_status_count: u64,
+    /// How long status queries may go unanswered before the job fails.
+    pub(crate) status_timeout: Duration,
+    /// Spindle stop override already sent for the current pause.
+    spindle_stop_sent: bool,
 }
 
 impl JobController {
@@ -59,6 +67,8 @@ impl JobController {
             idle_ack_desync_reports: 0,
             idle_ack_desync_started: None,
             last_idle_ack_desync_status_count: 0,
+            status_timeout: STATUS_RESPONSE_TIMEOUT,
+            spindle_stop_sent: false,
         })
     }
 
@@ -106,6 +116,22 @@ impl JobController {
             session.poll_status()?;
             self.last_status_poll = Some(Instant::now());
         }
+
+        // The idle health check does not run during a job, so detect a
+        // controller (or Wi-Fi bridge) that accepts writes but went silent.
+        if let Some(age) = session.status_response_wait_age()
+            && age > self.status_timeout
+            && !self.engine.homing_in_flight()
+        {
+            let message = format!(
+                "The controller stopped responding for {} seconds during the job. Streaming stopped. Check the machine and the connection.",
+                age.as_secs()
+            );
+            self.engine.fail(message.clone(), &mut self.progress);
+            return Err(StreamerError::JobFailed(message));
+        }
+
+        self.stop_spindle_mode_output_when_held(session)?;
 
         self.fail_if_idle_with_unacknowledged_bytes(session)?;
 
@@ -178,10 +204,40 @@ impl JobController {
         Err(StreamerError::JobFailed(message))
     }
 
+    /// In spindle mode (`$32=0`) GRBL keeps the output on during feed hold;
+    /// only laser mode turns it off. Once the controller reports Hold with
+    /// output still on, send the spindle stop override so a paused job never
+    /// burns one spot. Old firmware with comma status reports never parses as
+    /// Hold, so it never receives this GRBL 1.1 byte.
+    fn stop_spindle_mode_output_when_held(
+        &mut self,
+        session: &mut GrblSession,
+    ) -> Result<(), StreamerError> {
+        if !self.engine.is_paused() || self.spindle_stop_sent {
+            return Ok(());
+        }
+        let spindle_mode = session.settings().get(32) == Some(0.0);
+        let status = session.last_status();
+        if spindle_mode && status.run_state == MachineRunState::Hold && status.spindle_speed > 0.0 {
+            session.send_realtime(beambench_grbl::commands::spindle_stop_override())?;
+            self.spindle_stop_sent = true;
+        }
+        Ok(())
+    }
+
     /// Pause the job.
     pub fn pause(&mut self, session: &mut GrblSession) -> Result<(), StreamerError> {
+        // A failed hold write means the link is broken. Fail the job so the
+        // service stops and releases the controller, rather than leaving the
+        // engine paused while the job still reports Running.
+        if let Err(error) = session.feed_hold() {
+            let message =
+                format!("Pause could not be sent to the controller: {error}. Streaming stopped.");
+            self.engine.fail(message.clone(), &mut self.progress);
+            return Err(StreamerError::JobFailed(message));
+        }
         self.engine.pause();
-        session.feed_hold()?;
+        self.spindle_stop_sent = false;
         session.pause()?;
         self.progress.set_state(JobState::Paused);
         Ok(())
@@ -192,6 +248,8 @@ impl JobController {
         session.cycle_start()?;
         session.resume()?;
         self.engine.resume();
+        // Cycle start restores the output after a spindle stop override.
+        self.spindle_stop_sent = false;
         self.progress.set_state(JobState::Running);
         Ok(())
     }
@@ -462,6 +520,111 @@ mod tests {
         assert_eq!(job.progress().state, JobState::Paused);
 
         job.resume(&mut session).unwrap();
+        assert_eq!(job.progress().state, JobState::Running);
+    }
+
+    /// Ready session reporting `$32` as given, plus a handle for the wire.
+    fn ready_session_with_laser_mode(laser_mode: u8) -> (GrblSession, beambench_serial::MockSerialHandle) {
+        let mut transport = MockSerialTransport::new("mock");
+        transport.enqueue_response("Grbl 1.1h");
+        transport.enqueue_response(&format!("$32={laser_mode}"));
+        let handle = transport.handle();
+        let mut session = GrblSession::new(Box::new(transport));
+        session.connect().unwrap();
+        session.poll().unwrap();
+        session.mark_ready().unwrap();
+        (session, handle)
+    }
+
+    fn spindle_stops(handle: &beambench_serial::MockSerialHandle) -> usize {
+        handle
+            .sent_bytes()
+            .iter()
+            .filter(|bytes| bytes.as_slice() == beambench_grbl::commands::spindle_stop_override())
+            .count()
+    }
+
+    #[test]
+    fn pause_in_spindle_mode_stops_output_once_hold_is_reported() {
+        let (mut session, handle) = ready_session_with_laser_mode(0);
+        let mut job = JobController::prepare(&make_plan(), &GcodeConfig::default()).unwrap();
+        job.start(&mut session).unwrap();
+        job.pause(&mut session).unwrap();
+        // Still decelerating with output on: nothing yet.
+        assert_eq!(spindle_stops(&handle), 0);
+        handle.enqueue_response("<Hold:0|MPos:5.000,0.000,0.000|FS:0,1000>");
+        job.tick(&mut session).unwrap();
+        assert_eq!(spindle_stops(&handle), 1, "laser left on during a spindle-mode pause");
+        // Repeated Hold reports must not toggle the output back on.
+        handle.enqueue_response("<Hold:0|MPos:5.000,0.000,0.000|FS:0,0>");
+        job.tick(&mut session).unwrap();
+        assert_eq!(spindle_stops(&handle), 1);
+        // GRBL restores the output itself on cycle start; a second pause in
+        // the same job stops it again.
+        job.resume(&mut session).unwrap();
+        job.pause(&mut session).unwrap();
+        handle.enqueue_response("<Hold:0|MPos:6.000,0.000,0.000|FS:0,1000>");
+        job.tick(&mut session).unwrap();
+        assert_eq!(spindle_stops(&handle), 2);
+    }
+
+    #[test]
+    fn pause_in_laser_mode_needs_no_spindle_stop() {
+        let (mut session, handle) = ready_session_with_laser_mode(1);
+        let mut job = JobController::prepare(&make_plan(), &GcodeConfig::default()).unwrap();
+        job.start(&mut session).unwrap();
+        job.pause(&mut session).unwrap();
+        handle.enqueue_response("<Hold:0|MPos:5.000,0.000,0.000|FS:0,1000>");
+        job.tick(&mut session).unwrap();
+        assert_eq!(spindle_stops(&handle), 0);
+    }
+
+    #[test]
+    fn failed_pause_write_fails_the_job_instead_of_stalling() {
+        let (mut session, handle) = ready_session_with_laser_mode(1);
+        let mut job = JobController::prepare(&make_plan(), &GcodeConfig::default()).unwrap();
+        job.start(&mut session).unwrap();
+        handle.fail_next_byte_writes(1);
+        assert!(job.pause(&mut session).is_err());
+        assert_eq!(job.progress().state, JobState::Failed);
+        assert!(job.is_failed());
+    }
+
+    #[test]
+    fn silent_controller_fails_the_job() {
+        let (mut session, _handle) = ready_session_with_laser_mode(1);
+        let mut job = JobController::prepare(&make_plan(), &GcodeConfig::default()).unwrap();
+        job.status_timeout = Duration::from_millis(300);
+        job.start(&mut session).unwrap();
+        let started = Instant::now();
+        let error = loop {
+            match job.tick(&mut session) {
+                Ok(()) => {
+                    assert!(started.elapsed() < Duration::from_secs(5), "job never failed");
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                Err(error) => break error,
+            }
+        };
+        assert!(error.to_string().contains("stopped responding"), "{error}");
+        assert_eq!(job.progress().state, JobState::Failed);
+    }
+
+    #[test]
+    fn homing_in_custom_job_gcode_may_stay_silent() {
+        let (mut session, _handle) = ready_session_with_laser_mode(1);
+        let config = GcodeConfig {
+            gcode_prefix: "$H".to_string(),
+            ..Default::default()
+        };
+        let mut job = JobController::prepare(&make_plan(), &config).unwrap();
+        job.status_timeout = Duration::from_millis(100);
+        job.start(&mut session).unwrap();
+        let started = Instant::now();
+        while started.elapsed() < Duration::from_millis(500) {
+            job.tick(&mut session).unwrap();
+            std::thread::sleep(Duration::from_millis(20));
+        }
         assert_eq!(job.progress().state, JobState::Running);
     }
 

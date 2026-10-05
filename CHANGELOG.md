@@ -18,6 +18,16 @@
   reports laser output as stopped.
 - Press-and-hold jogging works on machines whose coordinates are negative, and
   one press never travels more than the bed size when the position is offset.
+- Pausing a GRBL job in spindle mode (`$32=0`) now turns the output off once
+  the machine is holding, so a paused job never burns one spot. Resume turns it
+  back on.
+- A GRBL job now stops with a clear message if the controller stops answering
+  for 15 seconds, instead of showing Running indefinitely. Homing commands in
+  custom job G-code are allowed to take longer.
+- If Pause cannot be sent, the job now stops and the machine is released,
+  instead of stalling while still showing Running.
+- Air-assist commands combined with other words (for example `M7 S0`) now wait
+  for the controller's acknowledgement before any following motion is sent.
 
 ## 0.2.25
 

@@ -20,12 +20,33 @@ use tracing::{debug, warn};
 /// Every major GRBL sender plans against 127.
 const GRBL_RX_BUFFER_SIZE: usize = 127;
 
+/// True when the block contains a coolant word (M7, M8 or M9, any zero
+/// padding), alone or combined with other words. Comments are ignored.
 fn is_air_assist_command(command: &str) -> bool {
-    let command = command.split([';', '(']).next().unwrap_or_default().trim();
-    matches!(
-        command.to_ascii_uppercase().as_str(),
-        "M7" | "M07" | "M8" | "M08" | "M9" | "M09"
-    )
+    let mut block = String::new();
+    let mut in_paren = false;
+    for ch in command.chars() {
+        match ch {
+            ';' if !in_paren => break,
+            '(' => in_paren = true,
+            ')' => in_paren = false,
+            ch if !in_paren && !ch.is_whitespace() => block.push(ch.to_ascii_uppercase()),
+            _ => {}
+        }
+    }
+    for (index, letter) in block.char_indices() {
+        if !letter.is_ascii_alphabetic() {
+            continue;
+        }
+        let start = index + 1;
+        let end = block[start..]
+            .find(|ch: char| ch.is_ascii_alphabetic())
+            .map_or(block.len(), |offset| start + offset);
+        if letter == 'M' && matches!(block[start..end].parse::<f64>(), Ok(code) if code == 7.0 || code == 8.0 || code == 9.0) {
+            return true;
+        }
+    }
+    false
 }
 
 const MAX_CONSOLE_ENTRIES: usize = 1_000;
@@ -183,6 +204,14 @@ impl StreamingEngine {
             .then_some(seconds)
             .flatten()
             .and_then(|seconds| Duration::try_from_secs_f64(seconds).ok())
+    }
+
+    /// A homing cycle (`$H`) from custom job G-code is still unacknowledged.
+    /// Some firmware answers no status query until homing finishes.
+    pub(crate) fn homing_in_flight(&self) -> bool {
+        self.sent_commands
+            .iter()
+            .any(|command| command.trim_start().to_ascii_uppercase().starts_with("$H"))
     }
 
     /// Check if all commands have been sent.
@@ -399,6 +428,16 @@ mod tests {
         let engine = StreamingEngine::new(commands);
         let progress = ProgressTracker::new(total);
         (session, engine, progress)
+    }
+
+    #[test]
+    fn air_assist_barrier_recognizes_coolant_words_in_any_block() {
+        for command in ["M7", "M08", "M9", "M7 S0", "G4 P0.5 M8", "m8;air", "M8 (on)", "M7M3"] {
+            assert!(is_air_assist_command(command), "{command}");
+        }
+        for command in ["M3 S100", "G1 X7", "M70", "M17", "(M8 note)", "; M8", "G0 X1 M3 S8"] {
+            assert!(!is_air_assist_command(command), "{command}");
+        }
     }
 
     #[test]
