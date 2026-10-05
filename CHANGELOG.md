@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Pausing a GRBL job in spindle mode (`$32=0`) now turns the output off once
+  the machine is holding, so a paused job never burns one spot. Resume turns it
+  back on.
+- A GRBL job now stops with a clear message if the controller stops answering
+  for 15 seconds, instead of showing Running indefinitely. Homing commands in
+  custom job G-code are allowed to take longer.
+- If Pause cannot be sent, the job now stops and the machine is released,
+  instead of stalling while still showing Running.
+- Air-assist commands combined with other words (for example `M7 S0`) now wait
+  for the controller's acknowledgement before any following motion is sent.
+
 ## 0.2.25
 
 - Translate the network connection label and job preparation/sleep warnings in
