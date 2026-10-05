@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Disconnecting during a GRBL job or jog now stops the machine first instead of
+  only closing the connection, and warns if the stop cannot be confirmed.
+- Emergency Stop sends the reset even when reading from the controller fails,
+  before trying to reconnect.
+- Emergency Stop and app shutdown no longer accept a controller that still
+  reports laser output as stopped.
+- Press-and-hold jogging works on machines whose coordinates are negative, and
+  one press never travels more than the bed size when the position is offset.
+
 ## 0.2.25
 
 - Translate the network connection label and job preparation/sleep warnings in
