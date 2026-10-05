@@ -40,6 +40,11 @@
 - If a job fails and the automatic stop that follows also fails, Beam Bench now
   says so and asks you to use the machine's physical stop.
 - Ruida and Lihuiyu recovery errors now include physical-stop guidance.
+- After a USB laser is unplugged or reset, Beam Bench no longer reconnects to a
+  different device that happens to use the same USB chip (common with CH340
+  boards). A renamed port is followed only when it is clearly the same device.
+- Replies already received from the controller are no longer lost when a later
+  read fails, and USB input without line endings is now bounded.
 
 ## 0.2.25
 
