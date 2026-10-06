@@ -798,3 +798,20 @@ fn cardinal_scan_angles_burn_the_same_pixels() {
         assert!(same, "{reversed} degrees moved the artwork: {b:?} vs {forward}: {a:?}");
     }
 }
+
+#[test]
+fn angled_scan_keeps_non_square_pixel_images_in_place() {
+    // An 8x8 px image stretched to 40 x 4 mm (pass-through: 5 mm by 0.5 mm
+    // pixels), fully black except its right half. At 45 degrees the burn must
+    // stay inside the image's own rectangle (X 50..90, Y 50..54), give or take
+    // one row of scan resolution.
+    let plan = build(
+        &half_black_image_project(40.0, 4.0, 45.0),
+        ProjectOptimization::default(),
+    );
+    let bounds = beambench_planner::calculate_work_bounds(&plan.segments);
+    assert!(
+        bounds.min.x > 48.0 && bounds.max.x < 92.0 && bounds.min.y > 48.0 && bounds.max.y < 56.0,
+        "angled scan distorted the image: {bounds:?}"
+    );
+}
