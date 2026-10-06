@@ -170,9 +170,12 @@ fn rotate_general(
     let dst_cx = new_w_px as f64 / 2.0;
     let dst_cy = new_h_px as f64 / 2.0;
     // Output pixel -> source pixel, via an inverse rotation in millimetres.
+    // Sample at the output pixel's center and take the source pixel that
+    // point falls inside (floor), not the nearest index: with wide source
+    // pixels, rounding reached up to half a pixel past the image edge.
     let source_pixel = |dx: usize, dy: usize| {
-        let rx = (dx as f64 - dst_cx) * dst_px_x;
-        let ry = (dy as f64 - dst_cy) * dst_px_y;
+        let rx = (dx as f64 + 0.5 - dst_cx) * dst_px_x;
+        let ry = (dy as f64 + 0.5 - dst_cy) * dst_px_y;
         let x_mm = rx * cos_a + ry * sin_a;
         let y_mm = -rx * sin_a + ry * cos_a;
         (x_mm / src_px_x + src_cx, y_mm / src_px_y + src_cy)
@@ -188,8 +191,8 @@ fn rotate_general(
                 for dx in 0..nw {
                     let (sx, sy) = source_pixel(dx, dy);
 
-                    let sx_i = sx.round() as i64;
-                    let sy_i = sy.round() as i64;
+                    let sx_i = sx.floor() as i64;
+                    let sy_i = sy.floor() as i64;
 
                     if sx_i >= 0 && sx_i < w as i64 && sy_i >= 0 && sy_i < h as i64 {
                         let src_w = raster.width_px as usize;
@@ -224,8 +227,8 @@ fn rotate_general(
                 for dx in 0..nw {
                     let (sx, sy) = source_pixel(dx, dy);
 
-                    let sx_i = sx.round() as i64;
-                    let sy_i = sy.round() as i64;
+                    let sx_i = sx.floor() as i64;
+                    let sy_i = sy.floor() as i64;
 
                     if sx_i >= 0 && sx_i < w as i64 && sy_i >= 0 && sy_i < h as i64 {
                         let src_byte = sy_i as usize * src_row_bytes + sx_i as usize / 8;

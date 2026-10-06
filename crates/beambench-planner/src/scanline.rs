@@ -56,7 +56,9 @@ pub fn generate_scanlines(
     let shared_raster = raster;
 
     for y in 0..height_px {
-        let y_mm = origin_y_mm + y as f64 * line_interval_mm;
+        // Burn at the pixel row's center, the same way runs span a pixel's
+        // left-to-right extent; the top edge put every image half a line high.
+        let y_mm = origin_y_mm + (y as f64 + 0.5) * line_interval_mm;
 
         // Find runs in this row
         let mut runs = crate::runs::ScanRuns::from_pixels(shared_raster.clone(), y, origin_x_mm);
@@ -437,7 +439,7 @@ mod tests {
         let scanlines = generate_scanlines(Arc::new(raster.clone()), 10.0, 5.0, false, 2.0);
 
         assert_eq!(scanlines.len(), 1);
-        assert_eq!(scanlines[0].y_mm, 5.0);
+        assert!((scanlines[0].y_mm - 5.05).abs() < 1e-9, "row sits at the pixel center");
         // Runs contain burn-only coordinates (no overscan)
         assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 10.0);
         assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 10.4);
@@ -518,8 +520,8 @@ mod tests {
 
         let scanlines = generate_scanlines(Arc::new(raster.clone()), 10.0, 20.0, false, 0.0);
 
-        assert_eq!(scanlines[0].y_mm, 20.0);
-        assert_eq!(scanlines[1].y_mm, 21.0);
+        assert!((scanlines[0].y_mm - 20.5).abs() < 1e-9, "row sits at the pixel center");
+        assert!((scanlines[1].y_mm - 21.5).abs() < 1e-9);
         assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 10.0);
     }
 
