@@ -7,7 +7,13 @@ describe('wrapBackendError', () => {
     const previousLanguage = i18n.language;
     try {
       await i18n.changeLanguage(locale);
-      for (const key of ['job_preparation_stopped', 'sleep_protection_failed', 'raster_plan_too_complex']) {
+      for (const key of [
+        'job_preparation_stopped',
+        'sleep_protection_failed',
+        'raster_plan_too_complex',
+        'settings_file_recovered',
+        'layers_migrated_on_open',
+      ]) {
         const translated = wrapBackendError(`Error: [${key}] Backend diagnostic detail`);
         expect(translated).toBe(i18n.t(`errors.${key}`));
         expect(translated).not.toContain('Backend diagnostic detail');
@@ -31,6 +37,20 @@ describe('wrapBackendError', () => {
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
+  });
+
+  it('names the newer Beam Bench version for projects it cannot safely open', () => {
+    expect(
+      wrapBackendError(
+        'Failed to open project: validation error: [project_too_new] This project uses file format 2.0 from Beam Bench 0.4.1. Update Beam Bench to open it.',
+      ),
+    ).toBe(i18n.t('errors.project_too_new', { version: '0.4.1' }));
+    expect(
+      wrapBackendError(
+        '[project_from_newer_app] This project was saved by Beam Bench 0.3.0. Saving it here may drop settings this version does not support.',
+      ),
+    ).toBe(i18n.t('errors.project_from_newer_app', { version: '0.3.0' }));
+    expect(i18n.t('errors.project_too_new', { version: '0.4.1' })).toContain('0.4.1');
   });
 
   it('translates the machine-zero homing gate into a direct instruction', () => {

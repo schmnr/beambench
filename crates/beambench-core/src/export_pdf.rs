@@ -1,8 +1,14 @@
 //! Minimal PDF export for projects.
 
-use crate::object::ObjectId;
+use crate::export_bitmap::processed_bitmap_image_for_object;
+use crate::export_common::{
+    POINTS_PER_MM, canvas_to_y_up, exportable_objects, matrix_operands,
+    raster_unit_square_to_canvas,
+};
+use crate::object::{ObjectData, ObjectId};
 use crate::project::Project;
 use crate::vector::convert::object_to_world_vecpath;
+use beambench_common::Point2D;
 use beambench_common::path::PathCommand;
 
 fn pdf_stroke_color(color_tag: Option<&str>) -> (f64, f64, f64) {
@@ -24,125 +30,145 @@ fn pdf_stroke_color(color_tag: Option<&str>) -> (f64, f64, f64) {
     (channel(0), channel(2), channel(4))
 }
 
-/// Export project as minimal PDF.
-pub fn export_pdf(project: &Project, selection_only: bool, selected_ids: &[ObjectId]) -> Vec<u8> {
-    let mut pdf = String::new();
-
-    // PDF header
-    pdf.push_str("%PDF-1.4\n");
-
-    let mut object_offsets = Vec::new();
-
-    // Catalog object (1 0 obj)
-    object_offsets.push(pdf.len());
-    pdf.push_str("1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n");
-
-    // Pages object (2 0 obj)
-    object_offsets.push(pdf.len());
-    pdf.push_str("2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n");
-
-    // Page object (3 0 obj)
-    object_offsets.push(pdf.len());
-    let width = project.workspace.bed_width_mm * 2.83465; // mm to points (1mm ≈ 2.83465 pt)
-    let height = project.workspace.bed_height_mm * 2.83465;
-    pdf.push_str(&format!(
-        "3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 {} {}]\n/Contents 4 0 R\n>>\nendobj\n",
-        width, height
-    ));
-
-    // Content stream (4 0 obj)
+/// Export project as a minimal PDF. Raster images are embedded as grayscale
+/// image objects, exactly as they will engrave.
+pub fn export_pdf(
+    project: &Project,
+    selection_only: bool,
+    selected_ids: &[ObjectId],
+) -> Result<Vec<u8>, String> {
+    let to_page = canvas_to_y_up(project.workspace.bed_height_mm, POINTS_PER_MM);
     let mut stream = String::new();
     stream.push_str("0.1 w\n"); // Line width
+    let mut images: Vec<Vec<u8>> = Vec::new();
 
-    let expanded_clones: Vec<_> = project
-        .objects
-        .iter()
-        .filter_map(|obj| project.resolve_clone(obj))
-        .collect();
-    for obj in project
-        .objects
-        .iter()
-        .filter(|obj| !matches!(obj.data, crate::ObjectData::VirtualClone { .. }))
-        .chain(expanded_clones.iter())
-    {
-        if selection_only && !selected_ids.contains(&obj.id) {
+    for obj in exportable_objects(project, selection_only, selected_ids) {
+        if matches!(obj.data, ObjectData::RasterImage { .. }) {
+            let image = processed_bitmap_image_for_object(project, &obj)?;
+            let placement = to_page.compose(&raster_unit_square_to_canvas(&obj));
+            stream.push_str(&format!(
+                "q\n{} cm\n/Im{} Do\nQ\n",
+                matrix_operands(&placement),
+                images.len()
+            ));
+            images.push(pdf_gray_image_object(&image)?);
             continue;
         }
-
-        if !obj.visible {
+        let Some(mut path) = object_to_world_vecpath(&obj) else {
             continue;
-        }
-
-        if let Some(mut path) = object_to_world_vecpath(obj) {
-            crate::vector::flatten::convert_quadratics_to_cubics(&mut path);
-            let color_tag = project
-                .find_layer(obj.layer_id)
-                .map(|layer| layer.color_tag.0.as_str());
-            let (red, green, blue) = pdf_stroke_color(color_tag);
-            stream.push_str(&format!("{red:.6} {green:.6} {blue:.6} RG\n"));
-
-            for subpath in &path.subpaths {
-                for cmd in &subpath.commands {
-                    match cmd {
-                        PathCommand::MoveTo { x, y } => {
-                            let px = *x * 2.83465;
-                            let py = *y * 2.83465;
-                            stream.push_str(&format!("{} {} m\n", px, py));
-                        }
-                        PathCommand::LineTo { x, y } => {
-                            let px = *x * 2.83465;
-                            let py = *y * 2.83465;
-                            stream.push_str(&format!("{} {} l\n", px, py));
-                        }
-                        PathCommand::QuadTo { .. } => {
-                            unreachable!("quadratics were converted above")
-                        }
-                        PathCommand::CubicTo {
-                            c1x,
-                            c1y,
-                            c2x,
-                            c2y,
-                            x,
-                            y,
-                        } => {
-                            let pc1x = *c1x * 2.83465;
-                            let pc1y = *c1y * 2.83465;
-                            let pc2x = *c2x * 2.83465;
-                            let pc2y = *c2y * 2.83465;
-                            let px = *x * 2.83465;
-                            let py = *y * 2.83465;
-                            stream.push_str(&format!(
-                                "{} {} {} {} {} {} c\n",
-                                pc1x, pc1y, pc2x, pc2y, px, py
-                            ));
-                        }
-                        PathCommand::Close => {
-                            stream.push_str("h\n");
-                        }
+        };
+        crate::vector::flatten::convert_quadratics_to_cubics(&mut path);
+        let color_tag = project
+            .find_layer(obj.layer_id)
+            .map(|layer| layer.color_tag.0.as_str());
+        let (red, green, blue) = pdf_stroke_color(color_tag);
+        stream.push_str(&format!("{red:.6} {green:.6} {blue:.6} RG\n"));
+        let point = |x: f64, y: f64| {
+            let p = to_page.apply(&Point2D::new(x, y));
+            format!("{} {}", p.x, p.y)
+        };
+        for subpath in &path.subpaths {
+            for cmd in &subpath.commands {
+                match cmd {
+                    PathCommand::MoveTo { x, y } => {
+                        stream.push_str(&format!("{} m\n", point(*x, *y)));
                     }
+                    PathCommand::LineTo { x, y } => {
+                        stream.push_str(&format!("{} l\n", point(*x, *y)));
+                    }
+                    PathCommand::QuadTo { .. } => {
+                        unreachable!("quadratics were converted above")
+                    }
+                    PathCommand::CubicTo {
+                        c1x,
+                        c1y,
+                        c2x,
+                        c2y,
+                        x,
+                        y,
+                    } => {
+                        stream.push_str(&format!(
+                            "{} {} {} c\n",
+                            point(*c1x, *c1y),
+                            point(*c2x, *c2y),
+                            point(*x, *y)
+                        ));
+                    }
+                    PathCommand::Close => stream.push_str("h\n"),
                 }
-                stream.push_str("S\n"); // Stroke path
             }
+            stream.push_str("S\n"); // Stroke path
         }
     }
 
-    let stream_len = stream.len();
-    object_offsets.push(pdf.len());
-    pdf.push_str(&format!(
-        "4 0 obj\n<<\n/Length {}\n>>\nstream\n{}endstream\nendobj\n",
-        stream_len, stream
-    ));
+    let width = project.workspace.bed_width_mm * POINTS_PER_MM;
+    let height = project.workspace.bed_height_mm * POINTS_PER_MM;
+    let first_image = 5;
+    let xobjects: String = (0..images.len())
+        .map(|index| format!("/Im{index} {} 0 R ", first_image + index))
+        .collect();
 
-    // Cross-reference offsets are byte positions in the final ASCII document.
-    let xref_offset = pdf.len();
-    pdf.push_str("xref\n0 5\n0000000000 65535 f \n");
-    for offset in object_offsets {
-        pdf.push_str(&format!("{offset:010} 00000 n \n"));
+    let mut pdf: Vec<u8> = b"%PDF-1.4\n".to_vec();
+    let mut offsets = Vec::new();
+    let mut push_object = |pdf: &mut Vec<u8>, body: &[u8]| {
+        offsets.push(pdf.len());
+        pdf.extend_from_slice(format!("{} 0 obj\n", offsets.len()).as_bytes());
+        pdf.extend_from_slice(body);
+        pdf.extend_from_slice(b"\nendobj\n");
+    };
+    push_object(&mut pdf, b"<<\n/Type /Catalog\n/Pages 2 0 R\n>>");
+    push_object(&mut pdf, b"<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>");
+    push_object(
+        &mut pdf,
+        format!(
+            "<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 {width} {height}]\n/Resources << /XObject << {xobjects}>> >>\n/Contents 4 0 R\n>>"
+        )
+        .as_bytes(),
+    );
+    push_object(
+        &mut pdf,
+        format!("<<\n/Length {}\n>>\nstream\n{stream}endstream", stream.len()).as_bytes(),
+    );
+    for image in &images {
+        push_object(&mut pdf, image);
     }
-    pdf.push_str("trailer\n<<\n/Size 5\n/Root 1 0 R\n>>\nstartxref\n");
-    pdf.push_str(&format!("{xref_offset}\n%%EOF\n"));
 
-    pdf.into_bytes()
+    // Cross-reference offsets are byte positions in the final document.
+    let xref_offset = pdf.len();
+    let count = offsets.len() + 1;
+    pdf.extend_from_slice(format!("xref\n0 {count}\n0000000000 65535 f \n").as_bytes());
+    for offset in offsets {
+        pdf.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+    }
+    pdf.extend_from_slice(
+        format!("trailer\n<<\n/Size {count}\n/Root 1 0 R\n>>\nstartxref\n{xref_offset}\n%%EOF\n")
+            .as_bytes(),
+    );
+    Ok(pdf)
+}
+
+/// A Flate-compressed 8-bit grayscale image object body.
+fn pdf_gray_image_object(image: &image::GrayImage) -> Result<Vec<u8>, String> {
+    use std::io::Write;
+    let mut encoder =
+        flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder
+        .write_all(image.as_raw())
+        .and_then(|_| encoder.flush())
+        .map_err(|e| format!("Failed to compress image: {e}"))?;
+    let data = encoder
+        .finish()
+        .map_err(|e| format!("Failed to compress image: {e}"))?;
+    let mut body = format!(
+        "<<\n/Type /XObject\n/Subtype /Image\n/Width {}\n/Height {}\n/ColorSpace /DeviceGray\n/BitsPerComponent 8\n/Filter /FlateDecode\n/Length {}\n>>\nstream\n",
+        image.width(),
+        image.height(),
+        data.len()
+    )
+    .into_bytes();
+    body.extend_from_slice(&data);
+    body.extend_from_slice(b"\nendstream");
+    Ok(body)
 }
 
 #[cfg(test)]
@@ -188,7 +214,7 @@ mod tests {
     #[test]
     fn export_pdf_has_header() {
         let project = test_project();
-        let pdf = export_pdf(&project, false, &[]);
+        let pdf = export_pdf(&project, false, &[]).unwrap();
         let text = String::from_utf8_lossy(&pdf);
         assert!(text.starts_with("%PDF"));
     }
@@ -196,7 +222,7 @@ mod tests {
     #[test]
     fn export_pdf_has_catalog() {
         let project = test_project();
-        let pdf = export_pdf(&project, false, &[]);
+        let pdf = export_pdf(&project, false, &[]).unwrap();
         let text = String::from_utf8_lossy(&pdf);
         assert!(text.contains("/Catalog"));
     }
@@ -204,7 +230,7 @@ mod tests {
     #[test]
     fn export_pdf_has_eof() {
         let project = test_project();
-        let pdf = export_pdf(&project, false, &[]);
+        let pdf = export_pdf(&project, false, &[]).unwrap();
         let text = String::from_utf8_lossy(&pdf);
         assert!(text.contains("%%EOF"));
     }
@@ -223,7 +249,7 @@ mod tests {
         project.add_object(rectangle("red rectangle", red_layer_id, 10.0));
         project.add_object(rectangle("blue rectangle", blue_layer_id, 30.0));
 
-        let pdf = export_pdf(&project, false, &[]);
+        let pdf = export_pdf(&project, false, &[]).unwrap();
         let text = String::from_utf8_lossy(&pdf);
 
         assert!(text.contains("1.000000 0.000000 0.000000 RG"));
@@ -247,11 +273,88 @@ mod tests {
         project.add_object(red_object);
         project.add_object(green_object);
 
-        let pdf = export_pdf(&project, true, &[green_object_id]);
+        let pdf = export_pdf(&project, true, &[green_object_id]).unwrap();
         let text = String::from_utf8_lossy(&pdf);
 
         assert!(!text.contains("1.000000 0.000000 0.000000 RG"));
         assert!(text.contains("0.000000 1.000000 0.000000 RG"));
+    }
+
+    fn raster_project() -> Project {
+        use image::ImageEncoder;
+        let mut project = test_project();
+        project.workspace.bed_height_mm = 200.0;
+        let layer_id = project.layers[0].id;
+        let mut png = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut png)
+            .write_image(&[0, 85, 170, 255], 2, 2, image::ExtendedColorType::L8)
+            .unwrap();
+        let asset = crate::asset::Asset::new(
+            "photo.png",
+            crate::asset::AssetMediaType::Png,
+            png.len() as u64,
+            Some(2),
+            Some(2),
+        );
+        let asset_key = asset.id.to_string();
+        project.add_asset(asset, png);
+        let mut raster = ProjectObject::new(
+            "photo",
+            layer_id,
+            Bounds::new(Point2D::new(100.0, 50.0), Point2D::new(140.0, 70.0)),
+            ObjectData::RasterImage {
+                asset_key,
+                original_width_px: 2,
+                original_height_px: 2,
+                adjustments: None,
+                masks: Vec::new(),
+            },
+        );
+        raster.transform = beambench_common::Transform2D::translate(5.0, 6.0);
+        project.add_object(raster);
+        project
+    }
+
+    #[test]
+    fn images_are_embedded_where_they_sit_on_the_canvas() {
+        let project = raster_project();
+        let pdf = export_pdf(&project, false, &[]).unwrap();
+
+        let artwork = crate::parse_pdf_artwork(&pdf).unwrap();
+        assert_eq!(artwork.images.len(), 1);
+        let to_canvas = artwork.page_to_canvas.compose(&artwork.images[0].transform);
+        let center = to_canvas.apply(&Point2D::new(0.5, 0.5));
+        assert!((center.x - 125.0).abs() < 1e-3, "{center:?}");
+        assert!((center.y - 66.0).abs() < 1e-3, "{center:?}");
+        assert!(!artwork.paths.is_empty());
+
+        let eps = crate::export_eps(&project, false, &[]).unwrap();
+        assert!(eps.contains("} image\n"));
+    }
+
+    #[test]
+    fn vectors_keep_their_canvas_position_after_reimport() {
+        let mut project = test_project();
+        project.workspace.bed_height_mm = 200.0;
+        let pdf = export_pdf(&project, false, &[]).unwrap();
+        let artwork = crate::parse_pdf_artwork(&pdf).unwrap();
+        let path = artwork.paths[0].path.clone();
+        let mut ys: Vec<f64> = path
+            .subpaths
+            .iter()
+            .flat_map(|subpath| subpath.commands.iter())
+            .filter_map(|command| match command {
+                PathCommand::MoveTo { x, y } | PathCommand::LineTo { x, y } => Some(
+                    artwork
+                        .page_to_canvas
+                        .apply(&Point2D::new(*x, *y))
+                        .y,
+                ),
+                _ => None,
+            })
+            .collect();
+        ys.sort_by(f64::total_cmp);
+        assert!((ys[0] - 10.0).abs() < 1e-3 && (ys[ys.len() - 1] - 60.0).abs() < 1e-3);
     }
 
     #[test]
@@ -268,7 +371,7 @@ mod tests {
             closed: false,
             ruler_guide_axis: None,
         };
-        let text = String::from_utf8(export_pdf(&project, false, &[])).unwrap();
+        let text = String::from_utf8(export_pdf(&project, false, &[]).unwrap()).unwrap();
         assert!(text.contains(" c\n"));
         let xref: usize = text
             .split("startxref\n")
@@ -284,6 +387,6 @@ mod tests {
             let offset: usize = line.split_whitespace().next().unwrap().parse().unwrap();
             assert!(text[offset..].starts_with(&format!("{} 0 obj\n", index + 1)));
         }
-        assert!(crate::export_eps(&project, false, &[]).contains("curveto"));
+        assert!(crate::export_eps(&project, false, &[]).unwrap().contains("curveto"));
     }
 }

@@ -163,6 +163,11 @@ pub fn get_app_settings(svc: State<'_, Arc<ServiceContext>>) -> Result<AppSettin
     app::get_app_settings(&svc).map_err(Into::into)
 }
 
+#[tauri::command]
+pub fn take_pending_notices(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<String>, String> {
+    app::take_pending_notices(&svc).map_err(Into::into)
+}
+
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn update_app_settings(

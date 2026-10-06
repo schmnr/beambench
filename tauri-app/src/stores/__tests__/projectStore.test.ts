@@ -910,6 +910,12 @@ describe('projectStore — new actions', () => {
     expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
   });
 
+  it('restoreRecoveredProject keeps the file the recovery came from', () => {
+    useProjectStore.getState().restoreRecoveredProject(makeProject(), '/tmp/original.lzrproj');
+
+    expect(useProjectStore.getState().projectPath).toBe('/tmp/original.lzrproj');
+  });
+
   it('updateLayer returns false when the backend update fails', async () => {
     mockedProject.updateLayer.mockRejectedValue('Rename failed');
 

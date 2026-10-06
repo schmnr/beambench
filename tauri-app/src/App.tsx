@@ -956,6 +956,12 @@ function App() {
       });
     }
 
+    void appService.takePendingNotices().then((notices) => {
+      for (const notice of notices) {
+        useNotificationStore.getState().push(wrapBackendError(notice), 'warning');
+      }
+    }).catch(() => {});
+
     // Check for recovery files on startup
     persistenceService.checkRecovery().then((files) => {
       if (files.length > 0) {
@@ -1714,8 +1720,8 @@ function App() {
 
   const handleRestore = async (path: string) => {
     try {
-      const project = await persistenceService.restoreRecovery(path);
-      restoreRecoveredProject(project);
+      const restored = await persistenceService.restoreRecovery(path);
+      restoreRecoveredProject(restored.project, restored.path);
       useNotificationStore.getState().push(i18n.t('notifications.project_restored'), 'success');
       setRecoveries((prev) => prev.filter((r) => r.path !== path));
     } catch (e) {

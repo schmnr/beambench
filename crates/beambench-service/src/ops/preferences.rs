@@ -171,10 +171,11 @@ fn activate_candidate(
 ) -> ServiceResult<AppSettings> {
     beambench_core::settings::normalize_display_language(&mut candidate);
     validate_app_settings(&candidate)?;
+    // Back up first: if the backup fails, nothing has changed on disk.
+    save_current_backup(&current)?;
     persist::save_settings(&candidate).map_err(|e| {
         ServiceError::persistence(format!("Failed to persist imported preferences: {e}"))
     })?;
-    save_current_backup(&current)?;
     ctx.apply_settings_side_effects(&candidate)
         .map_err(ServiceError::internal)?;
     {

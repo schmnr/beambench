@@ -6,6 +6,7 @@ use std::sync::mpsc;
 use beambench_core::ObjectId;
 use beambench_core::settings::RecentFile;
 use beambench_service::ServiceContext;
+use beambench_service::ops::export::{ExportDocumentInput, ExportFormat};
 use beambench_service::ops::nesting::{self, NestError, NestOptions, NestResult};
 use beambench_service::ops::planning::{self, SessionJobOptions};
 use beambench_service::persist;
@@ -254,6 +255,30 @@ pub fn export_gcode(
 // Export and recent-file commands
 // ---------------------------------------------------------------------------
 
+/// Write a design export atomically through the shared service path.
+fn export_design(
+    svc: &ServiceContext,
+    path: String,
+    selection_only: bool,
+    selected_ids: &[String],
+    format: ExportFormat,
+) -> Result<String, String> {
+    let selected_ids = selected_ids
+        .iter()
+        .map(|s| parse_id(s))
+        .collect::<Result<Vec<ObjectId>, _>>()?;
+    let output = beambench_service::ops::export::export_document(
+        svc,
+        ExportDocumentInput {
+            path: Some(path.clone()),
+            selection_only,
+            selected_ids,
+            format,
+        },
+    )?;
+    Ok(output.path.unwrap_or(path))
+}
+
 #[tauri::command]
 pub fn export_svg(
     svc: State<'_, Arc<ServiceContext>>,
@@ -261,15 +286,7 @@ pub fn export_svg(
     selection_only: bool,
     selected_ids: Vec<String>,
 ) -> Result<String, String> {
-    let parsed_ids: Vec<ObjectId> = selected_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_ref().ok_or("No project open")?;
-    let svg_content = beambench_core::export_svg(project, selection_only, &parsed_ids)?;
-    std::fs::write(&path, &svg_content).map_err(|e| format!("Failed to write SVG: {e}"))?;
-    Ok(path)
+    export_design(&svc, path, selection_only, &selected_ids, ExportFormat::Svg)
 }
 
 #[tauri::command]
@@ -301,15 +318,7 @@ pub fn export_dxf(
     selection_only: bool,
     selected_ids: Vec<String>,
 ) -> Result<String, String> {
-    let parsed_ids: Vec<ObjectId> = selected_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_ref().ok_or("No project open")?;
-    let dxf_content = beambench_core::export_dxf(project, selection_only, &parsed_ids);
-    std::fs::write(&path, &dxf_content).map_err(|e| format!("Failed to write DXF: {e}"))?;
-    Ok(path)
+    export_design(&svc, path, selection_only, &selected_ids, ExportFormat::Dxf)
 }
 
 #[tauri::command]
@@ -319,15 +328,7 @@ pub fn export_pdf(
     selection_only: bool,
     selected_ids: Vec<String>,
 ) -> Result<String, String> {
-    let parsed_ids: Vec<ObjectId> = selected_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_ref().ok_or("No project open")?;
-    let pdf_bytes = beambench_core::export_pdf(project, selection_only, &parsed_ids);
-    std::fs::write(&path, &pdf_bytes).map_err(|e| format!("Failed to write PDF: {e}"))?;
-    Ok(path)
+    export_design(&svc, path, selection_only, &selected_ids, ExportFormat::Pdf)
 }
 
 #[tauri::command]
@@ -337,15 +338,7 @@ pub fn export_eps(
     selection_only: bool,
     selected_ids: Vec<String>,
 ) -> Result<String, String> {
-    let parsed_ids: Vec<ObjectId> = selected_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_ref().ok_or("No project open")?;
-    let eps_content = beambench_core::export_eps(project, selection_only, &parsed_ids);
-    std::fs::write(&path, &eps_content).map_err(|e| format!("Failed to write EPS: {e}"))?;
-    Ok(path)
+    export_design(&svc, path, selection_only, &selected_ids, ExportFormat::Eps)
 }
 
 #[tauri::command]
@@ -355,15 +348,7 @@ pub fn export_ai(
     selection_only: bool,
     selected_ids: Vec<String>,
 ) -> Result<String, String> {
-    let parsed_ids: Vec<ObjectId> = selected_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_ref().ok_or("No project open")?;
-    let ai_content = beambench_core::export_ai(project, selection_only, &parsed_ids);
-    std::fs::write(&path, &ai_content).map_err(|e| format!("Failed to write AI: {e}"))?;
-    Ok(path)
+    export_design(&svc, path, selection_only, &selected_ids, ExportFormat::Ai)
 }
 
 #[tauri::command]

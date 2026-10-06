@@ -9,6 +9,7 @@ pub mod asset;
 pub mod barcode_gen;
 pub mod diagnostics;
 pub mod export_bitmap;
+mod export_common;
 pub mod export_dxf;
 pub mod export_eps;
 pub mod export_pdf;

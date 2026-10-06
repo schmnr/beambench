@@ -551,6 +551,7 @@ dependencies = [
  "roxmltree",
  "serde",
  "serde_json",
+ "svgtypes",
  "tempfile",
  "thiserror 2.0.18",
  "tiny-skia",

@@ -297,6 +297,7 @@ fn main() {
             commands::app::set_window_title,
             commands::app::open_external_url,
             commands::app::get_app_settings,
+            commands::app::take_pending_notices,
             commands::app::update_app_settings,
             commands::feedback::get_connection_diagnostics,
             commands::feedback::preview_feedback_report,

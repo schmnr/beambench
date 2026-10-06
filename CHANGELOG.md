@@ -82,6 +82,32 @@
   final edge in distance and time estimates.
 - A plan warning now explains when an image is on a layer that cannot engrave
   it. Multi-pass Offset Fill and jobs with many tabs plan faster.
+- A settings, material or macro file that cannot be read is no longer replaced
+  with defaults on the next save. Beam Bench keeps a copy of the original,
+  restores every setting it can still read (such as machine profiles), and
+  says so at startup.
+- Opening an older project that mixed images and vector shapes on one layer no
+  longer turns disabled or hidden artwork back on. Beam Bench now says when it
+  reorganized layers.
+- Restoring a crash-recovery copy keeps that copy until you save, so a second
+  crash loses nothing, and Save goes back to the original project file.
+- Projects from a newer Beam Bench file format are refused with a clear
+  message instead of opening with settings silently dropped. Projects last
+  saved by a newer version open with a warning.
+- Project saves keep the file's permissions and follow symbolic links, and
+  settings and projects are flushed to disk before they replace the old file.
+- Importing preferences backs up the current settings before replacing them.
+- PDF, EPS and AI exports are no longer upside down and now include images.
+  Design exports leave out hidden layers (such as PDF clipping masks) and
+  replace the destination only once the export is complete.
+- DXF, EPS and AI imports are no longer upside down. Their bottom-left corner
+  lines up with the bed's bottom-left, matching exports, so files round-trip.
+- SVG import: text follows the document's scaling and group transforms,
+  rotated or skewed text imports as outlines
+  instead of disappearing, clip paths are applied, hidden shapes are skipped,
+  and image links to files on this computer are no longer read.
+- Very large vector files and files with more than 250,000 shapes are refused
+  with an explanation instead of exhausting memory.
 
 ## 0.2.25
 

@@ -13,6 +13,10 @@ const RASTER_PLAN_TOO_COMPLEX = '[raster_plan_too_complex]';
 const JOB_PREPARATION_STOPPED = '[job_preparation_stopped]';
 const SLEEP_PROTECTION_FAILED = '[sleep_protection_failed]';
 const PROJECT_FILE_MISSING = '[project_file_missing]';
+const SETTINGS_FILE_RECOVERED = '[settings_file_recovered]';
+const LAYERS_MIGRATED_ON_OPEN = '[layers_migrated_on_open]';
+const PROJECT_TOO_NEW = /\[project_too_new\][^]*?Beam Bench (\S+?)\.\s/u;
+const PROJECT_FROM_NEWER_APP = /\[project_from_newer_app\] This project was saved by Beam Bench (\S+?)\.\s/u;
 const DXF_NO_USABLE_GEOMETRY =
   /^DXF import found no usable 2D vector geometry\.(?: Unsupported or malformed entities: (.+)\.)?$/u;
 const DXF_SKIPPED_ENTITIES =
@@ -68,6 +72,20 @@ export function wrapBackendError(detail: string): string {
       recent: i18n.t('menus.recent_projects.label'),
       open: `${i18n.t('menus.file.label')} > ${i18n.t('menus.file.open')}`,
     });
+  }
+  if (normalized.startsWith(SETTINGS_FILE_RECOVERED)) {
+    return i18n.t('errors.settings_file_recovered');
+  }
+  if (normalized.startsWith(LAYERS_MIGRATED_ON_OPEN)) {
+    return i18n.t('errors.layers_migrated_on_open');
+  }
+  const tooNew = normalized.match(PROJECT_TOO_NEW);
+  if (tooNew) {
+    return i18n.t('errors.project_too_new', { version: tooNew[1] });
+  }
+  const fromNewerApp = normalized.match(PROJECT_FROM_NEWER_APP);
+  if (fromNewerApp) {
+    return i18n.t('errors.project_from_newer_app', { version: fromNewerApp[1] });
   }
   const noUsableDxfGeometry = normalized.match(DXF_NO_USABLE_GEOMETRY);
   if (noUsableDxfGeometry) {

@@ -209,6 +209,9 @@ pub struct ServiceContext {
     pub art_libraries: Mutex<Vec<super::persist::LoadedArtLibrary>>,
     /// Pending art-library load/persistence warnings surfaced to the UI on the next fetch.
     pub art_library_warnings: Mutex<Vec<String>>,
+    /// Notices for the user, such as a damaged settings file at startup or
+    /// layers split while opening a project. The frontend takes them once.
+    pub pending_notices: Mutex<Vec<String>>,
     /// Content-addressed cache for processed raster results (planner only).
     pub raster_cache: Arc<beambench_raster::cache::RasterCache>,
     /// Separate preview cache — avoids evicting planner entries with transient slider settings.
@@ -238,10 +241,18 @@ impl ServiceContext {
     pub fn new() -> Self {
         let (tx, _rx) = broadcast::channel(256);
         let art_library_state = super::persist::load_art_libraries();
+        let (settings, settings_notice) = super::persist::load_settings_with_notice();
+        let (material_presets, presets_notice) =
+            super::persist::load_material_presets_with_notice();
+        let (macros, macros_notice) = super::persist::load_macros_with_notice();
+        let pending_notices = [settings_notice, presets_notice, macros_notice]
+            .into_iter()
+            .flatten()
+            .collect();
         Self {
             project: Mutex::new(None),
             project_path: Mutex::new(None),
-            settings: Mutex::new(super::persist::load_settings()),
+            settings: Mutex::new(settings),
             plan_cache: Mutex::new(None),
             history: Mutex::new(ProjectHistory::default()),
             session: Mutex::new(None),
@@ -275,12 +286,13 @@ impl ServiceContext {
             connection_events: Mutex::new(VecDeque::new()),
             panic_reports: Mutex::new(Vec::new()),
             settings_applier: Mutex::new(None),
-            material_presets: Mutex::new(super::persist::load_material_presets()),
-            macros: Mutex::new(super::persist::load_macros()),
+            material_presets: Mutex::new(material_presets),
+            macros: Mutex::new(macros),
             console_log: Mutex::new(VecDeque::new()),
             optimization_runtime: Mutex::new(OptimizationRuntime::default()),
             art_libraries: Mutex::new(art_library_state.libraries),
             art_library_warnings: Mutex::new(art_library_state.warnings),
+            pending_notices: Mutex::new(pending_notices),
             raster_cache: Arc::new(beambench_raster::cache::RasterCache::new(32)),
             preview_cache: Arc::new(beambench_raster::cache::RasterCache::new(16)),
             scaled_image_cache: Arc::new(beambench_raster::cache::ScaledImageCache::new(16)),
@@ -339,6 +351,7 @@ impl ServiceContext {
             optimization_runtime: Mutex::new(OptimizationRuntime::default()),
             art_libraries: Mutex::new(Vec::new()),
             art_library_warnings: Mutex::new(Vec::new()),
+            pending_notices: Mutex::new(Vec::new()),
             raster_cache: Arc::new(beambench_raster::cache::RasterCache::new(32)),
             preview_cache: Arc::new(beambench_raster::cache::RasterCache::new(16)),
             scaled_image_cache: Arc::new(beambench_raster::cache::ScaledImageCache::new(16)),

@@ -81,20 +81,118 @@ pub fn macros_path() -> Option<PathBuf> {
     config_dir().map(|d| d.join("macros.json"))
 }
 
-/// Load settings from disk, falling back to defaults on any error.
+/// Load settings from disk, falling back to defaults when nothing is saved.
 /// Normalizes `display_language` so a stale or unknown persisted code
 /// becomes `"en"` rather than bricking the locale selector.
 pub fn load_settings() -> AppSettings {
-    let Some(path) = settings_path() else {
-        return AppSettings::default();
-    };
-    let Ok(data) = fs::read_to_string(&path) else {
-        return AppSettings::default();
-    };
-    let mut settings: AppSettings = serde_json::from_str(&data).unwrap_or_default();
+    load_settings_with_notice().0
+}
+
+/// Load settings, salvaging what still parses from a damaged file.
+///
+/// A file that fails to parse is moved aside before anything can overwrite
+/// it, and the returned notice tells the user their settings were reset.
+pub fn load_settings_with_notice() -> (AppSettings, Option<String>) {
+    let (mut settings, notice) = settings_path()
+        .map(|path| load_json_lenient(&path, salvage_object))
+        .unwrap_or_default();
     beambench_core::settings::normalize_display_language(&mut settings);
     beambench_core::settings::migrate_settings(&mut settings);
-    settings
+    (settings, notice)
+}
+
+/// Stable code the frontend localizes when a saved file had to be reset.
+pub const SETTINGS_FILE_RECOVERED_CODE: &str = "settings_file_recovered";
+
+/// Read a JSON file. A missing file is the normal first-run case and yields
+/// the default. A file that cannot be read or parsed is kept as
+/// `<name>.unreadable-<stamp>` and whatever `salvage` can recover is used.
+fn load_json_lenient<T>(path: &Path, salvage: fn(serde_json::Value) -> Option<T>) -> (T, Option<String>)
+where
+    T: serde::de::DeserializeOwned + Default,
+{
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return (T::default(), None);
+        }
+        Err(error) => {
+            return (T::default(), Some(unreadable_notice(path, &error.to_string())));
+        }
+    };
+    let error = match serde_json::from_slice::<T>(&bytes) {
+        Ok(value) => return (value, None),
+        Err(error) => error,
+    };
+    let salvaged = serde_json::from_slice::<serde_json::Value>(&bytes)
+        .ok()
+        .and_then(salvage);
+    let kept = keep_unreadable_file(path, &bytes);
+    let mut notice = unreadable_notice(path, &error.to_string());
+    if let Some(kept) = kept {
+        notice.push_str(&format!(" The original was kept as {}.", kept.display()));
+    }
+    (salvaged.unwrap_or_default(), Some(notice))
+}
+
+fn unreadable_notice(path: &Path, detail: &str) -> String {
+    format!(
+        "[{SETTINGS_FILE_RECOVERED_CODE}] {} could not be read ({detail}); unreadable entries were reset to defaults.",
+        path.display()
+    )
+}
+
+/// Copy a damaged file beside the original so the next save cannot destroy
+/// the only copy of the user's data.
+fn keep_unreadable_file(path: &Path, bytes: &[u8]) -> Option<PathBuf> {
+    let name = path.file_name()?.to_string_lossy();
+    let stamp = Utc::now().format("%Y%m%d-%H%M%S");
+    let kept = path.with_file_name(format!("{name}.unreadable-{stamp}"));
+    fs::write(&kept, bytes).ok().map(|_| kept)
+}
+
+/// Keep every top-level field that still parses on its own, so one bad value
+/// does not discard machine profiles, recent files and every other setting.
+fn salvage_object<T>(value: serde_json::Value) -> Option<T>
+where
+    T: serde::de::DeserializeOwned + Default + Serialize,
+{
+    let serde_json::Value::Object(fields) = value else {
+        return None;
+    };
+    let mut merged = serde_json::to_value(T::default()).ok()?;
+    for (key, field) in fields {
+        let serde_json::Value::Object(object) = &mut merged else {
+            return None;
+        };
+        let previous = object.insert(key.clone(), field);
+        if serde_json::from_value::<T>(merged.clone()).is_err() {
+            let serde_json::Value::Object(object) = &mut merged else {
+                return None;
+            };
+            match previous {
+                Some(previous) => object.insert(key, previous),
+                None => object.remove(&key),
+            };
+        }
+    }
+    serde_json::from_value(merged).ok()
+}
+
+/// Keep every list entry that still parses on its own.
+fn salvage_list<T>(value: serde_json::Value) -> Option<Vec<T>>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let serde_json::Value::Array(items) = value else {
+        return None;
+    };
+    Some(
+        items
+            .into_iter()
+            .filter_map(|item| serde_json::from_value(item).ok())
+            .collect(),
+    )
 }
 
 /// Log a persistence warning. Silenced under `#[cfg(test)]` to avoid noisy
@@ -203,15 +301,15 @@ pub fn prune_preferences_backups() -> Result<(), String> {
     Ok(())
 }
 
-/// Load material presets from disk, falling back to empty list on any error.
+/// Load material presets from disk, salvaging entries from a damaged file.
 pub fn load_material_presets() -> Vec<MaterialPreset> {
-    let Some(path) = material_presets_path() else {
-        return Vec::new();
-    };
-    let Ok(data) = fs::read_to_string(&path) else {
-        return Vec::new();
-    };
-    serde_json::from_str(&data).unwrap_or_default()
+    load_material_presets_with_notice().0
+}
+
+pub fn load_material_presets_with_notice() -> (Vec<MaterialPreset>, Option<String>) {
+    material_presets_path()
+        .map(|path| load_json_lenient(&path, salvage_list))
+        .unwrap_or_default()
 }
 
 /// Save material presets to disk atomically (write `.tmp`, then rename).
@@ -222,15 +320,15 @@ pub fn save_material_presets(presets: &[MaterialPreset]) -> Result<(), String> {
     write_json_atomic(&path, &json)
 }
 
-/// Load macros from disk, falling back to empty list on any error.
+/// Load macros from disk, salvaging entries from a damaged file.
 pub fn load_macros() -> Vec<MacroDefinition> {
-    let Some(path) = macros_path() else {
-        return Vec::new();
-    };
-    let Ok(data) = fs::read_to_string(&path) else {
-        return Vec::new();
-    };
-    serde_json::from_str(&data).unwrap_or_default()
+    load_macros_with_notice().0
+}
+
+pub fn load_macros_with_notice() -> (Vec<MacroDefinition>, Option<String>) {
+    macros_path()
+        .map(|path| load_json_lenient(&path, salvage_list))
+        .unwrap_or_default()
 }
 
 /// Save macros to disk atomically (write `.tmp`, then rename).
@@ -309,7 +407,17 @@ pub(crate) fn write_json_atomic(path: &Path, json: &str) -> Result<(), String> {
             .unwrap_or("tmp"),
         Uuid::new_v4()
     ));
-    fs::write(&tmp, json).map_err(|e| format!("Failed to write temp file: {e}"))?;
+    // Flush the contents before the rename: otherwise a power loss can leave
+    // the renamed file empty.
+    let written = fs::File::create(&tmp).and_then(|mut file| {
+        use std::io::Write;
+        file.write_all(json.as_bytes())?;
+        file.sync_all()
+    });
+    if let Err(error) = written {
+        let _ = fs::remove_file(&tmp);
+        return Err(format!("Failed to write temp file: {error}"));
+    }
 
     #[cfg(not(windows))]
     if let Err(error) = fs::rename(&tmp, path) {
@@ -351,6 +459,11 @@ pub(crate) fn write_json_atomic(path: &Path, json: &str) -> Result<(), String> {
             let _ = fs::remove_file(&tmp);
             return Err(format!("Failed to rename temp file: {error}"));
         }
+    }
+    // Flush the directory entry so the rename itself survives a power loss.
+    #[cfg(unix)]
+    if let Ok(dir) = fs::File::open(parent) {
+        let _ = dir.sync_all();
     }
     Ok(())
 }
@@ -567,14 +680,63 @@ mod tests {
     }
 
     #[test]
-    fn corrupt_file_returns_default() {
+    fn corrupt_file_is_kept_and_reported() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
         fs::write(&path, "NOT JSON!!!").unwrap();
 
-        let loaded: AppSettings =
-            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap_or_default();
+        let (loaded, notice) = load_json_lenient::<AppSettings>(&path, salvage_object);
         assert!(loaded.autosave_enabled);
+        assert!(notice.unwrap().starts_with("[settings_file_recovered]"));
+        let kept: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains(".unreadable-"))
+            .collect();
+        assert_eq!(kept.len(), 1);
+        assert_eq!(fs::read_to_string(kept[0].path()).unwrap(), "NOT JSON!!!");
+    }
+
+    #[test]
+    fn one_bad_setting_keeps_profiles_and_other_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        let mut settings = AppSettings {
+            autosave_enabled: false,
+            ..Default::default()
+        };
+        settings
+            .machine_profiles
+            .push(beambench_core::MachineProfile::default());
+        let mut value = serde_json::to_value(&settings).unwrap();
+        value["display_unit"] = serde_json::json!({"not": "a unit"});
+        fs::write(&path, value.to_string()).unwrap();
+
+        let (loaded, notice) = load_json_lenient::<AppSettings>(&path, salvage_object);
+        assert!(notice.is_some());
+        assert!(!loaded.autosave_enabled);
+        assert_eq!(loaded.machine_profiles.len(), 1);
+        assert_eq!(loaded.display_unit, AppSettings::default().display_unit);
+    }
+
+    #[test]
+    fn damaged_list_keeps_readable_entries() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("macros.json");
+        let good = serde_json::to_value(MacroDefinition::default()).unwrap();
+        fs::write(&path, serde_json::json!([good, {"bogus": true}]).to_string()).unwrap();
+
+        let (loaded, notice) = load_json_lenient::<Vec<MacroDefinition>>(&path, salvage_list);
+        assert!(notice.is_some());
+        assert_eq!(loaded.len(), 1);
+    }
+
+    #[test]
+    fn missing_file_has_no_notice() {
+        let dir = tempfile::tempdir().unwrap();
+        let (_, notice) =
+            load_json_lenient::<AppSettings>(&dir.path().join("settings.json"), salvage_object);
+        assert!(notice.is_none());
     }
 
     #[test]

@@ -26,7 +26,12 @@ pub enum PersistenceError {
 /// Save a project to a `.lzrproj` zip archive.
 /// Writes to a temp file first, then atomically renames to the target path.
 pub fn save_project(project: &Project, path: &Path) -> Result<(), PersistenceError> {
-    let parent = path.parent().unwrap_or(Path::new("."));
+    // Write through a symlinked project name instead of replacing the link.
+    let path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let parent = match path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    };
     let temp = tempfile::NamedTempFile::new_in(parent)?;
     let bytes = save_project_to_bytes(project)?;
 
@@ -36,9 +41,26 @@ pub fn save_project(project: &Project, path: &Path) -> Result<(), PersistenceErr
         file.sync_all()?;
     }
 
-    // Atomic rename
-    temp.persist(path)
+    // NamedTempFile creates its file 0600. Keep an existing file's mode, and
+    // give a new one the conventional 0644 so shares and backups can read it.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&path)
+            .map(|meta| meta.permissions().mode() & 0o777)
+            .unwrap_or(0o644);
+        temp.as_file()
+            .set_permissions(std::fs::Permissions::from_mode(mode))?;
+    }
+
+    // Atomic rename, then flush the directory entry so the rename survives
+    // a power loss.
+    temp.persist(&path)
         .map_err(|e| PersistenceError::Io(e.error))?;
+    #[cfg(unix)]
+    if let Ok(dir) = std::fs::File::open(parent) {
+        let _ = dir.sync_all();
+    }
     Ok(())
 }
 
@@ -141,6 +163,34 @@ fn read_bounded(mut reader: impl Read, limit: u64) -> Result<Vec<u8>, Persistenc
     Ok(bytes)
 }
 
+/// Stable code the frontend localizes for projects from a newer format.
+pub const PROJECT_TOO_NEW_CODE: &str = "project_too_new";
+
+fn check_format_supported(manifest: &[u8]) -> Result<(), PersistenceError> {
+    #[derive(serde::Deserialize)]
+    struct Versions {
+        #[serde(default)]
+        format_version: String,
+        #[serde(default)]
+        app_version: String,
+    }
+    let Ok(versions) = serde_json::from_slice::<Versions>(manifest) else {
+        return Ok(());
+    };
+    let metadata = beambench_core::ProjectMetadata {
+        format_version: versions.format_version,
+        app_version: versions.app_version,
+        ..beambench_core::ProjectMetadata::new("")
+    };
+    if metadata.format_is_newer_than_supported() {
+        return Err(PersistenceError::Validation(format!(
+            "[{PROJECT_TOO_NEW_CODE}] This project uses file format {} from Beam Bench {}. Update Beam Bench to open it.",
+            metadata.format_version, metadata.app_version
+        )));
+    }
+    Ok(())
+}
+
 fn load_project_with_limits(path: &Path, limits: LoadLimits) -> Result<Project, PersistenceError> {
     let file = std::fs::File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
@@ -166,12 +216,17 @@ fn load_project_with_limits(path: &Path, limits: LoadLimits) -> Result<Project, 
         }
     }
 
-    // Verify required entries exist
-    if archive.by_name("manifest.json").is_err() {
-        return Err(PersistenceError::Validation(
-            "missing manifest.json in archive".into(),
-        ));
-    }
+    // Verify required entries exist, and refuse a format this build cannot
+    // read before parsing it: a partial read would silently drop its data.
+    let manifest = match archive.by_name("manifest.json") {
+        Ok(entry) => read_bounded(entry, limits.json_bytes)?,
+        Err(_) => {
+            return Err(PersistenceError::Validation(
+                "missing manifest.json in archive".into(),
+            ));
+        }
+    };
+    check_format_supported(&manifest)?;
 
     // Read project.json
     let project_json = {
@@ -372,10 +427,41 @@ pub fn load_recovery(path: &Path) -> Result<Project, PersistenceError> {
     load_project(path)
 }
 
-/// Delete a recovery file.
+/// Sidecar beside a recovery file that names the project file it came from.
+fn recovery_source_sidecar(recovery_path: &Path) -> std::path::PathBuf {
+    let mut name = recovery_path.as_os_str().to_owned();
+    name.push("-source");
+    std::path::PathBuf::from(name)
+}
+
+/// Record which project file a recovery copy belongs to, so a restored
+/// project saves back to it. `None` (never saved) removes any stale record.
+pub fn save_recovery_source(recovery_path: &Path, source: Option<&Path>) -> std::io::Result<()> {
+    let sidecar = recovery_source_sidecar(recovery_path);
+    match source {
+        Some(source) => std::fs::write(sidecar, source.to_string_lossy().as_bytes()),
+        None => match std::fs::remove_file(sidecar) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error),
+            _ => Ok(()),
+        },
+    }
+}
+
+/// The project file a recovery copy belongs to, when it was recorded.
+pub fn load_recovery_source(recovery_path: &Path) -> Option<std::path::PathBuf> {
+    let source = std::fs::read_to_string(recovery_source_sidecar(recovery_path)).ok()?;
+    let source = source.trim();
+    (!source.is_empty()).then(|| std::path::PathBuf::from(source))
+}
+
+/// Delete a recovery file and its source record.
 pub fn discard_recovery(path: &Path) -> Result<(), PersistenceError> {
     if path.exists() {
         std::fs::remove_file(path)?;
+    }
+    let sidecar = recovery_source_sidecar(path);
+    if sidecar.exists() {
+        std::fs::remove_file(sidecar)?;
     }
     Ok(())
 }
@@ -412,6 +498,55 @@ mod tests {
         ));
 
         project
+    }
+
+    #[test]
+    fn newer_format_is_refused_with_a_clear_error() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("future.lzrproj");
+        let mut project = Project::new("Future");
+        project.metadata.format_version = "2.0".into();
+        project.metadata.app_version = "9.0.0".into();
+        save_project(&project, &path).unwrap();
+
+        let error = load_project(&path).unwrap_err().to_string();
+        assert!(error.contains("[project_too_new]"), "{error}");
+        assert!(error.contains("9.0.0"), "{error}");
+    }
+
+    #[test]
+    fn same_major_format_still_opens() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("minor.lzrproj");
+        let mut project = Project::new("Minor");
+        project.metadata.format_version = "1.7".into();
+        save_project(&project, &path).unwrap();
+        assert!(load_project(&path).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_keeps_symlinks_and_readable_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = TempDir::new().unwrap();
+        let real = dir.path().join("real.lzrproj");
+        let link = dir.path().join("link.lzrproj");
+        let project = Project::new("Linked");
+        save_project(&project, &real).unwrap();
+        assert_eq!(
+            std::fs::metadata(&real).unwrap().permissions().mode() & 0o777,
+            0o644
+        );
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o664)).unwrap();
+
+        save_project(&project, &link).unwrap();
+
+        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert_eq!(
+            std::fs::metadata(&real).unwrap().permissions().mode() & 0o777,
+            0o664
+        );
     }
 
     #[test]

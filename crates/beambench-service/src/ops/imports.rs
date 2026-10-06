@@ -270,6 +270,9 @@ enum PendingImport {
         paths: Vec<ImportedVectorPath>,
         images: Vec<PdfImage>,
         warnings: Vec<String>,
+        /// Source Y axis points up (DXF, EPS, AI). Flipped against the bed so
+        /// the source's bottom-left corner lands on the bed's bottom-left.
+        y_up: bool,
     },
     Lbrn {
         document: LbrnDocument,
@@ -290,6 +293,7 @@ struct ParsedVectorImport {
     paths: Vec<ImportedVectorPath>,
     images: Vec<PdfImage>,
     warnings: Vec<String>,
+    y_up: bool,
 }
 
 fn pending_vector_import(name_prefix: &str, parsed: ParsedVectorImport) -> PendingImport {
@@ -298,6 +302,7 @@ fn pending_vector_import(name_prefix: &str, parsed: ParsedVectorImport) -> Pendi
         paths: parsed.paths,
         images: parsed.images,
         warnings: parsed.warnings,
+        y_up: parsed.y_up,
     }
 }
 
@@ -639,6 +644,21 @@ fn prepare_pending_imports(file_paths: Vec<String>) -> ServiceResult<Vec<Pending
     Ok(pending)
 }
 
+/// Largest vector document (SVG, DXF, EPS, AI, LightBurn) parsed in memory.
+const VECTOR_IMPORT_BYTE_LIMIT: usize = 64 * 1024 * 1024;
+/// Most objects one import may add. Matches what a saved project can reopen.
+const IMPORT_OBJECT_LIMIT: usize = 250_000;
+
+fn check_vector_import_size(bytes: &[u8]) -> ServiceResult<()> {
+    if bytes.len() > VECTOR_IMPORT_BYTE_LIMIT {
+        return Err(ServiceError::invalid_input(format!(
+            "This file is larger than the {} MB limit for vector imports. Simplify it or split it into smaller files.",
+            VECTOR_IMPORT_BYTE_LIMIT / (1024 * 1024)
+        )));
+    }
+    Ok(())
+}
+
 /// Build a single pending import from in-memory content. `filename` may be a
 /// full path or a bare name; only its extension and stem are used.
 /// `source_path` is the on-disk origin when known (path-based imports only) —
@@ -654,6 +674,11 @@ fn prepare_pending_import(
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
+
+    // DXF, EPS and AI are checked by the shared vector parser.
+    if matches!(ext.as_str(), "svg" | "lbrn" | "lbrn2") {
+        check_vector_import_size(&bytes)?;
+    }
 
     match ext.as_str() {
         "svg" => Ok(PendingImport::Svg { bytes }),
@@ -1387,10 +1412,17 @@ fn import_pending(
             }
             PendingImport::Vector {
                 name_prefix,
-                paths,
+                mut paths,
                 images,
                 warnings,
+                y_up,
             } => {
+                if y_up {
+                    let flip = y_up_to_canvas(project.workspace.bed_height_mm);
+                    for imported in &mut paths {
+                        imported.path = bake_transform(&imported.path, &flip);
+                    }
+                }
                 imported_objects.extend(add_imported_vector_paths(
                     project,
                     effective_layer_id,
@@ -1766,6 +1798,24 @@ fn parse_vector_bytes(
     bytes: &[u8],
     format: VectorImportFormat,
 ) -> ServiceResult<ParsedVectorImport> {
+    // The PDF reader enforces its own input and expansion limits.
+    if !matches!(format, VectorImportFormat::Pdf) {
+        check_vector_import_size(bytes)?;
+    }
+    let parsed = parse_vector_bytes_unchecked(bytes, format)?;
+    if parsed.paths.len() > IMPORT_OBJECT_LIMIT {
+        return Err(ServiceError::invalid_input(format!(
+            "This file has {} separate shapes, more than the {IMPORT_OBJECT_LIMIT} one import can add. Join or simplify the shapes, then import again.",
+            parsed.paths.len()
+        )));
+    }
+    Ok(parsed)
+}
+
+fn parse_vector_bytes_unchecked(
+    bytes: &[u8],
+    format: VectorImportFormat,
+) -> ServiceResult<ParsedVectorImport> {
     match format {
         VectorImportFormat::Dxf => {
             let content = String::from_utf8_lossy(bytes);
@@ -1791,6 +1841,7 @@ fn parse_vector_bytes(
                     .collect(),
                 images: Vec::new(),
                 warnings,
+                y_up: true,
             })
         }
         VectorImportFormat::Pdf => parse_pdf_vector_import(bytes),
@@ -1809,6 +1860,7 @@ fn parse_vector_bytes(
                     .collect(),
                 images: Vec::new(),
                 warnings: Vec::new(),
+                y_up: true,
             })
             .map_err(|e| ServiceError::invalid_input(format!("AI import failed: {e}"))),
         VectorImportFormat::Eps => parse_eps_paths(bytes)
@@ -1819,8 +1871,22 @@ fn parse_vector_bytes(
                     .collect(),
                 images: Vec::new(),
                 warnings: Vec::new(),
+                y_up: true,
             })
             .map_err(|e| ServiceError::invalid_input(format!("EPS import failed: {e}"))),
+    }
+}
+
+/// Map Y-up source coordinates onto the Y-down canvas, anchored at the bed's
+/// bottom-left corner. Design exports use the same mapping, so they round-trip.
+fn y_up_to_canvas(bed_height_mm: f64) -> Transform2D {
+    Transform2D {
+        a: 1.0,
+        b: 0.0,
+        c: 0.0,
+        d: -1.0,
+        tx: 0.0,
+        ty: bed_height_mm,
     }
 }
 
@@ -1847,6 +1913,8 @@ fn parse_pdf_vector_import(bytes: &[u8]) -> ServiceResult<ParsedVectorImport> {
             })
             .collect(),
         warnings: Vec::new(),
+        // The PDF parser already maps its page to the Y-down canvas.
+        y_up: false,
     })
 }
 
@@ -1967,6 +2035,9 @@ pub fn import_art_library_item(
     media_type: &str,
     bytes: Vec<u8>,
 ) -> ServiceResult<Vec<ProjectObject>> {
+    if media_type == "image/svg+xml" {
+        check_vector_import_size(&bytes)?;
+    }
     let pending = match media_type {
         "image/svg+xml" => PendingImport::Svg { bytes },
         "application/dxf" => pending_vector_import(
@@ -2629,7 +2700,7 @@ mod tests {
                 corner_radius: 0.0,
             },
         ));
-        export_pdf(&project, false, &[])
+        export_pdf(&project, false, &[]).unwrap()
     }
 
     fn sample_colored_pdf_bytes() -> Vec<u8> {
@@ -2660,7 +2731,7 @@ mod tests {
             ));
         }
 
-        export_pdf(&project, false, &[])
+        export_pdf(&project, false, &[]).unwrap()
     }
 
     fn colored_pdf_import_context() -> (ServiceContext, LayerId, LayerId) {
@@ -4376,6 +4447,90 @@ mod tests {
             .unwrap();
 
             assert_art_library_vector_import_completed(&ctx, layer_id, &objects);
+        }
+    }
+
+    #[test]
+    fn oversized_vector_files_are_refused_before_parsing() {
+        let huge = vec![b' '; VECTOR_IMPORT_BYTE_LIMIT + 1];
+        for name in ["big.svg", "big.dxf", "big.eps", "big.lbrn2"] {
+            let error = match prepare_pending_import(name, huge.clone(), None) {
+                Err(error) => error,
+                Ok(_) => panic!("{name} was accepted"),
+            };
+            assert!(error.message.contains("MB limit"), "{name}: {error}");
+        }
+    }
+
+    #[test]
+    fn y_up_design_exports_round_trip_without_mirroring() {
+        let mut source = Project::new("Round trip");
+        source.workspace.bed_height_mm = 100.0;
+        let layer_id = source.ensure_default_layer();
+        // Open path: a short stroke at the top, a long one going down.
+        source.add_object(ProjectObject::new(
+            "Hook",
+            layer_id,
+            Bounds::new(Point2D::new(10.0, 20.0), Point2D::new(30.0, 40.0)),
+            ObjectData::VectorPath {
+                path_data: "M30 20 L10 20 L10 40".into(),
+                closed: false,
+                ruler_guide_axis: None,
+            },
+        ));
+        let exports = [
+            (
+                "round.dxf",
+                "application/dxf",
+                beambench_core::export_dxf(&source, false, &[]).into_bytes(),
+            ),
+            ("round.pdf", "application/pdf", export_pdf(&source, false, &[]).unwrap()),
+            (
+                "round.eps",
+                "application/postscript",
+                beambench_core::export_eps(&source, false, &[]).unwrap().into_bytes(),
+            ),
+        ];
+        for (filename, media_type, bytes) in exports {
+            let (ctx, layer_id) = art_library_import_context();
+            ctx.project.lock().unwrap().as_mut().unwrap().workspace.bed_height_mm = 100.0;
+            let objects =
+                import_art_library_item(&ctx, layer_id, "Round", filename, media_type, bytes)
+                    .unwrap();
+            // DXF lines import as separate objects; check them together.
+            let vectors: Vec<_> = objects
+                .iter()
+                .filter(|object| matches!(object.data, ObjectData::VectorPath { .. }))
+                .collect();
+            assert!(!vectors.is_empty(), "{filename}: no vector imported");
+            let min_y = vectors.iter().map(|o| o.bounds.min.y).fold(f64::MAX, f64::min);
+            let max_y = vectors.iter().map(|o| o.bounds.max.y).fold(f64::MIN, f64::max);
+            assert!(
+                (min_y - 20.0).abs() < 0.05 && (max_y - 40.0).abs() < 0.05,
+                "{filename}: y {min_y}..{max_y}"
+            );
+            // The short horizontal stroke stays at the top, not mirrored down.
+            let points: Vec<_> = vectors
+                .iter()
+                .flat_map(|object| {
+                    let ObjectData::VectorPath { path_data, .. } = &object.data else {
+                        unreachable!()
+                    };
+                    beambench_common::path::VecPath::parse_svg_d(path_data).subpaths
+                })
+                .flat_map(|subpath| subpath.commands)
+                .filter_map(|command| match command {
+                    beambench_common::path::PathCommand::MoveTo { x, y }
+                    | beambench_common::path::PathCommand::LineTo { x, y } => Some((x, y)),
+                    _ => None,
+                })
+                .collect();
+            assert!(
+                points
+                    .iter()
+                    .any(|(x, y)| (x - 30.0).abs() < 0.05 && (y - 20.0).abs() < 0.05),
+                "{filename}: {points:?}"
+            );
         }
     }
 

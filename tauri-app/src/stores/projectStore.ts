@@ -42,6 +42,7 @@ import { vectorService } from '../services/vectorService';
 import { PALETTE_COLORS } from '../constants/palette';
 import { usePreviewStore } from './previewStore';
 import { useNotificationStore } from './notificationStore';
+import { appService } from '../services/appService';
 import i18n from '../i18n';
 import { wrapBackendError } from '../i18n/errors';
 import { useUiStore } from './uiStore';
@@ -178,6 +179,16 @@ function notifyMissingFonts(project: Project): void {
     useNotificationStore
       .getState()
       .push(i18n.t('notifications.missing_fonts', { names }), 'warning');
+  }
+}
+/** Show notices the backend queued while opening, such as reorganized layers. */
+async function notifyPendingNotices(): Promise<void> {
+  try {
+    for (const notice of await appService.takePendingNotices()) {
+      useNotificationStore.getState().push(wrapBackendError(notice), 'warning');
+    }
+  } catch {
+    // Notices are informational; opening already succeeded.
   }
 }
 const refreshUndo = async () => useUndoStore.getState().refresh();
@@ -429,7 +440,7 @@ interface ProjectStoreState {
     project: Project,
     options?: { selectedObjectIds?: string[]; selectedLayerId?: string | null },
   ) => Promise<void>;
-  restoreRecoveredProject: (project: Project) => void;
+  restoreRecoveredProject: (project: Project, projectPath?: string | null) => void;
 
   importFiles: (layerId?: string) => Promise<void>;
   importFilePaths: (filePaths: string[], layerId?: string) => Promise<void>;
@@ -1888,11 +1899,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     await refreshUndo();
   },
 
-  restoreRecoveredProject: (project) => {
+  restoreRecoveredProject: (project, projectPath = null) => {
     revokeCachedAssetUrls(get().assetCache);
     set({
       project: decorateProject(project)!,
-      projectPath: null,
+      projectPath,
       selectedLayerId: resolveSelectedLayerId(project, null),
       selectedObjectIds: [],
       assetCache: new Map(),
@@ -1904,6 +1915,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     clearUndo();
     usePreviewStore.getState().clearPreview();
     notifyMissingFonts(project);
+    void notifyPendingNotices();
     void refreshUndo();
   },
 
@@ -2050,6 +2062,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       usePreviewStore.getState().clearPreview();
       useUiStore.getState().setLayerSettingsClipboard(null);
       notifyMissingFonts(project);
+      void notifyPendingNotices();
       await refreshUndo();
     } catch (e) {
       if (!String(e).includes('cancelled')) {
@@ -2081,6 +2094,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       usePreviewStore.getState().clearPreview();
       useUiStore.getState().setLayerSettingsClipboard(null);
       notifyMissingFonts(project);
+      void notifyPendingNotices();
       await refreshUndo();
     } catch (e) {
       const msg = String(e);
