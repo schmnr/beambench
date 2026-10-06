@@ -869,6 +869,31 @@ fn closed_contours_count_their_closing_edge() {
         .find(|segment| matches!(segment, PlanSegment::Vector { .. }))
         .unwrap();
     let length = beambench_planner::stats::calculate_distance(std::slice::from_ref(vector));
-    assert!((length - 40.0).abs() < 1e-9, "a 10 mm square cuts 40 mm, got {length}");
-    assert_eq!(vector.motion_end(), vector.motion_start(), "a closed cut ends where it began");
+    assert!(
+        (length - 40.0).abs() < 1e-9,
+        "a 10 mm square cuts 40 mm, got {length}"
+    );
+    assert_eq!(
+        vector.motion_end(),
+        vector.motion_start(),
+        "a closed cut ends where it began"
+    );
+}
+
+#[test]
+fn an_image_on_a_line_layer_produces_a_warning() {
+    let (mut project, line_layer) = single_line_layer_project();
+    add_rectangle(&mut project, "outline", line_layer, 10.0, 10.0, 5.0, 5.0);
+    let image_project = half_black_image_project(8.0, 8.0, 0.0);
+    project.assets = image_project.assets.clone();
+    project.asset_data = image_project.asset_data.clone();
+    let mut image = image_project.objects[0].clone();
+    image.layer_id = line_layer;
+    project.objects.push(image);
+    let plan = build(&project, ProjectOptimization::default());
+    assert!(
+        plan.warnings.iter().any(|warning| warning.message.contains("will not be engraved")),
+        "{:?}",
+        plan.warnings
+    );
 }

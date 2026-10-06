@@ -439,7 +439,10 @@ mod tests {
         let scanlines = generate_scanlines(Arc::new(raster.clone()), 10.0, 5.0, false, 2.0);
 
         assert_eq!(scanlines.len(), 1);
-        assert!((scanlines[0].y_mm - 5.05).abs() < 1e-9, "row sits at the pixel center");
+        assert!(
+            (scanlines[0].y_mm - 5.05).abs() < 1e-9,
+            "row sits at the pixel center"
+        );
         // Runs contain burn-only coordinates (no overscan)
         assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 10.0);
         assert_eq!(scanlines[0].runs.get(0).unwrap().end_x_mm, 10.4);
@@ -520,7 +523,10 @@ mod tests {
 
         let scanlines = generate_scanlines(Arc::new(raster.clone()), 10.0, 20.0, false, 0.0);
 
-        assert!((scanlines[0].y_mm - 20.5).abs() < 1e-9, "row sits at the pixel center");
+        assert!(
+            (scanlines[0].y_mm - 20.5).abs() < 1e-9,
+            "row sits at the pixel center"
+        );
         assert!((scanlines[1].y_mm - 21.5).abs() < 1e-9);
         assert_eq!(scanlines[0].runs.get(0).unwrap().start_x_mm, 10.0);
     }

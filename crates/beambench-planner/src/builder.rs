@@ -2658,6 +2658,25 @@ fn build_plan_inner(
             }
         }
 
+        // Images are engraved only by Image and Fill settings. Routing normally
+        // keeps them on image layers; if one lands elsewhere, say so instead of
+        // silently leaving it out of the job.
+        if !raster_objects.is_empty()
+            && !layer.entries.iter().any(|entry| {
+                entry.output_enabled
+                    && matches!(entry.operation, OperationType::Image | OperationType::Fill)
+            })
+        {
+            for obj in &raster_objects {
+                warnings.push(PlanWarning {
+                    message: format!(
+                        "Image '{}' is on layer '{}', which has no Image setting, so it will not be engraved. Move it to an image layer.",
+                        obj.name, layer.name
+                    ),
+                });
+            }
+        }
+
         for entry in &layer.entries {
             if !entry.output_enabled {
                 continue;
@@ -3111,26 +3130,28 @@ fn build_plan_inner(
 
                     // 6. Generate offset fill per composited unit, completing each unit before
                     // moving to the next object.
+                    // Offsetting is the expensive step and its result is the same
+                    // on every pass, so prepare once and emit it once per pass.
+                    let prepare_started_at = Instant::now();
+                    let prepared_batches: Vec<Vec<PreparedOffsetFillUnit>> = composite_batches
+                        .iter()
+                        .map(|batch| {
+                            batch
+                                .units
+                                .par_iter()
+                                .map(|unit| {
+                                    prepare_offset_fill_unit(
+                                        unit,
+                                        offset_spacing,
+                                        &offset_fill_controls,
+                                    )
+                                })
+                                .collect()
+                        })
+                        .collect();
+                    let prepare_duration = prepare_started_at.elapsed();
                     for _pass in 0..passes {
                         order_boundaries.push(all_segments.len());
-                        let prepare_started_at = Instant::now();
-                        let prepared_batches: Vec<Vec<PreparedOffsetFillUnit>> = composite_batches
-                            .iter()
-                            .map(|batch| {
-                                batch
-                                    .units
-                                    .par_iter()
-                                    .map(|unit| {
-                                        prepare_offset_fill_unit(
-                                            unit,
-                                            offset_spacing,
-                                            &offset_fill_controls,
-                                        )
-                                    })
-                                    .collect()
-                            })
-                            .collect();
-                        let prepare_duration = prepare_started_at.elapsed();
                         let total_tracks: usize = prepared_batches
                             .iter()
                             .flatten()
@@ -3644,56 +3665,43 @@ fn build_plan_inner(
                         // These split closed Vector segments with matching source identity.
                         // Must run before layer-level auto-tabs so that manually-tabbed
                         // contours become open and are skipped by apply_tabs.
+                        // One pass over this pass's segments, rebuilding the list, instead
+                        // of a scan plus Vec remove/insert per tabbed object.
                         {
                             use std::collections::HashMap;
                             let tab_width = vector_settings.map(|s| s.tab_width_mm).unwrap_or(3.0);
+                            let mut tabs: HashMap<(String, usize), Vec<f64>> = HashMap::new();
                             for obj in &vector_objects {
-                                if obj.tabs.is_empty() {
-                                    continue;
-                                }
-                                let obj_id_str = obj.id.to_string();
-                                let mut tabs_by_subpath: HashMap<usize, Vec<f64>> = HashMap::new();
                                 for tab in &obj.tabs {
-                                    tabs_by_subpath
-                                        .entry(tab.subpath_index)
+                                    tabs.entry((obj.id.to_string(), tab.subpath_index))
                                         .or_default()
                                         .push(tab.position);
                                 }
-                                let mut i = pre_vector_count;
-                                while i < all_segments.len() {
-                                    let matches = if let PlanSegment::Vector {
-                                        source_object_id: Some(ref oid),
-                                        source_subpath_index: Some(sp_idx),
-                                        closed: true,
-                                        ..
-                                    } = all_segments[i]
-                                    {
-                                        *oid == obj_id_str && tabs_by_subpath.contains_key(&sp_idx)
-                                    } else {
-                                        false
-                                    };
-
-                                    if matches {
-                                        let sp_idx = if let PlanSegment::Vector {
-                                            source_subpath_index: Some(sp),
+                            }
+                            if !tabs.is_empty() {
+                                let pass_segments: Vec<PlanSegment> =
+                                    all_segments.drain(pre_vector_count..).collect();
+                                for segment in pass_segments {
+                                    let positions = match &segment {
+                                        PlanSegment::Vector {
+                                            source_object_id: Some(oid),
+                                            source_subpath_index: Some(sp_idx),
+                                            closed: true,
                                             ..
-                                        } = &all_segments[i]
-                                        {
-                                            *sp
-                                        } else {
-                                            unreachable!()
-                                        };
-                                        let positions = &tabs_by_subpath[&sp_idx];
-                                        let seg = all_segments.remove(i);
-                                        let mut target = vec![seg];
-                                        apply_positioned_tabs(&mut target, positions, tab_width);
-                                        let n = target.len();
-                                        for (j, s) in target.into_iter().enumerate() {
-                                            all_segments.insert(i + j, s);
+                                        } => tabs.get(&(oid.clone(), *sp_idx)),
+                                        _ => None,
+                                    };
+                                    match positions {
+                                        Some(positions) => {
+                                            let mut target = vec![segment];
+                                            apply_positioned_tabs(
+                                                &mut target,
+                                                positions,
+                                                tab_width,
+                                            );
+                                            all_segments.extend(target);
                                         }
-                                        i += n;
-                                    } else {
-                                        i += 1;
+                                        None => all_segments.push(segment),
                                     }
                                 }
                             }
