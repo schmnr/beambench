@@ -527,7 +527,7 @@ fn split_command_at_ts(
         PathCommand::LineTo { x, y } => {
             let end = Point2D::new(x, y);
             let mut sorted_ts = ts.to_vec();
-            sorted_ts.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_ts.sort_by(|a, b| a.total_cmp(b));
             // Remap ts to remaining segment
             let mut remaining_t_offset = 0.0;
             for &raw_t in &sorted_ts {
@@ -580,7 +580,7 @@ fn split_command_at_ts(
             let mut p3 = Point2D::new(x, y);
 
             let mut sorted_ts = ts.to_vec();
-            sorted_ts.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_ts.sort_by(|a, b| a.total_cmp(b));
 
             let mut prev_abs_t = 0.0;
             let mut consumed_full = false;
@@ -650,7 +650,7 @@ fn split_command_at_ts(
             let mut p2 = Point2D::new(x, y);
 
             let mut sorted_ts = ts.to_vec();
-            sorted_ts.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_ts.sort_by(|a, b| a.total_cmp(b));
 
             let mut prev_abs_t = 0.0;
             let mut consumed_full = false;
@@ -1000,7 +1000,7 @@ fn find_intersections(
     let endpoint_margin = DEFAULT_TOLERANCE_MM * 0.1;
     let dedup_tol = DEFAULT_TOLERANCE_MM * 0.5;
 
-    hits.sort_by(|a, b| a.target_dist.partial_cmp(&b.target_dist).unwrap());
+    hits.sort_by(|a, b| a.target_dist.total_cmp(&b.target_dist));
     hits.retain(|h| h.target_dist > endpoint_margin && h.target_dist < total_len - endpoint_margin);
     dedup_hits_within_tolerance(&mut hits, dedup_tol);
 
@@ -2075,7 +2075,7 @@ fn nearest_cut_point(pt: &Point2D, cut_points: &[Point2D], tolerance: f64) -> Op
     cut_points
         .iter()
         .filter(|cp| pt.distance_to(cp) < tolerance)
-        .min_by(|a, b| pt.distance_to(a).partial_cmp(&pt.distance_to(b)).unwrap())
+        .min_by(|a, b| pt.distance_to(a).total_cmp(&pt.distance_to(b)))
         .copied()
 }
 

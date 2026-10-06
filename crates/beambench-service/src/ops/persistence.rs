@@ -289,6 +289,9 @@ fn save_project_to_path_impl(
     ctx: &ServiceContext,
     requested_path: Option<&Path>,
 ) -> ServiceResult<String> {
+    // Edits roll back their own panics, so the project is intact even if a
+    // panic poisoned its lock. Saving must still work.
+    ctx.project.clear_poison();
     // Document and destination are one transaction. All document replacements
     // acquire these locks in the same order: project, then project_path.
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
@@ -316,6 +319,8 @@ fn save_project_to_path_impl(
     }
     *path_guard = Some(save_path.clone());
     project.dirty = false;
+    ctx.project_save_count
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let saved_project = project.clone();
     if let Ok(dir) = recovery_dir() {
         let _ = discard_recovery(
@@ -473,27 +478,48 @@ pub fn autosave_project(ctx: &ServiceContext) -> ServiceResult<String> {
 }
 
 fn autosave_project_to_dir(ctx: &ServiceContext, dir: &Path) -> ServiceResult<String> {
+    // Edits roll back their own panics, so the project is intact even if a
+    // panic poisoned its lock. Saving must still work.
+    ctx.project.clear_poison();
     std::fs::create_dir_all(dir)?;
 
-    let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_ref()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-
-    // save_recovery takes the recovery *directory* and derives the file name
-    // itself — passing a file path here would bury the archive inside a
-    // directory named like a file, where check_recovery never finds it.
+    // Copy the project and write the archive outside the lock, so edits and
+    // the window are not held up while a large project is compressed.
+    let (project, saves_before) = {
+        let guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let saves = ctx
+            .project_save_count
+            .load(std::sync::atomic::Ordering::SeqCst);
+        (
+            guard
+                .clone()
+                .ok_or_else(|| ServiceError::not_found("No project open"))?,
+            saves,
+        )
+    };
     let source_path = ctx
         .project_path
         .lock()
         .map_err(|e| lock_err("project_path", e))?
         .clone();
-    let recovery_path = save_recovery(project, dir)
+
+    // save_recovery takes the recovery *directory* and derives the file name
+    // itself — passing a file path here would bury the archive inside a
+    // directory named like a file, where check_recovery never finds it.
+    let recovery_path = save_recovery(&project, dir)
         .map_err(|e| ServiceError::persistence(format!("Autosave failed: {e}")))?;
     save_recovery_source(&recovery_path, source_path.as_deref())
         .map_err(|e| ServiceError::persistence(format!("Autosave failed: {e}")))?;
-    let summary = events::project_summary(project, None);
-    drop(project_guard);
+    // A save that finished while this copy was being written already removed
+    // the recovery file; do not leave an older copy behind.
+    if ctx
+        .project_save_count
+        .load(std::sync::atomic::Ordering::SeqCst)
+        != saves_before
+    {
+        let _ = discard_recovery(&recovery_path);
+    }
+    let summary = events::project_summary(&project, None);
     ctx.emit_event(
         "project.autosaved",
         json!({

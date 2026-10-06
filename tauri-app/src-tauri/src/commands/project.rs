@@ -674,7 +674,7 @@ pub fn select_shapes_smaller_than_selected(
         &svc, object_ids,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_duplicates(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -688,7 +688,7 @@ pub fn count_duplicates(
 ) -> Result<usize, String> {
     beambench_service::ops::workflows::project::count_duplicates(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn auto_join_shapes(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -696,7 +696,7 @@ pub fn auto_join_shapes(
 ) -> Result<Vec<ProjectObject>, String> {
     beambench_service::ops::workflows::project::auto_join_shapes(&svc, object_ids, tolerance)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn optimize_shapes(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,

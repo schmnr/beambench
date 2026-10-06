@@ -387,6 +387,21 @@ impl Project {
         }
     }
 
+    /// The first object whose placement holds a NaN or infinite number.
+    pub fn first_non_finite_object(&self) -> Option<&ProjectObject> {
+        self.objects.iter().find(|object| {
+            let b = object.bounds;
+            let t = object.transform;
+            ![
+                b.min.x, b.min.y, b.max.x, b.max.y, t.a, t.b, t.c, t.d, t.tx, t.ty,
+            ]
+            .iter()
+            .all(|value| value.is_finite())
+                || matches!(&object.data, ObjectData::VectorPath { path_data, .. }
+                    if path_data.contains("NaN") || path_data.contains("inf"))
+        })
+    }
+
     /// Drop deleted objects from the groups that contain them, delete groups
     /// left empty (up through their parents), and refit the bounds of groups
     /// that changed. Returns every removed id, including emptied groups.

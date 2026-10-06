@@ -15,7 +15,7 @@ pub fn convert_to_path(
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::convert_to_path(&svc, object_id)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_union(
     svc: State<'_, Arc<ServiceContext>>,
     object_id_a: String,
@@ -23,7 +23,7 @@ pub fn boolean_union(
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::boolean_union(&svc, object_id_a, object_id_b)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_subtract(
     svc: State<'_, Arc<ServiceContext>>,
     object_id_a: String,
@@ -31,7 +31,7 @@ pub fn boolean_subtract(
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::boolean_subtract(&svc, object_id_a, object_id_b)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_exclude(
     svc: State<'_, Arc<ServiceContext>>,
     object_id_a: String,
@@ -342,7 +342,7 @@ pub fn normalize_for_planner(
 ) -> Result<Vec<NormalizedVector>, String> {
     beambench_service::ops::workflows::vector::normalize_for_planner(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_assistant_preview(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -352,7 +352,7 @@ pub fn boolean_assistant_preview(
         &svc, object_ids, operation,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_intersection(
     svc: State<'_, Arc<ServiceContext>>,
     object_id_a: String,
@@ -360,42 +360,42 @@ pub fn boolean_intersection(
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::boolean_intersection(&svc, object_id_a, object_id_b)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_weld(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::boolean_weld(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_intersection_many(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::boolean_intersection_many(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_union_many(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::boolean_union_many(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_exclude_many(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::boolean_exclude_many(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn boolean_subtract_many(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::boolean_subtract_many(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn offset_shapes(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -445,7 +445,7 @@ pub fn close_paths_with_tolerance(
 ) -> Result<Vec<String>, String> {
     beambench_service::ops::workflows::vector::close_paths_with_tolerance(&_svc, paths, tolerance)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn close_selected_paths_with_tolerance(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -467,7 +467,7 @@ pub fn count_open_paths_with_tolerance(
         &svc, object_ids, tolerance, mode,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn break_apart(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
@@ -506,7 +506,7 @@ pub fn get_fillet_candidates(
 ) -> Result<Vec<beambench_core::vector::path_ops::FilletCandidate>, String> {
     beambench_service::ops::workflows::vector::get_fillet_candidates(&svc, object_id)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn apply_corner_radius(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
@@ -522,7 +522,7 @@ pub fn apply_corner_radius(
         radius_mm,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn grid_array(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -576,7 +576,7 @@ pub fn grid_array(
         text_increment,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn circular_array(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -610,7 +610,7 @@ pub fn circular_array(
         text_increment,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn copy_along_path(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
@@ -630,7 +630,7 @@ pub fn copy_along_path(
         final_scale_percent,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn copy_along_path_batch(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -650,7 +650,7 @@ pub fn copy_along_path_batch(
         final_scale_percent,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn rubber_band_outline(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -669,7 +669,7 @@ pub fn apply_path_to_text(
         path_object_id,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn crop_image(
     svc: State<'_, Arc<ServiceContext>>,
     image_object_id: String,
@@ -677,7 +677,7 @@ pub fn crop_image(
 ) -> Result<ProjectObject, String> {
     beambench_service::ops::workflows::vector::crop_image(&svc, image_object_id, mask_object_id)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn apply_mask_to_image(
     svc: State<'_, Arc<ServiceContext>>,
     image_object_id: String,
@@ -729,7 +729,7 @@ pub fn remove_image_mask(
         mask_object_id,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn convert_to_bitmap(
     svc: State<'_, Arc<ServiceContext>>,
     object_id: String,
@@ -784,14 +784,14 @@ pub fn close_and_join(
 ) -> Result<CloseAndJoinResult, String> {
     beambench_service::ops::workflows::vector::close_and_join(&svc, object_ids, tolerance)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cut_shapes_apply(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
 ) -> Result<CutShapesApplyResult, String> {
     beambench_service::ops::workflows::vector::cut_shapes_apply(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cut_shapes(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,

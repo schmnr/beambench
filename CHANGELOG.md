@@ -108,6 +108,28 @@
   and image links to files on this computer are no longer read.
 - Very large vector files and files with more than 250,000 shapes are refused
   with an explanation instead of exhausting memory.
+- Editing a node on a shape that was moved or resized no longer makes the
+  shape jump back to where it was first drawn, and trimming a rotated shape no
+  longer rotates it a second time.
+- A failed edit now changes nothing. Previously some failures left a half
+  finished change behind, such as a linked clone becoming unlinked, and
+  cleared Redo. Undo after editing a clone's nodes now restores the link.
+- If an edit hits an internal error it is undone, and saving keeps working
+  instead of failing until the app restarts.
+- Beam Bench no longer saves a project it could not open again. A change that
+  would push an object beyond the range it can store is refused, and a save
+  names the object with an invalid size or position instead of writing it.
+- Delete inside a group (after double-clicking into it) removes only the
+  selected objects, not the whole group. Deleting objects also removes them
+  from their groups, and groups left empty are removed.
+- Copy Along Path on a closed shape places the number of copies you asked for.
+- Slow actions (import, export, offset, boolean operations, optimize, arrays,
+  convert to bitmap, Nest Selected and autosave) no longer freeze the window,
+  so Emergency Stop stays responsive while they run.
+- Beam Bench warns when automatic recovery copies keep failing, and undo
+  history is limited by memory as well as step count on very large designs.
+- Grid and circular arrays and Copy Along Path are limited to 100 copies per
+  axis for every caller, matching the dialogs.
 
 ## 0.2.25
 

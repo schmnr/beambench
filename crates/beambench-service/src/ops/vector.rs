@@ -6756,6 +6756,31 @@ mod edit_regressions {
     }
 
     #[test]
+    fn edits_that_overflow_to_infinity_are_refused() {
+        let (ctx, id) = path_context(
+            "M0 0 L10 0",
+            rect(0.0, 0.0, 10.0, 0.0),
+            Transform2D::identity(),
+        );
+        crate::ops::project::update_object(
+            &ctx,
+            id,
+            crate::ops::project::UpdateObjectInput {
+                bounds: Some(Bounds::new(
+                    Point2D::new(f64::MAX, 0.0),
+                    Point2D::new(f64::MAX, 10.0),
+                )),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let before = ctx.project.lock().unwrap().clone();
+        let error = crate::ops::project::nudge_objects(&ctx, &[id], f64::MAX, 0.0).unwrap_err();
+        assert!(error.message.contains("[edit_invalid_geometry]"), "{error}");
+        assert_eq!(*ctx.project.lock().unwrap(), before);
+    }
+
+    #[test]
     fn a_failed_node_edit_changes_nothing() {
         let (ctx, clone) = clone_of_path();
         let before = ctx.project.lock().unwrap().clone();

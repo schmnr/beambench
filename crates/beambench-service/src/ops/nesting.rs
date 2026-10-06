@@ -169,10 +169,15 @@ pub fn nest_selected(
         };
         let padding = options.padding_mm.max(0.0);
 
-        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        let project = project_guard
-            .as_mut()
+        // Search on a copy: the layout can take the whole time limit, and
+        // holding the project lock that long freezes every other command.
+        let original = ctx
+            .project
+            .lock()
+            .map_err(|e| lock_err("project", e))?
+            .clone()
             .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let project = &original;
 
         let selected_roots = normalize_arrangement_roots(project, &object_ids);
         let container = find_largest_container(project, &selected_roots)?;
@@ -226,6 +231,15 @@ pub fn nest_selected(
             options.rotation_step_deg,
             deadline,
         )?;
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        if project_guard.as_ref() != Some(&original) {
+            return Err(ServiceError::stale_revision(
+                "The project changed while nesting was running. Run Nest Selected again.",
+            ));
+        }
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
         ctx.push_project_undo_snapshot(project)
             .map_err(ServiceError::internal)?;
         *project = next_project;

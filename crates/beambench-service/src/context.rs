@@ -24,7 +24,7 @@ use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::agent::AgentSelectionSnapshot;
-use crate::error::ServiceResult;
+use crate::error::{ServiceError, ServiceResult};
 use crate::events::ServiceEventEnvelope;
 use crate::history::{ProjectHistory, UndoState};
 use crate::material_apply::{
@@ -212,6 +212,9 @@ pub struct ServiceContext {
     /// Notices for the user, such as a damaged settings file at startup or
     /// layers split while opening a project. The frontend takes them once.
     pub pending_notices: Mutex<Vec<String>>,
+    /// Counts completed project saves, so an autosave written at the same
+    /// time can tell that its recovery copy is already out of date.
+    pub project_save_count: AtomicU64,
     /// Content-addressed cache for processed raster results (planner only).
     pub raster_cache: Arc<beambench_raster::cache::RasterCache>,
     /// Separate preview cache — avoids evicting planner entries with transient slider settings.
@@ -293,6 +296,7 @@ impl ServiceContext {
             art_libraries: Mutex::new(art_library_state.libraries),
             art_library_warnings: Mutex::new(art_library_state.warnings),
             pending_notices: Mutex::new(pending_notices),
+            project_save_count: AtomicU64::new(0),
             raster_cache: Arc::new(beambench_raster::cache::RasterCache::new(32)),
             preview_cache: Arc::new(beambench_raster::cache::RasterCache::new(16)),
             scaled_image_cache: Arc::new(beambench_raster::cache::ScaledImageCache::new(16)),
@@ -352,6 +356,7 @@ impl ServiceContext {
             art_libraries: Mutex::new(Vec::new()),
             art_library_warnings: Mutex::new(Vec::new()),
             pending_notices: Mutex::new(Vec::new()),
+            project_save_count: AtomicU64::new(0),
             raster_cache: Arc::new(beambench_raster::cache::RasterCache::new(32)),
             preview_cache: Arc::new(beambench_raster::cache::RasterCache::new(16)),
             scaled_image_cache: Arc::new(beambench_raster::cache::ScaledImageCache::new(16)),
@@ -580,12 +585,30 @@ impl ServiceContext {
     /// are put back; if it succeeds, its undo step restores the project as it
     /// was before the edit, even when the edit adjusted it (for example by
     /// unlinking a clone) before recording its own snapshot.
-    pub fn atomic_edit<T, E>(&self, edit: impl FnOnce() -> Result<T, E>) -> Result<T, E> {
+    pub fn atomic_edit<T, E: From<ServiceError>>(
+        &self,
+        edit: impl FnOnce() -> Result<T, E>,
+    ) -> Result<T, E> {
+        // A panic in an earlier edit was rolled back below; a panic elsewhere
+        // only read the project. Either way the data is intact, so do not let
+        // a poisoned lock keep the user from editing or saving.
+        self.project.clear_poison();
+        self.history.clear_poison();
         let before = match (self.project.lock(), self.history.lock()) {
             (Ok(project), Ok(history)) => project.clone().map(|p| (p, history.generation())),
             _ => None,
         };
-        let result = edit();
+        let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(edit)) {
+            Ok(result) => result,
+            Err(_) => {
+                self.project.clear_poison();
+                self.history.clear_poison();
+                Err(ServiceError::internal(
+                    "[edit_internal_error] This edit hit an internal error and was undone. Your project is unchanged; please report this.",
+                )
+                .into())
+            }
+        };
         let Some((before, generation)) = before else {
             return result;
         };
@@ -594,6 +617,22 @@ impl ServiceContext {
         };
         let own_snapshot = history.generation() == generation + 1;
         let untouched_by_others = own_snapshot || history.generation() == generation;
+        // An edit that produced a NaN or infinite position would save a file
+        // that can never be reopened. Treat it as failed.
+        let invalid = result.is_ok()
+            && own_snapshot
+            && project
+                .as_ref()
+                .and_then(Project::first_non_finite_object)
+                .is_some();
+        if invalid {
+            *project = Some(before);
+            history.discard_last_snapshot();
+            return Err(ServiceError::invalid_input(
+                "[edit_invalid_geometry] This change would move or size an object outside the range Beam Bench can store, so it was not applied.",
+            )
+            .into());
+        }
         match &result {
             Err(_) if untouched_by_others => {
                 *project = Some(before);
@@ -1387,6 +1426,26 @@ mod tests {
     use beambench_common::ConsoleDirection;
     use beambench_grbl::GrblSession;
     use beambench_serial::MockSerialTransport;
+
+    #[test]
+    fn a_panicking_edit_is_rolled_back_and_leaves_save_working() {
+        let ctx = ServiceContext::new();
+        *ctx.project.lock().unwrap() = Some(Project::new("Panic"));
+        let before = ctx.project.lock().unwrap().clone();
+
+        let result: ServiceResult<()> = ctx.atomic_edit(|| {
+            let mut guard = ctx.project.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            ctx.push_project_undo_snapshot(project).unwrap();
+            project.metadata.project_name = "half edited".into();
+            panic!("edit bug");
+        });
+
+        assert!(result.is_err());
+        assert!(!ctx.project.is_poisoned());
+        assert_eq!(*ctx.project.lock().unwrap(), before);
+        assert!(!ctx.undo_state().unwrap().can_undo);
+    }
 
     #[test]
     fn new_context_has_no_project() {

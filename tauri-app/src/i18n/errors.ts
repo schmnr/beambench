@@ -15,6 +15,9 @@ const SLEEP_PROTECTION_FAILED = '[sleep_protection_failed]';
 const PROJECT_FILE_MISSING = '[project_file_missing]';
 const SETTINGS_FILE_RECOVERED = '[settings_file_recovered]';
 const LAYERS_MIGRATED_ON_OPEN = '[layers_migrated_on_open]';
+const EDIT_INVALID_GEOMETRY = '[edit_invalid_geometry]';
+const EDIT_INTERNAL_ERROR = '[edit_internal_error]';
+const PROJECT_INVALID_VALUE = /\[project_invalid_value\](?: '(.+)' has an invalid size or position)?/u;
 const PROJECT_TOO_NEW = /\[project_too_new\][^]*?Beam Bench (\S+?)\.\s/u;
 const PROJECT_FROM_NEWER_APP = /\[project_from_newer_app\] This project was saved by Beam Bench (\S+?)\.\s/u;
 const DXF_NO_USABLE_GEOMETRY =
@@ -78,6 +81,18 @@ export function wrapBackendError(detail: string): string {
   }
   if (normalized.startsWith(LAYERS_MIGRATED_ON_OPEN)) {
     return i18n.t('errors.layers_migrated_on_open');
+  }
+  if (normalized.includes(EDIT_INVALID_GEOMETRY)) {
+    return i18n.t('errors.edit_invalid_geometry');
+  }
+  if (normalized.includes(EDIT_INTERNAL_ERROR)) {
+    return i18n.t('errors.edit_internal_error');
+  }
+  const invalidValue = normalized.match(PROJECT_INVALID_VALUE);
+  if (invalidValue) {
+    return invalidValue[1]
+      ? i18n.t('errors.project_invalid_value_object', { name: invalidValue[1] })
+      : i18n.t('errors.project_invalid_value');
   }
   const tooNew = normalized.match(PROJECT_TOO_NEW);
   if (tooNew) {

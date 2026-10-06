@@ -64,6 +64,28 @@ pub fn save_project(project: &Project, path: &Path) -> Result<(), PersistenceErr
     Ok(())
 }
 
+/// Stable code the frontend localizes when a project holds an invalid number.
+pub const PROJECT_INVALID_VALUE_CODE: &str = "project_invalid_value";
+
+/// Name the object whose values cannot be written, when one can be found.
+fn unreadable_value_message(project: &Project) -> String {
+    let culprit = project.objects.iter().find(|object| {
+        serde_json::to_string(object)
+            .ok()
+            .and_then(|json| serde_json::from_str::<beambench_core::ProjectObject>(&json).ok())
+            .is_none()
+    });
+    match culprit {
+        Some(object) => format!(
+            "[{PROJECT_INVALID_VALUE_CODE}] '{}' has an invalid size or position, so the project was not saved. Undo the last change to it, or delete it, then save again.",
+            object.name
+        ),
+        None => format!(
+            "[{PROJECT_INVALID_VALUE_CODE}] The project has an invalid setting value, so it was not saved."
+        ),
+    }
+}
+
 /// Serialize a project to `.lzrproj` archive bytes without touching the filesystem.
 pub fn save_project_to_bytes(project: &Project) -> Result<Vec<u8>, PersistenceError> {
     let cursor = Cursor::new(Vec::new());
@@ -85,6 +107,13 @@ fn write_project_archive<W: Write + Seek>(
 
     // Write project.json (full project minus asset_data which is serde(skip))
     let project_json = serde_json::to_string_pretty(&project.document_value()?)?;
+    // A value JSON cannot represent (NaN or infinity) is written as `null`,
+    // which saves fine but can never be opened again. Refuse to write it.
+    if serde_json::from_str::<Project>(&project_json).is_err() {
+        return Err(PersistenceError::Validation(unreadable_value_message(
+            project,
+        )));
+    }
     // Never overwrite a file with an archive this loader would refuse to open.
     let limits = LoadLimits::default();
     let mut expanded_size = (manifest.len() + project_json.len()) as u64;
@@ -501,6 +530,21 @@ mod tests {
     }
 
     #[test]
+    fn values_that_cannot_reopen_are_never_saved() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("bad.lzrproj");
+        std::fs::write(&path, b"previous").unwrap();
+        let mut project = test_project_with_asset();
+        project.objects[0].bounds.max.x = f64::INFINITY;
+
+        let error = save_project(&project, &path).unwrap_err().to_string();
+
+        assert!(error.contains("[project_invalid_value]"), "{error}");
+        assert!(error.contains(&project.objects[0].name), "{error}");
+        assert_eq!(std::fs::read(&path).unwrap(), b"previous");
+    }
+
+    #[test]
     fn newer_format_is_refused_with_a_clear_error() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("future.lzrproj");
@@ -542,7 +586,12 @@ mod tests {
 
         save_project(&project, &link).unwrap();
 
-        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert!(
+            std::fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
         assert_eq!(
             std::fs::metadata(&real).unwrap().permissions().mode() & 0o777,
             0o664

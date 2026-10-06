@@ -2507,6 +2507,9 @@ fn apply_transformed_source_to_existing(
     Ok(source_root.id)
 }
 
+/// The array dialogs' limit, enforced here too for API, CLI and agent callers.
+const ARRAY_MAX_PER_AXIS: u32 = 100;
+
 pub fn grid_array(
     svc: &Arc<ServiceContext>,
     object_ids: Vec<String>,
@@ -2533,6 +2536,11 @@ pub fn grid_array(
     auto_increment_text: Option<bool>,
     text_increment: Option<i64>,
 ) -> Result<ArrayResult, String> {
+    if rows > ARRAY_MAX_PER_AXIS || cols > ARRAY_MAX_PER_AXIS {
+        return Err(format!(
+            "Grid arrays support up to {ARRAY_MAX_PER_AXIS} rows and {ARRAY_MAX_PER_AXIS} columns"
+        ));
+    }
     svc.atomic_edit(|| {
         let parsed_ids: Vec<ObjectId> = object_ids
             .iter()
@@ -2693,6 +2701,11 @@ pub fn circular_array(
     auto_increment_text: Option<bool>,
     text_increment: Option<i64>,
 ) -> Result<ArrayResult, String> {
+    if count > ARRAY_MAX_PER_AXIS {
+        return Err(format!(
+            "Circular arrays support up to {ARRAY_MAX_PER_AXIS} copies"
+        ));
+    }
     svc.atomic_edit(|| {
         let parsed_ids: Vec<ObjectId> = object_ids
             .iter()
@@ -2892,6 +2905,11 @@ fn copy_along_path_batch_inner(
     scale_copies: bool,
     final_scale_percent: f64,
 ) -> Result<Vec<ProjectObject>, String> {
+    if count > ARRAY_MAX_PER_AXIS {
+        return Err(format!(
+            "Copy Along Path supports up to {ARRAY_MAX_PER_AXIS} copies"
+        ));
+    }
     svc.atomic_edit(|| {
         let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
         let project = guard.as_mut().ok_or("No project open")?;

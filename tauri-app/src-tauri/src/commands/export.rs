@@ -279,7 +279,7 @@ fn export_design(
     Ok(output.path.unwrap_or(path))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn export_svg(
     svc: State<'_, Arc<ServiceContext>>,
     path: String,
@@ -311,7 +311,7 @@ pub async fn nest_selected(
     .map_err(|error| NestError::new("engine_error", format!("Nesting task failed: {error}")))?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn export_dxf(
     svc: State<'_, Arc<ServiceContext>>,
     path: String,
@@ -321,7 +321,7 @@ pub fn export_dxf(
     export_design(&svc, path, selection_only, &selected_ids, ExportFormat::Dxf)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn export_pdf(
     svc: State<'_, Arc<ServiceContext>>,
     path: String,
@@ -331,7 +331,7 @@ pub fn export_pdf(
     export_design(&svc, path, selection_only, &selected_ids, ExportFormat::Pdf)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn export_eps(
     svc: State<'_, Arc<ServiceContext>>,
     path: String,
@@ -341,7 +341,7 @@ pub fn export_eps(
     export_design(&svc, path, selection_only, &selected_ids, ExportFormat::Eps)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn export_ai(
     svc: State<'_, Arc<ServiceContext>>,
     path: String,

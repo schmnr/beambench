@@ -13,6 +13,8 @@ describe('wrapBackendError', () => {
         'raster_plan_too_complex',
         'settings_file_recovered',
         'layers_migrated_on_open',
+        'edit_invalid_geometry',
+        'edit_internal_error',
       ]) {
         const translated = wrapBackendError(`Error: [${key}] Backend diagnostic detail`);
         expect(translated).toBe(i18n.t(`errors.${key}`));
@@ -51,6 +53,17 @@ describe('wrapBackendError', () => {
       ),
     ).toBe(i18n.t('errors.project_from_newer_app', { version: '0.3.0' }));
     expect(i18n.t('errors.project_too_new', { version: '0.4.1' })).toContain('0.4.1');
+  });
+
+  it('names the object that blocked a save with an invalid value', () => {
+    expect(
+      wrapBackendError(
+        "Save failed: validation error: [project_invalid_value] 'Logo outline' has an invalid size or position, so the project was not saved. Undo the last change to it, or delete it, then save again.",
+      ),
+    ).toBe(i18n.t('errors.project_invalid_value_object', { name: 'Logo outline' }));
+    expect(
+      wrapBackendError('[project_invalid_value] The project has an invalid setting value, so it was not saved.'),
+    ).toBe(i18n.t('errors.project_invalid_value'));
   });
 
   it('translates the machine-zero homing gate into a direct instruction', () => {

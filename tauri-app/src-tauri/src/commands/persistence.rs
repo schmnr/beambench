@@ -94,7 +94,7 @@ pub fn get_asset_data(
     persistence_ops::get_asset_data(&svc, id).map_err(Into::into)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn autosave_project(svc: State<'_, Arc<ServiceContext>>) -> Result<String, String> {
     persistence_ops::autosave_project(&svc).map_err(Into::into)
 }
