@@ -567,3 +567,55 @@ it('a text creation that finishes after leaving the Text tool does not start edi
   await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
   expect(useUiStore.getState().textEditObjectId).toBeNull();
 });
+
+it('older text completion preserves typing buffered for the next creation', async () => {
+  clearPendingEdit();
+  useUiStore.setState({ textEditObjectId: null, textEditMode: null });
+  let first!: (o: ProjectObject) => void;
+  let second!: (o: ProjectObject) => void;
+  const ctx = makeToolContext({
+    addObject: vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<ProjectObject>((r) => {
+            first = r;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<ProjectObject>((r) => {
+            second = r;
+          }),
+      ),
+  });
+  const tool = new TextTool();
+  tool.onMouseDown(makeMouseEvent(), ctx);
+  tool.onMouseUp(makeMouseEvent(), ctx);
+  await vi.waitFor(() => expect(ctx.addObject).toHaveBeenCalledTimes(1));
+  tool.reset();
+  tool.onMouseDown(makeMouseEvent(), ctx);
+  tool.onMouseUp(makeMouseEvent(), ctx);
+  await vi.waitFor(() => expect(ctx.addObject).toHaveBeenCalledTimes(2));
+  tool.onKeyDown(new KeyboardEvent('keydown', { key: 'A' }));
+  first(
+    makeTextObject('old-text', '', {
+      min: { x: 0, y: 0 },
+      max: { x: 10, y: 10 },
+    }),
+  );
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  tool.onKeyDown(new KeyboardEvent('keydown', { key: 'B' }));
+  second(
+    makeTextObject('new-text', '', {
+      min: { x: 0, y: 0 },
+      max: { x: 10, y: 10 },
+    }),
+  );
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(getPendingContent()).toBe('AB');
+});

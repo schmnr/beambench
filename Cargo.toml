@@ -71,3 +71,10 @@ flate2 = "1"
 lopdf = { path = "vendor/lopdf" }
 serialport = { path = "vendor/serialport" }
 u-nesting-d2 = { path = "vendor/u-nesting-d2" }
+
+# Keep geometry-heavy regressions useful in normal cargo test runs.
+[profile.test.package.beambench-core]
+opt-level = 2
+
+[profile.test.package.beambench-planner]
+opt-level = 2

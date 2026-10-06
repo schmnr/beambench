@@ -1137,7 +1137,7 @@ pub fn agent_state(ctx: &ServiceContext) -> ServiceResult<Value> {
     if !settings.api_localhost_only {
         warnings.push(warning(
             "API_REMOTE_BIND_ENABLED",
-            "The HTTP API is configured for remote binding. V1 assumes local-first access and adds no token auth.",
+            "The HTTP API is configured for remote binding. A bearer token is required; use a trusted network or an encrypted tunnel.",
             json!({ "api_localhost_only": false }),
         ));
     }

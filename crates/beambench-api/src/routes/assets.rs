@@ -57,7 +57,19 @@ async fn get_asset(
         AssetMediaType::Eps => "application/postscript",
     };
 
-    Ok(([(axum::http::header::CONTENT_TYPE, content_type)], data))
+    // SVG assets can contain scripts. Navigation to a same-origin asset must
+    // never grant it access to project or console GET endpoints.
+    Ok((
+        [
+            (axum::http::header::CONTENT_TYPE, content_type),
+            (
+                axum::http::header::CONTENT_SECURITY_POLICY,
+                "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'",
+            ),
+            (axum::http::header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+        ],
+        data,
+    ))
 }
 
 #[derive(Deserialize)]
@@ -177,5 +189,56 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+}
+
+#[cfg(test)]
+mod active_asset_tests {
+    use super::*;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn svg_assets_are_sandboxed_without_changing_bytes() {
+        let ctx = Arc::new(ServiceContext::new());
+        let bytes = br#"<svg xmlns="http://www.w3.org/2000/svg"><script>fetch('/api/v1/projects')</script></svg>"#.to_vec();
+        let asset = beambench_core::Asset::new(
+            "active.svg",
+            AssetMediaType::Svg,
+            bytes.len() as u64,
+            None,
+            None,
+        );
+        let mut project = beambench_core::Project::new("test");
+        project.add_asset(asset.clone(), bytes.clone());
+        *ctx.project.lock().unwrap() = Some(project);
+        let response = crate::routes::build_router(ctx)
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/api/v1/assets/{}", asset.id))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        assert_eq!(
+            response.headers()[axum::http::header::CONTENT_TYPE],
+            "image/svg+xml"
+        );
+        assert!(
+            response.headers()[axum::http::header::CONTENT_SECURITY_POLICY]
+                .to_str()
+                .unwrap()
+                .starts_with("sandbox; default-src 'none'")
+        );
+        assert_eq!(
+            response.headers()[axum::http::header::X_CONTENT_TYPE_OPTIONS],
+            "nosniff"
+        );
+        use http_body_util::BodyExt;
+        assert_eq!(
+            response.into_body().collect().await.unwrap().to_bytes(),
+            bytes
+        );
     }
 }

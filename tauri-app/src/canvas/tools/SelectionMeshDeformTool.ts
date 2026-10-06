@@ -6,7 +6,7 @@ import { computeVisualBoundsWorld } from '../alignment';
 import { vectorService } from '../../services/vectorService';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { usePreviewStore } from '../../stores/previewStore';
-import { useProjectStore } from '../../stores/projectStore';
+import { getDocumentGeneration, useProjectStore } from '../../stores/projectStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { useUiStore, type MeshDeformMode } from '../../stores/uiStore';
 import { resolveEffectiveData } from '../../commands/selectionContext';
@@ -432,6 +432,8 @@ export class SelectionMeshDeformTool implements CanvasTool {
     const label = this.labelForMode(mode);
     ctx.setStatusMessage(i18n.t('canvas_status.applying_label', { label }));
     const generation = this.generation;
+    const projectId = useProjectStore.getState().project?.metadata.project_id;
+    const documentGeneration = getDocumentGeneration();
     try {
       const updated = await vectorService.meshDeformSelection(
         ids,
@@ -440,6 +442,8 @@ export class SelectionMeshDeformTool implements CanvasTool {
         this.gridSizeForMode(mode),
         mode === 'warp',
       );
+      if (documentGeneration !== getDocumentGeneration()
+        || projectId !== useProjectStore.getState().project?.metadata.project_id) return;
       const updatedMap = new Map(updated.map((object) => [object.id, object]));
       // The result belongs in the project either way, but the tool state now
       // belongs to a newer gesture if the tool was reset meanwhile.
@@ -460,6 +464,8 @@ export class SelectionMeshDeformTool implements CanvasTool {
       if (current) ctx.setStatusMessage('');
       this.requestOverlayRender(ctx);
     } catch (error) {
+      if (documentGeneration !== getDocumentGeneration()
+        || projectId !== useProjectStore.getState().project?.metadata.project_id) return;
       const message = String(error);
       if (generation === this.generation) {
         this.livePreviewActive = false;

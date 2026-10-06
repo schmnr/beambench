@@ -42,3 +42,19 @@ describe('NumberInput commit="blur"', () => {
     expect(input.value).toBe('100');
   });
 });
+
+it('discards a draft when the external value changes', () => {
+  const change = vi.fn();
+  const { rerender } = render(
+    <NumberInput label="Speed" value={100} onChange={change} commit="blur" />,
+  );
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '5' } });
+  rerender(
+    <NumberInput label="Speed" value={200} onChange={change} commit="blur" />,
+  );
+  expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe(
+    '200',
+  );
+  fireEvent.blur(screen.getByRole('spinbutton'));
+  expect(change).not.toHaveBeenCalled();
+});

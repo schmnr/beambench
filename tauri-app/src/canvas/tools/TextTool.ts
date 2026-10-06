@@ -111,7 +111,9 @@ export class TextTool implements CanvasTool {
     ctx.requestRender();
     this.creatingText = true;
     this.pendingTypedText = '';
-    void this.createText(pending, ctx).finally(() => {
+    const generation = this.generation;
+    void this.createText(pending, ctx, generation).finally(() => {
+      if (generation !== this.generation) return;
       this.creatingText = false;
       this.pendingTypedText = '';
     });
@@ -120,13 +122,14 @@ export class TextTool implements CanvasTool {
   private async createText(
     pending: Extract<TextToolState, { type: 'pending-create' }>,
     ctx: ToolContext,
+    generation: number,
   ): Promise<void> {
     // Explicitly commit the current edit before creating a second text object.
     const prevId = useUiStore.getState().textEditObjectId;
     const prevMode = useUiStore.getState().textEditMode;
     const shouldDelete = isNewEmptyText(prevId, prevMode);
     const committed = await commitPendingTextEdit();
-    if (!committed) return;
+    if (!committed || generation !== this.generation) return;
     useUiStore.setState({
       textEditObjectId: null, textEditClickPos: null,
       textEditMode: null, textEditCaretIndex: null,
@@ -177,7 +180,7 @@ export class TextTool implements CanvasTool {
       else if (td.alignment_v === 'bottom') minY = y - h;
     }
 
-    const generation = this.generation;
+    if (generation !== this.generation) return;
     const createdObject = await ctx.addObject(
       'Text',
       layerId,

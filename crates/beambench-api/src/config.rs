@@ -1,8 +1,10 @@
 /// Configuration for the local HTTP API server.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ApiConfig {
     pub port: u16,
     pub localhost_only: bool,
+    /// Required for every client when binding to the network. Never logged.
+    pub bearer_token: Option<String>,
 }
 
 impl Default for ApiConfig {
@@ -10,6 +12,7 @@ impl Default for ApiConfig {
         Self {
             port: 5900,
             localhost_only: true,
+            bearer_token: None,
         }
     }
 }
@@ -20,7 +23,18 @@ impl ApiConfig {
         Self {
             port: settings.api_port,
             localhost_only: settings.api_localhost_only,
+            bearer_token: std::env::var("BEAMBENCH_API_TOKEN").ok(),
         }
+    }
+}
+
+impl std::fmt::Debug for ApiConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ApiConfig")
+            .field("port", &self.port)
+            .field("localhost_only", &self.localhost_only)
+            .field("bearer_token_configured", &self.bearer_token.is_some())
+            .finish()
     }
 }
 

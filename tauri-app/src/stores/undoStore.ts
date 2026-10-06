@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { projectService } from '../services/projectService';
-import { decorateProject, useProjectStore } from './projectStore';
+import { decorateProject, getDocumentGeneration, useProjectStore } from './projectStore';
 import { usePreviewStore } from './previewStore';
 import { useNotificationStore } from './notificationStore';
 import { wrapBackendError } from '../i18n/errors';
@@ -40,29 +40,36 @@ export const useUndoStore = create<UndoStoreState>((set) => ({
   canRedo: false,
 
   refresh: async () => {
+    const generation = getDocumentGeneration();
     try {
       const state = await projectService.getUndoState();
+      if (generation !== getDocumentGeneration()) return;
       set({
         canUndo: state.can_undo,
         canRedo: state.can_redo,
       });
     } catch {
+      if (generation !== getDocumentGeneration()) return;
       set({ canUndo: false, canRedo: false });
     }
   },
 
   undo: async () => {
+    const generation = getDocumentGeneration();
     try {
       const project = await projectService.undoProject();
+      if (generation !== getDocumentGeneration()) return;
       useProjectStore.setState({ project: decorateProject(project) });
       syncProjectSelection();
       usePreviewStore.getState().invalidate();
       const state = await projectService.getUndoState();
+      if (generation !== getDocumentGeneration()) return;
       set({
         canUndo: state.can_undo,
         canRedo: state.can_redo,
       });
     } catch (error) {
+      if (generation !== getDocumentGeneration()) return;
       await useUndoStore.getState().refresh();
       if (!isBenignHistoryError(error, 'undo')) {
         useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
@@ -71,17 +78,21 @@ export const useUndoStore = create<UndoStoreState>((set) => ({
   },
 
   redo: async () => {
+    const generation = getDocumentGeneration();
     try {
       const project = await projectService.redoProject();
+      if (generation !== getDocumentGeneration()) return;
       useProjectStore.setState({ project: decorateProject(project) });
       syncProjectSelection();
       usePreviewStore.getState().invalidate();
       const state = await projectService.getUndoState();
+      if (generation !== getDocumentGeneration()) return;
       set({
         canUndo: state.can_undo,
         canRedo: state.can_redo,
       });
     } catch (error) {
+      if (generation !== getDocumentGeneration()) return;
       await useUndoStore.getState().refresh();
       if (!isBenignHistoryError(error, 'redo')) {
         useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');

@@ -129,7 +129,7 @@ function decorateLayer(layer: Layer): Layer {
   };
 }
 
-export function decorateProject(project: Project | null): Project | null {
+export function decorateProject(project: Project | null | undefined): Project | null {
   if (!project) return null;
   return normalizeProjectRulerGuides({
     ...project,
@@ -139,6 +139,7 @@ export function decorateProject(project: Project | null): Project | null {
 
 /** Bumped whenever a different document replaces the open one. */
 let documentGeneration = 0;
+export const getDocumentGeneration = () => documentGeneration;
 
 function beginNewDocument(): void {
   documentGeneration += 1;
@@ -146,13 +147,13 @@ function beginNewDocument(): void {
 
 /**
  * Fetch the backend project for a refresh. A reply that arrives after a
- * different document was opened describes the old document, so the current
- * one is kept instead.
+ * different document was opened is discarded. Undefined means superseded;
+ * null means the backend currently has no project.
  */
-async function getProjectForCurrentDocument(): Promise<Project | null> {
-  const generation = documentGeneration;
+async function getProjectForCurrentDocument(generation = documentGeneration): Promise<Project | null | undefined> {
+  if (generation !== documentGeneration) return undefined;
   const project = await projectService.getProject();
-  return generation === documentGeneration ? project : useProjectStore.getState().project;
+  return generation === documentGeneration ? project : undefined;
 }
 
 function revokeCachedAssetUrls(assetCache: Map<string, string>): void {
@@ -1588,17 +1589,18 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   removeObject: async (objectId) => {
+    const generation = documentGeneration;
     try {
       await projectService.removeObject(objectId);
       const { selectedObjectIds, selectedLayerId } = get();
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
       project: decorateProject({ ...project, dirty: true })!,
           selectedObjectIds: selectedObjectIds.filter((id) => id !== objectId),
           selectedLayerId: resolveSelectedLayerId(project, selectedLayerId),
         });
-      } else {
+      } else if (project === null) {
         // Backend removed the object but project fetch returned null — clear stale state
         set({ selectedObjectIds: selectedObjectIds.filter((id) => id !== objectId) });
       }
@@ -1612,6 +1614,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   removeObjects: async (objectIds) => {
+    const generation = documentGeneration;
     try {
       const currentProject = get().project;
       const isolationPath = useUiStore.getState().selectionIsolationPath;
@@ -1622,14 +1625,14 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       await projectService.removeObjects(targetIds);
       const { selectedObjectIds, selectedLayerId } = get();
       const idSet = new Set(targetIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
       project: decorateProject({ ...project, dirty: true })!,
           selectedObjectIds: selectedObjectIds.filter((id) => !idSet.has(id)),
           selectedLayerId: resolveSelectedLayerId(project, selectedLayerId),
         });
-      } else {
+      } else if (project === null) {
         // Backend removed objects but project fetch returned null — clear stale state
         set({ selectedObjectIds: selectedObjectIds.filter((id) => !idSet.has(id)) });
       }
@@ -1820,11 +1823,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   pasteObjects: async (objects, inPlace) => {
+    const generation = documentGeneration;
     try {
       if (objects.length === 0) return;
       const pasted = await projectService.pasteObjects(objects, inPlace);
       const pastedIds = pasted.map((object) => object.id);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const decorated = decorateProject({ ...project, dirty: true })!;
         const selectedIds = normalizeSelectionMembers(decorated, pastedIds);
@@ -1987,6 +1991,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   importClipboardArtwork: async (artwork, drop) => {
+    const generation = documentGeneration;
     try {
       let { project } = get();
       if (!project) {
@@ -2010,7 +2015,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         layerId,
         ...(drop ? { dropX: drop.x, dropY: drop.y } : {}),
       });
-      const refreshed = decorateProject(await getProjectForCurrentDocument());
+      const refreshed = decorateProject(await getProjectForCurrentDocument(generation));
       if (refreshed) {
         const destLayerIds: string[] = [];
         const destCounts = new Map<string, number>();
@@ -2055,15 +2060,18 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   saveProject: async () => {
+    const generation = documentGeneration;
     try {
       const { projectPath } = get();
       const savedPath = await persistenceService.saveProject(projectPath ?? undefined);
+      if (generation !== documentGeneration) return;
       set({ projectPath: savedPath });
       // Reload to clear dirty flag
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project });
       await refreshUndo();
     } catch (e) {
+      if (generation !== documentGeneration) return;
       // "Save cancelled" is not an error
       if (!isUserCancel(e)) {
         const msg = String(e);
@@ -2074,13 +2082,16 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   saveProjectAs: async () => {
+    const generation = documentGeneration;
     try {
       const savedPath = await persistenceService.saveProjectAs();
+      if (generation !== documentGeneration) return;
       set({ projectPath: savedPath });
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project });
       await refreshUndo();
     } catch (e) {
+      if (generation !== documentGeneration) return;
       if (!isUserCancel(e)) {
         const msg = String(e);
         set({ error: msg });
@@ -2251,11 +2262,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   booleanUnion: async (objectIdA, objectIdB) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanUnion(objectIdA, objectIdB);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -2280,11 +2292,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   booleanSubtract: async (objectIdA, objectIdB) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanSubtract(objectIdA, objectIdB);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -2309,11 +2322,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   booleanExclude: async (objectIdA, objectIdB) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanExclude(objectIdA, objectIdB);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -2428,9 +2442,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   // --- Batch operations (reload-project pattern) ---
 
   lockObjects: async (objectIds) => {
+    const generation = documentGeneration;
     try {
       await projectService.lockObjects(objectIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2440,9 +2455,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   unlockObjects: async (objectIds) => {
+    const generation = documentGeneration;
     try {
       await projectService.unlockObjects(objectIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2452,6 +2468,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   flipObjects: async (objectIds, axis) => {
+    const generation = documentGeneration;
     try {
       const currentProject = get().project;
       let targetIds = objectIds;
@@ -2472,7 +2489,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       } else {
         await projectService.flipObjects(targetIds, axis);
       }
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2482,6 +2499,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   rotateObjects: async (objectIds, degrees, pivot?) => {
+    const generation = documentGeneration;
     try {
       const currentProject = get().project;
       let targetIds = objectIds;
@@ -2498,7 +2516,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         }
       }
       await projectService.rotateObjects(targetIds, degrees, resolvedPivot);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2508,20 +2526,22 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   scaleAndRotateObjects: async (entries, objectIds, degrees, pivot) => {
+    const generation = documentGeneration;
     try {
       await projectService.scaleAndRotateObjects(entries, objectIds, degrees, pivot);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: decorateProject({ ...project, dirty: true })! });
       invalidatePreview();
       await refreshUndo();
     } catch (e) {
       notifyError(String(e));
-      const project = await getProjectForCurrentDocument().catch(() => null);
+      const project = await getProjectForCurrentDocument(generation).catch(() => null);
       if (project) set({ project: decorateProject(project)! });
     }
   },
 
   rotateObjectsAndBakeActivePath: async (objectIds, degrees, pivot, activeObjectId) => {
+    const generation = documentGeneration;
     try {
       const currentProject = get().project;
       let targetIds = objectIds;
@@ -2543,7 +2563,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         resolvedPivot,
         activeObjectId,
       );
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2553,9 +2573,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   shearObjects: async (objectIds, shearX, shearY, pivot?) => {
+    const generation = documentGeneration;
     try {
       await projectService.shearObjects(objectIds, shearX, shearY, pivot);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2565,9 +2586,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   setObjectsVisible: async (objectIds, visible) => {
+    const generation = documentGeneration;
     try {
       await projectService.setObjectsVisible(objectIds, visible);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         const previousSelection = get().selectedObjectIds;
@@ -2591,12 +2613,13 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   updateObjectBoundsBatch: async (entries) => {
+    const generation = documentGeneration;
     try {
       await projectService.updateObjectBoundsBatch(entries);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({ project: decorateProject({ ...project, dirty: true })! });
-      } else {
+      } else if (project === null) {
         set((state) => ({
           project: state.project ? { ...state.project, dirty: true } : state.project,
         }));
@@ -2604,7 +2627,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       invalidatePreview();
       await refreshUndo();
     } catch (e) {
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({ project: decorateProject({ ...project, dirty: true })! });
       }
@@ -2613,9 +2636,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   pushDrawOrder: async (objectId, direction) => {
+    const generation = documentGeneration;
     try {
       await projectService.pushDrawOrder(objectId, direction);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2625,6 +2649,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   moveObjectsTo: async (objectIds, x, y) => {
+    const generation = documentGeneration;
     try {
       const currentProject = get().project;
       if (!currentProject) return;
@@ -2646,7 +2671,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           },
         })),
       );
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2809,10 +2834,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   reassignLayer: async (objectIds, layerId) => {
+    const generation = documentGeneration;
     try {
       await projectService.reassignLayer(objectIds, layerId);
       const { selectedObjectIds, selectedLayerId } = get();
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const shouldFollowSelection = selectedObjectIds.some((id) => objectIds.includes(id));
         set({
@@ -2832,6 +2858,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   moveObjectsInOutliner: async (objectIds, targetLayerId, beforeObjectId) => {
+    const generation = documentGeneration;
     const current = get();
     if (!current.project || objectIds.length === 0) return false;
     const rootIds = [...new Set(objectIds
@@ -2840,7 +2867,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     if (rootIds.length === 0) return false;
     try {
       await projectService.moveObjectsInOutliner(rootIds, targetLayerId, beforeObjectId);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: decorateProject({ ...project, dirty: true })!,
@@ -2867,9 +2894,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   deleteDuplicates: async (objectIds) => {
+    const generation = documentGeneration;
     try {
       const remainingIds = await projectService.deleteDuplicates(objectIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true }, selectedObjectIds: remainingIds });
       invalidatePreview();
       await refreshUndo();
@@ -2879,10 +2907,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   autoJoinShapes: async (objectIds, toleranceMm) => {
+    const generation = documentGeneration;
     try {
       const paths = await projectService.autoJoinShapes(objectIds, toleranceMm);
       if (paths.length === 0) return;
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2892,10 +2921,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   optimizeShapes: async (objectIds) => {
+    const generation = documentGeneration;
     try {
       const paths = await projectService.optimizeShapes(objectIds);
       if (paths.length === 0) return;
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2905,9 +2935,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   selectOpenShapes: async () => {
+    const generation = documentGeneration;
     try {
       const ids = await projectService.selectOpenShapes();
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set((state) => ({
           project,
@@ -2923,9 +2954,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   selectOpenShapesSetToFill: async () => {
+    const generation = documentGeneration;
     try {
       const ids = await projectService.selectOpenShapesSetToFill();
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set((state) => ({
           project,
@@ -2975,11 +3007,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   selectShapesSmallerThanSelected: async () => {
+    const generation = documentGeneration;
     try {
       const selectedIds = get().selectedObjectIds;
       if (selectedIds.length === 0) return;
       const ids = await projectService.selectShapesSmallerThanSelected(selectedIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set((state) => ({
           project,
@@ -3134,11 +3167,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   // --- Boolean / vector ops ---
 
   booleanIntersection: async (objectIdA, objectIdB) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanIntersection(objectIdA, objectIdB);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3161,11 +3195,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   booleanWeld: async (objectIds) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanWeld(objectIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3188,11 +3223,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   booleanUnionMany: async (objectIds) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanUnionMany(objectIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3211,11 +3247,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   booleanIntersectionMany: async (objectIds) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanIntersectionMany(objectIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3234,11 +3271,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   booleanExcludeMany: async (objectIds) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanExcludeMany(objectIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3257,11 +3295,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   booleanSubtractMany: async (objectIds) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanSubtractMany(objectIds);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3280,11 +3319,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   cutShapes: async (objectIds) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return;
     set({ booleanPending: true });
     try {
       const result = await vectorService.cutShapesApply(objectIds);
-      const nextProject = await getProjectForCurrentDocument();
+      const nextProject = await getProjectForCurrentDocument(generation);
       if (nextProject) {
         const groupedIds = [result.insideGroupId, result.outsideGroupId].filter(Boolean) as string[];
         const createdIds = groupedIds.length > 0 ? groupedIds : result.createdObjectIds;
@@ -3308,11 +3348,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   closeAndJoin: async (objectIds, toleranceMm = 0.1, options) => {
+    const generation = documentGeneration;
     if (get().booleanPending) return null;
     set({ booleanPending: true });
     try {
       const result = await vectorService.closeAndJoin(objectIds, toleranceMm);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3342,6 +3383,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   offsetShapes: async (objectIds, distanceMm, direction, cornerStyle, deleteOriginal) => {
+    const generation = documentGeneration;
     try {
       const created = await vectorService.offsetShapes(
         objectIds,
@@ -3351,7 +3393,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         deleteOriginal,
       );
       const createdIds = created.map((o) => o.id);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3372,10 +3414,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   breakApart: async (objectId) => {
+    const generation = documentGeneration;
     try {
       const created = await vectorService.breakApart(objectId);
       if (created.length === 0) return; // nothing to break — silent no-op
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const createdIds = created.map((o) => o.id);
         set({
@@ -3396,9 +3439,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   closePath: async (objectId) => {
+    const generation = documentGeneration;
     try {
       await vectorService.closePath(objectId);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({ project: { ...project, dirty: true } });
         invalidatePreview();
@@ -3410,9 +3454,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   gridArray: async (params) => {
+    const generation = documentGeneration;
     try {
       const result = await vectorService.gridArray(params);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const selectIds = result.groupId ? [result.groupId] : result.createdIds;
         const previousLayerId = get().selectedLayerId;
@@ -3431,9 +3476,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   circularArray: async (params) => {
+    const generation = documentGeneration;
     try {
       const result = await vectorService.circularArray(params);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const selectIds = result.groupId ? [result.groupId] : result.createdIds;
         const previousLayerId = get().selectedLayerId;
@@ -3577,9 +3623,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   convertToBitmap: async (objectId, dpi) => {
+    const generation = documentGeneration;
     try {
       const updated = await vectorService.convertToBitmap(objectId, dpi);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3595,9 +3642,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   applyPathToText: async (textObjectId, pathObjectId) => {
+    const generation = documentGeneration;
     try {
       const created = await vectorService.applyPathToText(textObjectId, pathObjectId);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3613,9 +3661,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   cropImage: async (imageObjectId, maskObjectId) => {
+    const generation = documentGeneration;
     try {
       const updated = await vectorService.cropImage(imageObjectId, maskObjectId);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3631,9 +3680,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   applyMaskToImage: async (imageObjectId, maskObjectId) => {
+    const generation = documentGeneration;
     try {
       const updated = await vectorService.applyMaskToImage(imageObjectId, maskObjectId);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3649,9 +3699,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   assignImageMask: async (imageObjectId, maskObjectIds, polarity = 'keep_inside') => {
+    const generation = documentGeneration;
     try {
       const updated = await vectorService.assignImageMask(imageObjectId, maskObjectIds, polarity);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3667,9 +3718,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   setImageMaskPolarity: async (imageObjectId, maskObjectId, polarity) => {
+    const generation = documentGeneration;
     try {
       const updated = await vectorService.setImageMaskPolarity(imageObjectId, maskObjectId, polarity);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3684,9 +3736,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   removeImageMask: async (imageObjectId, maskObjectId) => {
+    const generation = documentGeneration;
     try {
       const updated = await vectorService.removeImageMask(imageObjectId, maskObjectId);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3701,9 +3754,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   closeSelectedPathsWithTolerance: async (objectIds, toleranceMm, mode) => {
+    const generation = documentGeneration;
     try {
       const result = await projectService.closeSelectedPathsWithTolerance(objectIds, toleranceMm, mode);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         set({ project: { ...project, dirty: project.dirty || result.shapesClosed > 0 }, selectedObjectIds: result.objectIds });
         if (result.shapesClosed > 0) {
@@ -3761,6 +3815,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   copyAlongPath: async (objectIds, pathObjectId, options) => {
+    const generation = documentGeneration;
     try {
       const projectBefore = get().project;
       if (!projectBefore || objectIds.length === 0) {
@@ -3770,7 +3825,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         return false;
       }
       const created = await vectorService.copyAlongPathBatch(objectIds, pathObjectId, options);
-      const project = await getProjectForCurrentDocument();
+      const project = await getProjectForCurrentDocument(generation);
       if (project) {
         const createdIds = topLevelCreatedSelectionIds(created);
         const selectedLayerId = created[0]
@@ -3842,6 +3897,7 @@ async function importArtworkBatch(
   requestedLayerId: string | undefined,
   doImport: (layerId: string, createLayer?: ImportLayer) => Promise<ProjectObject[]>,
 ): Promise<void> {
+  const generation = documentGeneration;
   const store = useProjectStore.getState();
   const projectSnapshot = store.project;
   const pendingAtEntry = store.pendingPaletteColor;
@@ -3894,7 +3950,7 @@ async function importArtworkBatch(
   const { project } = useProjectStore.getState();
   if (project) {
     // Reload full project to get assets list and layers in sync
-    const refreshed = await getProjectForCurrentDocument();
+    const refreshed = await getProjectForCurrentDocument(generation);
     if (refreshed) {
       // Compute the union of destination layer ids the backend
       // actually routed the objects to. A mixed raster+vector batch

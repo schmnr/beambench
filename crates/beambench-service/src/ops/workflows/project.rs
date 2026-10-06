@@ -1694,9 +1694,9 @@ mod tests {
     #[test]
     fn scale_and_rotate_is_one_undo_step() {
         use super::{BoundsEntry, scale_and_rotate_objects};
-        use std::sync::Arc;
         use beambench_common::Point2D;
         use beambench_core::{ObjectData, Project, ProjectObject, ShapeKind};
+        use std::sync::Arc;
         let svc = Arc::new(ServiceContext::new());
         let mut project = Project::new("two-point");
         let layer = project.ensure_default_layer();

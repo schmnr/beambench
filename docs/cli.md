@@ -85,3 +85,21 @@ Coordinates accept negative numbers. Floating-point arguments must be finite; `N
 See the [September 6 CLI audit](./reviews/2026-09-06-cli-audit.md) for confirmed defects, regression coverage, and remaining platform and physical-controller verification.
 
 The CLI does not expose every desktop feature. See the [feature coverage check](./reviews/2026-09-06-cli-feature-coverage.md) for API-only operations and missing automation workflows.
+
+## API access
+
+The API defaults to disabled and binds to loopback when enabled. Requests in
+loopback mode must use `localhost:<port>` or `127.0.0.1:<port>` as their Host.
+Browser Origin headers are rejected in both binding modes.
+
+To allow network devices, set `BEAMBENCH_API_TOKEN` in the app's environment
+before starting it, then enable network access in Settings. Use a randomly
+generated token with at least 32 ASCII characters and no whitespace. Without a
+valid token, the network listener refuses to start. All requests in network
+mode, including loopback requests and WebSocket connections, require
+`Authorization: Bearer <token>`. Set the same environment variable for the CLI;
+it adds the header automatically. Rotate the token by changing the variable
+and restarting the app. Keep it out of URLs, shell history and shared logs.
+
+Network mode uses HTTP. Use it only on a trusted network or through an encrypted
+tunnel. Token authentication does not encrypt project data or traffic.

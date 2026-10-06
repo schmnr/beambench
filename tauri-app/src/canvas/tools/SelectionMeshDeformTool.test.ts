@@ -421,3 +421,46 @@ it('an earlier warp result does not cancel the next drag', async () => {
   await flushToolPromises(); await flushToolPromises();
   expect(tool.isDragging()).toBe(true);
 });
+
+it('an old warp cannot overwrite matching object ids in another document', async () => {
+  const ctx = makeToolContext();
+  useProjectStore.setState({
+    project: makeProject({
+      metadata: { ...makeProject().metadata, project_id: 'old' },
+      objects: ctx.objects,
+    }),
+  });
+  useUiStore.setState({ meshDeformMode: 'warp' });
+  vi.spyOn(useUndoStore.getState(), 'refresh').mockResolvedValue(undefined);
+  let resolve!: (objects: typeof ctx.objects) => void;
+  vi.mocked(vectorService.meshDeformSelection).mockImplementationOnce(
+    () =>
+      new Promise((r) => {
+        resolve = r;
+      }),
+  );
+  const tool = new WarpTool();
+  const start = makeMouseEvent({ screenX: 420, screenY: 300, snappedX: 10 });
+  const end = makeMouseEvent({ screenX: 440, screenY: 300, snappedX: 20 });
+  tool.onMouseMove(makeMouseEvent(), ctx);
+  tool.onMouseDown(start, ctx);
+  tool.onMouseMove(end, ctx);
+  tool.onMouseUp(end, ctx);
+  const newer = {
+    ...ctx.objects[0],
+    bounds: { min: { x: 100, y: 100 }, max: { x: 110, y: 110 } },
+  };
+  useProjectStore.setState({
+    project: makeProject({
+      metadata: { ...makeProject().metadata, project_id: 'new' },
+      objects: [newer],
+    }),
+  });
+  tool.reset();
+  resolve(ctx.objects);
+  await flushToolPromises();
+  await flushToolPromises();
+  expect(useProjectStore.getState().project?.objects[0].bounds).toEqual(
+    newer.bounds,
+  );
+});

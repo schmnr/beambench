@@ -45,11 +45,59 @@ pub fn persist_export(file: tempfile::NamedTempFile, target: &Path) -> std::io::
     file.persist(target).map(|_| ()).map_err(|e| e.error)
 }
 
+/// Cargo integration tests compile this crate without cfg(test). Detect their
+/// hashed executable in target/.../deps so those binaries also get isolated
+/// persistence. The directory lives until process exit, including async tasks.
+fn test_process_root() -> Option<&'static Path> {
+    static ROOT: OnceLock<Option<tempfile::TempDir>> = OnceLock::new();
+    ROOT.get_or_init(|| {
+        let exe = std::env::current_exe().ok()?;
+        let stem = exe.file_stem()?.to_str()?;
+        let hash = stem.rsplit_once('-').map(|(_, hash)| hash);
+        let cargo_test = exe.parent()?.file_name()? == "deps"
+            && hash.is_some_and(|hash| {
+                hash.len() == 16 && hash.bytes().all(|b| b.is_ascii_hexdigit())
+            });
+        let nextest = std::env::var_os("NEXTEST_EXECUTION_MODE").is_some();
+        if cargo_test || nextest {
+            Some(
+                tempfile::Builder::new()
+                    .prefix("beambench-test-")
+                    .tempdir()
+                    .expect("test persistence directory must be available"),
+            )
+        } else {
+            None
+        }
+    })
+    .as_ref()
+    .map(|dir| dir.path())
+}
+
+fn isolated_directory(kind: &str, env: &str, real: Option<PathBuf>) -> Option<PathBuf> {
+    let root = test_process_root()?;
+    if let Some(path) = std::env::var_os(env).map(PathBuf::from) {
+        let resolved = fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+        let real = real.map(|path| fs::canonicalize(&path).unwrap_or(path));
+        if !real.as_ref().is_some_and(|real| resolved.starts_with(real)) {
+            return Some(path);
+        }
+    }
+    Some(root.join(kind))
+}
+
 /// Return the config directory for Beam Bench.
 /// `$CONFIG_DIR/beam-bench/`
 pub fn config_dir() -> Option<PathBuf> {
     #[cfg(test)]
     if let Some(path) = crate::test_support::persistence_config_dir_for_current_test() {
+        return Some(path);
+    }
+    if let Some(path) = isolated_directory(
+        "config",
+        CONFIG_DIR_ENV,
+        dirs::config_dir().map(|d| d.join("beam-bench")),
+    ) {
         return Some(path);
     }
     if let Some(path) = std::env::var_os(CONFIG_DIR_ENV) {
@@ -385,6 +433,13 @@ pub fn save_macros(macros: &[MacroDefinition]) -> Result<(), String> {
 pub fn data_dir() -> Option<PathBuf> {
     #[cfg(test)]
     if let Some(path) = crate::test_support::persistence_data_dir_for_current_test() {
+        return Some(path);
+    }
+    if let Some(path) = isolated_directory(
+        "data",
+        DATA_DIR_ENV,
+        dirs::data_dir().map(|d| d.join("beam-bench")),
+    ) {
         return Some(path);
     }
     if let Some(path) = std::env::var_os(DATA_DIR_ENV) {
@@ -855,9 +910,7 @@ mod tests {
         let path = settings_path();
         assert!(path.is_some());
         let p = path.unwrap();
-        assert!(
-            p.ends_with("beam-bench/settings.json") || p.ends_with("beam-bench\\settings.json")
-        );
+        assert_eq!(p, config_dir().unwrap().join("settings.json"));
     }
 
     // --- Material-preset and macro persistence tests ---
@@ -867,10 +920,7 @@ mod tests {
         let path = material_presets_path();
         assert!(path.is_some());
         let p = path.unwrap();
-        assert!(
-            p.ends_with("beam-bench/material_presets.json")
-                || p.ends_with("beam-bench\\material_presets.json")
-        );
+        assert_eq!(p, config_dir().unwrap().join("material_presets.json"));
     }
 
     #[test]
@@ -878,7 +928,7 @@ mod tests {
         let path = macros_path();
         assert!(path.is_some());
         let p = path.unwrap();
-        assert!(p.ends_with("beam-bench/macros.json") || p.ends_with("beam-bench\\macros.json"));
+        assert_eq!(p, config_dir().unwrap().join("macros.json"));
     }
 
     #[test]
@@ -1020,7 +1070,7 @@ mod tests {
         let dir = libraries_dir();
         assert!(dir.is_some());
         let d = dir.unwrap();
-        assert!(d.ends_with("beam-bench/libraries") || d.ends_with("beam-bench\\libraries"));
+        assert_eq!(d, data_dir().unwrap().join("libraries"));
     }
 
     #[test]

@@ -4415,6 +4415,10 @@ fn local_api_json_request_with_status(
         .build()
         .map_err(|e| cli_exit(2, format!("Failed to build HTTP client: {e}")))?;
     let request = client.request(method, &url);
+    let request = match std::env::var("BEAMBENCH_API_TOKEN") {
+        Ok(token) => request.bearer_auth(token),
+        Err(_) => request,
+    };
     let response = if let Some(body) = body {
         request
             .json(&body)

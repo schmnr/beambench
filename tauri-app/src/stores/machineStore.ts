@@ -643,12 +643,13 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       set({ capabilities: PREVIEW_CAPABILITIES });
       return;
     }
+    const generation = connectionGeneration;
     try {
       const runtime = await machineService.getMachineRuntimeState();
-      set({ capabilities: runtime.capabilities ?? null });
+      if (isCurrentConnection(generation)) set({ capabilities: runtime.capabilities ?? null });
     } catch {
       // Fail closed: unknown capabilities keep capability-gated controls off.
-      set({ capabilities: null });
+      if (isCurrentConnection(generation)) set({ capabilities: null });
     }
   },
 
@@ -1272,3 +1273,10 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   openPreflightDialog: () => set({ showPreflightDialog: true }),
   closePreflightDialog: () => set({ showPreflightDialog: false }),
 }));
+
+// Backend events and preview-mode changes also replace connection state.
+useMachineStore.subscribe((state, previous) => {
+  if ((state.sessionState === 'disconnected') !== (previous.sessionState === 'disconnected')
+    || state.connectionPreview !== previous.connectionPreview
+    || state.connectedPort !== previous.connectedPort) beginConnectionChange();
+});

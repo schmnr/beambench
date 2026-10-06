@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NumberStepper } from './NumberStepper';
 
 interface NumberInputProps {
@@ -33,6 +33,7 @@ export function NumberInput({
   commit = 'change',
 }: NumberInputProps) {
   const [draft, setDraft] = useState<string | null>(null);
+  useEffect(() => setDraft(null), [value, disabled]);
 
   const commitValue = (text: string) => {
     setDraft(null);

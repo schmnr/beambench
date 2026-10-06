@@ -116,3 +116,134 @@ it('the Emergency Stop confirmation is translated', async () => {
   expect(message).toBe(i18n.t('notifications.machine.estop_sent'));
   expect(message).not.toBe('Emergency stop sent');
 });
+
+it.each(['saveProject', 'saveProjectAs'] as const)(
+  'late %s completion cannot change another document save path',
+  async (action) => {
+    useProjectStore.setState({
+      project: makeProject(),
+      projectPath: '/old.lzrproj',
+    });
+    const pending = deferred<string>();
+    vi.spyOn(persistenceService, action).mockReturnValueOnce(pending.promise);
+    vi.spyOn(persistenceService, 'openProjectFromPath').mockResolvedValue(
+      makeProject({
+        metadata: { ...makeProject().metadata, project_id: 'new-doc' },
+      }),
+    );
+    const saving = useProjectStore.getState()[action]();
+    await useProjectStore.getState().openProjectFromPath('/new.lzrproj');
+    pending.resolve('/old-saved.lzrproj');
+    await saving;
+    expect(useProjectStore.getState().projectPath).toBe('/new.lzrproj');
+  },
+);
+it('late runtime capabilities cannot repopulate a disconnected machine', async () => {
+  useMachineStore.setState({ sessionState: 'ready', connectionPreview: false });
+  const pending =
+    deferred<
+      Awaited<ReturnType<typeof machineService.getMachineRuntimeState>>
+    >();
+  vi.spyOn(machineService, 'getMachineRuntimeState').mockReturnValueOnce(
+    pending.promise,
+  );
+  vi.spyOn(machineService, 'disconnect').mockResolvedValue(undefined);
+  const loading = useMachineStore.getState().loadRuntimeCapabilities();
+  await useMachineStore.getState().disconnect();
+  pending.resolve({ capabilities: { can_jog: true } } as Awaited<
+    ReturnType<typeof machineService.getMachineRuntimeState>
+  >);
+  await loading;
+  expect(useMachineStore.getState().capabilities).toBeNull();
+});
+it('backend disconnect state invalidates a pending session poll', async () => {
+  useMachineStore.setState({ sessionState: 'ready', connectionPreview: false });
+  const pending = deferred<'ready'>();
+  vi.spyOn(machineService, 'getSessionState').mockReturnValueOnce(
+    pending.promise,
+  );
+  const polling = useMachineStore.getState().refreshSessionState();
+  useMachineStore.setState({
+    sessionState: 'disconnected',
+    machineStatus: null,
+    capabilities: null,
+  });
+  pending.resolve('ready');
+  await polling;
+  expect(useMachineStore.getState().sessionState).toBe('disconnected');
+});
+
+it('superseded boolean refresh does not dirty or select into another document', async () => {
+  const { vectorService } = await import('../../services/vectorService');
+  useProjectStore.setState({ project: makeProject(), booleanPending: false });
+  vi.spyOn(vectorService, 'booleanUnion').mockResolvedValue(
+    makeProjectObject({ id: 'old-result' }),
+  );
+  const pending = deferred<ReturnType<typeof makeProject>>();
+  vi.spyOn(projectService, 'getProject').mockReturnValueOnce(pending.promise);
+  const edit = useProjectStore.getState().booleanUnion('a', 'b');
+  await vi.waitFor(() => expect(projectService.getProject).toHaveBeenCalled());
+  const next = makeProject({
+    dirty: false,
+    metadata: { ...makeProject().metadata, project_id: 'new-doc' },
+  });
+  vi.spyOn(persistenceService, 'openProjectFromPath').mockResolvedValue(next);
+  await useProjectStore.getState().openProjectFromPath('/new.lzrproj');
+  pending.resolve(makeProject());
+  await edit;
+  expect(useProjectStore.getState().project?.dirty).toBe(false);
+  expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
+});
+
+it('an edit finishing after replacement cannot start a refresh for the new document', async () => {
+  const { vectorService } = await import('../../services/vectorService');
+  useProjectStore.setState({ project: makeProject(), booleanPending: false });
+  const pending = deferred<ReturnType<typeof makeProjectObject>>();
+  vi.spyOn(vectorService, 'booleanUnion').mockReturnValueOnce(pending.promise);
+  const fetching = vi
+    .spyOn(projectService, 'getProject')
+    .mockResolvedValue(makeProject());
+  const edit = useProjectStore.getState().booleanUnion('a', 'b');
+  vi.spyOn(persistenceService, 'openProjectFromPath').mockResolvedValue(
+    makeProject({
+      dirty: false,
+      metadata: { ...makeProject().metadata, project_id: 'new-doc' },
+    }),
+  );
+  await useProjectStore.getState().openProjectFromPath('/new.lzrproj');
+  pending.resolve(makeProjectObject({ id: 'old-result' }));
+  await edit;
+  expect(fetching).not.toHaveBeenCalled();
+  expect(useProjectStore.getState().project?.metadata.project_id).toBe(
+    'new-doc',
+  );
+  expect(useProjectStore.getState().project?.dirty).toBe(false);
+});
+
+it.each(['undo', 'redo'] as const)(
+  'late %s cannot replace a newly opened document',
+  async (action) => {
+    useProjectStore.setState({ project: makeProject() });
+    const pending = deferred<ReturnType<typeof makeProject>>();
+    vi.spyOn(
+      projectService,
+      action === 'undo' ? 'undoProject' : 'redoProject',
+    ).mockReturnValueOnce(pending.promise);
+    const history = useUndoStore.getState()[action]();
+    vi.spyOn(persistenceService, 'openProjectFromPath').mockResolvedValue(
+      makeProject({
+        metadata: { ...makeProject().metadata, project_id: 'new-doc' },
+      }),
+    );
+    await useProjectStore.getState().openProjectFromPath('/new.lzrproj');
+    pending.resolve(
+      makeProject({
+        metadata: { ...makeProject().metadata, project_id: 'old-doc' },
+      }),
+    );
+    await history;
+    expect(useProjectStore.getState().project?.metadata.project_id).toBe(
+      'new-doc',
+    );
+  },
+);

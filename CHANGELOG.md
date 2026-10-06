@@ -152,6 +152,13 @@
 - Opening Beam Bench a second time brings the open window to the front, and
   another program using its port no longer stops it from starting. The app
   window now runs with a content security policy.
+- The local API refuses requests addressed to any host other than this
+  computer, which blocks DNS-rebinding web pages from reading project data.
+  Allowing network devices now requires an access token
+  (`BEAMBENCH_API_TOKEN`, see docs/cli.md); without one the network API does
+  not start. Files served by the API cannot run scripts.
+- Updated the TLS library used for updates and feedback to fix a published
+  vulnerability.
 
 ## 0.2.25
 

@@ -264,7 +264,7 @@ if [[ "$MODE" != "resume" ]]; then
   note "Compiling the universal app without bundling"
   (
     cd "$APP_DIR"
-    RUSTUP_TOOLCHAIN=stable npm run tauri -- build --target universal-apple-darwin --no-bundle
+    RUSTUP_TOOLCHAIN=stable npm run tauri -- build --target universal-apple-darwin --no-bundle -- --locked
   )
 
   [[ -x "$UNIVERSAL_BINARY" ]] || die "Universal binary was not produced: $UNIVERSAL_BINARY"
