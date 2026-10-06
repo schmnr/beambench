@@ -53,6 +53,13 @@
   a controller reset instead of being ignored.
 - Emergency Stop no longer waits behind slow actions such as Check Job on a
   large image or connecting, and those actions no longer freeze the window.
+- USB reconnect requires a matching device serial number before following a
+  renamed port, and rejects a reused port with a different known identity.
+- Failed test-fire starts retain laser-off retries when the first stop fails;
+  motion stays blocked until the stop succeeds. Manual motion and fire start
+  are synchronized so fire cannot begin between a safety check and a move.
+- Marlin and Smoothieware now report a failed automatic emergency halt alongside
+  the original job error, including physical-stop guidance.
 
 ## 0.2.25
 

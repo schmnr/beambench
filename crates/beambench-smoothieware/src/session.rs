@@ -77,6 +77,13 @@ pub enum SmoothiewareSessionError {
     Serial(#[from] SerialError),
     #[error(transparent)]
     Acknowledgement(#[from] AckFlowError),
+    #[error(
+        "[emergency_stop_unconfirmed] {job_error}; emergency halt M112 failed: {stop_error}. Use the machine's physical emergency stop or disconnect laser power now."
+    )]
+    EmergencyStopFailed {
+        job_error: Box<SmoothiewareSessionError>,
+        stop_error: SerialError,
+    },
     #[error("cannot {action} while the Smoothieware session is {state:?}")]
     InvalidState {
         action: &'static str,
@@ -329,16 +336,24 @@ impl SmoothiewareSerialSession {
     ) -> Result<Vec<LineProtocolEvent>, SmoothiewareSessionError> {
         self.require_state("advance a job", SmoothiewareSessionState::Running)?;
         let result = self.tick_inner(now);
-        if result.is_err() {
+        if let Err(job_error) = result {
             // A failed job (lost acknowledgements, a controller error, a link
             // fault) does not prove the controller stopped: queued moves may
             // still be running with the laser on. Halt it, best effort.
             if let Some(flow) = self.job_flow.as_mut() {
                 flow.cancel();
             }
-            let _ = self.transport.write_line(SMOOTHIEWARE_CANCEL_COMMAND);
             self.state = SmoothiewareSessionState::RecoveryRequired;
             self.job_outcome = Some(SmoothiewareJobOutcome::FailedRecoveryRequired);
+            return Err(
+                match self.transport.write_line(SMOOTHIEWARE_CANCEL_COMMAND) {
+                    Ok(()) => job_error,
+                    Err(stop_error) => SmoothiewareSessionError::EmergencyStopFailed {
+                        job_error: Box::new(job_error),
+                        stop_error,
+                    },
+                },
+            );
         }
         result
     }
@@ -399,7 +414,9 @@ impl SmoothiewareSerialSession {
         // shutdown attempt, the halt must still be sendable.
         if !matches!(
             self.state,
-            SmoothiewareSessionState::Ready | SmoothiewareSessionState::Running | SmoothiewareSessionState::RecoveryRequired
+            SmoothiewareSessionState::Ready
+                | SmoothiewareSessionState::Running
+                | SmoothiewareSessionState::RecoveryRequired
         ) {
             return Err(SmoothiewareSessionError::InvalidState {
                 action: "request emergency shutdown",
@@ -498,6 +515,7 @@ mod tests {
 
     #[derive(Debug, Default)]
     struct ScriptState {
+        fail_halt_writes: usize,
         rx: VecDeque<String>,
         tx: Vec<String>,
         auto_ack_jobs: bool,
@@ -537,6 +555,10 @@ mod tests {
             }
             let mut state = self.state.lock().unwrap();
             state.tx.push(line.to_string());
+            if line == SMOOTHIEWARE_CANCEL_COMMAND && state.fail_halt_writes > 0 {
+                state.fail_halt_writes -= 1;
+                return Err(SerialError::WriteFailed("injected halt failure".into()));
+            }
             match line {
                 "M115" => state.rx.extend([
                     "FIRMWARE_NAME:Smoothieware, FIRMWARE_VERSION:edge, PROTOCOL_VERSION:1.0, X-GRBL_MODE:0, X-ARCS:1".to_string(),
@@ -629,6 +651,40 @@ mod tests {
         assert_eq!(identity.laser_module_enabled, Some(true));
         assert_eq!(identity.laser_maximum_s_value, Some(1.0));
         session.activate().unwrap();
+    }
+
+    #[test]
+    fn failed_automatic_halt_preserves_job_error_and_physical_stop_guidance() {
+        let (mut session, state) = session(false, true);
+        connect_and_activate(&mut session);
+        session.start_job(vec!["M5".into(), "M400".into()]).unwrap();
+        let now = Instant::now();
+        session.tick(now).unwrap();
+        state.lock().unwrap().fail_halt_writes = 1;
+        let error = session.tick(now + Duration::from_secs(2)).unwrap_err();
+        let message = error.to_string();
+        assert!(matches!(
+            error,
+            SmoothiewareSessionError::EmergencyStopFailed { .. }
+        ));
+        assert!(
+            message.to_lowercase().contains("acknowledgement"),
+            "{message}"
+        );
+        assert!(message.contains("injected halt failure"), "{message}");
+        assert!(message.contains("physical emergency stop"), "{message}");
+        assert_eq!(session.state(), SmoothiewareSessionState::RecoveryRequired);
+        session.emergency_shutdown().unwrap();
+        assert_eq!(
+            state
+                .lock()
+                .unwrap()
+                .tx
+                .iter()
+                .filter(|line| *line == SMOOTHIEWARE_CANCEL_COMMAND)
+                .count(),
+            2
+        );
     }
 
     #[test]

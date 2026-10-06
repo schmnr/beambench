@@ -3602,12 +3602,16 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
                 Some(send_grbl_emergency_stop(grbl))
             }
             Some(
-                session @ (MachineSessionHandle::Marlin(_)
-                | MachineSessionHandle::Smoothieware(_)),
+                session @ (MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_)),
             ) if job_active => Some(stop_session_output(session)),
             _ => None,
         };
-        if job_active && matches!(session_lock.as_ref(), Some(MachineSessionHandle::XToolM1(_))) {
+        if job_active
+            && matches!(
+                session_lock.as_ref(),
+                Some(MachineSessionHandle::XToolM1(_))
+            )
+        {
             // The M1 runs its uploaded file standalone; disconnecting does not
             // and cannot stop it.
             disconnect_warning = Some(
@@ -3700,7 +3704,6 @@ pub fn session_state(ctx: &ServiceContext) -> ServiceResult<SessionState> {
 }
 
 pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
-    refuse_motion_during_test_fire(ctx)?;
     // Keep the job lock through dispatch, as Start and Frame do, so a job
     // cannot begin between the eligibility check and the homing command.
     let job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
@@ -3714,6 +3717,7 @@ pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
             "Homing is disabled while rotary mode is active. Disable rotary mode and reconnect the normal axes before homing.",
         ));
     }
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
         .as_mut()
@@ -3825,7 +3829,6 @@ pub fn unlock(ctx: &ServiceContext) -> ServiceResult<()> {
 }
 
 pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
-    refuse_motion_during_test_fire(ctx)?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
     require_finite(input.x_mm, "x_mm")?;
     require_finite(input.y_mm, "y_mm")?;
@@ -3836,6 +3839,7 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
     if input.continuous && ctx.active_jog.load(Ordering::Acquire) {
         return Err(ServiceError::busy("A continuous jog is already active"));
     }
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
         .as_mut()
@@ -3876,7 +3880,8 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
                 let rotary_y =
                     profile.rotary_enabled && profile.rotary_axis != beambench_core::RotaryAxis::X;
                 if !rotary_x {
-                    x_mm = continuous_jog_travel(status.work_position.x, profile.bed_width_mm, x_mm);
+                    x_mm =
+                        continuous_jog_travel(status.work_position.x, profile.bed_width_mm, x_mm);
                 }
                 if !rotary_y {
                     y_mm =
@@ -5678,7 +5683,6 @@ pub fn move_laser_to_project_point(
     ctx: &ServiceContext,
     input: MoveLaserInput,
 ) -> ServiceResult<()> {
-    refuse_motion_during_test_fire(ctx)?;
     require_finite(input.x, "x")?;
     require_finite(input.y, "y")?;
     planning::sync_current_position(ctx)?;
@@ -5752,7 +5756,6 @@ pub fn move_laser_to_project_point(
 }
 
 pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResult<()> {
-    refuse_motion_during_test_fire(ctx)?;
     require_finite(input.x, "x")?;
     require_finite(input.y, "y")?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
@@ -5763,6 +5766,7 @@ pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResu
         ));
     }
     validate_optional_z(&profile, input.z, "Go")?;
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
         .as_mut()
@@ -5819,7 +5823,7 @@ pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResu
 }
 
 pub fn move_laser_to_machine(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResult<()> {
-    refuse_motion_during_test_fire(ctx)?;
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     require_finite(input.x, "x")?;
     require_finite(input.y, "y")?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
@@ -5876,18 +5880,20 @@ fn fire_s_value(profile: &MachineProfile, power_percent: f64) -> u32 {
 
 /// Moving with test fire on would drag a live beam across the work. Refuse
 /// motion until the fire button is released.
-fn refuse_motion_during_test_fire(ctx: &ServiceContext) -> ServiceResult<()> {
-    let firing = ctx
+fn refuse_motion_during_test_fire(
+    ctx: &ServiceContext,
+) -> ServiceResult<std::sync::MutexGuard<'_, Option<LaserFireState>>> {
+    let guard = ctx
         .active_laser_fire
         .lock()
-        .map_err(|e| lock_err("active_laser_fire", e))?
-        .is_some();
-    if firing {
+        .map_err(|e| lock_err("active_laser_fire", e))?;
+    if guard.is_some() {
         return Err(ServiceError::invalid_state(
             "Release test fire before moving the laser",
         ));
     }
-    Ok(())
+    // Keep the guard through motion dispatch: fire start takes this same lock.
+    Ok(guard)
 }
 
 fn force_laser_fire_stop(ctx: &ServiceContext, reason: &str) -> ServiceResult<()> {
@@ -5966,11 +5972,11 @@ pub fn laser_fire_start(
     ctx: Arc<ServiceContext>,
     power_percent: Option<f64>,
 ) -> ServiceResult<LaserFireStartResult> {
+    // Keep job eligibility stable through fire dispatch, using job -> fire -> session.
     let job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
     if job_lock.is_some() {
         return Err(ServiceError::invalid_state("MACHINE_BUSY_JOB_RUNNING"));
     }
-    drop(job_lock);
 
     let profile = active_profile(&ctx)?;
     if !profile.enable_laser_fire_button {
@@ -6011,23 +6017,36 @@ pub fn laser_fire_start(
                 "Manual fire is only supported on GCode/GRBL controllers",
             ));
         };
-        if let Err(error) = session.send_command(&grbl_commands::laser_fire_on(s_value)) {
-            // The M3 line may have reached the controller before the write
-            // reported failure (for example a flush timeout). No deadman
-            // exists yet, so turn the output off here.
-            return Err(match session.send_command(grbl_commands::laser_fire_off()) {
-                Ok(()) => ServiceError::machine(format!("Manual fire could not start: {error}")),
-                Err(stop_error) => ServiceError::machine(format!(
-                    "[emergency_stop_unconfirmed] Manual fire failed to start and the laser-off command also failed: {error}; {stop_error}. Use the machine's physical emergency stop or disconnect laser power now."
-                )),
-            });
-        }
         *active_guard = Some(LaserFireState {
             token: token.clone(),
             expires_at: now + FIRE_KEEPALIVE_GRACE,
             max_expires_at: now + FIRE_MAX_HOLD,
             stop_requested: false,
         });
+        if let Err(error) = session.send_command(&grbl_commands::laser_fire_on(s_value)) {
+            // The M3 line may have reached the controller before the write
+            // reported failure (for example a flush timeout). Stop now,
+            // retaining the armed state for retries if the stop also fails.
+            return Err(
+                match session.send_command(grbl_commands::laser_fire_off()) {
+                    Ok(()) => {
+                        *active_guard = None;
+                        ServiceError::machine(format!("Manual fire could not start: {error}"))
+                    }
+                    Err(stop_error) => {
+                        let active = active_guard
+                            .as_mut()
+                            .expect("fire stop responsibility is armed");
+                        active.stop_requested = true;
+                        active.expires_at = Instant::now();
+                        spawn_laser_fire_deadman(Arc::clone(&ctx), token.clone());
+                        ServiceError::machine(format!(
+                            "[emergency_stop_unconfirmed] Manual fire failed to start and the laser-off command also failed: {error}; {stop_error}. Use the machine's physical emergency stop or disconnect laser power now."
+                        ))
+                    }
+                },
+            );
+        }
     }
 
     spawn_laser_fire_deadman(Arc::clone(&ctx), token.clone());
@@ -9511,6 +9530,7 @@ mod tests {
         status_on_query: VecDeque<String>,
         lines: Vec<String>,
         bytes: Vec<Vec<u8>>,
+        motion_write_gate: Option<(std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>)>,
         fail_m5_writes: usize,
         fail_line_writes: usize,
         fail_line_after: Option<usize>,
@@ -9581,6 +9601,13 @@ mod tests {
         }
 
         fn write_line(&mut self, line: &str) -> Result<(), SerialError> {
+            if line.starts_with("G1 ") {
+                let gate = self.state.lock().unwrap().motion_write_gate.take();
+                if let Some((entered, release)) = gate {
+                    entered.send(()).unwrap();
+                    release.recv_timeout(Duration::from_secs(5)).unwrap();
+                }
+            }
             let mut state = self.state.lock().unwrap();
             state.lines.push(line.to_string());
             if let Some(remaining) = state.fail_line_after.as_mut() {
@@ -10077,7 +10104,10 @@ mod tests {
             state.fail_open_attempts = 4;
         }
         let error = emergency_stop(&ctx).unwrap_err();
-        assert!(error.message.contains("emergency_stop_unconfirmed"), "{error}");
+        assert!(
+            error.message.contains("emergency_stop_unconfirmed"),
+            "{error}"
+        );
         assert!(
             sent_soft_resets(&transport) >= 1,
             "Ctrl-X was never attempted on the writable original handle"
@@ -10096,7 +10126,10 @@ mod tests {
         let error = prepare_shutdown(&ctx).unwrap_err();
         assert!(error.message.contains("could not be confirmed"), "{error}");
         assert!(!ctx.shutting_down.load(Ordering::Acquire));
-        assert!(ctx.session.lock().unwrap().is_some(), "window must stay connected");
+        assert!(
+            ctx.session.lock().unwrap().is_some(),
+            "window must stay connected"
+        );
 
         let (ctx, transport) = ready_grbl_context(MachineProfile::default());
         transport
@@ -10105,7 +10138,10 @@ mod tests {
             .status_on_query
             .push_back("<Idle|MPos:0,0,0|FS:0,1000>".into());
         let error = emergency_stop(&ctx).unwrap_err();
-        assert!(error.message.contains("emergency_stop_unconfirmed"), "{error}");
+        assert!(
+            error.message.contains("emergency_stop_unconfirmed"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -10125,7 +10161,11 @@ mod tests {
             .status_on_query
             .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
         disconnect_machine(&ctx).unwrap();
-        assert_eq!(sent_soft_resets(&transport), 1, "no stop sent before closing");
+        assert_eq!(
+            sent_soft_resets(&transport),
+            1,
+            "no stop sent before closing"
+        );
         assert!(ctx.session.lock().unwrap().is_none());
         assert!(ctx.job.lock().unwrap().is_none());
     }
@@ -10225,7 +10265,10 @@ mod tests {
                 },
             )
             .unwrap();
-            assert_eq!(sent_lines(&transport).last().map(String::as_str), Some(expected));
+            assert_eq!(
+                sent_lines(&transport).last().map(String::as_str),
+                Some(expected)
+            );
         }
         // A work offset outside both conventions: never travel more than the
         // bed size in one press.
@@ -11300,6 +11343,178 @@ mod tests {
     }
 
     #[test]
+    fn failed_fire_and_stop_block_motion_until_deadman_retry_succeeds() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_line_writes = 1;
+            state.fail_m5_writes = 100;
+        }
+        let error = laser_fire_start(Arc::clone(&ctx), None).unwrap_err();
+        assert!(error.message.contains("emergency_stop_unconfirmed"));
+        assert!(
+            ctx.active_laser_fire
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .stop_requested
+        );
+        let error = move_laser_to(
+            &ctx,
+            MoveLaserInput {
+                x: 100.0,
+                y: 20.0,
+                z: None,
+                feed_rate: 1000.0,
+            },
+        )
+        .unwrap_err();
+        assert!(error.message.contains("test fire"));
+        assert!(laser_fire_start(Arc::clone(&ctx), None).is_err());
+        assert!(
+            !sent_lines(&transport)
+                .iter()
+                .any(|line| line.starts_with("G1"))
+        );
+        transport.lock().unwrap().fail_m5_writes = 0;
+        assert!(wait_for_sent_line_count(
+            &transport,
+            "M5",
+            2,
+            Duration::from_secs(2)
+        ));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while ctx.active_laser_fire.lock().unwrap().is_some() {
+            assert!(
+                Instant::now() < deadline,
+                "stop responsibility was not cleared"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
+    fn fire_start_waits_until_go_dispatch_finishes() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        transport.lock().unwrap().motion_write_gate = Some((entered_tx, release_rx));
+        let moving = Arc::clone(&ctx);
+        let motion = std::thread::spawn(move || {
+            move_laser_to(
+                &moving,
+                MoveLaserInput {
+                    x: 100.0,
+                    y: 20.0,
+                    z: None,
+                    feed_rate: 1000.0,
+                },
+            )
+        });
+        entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(matches!(
+            ctx.active_laser_fire.try_lock(),
+            Err(std::sync::TryLockError::WouldBlock)
+        ));
+        let firing = Arc::clone(&ctx);
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let fire = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            done_tx.send(laser_fire_start(firing, None)).unwrap();
+        });
+        started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(done_rx.recv_timeout(Duration::from_millis(50)).is_err());
+        release_tx.send(()).unwrap();
+        motion.join().unwrap().unwrap();
+        let result = done_rx
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap()
+            .unwrap();
+        fire.join().unwrap();
+        assert_eq!(
+            sent_lines(&transport),
+            vec!["G1 X100.000 Y20.000 F1000", "M3 S10"]
+        );
+        laser_fire_stop(&ctx, &result.token).unwrap();
+    }
+
+    #[test]
+    fn marlin_failed_automatic_halt_is_reported_and_can_be_retried() {
+        use beambench_common::controller_choice::{
+            ControllerChoiceSource, ResolvedControllerChoice,
+        };
+        let transport = Arc::new(Mutex::new(RecordingTransportState {
+            rx: VecDeque::from([
+                "FIRMWARE_NAME:Marlin 2.1.3 SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin PROTOCOL_VERSION:1.0 MACHINE_TYPE:Laser Cutter".into(),
+                "Cap:EMERGENCY_PARSER:1".into(), "ok".into(),
+            ]),
+            ..RecordingTransportState::default()
+        }));
+        let mut serial = MarlinSerialSession::new(
+            Box::new(RecordingTransport::new(Arc::clone(&transport))),
+            MarlinSerialSessionConfig {
+                identity_timeout: Duration::from_millis(200),
+                poll_interval: Duration::ZERO,
+                ..MarlinSerialSessionConfig::default()
+            },
+        );
+        serial.connect().unwrap();
+        serial.probe_identity().unwrap();
+        serial.activate().unwrap();
+        let choice = ResolvedControllerChoice {
+            selection: ExplicitControllerSelection::KnownDriver {
+                driver: ControllerDriverId::Marlin,
+            },
+            driver: ControllerDriverId::Marlin,
+            source: ControllerChoiceSource::KnownDriverSelection,
+            detected_identity: None,
+            requires_experimental_mode: true,
+            mismatch: false,
+            override_scope: None,
+            requires_experimental_compatibility_handshake: false,
+        };
+        let mut session = MarlinRuntimeSession::from_choice(serial, &choice);
+        let job = MarlinRuntimeJob::start_with_duration(
+            vec!["G1 X10 F1000".into(), "M5".into(), "M400".into()],
+            &mut session,
+            None,
+        )
+        .unwrap();
+        let ctx = ServiceContext::new();
+        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Marlin(session));
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Marlin(job));
+        let mut events = ctx.events.subscribe();
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_reads = 1;
+            state.fail_line_after = Some(1); // G1 succeeds, emergency M112 fails.
+        }
+        let progress = tick_job(&ctx).unwrap().unwrap();
+        assert_eq!(progress.state, JobState::Failed);
+        let message = progress.error_message.unwrap();
+        assert!(message.contains("injected read failure"), "{message}");
+        assert!(message.contains("emergency_stop_unconfirmed"), "{message}");
+        assert!(message.contains("M112 failed"), "{message}");
+        assert!(message.contains("physical emergency stop"), "{message}");
+        let mut reported = false;
+        while let Ok(raw) = events.try_recv() {
+            reported |= raw.contains("emergency_stop_unconfirmed");
+        }
+        assert!(reported, "job progress must report the failed halt");
+        assert!(ctx.session.lock().unwrap().is_some());
+        emergency_stop(&ctx).unwrap();
+        assert_eq!(
+            sent_lines(&transport)
+                .iter()
+                .filter(|line| *line == "M112")
+                .count(),
+            2
+        );
+    }
+
+    #[test]
     fn a_failed_fire_start_turns_the_laser_back_off() {
         let (ctx, transport) = ready_grbl_context(fire_profile());
         // The M3 line is written, then the write reports failure (as a flush
@@ -11323,7 +11538,11 @@ mod tests {
                 .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
         }
         disconnect_machine(&ctx).unwrap();
-        assert_eq!(sent_soft_resets(&transport), 1, "a failed M5 must fall back to a reset");
+        assert_eq!(
+            sent_soft_resets(&transport),
+            1,
+            "a failed M5 must fall back to a reset"
+        );
         assert!(ctx.active_laser_fire.lock().unwrap().is_none());
         assert!(ctx.session.lock().unwrap().is_none());
     }
@@ -11357,7 +11576,11 @@ mod tests {
             let error = result.unwrap_err();
             assert!(error.message.contains("test fire"), "{error}");
         }
-        assert_eq!(sent_lines(&transport).len(), before, "no motion while firing");
+        assert_eq!(
+            sent_lines(&transport).len(),
+            before,
+            "no motion while firing"
+        );
     }
 
     #[test]
@@ -11909,7 +12132,10 @@ mod tests {
             }
             if stop_write_fails {
                 let warning = warning.expect("an unconfirmed automatic stop must be reported");
-                assert!(warning.contains("[emergency_stop_unconfirmed]"), "{warning}");
+                assert!(
+                    warning.contains("[emergency_stop_unconfirmed]"),
+                    "{warning}"
+                );
             } else {
                 assert_eq!(warning, None);
             }

@@ -10,8 +10,8 @@ use tracing::{debug, warn};
 
 /// USB identity used to re-find a port renamed after a replug. VID/PID alone
 /// is shared by every board with the same USB chip (CH340 is in most hobby
-/// lasers and many 3D printers), so the serial number is compared when the
-/// device has one.
+/// lasers and many 3D printers). A serial number is required to follow a
+/// renamed endpoint automatically.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct UsbIdentity {
     vid: u16,
@@ -35,7 +35,9 @@ fn usb_ports() -> Option<Vec<UsbPort>> {
                     serialport::SerialPortType::UsbPort(info) => Some(UsbIdentity {
                         vid: info.vid,
                         pid: info.pid,
-                        serial: info.serial_number.filter(|serial| !serial.trim().is_empty()),
+                        serial: info
+                            .serial_number
+                            .filter(|serial| !serial.trim().is_empty()),
                     }),
                     _ => None,
                 };
@@ -107,26 +109,39 @@ impl RealSerialTransport {
             .collect();
     }
 
-    fn rediscover_usb_port(&mut self) {
+    fn rediscover_usb_port(&mut self) -> Result<(), SerialError> {
         let Some(ports) = usb_ports() else {
-            return;
+            return Ok(());
         };
-        if ports.iter().any(|port| port.name == self.port_name) {
-            return;
+        self.rediscover_from_ports(&ports)
+    }
+
+    fn rediscover_from_ports(&mut self, ports: &[UsbPort]) -> Result<(), SerialError> {
+        if let Some(port) = ports.iter().find(|port| port.name == self.port_name) {
+            if self.usb_identity.as_ref().is_some_and(|identity| {
+                identity.serial.is_some() && port.identity.as_ref() != Some(identity)
+            }) {
+                return Err(SerialError::ConnectionFailed(format!(
+                    "The USB device on {} changed identity. Select the intended controller before reconnecting.",
+                    self.port_name
+                )));
+            }
+            return Ok(());
         }
         let Some(usb_identity) = self.usb_identity.as_ref() else {
-            return;
+            return Ok(());
         };
         let Some(replacement) = replacement_usb_port(
             &self.port_name,
             usb_identity,
             &self.known_other_ports,
-            &ports,
+            ports,
         ) else {
-            return;
+            return Ok(());
         };
         debug!(old_port = %self.port_name, new_port = %replacement, "USB serial port name changed");
         self.port_name = replacement;
+        Ok(())
     }
 }
 
@@ -136,13 +151,15 @@ fn port_name_family(port_name: &str) -> &str {
 
 /// The renamed port of the same physical device, or None when that cannot be
 /// established. Ports that already existed beside ours belong to other
-/// devices; with a serial number, only an exact match qualifies.
+/// devices. A nonempty serial number and exact identity match are required.
 fn replacement_usb_port(
     old_port_name: &str,
     usb_identity: &UsbIdentity,
     known_other_ports: &HashSet<String>,
     ports: &[UsbPort],
 ) -> Option<String> {
+    // A new port with the same USB chip is not proof of the same machine.
+    usb_identity.serial.as_ref()?;
     let matches = ports
         .iter()
         .filter(|port| !known_other_ports.contains(&port.name))
@@ -150,7 +167,7 @@ fn replacement_usb_port(
             port.identity.as_ref().is_some_and(|identity| {
                 identity.vid == usb_identity.vid
                     && identity.pid == usb_identity.pid
-                    && (usb_identity.serial.is_none() || identity.serial == usb_identity.serial)
+                    && identity.serial == usb_identity.serial
             })
         })
         .collect::<Vec<_>>();
@@ -232,7 +249,7 @@ impl SerialTransport for RealSerialTransport {
         }
 
         debug!(port = %self.port_name, baud = self.baud_rate, "Opening serial port");
-        self.rediscover_usb_port();
+        self.rediscover_usb_port()?;
 
         let port = serialport::new(&self.port_name, self.baud_rate)
             .timeout(Duration::from_millis(100))
@@ -400,15 +417,54 @@ mod tests {
         // already on ttyUSB1. Reconnect must not pick the printer.
         let known: HashSet<String> = ["/dev/ttyUSB1".to_string()].into();
         let ports = vec![usb_port("/dev/ttyUSB1", 0x1a86, 0x7523)];
-        assert_eq!(replacement_usb_port("/dev/ttyUSB0", &ch340(None), &known, &ports), None);
-        // When the laser reappears under a new name, it is found.
+        assert_eq!(
+            replacement_usb_port("/dev/ttyUSB0", &ch340(None), &known, &ports),
+            None
+        );
+        // Without a serial number, even a newly appearing port is unverified.
         let ports = vec![
             usb_port("/dev/ttyUSB1", 0x1a86, 0x7523),
             usb_port("/dev/ttyUSB2", 0x1a86, 0x7523),
         ];
         assert_eq!(
             replacement_usb_port("/dev/ttyUSB0", &ch340(None), &known, &ports).as_deref(),
-            Some("/dev/ttyUSB2")
+            None
+        );
+    }
+
+    #[test]
+    fn reused_port_name_cannot_replace_a_known_serial_number() {
+        let mut transport = RealSerialTransport::new_without_dtr("COM3", 115_200);
+        transport.usb_identity = Some(ch340(Some("laser-A")));
+        let other = vec![usb_port_with_serial(
+            "COM3",
+            0x1a86,
+            0x7523,
+            Some("printer-B"),
+        )];
+        assert!(
+            transport
+                .rediscover_from_ports(&other)
+                .unwrap_err()
+                .to_string()
+                .contains("changed identity")
+        );
+        assert_eq!(transport.usb_identity, Some(ch340(Some("laser-A"))));
+        let same = vec![usb_port_with_serial(
+            "COM3",
+            0x1a86,
+            0x7523,
+            Some("laser-A"),
+        )];
+        transport.rediscover_from_ports(&same).unwrap();
+    }
+
+    #[test]
+    fn newly_plugged_same_chip_is_not_a_verified_replacement() {
+        let ports = vec![usb_port("COM8", 0x1a86, 0x7523)];
+        assert_eq!(
+            replacement_usb_port("COM3", &ch340(None), &HashSet::new(), &ports),
+            None
         );
     }
 
@@ -416,7 +472,10 @@ mod tests {
     fn a_serial_number_must_match_when_the_device_has_one() {
         let known = HashSet::new();
         let other = vec![usb_port_with_serial("COM5", 0x1a86, 0x7523, Some("B"))];
-        assert_eq!(replacement_usb_port("COM3", &ch340(Some("A")), &known, &other), None);
+        assert_eq!(
+            replacement_usb_port("COM3", &ch340(Some("A")), &known, &other),
+            None
+        );
         let same = vec![usb_port_with_serial("COM5", 0x1a86, 0x7523, Some("A"))];
         assert_eq!(
             replacement_usb_port("COM3", &ch340(Some("A")), &known, &same).as_deref(),
@@ -428,7 +487,9 @@ mod tests {
     fn buffered_replies_survive_a_later_read_error_and_lines_decode_whole() {
         let mut transport = RealSerialTransport::new_without_dtr("unused", 115_200);
         // "é" is two bytes; a read boundary between them must not corrupt it.
-        transport.line_buffer.extend_from_slice(b"ok\nALARM:1\n[MSG:\xc3");
+        transport
+            .line_buffer
+            .extend_from_slice(b"ok\nALARM:1\n[MSG:\xc3");
         // No port is open, so the next read would fail. Lines already
         // received are still delivered first.
         assert_eq!(transport.read_line().unwrap().as_deref(), Some("ok"));
@@ -441,13 +502,13 @@ mod tests {
     #[test]
     fn rediscovers_a_renamed_usb_port_in_the_same_endpoint_family() {
         let ports = vec![
-            usb_port("/dev/cu.usbserial-110", 0x1a86, 0x7523),
-            usb_port("/dev/tty.usbserial-110", 0x1a86, 0x7523),
+            usb_port_with_serial("/dev/cu.usbserial-110", 0x1a86, 0x7523, Some("laser-A")),
+            usb_port_with_serial("/dev/tty.usbserial-110", 0x1a86, 0x7523, Some("laser-A")),
         ];
 
         let replacement = replacement_usb_port(
             "/dev/cu.usbserial-10",
-            &ch340(None),
+            &ch340(Some("laser-A")),
             &HashSet::new(),
             &ports,
         );

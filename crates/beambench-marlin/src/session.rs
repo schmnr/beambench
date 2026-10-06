@@ -73,6 +73,13 @@ pub enum MarlinSessionError {
     Serial(#[from] SerialError),
     #[error(transparent)]
     Acknowledgement(#[from] AckFlowError),
+    #[error(
+        "[emergency_stop_unconfirmed] {job_error}; emergency halt M112 failed: {stop_error}. Use the machine's physical emergency stop or disconnect laser power now."
+    )]
+    EmergencyStopFailed {
+        job_error: Box<MarlinSessionError>,
+        stop_error: SerialError,
+    },
     #[error("cannot {action} while the Marlin session is {state:?}")]
     InvalidState {
         action: &'static str,
@@ -293,16 +300,22 @@ impl MarlinSerialSession {
     pub fn tick(&mut self, now: Instant) -> Result<Vec<LineProtocolEvent>, MarlinSessionError> {
         self.require_state("advance a job", MarlinSessionState::Running)?;
         let result = self.tick_inner(now);
-        if result.is_err() {
+        if let Err(job_error) = result {
             // A failed job (lost acknowledgements, a controller error, a link
             // fault) does not prove the controller stopped: queued moves may
             // still be running with the laser on. Halt it, best effort.
             if let Some(flow) = self.job_flow.as_mut() {
                 flow.cancel();
             }
-            let _ = self.transport.write_line(MARLIN_CANCEL_COMMAND);
             self.state = MarlinSessionState::RecoveryRequired;
             self.job_outcome = Some(MarlinJobOutcome::FailedRecoveryRequired);
+            return Err(match self.transport.write_line(MARLIN_CANCEL_COMMAND) {
+                Ok(()) => job_error,
+                Err(stop_error) => MarlinSessionError::EmergencyStopFailed {
+                    job_error: Box::new(job_error),
+                    stop_error,
+                },
+            });
         }
         result
     }
@@ -362,7 +375,9 @@ impl MarlinSerialSession {
         // shutdown attempt, the halt must still be sendable.
         if !matches!(
             self.state,
-            MarlinSessionState::Ready | MarlinSessionState::Running | MarlinSessionState::RecoveryRequired
+            MarlinSessionState::Ready
+                | MarlinSessionState::Running
+                | MarlinSessionState::RecoveryRequired
         ) {
             return Err(MarlinSessionError::InvalidState {
                 action: "request emergency shutdown",
@@ -640,8 +655,15 @@ mod tests {
         );
         let sent = handle.sent_lines().len();
         session.emergency_shutdown().unwrap();
-        assert_eq!(handle.sent_lines().len(), sent + 1, "E-stop must resend M112");
-        assert_eq!(handle.sent_lines().last().map(String::as_str), Some(MARLIN_CANCEL_COMMAND));
+        assert_eq!(
+            handle.sent_lines().len(),
+            sent + 1,
+            "E-stop must resend M112"
+        );
+        assert_eq!(
+            handle.sent_lines().last().map(String::as_str),
+            Some(MARLIN_CANCEL_COMMAND)
+        );
         session.disconnect().unwrap();
     }
 
