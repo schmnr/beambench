@@ -1949,7 +1949,7 @@ fn build_cardinal_raster_scanlines(
     max_runs: Option<usize>,
     budget: &mut RasterPlanBudget,
 ) -> Result<CardinalScanlines, PlannerError> {
-    use beambench_raster::{rotate_raster, transpose_raster};
+    use beambench_raster::transpose_raster;
 
     let build = |raster: Arc<beambench_raster::ProcessedRaster>, origin_x, origin_y| {
         if let Some(limit) = max_runs {
@@ -1987,26 +1987,52 @@ fn build_cardinal_raster_scanlines(
             build(transposed, bounds.min.y, bounds.min.x)
                 .map(|sl| (sl, line_interval_mm, ScanAxis::Vertical))
         }
-        // 180°: horizontal scan, flipped (reverse scanline and run order)
+        // 180° and 270° scan the same world-space pixels as 0° and 90°, in
+        // the opposite order and direction. Rotating the bitmap instead would
+        // rotate the artwork itself, so crosshatch passes burned different
+        // content on each pass.
         (ScanAxis::Horizontal, true) => {
-            budget.precheck_bitmap(processed.data.len())?;
-            let rotated =
-                Arc::new(rotate_raster(processed, 180.0, bounds.width(), bounds.height()).raster);
-            let line_interval_mm = rotated.line_interval_mm;
-            build(rotated, bounds.min.x, bounds.min.y)
-                .map(|sl| (sl, line_interval_mm, ScanAxis::Horizontal))
+            let line_interval_mm = processed.line_interval_mm;
+            build(Arc::clone(processed), bounds.min.x, bounds.min.y).map(|sl| {
+                (
+                    reverse_scan_order(sl, bidirectional),
+                    line_interval_mm,
+                    ScanAxis::Horizontal,
+                )
+            })
         }
-        // 270°: vertical scan via transpose of 180°-flipped raster
         (ScanAxis::Vertical, true) => {
             budget.precheck_bitmap(processed.data.len())?;
-            let rotated = rotate_raster(processed, 180.0, bounds.width(), bounds.height());
-            let transposed = Arc::new(transpose_raster(&rotated.raster));
-            drop(rotated);
+            let transposed = Arc::new(transpose_raster(processed));
             let line_interval_mm = transposed.line_interval_mm;
-            build(transposed, bounds.min.y, bounds.min.x)
-                .map(|sl| (sl, line_interval_mm, ScanAxis::Vertical))
+            build(transposed, bounds.min.y, bounds.min.x).map(|sl| {
+                (
+                    reverse_scan_order(sl, bidirectional),
+                    line_interval_mm,
+                    ScanAxis::Vertical,
+                )
+            })
         }
     })
+}
+
+/// Traverse rows last-to-first and each row in the opposite direction,
+/// without moving any burned pixel. Unidirectional scans run every row in
+/// reverse; bidirectional scans start reversed and alternate.
+fn reverse_scan_order(mut scanlines: Vec<Scanline>, bidirectional: bool) -> Vec<Scanline> {
+    scanlines.reverse();
+    for (index, scanline) in scanlines.iter_mut().enumerate() {
+        let wanted = if !bidirectional || index % 2 == 0 {
+            ScanDirection::RightToLeft
+        } else {
+            ScanDirection::LeftToRight
+        };
+        if scanline.direction != wanted {
+            scanline.runs.reverse();
+            scanline.direction = wanted;
+        }
+    }
+    scanlines
 }
 
 /// Bound retained image pixels and total output work across images and angle passes.

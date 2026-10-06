@@ -707,7 +707,9 @@ fn fill_and_offset_fill_apply_object_power_scale() {
         let powers = burn_powers(&build(&project, ProjectOptimization::default()));
         assert!(!powers.is_empty(), "{operation:?}");
         assert!(
-            powers.iter().all(|power| (*power - layer_power * 0.5).abs() < 1e-9),
+            powers
+                .iter()
+                .all(|power| (*power - layer_power * 0.5).abs() < 1e-9),
             "{operation:?}: {powers:?}"
         );
     }
@@ -722,9 +724,77 @@ fn zero_power_scale_objects_do_not_burn_in_fills() {
         add_rectangle(&mut project, "kept", layer_id, 60.0, 60.0, 5.0, 5.0);
         let powers = burn_powers(&build(&project, ProjectOptimization::default()));
         assert!(!powers.is_empty(), "{operation:?}");
-        assert!(powers.iter().all(|power| *power > 0.0), "{operation:?}: {powers:?}");
+        assert!(
+            powers.iter().all(|power| *power > 0.0),
+            "{operation:?}: {powers:?}"
+        );
         let plan = build(&project, ProjectOptimization::default());
         let bounds = beambench_planner::calculate_work_bounds(&plan.segments);
-        assert!(bounds.min.x >= 59.0, "{operation:?}: zero-power shape burned: {bounds:?}");
+        assert!(
+            bounds.min.x >= 59.0,
+            "{operation:?}: zero-power shape burned: {bounds:?}"
+        );
+    }
+}
+
+// ---- scan angles keep the artwork in place ----
+
+fn half_black_image_project(width: f64, height: f64, angle: f64) -> Project {
+    let mut project = Project::new("scan-angle");
+    project.layers.clear();
+    project.workspace.origin = WorkspaceOrigin::TopLeft;
+    let mut layer = Layer::new("image".to_string(), OperationType::Image);
+    let settings = layer.primary_entry_mut().raster_settings.as_mut().unwrap();
+    settings.pass_through = true;
+    settings.scan_angle = angle;
+    settings.overscan_mm = 0.0;
+    let layer_id = layer.id;
+    project.layers.push(layer);
+    // Left half black (burn), right half white.
+    let img = GrayImage::from_fn(8, 8, |x, _| Luma([if x >= 4 { 255 } else { 0 }]));
+    let mut bytes = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut bytes)
+        .write_image(img.as_raw(), 8, 8, image::ExtendedColorType::L8)
+        .unwrap();
+    let asset = Asset::new("half.png", AssetMediaType::Png, bytes.len() as u64, Some(8), Some(8));
+    let asset_key = asset.id.to_string();
+    project.add_asset(asset, bytes);
+    project.add_object(ProjectObject::new(
+        "image",
+        layer_id,
+        Bounds::new(Point2D::new(50.0, 50.0), Point2D::new(50.0 + width, 50.0 + height)),
+        ObjectData::RasterImage {
+            asset_key,
+            original_width_px: 8,
+            original_height_px: 8,
+            adjustments: None,
+            masks: vec![],
+        },
+    ));
+    project
+}
+
+#[test]
+fn cardinal_scan_angles_burn_the_same_pixels() {
+    let burn_bounds = |angle: f64| {
+        let plan = build(
+            &half_black_image_project(8.0, 8.0, angle),
+            ProjectOptimization::default(),
+        );
+        beambench_planner::calculate_work_bounds(&plan.segments)
+    };
+    // The black half is X 50..54. Reversing the scan (180 vs 0, 270 vs 90)
+    // must burn exactly the same area; before the fix it moved to X 54..58.
+    // (Horizontal and vertical scans differ by one pixel at the edges, since
+    // rows sit on a line while runs span pixel edges, so they are compared
+    // within each axis.)
+    assert!((burn_bounds(0.0).max.x - 54.0).abs() < 1e-6);
+    for (forward, reversed) in [(0.0, 180.0), (90.0, 270.0)] {
+        let (a, b) = (burn_bounds(forward), burn_bounds(reversed));
+        let same = (a.min.x - b.min.x).abs() < 1e-6
+            && (a.max.x - b.max.x).abs() < 1e-6
+            && (a.min.y - b.min.y).abs() < 1e-6
+            && (a.max.y - b.max.y).abs() < 1e-6;
+        assert!(same, "{reversed} degrees moved the artwork: {b:?} vs {forward}: {a:?}");
     }
 }
