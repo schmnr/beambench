@@ -1523,6 +1523,13 @@ fn import_pending(
         return Ok(imported_objects);
     }
 
+    if project.objects.len() > IMPORT_OBJECT_LIMIT {
+        return Err(ServiceError::invalid_input(format!(
+            "This import would leave {} objects in the project, more than the {IMPORT_OBJECT_LIMIT} it can save. Join or simplify the shapes, or split the project before importing again.",
+            project.objects.len()
+        )));
+    }
+
     // Refresh text caches for any imported text objects (SVG text import
     // creates objects with resolved_path_data: None).
     super::project::refresh_project_text_caches(project);
@@ -4463,6 +4470,43 @@ mod tests {
     }
 
     #[test]
+    fn svg_and_lbrn_object_limit_failures_leave_the_session_unchanged() {
+        let (ctx, layer_id) = art_library_import_context();
+        {
+            let mut guard = ctx.project.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            let object = ProjectObject::new(
+                "existing",
+                layer_id,
+                Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(1.0, 1.0)),
+                ObjectData::VectorPath {
+                    path_data: "M0 0 L1 1".into(),
+                    closed: false,
+                    ruler_guide_axis: None,
+                },
+            );
+            project.objects.resize(IMPORT_OBJECT_LIMIT, object);
+            project.dirty = false;
+        }
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="5" height="5"/></svg>"#;
+        for (filename, bytes) in [
+            ("limit.svg", svg.to_vec()),
+            ("limit.lbrn2", sample_lbrn_project()),
+        ] {
+            let pending = prepare_pending_import(filename, bytes, None).unwrap();
+            let error = import_pending(&ctx, layer_id, vec![pending], None).unwrap_err();
+            assert!(error.message.contains("250000"), "{error}");
+            let guard = ctx.project.lock().unwrap();
+            let project = guard.as_ref().unwrap();
+            assert_eq!(project.objects.len(), IMPORT_OBJECT_LIMIT);
+            assert!(!project.dirty);
+            assert_eq!(project.layers.len(), 1);
+            assert!(!ctx.undo_state().unwrap().can_undo);
+            assert!(ctx.plan_cache.lock().unwrap().is_some());
+        }
+    }
+
+    #[test]
     fn y_up_design_exports_round_trip_without_mirroring() {
         let mut source = Project::new("Round trip");
         source.workspace.bed_height_mm = 100.0;
@@ -4484,16 +4528,28 @@ mod tests {
                 "application/dxf",
                 beambench_core::export_dxf(&source, false, &[]).into_bytes(),
             ),
-            ("round.pdf", "application/pdf", export_pdf(&source, false, &[]).unwrap()),
+            (
+                "round.pdf",
+                "application/pdf",
+                export_pdf(&source, false, &[]).unwrap(),
+            ),
             (
                 "round.eps",
                 "application/postscript",
-                beambench_core::export_eps(&source, false, &[]).unwrap().into_bytes(),
+                beambench_core::export_eps(&source, false, &[])
+                    .unwrap()
+                    .into_bytes(),
             ),
         ];
         for (filename, media_type, bytes) in exports {
             let (ctx, layer_id) = art_library_import_context();
-            ctx.project.lock().unwrap().as_mut().unwrap().workspace.bed_height_mm = 100.0;
+            ctx.project
+                .lock()
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .workspace
+                .bed_height_mm = 100.0;
             let objects =
                 import_art_library_item(&ctx, layer_id, "Round", filename, media_type, bytes)
                     .unwrap();
@@ -4503,8 +4559,14 @@ mod tests {
                 .filter(|object| matches!(object.data, ObjectData::VectorPath { .. }))
                 .collect();
             assert!(!vectors.is_empty(), "{filename}: no vector imported");
-            let min_y = vectors.iter().map(|o| o.bounds.min.y).fold(f64::MAX, f64::min);
-            let max_y = vectors.iter().map(|o| o.bounds.max.y).fold(f64::MIN, f64::max);
+            let min_y = vectors
+                .iter()
+                .map(|o| o.bounds.min.y)
+                .fold(f64::MAX, f64::min);
+            let max_y = vectors
+                .iter()
+                .map(|o| o.bounds.max.y)
+                .fold(f64::MIN, f64::max);
             assert!(
                 (min_y - 20.0).abs() < 0.05 && (max_y - 40.0).abs() < 0.05,
                 "{filename}: y {min_y}..{max_y}"

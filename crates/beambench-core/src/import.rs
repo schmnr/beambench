@@ -10,7 +10,9 @@ use crate::object::{
     ObjectData, ObjectId, ProjectObject, TextAlignment, TextAlignmentV, TextLayoutMode,
 };
 use crate::project::Project;
-use crate::vector::boolean::{path_intersection_with_tolerance, weld_shapes_with_tolerance};
+use crate::vector::boolean::{
+    normalize_subject_with_tolerance, path_intersection_with_tolerance, weld_shapes_with_tolerance,
+};
 use crate::vector::flatten::flatten_vecpath;
 use crate::vector::normalize::{VECTOR_PATH_FLATTEN_TOLERANCE_MM, cleanup_vecpath_for_planner};
 use crate::vector::text_to_path::{can_resolve_font, font_ascender_mm};
@@ -150,10 +152,7 @@ fn root_viewbox_transform(root: roxmltree::Node) -> Transform2D {
 
 /// The transform from a `<text>` element's user units to document px, when
 /// the text is drawn directly with a uniform scale and no rotation or skew.
-fn editable_text_transform(
-    text: roxmltree::Node,
-    root_map: &Transform2D,
-) -> Option<Transform2D> {
+fn editable_text_transform(text: roxmltree::Node, root_map: &Transform2D) -> Option<Transform2D> {
     let root = text.document().root_element();
     let mut chain = Vec::new();
     for node in text.ancestors().filter(|node| node.is_element()) {
@@ -510,7 +509,14 @@ pub fn import_svg(
     // is how multi-operation designs mark which parts get which settings;
     // a single flattened object made parts unselectable — report #13).
     let mut paint_groups: Vec<PaintGroup> = Vec::new();
-    collect_paths_by_paint(tree.root(), scale, offset_x, offset_y, None, &mut paint_groups);
+    collect_paths_by_paint(
+        tree.root(),
+        scale,
+        offset_x,
+        offset_y,
+        None,
+        &mut paint_groups,
+    );
 
     // Preserve embedded raster artwork as real project image assets. usvg
     // already resolves data-URI PNG/JPEG/GIF/WebP payloads and computes the
@@ -900,6 +906,9 @@ fn collect_paths_by_paint(
                     offset_y,
                 );
                 if let Some(clip) = clip {
+                    if let Some(fill) = path.fill() {
+                        bed_path = normalize_svg_fill(bed_path, fill.rule());
+                    }
                     bed_path = clip_to_region(&bed_path, path.fill().is_some(), clip);
                 }
                 cleanup_vecpath_for_planner(&mut bed_path, VECTOR_PATH_FLATTEN_TOLERANCE_MM);
@@ -996,11 +1005,13 @@ fn clip_region(
             match node {
                 usvg::Node::Path(path) if path.is_visible() => {
                     let t = base.pre_concat(path.abs_transform());
-                    region.push(transform_path_to_bed_space(path, &t, scale, offset_x, offset_y));
+                    let bed_path = transform_path_to_bed_space(path, &t, scale, offset_x, offset_y);
+                    region.push(normalize_svg_fill(
+                        bed_path,
+                        path.fill().map(|fill| fill.rule()).unwrap_or_default(),
+                    ));
                 }
-                usvg::Node::Group(child) => {
-                    collect(child, base, scale, offset_x, offset_y, region)
-                }
+                usvg::Node::Group(child) => collect(child, base, scale, offset_x, offset_y, region),
                 usvg::Node::Text(text) => {
                     collect(text.flattened(), base, scale, offset_x, offset_y, region)
                 }
@@ -1010,7 +1021,14 @@ fn clip_region(
     }
     let base = group.abs_transform().pre_concat(clip_path.transform());
     let mut parts = Vec::new();
-    collect(clip_path.root(), &base, scale, offset_x, offset_y, &mut parts);
+    collect(
+        clip_path.root(),
+        &base,
+        scale,
+        offset_x,
+        offset_y,
+        &mut parts,
+    );
     let mut region = weld_shapes_with_tolerance(&parts, VECTOR_PATH_FLATTEN_TOLERANCE_MM);
     if let Some(inner) = clip_path.clip_path() {
         region = path_intersection_with_tolerance(
@@ -1020,6 +1038,22 @@ fn clip_region(
         );
     }
     region
+}
+
+fn normalize_svg_fill(mut path: VecPath, rule: usvg::FillRule) -> VecPath {
+    // SVG fills implicitly close open contours.
+    for subpath in &mut path.subpaths {
+        if !subpath.closed {
+            subpath.commands.push(PathCommand::Close);
+            subpath.closed = true;
+        }
+    }
+    normalize_subject_with_tolerance(
+        &[path],
+        VECTOR_PATH_FLATTEN_TOLERANCE_MM,
+        VECTOR_PATH_FLATTEN_TOLERANCE_MM,
+        rule == usvg::FillRule::NonZero,
+    )
 }
 
 /// Keep the part of `path` inside `region`. Filled shapes become the
@@ -1039,8 +1073,7 @@ fn clip_to_region(path: &VecPath, filled: bool, region: &VecPath) -> VecPath {
         for ring in &rings {
             for (i, a) in ring.iter().enumerate() {
                 let b = ring[(i + 1) % ring.len()];
-                if (a.y > p.y) != (b.y > p.y)
-                    && p.x < a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y)
+                if (a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y)
                 {
                     crossings += 1;
                 }
@@ -1063,7 +1096,9 @@ fn clip_to_region(path: &VecPath, filled: bool, region: &VecPath) -> VecPath {
                     y: current[0].y,
                 });
                 for p in &current[1..] {
-                    subpath.commands.push(PathCommand::LineTo { x: p.x, y: p.y });
+                    subpath
+                        .commands
+                        .push(PathCommand::LineTo { x: p.x, y: p.y });
                 }
                 subpaths.push(subpath);
             }
@@ -2197,6 +2232,69 @@ mod tests {
     }
 
     #[test]
+    fn svg_clipping_respects_subject_and_clip_winding_rules() {
+        for clip_rule in ["nonzero", "evenodd"] {
+            for subject in ["stroke", "nonzero", "evenodd"] {
+                let data = "M0 0 H20 V20 H0 Z M10 0 H30 V20 H10 Z";
+                let subject = if subject == "stroke" {
+                    r#"<path d="M0 10 H30" fill="none" stroke="red"/>"#.to_string()
+                } else {
+                    format!(r#"<path d="{data}" fill-rule="{subject}"/>"#)
+                };
+                let svg = format!(
+                    r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+                    <defs><clipPath id="c"><path clip-rule="{clip_rule}" d="{data}"/></clipPath></defs>
+                    <g clip-path="url(#c)">{subject}</g></svg>"#
+                );
+                let mut project = test_project();
+                let layer_id = first_layer_id(&mut project);
+                let ids = import_svg(svg.as_bytes(), &mut project, layer_id).unwrap();
+                let lines: Vec<_> = ids
+                    .iter()
+                    .filter_map(|id| project.find_object(*id))
+                    .filter_map(|object| match &object.data {
+                        ObjectData::VectorPath { path_data, .. } => {
+                            Some(VecPath::parse_svg_d(path_data))
+                        }
+                        _ => None,
+                    })
+                    .flat_map(|path| flatten_vecpath(&path, 0.01))
+                    .collect();
+                let offset_x = (project.workspace.bed_width_mm - 100.0 * 25.4 / 96.0) / 2.0;
+                let overlap_x = offset_x + 15.0 * 25.4 / 96.0;
+                let retains_overlap = if subject.contains("stroke=") {
+                    lines.iter().any(|line| {
+                        line.points.windows(2).any(|p| {
+                            p[0].x.min(p[1].x) < overlap_x && p[0].x.max(p[1].x) > overlap_x
+                        })
+                    })
+                } else {
+                    // The midpoint of each retained region's bounds distinguishes
+                    // a full 30 px union from the two disjoint 10 px strips.
+                    lines.iter().any(|line| {
+                        let min = line
+                            .points
+                            .iter()
+                            .map(|p| p.x)
+                            .fold(f64::INFINITY, f64::min);
+                        let max = line
+                            .points
+                            .iter()
+                            .map(|p| p.x)
+                            .fold(f64::NEG_INFINITY, f64::max);
+                        min < overlap_x && max > overlap_x
+                    })
+                };
+                let expected = clip_rule == "nonzero" && !subject.contains("fill-rule=\"evenodd\"");
+                assert_eq!(
+                    retains_overlap, expected,
+                    "clip {clip_rule}, subject {subject}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn import_svg_text_follows_viewbox_scale_and_parent_transforms() {
         // 100 mm wide document with a 100 unit viewBox: one unit is 1 mm.
         let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm" viewBox="0 0 100 100">
@@ -2220,7 +2318,11 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(texts.len(), 1, "rotated text imports as outlines: {texts:?}");
+        assert_eq!(
+            texts.len(),
+            1,
+            "rotated text imports as outlines: {texts:?}"
+        );
         assert!(
             !imported_vector_widths(&project, &ids).is_empty(),
             "rotated text outlines are imported, not dropped"

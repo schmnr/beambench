@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use beambench_core::{
     ART_LIBRARY_FORMAT_VERSION, AppSettings, ArtLibraryDocument, ArtLibraryItem,
@@ -104,10 +105,21 @@ pub fn load_settings_with_notice() -> (AppSettings, Option<String>) {
 /// Stable code the frontend localizes when a saved file had to be reset.
 pub const SETTINGS_FILE_RECOVERED_CODE: &str = "settings_file_recovered";
 
+// A failed preservation must survive a later change in filesystem permissions:
+// writing defaults then would otherwise destroy the original file.
+static BLOCKED_JSON_WRITES: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
+
+fn blocked_json_writes() -> &'static Mutex<HashSet<PathBuf>> {
+    BLOCKED_JSON_WRITES.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
 /// Read a JSON file. A missing file is the normal first-run case and yields
 /// the default. A file that cannot be read or parsed is kept as
 /// `<name>.unreadable-<stamp>` and whatever `salvage` can recover is used.
-fn load_json_lenient<T>(path: &Path, salvage: fn(serde_json::Value) -> Option<T>) -> (T, Option<String>)
+fn load_json_lenient<T>(
+    path: &Path,
+    salvage: fn(serde_json::Value) -> Option<T>,
+) -> (T, Option<String>)
 where
     T: serde::de::DeserializeOwned + Default,
 {
@@ -117,7 +129,10 @@ where
             return (T::default(), None);
         }
         Err(error) => {
-            return (T::default(), Some(unreadable_notice(path, &error.to_string())));
+            return (
+                T::default(),
+                Some(preserve_unreadable_notice(path, &error.to_string())),
+            );
         }
     };
     let error = match serde_json::from_slice::<T>(&bytes) {
@@ -127,11 +142,7 @@ where
     let salvaged = serde_json::from_slice::<serde_json::Value>(&bytes)
         .ok()
         .and_then(salvage);
-    let kept = keep_unreadable_file(path, &bytes);
-    let mut notice = unreadable_notice(path, &error.to_string());
-    if let Some(kept) = kept {
-        notice.push_str(&format!(" The original was kept as {}.", kept.display()));
-    }
+    let notice = preserve_unreadable_notice(path, &error.to_string());
     (salvaged.unwrap_or_default(), Some(notice))
 }
 
@@ -142,13 +153,43 @@ fn unreadable_notice(path: &Path, detail: &str) -> String {
     )
 }
 
-/// Copy a damaged file beside the original so the next save cannot destroy
-/// the only copy of the user's data.
-fn keep_unreadable_file(path: &Path, bytes: &[u8]) -> Option<PathBuf> {
-    let name = path.file_name()?.to_string_lossy();
+fn preserve_unreadable_notice(path: &Path, detail: &str) -> String {
+    let mut blocked = blocked_json_writes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    match keep_unreadable_file(path) {
+        Ok(kept) => {
+            blocked.remove(path);
+            format!(
+                "{} The original was kept as {}.",
+                unreadable_notice(path, detail),
+                kept.display()
+            )
+        }
+        Err(error) => {
+            blocked.insert(path.to_path_buf());
+            format!(
+                "Could not preserve {} after a read failure ({detail}): {error}. Saving this file is disabled to protect the original. Restart after correcting its file permissions.",
+                path.display()
+            )
+        }
+    }
+}
+
+/// Rename also preserves files we cannot read. A unique name keeps earlier
+/// recoveries intact, including repeated failures within the same second.
+fn keep_unreadable_file(path: &Path) -> std::io::Result<PathBuf> {
+    if fs::symlink_metadata(path)?.is_dir() {
+        return Err(std::io::Error::other("Expected a file, found a directory"));
+    }
+    let name = path
+        .file_name()
+        .ok_or_else(|| std::io::Error::other("Missing filename"))?
+        .to_string_lossy();
     let stamp = Utc::now().format("%Y%m%d-%H%M%S");
-    let kept = path.with_file_name(format!("{name}.unreadable-{stamp}"));
-    fs::write(&kept, bytes).ok().map(|_| kept)
+    let kept = path.with_file_name(format!("{name}.unreadable-{stamp}-{}", Uuid::new_v4()));
+    fs::rename(path, &kept)?;
+    Ok(kept)
 }
 
 /// Keep every top-level field that still parses on its own, so one bad value
@@ -396,6 +437,15 @@ struct LegacyArtLibrary {
 }
 
 pub(crate) fn write_json_atomic(path: &Path, json: &str) -> Result<(), String> {
+    let blocked = blocked_json_writes()
+        .lock()
+        .map_err(|e| format!("Persistence lock failed: {e}"))?;
+    if blocked.contains(path) {
+        return Err(format!(
+            "Saving {} is disabled because its original could not be preserved",
+            path.display()
+        ));
+    }
     let parent = path.parent().ok_or("Invalid target path")?;
     if !parent.as_os_str().is_empty() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {e}"))?;
@@ -697,6 +747,62 @@ mod tests {
         assert_eq!(fs::read_to_string(kept[0].path()).unwrap(), "NOT JSON!!!");
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_file_is_preserved_before_defaults_are_saved() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        let original = br#"{"display_language":"de"}"#;
+        fs::write(&path, original).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o000)).unwrap();
+        // Root can read mode-000 files; the denied-read case cannot be
+        // exercised by a test process with that privilege.
+        if fs::read(&path).is_ok() {
+            return;
+        }
+
+        let (loaded, notice) = load_json_lenient::<AppSettings>(&path, salvage_object);
+        assert!(notice.unwrap().contains("The original was kept"));
+        write_json_atomic(&path, &serde_json::to_string(&loaded).unwrap()).unwrap();
+        let kept = fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .find(|entry| entry.file_name().to_string_lossy().contains(".unreadable-"))
+            .unwrap();
+        fs::set_permissions(kept.path(), fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(fs::read(kept.path()).unwrap(), original);
+    }
+
+    #[test]
+    fn preservation_failure_blocks_later_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("macros.json");
+        // A directory cannot be preserved as a settings file. Even if the
+        // read failure goes away later, writing the defaults must stay blocked.
+        fs::create_dir(&path).unwrap();
+        let (_, notice) = load_json_lenient::<Vec<MacroDefinition>>(&path, salvage_list);
+        assert!(notice.unwrap().contains("Saving this file is disabled"));
+        fs::remove_dir(&path).unwrap();
+        fs::write(&path, "original data").unwrap();
+        assert!(write_json_atomic(&path, "[]").is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "original data");
+        blocked_json_writes().lock().unwrap().remove(&path);
+    }
+
+    #[test]
+    fn repeated_recovery_keeps_each_original() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, "first").unwrap();
+        let first = keep_unreadable_file(&path).unwrap();
+        fs::write(&path, "second").unwrap();
+        let second = keep_unreadable_file(&path).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(fs::read_to_string(first).unwrap(), "first");
+        assert_eq!(fs::read_to_string(second).unwrap(), "second");
+    }
+
     #[test]
     fn one_bad_setting_keeps_profiles_and_other_settings() {
         let dir = tempfile::tempdir().unwrap();
@@ -724,7 +830,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("macros.json");
         let good = serde_json::to_value(MacroDefinition::default()).unwrap();
-        fs::write(&path, serde_json::json!([good, {"bogus": true}]).to_string()).unwrap();
+        fs::write(
+            &path,
+            serde_json::json!([good, {"bogus": true}]).to_string(),
+        )
+        .unwrap();
 
         let (loaded, notice) = load_json_lenient::<Vec<MacroDefinition>>(&path, salvage_list);
         assert!(notice.is_some());
