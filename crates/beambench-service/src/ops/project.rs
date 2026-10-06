@@ -1104,6 +1104,7 @@ fn compute_dock_target(
 }
 
 pub fn create_project(ctx: &ServiceContext, name: &str) -> ServiceResult<Project> {
+    let _edit_guard = ctx.lock_project_edits();
     let active_profile = {
         let settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
         match settings.active_profile_id {
@@ -1147,6 +1148,7 @@ pub fn create_project(ctx: &ServiceContext, name: &str) -> ServiceResult<Project
 }
 
 pub fn get_project(ctx: &ServiceContext) -> ServiceResult<Option<Project>> {
+    let _edit_guard = ctx.lock_project_edits();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     if let Some(project) = project_guard.as_mut() {
         refresh_project_text_caches(project);
@@ -1162,6 +1164,7 @@ pub fn require_project(ctx: &ServiceContext) -> ServiceResult<Project> {
 }
 
 pub fn close_project(ctx: &ServiceContext) -> ServiceResult<()> {
+    let _edit_guard = ctx.lock_project_edits();
     let (closed_project, path) = {
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
@@ -1185,6 +1188,7 @@ pub fn close_project(ctx: &ServiceContext) -> ServiceResult<()> {
 }
 
 pub fn replace_project(ctx: &ServiceContext, project: Project) -> ServiceResult<()> {
+    let _edit_guard = ctx.lock_project_edits();
     {
         let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let asset_data = guard
@@ -1196,12 +1200,15 @@ pub fn replace_project(ctx: &ServiceContext, project: Project) -> ServiceResult<
         refresh_project_text_caches(&mut restored);
         restored.dirty = true;
         *guard = Some(restored);
+        ctx.clear_project_history()
+            .map_err(ServiceError::internal)?;
     }
     invalidate_plan(ctx)?;
     Ok(())
 }
 
 pub fn replace_project_document(ctx: &ServiceContext, mut project: Project) -> ServiceResult<()> {
+    let _edit_guard = ctx.lock_project_edits();
     {
         let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
@@ -1279,6 +1286,7 @@ pub fn current_project_path(ctx: &ServiceContext) -> ServiceResult<Option<PathBu
 }
 
 pub fn undo_project(ctx: &ServiceContext) -> ServiceResult<Project> {
+    let _edit_guard = ctx.lock_project_edits();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let current = project_guard
         .as_ref()
@@ -1303,6 +1311,7 @@ pub fn undo_project(ctx: &ServiceContext) -> ServiceResult<Project> {
 }
 
 pub fn redo_project(ctx: &ServiceContext) -> ServiceResult<Project> {
+    let _edit_guard = ctx.lock_project_edits();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let current = project_guard
         .as_ref()

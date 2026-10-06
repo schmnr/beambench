@@ -562,7 +562,6 @@ pub fn bind_machine_profile(svc: &Arc<ServiceContext>) -> Result<Project, String
 
 pub fn replace_project(svc: &Arc<ServiceContext>, project: Project) -> Result<(), String> {
     project_ops::replace_project(svc, project).map_err(String::from)?;
-    svc.clear_project_history()?;
     Ok(())
 }
 
@@ -1252,6 +1251,7 @@ pub fn move_objects_in_outliner(
 }
 
 pub fn select_open_shapes(svc: &Arc<ServiceContext>) -> Result<Vec<String>, String> {
+    let _edit_guard = svc.lock_project_edits();
     let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
     let project = guard.as_mut().ok_or("No project open")?;
     let ids = select_open_shape_ids(project, None);
@@ -1263,6 +1263,7 @@ pub fn select_open_shapes(svc: &Arc<ServiceContext>) -> Result<Vec<String>, Stri
 }
 
 pub fn select_open_shapes_set_to_fill(svc: &Arc<ServiceContext>) -> Result<Vec<String>, String> {
+    let _edit_guard = svc.lock_project_edits();
     let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
     let project = guard.as_mut().ok_or("No project open")?;
     let ids = select_open_shape_ids(project, Some(true));
@@ -1334,6 +1335,7 @@ fn select_shapes_smaller_than_selected_inner(
     svc: &ServiceContext,
     reference_ids: &[ObjectId],
 ) -> Result<Vec<String>, String> {
+    let _edit_guard = svc.lock_project_edits();
     if reference_ids.is_empty() {
         return Ok(Vec::new());
     }

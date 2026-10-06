@@ -60,6 +60,7 @@ pub fn import_asset_from_path(
     let byte_size = data.len() as u64;
     let asset = Asset::new(&filename, media_type, byte_size, None, None);
 
+    let _edit_guard = ctx.lock_project_edits();
     let mut project = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let project = project
         .as_mut()

@@ -19,8 +19,8 @@ pub struct ProjectHistory {
     redo_stack: Vec<Project>,
     /// Redo entries cleared by the latest snapshot, restored if that edit fails.
     cleared_redo: Vec<Project>,
-    /// Counts snapshots, so a failed edit can tell whether the latest one is its own.
-    generation: u64,
+    /// Undo depth before the serialized edit; eviction waits until commit.
+    edit_start: Option<usize>,
 }
 
 /// Rough retained size of a snapshot: the copied geometry and text.
@@ -55,38 +55,64 @@ impl ProjectHistory {
         self.undo_stack.clear();
         self.redo_stack.clear();
         self.cleared_redo.clear();
+        self.edit_start = None;
     }
 
-    pub fn generation(&self) -> u64 {
-        self.generation
+    pub fn begin_edit(&mut self) {
+        debug_assert!(self.edit_start.is_none(), "nested document transaction");
+        self.cleared_redo.clear();
+        self.edit_start = Some(self.undo_stack.len());
+    }
+
+    pub fn has_edit_snapshot(&self) -> bool {
+        self.edit_start
+            .is_some_and(|start| self.undo_stack.len() > start)
     }
 
     pub fn push_snapshot(&mut self, project: &Project) {
+        // Keep redo until the pending edit succeeds, and clear it only once
+        // even if that edit records more than one intermediate snapshot.
+        if self.edit_start == Some(self.undo_stack.len()) {
+            self.cleared_redo = std::mem::take(&mut self.redo_stack);
+        } else if self.edit_start.is_none() {
+            self.redo_stack.clear();
+        }
         self.undo_stack.push(project.clone());
-        if self.undo_stack.len() > MAX_HISTORY_DEPTH {
+        if self.edit_start.is_none() {
+            self.enforce_limits();
+        }
+    }
+
+    pub fn commit_edit(&mut self, before: Option<Project>) {
+        if let Some(start) = self.edit_start.take()
+            && self.undo_stack.len() > start
+        {
+            self.undo_stack.truncate(start);
+            if let Some(before) = before {
+                self.undo_stack.push(before);
+            }
+        }
+        self.cleared_redo.clear();
+        self.enforce_limits();
+    }
+
+    pub fn rollback_edit(&mut self) {
+        if let Some(start) = self.edit_start.take()
+            && self.undo_stack.len() > start
+        {
+            self.undo_stack.truncate(start);
+            self.redo_stack = std::mem::take(&mut self.cleared_redo);
+        }
+    }
+
+    fn enforce_limits(&mut self) {
+        while self.undo_stack.len() > MAX_HISTORY_DEPTH {
             self.undo_stack.remove(0);
         }
         let mut retained: usize = self.undo_stack.iter().map(approximate_snapshot_bytes).sum();
         while self.undo_stack.len() > 1 && retained > MAX_HISTORY_BYTES {
             retained -= approximate_snapshot_bytes(&self.undo_stack.remove(0));
         }
-        self.cleared_redo = std::mem::take(&mut self.redo_stack);
-        self.generation += 1;
-    }
-
-    /// Replace the latest snapshot with the true state before an edit, for
-    /// edits that adjusted the project before recording their snapshot.
-    pub fn replace_last_snapshot(&mut self, project: Project) {
-        if let Some(last) = self.undo_stack.last_mut() {
-            *last = project;
-        }
-    }
-
-    /// Forget the latest snapshot after its edit failed and was rolled back,
-    /// restoring the redo steps that snapshot cleared.
-    pub fn discard_last_snapshot(&mut self) {
-        self.undo_stack.pop();
-        self.redo_stack = std::mem::take(&mut self.cleared_redo);
     }
 
     pub fn undo(&mut self, current: &Project) -> Option<Project> {
@@ -114,6 +140,47 @@ mod tests {
         let mut project = Project::new(name.to_string());
         project.dirty = true;
         project
+    }
+
+    #[test]
+    fn rollback_restores_redo_after_multiple_pending_snapshots() {
+        let mut history = ProjectHistory::default();
+        history.push_snapshot(&sample_project("before"));
+        history.undo(&sample_project("after")).unwrap();
+        history.begin_edit();
+        history.push_snapshot(&sample_project("before"));
+        history.push_snapshot(&sample_project("intermediate"));
+        history.rollback_edit();
+        assert!(!history.state().can_undo);
+        assert_eq!(
+            history
+                .redo(&sample_project("before"))
+                .unwrap()
+                .metadata
+                .project_name,
+            "after"
+        );
+    }
+
+    #[test]
+    fn pending_history_is_trimmed_only_after_commit() {
+        let mut history = ProjectHistory::default();
+        for index in 0..MAX_HISTORY_DEPTH {
+            history.push_snapshot(&sample_project(&index.to_string()));
+        }
+        history.begin_edit();
+        history.push_snapshot(&sample_project("pending"));
+        assert_eq!(history.undo_stack.len(), MAX_HISTORY_DEPTH + 1);
+        history.commit_edit(Some(sample_project("before edit")));
+        assert_eq!(history.undo_stack.len(), MAX_HISTORY_DEPTH);
+        assert_eq!(
+            history.undo_stack.first().unwrap().metadata.project_name,
+            "1"
+        );
+        assert_eq!(
+            history.undo_stack.last().unwrap().metadata.project_name,
+            "before edit"
+        );
     }
 
     #[test]

@@ -282,6 +282,7 @@ fn resolve_insert_base_layer(
     requested_layer_id: Option<beambench_core::LayerId>,
     default_operation: OperationType,
 ) -> Result<beambench_core::LayerId, String> {
+    let _edit_guard = ctx.lock_project_edits();
     let mut project_guard = ctx
         .project
         .lock()
@@ -592,6 +593,7 @@ fn apply_drop_position_after_import(
     mut created: Vec<ProjectObject>,
     drop_position: Option<(f64, f64)>,
 ) -> Result<Vec<ProjectObject>, String> {
+    let _edit_guard = ctx.lock_project_edits();
     let created_ids: Vec<_> = created.iter().map(|object| object.id).collect();
     if created_ids.is_empty() || drop_position.is_none() {
         return Ok(created);

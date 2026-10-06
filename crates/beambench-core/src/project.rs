@@ -409,8 +409,8 @@ impl Project {
         &mut self,
         mut removed: std::collections::HashSet<ObjectId>,
     ) -> std::collections::HashSet<ObjectId> {
+        let mut changed_groups = std::collections::HashSet::new();
         loop {
-            let mut changed_groups = Vec::new();
             let mut emptied = Vec::new();
             for object in &mut self.objects {
                 if let ObjectData::Group { children } = &mut object.data {
@@ -419,14 +419,35 @@ impl Project {
                     if children.is_empty() {
                         emptied.push(object.id);
                     } else if children.len() != before {
-                        changed_groups.push(object.id);
+                        changed_groups.insert(object.id);
                     }
                 }
             }
-            for group_id in changed_groups {
-                crate::operations::recompute_group_bounds(self, group_id);
-            }
             if emptied.is_empty() {
+                // A surviving ancestor keeps the same child IDs but needs new
+                // bounds when one of those children was refitted.
+                loop {
+                    let parents: Vec<_> = self
+                        .objects
+                        .iter()
+                        .filter_map(|object| {
+                            if let ObjectData::Group { children } = &object.data {
+                                (!changed_groups.contains(&object.id)
+                                    && children.iter().any(|id| changed_groups.contains(id)))
+                                .then_some(object.id)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    if parents.is_empty() {
+                        break;
+                    }
+                    changed_groups.extend(parents);
+                }
+                for group_id in changed_groups {
+                    crate::operations::recompute_group_bounds(self, group_id);
+                }
                 return removed;
             }
             self.objects.retain(|object| !emptied.contains(&object.id));

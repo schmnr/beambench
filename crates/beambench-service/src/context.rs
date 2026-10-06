@@ -123,6 +123,8 @@ pub struct ServiceContext {
     /// Prevent new connections after the desktop has begun a verified shutdown.
     pub shutting_down: AtomicBool,
     pub project: Mutex<Option<Project>>,
+    /// Serializes document mutations and their history commit/rollback.
+    project_edit_gate: Mutex<()>,
     pub project_path: Mutex<Option<PathBuf>>,
     pub settings: Mutex<AppSettings>,
     pub plan_cache: Mutex<Option<Arc<ExecutionPlan>>>,
@@ -254,6 +256,7 @@ impl ServiceContext {
             .collect();
         Self {
             project: Mutex::new(None),
+            project_edit_gate: Mutex::new(()),
             project_path: Mutex::new(None),
             settings: Mutex::new(settings),
             plan_cache: Mutex::new(None),
@@ -314,6 +317,7 @@ impl ServiceContext {
         let (tx, _rx) = broadcast::channel(256);
         Self {
             project: Mutex::new(None),
+            project_edit_gate: Mutex::new(()),
             project_path: Mutex::new(None),
             settings: Mutex::new(settings),
             plan_cache: Mutex::new(None),
@@ -580,68 +584,68 @@ impl ServiceContext {
         Ok(())
     }
 
-    /// Run an edit so that it either completes or changes nothing. The edit
-    /// locks the project itself. If it fails, the project and undo history
-    /// are put back; if it succeeds, its undo step restores the project as it
-    /// was before the edit, even when the edit adjusted it (for example by
-    /// unlinking a clone) before recording its own snapshot.
+    /// Always acquire this before project/history locks when writing the document.
+    pub(crate) fn lock_project_edits(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.project_edit_gate
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Serialize an edit with document replacement, save and undo, and restore
+    /// both document and history on failure. Long searches belong outside this
+    /// section; only their stale check and commit need an atomic edit.
     pub fn atomic_edit<T, E: From<ServiceError>>(
         &self,
         edit: impl FnOnce() -> Result<T, E>,
     ) -> Result<T, E> {
-        // A panic in an earlier edit was rolled back below; a panic elsewhere
-        // only read the project. Either way the data is intact, so do not let
-        // a poisoned lock keep the user from editing or saving.
+        let _edit_guard = self.lock_project_edits();
         self.project.clear_poison();
         self.history.clear_poison();
-        let before = match (self.project.lock(), self.history.lock()) {
-            (Ok(project), Ok(history)) => project.clone().map(|p| (p, history.generation())),
-            _ => None,
-        };
-        let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(edit)) {
+        let before = self
+            .project
+            .lock()
+            .map_err(|e| {
+                E::from(ServiceError::internal(format!(
+                    "Failed to lock project: {e}"
+                )))
+            })?
+            .clone();
+        self.history
+            .lock()
+            .map_err(|e| {
+                E::from(ServiceError::internal(format!(
+                    "Failed to lock history: {e}"
+                )))
+            })?
+            .begin_edit();
+        let mut result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(edit)) {
             Ok(result) => result,
             Err(_) => {
                 self.project.clear_poison();
                 self.history.clear_poison();
                 Err(ServiceError::internal(
                     "[edit_internal_error] This edit hit an internal error and was undone. Your project is unchanged; please report this.",
-                )
-                .into())
+                ).into())
             }
         };
-        let Some((before, generation)) = before else {
-            return result;
-        };
-        let (Ok(mut project), Ok(mut history)) = (self.project.lock(), self.history.lock()) else {
-            return result;
-        };
-        let own_snapshot = history.generation() == generation + 1;
-        let untouched_by_others = own_snapshot || history.generation() == generation;
-        // An edit that produced a NaN or infinite position would save a file
-        // that can never be reopened. Treat it as failed.
-        let invalid = result.is_ok()
-            && own_snapshot
+        let mut project = self.project.lock().unwrap_or_else(|e| e.into_inner());
+        let mut history = self.history.lock().unwrap_or_else(|e| e.into_inner());
+        if result.is_ok()
+            && history.has_edit_snapshot()
             && project
                 .as_ref()
                 .and_then(Project::first_non_finite_object)
-                .is_some();
-        if invalid {
-            *project = Some(before);
-            history.discard_last_snapshot();
-            return Err(ServiceError::invalid_input(
+                .is_some()
+        {
+            result = Err(ServiceError::invalid_input(
                 "[edit_invalid_geometry] This change would move or size an object outside the range Beam Bench can store, so it was not applied.",
-            )
-            .into());
+            ).into());
         }
-        match &result {
-            Err(_) if untouched_by_others => {
-                *project = Some(before);
-                if own_snapshot {
-                    history.discard_last_snapshot();
-                }
-            }
-            Ok(_) if own_snapshot => history.replace_last_snapshot(before),
-            _ => {}
+        if result.is_err() {
+            *project = before;
+            history.rollback_edit();
+        } else {
+            history.commit_edit(before);
         }
         result
     }

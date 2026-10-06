@@ -198,7 +198,13 @@ pub fn object_to_world_vecpath(obj: &ProjectObject) -> Option<VecPath> {
 /// its intrinsic bounds fitted to the object bounds, then the object
 /// transform about the bounds center. `None` when the data has no geometry.
 pub fn vector_local_to_world_transform(obj: &ProjectObject) -> Option<Transform2D> {
-    let path = object_to_vecpath(&obj.data)?;
+    // Node edits use stored SVG coordinates, before object_to_vecpath normalizes
+    // their origin. Fit those raw coordinates to the existing object bounds.
+    let mut path = match &obj.data {
+        ObjectData::VectorPath { path_data, .. } => VecPath::parse_svg_d(path_data),
+        _ => object_to_vecpath(&obj.data)?,
+    };
+    path.prune_orphan_subpaths();
     let intrinsic = path.visual_bounds().or_else(|| path.bounds())?;
     let old_w = intrinsic.max.x - intrinsic.min.x;
     let old_h = intrinsic.max.y - intrinsic.min.y;

@@ -289,6 +289,7 @@ fn save_project_to_path_impl(
     ctx: &ServiceContext,
     requested_path: Option<&Path>,
 ) -> ServiceResult<String> {
+    let _edit_guard = ctx.lock_project_edits();
     // Edits roll back their own panics, so the project is intact even if a
     // panic poisoned its lock. Saving must still work.
     ctx.project.clear_poison();
@@ -418,6 +419,7 @@ pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceR
         Err(error) => return Err(error),
     };
     {
+        let _edit_guard = ctx.lock_project_edits();
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
             .project_path
@@ -485,7 +487,8 @@ fn autosave_project_to_dir(ctx: &ServiceContext, dir: &Path) -> ServiceResult<St
 
     // Copy the project and write the archive outside the lock, so edits and
     // the window are not held up while a large project is compressed.
-    let (project, saves_before) = {
+    let (project, saves_before, source_path) = {
+        let _edit_guard = ctx.lock_project_edits();
         let guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let saves = ctx
             .project_save_count
@@ -495,13 +498,12 @@ fn autosave_project_to_dir(ctx: &ServiceContext, dir: &Path) -> ServiceResult<St
                 .clone()
                 .ok_or_else(|| ServiceError::not_found("No project open"))?,
             saves,
+            ctx.project_path
+                .lock()
+                .map_err(|e| lock_err("project_path", e))?
+                .clone(),
         )
     };
-    let source_path = ctx
-        .project_path
-        .lock()
-        .map_err(|e| lock_err("project_path", e))?
-        .clone();
 
     // save_recovery takes the recovery *directory* and derives the file name
     // itself — passing a file path here would bury the archive inside a
@@ -550,6 +552,7 @@ pub fn restore_recovery_file(ctx: &ServiceContext, recovery_path: &str) -> Servi
     // Save goes back to the file the work came from, if it still exists.
     let source_path = load_recovery_source(&path).filter(|source| source.is_file());
     {
+        let _edit_guard = ctx.lock_project_edits();
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
             .project_path

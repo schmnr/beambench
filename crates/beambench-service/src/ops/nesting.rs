@@ -154,83 +154,83 @@ pub fn nest_selected(
     object_ids: Vec<ObjectId>,
     options: NestOptions,
 ) -> ServiceResult<NestResult> {
-    ctx.atomic_edit(|| {
-        if object_ids.is_empty() {
-            return Err(ServiceError::invalid_input(
-                "Select a container and at least one object to nest",
-            ));
-        }
+    if object_ids.is_empty() {
+        return Err(ServiceError::invalid_input(
+            "Select a container and at least one object to nest",
+        ));
+    }
 
-        let started = Instant::now();
-        let deadline = if options.time_limit_ms == 0 {
-            None
-        } else {
-            Some(started + Duration::from_millis(options.time_limit_ms))
-        };
-        let padding = options.padding_mm.max(0.0);
+    let started = Instant::now();
+    let deadline = if options.time_limit_ms == 0 {
+        None
+    } else {
+        Some(started + Duration::from_millis(options.time_limit_ms))
+    };
+    let padding = options.padding_mm.max(0.0);
 
-        // Search on a copy: the layout can take the whole time limit, and
-        // holding the project lock that long freezes every other command.
-        let original = ctx
-            .project
-            .lock()
-            .map_err(|e| lock_err("project", e))?
-            .clone()
-            .ok_or_else(|| ServiceError::not_found("No project open"))?;
-        let project = &original;
+    // Search on a copy: the layout can take the whole time limit, and
+    // holding the project lock that long freezes every other command.
+    let original = ctx
+        .project
+        .lock()
+        .map_err(|e| lock_err("project", e))?
+        .clone()
+        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    let project = &original;
 
-        let selected_roots = normalize_arrangement_roots(project, &object_ids);
-        let container = find_largest_container(project, &selected_roots)?;
-        let part_roots: Vec<ObjectId> = selected_roots
-            .into_iter()
-            .filter(|id| *id != container.object_id)
-            .collect();
-        if part_roots.is_empty() {
-            return Err(ServiceError::invalid_input(
-                "Select at least one object to nest plus a container",
-            ));
-        }
-        if part_roots.len() > MAX_NEST_PARTS {
+    let selected_roots = normalize_arrangement_roots(project, &object_ids);
+    let container = find_largest_container(project, &selected_roots)?;
+    let part_roots: Vec<ObjectId> = selected_roots
+        .into_iter()
+        .filter(|id| *id != container.object_id)
+        .collect();
+    if part_roots.is_empty() {
+        return Err(ServiceError::invalid_input(
+            "Select at least one object to nest plus a container",
+        ));
+    }
+    if part_roots.len() > MAX_NEST_PARTS {
+        return Err(ServiceError::invalid_input(format!(
+            "Nest Selected supports up to {MAX_NEST_PARTS} parts"
+        )));
+    }
+
+    let units = build_units_for_roots(project, &part_roots)?;
+    let mut parts = build_nest_parts(project, &units)?;
+    if options.lock_inner_objects {
+        parts = merge_inner_parts(parts);
+    }
+    validate_parts_account_for_roots(&part_roots, &parts)?;
+    if parts.is_empty() {
+        return Err(ServiceError::invalid_input(
+            "Select at least one object to nest plus a container",
+        ));
+    }
+    for part in &parts {
+        if part.point_count > MAX_FLATTENED_POINTS_PER_PART {
             return Err(ServiceError::invalid_input(format!(
-                "Nest Selected supports up to {MAX_NEST_PARTS} parts"
+                "Part '{}' exceeds the {MAX_FLATTENED_POINTS_PER_PART} point nesting limit",
+                part.root_ids
+                    .first()
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| "unknown".to_string())
             )));
         }
+    }
+    validate_invertible_transforms(project, &parts)?;
 
-        let units = build_units_for_roots(project, &part_roots)?;
-        let mut parts = build_nest_parts(project, &units)?;
-        if options.lock_inner_objects {
-            parts = merge_inner_parts(parts);
-        }
-        validate_parts_account_for_roots(&part_roots, &parts)?;
-        if parts.is_empty() {
-            return Err(ServiceError::invalid_input(
-                "Select at least one object to nest plus a container",
-            ));
-        }
-        for part in &parts {
-            if part.point_count > MAX_FLATTENED_POINTS_PER_PART {
-                return Err(ServiceError::invalid_input(format!(
-                    "Part '{}' exceeds the {MAX_FLATTENED_POINTS_PER_PART} point nesting limit",
-                    part.root_ids
-                        .first()
-                        .map(|id| id.to_string())
-                        .unwrap_or_else(|| "unknown".to_string())
-                )));
-            }
-        }
-        validate_invertible_transforms(project, &parts)?;
-
-        let (layout, next_project) = compute_valid_layout(
-            project,
-            &container.region,
-            &part_roots,
-            &parts,
-            padding,
-            options.allow_rotation,
-            options.allow_mirror,
-            options.rotation_step_deg,
-            deadline,
-        )?;
+    let (layout, next_project) = compute_valid_layout(
+        project,
+        &container.region,
+        &part_roots,
+        &parts,
+        padding,
+        options.allow_rotation,
+        options.allow_mirror,
+        options.rotation_step_deg,
+        deadline,
+    )?;
+    ctx.atomic_edit(|| {
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         if project_guard.as_ref() != Some(&original) {
             return Err(ServiceError::stale_revision(

@@ -726,6 +726,7 @@ pub(crate) fn sync_open_project_workspace_from_profile(
     profile: &MachineProfile,
     source: &'static str,
 ) -> ServiceResult<bool> {
+    let _edit_guard = ctx.lock_project_edits();
     let workspace = workspace_from_profile(profile);
     let workspace_width_mm = workspace.bed_width_mm;
     let workspace_height_mm = workspace.bed_height_mm;
