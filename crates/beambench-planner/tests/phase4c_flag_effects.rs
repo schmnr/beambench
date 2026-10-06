@@ -756,13 +756,22 @@ fn half_black_image_project(width: f64, height: f64, angle: f64) -> Project {
     image::codecs::png::PngEncoder::new(&mut bytes)
         .write_image(img.as_raw(), 8, 8, image::ExtendedColorType::L8)
         .unwrap();
-    let asset = Asset::new("half.png", AssetMediaType::Png, bytes.len() as u64, Some(8), Some(8));
+    let asset = Asset::new(
+        "half.png",
+        AssetMediaType::Png,
+        bytes.len() as u64,
+        Some(8),
+        Some(8),
+    );
     let asset_key = asset.id.to_string();
     project.add_asset(asset, bytes);
     project.add_object(ProjectObject::new(
         "image",
         layer_id,
-        Bounds::new(Point2D::new(50.0, 50.0), Point2D::new(50.0 + width, 50.0 + height)),
+        Bounds::new(
+            Point2D::new(50.0, 50.0),
+            Point2D::new(50.0 + width, 50.0 + height),
+        ),
         ObjectData::RasterImage {
             asset_key,
             original_width_px: 8,
@@ -795,7 +804,10 @@ fn cardinal_scan_angles_burn_the_same_pixels() {
             && (a.max.x - b.max.x).abs() < 1e-6
             && (a.min.y - b.min.y).abs() < 1e-6
             && (a.max.y - b.max.y).abs() < 1e-6;
-        assert!(same, "{reversed} degrees moved the artwork: {b:?} vs {forward}: {a:?}");
+        assert!(
+            same,
+            "{reversed} degrees moved the artwork: {b:?} vs {forward}: {a:?}"
+        );
     }
 }
 
@@ -814,4 +826,30 @@ fn angled_scan_keeps_non_square_pixel_images_in_place() {
         bounds.min.x > 48.0 && bounds.max.x < 92.0 && bounds.min.y > 48.0 && bounds.max.y < 56.0,
         "angled scan distorted the image: {bounds:?}"
     );
+}
+
+#[test]
+fn an_oversized_fill_is_rejected_before_allocating() {
+    let mut project = fill_project(OperationType::Fill, 1.0);
+    project.workspace.bed_width_mm = 500.0;
+    project.workspace.bed_height_mm = 500.0;
+    project.objects.clear();
+    let layer_id = project.layers[0].id;
+    project.layers[0]
+        .primary_entry_mut()
+        .raster_settings
+        .as_mut()
+        .unwrap()
+        .line_interval_mm = 0.001;
+    add_rectangle(&mut project, "large", layer_id, 0.0, 0.0, 400.0, 400.0);
+    let input = PlannerInput::new(
+        ProjectOptimization::default(),
+        OptimizationRuntime::default(),
+        PlannerCalibration::default(),
+    );
+    // 400,000 x 400,000 pixels: must fail fast, not allocate ~20 GB.
+    let started = std::time::Instant::now();
+    let error = build_plan_with_input(&project, &input).unwrap_err();
+    assert!(error.to_string().contains("raster_plan_too_complex"), "{error}");
+    assert!(started.elapsed() < std::time::Duration::from_secs(5));
 }

@@ -3408,6 +3408,24 @@ fn build_plan_inner(
                             );
                             let preview_outlines = simplify_preview_outlines(&composited_polylines);
 
+                            // Size the bitmap before allocating it: a large area at a tiny
+                            // line interval would otherwise request gigabytes first and
+                            // only be rejected afterwards.
+                            match crate::fill_raster::fill_raster_size(
+                                &composite_bounds,
+                                line_interval,
+                            ) {
+                                Some((columns, rows, bytes))
+                                    if columns <= 65_536 && rows <= 65_536 =>
+                                {
+                                    raster_budget.precheck_bitmap(
+                                        usize::try_from(bytes).unwrap_or(usize::MAX),
+                                    )?;
+                                }
+                                _ => {
+                                    return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Fill scan dimensions exceed 65,536 pixels. Increase the line interval or reduce the filled area.".into()));
+                                }
+                            }
                             for _pass in 0..fill_passes {
                                 order_boundaries.push(all_segments.len());
                                 let Some(processed) = rasterize_fill(

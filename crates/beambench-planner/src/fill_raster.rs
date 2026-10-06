@@ -8,6 +8,27 @@ use beambench_common::geometry::Bounds;
 use beambench_common::path::Polyline;
 use beambench_raster::types::{ProcessedRaster, RasterPixelFormat};
 
+/// Pixel dimensions and packed byte size of the fill bitmap for `bounds` at
+/// `line_interval_mm`, computed without allocating. `None` when the size is
+/// not finite or does not fit in memory-addressable integers.
+pub fn fill_raster_size(bounds: &Bounds, line_interval_mm: f64) -> Option<(u64, u64, u64)> {
+    if !(line_interval_mm > 0.0) {
+        return None;
+    }
+    let columns = (bounds.width() / line_interval_mm).ceil().max(1.0);
+    let rows = (bounds.height() / line_interval_mm).ceil().max(1.0);
+    if !columns.is_finite()
+        || !rows.is_finite()
+        || columns > u32::MAX as f64
+        || rows > u32::MAX as f64
+    {
+        return None;
+    }
+    let (columns, rows) = (columns as u64, rows as u64);
+    let bytes = columns.div_ceil(8).checked_mul(rows)?;
+    Some((columns, rows, bytes))
+}
+
 /// Rasterize closed polylines into a binary bitmap using scanline fill.
 ///
 /// Open polylines are skipped (they have no interior to fill).
