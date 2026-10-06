@@ -235,7 +235,16 @@ impl PlanSegment {
     pub fn motion_end(&self) -> Option<Point2D> {
         match self {
             Self::Travel { end, .. } => Some(*end),
-            Self::Vector { polyline, .. } => polyline.last().copied(),
+            // The emitter closes a closed contour back to its first point.
+            Self::Vector {
+                polyline, closed, ..
+            } => {
+                if *closed {
+                    polyline.first().copied()
+                } else {
+                    polyline.last().copied()
+                }
+            }
             Self::Frame { path, .. } => path.last().copied(),
             Self::Raster {
                 scanlines,
@@ -842,5 +851,19 @@ mod tests {
 
         let restored: PlanSegment = serde_json::from_str(&json).unwrap();
         assert_eq!(segment, restored);
+    }
+}
+
+/// Length of a vector path as it is cut: a closed contour includes the edge
+/// back to its first point, unless the points already repeat it (matching the
+/// G-code emitter, which appends that closing move).
+pub fn vector_path_length(points: &[Point2D], closed: bool) -> f64 {
+    let open: f64 = points
+        .windows(2)
+        .map(|pair| pair[0].distance_to(&pair[1]))
+        .sum();
+    match (closed, points.first(), points.last()) {
+        (true, Some(first), Some(last)) if points.len() > 1 => open + last.distance_to(first),
+        _ => open,
     }
 }

@@ -7245,7 +7245,27 @@ mod tests {
 
     #[test]
     fn cut_order_as_drawn_vs_optimized_produces_different_segment_order() {
-        let project = create_multi_object_project();
+        // Drawn far, near, middle: nearest-first must start with the near one.
+        let mut project = create_test_project();
+        let layer = Layer::new("Lines", OperationType::Line);
+        let layer_id = layer.id;
+        project.layers.push(layer);
+        for (i, (x, y)) in [(300.0, 250.0), (10.0, 10.0), (150.0, 120.0)]
+            .into_iter()
+            .enumerate()
+        {
+            project.add_object(ProjectObject::new(
+                &format!("rect{i}"),
+                layer_id,
+                Bounds::new(Point2D::new(x, y), Point2D::new(x + 20.0, y + 20.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 20.0,
+                    height: 20.0,
+                    corner_radius: 0.0,
+                },
+            ));
+        }
 
         // `inner_first: true` on flat geometry is a no-op that forces
         // `AsDrawn` via `force_as_drawn` — a correct "no reorder"

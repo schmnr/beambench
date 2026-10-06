@@ -850,6 +850,25 @@ fn an_oversized_fill_is_rejected_before_allocating() {
     // 400,000 x 400,000 pixels: must fail fast, not allocate ~20 GB.
     let started = std::time::Instant::now();
     let error = build_plan_with_input(&project, &input).unwrap_err();
-    assert!(error.to_string().contains("raster_plan_too_complex"), "{error}");
+    assert!(
+        error.to_string().contains("raster_plan_too_complex"),
+        "{error}"
+    );
     assert!(started.elapsed() < std::time::Duration::from_secs(5));
+}
+
+#[test]
+fn closed_contours_count_their_closing_edge() {
+    let (mut project, layer_id) = single_line_layer_project();
+    project.workspace.origin = WorkspaceOrigin::TopLeft;
+    add_rectangle(&mut project, "square", layer_id, 10.0, 10.0, 10.0, 10.0);
+    let plan = build(&project, ProjectOptimization::default());
+    let vector = plan
+        .segments
+        .iter()
+        .find(|segment| matches!(segment, PlanSegment::Vector { .. }))
+        .unwrap();
+    let length = beambench_planner::stats::calculate_distance(std::slice::from_ref(vector));
+    assert!((length - 40.0).abs() < 1e-9, "a 10 mm square cuts 40 mm, got {length}");
+    assert_eq!(vector.motion_end(), vector.motion_start(), "a closed cut ends where it began");
 }

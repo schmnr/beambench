@@ -68,7 +68,7 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                     sequence,
                 });
                 sequence += 1;
-                burn_distance_mm += polyline_distance(polyline);
+                burn_distance_mm += beambench_planner::plan::vector_path_length(polyline, *closed);
             }
             PlanSegment::Raster {
                 scanlines,
