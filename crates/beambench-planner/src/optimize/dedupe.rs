@@ -87,10 +87,10 @@ fn near_duplicate(
     if a_closed != b_closed {
         return false;
     }
-    if a.len() != b.len() || a.len() < 2 {
-        return false;
-    }
     if !a_closed {
+        if a.len() != b.len() || a.len() < 2 {
+            return false;
+        }
         let forward = a.iter().zip(b.iter()).all(|(p, q)| dist_sq(p, q) <= tol_sq);
         if forward {
             return true;
@@ -101,13 +101,22 @@ fn near_duplicate(
             .all(|(p, q)| dist_sq(p, q) <= tol_sq);
     }
 
-    // Closed: strip the closing-duplicate anchor on both rings and
-    // compare every rotation × direction pair.
-    let ring_a = &a[..a.len() - 1];
-    let ring_b = &b[..b.len() - 1];
+    // Closed: strip a closing-duplicate anchor only where one is actually
+    // present (planner-normalized rings omit it), then compare every
+    // rotation × direction pair. Always dropping the last vertex let two
+    // different rings that share their first vertices count as duplicates.
+    let ring = |points: &[Point2D]| -> usize {
+        if points.len() > 1 && dist_sq(&points[0], &points[points.len() - 1]) <= tol_sq {
+            points.len() - 1
+        } else {
+            points.len()
+        }
+    };
+    let ring_a = &a[..ring(a)];
+    let ring_b = &b[..ring(b)];
     let n = ring_a.len();
-    if n == 0 {
-        return true;
+    if n != ring_b.len() || n < 2 {
+        return false;
     }
     for offset in 0..n {
         if rotated_forward_match(ring_a, ring_b, offset, tol_sq)
@@ -164,6 +173,29 @@ mod tests {
             ],
             closed: true,
         }
+    }
+
+    fn open_ring(points: &[(f64, f64)]) -> Polyline {
+        Polyline {
+            points: points.iter().map(|&(x, y)| Point2D::new(x, y)).collect(),
+            closed: true,
+        }
+    }
+
+    #[test]
+    fn rings_differing_only_in_their_last_vertex_are_kept() {
+        // Planner rings omit the repeated first vertex.
+        let square = open_ring(&[(10.0, 10.0), (30.0, 10.0), (30.0, 30.0), (10.0, 30.0)]);
+        let other = open_ring(&[(10.0, 10.0), (30.0, 10.0), (30.0, 30.0), (15.0, 25.0)]);
+        let out = remove_near_duplicates(vec![square, other], true, 0.05);
+        assert_eq!(out.len(), 2);
+    }
+
+    #[test]
+    fn ring_with_and_without_closing_vertex_is_a_duplicate() {
+        let open = open_ring(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
+        let out = remove_near_duplicates(vec![open, square(0.0, 0.0, 10.0)], true, 0.05);
+        assert_eq!(out.len(), 1);
     }
 
     #[test]
