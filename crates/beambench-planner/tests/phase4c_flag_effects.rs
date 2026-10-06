@@ -600,7 +600,10 @@ fn reduce_travel_keeps_each_pass_whole() {
         pass.sort();
         let mut both = vec![near.to_string(), far.to_string()];
         both.sort();
-        assert_eq!(pass, both, "each pass must cover every shape before the next: {ids:?}");
+        assert_eq!(
+            pass, both,
+            "each pass must cover every shape before the next: {ids:?}"
+        );
     }
 }
 
@@ -639,7 +642,10 @@ fn mixed_power_scales_still_cut_inner_first() {
             ..Default::default()
         },
     );
-    assert_eq!(vector_ids(&plan), vec![inner.to_string(), outer.to_string()]);
+    assert_eq!(
+        vector_ids(&plan),
+        vec![inner.to_string(), outer.to_string()]
+    );
     let layer_power = project.layers[0].primary_entry().power_percent;
     let powers: Vec<f64> = plan
         .segments
@@ -666,4 +672,59 @@ fn remove_overlapping_keeps_identical_shapes_at_different_power() {
         },
     );
     assert_eq!(vector_ids(&plan).len(), 2);
+}
+
+fn fill_project(operation: OperationType, power_scale: f64) -> Project {
+    let mut project = Project::new("fill-power");
+    project.layers.clear();
+    project.workspace.origin = WorkspaceOrigin::TopLeft;
+    let layer = Layer::new("fill".to_string(), operation);
+    let id = layer.id;
+    project.layers.push(layer);
+    add_rectangle(&mut project, "shape", id, 20.0, 20.0, 5.0, 5.0);
+    project.objects[0].power_scale = power_scale;
+    project
+}
+
+fn burn_powers(plan: &ExecutionPlan) -> Vec<f64> {
+    plan.segments
+        .iter()
+        .filter_map(|segment| match segment {
+            PlanSegment::Raster {
+                power_max_percent, ..
+            } => Some(*power_max_percent),
+            PlanSegment::Vector { power_percent, .. } => Some(*power_percent),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn fill_and_offset_fill_apply_object_power_scale() {
+    for operation in [OperationType::Fill, OperationType::OffsetFill] {
+        let project = fill_project(operation, 0.5);
+        let layer_power = project.layers[0].primary_entry().power_percent;
+        let powers = burn_powers(&build(&project, ProjectOptimization::default()));
+        assert!(!powers.is_empty(), "{operation:?}");
+        assert!(
+            powers.iter().all(|power| (*power - layer_power * 0.5).abs() < 1e-9),
+            "{operation:?}: {powers:?}"
+        );
+    }
+}
+
+#[test]
+fn zero_power_scale_objects_do_not_burn_in_fills() {
+    for operation in [OperationType::Fill, OperationType::OffsetFill] {
+        let mut project = fill_project(operation, 0.0);
+        let layer_id = project.layers[0].id;
+        // A second, normal object keeps the plan non-empty.
+        add_rectangle(&mut project, "kept", layer_id, 60.0, 60.0, 5.0, 5.0);
+        let powers = burn_powers(&build(&project, ProjectOptimization::default()));
+        assert!(!powers.is_empty(), "{operation:?}");
+        assert!(powers.iter().all(|power| *power > 0.0), "{operation:?}: {powers:?}");
+        let plan = build(&project, ProjectOptimization::default());
+        let bounds = beambench_planner::calculate_work_bounds(&plan.segments);
+        assert!(bounds.min.x >= 59.0, "{operation:?}: zero-power shape burned: {bounds:?}");
+    }
 }

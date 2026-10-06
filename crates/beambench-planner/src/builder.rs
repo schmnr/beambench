@@ -97,6 +97,26 @@ pub fn offset_fill_boolean_tolerances_mm() -> (f64, f64) {
     )
 }
 
+/// Split objects by power scale, in first-seen order, so filled geometry from
+/// objects at different powers is never merged into one output with one power.
+/// Objects scaled to zero power burn nothing and are left out.
+fn group_by_power_scale<'a>(objects: &[&'a ProjectObject]) -> Vec<(f64, Vec<&'a ProjectObject>)> {
+    let mut groups: Vec<(f64, Vec<&'a ProjectObject>)> = Vec::new();
+    for &object in objects {
+        if !(object.power_scale > 0.0) {
+            continue;
+        }
+        match groups
+            .iter_mut()
+            .find(|(scale, _)| scale.to_bits() == object.power_scale.to_bits())
+        {
+            Some((_, group)) => group.push(object),
+            None => groups.push((object.power_scale, vec![object])),
+        }
+    }
+    groups
+}
+
 fn offset_fill_object_batches<'a>(
     objects: &'a [&'a ProjectObject],
     all_objects: &'a [ProjectObject],
@@ -748,6 +768,8 @@ struct PreparedOffsetFillUnit {
 
 struct OffsetFillCompositeBatch {
     units: Vec<OffsetFillUnit>,
+    /// Power scale shared by the batch's source objects.
+    power_scale: f64,
 }
 
 #[derive(Clone)]
@@ -2957,11 +2979,7 @@ fn build_plan_inner(
                         .map(|s| s.offset_fill_grouping_mode)
                         .unwrap_or(OffsetFillGroupingMode::AllShapesAtOnce);
                     let offset_fill_started_at = Instant::now();
-                    let object_batches = offset_fill_object_batches(
-                        &vector_objects,
-                        &project.objects,
-                        grouping_mode,
-                    );
+                    let scale_groups = group_by_power_scale(&vector_objects);
 
                     let normalize_started_at = Instant::now();
                     let mut composite_started_total = Duration::ZERO;
@@ -2970,56 +2988,65 @@ fn build_plan_inner(
                     let mut output_subpaths = 0usize;
                     let mut composite_batches: Vec<OffsetFillCompositeBatch> = Vec::new();
 
-                    for batch_objects in object_batches {
-                        let mut original_polylines: Vec<Polyline> = Vec::new();
-                        for obj in &batch_objects {
-                            let Some(normalized) = normalize_object(obj) else {
-                                warnings.push(PlanWarning {
-                                    message: format!(
-                                        "Failed to normalize object '{}' for offset fill",
-                                        obj.name
-                                    ),
-                                });
-                                continue;
-                            };
-                            for poly in &normalized.polylines {
-                                if poly.closed && poly.points.len() >= 3 {
-                                    original_polylines.push(poly.clone());
+                    for (power_scale, scale_objects) in &scale_groups {
+                        for batch_objects in offset_fill_object_batches(
+                            scale_objects,
+                            &project.objects,
+                            grouping_mode,
+                        ) {
+                            let mut original_polylines: Vec<Polyline> = Vec::new();
+                            for obj in &batch_objects {
+                                let Some(normalized) = normalize_object(obj) else {
+                                    warnings.push(PlanWarning {
+                                        message: format!(
+                                            "Failed to normalize object '{}' for offset fill",
+                                            obj.name
+                                        ),
+                                    });
+                                    continue;
+                                };
+                                for poly in &normalized.polylines {
+                                    if poly.closed && poly.points.len() >= 3 {
+                                        original_polylines.push(poly.clone());
+                                    }
                                 }
                             }
-                        }
 
-                        if original_polylines.is_empty() {
-                            continue;
-                        }
+                            if original_polylines.is_empty() {
+                                continue;
+                            }
 
-                        closed_polyline_count += original_polylines.len();
+                            closed_polyline_count += original_polylines.len();
 
-                        let composite_started_at = Instant::now();
-                        let vecpaths: Vec<VecPath> =
-                            original_polylines.iter().map(polyline_to_vecpath).collect();
-                        let (boolean_flatten_tolerance_mm, boolean_simplify_tolerance_mm) =
-                            offset_fill_boolean_tolerances_mm();
-                        let composite = normalize_subject_evenodd_with_tolerance(
-                            &vecpaths,
-                            boolean_flatten_tolerance_mm,
-                            boolean_simplify_tolerance_mm,
-                        );
-                        composite_started_total += composite_started_at.elapsed();
-                        output_subpaths += composite.subpaths.len();
+                            let composite_started_at = Instant::now();
+                            let vecpaths: Vec<VecPath> =
+                                original_polylines.iter().map(polyline_to_vecpath).collect();
+                            let (boolean_flatten_tolerance_mm, boolean_simplify_tolerance_mm) =
+                                offset_fill_boolean_tolerances_mm();
+                            let composite = normalize_subject_evenodd_with_tolerance(
+                                &vecpaths,
+                                boolean_flatten_tolerance_mm,
+                                boolean_simplify_tolerance_mm,
+                            );
+                            composite_started_total += composite_started_at.elapsed();
+                            output_subpaths += composite.subpaths.len();
 
-                        let split_started_at = Instant::now();
-                        let units = split_offset_fill_units(&composite);
-                        split_started_total += split_started_at.elapsed();
-                        if units.is_empty() {
-                            warnings.push(PlanWarning {
-                                message: "OffsetFill produced no composited units for batch"
-                                    .to_string(),
+                            let split_started_at = Instant::now();
+                            let units = split_offset_fill_units(&composite);
+                            split_started_total += split_started_at.elapsed();
+                            if units.is_empty() {
+                                warnings.push(PlanWarning {
+                                    message: "OffsetFill produced no composited units for batch"
+                                        .to_string(),
+                                });
+                                continue;
+                            }
+
+                            composite_batches.push(OffsetFillCompositeBatch {
+                                units,
+                                power_scale: *power_scale,
                             });
-                            continue;
                         }
-
-                        composite_batches.push(OffsetFillCompositeBatch { units });
                     }
                     tracing::info!(
                         target: "perf",
@@ -3235,7 +3262,7 @@ fn build_plan_inner(
                                 let (offset_segments, next_pos) = emit_prepared_offset_fill_unit(
                                     prepared_unit,
                                     offset_spacing,
-                                    layer.primary_entry().power_percent,
+                                    layer.primary_entry().power_percent * batch.power_scale,
                                     layer.primary_entry().speed_mm_min,
                                     &layer.id.to_string(),
                                     &layer.primary_entry().id.to_string(),
@@ -3306,178 +3333,190 @@ fn build_plan_inner(
                         raw_angle_passes
                     };
 
-                    let mut fill_object_polylines = Vec::new();
-                    for obj in &vector_objects {
-                        let Some(normalized) = normalize_object(obj) else {
-                            warnings.push(PlanWarning {
-                                message: format!(
-                                    "Failed to normalize object '{}' for fill",
-                                    obj.name
-                                ),
-                            });
-                            continue;
-                        };
-                        let original_polylines: Vec<Polyline> = normalized
-                            .polylines
-                            .iter()
-                            .filter(|poly| poly.closed && poly.points.len() >= 3)
-                            .cloned()
-                            .collect();
+                    for (power_scale, scale_objects) in group_by_power_scale(&vector_objects) {
+                        let mut fill_object_polylines = Vec::new();
+                        for obj in scale_objects {
+                            let Some(normalized) = normalize_object(obj) else {
+                                warnings.push(PlanWarning {
+                                    message: format!(
+                                        "Failed to normalize object '{}' for fill",
+                                        obj.name
+                                    ),
+                                });
+                                continue;
+                            };
+                            let original_polylines: Vec<Polyline> = normalized
+                                .polylines
+                                .iter()
+                                .filter(|poly| poly.closed && poly.points.len() >= 3)
+                                .cloned()
+                                .collect();
 
-                        if original_polylines.is_empty() {
-                            continue;
+                            if original_polylines.is_empty() {
+                                continue;
+                            }
+
+                            fill_object_polylines.push(original_polylines);
                         }
 
-                        fill_object_polylines.push(original_polylines);
-                    }
+                        for original_polylines in fill_polyline_batches(fill_object_polylines) {
+                            let vecpaths: Vec<VecPath> =
+                                original_polylines.iter().map(polyline_to_vecpath).collect();
+                            let composite = normalize_subject_evenodd_with_tolerance(
+                                &vecpaths,
+                                DEFAULT_TOLERANCE_MM,
+                                DEFAULT_TOLERANCE_MM,
+                            );
+                            let composited_polylines =
+                                flatten_vecpath(&composite, DEFAULT_TOLERANCE_MM);
 
-                    for original_polylines in fill_polyline_batches(fill_object_polylines) {
-                        let vecpaths: Vec<VecPath> =
-                            original_polylines.iter().map(polyline_to_vecpath).collect();
-                        let composite = normalize_subject_evenodd_with_tolerance(
-                            &vecpaths,
-                            DEFAULT_TOLERANCE_MM,
-                            DEFAULT_TOLERANCE_MM,
-                        );
-                        let composited_polylines =
-                            flatten_vecpath(&composite, DEFAULT_TOLERANCE_MM);
-
-                        let Some(composite_bounds) = bounds_from_polylines(&composited_polylines)
-                        else {
-                            continue;
-                        };
-
-                        let composite_center = Point2D::new(
-                            (composite_bounds.min.x + composite_bounds.max.x) / 2.0,
-                            (composite_bounds.min.y + composite_bounds.max.y) / 2.0,
-                        );
-                        let preview_outlines = simplify_preview_outlines(&composited_polylines);
-
-                        for _pass in 0..fill_passes {
-                            order_boundaries.push(all_segments.len());
-                            let Some(processed) = rasterize_fill(
-                                &composited_polylines,
-                                &composite_bounds,
-                                line_interval,
-                            ) else {
+                            let Some(composite_bounds) =
+                                bounds_from_polylines(&composited_polylines)
+                            else {
                                 continue;
                             };
 
-                            // Keep a single expanded row bounded, including after rotation.
-                            if processed.width_px > 65_536 || processed.height_px > 65_536 {
-                                return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Fill scan dimensions exceed 65,536 pixels. Increase the line interval or reduce the filled area.".into()));
-                            }
+                            let composite_center = Point2D::new(
+                                (composite_bounds.min.x + composite_bounds.max.x) / 2.0,
+                                (composite_bounds.min.y + composite_bounds.max.y) / 2.0,
+                            );
+                            let preview_outlines = simplify_preview_outlines(&composited_polylines);
 
-                            // Charge the fill bitmap before it is shared, then let
-                            // every angle pass scan that one allocation.
-                            raster_budget.precheck_bitmap(processed.data.len())?;
-                            let processed = Arc::new(processed);
+                            for _pass in 0..fill_passes {
+                                order_boundaries.push(all_segments.len());
+                                let Some(processed) = rasterize_fill(
+                                    &composited_polylines,
+                                    &composite_bounds,
+                                    line_interval,
+                                ) else {
+                                    continue;
+                                };
 
-                            for ai in 0..effective_angle_passes {
-                                if input.cancellation.should_cancel() {
-                                    return Err(PlannerError::Cancelled);
+                                // Keep a single expanded row bounded, including after rotation.
+                                if processed.width_px > 65_536 || processed.height_px > 65_536 {
+                                    return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Fill scan dimensions exceed 65,536 pixels. Increase the line interval or reduce the filled area.".into()));
                                 }
-                                let effective_angle = scan_angle + ai as f64 * angle_increment;
-                                let norm = ((effective_angle % 360.0) + 360.0) % 360.0;
 
-                                if let Some((axis, needs_flip)) = classify_cardinal(norm) {
-                                    let (scanlines, li, s_axis) = build_cardinal_raster_scanlines(
-                                        &processed,
-                                        &composite_bounds,
-                                        axis,
-                                        needs_flip,
-                                        bidirectional,
-                                        overscan_mm,
-                                        None,
-                                        &mut raster_budget,
-                                    )?
-                                    .expect("unbounded fill raster generation cannot fail");
+                                // Charge the fill bitmap before it is shared, then let
+                                // every angle pass scan that one allocation.
+                                raster_budget.precheck_bitmap(processed.data.len())?;
+                                let processed = Arc::new(processed);
 
-                                    if scanlines.is_empty() {
-                                        continue;
+                                for ai in 0..effective_angle_passes {
+                                    if input.cancellation.should_cancel() {
+                                        return Err(PlannerError::Cancelled);
                                     }
+                                    let effective_angle = scan_angle + ai as f64 * angle_increment;
+                                    let norm = ((effective_angle % 360.0) + 360.0) % 360.0;
 
-                                    raster_budget.include(&scanlines)?;
+                                    if let Some((axis, needs_flip)) = classify_cardinal(norm) {
+                                        let (scanlines, li, s_axis) =
+                                            build_cardinal_raster_scanlines(
+                                                &processed,
+                                                &composite_bounds,
+                                                axis,
+                                                needs_flip,
+                                                bidirectional,
+                                                overscan_mm,
+                                                None,
+                                                &mut raster_budget,
+                                            )?
+                                            .expect("unbounded fill raster generation cannot fail");
 
-                                    all_segments.push(PlanSegment::Raster {
-                                        scanlines,
-                                        line_interval_mm: li,
-                                        direction_mode,
-                                        power_mode: PowerMode::Binary,
-                                        speed_mm_min: layer.primary_entry().speed_mm_min,
-                                        layer_id: layer.id.to_string(),
-                                        cut_entry_id: layer.primary_entry().id.to_string(),
-                                        overscan_mm,
-                                        outlines: preview_outlines.clone(),
-                                        scan_axis: s_axis,
-                                        power_max_percent: layer.primary_entry().power_percent,
-                                        power_min_percent: layer.primary_entry().power_min_percent,
-                                        scan_angle_deg: 0.0,
-                                        scan_origin: Point2D::new(0.0, 0.0),
-                                        dot_width_correction_mm: layer
-                                            .primary_entry()
-                                            .raster_settings
-                                            .as_ref()
-                                            .map(|rs| rs.dot_width_correction_mm)
-                                            .unwrap_or(0.0),
-                                        ramp_length_mm: effective_layer_ramp_length_mm(layer),
-                                        x_pixel_mm: processed.effective_x_pixel_mm(),
-                                    });
-                                } else {
-                                    use beambench_raster::rotate_raster;
+                                        if scanlines.is_empty() {
+                                            continue;
+                                        }
 
-                                    raster_budget.precheck_bitmap(processed.data.len())?;
-                                    let rotated = rotate_raster(
-                                        &processed,
-                                        -effective_angle,
-                                        composite_bounds.width(),
-                                        composite_bounds.height(),
-                                    );
+                                        raster_budget.include(&scanlines)?;
 
-                                    let (rotated_width_mm, rotated_height_mm) =
-                                        (rotated.width_mm, rotated.height_mm);
-                                    let rotated_raster = Arc::new(rotated.raster);
-                                    let fill_line_interval_mm = rotated_raster.line_interval_mm;
-                                    let fill_x_pixel_mm = rotated_raster.effective_x_pixel_mm();
+                                        all_segments.push(PlanSegment::Raster {
+                                            scanlines,
+                                            line_interval_mm: li,
+                                            direction_mode,
+                                            power_mode: PowerMode::Binary,
+                                            speed_mm_min: layer.primary_entry().speed_mm_min,
+                                            layer_id: layer.id.to_string(),
+                                            cut_entry_id: layer.primary_entry().id.to_string(),
+                                            overscan_mm,
+                                            outlines: preview_outlines.clone(),
+                                            scan_axis: s_axis,
+                                            power_max_percent: layer.primary_entry().power_percent
+                                                * power_scale,
+                                            power_min_percent: layer
+                                                .primary_entry()
+                                                .power_min_percent
+                                                * power_scale,
+                                            scan_angle_deg: 0.0,
+                                            scan_origin: Point2D::new(0.0, 0.0),
+                                            dot_width_correction_mm: layer
+                                                .primary_entry()
+                                                .raster_settings
+                                                .as_ref()
+                                                .map(|rs| rs.dot_width_correction_mm)
+                                                .unwrap_or(0.0),
+                                            ramp_length_mm: effective_layer_ramp_length_mm(layer),
+                                            x_pixel_mm: processed.effective_x_pixel_mm(),
+                                        });
+                                    } else {
+                                        use beambench_raster::rotate_raster;
 
-                                    let local_scanlines = generate_scanlines(
-                                        rotated_raster,
-                                        -rotated_width_mm / 2.0,
-                                        -rotated_height_mm / 2.0,
-                                        bidirectional,
-                                        overscan_mm,
-                                    );
+                                        raster_budget.precheck_bitmap(processed.data.len())?;
+                                        let rotated = rotate_raster(
+                                            &processed,
+                                            -effective_angle,
+                                            composite_bounds.width(),
+                                            composite_bounds.height(),
+                                        );
 
-                                    if local_scanlines.is_empty() {
-                                        continue;
+                                        let (rotated_width_mm, rotated_height_mm) =
+                                            (rotated.width_mm, rotated.height_mm);
+                                        let rotated_raster = Arc::new(rotated.raster);
+                                        let fill_line_interval_mm = rotated_raster.line_interval_mm;
+                                        let fill_x_pixel_mm = rotated_raster.effective_x_pixel_mm();
+
+                                        let local_scanlines = generate_scanlines(
+                                            rotated_raster,
+                                            -rotated_width_mm / 2.0,
+                                            -rotated_height_mm / 2.0,
+                                            bidirectional,
+                                            overscan_mm,
+                                        );
+
+                                        if local_scanlines.is_empty() {
+                                            continue;
+                                        }
+
+                                        raster_budget.include(&local_scanlines)?;
+
+                                        all_segments.push(PlanSegment::Raster {
+                                            scanlines: local_scanlines,
+                                            line_interval_mm: fill_line_interval_mm,
+                                            direction_mode,
+                                            power_mode: PowerMode::Binary,
+                                            speed_mm_min: layer.primary_entry().speed_mm_min,
+                                            layer_id: layer.id.to_string(),
+                                            cut_entry_id: layer.primary_entry().id.to_string(),
+                                            overscan_mm,
+                                            outlines: preview_outlines.clone(),
+                                            scan_axis: ScanAxis::Horizontal,
+                                            power_max_percent: layer.primary_entry().power_percent
+                                                * power_scale,
+                                            power_min_percent: layer
+                                                .primary_entry()
+                                                .power_min_percent
+                                                * power_scale,
+                                            scan_angle_deg: effective_angle,
+                                            scan_origin: composite_center,
+                                            dot_width_correction_mm: layer
+                                                .primary_entry()
+                                                .raster_settings
+                                                .as_ref()
+                                                .map(|rs| rs.dot_width_correction_mm)
+                                                .unwrap_or(0.0),
+                                            ramp_length_mm: effective_layer_ramp_length_mm(layer),
+                                            x_pixel_mm: fill_x_pixel_mm,
+                                        });
                                     }
-
-                                    raster_budget.include(&local_scanlines)?;
-
-                                    all_segments.push(PlanSegment::Raster {
-                                        scanlines: local_scanlines,
-                                        line_interval_mm: fill_line_interval_mm,
-                                        direction_mode,
-                                        power_mode: PowerMode::Binary,
-                                        speed_mm_min: layer.primary_entry().speed_mm_min,
-                                        layer_id: layer.id.to_string(),
-                                        cut_entry_id: layer.primary_entry().id.to_string(),
-                                        overscan_mm,
-                                        outlines: preview_outlines.clone(),
-                                        scan_axis: ScanAxis::Horizontal,
-                                        power_max_percent: layer.primary_entry().power_percent,
-                                        power_min_percent: layer.primary_entry().power_min_percent,
-                                        scan_angle_deg: effective_angle,
-                                        scan_origin: composite_center,
-                                        dot_width_correction_mm: layer
-                                            .primary_entry()
-                                            .raster_settings
-                                            .as_ref()
-                                            .map(|rs| rs.dot_width_correction_mm)
-                                            .unwrap_or(0.0),
-                                        ramp_length_mm: effective_layer_ramp_length_mm(layer),
-                                        x_pixel_mm: fill_x_pixel_mm,
-                                    });
                                 }
                             }
                         }
@@ -3715,19 +3754,17 @@ fn build_plan_inner(
     };
     // Explicit orderings (inner first, direction, group) are constraints a
     // nearest-neighbor pass would undo, so they take precedence.
-    let all_segments = if optimization.enabled
-        && optimization.reduce_travel
-        && !force_as_drawn(optimization)
-    {
-        reorder_travel_within_runs(
-            all_segments,
-            &order_boundaries,
-            start_pos,
-            optimization.reduce_direction_changes,
-        )
-    } else {
-        all_segments
-    };
+    let all_segments =
+        if optimization.enabled && optimization.reduce_travel && !force_as_drawn(optimization) {
+            reorder_travel_within_runs(
+                all_segments,
+                &order_boundaries,
+                start_pos,
+                optimization.reduce_direction_changes,
+            )
+        } else {
+            all_segments
+        };
 
     // 6e. Prepend initial travel from custom start point if set
     let mut all_segments = all_segments;
