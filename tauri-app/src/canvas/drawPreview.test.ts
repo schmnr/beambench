@@ -143,6 +143,43 @@ describe('drawVectorPreview', () => {
 });
 
 describe('drawRasterPreview', () => {
+  const sampledFill = (complete: boolean) =>
+    makeRasterPreview({
+      line_count: 5001,
+      run_extents: Array.from({ length: 2501 }, (_, i) => ({
+        y_mm: i * 0.2,
+        start_x_mm: 1,
+        end_x_mm: 2,
+        direction: 'left_to_right',
+      })),
+      run_extents_complete: complete,
+      outlines: [{ closed: true, points: [{ x: 1, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 500.1 }, { x: 1, y: 500.1 }] }],
+      preview_bitmap: { width_px: 10, height_px: 5001, png_bytes: [1, 2, 3] },
+      local_origin_mm: { x: 1, y: 0 },
+      local_width_mm: 1,
+      local_height_mm: 500.1,
+    });
+
+  it('draws the exact bitmap when the run stripes are only a sample', () => {
+    const ctx = createMockCtx();
+    const cache = makeCache();
+    const load = vi
+      .spyOn(cache, 'ensurePreviewBitmap')
+      .mockReturnValue({ complete: true, naturalWidth: 10 } as HTMLImageElement);
+    drawRasterPreview(ctx, [sampledFill(false)], '#000000', vp, cache);
+    expect(load).toHaveBeenCalled();
+    expect(ctx.drawImage).toHaveBeenCalled();
+  });
+
+  it('keeps run stripes when they cover every run', () => {
+    const ctx = createMockCtx();
+    const cache = makeCache();
+    const load = vi.spyOn(cache, 'ensurePreviewBitmap');
+    drawRasterPreview(ctx, [sampledFill(true)], '#000000', vp, cache);
+    expect(load).not.toHaveBeenCalled();
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
   let ctx: CanvasRenderingContext2D;
   let cache: PreviewBitmapCache;
 

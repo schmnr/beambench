@@ -396,6 +396,7 @@ pub fn distill_preview(plan: &ExecutionPlan) -> PreviewData {
                         local_origin_mm,
                         local_width_mm,
                         local_height_mm,
+                        run_extents_complete: run_extents.len() == total_run_count,
                         run_extents,
                         scanline_extents,
                         overscan_run_extents,
@@ -1420,6 +1421,7 @@ mod tests {
             local_width_mm: 50.0,
             local_height_mm: 25.0,
             run_extents: vec![],
+            run_extents_complete: true,
             scanline_extents: vec![],
             overscan_run_extents: vec![],
         };
@@ -1827,6 +1829,7 @@ mod tests {
             local_width_mm: 50.0,
             local_height_mm: 25.0,
             run_extents: vec![],
+            run_extents_complete: true,
             scanline_extents: vec![],
             overscan_run_extents: vec![],
         };
