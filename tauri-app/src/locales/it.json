@@ -433,7 +433,12 @@
       "downloading": "Download in corso...",
       "installing": "Installazione in corso...",
       "blocked_not_in_applications": "Gli aggiornamenti richiedono che Beam Bench venga eseguito dalla cartella Applicazioni. Sembra che sia in esecuzione dall'immagine disco di installazione o da un'altra posizione temporanea. Nel Finder, trascina Beam Bench in Applicazioni, aprilo da lì e riprova l'aggiornamento.",
-      "blocked_other_disk": "Beam Bench è installato su un disco diverso da quello della cartella temporanea di questo Mac, quindi l'aggiornamento non può sostituirlo. Sposta Beam Bench nella cartella Applicazioni del disco principale oppure scarica la nuova versione da beambench.com."
+      "blocked_other_disk": "Beam Bench è installato su un disco diverso da quello della cartella temporanea di questo Mac, quindi l'aggiornamento non può sostituirlo. Sposta Beam Bench nella cartella Applicazioni del disco principale oppure scarica la nuova versione da beambench.com.",
+      "blocked_job_running": "Completa o ferma il lavoro in corso prima di installare.",
+      "blocked_machine_operation": "Attendi la fine dell'operazione della macchina in corso prima di installare.",
+      "blocked_machine_busy": "Completa o ferma l'operazione della macchina in corso prima di installare.",
+      "blocked_machine_moving": "Attendi che la macchina torni a riposo prima di installare.",
+      "cancelled_unsaved": "Aggiornamento annullato. Il progetto non è stato scartato."
     },
     "camera_calibration": {
       "title": "Mappatura fotocamera",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} righe",
         "elapsed": "Trascorso: {time}",
         "remaining": "Rimanente: ~{time}",
-        "finishing": "Completamento, in attesa della macchina..."
+        "finishing": "Completamento, in attesa della macchina...",
+        "last_failure": "L'ultimo lavoro si è fermato: {message}"
       },
       "overrides": {
         "title": "Override",
@@ -2588,7 +2594,50 @@
       "postponed": "Promemoria di aggiornamento posticipato di 24 ore.",
       "skipped": "Beam Bench {version} ignorato."
     },
-    "import_oversized": "Importato nelle dimensioni originali: il disegno misura {width} x {height} {unit}, più grande dell'area di lavoro di {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importato nelle dimensioni originali: il disegno misura {width} x {height} {unit}, più grande dell'area di lavoro di {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Uso della connessione macchina esistente",
+      "preview_disconnected": "Macchina di anteprima disconnessa",
+      "disconnected": "Disconnesso",
+      "preview_connected": "Macchina di anteprima connessa",
+      "homing_started": "Azzeramento avviato",
+      "discovery_started": "Ricerca macchine avviata",
+      "discovery_cancelled": "Ricerca macchine annullata",
+      "connected_discovered": "Connesso al dispositivo trovato",
+      "profile_from_discovery": "Profilo macchina creato dal dispositivo trovato",
+      "estop_sent": "Arresto di emergenza inviato",
+      "estop_resent_disconnected": "L'arresto di emergenza è stato inviato di nuovo dopo la riapertura della connessione al controller. Poi Beam Bench si è disconnesso. Riconnetti prima di continuare.",
+      "user_origin_cleared": "Origine utente cancellata",
+      "job_tick_failed": "Il lavoro si è fermato perché l'invio al controller non è riuscito.",
+      "lihuiyu_incomplete": "La connessione USB Lihuiyu non è stata completata.",
+      "connected_to": "Connesso a {name}",
+      "user_origin_set": "Origine utente impostata su ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Nuova immagine della fotocamera acquisita",
+      "alignment_saved": "Allineamento della fotocamera salvato",
+      "mapping_solved": "Mappatura della fotocamera calcolata",
+      "mapping_saved": "Mappatura della fotocamera salvata",
+      "mapping_reset": "Mappatura della fotocamera reimpostata",
+      "alignment_solved": "Allineamento della fotocamera calcolato",
+      "alignment_reset": "Allineamento della fotocamera reimpostato"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Il modello usa segnaposto {placeholder}, ma la modalità testo non è Numero di serie.",
+      "date_outside_mode": "Il modello usa segnaposto {placeholder}, ma la modalità testo non è Data/Ora.",
+      "csv_outside_mode": "Il modello usa segnaposto {placeholder}, ma la modalità testo non è Unione CSV.",
+      "cut_outside_mode": "Il modello usa segnaposto {placeholder}, ma la modalità testo non è Impostazione di taglio.",
+      "no_placeholders": "La modalità testo scelta non ha segnaposto corrispondenti nel modello.",
+      "csv_load_failed": "Impossibile caricare il file CSV: {error}",
+      "resolve_failed": "Impossibile risolvere il testo: {error}",
+      "merge_fields_failed": "Impossibile leggere i campi di unione: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Il taglio ha creato più pezzi. Selezionali e usa Chiudi e unisci per combinarli.",
+      "open_path": "Il tracciato tagliato è aperto e non può essere riempito. Usa Chiudi e unisci se ti serve una forma chiusa."
+    },
+    "pick_guide_path": "Fai clic su un oggetto vettoriale o una forma da usare come tracciato guida",
+    "panel_layout_save_failed": "Non è stato possibile salvare le modifiche alla disposizione dei pannelli. Potrebbero andare perse al riavvio."
   },
   "status": {
     "preview_in_progress": "Generazione anteprima in corso",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "L'origine utente è selezionata ma non è stata impostata. Spostare il laser sull'origine prevista e scegliere Imposta qui prima di inquadrare o iniziare.",
     "current_position_unavailable": "La posizione attuale necessita di una macchina connessa con una posizione segnalata.",
     "dxf_no_usable_geometry": "Il file DXF non contiene geometria vettoriale 2D utilizzabile.",
-    "dxf_no_usable_geometry_with_entities": "Il file DXF non contiene geometria vettoriale 2D utilizzabile. Entità non supportate o non valide: {entities}."
+    "dxf_no_usable_geometry_with_entities": "Il file DXF non contiene geometria vettoriale 2D utilizzabile. Entità non supportate o non valide: {entities}.",
+    "camera": {
+      "stream_failed": "Impossibile avviare il flusso della fotocamera.",
+      "frame_timeout": "Tempo scaduto in attesa di un'immagine della fotocamera. La fotocamera potrebbe essere ancora in avvio o in uso da un'altra app.",
+      "preview_timeout": "Tempo scaduto durante l'avvio dell'anteprima della fotocamera.",
+      "warmup_timeout": "Tempo scaduto in attesa che la fotocamera sia pronta.",
+      "encode_failed": "Impossibile salvare l'immagine della fotocamera.",
+      "unavailable": "L'acquisizione dalla fotocamera non è disponibile in questa finestra.",
+      "empty_frame": "La fotocamera ha restituito un'immagine vuota.",
+      "canvas_failed": "Impossibile preparare l'immagine della fotocamera."
+    }
   },
   "import": {
     "drop_to_import": "Trascina i file da importare"

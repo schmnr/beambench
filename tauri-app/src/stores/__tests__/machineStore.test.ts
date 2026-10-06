@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import i18n from '../../i18n';
 import {
   consumeSuppressedProfileEvent,
   resetSuppressedProfileEvents,
@@ -240,7 +241,7 @@ describe('machineStore frame-selected toggle', () => {
     const notifications = useNotificationStore.getState().notifications;
     const notification = notifications[notifications.length - 1];
     expect(notification).toMatchObject({ type: 'warning' });
-    expect(notification?.message).toContain('automatically reopening');
+    expect(notification?.message).toBe(i18n.t('notifications.machine.estop_resent_disconnected'));
   });
 
   it('keeps an unconfirmed emergency stop warning visible and clears stale state', async () => {

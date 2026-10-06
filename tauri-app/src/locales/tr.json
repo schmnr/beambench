@@ -433,7 +433,12 @@
       "downloading": "İndiriliyor...",
       "installing": "Yükleniyor...",
       "blocked_not_in_applications": "Güncellemeler için Beam Bench'in Uygulamalar klasöründen çalıştırılması gerekir. Yükleyici disk görüntüsünden veya başka bir geçici konumdan çalışıyor görünüyor. Finder'da Beam Bench'i Uygulamalar klasörüne sürükleyin, oradan açın ve güncellemeyi yeniden deneyin.",
-      "blocked_other_disk": "Beam Bench, bu Mac'in geçici klasöründen farklı bir diske kurulu olduğundan güncelleyici onu yerinde değiştiremiyor. Beam Bench'i ana diskteki Uygulamalar klasörüne taşıyın veya yeni sürümü beambench.com adresinden indirin."
+      "blocked_other_disk": "Beam Bench, bu Mac'in geçici klasöründen farklı bir diske kurulu olduğundan güncelleyici onu yerinde değiştiremiyor. Beam Bench'i ana diskteki Uygulamalar klasörüne taşıyın veya yeni sürümü beambench.com adresinden indirin.",
+      "blocked_job_running": "Yüklemeden önce mevcut işi bitirin veya durdurun.",
+      "blocked_machine_operation": "Yüklemeden önce mevcut makine işleminin bitmesini bekleyin.",
+      "blocked_machine_busy": "Yüklemeden önce mevcut makine işlemini bitirin veya durdurun.",
+      "blocked_machine_moving": "Yüklemeden önce makinenin boşta durumuna dönmesini bekleyin.",
+      "cancelled_unsaved": "Güncelleme iptal edildi. Projeniz atılmadı."
     },
     "camera_calibration": {
       "title": "Kamera eşleme",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} satır",
         "elapsed": "Geçen: {time}",
         "remaining": "Kalan: ~{time}",
-        "finishing": "Bitiriliyor, makine bekleniyor..."
+        "finishing": "Bitiriliyor, makine bekleniyor...",
+        "last_failure": "Son iş durdu: {message}"
       },
       "overrides": {
         "title": "Geçersiz kılmalar",
@@ -2588,7 +2594,50 @@
       "postponed": "Güncelleme hatırlatıcısı 24 saat ertelendi.",
       "skipped": "Beam Bench {version} atlandı."
     },
-    "import_oversized": "Orijinal boyutta içe aktarıldı: tasarım {width} x {height} {unit} boyutunda olup {bedWidth} x {bedHeight} {unit} çalışma alanından büyüktür."
+    "import_oversized": "Orijinal boyutta içe aktarıldı: tasarım {width} x {height} {unit} boyutunda olup {bedWidth} x {bedHeight} {unit} çalışma alanından büyüktür.",
+    "machine": {
+      "using_existing_connection": "Mevcut makine bağlantısı kullanılıyor",
+      "preview_disconnected": "Önizleme makinesinin bağlantısı kesildi",
+      "disconnected": "Bağlantı kesildi",
+      "preview_connected": "Önizleme makinesi bağlandı",
+      "homing_started": "Sıfırlama başlatıldı",
+      "discovery_started": "Makine arama başlatıldı",
+      "discovery_cancelled": "Makine arama iptal edildi",
+      "connected_discovered": "Bulunan cihaza bağlanıldı",
+      "profile_from_discovery": "Bulunan cihazdan makine profili oluşturuldu",
+      "estop_sent": "Acil durdurma gönderildi",
+      "estop_resent_disconnected": "Denetleyici bağlantısı yeniden açıldıktan sonra acil durdurma tekrar gönderildi. Ardından Beam Bench bağlantıyı kesti. Devam etmeden önce yeniden bağlanın.",
+      "user_origin_cleared": "Kullanıcı orijini temizlendi",
+      "job_tick_failed": "Denetleyiciye gönderim başarısız olduğu için iş durdu.",
+      "lihuiyu_incomplete": "Lihuiyu USB bağlantısı tamamlanmadı.",
+      "connected_to": "{name} cihazına bağlanıldı",
+      "user_origin_set": "Kullanıcı orijini ({x}, {y}) olarak ayarlandı"
+    },
+    "camera": {
+      "image_captured": "Yeni kamera görüntüsü alındı",
+      "alignment_saved": "Kamera hizalaması kaydedildi",
+      "mapping_solved": "Kamera eşlemesi hesaplandı",
+      "mapping_saved": "Kamera eşlemesi kaydedildi",
+      "mapping_reset": "Kamera eşlemesi sıfırlandı",
+      "alignment_solved": "Kamera hizalaması hesaplandı",
+      "alignment_reset": "Kamera hizalaması sıfırlandı"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Şablon {placeholder} yer tutucularını kullanıyor, ancak metin modu Seri Numarası değil.",
+      "date_outside_mode": "Şablon {placeholder} yer tutucularını kullanıyor, ancak metin modu Tarih/Saat değil.",
+      "csv_outside_mode": "Şablon {placeholder} yer tutucularını kullanıyor, ancak metin modu CSV Birleştirme değil.",
+      "cut_outside_mode": "Şablon {placeholder} yer tutucularını kullanıyor, ancak metin modu Kesim Ayarı değil.",
+      "no_placeholders": "Seçilen metin modunun şablonda eşleşen yer tutucusu yok.",
+      "csv_load_failed": "CSV dosyası yüklenemedi: {error}",
+      "resolve_failed": "Metin çözümlenemedi: {error}",
+      "merge_fields_failed": "Birleştirme alanları okunamadı: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Kırpma birden çok parça oluşturdu. Bunları seçin ve birleştirmek için Kapat ve Birleştir'i kullanın.",
+      "open_path": "Kırpılan yol açık olduğu için doldurulamaz. Kapalı bir şekle ihtiyacınız varsa Kapat ve Birleştir'i kullanın."
+    },
+    "pick_guide_path": "Kılavuz yol olarak kullanılacak bir vektör veya şekil nesnesine tıklayın",
+    "panel_layout_save_failed": "Panel düzeni değişiklikleri kaydedilemedi. Yeniden başlatıldığında kaybolabilirler."
   },
   "status": {
     "preview_in_progress": "Önizleme oluşturuluyor",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "Kullanıcı Kaynağı seçili ancak ayarlanmadı. Lazeri istenilen başlangıç ​​noktasına taşıyın ve çerçevelemeden veya başlamadan önce Buraya ayarla seçeneğini seçin.",
     "current_position_unavailable": "Geçerli Konum, rapor edilen konuma sahip bağlı bir makineye ihtiyaç duyar.",
     "dxf_no_usable_geometry": "DXF dosyasında kullanılabilir 2B vektör geometrisi yok.",
-    "dxf_no_usable_geometry_with_entities": "DXF dosyasında kullanılabilir 2B vektör geometrisi yok. Desteklenmeyen veya hatalı varlıklar: {entities}."
+    "dxf_no_usable_geometry_with_entities": "DXF dosyasında kullanılabilir 2B vektör geometrisi yok. Desteklenmeyen veya hatalı varlıklar: {entities}.",
+    "camera": {
+      "stream_failed": "Kamera akışı başlatılamadı.",
+      "frame_timeout": "Kamera görüntüsü beklenirken zaman aşımı oldu. Kamera hâlâ ısınıyor veya başka bir uygulama tarafından kullanılıyor olabilir.",
+      "preview_timeout": "Kamera önizlemesi başlatılırken zaman aşımı oldu.",
+      "warmup_timeout": "Kameranın hazır olması beklenirken zaman aşımı oldu.",
+      "encode_failed": "Kamera görüntüsü kaydedilemedi.",
+      "unavailable": "Kamera yakalama bu pencerede kullanılamıyor.",
+      "empty_frame": "Kamera boş bir görüntü döndürdü.",
+      "canvas_failed": "Kamera görüntüsü hazırlanamadı."
+    }
   },
   "import": {
     "drop_to_import": "İçe aktarmak için dosyaları bırakın"

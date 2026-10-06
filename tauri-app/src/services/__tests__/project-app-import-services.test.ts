@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import i18n from '../../i18n';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 
@@ -408,7 +409,7 @@ describe('appService methods', () => {
     await Promise.resolve();
 
     const notifications = useNotificationStore.getState().notifications;
-    expect(notifications[notifications.length - 1]?.message).toContain('Failed to save panel layout changes');
+    expect(notifications[notifications.length - 1]?.message).toBe(i18n.t('notifications.panel_layout_save_failed'));
     expect(notifications[notifications.length - 1]?.type).toBe('error');
     expect(consoleError).toHaveBeenCalledWith(
       '[Beam Bench] Failed to save panel layout changes',

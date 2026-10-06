@@ -433,7 +433,12 @@
       "downloading": "Ladataan...",
       "installing": "Asennetaan...",
       "blocked_not_in_applications": "Päivitykset edellyttävät, että Beam Bench käynnistetään Ohjelmat-kansiosta. Se näyttää olevan käynnissä asennuslevykuvasta tai muusta väliaikaisesta sijainnista. Vedä Beam Bench Finderissa Ohjelmat-kansioon, avaa se sieltä ja yritä päivitystä uudelleen.",
-      "blocked_other_disk": "Beam Bench on asennettu eri levylle kuin tämän Macin väliaikaiskansio, joten päivitys ei voi vaihtaa sitä paikalleen. Siirrä Beam Bench päälevyn Ohjelmat-kansioon tai lataa uusi versio osoitteesta beambench.com."
+      "blocked_other_disk": "Beam Bench on asennettu eri levylle kuin tämän Macin väliaikaiskansio, joten päivitys ei voi vaihtaa sitä paikalleen. Siirrä Beam Bench päälevyn Ohjelmat-kansioon tai lataa uusi versio osoitteesta beambench.com.",
+      "blocked_job_running": "Viimeistele tai pysäytä nykyinen työ ennen asennusta.",
+      "blocked_machine_operation": "Odota, että nykyinen laitetoiminto päättyy, ennen asennusta.",
+      "blocked_machine_busy": "Viimeistele tai pysäytä nykyinen laitetoiminto ennen asennusta.",
+      "blocked_machine_moving": "Odota, että laite palaa lepotilaan, ennen asennusta.",
+      "cancelled_unsaved": "Päivitys peruttiin. Projektiasi ei hylätty."
     },
     "camera_calibration": {
       "title": "Kameran kartoitus",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} riviä",
         "elapsed": "Kulunut: {time}",
         "remaining": "Jäljellä: ~{time}",
-        "finishing": "Viimeistellään, odotetaan konetta..."
+        "finishing": "Viimeistellään, odotetaan konetta...",
+        "last_failure": "Viimeisin työ pysähtyi: {message}"
       },
       "overrides": {
         "title": "Ohitukset",
@@ -2588,7 +2594,50 @@
       "postponed": "Päivitysmuistutusta lykätty 24 tuntia.",
       "skipped": "Beam Bench {version} ohitettu."
     },
-    "import_oversized": "Tuotu alkuperäisessä koossa: malli on {width} x {height} {unit}, suurempi kuin työalue {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Tuotu alkuperäisessä koossa: malli on {width} x {height} {unit}, suurempi kuin työalue {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Käytetään olemassa olevaa laiteyhteyttä",
+      "preview_disconnected": "Esikatselulaite irrotettu",
+      "disconnected": "Yhteys katkaistu",
+      "preview_connected": "Esikatselulaite yhdistetty",
+      "homing_started": "Kotiinajo aloitettu",
+      "discovery_started": "Laitehaku aloitettu",
+      "discovery_cancelled": "Laitehaku peruttu",
+      "connected_discovered": "Yhdistetty löydettyyn laitteeseen",
+      "profile_from_discovery": "Laiteprofiili luotu löydetystä laitteesta",
+      "estop_sent": "Hätäpysäytys lähetetty",
+      "estop_resent_disconnected": "Hätäpysäytys lähetettiin uudelleen, kun ohjainyhteys avattiin uudelleen. Sen jälkeen Beam Bench katkaisi yhteyden. Yhdistä uudelleen ennen kuin jatkat.",
+      "user_origin_cleared": "Käyttäjän origo tyhjennetty",
+      "job_tick_failed": "Työ pysähtyi, koska lähetys ohjaimelle epäonnistui.",
+      "lihuiyu_incomplete": "Lihuiyu-USB-yhteys ei valmistunut.",
+      "connected_to": "Yhdistetty: {name}",
+      "user_origin_set": "Käyttäjän origo asetettu kohtaan ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Uusi kamerakuva otettu",
+      "alignment_saved": "Kameran kohdistus tallennettu",
+      "mapping_solved": "Kameran kartoitus laskettu",
+      "mapping_saved": "Kameran kartoitus tallennettu",
+      "mapping_reset": "Kameran kartoitus palautettu",
+      "alignment_solved": "Kameran kohdistus laskettu",
+      "alignment_reset": "Kameran kohdistus palautettu"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Mallissa on {placeholder}-paikkamerkkejä, mutta tekstitila ei ole Sarjanumero.",
+      "date_outside_mode": "Mallissa on {placeholder}-paikkamerkkejä, mutta tekstitila ei ole Päivämäärä/aika.",
+      "csv_outside_mode": "Mallissa on {placeholder}-paikkamerkkejä, mutta tekstitila ei ole CSV-yhdistäminen.",
+      "cut_outside_mode": "Mallissa on {placeholder}-paikkamerkkejä, mutta tekstitila ei ole Leikkausasetus.",
+      "no_placeholders": "Valitulla tekstitilalla ei ole vastaavia paikkamerkkejä mallissa.",
+      "csv_load_failed": "CSV-tiedostoa ei voitu ladata: {error}",
+      "resolve_failed": "Tekstiä ei voitu muodostaa: {error}",
+      "merge_fields_failed": "Yhdistämiskenttiä ei voitu lukea: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Rajaus tuotti useita osia. Valitse ne ja yhdistä ne toiminnolla Sulje ja yhdistä.",
+      "open_path": "Rajattu polku on avoin, joten sitä ei voi täyttää. Käytä toimintoa Sulje ja yhdistä, jos tarvitset suljetun muodon."
+    },
+    "pick_guide_path": "Napsauta vektori- tai muoto-objektia, jota käytetään ohjauspolkuna",
+    "panel_layout_save_failed": "Paneelien asettelun muutoksia ei voitu tallentaa. Ne voivat kadota uudelleenkäynnistyksessä."
   },
   "status": {
     "preview_in_progress": "Luodaan esikatselua",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "Käyttäjän alkuperä on valittu, mutta sitä ei ole asetettu. Siirrä laser aiottuun lähtökohtaan ja valitse Aseta tästä ennen kehystämistä tai aloittamista.",
     "current_position_unavailable": "Nykyinen sijainti tarvitsee yhdistetyn koneen, jolla on raportoitu sijainti.",
     "dxf_no_usable_geometry": "DXF-tiedosto ei sisällä käyttökelpoista 2D-vektorigrafiikkaa.",
-    "dxf_no_usable_geometry_with_entities": "DXF-tiedosto ei sisällä käyttökelpoista 2D-vektorigrafiikkaa. Tukemattomat tai virheelliset entiteetit: {entities}."
+    "dxf_no_usable_geometry_with_entities": "DXF-tiedosto ei sisällä käyttökelpoista 2D-vektorigrafiikkaa. Tukemattomat tai virheelliset entiteetit: {entities}.",
+    "camera": {
+      "stream_failed": "Kameravirtaa ei voitu käynnistää.",
+      "frame_timeout": "Aikakatkaisu odotettaessa kamerakuvaa. Kamera voi vielä lämmetä tai olla toisen sovelluksen käytössä.",
+      "preview_timeout": "Aikakatkaisu kameran esikatselun käynnistyksessä.",
+      "warmup_timeout": "Aikakatkaisu odotettaessa kameran valmistumista.",
+      "encode_failed": "Kamerakuvaa ei voitu tallentaa.",
+      "unavailable": "Kamerakuvaus ei ole käytettävissä tässä ikkunassa.",
+      "empty_frame": "Kamera palautti tyhjän kuvan.",
+      "canvas_failed": "Kamerakuvaa ei voitu valmistella."
+    }
   },
   "import": {
     "drop_to_import": "Pudota tiedostot tuotavaksi"

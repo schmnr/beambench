@@ -118,6 +118,22 @@ export function wrapBackendError(detail: string): string {
 }
 
 /** Localize known import warnings while preserving useful unknown details. */
+/**
+ * Localize a backend message shown where the context already says something
+ * failed (a failed job's banner or progress bar): known codes are
+ * translated, anything else is shown as-is without an "Operation failed" frame.
+ */
+export function localizeBackendMessage(detail: string): string {
+  const wrapped = wrapBackendError(detail);
+  const normalized = detail
+    .replace(/^(?:Error:\s*|Operation failed:\s*)+/u, '')
+    .replace(INTERNAL_SAFETY_MARKER, '');
+  const unknownFrames = [detail, normalized].map((value) =>
+    i18n.t('errors.operation_failed_with_detail', { detail: value }),
+  );
+  return unknownFrames.includes(wrapped) ? normalized : wrapped;
+}
+
 export function localizeImportWarning(warning: string): string {
   const skippedDxfEntities = warning.match(DXF_SKIPPED_ENTITIES);
   if (skippedDxfEntities) {

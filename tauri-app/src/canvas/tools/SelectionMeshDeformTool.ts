@@ -122,6 +122,8 @@ export class SelectionMeshDeformTool implements CanvasTool {
   private previewObjects: MeshDeformPreviewObject[] = [];
   private livePreviewActive = false;
   private applying = false;
+  /** Bumped by reset, so a deform that finishes later cannot reset a newer gesture. */
+  private generation = 0;
   private hoveredIndex: number | null = null;
   private activeIndex: number | null = null;
 
@@ -293,6 +295,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
     this.applying = false;
     this.hoveredIndex = null;
     this.activeIndex = null;
+    this.generation += 1;
   }
 
   private syncGrid(ctx: ToolContext): boolean {
@@ -428,6 +431,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
   ): Promise<void> {
     const label = this.labelForMode(mode);
     ctx.setStatusMessage(i18n.t('canvas_status.applying_label', { label }));
+    const generation = this.generation;
     try {
       const updated = await vectorService.meshDeformSelection(
         ids,
@@ -437,7 +441,10 @@ export class SelectionMeshDeformTool implements CanvasTool {
         mode === 'warp',
       );
       const updatedMap = new Map(updated.map((object) => [object.id, object]));
-      this.reset();
+      // The result belongs in the project either way, but the tool state now
+      // belongs to a newer gesture if the tool was reset meanwhile.
+      const current = generation === this.generation;
+      if (current) this.reset();
       useProjectStore.setState((state) => {
         if (!state.project) return state;
         return {
@@ -450,12 +457,14 @@ export class SelectionMeshDeformTool implements CanvasTool {
       });
       usePreviewStore.getState().invalidate();
       await useUndoStore.getState().refresh();
-      ctx.setStatusMessage('');
+      if (current) ctx.setStatusMessage('');
       this.requestOverlayRender(ctx);
     } catch (error) {
       const message = String(error);
-      this.livePreviewActive = false;
-      this.applying = false;
+      if (generation === this.generation) {
+        this.livePreviewActive = false;
+        this.applying = false;
+      }
       ctx.setStatusMessage(message);
       useNotificationStore.getState().push(message, 'error');
       ctx.requestRender();

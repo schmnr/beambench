@@ -1,3 +1,4 @@
+import { isUserCancel } from '../../utils/userCancel';
 import { useState, useRef, useEffect, type FocusEvent as ReactFocusEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n, { SUPPORTED_LOCALES, getLocaleDisplayName } from '../../i18n';
@@ -170,7 +171,7 @@ export function MenuBar() {
     try {
       await action();
     } catch (e) {
-      if (String(e).toLowerCase().includes('cancelled')) {
+      if (isUserCancel(e)) {
         return;
       }
       useNotificationStore.getState().push(wrapBackendError(String(e)), 'error');

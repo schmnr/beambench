@@ -493,7 +493,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                 </div>
                 {showMinPower && (
                   <div data-cut-control="advanced">
-                    <NumberInput
+                    <NumberInput commit="blur"
                       label={t('panels.sub_layer_stack.min_power_percent')}
                       value={entry.power_min_percent}
                       onChange={(power_min_percent) => void updateCutEntry(layer.id, entry.id, { power_min_percent })}
@@ -528,7 +528,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                 </div>
                 {showZOffset && (
                   <div data-cut-control="advanced">
-                    <NumberInput
+                    <NumberInput commit="blur"
                       label={labelWithUnit(t('panels.sub_layer_stack.z_offset_mm'), lengthUnitLabel(displayUnit))}
                       value={roundDisplayLength(mmToDisplay(entry.z_offset_mm, displayUnit), displayUnit)}
                       onChange={(v) => void updateCutEntry(layer.id, entry.id, { z_offset_mm: displayToMm(v, displayUnit) })}
@@ -571,7 +571,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                         </select>
                       </div>
                     )}
-                    <NumberInput
+                    <NumberInput commit="blur"
                       label={labelWithUnit(t('panels.sub_layer_stack.line_interval_mm'), lengthUnitLabel(displayUnit))}
                       value={roundDisplayLength(mmToDisplay(lineInterval, displayUnit), displayUnit)}
                       onChange={(v) => {
@@ -588,7 +588,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                       max={mmToDisplay(10, displayUnit)}
                       step={lengthStep(displayUnit, 0.001, 0.001)}
                     />
-                    <NumberInput
+                    <NumberInput commit="blur"
                       label={t('panels.sub_layer_stack.scan_angle_degrees_symbol')}
                       value={entry.raster_settings?.scan_angle ?? 0}
                       onChange={(scan_angle) =>
@@ -603,7 +603,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                       max={360}
                       step={1}
                     />
-                    <NumberInput
+                    <NumberInput commit="blur"
                       label={labelWithUnit(t('panels.sub_layer_stack.overscan_mm'), lengthUnitLabel(displayUnit))}
                       value={roundDisplayLength(mmToDisplay(entry.raster_settings?.overscan_mm ?? 0, displayUnit), displayUnit)}
                       onChange={(v) =>
@@ -645,7 +645,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                     <div className="flex items-start gap-3">
                       <OffsetFillModeGraphic />
                       <div className="flex min-w-0 flex-1 flex-col gap-2">
-                        <NumberInput
+                        <NumberInput commit="blur"
                           label={labelWithUnit(t('panels.sub_layer_stack.line_interval_mm'), lengthUnitLabel(displayUnit))}
                           value={roundDisplayLength(mmToDisplay(lineInterval, displayUnit), displayUnit)}
                           onChange={(v) =>
@@ -659,7 +659,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                           max={mmToDisplay(10, displayUnit)}
                           step={lengthStep(displayUnit, 0.001, 0.001)}
                         />
-                        <NumberInput
+                        <NumberInput commit="blur"
                           label={t('panels.sub_layer_stack.lines_per_inch')}
                           value={linesPerInch}
                           onChange={(nextLinesPerInch) =>
@@ -720,7 +720,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                         />
                       </div>
                       <div title={offsetFillUnsupportedHelp} className="sm:col-span-2">
-                        <NumberInput
+                        <NumberInput commit="blur"
                           label={t('panels.sub_layer_stack.scan_angle_deg')}
                           value={0}
                           onChange={() => {}}
@@ -752,7 +752,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                         />
                         {(entry.vector_settings?.perforation_enabled ?? false) && (
                           <div className="grid grid-cols-2 gap-2">
-                            <NumberInput
+                            <NumberInput commit="blur"
                               label={t('panels.layers.quick_edit.on_ms')}
                               value={entry.vector_settings?.perforation_on_ms ?? 10}
                               onChange={(perforation_on_ms) =>
@@ -767,7 +767,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                               max={1000}
                               step={1}
                             />
-                            <NumberInput
+                            <NumberInput commit="blur"
                               label={t('panels.layers.quick_edit.off_ms')}
                               value={entry.vector_settings?.perforation_off_ms ?? 10}
                               onChange={(perforation_off_ms) =>
@@ -786,7 +786,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                         )}
                       </>
                     )}
-                    <NumberInput
+                    <NumberInput commit="blur"
                       label={labelWithUnit(t('panels.sub_layer_stack.kerf_offset_mm'), lengthUnitLabel(displayUnit))}
                       value={roundDisplayLength(mmToDisplay(entry.vector_settings?.kerf_offset_mm ?? 0, displayUnit), displayUnit)}
                       onChange={(v) =>
@@ -803,7 +803,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                     />
                     {entry.operation === OPERATION_OFFSET_FILL && (
                       <>
-                        <NumberInput
+                        <NumberInput commit="blur"
                           label={labelWithUnit(t('panels.sub_layer_stack.offset_overlap_mm'), lengthUnitLabel(displayUnit))}
                           value={roundDisplayLength(mmToDisplay(entry.vector_settings?.offset_overlap_mm ?? 0, displayUnit), displayUnit)}
                           onChange={(v) =>

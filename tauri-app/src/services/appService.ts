@@ -219,7 +219,7 @@ export const appService = {
           if (!layoutPersistFailureNotified) {
             layoutPersistFailureNotified = true;
             useNotificationStore.getState().push(
-              'Failed to save panel layout changes. They may be lost on restart.',
+              i18n.t('notifications.panel_layout_save_failed'),
               'error',
             );
           }

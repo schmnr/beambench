@@ -232,6 +232,7 @@ describe('PropertiesPanel', () => {
     const widthInput = section.querySelector('input[type="number"]') as HTMLInputElement;
     expect(widthInput.value).toBe('3');
     fireEvent.change(widthInput, { target: { value: '4.5' } });
+    fireEvent.blur(widthInput);
     expect(updateCutEntry).toHaveBeenCalledWith(
       'l1',
       project.layers[0].entries[0].id,

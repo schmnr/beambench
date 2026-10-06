@@ -94,6 +94,7 @@ function makeToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
     rotateObjects: vi.fn(),
     shearObjects: vi.fn(),
     updateObjectBoundsBatch: vi.fn(),
+    scaleAndRotateObjects: vi.fn().mockResolvedValue(undefined),
     setCursorWorldPos: vi.fn(),
     setStatusMessage: vi.fn(),
     requestRender: vi.fn(),
@@ -549,4 +550,20 @@ describe('uiStore textEditObjectId', () => {
     useUiStore.getState().setTextEditObjectId(null);
     expect(useUiStore.getState().textEditObjectId).toBeNull();
   });
+});
+
+it('a text creation that finishes after leaving the Text tool does not start editing', async () => {
+  clearPendingEdit();
+  useUiStore.setState({ textEditObjectId: null, textEditMode: null, activeTool: 'text' });
+  let resolve!: (object: ProjectObject) => void;
+  const ctx = makeToolContext({ addObject: vi.fn(() => new Promise<ProjectObject>(r => { resolve = r; })) });
+  const tool = new TextTool();
+  tool.onMouseDown(makeMouseEvent({ snappedX: 10, snappedY: 10 }), ctx);
+  tool.onMouseUp(makeMouseEvent({ snappedX: 10, snappedY: 10 }), ctx);
+  await vi.waitFor(() => expect(ctx.addObject).toHaveBeenCalledOnce());
+  tool.reset();
+  useUiStore.setState({ activeTool: 'select' });
+  resolve(makeTextObject('late-text', '', { min: { x: 10, y: 10 }, max: { x: 20, y: 20 } }));
+  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+  expect(useUiStore.getState().textEditObjectId).toBeNull();
 });

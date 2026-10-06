@@ -31,6 +31,17 @@ import { backendErrorMessage, backendErrorReportContext, wrapBackendError } from
 import { formatWorkspaceBoundsError } from '../i18n/previewBoundsError';
 import i18n from '../i18n';
 
+/**
+ * Bumped when the connection starts or ends. A status poll answered by an
+ * earlier connection must not overwrite the current connection's state, such
+ * as turning a disconnected machine back to Ready.
+ */
+let connectionGeneration = 0;
+const beginConnectionChange = () => {
+  connectionGeneration += 1;
+};
+const isCurrentConnection = (generation: number) => generation === connectionGeneration;
+
 const notifyError = (msg: string) =>
   useNotificationStore.getState().push(wrapBackendError(msg), 'error');
 const notifySuccess = (msg: string) => useNotificationStore.getState().push(msg, 'success');
@@ -211,6 +222,9 @@ interface MachineStoreState {
   // Job
   jobProgress: JobProgress | null;
   activeJobPurpose: 'job' | 'frame' | null;
+  /** Why the last job or frame stopped early; kept until dismissed or the next one starts. */
+  lastJobFailure: string | null;
+  dismissJobFailure: () => void;
   emergencyStopGeneration: number;
   preflightReport: PreflightReport | null;
 
@@ -293,6 +307,8 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   capabilities: null,
   jobProgress: null,
   activeJobPurpose: null,
+  lastJobFailure: null,
+  dismissJobFailure: () => set({ lastJobFailure: null }),
   emergencyStopGeneration: 0,
   preflightReport: null,
   profiles: [],
@@ -343,6 +359,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   connect: async (portName, baudRate, selection) => {
+    beginConnectionChange();
     set({ loading: true, error: null });
     try {
       if (get().connectionPreview) {
@@ -394,13 +411,13 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       });
       void get().loadRuntimeCapabilities();
       await rememberSuccessfulConnection(result.endpoint, controllerSelection);
-      notifySuccess(`Connected to ${controllerEndpointDisplayName(result.endpoint)}`);
+      notifySuccess(i18n.t('notifications.machine.connected_to', { name: controllerEndpointDisplayName(result.endpoint) }));
     } catch (e) {
       const msg = String(e);
       if (isAlreadyConnectedError(e)) {
         await get().hydrateSession();
         set({ error: null, loading: false, controllerConnectionChallenge: null });
-        notifySuccess('Using existing machine connection');
+        notifySuccess(i18n.t('notifications.machine.using_existing_connection'));
         return;
       }
       set({ error: msg, loading: false });
@@ -409,6 +426,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   connectNetwork: async (host, port, selection) => {
+    beginConnectionChange();
     set({ loading: true, error: null });
     try {
       if (get().connectionPreview) {
@@ -461,13 +479,13 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       });
       void get().loadRuntimeCapabilities();
       await rememberSuccessfulConnection(result.endpoint, controllerSelection);
-      notifySuccess(`Connected to ${endpointName}`);
+      notifySuccess(i18n.t('notifications.machine.connected_to', { name: endpointName }));
     } catch (e) {
       const msg = String(e);
       if (isAlreadyConnectedError(e)) {
         await get().hydrateSession();
         set({ error: null, loading: false, controllerConnectionChallenge: null });
-        notifySuccess('Using existing machine connection');
+        notifySuccess(i18n.t('notifications.machine.using_existing_connection'));
         return;
       }
       set({ error: msg, loading: false });
@@ -476,6 +494,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   connectUsb: async (device) => {
+    beginConnectionChange();
     set({ loading: true, error: null });
     try {
       if (get().connectionPreview) {
@@ -488,7 +507,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       set({ controllerSelection });
       const result = await machineService.beginUsbControllerConnection(device, controllerSelection);
       if (result.status !== 'connected') {
-        throw new Error('Lihuiyu USB connection did not complete');
+        throw new Error(i18n.t('notifications.machine.lihuiyu_incomplete'));
       }
       let status = null;
       try {
@@ -507,13 +526,13 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         loading: false,
       });
       void get().loadRuntimeCapabilities();
-      notifySuccess(`Connected to ${endpointName}`);
+      notifySuccess(i18n.t('notifications.machine.connected_to', { name: endpointName }));
     } catch (e) {
       const msg = String(e);
       if (isAlreadyConnectedError(e)) {
         await get().hydrateSession();
         set({ error: null, loading: false, controllerConnectionChallenge: null });
-        notifySuccess('Using existing machine connection');
+        notifySuccess(i18n.t('notifications.machine.using_existing_connection'));
         return;
       }
       set({ error: msg, loading: false });
@@ -567,7 +586,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       });
       void get().loadRuntimeCapabilities();
       await rememberSuccessfulConnection(result.endpoint, controllerSelection);
-      notifySuccess(`Connected to ${controllerEndpointDisplayName(result.endpoint)}`);
+      notifySuccess(i18n.t('notifications.machine.connected_to', { name: controllerEndpointDisplayName(result.endpoint) }));
     } catch (e) {
       const msg = String(e);
       const challengeExpired =
@@ -583,6 +602,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   disconnect: async () => {
+    beginConnectionChange();
     if (get().connectionPreview) {
       set({
         connectionPreview: false,
@@ -595,7 +615,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         jobProgress: null,
         error: null,
       });
-      notifySuccess('Preview machine disconnected');
+      notifySuccess(i18n.t('notifications.machine.preview_disconnected'));
       return;
     }
     try {
@@ -610,7 +630,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         jobProgress: null,
         error: null,
       });
-      notifySuccess('Disconnected');
+      notifySuccess(i18n.t('notifications.machine.disconnected'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg });
@@ -646,7 +666,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         loading: false,
         error: null,
       });
-      notifySuccess('Preview machine connected');
+      notifySuccess(i18n.t('notifications.machine.preview_connected'));
       return;
     }
     set({
@@ -660,7 +680,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       jobProgress: null,
       error: null,
     });
-    notifySuccess('Preview machine disconnected');
+    notifySuccess(i18n.t('notifications.machine.preview_disconnected'));
   },
 
   refreshStatus: async () => {
@@ -673,11 +693,13 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       });
       return;
     }
+    const generation = connectionGeneration;
     try {
       const [status, machineCoordinatesValid] = await Promise.all([
         machineService.getMachineStatus(),
         machineService.getMachineCoordinatesValid().catch(() => false),
       ]);
+      if (!isCurrentConnection(generation)) return;
       const currentState = get().sessionState;
       const sessionState =
         status.run_state === 'alarm'
@@ -696,8 +718,10 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       set({ sessionState: 'ready', machineCoordinatesValid: true, error: null });
       return;
     }
+    const generation = connectionGeneration;
     try {
       const state = await machineService.getSessionState();
+      if (!isCurrentConnection(generation)) return;
       set({ sessionState: state, error: null });
     } catch (e) {
       set({ error: String(e) });
@@ -716,6 +740,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       return;
     }
     try {
+      const generation = connectionGeneration;
       const state = await machineService.getSessionState();
       const activeStates: SessionState[] = ['ready', 'running', 'paused', 'alarm'];
       let status: MachineStatus | null = null;
@@ -729,6 +754,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         }
       }
       const sessionState = status?.run_state === 'alarm' ? 'alarm' : state;
+      if (!isCurrentConnection(generation)) return;
       set({
         sessionState,
         machineStatus: status,
@@ -752,7 +778,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       await get().refreshStatus();
       await get().refreshSessionState();
       set({ error: null });
-      notifySuccess('Homing started');
+      notifySuccess(i18n.t('notifications.machine.homing_started'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg });
@@ -809,7 +835,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
 
   startJob: async (allowAdvisories = false) => {
     const stopGeneration = get().emergencyStopGeneration;
-    set({ loading: true, error: null, activeJobPurpose: 'job' });
+    set({ loading: true, error: null, activeJobPurpose: 'job', lastJobFailure: null });
     try {
       await useProjectStore.getState().advanceAutoVariableText();
       if (get().emergencyStopGeneration !== stopGeneration) {
@@ -831,7 +857,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   frameJob: async (frameMode, selectedObjectIds, laserOnOverride = false) => {
-    set({ loading: true, error: null, activeJobPurpose: 'frame' });
+    set({ loading: true, error: null, activeJobPurpose: 'frame', lastJobFailure: null });
     try {
       const progress = await machineService.frameJob(
         frameMode,
@@ -895,8 +921,10 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   refreshJobProgress: async () => {
+    const generation = connectionGeneration;
     try {
       const progress = await machineService.getJobProgress();
+      if (!isCurrentConnection(generation)) return;
       set({ jobProgress: progress, error: null });
     } catch (e) {
       set({ error: String(e) });
@@ -1078,7 +1106,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
     try {
       const discoveryState = await discoveryService.startDiscovery();
       set({ discoveryState, loading: false });
-      notifySuccess('Machine discovery started');
+      notifySuccess(i18n.t('notifications.machine.discovery_started'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg, loading: false });
@@ -1090,7 +1118,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
     try {
       const discoveryState = await discoveryService.cancelDiscovery();
       set({ discoveryState, error: null });
-      notifySuccess('Machine discovery cancelled');
+      notifySuccess(i18n.t('notifications.machine.discovery_cancelled'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg });
@@ -1099,6 +1127,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
   },
 
   connectCandidate: async (candidateId) => {
+    beginConnectionChange();
     set({ loading: true, error: null });
     try {
       const state = await discoveryService.connectCandidate(candidateId);
@@ -1110,7 +1139,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         loading: false,
       });
       void get().loadRuntimeCapabilities();
-      notifySuccess('Connected to discovered device');
+      notifySuccess(i18n.t('notifications.machine.connected_discovered'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg, loading: false });
@@ -1125,7 +1154,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       const profiles = await machineService.getMachineProfiles();
       set({ profiles, activeProfileId: profile.id, loading: false });
       invalidateMachinePreview();
-      notifySuccess('Machine profile created from discovery candidate');
+      notifySuccess(i18n.t('notifications.machine.profile_from_discovery'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg, loading: false });
@@ -1156,12 +1185,12 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         useNotificationStore
           .getState()
           .push(
-            'Emergency stop was resent after automatically reopening the controller connection. Beam Bench disconnected afterward; reconnect before continuing.',
+            i18n.t('notifications.machine.estop_resent_disconnected'),
             'warning',
           );
       } else {
         set({ jobProgress: null, machineCoordinatesValid: false, error: null });
-        notifySuccess('Emergency stop sent');
+        notifySuccess(i18n.t('notifications.machine.estop_sent'));
       }
     } catch (e) {
       const msg = String(e);
@@ -1206,7 +1235,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
         const { useUndoStore } = await import('./undoStore');
         await useUndoStore.getState().refresh();
       }
-      notifySuccess(`User origin set to (${pos[0].toFixed(1)}, ${pos[1].toFixed(1)})`);
+      notifySuccess(i18n.t('notifications.machine.user_origin_set', { x: pos[0].toFixed(1), y: pos[1].toFixed(1) }));
     } catch (e) {
       const msg = String(e);
       set({ error: msg });
@@ -1230,7 +1259,7 @@ export const useMachineStore = create<MachineStoreState>((set, get) => ({
       usePreviewStore.getState().invalidate();
       const { useUndoStore } = await import('./undoStore');
       await useUndoStore.getState().refresh();
-      notifySuccess('User origin cleared');
+      notifySuccess(i18n.t('notifications.machine.user_origin_cleared'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg });

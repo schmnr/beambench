@@ -130,6 +130,28 @@
   history is limited by memory as well as step count on very large designs.
 - Grid and circular arrays and Copy Along Path are limited to 100 copies per
   axis for every caller, matching the dialogs.
+- Pressing a jog button and then switching windows, closing the Move panel or
+  losing the connection no longer starts a jog. Only releasing the button
+  completes a tap.
+- The toolbar New and Open buttons now ask about unsaved changes, like the
+  menus and shortcuts.
+- If a job stops with an error, the reason stays on screen until you dismiss
+  it, so it is still there if you were away from the machine.
+- Property fields (power, speed, line interval and others) save when you leave
+  the field or press Enter, within their allowed range, instead of on every
+  keystroke. Typing a value is one undo step.
+- Opening a project while an earlier refresh is still loading no longer brings
+  the earlier project back, refreshing no longer drops a vector's rotation,
+  a nudge is never applied twice, and the machine panel no longer shows Ready
+  after you disconnect.
+- Switching tools or losing the pointer mid-drag puts objects back where they
+  were, a two-point scale and rotate is one undo step, and a slow text or warp
+  result no longer interferes with what you are doing now.
+- Machine, camera, update and variable text messages are translated, and a
+  save error that happens to contain the word "cancelled" is no longer hidden.
+- Opening Beam Bench a second time brings the open window to the front, and
+  another program using its port no longer stops it from starting. The app
+  window now runs with a content security policy.
 
 ## 0.2.25
 

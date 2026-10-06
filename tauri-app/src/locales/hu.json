@@ -433,7 +433,12 @@
       "downloading": "Letöltés...",
       "installing": "Telepítés...",
       "blocked_not_in_applications": "A frissítésekhez a Beam Bench programot az Alkalmazások mappából kell futtatni. Úgy tűnik, a telepítő lemezképről vagy más ideiglenes helyről fut. A Finderben húzza a Beam Bench programot az Alkalmazások mappába, onnan nyissa meg, majd próbálja újra a frissítést.",
-      "blocked_other_disk": "A Beam Bench más lemezre van telepítve, mint a Mac ideiglenes mappája, ezért a frissítő nem tudja kicserélni. Helyezze át a Beam Bench programot a fő lemez Alkalmazások mappájába, vagy töltse le az új verziót a beambench.com oldalról."
+      "blocked_other_disk": "A Beam Bench más lemezre van telepítve, mint a Mac ideiglenes mappája, ezért a frissítő nem tudja kicserélni. Helyezze át a Beam Bench programot a fő lemez Alkalmazások mappájába, vagy töltse le az új verziót a beambench.com oldalról.",
+      "blocked_job_running": "Telepítés előtt fejezze be vagy állítsa le az aktuális feladatot.",
+      "blocked_machine_operation": "Telepítés előtt várja meg, amíg az aktuális gépművelet befejeződik.",
+      "blocked_machine_busy": "Telepítés előtt fejezze be vagy állítsa le az aktuális gépműveletet.",
+      "blocked_machine_moving": "Telepítés előtt várja meg, amíg a gép újra nyugalmi állapotba kerül.",
+      "cancelled_unsaved": "Frissítés megszakítva. A projektet nem vetettük el."
     },
     "camera_calibration": {
       "title": "Kameraleképezés",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} sor",
         "elapsed": "Eltelt: {time}",
         "remaining": "Hátralévő: ~{time}",
-        "finishing": "Befejezés, várakozás a gépre..."
+        "finishing": "Befejezés, várakozás a gépre...",
+        "last_failure": "Az utolsó feladat leállt: {message}"
       },
       "overrides": {
         "title": "Felülírások",
@@ -2588,7 +2594,50 @@
       "postponed": "Frissítési emlékeztető elhalasztva 24 órával.",
       "skipped": "Beam Bench {version} kihagyva."
     },
-    "import_oversized": "Eredeti méretben importálva: a terv {width} x {height} {unit}, nagyobb, mint a {bedWidth} x {bedHeight} {unit} munkaterület."
+    "import_oversized": "Eredeti méretben importálva: a terv {width} x {height} {unit}, nagyobb, mint a {bedWidth} x {bedHeight} {unit} munkaterület.",
+    "machine": {
+      "using_existing_connection": "A meglévő gépkapcsolat használata",
+      "preview_disconnected": "Előnézeti gép leválasztva",
+      "disconnected": "Leválasztva",
+      "preview_connected": "Előnézeti gép csatlakoztatva",
+      "homing_started": "Referenciapont-keresés elindítva",
+      "discovery_started": "Gépkeresés elindítva",
+      "discovery_cancelled": "Gépkeresés megszakítva",
+      "connected_discovered": "Csatlakozva a talált eszközhöz",
+      "profile_from_discovery": "Gépprofil létrehozva a talált eszközből",
+      "estop_sent": "Vészleállítás elküldve",
+      "estop_resent_disconnected": "A vészleállítást újra elküldtük a vezérlőkapcsolat újbóli megnyitása után. Ezután a Beam Bench bontotta a kapcsolatot. A folytatás előtt csatlakozzon újra.",
+      "user_origin_cleared": "Felhasználói origó törölve",
+      "job_tick_failed": "A feladat leállt, mert a vezérlőnek való küldés sikertelen volt.",
+      "lihuiyu_incomplete": "A Lihuiyu USB-kapcsolat nem jött létre.",
+      "connected_to": "Csatlakozva: {name}",
+      "user_origin_set": "Felhasználói origó beállítva: ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Új kamerakép rögzítve",
+      "alignment_saved": "Kamera-igazítás mentve",
+      "mapping_solved": "Kameraleképezés kiszámítva",
+      "mapping_saved": "Kameraleképezés mentve",
+      "mapping_reset": "Kameraleképezés visszaállítva",
+      "alignment_solved": "Kamera-igazítás kiszámítva",
+      "alignment_reset": "Kamera-igazítás visszaállítva"
+    },
+    "variable_text": {
+      "serial_outside_mode": "A sablon {placeholder} helyőrzőket használ, de a szövegmód nem Sorozatszám.",
+      "date_outside_mode": "A sablon {placeholder} helyőrzőket használ, de a szövegmód nem Dátum/idő.",
+      "csv_outside_mode": "A sablon {placeholder} helyőrzőket használ, de a szövegmód nem CSV-egyesítés.",
+      "cut_outside_mode": "A sablon {placeholder} helyőrzőket használ, de a szövegmód nem Vágási beállítás.",
+      "no_placeholders": "A kiválasztott szövegmódhoz nincs illeszkedő helyőrző a sablonban.",
+      "csv_load_failed": "A CSV-fájlt nem sikerült betölteni: {error}",
+      "resolve_failed": "A szöveget nem sikerült feloldani: {error}",
+      "merge_fields_failed": "Az egyesítési mezőket nem sikerült beolvasni: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "A vágás több darabot hozott létre. Jelölje ki őket, és egyesítse a Bezárás és összekapcsolás paranccsal.",
+      "open_path": "A levágott útvonal nyitott, ezért nem tölthető ki. Ha zárt alakzat kell, használja a Bezárás és összekapcsolás parancsot."
+    },
+    "pick_guide_path": "Kattintson egy vektoros vagy alakzat objektumra, amely vezetőútvonal lesz",
+    "panel_layout_save_failed": "A panelelrendezés módosításait nem sikerült menteni. Újraindításkor elveszhetnek."
   },
   "status": {
     "preview_in_progress": "Előnézet generálása",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "Felhasználói eredet ki van választva, de nincs beállítva. Mozgassa a lézert a kívánt eredetbe, és válassza a Beállítás itt lehetőséget a keretezés vagy a indítás előtt.",
     "current_position_unavailable": "Az Aktuális pozícióhoz egy csatlakoztatott gépre van szükség egy jelentett pozícióval.",
     "dxf_no_usable_geometry": "A DXF-fájl nem tartalmaz használható 2D vektorgeometriát.",
-    "dxf_no_usable_geometry_with_entities": "A DXF-fájl nem tartalmaz használható 2D vektorgeometriát. Nem támogatott vagy hibás entitások: {entities}."
+    "dxf_no_usable_geometry_with_entities": "A DXF-fájl nem tartalmaz használható 2D vektorgeometriát. Nem támogatott vagy hibás entitások: {entities}.",
+    "camera": {
+      "stream_failed": "A kamerafolyamot nem sikerült elindítani.",
+      "frame_timeout": "Időtúllépés a kamerakép várása közben. Lehet, hogy a kamera még melegszik, vagy egy másik alkalmazás használja.",
+      "preview_timeout": "Időtúllépés a kamera-előnézet indításakor.",
+      "warmup_timeout": "Időtúllépés a kamera felkészülésére várva.",
+      "encode_failed": "A kameraképet nem sikerült menteni.",
+      "unavailable": "A kamerás rögzítés ebben az ablakban nem érhető el.",
+      "empty_frame": "A kamera üres képet adott vissza.",
+      "canvas_failed": "A kameraképet nem sikerült előkészíteni."
+    }
   },
   "import": {
     "drop_to_import": "Húzd ide a fájlokat az importáláshoz"

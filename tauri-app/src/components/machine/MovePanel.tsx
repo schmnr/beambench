@@ -323,8 +323,14 @@ export function MovePanel(): React.ReactElement {
     }
   }, [notifyError]);
 
-  const releaseJog = useCallback(async () => {
-    const pending = pendingJogRef.current;
+  /**
+   * End a jog press. `complete` is a real release (pointer up): a short tap
+   * becomes a finite jog. `cancel` (blur, pointer cancel, lost capture,
+   * hidden window, panel closing, disconnect) must never start motion: it
+   * drops a pending tap and stops a continuous jog.
+   */
+  const releaseJog = useCallback(async (mode: 'complete' | 'cancel' = 'cancel') => {
+    const pending = mode === 'complete' ? pendingJogRef.current : null;
     pendingJogRef.current = null;
     if (finiteJogOnlyRef.current) {
       finiteJogOnlyRef.current = false;
@@ -364,23 +370,27 @@ export function MovePanel(): React.ReactElement {
 
   useEffect(() => {
     const releaseAll = () => {
-      void releaseJogRef.current();
+      void releaseJogRef.current('complete');
+      void stopFireRef.current();
+    };
+    const cancelAll = () => {
+      void releaseJogRef.current('cancel');
       void stopFireRef.current();
     };
     const handleVisibility = () => {
-      if (document.hidden) releaseAll();
+      if (document.hidden) cancelAll();
     };
-    window.addEventListener('blur', releaseAll);
+    window.addEventListener('blur', cancelAll);
     window.addEventListener('pointerup', releaseAll);
-    window.addEventListener('pointercancel', releaseAll);
+    window.addEventListener('pointercancel', cancelAll);
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      window.removeEventListener('blur', releaseAll);
+      window.removeEventListener('blur', cancelAll);
       window.removeEventListener('pointerup', releaseAll);
-      window.removeEventListener('pointercancel', releaseAll);
+      window.removeEventListener('pointercancel', cancelAll);
       document.removeEventListener('visibilitychange', handleVisibility);
       // Unmount only: the panel closed while a jog or fire may be held.
-      releaseAll();
+      cancelAll();
     };
   }, []);
 
@@ -849,9 +859,9 @@ export function MovePanel(): React.ReactElement {
                   title={button.title}
                   disabled={!jogSupported || !jogControlsReady || finiteJogPending}
                   onPointerDown={(event) => startJogPointer(event, button.vector)}
-                  onPointerUp={() => void releaseJog()}
-                  onPointerCancel={() => void releaseJog()}
-                  onLostPointerCapture={() => void releaseJog()}
+                  onPointerUp={() => void releaseJog('complete')}
+                  onPointerCancel={() => void releaseJog('cancel')}
+                  onLostPointerCapture={() => void releaseJog('cancel')}
                 >
                   {button.icon}
                 </button>

@@ -433,7 +433,12 @@
       "downloading": "Téléchargement...",
       "installing": "Installation...",
       "blocked_not_in_applications": "Les mises à jour nécessitent que Beam Bench soit lancé depuis le dossier Applications. Il semble s'exécuter depuis l'image disque d'installation ou un autre emplacement temporaire. Dans le Finder, faites glisser Beam Bench dans Applications, ouvrez-le depuis ce dossier, puis relancez la mise à jour.",
-      "blocked_other_disk": "Beam Bench est installé sur un disque différent de celui du dossier temporaire de ce Mac, le programme de mise à jour ne peut donc pas le remplacer. Déplacez Beam Bench dans le dossier Applications du disque principal ou téléchargez la nouvelle version sur beambench.com."
+      "blocked_other_disk": "Beam Bench est installé sur un disque différent de celui du dossier temporaire de ce Mac, le programme de mise à jour ne peut donc pas le remplacer. Déplacez Beam Bench dans le dossier Applications du disque principal ou téléchargez la nouvelle version sur beambench.com.",
+      "blocked_job_running": "Terminez ou arrêtez le travail en cours avant l'installation.",
+      "blocked_machine_operation": "Attendez la fin de l'opération machine en cours avant l'installation.",
+      "blocked_machine_busy": "Terminez ou arrêtez l'opération machine en cours avant l'installation.",
+      "blocked_machine_moving": "Attendez que la machine revienne au repos avant l'installation.",
+      "cancelled_unsaved": "Mise à jour annulée. Votre projet n'a pas été abandonné."
     },
     "camera_calibration": {
       "title": "Mappage de la caméra",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} lignes",
         "elapsed": "Écoulé: {time}",
         "remaining": "Restant: ~{time}",
-        "finishing": "Finalisation, en attente de la machine..."
+        "finishing": "Finalisation, en attente de la machine...",
+        "last_failure": "Le dernier travail s'est arrêté : {message}"
       },
       "overrides": {
         "title": "Corrections",
@@ -2588,7 +2594,50 @@
       "postponed": "Rappel de mise à jour reporté de 24 heures.",
       "skipped": "Beam Bench {version} ignoré."
     },
-    "import_oversized": "Importé à la taille d'origine : le dessin mesure {width} x {height} {unit}, plus grand que la zone de travail de {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importé à la taille d'origine : le dessin mesure {width} x {height} {unit}, plus grand que la zone de travail de {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Utilisation de la connexion machine existante",
+      "preview_disconnected": "Machine de prévisualisation déconnectée",
+      "disconnected": "Déconnecté",
+      "preview_connected": "Machine de prévisualisation connectée",
+      "homing_started": "Prise d'origine démarrée",
+      "discovery_started": "Recherche de machines démarrée",
+      "discovery_cancelled": "Recherche de machines annulée",
+      "connected_discovered": "Connecté à l'appareil trouvé",
+      "profile_from_discovery": "Profil de machine créé à partir de l'appareil trouvé",
+      "estop_sent": "Arrêt d'urgence envoyé",
+      "estop_resent_disconnected": "L'arrêt d'urgence a été renvoyé après la réouverture de la connexion au contrôleur. Beam Bench s'est ensuite déconnecté. Reconnectez avant de continuer.",
+      "user_origin_cleared": "Origine utilisateur effacée",
+      "job_tick_failed": "Le travail s'est arrêté car l'envoi au contrôleur a échoué.",
+      "lihuiyu_incomplete": "La connexion USB Lihuiyu n'a pas abouti.",
+      "connected_to": "Connecté à {name}",
+      "user_origin_set": "Origine utilisateur définie sur ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Nouvelle image de caméra capturée",
+      "alignment_saved": "Alignement de la caméra enregistré",
+      "mapping_solved": "Correspondance de la caméra calculée",
+      "mapping_saved": "Correspondance de la caméra enregistrée",
+      "mapping_reset": "Correspondance de la caméra réinitialisée",
+      "alignment_solved": "Alignement de la caméra calculé",
+      "alignment_reset": "Alignement de la caméra réinitialisé"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Le modèle utilise des espaces réservés {placeholder}, mais le mode texte n'est pas Numéro de série.",
+      "date_outside_mode": "Le modèle utilise des espaces réservés {placeholder}, mais le mode texte n'est pas Date/Heure.",
+      "csv_outside_mode": "Le modèle utilise des espaces réservés {placeholder}, mais le mode texte n'est pas Fusion CSV.",
+      "cut_outside_mode": "Le modèle utilise des espaces réservés {placeholder}, mais le mode texte n'est pas Réglage de découpe.",
+      "no_placeholders": "Le mode texte choisi n'a aucun espace réservé correspondant dans le modèle.",
+      "csv_load_failed": "Impossible de charger le fichier CSV : {error}",
+      "resolve_failed": "Impossible de résoudre le texte : {error}",
+      "merge_fields_failed": "Impossible de lire les champs de fusion : {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Le rognage a créé plusieurs morceaux. Sélectionnez-les et utilisez Fermer et joindre pour les réunir.",
+      "open_path": "Le tracé rogné est ouvert et ne peut pas être rempli. Utilisez Fermer et joindre si vous avez besoin d'une forme fermée."
+    },
+    "pick_guide_path": "Cliquez sur un objet vectoriel ou une forme à utiliser comme tracé guide",
+    "panel_layout_save_failed": "Les modifications de disposition des panneaux n'ont pas pu être enregistrées. Elles pourraient être perdues au redémarrage."
   },
   "status": {
     "preview_in_progress": "Génération de l'aperçu en cours",
@@ -2678,7 +2727,17 @@
     "artwork_outside_workspace": "{hasObject, select, yes {La position prévue de « {object} » dépasse de {amount} {unit} le bord {edge} de la zone de travail. L’objet a été sélectionné. Ajustez le placement du travail ou déplacez l’objet dans la zone de travail avant de prévisualiser ou de lancer le travail.} other {La position prévue du travail dépasse de {amount} {unit} le bord {edge} de la zone de travail. Ajustez le placement du travail avant de prévisualiser ou de lancer le travail.}}",
     "relative_job_outside_workspace": "{mode, select, current_position {Position actuelle place l’origine du travail {anchor} sur la tête laser. Ce placement dépasse de {amount} {unit} le bord {edge}. Éloignez le laser d’au moins {amount} {unit} du bord {edge}, choisissez une autre origine du travail ou utilisez Coordonnées absolues.} user_origin {Origine utilisateur place l’origine du travail {anchor} sur l’origine utilisateur enregistrée. Ce placement dépasse de {amount} {unit} le bord {edge}. Déplacez ou redéfinissez l’origine utilisateur à au moins {amount} {unit} du bord {edge}, choisissez une autre origine du travail ou utilisez Coordonnées absolues.} other {La position prévue du travail dépasse de {amount} {unit} le bord {edge}. Ajustez le placement du travail avant de prévisualiser ou de lancer le travail.}}",
     "ui_error_title": "Beam Bench a rencontré une erreur d'interface",
-    "reload": "Recharger"
+    "reload": "Recharger",
+    "camera": {
+      "stream_failed": "Impossible de démarrer le flux de la caméra.",
+      "frame_timeout": "Délai dépassé en attendant une image de la caméra. La caméra chauffe peut-être encore ou est utilisée par une autre application.",
+      "preview_timeout": "Délai dépassé au démarrage de l'aperçu de la caméra.",
+      "warmup_timeout": "Délai dépassé en attendant que la caméra soit prête.",
+      "encode_failed": "Impossible d'enregistrer l'image de la caméra.",
+      "unavailable": "La capture caméra n'est pas disponible dans cette fenêtre.",
+      "empty_frame": "La caméra a renvoyé une image vide.",
+      "canvas_failed": "Impossible de préparer l'image de la caméra."
+    }
   },
   "import": {
     "drop_to_import": "Déposez des fichiers à importer"

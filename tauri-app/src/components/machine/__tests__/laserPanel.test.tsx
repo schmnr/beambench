@@ -115,6 +115,16 @@ const setConnectedWithProject = () => {
 };
 
 describe('LaserPanel', () => {
+  it('keeps the reason the last job stopped until it is dismissed', () => {
+    setConnectedWithProject();
+    useMachineStore.setState({ lastJobFailure: 'Controller reported an alarm' });
+    render(<LaserPanel />);
+    expect(screen.getByTestId('last-job-failure').textContent).toContain('Controller reported an alarm');
+    fireEvent.click(screen.getByText('Dismiss'));
+    expect(useMachineStore.getState().lastJobFailure).toBeNull();
+    expect(screen.queryByTestId('last-job-failure')).toBeNull();
+  });
+
   it('edits the shared framing speed beside Frame and sends the new value', async () => {
     setConnectedWithProject();
     vi.mocked(machineService.frameJob).mockResolvedValueOnce(makeJobProgress({ state: 'running' }));

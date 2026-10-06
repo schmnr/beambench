@@ -433,7 +433,12 @@
       "downloading": "Laster ned...",
       "installing": "Installerer...",
       "blocked_not_in_applications": "Oppdateringer krever at Beam Bench kjøres fra Programmer-mappen. Det ser ut til at det kjører fra installasjonsdiskbildet eller et annet midlertidig sted. Dra Beam Bench til Programmer i Finder, åpne det derfra og prøv oppdateringen på nytt.",
-      "blocked_other_disk": "Beam Bench er installert på en annen disk enn den midlertidige mappen på denne Macen, så oppdateringen kan ikke bytte det ut. Flytt Beam Bench til Programmer-mappen på hoveddisken, eller last ned den nye versjonen fra beambench.com."
+      "blocked_other_disk": "Beam Bench er installert på en annen disk enn den midlertidige mappen på denne Macen, så oppdateringen kan ikke bytte det ut. Flytt Beam Bench til Programmer-mappen på hoveddisken, eller last ned den nye versjonen fra beambench.com.",
+      "blocked_job_running": "Fullfør eller stopp gjeldende jobb før installasjon.",
+      "blocked_machine_operation": "Vent til gjeldende maskinoperasjon er ferdig før installasjon.",
+      "blocked_machine_busy": "Fullfør eller stopp gjeldende maskinoperasjon før installasjon.",
+      "blocked_machine_moving": "Vent til maskinen er i ro igjen før installasjon.",
+      "cancelled_unsaved": "Oppdatering avbrutt. Prosjektet ditt er ikke forkastet."
     },
     "camera_calibration": {
       "title": "Kamerakartlegging",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} linjer",
         "elapsed": "Forløpt: {time}",
         "remaining": "Gjenstår: ~{time}",
-        "finishing": "Fullfører, venter på maskinen..."
+        "finishing": "Fullfører, venter på maskinen...",
+        "last_failure": "Den siste jobben stoppet: {message}"
       },
       "overrides": {
         "title": "Overstyringer",
@@ -2588,7 +2594,50 @@
       "postponed": "Oppdateringspåminnelse utsatt 24 timer.",
       "skipped": "Beam Bench {version} hoppet over."
     },
-    "import_oversized": "Importert i original størrelse: designet måler {width} x {height} {unit}, større enn arbeidsområdet på {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importert i original størrelse: designet måler {width} x {height} {unit}, større enn arbeidsområdet på {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Bruker den eksisterende maskintilkoblingen",
+      "preview_disconnected": "Forhåndsvisningsmaskin frakoblet",
+      "disconnected": "Frakoblet",
+      "preview_connected": "Forhåndsvisningsmaskin tilkoblet",
+      "homing_started": "Referansekjøring startet",
+      "discovery_started": "Maskinsøk startet",
+      "discovery_cancelled": "Maskinsøk avbrutt",
+      "connected_discovered": "Koblet til den funnede enheten",
+      "profile_from_discovery": "Maskinprofil opprettet fra den funnede enheten",
+      "estop_sent": "Nødstopp sendt",
+      "estop_resent_disconnected": "Nødstoppet ble sendt på nytt etter at tilkoblingen til kontrolleren ble åpnet igjen. Deretter koblet Beam Bench fra. Koble til igjen før du fortsetter.",
+      "user_origin_cleared": "Brukeropprinnelse fjernet",
+      "job_tick_failed": "Jobben stoppet fordi sendingen til kontrolleren mislyktes.",
+      "lihuiyu_incomplete": "Lihuiyu-USB-tilkoblingen ble ikke fullført.",
+      "connected_to": "Koblet til {name}",
+      "user_origin_set": "Brukeropprinnelse satt til ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Nytt kamerabilde tatt",
+      "alignment_saved": "Kamerajustering lagret",
+      "mapping_solved": "Kamerakartlegging beregnet",
+      "mapping_saved": "Kamerakartlegging lagret",
+      "mapping_reset": "Kamerakartlegging tilbakestilt",
+      "alignment_solved": "Kamerajustering beregnet",
+      "alignment_reset": "Kamerajustering tilbakestilt"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Malen bruker {placeholder}-plassholdere, men tekstmodusen er ikke Serienummer.",
+      "date_outside_mode": "Malen bruker {placeholder}-plassholdere, men tekstmodusen er ikke Dato/tid.",
+      "csv_outside_mode": "Malen bruker {placeholder}-plassholdere, men tekstmodusen er ikke CSV-fletting.",
+      "cut_outside_mode": "Malen bruker {placeholder}-plassholdere, men tekstmodusen er ikke Kutteinnstilling.",
+      "no_placeholders": "Den valgte tekstmodusen har ingen samsvarende plassholdere i malen.",
+      "csv_load_failed": "CSV-filen kunne ikke lastes inn: {error}",
+      "resolve_failed": "Teksten kunne ikke løses opp: {error}",
+      "merge_fields_failed": "Flettefeltene kunne ikke leses: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Trimmingen laget flere biter. Merk dem og bruk Lukk og slå sammen for å samle dem.",
+      "open_path": "Den trimmede banen er åpen og kan ikke fylles. Bruk Lukk og slå sammen hvis du trenger en lukket form."
+    },
+    "pick_guide_path": "Klikk på et vektor- eller formobjekt som skal brukes som styrebane",
+    "panel_layout_save_failed": "Endringer i panelordningen kunne ikke lagres. De kan gå tapt ved omstart."
   },
   "status": {
     "preview_in_progress": "Genererer forhåndsvisning",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "Brukeropprinnelse er valgt, men er ikke angitt. Flytt laseren til den tiltenkte opprinnelsen og velg Sett her før innramming eller start.",
     "current_position_unavailable": "Gjeldende posisjon trenger en tilkoblet maskin med en rapportert posisjon.",
     "dxf_no_usable_geometry": "DXF-filen inneholder ingen brukbar 2D-vektorgeometri.",
-    "dxf_no_usable_geometry_with_entities": "DXF-filen inneholder ingen brukbar 2D-vektorgeometri. Ustøttede eller ugyldige enheter: {entities}."
+    "dxf_no_usable_geometry_with_entities": "DXF-filen inneholder ingen brukbar 2D-vektorgeometri. Ustøttede eller ugyldige enheter: {entities}.",
+    "camera": {
+      "stream_failed": "Kamerastrømmen kunne ikke startes.",
+      "frame_timeout": "Tidsavbrudd mens det ble ventet på et kamerabilde. Kameraet varmer kanskje fortsatt opp eller brukes av en annen app.",
+      "preview_timeout": "Tidsavbrudd ved start av kameraforhåndsvisningen.",
+      "warmup_timeout": "Tidsavbrudd mens det ble ventet på at kameraet ble klart.",
+      "encode_failed": "Kamerabildet kunne ikke lagres.",
+      "unavailable": "Kameraopptak er ikke tilgjengelig i dette vinduet.",
+      "empty_frame": "Kameraet returnerte et tomt bilde.",
+      "canvas_failed": "Kamerabildet kunne ikke klargjøres."
+    }
   },
   "import": {
     "drop_to_import": "Slipp filer for å importere"

@@ -318,9 +318,11 @@ describe('CutSettingsEditor', () => {
     });
 
     render(<CutSettingsEditor layerId="layer-1" onClose={vi.fn()} />);
-    fireEvent.change(screen.getByDisplayValue('0.1'), {
+    const interval = screen.getByDisplayValue('0.1');
+    fireEvent.change(interval, {
       target: { value: '0.08' },
     });
+    fireEvent.blur(interval);
 
     expect(updateCutEntry).toHaveBeenCalledWith(
       'layer-1',

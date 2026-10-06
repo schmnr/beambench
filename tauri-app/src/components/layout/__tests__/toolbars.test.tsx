@@ -47,6 +47,21 @@ describe('MainToolbar', () => {
     expect(screen.getByTitle('Redo')).toBeDefined();
   });
 
+  it.each(['New', 'Open'])('%s asks about unsaved changes before replacing the project', async (title) => {
+    const { useUnsavedGuardStore } = await import('../../../stores/unsavedGuardStore');
+    const createProject = vi.fn();
+    const openProject = vi.fn();
+    useProjectStore.setState({ project: { ...makeProject(), dirty: true }, createProject, openProject });
+    render(<MainToolbar />);
+
+    fireEvent.click(screen.getByTitle(title));
+
+    await waitFor(() => expect(useUnsavedGuardStore.getState().pendingAction).not.toBeNull());
+    expect(createProject).not.toHaveBeenCalled();
+    expect(openProject).not.toHaveBeenCalled();
+    useUnsavedGuardStore.getState().clear();
+  });
+
   it('starts Camera Overlay inactive and highlights it only when enabled', () => {
     const toggleOverlayVisible = vi.fn(() => {
       useCameraStore.setState((state) => ({ overlayVisible: !state.overlayVisible }));

@@ -73,6 +73,7 @@ pub fn mark_frontend_ready(state: State<'_, crate::state::FrontendReady>) -> Res
         .inner()
         .0
         .store(true, std::sync::atomic::Ordering::Release);
+    tracing::info!("Frontend ready");
     Ok(())
 }
 

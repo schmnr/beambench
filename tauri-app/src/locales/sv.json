@@ -433,7 +433,12 @@
       "downloading": "Laddar ner...",
       "installing": "Installerar...",
       "blocked_not_in_applications": "Uppdateringar kräver att Beam Bench körs från mappen Program. Det verkar köras från installationsskivavbilden eller en annan tillfällig plats. Dra Beam Bench till Program i Finder, öppna det därifrån och försök uppdatera igen.",
-      "blocked_other_disk": "Beam Bench är installerat på en annan disk än den här Macens tillfälliga mapp, så uppdateraren kan inte byta ut det. Flytta Beam Bench till mappen Program på huvuddisken eller hämta den nya versionen från beambench.com."
+      "blocked_other_disk": "Beam Bench är installerat på en annan disk än den här Macens tillfälliga mapp, så uppdateraren kan inte byta ut det. Flytta Beam Bench till mappen Program på huvuddisken eller hämta den nya versionen från beambench.com.",
+      "blocked_job_running": "Slutför eller stoppa det aktuella jobbet innan installation.",
+      "blocked_machine_operation": "Vänta tills den aktuella maskinåtgärden är klar innan installation.",
+      "blocked_machine_busy": "Slutför eller stoppa den aktuella maskinåtgärden innan installation.",
+      "blocked_machine_moving": "Vänta tills maskinen är i vila igen innan installation.",
+      "cancelled_unsaved": "Uppdateringen avbröts. Ditt projekt har inte kasserats."
     },
     "camera_calibration": {
       "title": "Kameramappning",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} rader",
         "elapsed": "Förflutet: {time}",
         "remaining": "Återstår: ~{time}",
-        "finishing": "Slutför, väntar på maskinen..."
+        "finishing": "Slutför, väntar på maskinen...",
+        "last_failure": "Det senaste jobbet stoppades: {message}"
       },
       "overrides": {
         "title": "Overrides",
@@ -2588,7 +2594,50 @@
       "postponed": "Uppdateringspåminnelse uppskjuten 24 timmar.",
       "skipped": "Beam Bench {version} hoppades över."
     },
-    "import_oversized": "Importerad i originalstorlek: designen mäter {width} x {height} {unit}, större än arbetsytan på {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importerad i originalstorlek: designen mäter {width} x {height} {unit}, större än arbetsytan på {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Använder den befintliga maskinanslutningen",
+      "preview_disconnected": "Förhandsgranskningsmaskin frånkopplad",
+      "disconnected": "Frånkopplad",
+      "preview_connected": "Förhandsgranskningsmaskin ansluten",
+      "homing_started": "Referenskörning startad",
+      "discovery_started": "Maskinsökning startad",
+      "discovery_cancelled": "Maskinsökning avbruten",
+      "connected_discovered": "Ansluten till den hittade enheten",
+      "profile_from_discovery": "Maskinprofil skapad från den hittade enheten",
+      "estop_sent": "Nödstopp skickat",
+      "estop_resent_disconnected": "Nödstoppet skickades igen efter att anslutningen till styrenheten öppnades på nytt. Därefter kopplade Beam Bench från. Anslut igen innan du fortsätter.",
+      "user_origin_cleared": "Användarorigo rensat",
+      "job_tick_failed": "Jobbet stoppades eftersom överföringen till styrenheten misslyckades.",
+      "lihuiyu_incomplete": "Lihuiyu-USB-anslutningen slutfördes inte.",
+      "connected_to": "Ansluten till {name}",
+      "user_origin_set": "Användarorigo satt till ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Ny kamerabild tagen",
+      "alignment_saved": "Kamerajustering sparad",
+      "mapping_solved": "Kameramappning beräknad",
+      "mapping_saved": "Kameramappning sparad",
+      "mapping_reset": "Kameramappning återställd",
+      "alignment_solved": "Kamerajustering beräknad",
+      "alignment_reset": "Kamerajustering återställd"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Mallen använder {placeholder}-platshållare, men textläget är inte Serienummer.",
+      "date_outside_mode": "Mallen använder {placeholder}-platshållare, men textläget är inte Datum/tid.",
+      "csv_outside_mode": "Mallen använder {placeholder}-platshållare, men textläget är inte CSV-sammanfogning.",
+      "cut_outside_mode": "Mallen använder {placeholder}-platshållare, men textläget är inte Skärinställning.",
+      "no_placeholders": "Det valda textläget har inga matchande platshållare i mallen.",
+      "csv_load_failed": "CSV-filen kunde inte läsas in: {error}",
+      "resolve_failed": "Texten kunde inte lösas upp: {error}",
+      "merge_fields_failed": "Kopplingsfälten kunde inte läsas: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Trimningen skapade flera delar. Markera dem och använd Stäng och sammanfoga för att slå ihop dem.",
+      "open_path": "Den trimmade banan är öppen och kan inte fyllas. Använd Stäng och sammanfoga om du behöver en sluten form."
+    },
+    "pick_guide_path": "Klicka på ett vektor- eller formobjekt som ska användas som styrbana",
+    "panel_layout_save_failed": "Ändringar i panellayouten kunde inte sparas. De kan gå förlorade vid omstart."
   },
   "status": {
     "preview_in_progress": "Genererar förhandsvisning",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "Användarursprung är valt men har inte ställts in. Flytta lasern till det avsedda ursprunget och välj Ställ in här innan du ramar in eller startar.",
     "current_position_unavailable": "Aktuell position behöver en ansluten maskin med en rapporterad position.",
     "dxf_no_usable_geometry": "DXF-filen innehåller ingen användbar 2D-vektorgeometri.",
-    "dxf_no_usable_geometry_with_entities": "DXF-filen innehåller ingen användbar 2D-vektorgeometri. Entiteter som inte stöds eller är felaktiga: {entities}."
+    "dxf_no_usable_geometry_with_entities": "DXF-filen innehåller ingen användbar 2D-vektorgeometri. Entiteter som inte stöds eller är felaktiga: {entities}.",
+    "camera": {
+      "stream_failed": "Kameraströmmen kunde inte startas.",
+      "frame_timeout": "Tidsgränsen nåddes i väntan på en kamerabild. Kameran värms kanske fortfarande upp eller används av en annan app.",
+      "preview_timeout": "Tidsgränsen nåddes när kameraförhandsvisningen startades.",
+      "warmup_timeout": "Tidsgränsen nåddes i väntan på att kameran ska bli redo.",
+      "encode_failed": "Kamerabilden kunde inte sparas.",
+      "unavailable": "Kamerainspelning är inte tillgänglig i det här fönstret.",
+      "empty_frame": "Kameran returnerade en tom bild.",
+      "canvas_failed": "Kamerabilden kunde inte förberedas."
+    }
   },
   "import": {
     "drop_to_import": "Släpp filer för att importera"

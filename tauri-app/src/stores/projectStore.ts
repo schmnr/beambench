@@ -1,3 +1,4 @@
+import { isUserCancel } from '../utils/userCancel';
 import { create } from 'zustand';
 import type {
   Layer,
@@ -134,6 +135,24 @@ export function decorateProject(project: Project | null): Project | null {
     ...project,
     layers: project.layers.map(decorateLayer),
   });
+}
+
+/** Bumped whenever a different document replaces the open one. */
+let documentGeneration = 0;
+
+function beginNewDocument(): void {
+  documentGeneration += 1;
+}
+
+/**
+ * Fetch the backend project for a refresh. A reply that arrives after a
+ * different document was opened describes the old document, so the current
+ * one is kept instead.
+ */
+async function getProjectForCurrentDocument(): Promise<Project | null> {
+  const generation = documentGeneration;
+  const project = await projectService.getProject();
+  return generation === documentGeneration ? project : useProjectStore.getState().project;
 }
 
 function revokeCachedAssetUrls(assetCache: Map<string, string>): void {
@@ -479,6 +498,12 @@ interface ProjectStoreState {
     degrees: number,
     pivot?: { x: number; y: number },
   ) => Promise<void>;
+  scaleAndRotateObjects: (
+    entries: { id: string; bounds: Bounds }[],
+    objectIds: string[],
+    degrees: number,
+    pivot: { x: number; y: number },
+  ) => Promise<void>;
   rotateObjectsAndBakeActivePath: (
     objectIds: string[],
     degrees: number,
@@ -674,6 +699,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const project = decorateProject(await projectService.createProject(name));
+      beginNewDocument();
       revokeCachedAssetUrls(get().assetCache);
       set({
         project,
@@ -724,14 +750,24 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const previousSelectedObjectIds = get().selectedObjectIds;
       const previousAssetCache = get().assetCache;
       const previousAssetLoadErrors = get().assetLoadErrors;
-      const project = decorateProject(await projectService.getProject());
-      // Migration: bake tx/ty into bounds for vector_path objects with non-zero transform offset
+      const generation = documentGeneration;
+      const fetched = await projectService.getProject();
+      if (generation !== documentGeneration) {
+        // A different document was opened while this refresh was waiting.
+        set({ loading: false });
+        return;
+      }
+      const project = decorateProject(fetched);
+      // Migration: bake a pure translation into bounds for vector paths. A
+      // transform that also rotates, scales or shears must stay as it is.
       if (project) {
         for (const obj of project.objects) {
+          const t = obj.transform;
           if (
             obj.data?.type === 'vector_path' &&
-            obj.transform &&
-            (obj.transform.tx !== 0 || obj.transform.ty !== 0)
+            t &&
+            t.a === 1 && t.b === 0 && t.c === 0 && t.d === 1 &&
+            (t.tx !== 0 || t.ty !== 0)
           ) {
             obj.bounds.min.x += obj.transform.tx;
             obj.bounds.min.y += obj.transform.ty;
@@ -782,6 +818,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   closeProject: async () => {
     try {
       await projectService.closeProject();
+      beginNewDocument();
       revokeCachedAssetUrls(get().assetCache);
       set({
         project: null,
@@ -1554,7 +1591,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       await projectService.removeObject(objectId);
       const { selectedObjectIds, selectedLayerId } = get();
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
       project: decorateProject({ ...project, dirty: true })!,
@@ -1585,7 +1622,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       await projectService.removeObjects(targetIds);
       const { selectedObjectIds, selectedLayerId } = get();
       const idSet = new Set(targetIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
       project: decorateProject({ ...project, dirty: true })!,
@@ -1613,15 +1650,21 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const targetIds = currentProject
         ? expandArrangementSelectionMembers(currentProject, objectIds)
         : objectIds;
+      // Remember where each object was, so the move is applied once: a refresh
+      // that lands while this request is pending already shows the result.
+      const before = new Map(
+        (currentProject?.objects ?? [])
+          .filter((o) => targetIds.includes(o.id))
+          .map((o) => [o.id, o.bounds] as const),
+      );
       await projectService.nudgeObjects(targetIds, dx, dy);
       const { project } = get();
       if (project) {
-        const idSet = new Set(targetIds);
         set({
           project: {
             ...project,
             objects: project.objects.map((o) =>
-              idSet.has(o.id)
+              before.get(o.id) === o.bounds
                 ? {
                     ...o,
                     bounds: {
@@ -1781,7 +1824,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       if (objects.length === 0) return;
       const pasted = await projectService.pasteObjects(objects, inPlace);
       const pastedIds = pasted.map((object) => object.id);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const decorated = decorateProject({ ...project, dirty: true })!;
         const selectedIds = normalizeSelectionMembers(decorated, pastedIds);
@@ -1866,6 +1909,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   setProject: (project) => {
+    beginNewDocument();
     revokeCachedAssetUrls(get().assetCache);
     set({
       project: decorateProject(project)!,
@@ -1902,6 +1946,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   restoreRecoveredProject: (project, projectPath = null) => {
+    beginNewDocument();
     revokeCachedAssetUrls(get().assetCache);
     set({
       project: decorateProject(project)!,
@@ -1965,7 +2010,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         layerId,
         ...(drop ? { dropX: drop.x, dropY: drop.y } : {}),
       });
-      const refreshed = decorateProject(await projectService.getProject());
+      const refreshed = decorateProject(await getProjectForCurrentDocument());
       if (refreshed) {
         const destLayerIds: string[] = [];
         const destCounts = new Map<string, number>();
@@ -2015,12 +2060,12 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const savedPath = await persistenceService.saveProject(projectPath ?? undefined);
       set({ projectPath: savedPath });
       // Reload to clear dirty flag
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project });
       await refreshUndo();
     } catch (e) {
       // "Save cancelled" is not an error
-      if (!String(e).includes('cancelled')) {
+      if (!isUserCancel(e)) {
         const msg = String(e);
         set({ error: msg });
         notifyError(msg);
@@ -2032,11 +2077,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       const savedPath = await persistenceService.saveProjectAs();
       set({ projectPath: savedPath });
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project });
       await refreshUndo();
     } catch (e) {
-      if (!String(e).includes('cancelled')) {
+      if (!isUserCancel(e)) {
         const msg = String(e);
         set({ error: msg });
         notifyError(msg);
@@ -2049,6 +2094,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       set({ loading: true, error: null });
       const { project: rawProject, path } = await persistenceService.openProject();
       const project = decorateProject(rawProject)!;
+      beginNewDocument();
       revokeCachedAssetUrls(get().assetCache);
       set({
         project,
@@ -2067,7 +2113,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       void notifyPendingNotices();
       await refreshUndo();
     } catch (e) {
-      if (!String(e).includes('cancelled')) {
+      if (!isUserCancel(e)) {
         const msg = String(e);
         set({ error: msg, loading: false });
         notifyError(msg);
@@ -2081,6 +2127,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const project = decorateProject(await persistenceService.openProjectFromPath(filePath))!;
+      beginNewDocument();
       revokeCachedAssetUrls(get().assetCache);
       set({
         project,
@@ -2208,7 +2255,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanUnion(objectIdA, objectIdB);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -2237,7 +2284,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanSubtract(objectIdA, objectIdB);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -2266,7 +2313,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanExclude(objectIdA, objectIdB);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -2383,7 +2430,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   lockObjects: async (objectIds) => {
     try {
       await projectService.lockObjects(objectIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2395,7 +2442,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   unlockObjects: async (objectIds) => {
     try {
       await projectService.unlockObjects(objectIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2425,7 +2472,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       } else {
         await projectService.flipObjects(targetIds, axis);
       }
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2451,12 +2498,26 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         }
       }
       await projectService.rotateObjects(targetIds, degrees, resolvedPivot);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
     } catch (e) {
       notifyError(String(e));
+    }
+  },
+
+  scaleAndRotateObjects: async (entries, objectIds, degrees, pivot) => {
+    try {
+      await projectService.scaleAndRotateObjects(entries, objectIds, degrees, pivot);
+      const project = await getProjectForCurrentDocument();
+      if (project) set({ project: decorateProject({ ...project, dirty: true })! });
+      invalidatePreview();
+      await refreshUndo();
+    } catch (e) {
+      notifyError(String(e));
+      const project = await getProjectForCurrentDocument().catch(() => null);
+      if (project) set({ project: decorateProject(project)! });
     }
   },
 
@@ -2482,7 +2543,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         resolvedPivot,
         activeObjectId,
       );
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2494,7 +2555,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   shearObjects: async (objectIds, shearX, shearY, pivot?) => {
     try {
       await projectService.shearObjects(objectIds, shearX, shearY, pivot);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2506,7 +2567,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   setObjectsVisible: async (objectIds, visible) => {
     try {
       await projectService.setObjectsVisible(objectIds, visible);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         const previousSelection = get().selectedObjectIds;
@@ -2532,7 +2593,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   updateObjectBoundsBatch: async (entries) => {
     try {
       await projectService.updateObjectBoundsBatch(entries);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({ project: decorateProject({ ...project, dirty: true })! });
       } else {
@@ -2543,7 +2604,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       invalidatePreview();
       await refreshUndo();
     } catch (e) {
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({ project: decorateProject({ ...project, dirty: true })! });
       }
@@ -2554,7 +2615,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   pushDrawOrder: async (objectId, direction) => {
     try {
       await projectService.pushDrawOrder(objectId, direction);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2585,7 +2646,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           },
         })),
       );
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2751,7 +2812,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       await projectService.reassignLayer(objectIds, layerId);
       const { selectedObjectIds, selectedLayerId } = get();
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const shouldFollowSelection = selectedObjectIds.some((id) => objectIds.includes(id));
         set({
@@ -2779,7 +2840,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     if (rootIds.length === 0) return false;
     try {
       await projectService.moveObjectsInOutliner(rootIds, targetLayerId, beforeObjectId);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: decorateProject({ ...project, dirty: true })!,
@@ -2808,7 +2869,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   deleteDuplicates: async (objectIds) => {
     try {
       const remainingIds = await projectService.deleteDuplicates(objectIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true }, selectedObjectIds: remainingIds });
       invalidatePreview();
       await refreshUndo();
@@ -2821,7 +2882,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       const paths = await projectService.autoJoinShapes(objectIds, toleranceMm);
       if (paths.length === 0) return;
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2834,7 +2895,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       const paths = await projectService.optimizeShapes(objectIds);
       if (paths.length === 0) return;
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) set({ project: { ...project, dirty: true } });
       invalidatePreview();
       await refreshUndo();
@@ -2846,7 +2907,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   selectOpenShapes: async () => {
     try {
       const ids = await projectService.selectOpenShapes();
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set((state) => ({
           project,
@@ -2864,7 +2925,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   selectOpenShapesSetToFill: async () => {
     try {
       const ids = await projectService.selectOpenShapesSetToFill();
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set((state) => ({
           project,
@@ -2918,7 +2979,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       const selectedIds = get().selectedObjectIds;
       if (selectedIds.length === 0) return;
       const ids = await projectService.selectShapesSmallerThanSelected(selectedIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set((state) => ({
           project,
@@ -3077,7 +3138,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanIntersection(objectIdA, objectIdB);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3104,7 +3165,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanWeld(objectIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3131,7 +3192,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanUnionMany(objectIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3154,7 +3215,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanIntersectionMany(objectIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3177,7 +3238,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanExcludeMany(objectIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3200,7 +3261,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const newObj = await vectorService.booleanSubtractMany(objectIds);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3223,7 +3284,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const result = await vectorService.cutShapesApply(objectIds);
-      const nextProject = await projectService.getProject();
+      const nextProject = await getProjectForCurrentDocument();
       if (nextProject) {
         const groupedIds = [result.insideGroupId, result.outsideGroupId].filter(Boolean) as string[];
         const createdIds = groupedIds.length > 0 ? groupedIds : result.createdObjectIds;
@@ -3251,7 +3312,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     set({ booleanPending: true });
     try {
       const result = await vectorService.closeAndJoin(objectIds, toleranceMm);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const nextProject = decorateProject({ ...project, dirty: true })!;
         set({
@@ -3290,7 +3351,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         deleteOriginal,
       );
       const createdIds = created.map((o) => o.id);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3314,7 +3375,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     try {
       const created = await vectorService.breakApart(objectId);
       if (created.length === 0) return; // nothing to break — silent no-op
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const createdIds = created.map((o) => o.id);
         set({
@@ -3337,7 +3398,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   closePath: async (objectId) => {
     try {
       await vectorService.closePath(objectId);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({ project: { ...project, dirty: true } });
         invalidatePreview();
@@ -3351,7 +3412,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   gridArray: async (params) => {
     try {
       const result = await vectorService.gridArray(params);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const selectIds = result.groupId ? [result.groupId] : result.createdIds;
         const previousLayerId = get().selectedLayerId;
@@ -3372,7 +3433,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   circularArray: async (params) => {
     try {
       const result = await vectorService.circularArray(params);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const selectIds = result.groupId ? [result.groupId] : result.createdIds;
         const previousLayerId = get().selectedLayerId;
@@ -3518,7 +3579,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   convertToBitmap: async (objectId, dpi) => {
     try {
       const updated = await vectorService.convertToBitmap(objectId, dpi);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3536,7 +3597,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   applyPathToText: async (textObjectId, pathObjectId) => {
     try {
       const created = await vectorService.applyPathToText(textObjectId, pathObjectId);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3554,7 +3615,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   cropImage: async (imageObjectId, maskObjectId) => {
     try {
       const updated = await vectorService.cropImage(imageObjectId, maskObjectId);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3572,7 +3633,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   applyMaskToImage: async (imageObjectId, maskObjectId) => {
     try {
       const updated = await vectorService.applyMaskToImage(imageObjectId, maskObjectId);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3590,7 +3651,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   assignImageMask: async (imageObjectId, maskObjectIds, polarity = 'keep_inside') => {
     try {
       const updated = await vectorService.assignImageMask(imageObjectId, maskObjectIds, polarity);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3608,7 +3669,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   setImageMaskPolarity: async (imageObjectId, maskObjectId, polarity) => {
     try {
       const updated = await vectorService.setImageMaskPolarity(imageObjectId, maskObjectId, polarity);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3625,7 +3686,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   removeImageMask: async (imageObjectId, maskObjectId) => {
     try {
       const updated = await vectorService.removeImageMask(imageObjectId, maskObjectId);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({
           project: { ...project, dirty: true },
@@ -3642,7 +3703,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   closeSelectedPathsWithTolerance: async (objectIds, toleranceMm, mode) => {
     try {
       const result = await projectService.closeSelectedPathsWithTolerance(objectIds, toleranceMm, mode);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         set({ project: { ...project, dirty: project.dirty || result.shapesClosed > 0 }, selectedObjectIds: result.objectIds });
         if (result.shapesClosed > 0) {
@@ -3709,7 +3770,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         return false;
       }
       const created = await vectorService.copyAlongPathBatch(objectIds, pathObjectId, options);
-      const project = await projectService.getProject();
+      const project = await getProjectForCurrentDocument();
       if (project) {
         const createdIds = topLevelCreatedSelectionIds(created);
         const selectedLayerId = created[0]
@@ -3833,7 +3894,7 @@ async function importArtworkBatch(
   const { project } = useProjectStore.getState();
   if (project) {
     // Reload full project to get assets list and layers in sync
-    const refreshed = await projectService.getProject();
+    const refreshed = await getProjectForCurrentDocument();
     if (refreshed) {
       // Compute the union of destination layer ids the backend
       // actually routed the objects to. A mixed raster+vector batch

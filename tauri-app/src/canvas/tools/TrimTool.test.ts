@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import i18n from '../../i18n';
 import { TRIM_HIT_RADIUS_PX, TrimTool } from './TrimTool';
 import type { CanvasMouseEvent, ToolContext } from './types';
 import type { ViewportParams } from '../ViewportTransform';
@@ -42,6 +43,7 @@ function makeToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
     rotateObjects: vi.fn(),
     shearObjects: vi.fn(),
     updateObjectBoundsBatch: vi.fn(),
+    scaleAndRotateObjects: vi.fn().mockResolvedValue(undefined),
     setCursorWorldPos: vi.fn(),
     setStatusMessage: vi.fn(),
     requestRender: vi.fn(),
@@ -171,7 +173,7 @@ describe('TrimTool', () => {
     const notifications = useNotificationStore.getState().notifications;
     const info = notifications.find((n) => n.type === 'info');
     expect(info).toBeDefined();
-    expect(info!.message).toContain('not fill-ready');
+    expect(info!.message).toBe(i18n.t('notifications.trim.open_path'));
   });
 
   it('reset does not throw', () => {

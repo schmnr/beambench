@@ -433,7 +433,12 @@
       "downloading": "Stahuje se...",
       "installing": "Instaluje se...",
       "blocked_not_in_applications": "Aktualizace vyžadují, aby Beam Bench běžel ze složky Aplikace. Zdá se, že běží z instalačního obrazu disku nebo z jiného dočasného umístění. Ve Finderu přetáhněte Beam Bench do složky Aplikace, otevřete jej odtud a zkuste aktualizaci znovu.",
-      "blocked_other_disk": "Beam Bench je nainstalován na jiném disku, než kde je dočasná složka tohoto Macu, takže jej aktualizátor nemůže vyměnit. Přesuňte Beam Bench do složky Aplikace na hlavním disku, nebo si stáhněte novou verzi z beambench.com."
+      "blocked_other_disk": "Beam Bench je nainstalován na jiném disku, než kde je dočasná složka tohoto Macu, takže jej aktualizátor nemůže vyměnit. Přesuňte Beam Bench do složky Aplikace na hlavním disku, nebo si stáhněte novou verzi z beambench.com.",
+      "blocked_job_running": "Před instalací dokončete nebo zastavte aktuální úlohu.",
+      "blocked_machine_operation": "Před instalací počkejte na dokončení aktuální operace stroje.",
+      "blocked_machine_busy": "Před instalací dokončete nebo zastavte aktuální operaci stroje.",
+      "blocked_machine_moving": "Před instalací počkejte, až se stroj vrátí do klidu.",
+      "cancelled_unsaved": "Aktualizace zrušena. Projekt nebyl zahozen."
     },
     "camera_calibration": {
       "title": "Mapování kamery",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} řádků",
         "elapsed": "Uplynulo: {time}",
         "remaining": "Zbývá: ~{time}",
-        "finishing": "Dokončování, čekání na stroj..."
+        "finishing": "Dokončování, čekání na stroj...",
+        "last_failure": "Poslední úloha se zastavila: {message}"
       },
       "overrides": {
         "title": "Přepisy",
@@ -2588,7 +2594,50 @@
       "postponed": "Připomenutí aktualizace odloženo o 24 hodin.",
       "skipped": "Beam Bench {version} přeskočen."
     },
-    "import_oversized": "Importováno v původní velikosti: návrh měří {width} x {height} {unit}, což je více než pracovní plocha {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importováno v původní velikosti: návrh měří {width} x {height} {unit}, což je více než pracovní plocha {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Používá se stávající připojení stroje",
+      "preview_disconnected": "Náhledový stroj odpojen",
+      "disconnected": "Odpojeno",
+      "preview_connected": "Náhledový stroj připojen",
+      "homing_started": "Najíždění do výchozí polohy zahájeno",
+      "discovery_started": "Hledání strojů zahájeno",
+      "discovery_cancelled": "Hledání strojů zrušeno",
+      "connected_discovered": "Připojeno k nalezenému zařízení",
+      "profile_from_discovery": "Profil stroje vytvořen z nalezeného zařízení",
+      "estop_sent": "Nouzové zastavení odesláno",
+      "estop_resent_disconnected": "Nouzové zastavení bylo odesláno znovu po opětovném otevření připojení k řadiči. Poté se Beam Bench odpojil. Před pokračováním se znovu připojte.",
+      "user_origin_cleared": "Uživatelský počátek vymazán",
+      "job_tick_failed": "Úloha se zastavila, protože odesílání do řadiče selhalo.",
+      "lihuiyu_incomplete": "Připojení USB Lihuiyu nebylo dokončeno.",
+      "connected_to": "Připojeno k {name}",
+      "user_origin_set": "Uživatelský počátek nastaven na ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Pořízen nový snímek kamery",
+      "alignment_saved": "Zarovnání kamery uloženo",
+      "mapping_solved": "Mapování kamery vypočteno",
+      "mapping_saved": "Mapování kamery uloženo",
+      "mapping_reset": "Mapování kamery obnoveno",
+      "alignment_solved": "Zarovnání kamery vypočteno",
+      "alignment_reset": "Zarovnání kamery obnoveno"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Šablona používá zástupné symboly {placeholder}, ale režim textu není Sériové číslo.",
+      "date_outside_mode": "Šablona používá zástupné symboly {placeholder}, ale režim textu není Datum/čas.",
+      "csv_outside_mode": "Šablona používá zástupné symboly {placeholder}, ale režim textu není Sloučení CSV.",
+      "cut_outside_mode": "Šablona používá zástupné symboly {placeholder}, ale režim textu není Nastavení řezu.",
+      "no_placeholders": "Zvolený režim textu nemá v šabloně odpovídající zástupné symboly.",
+      "csv_load_failed": "Soubor CSV se nepodařilo načíst: {error}",
+      "resolve_failed": "Text se nepodařilo vyhodnotit: {error}",
+      "merge_fields_failed": "Slučovací pole se nepodařilo načíst: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Oříznutí vytvořilo několik částí. Vyberte je a spojte je pomocí Uzavřít a spojit.",
+      "open_path": "Oříznutá cesta je otevřená a nelze ji vyplnit. Pokud potřebujete uzavřený tvar, použijte Uzavřít a spojit."
+    },
+    "pick_guide_path": "Klikněte na vektorový objekt nebo tvar, který se použije jako vodicí cesta",
+    "panel_layout_save_failed": "Změny rozložení panelů se nepodařilo uložit. Po restartu se mohou ztratit."
   },
   "status": {
     "preview_in_progress": "Generování náhledu",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "Uživatelský původ je vybrán, ale nebyl nastaven. Přesuňte laser na zamýšlený počátek a před rámováním nebo zahájením vyberte možnost Nastavit zde.",
     "current_position_unavailable": "Aktuální pozice potřebuje připojený stroj s nahlášenou pozicí.",
     "dxf_no_usable_geometry": "Soubor DXF neobsahuje žádnou použitelnou 2D vektorovou geometrii.",
-    "dxf_no_usable_geometry_with_entities": "Soubor DXF neobsahuje žádnou použitelnou 2D vektorovou geometrii. Nepodporované nebo poškozené entity: {entities}."
+    "dxf_no_usable_geometry_with_entities": "Soubor DXF neobsahuje žádnou použitelnou 2D vektorovou geometrii. Nepodporované nebo poškozené entity: {entities}.",
+    "camera": {
+      "stream_failed": "Datový proud kamery se nepodařilo spustit.",
+      "frame_timeout": "Vypršel čas čekání na snímek kamery. Kamera se možná ještě zahřívá nebo ji používá jiná aplikace.",
+      "preview_timeout": "Vypršel čas spouštění náhledu kamery.",
+      "warmup_timeout": "Vypršel čas čekání na připravenost kamery.",
+      "encode_failed": "Snímek kamery se nepodařilo uložit.",
+      "unavailable": "Snímání kamerou není v tomto okně dostupné.",
+      "empty_frame": "Kamera vrátila prázdný snímek.",
+      "canvas_failed": "Snímek kamery se nepodařilo připravit."
+    }
   },
   "import": {
     "drop_to_import": "Přetáhněte soubory k importu"

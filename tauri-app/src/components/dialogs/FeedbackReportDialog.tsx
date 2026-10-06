@@ -1,3 +1,4 @@
+import { isUserCancel } from '../../utils/userCancel';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { wrapBackendError } from '../../i18n/errors';
 import { Copy, Eye, EyeOff, FolderOpen, Save, Send, X } from 'lucide-react';
@@ -183,7 +184,7 @@ export function FeedbackReportDialog({
       const report = await feedbackService.saveReport(input);
       setSuccess({ type: 'saved', report });
     } catch (saveError) {
-      if (!String(saveError).toLowerCase().includes('cancelled')) {
+      if (!isUserCancel(saveError)) {
         setError(wrapBackendError(String(saveError)));
       }
     } finally {

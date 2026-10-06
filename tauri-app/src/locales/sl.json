@@ -433,7 +433,12 @@
       "downloading": "Prenašanje...",
       "installing": "Nameščanje...",
       "blocked_not_in_applications": "Posodobitve zahtevajo, da se Beam Bench izvaja iz mape Aplikacije. Videti je, da se izvaja iz namestitvene slike diska ali z drugega začasnega mesta. V Finderju povlecite Beam Bench v mapo Aplikacije, ga odprite od tam in znova poskusite s posodobitvijo.",
-      "blocked_other_disk": "Beam Bench je nameščen na drugem disku kot začasna mapa tega Maca, zato ga posodobitev ne more zamenjati. Premaknite Beam Bench v mapo Aplikacije na glavnem disku ali prenesite novo različico s beambench.com."
+      "blocked_other_disk": "Beam Bench je nameščen na drugem disku kot začasna mapa tega Maca, zato ga posodobitev ne more zamenjati. Premaknite Beam Bench v mapo Aplikacije na glavnem disku ali prenesite novo različico s beambench.com.",
+      "blocked_job_running": "Pred namestitvijo dokončajte ali ustavite trenutno opravilo.",
+      "blocked_machine_operation": "Pred namestitvijo počakajte, da se trenutna operacija stroja konča.",
+      "blocked_machine_busy": "Pred namestitvijo dokončajte ali ustavite trenutno operacijo stroja.",
+      "blocked_machine_moving": "Pred namestitvijo počakajte, da stroj spet miruje.",
+      "cancelled_unsaved": "Posodobitev preklicana. Projekt ni bil zavržen."
     },
     "camera_calibration": {
       "title": "Preslikava kamere",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} vrstic",
         "elapsed": "Preteklo: {time}",
         "remaining": "Preostalo: ~{time}",
-        "finishing": "Zaključevanje, čakanje na stroj..."
+        "finishing": "Zaključevanje, čakanje na stroj...",
+        "last_failure": "Zadnje opravilo se je ustavilo: {message}"
       },
       "overrides": {
         "title": "Prekoračitve",
@@ -2588,7 +2594,50 @@
       "postponed": "Opomnik za posodobitev odložen za 24 ur.",
       "skipped": "Beam Bench {version} preskočen."
     },
-    "import_oversized": "Uvoženo v izvirni velikosti: načrt meri {width} x {height} {unit}, kar je več od delovne površine {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Uvoženo v izvirni velikosti: načrt meri {width} x {height} {unit}, kar je več od delovne površine {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Uporablja se obstoječa povezava s strojem",
+      "preview_disconnected": "Predogledni stroj odklopljen",
+      "disconnected": "Odklopljeno",
+      "preview_connected": "Predogledni stroj povezan",
+      "homing_started": "Iskanje izhodišča začeto",
+      "discovery_started": "Iskanje strojev začeto",
+      "discovery_cancelled": "Iskanje strojev preklicano",
+      "connected_discovered": "Povezano z najdeno napravo",
+      "profile_from_discovery": "Profil stroja ustvarjen iz najdene naprave",
+      "estop_sent": "Zasilna zaustavitev poslana",
+      "estop_resent_disconnected": "Zasilna zaustavitev je bila znova poslana po ponovnem odprtju povezave s krmilnikom. Nato je Beam Bench prekinil povezavo. Pred nadaljevanjem se znova povežite.",
+      "user_origin_cleared": "Uporabniško izhodišče počiščeno",
+      "job_tick_failed": "Opravilo se je ustavilo, ker pošiljanje krmilniku ni uspelo.",
+      "lihuiyu_incomplete": "Povezava USB Lihuiyu ni bila dokončana.",
+      "connected_to": "Povezano z {name}",
+      "user_origin_set": "Uporabniško izhodišče nastavljeno na ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Zajet nov posnetek kamere",
+      "alignment_saved": "Poravnava kamere shranjena",
+      "mapping_solved": "Preslikava kamere izračunana",
+      "mapping_saved": "Preslikava kamere shranjena",
+      "mapping_reset": "Preslikava kamere ponastavljena",
+      "alignment_solved": "Poravnava kamere izračunana",
+      "alignment_reset": "Poravnava kamere ponastavljena"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Predloga uporablja nadomestne oznake {placeholder}, vendar način besedila ni Serijska številka.",
+      "date_outside_mode": "Predloga uporablja nadomestne oznake {placeholder}, vendar način besedila ni Datum/čas.",
+      "csv_outside_mode": "Predloga uporablja nadomestne oznake {placeholder}, vendar način besedila ni Spajanje CSV.",
+      "cut_outside_mode": "Predloga uporablja nadomestne oznake {placeholder}, vendar način besedila ni Nastavitev reza.",
+      "no_placeholders": "Izbrani način besedila nima ustreznih nadomestnih oznak v predlogi.",
+      "csv_load_failed": "Datoteke CSV ni bilo mogoče naložiti: {error}",
+      "resolve_failed": "Besedila ni bilo mogoče razrešiti: {error}",
+      "merge_fields_failed": "Polj za spajanje ni bilo mogoče prebrati: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Obrezovanje je ustvarilo več kosov. Izberite jih in jih združite z ukazom Zapri in združi.",
+      "open_path": "Obrezana pot je odprta, zato je ni mogoče zapolniti. Če potrebujete zaprto obliko, uporabite Zapri in združi."
+    },
+    "pick_guide_path": "Kliknite vektorski predmet ali obliko, ki bo vodilna pot",
+    "panel_layout_save_failed": "Sprememb razporeditve plošč ni bilo mogoče shraniti. Ob ponovnem zagonu se lahko izgubijo."
   },
   "status": {
     "preview_in_progress": "Ustvarjanje predogleda",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "Uporabniški izvor je izbran, vendar ni nastavljen. Premaknite laser na predvideno izhodišče in izberite Set here pred okvirjanjem ali začetkom.",
     "current_position_unavailable": "Trenutni položaj potrebuje povezan stroj s prijavljenim položajem.",
     "dxf_no_usable_geometry": "Datoteka DXF ne vsebuje uporabne 2D-vektorske geometrije.",
-    "dxf_no_usable_geometry_with_entities": "Datoteka DXF ne vsebuje uporabne 2D-vektorske geometrije. Nepodprte ali nepravilne entitete: {entities}."
+    "dxf_no_usable_geometry_with_entities": "Datoteka DXF ne vsebuje uporabne 2D-vektorske geometrije. Nepodprte ali nepravilne entitete: {entities}.",
+    "camera": {
+      "stream_failed": "Pretoka kamere ni bilo mogoče zagnati.",
+      "frame_timeout": "Čas čakanja na posnetek kamere je potekel. Kamera se morda še ogreva ali jo uporablja druga aplikacija.",
+      "preview_timeout": "Čas zagona predogleda kamere je potekel.",
+      "warmup_timeout": "Čas čakanja, da je kamera pripravljena, je potekel.",
+      "encode_failed": "Posnetka kamere ni bilo mogoče shraniti.",
+      "unavailable": "Zajem s kamero v tem oknu ni na voljo.",
+      "empty_frame": "Kamera je vrnila prazen posnetek.",
+      "canvas_failed": "Posnetka kamere ni bilo mogoče pripraviti."
+    }
   },
   "import": {
     "drop_to_import": "Spustite datoteke za uvoz"

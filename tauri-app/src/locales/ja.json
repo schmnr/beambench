@@ -433,7 +433,12 @@
       "downloading": "ダウンロード中...",
       "installing": "インストール中...",
       "blocked_not_in_applications": "アップデートには、Beam Bench を「アプリケーション」フォルダから起動する必要があります。インストーラのディスクイメージや一時的な場所から起動されているようです。Finder で Beam Bench を「アプリケーション」フォルダにドラッグし、そこから開いてから、もう一度アップデートをお試しください。",
-      "blocked_other_disk": "Beam Bench がこの Mac の一時フォルダとは別のディスクにインストールされているため、アップデータが入れ替えできません。Beam Bench をメインディスクの「アプリケーション」フォルダに移動するか、beambench.com から新しいバージョンをダウンロードしてください。"
+      "blocked_other_disk": "Beam Bench がこの Mac の一時フォルダとは別のディスクにインストールされているため、アップデータが入れ替えできません。Beam Bench をメインディスクの「アプリケーション」フォルダに移動するか、beambench.com から新しいバージョンをダウンロードしてください。",
+      "blocked_job_running": "インストールする前に、現在のジョブを完了するか停止してください。",
+      "blocked_machine_operation": "インストールする前に、現在のマシン操作が終わるまでお待ちください。",
+      "blocked_machine_busy": "インストールする前に、現在のマシン操作を完了するか停止してください。",
+      "blocked_machine_moving": "インストールする前に、マシンが待機状態に戻るまでお待ちください。",
+      "cancelled_unsaved": "アップデートをキャンセルしました。プロジェクトは破棄されていません。"
     },
     "camera_calibration": {
       "title": "カメラマッピング",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} 行",
         "elapsed": "経過: {time}",
         "remaining": "残り: ~{time}",
-        "finishing": "仕上げ中、マシンを待っています..."
+        "finishing": "仕上げ中、マシンを待っています...",
+        "last_failure": "前回のジョブが停止しました: {message}"
       },
       "overrides": {
         "title": "オーバーライド",
@@ -2588,7 +2594,50 @@
       "postponed": "更新リマインダーを24時間延期しました。",
       "skipped": "Beam Bench {version} をスキップしました。"
     },
-    "import_oversized": "元のサイズで読み込みました。デザインは {width} x {height} {unit} で、作業領域 {bedWidth} x {bedHeight} {unit} より大きいです。"
+    "import_oversized": "元のサイズで読み込みました。デザインは {width} x {height} {unit} で、作業領域 {bedWidth} x {bedHeight} {unit} より大きいです。",
+    "machine": {
+      "using_existing_connection": "既存のマシン接続を使用しています",
+      "preview_disconnected": "プレビューマシンを切断しました",
+      "disconnected": "切断しました",
+      "preview_connected": "プレビューマシンを接続しました",
+      "homing_started": "原点復帰を開始しました",
+      "discovery_started": "マシンの検索を開始しました",
+      "discovery_cancelled": "マシンの検索をキャンセルしました",
+      "connected_discovered": "見つかったデバイスに接続しました",
+      "profile_from_discovery": "見つかったデバイスからマシンプロファイルを作成しました",
+      "estop_sent": "非常停止を送信しました",
+      "estop_resent_disconnected": "コントローラーへの接続を開き直した後、非常停止を再送しました。その後 Beam Bench は切断しました。続行する前に再接続してください。",
+      "user_origin_cleared": "ユーザー原点をクリアしました",
+      "job_tick_failed": "コントローラーへの送信に失敗したため、ジョブが停止しました。",
+      "lihuiyu_incomplete": "Lihuiyu の USB 接続が完了しませんでした。",
+      "connected_to": "{name} に接続しました",
+      "user_origin_set": "ユーザー原点を ({x}, {y}) に設定しました"
+    },
+    "camera": {
+      "image_captured": "新しいカメラ画像を撮影しました",
+      "alignment_saved": "カメラの位置合わせを保存しました",
+      "mapping_solved": "カメラのマッピングを計算しました",
+      "mapping_saved": "カメラのマッピングを保存しました",
+      "mapping_reset": "カメラのマッピングをリセットしました",
+      "alignment_solved": "カメラの位置合わせを計算しました",
+      "alignment_reset": "カメラの位置合わせをリセットしました"
+    },
+    "variable_text": {
+      "serial_outside_mode": "テンプレートに {placeholder} プレースホルダーがありますが、テキストモードがシリアル番号ではありません。",
+      "date_outside_mode": "テンプレートに {placeholder} プレースホルダーがありますが、テキストモードが日付/時刻ではありません。",
+      "csv_outside_mode": "テンプレートに {placeholder} プレースホルダーがありますが、テキストモードが CSV 差し込みではありません。",
+      "cut_outside_mode": "テンプレートに {placeholder} プレースホルダーがありますが、テキストモードがカット設定ではありません。",
+      "no_placeholders": "選択したテキストモードに一致するプレースホルダーがテンプレートにありません。",
+      "csv_load_failed": "CSV ファイルを読み込めませんでした: {error}",
+      "resolve_failed": "テキストを解決できませんでした: {error}",
+      "merge_fields_failed": "差し込みフィールドを読み取れませんでした: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "トリムで複数のパーツができました。選択して「閉じて結合」で結合してください。",
+      "open_path": "トリムしたパスは開いているため塗りつぶせません。閉じた形状が必要な場合は「閉じて結合」を使用してください。"
+    },
+    "pick_guide_path": "ガイドパスとして使用するベクターまたは図形オブジェクトをクリックしてください",
+    "panel_layout_save_failed": "パネルレイアウトの変更を保存できませんでした。再起動すると失われる可能性があります。"
   },
   "status": {
     "preview_in_progress": "プレビューを生成中",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "ユーザー原点が選択されていますが、設定されていません。レーザーを目的の原点に移動し、フレーミングまたは開始する前に「ここに設定」を選択します。",
     "current_position_unavailable": "現在の位置には、報告された位置を持つ接続されたマシンが必要です。",
     "dxf_no_usable_geometry": "DXFファイルに使用可能な2Dベクタージオメトリがありません。",
-    "dxf_no_usable_geometry_with_entities": "DXFファイルに使用可能な2Dベクタージオメトリがありません。サポートされていないか不正なエンティティ: {entities}。"
+    "dxf_no_usable_geometry_with_entities": "DXFファイルに使用可能な2Dベクタージオメトリがありません。サポートされていないか不正なエンティティ: {entities}。",
+    "camera": {
+      "stream_failed": "カメラのストリームを開始できませんでした。",
+      "frame_timeout": "カメラ画像の待機がタイムアウトしました。カメラがまだ準備中か、別のアプリで使用中の可能性があります。",
+      "preview_timeout": "カメラのプレビュー開始がタイムアウトしました。",
+      "warmup_timeout": "カメラの準備待ちがタイムアウトしました。",
+      "encode_failed": "カメラ画像を保存できませんでした。",
+      "unavailable": "このウィンドウではカメラで撮影できません。",
+      "empty_frame": "カメラが空の画像を返しました。",
+      "canvas_failed": "カメラ画像を準備できませんでした。"
+    }
   },
   "import": {
     "drop_to_import": "ファイルをドロップしてインポート"

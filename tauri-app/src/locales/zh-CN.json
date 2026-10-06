@@ -433,7 +433,12 @@
       "downloading": "正在下载...",
       "installing": "正在安装...",
       "blocked_not_in_applications": "更新需要 Beam Bench 从“应用程序”文件夹运行。它似乎正在从安装器磁盘映像或其他临时位置运行。请在访达中将 Beam Bench 拖入“应用程序”文件夹，从那里打开后再重试更新。",
-      "blocked_other_disk": "Beam Bench 安装在与这台 Mac 临时文件夹不同的磁盘上，更新程序无法就地替换。请将 Beam Bench 移到主磁盘的“应用程序”文件夹，或从 beambench.com 下载新版本。"
+      "blocked_other_disk": "Beam Bench 安装在与这台 Mac 临时文件夹不同的磁盘上，更新程序无法就地替换。请将 Beam Bench 移到主磁盘的“应用程序”文件夹，或从 beambench.com 下载新版本。",
+      "blocked_job_running": "安装前请完成或停止当前作业。",
+      "blocked_machine_operation": "安装前请等待当前机器操作完成。",
+      "blocked_machine_busy": "安装前请完成或停止当前机器操作。",
+      "blocked_machine_moving": "安装前请等待机器回到空闲状态。",
+      "cancelled_unsaved": "已取消更新。您的项目未被丢弃。"
     },
     "camera_calibration": {
       "title": "相机映射",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} 行",
         "elapsed": "已用：{time}",
         "remaining": "剩余：~{time}",
-        "finishing": "正在完成，等待机器..."
+        "finishing": "正在完成，等待机器...",
+        "last_failure": "上一个作业已停止：{message}"
       },
       "overrides": {
         "title": "倍率",
@@ -2588,7 +2594,50 @@
       "postponed": "更新提醒已推迟 24 小时。",
       "skipped": "已跳过 Beam Bench {version}。"
     },
-    "import_oversized": "已按原始尺寸导入：设计尺寸为 {width} x {height} {unit}，大于 {bedWidth} x {bedHeight} {unit} 的工作区域。"
+    "import_oversized": "已按原始尺寸导入：设计尺寸为 {width} x {height} {unit}，大于 {bedWidth} x {bedHeight} {unit} 的工作区域。",
+    "machine": {
+      "using_existing_connection": "正在使用现有的机器连接",
+      "preview_disconnected": "预览机器已断开",
+      "disconnected": "已断开",
+      "preview_connected": "预览机器已连接",
+      "homing_started": "已开始回原点",
+      "discovery_started": "已开始搜索机器",
+      "discovery_cancelled": "已取消搜索机器",
+      "connected_discovered": "已连接到找到的设备",
+      "profile_from_discovery": "已根据找到的设备创建机器配置",
+      "estop_sent": "已发送紧急停止",
+      "estop_resent_disconnected": "重新打开控制器连接后已再次发送紧急停止。随后 Beam Bench 已断开连接。继续前请重新连接。",
+      "user_origin_cleared": "已清除用户原点",
+      "job_tick_failed": "由于发送到控制器失败，作业已停止。",
+      "lihuiyu_incomplete": "Lihuiyu USB 连接未完成。",
+      "connected_to": "已连接到 {name}",
+      "user_origin_set": "用户原点已设为 ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "已拍摄新的相机图像",
+      "alignment_saved": "相机对齐已保存",
+      "mapping_solved": "相机映射已计算",
+      "mapping_saved": "相机映射已保存",
+      "mapping_reset": "相机映射已重置",
+      "alignment_solved": "相机对齐已计算",
+      "alignment_reset": "相机对齐已重置"
+    },
+    "variable_text": {
+      "serial_outside_mode": "模板使用了 {placeholder} 占位符，但文本模式不是序列号。",
+      "date_outside_mode": "模板使用了 {placeholder} 占位符，但文本模式不是日期/时间。",
+      "csv_outside_mode": "模板使用了 {placeholder} 占位符，但文本模式不是 CSV 合并。",
+      "cut_outside_mode": "模板使用了 {placeholder} 占位符，但文本模式不是切割设置。",
+      "no_placeholders": "所选文本模式在模板中没有匹配的占位符。",
+      "csv_load_failed": "无法加载 CSV 文件：{error}",
+      "resolve_failed": "无法解析文本：{error}",
+      "merge_fields_failed": "无法读取合并字段：{error}"
+    },
+    "trim": {
+      "multiple_pieces": "修剪生成了多个片段。请选中它们并使用“闭合并连接”进行合并。",
+      "open_path": "修剪后的路径是开放的，无法填充。如需闭合形状，请使用“闭合并连接”。"
+    },
+    "pick_guide_path": "点击一个矢量或形状对象作为引导路径",
+    "panel_layout_save_failed": "无法保存面板布局更改。重启后可能会丢失。"
   },
   "status": {
     "preview_in_progress": "正在生成预览",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "用户原点已选择但尚未设置。将激光移动到预期原点，并在取景或开始之前选择在此处设置。",
     "current_position_unavailable": "当前位置需要具有报告位置的连接机器。",
     "dxf_no_usable_geometry": "DXF 文件不包含可用的二维矢量几何图形。",
-    "dxf_no_usable_geometry_with_entities": "DXF 文件不包含可用的二维矢量几何图形。不支持或格式错误的图元：{entities}。"
+    "dxf_no_usable_geometry_with_entities": "DXF 文件不包含可用的二维矢量几何图形。不支持或格式错误的图元：{entities}。",
+    "camera": {
+      "stream_failed": "无法启动相机视频流。",
+      "frame_timeout": "等待相机图像超时。相机可能仍在预热，或正被其他应用使用。",
+      "preview_timeout": "启动相机预览超时。",
+      "warmup_timeout": "等待相机就绪超时。",
+      "encode_failed": "无法保存相机图像。",
+      "unavailable": "此窗口中无法使用相机拍摄。",
+      "empty_frame": "相机返回了空图像。",
+      "canvas_failed": "无法准备相机图像。"
+    }
   },
   "import": {
     "drop_to_import": "拖放文件以导入"

@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import { create } from 'zustand';
 import type {
   AlignmentPointSet,
@@ -234,7 +235,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       set({ captureStage: 'saving' });
       const state = await cameraService.getAgentState();
       set({ ...applyAgentState(state), loading: false, captureStage: 'success' });
-      notifySuccess('New camera image captured');
+      notifySuccess(i18n.t('notifications.camera.image_captured'));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ error: msg, loading: false, captureStage: 'error' });
@@ -375,7 +376,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
     try {
       const state = await cameraService.saveOverlayAlignment();
       set(applyAgentState(state));
-      notifySuccess('Camera alignment saved');
+      notifySuccess(i18n.t('notifications.camera.alignment_saved'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg });
@@ -404,7 +405,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   solveCalibration: async (cameraId, points) => {
     const result = await cameraService.solveCalibration(cameraId, points);
     set({ error: null });
-    notifySuccess('Camera mapping solved');
+    notifySuccess(i18n.t('notifications.camera.mapping_solved'));
     return result.calibration;
   },
 
@@ -413,7 +414,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       const saved = await cameraService.saveCalibration(cameraId, calibration);
       set({ calibration: saved, error: null });
       await get().refreshOverlayState();
-      notifySuccess('Camera mapping saved');
+      notifySuccess(i18n.t('notifications.camera.mapping_saved'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg });
@@ -427,7 +428,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       await cameraService.resetCalibration(get().selectedCameraId);
       set({ calibration: null, error: null });
       await get().refreshOverlayState();
-      notifySuccess('Camera mapping reset');
+      notifySuccess(i18n.t('notifications.camera.mapping_reset'));
       return true;
     } catch (e) {
       const msg = String(e);
@@ -440,7 +441,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   solveAlignment: async (points) => {
     const alignment = await cameraService.solveAlignment(points, get().selectedCameraId);
     set({ error: null });
-    notifySuccess('Camera alignment solved');
+    notifySuccess(i18n.t('notifications.camera.alignment_solved'));
     return alignment;
   },
 
@@ -456,7 +457,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
         error: null,
       });
       await get().refreshOverlayState();
-      notifySuccess('Camera alignment saved');
+      notifySuccess(i18n.t('notifications.camera.alignment_saved'));
     } catch (e) {
       const msg = String(e);
       set({ error: msg });
@@ -477,7 +478,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
         error: null,
       });
       await get().refreshOverlayState();
-      notifySuccess('Camera alignment reset');
+      notifySuccess(i18n.t('notifications.camera.alignment_reset'));
       return true;
     } catch (e) {
       const msg = String(e);

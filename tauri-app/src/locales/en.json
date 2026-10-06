@@ -562,7 +562,12 @@
       "downloading": "Downloading...",
       "installing": "Installing...",
       "blocked_not_in_applications": "Updates need Beam Bench to run from the Applications folder. It looks like it is running from the installer disk image or another temporary location. In Finder, drag Beam Bench into Applications, open it from there, and try the update again.",
-      "blocked_other_disk": "Beam Bench is installed on a different disk than this Mac's temporary folder, so the updater cannot swap it in place. Move Beam Bench to the Applications folder on the main disk, or download the new version from beambench.com."
+      "blocked_other_disk": "Beam Bench is installed on a different disk than this Mac's temporary folder, so the updater cannot swap it in place. Move Beam Bench to the Applications folder on the main disk, or download the new version from beambench.com.",
+      "blocked_job_running": "Finish or stop the current job before installing.",
+      "blocked_machine_operation": "Wait for the current machine operation to finish before installing.",
+      "blocked_machine_busy": "Finish or stop the current machine operation before installing.",
+      "blocked_machine_moving": "Wait for the machine to return to idle before installing.",
+      "cancelled_unsaved": "Update cancelled. Your project has not been discarded."
     },
     "camera_calibration": {
       "title": "Camera Mapping",
@@ -2103,6 +2108,7 @@
           "failed": "FAILED",
           "cancelled": "CANCELLED"
         },
+        "last_failure": "The last job stopped: {message}",
         "lines": "{acknowledged} / {total} lines",
         "elapsed": "Elapsed: {time}",
         "remaining": "Remaining: ~{time}",
@@ -2588,7 +2594,50 @@
       "postponed": "Update reminder postponed for 24 hours.",
       "skipped": "Beam Bench {version} skipped."
     },
-    "import_oversized": "Imported at original size: the design measures {width} x {height} {unit}, larger than the {bedWidth} x {bedHeight} {unit} workspace."
+    "import_oversized": "Imported at original size: the design measures {width} x {height} {unit}, larger than the {bedWidth} x {bedHeight} {unit} workspace.",
+    "machine": {
+      "using_existing_connection": "Using the existing machine connection",
+      "preview_disconnected": "Preview machine disconnected",
+      "disconnected": "Disconnected",
+      "preview_connected": "Preview machine connected",
+      "homing_started": "Homing started",
+      "discovery_started": "Machine discovery started",
+      "discovery_cancelled": "Machine discovery cancelled",
+      "connected_discovered": "Connected to the discovered device",
+      "profile_from_discovery": "Machine profile created from the discovered device",
+      "estop_sent": "Emergency stop sent",
+      "estop_resent_disconnected": "Emergency stop was sent again after the controller connection was reopened. Beam Bench then disconnected. Reconnect before continuing.",
+      "user_origin_cleared": "User origin cleared",
+      "job_tick_failed": "The job stopped because sending it to the controller failed.",
+      "lihuiyu_incomplete": "The Lihuiyu USB connection did not complete.",
+      "connected_to": "Connected to {name}",
+      "user_origin_set": "User origin set to ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "New camera image captured",
+      "alignment_saved": "Camera alignment saved",
+      "mapping_solved": "Camera mapping solved",
+      "mapping_saved": "Camera mapping saved",
+      "mapping_reset": "Camera mapping reset",
+      "alignment_solved": "Camera alignment solved",
+      "alignment_reset": "Camera alignment reset"
+    },
+    "variable_text": {
+      "serial_outside_mode": "The template uses {placeholder} placeholders, but the text mode is not Serial Number.",
+      "date_outside_mode": "The template uses {placeholder} placeholders, but the text mode is not Date/Time.",
+      "csv_outside_mode": "The template uses {placeholder} placeholders, but the text mode is not Merge CSV.",
+      "cut_outside_mode": "The template uses {placeholder} placeholders, but the text mode is not Cut Setting.",
+      "no_placeholders": "The selected text mode has no matching placeholders in the template.",
+      "csv_load_failed": "Could not load the CSV file: {error}",
+      "resolve_failed": "Could not resolve the text: {error}",
+      "merge_fields_failed": "Could not read the merge fields: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Trim made several pieces. Select them and use Close & Join to combine them.",
+      "open_path": "The trimmed path is open, so it cannot be filled. Use Close & Join if you need a closed shape."
+    },
+    "pick_guide_path": "Click a vector or shape object to use as the guide path",
+    "panel_layout_save_failed": "Panel layout changes could not be saved. They may be lost when you restart."
   },
   "status": {
     "preview_in_progress": "Preview generation in progress",
@@ -2678,7 +2727,17 @@
     "artwork_outside_workspace": "{hasObject, select, yes {The planned position of “{object}” extends {amount} {unit} beyond the {edge} edge of the workspace. It has been selected. Adjust the job placement or move the object inside the workspace before previewing or running the job.} other {The planned job position extends {amount} {unit} beyond the {edge} edge of the workspace. Adjust the job placement before previewing or running the job.}}",
     "relative_job_outside_workspace": "{mode, select, current_position {Current Position places the {anchor} Job Origin at the laser head. This placement extends {amount} {unit} beyond the {edge} edge. Move the laser at least {amount} {unit} away from the {edge} edge, choose another Job Origin, or use Absolute Coordinates.} user_origin {User Origin places the {anchor} Job Origin at the saved user origin. This placement extends {amount} {unit} beyond the {edge} edge. Move or reset User Origin at least {amount} {unit} away from the {edge} edge, choose another Job Origin, or use Absolute Coordinates.} other {The planned job position extends {amount} {unit} beyond the {edge} edge. Adjust the job placement before previewing or running the job.}}",
     "ui_error_title": "Beam Bench hit a UI error",
-    "reload": "Reload"
+    "reload": "Reload",
+    "camera": {
+      "stream_failed": "Could not start the camera stream.",
+      "frame_timeout": "Timed out waiting for a camera image. The camera may still be warming up or in use by another app.",
+      "preview_timeout": "Timed out starting the camera preview.",
+      "warmup_timeout": "Timed out waiting for the camera to warm up.",
+      "encode_failed": "Could not save the camera image.",
+      "unavailable": "Camera capture is not available in this window.",
+      "empty_frame": "The camera returned an empty image.",
+      "canvas_failed": "Could not prepare the camera image."
+    }
   },
   "import": {
     "drop_to_import": "Drop files to import"

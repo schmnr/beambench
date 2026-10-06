@@ -31,6 +31,8 @@ export class TextTool implements CanvasTool {
   private state: TextToolState = { type: 'idle' };
   private creatingText = false;
   private pendingTypedText = '';
+  /** Bumped by reset, so a creation that finishes after the tool was left does not open editing. */
+  private generation = 0;
 
   onMouseDown(e: CanvasMouseEvent, ctx: ToolContext): void {
     void this.handleMouseDown(e, ctx);
@@ -175,6 +177,7 @@ export class TextTool implements CanvasTool {
       else if (td.alignment_v === 'bottom') minY = y - h;
     }
 
+    const generation = this.generation;
     const createdObject = await ctx.addObject(
       'Text',
       layerId,
@@ -210,7 +213,9 @@ export class TextTool implements CanvasTool {
         max: { x: minX + w, y: minY + h },
       },
     );
-    if (createdObject) {
+    // The text object stays in the project, but if the tool was reset while
+    // it was being created, the user has moved on: do not start editing it.
+    if (createdObject && generation === this.generation) {
       // Stay in text tool — enter edit session for the new text
       useUiStore.getState().beginTextEditSession(
         createdObject.id,
@@ -259,5 +264,6 @@ export class TextTool implements CanvasTool {
     this.state = { type: 'idle' };
     this.creatingText = false;
     this.pendingTypedText = '';
+    this.generation += 1;
   }
 }

@@ -1,3 +1,4 @@
+import { localizeBackendMessage } from '../../i18n/errors';
 import { useTranslation } from 'react-i18next';
 import { useMachineStore } from '../../stores/machineStore';
 import { JOB_STATE_TEXT_CLASSES } from './stateColors';
@@ -61,7 +62,7 @@ export function JobProgressBar() {
 
       {jobProgress.state === 'failed' && jobProgress.error_message && (
         <div className="text-xs text-bb-error-fg">
-          {jobProgress.error_message}
+          {localizeBackendMessage(jobProgress.error_message)}
         </div>
       )}
 

@@ -712,3 +712,18 @@ describe('unreferenced position guidance', () => {
     expect(screen.queryByText(/Position not homed/)).toBeNull();
   });
 });
+
+describe('cancelling a jog press', () => {
+  it.each(['blur', 'pointercancel', 'unmount'])('%s before release never starts a jog', async (end) => {
+    connectMachine();
+    const { unmount } = render(<MovePanel />);
+    const up = await screen.findByTitle('Jog Up');
+    vi.mocked(machineService.jog).mockClear();
+    fireEvent.pointerDown(up, { pointerId: 1 });
+    expect(machineService.jog).not.toHaveBeenCalled();
+    if (end === 'unmount') unmount();
+    else fireEvent(window, new Event(end));
+    await act(async () => {});
+    expect(machineService.jog).not.toHaveBeenCalled();
+  });
+});

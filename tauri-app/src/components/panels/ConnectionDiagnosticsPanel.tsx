@@ -1,3 +1,4 @@
+import { isUserCancel } from '../../utils/userCancel';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send, Save, RefreshCw } from 'lucide-react';
@@ -78,7 +79,7 @@ export function ConnectionDiagnosticsPanel() {
       });
       useNotificationStore.getState().push(i18n.t('notifications.diagnostics_saved', { path: saved.path }), 'success');
     } catch (error) {
-      if (!String(error).toLowerCase().includes('cancelled')) {
+      if (!isUserCancel(error)) {
         useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
       }
     }

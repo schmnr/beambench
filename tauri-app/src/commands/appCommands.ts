@@ -1,3 +1,4 @@
+import { isUserCancel } from '../utils/userCancel';
 import { appService } from '../services/appService';
 import { persistenceService } from '../services/persistenceService';
 import { useNotificationStore } from '../stores/notificationStore';
@@ -412,8 +413,7 @@ async function runCommand(action: () => Promise<unknown> | unknown): Promise<voi
   try {
     await action();
   } catch (error) {
-    if (error instanceof Error && error.message === 'Export cancelled') return;
-    if (String(error).toLowerCase().includes('cancelled')) return;
+    if (isUserCancel(error)) return;
     useNotificationStore.getState().push(wrapBackendError(String(error)), 'error');
   }
 }

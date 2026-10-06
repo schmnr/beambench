@@ -898,6 +898,38 @@ pub fn rotate_objects(
     })
 }
 
+/// Resize objects to `entries`, then rotate them about the pivot, as one
+/// edit and one undo step (the two-point scale-and-rotate gesture).
+pub fn scale_and_rotate_objects(
+    svc: &Arc<ServiceContext>,
+    entries: Vec<BoundsEntry>,
+    object_ids: Vec<String>,
+    degrees: f64,
+    pivot_x: Option<f64>,
+    pivot_y: Option<f64>,
+) -> Result<(), String> {
+    svc.atomic_edit(|| {
+        let bounds: Vec<(ObjectId, Bounds)> = entries
+            .iter()
+            .map(|e| Ok((parse_id(&e.id)?, e.bounds)))
+            .collect::<Result<Vec<_>, String>>()?;
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let pivot = match (pivot_x, pivot_y) {
+            (Some(x), Some(y)) => Some(beambench_common::Point2D::new(x, y)),
+            _ => None,
+        };
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::update_object_bounds_batch(project, &bounds);
+        beambench_core::operations::rotate_objects(project, &parsed_ids, degrees, pivot);
+        Ok(())
+    })
+}
+
 pub fn rotate_objects_and_bake_active_path(
     svc: &Arc<ServiceContext>,
     object_ids: Vec<String>,
@@ -1622,6 +1654,7 @@ rotate_objects { object_ids : Vec < String > , degrees : f64 , pivot_x : Option 
 rotate_objects_and_bake_active_path { object_ids : Vec < String > , degrees : f64 , pivot_x : Option < f64 > , pivot_y : Option < f64 > , active_object_id : String } => rotate_objects_and_bake_active_path (svc , object_ids , degrees , pivot_x , pivot_y , active_object_id ,);
 shear_objects { object_ids : Vec < String > , shear_x : f64 , shear_y : f64 , pivot_x : Option < f64 > , pivot_y : Option < f64 > } => shear_objects (svc , object_ids , shear_x , shear_y , pivot_x , pivot_y);
 update_object_bounds_batch { entries : Vec < BoundsEntry > } => update_object_bounds_batch (svc , entries);
+scale_and_rotate_objects { entries : Vec < BoundsEntry > , object_ids : Vec < String > , degrees : f64 , pivot_x : Option < f64 > , pivot_y : Option < f64 > } => scale_and_rotate_objects (svc , entries , object_ids , degrees , pivot_x , pivot_y);
 move_objects_to { object_ids : Vec < String > , x : f64 , y : f64 } => move_objects_to (svc , object_ids , x , y);
 set_start_from { mode : StartFromMode } => set_start_from (svc , mode);
 set_job_origin { anchor : AnchorPoint } => set_job_origin (svc , anchor);
@@ -1657,6 +1690,52 @@ mod tests {
     use beambench_core::{
         Layer, ObjectData, OperationType, Project, ProjectObject, ProjectOptimizationPatch,
     };
+
+    #[test]
+    fn scale_and_rotate_is_one_undo_step() {
+        use super::{BoundsEntry, scale_and_rotate_objects};
+        use std::sync::Arc;
+        use beambench_common::Point2D;
+        use beambench_core::{ObjectData, Project, ProjectObject, ShapeKind};
+        let svc = Arc::new(ServiceContext::new());
+        let mut project = Project::new("two-point");
+        let layer = project.ensure_default_layer();
+        let original = Bounds::new(Point2D::new(10.0, 0.0), Point2D::new(20.0, 10.0));
+        let id = project
+            .add_object(ProjectObject::new(
+                "rect",
+                layer,
+                original,
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            ))
+            .id;
+        *svc.project.lock().unwrap() = Some(project);
+
+        scale_and_rotate_objects(
+            &svc,
+            vec![BoundsEntry {
+                id: id.to_string(),
+                bounds: Bounds::new(Point2D::new(20.0, 0.0), Point2D::new(40.0, 20.0)),
+            }],
+            vec![id.to_string()],
+            90.0,
+            Some(0.0),
+            Some(0.0),
+        )
+        .unwrap();
+        crate::ops::project::undo_project(&svc).unwrap();
+
+        let guard = svc.project.lock().unwrap();
+        let object = guard.as_ref().unwrap().find_object(id).unwrap();
+        assert_eq!(object.bounds, original);
+        assert!(object.transform.is_identity());
+        assert!(!svc.undo_state().unwrap().can_undo);
+    }
 
     fn add_vector_path(
         project: &mut Project,

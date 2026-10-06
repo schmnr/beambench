@@ -433,7 +433,12 @@
       "downloading": "Wird heruntergeladen...",
       "installing": "Wird installiert...",
       "blocked_not_in_applications": "Updates erfordern, dass Beam Bench aus dem Ordner „Programme\" ausgeführt wird. Es scheint vom Installations-Image oder einem anderen temporären Ort zu laufen. Ziehen Sie Beam Bench im Finder in den Ordner „Programme\", öffnen Sie es von dort und versuchen Sie das Update erneut.",
-      "blocked_other_disk": "Beam Bench ist auf einem anderen Laufwerk installiert als der temporäre Ordner dieses Macs, daher kann der Updater es nicht austauschen. Verschieben Sie Beam Bench in den Ordner „Programme\" auf dem Hauptlaufwerk oder laden Sie die neue Version von beambench.com herunter."
+      "blocked_other_disk": "Beam Bench ist auf einem anderen Laufwerk installiert als der temporäre Ordner dieses Macs, daher kann der Updater es nicht austauschen. Verschieben Sie Beam Bench in den Ordner „Programme\" auf dem Hauptlaufwerk oder laden Sie die neue Version von beambench.com herunter.",
+      "blocked_job_running": "Beenden oder stoppen Sie den aktuellen Auftrag vor der Installation.",
+      "blocked_machine_operation": "Warten Sie vor der Installation, bis der aktuelle Maschinenvorgang abgeschlossen ist.",
+      "blocked_machine_busy": "Beenden oder stoppen Sie den aktuellen Maschinenvorgang vor der Installation.",
+      "blocked_machine_moving": "Warten Sie vor der Installation, bis die Maschine wieder im Leerlauf ist.",
+      "cancelled_unsaved": "Update abgebrochen. Ihr Projekt wurde nicht verworfen."
     },
     "camera_calibration": {
       "title": "Kameraabbildung",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} Zeilen",
         "elapsed": "Verstrichen: {time}",
         "remaining": "Verbleibend: ~{time}",
-        "finishing": "Wird abgeschlossen, warte auf die Maschine..."
+        "finishing": "Wird abgeschlossen, warte auf die Maschine...",
+        "last_failure": "Der letzte Auftrag wurde gestoppt: {message}"
       },
       "overrides": {
         "title": "Overrides",
@@ -2588,7 +2594,50 @@
       "postponed": "Update-Erinnerung um 24 Stunden verschoben.",
       "skipped": "Beam Bench {version} übersprungen."
     },
-    "import_oversized": "In Originalgröße importiert: Das Design misst {width} x {height} {unit} und ist größer als der Arbeitsbereich von {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "In Originalgröße importiert: Das Design misst {width} x {height} {unit} und ist größer als der Arbeitsbereich von {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Bestehende Maschinenverbindung wird verwendet",
+      "preview_disconnected": "Vorschaumaschine getrennt",
+      "disconnected": "Getrennt",
+      "preview_connected": "Vorschaumaschine verbunden",
+      "homing_started": "Referenzfahrt gestartet",
+      "discovery_started": "Maschinensuche gestartet",
+      "discovery_cancelled": "Maschinensuche abgebrochen",
+      "connected_discovered": "Mit dem gefundenen Gerät verbunden",
+      "profile_from_discovery": "Maschinenprofil aus dem gefundenen Gerät erstellt",
+      "estop_sent": "Not-Aus gesendet",
+      "estop_resent_disconnected": "Not-Aus wurde erneut gesendet, nachdem die Controllerverbindung wieder geöffnet wurde. Beam Bench hat danach getrennt. Verbinden Sie neu, bevor Sie fortfahren.",
+      "user_origin_cleared": "Benutzerursprung gelöscht",
+      "job_tick_failed": "Der Auftrag wurde gestoppt, weil das Senden an den Controller fehlgeschlagen ist.",
+      "lihuiyu_incomplete": "Die Lihuiyu-USB-Verbindung wurde nicht abgeschlossen.",
+      "connected_to": "Verbunden mit {name}",
+      "user_origin_set": "Benutzerursprung auf ({x}, {y}) gesetzt"
+    },
+    "camera": {
+      "image_captured": "Neues Kamerabild aufgenommen",
+      "alignment_saved": "Kameraausrichtung gespeichert",
+      "mapping_solved": "Kamerazuordnung berechnet",
+      "mapping_saved": "Kamerazuordnung gespeichert",
+      "mapping_reset": "Kamerazuordnung zurückgesetzt",
+      "alignment_solved": "Kameraausrichtung berechnet",
+      "alignment_reset": "Kameraausrichtung zurückgesetzt"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Die Vorlage verwendet {placeholder}-Platzhalter, aber der Textmodus ist nicht Seriennummer.",
+      "date_outside_mode": "Die Vorlage verwendet {placeholder}-Platzhalter, aber der Textmodus ist nicht Datum/Uhrzeit.",
+      "csv_outside_mode": "Die Vorlage verwendet {placeholder}-Platzhalter, aber der Textmodus ist nicht CSV-Zusammenführung.",
+      "cut_outside_mode": "Die Vorlage verwendet {placeholder}-Platzhalter, aber der Textmodus ist nicht Schnitteinstellung.",
+      "no_placeholders": "Der gewählte Textmodus hat keine passenden Platzhalter in der Vorlage.",
+      "csv_load_failed": "Die CSV-Datei konnte nicht geladen werden: {error}",
+      "resolve_failed": "Der Text konnte nicht aufgelöst werden: {error}",
+      "merge_fields_failed": "Die Seriendruckfelder konnten nicht gelesen werden: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Beim Trimmen sind mehrere Teile entstanden. Wählen Sie sie aus und verbinden Sie sie mit Schließen & Verbinden.",
+      "open_path": "Der getrimmte Pfad ist offen und kann nicht gefüllt werden. Verwenden Sie Schließen & Verbinden, wenn Sie eine geschlossene Form brauchen."
+    },
+    "pick_guide_path": "Klicken Sie auf ein Vektor- oder Formobjekt, das als Führungspfad dienen soll",
+    "panel_layout_save_failed": "Änderungen am Panel-Layout konnten nicht gespeichert werden. Sie gehen beim Neustart möglicherweise verloren."
   },
   "status": {
     "preview_in_progress": "Vorschau wird generiert",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "Der Benutzerursprung ist ausgewählt, wurde jedoch nicht festgelegt. Bewegen Sie den Laser zum vorgesehenen Ursprung und wählen Sie „Hier festlegen“, bevor Sie den Bildausschnitt festlegen oder beginnen.",
     "current_position_unavailable": "Für die aktuelle Position ist eine verbundene Maschine mit einer gemeldeten Position erforderlich.",
     "dxf_no_usable_geometry": "Die DXF-Datei enthält keine verwendbare 2D-Vektorgeometrie.",
-    "dxf_no_usable_geometry_with_entities": "Die DXF-Datei enthält keine verwendbare 2D-Vektorgeometrie. Nicht unterstützte oder fehlerhafte Elemente: {entities}."
+    "dxf_no_usable_geometry_with_entities": "Die DXF-Datei enthält keine verwendbare 2D-Vektorgeometrie. Nicht unterstützte oder fehlerhafte Elemente: {entities}.",
+    "camera": {
+      "stream_failed": "Der Kamerastream konnte nicht gestartet werden.",
+      "frame_timeout": "Zeitüberschreitung beim Warten auf ein Kamerabild. Die Kamera wärmt sich vielleicht noch auf oder wird von einer anderen App verwendet.",
+      "preview_timeout": "Zeitüberschreitung beim Starten der Kameravorschau.",
+      "warmup_timeout": "Zeitüberschreitung beim Aufwärmen der Kamera.",
+      "encode_failed": "Das Kamerabild konnte nicht gespeichert werden.",
+      "unavailable": "Kameraaufnahme ist in diesem Fenster nicht verfügbar.",
+      "empty_frame": "Die Kamera hat ein leeres Bild geliefert.",
+      "canvas_failed": "Das Kamerabild konnte nicht vorbereitet werden."
+    }
   },
   "import": {
     "drop_to_import": "Dateien zum Importieren ablegen"

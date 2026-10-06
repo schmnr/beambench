@@ -509,6 +509,19 @@ pub fn rotate_objects(
     )
 }
 #[tauri::command]
+pub fn scale_and_rotate_objects(
+    svc: State<'_, Arc<ServiceContext>>,
+    entries: Vec<beambench_service::ops::workflows::project::BoundsEntry>,
+    object_ids: Vec<String>,
+    degrees: f64,
+    pivot_x: Option<f64>,
+    pivot_y: Option<f64>,
+) -> Result<(), String> {
+    beambench_service::ops::workflows::project::scale_and_rotate_objects(
+        &svc, entries, object_ids, degrees, pivot_x, pivot_y,
+    )
+}
+#[tauri::command]
 pub fn rotate_objects_and_bake_active_path(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,

@@ -18,6 +18,9 @@ import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 import { ROTARY_SETUP_OPEN_EVENT } from '../../rotaryEvents';
 import { DockDialog } from '../dialogs/DockDialog';
 import { IconButton } from '../shared/IconButton';
+// New and Open go through the app commands so they ask about unsaved changes.
+import { executeAppCommand } from '../../commands/appCommands';
+import { APP_COMMANDS } from '../../commands/appCommandIds';
 import { useMacroStore } from '../../stores/macroStore';
 import {
   FilePlus, FolderOpen, Save, SaveAll, Import,
@@ -78,8 +81,6 @@ const TOOL_LASER_POSITION = 'laser_position' as const;
 
 export function MainToolbar() {
   const { t } = useTranslation();
-  const createProject = useProjectStore((s) => s.createProject);
-  const openProject = useProjectStore((s) => s.openProject);
   const saveProject = useProjectStore((s) => s.saveProject);
   const saveProjectAs = useProjectStore((s) => s.saveProjectAs);
   const importFiles = useProjectStore((s) => s.importFiles);
@@ -265,8 +266,8 @@ export function MainToolbar() {
       {showMain && (
         <>
       {/* File group */}
-      <IconButton icon={<FilePlus size={sz} />} label={t('toolbars.main.new')} onClick={() => createProject(t('toolbars.main.untitled_project'))} />
-      <IconButton icon={<FolderOpen size={sz} />} label={t('toolbars.main.open')} onClick={() => void openProject()} />
+      <IconButton icon={<FilePlus size={sz} />} label={t('toolbars.main.new')} onClick={() => void executeAppCommand(APP_COMMANDS.FILE_NEW)} />
+      <IconButton icon={<FolderOpen size={sz} />} label={t('toolbars.main.open')} onClick={() => void executeAppCommand(APP_COMMANDS.FILE_OPEN)} />
       <IconButton icon={<Save size={sz} />} label={t('toolbars.main.save')} onClick={() => void saveProject()} disabled={!project} />
       <IconButton icon={<SaveAll size={sz} />} label={t('toolbars.main.save_as')} onClick={() => void saveProjectAs()} disabled={!project} />
       <IconButton icon={<Import size={sz} />} label={t('toolbars.main.import')} onClick={handleImport} disabled={!project || workspaceMode === 'run'} />

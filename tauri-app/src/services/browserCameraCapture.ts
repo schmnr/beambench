@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import type { CameraDeviceInfo } from '../types/camera';
 
 export interface BrowserCameraFrame {
@@ -148,14 +149,14 @@ const waitForVideoReady = (video: HTMLVideoElement) => new Promise<void>((resolv
     if (settled) return;
     settled = true;
     cleanup();
-    reject(new Error('Failed to load camera stream'));
+    reject(new Error(i18n.t('errors.camera.stream_failed')));
   };
 
   const timeout = window.setTimeout(() => {
     if (settled) return;
     settled = true;
     cleanup();
-    reject(new Error('Timed out waiting for camera frame. The camera may still be warming up or in use by another app.'));
+    reject(new Error(i18n.t('errors.camera.frame_timeout')));
   }, VIDEO_READY_TIMEOUT_MS);
 
   if (video.readyState >= HTMLMediaElement.HAVE_METADATA && video.videoWidth > 0) {
@@ -175,7 +176,7 @@ const startVideoPlayback = async (video: HTMLVideoElement) => {
       video.play(),
       new Promise<never>((_, reject) => {
         timeout = window.setTimeout(() => {
-          reject(new Error('Timed out starting the camera preview.'));
+          reject(new Error(i18n.t('errors.camera.preview_timeout')));
         }, VIDEO_READY_TIMEOUT_MS);
       }),
     ]);
@@ -199,7 +200,7 @@ const waitForWarmupFrames = async (video: HTMLVideoElement, frameCount = WARMUP_
       const timeout = window.setTimeout(() => {
         if (settled) return;
         settled = true;
-        reject(new Error('Timed out waiting for camera warm-up frames.'));
+        reject(new Error(i18n.t('errors.camera.warmup_timeout')));
       }, VIDEO_READY_TIMEOUT_MS);
       frameVideo.requestVideoFrameCallback?.(() => {
         if (settled) return;
@@ -214,12 +215,12 @@ const waitForWarmupFrames = async (video: HTMLVideoElement, frameCount = WARMUP_
 const encodeCanvasPng = (canvas: HTMLCanvasElement) => new Promise<Uint8Array>((resolve, reject) => {
   canvas.toBlob((blob) => {
     if (!blob) {
-      reject(new Error('Failed to encode camera frame'));
+      reject(new Error(i18n.t('errors.camera.encode_failed')));
       return;
     }
     blob.arrayBuffer()
       .then((buffer) => resolve(new Uint8Array(buffer)))
-      .catch(() => reject(new Error('Failed to encode camera frame')));
+      .catch(() => reject(new Error(i18n.t('errors.camera.encode_failed'))));
   }, 'image/png');
 });
 
@@ -388,7 +389,7 @@ export const captureBrowserCameraFrame = async (
   options: BrowserCameraCaptureOptions = {},
 ): Promise<BrowserCameraFrame> => {
   if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error('Camera capture is not available in this webview');
+    throw new Error(i18n.t('errors.camera.unavailable'));
   }
 
   options.onStage?.('resolving');
@@ -408,7 +409,7 @@ export const captureBrowserCameraFrame = async (
       const widthPx = video.videoWidth;
       const heightPx = video.videoHeight;
       if (widthPx <= 0 || heightPx <= 0) {
-        throw new Error('Camera returned an empty frame');
+        throw new Error(i18n.t('errors.camera.empty_frame'));
       }
 
       options.onStage?.('capturing');
@@ -417,7 +418,7 @@ export const captureBrowserCameraFrame = async (
       canvas.height = heightPx;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        throw new Error('Failed to create camera frame canvas');
+        throw new Error(i18n.t('errors.camera.canvas_failed'));
       }
       ctx.drawImage(video, 0, 0, widthPx, heightPx);
 

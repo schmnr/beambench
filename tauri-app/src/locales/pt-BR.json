@@ -433,7 +433,12 @@
       "downloading": "Baixando...",
       "installing": "Instalando...",
       "blocked_not_in_applications": "As atualizações exigem que o Beam Bench seja executado a partir da pasta Aplicativos. Parece que ele está sendo executado da imagem de disco do instalador ou de outro local temporário. No Finder, arraste o Beam Bench para Aplicativos, abra-o de lá e tente atualizar novamente.",
-      "blocked_other_disk": "O Beam Bench está instalado em um disco diferente da pasta temporária deste Mac, então o atualizador não consegue substituí-lo. Mova o Beam Bench para a pasta Aplicativos do disco principal ou baixe a nova versão em beambench.com."
+      "blocked_other_disk": "O Beam Bench está instalado em um disco diferente da pasta temporária deste Mac, então o atualizador não consegue substituí-lo. Mova o Beam Bench para a pasta Aplicativos do disco principal ou baixe a nova versão em beambench.com.",
+      "blocked_job_running": "Conclua ou pare o trabalho atual antes de instalar.",
+      "blocked_machine_operation": "Aguarde a operação atual da máquina terminar antes de instalar.",
+      "blocked_machine_busy": "Conclua ou pare a operação atual da máquina antes de instalar.",
+      "blocked_machine_moving": "Aguarde a máquina voltar ao repouso antes de instalar.",
+      "cancelled_unsaved": "Atualização cancelada. Seu projeto não foi descartado."
     },
     "camera_calibration": {
       "title": "Mapeamento da câmera",
@@ -1954,7 +1959,8 @@
         "lines": "{acknowledged} / {total} linhas",
         "elapsed": "Decorrido: {time}",
         "remaining": "Restante: ~{time}",
-        "finishing": "Finalizando, aguardando a máquina..."
+        "finishing": "Finalizando, aguardando a máquina...",
+        "last_failure": "O último trabalho parou: {message}"
       },
       "overrides": {
         "title": "Overrides",
@@ -2588,7 +2594,50 @@
       "postponed": "Lembrete de atualização adiado por 24 horas.",
       "skipped": "Beam Bench {version} ignorado."
     },
-    "import_oversized": "Importado no tamanho original: o desenho mede {width} x {height} {unit}, maior que a área de trabalho de {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importado no tamanho original: o desenho mede {width} x {height} {unit}, maior que a área de trabalho de {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Usando a conexão de máquina existente",
+      "preview_disconnected": "Máquina de visualização desconectada",
+      "disconnected": "Desconectado",
+      "preview_connected": "Máquina de visualização conectada",
+      "homing_started": "Referenciamento iniciado",
+      "discovery_started": "Busca de máquinas iniciada",
+      "discovery_cancelled": "Busca de máquinas cancelada",
+      "connected_discovered": "Conectado ao dispositivo encontrado",
+      "profile_from_discovery": "Perfil de máquina criado a partir do dispositivo encontrado",
+      "estop_sent": "Parada de emergência enviada",
+      "estop_resent_disconnected": "A parada de emergência foi enviada novamente após a conexão com o controlador ser reaberta. Depois, o Beam Bench se desconectou. Reconecte antes de continuar.",
+      "user_origin_cleared": "Origem do usuário apagada",
+      "job_tick_failed": "O trabalho parou porque o envio para o controlador falhou.",
+      "lihuiyu_incomplete": "A conexão USB Lihuiyu não foi concluída.",
+      "connected_to": "Conectado a {name}",
+      "user_origin_set": "Origem do usuário definida como ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Nova imagem da câmera capturada",
+      "alignment_saved": "Alinhamento da câmera salvo",
+      "mapping_solved": "Mapeamento da câmera calculado",
+      "mapping_saved": "Mapeamento da câmera salvo",
+      "mapping_reset": "Mapeamento da câmera redefinido",
+      "alignment_solved": "Alinhamento da câmera calculado",
+      "alignment_reset": "Alinhamento da câmera redefinido"
+    },
+    "variable_text": {
+      "serial_outside_mode": "O modelo usa marcadores {placeholder}, mas o modo de texto não é Número de série.",
+      "date_outside_mode": "O modelo usa marcadores {placeholder}, mas o modo de texto não é Data/Hora.",
+      "csv_outside_mode": "O modelo usa marcadores {placeholder}, mas o modo de texto não é Mesclar CSV.",
+      "cut_outside_mode": "O modelo usa marcadores {placeholder}, mas o modo de texto não é Configuração de corte.",
+      "no_placeholders": "O modo de texto selecionado não tem marcadores correspondentes no modelo.",
+      "csv_load_failed": "Não foi possível carregar o arquivo CSV: {error}",
+      "resolve_failed": "Não foi possível resolver o texto: {error}",
+      "merge_fields_failed": "Não foi possível ler os campos de mesclagem: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "O corte criou várias partes. Selecione-as e use Fechar e unir para combiná-las.",
+      "open_path": "O caminho cortado está aberto e não pode ser preenchido. Use Fechar e unir se precisar de uma forma fechada."
+    },
+    "pick_guide_path": "Clique em um objeto vetorial ou forma para usar como caminho guia",
+    "panel_layout_save_failed": "Não foi possível salvar as alterações no layout dos painéis. Elas podem ser perdidas ao reiniciar."
   },
   "status": {
     "preview_in_progress": "Gerando visualização",
@@ -2678,7 +2727,17 @@
     "user_origin_not_set": "A origem do usuário está selecionada, mas não foi definida. Mova o laser para a origem pretendida e escolha Definir aqui antes de enquadrar ou iniciar.",
     "current_position_unavailable": "A Posição Atual precisa de uma máquina conectada com uma posição informada.",
     "dxf_no_usable_geometry": "O arquivo DXF não contém geometria vetorial 2D utilizável.",
-    "dxf_no_usable_geometry_with_entities": "O arquivo DXF não contém geometria vetorial 2D utilizável. Entidades não compatíveis ou inválidas: {entities}."
+    "dxf_no_usable_geometry_with_entities": "O arquivo DXF não contém geometria vetorial 2D utilizável. Entidades não compatíveis ou inválidas: {entities}.",
+    "camera": {
+      "stream_failed": "Não foi possível iniciar a transmissão da câmera.",
+      "frame_timeout": "Tempo esgotado aguardando uma imagem da câmera. A câmera ainda pode estar aquecendo ou em uso por outro aplicativo.",
+      "preview_timeout": "Tempo esgotado ao iniciar a visualização da câmera.",
+      "warmup_timeout": "Tempo esgotado aguardando a câmera ficar pronta.",
+      "encode_failed": "Não foi possível salvar a imagem da câmera.",
+      "unavailable": "A captura da câmera não está disponível nesta janela.",
+      "empty_frame": "A câmera retornou uma imagem vazia.",
+      "canvas_failed": "Não foi possível preparar a imagem da câmera."
+    }
   },
   "import": {
     "drop_to_import": "Solte arquivos para importar"

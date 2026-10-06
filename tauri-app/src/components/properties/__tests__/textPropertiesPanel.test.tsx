@@ -143,6 +143,7 @@ describe('TextPropertiesPanel', () => {
     expect(screen.getByLabelText('Box width (in)')).toHaveProperty('value', '3');
 
     fireEvent.change(screen.getByLabelText('Tracking (in)'), { target: { value: '2' } });
+    fireEvent.blur(screen.getByLabelText('Tracking (in)'));
     expect(updateObjectData).toHaveBeenCalledWith(
       't1',
       expect.objectContaining({ h_spacing: 50.8 }),

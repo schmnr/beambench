@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import { check, type DownloadEvent, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { invoke } from '@tauri-apps/api/core';
@@ -60,16 +61,16 @@ export function getUpdateInstallBlocker(): string | null {
   const jobState = machine.jobProgress?.state;
 
   if (jobState && ACTIVE_JOB_STATES.has(jobState)) {
-    return 'Finish or stop the current job before installing.';
+    return i18n.t('dialog.update.blocked_job_running');
   }
   if (jobState && !SAFE_JOB_STATES.has(jobState)) {
-    return 'Wait for the current machine operation to finish before installing.';
+    return i18n.t('dialog.update.blocked_machine_operation');
   }
   if (BUSY_SESSION_STATES.has(machine.sessionState)) {
-    return 'Finish or stop the current machine operation before installing.';
+    return i18n.t('dialog.update.blocked_machine_busy');
   }
   if (isNonIdleRunState(machine.machineStatus?.run_state)) {
-    return 'Wait for the machine to return to idle before installing.';
+    return i18n.t('dialog.update.blocked_machine_moving');
   }
   return null;
 }
@@ -132,7 +133,7 @@ export async function downloadAndInstallUpdate(
           approvedProject = useProjectStore.getState().project;
           resolve();
         },
-        cancel: () => reject(new UpdateInstallBlockedError('Update cancelled. Your project has not been discarded.')),
+        cancel: () => reject(new UpdateInstallBlockedError(i18n.t('dialog.update.cancelled_unsaved'))),
       });
     });
   };
