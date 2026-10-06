@@ -622,3 +622,48 @@ fn reduce_travel_keeps_inner_first() {
         vec![inner.to_string(), outer.to_string()]
     );
 }
+
+// ---- power scale ----
+
+#[test]
+fn mixed_power_scales_still_cut_inner_first() {
+    let (mut project, layer_id) = single_line_layer_project();
+    project.workspace.origin = WorkspaceOrigin::TopLeft;
+    let outer = add_rectangle(&mut project, "outer", layer_id, 10.0, 10.0, 30.0, 30.0);
+    let inner = add_rectangle(&mut project, "inner", layer_id, 20.0, 20.0, 5.0, 5.0);
+    project.objects[0].power_scale = 0.5;
+    let plan = build(
+        &project,
+        ProjectOptimization {
+            inner_first: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(vector_ids(&plan), vec![inner.to_string(), outer.to_string()]);
+    let layer_power = project.layers[0].primary_entry().power_percent;
+    let powers: Vec<f64> = plan
+        .segments
+        .iter()
+        .filter_map(|segment| match segment {
+            PlanSegment::Vector { power_percent, .. } => Some(*power_percent),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(powers, vec![layer_power, layer_power * 0.5]);
+}
+
+#[test]
+fn remove_overlapping_keeps_identical_shapes_at_different_power() {
+    let (mut project, layer_id) = single_line_layer_project();
+    add_rectangle(&mut project, "full", layer_id, 10.0, 10.0, 10.0, 10.0);
+    add_rectangle(&mut project, "half", layer_id, 10.0, 10.0, 10.0, 10.0);
+    project.objects[1].power_scale = 0.5;
+    let plan = build(
+        &project,
+        ProjectOptimization {
+            remove_overlapping: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(vector_ids(&plan).len(), 2);
+}

@@ -140,6 +140,9 @@ struct TaggedPolyline {
     inner: Polyline,
     object_id: String,
     subpath_index: usize,
+    /// The source object's power scale, kept per contour so all objects can
+    /// be ordered together (inner first sees holes across objects).
+    power_scale: f64,
 }
 
 impl Orderable for TaggedPolyline {
@@ -2342,6 +2345,39 @@ fn apply_pre_order_passes<T: Orderable>(items: Vec<T>, opt: &ProjectOptimization
     direction::apply_direction_order(items, opt.direction_order)
 }
 
+/// [`apply_pre_order_passes`] for contours from several objects: duplicate
+/// removal only merges contours with the same power scale (an identical
+/// shape at a different power is deliberate), while inner-first and direction
+/// ordering still see every contour together.
+fn apply_pre_order_passes_keeping_power(
+    items: Vec<TaggedPolyline>,
+    opt: &ProjectOptimization,
+) -> Vec<TaggedPolyline> {
+    let items = if opt.enabled && opt.remove_overlapping {
+        let mut groups: Vec<(u64, Vec<TaggedPolyline>)> = Vec::new();
+        for item in items {
+            let key = item.power_scale.to_bits();
+            match groups.iter_mut().find(|(group_key, _)| *group_key == key) {
+                Some((_, group)) => group.push(item),
+                None => groups.push((key, vec![item])),
+            }
+        }
+        groups
+            .into_iter()
+            .flat_map(|(_, group)| {
+                dedupe::remove_near_duplicates(group, true, opt.remove_overlap_tolerance_mm)
+            })
+            .collect()
+    } else {
+        items
+    };
+    let without_dedupe = ProjectOptimization {
+        remove_overlapping: false,
+        ..opt.clone()
+    };
+    apply_pre_order_passes(items, &without_dedupe)
+}
+
 /// Compose the optimization for builder use. When the planner input requests
 /// `QualityTestOrdering::RowMajor`, every reorder/dedupe/start-point flag is forced off so the
 /// transient quality-test pipeline emits segments in append order.
@@ -3454,159 +3490,71 @@ fn build_plan_inner(
                     for _pass in 0..passes {
                         order_boundaries.push(all_segments.len());
                         let pre_vector_count = all_segments.len();
-                        // Group objects by power_scale to preserve per-object scaling
-                        // while still allowing cross-object ordering within same scale
-                        let has_mixed_scales = {
-                            let first =
-                                vector_objects.first().map(|o| o.power_scale).unwrap_or(1.0);
-                            vector_objects
-                                .iter()
-                                .any(|o| (o.power_scale - first).abs() > f64::EPSILON)
-                        };
-
-                        if has_mixed_scales {
-                            // Process each object separately to preserve its power_scale.
-                            // Use TaggedPolyline to preserve original subpath identity through ordering.
-                            for obj in &vector_objects {
-                                match normalize_object(obj) {
-                                    Some(normalized) => {
-                                        let obj_id_str = obj.id.to_string();
-                                        let tagged: Vec<TaggedPolyline> = normalized
-                                            .polylines
-                                            .into_iter()
-                                            .enumerate()
-                                            .map(|(sp_idx, polyline)| TaggedPolyline {
-                                                inner: polyline,
-                                                object_id: obj_id_str.clone(),
-                                                subpath_index: sp_idx,
-                                            })
-                                            .collect();
-                                        let tagged = apply_pre_order_passes(tagged, optimization);
-                                        let ordered =
-                                            order_polylines(tagged, force_as_drawn(optimization));
-                                        // Feed the actual tool position at the tail of
-                                        // segments emitted so far into the start-point
-                                        // pass. On the first object in the first layer
-                                        // this falls back to the user-configured start
-                                        // point; otherwise it's the previous segment's
-                                        // exit — which is what `choose_best_start` needs
-                                        // to optimize against across layer boundaries.
-                                        let current_pos = tail_position(
-                                            &all_segments,
-                                            resolved_start_pos(optimization),
-                                        );
-                                        let ordered = apply_start_point_pass(
-                                            ordered,
-                                            optimization,
-                                            current_pos,
-                                        );
-                                        let perf_enabled = vector_settings
-                                            .map(|s| s.perforation_enabled)
-                                            .unwrap_or(false);
-                                        let perf_on_ms = vector_settings
-                                            .map(|s| s.perforation_on_ms)
-                                            .unwrap_or(0.0);
-                                        let perf_off_ms = vector_settings
-                                            .map(|s| s.perforation_off_ms)
-                                            .unwrap_or(0.0);
-                                        for tagged_poly in ordered {
-                                            all_segments.push(PlanSegment::Vector {
-                                                polyline: tagged_poly.inner.points,
-                                                closed: tagged_poly.inner.closed,
-                                                power_percent: layer.primary_entry().power_percent
-                                                    * obj.power_scale,
-                                                speed_mm_min: layer.primary_entry().speed_mm_min,
-                                                layer_id: layer.id.to_string(),
-                                                cut_entry_id: layer.primary_entry().id.to_string(),
-                                                perforation_enabled: perf_enabled,
-                                                perforation_on_ms: perf_on_ms,
-                                                perforation_off_ms: perf_off_ms,
-                                                source_object_id: Some(tagged_poly.object_id),
-                                                source_subpath_index: Some(
-                                                    tagged_poly.subpath_index,
-                                                ),
-                                            });
-                                        }
-                                    }
-                                    None => {
-                                        warnings.push(PlanWarning {
-                                            message: format!(
-                                                "Failed to normalize object '{}'",
-                                                obj.name
-                                            ),
+                        // Order every object's contours together, so containment
+                        // (inner first) and nearest-next ordering see all of them,
+                        // while each contour keeps its own object's power scale.
+                        let mut tagged_polylines: Vec<TaggedPolyline> = Vec::new();
+                        for obj in &vector_objects {
+                            match normalize_object(obj) {
+                                Some(normalized) => {
+                                    let obj_id_str = obj.id.to_string();
+                                    for (sp_idx, polyline) in
+                                        normalized.polylines.into_iter().enumerate()
+                                    {
+                                        tagged_polylines.push(TaggedPolyline {
+                                            inner: polyline,
+                                            object_id: obj_id_str.clone(),
+                                            subpath_index: sp_idx,
+                                            power_scale: obj.power_scale,
                                         });
                                     }
                                 }
-                            }
-                        } else {
-                            // All objects have same power_scale — batch and order together
-                            // Use TaggedPolyline to track identity through ordering
-                            let uniform_scale =
-                                vector_objects.first().map(|o| o.power_scale).unwrap_or(1.0);
-                            let mut tagged_polylines: Vec<TaggedPolyline> = Vec::new();
-
-                            for obj in &vector_objects {
-                                match normalize_object(obj) {
-                                    Some(normalized) => {
-                                        let obj_id_str = obj.id.to_string();
-                                        for (sp_idx, polyline) in
-                                            normalized.polylines.into_iter().enumerate()
-                                        {
-                                            tagged_polylines.push(TaggedPolyline {
-                                                inner: polyline,
-                                                object_id: obj_id_str.clone(),
-                                                subpath_index: sp_idx,
-                                            });
-                                        }
-                                    }
-                                    None => {
-                                        warnings.push(PlanWarning {
-                                            message: format!(
-                                                "Failed to normalize object '{}'",
-                                                obj.name
-                                            ),
-                                        });
-                                    }
+                                None => {
+                                    warnings.push(PlanWarning {
+                                        message: format!(
+                                            "Failed to normalize object '{}'",
+                                            obj.name
+                                        ),
+                                    });
                                 }
                             }
+                        }
 
-                            let tagged_polylines =
-                                apply_pre_order_passes(tagged_polylines, optimization);
-                            let ordered =
-                                order_polylines(tagged_polylines, force_as_drawn(optimization));
-                            // Run start-point rotation AFTER the nearest-neighbor pass
-                            // so the rotation sees the final sequence. `current_pos`
-                            // is the tail of already-emitted segments — either the
-                            // previous layer's exit or the user-configured start.
-                            let current_pos =
-                                tail_position(&all_segments, resolved_start_pos(optimization));
-                            let ordered =
-                                apply_start_point_pass(ordered, optimization, current_pos);
+                        let tagged_polylines =
+                            apply_pre_order_passes_keeping_power(tagged_polylines, optimization);
+                        let ordered =
+                            order_polylines(tagged_polylines, force_as_drawn(optimization));
+                        // Run start-point rotation AFTER the nearest-neighbor pass
+                        // so the rotation sees the final sequence. `current_pos`
+                        // is the tail of already-emitted segments, either the
+                        // previous layer's exit or the user-configured start.
+                        let current_pos =
+                            tail_position(&all_segments, resolved_start_pos(optimization));
+                        let ordered = apply_start_point_pass(ordered, optimization, current_pos);
 
-                            let perf_enabled = vector_settings
-                                .map(|s| s.perforation_enabled)
-                                .unwrap_or(false);
-                            let perf_on_ms =
-                                vector_settings.map(|s| s.perforation_on_ms).unwrap_or(0.0);
-                            let perf_off_ms =
-                                vector_settings.map(|s| s.perforation_off_ms).unwrap_or(0.0);
+                        let perf_enabled = vector_settings
+                            .map(|s| s.perforation_enabled)
+                            .unwrap_or(false);
+                        let perf_on_ms =
+                            vector_settings.map(|s| s.perforation_on_ms).unwrap_or(0.0);
+                        let perf_off_ms =
+                            vector_settings.map(|s| s.perforation_off_ms).unwrap_or(0.0);
 
-                            for tagged in ordered {
-                                all_segments.push(PlanSegment::Vector {
-                                    polyline: tagged.inner.points,
-                                    closed: tagged.inner.closed,
-                                    power_percent: layer.primary_entry().power_percent
-                                        * uniform_scale,
-                                    speed_mm_min: layer.primary_entry().speed_mm_min,
-                                    layer_id: layer.id.to_string(),
-                                    cut_entry_id: layer.primary_entry().id.to_string(),
-                                    perforation_enabled: perf_enabled,
-                                    perforation_on_ms: perf_on_ms,
-                                    perforation_off_ms: perf_off_ms,
-                                    source_object_id: Some(tagged.object_id),
-                                    source_subpath_index: Some(tagged.subpath_index),
-                                });
-                            }
+                        for tagged in ordered {
+                            all_segments.push(PlanSegment::Vector {
+                                polyline: tagged.inner.points,
+                                closed: tagged.inner.closed,
+                                power_percent: layer.primary_entry().power_percent
+                                    * tagged.power_scale,
+                                speed_mm_min: layer.primary_entry().speed_mm_min,
+                                layer_id: layer.id.to_string(),
+                                cut_entry_id: layer.primary_entry().id.to_string(),
+                                perforation_enabled: perf_enabled,
+                                perforation_on_ms: perf_on_ms,
+                                perforation_off_ms: perf_off_ms,
+                                source_object_id: Some(tagged.object_id),
+                                source_subpath_index: Some(tagged.subpath_index),
+                            });
                         }
 
                         // 5e. Apply per-object positioned tabs (from TabAnchors).
