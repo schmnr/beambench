@@ -698,21 +698,10 @@ pub fn import_image(
 }
 
 /// Convert color artwork to laser luminance while treating transparent pixels
-/// as white (no engraving). Dropping alpha would turn transparent SVG image
-/// backgrounds black after the grayscale conversion.
+/// as white (no engraving). Shared with the engraving decoder so every path
+/// treats transparency the same way.
 fn image_to_engraving_grayscale(img: &image::DynamicImage) -> image::GrayImage {
-    if !img.color().has_alpha() {
-        return img.to_luma8();
-    }
-
-    let luma_alpha = img.to_luma_alpha8();
-    image::GrayImage::from_fn(img.width(), img.height(), |x, y| {
-        let pixel = luma_alpha.get_pixel(x, y).0;
-        let luma = u16::from(pixel[0]);
-        let alpha = u16::from(pixel[1]);
-        let composited = (luma * alpha + 255 * (255 - alpha) + 127) / 255;
-        image::Luma([composited as u8])
-    })
+    beambench_raster::decode::to_engraving_gray(img)
 }
 
 /// Recursively collect all path segments from a usvg group, transforming

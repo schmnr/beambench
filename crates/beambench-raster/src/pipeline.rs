@@ -116,7 +116,7 @@ fn process_raster_inner(
             use crate::decode::decode_image_rgba;
             let rgba = decode_image_rgba(&params.source_bytes)?;
             let saturated = saturation_adjust(&rgba, params.adjustments.saturation);
-            image::DynamicImage::ImageRgba8(saturated).to_luma8()
+            crate::decode::to_engraving_gray(&image::DynamicImage::ImageRgba8(saturated))
         } else {
             decode_image(&params.source_bytes)?
         };
@@ -339,6 +339,41 @@ mod tests {
                 process_raster(params),
                 Err(RasterError::InvalidDimensions(_))
             ));
+        }
+    }
+
+    #[test]
+    fn transparent_pixels_stay_white_with_and_without_saturation() {
+        use image::ImageEncoder;
+        let rgba = image::RgbaImage::from_pixel(2, 2, image::Rgba([0, 0, 0, 0]));
+        let mut bytes = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut bytes)
+            .write_image(rgba.as_raw(), 2, 2, image::ExtendedColorType::Rgba8)
+            .unwrap();
+        for saturation in [1.0, 0.5] {
+            let adjustments = RasterAdjustments {
+                saturation,
+                ..RasterAdjustments::default()
+            };
+            let result = process_raster(RasterProcessingParams {
+                source_bytes: bytes.clone(),
+                bounds_mm: (25.4, 25.4),
+                dpi: 2,
+                mode: RasterMode::Grayscale,
+                adjustments,
+                pass_through: false,
+                halftone_cells_per_inch: 10,
+                halftone_angle_deg: 0.0,
+                newsprint_angle_deg: 45.0,
+                newsprint_frequency: 10.0,
+                invert: false,
+            })
+            .unwrap();
+            assert!(
+                result.data.iter().all(|&pixel| pixel == 255),
+                "transparent burned at saturation {saturation}: {:?}",
+                result.data
+            );
         }
     }
 
