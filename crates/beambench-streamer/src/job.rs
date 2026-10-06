@@ -524,7 +524,9 @@ mod tests {
     }
 
     /// Ready session reporting `$32` as given, plus a handle for the wire.
-    fn ready_session_with_laser_mode(laser_mode: u8) -> (GrblSession, beambench_serial::MockSerialHandle) {
+    fn ready_session_with_laser_mode(
+        laser_mode: u8,
+    ) -> (GrblSession, beambench_serial::MockSerialHandle) {
         let mut transport = MockSerialTransport::new("mock");
         transport.enqueue_response("Grbl 1.1h");
         transport.enqueue_response(&format!("$32={laser_mode}"));
@@ -554,7 +556,11 @@ mod tests {
         assert_eq!(spindle_stops(&handle), 0);
         handle.enqueue_response("<Hold:0|MPos:5.000,0.000,0.000|FS:0,1000>");
         job.tick(&mut session).unwrap();
-        assert_eq!(spindle_stops(&handle), 1, "laser left on during a spindle-mode pause");
+        assert_eq!(
+            spindle_stops(&handle),
+            1,
+            "laser left on during a spindle-mode pause"
+        );
         // Repeated Hold reports must not toggle the output back on.
         handle.enqueue_response("<Hold:0|MPos:5.000,0.000,0.000|FS:0,0>");
         job.tick(&mut session).unwrap();
@@ -600,7 +606,10 @@ mod tests {
         let error = loop {
             match job.tick(&mut session) {
                 Ok(()) => {
-                    assert!(started.elapsed() < Duration::from_secs(5), "job never failed");
+                    assert!(
+                        started.elapsed() < Duration::from_secs(5),
+                        "job never failed"
+                    );
                     std::thread::sleep(Duration::from_millis(20));
                 }
                 Err(error) => break error,

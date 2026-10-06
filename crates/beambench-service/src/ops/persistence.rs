@@ -530,7 +530,11 @@ mod tests {
         let dir = tempdir().unwrap();
         let missing = dir.path().join("moved.lzrproj");
         let missing = missing.to_string_lossy().into_owned();
-        let kept = dir.path().join("kept.lzrproj").to_string_lossy().into_owned();
+        let kept = dir
+            .path()
+            .join("kept.lzrproj")
+            .to_string_lossy()
+            .into_owned();
         {
             let mut settings = ctx.settings.lock().unwrap();
             settings.push_recent_file(&kept, "kept");
@@ -538,7 +542,10 @@ mod tests {
         }
 
         let error = open_project_from_path(&ctx, &missing).unwrap_err();
-        assert!(error.message.starts_with("[project_file_missing]"), "{error}");
+        assert!(
+            error.message.starts_with("[project_file_missing]"),
+            "{error}"
+        );
         let recent: Vec<_> = ctx
             .settings
             .lock()

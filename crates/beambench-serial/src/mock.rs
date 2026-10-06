@@ -48,7 +48,10 @@ impl MockSerialHandle {
 
     /// Make the next `count` byte writes fail, as a broken link would.
     pub fn fail_next_byte_writes(&self, count: usize) {
-        *self.fail_byte_writes.lock().expect("mock fail count poisoned") = count;
+        *self
+            .fail_byte_writes
+            .lock()
+            .expect("mock fail count poisoned") = count;
     }
 }
 
@@ -122,10 +125,15 @@ impl SerialTransport for MockSerialTransport {
         if !self.open {
             return Err(SerialError::NotOpen);
         }
-        let mut failures = self.fail_byte_writes.lock().expect("mock fail count poisoned");
+        let mut failures = self
+            .fail_byte_writes
+            .lock()
+            .expect("mock fail count poisoned");
         if *failures > 0 {
             *failures -= 1;
-            return Err(SerialError::WriteFailed("injected byte write failure".into()));
+            return Err(SerialError::WriteFailed(
+                "injected byte write failure".into(),
+            ));
         }
         self.tx_bytes
             .lock()

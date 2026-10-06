@@ -42,7 +42,9 @@ fn is_air_assist_command(command: &str) -> bool {
         let end = block[start..]
             .find(|ch: char| ch.is_ascii_alphabetic())
             .map_or(block.len(), |offset| start + offset);
-        if letter == 'M' && matches!(block[start..end].parse::<f64>(), Ok(code) if code == 7.0 || code == 8.0 || code == 9.0) {
+        if letter == 'M'
+            && matches!(block[start..end].parse::<f64>(), Ok(code) if code == 7.0 || code == 8.0 || code == 9.0)
+        {
             return true;
         }
     }
@@ -432,10 +434,27 @@ mod tests {
 
     #[test]
     fn air_assist_barrier_recognizes_coolant_words_in_any_block() {
-        for command in ["M7", "M08", "M9", "M7 S0", "G4 P0.5 M8", "m8;air", "M8 (on)", "M7M3"] {
+        for command in [
+            "M7",
+            "M08",
+            "M9",
+            "M7 S0",
+            "G4 P0.5 M8",
+            "m8;air",
+            "M8 (on)",
+            "M7M3",
+        ] {
             assert!(is_air_assist_command(command), "{command}");
         }
-        for command in ["M3 S100", "G1 X7", "M70", "M17", "(M8 note)", "; M8", "G0 X1 M3 S8"] {
+        for command in [
+            "M3 S100",
+            "G1 X7",
+            "M70",
+            "M17",
+            "(M8 note)",
+            "; M8",
+            "G0 X1 M3 S8",
+        ] {
             assert!(!is_air_assist_command(command), "{command}");
         }
     }

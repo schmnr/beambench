@@ -43,7 +43,9 @@ pub enum M1RuntimeError {
     UnknownStatus(String),
     #[error("xTool M1 is busy with a job that Beam Bench did not start")]
     BusyUnowned,
-    #[error("xTool M1 accepted the stop but still reports {0}; use the machine's button or power switch")]
+    #[error(
+        "xTool M1 accepted the stop but still reports {0}; use the machine's button or power switch"
+    )]
     StopUnconfirmed(String),
 }
 
@@ -196,7 +198,9 @@ impl<I: M1HttpIo> M1Runtime<I> {
             }
         }
         let reported = format!("{:?}", self.status.clone().unwrap_or(M1Status::Working));
-        self.mark_recovery(format!("stop was accepted but the machine still reports {reported}"));
+        self.mark_recovery(format!(
+            "stop was accepted but the machine still reports {reported}"
+        ));
         Err(M1RuntimeError::StopUnconfirmed(reported))
     }
 
@@ -385,7 +389,10 @@ mod tests {
         let mut replies = vec![ok(r#"{"result":"ok"}"#)];
         replies.extend((0..STOP_CONFIRM_ATTEMPTS).map(|_| ok(r#"{"STATUS":"P_WORKING"}"#)));
         let mut runtime = running_runtime(replies);
-        assert!(runtime.stop().is_err(), "a stop the machine ignored must not report success");
+        assert!(
+            runtime.stop().is_err(),
+            "a stop the machine ignored must not report success"
+        );
         assert_eq!(runtime.snapshot().phase, M1RuntimePhase::RecoveryRequired);
         // Recovery still allows another stop request.
         assert!(runtime.require_phase("stop", STOPPABLE_PHASES).is_ok());
