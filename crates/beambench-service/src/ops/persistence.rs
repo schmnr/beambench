@@ -637,8 +637,7 @@ mod tests {
         let recovery_path = PathBuf::from(autosave_project_to_dir(&ctx, dir.path()).unwrap());
 
         let restarted = ServiceContext::new();
-        let restored =
-            restore_recovery_file(&restarted, &recovery_path.to_string_lossy()).unwrap();
+        let restored = restore_recovery_file(&restarted, &recovery_path.to_string_lossy()).unwrap();
 
         assert_eq!(restored.metadata.project_name, "Recovery Test");
         assert!(restored.dirty);

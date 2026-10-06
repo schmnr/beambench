@@ -6510,122 +6510,126 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
 /// Capture the current work position and store it as user_origin on the project.
 /// Returns the captured (x, y) coordinates.
 pub fn set_work_origin(ctx: &ServiceContext) -> ServiceResult<(f64, f64)> {
-    // Capture a position reported after the button press. A cached status can
-    // predate the user's most recent jog on controllers that report slowly.
-    let captured = {
-        let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
-        let session = session_lock
-            .as_mut()
-            .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-        match session {
-            session @ MachineSessionHandle::Grbl(_) => {
-                let position = session
-                    .fresh_work_position(Duration::from_secs(1))
-                    .map_err(|error| {
-                        ServiceError::machine(format!("Could not set the user origin: {error}"))
-                    })?
-                    .ok_or_else(|| {
-                        ServiceError::invalid_state(
-                            "The connected controller does not report a work position",
-                        )
-                    })?;
-                (position.x, position.y)
+    ctx.atomic_edit(|| {
+        // Capture a position reported after the button press. A cached status can
+        // predate the user's most recent jog on controllers that report slowly.
+        let captured = {
+            let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+            let session = session_lock
+                .as_mut()
+                .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+            match session {
+                session @ MachineSessionHandle::Grbl(_) => {
+                    let position = session
+                        .fresh_work_position(Duration::from_secs(1))
+                        .map_err(|error| {
+                            ServiceError::machine(format!("Could not set the user origin: {error}"))
+                        })?
+                        .ok_or_else(|| {
+                            ServiceError::invalid_state(
+                                "The connected controller does not report a work position",
+                            )
+                        })?;
+                    (position.x, position.y)
+                }
+                MachineSessionHandle::Marlin(_)
+                | MachineSessionHandle::Smoothieware(_)
+                | MachineSessionHandle::XToolM1(_) => {
+                    return Err(invalid_capability(
+                        "Set work origin",
+                        ControllerFamily::Gcode,
+                    ));
+                }
+                MachineSessionHandle::Ruida(_) => {
+                    return Err(invalid_capability("Set work origin", ControllerFamily::Dsp));
+                }
+                MachineSessionHandle::Lihuiyu(_) => {
+                    return Err(invalid_capability("Set work origin", ControllerFamily::Dsp));
+                }
+                MachineSessionHandle::Dsp(session) => {
+                    let wp = &session.machine_status.work_position;
+                    (wp.x, wp.y)
+                }
+                MachineSessionHandle::Galvo(_) => {
+                    return Err(invalid_capability(
+                        "Set work origin",
+                        ControllerFamily::Galvo,
+                    ));
+                }
             }
-            MachineSessionHandle::Marlin(_)
-            | MachineSessionHandle::Smoothieware(_)
-            | MachineSessionHandle::XToolM1(_) => {
-                return Err(invalid_capability(
-                    "Set work origin",
-                    ControllerFamily::Gcode,
-                ));
-            }
-            MachineSessionHandle::Ruida(_) => {
-                return Err(invalid_capability("Set work origin", ControllerFamily::Dsp));
-            }
-            MachineSessionHandle::Lihuiyu(_) => {
-                return Err(invalid_capability("Set work origin", ControllerFamily::Dsp));
-            }
-            MachineSessionHandle::Dsp(session) => {
-                let wp = &session.machine_status.work_position;
-                (wp.x, wp.y)
-            }
-            MachineSessionHandle::Galvo(_) => {
-                return Err(invalid_capability(
-                    "Set work origin",
-                    ControllerFamily::Galvo,
-                ));
-            }
+        };
+
+        // Store as user_origin on the project (with undo snapshot)
+        {
+            let mut proj_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+            let project = proj_guard
+                .as_mut()
+                .ok_or_else(|| ServiceError::not_found("No project open"))?;
+            ctx.push_project_undo_snapshot(project)
+                .map_err(ServiceError::internal)?;
+            project.user_origin = Some(captured);
+            project.dirty = true;
         }
-    };
 
-    // Store as user_origin on the project (with undo snapshot)
-    {
-        let mut proj_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        let project = proj_guard
-            .as_mut()
-            .ok_or_else(|| ServiceError::not_found("No project open"))?;
-        ctx.push_project_undo_snapshot(project)
-            .map_err(ServiceError::internal)?;
-        project.user_origin = Some(captured);
-        project.dirty = true;
-    }
-
-    ctx.emit_event("machine.origin.set", json!({ "position": captured }));
-    Ok(captured)
+        ctx.emit_event("machine.origin.set", json!({ "position": captured }));
+        Ok(captured)
+    })
 }
 
 pub fn reset_work_origin(ctx: &ServiceContext) -> ServiceResult<()> {
-    // Verify connected (release lock before touching project)
-    {
-        let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
-        let session = session_lock
-            .as_ref()
-            .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-        match session {
-            MachineSessionHandle::Grbl(_) | MachineSessionHandle::Dsp(_) => {}
-            MachineSessionHandle::Marlin(_)
-            | MachineSessionHandle::Smoothieware(_)
-            | MachineSessionHandle::XToolM1(_) => {
-                return Err(invalid_capability(
-                    "Reset work origin",
-                    ControllerFamily::Gcode,
-                ));
-            }
-            MachineSessionHandle::Ruida(_) => {
-                return Err(invalid_capability(
-                    "Reset work origin",
-                    ControllerFamily::Dsp,
-                ));
-            }
-            MachineSessionHandle::Lihuiyu(_) => {
-                return Err(invalid_capability(
-                    "Reset work origin",
-                    ControllerFamily::Dsp,
-                ));
-            }
-            MachineSessionHandle::Galvo(_) => {
-                return Err(invalid_capability(
-                    "Reset work origin",
-                    ControllerFamily::Galvo,
-                ));
+    ctx.atomic_edit(|| {
+        // Verify connected (release lock before touching project)
+        {
+            let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+            let session = session_lock
+                .as_ref()
+                .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+            match session {
+                MachineSessionHandle::Grbl(_) | MachineSessionHandle::Dsp(_) => {}
+                MachineSessionHandle::Marlin(_)
+                | MachineSessionHandle::Smoothieware(_)
+                | MachineSessionHandle::XToolM1(_) => {
+                    return Err(invalid_capability(
+                        "Reset work origin",
+                        ControllerFamily::Gcode,
+                    ));
+                }
+                MachineSessionHandle::Ruida(_) => {
+                    return Err(invalid_capability(
+                        "Reset work origin",
+                        ControllerFamily::Dsp,
+                    ));
+                }
+                MachineSessionHandle::Lihuiyu(_) => {
+                    return Err(invalid_capability(
+                        "Reset work origin",
+                        ControllerFamily::Dsp,
+                    ));
+                }
+                MachineSessionHandle::Galvo(_) => {
+                    return Err(invalid_capability(
+                        "Reset work origin",
+                        ControllerFamily::Galvo,
+                    ));
+                }
             }
         }
-    }
 
-    // Clear user_origin on the project (with undo snapshot)
-    {
-        let mut proj_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        let project = proj_guard
-            .as_mut()
-            .ok_or_else(|| ServiceError::not_found("No project open"))?;
-        ctx.push_project_undo_snapshot(project)
-            .map_err(ServiceError::internal)?;
-        project.user_origin = None;
-        project.dirty = true;
-    }
+        // Clear user_origin on the project (with undo snapshot)
+        {
+            let mut proj_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+            let project = proj_guard
+                .as_mut()
+                .ok_or_else(|| ServiceError::not_found("No project open"))?;
+            ctx.push_project_undo_snapshot(project)
+                .map_err(ServiceError::internal)?;
+            project.user_origin = None;
+            project.dirty = true;
+        }
 
-    ctx.emit_event("machine.origin.reset", json!({}));
-    Ok(())
+        ctx.emit_event("machine.origin.reset", json!({}));
+        Ok(())
+    })
 }
 
 pub fn test_air_assist(

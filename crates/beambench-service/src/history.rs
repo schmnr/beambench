@@ -2,6 +2,10 @@ use beambench_core::Project;
 use serde::Serialize;
 
 const MAX_HISTORY_DEPTH: usize = 50;
+/// Approximate memory the undo history may hold. Assets are shared between
+/// snapshots, but path and text data are copied, so a very large design
+/// keeps fewer steps rather than exhausting memory.
+const MAX_HISTORY_BYTES: usize = 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, Default, Serialize)]
 pub struct UndoState {
@@ -13,6 +17,30 @@ pub struct UndoState {
 pub struct ProjectHistory {
     undo_stack: Vec<Project>,
     redo_stack: Vec<Project>,
+    /// Redo entries cleared by the latest snapshot, restored if that edit fails.
+    cleared_redo: Vec<Project>,
+    /// Counts snapshots, so a failed edit can tell whether the latest one is its own.
+    generation: u64,
+}
+
+/// Rough retained size of a snapshot: the copied geometry and text.
+fn approximate_snapshot_bytes(project: &Project) -> usize {
+    use beambench_core::ObjectData;
+    project
+        .objects
+        .iter()
+        .map(|object| {
+            512 + match &object.data {
+                ObjectData::VectorPath { path_data, .. } => path_data.len(),
+                ObjectData::Text {
+                    content,
+                    resolved_path_data,
+                    ..
+                } => content.len() + resolved_path_data.as_ref().map_or(0, String::len),
+                _ => 0,
+            }
+        })
+        .sum()
 }
 
 impl ProjectHistory {
@@ -26,6 +54,11 @@ impl ProjectHistory {
     pub fn clear(&mut self) {
         self.undo_stack.clear();
         self.redo_stack.clear();
+        self.cleared_redo.clear();
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     pub fn push_snapshot(&mut self, project: &Project) {
@@ -33,7 +66,27 @@ impl ProjectHistory {
         if self.undo_stack.len() > MAX_HISTORY_DEPTH {
             self.undo_stack.remove(0);
         }
-        self.redo_stack.clear();
+        let mut retained: usize = self.undo_stack.iter().map(approximate_snapshot_bytes).sum();
+        while self.undo_stack.len() > 1 && retained > MAX_HISTORY_BYTES {
+            retained -= approximate_snapshot_bytes(&self.undo_stack.remove(0));
+        }
+        self.cleared_redo = std::mem::take(&mut self.redo_stack);
+        self.generation += 1;
+    }
+
+    /// Replace the latest snapshot with the true state before an edit, for
+    /// edits that adjusted the project before recording their snapshot.
+    pub fn replace_last_snapshot(&mut self, project: Project) {
+        if let Some(last) = self.undo_stack.last_mut() {
+            *last = project;
+        }
+    }
+
+    /// Forget the latest snapshot after its edit failed and was rolled back,
+    /// restoring the redo steps that snapshot cleared.
+    pub fn discard_last_snapshot(&mut self) {
+        self.undo_stack.pop();
+        self.redo_stack = std::mem::take(&mut self.cleared_redo);
     }
 
     pub fn undo(&mut self, current: &Project) -> Option<Project> {

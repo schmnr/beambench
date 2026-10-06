@@ -466,6 +466,31 @@ describe('projectStore — new actions', () => {
     expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
   });
 
+  it('removeObjects inside an isolated group deletes only the selected member', async () => {
+    const project = makeProject();
+    const group = makeProjectObject({
+      id: 'group1',
+      name: 'Group',
+      layer_id: 'layer1',
+      bounds: { min: { x: 0, y: 0 }, max: { x: 30, y: 30 } },
+      data: { type: 'group', children: ['obj1', 'obj2'] },
+    });
+    useProjectStore.setState({
+      project: { ...project, objects: [...project.objects, group] },
+      selectedObjectIds: ['obj1'],
+    });
+    useUiStore.setState({ selectionIsolationPath: ['group1'] });
+    mockedProject.removeObjects.mockResolvedValue(1);
+    mockedProject.getProject.mockResolvedValue(project);
+
+    try {
+      await useProjectStore.getState().removeObjects(['obj1']);
+      expect(mockedProject.removeObjects).toHaveBeenCalledWith(['obj1']);
+    } finally {
+      useUiStore.setState({ selectionIsolationPath: [] });
+    }
+  });
+
   it('removeObjects can delete a selected ruler guide on a tool layer', async () => {
     const guide = makeProjectObject({
       id: 'guide1',

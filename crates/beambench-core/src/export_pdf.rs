@@ -127,7 +127,11 @@ pub fn export_pdf(
     );
     push_object(
         &mut pdf,
-        format!("<<\n/Length {}\n>>\nstream\n{stream}endstream", stream.len()).as_bytes(),
+        format!(
+            "<<\n/Length {}\n>>\nstream\n{stream}endstream",
+            stream.len()
+        )
+        .as_bytes(),
     );
     for image in &images {
         push_object(&mut pdf, image);
@@ -150,8 +154,7 @@ pub fn export_pdf(
 /// A Flate-compressed 8-bit grayscale image object body.
 fn pdf_gray_image_object(image: &image::GrayImage) -> Result<Vec<u8>, String> {
     use std::io::Write;
-    let mut encoder =
-        flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+    let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
     encoder
         .write_all(image.as_raw())
         .and_then(|_| encoder.flush())
@@ -344,12 +347,9 @@ mod tests {
             .iter()
             .flat_map(|subpath| subpath.commands.iter())
             .filter_map(|command| match command {
-                PathCommand::MoveTo { x, y } | PathCommand::LineTo { x, y } => Some(
-                    artwork
-                        .page_to_canvas
-                        .apply(&Point2D::new(*x, *y))
-                        .y,
-                ),
+                PathCommand::MoveTo { x, y } | PathCommand::LineTo { x, y } => {
+                    Some(artwork.page_to_canvas.apply(&Point2D::new(*x, *y)).y)
+                }
                 _ => None,
             })
             .collect();
@@ -387,6 +387,10 @@ mod tests {
             let offset: usize = line.split_whitespace().next().unwrap().parse().unwrap();
             assert!(text[offset..].starts_with(&format!("{} 0 obj\n", index + 1)));
         }
-        assert!(crate::export_eps(&project, false, &[]).unwrap().contains("curveto"));
+        assert!(
+            crate::export_eps(&project, false, &[])
+                .unwrap()
+                .contains("curveto")
+        );
     }
 }

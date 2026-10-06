@@ -8,7 +8,9 @@ use beambench_core::object::GuideAxis;
 use beambench_core::vector::boolean::{
     path_exclude, path_intersection, path_subtract, path_union, weld_shapes,
 };
-use beambench_core::vector::convert::{object_to_world_vecpath, object_to_world_vecpath_resolved};
+use beambench_core::vector::convert::{
+    object_to_world_vecpath, object_to_world_vecpath_resolved, vector_local_to_world_transform,
+};
 use beambench_core::vector::flatten::{DEFAULT_TOLERANCE_MM, flatten_vecpath};
 use beambench_core::vector::node_edit::{self, EditablePath, HandleType, NodeId, NodeType};
 use beambench_core::vector::normalize::{NormalizedVector, normalize_object};
@@ -246,12 +248,14 @@ fn get_vector_path_meta(obj: &ProjectObject) -> ServiceResult<Option<GuideAxis>>
     }
 }
 
-fn write_vec_path_to_object(
+/// Store an edited path given in canvas coordinates. The geometry already
+/// includes the object's placement, so the transform is reset.
+fn write_world_path_to_object(
     obj: &mut ProjectObject,
-    vec_path: &VecPath,
+    world_path: &VecPath,
     ruler_guide_axis: Option<GuideAxis>,
 ) {
-    let mut vec_path = vec_path.clone();
+    let mut vec_path = world_path.clone();
     vec_path.prune_orphan_subpaths();
     let new_bounds = vec_path
         .visual_bounds()
@@ -263,7 +267,23 @@ fn write_vec_path_to_object(
         ruler_guide_axis,
     };
     obj.bounds = new_bounds;
+    obj.transform = Transform2D::identity();
     obj.tabs.clear();
+}
+
+/// Store an edited path given in the object's own path coordinates. It is
+/// placed with the object's previous fit and transform, so nodes the edit did
+/// not touch stay exactly where they were on the canvas.
+fn write_local_path_to_object(
+    obj: &mut ProjectObject,
+    local_path: &VecPath,
+    ruler_guide_axis: Option<GuideAxis>,
+) {
+    let world = match vector_local_to_world_transform(obj) {
+        Some(local_to_world) => bake_transform(local_path, &local_to_world),
+        None => local_path.clone(),
+    };
+    write_world_path_to_object(obj, &world, ruler_guide_axis);
 }
 
 fn command_has_editable_node(command: &PathCommand) -> bool {
@@ -1092,26 +1112,28 @@ pub fn convert_to_path(
     ctx: &ServiceContext,
     input: ConvertToPathInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    // Snapshot first, then auto-unlink VirtualClone if needed
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let result = convert_to_path_in_project(project, input)?;
-    project.dirty = true;
+        // Snapshot first, then auto-unlink VirtualClone if needed
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let result = convert_to_path_in_project(project, input)?;
+        project.dirty = true;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.converted_to_path",
-        json!({
-            "object": events::object_summary(&result),
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.converted_to_path",
+            json!({
+                "object": events::object_summary(&result),
+            }),
+        );
+        Ok(result)
+    })
 }
 
 fn group_contains_any(
@@ -1139,109 +1161,111 @@ pub fn mesh_deform_selection(
     ctx: &ServiceContext,
     input: MeshDeformSelectionInput,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    if input.object_ids.is_empty() {
-        return Ok(Vec::new());
-    }
-    let mapper = MeshDeformMapper::new(&input)?;
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let mut updated_ids = Vec::new();
-    let mut seen = HashSet::new();
-    for object_id in input.object_ids {
-        if !seen.insert(object_id) {
-            continue;
+    ctx.atomic_edit(|| {
+        if input.object_ids.is_empty() {
+            return Ok(Vec::new());
         }
+        let mapper = MeshDeformMapper::new(&input)?;
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-        project
-            .ensure_resolved(object_id)
+        ctx.push_project_undo_snapshot(project)
             .map_err(ServiceError::internal)?;
 
-        let is_raster = {
-            let obj = project
-                .find_object(object_id)
-                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-            if obj.locked {
-                return Err(ServiceError::invalid_input("Object is locked"));
+        let mut updated_ids = Vec::new();
+        let mut seen = HashSet::new();
+        for object_id in input.object_ids {
+            if !seen.insert(object_id) {
+                continue;
             }
-            matches!(obj.data, ObjectData::RasterImage { .. })
-        };
-        if is_raster {
-            deform_raster_object(project, object_id, &mapper)?;
+
+            project
+                .ensure_resolved(object_id)
+                .map_err(ServiceError::internal)?;
+
+            let is_raster = {
+                let obj = project
+                    .find_object(object_id)
+                    .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+                if obj.locked {
+                    return Err(ServiceError::invalid_input("Object is locked"));
+                }
+                matches!(obj.data, ObjectData::RasterImage { .. })
+            };
+            if is_raster {
+                deform_raster_object(project, object_id, &mapper)?;
+                updated_ids.push(object_id);
+                continue;
+            }
+
+            let (current_layer, source_path) = {
+                let obj = project
+                    .find_object(object_id)
+                    .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+                let source_path = object_to_world_vecpath(obj).ok_or_else(|| {
+                    ServiceError::invalid_input("Warp and Deform require vector-compatible objects")
+                })?;
+                (obj.layer_id, source_path)
+            };
+
+            let deformed = deform_vec_path(&source_path, &mapper);
+            let dest_layer = reroute_vector_result_layer(project, current_layer)?;
+            {
+                let obj = project
+                    .find_object_mut(object_id)
+                    .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+                write_world_path_to_object(obj, &deformed, None);
+                obj.transform = Transform2D::identity();
+                obj.start_point_edits.clear();
+                obj.layer_id = dest_layer;
+            }
             updated_ids.push(object_id);
-            continue;
         }
 
-        let (current_layer, source_path) = {
-            let obj = project
-                .find_object(object_id)
-                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-            let source_path = object_to_world_vecpath(obj).ok_or_else(|| {
-                ServiceError::invalid_input("Warp and Deform require vector-compatible objects")
-            })?;
-            (obj.layer_id, source_path)
-        };
-
-        let deformed = deform_vec_path(&source_path, &mapper);
-        let dest_layer = reroute_vector_result_layer(project, current_layer)?;
-        {
-            let obj = project
-                .find_object_mut(object_id)
-                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-            write_vec_path_to_object(obj, &deformed, None);
-            obj.transform = Transform2D::identity();
-            obj.start_point_edits.clear();
-            obj.layer_id = dest_layer;
+        // Mesh deformation operates on editable leaves, while the UI may have a
+        // parent SVG group selected. Refresh every group from its descendants and
+        // return the group objects too so the frontend selection bounds immediately
+        // match the deformed geometry.
+        let deformed_ids = updated_ids.iter().copied().collect::<HashSet<_>>();
+        let group_ids = project
+            .objects
+            .iter()
+            .filter_map(|object| {
+                matches!(object.data, ObjectData::Group { .. })
+                    .then(|| {
+                        let mut visiting = HashSet::new();
+                        group_contains_any(project, object.id, &deformed_ids, &mut visiting)
+                            .then_some(object.id)
+                    })
+                    .flatten()
+            })
+            .collect::<Vec<_>>();
+        for group_id in &group_ids {
+            beambench_core::operations::recompute_group_bounds(project, *group_id);
         }
-        updated_ids.push(object_id);
-    }
+        updated_ids.extend(group_ids);
 
-    // Mesh deformation operates on editable leaves, while the UI may have a
-    // parent SVG group selected. Refresh every group from its descendants and
-    // return the group objects too so the frontend selection bounds immediately
-    // match the deformed geometry.
-    let deformed_ids = updated_ids.iter().copied().collect::<HashSet<_>>();
-    let group_ids = project
-        .objects
-        .iter()
-        .filter_map(|object| {
-            matches!(object.data, ObjectData::Group { .. })
-                .then(|| {
-                    let mut visiting = HashSet::new();
-                    group_contains_any(project, object.id, &deformed_ids, &mut visiting)
-                        .then_some(object.id)
-                })
-                .flatten()
-        })
-        .collect::<Vec<_>>();
-    for group_id in &group_ids {
-        beambench_core::operations::recompute_group_bounds(project, *group_id);
-    }
-    updated_ids.extend(group_ids);
+        project.dirty = true;
+        let updated: Vec<ProjectObject> = updated_ids
+            .iter()
+            .filter_map(|id| project.find_object(*id).cloned())
+            .collect();
 
-    project.dirty = true;
-    let updated: Vec<ProjectObject> = updated_ids
-        .iter()
-        .filter_map(|id| project.find_object(*id).cloned())
-        .collect();
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.mesh_deformed",
-        json!({
-            "object_ids": updated_ids.iter().map(ToString::to_string).collect::<Vec<_>>(),
-            "grid_size": mapper.grid_size,
-            "perspective": mapper.perspective,
-            "objects": updated.iter().map(events::object_summary).collect::<Vec<_>>(),
-        }),
-    );
-    Ok(updated)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.mesh_deformed",
+            json!({
+                "object_ids": updated_ids.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                "grid_size": mapper.grid_size,
+                "perspective": mapper.perspective,
+                "objects": updated.iter().map(events::object_summary).collect::<Vec<_>>(),
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 struct BooleanOperand {
@@ -1506,27 +1530,29 @@ fn boolean_binary_op(
     op_name: &str,
     op: fn(&VecPath, &VecPath) -> VecPath,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    // Snapshot first, then auto-unlink VirtualClones
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let result_obj = boolean_binary_op_in_project(project, input.clone(), op_name, op)?;
-    project.dirty = true;
+        // Snapshot first, then auto-unlink VirtualClones
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let result_obj = boolean_binary_op_in_project(project, input.clone(), op_name, op)?;
+        project.dirty = true;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        boolean_event_name(op_name),
-        json!({
-            "source_object_ids": [input.object_id_a, input.object_id_b],
-            "object": events::object_summary(&result_obj),
-        }),
-    );
-    Ok(result_obj)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            boolean_event_name(op_name),
+            json!({
+                "source_object_ids": [input.object_id_a, input.object_id_b],
+                "object": events::object_summary(&result_obj),
+            }),
+        );
+        Ok(result_obj)
+    })
 }
 
 pub(crate) fn boolean_binary_op_in_project(
@@ -1614,32 +1640,34 @@ fn boolean_many(
     op_name: &str,
     op: fn(&[VecPath]) -> VecPath,
 ) -> ServiceResult<ProjectObject> {
-    if input.object_ids.len() < 2 {
-        return Err(ServiceError::invalid_input(format!(
-            "{op_name} requires at least two objects"
-        )));
-    }
+    ctx.atomic_edit(|| {
+        if input.object_ids.len() < 2 {
+            return Err(ServiceError::invalid_input(format!(
+                "{op_name} requires at least two objects"
+            )));
+        }
 
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let result_obj = boolean_many_in_project(project, input.clone(), op_name, op)?;
-    project.dirty = true;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let result_obj = boolean_many_in_project(project, input.clone(), op_name, op)?;
+        project.dirty = true;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        boolean_event_name(op_name),
-        json!({
-            "source_object_ids": input.object_ids,
-            "object": events::object_summary(&result_obj),
-        }),
-    );
-    Ok(result_obj)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            boolean_event_name(op_name),
+            json!({
+                "source_object_ids": input.object_ids,
+                "object": events::object_summary(&result_obj),
+            }),
+        );
+        Ok(result_obj)
+    })
 }
 
 fn boolean_many_in_project(
@@ -1715,32 +1743,34 @@ pub fn boolean_subtract_many(
 }
 
 pub fn boolean_weld(ctx: &ServiceContext, input: BooleanWeldInput) -> ServiceResult<ProjectObject> {
-    if input.object_ids.len() < 2 {
-        return Err(ServiceError::invalid_input(
-            "Weld requires at least two objects",
-        ));
-    }
+    ctx.atomic_edit(|| {
+        if input.object_ids.len() < 2 {
+            return Err(ServiceError::invalid_input(
+                "Weld requires at least two objects",
+            ));
+        }
 
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let result_obj = boolean_weld_in_project(project, input.clone())?;
-    project.dirty = true;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let result_obj = boolean_weld_in_project(project, input.clone())?;
+        project.dirty = true;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        boolean_event_name("Weld"),
-        json!({
-            "source_object_ids": input.object_ids,
-            "object": events::object_summary(&result_obj),
-        }),
-    );
-    Ok(result_obj)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            boolean_event_name("Weld"),
+            json!({
+                "source_object_ids": input.object_ids,
+                "object": events::object_summary(&result_obj),
+            }),
+        );
+        Ok(result_obj)
+    })
 }
 
 pub(crate) fn boolean_weld_in_project(
@@ -1754,25 +1784,27 @@ pub fn group_objects(
     ctx: &ServiceContext,
     input: GroupObjectsInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let result = group_objects_in_project(project, input.clone())?;
-    project.dirty = true;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let result = group_objects_in_project(project, input.clone())?;
+        project.dirty = true;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.group.created",
-        json!({
-            "group": events::object_summary(&result),
-            "children": input.object_ids,
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.group.created",
+            json!({
+                "group": events::object_summary(&result),
+                "children": input.object_ids,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub(crate) fn group_objects_in_project(
@@ -1943,62 +1975,66 @@ pub fn auto_group_objects(
     ctx: &ServiceContext,
     input: AutoGroupObjectsInput,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let object_ids = input.object_ids;
-    if object_ids.len() < 2 {
-        return Ok(Vec::new());
-    }
+    ctx.atomic_edit(|| {
+        let object_ids = input.object_ids;
+        if object_ids.len() < 2 {
+            return Ok(Vec::new());
+        }
 
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let candidates = auto_group_candidates(project, &object_ids);
-    if candidates.is_empty() {
-        return Ok(Vec::new());
-    }
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let candidates = auto_group_candidates(project, &object_ids);
+        if candidates.is_empty() {
+            return Ok(Vec::new());
+        }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let mut groups = Vec::with_capacity(candidates.len());
-    for candidate in candidates {
-        let group = group_objects_named_in_project(project, candidate, "Auto-Group")?;
-        groups.push(group);
-    }
-    project.dirty = true;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let mut groups = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            let group = group_objects_named_in_project(project, candidate, "Auto-Group")?;
+            groups.push(group);
+        }
+        project.dirty = true;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.auto_group.created",
-        json!({
-            "groups": groups.iter().map(events::object_summary).collect::<Vec<_>>(),
-            "source_object_ids": object_ids,
-        }),
-    );
-    Ok(groups)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.auto_group.created",
+            json!({
+                "groups": groups.iter().map(events::object_summary).collect::<Vec<_>>(),
+                "source_object_ids": object_ids,
+            }),
+        );
+        Ok(groups)
+    })
 }
 
 pub fn ungroup_objects(ctx: &ServiceContext, group_id: ObjectId) -> ServiceResult<Vec<ObjectId>> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let children = ungroup_objects_in_project(project, group_id)?;
-    project.dirty = true;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let children = ungroup_objects_in_project(project, group_id)?;
+        project.dirty = true;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.group.removed",
-        json!({
-            "group_id": group_id,
-            "children": children,
-        }),
-    );
-    Ok(children)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.group.removed",
+            json!({
+                "group_id": group_id,
+                "children": children,
+            }),
+        );
+        Ok(children)
+    })
 }
 
 pub(crate) fn ungroup_objects_in_project(
@@ -2063,65 +2099,68 @@ pub fn copy_nodes(ctx: &ServiceContext, input: CopyNodesInput) -> ServiceResult<
 }
 
 pub fn paste_nodes(ctx: &ServiceContext, input: PasteNodesInput) -> ServiceResult<NodePasteResult> {
-    if !input.offset_mm.is_finite() {
-        return Err(ServiceError::invalid_input("Paste offset must be finite"));
-    }
-    let copied: VecPath = serde_json::from_str(&input.copied_path_json)
-        .map_err(|error| ServiceError::invalid_input(format!("Invalid node clipboard: {error}")))?;
-    if copied.subpaths.is_empty() {
-        return Err(ServiceError::invalid_input("The node clipboard is empty"));
-    }
+    ctx.atomic_edit(|| {
+        if !input.offset_mm.is_finite() {
+            return Err(ServiceError::invalid_input("Paste offset must be finite"));
+        }
+        let copied: VecPath = serde_json::from_str(&input.copied_path_json).map_err(|error| {
+            ServiceError::invalid_input(format!("Invalid node clipboard: {error}"))
+        })?;
+        if copied.subpaths.is_empty() {
+            return Err(ServiceError::invalid_input("The node clipboard is empty"));
+        }
 
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let object = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut path = object_to_world_vecpath(object)
+            .ok_or_else(|| ServiceError::invalid_input("Cannot paste nodes into this object"))?;
+        let pasted = bake_transform(
+            &copied,
+            &Transform2D::translate(input.offset_mm, input.offset_mm),
+        );
+        let pasted_subpath_start = path.subpaths.len();
+        let pasted_subpath_count = pasted.subpaths.len();
+        path.subpaths.extend(pasted.subpaths);
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let object = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let object = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut path = object_to_world_vecpath(object)
-        .ok_or_else(|| ServiceError::invalid_input("Cannot paste nodes into this object"))?;
-    let pasted = bake_transform(
-        &copied,
-        &Transform2D::translate(input.offset_mm, input.offset_mm),
-    );
-    let pasted_subpath_start = path.subpaths.len();
-    let pasted_subpath_count = pasted.subpaths.len();
-    path.subpaths.extend(pasted.subpaths);
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        object.transform = Transform2D::identity();
+        object.start_point_edits.clear();
+        write_world_path_to_object(object, &path, None);
+        let result = object.clone();
+        project.dirty = true;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let object = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    object.transform = Transform2D::identity();
-    object.start_point_edits.clear();
-    write_vec_path_to_object(object, &path, None);
-    let result = object.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.nodes.pasted",
-        json!({
-            "object": events::object_summary(&result),
-            "pasted_subpath_start": pasted_subpath_start,
-            "pasted_subpath_count": pasted_subpath_count,
-        }),
-    );
-    Ok(NodePasteResult {
-        object: result,
-        pasted_subpath_start,
-        pasted_subpath_count,
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.nodes.pasted",
+            json!({
+                "object": events::object_summary(&result),
+                "pasted_subpath_start": pasted_subpath_start,
+                "pasted_subpath_count": pasted_subpath_count,
+            }),
+        );
+        Ok(NodePasteResult {
+            object: result,
+            pasted_subpath_start,
+            pasted_subpath_count,
+        })
     })
 }
 
@@ -2129,787 +2168,815 @@ pub fn extract_nodes_to_path(
     ctx: &ServiceContext,
     input: ExtractNodesInput,
 ) -> ServiceResult<ProjectObject> {
-    if input.node_ids.is_empty() {
-        return Err(ServiceError::invalid_input("No nodes supplied"));
-    }
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
+    ctx.atomic_edit(|| {
+        if input.node_ids.is_empty() {
+            return Err(ServiceError::invalid_input("No nodes supplied"));
+        }
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
         project
-            .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let copied = selected_node_path(project, input.object_id, &input.node_ids)?;
-    let source = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?
-        .clone();
-    let source_path = require_vector_path(&source)?;
-    let remaining = remove_selected_nodes_from_path(source_path, &input.node_ids)?;
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let copied = selected_node_path(project, input.object_id, &input.node_ids)?;
+        let source = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?
+            .clone();
+        let source_path = require_vector_path(&source)?;
+        let remaining = remove_selected_nodes_from_path(source_path, &input.node_ids)?;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    if remaining.subpaths.is_empty() {
-        project.remove_object(input.object_id);
-    } else {
-        let object = project
-            .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-        write_vec_path_to_object(object, &remaining, None);
-    }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        if remaining.subpaths.is_empty() {
+            project.remove_object(input.object_id);
+        } else {
+            let object = project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+            write_local_path_to_object(object, &remaining, None);
+        }
 
-    let layer_id = reroute_vector_result_layer(project, source.layer_id)?;
-    let bounds = copied
-        .visual_bounds()
-        .or_else(|| copied.bounds())
-        .unwrap_or_else(|| Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
-    let mut extracted = ProjectObject::new(
-        format!("{} Extracted", source.name),
-        layer_id,
-        bounds,
-        ObjectData::VectorPath {
-            path_data: copied.to_svg_d(),
-            closed: copied.subpaths.iter().any(|subpath| subpath.closed),
-            ruler_guide_axis: None,
-        },
-    );
-    extracted.visible = source.visible;
-    extracted.z_index = source.z_index.saturating_add(1);
-    extracted.power_scale = source.power_scale;
-    extracted.priority = source.priority;
-    let result = project.add_object(extracted).clone();
-    if remaining.subpaths.is_empty() {
-        for object in &mut project.objects {
-            if let ObjectData::Text {
-                guide_path_id: Some(guide_path_id),
-                ..
-            } = &mut object.data
-            {
-                if *guide_path_id == input.object_id {
-                    *guide_path_id = result.id;
+        let layer_id = reroute_vector_result_layer(project, source.layer_id)?;
+        let bounds = copied
+            .visual_bounds()
+            .or_else(|| copied.bounds())
+            .unwrap_or_else(|| Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
+        let mut extracted = ProjectObject::new(
+            format!("{} Extracted", source.name),
+            layer_id,
+            bounds,
+            ObjectData::VectorPath {
+                path_data: copied.to_svg_d(),
+                closed: copied.subpaths.iter().any(|subpath| subpath.closed),
+                ruler_guide_axis: None,
+            },
+        );
+        extracted.visible = source.visible;
+        extracted.z_index = source.z_index.saturating_add(1);
+        extracted.power_scale = source.power_scale;
+        extracted.priority = source.priority;
+        let result = project.add_object(extracted).clone();
+        if remaining.subpaths.is_empty() {
+            for object in &mut project.objects {
+                if let ObjectData::Text {
+                    guide_path_id: Some(guide_path_id),
+                    ..
+                } = &mut object.data
+                {
+                    if *guide_path_id == input.object_id {
+                        *guide_path_id = result.id;
+                    }
                 }
             }
+            crate::ops::project::refresh_project_text_caches(project);
         }
-        crate::ops::project::refresh_project_text_caches(project);
-    }
-    project.dirty = true;
+        project.dirty = true;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.nodes.extracted",
-        json!({
-            "source_object_id": input.object_id,
-            "object": events::object_summary(&result),
-            "node_count": input.node_ids.len(),
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.nodes.extracted",
+            json!({
+                "source_object_id": input.object_id,
+                "object": events::object_summary(&result),
+                "node_count": input.node_ids.len(),
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn update_node(ctx: &ServiceContext, input: UpdateNodeInput) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+        let new_pos = Point2D::new(input.x, input.y);
+        let success = match parse_handle_type(input.handle_type.as_deref())? {
+            Some(handle_type) => {
+                node_edit::move_handle(&mut vec_path, node_id, handle_type, new_pos)
+            }
+            None => node_edit::move_node(&mut vec_path, node_id, new_pos),
+        };
+
+        if !success {
+            return Err(ServiceError::invalid_input("Failed to update node"));
+        }
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
 
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
-    let new_pos = Point2D::new(input.x, input.y);
-    let success = match parse_handle_type(input.handle_type.as_deref())? {
-        Some(handle_type) => node_edit::move_handle(&mut vec_path, node_id, handle_type, new_pos),
-        None => node_edit::move_node(&mut vec_path, node_id, new_pos),
-    };
-
-    if !success {
-        return Err(ServiceError::invalid_input("Failed to update node"));
-    }
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.node.updated",
-        json!({
-            "object": events::object_summary(&result),
-            "subpath_idx": input.subpath_idx,
-            "command_idx": input.command_idx,
-            "handle_type": input.handle_type,
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.node.updated",
+            json!({
+                "object": events::object_summary(&result),
+                "subpath_idx": input.subpath_idx,
+                "command_idx": input.command_idx,
+                "handle_type": input.handle_type,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn update_nodes_batch(
     ctx: &ServiceContext,
     input: UpdateNodesBatchInput,
 ) -> ServiceResult<ProjectObject> {
-    if input.updates.is_empty() {
-        return Err(ServiceError::invalid_input("No node updates supplied"));
-    }
-
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
-        project
-            .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-
-    for update in &input.updates {
-        let new_pos = Point2D::new(update.x, update.y);
-        let moved = match parse_handle_type(update.handle_type.as_deref())? {
-            Some(handle_type) => {
-                node_edit::move_handle(&mut vec_path, update.node_id, handle_type, new_pos)
-            }
-            None => node_edit::move_node(&mut vec_path, update.node_id, new_pos),
-        };
-        if !moved {
-            return Err(ServiceError::invalid_input(
-                "Failed to update one or more nodes",
-            ));
+    ctx.atomic_edit(|| {
+        if input.updates.is_empty() {
+            return Err(ServiceError::invalid_input("No node updates supplied"));
         }
-    }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
+        project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.nodes.updated_batch",
-        json!({
-            "object": events::object_summary(&result),
-            "update_count": input.updates.len(),
-        }),
-    );
-    Ok(result)
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+
+        for update in &input.updates {
+            let new_pos = Point2D::new(update.x, update.y);
+            let moved = match parse_handle_type(update.handle_type.as_deref())? {
+                Some(handle_type) => {
+                    node_edit::move_handle(&mut vec_path, update.node_id, handle_type, new_pos)
+                }
+                None => node_edit::move_node(&mut vec_path, update.node_id, new_pos),
+            };
+            if !moved {
+                return Err(ServiceError::invalid_input(
+                    "Failed to update one or more nodes",
+                ));
+            }
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let obj = project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
+
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.nodes.updated_batch",
+            json!({
+                "object": events::object_summary(&result),
+                "update_count": input.updates.len(),
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn set_node_type(
     ctx: &ServiceContext,
     input: SetNodeTypeInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
-            .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
-    let node_type = match input.node_type.as_str() {
-        "smooth" => NodeType::Smooth,
-        "corner" => NodeType::Corner,
-        other => {
-            return Err(ServiceError::invalid_input(format!(
-                "Invalid node type: {other}"
-            )));
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+        let node_type = match input.node_type.as_str() {
+            "smooth" => NodeType::Smooth,
+            "corner" => NodeType::Corner,
+            other => {
+                return Err(ServiceError::invalid_input(format!(
+                    "Invalid node type: {other}"
+                )));
+            }
+        };
+
+        if !node_edit::set_node_type(&mut vec_path, node_id, node_type) {
+            return Err(ServiceError::invalid_input("Node type is already set"));
         }
-    };
 
-    if !node_edit::set_node_type(&mut vec_path, node_id, node_type) {
-        return Err(ServiceError::invalid_input("Node type is already set"));
-    }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
+        let obj = project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
 
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.node.type_set",
-        json!({
-            "object": events::object_summary(&result),
-            "subpath_idx": input.subpath_idx,
-            "command_idx": input.command_idx,
-            "node_type": input.node_type,
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.node.type_set",
+            json!({
+                "object": events::object_summary(&result),
+                "subpath_idx": input.subpath_idx,
+                "command_idx": input.command_idx,
+                "node_type": input.node_type,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn delete_node(ctx: &ServiceContext, input: DeleteNodeInput) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+
+        if !node_edit::delete_node(&mut vec_path, node_id) {
+            return Err(ServiceError::invalid_input("Cannot delete this node"));
+        }
+        vec_path.prune_orphan_subpaths();
+        if vec_path.subpaths.is_empty() {
+            return Err(ServiceError::invalid_input(
+                "Cannot delete every node; delete the object instead",
+            ));
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
 
-    if !node_edit::delete_node(&mut vec_path, node_id) {
-        return Err(ServiceError::invalid_input("Cannot delete this node"));
-    }
-    vec_path.prune_orphan_subpaths();
-    if vec_path.subpaths.is_empty() {
-        return Err(ServiceError::invalid_input(
-            "Cannot delete every node; delete the object instead",
-        ));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.node.deleted",
-        json!({
-            "object": events::object_summary(&result),
-            "subpath_idx": input.subpath_idx,
-            "command_idx": input.command_idx,
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.node.deleted",
+            json!({
+                "object": events::object_summary(&result),
+                "subpath_idx": input.subpath_idx,
+                "command_idx": input.command_idx,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn delete_nodes(ctx: &ServiceContext, input: DeleteNodesInput) -> ServiceResult<ProjectObject> {
-    if input.node_ids.is_empty() {
-        return Err(ServiceError::invalid_input("No nodes supplied"));
-    }
+    ctx.atomic_edit(|| {
+        if input.node_ids.is_empty() {
+            return Err(ServiceError::invalid_input("No nodes supplied"));
+        }
 
-    let mut node_ids = input.node_ids;
-    node_ids.sort_by(|a, b| {
-        b.subpath_idx
-            .cmp(&a.subpath_idx)
-            .then_with(|| b.command_idx.cmp(&a.command_idx))
-    });
-    node_ids.dedup_by(|a, b| a.subpath_idx == b.subpath_idx && a.command_idx == b.command_idx);
+        let mut node_ids = input.node_ids;
+        node_ids.sort_by(|a, b| {
+            b.subpath_idx
+                .cmp(&a.subpath_idx)
+                .then_with(|| b.command_idx.cmp(&a.command_idx))
+        });
+        node_ids.dedup_by(|a, b| a.subpath_idx == b.subpath_idx && a.command_idx == b.command_idx);
 
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
-            .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let delete_keys: HashSet<(usize, usize)> = node_ids
-        .iter()
-        .map(|node_id| (node_id.subpath_idx, node_id.command_idx))
-        .collect();
-    let fully_selected_subpaths: HashSet<usize> = vec_path
-        .subpaths
-        .iter()
-        .enumerate()
-        .filter_map(|(subpath_idx, subpath)| {
-            let editable_command_idxs: Vec<usize> = subpath
-                .commands
-                .iter()
-                .enumerate()
-                .filter_map(|(command_idx, command)| {
-                    command_has_editable_node(command).then_some(command_idx)
-                })
-                .collect();
-            if editable_command_idxs.is_empty() {
-                return None;
-            }
-            editable_command_idxs
-                .iter()
-                .all(|command_idx| delete_keys.contains(&(subpath_idx, *command_idx)))
-                .then_some(subpath_idx)
-        })
-        .collect();
-
-    for node_id in &node_ids {
-        if fully_selected_subpaths.contains(&node_id.subpath_idx) {
-            continue;
-        }
-        if !node_edit::delete_node(&mut vec_path, *node_id) {
-            return Err(ServiceError::invalid_input(
-                "Cannot delete one or more selected nodes",
-            ));
-        }
-    }
-    if !fully_selected_subpaths.is_empty() {
-        vec_path.subpaths = vec_path
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let delete_keys: HashSet<(usize, usize)> = node_ids
+            .iter()
+            .map(|node_id| (node_id.subpath_idx, node_id.command_idx))
+            .collect();
+        let fully_selected_subpaths: HashSet<usize> = vec_path
             .subpaths
-            .into_iter()
+            .iter()
             .enumerate()
             .filter_map(|(subpath_idx, subpath)| {
-                (!fully_selected_subpaths.contains(&subpath_idx)).then_some(subpath)
+                let editable_command_idxs: Vec<usize> = subpath
+                    .commands
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(command_idx, command)| {
+                        command_has_editable_node(command).then_some(command_idx)
+                    })
+                    .collect();
+                if editable_command_idxs.is_empty() {
+                    return None;
+                }
+                editable_command_idxs
+                    .iter()
+                    .all(|command_idx| delete_keys.contains(&(subpath_idx, *command_idx)))
+                    .then_some(subpath_idx)
             })
             .collect();
-    }
-    vec_path.prune_orphan_subpaths();
-    if vec_path.subpaths.is_empty() {
-        return Err(ServiceError::invalid_input(
-            "Cannot delete every node; delete the object instead",
-        ));
-    }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
+        for node_id in &node_ids {
+            if fully_selected_subpaths.contains(&node_id.subpath_idx) {
+                continue;
+            }
+            if !node_edit::delete_node(&mut vec_path, *node_id) {
+                return Err(ServiceError::invalid_input(
+                    "Cannot delete one or more selected nodes",
+                ));
+            }
+        }
+        if !fully_selected_subpaths.is_empty() {
+            vec_path.subpaths = vec_path
+                .subpaths
+                .into_iter()
+                .enumerate()
+                .filter_map(|(subpath_idx, subpath)| {
+                    (!fully_selected_subpaths.contains(&subpath_idx)).then_some(subpath)
+                })
+                .collect();
+        }
+        vec_path.prune_orphan_subpaths();
+        if vec_path.subpaths.is_empty() {
+            return Err(ServiceError::invalid_input(
+                "Cannot delete every node; delete the object instead",
+            ));
+        }
 
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.nodes.deleted_batch",
-        json!({
-            "object": events::object_summary(&result),
-            "delete_count": node_ids.len(),
-        }),
-    );
-    Ok(result)
+        let obj = project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
+
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.nodes.deleted_batch",
+            json!({
+                "object": events::object_summary(&result),
+                "delete_count": node_ids.len(),
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn insert_node(ctx: &ServiceContext, input: InsertNodeInput) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+
+        if !node_edit::insert_node(&mut vec_path, node_id, input.t) {
+            return Err(ServiceError::invalid_input("Cannot insert node here"));
+        }
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
 
-    if !node_edit::insert_node(&mut vec_path, node_id, input.t) {
-        return Err(ServiceError::invalid_input("Cannot insert node here"));
-    }
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.node.inserted",
-        json!({
-            "object": events::object_summary(&result),
-            "subpath_idx": input.subpath_idx,
-            "command_idx": input.command_idx,
-            "t": input.t,
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.node.inserted",
+            json!({
+                "object": events::object_summary(&result),
+                "subpath_idx": input.subpath_idx,
+                "command_idx": input.command_idx,
+                "t": input.t,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn convert_segment_to_line(
     ctx: &ServiceContext,
     input: SegmentOpInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    // Prepare and validate before pushing undo snapshot
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
+        // Prepare and validate before pushing undo snapshot
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+
+        if !node_edit::convert_segment_to_line(&mut vec_path, node_id) {
+            return Err(ServiceError::invalid_input("Segment is already a line"));
+        }
+
+        // Operation will succeed — push undo snapshot now
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
 
-    if !node_edit::convert_segment_to_line(&mut vec_path, node_id) {
-        return Err(ServiceError::invalid_input("Segment is already a line"));
-    }
-
-    // Operation will succeed — push undo snapshot now
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.segment.converted",
-        json!({ "object": events::object_summary(&result), "to": "line" }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.segment.converted",
+            json!({ "object": events::object_summary(&result), "to": "line" }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn convert_segment_to_curve(
     ctx: &ServiceContext,
     input: SegmentOpInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+
+        if !node_edit::convert_segment_to_curve(&mut vec_path, node_id) {
+            return Err(ServiceError::invalid_input("Segment is already a curve"));
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
 
-    if !node_edit::convert_segment_to_curve(&mut vec_path, node_id) {
-        return Err(ServiceError::invalid_input("Segment is already a curve"));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.segment.converted",
-        json!({ "object": events::object_summary(&result), "to": "curve" }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.segment.converted",
+            json!({ "object": events::object_summary(&result), "to": "curve" }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn delete_segment(ctx: &ServiceContext, input: SegmentOpInput) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+
+        if !node_edit::delete_segment(&mut vec_path, node_id) {
+            return Err(ServiceError::invalid_input("Cannot delete this segment"));
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, None);
+        let result = obj.clone();
+        project.dirty = true;
 
-    if !node_edit::delete_segment(&mut vec_path, node_id) {
-        return Err(ServiceError::invalid_input("Cannot delete this segment"));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, None);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.segment.deleted",
-        json!({ "object": events::object_summary(&result) }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.segment.deleted",
+            json!({ "object": events::object_summary(&result) }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn break_path_at_node(
     ctx: &ServiceContext,
     input: SegmentOpInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+
+        if !node_edit::break_path_at_node(&mut vec_path, node_id) {
+            return Err(ServiceError::invalid_input("Cannot break path here"));
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, None);
+        let result = obj.clone();
+        project.dirty = true;
 
-    if !node_edit::break_path_at_node(&mut vec_path, node_id) {
-        return Err(ServiceError::invalid_input("Cannot break path here"));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, None);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.path.broken",
-        json!({ "object": events::object_summary(&result) }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.path.broken",
+            json!({ "object": events::object_summary(&result) }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn toggle_path_closed(
     ctx: &ServiceContext,
     input: SubpathOpInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+
+        if !node_edit::toggle_path_closed(&mut vec_path, input.subpath_idx) {
+            return Err(ServiceError::invalid_input("Invalid subpath index"));
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
 
-    if !node_edit::toggle_path_closed(&mut vec_path, input.subpath_idx) {
-        return Err(ServiceError::invalid_input("Invalid subpath index"));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.path.toggled_closed",
-        json!({ "object": events::object_summary(&result) }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.path.toggled_closed",
+            json!({ "object": events::object_summary(&result) }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn align_segment_to_angle(
     ctx: &ServiceContext,
     input: SegmentOpInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let node_id = NodeId {
+            subpath_idx: input.subpath_idx,
+            command_idx: input.command_idx,
+        };
+
+        if !align_segment_to_angle_in_place(&mut vec_path, node_id) {
+            return Err(ServiceError::invalid_input(
+                "Only straight line segments can be aligned to angle",
+            ));
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let node_id = NodeId {
-        subpath_idx: input.subpath_idx,
-        command_idx: input.command_idx,
-    };
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
 
-    if !align_segment_to_angle_in_place(&mut vec_path, node_id) {
-        return Err(ServiceError::invalid_input(
-            "Only straight line segments can be aligned to angle",
-        ));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.segment.aligned_to_angle",
-        json!({
-            "object": events::object_summary(&result),
-            "subpath_idx": input.subpath_idx,
-            "command_idx": input.command_idx,
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.segment.aligned_to_angle",
+            json!({
+                "object": events::object_summary(&result),
+                "subpath_idx": input.subpath_idx,
+                "command_idx": input.command_idx,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn trim_segment_to_intersection(
@@ -2918,136 +2985,112 @@ pub fn trim_segment_to_intersection(
     click_x: f64,
     click_y: f64,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
-            .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let world_path = object_to_world_vecpath(obj)
-        .ok_or_else(|| ServiceError::invalid_input("Object is not a vector type"))?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let cutters =
-        collect_cutter_polylines(project, input.object_id, &world_path, input.subpath_idx);
-    let trimmed = trim_core::trim_at_intersection(
-        &world_path,
-        input.subpath_idx,
-        &cutters,
-        Point2D::new(click_x, click_y),
-    );
-    if trimmed.pieces.is_empty() {
-        return Err(ServiceError::invalid_input(
-            "No intersection available to trim",
-        ));
-    }
-
-    let mut new_path = VecPath {
-        subpaths: Vec::new(),
-    };
-    for (idx, subpath) in world_path.subpaths.iter().enumerate() {
-        if idx != input.subpath_idx {
-            new_path.subpaths.push(subpath.clone());
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let world_path = object_to_world_vecpath(obj)
+            .ok_or_else(|| ServiceError::invalid_input("Object is not a vector type"))?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let cutters =
+            collect_cutter_polylines(project, input.object_id, &world_path, input.subpath_idx);
+        let trimmed = trim_core::trim_at_intersection(
+            &world_path,
+            input.subpath_idx,
+            &cutters,
+            Point2D::new(click_x, click_y),
+        );
+        if trimmed.pieces.is_empty() {
+            return Err(ServiceError::invalid_input(
+                "No intersection available to trim",
+            ));
         }
-    }
-    for piece in trimmed.pieces {
-        new_path.subpaths.extend(piece.subpaths);
-    }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &new_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
+        let mut new_path = VecPath {
+            subpaths: Vec::new(),
+        };
+        for (idx, subpath) in world_path.subpaths.iter().enumerate() {
+            if idx != input.subpath_idx {
+                new_path.subpaths.push(subpath.clone());
+            }
+        }
+        for piece in trimmed.pieces {
+            new_path.subpaths.extend(piece.subpaths);
+        }
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.segment.trimmed_to_intersection",
-        json!({
-            "object": events::object_summary(&result),
-            "subpath_idx": input.subpath_idx,
-            "command_idx": input.command_idx,
-            "click_x": click_x,
-            "click_y": click_y,
-        }),
-    );
-    Ok(result)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let obj = project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_world_path_to_object(obj, &new_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
+
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.segment.trimmed_to_intersection",
+            json!({
+                "object": events::object_summary(&result),
+                "subpath_idx": input.subpath_idx,
+                "command_idx": input.command_idx,
+                "click_x": click_x,
+                "click_y": click_y,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn extend_endpoint_to_intersection(
     ctx: &ServiceContext,
     input: ExtendEndpointInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
         project
-            .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = object_to_world_vecpath(obj)
-        .ok_or_else(|| ServiceError::invalid_input("Object is not a vector type"))?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-    let (origin, direction) = endpoint_tangent(&vec_path, input.node_id).ok_or_else(|| {
-        ServiceError::invalid_input("Extend to intersection requires an open-path endpoint")
-    })?;
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = object_to_world_vecpath(obj)
+            .ok_or_else(|| ServiceError::invalid_input("Object is not a vector type"))?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+        let (origin, direction) = endpoint_tangent(&vec_path, input.node_id).ok_or_else(|| {
+            ServiceError::invalid_input("Extend to intersection requires an open-path endpoint")
+        })?;
 
-    let mut best_hit: Option<(f64, Point2D)> = None;
+        let mut best_hit: Option<(f64, Point2D)> = None;
 
-    for (idx, polyline) in flatten_vecpath(&vec_path, DEFAULT_TOLERANCE_MM)
-        .into_iter()
-        .enumerate()
-    {
-        if idx == input.node_id.subpath_idx || polyline.points.len() < 2 {
-            continue;
-        }
-        let seg_count = if polyline.closed {
-            polyline.points.len()
-        } else {
-            polyline.points.len() - 1
-        };
-        for seg_idx in 0..seg_count {
-            let start = polyline.points[seg_idx];
-            let end = polyline.points[(seg_idx + 1) % polyline.points.len()];
-            if let Some(hit) = ray_segment_intersection(origin, direction, start, end) {
-                if best_hit.is_none_or(|current| hit.0 < current.0) {
-                    best_hit = Some(hit);
-                }
-            }
-        }
-    }
-
-    for other in &project.objects {
-        if other.id == input.object_id {
-            continue;
-        }
-        let Some(other_path) = object_to_world_vecpath(other) else {
-            continue;
-        };
-        for polyline in flatten_vecpath(&other_path, DEFAULT_TOLERANCE_MM) {
-            if polyline.points.len() < 2 {
+        for (idx, polyline) in flatten_vecpath(&vec_path, DEFAULT_TOLERANCE_MM)
+            .into_iter()
+            .enumerate()
+        {
+            if idx == input.node_id.subpath_idx || polyline.points.len() < 2 {
                 continue;
             }
             let seg_count = if polyline.closed {
@@ -3065,224 +3108,259 @@ pub fn extend_endpoint_to_intersection(
                 }
             }
         }
-    }
 
-    let Some((_, hit_point)) = best_hit else {
-        return Err(ServiceError::invalid_input(
-            "No forward intersection found for this endpoint",
-        ));
-    };
+        for other in &project.objects {
+            if other.id == input.object_id {
+                continue;
+            }
+            let Some(other_path) = object_to_world_vecpath(other) else {
+                continue;
+            };
+            for polyline in flatten_vecpath(&other_path, DEFAULT_TOLERANCE_MM) {
+                if polyline.points.len() < 2 {
+                    continue;
+                }
+                let seg_count = if polyline.closed {
+                    polyline.points.len()
+                } else {
+                    polyline.points.len() - 1
+                };
+                for seg_idx in 0..seg_count {
+                    let start = polyline.points[seg_idx];
+                    let end = polyline.points[(seg_idx + 1) % polyline.points.len()];
+                    if let Some(hit) = ray_segment_intersection(origin, direction, start, end) {
+                        if best_hit.is_none_or(|current| hit.0 < current.0) {
+                            best_hit = Some(hit);
+                        }
+                    }
+                }
+            }
+        }
 
-    if !node_edit::move_node(&mut vec_path, input.node_id, hit_point) {
-        return Err(ServiceError::invalid_input("Failed to extend endpoint"));
-    }
+        let Some((_, hit_point)) = best_hit else {
+            return Err(ServiceError::invalid_input(
+                "No forward intersection found for this endpoint",
+            ));
+        };
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
+        if !node_edit::move_node(&mut vec_path, input.node_id, hit_point) {
+            return Err(ServiceError::invalid_input("Failed to extend endpoint"));
+        }
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.endpoint.extended_to_intersection",
-        json!({
-            "object": events::object_summary(&result),
-            "node_id": input.node_id,
-        }),
-    );
-    Ok(result)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let obj = project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_world_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
+
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.endpoint.extended_to_intersection",
+            json!({
+                "object": events::object_summary(&result),
+                "node_id": input.node_id,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn join_subpaths(
     ctx: &ServiceContext,
     input: JoinSubpathsInput,
 ) -> ServiceResult<ProjectObject> {
-    if input.src_node_id == input.dst_node_id {
-        return Err(ServiceError::invalid_input(
-            "Cannot join an endpoint to itself",
-        ));
-    }
-
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
-        project
-            .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-    let ruler_guide_axis = get_vector_path_meta(obj)?;
-
-    let src_subpath = vec_path
-        .subpaths
-        .get(input.src_node_id.subpath_idx)
-        .ok_or_else(|| ServiceError::invalid_input("Invalid source endpoint"))?;
-    let dst_subpath = vec_path
-        .subpaths
-        .get(input.dst_node_id.subpath_idx)
-        .ok_or_else(|| ServiceError::invalid_input("Invalid destination endpoint"))?;
-    if src_subpath.closed || dst_subpath.closed {
-        return Err(ServiceError::invalid_input(
-            "Only open subpaths can be joined by dragging endpoints",
-        ));
-    }
-    if input.src_node_id.subpath_idx == input.dst_node_id.subpath_idx {
-        return Err(ServiceError::invalid_input(
-            "Join by dragging only supports distinct open subpaths",
-        ));
-    }
-
-    let src_kind = endpoint_index_for_subpath(src_subpath, input.src_node_id)
-        .ok_or_else(|| ServiceError::invalid_input("Source node is not an open-path endpoint"))?;
-    let dst_kind = endpoint_index_for_subpath(dst_subpath, input.dst_node_id).ok_or_else(|| {
-        ServiceError::invalid_input("Destination node is not an open-path endpoint")
-    })?;
-
-    let first = if src_kind == "end" {
-        src_subpath.clone()
-    } else {
-        trim_core::reverse_subpath(src_subpath)
-    };
-    let second = if dst_kind == "start" {
-        dst_subpath.clone()
-    } else {
-        trim_core::reverse_subpath(dst_subpath)
-    };
-    let join_point = trim_core::subpath_first_point(&second)
-        .ok_or_else(|| ServiceError::invalid_input("Destination subpath has no join point"))?;
-    let merged = merge_oriented_subpaths(&first, &second, join_point);
-
-    let mut new_subpaths = Vec::with_capacity(vec_path.subpaths.len() - 1);
-    let keep_idx = input
-        .src_node_id
-        .subpath_idx
-        .min(input.dst_node_id.subpath_idx);
-    let drop_idx = input
-        .src_node_id
-        .subpath_idx
-        .max(input.dst_node_id.subpath_idx);
-    for (idx, subpath) in vec_path.subpaths.into_iter().enumerate() {
-        if idx == keep_idx {
-            new_subpaths.push(merged.clone());
-        } else if idx == drop_idx {
-            continue;
-        } else {
-            new_subpaths.push(subpath);
+    ctx.atomic_edit(|| {
+        if input.src_node_id == input.dst_node_id {
+            return Err(ServiceError::invalid_input(
+                "Cannot join an endpoint to itself",
+            ));
         }
-    }
-    vec_path.subpaths = new_subpaths;
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    write_vec_path_to_object(obj, &vec_path, ruler_guide_axis);
-    let result = obj.clone();
-    project.dirty = true;
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.subpaths.joined",
-        json!({
-            "object": events::object_summary(&result),
-            "src_node_id": input.src_node_id,
-            "dst_node_id": input.dst_node_id,
-        }),
-    );
-    Ok(result)
+        project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+        let ruler_guide_axis = get_vector_path_meta(obj)?;
+
+        let src_subpath = vec_path
+            .subpaths
+            .get(input.src_node_id.subpath_idx)
+            .ok_or_else(|| ServiceError::invalid_input("Invalid source endpoint"))?;
+        let dst_subpath = vec_path
+            .subpaths
+            .get(input.dst_node_id.subpath_idx)
+            .ok_or_else(|| ServiceError::invalid_input("Invalid destination endpoint"))?;
+        if src_subpath.closed || dst_subpath.closed {
+            return Err(ServiceError::invalid_input(
+                "Only open subpaths can be joined by dragging endpoints",
+            ));
+        }
+        if input.src_node_id.subpath_idx == input.dst_node_id.subpath_idx {
+            return Err(ServiceError::invalid_input(
+                "Join by dragging only supports distinct open subpaths",
+            ));
+        }
+
+        let src_kind =
+            endpoint_index_for_subpath(src_subpath, input.src_node_id).ok_or_else(|| {
+                ServiceError::invalid_input("Source node is not an open-path endpoint")
+            })?;
+        let dst_kind =
+            endpoint_index_for_subpath(dst_subpath, input.dst_node_id).ok_or_else(|| {
+                ServiceError::invalid_input("Destination node is not an open-path endpoint")
+            })?;
+
+        let first = if src_kind == "end" {
+            src_subpath.clone()
+        } else {
+            trim_core::reverse_subpath(src_subpath)
+        };
+        let second = if dst_kind == "start" {
+            dst_subpath.clone()
+        } else {
+            trim_core::reverse_subpath(dst_subpath)
+        };
+        let join_point = trim_core::subpath_first_point(&second)
+            .ok_or_else(|| ServiceError::invalid_input("Destination subpath has no join point"))?;
+        let merged = merge_oriented_subpaths(&first, &second, join_point);
+
+        let mut new_subpaths = Vec::with_capacity(vec_path.subpaths.len() - 1);
+        let keep_idx = input
+            .src_node_id
+            .subpath_idx
+            .min(input.dst_node_id.subpath_idx);
+        let drop_idx = input
+            .src_node_id
+            .subpath_idx
+            .max(input.dst_node_id.subpath_idx);
+        for (idx, subpath) in vec_path.subpaths.into_iter().enumerate() {
+            if idx == keep_idx {
+                new_subpaths.push(merged.clone());
+            } else if idx == drop_idx {
+                continue;
+            } else {
+                new_subpaths.push(subpath);
+            }
+        }
+        vec_path.subpaths = new_subpaths;
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let obj = project
+            .find_object_mut(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        write_local_path_to_object(obj, &vec_path, ruler_guide_axis);
+        let result = obj.clone();
+        project.dirty = true;
+
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.subpaths.joined",
+            json!({
+                "object": events::object_summary(&result),
+                "src_node_id": input.src_node_id,
+                "dst_node_id": input.dst_node_id,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn scale_path_to_bounds(
     ctx: &ServiceContext,
     input: ScalePathToBoundsInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    // Snapshot first, then auto-unlink VirtualClone
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    project
-        .ensure_resolved(input.object_id)
-        .map_err(ServiceError::internal)?;
-    path_ops_core::ensure_denormalized(
+        // Snapshot first, then auto-unlink VirtualClone
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
         project
+            .ensure_resolved(input.object_id)
+            .map_err(ServiceError::internal)?;
+        path_ops_core::ensure_denormalized(
+            project
+                .find_object_mut(input.object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?,
+        );
+
+        let obj = project
+            .find_object(input.object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        let mut vec_path = require_vector_path(obj)?;
+
+        let intrinsic = vec_path
+            .visual_bounds()
+            .unwrap_or(Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
+        let old_w = intrinsic.max.x - intrinsic.min.x;
+        let old_h = intrinsic.max.y - intrinsic.min.y;
+        let new_w = input.new_max_x - input.new_min_x;
+        let new_h = input.new_max_y - input.new_min_y;
+
+        let sx = if old_w > 0.0 { new_w / old_w } else { 1.0 };
+        let sy = if old_h > 0.0 { new_h / old_h } else { 1.0 };
+        let transform = Transform2D {
+            a: sx,
+            b: 0.0,
+            c: 0.0,
+            d: sy,
+            tx: input.new_min_x - intrinsic.min.x * sx,
+            ty: input.new_min_y - intrinsic.min.y * sy,
+        };
+        vec_path = bake_transform(&vec_path, &transform);
+
+        let result_bounds = Bounds::new(
+            Point2D::new(input.new_min_x, input.new_min_y),
+            Point2D::new(input.new_max_x, input.new_max_y),
+        );
+        let closed = vec_path.subpaths.iter().any(|sp| sp.closed);
+        let path_data = vec_path.to_svg_d();
+
+        let obj = project
             .find_object_mut(input.object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?,
-    );
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        obj.data = ObjectData::VectorPath {
+            path_data,
+            closed,
+            ruler_guide_axis: None,
+        };
+        obj.bounds = result_bounds;
+        obj.tabs.clear();
+        let result = obj.clone();
+        project.dirty = true;
 
-    let obj = project
-        .find_object(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    let mut vec_path = require_vector_path(obj)?;
-
-    let intrinsic = vec_path
-        .visual_bounds()
-        .unwrap_or(Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 0.0)));
-    let old_w = intrinsic.max.x - intrinsic.min.x;
-    let old_h = intrinsic.max.y - intrinsic.min.y;
-    let new_w = input.new_max_x - input.new_min_x;
-    let new_h = input.new_max_y - input.new_min_y;
-
-    let sx = if old_w > 0.0 { new_w / old_w } else { 1.0 };
-    let sy = if old_h > 0.0 { new_h / old_h } else { 1.0 };
-    let transform = Transform2D {
-        a: sx,
-        b: 0.0,
-        c: 0.0,
-        d: sy,
-        tx: input.new_min_x - intrinsic.min.x * sx,
-        ty: input.new_min_y - intrinsic.min.y * sy,
-    };
-    vec_path = bake_transform(&vec_path, &transform);
-
-    let result_bounds = Bounds::new(
-        Point2D::new(input.new_min_x, input.new_min_y),
-        Point2D::new(input.new_max_x, input.new_max_y),
-    );
-    let closed = vec_path.subpaths.iter().any(|sp| sp.closed);
-    let path_data = vec_path.to_svg_d();
-
-    let obj = project
-        .find_object_mut(input.object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    obj.data = ObjectData::VectorPath {
-        path_data,
-        closed,
-        ruler_guide_axis: None,
-    };
-    obj.bounds = result_bounds;
-    obj.tabs.clear();
-    let result = obj.clone();
-    project.dirty = true;
-
-    drop(guard);
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.path.scaled",
-        json!({
-            "object": events::object_summary(&result),
-        }),
-    );
-    Ok(result)
+        drop(guard);
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.path.scaled",
+            json!({
+                "object": events::object_summary(&result),
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn normalize_for_planner(
@@ -3631,143 +3709,145 @@ pub fn trim_at_intersection(
     edge_threshold_mm: f64,
     heal: bool,
 ) -> ServiceResult<TrimShapeResult> {
-    let target = find_trim_target(ctx, click_x, click_y, edge_threshold_mm)?;
+    ctx.atomic_edit(|| {
+        let target = find_trim_target(ctx, click_x, click_y, edge_threshold_mm)?;
 
-    let click_pt = Point2D::new(click_x, click_y);
-    let trim_click_pt = resolve_trim_click_point(&target, click_pt, heal);
-    let trim_result = trim_core::trim_at_intersection(
-        &target.world_path,
-        target.subpath_idx,
-        &target.cutters,
-        trim_click_pt,
-    );
+        let click_pt = Point2D::new(click_x, click_y);
+        let trim_click_pt = resolve_trim_click_point(&target, click_pt, heal);
+        let trim_result = trim_core::trim_at_intersection(
+            &target.world_path,
+            target.subpath_idx,
+            &target.cutters,
+            trim_click_pt,
+        );
 
-    if trim_result.pieces.is_empty() {
-        return Err(ServiceError::not_found(
-            "No intersections found near click point",
-        ));
-    }
+        if trim_result.pieces.is_empty() {
+            return Err(ServiceError::not_found(
+                "No intersections found near click point",
+            ));
+        }
 
-    // Attempt healing if requested
-    let (final_paths, heal_failed, open_result) = if heal {
-        match trim_core::heal_trim_results(&trim_result.pieces, &trim_result.cut_points, 0.1) {
-            trim_core::HealOutcome::HealedClosed(h) => (vec![h], false, false),
-            trim_core::HealOutcome::HealedOpen(h) => {
-                // Gate: only attempt cutter closure if source subpath was closed
-                let source_was_closed = target
-                    .world_path
-                    .subpaths
-                    .get(target.subpath_idx)
-                    .is_some_and(|sp| sp.closed);
+        // Attempt healing if requested
+        let (final_paths, heal_failed, open_result) = if heal {
+            match trim_core::heal_trim_results(&trim_result.pieces, &trim_result.cut_points, 0.1) {
+                trim_core::HealOutcome::HealedClosed(h) => (vec![h], false, false),
+                trim_core::HealOutcome::HealedOpen(h) => {
+                    // Gate: only attempt cutter closure if source subpath was closed
+                    let source_was_closed = target
+                        .world_path
+                        .subpaths
+                        .get(target.subpath_idx)
+                        .is_some_and(|sp| sp.closed);
 
-                if source_was_closed {
-                    if let (Some(left_hit), Some(right_hit)) =
-                        (&trim_result.left_hit, &trim_result.right_hit)
-                    {
-                        let main_sp = h.subpaths.iter().find(|sp| !sp.closed);
-                        if let Some(main) = main_sp {
-                            if let Some(closed_sp) = trim_core::close_with_cutter_boundary(
-                                main,
-                                &target.cutters,
-                                left_hit,
-                                right_hit,
-                                click_pt,
-                            ) {
-                                let mut result = VecPath::new();
-                                result.subpaths.push(closed_sp);
-                                for sp in &h.subpaths {
-                                    if sp.closed {
-                                        result.subpaths.push(sp.clone());
+                    if source_was_closed {
+                        if let (Some(left_hit), Some(right_hit)) =
+                            (&trim_result.left_hit, &trim_result.right_hit)
+                        {
+                            let main_sp = h.subpaths.iter().find(|sp| !sp.closed);
+                            if let Some(main) = main_sp {
+                                if let Some(closed_sp) = trim_core::close_with_cutter_boundary(
+                                    main,
+                                    &target.cutters,
+                                    left_hit,
+                                    right_hit,
+                                    click_pt,
+                                ) {
+                                    let mut result = VecPath::new();
+                                    result.subpaths.push(closed_sp);
+                                    for sp in &h.subpaths {
+                                        if sp.closed {
+                                            result.subpaths.push(sp.clone());
+                                        }
                                     }
+                                    (vec![result], false, false)
+                                } else {
+                                    (vec![h], false, true)
                                 }
-                                (vec![result], false, false)
                             } else {
                                 (vec![h], false, true)
                             }
                         } else {
+                            // Open-path trims or endpoint-bracket cases have None hits
                             (vec![h], false, true)
                         }
                     } else {
-                        // Open-path trims or endpoint-bracket cases have None hits
                         (vec![h], false, true)
                     }
-                } else {
-                    (vec![h], false, true)
                 }
+                trim_core::HealOutcome::Ambiguous(raw) => (raw, true, false),
             }
-            trim_core::HealOutcome::Ambiguous(raw) => (raw, true, false),
-        }
-    } else {
-        (trim_result.pieces, false, false)
-    };
-
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-
-    let source = &target.source_object;
-    let source_id = source.id;
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    // Auto-unlink VirtualClone before removal (preserves clone state in undo)
-    project
-        .ensure_resolved(source_id)
-        .map_err(ServiceError::internal)?;
-
-    project.remove_object(source_id);
-
-    let mut created: Vec<ProjectObject> = Vec::new();
-    for (i, vp) in final_paths.iter().enumerate() {
-        let path_data = vp.to_svg_d();
-        let closed = if open_result {
-            // HealedOpen means the primary chain is open — don't let closed
-            // sibling subpaths promote the object to closed.
-            false
         } else {
-            vp.subpaths.iter().any(|sp| sp.closed)
+            (trim_result.pieces, false, false)
         };
-        let bounds = vp.visual_bounds().unwrap_or(source.bounds);
 
-        let mut new_obj = ProjectObject::new(
-            format!("{} trim {}", source.name, i + 1),
-            source.layer_id,
-            bounds,
-            ObjectData::VectorPath {
-                path_data,
-                closed,
-                ruler_guide_axis: None,
-            },
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+
+        let source = &target.source_object;
+        let source_id = source.id;
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        // Auto-unlink VirtualClone before removal (preserves clone state in undo)
+        project
+            .ensure_resolved(source_id)
+            .map_err(ServiceError::internal)?;
+
+        project.remove_object(source_id);
+
+        let mut created: Vec<ProjectObject> = Vec::new();
+        for (i, vp) in final_paths.iter().enumerate() {
+            let path_data = vp.to_svg_d();
+            let closed = if open_result {
+                // HealedOpen means the primary chain is open — don't let closed
+                // sibling subpaths promote the object to closed.
+                false
+            } else {
+                vp.subpaths.iter().any(|sp| sp.closed)
+            };
+            let bounds = vp.visual_bounds().unwrap_or(source.bounds);
+
+            let mut new_obj = ProjectObject::new(
+                format!("{} trim {}", source.name, i + 1),
+                source.layer_id,
+                bounds,
+                ObjectData::VectorPath {
+                    path_data,
+                    closed,
+                    ruler_guide_axis: None,
+                },
+            );
+            new_obj.visible = source.visible;
+            new_obj.locked = source.locked;
+            new_obj.z_index = source.z_index;
+            new_obj.lock_aspect_ratio = source.lock_aspect_ratio;
+            new_obj.power_scale = source.power_scale;
+            new_obj.priority = source.priority;
+
+            created.push(new_obj.clone());
+            project.add_object(new_obj);
+        }
+
+        project.dirty = true;
+        drop(guard);
+
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.trim",
+            json!({
+                "source_object_id": source_id,
+                "created_count": created.len(),
+                "heal_failed": heal_failed,
+            }),
         );
-        new_obj.visible = source.visible;
-        new_obj.locked = source.locked;
-        new_obj.z_index = source.z_index;
-        new_obj.lock_aspect_ratio = source.lock_aspect_ratio;
-        new_obj.power_scale = source.power_scale;
-        new_obj.priority = source.priority;
 
-        created.push(new_obj.clone());
-        project.add_object(new_obj);
-    }
-
-    project.dirty = true;
-    drop(guard);
-
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.trim",
-        json!({
-            "source_object_id": source_id,
-            "created_count": created.len(),
-            "heal_failed": heal_failed,
-        }),
-    );
-
-    Ok(TrimShapeResult {
-        objects: created,
-        heal_failed,
-        open_result,
+        Ok(TrimShapeResult {
+            objects: created,
+            heal_failed,
+            open_result,
+        })
     })
 }
 
@@ -3777,87 +3857,89 @@ pub fn close_and_join(
     object_ids: Vec<ObjectId>,
     tolerance: f64,
 ) -> ServiceResult<(ProjectObject, bool)> {
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    if object_ids.is_empty() {
-        return Err(ServiceError::invalid_input("No objects provided"));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    for &oid in &object_ids {
-        project
-            .ensure_resolved(oid)
-            .map_err(ServiceError::internal)?;
-    }
-
-    let mut world_paths: Vec<VecPath> = Vec::new();
-    let mut first_obj: Option<ProjectObject> = None;
-    let mut max_z_index = 0i32;
-
-    for &oid in &object_ids {
-        let obj = project
-            .find_object(oid)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-        if first_obj.is_none() {
-            first_obj = Some(obj.clone());
+        if object_ids.is_empty() {
+            return Err(ServiceError::invalid_input("No objects provided"));
         }
-        max_z_index = max_z_index.max(obj.z_index);
-        let wp = object_to_world_vecpath(obj)
-            .ok_or_else(|| ServiceError::invalid_input("Object is not a vector type"))?;
-        world_paths.push(wp);
-    }
 
-    let first = first_obj.unwrap();
-    let result = path_ops_core::close_and_join(&world_paths, tolerance);
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
 
-    // Remove originals
-    for &oid in &object_ids {
-        project.remove_object(oid);
-    }
+        for &oid in &object_ids {
+            project
+                .ensure_resolved(oid)
+                .map_err(ServiceError::internal)?;
+        }
 
-    let path_data = result.path.to_svg_d();
-    let closed = result.path.subpaths.iter().any(|sp| sp.closed);
-    let bounds = result.path.visual_bounds().unwrap_or(first.bounds);
+        let mut world_paths: Vec<VecPath> = Vec::new();
+        let mut first_obj: Option<ProjectObject> = None;
+        let mut max_z_index = 0i32;
 
-    let dest_layer = reroute_vector_result_layer(project, first.layer_id)?;
-    let mut new_obj = ProjectObject::new(
-        "Joined",
-        dest_layer,
-        bounds,
-        ObjectData::VectorPath {
-            path_data,
-            closed,
-            ruler_guide_axis: None,
-        },
-    );
-    new_obj.visible = true;
-    new_obj.locked = false;
-    new_obj.z_index = max_z_index;
-    new_obj.power_scale = first.power_scale;
-    new_obj.priority = first.priority;
-    new_obj.lock_aspect_ratio = false;
+        for &oid in &object_ids {
+            let obj = project
+                .find_object(oid)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+            if first_obj.is_none() {
+                first_obj = Some(obj.clone());
+            }
+            max_z_index = max_z_index.max(obj.z_index);
+            let wp = object_to_world_vecpath(obj)
+                .ok_or_else(|| ServiceError::invalid_input("Object is not a vector type"))?;
+            world_paths.push(wp);
+        }
 
-    let result_obj = new_obj.clone();
-    project.add_object(new_obj);
-    project.dirty = true;
-    drop(guard);
+        let first = first_obj.unwrap();
+        let result = path_ops_core::close_and_join(&world_paths, tolerance);
 
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "vector.close_and_join",
-        json!({
-            "source_object_ids": object_ids,
-            "object": events::object_summary(&result_obj),
-            "fully_closed": result.fully_closed,
-        }),
-    );
+        // Remove originals
+        for &oid in &object_ids {
+            project.remove_object(oid);
+        }
 
-    Ok((result_obj, result.fully_closed))
+        let path_data = result.path.to_svg_d();
+        let closed = result.path.subpaths.iter().any(|sp| sp.closed);
+        let bounds = result.path.visual_bounds().unwrap_or(first.bounds);
+
+        let dest_layer = reroute_vector_result_layer(project, first.layer_id)?;
+        let mut new_obj = ProjectObject::new(
+            "Joined",
+            dest_layer,
+            bounds,
+            ObjectData::VectorPath {
+                path_data,
+                closed,
+                ruler_guide_axis: None,
+            },
+        );
+        new_obj.visible = true;
+        new_obj.locked = false;
+        new_obj.z_index = max_z_index;
+        new_obj.power_scale = first.power_scale;
+        new_obj.priority = first.priority;
+        new_obj.lock_aspect_ratio = false;
+
+        let result_obj = new_obj.clone();
+        project.add_object(new_obj);
+        project.dirty = true;
+        drop(guard);
+
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "vector.close_and_join",
+            json!({
+                "source_object_ids": object_ids,
+                "object": events::object_summary(&result_obj),
+                "fully_closed": result.fully_closed,
+            }),
+        );
+
+        Ok((result_obj, result.fully_closed))
+    })
 }
 
 #[cfg(test)]
@@ -6564,5 +6646,225 @@ mod tests {
             panic!("expected text");
         };
         assert_eq!(*guide_path_id, Some(extracted.id));
+    }
+}
+
+#[cfg(test)]
+mod edit_regressions {
+    use super::*;
+
+    pub(super) fn path_context(
+        data: &str,
+        bounds: Bounds,
+        transform: Transform2D,
+    ) -> (ServiceContext, ObjectId) {
+        let ctx = ServiceContext::new();
+        let mut project = Project::new("placement");
+        let layer = project.ensure_default_layer();
+        let mut object = ProjectObject::new(
+            "path",
+            layer,
+            bounds,
+            ObjectData::VectorPath {
+                path_data: data.into(),
+                closed: false,
+                ruler_guide_axis: None,
+            },
+        );
+        object.transform = transform;
+        let id = project.add_object(object).id;
+        *ctx.project.lock().unwrap() = Some(project);
+        (ctx, id)
+    }
+
+    fn rect(x: f64, y: f64, w: f64, h: f64) -> Bounds {
+        Bounds::new(Point2D::new(x, y), Point2D::new(x + w, y + h))
+    }
+
+    #[test]
+    fn node_edit_on_a_moved_path_keeps_untouched_nodes_in_place() {
+        // Stored at the origin, displayed at 100,100 at twice the size.
+        let (ctx, id) = path_context(
+            "M0 0 L10 0 L10 10",
+            rect(100.0, 100.0, 20.0, 20.0),
+            Transform2D::identity(),
+        );
+        let updated = update_node(
+            &ctx,
+            UpdateNodeInput {
+                object_id: id,
+                subpath_idx: 0,
+                command_idx: 1,
+                x: 12.0,
+                y: 0.0,
+                handle_type: None,
+            },
+        )
+        .unwrap();
+        let world = object_to_world_vecpath(&updated).unwrap();
+        let PathCommand::MoveTo { x, y } = world.subpaths[0].commands[0] else {
+            panic!("path must start with a move");
+        };
+        assert!(
+            (x - 100.0).abs() < 1e-9 && (y - 100.0).abs() < 1e-9,
+            "{x},{y}"
+        );
+        let PathCommand::LineTo { x, y } = world.subpaths[0].commands[1] else {
+            panic!("second command must be a line");
+        };
+        // Local (12, 0) maps through the old fit: 100 + 12 * 2.
+        assert!(
+            (x - 124.0).abs() < 1e-9 && (y - 100.0).abs() < 1e-9,
+            "{x},{y}"
+        );
+    }
+
+    fn clone_of_path() -> (ServiceContext, ObjectId) {
+        let (ctx, source) = path_context(
+            "M0 0 L10 0",
+            rect(0.0, 0.0, 10.0, 0.0),
+            Transform2D::identity(),
+        );
+        let clone = {
+            let mut guard = ctx.project.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            let layer = project.layers[0].id;
+            project
+                .add_object(ProjectObject::new(
+                    "clone",
+                    layer,
+                    rect(20.0, 0.0, 10.0, 0.0),
+                    ObjectData::VirtualClone { source_id: source },
+                ))
+                .id
+        };
+        (ctx, clone)
+    }
+
+    fn is_clone(ctx: &ServiceContext, id: ObjectId) -> bool {
+        matches!(
+            ctx.project
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .find_object(id)
+                .unwrap()
+                .data,
+            ObjectData::VirtualClone { .. }
+        )
+    }
+
+    #[test]
+    fn a_failed_node_edit_changes_nothing() {
+        let (ctx, clone) = clone_of_path();
+        let before = ctx.project.lock().unwrap().clone();
+        let error = update_node(
+            &ctx,
+            UpdateNodeInput {
+                object_id: clone,
+                subpath_idx: 0,
+                command_idx: 999,
+                x: 1.0,
+                y: 1.0,
+                handle_type: None,
+            },
+        );
+        assert!(error.is_err());
+        assert!(is_clone(&ctx, clone));
+        assert_eq!(*ctx.project.lock().unwrap(), before);
+        assert!(!ctx.undo_state().unwrap().can_undo);
+    }
+
+    #[test]
+    fn undoing_a_node_edit_relinks_the_clone() {
+        let (ctx, clone) = clone_of_path();
+        update_nodes_batch(
+            &ctx,
+            UpdateNodesBatchInput {
+                object_id: clone,
+                updates: vec![BatchNodeUpdate {
+                    node_id: NodeId {
+                        subpath_idx: 0,
+                        command_idx: 1,
+                    },
+                    x: 12.0,
+                    y: 0.0,
+                    handle_type: None,
+                }],
+            },
+        )
+        .unwrap();
+        assert!(!is_clone(&ctx, clone));
+        crate::ops::project::undo_project(&ctx).unwrap();
+        assert!(is_clone(&ctx, clone), "undo must restore the linked clone");
+    }
+
+    #[test]
+    fn a_failed_edit_keeps_redo_available() {
+        let (ctx, id) = path_context(
+            "M0 0 L10 0 L10 10",
+            rect(0.0, 0.0, 10.0, 10.0),
+            Transform2D::identity(),
+        );
+        let edit = |x: f64| UpdateNodeInput {
+            object_id: id,
+            subpath_idx: 0,
+            command_idx: 1,
+            x,
+            y: 0.0,
+            handle_type: None,
+        };
+        update_node(&ctx, edit(12.0)).unwrap();
+        crate::ops::project::undo_project(&ctx).unwrap();
+        assert!(ctx.undo_state().unwrap().can_redo);
+        let mut bad = edit(5.0);
+        bad.command_idx = 999;
+        assert!(update_node(&ctx, bad).is_err());
+        assert!(
+            ctx.undo_state().unwrap().can_redo,
+            "a failed edit must not clear redo"
+        );
+    }
+
+    #[test]
+    fn trimming_a_rotated_path_does_not_rotate_it_again() {
+        let (ctx, id) = path_context(
+            "M0 0 L10 0",
+            rect(0.0, 0.0, 10.0, 0.0),
+            Transform2D::rotate(std::f64::consts::FRAC_PI_2),
+        );
+        {
+            let mut guard = ctx.project.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            let layer = project.layers[0].id;
+            project.add_object(ProjectObject::new(
+                "cutter",
+                layer,
+                rect(0.0, 0.0, 10.0, 0.0),
+                ObjectData::VectorPath {
+                    path_data: "M0 0 L10 0".into(),
+                    closed: false,
+                    ruler_guide_axis: None,
+                },
+            ));
+        }
+        let updated = trim_segment_to_intersection(
+            &ctx,
+            SegmentOpInput {
+                object_id: id,
+                subpath_idx: 0,
+                command_idx: 1,
+            },
+            5.0,
+            -2.0,
+        )
+        .unwrap();
+        let after = object_to_world_vecpath(&updated).unwrap().bounds().unwrap();
+        assert!(
+            after.width() < 1e-6,
+            "trimmed vertical line turned: {after:?}"
+        );
+        assert!(after.height() > 1.0, "{after:?}");
     }
 }

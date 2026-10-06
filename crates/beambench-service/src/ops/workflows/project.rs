@@ -763,13 +763,15 @@ pub fn set_layer_visible(
     layer_id: String,
     visible: bool,
 ) -> Result<bool, String> {
-    let lid = parse_id(&layer_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    Ok(beambench_core::operations::set_layer_visible(
-        project, lid, visible,
-    ))
+    svc.atomic_edit(|| {
+        let lid = parse_id(&layer_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        Ok(beambench_core::operations::set_layer_visible(
+            project, lid, visible,
+        ))
+    })
 }
 
 pub fn set_layer_air_assist(
@@ -777,13 +779,15 @@ pub fn set_layer_air_assist(
     layer_id: String,
     air_assist: bool,
 ) -> Result<bool, String> {
-    let lid = parse_id(&layer_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    Ok(beambench_core::operations::set_layer_air_assist(
-        project, lid, air_assist,
-    ))
+    svc.atomic_edit(|| {
+        let lid = parse_id(&layer_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        Ok(beambench_core::operations::set_layer_air_assist(
+            project, lid, air_assist,
+        ))
+    })
 }
 
 pub fn select_all_in_layer(
@@ -802,43 +806,49 @@ pub fn push_draw_order(
     object_id: String,
     direction: String,
 ) -> Result<(), String> {
-    let direction = match direction.as_str() {
-        "forward" => beambench_core::operations::DrawOrderDirection::Forward,
-        "backward" => beambench_core::operations::DrawOrderDirection::Backward,
-        "front" => beambench_core::operations::DrawOrderDirection::Front,
-        "back" => beambench_core::operations::DrawOrderDirection::Back,
-        _ => return Err(format!("Unsupported draw order direction: {direction}")),
-    };
-    let oid: ObjectId = parse_id(&object_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::push_draw_order(project, oid, direction);
-    Ok(())
+    svc.atomic_edit(|| {
+        let direction = match direction.as_str() {
+            "forward" => beambench_core::operations::DrawOrderDirection::Forward,
+            "backward" => beambench_core::operations::DrawOrderDirection::Backward,
+            "front" => beambench_core::operations::DrawOrderDirection::Front,
+            "back" => beambench_core::operations::DrawOrderDirection::Back,
+            _ => return Err(format!("Unsupported draw order direction: {direction}")),
+        };
+        let oid: ObjectId = parse_id(&object_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::push_draw_order(project, oid, direction);
+        Ok(())
+    })
 }
 
 pub fn lock_objects(svc: &Arc<ServiceContext>, object_ids: Vec<String>) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::lock_objects(project, &parsed_ids);
-    Ok(())
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::lock_objects(project, &parsed_ids);
+        Ok(())
+    })
 }
 
 pub fn unlock_objects(svc: &Arc<ServiceContext>, object_ids: Vec<String>) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::unlock_objects(project, &parsed_ids);
-    Ok(())
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::unlock_objects(project, &parsed_ids);
+        Ok(())
+    })
 }
 
 pub fn flip_objects(
@@ -848,19 +858,21 @@ pub fn flip_objects(
     pivot_x: Option<f64>,
     pivot_y: Option<f64>,
 ) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    let pivot = match (pivot_x, pivot_y) {
-        (Some(x), Some(y)) => Some(Point2D::new(x, y)),
-        _ => None,
-    };
-    beambench_core::operations::flip_objects(project, &parsed_ids, horizontal, pivot);
-    Ok(())
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        let pivot = match (pivot_x, pivot_y) {
+            (Some(x), Some(y)) => Some(Point2D::new(x, y)),
+            _ => None,
+        };
+        beambench_core::operations::flip_objects(project, &parsed_ids, horizontal, pivot);
+        Ok(())
+    })
 }
 
 pub fn rotate_objects(
@@ -870,19 +882,21 @@ pub fn rotate_objects(
     pivot_x: Option<f64>,
     pivot_y: Option<f64>,
 ) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let pivot = match (pivot_x, pivot_y) {
-        (Some(x), Some(y)) => Some(beambench_common::Point2D::new(x, y)),
-        _ => None,
-    };
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::rotate_objects(project, &parsed_ids, degrees, pivot);
-    Ok(())
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let pivot = match (pivot_x, pivot_y) {
+            (Some(x), Some(y)) => Some(beambench_common::Point2D::new(x, y)),
+            _ => None,
+        };
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::rotate_objects(project, &parsed_ids, degrees, pivot);
+        Ok(())
+    })
 }
 
 pub fn rotate_objects_and_bake_active_path(
@@ -893,27 +907,29 @@ pub fn rotate_objects_and_bake_active_path(
     pivot_y: Option<f64>,
     active_object_id: String,
 ) -> Result<ProjectObject, String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let active_id: ObjectId = parse_id(&active_object_id)?;
-    let pivot = match (pivot_x, pivot_y) {
-        (Some(x), Some(y)) => Some(beambench_common::Point2D::new(x, y)),
-        _ => None,
-    };
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let active_id: ObjectId = parse_id(&active_object_id)?;
+        let pivot = match (pivot_x, pivot_y) {
+            (Some(x), Some(y)) => Some(beambench_common::Point2D::new(x, y)),
+            _ => None,
+        };
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
 
-    let mut next_project = project.clone();
-    beambench_core::operations::rotate_objects(&mut next_project, &parsed_ids, degrees, pivot);
-    let baked =
-        beambench_core::operations::bake_object_transform_to_path(&mut next_project, active_id)
-            .ok_or_else(|| "Active object cannot be baked to path".to_string())?;
+        let mut next_project = project.clone();
+        beambench_core::operations::rotate_objects(&mut next_project, &parsed_ids, degrees, pivot);
+        let baked =
+            beambench_core::operations::bake_object_transform_to_path(&mut next_project, active_id)
+                .ok_or_else(|| "Active object cannot be baked to path".to_string())?;
 
-    svc.push_project_undo_snapshot(project)?;
-    *project = next_project;
-    Ok(baked)
+        svc.push_project_undo_snapshot(project)?;
+        *project = next_project;
+        Ok(baked)
+    })
 }
 
 pub fn shear_objects(
@@ -924,19 +940,21 @@ pub fn shear_objects(
     pivot_x: Option<f64>,
     pivot_y: Option<f64>,
 ) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let pivot = match (pivot_x, pivot_y) {
-        (Some(x), Some(y)) => Some(beambench_common::Point2D::new(x, y)),
-        _ => None,
-    };
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::shear_objects(project, &parsed_ids, shear_x, shear_y, pivot);
-    Ok(())
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let pivot = match (pivot_x, pivot_y) {
+            (Some(x), Some(y)) => Some(beambench_common::Point2D::new(x, y)),
+            _ => None,
+        };
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::shear_objects(project, &parsed_ids, shear_x, shear_y, pivot);
+        Ok(())
+    })
 }
 
 #[derive(serde::Deserialize)]
@@ -951,18 +969,20 @@ pub fn update_object_bounds_batch(
     svc: &Arc<ServiceContext>,
     entries: Vec<BoundsEntry>,
 ) -> Result<(), String> {
-    let parsed: Vec<(ObjectId, Bounds)> = entries
-        .iter()
-        .map(|e| {
-            let oid: ObjectId = parse_id(&e.id)?;
-            Ok((oid, e.bounds))
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::update_object_bounds_batch(project, &parsed);
-    Ok(())
+    svc.atomic_edit(|| {
+        let parsed: Vec<(ObjectId, Bounds)> = entries
+            .iter()
+            .map(|e| {
+                let oid: ObjectId = parse_id(&e.id)?;
+                Ok((oid, e.bounds))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::update_object_bounds_batch(project, &parsed);
+        Ok(())
+    })
 }
 
 pub fn move_objects_to(
@@ -971,15 +991,17 @@ pub fn move_objects_to(
     x: f64,
     y: f64,
 ) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::move_objects_to_position(project, &parsed_ids, x, y);
-    Ok(())
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::move_objects_to_position(project, &parsed_ids, x, y);
+        Ok(())
+    })
 }
 
 pub fn set_start_from(svc: &Arc<ServiceContext>, mode: StartFromMode) -> Result<(), String> {
@@ -987,15 +1009,17 @@ pub fn set_start_from(svc: &Arc<ServiceContext>, mode: StartFromMode) -> Result<
 }
 
 fn set_start_from_inner(svc: &ServiceContext, mode: StartFromMode) -> Result<(), String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    if project.start_from == mode {
-        return Ok(());
-    }
-    svc.push_project_undo_snapshot(project)?;
-    project.start_from = mode;
-    project.dirty = true;
-    Ok(())
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        if project.start_from == mode {
+            return Ok(());
+        }
+        svc.push_project_undo_snapshot(project)?;
+        project.start_from = mode;
+        project.dirty = true;
+        Ok(())
+    })
 }
 
 pub fn set_job_origin(svc: &Arc<ServiceContext>, anchor: AnchorPoint) -> Result<(), String> {
@@ -1003,24 +1027,28 @@ pub fn set_job_origin(svc: &Arc<ServiceContext>, anchor: AnchorPoint) -> Result<
 }
 
 fn set_job_origin_inner(svc: &ServiceContext, anchor: AnchorPoint) -> Result<(), String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    if project.job_origin == anchor {
-        return Ok(());
-    }
-    svc.push_project_undo_snapshot(project)?;
-    project.job_origin = anchor;
-    project.dirty = true;
-    Ok(())
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        if project.job_origin == anchor {
+            return Ok(());
+        }
+        svc.push_project_undo_snapshot(project)?;
+        project.job_origin = anchor;
+        project.dirty = true;
+        Ok(())
+    })
 }
 
 pub fn set_user_origin(svc: &Arc<ServiceContext>, x: f64, y: f64) -> Result<(), String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    project.user_origin = Some((x, y));
-    project.dirty = true;
-    Ok(())
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        project.user_origin = Some((x, y));
+        project.dirty = true;
+        Ok(())
+    })
 }
 
 /// Merge a partial [`ProjectOptimizationPatch`] onto the open project's
@@ -1044,36 +1072,40 @@ fn set_optimization_inner(
     svc: &ServiceContext,
     patch: ProjectOptimizationPatch,
 ) -> Result<ProjectOptimization, String> {
-    let (changed, optimization) = {
-        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-        let project = guard.as_mut().ok_or("No project open")?;
-        // Peek at the patch outcome before snapshotting undo so a no-op
-        // call doesn't push a useless history entry. `apply_patch`
-        // returns true iff any field's value actually changed.
-        let mut probe = project.optimization.clone();
-        if !probe.apply_patch(&patch) {
-            return Ok(project.optimization.clone());
+    svc.atomic_edit(|| {
+        let (changed, optimization) = {
+            let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+            let project = guard.as_mut().ok_or("No project open")?;
+            // Peek at the patch outcome before snapshotting undo so a no-op
+            // call doesn't push a useless history entry. `apply_patch`
+            // returns true iff any field's value actually changed.
+            let mut probe = project.optimization.clone();
+            if !probe.apply_patch(&patch) {
+                return Ok(project.optimization.clone());
+            }
+            svc.push_project_undo_snapshot(project)?;
+            project.optimization = probe;
+            project.dirty = true;
+            (true, project.optimization.clone())
+        };
+        if changed {
+            // Plan cache depends on `project.optimization` via
+            // `PlannerInput`, so any flag toggle must invalidate.
+            planning::invalidate_plan_cache(svc).map_err(|e| format!("{e}"))?;
         }
-        svc.push_project_undo_snapshot(project)?;
-        project.optimization = probe;
-        project.dirty = true;
-        (true, project.optimization.clone())
-    };
-    if changed {
-        // Plan cache depends on `project.optimization` via
-        // `PlannerInput`, so any flag toggle must invalidate.
-        planning::invalidate_plan_cache(svc).map_err(|e| format!("{e}"))?;
-    }
-    Ok(optimization)
+        Ok(optimization)
+    })
 }
 
 pub fn update_project_notes(svc: &Arc<ServiceContext>, notes: String) -> Result<(), String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    project.notes = notes;
-    project.dirty = true;
-    Ok(())
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        project.notes = notes;
+        project.dirty = true;
+        Ok(())
+    })
 }
 
 /// M3: set the project's material thickness used as the absolute-Z reference for Focus Test.
@@ -1082,27 +1114,31 @@ pub fn update_project_notes(svc: &Arc<ServiceContext>, notes: String) -> Result<
 /// undo snapshot and bumps `dirty` when the value actually changes — matches `set_optimization`'s
 /// no-op short-circuit.
 pub fn set_material_height(svc: &Arc<ServiceContext>, value: Option<f64>) -> Result<(), String> {
-    if value.is_some_and(|v| !v.is_finite() || v < 0.0) {
-        return Err("Material height must be a finite, non-negative number".into());
-    }
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    if project.material_height_mm == value {
-        return Ok(());
-    }
-    svc.push_project_undo_snapshot(project)?;
-    project.material_height_mm = value;
-    project.dirty = true;
-    Ok(())
+    svc.atomic_edit(|| {
+        if value.is_some_and(|v| !v.is_finite() || v < 0.0) {
+            return Err("Material height must be a finite, non-negative number".into());
+        }
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        if project.material_height_mm == value {
+            return Ok(());
+        }
+        svc.push_project_undo_snapshot(project)?;
+        project.material_height_mm = value;
+        project.dirty = true;
+        Ok(())
+    })
 }
 
 pub fn set_transform_locks(svc: &Arc<ServiceContext>, locks: TransformLocks) -> Result<(), String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    project.transform_locks = locks;
-    project.dirty = true;
-    Ok(())
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        project.transform_locks = locks;
+        project.dirty = true;
+        Ok(())
+    })
 }
 
 pub fn set_objects_visible(
@@ -1110,15 +1146,17 @@ pub fn set_objects_visible(
     object_ids: Vec<String>,
     visible: bool,
 ) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::set_objects_visible(project, &parsed_ids, visible);
-    Ok(())
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::set_objects_visible(project, &parsed_ids, visible);
+        Ok(())
+    })
 }
 
 pub fn reassign_layer(
@@ -1126,33 +1164,35 @@ pub fn reassign_layer(
     object_ids: Vec<String>,
     target_layer_id: String,
 ) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let tlid = parse_id(&target_layer_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let tlid = parse_id(&target_layer_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
 
-    // Validate each object against the target layer's content-type
-    // invariant before committing. This ensures reassignment goes
-    // through the same validation path as add_object / update_object
-    // / import, preventing family-routing mismatches or mixed-content
-    // state from direct palette reassigns.
-    let dest_layer = project
-        .layers
-        .iter()
-        .find(|l| l.id == tlid)
-        .ok_or("Target layer not found")?;
-    for &oid in &parsed_ids {
-        let obj = project.find_object(oid).ok_or("Object not found")?;
-        crate::check_layer_content_invariant(&obj.data, dest_layer, project)
-            .map_err(|e| e.to_string())?;
-    }
+        // Validate each object against the target layer's content-type
+        // invariant before committing. This ensures reassignment goes
+        // through the same validation path as add_object / update_object
+        // / import, preventing family-routing mismatches or mixed-content
+        // state from direct palette reassigns.
+        let dest_layer = project
+            .layers
+            .iter()
+            .find(|l| l.id == tlid)
+            .ok_or("Target layer not found")?;
+        for &oid in &parsed_ids {
+            let obj = project.find_object(oid).ok_or("Object not found")?;
+            crate::check_layer_content_invariant(&obj.data, dest_layer, project)
+                .map_err(|e| e.to_string())?;
+        }
 
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::operations::reassign_layer(project, &parsed_ids, tlid);
-    Ok(())
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::operations::reassign_layer(project, &parsed_ids, tlid);
+        Ok(())
+    })
 }
 
 pub fn move_objects_in_outliner(
@@ -1161,52 +1201,54 @@ pub fn move_objects_in_outliner(
     target_layer_id: String,
     before_object_id: Option<String>,
 ) -> Result<(), String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|id| parse_id(id))
-        .collect::<Result<Vec<_>, _>>()?;
-    let target_layer_id = parse_id(&target_layer_id)?;
-    let before_object_id = before_object_id.as_deref().map(parse_id).transpose()?;
-    let mut guard = svc
-        .project
-        .lock()
-        .map_err(|error| format!("lock: {error}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let destination = project
-        .layers
-        .iter()
-        .find(|layer| layer.id == target_layer_id)
-        .ok_or("Target layer not found")?;
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|id| parse_id(id))
+            .collect::<Result<Vec<_>, _>>()?;
+        let target_layer_id = parse_id(&target_layer_id)?;
+        let before_object_id = before_object_id.as_deref().map(parse_id).transpose()?;
+        let mut guard = svc
+            .project
+            .lock()
+            .map_err(|error| format!("lock: {error}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let destination = project
+            .layers
+            .iter()
+            .find(|layer| layer.id == target_layer_id)
+            .ok_or("Target layer not found")?;
 
-    let mut expanded = Vec::new();
-    let mut pending = parsed_ids.clone();
-    while let Some(object_id) = pending.pop() {
-        if expanded.contains(&object_id) {
-            continue;
+        let mut expanded = Vec::new();
+        let mut pending = parsed_ids.clone();
+        while let Some(object_id) = pending.pop() {
+            if expanded.contains(&object_id) {
+                continue;
+            }
+            let object = project.find_object(object_id).ok_or("Object not found")?;
+            expanded.push(object_id);
+            if let ObjectData::Group { children } = &object.data {
+                pending.extend(children.iter().copied());
+            }
         }
-        let object = project.find_object(object_id).ok_or("Object not found")?;
-        expanded.push(object_id);
-        if let ObjectData::Group { children } = &object.data {
-            pending.extend(children.iter().copied());
+        for object_id in &expanded {
+            let object = project.find_object(*object_id).ok_or("Object not found")?;
+            if matches!(object.data, ObjectData::Group { .. }) {
+                continue;
+            }
+            crate::check_layer_content_invariant(&object.data, destination, project)
+                .map_err(|error| error.to_string())?;
         }
-    }
-    for object_id in &expanded {
-        let object = project.find_object(*object_id).ok_or("Object not found")?;
-        if matches!(object.data, ObjectData::Group { .. }) {
-            continue;
-        }
-        crate::check_layer_content_invariant(&object.data, destination, project)
-            .map_err(|error| error.to_string())?;
-    }
 
-    svc.push_project_undo_snapshot(project)?;
-    beambench_core::move_objects_in_outliner(
-        project,
-        &parsed_ids,
-        target_layer_id,
-        before_object_id,
-    );
-    Ok(())
+        svc.push_project_undo_snapshot(project)?;
+        beambench_core::move_objects_in_outliner(
+            project,
+            &parsed_ids,
+            target_layer_id,
+            before_object_id,
+        );
+        Ok(())
+    })
 }
 
 pub fn select_open_shapes(svc: &Arc<ServiceContext>) -> Result<Vec<String>, String> {
@@ -1446,29 +1488,31 @@ fn delete_duplicates_inner(
     svc: &ServiceContext,
     parsed_ids: &[ObjectId],
 ) -> Result<Vec<String>, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let selection_scope = parsed_ids.len() >= 2;
-    let dup_ids = duplicate_ids_for_scope(project, parsed_ids);
-    if dup_ids.is_empty() {
-        return Ok(parsed_ids.iter().map(|id| id.to_string()).collect());
-    }
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let selection_scope = parsed_ids.len() >= 2;
+        let dup_ids = duplicate_ids_for_scope(project, parsed_ids);
+        if dup_ids.is_empty() {
+            return Ok(parsed_ids.iter().map(|id| id.to_string()).collect());
+        }
 
-    svc.push_project_undo_snapshot(project)?;
-    let dup_vec: Vec<ObjectId> = dup_ids.iter().copied().collect();
-    project.remove_objects(&dup_vec);
-    let remaining = if parsed_ids.is_empty() || !selection_scope {
-        Vec::new()
-    } else {
-        parsed_ids
-            .iter()
-            .filter(|id| !dup_ids.contains(*id))
-            .map(|id| id.to_string())
-            .collect()
-    };
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(remaining)
+        svc.push_project_undo_snapshot(project)?;
+        let dup_vec: Vec<ObjectId> = dup_ids.iter().copied().collect();
+        project.remove_objects(&dup_vec);
+        let remaining = if parsed_ids.is_empty() || !selection_scope {
+            Vec::new()
+        } else {
+            parsed_ids
+                .iter()
+                .filter(|id| !dup_ids.contains(*id))
+                .map(|id| id.to_string())
+                .collect()
+        };
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(remaining)
+    })
 }
 
 pub fn auto_join_shapes(
@@ -1476,20 +1520,22 @@ pub fn auto_join_shapes(
     object_ids: Vec<String>,
     tolerance: f64,
 ) -> Result<Vec<ProjectObject>, String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let Some(plan) = plan_auto_join_shapes(project, &parsed_ids, tolerance)? else {
-        return Ok(vec![]);
-    };
-    svc.push_project_undo_snapshot(project)?;
-    let updated = apply_auto_join_plan(project, plan)?;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let Some(plan) = plan_auto_join_shapes(project, &parsed_ids, tolerance)? else {
+            return Ok(vec![]);
+        };
+        svc.push_project_undo_snapshot(project)?;
+        let updated = apply_auto_join_plan(project, plan)?;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 pub fn optimize_shapes(
@@ -1497,21 +1543,23 @@ pub fn optimize_shapes(
     object_ids: Vec<String>,
     tolerance: f64,
 ) -> Result<Vec<ProjectObject>, String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let changes = plan_optimize_shapes(project, &parsed_ids, tolerance);
-    if changes.is_empty() {
-        return Ok(vec![]);
-    }
-    svc.push_project_undo_snapshot(project)?;
-    let updated = apply_optimize_plan(project, changes)?;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let changes = plan_optimize_shapes(project, &parsed_ids, tolerance);
+        if changes.is_empty() {
+            return Ok(vec![]);
+        }
+        svc.push_project_undo_snapshot(project)?;
+        let updated = apply_optimize_plan(project, changes)?;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 super::define_commands! {

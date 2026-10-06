@@ -378,11 +378,44 @@ impl Project {
         let len_before = self.objects.len();
         self.objects.retain(|o| o.id != id);
         if self.objects.len() != len_before {
+            let removed_ids = self.prune_group_members(removed_ids);
             self.prune_image_mask_refs(&removed_ids);
             self.dirty = true;
             true
         } else {
             false
+        }
+    }
+
+    /// Drop deleted objects from the groups that contain them, delete groups
+    /// left empty (up through their parents), and refit the bounds of groups
+    /// that changed. Returns every removed id, including emptied groups.
+    fn prune_group_members(
+        &mut self,
+        mut removed: std::collections::HashSet<ObjectId>,
+    ) -> std::collections::HashSet<ObjectId> {
+        loop {
+            let mut changed_groups = Vec::new();
+            let mut emptied = Vec::new();
+            for object in &mut self.objects {
+                if let ObjectData::Group { children } = &mut object.data {
+                    let before = children.len();
+                    children.retain(|child| !removed.contains(child));
+                    if children.is_empty() {
+                        emptied.push(object.id);
+                    } else if children.len() != before {
+                        changed_groups.push(object.id);
+                    }
+                }
+            }
+            for group_id in changed_groups {
+                crate::operations::recompute_group_bounds(self, group_id);
+            }
+            if emptied.is_empty() {
+                return removed;
+            }
+            self.objects.retain(|object| !emptied.contains(&object.id));
+            removed.extend(emptied);
         }
     }
 
@@ -408,6 +441,7 @@ impl Project {
         self.objects.retain(|o| !id_set.contains(&o.id));
         let removed = len_before - self.objects.len();
         if removed > 0 {
+            let id_set = self.prune_group_members(id_set);
             self.prune_image_mask_refs(&id_set);
             self.dirty = true;
         }
@@ -551,7 +585,10 @@ mod tests {
         use std::cmp::Ordering;
         assert_eq!(compare_versions("0.2.10", "0.2.9"), Some(Ordering::Greater));
         assert_eq!(compare_versions("v1.0", "1.0.0"), Some(Ordering::Equal));
-        assert_eq!(compare_versions("1.0.0-beta.1", "1.0.0"), Some(Ordering::Equal));
+        assert_eq!(
+            compare_versions("1.0.0-beta.1", "1.0.0"),
+            Some(Ordering::Equal)
+        );
         assert_eq!(compare_versions("dev", "1.0"), None);
         let mut meta = ProjectMetadata::new("x");
         meta.app_version = "999.0.0".into();
@@ -561,6 +598,61 @@ mod tests {
         meta.stamp_for_save();
         assert!(!meta.saved_by_newer_app());
         assert!(!meta.format_is_newer_than_supported());
+    }
+
+    #[test]
+    fn deleting_group_members_prunes_and_empties_groups() {
+        use beambench_common::{Bounds, Point2D};
+        let mut project = Project::new("groups");
+        let layer = project.ensure_default_layer();
+        let shape = |x: f64| {
+            ProjectObject::new(
+                "r",
+                layer,
+                Bounds::new(Point2D::new(x, 0.0), Point2D::new(x + 10.0, 10.0)),
+                ObjectData::Shape {
+                    kind: crate::object::ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            )
+        };
+        let a = project.add_object(shape(0.0)).id;
+        let b = project.add_object(shape(20.0)).id;
+        let c = project.add_object(shape(40.0)).id;
+        let group_bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(50.0, 10.0));
+        let inner = project
+            .add_object(ProjectObject::new(
+                "inner",
+                layer,
+                group_bounds,
+                ObjectData::Group {
+                    children: vec![a, b],
+                },
+            ))
+            .id;
+        let outer = project
+            .add_object(ProjectObject::new(
+                "outer",
+                layer,
+                group_bounds,
+                ObjectData::Group {
+                    children: vec![inner, c],
+                },
+            ))
+            .id;
+
+        project.remove_object(a);
+        let ObjectData::Group { children } = &project.find_object(inner).unwrap().data else {
+            panic!("inner group kept");
+        };
+        assert_eq!(children, &vec![b]);
+        assert_eq!(project.find_object(inner).unwrap().bounds.min.x, 20.0);
+
+        project.remove_objects(&[b, c]);
+        assert!(project.find_object(inner).is_none());
+        assert!(project.find_object(outer).is_none());
     }
 
     use super::*;

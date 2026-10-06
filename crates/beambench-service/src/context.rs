@@ -575,6 +575,38 @@ impl ServiceContext {
         Ok(())
     }
 
+    /// Run an edit so that it either completes or changes nothing. The edit
+    /// locks the project itself. If it fails, the project and undo history
+    /// are put back; if it succeeds, its undo step restores the project as it
+    /// was before the edit, even when the edit adjusted it (for example by
+    /// unlinking a clone) before recording its own snapshot.
+    pub fn atomic_edit<T, E>(&self, edit: impl FnOnce() -> Result<T, E>) -> Result<T, E> {
+        let before = match (self.project.lock(), self.history.lock()) {
+            (Ok(project), Ok(history)) => project.clone().map(|p| (p, history.generation())),
+            _ => None,
+        };
+        let result = edit();
+        let Some((before, generation)) = before else {
+            return result;
+        };
+        let (Ok(mut project), Ok(mut history)) = (self.project.lock(), self.history.lock()) else {
+            return result;
+        };
+        let own_snapshot = history.generation() == generation + 1;
+        let untouched_by_others = own_snapshot || history.generation() == generation;
+        match &result {
+            Err(_) if untouched_by_others => {
+                *project = Some(before);
+                if own_snapshot {
+                    history.discard_last_snapshot();
+                }
+            }
+            Ok(_) if own_snapshot => history.replace_last_snapshot(before),
+            _ => {}
+        }
+        result
+    }
+
     pub fn clear_project_history(&self) -> Result<(), String> {
         let mut history = self
             .history

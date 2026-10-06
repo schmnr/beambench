@@ -1103,86 +1103,88 @@ fn append_synthetic_project_to_canvas(
     mut synthetic: Project,
     warnings: Vec<QualityTestWarning>,
 ) -> Result<CanvasMaterialTestResponse, QualityTestError> {
-    let created_object_ids = synthetic
-        .objects
-        .iter()
-        .map(|object| object.id)
-        .collect::<Vec<_>>();
-    let created_layer_ids = synthetic
-        .layers
-        .iter()
-        .map(|layer| layer.id)
-        .collect::<Vec<_>>();
-    let mut project_guard = ctx.project.lock().map_err(|e| QualityTestError::Internal {
-        message: format!("Failed to lock project: {e}"),
-    })?;
+    ctx.atomic_edit(|| {
+        let created_object_ids = synthetic
+            .objects
+            .iter()
+            .map(|object| object.id)
+            .collect::<Vec<_>>();
+        let created_layer_ids = synthetic
+            .layers
+            .iter()
+            .map(|layer| layer.id)
+            .collect::<Vec<_>>();
+        let mut project_guard = ctx.project.lock().map_err(|e| QualityTestError::Internal {
+            message: format!("Failed to lock project: {e}"),
+        })?;
 
-    let project = if let Some(project) = project_guard.as_mut() {
-        ctx.push_project_undo_snapshot(project)
-            .map_err(|message| QualityTestError::Internal { message })?;
-        let layer_offset = project.layers.len() as u32;
-        for (index, layer) in synthetic.layers.iter_mut().enumerate() {
-            layer.order_index = layer_offset + index as u32;
-        }
-        project.layers.extend(synthetic.layers);
-        project.objects.extend(synthetic.objects);
-        crate::ops::project::refresh_project_text_caches(project);
-        project.dirty = true;
-        project.clone()
-    } else {
-        let mut project = Project::new("Material Test");
-        project.workspace = synthetic.workspace;
-        project.machine_profile_id = synthetic.machine_profile_id;
-        project.machine_profile_snapshot = synthetic.machine_profile_snapshot;
-        project.layers = synthetic.layers;
-        project.objects = synthetic.objects;
-        project.start_from = StartFromMode::AbsoluteCoords;
-        project.job_origin = AnchorPoint::TopLeft;
-        project.user_origin = None;
-        crate::ops::project::refresh_project_text_caches(&mut project);
-        project.dirty = true;
-        *project_guard = Some(project.clone());
-        {
-            let mut path_guard =
-                ctx.project_path
-                    .lock()
-                    .map_err(|e| QualityTestError::Internal {
-                        message: format!("Failed to lock project_path: {e}"),
-                    })?;
-            *path_guard = None;
-        }
-        ctx.clear_project_history()
-            .map_err(|message| QualityTestError::Internal { message })?;
+        let project = if let Some(project) = project_guard.as_mut() {
+            ctx.push_project_undo_snapshot(project)
+                .map_err(|message| QualityTestError::Internal { message })?;
+            let layer_offset = project.layers.len() as u32;
+            for (index, layer) in synthetic.layers.iter_mut().enumerate() {
+                layer.order_index = layer_offset + index as u32;
+            }
+            project.layers.extend(synthetic.layers);
+            project.objects.extend(synthetic.objects);
+            crate::ops::project::refresh_project_text_caches(project);
+            project.dirty = true;
+            project.clone()
+        } else {
+            let mut project = Project::new("Material Test");
+            project.workspace = synthetic.workspace;
+            project.machine_profile_id = synthetic.machine_profile_id;
+            project.machine_profile_snapshot = synthetic.machine_profile_snapshot;
+            project.layers = synthetic.layers;
+            project.objects = synthetic.objects;
+            project.start_from = StartFromMode::AbsoluteCoords;
+            project.job_origin = AnchorPoint::TopLeft;
+            project.user_origin = None;
+            crate::ops::project::refresh_project_text_caches(&mut project);
+            project.dirty = true;
+            *project_guard = Some(project.clone());
+            {
+                let mut path_guard =
+                    ctx.project_path
+                        .lock()
+                        .map_err(|e| QualityTestError::Internal {
+                            message: format!("Failed to lock project_path: {e}"),
+                        })?;
+                *path_guard = None;
+            }
+            ctx.clear_project_history()
+                .map_err(|message| QualityTestError::Internal { message })?;
+            drop(project_guard);
+            ctx.emit_event(
+                "project.created",
+                serde_json::json!({
+                    "project": crate::events::project_summary(&project, None),
+                }),
+            );
+            invalidate_plan_for_quality_test(ctx)?;
+            return Ok(CanvasMaterialTestResponse {
+                project,
+                warnings,
+                created_object_ids,
+                created_layer_ids,
+            });
+        };
         drop(project_guard);
+        invalidate_plan_for_quality_test(ctx)?;
         ctx.emit_event(
-            "project.created",
+            "project.quality_test.created",
             serde_json::json!({
-                "project": crate::events::project_summary(&project, None),
+                "project_id": project.metadata.project_id,
+                "object_ids": created_object_ids,
+                "layer_ids": created_layer_ids,
             }),
         );
-        invalidate_plan_for_quality_test(ctx)?;
-        return Ok(CanvasMaterialTestResponse {
+        Ok(CanvasMaterialTestResponse {
             project,
             warnings,
             created_object_ids,
             created_layer_ids,
-        });
-    };
-    drop(project_guard);
-    invalidate_plan_for_quality_test(ctx)?;
-    ctx.emit_event(
-        "project.quality_test.created",
-        serde_json::json!({
-            "project_id": project.metadata.project_id,
-            "object_ids": created_object_ids,
-            "layer_ids": created_layer_ids,
-        }),
-    );
-    Ok(CanvasMaterialTestResponse {
-        project,
-        warnings,
-        created_object_ids,
-        created_layer_ids,
+        })
     })
 }
 

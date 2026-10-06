@@ -1577,8 +1577,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   removeObjects: async (objectIds) => {
     try {
       const currentProject = get().project;
+      const isolationPath = useUiStore.getState().selectionIsolationPath;
+      const isolationRootId = isolationPath[isolationPath.length - 1] ?? null;
       const targetIds = currentProject
-        ? expandSelectionMembers(currentProject, objectIds)
+        ? expandSelectionMembers(currentProject, objectIds, isolationRootId)
         : objectIds;
       await projectService.removeObjects(targetIds);
       const { selectedObjectIds, selectedLayerId } = get();

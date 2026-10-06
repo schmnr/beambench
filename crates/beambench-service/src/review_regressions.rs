@@ -90,7 +90,8 @@ fn selected_clone_keeps_its_source_and_exports_to_pdf() {
     let clone_id = clone.id.to_string();
     project.add_object(source);
     project.add_object(clone);
-    let selected_pdf = beambench_core::export_pdf(&project, true, &[project.objects[1].id]).unwrap();
+    let selected_pdf =
+        beambench_core::export_pdf(&project, true, &[project.objects[1].id]).unwrap();
     assert!(String::from_utf8(selected_pdf).unwrap().contains(" RG\n"));
     *ctx.project.lock().unwrap() = Some(project);
     assert!(planning::generate_plan(&ctx).is_ok());

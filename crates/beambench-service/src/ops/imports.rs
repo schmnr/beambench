@@ -1278,100 +1278,60 @@ fn import_pending(
     pending: Vec<PendingImport>,
     create_layer: Option<super::project::AddObjectLayerInput>,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let file_count = pending.len();
-    if pending.is_empty() {
-        return Ok(Vec::new());
-    }
-    let imports_document = pending
-        .iter()
-        .any(|item| matches!(item, PendingImport::Lbrn { .. }));
-
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let original = project_guard
-        .as_ref()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    // Stage the entire batch before changing the live project or undo history.
-    // Asset bytes are Arc-backed and stay shared with the original project.
-    let mut working = original.clone();
-    let project = &mut working;
-    let layer_id = if let Some(spec) = create_layer {
-        let mut layer = Layer::new_single_entry(spec.name, spec.operation);
-        if let Some(color_tag) = spec.color_tag {
-            layer.color_tag =
-                ColorTag(beambench_common::canonical_palette_color_tag(&color_tag).to_string());
-            layer.is_tool_layer = beambench_common::is_tool_color(&layer.color_tag.0);
+    ctx.atomic_edit(|| {
+        let file_count = pending.len();
+        if pending.is_empty() {
+            return Ok(Vec::new());
         }
-        if layer.is_tool_layer || layer.primary_entry().operation == OperationType::Tool {
-            layer.canonicalize_tool_layer();
-        } else if let Some(patch) = spec.entry_patch {
-            layer.entries[0].apply_patch(&patch);
-        }
-        project.add_layer(layer).id
-    } else {
-        layer_id
-    };
-    if project.find_layer(layer_id).is_none() {
-        return Err(ServiceError::not_found("Layer not found"));
-    }
+        let imports_document = pending
+            .iter()
+            .any(|item| matches!(item, PendingImport::Lbrn { .. }));
 
-    let allow_tool_imports = ctx
-        .settings
-        .lock()
-        .map_err(|e| lock_err("settings", e))?
-        .allow_importing_to_tool_layers;
-
-    let mut imported_objects = Vec::new();
-    let mut routing_notices: Vec<RoutingNotice> = Vec::new();
-    let mut import_warnings: Vec<String> = Vec::new();
-    for item in pending {
-        // Per-item auto-routing: images must land on an image layer;
-        // vectors/SVG must land on a non-image layer. Resolved once
-        // per item so a batch can split across multiple layers.
-        let effective_layer_id = match &item {
-            PendingImport::Lbrn { .. } => layer_id,
-            PendingImport::Image { .. } => {
-                let (resolved, notice) = route_import_with_notice(
-                    project,
-                    layer_id,
-                    RoutingTarget::NeedsImage,
-                    allow_tool_imports,
-                )?;
-                if let Some(notice) = notice {
-                    routing_notices.push(notice);
-                }
-                resolved
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let original = project_guard
+            .as_ref()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        // Stage the entire batch before changing the live project or undo history.
+        // Asset bytes are Arc-backed and stay shared with the original project.
+        let mut working = original.clone();
+        let project = &mut working;
+        let layer_id = if let Some(spec) = create_layer {
+            let mut layer = Layer::new_single_entry(spec.name, spec.operation);
+            if let Some(color_tag) = spec.color_tag {
+                layer.color_tag =
+                    ColorTag(beambench_common::canonical_palette_color_tag(&color_tag).to_string());
+                layer.is_tool_layer = beambench_common::is_tool_color(&layer.color_tag.0);
             }
-            PendingImport::Vector { paths, .. } if paths.is_empty() => layer_id,
-            PendingImport::Svg { .. } | PendingImport::Vector { .. } => {
-                let (resolved, notice) = route_import_with_notice(
-                    project,
-                    layer_id,
-                    RoutingTarget::NeedsNonImage,
-                    allow_tool_imports,
-                )?;
-                if let Some(notice) = notice {
-                    routing_notices.push(notice);
-                }
-                resolved
+            if layer.is_tool_layer || layer.primary_entry().operation == OperationType::Tool {
+                layer.canonicalize_tool_layer();
+            } else if let Some(patch) = spec.entry_patch {
+                layer.entries[0].apply_patch(&patch);
             }
+            project.add_layer(layer).id
+        } else {
+            layer_id
         };
+        if project.find_layer(layer_id).is_none() {
+            return Err(ServiceError::not_found("Layer not found"));
+        }
 
-        match item {
-            PendingImport::Svg { bytes } => {
-                let ids = import_svg(&bytes, project, effective_layer_id)
-                    .map_err(|e| ServiceError::invalid_input(format!("SVG import failed: {e}")))?;
+        let allow_tool_imports = ctx
+            .settings
+            .lock()
+            .map_err(|e| lock_err("settings", e))?
+            .allow_importing_to_tool_layers;
 
-                let raster_ids = ids
-                    .iter()
-                    .copied()
-                    .filter(|id| {
-                        project.find_object(*id).is_some_and(|object| {
-                            matches!(object.data, ObjectData::RasterImage { .. })
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                if !raster_ids.is_empty() {
-                    let (image_layer_id, notice) = route_import_with_notice(
+        let mut imported_objects = Vec::new();
+        let mut routing_notices: Vec<RoutingNotice> = Vec::new();
+        let mut import_warnings: Vec<String> = Vec::new();
+        for item in pending {
+            // Per-item auto-routing: images must land on an image layer;
+            // vectors/SVG must land on a non-image layer. Resolved once
+            // per item so a batch can split across multiple layers.
+            let effective_layer_id = match &item {
+                PendingImport::Lbrn { .. } => layer_id,
+                PendingImport::Image { .. } => {
+                    let (resolved, notice) = route_import_with_notice(
                         project,
                         layer_id,
                         RoutingTarget::NeedsImage,
@@ -1380,237 +1340,279 @@ fn import_pending(
                     if let Some(notice) = notice {
                         routing_notices.push(notice);
                     }
-                    for raster_id in raster_ids {
-                        if let Some(object) = project.find_object_mut(raster_id) {
-                            object.layer_id = image_layer_id;
+                    resolved
+                }
+                PendingImport::Vector { paths, .. } if paths.is_empty() => layer_id,
+                PendingImport::Svg { .. } | PendingImport::Vector { .. } => {
+                    let (resolved, notice) = route_import_with_notice(
+                        project,
+                        layer_id,
+                        RoutingTarget::NeedsNonImage,
+                        allow_tool_imports,
+                    )?;
+                    if let Some(notice) = notice {
+                        routing_notices.push(notice);
+                    }
+                    resolved
+                }
+            };
+
+            match item {
+                PendingImport::Svg { bytes } => {
+                    let ids = import_svg(&bytes, project, effective_layer_id)
+                        .map_err(|e| ServiceError::invalid_input(format!("SVG import failed: {e}")))?;
+
+                    let raster_ids = ids
+                        .iter()
+                        .copied()
+                        .filter(|id| {
+                            project.find_object(*id).is_some_and(|object| {
+                                matches!(object.data, ObjectData::RasterImage { .. })
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    if !raster_ids.is_empty() {
+                        let (image_layer_id, notice) = route_import_with_notice(
+                            project,
+                            layer_id,
+                            RoutingTarget::NeedsImage,
+                            allow_tool_imports,
+                        )?;
+                        if let Some(notice) = notice {
+                            routing_notices.push(notice);
+                        }
+                        for raster_id in raster_ids {
+                            if let Some(object) = project.find_object_mut(raster_id) {
+                                object.layer_id = image_layer_id;
+                            }
                         }
                     }
+                    imported_objects.extend(
+                        ids.iter()
+                            .filter_map(|id| project.find_object(*id).cloned())
+                            .collect::<Vec<_>>(),
+                    );
                 }
-                imported_objects.extend(
-                    ids.iter()
-                        .filter_map(|id| project.find_object(*id).cloned())
-                        .collect::<Vec<_>>(),
+                PendingImport::Image {
+                    filename,
+                    bytes,
+                    source_path,
+                } => {
+                    let obj_id =
+                        import_image(&bytes, &filename, source_path, project, effective_layer_id)
+                            .map_err(|e| {
+                                ServiceError::invalid_input(format!("Image import failed: {e}"))
+                            })?;
+                    // If target layer has pass-through enabled, resize to native-DPI size
+                    super::project::sync_passthrough_single_object(project, obj_id);
+                    let obj = project
+                        .find_object(obj_id)
+                        .ok_or_else(|| ServiceError::internal("Failed to find imported object"))?
+                        .clone();
+                    imported_objects.push(obj);
+                }
+                PendingImport::Vector {
+                    name_prefix,
+                    mut paths,
+                    images,
+                    warnings,
+                    y_up,
+                } => {
+                    if y_up {
+                        let flip = y_up_to_canvas(project.workspace.bed_height_mm);
+                        for imported in &mut paths {
+                            imported.path = bake_transform(&imported.path, &flip);
+                        }
+                    }
+                    imported_objects.extend(add_imported_vector_paths(
+                        project,
+                        effective_layer_id,
+                        &name_prefix,
+                        paths,
+                    )?);
+                    if !images.is_empty() {
+                        let (image_layer_id, notice) = route_import_with_notice(
+                            project,
+                            layer_id,
+                            RoutingTarget::NeedsImage,
+                            allow_tool_imports,
+                        )?;
+                        if let Some(notice) = notice {
+                            routing_notices.push(notice);
+                        }
+                        for (index, image) in images.into_iter().enumerate() {
+                            let name = format!("{name_prefix} image {}", index + 1);
+                            let id = import_image(&image.png, &name, None, project, image_layer_id)
+                                .map_err(|e| {
+                                    ServiceError::invalid_input(format!("PDF image import failed: {e}"))
+                                })?;
+                            let mask_object = if let Some(clip) = image.clip {
+                                let mask_layer = if let Some(layer) = project
+                                    .layers
+                                    .iter()
+                                    .find(|l| l.is_tool_layer && l.name == "PDF clipping masks")
+                                {
+                                    layer.id
+                                } else {
+                                    let mut layer =
+                                        Layer::new("PDF clipping masks", OperationType::Tool);
+                                    layer.canonicalize_tool_layer();
+                                    layer.visible = false;
+                                    project.add_layer(layer).id
+                                };
+                                let mask = vecpath_to_project_object(
+                                    mask_layer,
+                                    format!("{name} clipping"),
+                                    clip,
+                                );
+                                Some(project.add_object(mask).clone())
+                            } else {
+                                None
+                            };
+                            let object = project
+                                .find_object_mut(id)
+                                .ok_or_else(|| ServiceError::internal("Missing imported PDF image"))?;
+                            let t = image.transform;
+                            let width = t.a.hypot(t.b);
+                            let height = t.c.hypot(t.d);
+                            let center = t.apply(&Point2D::new(0.5, 0.5));
+                            object.bounds = Bounds::new(
+                                Point2D::new(center.x - width / 2.0, center.y - height / 2.0),
+                                Point2D::new(center.x + width / 2.0, center.y + height / 2.0),
+                            );
+                            object.transform = Transform2D {
+                                a: t.a / width,
+                                b: t.b / width,
+                                c: t.c / height,
+                                d: t.d / height,
+                                tx: 0.0,
+                                ty: 0.0,
+                            };
+                            if let Some(mask) = &mask_object
+                                && let ObjectData::RasterImage { masks, .. } = &mut object.data
+                            {
+                                masks.push(beambench_core::ImageMaskRef {
+                                    object_id: mask.id,
+                                    polarity: beambench_core::ImageMaskPolarity::KeepInside,
+                                });
+                            }
+                            imported_objects.push(object.clone());
+                            if let Some(mask) = mask_object {
+                                let mask_id = mask.id;
+                                imported_objects.push(mask);
+                                let group = super::vector::group_objects_in_project(
+                                    project,
+                                    super::vector::GroupObjectsInput {
+                                        object_ids: vec![id, mask_id],
+                                    },
+                                )?;
+                                imported_objects.push(group);
+                            }
+                        }
+                    }
+                    import_warnings.extend(warnings);
+                }
+                PendingImport::Lbrn { document } => {
+                    let (objects, warnings) = import_lbrn_document(project, document)?;
+                    imported_objects.extend(objects);
+                    import_warnings.extend(warnings);
+                }
+            }
+        }
+
+        if imported_objects.is_empty() && !imports_document {
+            return Ok(imported_objects);
+        }
+
+        if project.objects.len() > IMPORT_OBJECT_LIMIT {
+            return Err(ServiceError::invalid_input(format!(
+                "This import would leave {} objects in the project, more than the {IMPORT_OBJECT_LIMIT} it can save. Join or simplify the shapes, or split the project before importing again.",
+                project.objects.len()
+            )));
+        }
+
+        // Refresh text caches for any imported text objects (SVG text import
+        // creates objects with resolved_path_data: None).
+        super::project::refresh_project_text_caches(project);
+
+        // Resize text object bounds from actual resolved geometry — the importer
+        // uses a heuristic estimate (content.len() * 0.6) that doesn't match real
+        // glyph metrics.
+        for obj in &mut project.objects {
+            if let Some(intrinsic) = intrinsic_text_bounds(&obj.data) {
+                let w = intrinsic.width().max(0.0);
+                let h = intrinsic.height().max(0.0);
+                obj.bounds = Bounds::new(
+                    obj.bounds.min,
+                    Point2D::new(obj.bounds.min.x + w, obj.bounds.min.y + h),
                 );
             }
-            PendingImport::Image {
-                filename,
-                bytes,
-                source_path,
-            } => {
-                let obj_id =
-                    import_image(&bytes, &filename, source_path, project, effective_layer_id)
-                        .map_err(|e| {
-                            ServiceError::invalid_input(format!("Image import failed: {e}"))
-                        })?;
-                // If target layer has pass-through enabled, resize to native-DPI size
-                super::project::sync_passthrough_single_object(project, obj_id);
-                let obj = project
-                    .find_object(obj_id)
-                    .ok_or_else(|| ServiceError::internal("Failed to find imported object"))?
-                    .clone();
-                imported_objects.push(obj);
-            }
-            PendingImport::Vector {
-                name_prefix,
-                mut paths,
-                images,
-                warnings,
-                y_up,
-            } => {
-                if y_up {
-                    let flip = y_up_to_canvas(project.workspace.bed_height_mm);
-                    for imported in &mut paths {
-                        imported.path = bake_transform(&imported.path, &flip);
-                    }
+        }
+
+        // Collect the union of distinct layer ids actually used by the
+        // imported objects. When a mixed batch auto-routes to multiple
+        // sibling layers, this will contain multiple entries and the
+        // frontend should prefer these over the caller's requested layer.
+        let resolved_layer_ids: Vec<LayerId> = {
+            let mut seen: Vec<LayerId> = Vec::new();
+            for obj in &imported_objects {
+                if !seen.contains(&obj.layer_id) {
+                    seen.push(obj.layer_id);
                 }
-                imported_objects.extend(add_imported_vector_paths(
-                    project,
-                    effective_layer_id,
-                    &name_prefix,
-                    paths,
-                )?);
-                if !images.is_empty() {
-                    let (image_layer_id, notice) = route_import_with_notice(
-                        project,
-                        layer_id,
-                        RoutingTarget::NeedsImage,
-                        allow_tool_imports,
-                    )?;
-                    if let Some(notice) = notice {
-                        routing_notices.push(notice);
-                    }
-                    for (index, image) in images.into_iter().enumerate() {
-                        let name = format!("{name_prefix} image {}", index + 1);
-                        let id = import_image(&image.png, &name, None, project, image_layer_id)
-                            .map_err(|e| {
-                                ServiceError::invalid_input(format!("PDF image import failed: {e}"))
-                            })?;
-                        let mask_object = if let Some(clip) = image.clip {
-                            let mask_layer = if let Some(layer) = project
-                                .layers
-                                .iter()
-                                .find(|l| l.is_tool_layer && l.name == "PDF clipping masks")
-                            {
-                                layer.id
-                            } else {
-                                let mut layer =
-                                    Layer::new("PDF clipping masks", OperationType::Tool);
-                                layer.canonicalize_tool_layer();
-                                layer.visible = false;
-                                project.add_layer(layer).id
-                            };
-                            let mask = vecpath_to_project_object(
-                                mask_layer,
-                                format!("{name} clipping"),
-                                clip,
-                            );
-                            Some(project.add_object(mask).clone())
-                        } else {
-                            None
-                        };
-                        let object = project
-                            .find_object_mut(id)
-                            .ok_or_else(|| ServiceError::internal("Missing imported PDF image"))?;
-                        let t = image.transform;
-                        let width = t.a.hypot(t.b);
-                        let height = t.c.hypot(t.d);
-                        let center = t.apply(&Point2D::new(0.5, 0.5));
-                        object.bounds = Bounds::new(
-                            Point2D::new(center.x - width / 2.0, center.y - height / 2.0),
-                            Point2D::new(center.x + width / 2.0, center.y + height / 2.0),
-                        );
-                        object.transform = Transform2D {
-                            a: t.a / width,
-                            b: t.b / width,
-                            c: t.c / height,
-                            d: t.d / height,
-                            tx: 0.0,
-                            ty: 0.0,
-                        };
-                        if let Some(mask) = &mask_object
-                            && let ObjectData::RasterImage { masks, .. } = &mut object.data
-                        {
-                            masks.push(beambench_core::ImageMaskRef {
-                                object_id: mask.id,
-                                polarity: beambench_core::ImageMaskPolarity::KeepInside,
-                            });
-                        }
-                        imported_objects.push(object.clone());
-                        if let Some(mask) = mask_object {
-                            let mask_id = mask.id;
-                            imported_objects.push(mask);
-                            let group = super::vector::group_objects_in_project(
-                                project,
-                                super::vector::GroupObjectsInput {
-                                    object_ids: vec![id, mask_id],
-                                },
-                            )?;
-                            imported_objects.push(group);
-                        }
-                    }
-                }
-                import_warnings.extend(warnings);
             }
-            PendingImport::Lbrn { document } => {
-                let (objects, warnings) = import_lbrn_document(project, document)?;
-                imported_objects.extend(objects);
-                import_warnings.extend(warnings);
+            seen
+        };
+
+        // Imported content keeps its true file dimensions (never silently
+        // scaled), so detect a result larger than the workspace and surface it
+        // to the user as a warning.
+        let oversize_payload = {
+            let bed_w = project.workspace.bed_width_mm;
+            let bed_h = project.workspace.bed_height_mm;
+            let mut union: Option<Bounds> = None;
+            for obj in &imported_objects {
+                union = Some(match union {
+                    None => obj.bounds,
+                    Some(b) => Bounds::new(
+                        Point2D::new(b.min.x.min(obj.bounds.min.x), b.min.y.min(obj.bounds.min.y)),
+                        Point2D::new(b.max.x.max(obj.bounds.max.x), b.max.y.max(obj.bounds.max.y)),
+                    ),
+                });
             }
-        }
-    }
-
-    if imported_objects.is_empty() && !imports_document {
-        return Ok(imported_objects);
-    }
-
-    if project.objects.len() > IMPORT_OBJECT_LIMIT {
-        return Err(ServiceError::invalid_input(format!(
-            "This import would leave {} objects in the project, more than the {IMPORT_OBJECT_LIMIT} it can save. Join or simplify the shapes, or split the project before importing again.",
-            project.objects.len()
-        )));
-    }
-
-    // Refresh text caches for any imported text objects (SVG text import
-    // creates objects with resolved_path_data: None).
-    super::project::refresh_project_text_caches(project);
-
-    // Resize text object bounds from actual resolved geometry — the importer
-    // uses a heuristic estimate (content.len() * 0.6) that doesn't match real
-    // glyph metrics.
-    for obj in &mut project.objects {
-        if let Some(intrinsic) = intrinsic_text_bounds(&obj.data) {
-            let w = intrinsic.width().max(0.0);
-            let h = intrinsic.height().max(0.0);
-            obj.bounds = Bounds::new(
-                obj.bounds.min,
-                Point2D::new(obj.bounds.min.x + w, obj.bounds.min.y + h),
-            );
-        }
-    }
-
-    // Collect the union of distinct layer ids actually used by the
-    // imported objects. When a mixed batch auto-routes to multiple
-    // sibling layers, this will contain multiple entries and the
-    // frontend should prefer these over the caller's requested layer.
-    let resolved_layer_ids: Vec<LayerId> = {
-        let mut seen: Vec<LayerId> = Vec::new();
-        for obj in &imported_objects {
-            if !seen.contains(&obj.layer_id) {
-                seen.push(obj.layer_id);
-            }
-        }
-        seen
-    };
-
-    // Imported content keeps its true file dimensions (never silently
-    // scaled), so detect a result larger than the workspace and surface it
-    // to the user as a warning.
-    let oversize_payload = {
-        let bed_w = project.workspace.bed_width_mm;
-        let bed_h = project.workspace.bed_height_mm;
-        let mut union: Option<Bounds> = None;
-        for obj in &imported_objects {
-            union = Some(match union {
-                None => obj.bounds,
-                Some(b) => Bounds::new(
-                    Point2D::new(b.min.x.min(obj.bounds.min.x), b.min.y.min(obj.bounds.min.y)),
-                    Point2D::new(b.max.x.max(obj.bounds.max.x), b.max.y.max(obj.bounds.max.y)),
-                ),
-            });
-        }
-        union
-            .filter(|b| b.width() > bed_w + 0.01 || b.height() > bed_h + 0.01)
-            .map(|b| {
-                json!({
-                    "width_mm": b.width(),
-                    "height_mm": b.height(),
-                    "bed_width_mm": bed_w,
-                    "bed_height_mm": bed_h,
+            union
+                .filter(|b| b.width() > bed_w + 0.01 || b.height() > bed_h + 0.01)
+                .map(|b| {
+                    json!({
+                        "width_mm": b.width(),
+                        "height_mm": b.height(),
+                        "bed_width_mm": bed_w,
+                        "bed_height_mm": bed_h,
+                    })
                 })
-            })
-    };
+        };
 
-    ctx.push_project_undo_snapshot(original)
-        .map_err(ServiceError::internal)?;
-    *project_guard = Some(working);
-    drop(project_guard);
-    planning::invalidate_plan_cache(ctx)?;
-    emit_routing_notices(ctx, &routing_notices);
-    ctx.emit_event(
-        "project.import.completed",
-        json!({
-            "layer_id": layer_id,
-            "resolved_layer_ids": resolved_layer_ids,
-            "file_count": file_count,
-            "object_ids": imported_objects.iter().map(|obj| obj.id).collect::<Vec<_>>(),
-            "objects": imported_objects.iter().map(events::object_summary).collect::<Vec<_>>(),
-            "warnings": import_warnings,
-        }),
-    );
-    if let Some(payload) = oversize_payload {
-        ctx.emit_event("project.import.oversized", payload);
-    }
-    Ok(imported_objects)
+        ctx.push_project_undo_snapshot(original)
+            .map_err(ServiceError::internal)?;
+        *project_guard = Some(working);
+        drop(project_guard);
+        planning::invalidate_plan_cache(ctx)?;
+        emit_routing_notices(ctx, &routing_notices);
+        ctx.emit_event(
+            "project.import.completed",
+            json!({
+                "layer_id": layer_id,
+                "resolved_layer_ids": resolved_layer_ids,
+                "file_count": file_count,
+                "object_ids": imported_objects.iter().map(|obj| obj.id).collect::<Vec<_>>(),
+                "objects": imported_objects.iter().map(events::object_summary).collect::<Vec<_>>(),
+                "warnings": import_warnings,
+            }),
+        );
+        if let Some(payload) = oversize_payload {
+            ctx.emit_event("project.import.oversized", payload);
+        }
+        Ok(imported_objects)
+    })
 }
 
 fn vector_object_name(base_name: &str, index: usize, total: usize) -> String {
@@ -1736,61 +1738,63 @@ fn import_vector_paths(
     paths: Vec<ImportedVectorPath>,
     warnings: Vec<String>,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    if project.find_layer(layer_id).is_none() {
-        return Err(ServiceError::not_found("Layer not found"));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    // Vector paths always land on a non-image layer — auto-route if
-    // the caller target is Image.
-    let allow_tool_imports = ctx
-        .settings
-        .lock()
-        .map_err(|e| lock_err("settings", e))?
-        .allow_importing_to_tool_layers;
-    let (effective_layer_id, notice) = route_import_with_notice(
-        project,
-        layer_id,
-        RoutingTarget::NeedsNonImage,
-        allow_tool_imports,
-    )?;
-    let routing_notices: Vec<RoutingNotice> = notice.into_iter().collect();
-
-    let imported_objects =
-        add_imported_vector_paths(project, effective_layer_id, name_prefix, paths)?;
-
-    let resolved_layer_ids: Vec<LayerId> = {
-        let mut seen: Vec<LayerId> = Vec::new();
-        for obj in &imported_objects {
-            if !seen.contains(&obj.layer_id) {
-                seen.push(obj.layer_id);
-            }
+        if project.find_layer(layer_id).is_none() {
+            return Err(ServiceError::not_found("Layer not found"));
         }
-        seen
-    };
 
-    drop(project_guard);
-    planning::invalidate_plan_cache(ctx)?;
-    emit_routing_notices(ctx, &routing_notices);
-    ctx.emit_event(
-        "project.import.completed",
-        json!({
-            "layer_id": layer_id,
-            "resolved_layer_ids": resolved_layer_ids,
-            "file_count": file_count,
-            "object_ids": imported_objects.iter().map(|obj| obj.id).collect::<Vec<_>>(),
-            "objects": imported_objects.iter().map(events::object_summary).collect::<Vec<_>>(),
-            "warnings": warnings,
-        }),
-    );
-    Ok(imported_objects)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        // Vector paths always land on a non-image layer — auto-route if
+        // the caller target is Image.
+        let allow_tool_imports = ctx
+            .settings
+            .lock()
+            .map_err(|e| lock_err("settings", e))?
+            .allow_importing_to_tool_layers;
+        let (effective_layer_id, notice) = route_import_with_notice(
+            project,
+            layer_id,
+            RoutingTarget::NeedsNonImage,
+            allow_tool_imports,
+        )?;
+        let routing_notices: Vec<RoutingNotice> = notice.into_iter().collect();
+
+        let imported_objects =
+            add_imported_vector_paths(project, effective_layer_id, name_prefix, paths)?;
+
+        let resolved_layer_ids: Vec<LayerId> = {
+            let mut seen: Vec<LayerId> = Vec::new();
+            for obj in &imported_objects {
+                if !seen.contains(&obj.layer_id) {
+                    seen.push(obj.layer_id);
+                }
+            }
+            seen
+        };
+
+        drop(project_guard);
+        planning::invalidate_plan_cache(ctx)?;
+        emit_routing_notices(ctx, &routing_notices);
+        ctx.emit_event(
+            "project.import.completed",
+            json!({
+                "layer_id": layer_id,
+                "resolved_layer_ids": resolved_layer_ids,
+                "file_count": file_count,
+                "object_ids": imported_objects.iter().map(|obj| obj.id).collect::<Vec<_>>(),
+                "objects": imported_objects.iter().map(events::object_summary).collect::<Vec<_>>(),
+                "warnings": warnings,
+            }),
+        );
+        Ok(imported_objects)
+    })
 }
 
 fn parse_vector_file(
@@ -2130,112 +2134,114 @@ pub fn trace_raster_image(
     ctx: &ServiceContext,
     input: TraceImageInput,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let source = load_trace_source_snapshot(ctx, input.object_id)?;
-    let grayscale = decode_trace_grayscale(
-        ctx,
-        &source.asset_key,
-        &source.image_data,
-        input.trace_alpha,
-    )?;
-    let config = build_trace_config(&input);
-    let boundary = normalize_trace_boundary(input.boundary, source.width_px, source.height_px)?;
-    let (trace_source, boundary_x, boundary_y) =
-        trace_image_for_boundary(grayscale.as_ref(), boundary);
+    ctx.atomic_edit(|| {
+        let source = load_trace_source_snapshot(ctx, input.object_id)?;
+        let grayscale = decode_trace_grayscale(
+            ctx,
+            &source.asset_key,
+            &source.image_data,
+            input.trace_alpha,
+        )?;
+        let config = build_trace_config(&input);
+        let boundary = normalize_trace_boundary(input.boundary, source.width_px, source.height_px)?;
+        let (trace_source, boundary_x, boundary_y) =
+            trace_image_for_boundary(grayscale.as_ref(), boundary);
 
-    let sx = if source.width_px == 0 {
-        1.0
-    } else {
-        source.bounds.width() / source.width_px as f64
-    };
-    let sy = if source.height_px == 0 {
-        1.0
-    } else {
-        source.bounds.height() / source.height_px as f64
-    };
-    let pixel_to_world = Transform2D::translate(source.bounds.min.x, source.bounds.min.y)
-        .compose(&Transform2D::scale(sx, sy));
-    let boundary_offset = Transform2D::translate(boundary_x, boundary_y);
-    let transform = pixel_to_world.compose(&boundary_offset);
-    let traced_paths = trace_image(trace_source.as_ref(), &config)
-        .into_iter()
-        .map(|path| bake_transform(&path, &transform))
-        .collect::<Vec<_>>();
+        let sx = if source.width_px == 0 {
+            1.0
+        } else {
+            source.bounds.width() / source.width_px as f64
+        };
+        let sy = if source.height_px == 0 {
+            1.0
+        } else {
+            source.bounds.height() / source.height_px as f64
+        };
+        let pixel_to_world = Transform2D::translate(source.bounds.min.x, source.bounds.min.y)
+            .compose(&Transform2D::scale(sx, sy));
+        let boundary_offset = Transform2D::translate(boundary_x, boundary_y);
+        let transform = pixel_to_world.compose(&boundary_offset);
+        let traced_paths = trace_image(trace_source.as_ref(), &config)
+            .into_iter()
+            .map(|path| bake_transform(&path, &transform))
+            .collect::<Vec<_>>();
 
-    // Guard: if tracing produced no paths, return early without mutating
-    // the project. This prevents delete_source from removing the raster
-    // with nothing to show for it, and avoids pushing an empty undo step.
-    if traced_paths.is_empty() {
-        return Ok(vec![]);
-    }
+        // Guard: if tracing produced no paths, return early without mutating
+        // the project. This prevents delete_source from removing the raster
+        // with nothing to show for it, and avoids pushing an empty undo step.
+        if traced_paths.is_empty() {
+            return Ok(vec![]);
+        }
 
-    let source_id = source.object_id;
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
+        let source_id = source.object_id;
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
 
-    // Trace output is vector content, so it must NOT land on the
-    // source raster's image layer. Route to a non-image sibling layer
-    // (existing or newly created with matching color_tag).
-    let layer_count_before_route = project.layers.len();
-    let (dest_layer_id, trace_notice) = route_with_notice(
-        project,
-        source.source_layer_id,
-        RoutingTarget::NeedsNonImage,
-    )?;
-    if project.layers.len() > layer_count_before_route
-        && let Some(dest_layer) = project.find_layer_mut(dest_layer_id)
-    {
-        dest_layer.name =
-            crate::validation::strip_mode_suffix(&source.source_layer_name).to_string();
-    }
+        // Trace output is vector content, so it must NOT land on the
+        // source raster's image layer. Route to a non-image sibling layer
+        // (existing or newly created with matching color_tag).
+        let layer_count_before_route = project.layers.len();
+        let (dest_layer_id, trace_notice) = route_with_notice(
+            project,
+            source.source_layer_id,
+            RoutingTarget::NeedsNonImage,
+        )?;
+        if project.layers.len() > layer_count_before_route
+            && let Some(dest_layer) = project.find_layer_mut(dest_layer_id)
+        {
+            dest_layer.name =
+                crate::validation::strip_mode_suffix(&source.source_layer_name).to_string();
+        }
 
-    let total = traced_paths.len();
-    let mut imported_objects = Vec::with_capacity(total);
-    for (idx, path) in traced_paths.into_iter().enumerate() {
-        let obj = vecpath_to_project_object(
-            dest_layer_id,
-            vector_object_name(&format!("{} Trace", source.source_name), idx, total),
-            path,
+        let total = traced_paths.len();
+        let mut imported_objects = Vec::with_capacity(total);
+        for (idx, path) in traced_paths.into_iter().enumerate() {
+            let obj = vecpath_to_project_object(
+                dest_layer_id,
+                vector_object_name(&format!("{} Trace", source.source_name), idx, total),
+                path,
+            );
+            let obj = project.add_object(obj).clone();
+            imported_objects.push(obj);
+        }
+
+        // Delete source raster if requested (part of same undo step)
+        if input.delete_source {
+            project.remove_object(source_id);
+            let source_layer_is_empty = !project
+                .objects
+                .iter()
+                .any(|obj| obj.layer_id == source.source_layer_id);
+            if source_layer_is_empty {
+                project.remove_layer(source.source_layer_id);
+            }
+            if let Ok(mut cache) = ctx.trace_preview_source_cache.lock() {
+                cache.remove_asset(&source.asset_key);
+            }
+        }
+
+        drop(project_guard);
+        planning::invalidate_plan_cache(ctx)?;
+        if let Some(notice) = trace_notice {
+            emit_routing_notices(ctx, std::slice::from_ref(&notice));
+        }
+        ctx.emit_event(
+            "project.import.completed",
+            json!({
+                "layer_id": dest_layer_id,
+                "resolved_layer_ids": vec![dest_layer_id],
+                "file_count": 1,
+                "source_object_id": input.object_id,
+                "object_ids": imported_objects.iter().map(|obj| obj.id).collect::<Vec<_>>(),
+                "objects": imported_objects.iter().map(events::object_summary).collect::<Vec<_>>(),
+            }),
         );
-        let obj = project.add_object(obj).clone();
-        imported_objects.push(obj);
-    }
-
-    // Delete source raster if requested (part of same undo step)
-    if input.delete_source {
-        project.remove_object(source_id);
-        let source_layer_is_empty = !project
-            .objects
-            .iter()
-            .any(|obj| obj.layer_id == source.source_layer_id);
-        if source_layer_is_empty {
-            project.remove_layer(source.source_layer_id);
-        }
-        if let Ok(mut cache) = ctx.trace_preview_source_cache.lock() {
-            cache.remove_asset(&source.asset_key);
-        }
-    }
-
-    drop(project_guard);
-    planning::invalidate_plan_cache(ctx)?;
-    if let Some(notice) = trace_notice {
-        emit_routing_notices(ctx, std::slice::from_ref(&notice));
-    }
-    ctx.emit_event(
-        "project.import.completed",
-        json!({
-            "layer_id": dest_layer_id,
-            "resolved_layer_ids": vec![dest_layer_id],
-            "file_count": 1,
-            "source_object_id": input.object_id,
-            "object_ids": imported_objects.iter().map(|obj| obj.id).collect::<Vec<_>>(),
-            "objects": imported_objects.iter().map(events::object_summary).collect::<Vec<_>>(),
-        }),
-    );
-    Ok(imported_objects)
+        Ok(imported_objects)
+    })
 }
 
 /// Preview output for trace image — paths in image-pixel space, no project mutation.

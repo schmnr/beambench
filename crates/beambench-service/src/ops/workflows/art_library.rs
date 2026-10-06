@@ -501,88 +501,90 @@ fn insert_selection_snapshot(
     snapshot: ArtLibrarySelectionSnapshot,
     drop_position: Option<(f64, f64)>,
 ) -> Result<Vec<ProjectObject>, String> {
-    let mut project_guard = ctx
-        .project
-        .lock()
-        .map_err(|e| format!("Failed to lock project: {e}"))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| "No project open".to_string())?;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx
+            .project
+            .lock()
+            .map_err(|e| format!("Failed to lock project: {e}"))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| "No project open".to_string())?;
 
-    if project.find_layer(requested_layer_id).is_none() {
-        return Err("Layer not found".to_string());
-    }
+        if project.find_layer(requested_layer_id).is_none() {
+            return Err("Layer not found".to_string());
+        }
 
-    ctx.push_project_undo_snapshot(project)?;
+        ctx.push_project_undo_snapshot(project)?;
 
-    let mut asset_key_map = HashMap::new();
-    for asset in &snapshot.assets {
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(&asset.data)
-            .map_err(|e| format!("Failed to decode snapshot asset: {e}"))?;
-        let media_type = mime_to_asset_media_type(&asset.media_type).ok_or_else(|| {
-            format!(
-                "Unsupported snapshot asset media type '{}'",
-                asset.media_type
-            )
-        })?;
-        let (width_px, height_px) = image::load_from_memory(&bytes)
-            .map(|decoded| (Some(decoded.width()), Some(decoded.height())))
-            .unwrap_or((None, None));
-        let asset_record = Asset::new(
-            format!(
-                "snapshot-{}.{}",
-                &asset.hash[..8.min(asset.hash.len())],
-                media_type.extension()
-            ),
-            media_type,
-            bytes.len() as u64,
-            width_px,
-            height_px,
-        );
-        let asset_id = asset_record.id;
-        project.add_asset(asset_record, bytes);
-        asset_key_map.insert(asset.hash.clone(), asset_id.to_string());
-    }
+        let mut asset_key_map = HashMap::new();
+        for asset in &snapshot.assets {
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(&asset.data)
+                .map_err(|e| format!("Failed to decode snapshot asset: {e}"))?;
+            let media_type = mime_to_asset_media_type(&asset.media_type).ok_or_else(|| {
+                format!(
+                    "Unsupported snapshot asset media type '{}'",
+                    asset.media_type
+                )
+            })?;
+            let (width_px, height_px) = image::load_from_memory(&bytes)
+                .map(|decoded| (Some(decoded.width()), Some(decoded.height())))
+                .unwrap_or((None, None));
+            let asset_record = Asset::new(
+                format!(
+                    "snapshot-{}.{}",
+                    &asset.hash[..8.min(asset.hash.len())],
+                    media_type.extension()
+                ),
+                media_type,
+                bytes.len() as u64,
+                width_px,
+                height_px,
+            );
+            let asset_id = asset_record.id;
+            project.add_asset(asset_record, bytes);
+            asset_key_map.insert(asset.hash.clone(), asset_id.to_string());
+        }
 
-    let mut id_map = HashMap::new();
-    for object in &snapshot.objects {
-        id_map.insert(object.id, beambench_core::ObjectId::new());
-    }
+        let mut id_map = HashMap::new();
+        for object in &snapshot.objects {
+            id_map.insert(object.id, beambench_core::ObjectId::new());
+        }
 
-    let mut created = Vec::new();
-    let mut created_ids = Vec::new();
+        let mut created = Vec::new();
+        let mut created_ids = Vec::new();
 
-    for object in &snapshot.objects {
-        let mut copy = object.clone();
-        copy.id = *id_map
-            .get(&object.id)
-            .ok_or_else(|| format!("Missing remapped id for '{}'", object.id))?;
-        copy.layer_id = resolve_snapshot_layer(project, requested_layer_id, &copy.data)?;
-        match &mut copy.data {
-            ObjectData::Group { children } => {
-                for child in children.iter_mut() {
-                    if let Some(mapped) = id_map.get(child) {
-                        *child = *mapped;
+        for object in &snapshot.objects {
+            let mut copy = object.clone();
+            copy.id = *id_map
+                .get(&object.id)
+                .ok_or_else(|| format!("Missing remapped id for '{}'", object.id))?;
+            copy.layer_id = resolve_snapshot_layer(project, requested_layer_id, &copy.data)?;
+            match &mut copy.data {
+                ObjectData::Group { children } => {
+                    for child in children.iter_mut() {
+                        if let Some(mapped) = id_map.get(child) {
+                            *child = *mapped;
+                        }
                     }
                 }
-            }
-            ObjectData::RasterImage { asset_key, .. } => {
-                if let Some(mapped) = asset_key_map.get(asset_key) {
-                    *asset_key = mapped.clone();
+                ObjectData::RasterImage { asset_key, .. } => {
+                    if let Some(mapped) = asset_key_map.get(asset_key) {
+                        *asset_key = mapped.clone();
+                    }
                 }
+                _ => {}
             }
-            _ => {}
+            created_ids.push(copy.id);
+            created.push(project.add_object(copy).clone());
         }
-        created_ids.push(copy.id);
-        created.push(project.add_object(copy).clone());
-    }
 
-    apply_drop_position(project, &created_ids, &mut created, drop_position);
+        apply_drop_position(project, &created_ids, &mut created, drop_position);
 
-    drop(project_guard);
-    planning::invalidate_plan_cache(ctx).map_err(|e| e.to_string())?;
-    Ok(created)
+        drop(project_guard);
+        planning::invalidate_plan_cache(ctx).map_err(|e| e.to_string())?;
+        Ok(created)
+    })
 }
 
 fn apply_drop_position_after_import(
