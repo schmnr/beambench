@@ -65,12 +65,15 @@
   layer pass.
 - Fill and Offset Fill honor each object's power scale; an object set to 0%
   power no longer burns. Inner-first cutting also works when objects use
-  different power scales.
+  different power scales. Mixed-power fills preserve holes and overlap
+  cancellation, and burn each surviving region once.
 - 180 and 270 degree scan angles engrave the image in place instead of
   rotating it, so crosshatch passes line up.
-- Angled scans no longer distort images with non-square pixels.
+- Angled scans no longer distort images with non-square pixels. Rotated
+  bitmap limits are checked before allocating memory.
 - Transparent areas of images in older projects no longer engrave black.
-- Remove overlapping no longer deletes shapes that only resemble another.
+- Remove overlapping no longer deletes shapes that only resemble another. It
+  also preserves group order when objects use different power scales.
 - Images and fills are placed half a line more accurately, and filled shapes
   no longer engrave slightly wider than their outline.
 - Very large fills at a tiny line interval are rejected up front instead of

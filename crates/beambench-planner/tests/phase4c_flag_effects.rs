@@ -892,8 +892,214 @@ fn an_image_on_a_line_layer_produces_a_warning() {
     project.objects.push(image);
     let plan = build(&project, ProjectOptimization::default());
     assert!(
-        plan.warnings.iter().any(|warning| warning.message.contains("will not be engraved")),
+        plan.warnings
+            .iter()
+            .any(|warning| warning.message.contains("will not be engraved")),
         "{:?}",
         plan.warnings
     );
+}
+
+// Phase 2 fix review regressions.
+
+fn burn_segments_in_region(plan: &ExecutionPlan, lo: f64, hi: f64) -> usize {
+    plan.segments
+        .iter()
+        .map(|segment| match segment {
+            PlanSegment::Raster { scanlines, .. } => scanlines
+                .iter()
+                .filter(|row| row.y_mm > lo && row.y_mm < hi)
+                .flat_map(|row| row.runs.iter())
+                .filter(|run| {
+                    run.start_x_mm.min(run.end_x_mm) < hi && run.start_x_mm.max(run.end_x_mm) > lo
+                })
+                .count(),
+            PlanSegment::Vector { polyline, .. } => polyline
+                .iter()
+                .filter(|p| p.x > lo && p.x < hi && p.y > lo && p.y < hi)
+                .count(),
+            _ => 0,
+        })
+        .sum()
+}
+#[test]
+fn group_order_survives_mixed_power_duplicate_removal() {
+    let (mut project, layer_id) = single_line_layer_project();
+
+    // Spatial layout:
+    //   a at (0,0)     ← near origin
+    //   c at (10,0)    ← between a and b spatially
+    //   b at (50,0)    ← far
+    // Group { a, b }. Nearest-neighbor from origin would pick a, then
+    // c (closer than b), then b — splitting the group. `order_by_group`
+    // must force the sequence a, b, c (group first, then c).
+    let a_id = add_rectangle(&mut project, "a", layer_id, 0.0, 0.0, 2.0, 2.0);
+    let b_id = add_rectangle(&mut project, "b", layer_id, 50.0, 0.0, 2.0, 2.0);
+    add_rectangle(&mut project, "c", layer_id, 10.0, 0.0, 2.0, 2.0);
+
+    let mut group = ProjectObject::new(
+        "G",
+        layer_id,
+        Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(52.0, 2.0)),
+        ObjectData::Group {
+            children: vec![a_id, b_id],
+        },
+    );
+    group.z_index = 0;
+    project.objects.push(group);
+
+    project.objects[1].power_scale = 0.5;
+    let on = build(
+        &project,
+        ProjectOptimization {
+            remove_overlapping: true,
+            ordering: vec![
+                OptimizationOrderKey::Layer,
+                OptimizationOrderKey::Priority,
+                OptimizationOrderKey::Group,
+            ],
+            ..Default::default()
+        },
+    );
+    let names = source_object_name_sequence(&on, &project);
+    let pos = |needle: &str| {
+        names
+            .iter()
+            .position(|n| n == needle)
+            .unwrap_or_else(|| panic!("{needle} missing from {names:?}"))
+    };
+    let a = pos("a");
+    let b = pos("b");
+    let c = pos("c");
+    // Group {a, b} must be a contiguous run; c must not split them.
+    let group_min = a.min(b);
+    let group_max = a.max(b);
+    assert_eq!(
+        group_max - group_min,
+        1,
+        "a and b must be adjacent despite nearest-neighbor's spatial pull toward c, got names {names:?}"
+    );
+    assert!(
+        c < group_min || c > group_max,
+        "c must not sit between a and b, got names {names:?}"
+    );
+}
+
+#[test]
+fn mixed_power_fills_preserve_nested_holes() {
+    for operation in [OperationType::OffsetFill, OperationType::Fill] {
+        let mut project = fill_project(operation, 1.0);
+        let layer_id = project.layers[0].id;
+        project.objects.clear();
+        add_rectangle(&mut project, "outer", layer_id, 20.0, 20.0, 20.0, 20.0);
+        add_rectangle(&mut project, "hole", layer_id, 25.0, 25.0, 10.0, 10.0);
+        let before =
+            burn_segments_in_region(&build(&project, ProjectOptimization::default()), 28.0, 32.0);
+        project.objects[1].power_scale = 0.5;
+        let after =
+            burn_segments_in_region(&build(&project, ProjectOptimization::default()), 28.0, 32.0);
+        assert_eq!(before, 0, "control must have a hole for {operation:?}");
+        assert_eq!(
+            after, before,
+            "changing power must preserve the composited hole for {operation:?}"
+        );
+    }
+}
+
+#[test]
+fn mixed_power_fills_preserve_overlap_cancellation_and_power() {
+    for operation in [OperationType::Fill, OperationType::OffsetFill] {
+        let mut project = fill_project(operation, 1.0);
+        let layer_id = project.layers[0].id;
+        project.objects.clear();
+        add_rectangle(&mut project, "first", layer_id, 20.0, 20.0, 20.0, 20.0);
+        add_rectangle(&mut project, "second", layer_id, 30.0, 30.0, 20.0, 20.0);
+        project.objects[1].power_scale = 0.5;
+        let plan = build(&project, ProjectOptimization::default());
+        assert_eq!(
+            burn_segments_in_region(&plan, 33.0, 37.0),
+            0,
+            "overlap must cancel for {operation:?}"
+        );
+        let powers = burn_powers(&plan);
+        let layer_power = project.layers[0].primary_entry().power_percent;
+        assert!(
+            powers.contains(&layer_power),
+            "first region power for {operation:?}"
+        );
+        assert!(
+            powers.contains(&(layer_power * 0.5)),
+            "second region power for {operation:?}"
+        );
+    }
+}
+
+#[test]
+fn three_overlapping_power_groups_burn_surviving_region_once() {
+    for operation in [OperationType::Fill, OperationType::OffsetFill] {
+        let mut project = fill_project(operation, 1.0);
+        let id = project.layers[0].id;
+        let baseline = build(&project, ProjectOptimization::default());
+        for (name, scale) in [("second", 0.5), ("third", 0.25)] {
+            add_rectangle(&mut project, name, id, 20.0, 20.0, 5.0, 5.0);
+            project.objects.last_mut().unwrap().power_scale = scale;
+        }
+        let plan = build(&project, ProjectOptimization::default());
+        assert_eq!(
+            burn_powers(&plan),
+            burn_powers(&baseline)
+                .into_iter()
+                .map(|power| power * 0.25)
+                .collect::<Vec<_>>(),
+            "last subject supplies power, and the surviving region burns once for {operation:?}"
+        );
+        assert_eq!(
+            burn_segments_in_region(&plan, 21.0, 24.0),
+            burn_segments_in_region(&baseline, 21.0, 24.0)
+        );
+    }
+}
+
+#[test]
+fn angled_raster_rejects_expanded_bitmap_before_allocation() {
+    for (width, height) in [(80.0, 0.008), (80.0, 0.004)] {
+        let project = half_black_image_project(width, height, 45.0);
+        let input = PlannerInput::new(
+            ProjectOptimization::default(),
+            OptimizationRuntime::default(),
+            PlannerCalibration::default(),
+        );
+        let error = build_plan_with_input(&project, &input)
+            .expect_err("oversized rotation must be rejected");
+        assert!(
+            error.to_string().contains("raster_plan_too_complex"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn nested_islands_keep_their_own_power() {
+    for operation in [OperationType::Fill, OperationType::OffsetFill] {
+        let mut project = fill_project(operation, 1.0);
+        let id = project.layers[0].id;
+        project.objects.clear();
+        add_rectangle(&mut project, "outer", id, 20.0, 20.0, 30.0, 30.0);
+        add_rectangle(&mut project, "hole", id, 25.0, 25.0, 20.0, 20.0);
+        project.objects.last_mut().unwrap().power_scale = 0.5;
+        add_rectangle(&mut project, "island", id, 30.0, 30.0, 10.0, 10.0);
+        project.objects.last_mut().unwrap().power_scale = 0.25;
+        let plan = build(&project, ProjectOptimization::default());
+        let powers = burn_powers(&plan);
+        let layer_power = project.layers[0].primary_entry().power_percent;
+        assert!(powers.contains(&layer_power));
+        assert!(
+            powers.contains(&(layer_power * 0.25)),
+            "island power for {operation:?}"
+        );
+        assert!(
+            !powers.contains(&(layer_power * 0.5)),
+            "hole must remain unburned for {operation:?}"
+        );
+    }
 }

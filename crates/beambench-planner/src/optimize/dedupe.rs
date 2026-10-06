@@ -28,6 +28,16 @@ pub fn remove_near_duplicates<T: Orderable>(
     enabled: bool,
     tolerance_mm: f64,
 ) -> Vec<T> {
+    remove_near_duplicates_by(items, enabled, tolerance_mm, |_, _| true)
+}
+
+/// Stable duplicate removal, restricted to candidates with matching semantics.
+pub(crate) fn remove_near_duplicates_by<T: Orderable>(
+    items: Vec<T>,
+    enabled: bool,
+    tolerance_mm: f64,
+    same_kind: impl Fn(&T, &T) -> bool,
+) -> Vec<T> {
     if !enabled || tolerance_mm <= 0.0 || items.len() < 2 {
         return items;
     }
@@ -43,13 +53,15 @@ pub fn remove_near_duplicates<T: Orderable>(
             if !keep[j] {
                 continue;
             }
-            if near_duplicate(
-                items[i].points(),
-                items[i].closed(),
-                items[j].points(),
-                items[j].closed(),
-                tol_sq,
-            ) {
+            if same_kind(&items[i], &items[j])
+                && near_duplicate(
+                    items[i].points(),
+                    items[i].closed(),
+                    items[j].points(),
+                    items[j].closed(),
+                    tol_sq,
+                )
+            {
                 keep[j] = false;
             }
         }

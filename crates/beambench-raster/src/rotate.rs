@@ -117,19 +117,40 @@ fn rotate_180(raster: &ProcessedRaster, width_mm: f64, height_mm: f64) -> Rotate
     }
 }
 
-fn rotate_general(
+/// Output dimensions and byte size, without allocating or sampling pixels.
+/// Uses the same physical grid as rotation, including cardinal fast paths.
+pub fn rotated_raster_size(
     raster: &ProcessedRaster,
     angle_deg: f64,
     width_mm: f64,
     height_mm: f64,
-) -> RotatedRaster {
-    let w = raster.width_px as f64;
-    let h = raster.height_px as f64;
+) -> Option<(u32, u32, usize)> {
+    if !angle_deg.is_finite() {
+        return None;
+    }
+    let angle = angle_deg.rem_euclid(360.0);
+    let (width, height) = if !(0.5..=359.5).contains(&angle) || (angle - 180.0).abs() < 0.5 {
+        (raster.width_px, raster.height_px)
+    } else {
+        let (w, h, _, _) = rotation_grid(raster, angle, width_mm, height_mm)?;
+        (w, h)
+    };
+    let row_bytes = match raster.format {
+        RasterPixelFormat::Binary => (width as usize).div_ceil(8),
+        RasterPixelFormat::Grayscale8 => width as usize,
+    };
+    Some((width, height, row_bytes.checked_mul(height as usize)?))
+}
 
+fn rotation_grid(
+    raster: &ProcessedRaster,
+    angle_deg: f64,
+    width_mm: f64,
+    height_mm: f64,
+) -> Option<(u32, u32, f64, f64)> {
+    let (w, h) = (raster.width_px as f64, raster.height_px as f64);
     let rad = angle_deg.to_radians();
-    let cos_a = rad.cos();
-    let sin_a = rad.sin();
-
+    let (sin_a, cos_a) = rad.sin_cos();
     // Rotate in millimetres, not pixels. Pass-through images can have
     // non-square pixels (each axis has its own size); rotating pixel indices
     // and rescaling the axes separately afterwards distorts the artwork.
@@ -159,8 +180,36 @@ fn rotate_general(
     let (span_x_mm, span_y_mm) = (w * src_px_x, h * src_px_y);
     let rotated_w_mm = span_x_mm * cos_a.abs() + span_y_mm * sin_a.abs();
     let rotated_h_mm = span_x_mm * sin_a.abs() + span_y_mm * cos_a.abs();
-    let new_w_px = (rotated_w_mm / dst_px_x - 1e-9).ceil().max(0.0) as u32;
-    let new_h_px = (rotated_h_mm / dst_px_y - 1e-9).ceil().max(0.0) as u32;
+    let columns = (rotated_w_mm / dst_px_x - 1e-9).ceil().max(0.0);
+    let rows = (rotated_h_mm / dst_px_y - 1e-9).ceil().max(0.0);
+    if !columns.is_finite()
+        || !rows.is_finite()
+        || columns > u32::MAX as f64
+        || rows > u32::MAX as f64
+    {
+        return None;
+    }
+    let (new_w_px, new_h_px) = (columns as u32, rows as u32);
+    Some((new_w_px, new_h_px, src_px_x, src_px_y))
+}
+
+fn rotate_general(
+    raster: &ProcessedRaster,
+    angle_deg: f64,
+    width_mm: f64,
+    height_mm: f64,
+) -> RotatedRaster {
+    let w = raster.width_px as f64;
+    let h = raster.height_px as f64;
+
+    let rad = angle_deg.to_radians();
+    let cos_a = rad.cos();
+    let sin_a = rad.sin();
+
+    let (new_w_px, new_h_px, src_px_x, src_px_y) =
+        rotation_grid(raster, angle_deg, width_mm, height_mm)
+            .expect("rotation dimensions must be checked before allocation");
+    let (dst_px_x, dst_px_y) = (src_px_x.min(src_px_y), src_px_y);
     let new_width_mm = new_w_px as f64 * dst_px_x;
     let new_height_mm = new_h_px as f64 * dst_px_y;
 

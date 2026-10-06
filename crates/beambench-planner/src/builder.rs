@@ -97,24 +97,65 @@ pub fn offset_fill_boolean_tolerances_mm() -> (f64, f64) {
     )
 }
 
-/// Split objects by power scale, in first-seen order, so filled geometry from
-/// objects at different powers is never merged into one output with one power.
-/// Objects scaled to zero power burn nothing and are left out.
-fn group_by_power_scale<'a>(objects: &[&'a ProjectObject]) -> Vec<(f64, Vec<&'a ProjectObject>)> {
-    let mut groups: Vec<(f64, Vec<&'a ProjectObject>)> = Vec::new();
-    for &object in objects {
-        if object.power_scale.is_nan() || object.power_scale <= 0.0 {
+/// Composite geometry before assigning power. Claim surviving regions once,
+/// in reverse object order, so nested islands retain their own power and
+/// three-way overlaps cannot burn repeatedly. Uniform-power batches keep the
+/// original single boolean pass.
+fn composite_power_regions(
+    subjects: Vec<(f64, Vec<Polyline>)>,
+    tolerance: f64,
+) -> Vec<(f64, VecPath)> {
+    use beambench_core::vector::boolean::{
+        path_intersection_with_tolerance, path_subtract_with_tolerance,
+    };
+    let subjects: Vec<_> = subjects
+        .into_iter()
+        .filter(|(_, polylines)| !polylines.is_empty())
+        .map(|(scale, polylines)| (scale, polylines_to_vecpath(&polylines)))
+        .collect();
+    let Some((first_scale, _)) = subjects.first() else {
+        return Vec::new();
+    };
+    let uniform = subjects
+        .iter()
+        .all(|(scale, _)| scale.to_bits() == first_scale.to_bits());
+    let paths: Vec<_> = subjects.iter().map(|(_, path)| path.clone()).collect();
+    let mut remaining = normalize_subject_evenodd_with_tolerance(&paths, tolerance, tolerance);
+    if uniform {
+        return if *first_scale > 0.0 {
+            vec![(*first_scale, remaining)]
+        } else {
+            Vec::new()
+        };
+    }
+    let mut regions: Vec<(f64, Vec<VecPath>)> = Vec::new();
+    for (scale, mask) in subjects.into_iter().rev() {
+        let region = path_intersection_with_tolerance(&remaining, &mask, tolerance);
+        if region.is_empty() {
             continue;
         }
-        match groups
-            .iter_mut()
-            .find(|(scale, _)| scale.to_bits() == object.power_scale.to_bits())
-        {
-            Some((_, group)) => group.push(object),
-            None => groups.push((object.power_scale, vec![object])),
+        remaining = path_subtract_with_tolerance(&remaining, &region, tolerance);
+        if scale > 0.0 {
+            match regions
+                .iter_mut()
+                .find(|(key, _)| key.to_bits() == scale.to_bits())
+            {
+                Some((_, paths)) => paths.push(region),
+                None => regions.push((scale, vec![region])),
+            }
         }
     }
-    groups
+    regions
+        .into_iter()
+        .map(|(scale, mut paths)| {
+            let path = if paths.len() == 1 {
+                paths.pop().unwrap()
+            } else {
+                normalize_subject_evenodd_with_tolerance(&paths, tolerance, tolerance)
+            };
+            (scale, path)
+        })
+        .collect()
 }
 
 fn offset_fill_object_batches<'a>(
@@ -174,29 +215,6 @@ impl Orderable for TaggedPolyline {
     }
     fn points_mut(&mut self) -> &mut Vec<Point2D> {
         &mut self.inner.points
-    }
-}
-
-/// Convert a closed Polyline to a VecPath for boolean operations.
-fn polyline_to_vecpath(poly: &Polyline) -> VecPath {
-    if poly.points.is_empty() {
-        return VecPath { subpaths: vec![] };
-    }
-    let mut commands = vec![PathCommand::MoveTo {
-        x: poly.points[0].x,
-        y: poly.points[0].y,
-    }];
-    for pt in &poly.points[1..] {
-        commands.push(PathCommand::LineTo { x: pt.x, y: pt.y });
-    }
-    if poly.closed {
-        commands.push(PathCommand::Close);
-    }
-    VecPath {
-        subpaths: vec![SubPath {
-            commands,
-            closed: poly.closed,
-        }],
     }
 }
 
@@ -536,15 +554,17 @@ fn bounds_overlap(a: &Bounds, b: &Bounds) -> bool {
 /// Group Fill objects only when their geometry can interact under even-odd
 /// parity. This preserves same-layer holes and overlaps without allocating one
 /// enormous raster for artwork that is spread across the entire workspace.
-fn fill_polyline_batches(object_polylines: Vec<Vec<Polyline>>) -> Vec<Vec<Polyline>> {
-    let geometries: Vec<(Vec<Polyline>, Bounds)> = object_polylines
+fn fill_polyline_batches(
+    object_polylines: Vec<(f64, Vec<Polyline>)>,
+) -> Vec<Vec<(f64, Vec<Polyline>)>> {
+    let geometries: Vec<((f64, Vec<Polyline>), Bounds)> = object_polylines
         .into_iter()
-        .filter_map(|polylines| bounds_from_polylines(&polylines).map(|bounds| (polylines, bounds)))
+        .filter_map(|subject| bounds_from_polylines(&subject.1).map(|bounds| (subject, bounds)))
         .collect();
     if geometries.len() <= 1 {
         return geometries
             .into_iter()
-            .map(|(polylines, _)| polylines)
+            .map(|(subject, _)| vec![subject])
             .collect();
     }
 
@@ -587,14 +607,14 @@ fn fill_polyline_batches(object_polylines: Vec<Vec<Polyline>>) -> Vec<Vec<Polyli
     }
 
     let mut batch_indices: HashMap<usize, usize> = HashMap::new();
-    let mut batches: Vec<Vec<Polyline>> = Vec::new();
+    let mut batches: Vec<Vec<(f64, Vec<Polyline>)>> = Vec::new();
     for (index, (polylines, _)) in geometries.into_iter().enumerate() {
         let root = find(&mut parents, index);
         let batch_index = *batch_indices.entry(root).or_insert_with(|| {
             batches.push(Vec::new());
             batches.len() - 1
         });
-        batches[batch_index].extend(polylines);
+        batches[batch_index].push(polylines);
     }
     batches
 }
@@ -2060,6 +2080,27 @@ impl RasterPlanBudget {
         Self::check(self.bytes.saturating_add(bytes), self.runs)
     }
 
+    /// Check the actual rotated grid before the rotator allocates or samples.
+    fn precheck_rotation(
+        &self,
+        raster: &beambench_raster::ProcessedRaster,
+        angle: f64,
+        width_mm: f64,
+        height_mm: f64,
+    ) -> Result<(), PlannerError> {
+        let Some((width, height, bytes)) =
+            beambench_raster::rotate::rotated_raster_size(raster, angle, width_mm, height_mm)
+        else {
+            return Err(PlannerError::InvalidSettings(
+                "[raster_plan_too_complex] Invalid rotated raster dimensions.".into(),
+            ));
+        };
+        if width > 65_536 || height > 65_536 {
+            return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Rotated scan dimensions exceed 65,536 pixels. Increase pixel spacing or reduce the image aspect ratio.".into()));
+        }
+        self.precheck_bitmap(bytes)
+    }
+
     /// Charge what a finished pass actually retains.
     fn include(&mut self, rows: &[Scanline]) -> Result<(), PlannerError> {
         let bytes = match rows.first().and_then(|row| row.runs.retained_bitmap()) {
@@ -2401,24 +2442,12 @@ fn apply_pre_order_passes_keeping_power(
     items: Vec<TaggedPolyline>,
     opt: &ProjectOptimization,
 ) -> Vec<TaggedPolyline> {
-    let items = if opt.enabled && opt.remove_overlapping {
-        let mut groups: Vec<(u64, Vec<TaggedPolyline>)> = Vec::new();
-        for item in items {
-            let key = item.power_scale.to_bits();
-            match groups.iter_mut().find(|(group_key, _)| *group_key == key) {
-                Some((_, group)) => group.push(item),
-                None => groups.push((key, vec![item])),
-            }
-        }
-        groups
-            .into_iter()
-            .flat_map(|(_, group)| {
-                dedupe::remove_near_duplicates(group, true, opt.remove_overlap_tolerance_mm)
-            })
-            .collect()
-    } else {
-        items
-    };
+    let items = dedupe::remove_near_duplicates_by(
+        items,
+        opt.enabled && opt.remove_overlapping,
+        opt.remove_overlap_tolerance_mm,
+        |a, b| a.power_scale.to_bits() == b.power_scale.to_bits(),
+    );
     let without_dedupe = ProjectOptimization {
         remove_overlapping: false,
         ..opt.clone()
@@ -2939,9 +2968,12 @@ fn build_plan_inner(
                                     // scanlines in local space
                                     use beambench_raster::rotate_raster;
 
-                                    // A rotated bitmap is a fresh allocation; charge
-                                    // it before rotate_raster produces it.
-                                    raster_budget.precheck_bitmap(shared_processed.data.len())?;
+                                    raster_budget.precheck_rotation(
+                                        &shared_processed,
+                                        -effective_angle,
+                                        raster_bounds.width(),
+                                        raster_bounds.height(),
+                                    )?;
                                     let rotated = rotate_raster(
                                         &shared_processed,
                                         -effective_angle,
@@ -3024,7 +3056,6 @@ fn build_plan_inner(
                         .map(|s| s.offset_fill_grouping_mode)
                         .unwrap_or(OffsetFillGroupingMode::AllShapesAtOnce);
                     let offset_fill_started_at = Instant::now();
-                    let scale_groups = group_by_power_scale(&vector_objects);
 
                     let normalize_started_at = Instant::now();
                     let mut composite_started_total = Duration::ZERO;
@@ -3033,49 +3064,34 @@ fn build_plan_inner(
                     let mut output_subpaths = 0usize;
                     let mut composite_batches: Vec<OffsetFillCompositeBatch> = Vec::new();
 
-                    for (power_scale, scale_objects) in &scale_groups {
-                        for batch_objects in offset_fill_object_batches(
-                            scale_objects,
-                            &project.objects,
-                            grouping_mode,
-                        ) {
-                            let mut original_polylines: Vec<Polyline> = Vec::new();
-                            for obj in &batch_objects {
-                                let Some(normalized) = normalize_object(obj) else {
-                                    warnings.push(PlanWarning {
-                                        message: format!(
-                                            "Failed to normalize object '{}' for offset fill",
-                                            obj.name
-                                        ),
-                                    });
-                                    continue;
-                                };
-                                for poly in &normalized.polylines {
-                                    if poly.closed && poly.points.len() >= 3 {
-                                        original_polylines.push(poly.clone());
-                                    }
-                                }
-                            }
-
-                            if original_polylines.is_empty() {
+                    for batch_objects in
+                        offset_fill_object_batches(&vector_objects, &project.objects, grouping_mode)
+                    {
+                        let mut subjects = Vec::new();
+                        for obj in batch_objects {
+                            let Some(normalized) = normalize_object(obj) else {
+                                warnings.push(PlanWarning {
+                                    message: format!(
+                                        "Failed to normalize object '{}' for offset fill",
+                                        obj.name
+                                    ),
+                                });
                                 continue;
-                            }
-
-                            closed_polyline_count += original_polylines.len();
-
-                            let composite_started_at = Instant::now();
-                            let vecpaths: Vec<VecPath> =
-                                original_polylines.iter().map(polyline_to_vecpath).collect();
-                            let (boolean_flatten_tolerance_mm, boolean_simplify_tolerance_mm) =
-                                offset_fill_boolean_tolerances_mm();
-                            let composite = normalize_subject_evenodd_with_tolerance(
-                                &vecpaths,
-                                boolean_flatten_tolerance_mm,
-                                boolean_simplify_tolerance_mm,
-                            );
-                            composite_started_total += composite_started_at.elapsed();
+                            };
+                            let polylines: Vec<_> = normalized
+                                .polylines
+                                .into_iter()
+                                .filter(|poly| poly.closed && poly.points.len() >= 3)
+                                .collect();
+                            closed_polyline_count += polylines.len();
+                            subjects.push((obj.power_scale, polylines));
+                        }
+                        let composite_started_at = Instant::now();
+                        let (tolerance, _) = offset_fill_boolean_tolerances_mm();
+                        let regions = composite_power_regions(subjects, tolerance);
+                        composite_started_total += composite_started_at.elapsed();
+                        for (power_scale, composite) in regions {
                             output_subpaths += composite.subpaths.len();
-
                             let split_started_at = Instant::now();
                             let units = split_offset_fill_units(&composite);
                             split_started_total += split_started_at.elapsed();
@@ -3087,10 +3103,7 @@ fn build_plan_inner(
                                 continue;
                             }
 
-                            composite_batches.push(OffsetFillCompositeBatch {
-                                units,
-                                power_scale: *power_scale,
-                            });
+                            composite_batches.push(OffsetFillCompositeBatch { units, power_scale });
                         }
                     }
                     tracing::info!(
@@ -3380,40 +3393,28 @@ fn build_plan_inner(
                         raw_angle_passes
                     };
 
-                    for (power_scale, scale_objects) in group_by_power_scale(&vector_objects) {
-                        let mut fill_object_polylines = Vec::new();
-                        for obj in scale_objects {
-                            let Some(normalized) = normalize_object(obj) else {
-                                warnings.push(PlanWarning {
-                                    message: format!(
-                                        "Failed to normalize object '{}' for fill",
-                                        obj.name
-                                    ),
-                                });
-                                continue;
-                            };
-                            let original_polylines: Vec<Polyline> = normalized
-                                .polylines
-                                .iter()
-                                .filter(|poly| poly.closed && poly.points.len() >= 3)
-                                .cloned()
-                                .collect();
-
-                            if original_polylines.is_empty() {
-                                continue;
-                            }
-
-                            fill_object_polylines.push(original_polylines);
-                        }
-
-                        for original_polylines in fill_polyline_batches(fill_object_polylines) {
-                            let vecpaths: Vec<VecPath> =
-                                original_polylines.iter().map(polyline_to_vecpath).collect();
-                            let composite = normalize_subject_evenodd_with_tolerance(
-                                &vecpaths,
-                                DEFAULT_TOLERANCE_MM,
-                                DEFAULT_TOLERANCE_MM,
-                            );
+                    let mut fill_object_polylines = Vec::new();
+                    for obj in &vector_objects {
+                        let Some(normalized) = normalize_object(obj) else {
+                            warnings.push(PlanWarning {
+                                message: format!(
+                                    "Failed to normalize object '{}' for fill",
+                                    obj.name
+                                ),
+                            });
+                            continue;
+                        };
+                        let polylines: Vec<_> = normalized
+                            .polylines
+                            .into_iter()
+                            .filter(|poly| poly.closed && poly.points.len() >= 3)
+                            .collect();
+                        fill_object_polylines.push((obj.power_scale, polylines));
+                    }
+                    for subjects in fill_polyline_batches(fill_object_polylines) {
+                        for (power_scale, composite) in
+                            composite_power_regions(subjects, DEFAULT_TOLERANCE_MM)
+                        {
                             let composited_polylines =
                                 flatten_vecpath(&composite, DEFAULT_TOLERANCE_MM);
 
@@ -3525,7 +3526,12 @@ fn build_plan_inner(
                                     } else {
                                         use beambench_raster::rotate_raster;
 
-                                        raster_budget.precheck_bitmap(processed.data.len())?;
+                                        raster_budget.precheck_rotation(
+                                            &processed,
+                                            -effective_angle,
+                                            composite_bounds.width(),
+                                            composite_bounds.height(),
+                                        )?;
                                         let rotated = rotate_raster(
                                             &processed,
                                             -effective_angle,
@@ -9175,7 +9181,7 @@ mod tests {
 
     /// Build a VecPath from a single closed Polyline.
     fn polyline_to_vecpath_test(poly: &Polyline) -> VecPath {
-        polyline_to_vecpath(poly)
+        polylines_to_vecpath(std::slice::from_ref(poly))
     }
 
     #[test]
