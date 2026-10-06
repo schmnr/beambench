@@ -12,7 +12,7 @@ use beambench_raster::types::{ProcessedRaster, RasterPixelFormat};
 /// `line_interval_mm`, computed without allocating. `None` when the size is
 /// not finite or does not fit in memory-addressable integers.
 pub fn fill_raster_size(bounds: &Bounds, line_interval_mm: f64) -> Option<(u64, u64, u64)> {
-    if !(line_interval_mm > 0.0) {
+    if line_interval_mm.is_nan() || line_interval_mm <= 0.0 {
         return None;
     }
     let columns = (bounds.width() / line_interval_mm).ceil().max(1.0);

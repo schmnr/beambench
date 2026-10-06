@@ -103,7 +103,7 @@ pub fn offset_fill_boolean_tolerances_mm() -> (f64, f64) {
 fn group_by_power_scale<'a>(objects: &[&'a ProjectObject]) -> Vec<(f64, Vec<&'a ProjectObject>)> {
     let mut groups: Vec<(f64, Vec<&'a ProjectObject>)> = Vec::new();
     for &object in objects {
-        if !(object.power_scale > 0.0) {
+        if object.power_scale.is_nan() || object.power_scale <= 0.0 {
             continue;
         }
         match groups

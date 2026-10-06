@@ -60,6 +60,25 @@
   are synchronized so fire cannot begin between a safety check and a move.
 - Marlin and Smoothieware now report a failed automatic emergency halt alongside
   the original job error, including physical-stop guidance.
+- Reduce travel moves no longer changes layer order, mixes passes, or cuts an
+  outline before the holes inside it; it now only reorders shapes within each
+  layer pass.
+- Fill and Offset Fill honor each object's power scale; an object set to 0%
+  power no longer burns. Inner-first cutting also works when objects use
+  different power scales.
+- 180 and 270 degree scan angles engrave the image in place instead of
+  rotating it, so crosshatch passes line up.
+- Angled scans no longer distort images with non-square pixels.
+- Transparent areas of images in older projects no longer engrave black.
+- Remove overlapping no longer deletes shapes that only resemble another.
+- Images and fills are placed half a line more accurately, and filled shapes
+  no longer engrave slightly wider than their outline.
+- Very large fills at a tiny line interval are rejected up front instead of
+  exhausting memory.
+- The preview shows full detail for large fills, and closed shapes count their
+  final edge in distance and time estimates.
+- A plan warning now explains when an image is on a layer that cannot engrave
+  it. Multi-pass Offset Fill and jobs with many tabs plan faster.
 
 ## 0.2.25
 
