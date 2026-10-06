@@ -537,3 +537,88 @@ fn source_object_name_sequence(plan: &ExecutionPlan, project: &Project) -> Vec<S
     }
     out
 }
+
+// ---- reduce_travel keeps execution constraints ----
+
+fn vector_ids(plan: &ExecutionPlan) -> Vec<String> {
+    plan.segments
+        .iter()
+        .filter_map(|segment| match segment {
+            PlanSegment::Vector {
+                source_object_id, ..
+            } => source_object_id.clone(),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn reduce_travel_keeps_layer_order() {
+    let (mut project, first_id) = single_line_layer_project();
+    project.workspace.origin = WorkspaceOrigin::TopLeft;
+    let engrave = add_rectangle(&mut project, "engrave", first_id, 100.0, 100.0, 5.0, 5.0);
+    let second = Layer::new("cut".to_string(), OperationType::Cut);
+    let second_id = second.id;
+    project.layers.push(second);
+    let cut = add_rectangle(&mut project, "cut", second_id, 1.0, 1.0, 5.0, 5.0);
+    let plan = build(
+        &project,
+        ProjectOptimization {
+            reduce_travel: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        vector_ids(&plan),
+        vec![engrave.to_string(), cut.to_string()],
+        "a nearer later layer must not run before an earlier layer"
+    );
+}
+
+#[test]
+fn reduce_travel_keeps_each_pass_whole() {
+    let (mut project, layer_id) = single_line_layer_project();
+    project.workspace.origin = WorkspaceOrigin::TopLeft;
+    project.layers[0]
+        .primary_entry_mut()
+        .vector_settings
+        .as_mut()
+        .unwrap()
+        .passes = 2;
+    let near = add_rectangle(&mut project, "near", layer_id, 1.0, 1.0, 5.0, 5.0);
+    let far = add_rectangle(&mut project, "far", layer_id, 100.0, 100.0, 5.0, 5.0);
+    let ids = vector_ids(&build(
+        &project,
+        ProjectOptimization {
+            reduce_travel: true,
+            ..Default::default()
+        },
+    ));
+    assert_eq!(ids.len(), 4);
+    for pass in ids.chunks(2) {
+        let mut pass = pass.to_vec();
+        pass.sort();
+        let mut both = vec![near.to_string(), far.to_string()];
+        both.sort();
+        assert_eq!(pass, both, "each pass must cover every shape before the next: {ids:?}");
+    }
+}
+
+#[test]
+fn reduce_travel_keeps_inner_first() {
+    let (mut project, layer_id) = single_line_layer_project();
+    project.workspace.origin = WorkspaceOrigin::TopLeft;
+    let outer = add_rectangle(&mut project, "outer", layer_id, 10.0, 10.0, 30.0, 30.0);
+    let inner = add_rectangle(&mut project, "inner", layer_id, 20.0, 20.0, 5.0, 5.0);
+    assert_eq!(
+        vector_ids(&build(
+            &project,
+            ProjectOptimization {
+                inner_first: true,
+                reduce_travel: true,
+                ..Default::default()
+            },
+        )),
+        vec![inner.to_string(), outer.to_string()]
+    );
+}

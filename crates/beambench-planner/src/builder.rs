@@ -2498,6 +2498,10 @@ fn build_plan_inner(
     let layer_order: Vec<String> = enabled_layers.iter().map(|l| l.id.to_string()).collect();
 
     let mut all_segments = Vec::new();
+    // Start index of every layer entry and every pass. Travel optimization
+    // may reorder only within one of these runs: across them it would change
+    // layer order (cut before engrave) or interleave passes.
+    let mut order_boundaries: Vec<usize> = Vec::new();
     let mut raster_budget = RasterPlanBudget::default();
     let mut warnings = Vec::new();
     let mut failed_entries = Vec::new();
@@ -2578,6 +2582,7 @@ fn build_plan_inner(
             entry_layer.entries = vec![entry.clone()];
             let layer = &entry_layer;
             let entry_segment_start = all_segments.len();
+            order_boundaries.push(entry_segment_start);
             let mut entry_failed = false;
 
             // Process raster objects
@@ -2588,6 +2593,7 @@ fn build_plan_inner(
                 OperationType::Image | OperationType::Fill
             ) {
                 for _pass in 0..raster_passes {
+                    order_boundaries.push(all_segments.len());
                     for obj in &raster_objects {
                         if let ObjectData::RasterImage {
                             asset_key,
@@ -3017,6 +3023,7 @@ fn build_plan_inner(
                     // 6. Generate offset fill per composited unit, completing each unit before
                     // moving to the next object.
                     for _pass in 0..passes {
+                        order_boundaries.push(all_segments.len());
                         let prepare_started_at = Instant::now();
                         let prepared_batches: Vec<Vec<PreparedOffsetFillUnit>> = composite_batches
                             .iter()
@@ -3311,6 +3318,7 @@ fn build_plan_inner(
                         let preview_outlines = simplify_preview_outlines(&composited_polylines);
 
                         for _pass in 0..fill_passes {
+                            order_boundaries.push(all_segments.len());
                             let Some(processed) = rasterize_fill(
                                 &composited_polylines,
                                 &composite_bounds,
@@ -3444,6 +3452,7 @@ fn build_plan_inner(
                     let passes = vector_settings.map(|s| s.passes).unwrap_or(1);
 
                     for _pass in 0..passes {
+                        order_boundaries.push(all_segments.len());
                         let pre_vector_count = all_segments.len();
                         // Group objects by power_scale to preserve per-object scaling
                         // while still allowing cross-object ordering within same scale
@@ -3756,9 +3765,15 @@ fn build_plan_inner(
         (Some(x), Some(y)) => Point2D::new(x, y),
         _ => Point2D::new(0.0, 0.0),
     };
-    let all_segments = if optimization.enabled && optimization.reduce_travel {
-        travel::reorder_segments_nearest_neighbor(
+    // Explicit orderings (inner first, direction, group) are constraints a
+    // nearest-neighbor pass would undo, so they take precedence.
+    let all_segments = if optimization.enabled
+        && optimization.reduce_travel
+        && !force_as_drawn(optimization)
+    {
+        reorder_travel_within_runs(
             all_segments,
+            &order_boundaries,
             start_pos,
             optimization.reduce_direction_changes,
         )
@@ -3935,6 +3950,44 @@ fn build_plan_inner(
         warnings,
         failed_entries,
     })
+}
+
+/// Nearest-neighbor travel optimization applied separately to each run
+/// between `boundaries` (layer entry and pass starts), in order. The tool
+/// position carries from one run's tail into the next.
+fn reorder_travel_within_runs(
+    segments: Vec<PlanSegment>,
+    boundaries: &[usize],
+    start_pos: Point2D,
+    reduce_direction_changes: bool,
+) -> Vec<PlanSegment> {
+    let total = segments.len();
+    let mut cuts: Vec<usize> = boundaries
+        .iter()
+        .copied()
+        .filter(|&index| index > 0 && index < total)
+        .collect();
+    cuts.sort_unstable();
+    cuts.dedup();
+    let mut result = Vec::with_capacity(total);
+    let mut current = start_pos;
+    let mut rest = segments;
+    let mut consumed = 0;
+    for cut in cuts {
+        let tail = rest.split_off(cut - consumed);
+        let run = std::mem::replace(&mut rest, tail);
+        consumed = cut;
+        let ordered =
+            travel::reorder_segments_nearest_neighbor(run, current, reduce_direction_changes);
+        current = tail_position(&ordered, current);
+        result.extend(ordered);
+    }
+    result.extend(travel::reorder_segments_nearest_neighbor(
+        rest,
+        current,
+        reduce_direction_changes,
+    ));
+    result
 }
 
 fn apply_dot_width_correction(segments: &mut [PlanSegment], calibration: &PlannerCalibration) {
@@ -7428,15 +7481,13 @@ mod tests {
     fn benchmark_travel_optimization_reduces_distance_meaningfully() {
         let project = create_benchmark_project();
 
-        // `inner_first: true` forces AsDrawn per-layer on flat geometry;
-        // here we vary only the cross-layer travel flag.
+        // Vary only the travel flag. (Inner first is an ordering constraint
+        // that travel optimization must respect, so it is left off here.)
         let no_opt = plan_input_with(ProjectOptimization {
-            inner_first: true,
             reduce_travel: false,
             ..Default::default()
         });
         let with_opt = plan_input_with(ProjectOptimization {
-            inner_first: true,
             reduce_travel: true,
             ..Default::default()
         });
@@ -7470,15 +7521,9 @@ mod tests {
             unopt_travel
         );
 
-        // With 12 scattered objects, reduction should be >10%
-        if unopt_travel > 0.0 {
-            let reduction_pct = (1.0 - opt_travel / unopt_travel) * 100.0;
-            assert!(
-                reduction_pct > 10.0,
-                "Travel distance reduction should be >10%, got {:.1}%",
-                reduction_pct
-            );
-        }
+        // Shapes within one layer are already ordered nearest-first, and the
+        // travel pass may not cross layer or pass boundaries, so on this
+        // single-layer fixture it must simply never make travel worse.
     }
 
     #[test]
