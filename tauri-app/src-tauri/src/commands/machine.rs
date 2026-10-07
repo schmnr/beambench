@@ -256,12 +256,12 @@ pub async fn continue_controller_connection(
     .map_err(|error| format!("Controller connection task failed: {error}"))?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn disconnect_machine(svc: State<'_, Arc<ServiceContext>>) -> Result<(), String> {
     machine::disconnect_machine(&svc).map_err(Into::into)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_machine_status(svc: State<'_, Arc<ServiceContext>>) -> Result<MachineStatus, String> {
     machine::machine_status(&svc).map_err(Into::into)
 }
