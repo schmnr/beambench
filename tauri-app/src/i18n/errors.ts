@@ -1,5 +1,8 @@
 import i18n from './index';
 import type { FeedbackSourceContext } from '../types/feedback';
+import { useAppStore } from '../stores/appStore';
+import { useProjectStore } from '../stores/projectStore';
+import { rasterMotionText } from './preflightText';
 
 const MACHINE_ZERO_REQUIRES_HOME = 'Machine-zero moves require homing in the current session first';
 const SERIAL_PORT_UNAVAILABLE = /\[serial_port_unavailable\]\s+Could not open ([^:]+):/u;
@@ -24,7 +27,15 @@ const DXF_NO_USABLE_GEOMETRY =
   /^DXF import found no usable 2D vector geometry\.(?: Unsupported or malformed entities: (.+)\.)?$/u;
 const DXF_SKIPPED_ENTITIES =
   /^DXF import skipped unsupported or malformed entities: (.+)\.$/u;
-const INTERNAL_SAFETY_MARKER = /^\[(?:controller_connection_lost|emergency_stop_unconfirmed)\]\s*/u;
+const SERIAL_OPEN_NO_RESPONSE = '[serial_open_no_response]';
+const SERIAL_PROTOCOL_UNRECOGNIZED = '[serial_protocol_unrecognized]';
+const NETWORK_GRBL_NO_STATUS = 'The network controller did not return a GRBL status report';
+const NO_ACTIVE_MACHINE_PROFILE = 'No active machine profile';
+const RASTER_MOTION_OFF_BED =
+  /^\[raster_motion_off_bed\] Raster motion spans ([-\d.]+) to ([-\d.]+)mm on the 0 to ([\d.]+)mm ([XY]) axis \(([\d.]+)mm of overscan/u;
+const SAFETY_TAG = /^\[(controller_connection_lost|emergency_stop_unconfirmed)\]/u;
+/** Any leading `[code]` tag: meant for matching here, never for display. */
+const ERROR_CODE_TAG = /^\[[a-z_]+\]\s*/u;
 
 /**
  * Localize a raw backend error string for display to the user.
@@ -38,6 +49,33 @@ const INTERNAL_SAFETY_MARKER = /^\[(?:controller_connection_lost|emergency_stop_
  */
 export function wrapBackendError(detail: string): string {
   const normalized = detail.replace(/^(?:Error:\s*|Operation failed:\s*)+/u, '');
+  if (normalized.includes(SERIAL_OPEN_NO_RESPONSE)) {
+    return i18n.t('errors.serial_open_no_response');
+  }
+  if (normalized.includes(SERIAL_PROTOCOL_UNRECOGNIZED)) {
+    return i18n.t('errors.serial_protocol_unrecognized');
+  }
+  if (normalized.startsWith(NETWORK_GRBL_NO_STATUS)) {
+    return i18n.t('errors.network_grbl_no_status');
+  }
+  if (normalized === NO_ACTIVE_MACHINE_PROFILE) {
+    return i18n.t('errors.no_active_machine_profile');
+  }
+  const rasterMotion = normalized.match(RASTER_MOTION_OFF_BED);
+  if (rasterMotion) {
+    const unit = useAppStore.getState().settings?.display_unit === 'inches' ? 'inches' : 'mm';
+    return rasterMotionText(
+      {
+        lo: Number(rasterMotion[1]),
+        hi: Number(rasterMotion[2]),
+        limit: Number(rasterMotion[3]),
+        axis: rasterMotion[4],
+        margin: Number(rasterMotion[5]),
+      },
+      unit,
+      useProjectStore.getState().project?.start_from ?? 'absolute_coords',
+    );
+  }
   if (normalized === MACHINE_ZERO_REQUIRES_HOME) {
     return i18n.t('errors.machine_zero_requires_home');
   }
@@ -110,10 +148,15 @@ export function wrapBackendError(detail: string): string {
         })
       : i18n.t('errors.dxf_no_usable_geometry');
   }
+  const safety = normalized.match(SAFETY_TAG);
+  if (safety) {
+    // Safety guidance in the user's language, with the controller detail.
+    return i18n.t('errors.operation_failed_with_detail', {
+      detail: i18n.t(`errors.${safety[1]}`, { detail: normalized.replace(ERROR_CODE_TAG, '') }),
+    });
+  }
   return i18n.t('errors.operation_failed_with_detail', {
-    detail: INTERNAL_SAFETY_MARKER.test(normalized)
-      ? normalized.replace(INTERNAL_SAFETY_MARKER, '')
-      : detail,
+    detail: ERROR_CODE_TAG.test(normalized) ? normalized.replace(ERROR_CODE_TAG, '') : detail,
   });
 }
 
@@ -127,7 +170,7 @@ export function localizeBackendMessage(detail: string): string {
   const wrapped = wrapBackendError(detail);
   const normalized = detail
     .replace(/^(?:Error:\s*|Operation failed:\s*)+/u, '')
-    .replace(INTERNAL_SAFETY_MARKER, '');
+    .replace(ERROR_CODE_TAG, '');
   const unknownFrames = [detail, normalized].map((value) =>
     i18n.t('errors.operation_failed_with_detail', { detail: value }),
   );

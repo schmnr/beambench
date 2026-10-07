@@ -371,8 +371,8 @@
       "outcome_fail": "Neuspešno",
       "warnings_block_start": "Pred zagonom opravila odpravite zgornja opozorila.",
       "advisory_choice": "To opravilo se lahko izvaja, vendar lahko popravek nasveta izboljša kakovost graviranja.",
-      "apply_overscan": "Uporabite {value} mm overscan in ponovno preverite",
-      "reduce_speed": "Uporabite {value} mm/min in ponovno preverite",
+      "apply_overscan": "Uporabite {value} {unit} overscan in ponovno preverite",
+      "reduce_speed": "Uporabite {value} {unit} in ponovno preverite",
       "continue_anyway": "Vseeno nadaljujte",
       "categories": {
         "connection": "Povezava",
@@ -382,7 +382,9 @@
         "settings": "nastavitve",
         "positioning": "Pozicioniranje",
         "planner": "Planer",
-        "machine_workspace": "Delovni prostor stroja"
+        "machine_workspace": "Delovni prostor stroja",
+        "controller": "Krmilnik",
+        "rotary": "Rotacijska enota"
       },
       "checks": {
         "session_ready": "Seja je pripravljena",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Rastrsko gibanje se prilega postelji stroja",
         "laser_mode": "Laserski način je omogočen ($32=1)",
         "homing_enabled": "Domovanje je omogočeno",
-        "relative_framed": "Relativna postavitev je bila uokvirjena na trenutni položaj"
+        "relative_framed": "Relativna postavitev je bila uokvirjena na trenutni položaj",
+        "machine_workspace_fits": "Načrtovano gibanje ustreza profilu stroja",
+        "rotary_safe": "Nastavitev rotacijske enote je varna",
+        "controller_supported": "Krmilnik lahko zažene opravila",
+        "image_detail_fits": "Podrobnost slike ustreza krmilniku",
+        "plan_generation": "Priprava opravila",
+        "ruida_compiles": "Opravilo je mogoče pretvoriti za krmilnik Ruida",
+        "lihuiyu_compiles": "Opravilo je mogoče pretvoriti za krmilnik Lihuiyu M2"
       },
       "messages": {
         "connected_ready": "Povezan in pripravljen",
@@ -406,8 +415,11 @@
         "frame_required": "Ta krmilnik ni domač, zato Beam Bench ne more preveriti fizičnih robov postelje. Po namestitvi laserja uokvirite opravilo in ga pred začetkom ponovno preverite.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segmentov",
-        "plan_bounds_exceed": "Načrtovane meje ({minX}, {minY} do {maxX}, {maxY}) presegajo delovno območje stroja {width} × {height} mm.",
-        "raster_motion_exceeds": "Rastrsko gibanje sega od {lo} do {hi} mm na osi {axis}, katere območje je od 0 do {limit} mm. Prekoračitev in zamik skeniranja dodata {margin} mm zunaj območja graviranja. {startFrom, select, current_position {Zmanjšajte prekoračitev ali premaknite laser dlje od roba delovnega območja.} user_origin {Zmanjšajte prekoračitev ali premaknite oziroma znova nastavite Uporabniško izhodišče dlje od roba delovnega območja.} other {Zmanjšajte prekoračitev ali premaknite motiv dlje od roba delovnega območja.}}"
+        "plan_bounds_exceed": "Načrtovane meje ({minX}, {minY} do {maxX}, {maxY}) presegajo delovno območje stroja {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Rastrsko gibanje sega od {lo} do {hi} {unit} na osi {axis}, katere območje je od 0 do {limit} {unit}. Prekoračitev in zamik skeniranja dodata {margin} {unit} zunaj območja graviranja. {startFrom, select, current_position {Zmanjšajte prekoračitev ali premaknite laser dlje od roba delovnega območja.} user_origin {Zmanjšajte prekoračitev ali premaknite oziroma znova nastavite Uporabniško izhodišče dlje od roba delovnega območja.} other {Zmanjšajte prekoračitev ali premaknite motiv dlje od roba delovnega območja.}}",
+        "session_state": "Povezava: {state}",
+        "machine_state": "Stanje stroja: {state}",
+        "plan_bounds_fit": "Načrtovane meje ({minX}, {minY} do {maxX}, {maxY}) se prilegajo delovni površini stroja {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "Zajem s kamero v tem oknu ni na voljo.",
       "empty_frame": "Kamera je vrnila prazen posnetek.",
       "canvas_failed": "Posnetka kamere ni bilo mogoče pripraviti."
-    }
+    },
+    "serial_open_no_response": "Vrata so se odprla, vendar laser ni odgovoril. Preverite, ali je laser vklopljen, poskusite z drugim kablom ali vrati USB in se prepričajte, da so izbrana prava vrata. Nekatere plošče potrebujejo gonilnik USB CH340.",
+    "serial_protocol_unrecognized": "Laser je odgovoril, vendar Beam Bench ni prepoznal njegovega krmilnika. Preverite hitrost prenosa (baud) v profilu stroja (večina laserjev GRBL uporablja 115200) in zaprite drugo lasersko programsko opremo, ki uporablja ta vrata.",
+    "network_grbl_no_status": "Krmilnik na tem naslovu ni odgovoril kot laser GRBL. Preverite naslov IP in vrata, zaprite druge aplikacije, ki so povezane z njim (veliko modulov Wi-Fi dovoli le eno povezavo hkrati), in poskusite znova.",
+    "no_active_machine_profile": "Noben stroj še ni nastavljen. Najprej dodajte ali izberite profil stroja.",
+    "emergency_stop_unconfirmed": "Beam Bench ni mogel potrditi, da se je stroj ustavil. Takoj uporabite fizični zasilni izklop stroja ali odklopite napajanje laserja. Podrobnosti: {detail}",
+    "controller_connection_lost": "Povezava z laserjem je bila prekinjena. Preverite kabel in napajanje ter se znova povežite. Podrobnosti: {detail}"
   },
   "import": {
     "drop_to_import": "Spustite datoteke za uvoz"

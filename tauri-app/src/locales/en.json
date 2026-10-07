@@ -500,8 +500,8 @@
       "outcome_fail": "Fail",
       "warnings_block_start": "Resolve the warnings above before starting the job.",
       "advisory_choice": "This job can run, but correcting the advisory may improve engraving quality.",
-      "apply_overscan": "Use {value} mm overscan and recheck",
-      "reduce_speed": "Use {value} mm/min and recheck",
+      "apply_overscan": "Use {value} {unit} overscan and recheck",
+      "reduce_speed": "Use {value} {unit} and recheck",
       "continue_anyway": "Continue anyway",
       "categories": {
         "connection": "Connection",
@@ -511,7 +511,9 @@
         "settings": "Settings",
         "positioning": "Positioning",
         "planner": "Planner",
-        "machine_workspace": "Machine workspace"
+        "machine_workspace": "Machine workspace",
+        "controller": "Controller",
+        "rotary": "Rotary"
       },
       "checks": {
         "session_ready": "Session is ready",
@@ -522,7 +524,14 @@
         "raster_motion_fits": "Raster motion fits within the machine bed",
         "laser_mode": "Laser mode is enabled ($32=1)",
         "homing_enabled": "Homing is enabled",
-        "relative_framed": "Relative placement was framed at the current position"
+        "relative_framed": "Relative placement was framed at the current position",
+        "machine_workspace_fits": "Planned motion fits the machine profile",
+        "rotary_safe": "Rotary setup is safe to run",
+        "controller_supported": "Controller can start jobs",
+        "image_detail_fits": "Image detail fits the controller",
+        "plan_generation": "Job preparation",
+        "ruida_compiles": "Job converts for the Ruida controller",
+        "lihuiyu_compiles": "Job converts for the Lihuiyu M2 controller"
       },
       "messages": {
         "connected_ready": "Connected and ready",
@@ -535,8 +544,11 @@
         "frame_required": "This controller is not homed, so Beam Bench cannot verify the physical bed edges. Frame the job after positioning the laser, then recheck before starting.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segments",
-        "plan_bounds_exceed": "The planned bounds ({minX}, {minY} to {maxX}, {maxY}) exceed the {width} × {height} mm machine bed.",
-        "raster_motion_exceeds": "Raster motion spans {lo} to {hi} mm on the 0 to {limit} mm {axis} axis. Overscan and scanning offset add {margin} mm beyond the burn area. {startFrom, select, current_position {Reduce overscan or move the laser farther from the bed edge.} user_origin {Reduce overscan or move or reset User Origin farther from the bed edge.} other {Reduce overscan or move the artwork farther from the bed edge.}}"
+        "plan_bounds_exceed": "The planned bounds ({minX}, {minY} to {maxX}, {maxY}) exceed the {width} × {height} {unit} machine bed.",
+        "raster_motion_exceeds": "Raster motion spans {lo} to {hi} {unit} on the 0 to {limit} {unit} {axis} axis. Overscan and scanning offset add {margin} {unit} beyond the burn area. {startFrom, select, current_position {Reduce overscan or move the laser farther from the bed edge.} user_origin {Reduce overscan or move or reset User Origin farther from the bed edge.} other {Reduce overscan or move the artwork farther from the bed edge.}}",
+        "session_state": "Connection: {state}",
+        "machine_state": "Machine state: {state}",
+        "plan_bounds_fit": "The planned bounds ({minX}, {minY} to {maxX}, {maxY}) fit the {width} × {height} {unit} machine bed."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "Camera capture is not available in this window.",
       "empty_frame": "The camera returned an empty image.",
       "canvas_failed": "Could not prepare the camera image."
-    }
+    },
+    "serial_open_no_response": "The port opened, but the laser did not answer. Check that the laser is switched on, try another USB cable or port, and make sure the right port is selected. Some boards need the CH340 USB driver.",
+    "serial_protocol_unrecognized": "The laser answered, but Beam Bench did not recognize its controller. Check the baud rate in the machine profile (most GRBL lasers use 115200) and close any other laser software using this port.",
+    "network_grbl_no_status": "The controller at this address did not answer as a GRBL laser. Check the IP address and port, close other apps connected to it (many Wi-Fi modules allow only one connection at a time), and try again.",
+    "no_active_machine_profile": "No machine is set up yet. Add or select a machine profile first.",
+    "emergency_stop_unconfirmed": "{detail}",
+    "controller_connection_lost": "{detail}"
   },
   "import": {
     "drop_to_import": "Drop files to import"

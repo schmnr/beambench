@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { localizeImportWarning, wrapBackendError } from './errors';
 import i18n, { SUPPORTED_LOCALES } from './index';
+import { useAppStore } from '../stores/appStore';
+import type { AppSettings } from '../types/commands';
 
 describe('wrapBackendError', () => {
   it.each(SUPPORTED_LOCALES)('localizes release safety messages in %s', async (locale) => {
@@ -165,5 +167,48 @@ describe('wrapBackendError', () => {
         'DXF import skipped unsupported or malformed entities: 1 TEXT.',
       ),
     ).toBe('Some DXF entities could not be imported: 1 TEXT.');
+  });
+
+  it('translates connection failures and never shows their tags', () => {
+    const silent = wrapBackendError(
+      '[serial_open_no_response] The serial port opened, but no supported controller replied. GRBL-family baud rates: 115200.',
+    );
+    expect(silent).toContain('the laser did not answer');
+    expect(silent).not.toContain('[');
+    const unknown = wrapBackendError(
+      'Operation failed: [serial_protocol_unrecognized] The serial port returned data, but no supported controller protocol was recognized.',
+    );
+    expect(unknown).toContain('did not recognize its controller');
+    expect(unknown).not.toContain('[');
+    expect(wrapBackendError('The network controller did not return a GRBL status report')).toContain(
+      'did not answer as a GRBL laser',
+    );
+    expect(wrapBackendError('No active machine profile')).toBe(
+      'No machine is set up yet. Add or select a machine profile first.',
+    );
+  });
+
+  it('never shows an unknown leading tag', () => {
+    expect(wrapBackendError('[some_new_code] Something failed.')).toBe(
+      'Operation failed: Something failed.',
+    );
+  });
+
+  it('shows raster overscan export errors in the display unit', () => {
+    useAppStore.setState({ settings: { display_unit: 'inches' } as AppSettings });
+    const message = wrapBackendError(
+      '[raster_motion_off_bed] Raster motion spans -12.7 to 254.0mm on the 0 to 254mm X axis (12.7mm of overscan and scanning offset beyond the burn area). Reduce overscan or move the design further from the bed edge.',
+    );
+    expect(message).toContain('-0.5 to 10 in on the 0 to 10 in X axis');
+    expect(message).toContain('add 0.5 in');
+    useAppStore.setState({ settings: null });
+  });
+
+  it('gives safety guidance in the user language', async () => {
+    await i18n.changeLanguage('de');
+    const message = wrapBackendError('[emergency_stop_unconfirmed] Controller did not confirm the stop.');
+    expect(message).toContain('Not-Aus');
+    expect(message).toContain('Controller did not confirm the stop.');
+    await i18n.changeLanguage('en');
   });
 });

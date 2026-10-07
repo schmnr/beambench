@@ -371,8 +371,8 @@
       "outcome_fail": "Échec",
       "warnings_block_start": "Résolvez les avertissements ci-dessus avant de lancer le travail.",
       "advisory_choice": "Le travail peut être lancé, mais cette correction peut améliorer la qualité de gravure.",
-      "apply_overscan": "Utiliser {value} mm de surbalayage et revérifier",
-      "reduce_speed": "Utiliser {value} mm/min et revérifier",
+      "apply_overscan": "Utiliser {value} {unit} de surbalayage et revérifier",
+      "reduce_speed": "Utiliser {value} {unit} et revérifier",
       "continue_anyway": "Continuer quand même",
       "categories": {
         "connection": "Connexion",
@@ -382,7 +382,9 @@
         "settings": "Réglages",
         "positioning": "Positionnement",
         "planner": "Planificateur",
-        "machine_workspace": "Espace de travail de la machine"
+        "machine_workspace": "Espace de travail de la machine",
+        "controller": "Contrôleur",
+        "rotary": "Rotatif"
       },
       "checks": {
         "session_ready": "La connexion est prête",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Les mouvements de gravure tiennent dans la zone de travail",
         "laser_mode": "Le mode laser est activé ($32=1)",
         "homing_enabled": "Le retour à l’origine est activé",
-        "relative_framed": "Le placement relatif a été cadré à la position actuelle"
+        "relative_framed": "Le placement relatif a été cadré à la position actuelle",
+        "machine_workspace_fits": "Le mouvement prévu tient dans le profil de la machine",
+        "rotary_safe": "La configuration du rotatif est sûre",
+        "controller_supported": "Le contrôleur peut démarrer des travaux",
+        "image_detail_fits": "Le détail de l’image convient au contrôleur",
+        "plan_generation": "Préparation du travail",
+        "ruida_compiles": "Le travail peut être converti pour le contrôleur Ruida",
+        "lihuiyu_compiles": "Le travail peut être converti pour le contrôleur Lihuiyu M2"
       },
       "messages": {
         "connected_ready": "Connecté et prêt",
@@ -406,8 +415,11 @@
         "frame_required": "Cette machine n’est pas référencée. Beam Bench ne peut donc pas vérifier les bords physiques. Cadrez le travail après avoir positionné le laser, puis relancez la vérification.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segments",
-        "plan_bounds_exceed": "Les limites prévues ({minX}, {minY} à {maxX}, {maxY}) dépassent la zone de travail de la machine de {width} × {height} mm.",
-        "raster_motion_exceeds": "Le mouvement de gravure s’étend de {lo} à {hi} mm sur l’axe {axis}, dont la plage va de 0 à {limit} mm. Le surbalayage et le décalage de numérisation ajoutent {margin} mm au-delà de la zone gravée. {startFrom, select, current_position {Réduisez le surbalayage ou éloignez le laser du bord de la zone de travail.} user_origin {Réduisez le surbalayage ou déplacez ou redéfinissez l’origine utilisateur plus loin du bord de la zone de travail.} other {Réduisez le surbalayage ou éloignez le dessin du bord de la zone de travail.}}"
+        "plan_bounds_exceed": "Les limites prévues ({minX}, {minY} à {maxX}, {maxY}) dépassent la zone de travail de la machine de {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Le mouvement de gravure s’étend de {lo} à {hi} {unit} sur l’axe {axis}, dont la plage va de 0 à {limit} {unit}. Le surbalayage et le décalage de numérisation ajoutent {margin} {unit} au-delà de la zone gravée. {startFrom, select, current_position {Réduisez le surbalayage ou éloignez le laser du bord de la zone de travail.} user_origin {Réduisez le surbalayage ou déplacez ou redéfinissez l’origine utilisateur plus loin du bord de la zone de travail.} other {Réduisez le surbalayage ou éloignez le dessin du bord de la zone de travail.}}",
+        "session_state": "Connexion : {state}",
+        "machine_state": "État de la machine : {state}",
+        "plan_bounds_fit": "Les limites prévues ({minX}, {minY} à {maxX}, {maxY}) tiennent dans la zone de travail de la machine de {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "La capture caméra n'est pas disponible dans cette fenêtre.",
       "empty_frame": "La caméra a renvoyé une image vide.",
       "canvas_failed": "Impossible de préparer l'image de la caméra."
-    }
+    },
+    "serial_open_no_response": "Le port s’est ouvert, mais le laser n’a pas répondu. Vérifiez que le laser est allumé, essayez un autre câble ou port USB et assurez-vous que le bon port est sélectionné. Certaines cartes nécessitent le pilote USB CH340.",
+    "serial_protocol_unrecognized": "Le laser a répondu, mais Beam Bench n’a pas reconnu son contrôleur. Vérifiez le débit en bauds dans le profil de la machine (la plupart des lasers GRBL utilisent 115200) et fermez tout autre logiciel laser qui utilise ce port.",
+    "network_grbl_no_status": "Le contrôleur à cette adresse n’a pas répondu comme un laser GRBL. Vérifiez l’adresse IP et le port, fermez les autres applications qui y sont connectées (de nombreux modules Wi-Fi n’acceptent qu’une connexion à la fois), puis réessayez.",
+    "no_active_machine_profile": "Aucune machine n’est encore configurée. Ajoutez ou sélectionnez d’abord un profil de machine.",
+    "emergency_stop_unconfirmed": "Beam Bench n’a pas pu confirmer l’arrêt de la machine. Utilisez immédiatement l’arrêt d’urgence physique de la machine ou coupez l’alimentation du laser. Détails : {detail}",
+    "controller_connection_lost": "La connexion au laser a été perdue. Vérifiez le câble et l’alimentation, puis reconnectez-vous. Détails : {detail}"
   },
   "import": {
     "drop_to_import": "Déposez des fichiers à importer"

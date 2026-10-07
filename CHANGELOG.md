@@ -182,6 +182,15 @@
 - Choosing an API port that is already taken keeps the API running on its
   current port. Resetting or importing preferences that cannot be applied no
   longer saves them anyway.
+- The job check before starting now shows every common check in your
+  language, and bed sizes, bounds, overscan and speed suggestions in your
+  chosen unit (millimetres or inches).
+- Connection failures now explain what to try (power, cable, USB driver,
+  baud rate, other software holding the port) in your language instead of
+  showing an internal code. Unconfirmed stops and lost connections show the
+  safety instruction in your language too.
+- Using the camera before a machine is set up now says to add a machine
+  first.
 
 ## 0.2.25
 

@@ -15,8 +15,8 @@ use beambench_common::geometry::{Bounds, Point2D};
 use beambench_common::machine::{
     ControllerEvidenceState, ControllerFamily, ControllerModel, ControllerProductTier,
     DeviceCapabilities, DeviceIdentity, JobProgress, JobState, MachineConnectionTarget,
-    MachineRunState, MachineStatus, PortInfo, PreflightAdvisory, PreflightCheck, PreflightOutcome,
-    PreflightReport, SessionState, TransportKind,
+    MachineRunState, MachineStatus, PortInfo, PreflightAdvisory, PreflightCheck, PreflightDetail,
+    PreflightOutcome, PreflightReport, SessionState, TransportKind,
 };
 use beambench_core::object::ObjectData;
 use beambench_core::{MachineProfile, MachineProfileId, Project, RuidaTableAxis, Workspace};
@@ -411,18 +411,23 @@ fn generic_preflight_checks(
             } else {
                 format!("Session state: {session_state:?}")
             },
+            detail: Some(PreflightDetail::session_state(session_state)),
         },
         PreflightCheck {
             category: "machine".to_string(),
             description: "Machine is idle".to_string(),
             passed: machine_idle,
             message: format!("Machine state: {run_state:?}"),
+            detail: Some(PreflightDetail::machine_state(run_state)),
         },
         PreflightCheck {
             category: "plan".to_string(),
             description: "Plan has segments".to_string(),
             passed: plan_not_empty,
             message: format!("{} segments", plan.segments.len()),
+            detail: Some(PreflightDetail::SegmentCount {
+                count: plan.segments.len(),
+            }),
         },
         PreflightCheck {
             category: "bounds".to_string(),
@@ -437,6 +442,14 @@ fn generic_preflight_checks(
                 workspace_width_mm,
                 workspace_height_mm
             ),
+            detail: Some(PreflightDetail::PlanBounds {
+                min_x: plan.bounds.min.x,
+                min_y: plan.bounds.min.y,
+                max_x: plan.bounds.max.x,
+                max_y: plan.bounds.max.y,
+                bed_width: workspace_width_mm,
+                bed_height: workspace_height_mm,
+            }),
         },
     ];
     let raster_motion = check_raster_motion_bounds(plan, profile);
@@ -477,6 +490,7 @@ fn run_ruida_preflight(
                 )
             })
             .unwrap_or_else(|error| error),
+        detail: None,
     });
     PreflightReport {
         outcome: if basics_ok && compilation_ok {
@@ -515,6 +529,7 @@ fn run_lihuiyu_preflight(
                 )
             })
             .unwrap_or_else(|error| error),
+        detail: None,
     });
     PreflightReport {
         outcome: if basics_ok && compilation_ok {
@@ -4267,6 +4282,7 @@ fn run_preflight_check_with_plan(
                     description: "Plan generation".to_string(),
                     passed: false,
                     message: format!("{plan_err}"),
+                    detail: None,
                 }];
                 if let Some(tool_check) = tool_layer_check {
                     checks.push(tool_check);
@@ -4330,6 +4346,7 @@ fn run_preflight_check_with_plan(
                 message: format!(
                     "Images in this job need more than {runs} separate burn runs. This controller supports up to {IN_MEMORY_CONTROLLER_MAX_RASTER_RUNS}. Reduce the image DPI, physical size, or dithering detail."
                 ),
+                detail: None,
             }],
             advisories: Vec::new(),
         };
@@ -4363,6 +4380,7 @@ fn run_preflight_check_with_plan(
                 description: "Controller supports job start".to_string(),
                 passed: can_run_job,
                 message: format!("{:?}", session.controller_family()),
+                detail: None,
             });
             PreflightReport {
                 outcome: if basics_ok && can_run_job {
@@ -4408,6 +4426,7 @@ fn run_preflight_check_with_plan(
             description: "Planned motion fits the active machine profile".to_string(),
             passed: false,
             message,
+            detail: None,
         });
         report.outcome = PreflightOutcome::Fail;
     }
@@ -4429,6 +4448,7 @@ fn run_preflight_check_with_plan(
                 "This controller is not homed, so Beam Bench cannot verify physical bed edges. Frame the job after positioning the laser, then recheck before starting."
                     .to_string()
             },
+            detail: None,
         });
         if !framed {
             report.outcome = PreflightOutcome::Fail;
@@ -4474,6 +4494,7 @@ fn run_preflight_check_with_plan(
             description: "Rotary configuration is safe to run".to_string(),
             passed: rotary_ok,
             message,
+            detail: None,
         });
         if !rotary_ok {
             report.outcome = PreflightOutcome::Fail;
@@ -4514,6 +4535,7 @@ fn run_preflight_check_with_plan(
                     description: w.message.clone(),
                     passed: false,
                     message: w.message.clone(),
+                    detail: None,
                 });
                 report.outcome = PreflightOutcome::Fail;
             }
@@ -4554,6 +4576,7 @@ fn run_preflight_check_with_plan(
                 ),
                 passed: false,
                 message,
+                detail: None,
             });
         }
         report.outcome = PreflightOutcome::Fail;

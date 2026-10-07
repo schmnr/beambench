@@ -371,8 +371,8 @@
       "outcome_fail": "Hylätty",
       "warnings_block_start": "Ratkaise yllä olevat varoitukset ennen työn aloittamista.",
       "advisory_choice": "Tämä työ voidaan suorittaa, mutta neuvojen korjaaminen voi parantaa kaiverruslaatua.",
-      "apply_overscan": "Käytä {value} mm:n yliskannausta ja tarkista uudelleen",
-      "reduce_speed": "Käytä {value} mm/min ja tarkista uudelleen",
+      "apply_overscan": "Käytä {value} {unit}:n yliskannausta ja tarkista uudelleen",
+      "reduce_speed": "Käytä {value} {unit} ja tarkista uudelleen",
       "continue_anyway": "Jatka joka tapauksessa",
       "categories": {
         "connection": "Yhteys",
@@ -382,7 +382,9 @@
         "settings": "Asetukset",
         "positioning": "Paikannus",
         "planner": "Suunnittelija",
-        "machine_workspace": "Koneen työtila"
+        "machine_workspace": "Koneen työtila",
+        "controller": "Ohjain",
+        "rotary": "Pyörityslaite"
       },
       "checks": {
         "session_ready": "Sessio on valmis",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Raster-liike mahtuu koneen sisään",
         "laser_mode": "Lasertila on käytössä ($32=1)",
         "homing_enabled": "Kotiutus on käytössä",
-        "relative_framed": "Suhteellinen sijoitus kehystettiin nykyiseen sijaintiin"
+        "relative_framed": "Suhteellinen sijoitus kehystettiin nykyiseen sijaintiin",
+        "machine_workspace_fits": "Suunniteltu liike sopii koneprofiiliin",
+        "rotary_safe": "Pyörityslaitteen asetukset ovat turvalliset",
+        "controller_supported": "Ohjain voi käynnistää töitä",
+        "image_detail_fits": "Kuvan yksityiskohdat sopivat ohjaimelle",
+        "plan_generation": "Työn valmistelu",
+        "ruida_compiles": "Työ voidaan muuntaa Ruida-ohjaimelle",
+        "lihuiyu_compiles": "Työ voidaan muuntaa Lihuiyu M2 -ohjaimelle"
       },
       "messages": {
         "connected_ready": "Yhdistetty ja valmis",
@@ -406,8 +415,11 @@
         "frame_required": "Tätä ohjainta ei ole asennettu, joten Beam Bench ei voi tarkistaa sängyn fyysisiä reunoja. Kehystä työ laserin sijoittamisen jälkeen ja tarkista sitten ennen aloittamista.",
         "segment_count_one": "1 segmentti",
         "segment_count_other": "{count} segmenttiä",
-        "plan_bounds_exceed": "Suunnitellut rajat ({minX}, {minY}–{maxX}, {maxY}) ylittävät koneen {width} × {height} mm työalueen.",
-        "raster_motion_exceeds": "Rasteriliike ulottuu {axis}-akselilla välille {lo}–{hi} mm, kun akselin alue on 0–{limit} mm. Yliskannaus ja skannauspoikkeama lisäävät {margin} mm kaiverrusalueen ulkopuolelle. {startFrom, select, current_position {Vähennä yliskannausta tai siirrä laser kauemmas työalueen reunasta.} user_origin {Vähennä yliskannausta tai siirrä tai aseta Käyttäjän alkupiste uudelleen kauemmas työalueen reunasta.} other {Vähennä yliskannausta tai siirrä kuva kauemmas työalueen reunasta.}}"
+        "plan_bounds_exceed": "Suunnitellut rajat ({minX}, {minY}–{maxX}, {maxY}) ylittävät koneen {width} × {height} {unit} työalueen.",
+        "raster_motion_exceeds": "Rasteriliike ulottuu {axis}-akselilla välille {lo}–{hi} {unit}, kun akselin alue on 0–{limit} {unit}. Yliskannaus ja skannauspoikkeama lisäävät {margin} {unit} kaiverrusalueen ulkopuolelle. {startFrom, select, current_position {Vähennä yliskannausta tai siirrä laser kauemmas työalueen reunasta.} user_origin {Vähennä yliskannausta tai siirrä tai aseta Käyttäjän alkupiste uudelleen kauemmas työalueen reunasta.} other {Vähennä yliskannausta tai siirrä kuva kauemmas työalueen reunasta.}}",
+        "session_state": "Yhteys: {state}",
+        "machine_state": "Koneen tila: {state}",
+        "plan_bounds_fit": "Suunnitellut rajat ({minX}, {minY}–{maxX}, {maxY}) mahtuvat koneen {width} × {height} {unit} työalueelle."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "Kamerakuvaus ei ole käytettävissä tässä ikkunassa.",
       "empty_frame": "Kamera palautti tyhjän kuvan.",
       "canvas_failed": "Kamerakuvaa ei voitu valmistella."
-    }
+    },
+    "serial_open_no_response": "Portti avautui, mutta laser ei vastannut. Tarkista, että laser on päällä, kokeile toista USB-kaapelia tai -porttia ja varmista, että oikea portti on valittuna. Jotkin piirilevyt tarvitsevat CH340-USB-ajurin.",
+    "serial_protocol_unrecognized": "Laser vastasi, mutta Beam Bench ei tunnistanut sen ohjainta. Tarkista koneprofiilin baudinopeus (useimmat GRBL-laserit käyttävät arvoa 115200) ja sulje muut tätä porttia käyttävät laserohjelmat.",
+    "network_grbl_no_status": "Tämän osoitteen ohjain ei vastannut GRBL-laserina. Tarkista IP-osoite ja portti, sulje muut siihen yhdistetyt sovellukset (monet Wi-Fi-moduulit sallivat vain yhden yhteyden kerrallaan) ja yritä uudelleen.",
+    "no_active_machine_profile": "Konetta ei ole vielä määritetty. Lisää tai valitse ensin koneprofiili.",
+    "emergency_stop_unconfirmed": "Beam Bench ei voinut vahvistaa, että kone pysähtyi. Käytä heti koneen fyysistä hätäpysäytintä tai katkaise laserin virta. Lisätiedot: {detail}",
+    "controller_connection_lost": "Yhteys laseriin katkesi. Tarkista kaapeli ja virta ja yhdistä sitten uudelleen. Lisätiedot: {detail}"
   },
   "import": {
     "drop_to_import": "Pudota tiedostot tuotavaksi"

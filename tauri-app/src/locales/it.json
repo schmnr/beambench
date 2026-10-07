@@ -371,8 +371,8 @@
       "outcome_fail": "Fallito",
       "warnings_block_start": "Risolvi gli avvisi qui sopra prima di avviare il lavoro.",
       "advisory_choice": "Questo lavoro può essere eseguito, ma la correzione dell'avviso può migliorare la qualità dell'incisione.",
-      "apply_overscan": "Utilizza l'overscan di {value} mm e ricontrolla",
-      "reduce_speed": "Utilizzare {value} mm/min e ricontrollare",
+      "apply_overscan": "Utilizza l'overscan di {value} {unit} e ricontrolla",
+      "reduce_speed": "Utilizzare {value} {unit} e ricontrollare",
       "continue_anyway": "Continua comunque",
       "categories": {
         "connection": "Connessione",
@@ -382,7 +382,9 @@
         "settings": "Impostazioni",
         "positioning": "Posizionamento",
         "planner": "Pianificatore",
-        "machine_workspace": "Area di lavoro della macchina"
+        "machine_workspace": "Area di lavoro della macchina",
+        "controller": "Controller",
+        "rotary": "Rotativo"
       },
       "checks": {
         "session_ready": "La sessione è pronta",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Il movimento raster si adatta al basamento della macchina",
         "laser_mode": "La modalità laser è abilitata ($32=1)",
         "homing_enabled": "L'homing è abilitato",
-        "relative_framed": "Il posizionamento relativo è stato inquadrato nella posizione attuale"
+        "relative_framed": "Il posizionamento relativo è stato inquadrato nella posizione attuale",
+        "machine_workspace_fits": "Il movimento pianificato rientra nel profilo della macchina",
+        "rotary_safe": "La configurazione del rotativo è sicura",
+        "controller_supported": "Il controller può avviare lavori",
+        "image_detail_fits": "Il dettaglio dell’immagine è adatto al controller",
+        "plan_generation": "Preparazione del lavoro",
+        "ruida_compiles": "Il lavoro può essere convertito per il controller Ruida",
+        "lihuiyu_compiles": "Il lavoro può essere convertito per il controller Lihuiyu M2"
       },
       "messages": {
         "connected_ready": "Connesso e pronto",
@@ -406,8 +415,11 @@
         "frame_required": "Questo controller non è in home, quindi Beam Bench non può verificare i bordi fisici del letto. Inquadrare il lavoro dopo aver posizionato il laser, quindi ricontrollare prima di iniziare.",
         "segment_count_one": "1 segmento",
         "segment_count_other": "{count} segmenti",
-        "plan_bounds_exceed": "I limiti previsti ({minX}, {minY} a {maxX}, {maxY}) superano il piano macchina di {width} × {height} mm.",
-        "raster_motion_exceeds": "Il movimento raster va da {lo} a {hi} mm sull’asse {axis}, il cui intervallo è da 0 a {limit} mm. L’overscan e l’offset di scansione aggiungono {margin} mm oltre l’area incisa. {startFrom, select, current_position {Riduci l’overscan o allontana il laser dal bordo del piano.} user_origin {Riduci l’overscan oppure sposta o reimposta l’Origine utente più lontano dal bordo del piano.} other {Riduci l’overscan o allontana il disegno dal bordo del piano.}}"
+        "plan_bounds_exceed": "I limiti previsti ({minX}, {minY} a {maxX}, {maxY}) superano il piano macchina di {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Il movimento raster va da {lo} a {hi} {unit} sull’asse {axis}, il cui intervallo è da 0 a {limit} {unit}. L’overscan e l’offset di scansione aggiungono {margin} {unit} oltre l’area incisa. {startFrom, select, current_position {Riduci l’overscan o allontana il laser dal bordo del piano.} user_origin {Riduci l’overscan oppure sposta o reimposta l’Origine utente più lontano dal bordo del piano.} other {Riduci l’overscan o allontana il disegno dal bordo del piano.}}",
+        "session_state": "Connessione: {state}",
+        "machine_state": "Stato della macchina: {state}",
+        "plan_bounds_fit": "I limiti pianificati ({minX}, {minY} a {maxX}, {maxY}) rientrano nell’area di lavoro della macchina di {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "L'acquisizione dalla fotocamera non è disponibile in questa finestra.",
       "empty_frame": "La fotocamera ha restituito un'immagine vuota.",
       "canvas_failed": "Impossibile preparare l'immagine della fotocamera."
-    }
+    },
+    "serial_open_no_response": "La porta si è aperta, ma il laser non ha risposto. Verificare che il laser sia acceso, provare un altro cavo o porta USB e assicurarsi che sia selezionata la porta corretta. Alcune schede richiedono il driver USB CH340.",
+    "serial_protocol_unrecognized": "Il laser ha risposto, ma Beam Bench non ha riconosciuto il suo controller. Verificare la velocità in baud nel profilo della macchina (la maggior parte dei laser GRBL usa 115200) e chiudere qualsiasi altro software laser che usa questa porta.",
+    "network_grbl_no_status": "Il controller a questo indirizzo non ha risposto come un laser GRBL. Verificare l’indirizzo IP e la porta, chiudere le altre app collegate (molti moduli Wi-Fi consentono una sola connessione alla volta) e riprovare.",
+    "no_active_machine_profile": "Nessuna macchina è ancora configurata. Aggiungere o selezionare prima un profilo macchina.",
+    "emergency_stop_unconfirmed": "Beam Bench non è riuscito a confermare che la macchina si sia fermata. Usare subito l’arresto di emergenza fisico della macchina o scollegare l’alimentazione del laser. Dettagli: {detail}",
+    "controller_connection_lost": "La connessione con il laser si è interrotta. Controllare il cavo e l’alimentazione, quindi riconnettersi. Dettagli: {detail}"
   },
   "import": {
     "drop_to_import": "Trascina i file da importare"

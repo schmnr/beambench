@@ -371,8 +371,8 @@
       "outcome_fail": "失敗",
       "warnings_block_start": "請先解決上述警告，再開始作業。",
       "advisory_choice": "此作業可以運行，但更正建議可能會提高雕刻品質。",
-      "apply_overscan": "使用 {value} mm 過掃描並重新檢查",
-      "reduce_speed": "使用 {value} mm/min 並重新檢查",
+      "apply_overscan": "使用 {value} {unit} 過掃描並重新檢查",
+      "reduce_speed": "使用 {value} {unit} 並重新檢查",
       "continue_anyway": "仍然繼續",
       "categories": {
         "connection": "連接方式",
@@ -382,7 +382,9 @@
         "settings": "設定",
         "positioning": "定位",
         "planner": "規劃師",
-        "machine_workspace": "機器工作空間"
+        "machine_workspace": "機器工作空間",
+        "controller": "控制器",
+        "rotary": "旋轉軸"
       },
       "checks": {
         "session_ready": "會話已準備就緒",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "光柵運動適合機器床身",
         "laser_mode": "雷射模式已啟用（$32=1）",
         "homing_enabled": "歸位已啟用",
-        "relative_framed": "相對位置以目前位置為框架"
+        "relative_framed": "相對位置以目前位置為框架",
+        "machine_workspace_fits": "計畫運動符合機器設定檔",
+        "rotary_safe": "旋轉軸設定可以安全執行",
+        "controller_supported": "控制器可以啟動工作",
+        "image_detail_fits": "影像細節適合控制器",
+        "plan_generation": "工作準備",
+        "ruida_compiles": "工作可轉換為 Ruida 控制器格式",
+        "lihuiyu_compiles": "工作可轉換為 Lihuiyu M2 控制器格式"
       },
       "messages": {
         "connected_ready": "已連接並準備就緒",
@@ -406,8 +415,11 @@
         "frame_required": "此控制器未歸位，因此 Beam Bench 無法驗證實體床邊緣。定位雷射後對作業進行構圖，然後在開始前重新檢查。",
         "segment_count_one": "1 段",
         "segment_count_other": "{count} 個片段",
-        "plan_bounds_exceed": "計畫範圍（{minX}, {minY} 到 {maxX}, {maxY}）超出 {width} × {height} mm 的機器工作區域。",
-        "raster_motion_exceeds": "光柵移動在 {axis} 軸上從 {lo} 延伸到 {hi} mm，該軸的範圍為 0 到 {limit} mm。過掃描和掃描偏移在雕刻區域之外增加了 {margin} mm。{startFrom, select, current_position {請減少過掃描或將雷射頭移離工作區域邊緣。} user_origin {請減少過掃描，或將使用者原點移到離工作區域邊緣更遠的位置並重新設定。} other {請減少過掃描或將設計移離工作區域邊緣。}}"
+        "plan_bounds_exceed": "計畫範圍（{minX}, {minY} 到 {maxX}, {maxY}）超出 {width} × {height} {unit} 的機器工作區域。",
+        "raster_motion_exceeds": "光柵移動在 {axis} 軸上從 {lo} 延伸到 {hi} {unit}，該軸的範圍為 0 到 {limit} {unit}。過掃描和掃描偏移在雕刻區域之外增加了 {margin} {unit}。{startFrom, select, current_position {請減少過掃描或將雷射頭移離工作區域邊緣。} user_origin {請減少過掃描，或將使用者原點移到離工作區域邊緣更遠的位置並重新設定。} other {請減少過掃描或將設計移離工作區域邊緣。}}",
+        "session_state": "連線：{state}",
+        "machine_state": "機器狀態：{state}",
+        "plan_bounds_fit": "計畫範圍（{minX}, {minY} 到 {maxX}, {maxY}）在 {width} × {height} {unit} 的機器工作台之內。"
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "此視窗中無法使用相機拍攝。",
       "empty_frame": "相機傳回了空白影像。",
       "canvas_failed": "無法準備相機影像。"
-    }
+    },
+    "serial_open_no_response": "連接埠已開啟，但雷射機沒有回應。請確認雷射機已開機，嘗試更換 USB 線或連接埠，並確認選擇了正確的連接埠。某些主機板需要安裝 CH340 USB 驅動程式。",
+    "serial_protocol_unrecognized": "雷射機已回應，但 Beam Bench 無法辨識其控制器。請檢查機器設定檔中的鮑率（大多數 GRBL 雷射機使用 115200），並關閉正在使用此連接埠的其他雷射軟體。",
+    "network_grbl_no_status": "此位址的控制器沒有以 GRBL 雷射機的方式回應。請檢查 IP 位址和連接埠，關閉連線到它的其他應用程式（許多 Wi-Fi 模組一次只允許一個連線），然後重試。",
+    "no_active_machine_profile": "尚未設定任何機器。請先新增或選擇一個機器設定檔。",
+    "emergency_stop_unconfirmed": "Beam Bench 無法確認機器已停止。請立即使用機器的實體緊急停止按鈕或切斷雷射電源。詳細資訊：{detail}",
+    "controller_connection_lost": "與雷射機的連線已中斷。請檢查線材和電源，然後重新連線。詳細資訊：{detail}"
   },
   "import": {
     "drop_to_import": "拖放檔案以匯入"

@@ -416,7 +416,65 @@ pub struct PreflightCheck {
     pub category: String,
     pub description: String,
     pub passed: bool,
+    /// English summary for logs, the API and the CLI.
     pub message: String,
+    /// The values behind `message`, so the app can show it in the user's
+    /// language and length unit. Absent for checks shown as text only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<PreflightDetail>,
+}
+
+impl PreflightDetail {
+    pub fn session_state(state: SessionState) -> Self {
+        Self::SessionState {
+            state: serialized_name(&state),
+        }
+    }
+
+    pub fn machine_state(state: MachineRunState) -> Self {
+        Self::MachineState {
+            state: serialized_name(&state),
+        }
+    }
+}
+
+fn serialized_name<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
+/// Values behind a preflight check message. Lengths are in millimetres.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PreflightDetail {
+    /// Connection state, lowercase (`ready`, `disconnected`, ...).
+    SessionState {
+        state: String,
+    },
+    /// Machine run state, lowercase (`idle`, `run`, `alarm`, ...).
+    MachineState {
+        state: String,
+    },
+    SegmentCount {
+        count: usize,
+    },
+    PlanBounds {
+        min_x: f64,
+        min_y: f64,
+        max_x: f64,
+        max_y: f64,
+        bed_width: f64,
+        bed_height: f64,
+    },
+    RasterMotion {
+        axis: String,
+        lo: f64,
+        hi: f64,
+        limit: f64,
+        margin: f64,
+    },
 }
 
 /// A non-blocking preflight finding with optional one-click corrections.
@@ -709,6 +767,7 @@ mod tests {
                 description: "Session is ready".to_string(),
                 passed: true,
                 message: "Connected".to_string(),
+                detail: None,
             }],
             advisories: Vec::new(),
         };

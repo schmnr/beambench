@@ -292,7 +292,7 @@ it('a late ruler guide never brings back the previous document', async () => {
   useProjectStore.setState({ project: makeProject({ metadata: { ...makeProject().metadata, project_id: 'old-doc' } }) });
   const pending = deferred<Awaited<ReturnType<typeof projectService.addObjectAtomic>>>();
   vi.spyOn(projectService, 'addObjectAtomic').mockReturnValue(pending.promise);
-  const action = useProjectStore.getState().addRulerGuide('x', 10);
+  const action = useProjectStore.getState().addRulerGuide('vertical', 10);
   await openOtherDocument();
   pending.resolve({ object: makeProjectObject({ id: 'guide' }), createdLayer: null });
   await action;
@@ -308,7 +308,7 @@ it('a late material preset never dirties the next document', async () => {
   await openOtherDocument();
   const next = useProjectStore.getState().project!;
   vi.spyOn(projectService, 'getProject').mockResolvedValue(next);
-  pending.resolve({ warnings: [] });
+  pending.resolve({ applied_layer_id: 'layer-1', targeted_entry_id: 'entry-1', warnings: [] });
   await action;
   expect(useProjectStore.getState().project?.dirty).toBe(false);
   expect(useNotificationStore.getState().notifications).toEqual([]);

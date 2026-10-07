@@ -371,8 +371,8 @@
       "outcome_fail": "Sikertelen",
       "warnings_block_start": "A munka indítása előtt hárítsa el a fenti figyelmeztetéseket.",
       "advisory_choice": "Ez a munka futhat, de a figyelmeztetés javítása javíthatja a gravírozás minőségét.",
-      "apply_overscan": "Használjon {value} mm-es túlkeresést, és ellenőrizze újra",
-      "reduce_speed": "Használja a következőt: {value} mm/perc, és ellenőrizze újra",
+      "apply_overscan": "Használjon {value} {unit}-es túlkeresést, és ellenőrizze újra",
+      "reduce_speed": "Használja a következőt: {value} {unit}, és ellenőrizze újra",
       "continue_anyway": "Mindenképpen folytasd",
       "categories": {
         "connection": "Csatlakozás",
@@ -382,7 +382,9 @@
         "settings": "Beállítások elemre",
         "positioning": "Elhelyezés",
         "planner": "Tervező",
-        "machine_workspace": "Gépi munkaterület"
+        "machine_workspace": "Gépi munkaterület",
+        "controller": "Vezérlő",
+        "rotary": "Forgató egység"
       },
       "checks": {
         "session_ready": "Az ülés készen áll",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "A raszteres mozgás belefér a gépágyba",
         "laser_mode": "A lézer mód engedélyezve van ($32=1)",
         "homing_enabled": "Az otthoni beállítás engedélyezve van",
-        "relative_framed": "A relatív elhelyezés az aktuális pozícióban lett keretezve"
+        "relative_framed": "A relatív elhelyezés az aktuális pozícióban lett keretezve",
+        "machine_workspace_fits": "A tervezett mozgás megfelel a gépprofilnak",
+        "rotary_safe": "A forgató egység beállítása biztonságos",
+        "controller_supported": "A vezérlő tud munkát indítani",
+        "image_detail_fits": "A kép részletessége megfelel a vezérlőnek",
+        "plan_generation": "Munka előkészítése",
+        "ruida_compiles": "A munka átalakítható a Ruida vezérlőhöz",
+        "lihuiyu_compiles": "A munka átalakítható a Lihuiyu M2 vezérlőhöz"
       },
       "messages": {
         "connected_ready": "Csatlakoztatva és készen áll",
@@ -406,8 +415,11 @@
         "frame_required": "Ez a vezérlő nincs otthon, így a Beam Bench nem tudja ellenőrizni a fizikai ágy széleit. A lézer pozicionálása után keretezze be a munkát, majd indítsa el újra.",
         "segment_count_one": "1 szegmens",
         "segment_count_other": "{count} szegmens",
-        "plan_bounds_exceed": "A tervezett határok ({minX}, {minY}–{maxX}, {maxY}) túllépik a gép {width} × {height} mm-es munkaterületét.",
-        "raster_motion_exceeds": "A rasztermozgás a(z) {axis} tengelyen {lo} és {hi} mm között halad, miközben a tengely tartománya 0–{limit} mm. A túlpásztázás és a pásztázási eltolás {margin} mm-rel növeli a gravírozási területet. {startFrom, select, current_position {Csökkentse a túlpásztázást, vagy vigye a lézert távolabb a munkaterület szélétől.} user_origin {Csökkentse a túlpásztázást, vagy helyezze át vagy állítsa be újra a Felhasználói origót távolabb a munkaterület szélétől.} other {Csökkentse a túlpásztázást, vagy vigye a tervet távolabb a munkaterület szélétől.}}"
+        "plan_bounds_exceed": "A tervezett határok ({minX}, {minY}–{maxX}, {maxY}) túllépik a gép {width} × {height} {unit}-es munkaterületét.",
+        "raster_motion_exceeds": "A rasztermozgás a(z) {axis} tengelyen {lo} és {hi} {unit} között halad, miközben a tengely tartománya 0–{limit} {unit}. A túlpásztázás és a pásztázási eltolás {margin} {unit}-rel növeli a gravírozási területet. {startFrom, select, current_position {Csökkentse a túlpásztázást, vagy vigye a lézert távolabb a munkaterület szélétől.} user_origin {Csökkentse a túlpásztázást, vagy helyezze át vagy állítsa be újra a Felhasználói origót távolabb a munkaterület szélétől.} other {Csökkentse a túlpásztázást, vagy vigye a tervet távolabb a munkaterület szélétől.}}",
+        "session_state": "Kapcsolat: {state}",
+        "machine_state": "Gép állapota: {state}",
+        "plan_bounds_fit": "A tervezett határok ({minX}, {minY} – {maxX}, {maxY}) elférnek a gép {width} × {height} {unit} méretű munkaterületén."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "A kamerás rögzítés ebben az ablakban nem érhető el.",
       "empty_frame": "A kamera üres képet adott vissza.",
       "canvas_failed": "A kameraképet nem sikerült előkészíteni."
-    }
+    },
+    "serial_open_no_response": "A port megnyílt, de a lézer nem válaszolt. Ellenőrizze, hogy a lézer be van-e kapcsolva, próbáljon másik USB-kábelt vagy portot, és győződjön meg róla, hogy a megfelelő port van kiválasztva. Egyes panelekhez a CH340 USB-illesztőprogram szükséges.",
+    "serial_protocol_unrecognized": "A lézer válaszolt, de a Beam Bench nem ismerte fel a vezérlőjét. Ellenőrizze az átviteli sebességet (baud) a gépprofilban (a legtöbb GRBL lézer 115200-at használ), és zárjon be minden más lézerszoftvert, amely ezt a portot használja.",
+    "network_grbl_no_status": "Az ezen a címen lévő vezérlő nem GRBL lézerként válaszolt. Ellenőrizze az IP-címet és a portot, zárja be a hozzá csatlakozó többi alkalmazást (sok Wi-Fi-modul egyszerre csak egy kapcsolatot enged), majd próbálja újra.",
+    "no_active_machine_profile": "Még nincs beállítva gép. Először adjon hozzá vagy válasszon ki egy gépprofilt.",
+    "emergency_stop_unconfirmed": "A Beam Bench nem tudta megerősíteni, hogy a gép leállt. Azonnal használja a gép fizikai vészleállítóját, vagy válassza le a lézer tápellátását. Részletek: {detail}",
+    "controller_connection_lost": "Megszakadt a kapcsolat a lézerrel. Ellenőrizze a kábelt és a tápellátást, majd csatlakozzon újra. Részletek: {detail}"
   },
   "import": {
     "drop_to_import": "Húzd ide a fájlokat az importáláshoz"

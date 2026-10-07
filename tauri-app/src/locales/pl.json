@@ -371,8 +371,8 @@
       "outcome_fail": "Niepowodzenie",
       "warnings_block_start": "Rozwiąż powyższe ostrzeżenia przed rozpoczęciem zadania.",
       "advisory_choice": "To zadanie można wykonać, ale skorygowanie zalecenia może poprawić jakość grawerowania.",
-      "apply_overscan": "Użyj overscanu o wartości {value} mm i sprawdź ponownie",
-      "reduce_speed": "Użyj {value} mm/min i sprawdź ponownie",
+      "apply_overscan": "Użyj overscanu o wartości {value} {unit} i sprawdź ponownie",
+      "reduce_speed": "Użyj {value} {unit} i sprawdź ponownie",
       "continue_anyway": "Kontynuuj mimo to",
       "categories": {
         "connection": "Połączenie",
@@ -382,7 +382,9 @@
         "settings": "Ustawienia",
         "positioning": "Pozycjonowanie",
         "planner": "Planista",
-        "machine_workspace": "Obszar roboczy maszyny"
+        "machine_workspace": "Obszar roboczy maszyny",
+        "controller": "Kontroler",
+        "rotary": "Przystawka obrotowa"
       },
       "checks": {
         "session_ready": "Sesja gotowa",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Ruch rastrowy mieści się w łożu maszyny",
         "laser_mode": "Tryb laserowy jest włączony (32 USD = 1)",
         "homing_enabled": "Bazowanie jest włączone",
-        "relative_framed": "Względne położenie zostało określone w bieżącej pozycji"
+        "relative_framed": "Względne położenie zostało określone w bieżącej pozycji",
+        "machine_workspace_fits": "Zaplanowany ruch mieści się w profilu maszyny",
+        "rotary_safe": "Ustawienia przystawki obrotowej są bezpieczne",
+        "controller_supported": "Kontroler może uruchamiać zadania",
+        "image_detail_fits": "Szczegółowość obrazu pasuje do kontrolera",
+        "plan_generation": "Przygotowanie zadania",
+        "ruida_compiles": "Zadanie można przekonwertować dla kontrolera Ruida",
+        "lihuiyu_compiles": "Zadanie można przekonwertować dla kontrolera Lihuiyu M2"
       },
       "messages": {
         "connected_ready": "Podłączony i gotowy",
@@ -406,8 +415,11 @@
         "frame_required": "Ten kontroler nie jest ustawiony, więc Beam Bench nie może zweryfikować fizycznych krawędzi łóżka. Wykadruj zadanie po ustawieniu lasera i sprawdź ponownie przed rozpoczęciem.",
         "segment_count_one": "1 segment",
         "segment_count_other": "Liczba segmentów: {count}",
-        "plan_bounds_exceed": "Planowane granice ({minX}, {minY} do {maxX}, {maxY}) wykraczają poza stół maszyny o wymiarach {width} × {height} mm.",
-        "raster_motion_exceeds": "Ruch rastrowy obejmuje od {lo} do {hi} mm na osi {axis}, której zakres wynosi od 0 do {limit} mm. Naddatek skanowania i przesunięcie skanowania dodają {margin} mm poza obszarem grawerowania. {startFrom, select, current_position {Zmniejsz naddatek skanowania lub odsuń laser od krawędzi stołu.} user_origin {Zmniejsz naddatek skanowania lub przesuń albo ustaw ponownie Początek użytkownika dalej od krawędzi stołu.} other {Zmniejsz naddatek skanowania lub odsuń projekt od krawędzi stołu.}}"
+        "plan_bounds_exceed": "Planowane granice ({minX}, {minY} do {maxX}, {maxY}) wykraczają poza stół maszyny o wymiarach {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Ruch rastrowy obejmuje od {lo} do {hi} {unit} na osi {axis}, której zakres wynosi od 0 do {limit} {unit}. Naddatek skanowania i przesunięcie skanowania dodają {margin} {unit} poza obszarem grawerowania. {startFrom, select, current_position {Zmniejsz naddatek skanowania lub odsuń laser od krawędzi stołu.} user_origin {Zmniejsz naddatek skanowania lub przesuń albo ustaw ponownie Początek użytkownika dalej od krawędzi stołu.} other {Zmniejsz naddatek skanowania lub odsuń projekt od krawędzi stołu.}}",
+        "session_state": "Połączenie: {state}",
+        "machine_state": "Stan maszyny: {state}",
+        "plan_bounds_fit": "Zaplanowane granice ({minX}, {minY} do {maxX}, {maxY}) mieszczą się na stole maszyny {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "Przechwytywanie z kamery nie jest dostępne w tym oknie.",
       "empty_frame": "Kamera zwróciła pusty obraz.",
       "canvas_failed": "Nie udało się przygotować obrazu z kamery."
-    }
+    },
+    "serial_open_no_response": "Port został otwarty, ale laser nie odpowiedział. Sprawdź, czy laser jest włączony, spróbuj innego kabla lub portu USB i upewnij się, że wybrano właściwy port. Niektóre płyty wymagają sterownika USB CH340.",
+    "serial_protocol_unrecognized": "Laser odpowiedział, ale Beam Bench nie rozpoznał jego kontrolera. Sprawdź szybkość transmisji (baud) w profilu maszyny (większość laserów GRBL używa 115200) i zamknij inne oprogramowanie laserowe korzystające z tego portu.",
+    "network_grbl_no_status": "Kontroler pod tym adresem nie odpowiedział jak laser GRBL. Sprawdź adres IP i port, zamknij inne aplikacje połączone z kontrolerem (wiele modułów Wi-Fi pozwala tylko na jedno połączenie naraz) i spróbuj ponownie.",
+    "no_active_machine_profile": "Nie skonfigurowano jeszcze żadnej maszyny. Najpierw dodaj lub wybierz profil maszyny.",
+    "emergency_stop_unconfirmed": "Beam Bench nie mógł potwierdzić, że maszyna się zatrzymała. Natychmiast użyj fizycznego wyłącznika awaryjnego maszyny lub odłącz zasilanie lasera. Szczegóły: {detail}",
+    "controller_connection_lost": "Utracono połączenie z laserem. Sprawdź kabel i zasilanie, a następnie połącz się ponownie. Szczegóły: {detail}"
   },
   "import": {
     "drop_to_import": "Upuść pliki, aby zaimportować"

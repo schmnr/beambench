@@ -371,8 +371,8 @@
       "outcome_fail": "Misslyckades",
       "warnings_block_start": "Åtgärda varningarna ovan innan du startar jobbet.",
       "advisory_choice": "Det här jobbet kan köras, men korrigering av rådgivandet kan förbättra gravyrkvaliteten.",
-      "apply_overscan": "Använd {value} mm överskanning och kontrollera igen",
-      "reduce_speed": "Använd {value} mm/min och kontrollera igen",
+      "apply_overscan": "Använd {value} {unit} överskanning och kontrollera igen",
+      "reduce_speed": "Använd {value} {unit} och kontrollera igen",
       "continue_anyway": "Fortsätt i alla fall",
       "categories": {
         "connection": "Anslutning",
@@ -382,7 +382,9 @@
         "settings": "Inställningar",
         "positioning": "Positionering",
         "planner": "Planerare",
-        "machine_workspace": "Maskinarbetsyta"
+        "machine_workspace": "Maskinarbetsyta",
+        "controller": "Styrenhet",
+        "rotary": "Rotationsenhet"
       },
       "checks": {
         "session_ready": "Sessionen är klar",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Rasterrörelse passar in i maskinbädden",
         "laser_mode": "Laserläget är aktiverat ($32=1)",
         "homing_enabled": "Hemsökning är aktiverad",
-        "relative_framed": "Relativ placering inramades vid den aktuella positionen"
+        "relative_framed": "Relativ placering inramades vid den aktuella positionen",
+        "machine_workspace_fits": "Den planerade rörelsen passar maskinprofilen",
+        "rotary_safe": "Rotationsinställningen är säker att köra",
+        "controller_supported": "Styrenheten kan starta jobb",
+        "image_detail_fits": "Bilddetaljen passar styrenheten",
+        "plan_generation": "Förberedelse av jobb",
+        "ruida_compiles": "Jobbet kan konverteras för Ruida-styrenheten",
+        "lihuiyu_compiles": "Jobbet kan konverteras för Lihuiyu M2-styrenheten"
       },
       "messages": {
         "connected_ready": "Ansluten och klar",
@@ -406,8 +415,11 @@
         "frame_required": "Den här kontrollern är inte hemlig, så Beam Bench kan inte verifiera de fysiska sängkanterna. Rama in jobbet efter att ha placerat lasern och kontrollera sedan innan du startar.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segment",
-        "plan_bounds_exceed": "De planerade gränserna ({minX}, {minY} till {maxX}, {maxY}) överskrider maskinbädden på {width} × {height} mm.",
-        "raster_motion_exceeds": "Rasterrörelsen sträcker sig från {lo} till {hi} mm på {axis}-axeln, vars område är 0 till {limit} mm. Överskanning och skanningsförskjutning lägger till {margin} mm utanför gravyrens område. {startFrom, select, current_position {Minska överskanningen eller flytta lasern längre från bäddkanten.} user_origin {Minska överskanningen eller flytta eller återställ Användarorigin längre från bäddkanten.} other {Minska överskanningen eller flytta motivet längre från bäddkanten.}}"
+        "plan_bounds_exceed": "De planerade gränserna ({minX}, {minY} till {maxX}, {maxY}) överskrider maskinbädden på {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Rasterrörelsen sträcker sig från {lo} till {hi} {unit} på {axis}-axeln, vars område är 0 till {limit} {unit}. Överskanning och skanningsförskjutning lägger till {margin} {unit} utanför gravyrens område. {startFrom, select, current_position {Minska överskanningen eller flytta lasern längre från bäddkanten.} user_origin {Minska överskanningen eller flytta eller återställ Användarorigin längre från bäddkanten.} other {Minska överskanningen eller flytta motivet längre från bäddkanten.}}",
+        "session_state": "Anslutning: {state}",
+        "machine_state": "Maskinstatus: {state}",
+        "plan_bounds_fit": "De planerade gränserna ({minX}, {minY} till {maxX}, {maxY}) får plats på maskinens arbetsyta på {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "Kamerainspelning är inte tillgänglig i det här fönstret.",
       "empty_frame": "Kameran returnerade en tom bild.",
       "canvas_failed": "Kamerabilden kunde inte förberedas."
-    }
+    },
+    "serial_open_no_response": "Porten öppnades, men lasern svarade inte. Kontrollera att lasern är påslagen, prova en annan USB-kabel eller port och se till att rätt port är vald. Vissa kort behöver USB-drivrutinen CH340.",
+    "serial_protocol_unrecognized": "Lasern svarade, men Beam Bench kände inte igen dess styrenhet. Kontrollera överföringshastigheten (baud) i maskinprofilen (de flesta GRBL-lasrar använder 115200) och stäng annan laserprogramvara som använder den här porten.",
+    "network_grbl_no_status": "Styrenheten på den här adressen svarade inte som en GRBL-laser. Kontrollera IP-adressen och porten, stäng andra appar som är anslutna till den (många Wi-Fi-moduler tillåter bara en anslutning åt gången) och försök igen.",
+    "no_active_machine_profile": "Ingen maskin har konfigurerats ännu. Lägg först till eller välj en maskinprofil.",
+    "emergency_stop_unconfirmed": "Beam Bench kunde inte bekräfta att maskinen stannade. Använd maskinens fysiska nödstopp eller koppla bort strömmen till lasern nu. Detaljer: {detail}",
+    "controller_connection_lost": "Anslutningen till lasern bröts. Kontrollera kabeln och strömmen och anslut sedan igen. Detaljer: {detail}"
   },
   "import": {
     "drop_to_import": "Släpp filer för att importera"

@@ -371,8 +371,8 @@
       "outcome_fail": "Başarısız",
       "warnings_block_start": "İşi başlatmadan önce yukarıdaki uyarıları giderin.",
       "advisory_choice": "Bu iş yürütülebilir ancak uyarının düzeltilmesi gravür kalitesini artırabilir.",
-      "apply_overscan": "{value} mm aşırı taramayı kullanın ve yeniden kontrol edin",
-      "reduce_speed": "{value} mm/dak değerini kullanın ve yeniden kontrol edin",
+      "apply_overscan": "{value} {unit} aşırı taramayı kullanın ve yeniden kontrol edin",
+      "reduce_speed": "{value} {unit} değerini kullanın ve yeniden kontrol edin",
       "continue_anyway": "Yine de devam et",
       "categories": {
         "connection": "Bağlantı",
@@ -382,7 +382,9 @@
         "settings": "Ayarlar",
         "positioning": "Konumlandırma",
         "planner": "Planlayıcı",
-        "machine_workspace": "Makine çalışma alanı"
+        "machine_workspace": "Makine çalışma alanı",
+        "controller": "Denetleyici",
+        "rotary": "Döner eksen"
       },
       "checks": {
         "session_ready": "Oturum hazır",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Raster hareketi makine yatağına sığar",
         "laser_mode": "Lazer modu etkin (32$=1)",
         "homing_enabled": "Hedef arama etkinleştirildi",
-        "relative_framed": "Göreli yerleşim geçerli konumda çerçevelendi"
+        "relative_framed": "Göreli yerleşim geçerli konumda çerçevelendi",
+        "machine_workspace_fits": "Planlanan hareket makine profiline uyuyor",
+        "rotary_safe": "Döner eksen ayarı güvenli",
+        "controller_supported": "Denetleyici iş başlatabilir",
+        "image_detail_fits": "Görüntü ayrıntısı denetleyiciye uygun",
+        "plan_generation": "İş hazırlığı",
+        "ruida_compiles": "İş Ruida denetleyicisi için dönüştürülebilir",
+        "lihuiyu_compiles": "İş Lihuiyu M2 denetleyicisi için dönüştürülebilir"
       },
       "messages": {
         "connected_ready": "Bağlı ve hazır",
@@ -406,8 +415,11 @@
         "frame_required": "Bu denetleyici homlu olmadığından Beam Bench fiziksel yatak kenarlarını doğrulayamaz. Lazeri konumlandırdıktan sonra işi çerçeveleyin ve başlamadan önce yeniden kontrol edin.",
         "segment_count_one": "1 bölüm",
         "segment_count_other": "{count} segment",
-        "plan_bounds_exceed": "Planlanan sınırlar ({minX}, {minY} ile {maxX}, {maxY}) {width} × {height} mm makine yatağını aşıyor.",
-        "raster_motion_exceeds": "Raster hareketi, 0 ile {limit} mm aralığındaki {axis} ekseninde {lo} ile {hi} mm arasında uzanıyor. Fazla tarama ve tarama ofseti, kazıma alanının dışına {margin} mm ekliyor. {startFrom, select, current_position {Fazla taramayı azaltın veya lazeri yatak kenarından uzaklaştırın.} user_origin {Fazla taramayı azaltın veya Kullanıcı Başlangıcını yatak kenarından daha uzağa taşıyın ya da yeniden ayarlayın.} other {Fazla taramayı azaltın veya tasarımı yatak kenarından uzaklaştırın.}}"
+        "plan_bounds_exceed": "Planlanan sınırlar ({minX}, {minY} ile {maxX}, {maxY}) {width} × {height} {unit} makine yatağını aşıyor.",
+        "raster_motion_exceeds": "Raster hareketi, 0 ile {limit} {unit} aralığındaki {axis} ekseninde {lo} ile {hi} {unit} arasında uzanıyor. Fazla tarama ve tarama ofseti, kazıma alanının dışına {margin} {unit} ekliyor. {startFrom, select, current_position {Fazla taramayı azaltın veya lazeri yatak kenarından uzaklaştırın.} user_origin {Fazla taramayı azaltın veya Kullanıcı Başlangıcını yatak kenarından daha uzağa taşıyın ya da yeniden ayarlayın.} other {Fazla taramayı azaltın veya tasarımı yatak kenarından uzaklaştırın.}}",
+        "session_state": "Bağlantı: {state}",
+        "machine_state": "Makine durumu: {state}",
+        "plan_bounds_fit": "Planlanan sınırlar ({minX}, {minY} ile {maxX}, {maxY} arası) {width} × {height} {unit} makine tablasına sığıyor."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "Kamera yakalama bu pencerede kullanılamıyor.",
       "empty_frame": "Kamera boş bir görüntü döndürdü.",
       "canvas_failed": "Kamera görüntüsü hazırlanamadı."
-    }
+    },
+    "serial_open_no_response": "Bağlantı noktası açıldı, ancak lazer yanıt vermedi. Lazerin açık olduğunu kontrol edin, başka bir USB kablosu veya bağlantı noktası deneyin ve doğru bağlantı noktasının seçildiğinden emin olun. Bazı kartlar CH340 USB sürücüsüne ihtiyaç duyar.",
+    "serial_protocol_unrecognized": "Lazer yanıt verdi, ancak Beam Bench denetleyicisini tanımadı. Makine profilindeki baud hızını kontrol edin (çoğu GRBL lazer 115200 kullanır) ve bu bağlantı noktasını kullanan diğer lazer yazılımlarını kapatın.",
+    "network_grbl_no_status": "Bu adresteki denetleyici bir GRBL lazer olarak yanıt vermedi. IP adresini ve bağlantı noktasını kontrol edin, ona bağlı diğer uygulamaları kapatın (birçok Wi-Fi modülü aynı anda yalnızca bir bağlantıya izin verir) ve yeniden deneyin.",
+    "no_active_machine_profile": "Henüz bir makine ayarlanmadı. Önce bir makine profili ekleyin veya seçin.",
+    "emergency_stop_unconfirmed": "Beam Bench makinenin durduğunu doğrulayamadı. Hemen makinenin fiziksel acil durdurma düğmesini kullanın veya lazerin gücünü kesin. Ayrıntılar: {detail}",
+    "controller_connection_lost": "Lazerle bağlantı kesildi. Kabloyu ve gücü kontrol edin, ardından yeniden bağlanın. Ayrıntılar: {detail}"
   },
   "import": {
     "drop_to_import": "İçe aktarmak için dosyaları bırakın"

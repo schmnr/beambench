@@ -1,6 +1,8 @@
 //! Preflight validation checks before starting a job.
 
-use beambench_common::machine::{PreflightCheck, PreflightOutcome, PreflightReport, SessionState};
+use beambench_common::machine::{
+    PreflightCheck, PreflightDetail, PreflightOutcome, PreflightReport, SessionState,
+};
 use beambench_core::MachineProfile;
 use beambench_grbl::GrblSession;
 use beambench_planner::ExecutionPlan;
@@ -24,6 +26,7 @@ pub fn run_preflight(
         } else {
             format!("Session state: {:?}", session.session_state())
         },
+        detail: Some(PreflightDetail::session_state(session.session_state())),
     });
 
     // 2. Machine is idle
@@ -38,6 +41,9 @@ pub fn run_preflight(
         } else {
             format!("Machine state: {:?}", session.last_status().run_state)
         },
+        detail: Some(PreflightDetail::machine_state(
+            session.last_status().run_state,
+        )),
     });
 
     // 3. No alarm
@@ -52,6 +58,7 @@ pub fn run_preflight(
         } else {
             "Machine in alarm state".to_string()
         },
+        detail: None,
     });
 
     // 4. Plan is not empty
@@ -65,6 +72,9 @@ pub fn run_preflight(
         } else {
             "Plan is empty".to_string()
         },
+        detail: Some(PreflightDetail::SegmentCount {
+            count: plan.segments.len(),
+        }),
     });
 
     // 5. Bounds fit on bed
@@ -96,6 +106,14 @@ pub fn run_preflight(
                 workspace_height_mm
             )
         },
+        detail: Some(PreflightDetail::PlanBounds {
+            min_x: bounds.min.x,
+            min_y: bounds.min.y,
+            max_x: bounds.max.x,
+            max_y: bounds.max.y,
+            bed_width: workspace_width_mm,
+            bed_height: workspace_height_mm,
+        }),
     });
 
     // 5b. Raster motion stays on the bed. Plan bounds cover burn geometry
@@ -134,6 +152,7 @@ pub fn run_preflight(
         } else {
             "Laser mode disabled ($32=0). Enable with $32=1".to_string()
         },
+        detail: None,
     });
 
     // 7. Homing check (hard failure if profile requires it)
@@ -152,6 +171,7 @@ pub fn run_preflight(
             } else {
                 "Profile requires homing but $22=0".to_string()
             },
+            detail: None,
         });
     }
 
@@ -320,6 +340,7 @@ pub fn check_raster_motion_bounds(
                 .to_string(),
             passed: true,
             message: "Raster motion within bed".to_string(),
+            detail: None,
         },
         Some((axis, lo, hi, limit, margin)) => PreflightCheck {
             category: "bounds".to_string(),
@@ -331,6 +352,13 @@ pub fn check_raster_motion_bounds(
                  ({margin:.1}mm of overscan and scanning offset beyond the burn area). \
                  Reduce overscan or move the design further from the bed edge."
             ),
+            detail: Some(PreflightDetail::RasterMotion {
+                axis: axis.to_string(),
+                lo,
+                hi,
+                limit,
+                margin,
+            }),
         },
     })
 }

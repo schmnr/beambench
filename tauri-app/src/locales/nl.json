@@ -371,8 +371,8 @@
       "outcome_fail": "Mislukt",
       "warnings_block_start": "Los de bovenstaande waarschuwingen op voordat je de taak start.",
       "advisory_choice": "Deze taak kan worden uitgevoerd, maar het corrigeren van het advies kan de graveerkwaliteit verbeteren.",
-      "apply_overscan": "Gebruik een overscan van {value} mm en controleer opnieuw",
-      "reduce_speed": "Gebruik {value} mm/min en controleer opnieuw",
+      "apply_overscan": "Gebruik een overscan van {value} {unit} en controleer opnieuw",
+      "reduce_speed": "Gebruik {value} {unit} en controleer opnieuw",
       "continue_anyway": "Ga toch door",
       "categories": {
         "connection": "Verbinding",
@@ -382,7 +382,9 @@
         "settings": "Instellingen",
         "positioning": "Positionering",
         "planner": "Planner",
-        "machine_workspace": "Machinewerkruimte"
+        "machine_workspace": "Machinewerkruimte",
+        "controller": "Controller",
+        "rotary": "Rotatie-eenheid"
       },
       "checks": {
         "session_ready": "Sessie is klaar",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Rasterbeweging past binnen het machinebed",
         "laser_mode": "Lasermodus is ingeschakeld ($32=1)",
         "homing_enabled": "Homing is ingeschakeld",
-        "relative_framed": "De relatieve plaatsing werd op de huidige positie ingekaderd"
+        "relative_framed": "De relatieve plaatsing werd op de huidige positie ingekaderd",
+        "machine_workspace_fits": "De geplande beweging past binnen het machineprofiel",
+        "rotary_safe": "De rotatie-instelling is veilig",
+        "controller_supported": "De controller kan taken starten",
+        "image_detail_fits": "Het beelddetail past bij de controller",
+        "plan_generation": "Taakvoorbereiding",
+        "ruida_compiles": "De taak kan worden omgezet voor de Ruida-controller",
+        "lihuiyu_compiles": "De taak kan worden omgezet voor de Lihuiyu M2-controller"
       },
       "messages": {
         "connected_ready": "Verbonden en klaar",
@@ -406,8 +415,11 @@
         "frame_required": "Deze controller is niet thuis, dus Beam Bench kan de fysieke bedranden niet verifiëren. Kadreer de taak na het positioneren van de laser en controleer opnieuw voordat u begint.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segmenten",
-        "plan_bounds_exceed": "De geplande grenzen ({minX}, {minY} tot {maxX}, {maxY}) overschrijden het machinebed van {width} × {height} mm.",
-        "raster_motion_exceeds": "De rasterbeweging loopt van {lo} tot {hi} mm op de {axis}-as, met een bereik van 0 tot {limit} mm. Overscan en scanverschuiving voegen {margin} mm buiten het graveergebied toe. {startFrom, select, current_position {Verminder de overscan of verplaats de laser verder van de bedrand.} user_origin {Verminder de overscan of verplaats of stel de Gebruikersoorsprong verder van de bedrand opnieuw in.} other {Verminder de overscan of verplaats het ontwerp verder van de bedrand.}}"
+        "plan_bounds_exceed": "De geplande grenzen ({minX}, {minY} tot {maxX}, {maxY}) overschrijden het machinebed van {width} × {height} {unit}.",
+        "raster_motion_exceeds": "De rasterbeweging loopt van {lo} tot {hi} {unit} op de {axis}-as, met een bereik van 0 tot {limit} {unit}. Overscan en scanverschuiving voegen {margin} {unit} buiten het graveergebied toe. {startFrom, select, current_position {Verminder de overscan of verplaats de laser verder van de bedrand.} user_origin {Verminder de overscan of verplaats of stel de Gebruikersoorsprong verder van de bedrand opnieuw in.} other {Verminder de overscan of verplaats het ontwerp verder van de bedrand.}}",
+        "session_state": "Verbinding: {state}",
+        "machine_state": "Machinestatus: {state}",
+        "plan_bounds_fit": "De geplande grenzen ({minX}, {minY} tot {maxX}, {maxY}) passen op het werkblad van de machine van {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -2737,7 +2749,13 @@
       "unavailable": "Cameraopname is niet beschikbaar in dit venster.",
       "empty_frame": "De camera gaf een leeg beeld terug.",
       "canvas_failed": "Het camerabeeld kon niet worden voorbereid."
-    }
+    },
+    "serial_open_no_response": "De poort is geopend, maar de laser antwoordde niet. Controleer of de laser is ingeschakeld, probeer een andere USB-kabel of -poort en controleer of de juiste poort is geselecteerd. Sommige borden hebben het USB-stuurprogramma CH340 nodig.",
+    "serial_protocol_unrecognized": "De laser antwoordde, maar Beam Bench herkende de controller niet. Controleer de baudrate in het machineprofiel (de meeste GRBL-lasers gebruiken 115200) en sluit andere lasersoftware die deze poort gebruikt.",
+    "network_grbl_no_status": "De controller op dit adres antwoordde niet als een GRBL-laser. Controleer het IP-adres en de poort, sluit andere apps die ermee verbonden zijn (veel wifi-modules staan maar één verbinding tegelijk toe) en probeer het opnieuw.",
+    "no_active_machine_profile": "Er is nog geen machine ingesteld. Voeg eerst een machineprofiel toe of selecteer er een.",
+    "emergency_stop_unconfirmed": "Beam Bench kon niet bevestigen dat de machine is gestopt. Gebruik nu de fysieke noodstop van de machine of schakel de stroom van de laser uit. Details: {detail}",
+    "controller_connection_lost": "De verbinding met de laser is verbroken. Controleer de kabel en de stroomvoorziening en maak daarna opnieuw verbinding. Details: {detail}"
   },
   "import": {
     "drop_to_import": "Sleep bestanden om te importeren"
