@@ -19,6 +19,7 @@ import {
 } from '../services/browserCameraCapture';
 import { cameraService } from '../services/cameraService';
 import { useNotificationStore } from './notificationStore';
+import { useMachineStore } from './machineStore';
 import { wrapBackendError } from '../i18n/errors';
 
 const notifyError = (msg: string) => useNotificationStore.getState().push(wrapBackendError(msg), 'error');
@@ -98,6 +99,15 @@ function applyAgentState(state: CameraAgentState) {
  */
 let selectionGeneration = 0;
 
+function captureCameraSelection(): () => boolean {
+  const generation = selectionGeneration;
+  const cameraId = useCameraStore.getState().selectedCameraId;
+  const profileId = useMachineStore.getState().activeProfileId;
+  return () => generation === selectionGeneration
+    && cameraId === useCameraStore.getState().selectedCameraId
+    && profileId === useMachineStore.getState().activeProfileId;
+}
+
 export const useCameraStore = create<CameraStoreState>((set, get) => ({
   devices: [],
   selectedCameraId: null,
@@ -129,13 +139,16 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   selectCamera: async (cameraId) => {
+    const generation = ++selectionGeneration;
+    const profileId = useMachineStore.getState().activeProfileId;
+    const isCurrent = () => generation === selectionGeneration
+      && profileId === useMachineStore.getState().activeProfileId;
     try {
       if (cameraId !== get().selectedCameraId) {
         disposeBrowserCameraSession();
       }
-      const generation = ++selectionGeneration;
       const selectedCameraId = await cameraService.selectCamera(cameraId);
-      if (generation !== selectionGeneration) return;
+      if (!isCurrent()) return;
       set({
         selectedCameraId,
         draftOverlayTransform: null,
@@ -143,12 +156,16 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
         overlayAdjustMode: false,
         overlayDraftDirty: false,
         captureStage: 'idle',
+        loading: false,
         error: null,
       });
       await get().refreshOverlayState();
+      if (!isCurrent()) return;
       await get().refreshCalibration();
+      if (!isCurrent()) return;
       await get().refreshAlignment();
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -156,12 +173,13 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   refreshOverlayState: async () => {
+    const isCurrent = captureCameraSelection();
     try {
-      const generation = selectionGeneration;
       const state = await cameraService.getAgentState();
-      if (generation !== selectionGeneration) return;
+      if (!isCurrent()) return;
       set(applyAgentState(state));
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -169,13 +187,15 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   setOverlayVisible: (overlayVisible) => {
-    set({ overlayVisible });
-    const generation = selectionGeneration;
+    if (useMachineStore.getState().activeProfileId === null) return;
+    const isCurrent = captureCameraSelection();
     void cameraService.updateOverlayDisplay({ overlayVisible })
       .then((state) => {
-        if (generation === selectionGeneration) set(applyAgentState(state));
+        if (!isCurrent()) return;
+        set(applyAgentState(state));
       })
       .catch((e) => {
+        if (!isCurrent()) return;
         const msg = String(e);
         set({ error: msg });
         notifyError(msg);
@@ -188,14 +208,16 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   setOverlayOpacity: (opacity) => {
+    if (useMachineStore.getState().activeProfileId === null) return;
+    const isCurrent = captureCameraSelection();
     const overlayOpacity = Math.max(0, Math.min(1, opacity));
-    set({ overlayOpacity });
-    const generation = selectionGeneration;
     void cameraService.updateOverlayDisplay({ overlayOpacity })
       .then((state) => {
-        if (generation === selectionGeneration) set(applyAgentState(state));
+        if (!isCurrent()) return;
+        set(applyAgentState(state));
       })
       .catch((e) => {
+        if (!isCurrent()) return;
         const msg = String(e);
         set({ error: msg });
         notifyError(msg);
@@ -203,12 +225,13 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   refreshCalibration: async () => {
+    const isCurrent = captureCameraSelection();
     try {
-      const generation = selectionGeneration;
       const calibration = await cameraService.getCalibration(get().selectedCameraId);
-      if (generation !== selectionGeneration) return;
+      if (!isCurrent()) return;
       set({ calibration, error: null });
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -216,12 +239,13 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   refreshAlignment: async () => {
+    const isCurrent = captureCameraSelection();
     try {
-      const generation = selectionGeneration;
       const alignment = await cameraService.getAlignment();
-      if (generation !== selectionGeneration) return;
+      if (!isCurrent()) return;
       set({ alignment, error: null });
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -229,6 +253,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   captureFrame: async (workspace) => {
+    const isCurrent = captureCameraSelection();
     if (get().loading) return;
     void workspace;
     set({ loading: true, captureStage: 'resolving', error: null });
@@ -238,8 +263,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       const selectedDevice = devices.find((device) => device.camera_id === selectedCameraId);
       if (selectedCameraId && selectedDevice?.backend_kind === 'native') {
         const frame = await captureBrowserCameraFrame(selectedDevice, devices, {
-          onStage: (captureStage) => set({ captureStage }),
+          onStage: (captureStage) => { if (isCurrent()) set({ captureStage }); },
         });
+        if (!isCurrent()) return;
         set({ captureStage: 'saving' });
         await cameraService.saveFrame(
           selectedCameraId,
@@ -248,15 +274,19 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
           frame.heightPx,
           frame.mediaType,
         );
+        if (!isCurrent()) return;
       } else {
         set({ captureStage: 'capturing' });
         await cameraService.captureFrame(selectedCameraId);
+        if (!isCurrent()) return;
       }
       set({ captureStage: 'saving' });
       const state = await cameraService.getAgentState();
+      if (!isCurrent()) return;
       set({ ...applyAgentState(state), loading: false, captureStage: 'success' });
       notifySuccess(i18n.t('notifications.camera.image_captured'));
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = e instanceof Error ? e.message : String(e);
       set({ error: msg, loading: false, captureStage: 'error' });
       notifyError(msg);
@@ -264,6 +294,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   beginOverlayAdjust: (workspace) => {
+    const isCurrent = captureCameraSelection();
     const state = get();
     const frame = state.overlayState?.frame ?? null;
     if (!frame) return;
@@ -289,6 +320,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       overlayVisible: true,
       overlayAdjustMode: true,
     }).then((agentState) => {
+        if (!isCurrent()) return;
       const current = get();
       set({
         ...applyAgentState(agentState),
@@ -298,6 +330,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
         overlayDraftDirty: current.overlayDraftDirty,
       });
     }).catch((e) => {
+        if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -305,6 +338,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   exitOverlayAdjust: () => {
+    const isCurrent = captureCameraSelection();
     const state = get();
     const savedTransform = state.alignment?.transform
       ?? state.overlayState?.alignment?.transform
@@ -319,8 +353,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
         overlayDraftDirty: false,
       });
       void cameraService.updateOverlayDisplay({ overlayAdjustMode: false })
-        .then((agentState) => set(applyAgentState(agentState)))
+        .then((agentState) => { if (isCurrent()) set(applyAgentState(agentState)); })
         .catch((e) => {
+        if (!isCurrent()) return;
           const msg = String(e);
           set({ error: msg });
           notifyError(msg);
@@ -333,8 +368,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       overlayDraftDirty: false,
     });
     void cameraService.discardOverlayDraft()
-      .then((agentState) => set(applyAgentState(agentState)))
+      .then((agentState) => { if (isCurrent()) set(applyAgentState(agentState)); })
       .catch((e) => {
+        if (!isCurrent()) return;
         const msg = String(e);
         set({ error: msg });
         notifyError(msg);
@@ -342,6 +378,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   fitDraftOverlayToWorkspace: (workspace) => {
+    const isCurrent = captureCameraSelection();
     const state = get();
     const frame = state.overlayState?.frame ?? null;
     if (!frame || !workspace) return;
@@ -359,8 +396,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       overlayVisible: true,
     });
     void cameraService.fitOverlayToBed()
-      .then((agentState) => set(applyAgentState(agentState)))
+      .then((agentState) => { if (isCurrent()) set(applyAgentState(agentState)); })
       .catch((e) => {
+        if (!isCurrent()) return;
         const msg = String(e);
         set({ error: msg });
         notifyError(msg);
@@ -376,12 +414,15 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   commitDraftOverlayTransform: async () => {
+    const isCurrent = captureCameraSelection();
     const transform = get().draftOverlayTransform;
     if (!transform) return;
     try {
       const state = await cameraService.commitOverlayTransform(transform);
+      if (!isCurrent()) return;
       set(applyAgentState(state));
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -390,14 +431,18 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   saveDraftAlignment: async () => {
+    const isCurrent = captureCameraSelection();
     const transform = get().draftOverlayTransform;
     if (!transform) return;
     await get().commitDraftOverlayTransform();
+    if (!isCurrent()) return;
     try {
       const state = await cameraService.saveOverlayAlignment();
+      if (!isCurrent()) return;
       set(applyAgentState(state));
       notifySuccess(i18n.t('notifications.camera.alignment_saved'));
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -406,6 +451,7 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   discardDraftOverlay: () => {
+    const isCurrent = captureCameraSelection();
     if (get().alignment ?? get().overlayState?.alignment) return;
     set({
       draftOverlayTransform: null,
@@ -414,8 +460,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       overlayDraftDirty: false,
     });
     void cameraService.discardOverlayDraft()
-      .then((agentState) => set(applyAgentState(agentState)))
+      .then((agentState) => { if (isCurrent()) set(applyAgentState(agentState)); })
       .catch((e) => {
+        if (!isCurrent()) return;
         const msg = String(e);
         set({ error: msg });
         notifyError(msg);
@@ -430,12 +477,16 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   saveCalibration: async (cameraId, calibration) => {
+    const isCurrent = captureCameraSelection();
     try {
       const saved = await cameraService.saveCalibration(cameraId, calibration);
+      if (!isCurrent()) return;
       set({ calibration: saved, error: null });
       await get().refreshOverlayState();
+      if (!isCurrent()) return;
       notifySuccess(i18n.t('notifications.camera.mapping_saved'));
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -444,13 +495,17 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   resetCalibration: async () => {
+    const isCurrent = captureCameraSelection();
     try {
       await cameraService.resetCalibration(get().selectedCameraId);
+      if (!isCurrent()) return false;
       set({ calibration: null, error: null });
       await get().refreshOverlayState();
+      if (!isCurrent()) return false;
       notifySuccess(i18n.t('notifications.camera.mapping_reset'));
       return true;
     } catch (e) {
+      if (!isCurrent()) return false;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -466,8 +521,10 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   saveAlignment: async (alignment) => {
+    const isCurrent = captureCameraSelection();
     try {
       const saved = await cameraService.updateAlignment(alignment, get().selectedCameraId);
+      if (!isCurrent()) return;
       set({
         alignment: saved,
         draftOverlayTransform: null,
@@ -477,8 +534,10 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
         error: null,
       });
       await get().refreshOverlayState();
+      if (!isCurrent()) return;
       notifySuccess(i18n.t('notifications.camera.alignment_saved'));
     } catch (e) {
+      if (!isCurrent()) return;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);
@@ -487,8 +546,10 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   },
 
   resetAlignment: async () => {
+    const isCurrent = captureCameraSelection();
     try {
       await cameraService.resetAlignment(get().selectedCameraId);
+      if (!isCurrent()) return false;
       set({
         alignment: null,
         draftOverlayTransform: null,
@@ -498,9 +559,11 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
         error: null,
       });
       await get().refreshOverlayState();
+      if (!isCurrent()) return false;
       notifySuccess(i18n.t('notifications.camera.alignment_reset'));
       return true;
     } catch (e) {
+      if (!isCurrent()) return false;
       const msg = String(e);
       set({ error: msg });
       notifyError(msg);

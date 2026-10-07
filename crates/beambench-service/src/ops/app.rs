@@ -274,6 +274,10 @@ pub fn update_app_settings(
     ctx: &ServiceContext,
     input: UpdateAppSettingsInput,
 ) -> ServiceResult<AppSettings> {
+    let _edit = ctx
+        .settings_edit_gate
+        .lock()
+        .map_err(|e| lock_err("settings_edit_gate", e))?;
     let current = ctx
         .settings
         .lock()

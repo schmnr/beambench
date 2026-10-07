@@ -313,3 +313,34 @@ it('a late material preset never dirties the next document', async () => {
   expect(useProjectStore.getState().project?.dirty).toBe(false);
   expect(useNotificationStore.getState().notifications).toEqual([]);
 });
+
+it('simultaneous edit and open replies must not merge old object into new document',async()=>{
+  useProjectStore.setState({project:makeProject({objects:[makeProjectObject({id:'shared'})]})});
+  vi.spyOn(useUndoStore.getState(),'refresh').mockResolvedValue(undefined);
+  const edit=deferred<ReturnType<typeof makeProjectObject>>();
+  const opening=deferred<ReturnType<typeof makeProject>>();
+  vi.spyOn(projectService,'updateObject').mockReturnValue(edit.promise);
+  vi.spyOn(persistenceService,'openProjectFromPath').mockReturnValue(opening.promise);
+  const action=useProjectStore.getState().updateObject('shared',{name:'Old edit'});
+  const open=useProjectStore.getState().openProjectFromPath('/new.lzrproj');
+  edit.resolve(makeProjectObject({id:'shared',name:'Old edit'}));
+  opening.resolve(makeProject({dirty:false,objects:[makeProjectObject({id:'shared',name:'New object'})],metadata:{...makeProject().metadata,project_id:'new-doc'}}));
+  await Promise.all([action,open]);
+  expect(useProjectStore.getState().project?.objects[0].name).toBe('New object');
+});
+
+it('simultaneous guide and open replies cannot resurrect the previous document', async () => {
+  useProjectStore.setState({project:makeProject()});
+  const guide = deferred<Awaited<ReturnType<typeof projectService.addObjectAtomic>>>();
+  const opening = deferred<ReturnType<typeof makeProject>>();
+  vi.spyOn(projectService,'addObjectAtomic').mockReturnValueOnce(guide.promise);
+  vi.spyOn(persistenceService,'openProjectFromPath').mockReturnValueOnce(opening.promise);
+  const action = useProjectStore.getState().addRulerGuide('vertical',10);
+  const open = useProjectStore.getState().openProjectFromPath('/new.lzrproj');
+  guide.resolve({object:makeProjectObject({id:'old-guide'}),createdLayer:null});
+  opening.resolve(makeProject({dirty:false,metadata:{...makeProject().metadata,project_id:'new-doc'}}));
+  await Promise.all([action,open]);
+  expect(useProjectStore.getState().project?.metadata.project_id).toBe('new-doc');
+  expect(useProjectStore.getState().project?.dirty).toBe(false);
+  expect(useProjectStore.getState().selectedObjectIds).toEqual([]);
+});

@@ -104,6 +104,7 @@ export function MainToolbar() {
   const activeTool = useUiStore((s) => s.activeTool);
   const setActiveTool = useUiStore((s) => s.setActiveTool);
 
+  const activeProfileId = useMachineStore((s) => s.activeProfileId);
   const sessionState = useMachineStore((s) => s.sessionState);
   const emergencyStop = useMachineStore((s) => s.emergencyStop);
   const activeProfileName = useMachineStore(
@@ -301,9 +302,12 @@ export function MainToolbar() {
       <IconButton icon={<Eye size={sz} />} label={t('toolbars.main.preview')} onClick={() => void togglePreview()} disabled={!project} />
       <IconButton
         icon={<Camera size={sz} />}
-        label={t('toolbars.main.camera_overlay')}
+        label={activeProfileId === null
+          ? t('panels.machine.camera.select_profile_for_camera')
+          : t('toolbars.main.camera_overlay')}
         onClick={toggleOverlayVisible}
-        active={overlayVisible}
+        disabled={activeProfileId === null}
+        active={activeProfileId !== null && overlayVisible}
       />
       <Separator />
 

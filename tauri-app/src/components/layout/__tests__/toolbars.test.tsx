@@ -7,6 +7,7 @@ import { useProjectStore } from '../../../stores/projectStore';
 import { useUiStore } from '../../../stores/uiStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 import { useMacroStore } from '../../../stores/macroStore';
+import { useMachineStore } from '../../../stores/machineStore';
 import { useCameraStore } from '../../../stores/cameraStore';
 import { useAppStore } from '../../../stores/appStore';
 import { makeAppSettings, makeLayer, makeProject, makeProjectObject, makeTransformLocks } from '../../../test-utils/projectFixtures';
@@ -19,6 +20,7 @@ const initialProjectState = useProjectStore.getState();
 const initialUiState = useUiStore.getState();
 const initialNotificationState = useNotificationStore.getState();
 const initialMacroState = useMacroStore.getState();
+const initialMachineState = useMachineStore.getState();
 const initialCameraState = useCameraStore.getState();
 const initialAppState = useAppStore.getState();
 
@@ -34,6 +36,7 @@ afterEach(() => {
   useNotificationStore.setState(initialNotificationState, true);
   useMacroStore.setState(initialMacroState, true);
   useCameraStore.setState(initialCameraState, true);
+  useMachineStore.setState(initialMachineState, true);
   useAppStore.setState(initialAppState, true);
 });
 
@@ -63,6 +66,7 @@ describe('MainToolbar', () => {
   });
 
   it('starts Camera Overlay inactive and highlights it only when enabled', () => {
+    useMachineStore.setState({ activeProfileId: 'profile-1', sessionState: 'disconnected' });
     const toggleOverlayVisible = vi.fn(() => {
       useCameraStore.setState((state) => ({ overlayVisible: !state.overlayVisible }));
     });
@@ -75,6 +79,21 @@ describe('MainToolbar', () => {
     fireEvent.click(cameraOverlay);
     expect(toggleOverlayVisible).toHaveBeenCalledOnce();
     expect(screen.getByTitle('Camera Overlay').className).toContain('bg-bb-accent/15');
+  });
+
+  it('disables the camera overlay with setup guidance until a profile is selected', () => {
+    const toggleOverlayVisible = vi.fn();
+    useMachineStore.setState({ activeProfileId: null });
+    useCameraStore.setState({ overlayVisible: true, toggleOverlayVisible });
+    render(<MainToolbar />);
+    const button = screen.getByTitle('Select or create an active machine profile to choose a camera.');
+    expect(button).toHaveProperty('disabled', true);
+    fireEvent.click(button);
+    expect(toggleOverlayVisible).not.toHaveBeenCalled();
+    expect(button.className).not.toContain('bg-bb-accent/15');
+    act(() => useMachineStore.setState({ activeProfileId: 'profile-1', sessionState: 'disconnected' }));
+    fireEvent.click(screen.getByTitle('Camera Overlay'));
+    expect(toggleOverlayVisible).toHaveBeenCalledOnce();
   });
 
   it('places the grid spacing menu between Grid and Snap and offers common sizes', () => {

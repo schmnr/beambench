@@ -277,8 +277,9 @@ mod tests {
     fn taken_port_keeps_the_running_api() {
         let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = reserve.local_addr().unwrap().port();
-        drop(reserve);
         let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        // Keep the first port reserved until the conflicting port is distinct.
+        drop(reserve);
         let settings = AppSettings {
             api_enabled: true,
             api_port: port,

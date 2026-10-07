@@ -221,6 +221,10 @@ pub fn import_preferences_from_path(
     path: &Path,
 ) -> ServiceResult<AppSettings> {
     let payload = parse_preference_payload(path)?;
+    let _edit = ctx
+        .settings_edit_gate
+        .lock()
+        .map_err(|e| lock_err("settings_edit_gate", e))?;
     let current = ctx
         .settings
         .lock()
@@ -231,6 +235,10 @@ pub fn import_preferences_from_path(
 }
 
 pub fn reset_preferences_to_defaults(ctx: &ServiceContext) -> ServiceResult<AppSettings> {
+    let _edit = ctx
+        .settings_edit_gate
+        .lock()
+        .map_err(|e| lock_err("settings_edit_gate", e))?;
     let current = ctx
         .settings
         .lock()

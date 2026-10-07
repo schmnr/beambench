@@ -15,6 +15,12 @@ export function beginNewDocument(): void {
   documentGeneration += 1;
 }
 
+/** Check in the consuming continuation, immediately after its await. */
+export function requireCurrentDocument<T>(generation: number, reply: T): T {
+  if (generation !== documentGeneration) throw new StaleDocumentError();
+  return reply;
+}
+
 const STALE_DOCUMENT_MARKER = '[stale_document]';
 
 /** Thrown in place of a reply that arrived after a different document opened. */

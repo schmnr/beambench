@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Camera, LoaderCircle, RefreshCw } from 'lucide-react';
+import { useMachineStore } from '../../stores/machineStore';
 import { useCameraStore } from '../../stores/cameraStore';
 import { useProjectStore } from '../../stores/projectStore';
 import type { CameraFrameHandle } from '../../types/camera';
@@ -108,6 +109,7 @@ export function CameraStillPreview({ frame }: { frame: CameraFrameHandle | null 
 
 export function CameraOverlayControls() {
   const { t } = useTranslation();
+  const hasActiveProfile = useMachineStore((s) => s.activeProfileId !== null);
   const overlayVisible = useCameraStore((s) => s.overlayVisible);
   const overlayOpacity = useCameraStore((s) => s.overlayOpacity);
   const setOverlayVisible = useCameraStore((s) => s.setOverlayVisible);
@@ -119,7 +121,8 @@ export function CameraOverlayControls() {
         <span>{t('panels.machine.camera.overlay')}</span>
         <input
           type="checkbox"
-          checked={overlayVisible}
+          disabled={!hasActiveProfile}
+          checked={hasActiveProfile && overlayVisible}
           onChange={(event) => setOverlayVisible(event.currentTarget.checked)}
           className="accent-bb-accent"
         />
@@ -131,6 +134,7 @@ export function CameraOverlayControls() {
           min={0}
           max={1}
           step={0.05}
+          disabled={!hasActiveProfile}
           value={overlayOpacity}
           onChange={(event) => setOverlayOpacity(Number(event.currentTarget.value))}
           className="bb-range min-w-0 flex-1"
