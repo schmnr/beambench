@@ -181,7 +181,14 @@ fn cancel_retains_job_after_reset_or_laser_off_write_fails() {
         assert!(failed.load(Ordering::SeqCst));
         assert!(ctx.job.lock().unwrap().is_some());
         fail.store(false, Ordering::SeqCst);
-        crate::ops::machine::cancel_job(&ctx).unwrap();
+        // The mock never answers the reset, so the stop is sent but cannot be
+        // confirmed: the job is released and the user is told to use the
+        // physical stop.
+        let error = crate::ops::machine::cancel_job(&ctx).unwrap_err();
+        assert!(
+            error.message.contains("[emergency_stop_unconfirmed]"),
+            "{error}"
+        );
         assert!(ctx.job.lock().unwrap().is_none());
     }
 }

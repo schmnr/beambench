@@ -28,7 +28,7 @@ export function RadiusPropertiesSection() {
       icon={<RadiusGlyph />}
       testId="radius-properties-section"
     >
-      <NumberInput
+      <NumberInput commit="blur"
         label={t('toolbars.modifiers.radius_with_unit', { unit: lengthUnitLabel(displayUnit) })}
         value={roundDisplayLength(mmToDisplay(radiusMm, displayUnit), displayUnit)}
         onChange={(value) => setRadiusToolValue(displayToMm(value, displayUnit))}

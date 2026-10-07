@@ -371,8 +371,8 @@
       "outcome_fail": "失敗",
       "warnings_block_start": "請先解決上述警告，再開始作業。",
       "advisory_choice": "此作業可以運行，但更正建議可能會提高雕刻品質。",
-      "apply_overscan": "使用 {value} mm 過掃描並重新檢查",
-      "reduce_speed": "使用 {value} mm/min 並重新檢查",
+      "apply_overscan": "使用 {value} {unit} 過掃描並重新檢查",
+      "reduce_speed": "使用 {value} {unit} 並重新檢查",
       "continue_anyway": "仍然繼續",
       "categories": {
         "connection": "連接方式",
@@ -382,7 +382,9 @@
         "settings": "設定",
         "positioning": "定位",
         "planner": "規劃師",
-        "machine_workspace": "機器工作空間"
+        "machine_workspace": "機器工作空間",
+        "controller": "控制器",
+        "rotary": "旋轉軸"
       },
       "checks": {
         "session_ready": "會話已準備就緒",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "光柵運動適合機器床身",
         "laser_mode": "雷射模式已啟用（$32=1）",
         "homing_enabled": "歸位已啟用",
-        "relative_framed": "相對位置以目前位置為框架"
+        "relative_framed": "相對位置以目前位置為框架",
+        "machine_workspace_fits": "計畫運動符合機器設定檔",
+        "rotary_safe": "旋轉軸設定可以安全執行",
+        "controller_supported": "控制器可以啟動工作",
+        "image_detail_fits": "影像細節適合控制器",
+        "plan_generation": "工作準備",
+        "ruida_compiles": "工作可轉換為 Ruida 控制器格式",
+        "lihuiyu_compiles": "工作可轉換為 Lihuiyu M2 控制器格式"
       },
       "messages": {
         "connected_ready": "已連接並準備就緒",
@@ -406,8 +415,11 @@
         "frame_required": "此控制器未歸位，因此 Beam Bench 無法驗證實體床邊緣。定位雷射後對作業進行構圖，然後在開始前重新檢查。",
         "segment_count_one": "1 段",
         "segment_count_other": "{count} 個片段",
-        "plan_bounds_exceed": "計畫範圍（{minX}, {minY} 到 {maxX}, {maxY}）超出 {width} × {height} mm 的機器工作區域。",
-        "raster_motion_exceeds": "光柵移動在 {axis} 軸上從 {lo} 延伸到 {hi} mm，該軸的範圍為 0 到 {limit} mm。過掃描和掃描偏移在雕刻區域之外增加了 {margin} mm。{startFrom, select, current_position {請減少過掃描或將雷射頭移離工作區域邊緣。} user_origin {請減少過掃描，或將使用者原點移到離工作區域邊緣更遠的位置並重新設定。} other {請減少過掃描或將設計移離工作區域邊緣。}}"
+        "plan_bounds_exceed": "計畫範圍（{minX}, {minY} 到 {maxX}, {maxY}）超出 {width} × {height} {unit} 的機器工作區域。",
+        "raster_motion_exceeds": "光柵移動在 {axis} 軸上從 {lo} 延伸到 {hi} {unit}，該軸的範圍為 0 到 {limit} {unit}。過掃描和掃描偏移在雕刻區域之外增加了 {margin} {unit}。{startFrom, select, current_position {請減少過掃描或將雷射頭移離工作區域邊緣。} user_origin {請減少過掃描，或將使用者原點移到離工作區域邊緣更遠的位置並重新設定。} other {請減少過掃描或將設計移離工作區域邊緣。}}",
+        "session_state": "連線：{state}",
+        "machine_state": "機器狀態：{state}",
+        "plan_bounds_fit": "計畫範圍（{minX}, {minY} 到 {maxX}, {maxY}）在 {width} × {height} {unit} 的機器工作台之內。"
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "正在下載...",
       "installing": "正在安裝...",
       "blocked_not_in_applications": "更新需要 Beam Bench 從「應用程式」資料夾執行。它似乎正從安裝程式的磁碟映像檔或其他暫時位置執行。請在 Finder 中將 Beam Bench 拖入「應用程式」資料夾，從那裡開啟後再重試更新。",
-      "blocked_other_disk": "Beam Bench 安裝在與這部 Mac 暫存資料夾不同的磁碟上，更新程式無法直接替換。請將 Beam Bench 移到主磁碟的「應用程式」資料夾，或從 beambench.com 下載新版本。"
+      "blocked_other_disk": "Beam Bench 安裝在與這部 Mac 暫存資料夾不同的磁碟上，更新程式無法直接替換。請將 Beam Bench 移到主磁碟的「應用程式」資料夾，或從 beambench.com 下載新版本。",
+      "blocked_job_running": "安裝前請完成或停止目前的工作。",
+      "blocked_machine_operation": "安裝前請等待目前的機器操作完成。",
+      "blocked_machine_busy": "安裝前請完成或停止目前的機器操作。",
+      "blocked_machine_moving": "安裝前請等待機器回到閒置狀態。",
+      "cancelled_unsaved": "已取消更新。您的專案未被捨棄。"
     },
     "camera_calibration": {
       "title": "相機映射",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} 行",
         "elapsed": "已用：{time}",
         "remaining": "剩餘：~{time}",
-        "finishing": "正在完成，等待機器..."
+        "finishing": "正在完成，等待機器...",
+        "last_failure": "上一個工作已停止：{message}"
       },
       "overrides": {
         "title": "倍率",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "偏好設定已重設為預設值。",
     "layout_restore_failed": "無法還原已儲存的面板版面配置。本次工作階段將使用預設版面配置。",
     "recovery_check_failed": "啟動期間無法檢查復原檔案。",
+    "autosave_failing": "自動復原副本建立失敗。請儲存專案以保護您的工作。",
     "backend_subscribe_failed": "無法訂閱後端事件。本次工作階段部分即時更新可能無法使用。",
     "boolean_needs_two": "請為布林小幫手選取正好 2 個封閉向量物件",
     "project_restored": "已從復原中還原專案",
@@ -2587,7 +2606,50 @@
       "postponed": "更新提醒已延後 24 小時。",
       "skipped": "已略過 Beam Bench {version}。"
     },
-    "import_oversized": "已按原始尺寸匯入：設計尺寸為 {width} x {height} {unit}，大於 {bedWidth} x {bedHeight} {unit} 的工作區域。"
+    "import_oversized": "已按原始尺寸匯入：設計尺寸為 {width} x {height} {unit}，大於 {bedWidth} x {bedHeight} {unit} 的工作區域。",
+    "machine": {
+      "using_existing_connection": "正在使用現有的機器連線",
+      "preview_disconnected": "預覽機器已中斷連線",
+      "disconnected": "已中斷連線",
+      "preview_connected": "預覽機器已連線",
+      "homing_started": "已開始回原點",
+      "discovery_started": "已開始搜尋機器",
+      "discovery_cancelled": "已取消搜尋機器",
+      "connected_discovered": "已連線到找到的裝置",
+      "profile_from_discovery": "已根據找到的裝置建立機器設定檔",
+      "estop_sent": "已送出緊急停止",
+      "estop_resent_disconnected": "重新開啟控制器連線後已再次送出緊急停止。隨後 Beam Bench 已中斷連線。繼續前請重新連線。",
+      "user_origin_cleared": "已清除使用者原點",
+      "job_tick_failed": "由於傳送到控制器失敗，工作已停止。",
+      "lihuiyu_incomplete": "Lihuiyu USB 連線未完成。",
+      "connected_to": "已連線到 {name}",
+      "user_origin_set": "使用者原點已設為 ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "已拍攝新的相機影像",
+      "alignment_saved": "相機對齊已儲存",
+      "mapping_solved": "相機對應已計算",
+      "mapping_saved": "相機對應已儲存",
+      "mapping_reset": "相機對應已重設",
+      "alignment_solved": "相機對齊已計算",
+      "alignment_reset": "相機對齊已重設"
+    },
+    "variable_text": {
+      "serial_outside_mode": "範本使用了 {placeholder} 預留位置，但文字模式不是序號。",
+      "date_outside_mode": "範本使用了 {placeholder} 預留位置，但文字模式不是日期/時間。",
+      "csv_outside_mode": "範本使用了 {placeholder} 預留位置，但文字模式不是 CSV 合併。",
+      "cut_outside_mode": "範本使用了 {placeholder} 預留位置，但文字模式不是切割設定。",
+      "no_placeholders": "所選文字模式在範本中沒有相符的預留位置。",
+      "csv_load_failed": "無法載入 CSV 檔案：{error}",
+      "resolve_failed": "無法解析文字：{error}",
+      "merge_fields_failed": "無法讀取合併欄位：{error}"
+    },
+    "trim": {
+      "multiple_pieces": "修剪產生了多個片段。請選取它們並使用「閉合並連接」進行合併。",
+      "open_path": "修剪後的路徑是開放的，無法填色。如需閉合形狀，請使用「閉合並連接」。"
+    },
+    "pick_guide_path": "點選一個向量或形狀物件作為導引路徑",
+    "panel_layout_save_failed": "無法儲存面板配置變更。重新啟動後可能會遺失。"
   },
   "status": {
     "preview_in_progress": "正在產生預覽",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "準備工作時按下了緊急停止。未傳送任何內容。",
     "sleep_protection_failed": "無法阻止電腦在此工作期間進入睡眠。請讓電腦保持喚醒狀態，直到工作結束。",
+    "project_file_missing": "此專案檔案已被移動或刪除，因此已從「{recent}」中移除。請使用「{open}」尋找它。",
+    "settings_file_recovered": "部分已儲存的設定無法讀取，已重設為預設值。原始檔案的副本已保留在設定資料夾中。",
+    "layers_migrated_on_open": "此專案中的影像和向量圖形位於同一圖層。它們已移到具有相同設定的獨立圖層。",
+    "project_too_new": "此專案由較新版本的 Beam Bench ({version}) 建立。請更新 Beam Bench 後再開啟。",
+    "project_from_newer_app": "此專案上次由較新版本的 Beam Bench ({version}) 儲存。使用此版本儲存可能會遺失此版本不支援的設定。",
+    "edit_invalid_geometry": "此變更會將物件移動或縮放到 Beam Bench 無法儲存的範圍之外，因此未套用。",
+    "edit_internal_error": "此編輯發生內部錯誤，已復原。您的專案沒有變更。請回報此問題。",
+    "project_invalid_value": "專案包含無效的設定值，因此未儲存。",
+    "project_invalid_value_object": "「{name}」的大小或位置無效，因此專案未儲存。請復原對它的最後一次變更或將其刪除，然後重新儲存。",
     "operation_failed_with_detail": "操作失敗：{detail}",
     "raster_plan_too_complex": "此影像在目前尺寸和 DPI 下會產生過多的獨立點陣移動。請降低 DPI 或實體尺寸，或選擇碎片較少的影像模式，然後重新產生預覽。",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "用戶原點已選擇但尚未設定。將雷射移至預期原點，並在取景或開始之前選擇在此處設定。",
     "current_position_unavailable": "目前位置需要具有報告位置的連接機器。",
     "dxf_no_usable_geometry": "DXF 檔案不包含可用的 2D 向量幾何圖形。",
-    "dxf_no_usable_geometry_with_entities": "DXF 檔案不包含可用的 2D 向量幾何圖形。不支援或格式錯誤的圖元：{entities}。"
+    "dxf_no_usable_geometry_with_entities": "DXF 檔案不包含可用的 2D 向量幾何圖形。不支援或格式錯誤的圖元：{entities}。",
+    "camera": {
+      "stream_failed": "無法啟動相機串流。",
+      "frame_timeout": "等待相機影像逾時。相機可能仍在暖機，或正被其他應用程式使用。",
+      "preview_timeout": "啟動相機預覽逾時。",
+      "warmup_timeout": "等待相機就緒逾時。",
+      "encode_failed": "無法儲存相機影像。",
+      "unavailable": "此視窗中無法使用相機拍攝。",
+      "empty_frame": "相機傳回了空白影像。",
+      "canvas_failed": "無法準備相機影像。"
+    },
+    "serial_open_no_response": "連接埠已開啟，但雷射機沒有回應。請確認雷射機已開機，嘗試更換 USB 線或連接埠，並確認選擇了正確的連接埠。某些主機板需要安裝 CH340 USB 驅動程式。",
+    "serial_protocol_unrecognized": "雷射機已回應，但 Beam Bench 無法辨識其控制器。請檢查機器設定檔中的鮑率（大多數 GRBL 雷射機使用 115200），並關閉正在使用此連接埠的其他雷射軟體。",
+    "network_grbl_no_status": "此位址的控制器沒有以 GRBL 雷射機的方式回應。請檢查 IP 位址和連接埠，關閉連線到它的其他應用程式（許多 Wi-Fi 模組一次只允許一個連線），然後重試。",
+    "no_active_machine_profile": "尚未設定任何機器。請先新增或選擇一個機器設定檔。",
+    "emergency_stop_unconfirmed": "Beam Bench 無法確認機器已停止。請立即使用機器的實體緊急停止按鈕或切斷雷射電源。詳細資訊：{detail}",
+    "controller_connection_lost": "與雷射機的連線已中斷。請檢查線材和電源，然後重新連線。詳細資訊：{detail}"
   },
   "import": {
     "drop_to_import": "拖放檔案以匯入"

@@ -509,6 +509,19 @@ pub fn rotate_objects(
     )
 }
 #[tauri::command]
+pub fn scale_and_rotate_objects(
+    svc: State<'_, Arc<ServiceContext>>,
+    entries: Vec<beambench_service::ops::workflows::project::BoundsEntry>,
+    object_ids: Vec<String>,
+    degrees: f64,
+    pivot_x: Option<f64>,
+    pivot_y: Option<f64>,
+) -> Result<(), String> {
+    beambench_service::ops::workflows::project::scale_and_rotate_objects(
+        &svc, entries, object_ids, degrees, pivot_x, pivot_y,
+    )
+}
+#[tauri::command]
 pub fn rotate_objects_and_bake_active_path(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -674,7 +687,7 @@ pub fn select_shapes_smaller_than_selected(
         &svc, object_ids,
     )
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_duplicates(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -688,7 +701,7 @@ pub fn count_duplicates(
 ) -> Result<usize, String> {
     beambench_service::ops::workflows::project::count_duplicates(&svc, object_ids)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn auto_join_shapes(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,
@@ -696,7 +709,7 @@ pub fn auto_join_shapes(
 ) -> Result<Vec<ProjectObject>, String> {
     beambench_service::ops::workflows::project::auto_join_shapes(&svc, object_ids, tolerance)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn optimize_shapes(
     svc: State<'_, Arc<ServiceContext>>,
     object_ids: Vec<String>,

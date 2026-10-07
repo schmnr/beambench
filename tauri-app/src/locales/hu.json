@@ -371,8 +371,8 @@
       "outcome_fail": "Sikertelen",
       "warnings_block_start": "A munka indítása előtt hárítsa el a fenti figyelmeztetéseket.",
       "advisory_choice": "Ez a munka futhat, de a figyelmeztetés javítása javíthatja a gravírozás minőségét.",
-      "apply_overscan": "Használjon {value} mm-es túlkeresést, és ellenőrizze újra",
-      "reduce_speed": "Használja a következőt: {value} mm/perc, és ellenőrizze újra",
+      "apply_overscan": "Használjon {value} {unit}-es túlkeresést, és ellenőrizze újra",
+      "reduce_speed": "Használja a következőt: {value} {unit}, és ellenőrizze újra",
       "continue_anyway": "Mindenképpen folytasd",
       "categories": {
         "connection": "Csatlakozás",
@@ -382,7 +382,9 @@
         "settings": "Beállítások elemre",
         "positioning": "Elhelyezés",
         "planner": "Tervező",
-        "machine_workspace": "Gépi munkaterület"
+        "machine_workspace": "Gépi munkaterület",
+        "controller": "Vezérlő",
+        "rotary": "Forgató egység"
       },
       "checks": {
         "session_ready": "Az ülés készen áll",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "A raszteres mozgás belefér a gépágyba",
         "laser_mode": "A lézer mód engedélyezve van ($32=1)",
         "homing_enabled": "Az otthoni beállítás engedélyezve van",
-        "relative_framed": "A relatív elhelyezés az aktuális pozícióban lett keretezve"
+        "relative_framed": "A relatív elhelyezés az aktuális pozícióban lett keretezve",
+        "machine_workspace_fits": "A tervezett mozgás megfelel a gépprofilnak",
+        "rotary_safe": "A forgató egység beállítása biztonságos",
+        "controller_supported": "A vezérlő tud munkát indítani",
+        "image_detail_fits": "A kép részletessége megfelel a vezérlőnek",
+        "plan_generation": "Munka előkészítése",
+        "ruida_compiles": "A munka átalakítható a Ruida vezérlőhöz",
+        "lihuiyu_compiles": "A munka átalakítható a Lihuiyu M2 vezérlőhöz"
       },
       "messages": {
         "connected_ready": "Csatlakoztatva és készen áll",
@@ -406,8 +415,11 @@
         "frame_required": "Ez a vezérlő nincs otthon, így a Beam Bench nem tudja ellenőrizni a fizikai ágy széleit. A lézer pozicionálása után keretezze be a munkát, majd indítsa el újra.",
         "segment_count_one": "1 szegmens",
         "segment_count_other": "{count} szegmens",
-        "plan_bounds_exceed": "A tervezett határok ({minX}, {minY}–{maxX}, {maxY}) túllépik a gép {width} × {height} mm-es munkaterületét.",
-        "raster_motion_exceeds": "A rasztermozgás a(z) {axis} tengelyen {lo} és {hi} mm között halad, miközben a tengely tartománya 0–{limit} mm. A túlpásztázás és a pásztázási eltolás {margin} mm-rel növeli a gravírozási területet. {startFrom, select, current_position {Csökkentse a túlpásztázást, vagy vigye a lézert távolabb a munkaterület szélétől.} user_origin {Csökkentse a túlpásztázást, vagy helyezze át vagy állítsa be újra a Felhasználói origót távolabb a munkaterület szélétől.} other {Csökkentse a túlpásztázást, vagy vigye a tervet távolabb a munkaterület szélétől.}}"
+        "plan_bounds_exceed": "A tervezett határok ({minX}, {minY}–{maxX}, {maxY}) túllépik a gép {width} × {height} {unit}-es munkaterületét.",
+        "raster_motion_exceeds": "A rasztermozgás a(z) {axis} tengelyen {lo} és {hi} {unit} között halad, miközben a tengely tartománya 0–{limit} {unit}. A túlpásztázás és a pásztázási eltolás {margin} {unit}-rel növeli a gravírozási területet. {startFrom, select, current_position {Csökkentse a túlpásztázást, vagy vigye a lézert távolabb a munkaterület szélétől.} user_origin {Csökkentse a túlpásztázást, vagy helyezze át vagy állítsa be újra a Felhasználói origót távolabb a munkaterület szélétől.} other {Csökkentse a túlpásztázást, vagy vigye a tervet távolabb a munkaterület szélétől.}}",
+        "session_state": "Kapcsolat: {state}",
+        "machine_state": "Gép állapota: {state}",
+        "plan_bounds_fit": "A tervezett határok ({minX}, {minY} – {maxX}, {maxY}) elférnek a gép {width} × {height} {unit} méretű munkaterületén."
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "Letöltés...",
       "installing": "Telepítés...",
       "blocked_not_in_applications": "A frissítésekhez a Beam Bench programot az Alkalmazások mappából kell futtatni. Úgy tűnik, a telepítő lemezképről vagy más ideiglenes helyről fut. A Finderben húzza a Beam Bench programot az Alkalmazások mappába, onnan nyissa meg, majd próbálja újra a frissítést.",
-      "blocked_other_disk": "A Beam Bench más lemezre van telepítve, mint a Mac ideiglenes mappája, ezért a frissítő nem tudja kicserélni. Helyezze át a Beam Bench programot a fő lemez Alkalmazások mappájába, vagy töltse le az új verziót a beambench.com oldalról."
+      "blocked_other_disk": "A Beam Bench más lemezre van telepítve, mint a Mac ideiglenes mappája, ezért a frissítő nem tudja kicserélni. Helyezze át a Beam Bench programot a fő lemez Alkalmazások mappájába, vagy töltse le az új verziót a beambench.com oldalról.",
+      "blocked_job_running": "Telepítés előtt fejezze be vagy állítsa le az aktuális feladatot.",
+      "blocked_machine_operation": "Telepítés előtt várja meg, amíg az aktuális gépművelet befejeződik.",
+      "blocked_machine_busy": "Telepítés előtt fejezze be vagy állítsa le az aktuális gépműveletet.",
+      "blocked_machine_moving": "Telepítés előtt várja meg, amíg a gép újra nyugalmi állapotba kerül.",
+      "cancelled_unsaved": "Frissítés megszakítva. A projektet nem vetettük el."
     },
     "camera_calibration": {
       "title": "Kameraleképezés",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} sor",
         "elapsed": "Eltelt: {time}",
         "remaining": "Hátralévő: ~{time}",
-        "finishing": "Befejezés, várakozás a gépre..."
+        "finishing": "Befejezés, várakozás a gépre...",
+        "last_failure": "Az utolsó feladat leállt: {message}"
       },
       "overrides": {
         "title": "Felülírások",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Beállítások visszaállítva az alapértelmezettre.",
     "layout_restore_failed": "Nem sikerült visszaállítani a mentett panelelrendezést. Ebben a munkamenetben az alapértelmezett elrendezés lesz használva.",
     "recovery_check_failed": "Indításkor nem sikerült ellenőrizni a helyreállítási fájlokat.",
+    "autosave_failing": "Az automatikus helyreállítási másolatok sikertelenek. Mentse a projektet, hogy a munkája biztonságban legyen.",
     "backend_subscribe_failed": "Nem sikerült feliratkozni a háttérrendszer eseményeire. Egyes élő frissítések nem érhetők el ebben a munkamenetben.",
     "boolean_needs_two": "Válasszon ki pontosan 2 zárt vektorobjektumot a Boolean-asszisztenshez",
     "project_restored": "Projekt visszaállítva a helyreállításból",
@@ -2587,7 +2606,50 @@
       "postponed": "Frissítési emlékeztető elhalasztva 24 órával.",
       "skipped": "Beam Bench {version} kihagyva."
     },
-    "import_oversized": "Eredeti méretben importálva: a terv {width} x {height} {unit}, nagyobb, mint a {bedWidth} x {bedHeight} {unit} munkaterület."
+    "import_oversized": "Eredeti méretben importálva: a terv {width} x {height} {unit}, nagyobb, mint a {bedWidth} x {bedHeight} {unit} munkaterület.",
+    "machine": {
+      "using_existing_connection": "A meglévő gépkapcsolat használata",
+      "preview_disconnected": "Előnézeti gép leválasztva",
+      "disconnected": "Leválasztva",
+      "preview_connected": "Előnézeti gép csatlakoztatva",
+      "homing_started": "Referenciapont-keresés elindítva",
+      "discovery_started": "Gépkeresés elindítva",
+      "discovery_cancelled": "Gépkeresés megszakítva",
+      "connected_discovered": "Csatlakozva a talált eszközhöz",
+      "profile_from_discovery": "Gépprofil létrehozva a talált eszközből",
+      "estop_sent": "Vészleállítás elküldve",
+      "estop_resent_disconnected": "A vészleállítást újra elküldtük a vezérlőkapcsolat újbóli megnyitása után. Ezután a Beam Bench bontotta a kapcsolatot. A folytatás előtt csatlakozzon újra.",
+      "user_origin_cleared": "Felhasználói origó törölve",
+      "job_tick_failed": "A feladat leállt, mert a vezérlőnek való küldés sikertelen volt.",
+      "lihuiyu_incomplete": "A Lihuiyu USB-kapcsolat nem jött létre.",
+      "connected_to": "Csatlakozva: {name}",
+      "user_origin_set": "Felhasználói origó beállítva: ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Új kamerakép rögzítve",
+      "alignment_saved": "Kamera-igazítás mentve",
+      "mapping_solved": "Kameraleképezés kiszámítva",
+      "mapping_saved": "Kameraleképezés mentve",
+      "mapping_reset": "Kameraleképezés visszaállítva",
+      "alignment_solved": "Kamera-igazítás kiszámítva",
+      "alignment_reset": "Kamera-igazítás visszaállítva"
+    },
+    "variable_text": {
+      "serial_outside_mode": "A sablon {placeholder} helyőrzőket használ, de a szövegmód nem Sorozatszám.",
+      "date_outside_mode": "A sablon {placeholder} helyőrzőket használ, de a szövegmód nem Dátum/idő.",
+      "csv_outside_mode": "A sablon {placeholder} helyőrzőket használ, de a szövegmód nem CSV-egyesítés.",
+      "cut_outside_mode": "A sablon {placeholder} helyőrzőket használ, de a szövegmód nem Vágási beállítás.",
+      "no_placeholders": "A kiválasztott szövegmódhoz nincs illeszkedő helyőrző a sablonban.",
+      "csv_load_failed": "A CSV-fájlt nem sikerült betölteni: {error}",
+      "resolve_failed": "A szöveget nem sikerült feloldani: {error}",
+      "merge_fields_failed": "Az egyesítési mezőket nem sikerült beolvasni: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "A vágás több darabot hozott létre. Jelölje ki őket, és egyesítse a Bezárás és összekapcsolás paranccsal.",
+      "open_path": "A levágott útvonal nyitott, ezért nem tölthető ki. Ha zárt alakzat kell, használja a Bezárás és összekapcsolás parancsot."
+    },
+    "pick_guide_path": "Kattintson egy vektoros vagy alakzat objektumra, amely vezetőútvonal lesz",
+    "panel_layout_save_failed": "A panelelrendezés módosításait nem sikerült menteni. Újraindításkor elveszhetnek."
   },
   "status": {
     "preview_in_progress": "Előnézet generálása",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "A feladat előkészítése közben megnyomták a vészleállítót. Semmi sem lett elküldve.",
     "sleep_protection_failed": "Nem sikerült megakadályozni a számítógép alvó módba lépését a feladat alatt. Tartsa ébren a számítógépet a feladat befejezéséig.",
+    "project_file_missing": "Ezt a projektfájlt áthelyezték vagy törölték, ezért eltávolítottuk innen: {recent}. A(z) {open} paranccsal keresheti meg.",
+    "settings_file_recovered": "Néhány mentett beállítást nem sikerült beolvasni, ezért visszaálltak alapértékre. Az eredeti fájl egy példánya megmaradt a beállítások mappájában.",
+    "layers_migrated_on_open": "Ebben a projektben képek és vektoros alakzatok voltak ugyanazon a rétegen. Külön rétegekre kerültek ugyanazokkal a beállításokkal.",
+    "project_too_new": "Ez a projekt a Beam Bench egy újabb verziójával készült ({version}). A megnyitáshoz frissítse a Beam Bench programot.",
+    "project_from_newer_app": "Ezt a projektet legutóbb a Beam Bench egy újabb verziójával mentették ({version}). Ha ezzel a verzióval menti, elveszhetnek az általa nem támogatott beállítások.",
+    "edit_invalid_geometry": "Ez a módosítás olyan helyre mozgatna vagy méretezne egy objektumot, amelyet a Beam Bench nem tud tárolni, ezért nem lett végrehajtva.",
+    "edit_internal_error": "Ennél a szerkesztésnél belső hiba történt, ezért visszavontuk. A projekt nem változott. Kérjük, jelezze a hibát.",
+    "project_invalid_value": "A projekt érvénytelen beállításértéket tartalmaz, ezért nem lett mentve.",
+    "project_invalid_value_object": "A(z) „{name}” mérete vagy pozíciója érvénytelen, ezért a projekt nem lett mentve. Vonja vissza a legutóbbi módosítását, vagy törölje, majd mentsen újra.",
     "operation_failed_with_detail": "A művelet sikertelen: {detail}",
     "raster_plan_too_complex": "Ez a kép a jelenlegi méret és DPI mellett túl sok különálló rasztermozgást hoz létre. Csökkentse a DPI-t vagy a fizikai méretet, vagy válasszon kevésbé töredezett képmódot, majd készítse el újra az előnézetet.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "Felhasználói eredet ki van választva, de nincs beállítva. Mozgassa a lézert a kívánt eredetbe, és válassza a Beállítás itt lehetőséget a keretezés vagy a indítás előtt.",
     "current_position_unavailable": "Az Aktuális pozícióhoz egy csatlakoztatott gépre van szükség egy jelentett pozícióval.",
     "dxf_no_usable_geometry": "A DXF-fájl nem tartalmaz használható 2D vektorgeometriát.",
-    "dxf_no_usable_geometry_with_entities": "A DXF-fájl nem tartalmaz használható 2D vektorgeometriát. Nem támogatott vagy hibás entitások: {entities}."
+    "dxf_no_usable_geometry_with_entities": "A DXF-fájl nem tartalmaz használható 2D vektorgeometriát. Nem támogatott vagy hibás entitások: {entities}.",
+    "camera": {
+      "stream_failed": "A kamerafolyamot nem sikerült elindítani.",
+      "frame_timeout": "Időtúllépés a kamerakép várása közben. Lehet, hogy a kamera még melegszik, vagy egy másik alkalmazás használja.",
+      "preview_timeout": "Időtúllépés a kamera-előnézet indításakor.",
+      "warmup_timeout": "Időtúllépés a kamera felkészülésére várva.",
+      "encode_failed": "A kameraképet nem sikerült menteni.",
+      "unavailable": "A kamerás rögzítés ebben az ablakban nem érhető el.",
+      "empty_frame": "A kamera üres képet adott vissza.",
+      "canvas_failed": "A kameraképet nem sikerült előkészíteni."
+    },
+    "serial_open_no_response": "A port megnyílt, de a lézer nem válaszolt. Ellenőrizze, hogy a lézer be van-e kapcsolva, próbáljon másik USB-kábelt vagy portot, és győződjön meg róla, hogy a megfelelő port van kiválasztva. Egyes panelekhez a CH340 USB-illesztőprogram szükséges.",
+    "serial_protocol_unrecognized": "A lézer válaszolt, de a Beam Bench nem ismerte fel a vezérlőjét. Ellenőrizze az átviteli sebességet (baud) a gépprofilban (a legtöbb GRBL lézer 115200-at használ), és zárjon be minden más lézerszoftvert, amely ezt a portot használja.",
+    "network_grbl_no_status": "Az ezen a címen lévő vezérlő nem GRBL lézerként válaszolt. Ellenőrizze az IP-címet és a portot, zárja be a hozzá csatlakozó többi alkalmazást (sok Wi-Fi-modul egyszerre csak egy kapcsolatot enged), majd próbálja újra.",
+    "no_active_machine_profile": "Még nincs beállítva gép. Először adjon hozzá vagy válasszon ki egy gépprofilt.",
+    "emergency_stop_unconfirmed": "A Beam Bench nem tudta megerősíteni, hogy a gép leállt. Azonnal használja a gép fizikai vészleállítóját, vagy válassza le a lézer tápellátását. Részletek: {detail}",
+    "controller_connection_lost": "Megszakadt a kapcsolat a lézerrel. Ellenőrizze a kábelt és a tápellátást, majd csatlakozzon újra. Részletek: {detail}"
   },
   "import": {
     "drop_to_import": "Húzd ide a fájlokat az importáláshoz"

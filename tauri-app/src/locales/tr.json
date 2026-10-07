@@ -371,8 +371,8 @@
       "outcome_fail": "Başarısız",
       "warnings_block_start": "İşi başlatmadan önce yukarıdaki uyarıları giderin.",
       "advisory_choice": "Bu iş yürütülebilir ancak uyarının düzeltilmesi gravür kalitesini artırabilir.",
-      "apply_overscan": "{value} mm aşırı taramayı kullanın ve yeniden kontrol edin",
-      "reduce_speed": "{value} mm/dak değerini kullanın ve yeniden kontrol edin",
+      "apply_overscan": "{value} {unit} aşırı taramayı kullanın ve yeniden kontrol edin",
+      "reduce_speed": "{value} {unit} değerini kullanın ve yeniden kontrol edin",
       "continue_anyway": "Yine de devam et",
       "categories": {
         "connection": "Bağlantı",
@@ -382,7 +382,9 @@
         "settings": "Ayarlar",
         "positioning": "Konumlandırma",
         "planner": "Planlayıcı",
-        "machine_workspace": "Makine çalışma alanı"
+        "machine_workspace": "Makine çalışma alanı",
+        "controller": "Denetleyici",
+        "rotary": "Döner eksen"
       },
       "checks": {
         "session_ready": "Oturum hazır",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Raster hareketi makine yatağına sığar",
         "laser_mode": "Lazer modu etkin (32$=1)",
         "homing_enabled": "Hedef arama etkinleştirildi",
-        "relative_framed": "Göreli yerleşim geçerli konumda çerçevelendi"
+        "relative_framed": "Göreli yerleşim geçerli konumda çerçevelendi",
+        "machine_workspace_fits": "Planlanan hareket makine profiline uyuyor",
+        "rotary_safe": "Döner eksen ayarı güvenli",
+        "controller_supported": "Denetleyici iş başlatabilir",
+        "image_detail_fits": "Görüntü ayrıntısı denetleyiciye uygun",
+        "plan_generation": "İş hazırlığı",
+        "ruida_compiles": "İş Ruida denetleyicisi için dönüştürülebilir",
+        "lihuiyu_compiles": "İş Lihuiyu M2 denetleyicisi için dönüştürülebilir"
       },
       "messages": {
         "connected_ready": "Bağlı ve hazır",
@@ -406,8 +415,11 @@
         "frame_required": "Bu denetleyici homlu olmadığından Beam Bench fiziksel yatak kenarlarını doğrulayamaz. Lazeri konumlandırdıktan sonra işi çerçeveleyin ve başlamadan önce yeniden kontrol edin.",
         "segment_count_one": "1 bölüm",
         "segment_count_other": "{count} segment",
-        "plan_bounds_exceed": "Planlanan sınırlar ({minX}, {minY} ile {maxX}, {maxY}) {width} × {height} mm makine yatağını aşıyor.",
-        "raster_motion_exceeds": "Raster hareketi, 0 ile {limit} mm aralığındaki {axis} ekseninde {lo} ile {hi} mm arasında uzanıyor. Fazla tarama ve tarama ofseti, kazıma alanının dışına {margin} mm ekliyor. {startFrom, select, current_position {Fazla taramayı azaltın veya lazeri yatak kenarından uzaklaştırın.} user_origin {Fazla taramayı azaltın veya Kullanıcı Başlangıcını yatak kenarından daha uzağa taşıyın ya da yeniden ayarlayın.} other {Fazla taramayı azaltın veya tasarımı yatak kenarından uzaklaştırın.}}"
+        "plan_bounds_exceed": "Planlanan sınırlar ({minX}, {minY} ile {maxX}, {maxY}) {width} × {height} {unit} makine yatağını aşıyor.",
+        "raster_motion_exceeds": "Raster hareketi, 0 ile {limit} {unit} aralığındaki {axis} ekseninde {lo} ile {hi} {unit} arasında uzanıyor. Fazla tarama ve tarama ofseti, kazıma alanının dışına {margin} {unit} ekliyor. {startFrom, select, current_position {Fazla taramayı azaltın veya lazeri yatak kenarından uzaklaştırın.} user_origin {Fazla taramayı azaltın veya Kullanıcı Başlangıcını yatak kenarından daha uzağa taşıyın ya da yeniden ayarlayın.} other {Fazla taramayı azaltın veya tasarımı yatak kenarından uzaklaştırın.}}",
+        "session_state": "Bağlantı: {state}",
+        "machine_state": "Makine durumu: {state}",
+        "plan_bounds_fit": "Planlanan sınırlar ({minX}, {minY} ile {maxX}, {maxY} arası) {width} × {height} {unit} makine tablasına sığıyor."
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "İndiriliyor...",
       "installing": "Yükleniyor...",
       "blocked_not_in_applications": "Güncellemeler için Beam Bench'in Uygulamalar klasöründen çalıştırılması gerekir. Yükleyici disk görüntüsünden veya başka bir geçici konumdan çalışıyor görünüyor. Finder'da Beam Bench'i Uygulamalar klasörüne sürükleyin, oradan açın ve güncellemeyi yeniden deneyin.",
-      "blocked_other_disk": "Beam Bench, bu Mac'in geçici klasöründen farklı bir diske kurulu olduğundan güncelleyici onu yerinde değiştiremiyor. Beam Bench'i ana diskteki Uygulamalar klasörüne taşıyın veya yeni sürümü beambench.com adresinden indirin."
+      "blocked_other_disk": "Beam Bench, bu Mac'in geçici klasöründen farklı bir diske kurulu olduğundan güncelleyici onu yerinde değiştiremiyor. Beam Bench'i ana diskteki Uygulamalar klasörüne taşıyın veya yeni sürümü beambench.com adresinden indirin.",
+      "blocked_job_running": "Yüklemeden önce mevcut işi bitirin veya durdurun.",
+      "blocked_machine_operation": "Yüklemeden önce mevcut makine işleminin bitmesini bekleyin.",
+      "blocked_machine_busy": "Yüklemeden önce mevcut makine işlemini bitirin veya durdurun.",
+      "blocked_machine_moving": "Yüklemeden önce makinenin boşta durumuna dönmesini bekleyin.",
+      "cancelled_unsaved": "Güncelleme iptal edildi. Projeniz atılmadı."
     },
     "camera_calibration": {
       "title": "Kamera eşleme",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} satır",
         "elapsed": "Geçen: {time}",
         "remaining": "Kalan: ~{time}",
-        "finishing": "Bitiriliyor, makine bekleniyor..."
+        "finishing": "Bitiriliyor, makine bekleniyor...",
+        "last_failure": "Son iş durdu: {message}"
       },
       "overrides": {
         "title": "Geçersiz kılmalar",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Tercihler varsayılanlara sıfırlandı.",
     "layout_restore_failed": "Kayıtlı panel düzeni geri yüklenemedi. Bu oturum için varsayılan düzen kullanılıyor.",
     "recovery_check_failed": "Başlangıçta kurtarma dosyaları denetlenemedi.",
+    "autosave_failing": "Otomatik kurtarma kopyaları başarısız oluyor. Çalışmanızı korumak için projenizi kaydedin.",
     "backend_subscribe_failed": "Arka uç olaylarına abone olunamadı. Bazı canlı güncellemeler bu oturumda kullanılamayabilir.",
     "boolean_needs_two": "Boolean Yardımcısı için tam olarak 2 kapalı vektör nesnesi seçin",
     "project_restored": "Proje kurtarmadan geri yüklendi",
@@ -2587,7 +2606,50 @@
       "postponed": "Güncelleme hatırlatıcısı 24 saat ertelendi.",
       "skipped": "Beam Bench {version} atlandı."
     },
-    "import_oversized": "Orijinal boyutta içe aktarıldı: tasarım {width} x {height} {unit} boyutunda olup {bedWidth} x {bedHeight} {unit} çalışma alanından büyüktür."
+    "import_oversized": "Orijinal boyutta içe aktarıldı: tasarım {width} x {height} {unit} boyutunda olup {bedWidth} x {bedHeight} {unit} çalışma alanından büyüktür.",
+    "machine": {
+      "using_existing_connection": "Mevcut makine bağlantısı kullanılıyor",
+      "preview_disconnected": "Önizleme makinesinin bağlantısı kesildi",
+      "disconnected": "Bağlantı kesildi",
+      "preview_connected": "Önizleme makinesi bağlandı",
+      "homing_started": "Sıfırlama başlatıldı",
+      "discovery_started": "Makine arama başlatıldı",
+      "discovery_cancelled": "Makine arama iptal edildi",
+      "connected_discovered": "Bulunan cihaza bağlanıldı",
+      "profile_from_discovery": "Bulunan cihazdan makine profili oluşturuldu",
+      "estop_sent": "Acil durdurma gönderildi",
+      "estop_resent_disconnected": "Denetleyici bağlantısı yeniden açıldıktan sonra acil durdurma tekrar gönderildi. Ardından Beam Bench bağlantıyı kesti. Devam etmeden önce yeniden bağlanın.",
+      "user_origin_cleared": "Kullanıcı orijini temizlendi",
+      "job_tick_failed": "Denetleyiciye gönderim başarısız olduğu için iş durdu.",
+      "lihuiyu_incomplete": "Lihuiyu USB bağlantısı tamamlanmadı.",
+      "connected_to": "{name} cihazına bağlanıldı",
+      "user_origin_set": "Kullanıcı orijini ({x}, {y}) olarak ayarlandı"
+    },
+    "camera": {
+      "image_captured": "Yeni kamera görüntüsü alındı",
+      "alignment_saved": "Kamera hizalaması kaydedildi",
+      "mapping_solved": "Kamera eşlemesi hesaplandı",
+      "mapping_saved": "Kamera eşlemesi kaydedildi",
+      "mapping_reset": "Kamera eşlemesi sıfırlandı",
+      "alignment_solved": "Kamera hizalaması hesaplandı",
+      "alignment_reset": "Kamera hizalaması sıfırlandı"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Şablon {placeholder} yer tutucularını kullanıyor, ancak metin modu Seri Numarası değil.",
+      "date_outside_mode": "Şablon {placeholder} yer tutucularını kullanıyor, ancak metin modu Tarih/Saat değil.",
+      "csv_outside_mode": "Şablon {placeholder} yer tutucularını kullanıyor, ancak metin modu CSV Birleştirme değil.",
+      "cut_outside_mode": "Şablon {placeholder} yer tutucularını kullanıyor, ancak metin modu Kesim Ayarı değil.",
+      "no_placeholders": "Seçilen metin modunun şablonda eşleşen yer tutucusu yok.",
+      "csv_load_failed": "CSV dosyası yüklenemedi: {error}",
+      "resolve_failed": "Metin çözümlenemedi: {error}",
+      "merge_fields_failed": "Birleştirme alanları okunamadı: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Kırpma birden çok parça oluşturdu. Bunları seçin ve birleştirmek için Kapat ve Birleştir'i kullanın.",
+      "open_path": "Kırpılan yol açık olduğu için doldurulamaz. Kapalı bir şekle ihtiyacınız varsa Kapat ve Birleştir'i kullanın."
+    },
+    "pick_guide_path": "Kılavuz yol olarak kullanılacak bir vektör veya şekil nesnesine tıklayın",
+    "panel_layout_save_failed": "Panel düzeni değişiklikleri kaydedilemedi. Yeniden başlatıldığında kaybolabilirler."
   },
   "status": {
     "preview_in_progress": "Önizleme oluşturuluyor",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "İş hazırlanırken acil durdurma düğmesine basıldı. Hiçbir şey gönderilmedi.",
     "sleep_protection_failed": "Bu iş sırasında bilgisayarın uyku moduna geçmesi engellenemedi. İş bitene kadar bilgisayarı uyanık tutun.",
+    "project_file_missing": "Bu proje dosyası taşındı veya silindi, bu yüzden {recent} listesinden kaldırıldı. Bulmak için {open} seçeneğini kullanın.",
+    "settings_file_recovered": "Kaydedilmiş bazı ayarlar okunamadığı için sıfırlandı. Orijinal dosyanın bir kopyası ayarlar klasöründe saklandı.",
+    "layers_migrated_on_open": "Bu projede görüntüler ve vektör şekiller aynı katmandaydı. Aynı ayarlarla ayrı katmanlara taşındılar.",
+    "project_too_new": "Bu proje Beam Bench'in daha yeni bir sürümüyle ({version}) oluşturuldu. Açmak için Beam Bench'i güncelleyin.",
+    "project_from_newer_app": "Bu proje en son Beam Bench'in daha yeni bir sürümüyle ({version}) kaydedildi. Bu sürümle kaydetmek, bu sürümün desteklemediği ayarları kaldırabilir.",
+    "edit_invalid_geometry": "Bu değişiklik bir nesneyi Beam Bench'in kaydedebileceği aralığın dışına taşıyacağı veya boyutlandıracağı için uygulanmadı.",
+    "edit_internal_error": "Bu düzenlemede dahili bir hata oluştu ve geri alındı. Projeniz değişmedi. Lütfen bunu bildirin.",
+    "project_invalid_value": "Projede geçersiz bir ayar değeri olduğu için kaydedilmedi.",
+    "project_invalid_value_object": "\"{name}\" geçersiz bir boyuta veya konuma sahip olduğu için proje kaydedilmedi. Ona yapılan son değişikliği geri alın veya silin, ardından yeniden kaydedin.",
     "operation_failed_with_detail": "İşlem başarısız: {detail}",
     "raster_plan_too_complex": "Bu görüntü mevcut boyut ve DPI ile çok fazla ayrı raster hareketi oluşturuyor. DPI değerini veya fiziksel boyutu azaltın ya da daha az parçalı bir görüntü modu seçin ve ardından önizlemeyi yeniden oluşturun.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "Kullanıcı Kaynağı seçili ancak ayarlanmadı. Lazeri istenilen başlangıç ​​noktasına taşıyın ve çerçevelemeden veya başlamadan önce Buraya ayarla seçeneğini seçin.",
     "current_position_unavailable": "Geçerli Konum, rapor edilen konuma sahip bağlı bir makineye ihtiyaç duyar.",
     "dxf_no_usable_geometry": "DXF dosyasında kullanılabilir 2B vektör geometrisi yok.",
-    "dxf_no_usable_geometry_with_entities": "DXF dosyasında kullanılabilir 2B vektör geometrisi yok. Desteklenmeyen veya hatalı varlıklar: {entities}."
+    "dxf_no_usable_geometry_with_entities": "DXF dosyasında kullanılabilir 2B vektör geometrisi yok. Desteklenmeyen veya hatalı varlıklar: {entities}.",
+    "camera": {
+      "stream_failed": "Kamera akışı başlatılamadı.",
+      "frame_timeout": "Kamera görüntüsü beklenirken zaman aşımı oldu. Kamera hâlâ ısınıyor veya başka bir uygulama tarafından kullanılıyor olabilir.",
+      "preview_timeout": "Kamera önizlemesi başlatılırken zaman aşımı oldu.",
+      "warmup_timeout": "Kameranın hazır olması beklenirken zaman aşımı oldu.",
+      "encode_failed": "Kamera görüntüsü kaydedilemedi.",
+      "unavailable": "Kamera yakalama bu pencerede kullanılamıyor.",
+      "empty_frame": "Kamera boş bir görüntü döndürdü.",
+      "canvas_failed": "Kamera görüntüsü hazırlanamadı."
+    },
+    "serial_open_no_response": "Bağlantı noktası açıldı, ancak lazer yanıt vermedi. Lazerin açık olduğunu kontrol edin, başka bir USB kablosu veya bağlantı noktası deneyin ve doğru bağlantı noktasının seçildiğinden emin olun. Bazı kartlar CH340 USB sürücüsüne ihtiyaç duyar.",
+    "serial_protocol_unrecognized": "Lazer yanıt verdi, ancak Beam Bench denetleyicisini tanımadı. Makine profilindeki baud hızını kontrol edin (çoğu GRBL lazer 115200 kullanır) ve bu bağlantı noktasını kullanan diğer lazer yazılımlarını kapatın.",
+    "network_grbl_no_status": "Bu adresteki denetleyici bir GRBL lazer olarak yanıt vermedi. IP adresini ve bağlantı noktasını kontrol edin, ona bağlı diğer uygulamaları kapatın (birçok Wi-Fi modülü aynı anda yalnızca bir bağlantıya izin verir) ve yeniden deneyin.",
+    "no_active_machine_profile": "Henüz bir makine ayarlanmadı. Önce bir makine profili ekleyin veya seçin.",
+    "emergency_stop_unconfirmed": "Beam Bench makinenin durduğunu doğrulayamadı. Hemen makinenin fiziksel acil durdurma düğmesini kullanın veya lazerin gücünü kesin. Ayrıntılar: {detail}",
+    "controller_connection_lost": "Lazerle bağlantı kesildi. Kabloyu ve gücü kontrol edin, ardından yeniden bağlanın. Ayrıntılar: {detail}"
   },
   "import": {
     "drop_to_import": "İçe aktarmak için dosyaları bırakın"

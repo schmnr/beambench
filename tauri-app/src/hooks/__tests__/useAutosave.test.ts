@@ -168,3 +168,23 @@ describe('useAutosave fallback defaults', () => {
     expect(mockAutosave).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('useAutosave failures', () => {
+  it('warns once after repeated failures, so a missing recovery copy is not silent', async () => {
+    const { useNotificationStore } = await import('../../stores/notificationStore');
+    const push = vi.spyOn(useNotificationStore.getState(), 'push');
+    mockAutosave.mockRejectedValue(new Error('disk full'));
+    useAppStore.setState({ settings: makeSettings({ autosave_interval_secs: 30 }) });
+    useProjectStore.setState({ project: { ...makeProject(), dirty: true } });
+
+    renderHook(() => useAutosave());
+    await vi.advanceTimersByTimeAsync(30_000 * 2);
+    expect(push).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(30_000 * 3);
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push.mock.calls[0][1]).toBe('warning');
+    push.mockRestore();
+    mockAutosave.mockResolvedValue(undefined);
+  });
+});

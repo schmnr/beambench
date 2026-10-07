@@ -23,6 +23,12 @@ pub fn cycle_start() -> &'static [u8] {
     b"~"
 }
 
+/// Spindle stop override (GRBL 1.1 realtime 0x9E). Accepted only in Hold;
+/// toggles the spindle/laser output off, and cycle start restores it.
+pub fn spindle_stop_override() -> &'static [u8] {
+    &[0x9E]
+}
+
 /// Unlock command ($X).
 pub fn unlock() -> String {
     "$X".to_string()

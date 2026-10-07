@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { LayerSettingsPanel } from '../LayerSettingsPanel';
 import { useProjectStore } from '../../../stores/projectStore';
 import {
@@ -123,4 +123,22 @@ describe('LayerSettingsPanel', () => {
     expect(screen.getByText('Cross-Hatch')).toBeDefined();
     expect(screen.getByText('Scan Angle (deg)')).toBeDefined();
   });
+});
+
+it('document replacement discards cut-entry drafts with identical IDs and values', () => {
+  const makeDocument = () => makeProject({ layers: [makeLayer({ id: 'l1', operation: 'image', raster_settings: makeRasterSettings({ overscan_mm: 0 }) })], objects: [], assets: [] });
+  const updateCutEntry = vi.fn();
+  useProjectStore.setState({ project: makeDocument(), selectedLayerId: 'l1', updateCutEntry });
+  render(<LayerSettingsPanel />);
+  const draftInput = () => screen.getByLabelText(/^Overscan/) as HTMLInputElement;
+  const initial = draftInput().value;
+  fireEvent.change(draftInput(), { target: { value: '7' } });
+  expect(updateCutEntry).not.toHaveBeenCalled();
+  act(() => {
+    useProjectStore.getState().setProject(makeDocument());
+    useProjectStore.getState().selectLayer('l1');
+  });
+  expect(draftInput().value).toBe(initial);
+  fireEvent.blur(draftInput());
+  expect(updateCutEntry).not.toHaveBeenCalled();
 });

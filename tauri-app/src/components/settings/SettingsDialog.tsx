@@ -1,3 +1,4 @@
+import { isUserCancel } from '../../utils/userCancel';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -108,9 +109,9 @@ const FALLBACK_DRAFT: SettingsDraft = {
   speedTimeUnit: 'minutes',
   autosaveEnabled: true,
   autosaveInterval: 120,
-  apiEnabled: true,
+  apiEnabled: false,
   apiPort: 5900,
-  apiLocalhostOnly: false,
+  apiLocalhostOnly: true,
   uiTheme: 'dark',
   darkMode: false,
   antialiasing: true,
@@ -356,7 +357,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       setDataError(null);
       await task();
     } catch (error) {
-      if (!String(error).toLowerCase().includes('cancelled')) {
+      if (!isUserCancel(error)) {
         setDataError(wrapBackendError(String(error)));
       }
     } finally {

@@ -1,9 +1,15 @@
 //! EPS and AI export for projects.
 
-use crate::object::ObjectId;
+use crate::export_bitmap::processed_bitmap_image_for_object;
+use crate::export_common::{
+    POINTS_PER_MM, canvas_to_y_up, exportable_objects, matrix_operands,
+    raster_unit_square_to_canvas,
+};
+use crate::object::{ObjectData, ObjectId};
 use crate::project::Project;
 use crate::vector::convert::object_to_world_vecpath;
 use beambench_common::path::PathCommand;
+use beambench_common::{Point2D, Transform2D};
 
 /// Header variant for EPS vs AI export.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,12 +21,20 @@ pub enum EpsHeaderVariant {
 }
 
 /// Export project as EPS PostScript.
-pub fn export_eps(project: &Project, selection_only: bool, selected_ids: &[ObjectId]) -> String {
+pub fn export_eps(
+    project: &Project,
+    selection_only: bool,
+    selected_ids: &[ObjectId],
+) -> Result<String, String> {
     export_ps(project, selection_only, selected_ids, EpsHeaderVariant::Eps)
 }
 
 /// Export project as AI (Adobe Illustrator) PostScript.
-pub fn export_ai(project: &Project, selection_only: bool, selected_ids: &[ObjectId]) -> String {
+pub fn export_ai(
+    project: &Project,
+    selection_only: bool,
+    selected_ids: &[ObjectId],
+) -> Result<String, String> {
     export_ps(project, selection_only, selected_ids, EpsHeaderVariant::Ai)
 }
 
@@ -29,7 +43,7 @@ fn export_ps(
     selection_only: bool,
     selected_ids: &[ObjectId],
     variant: EpsHeaderVariant,
-) -> String {
+) -> Result<String, String> {
     let w = project.workspace.bed_width_mm;
     let h = project.workspace.bed_height_mm;
     // Convert mm to PostScript points (1 pt = 25.4/72 mm)
@@ -53,44 +67,33 @@ fn export_ps(
     ps.push_str(&format!("%%BoundingBox: 0 0 {} {}\n", w_pt, h_pt));
     ps.push_str("%%EndComments\n");
 
-    // Scale from mm to points
-    let scale = 72.0 / 25.4;
+    let to_page = canvas_to_y_up(h, POINTS_PER_MM);
+    let point = |x: f64, y: f64| {
+        let p = to_page.apply(&Point2D::new(x, y));
+        format!("{:.4} {:.4}", p.x, p.y)
+    };
 
-    // Pre-process: expand VirtualClone objects for export
-    let expanded_clones: Vec<_> = project
-        .objects
-        .iter()
-        .filter_map(|obj| project.resolve_clone(obj))
-        .collect();
-    let all_objects: Vec<&crate::ProjectObject> = project
-        .objects
-        .iter()
-        .filter(|o| !matches!(o.data, crate::ObjectData::VirtualClone { .. }))
-        .chain(expanded_clones.iter())
-        .collect();
-
-    // Body — emit paths for visible objects
-    for obj in all_objects {
-        if selection_only && !selected_ids.contains(&obj.id) {
+    // Body: visible objects as stroked paths, images as grayscale bitmaps
+    for obj in exportable_objects(project, selection_only, selected_ids) {
+        if matches!(obj.data, ObjectData::RasterImage { .. }) {
+            let image = processed_bitmap_image_for_object(project, &obj)?;
+            let placement = to_page.compose(&raster_unit_square_to_canvas(&obj));
+            push_ps_gray_image(&mut ps, &image, &placement);
             continue;
         }
-        if !obj.visible {
-            continue;
-        }
-
         // Text exports as geometry only. Emitting PostScript text operators
         // plus path fallback duplicates geometry and loses Beam Bench layout
         // fidelity for alignment, spacing, welded, and distorted text.
-        if let Some(mut path) = object_to_world_vecpath(obj) {
+        if let Some(mut path) = object_to_world_vecpath(&obj) {
             crate::vector::flatten::convert_quadratics_to_cubics(&mut path);
             for subpath in &path.subpaths {
                 for cmd in &subpath.commands {
                     match cmd {
                         PathCommand::MoveTo { x, y } => {
-                            ps.push_str(&format!("{:.4} {:.4} moveto\n", x * scale, y * scale));
+                            ps.push_str(&format!("{} moveto\n", point(*x, *y)));
                         }
                         PathCommand::LineTo { x, y } => {
-                            ps.push_str(&format!("{:.4} {:.4} lineto\n", x * scale, y * scale));
+                            ps.push_str(&format!("{} lineto\n", point(*x, *y)));
                         }
                         PathCommand::CubicTo {
                             c1x,
@@ -101,13 +104,10 @@ fn export_ps(
                             y,
                         } => {
                             ps.push_str(&format!(
-                                "{:.4} {:.4} {:.4} {:.4} {:.4} {:.4} curveto\n",
-                                c1x * scale,
-                                c1y * scale,
-                                c2x * scale,
-                                c2y * scale,
-                                x * scale,
-                                y * scale
+                                "{} {} {} curveto\n",
+                                point(*c1x, *c1y),
+                                point(*c2x, *c2y),
+                                point(*x, *y)
                             ));
                         }
                         PathCommand::QuadTo { .. } => {
@@ -126,7 +126,25 @@ fn export_ps(
     // Footer
     ps.push_str("showpage\n");
     ps.push_str("%%EOF\n");
-    ps
+    Ok(ps)
+}
+
+/// Draw an 8-bit grayscale image with its unit square mapped by `placement`.
+fn push_ps_gray_image(ps: &mut String, image: &image::GrayImage, placement: &Transform2D) {
+    let (width, height) = image.dimensions();
+    ps.push_str("gsave\n");
+    ps.push_str(&format!("[{}] concat\n", matrix_operands(placement)));
+    ps.push_str(&format!("/picstr {width} string def\n"));
+    ps.push_str(&format!(
+        "{width} {height} 8 [{width} 0 0 -{height} 0 {height}] {{currentfile picstr readhexstring pop}} image\n"
+    ));
+    for row in image.as_raw().chunks(40) {
+        for byte in row {
+            ps.push_str(&format!("{byte:02X}"));
+        }
+        ps.push('\n');
+    }
+    ps.push_str("grestore\n");
 }
 
 #[cfg(test)]
@@ -155,7 +173,7 @@ mod tests {
     #[test]
     fn export_eps_includes_header_and_footer() {
         let project = test_project();
-        let eps = export_eps(&project, false, &[]);
+        let eps = export_eps(&project, false, &[]).unwrap();
         assert!(eps.contains("%!PS-Adobe-3.0 EPSF-3.0"));
         assert!(eps.contains("%%BoundingBox:"));
         assert!(eps.contains("%%EndComments"));
@@ -166,7 +184,7 @@ mod tests {
     #[test]
     fn export_eps_contains_ps_commands() {
         let project = test_project();
-        let eps = export_eps(&project, false, &[]);
+        let eps = export_eps(&project, false, &[]).unwrap();
         assert!(eps.contains("moveto"));
         assert!(eps.contains("lineto"));
         assert!(eps.contains("stroke"));
@@ -175,7 +193,7 @@ mod tests {
     #[test]
     fn export_eps_empty_project() {
         let project = Project::new("Empty");
-        let eps = export_eps(&project, false, &[]);
+        let eps = export_eps(&project, false, &[]).unwrap();
         assert!(eps.contains("%!PS-Adobe-3.0 EPSF-3.0"));
         assert!(eps.contains("%%EOF"));
         assert!(!eps.contains("moveto"));
@@ -184,7 +202,7 @@ mod tests {
     #[test]
     fn export_ai_includes_creator_header() {
         let project = test_project();
-        let ai = export_ai(&project, false, &[]);
+        let ai = export_ai(&project, false, &[]).unwrap();
         assert!(ai.contains("%%Creator: Adobe Illustrator"));
         assert!(ai.contains("%%AI5_FileFormat 3"));
         assert!(ai.contains("%%Title: (EPS Test)"));
@@ -238,7 +256,7 @@ mod tests {
     #[test]
     fn export_eps_text_exports_path_only() {
         let project = text_project_with_system_font();
-        let eps = export_eps(&project, false, &[]);
+        let eps = export_eps(&project, false, &[]).unwrap();
         assert!(
             !eps.contains("findfont"),
             "EPS should not emit PostScript text that duplicates path geometry"
@@ -260,7 +278,7 @@ mod tests {
     #[test]
     fn export_ai_text_exports_path_only() {
         let project = text_project_with_system_font();
-        let ai = export_ai(&project, false, &[]);
+        let ai = export_ai(&project, false, &[]).unwrap();
         assert!(ai.contains("%%Creator: Adobe Illustrator"));
         assert!(
             !ai.contains("findfont"),
@@ -357,7 +375,7 @@ mod tests {
                 ignore_empty_vars: false,
             },
         ));
-        let eps = export_eps(&project, false, &[]);
+        let eps = export_eps(&project, false, &[]).unwrap();
         assert!(
             !eps.contains("findfont"),
             "EPS should NOT contain findfont for path-text objects"
@@ -414,7 +432,7 @@ mod tests {
                 ignore_empty_vars: false,
             },
         ));
-        let eps = export_eps(&project, false, &[]);
+        let eps = export_eps(&project, false, &[]).unwrap();
         assert!(
             !eps.contains("findfont"),
             "EPS should NOT contain findfont for missing font"
@@ -471,7 +489,7 @@ mod tests {
                 ignore_empty_vars: false,
             },
         ));
-        let eps = export_eps(&project, false, &[]);
+        let eps = export_eps(&project, false, &[]).unwrap();
         assert!(
             !eps.contains("A \\(test\\) value"),
             "EPS should not emit PostScript text strings separately"
@@ -521,7 +539,7 @@ mod tests {
                 ignore_empty_vars: false,
             },
         ));
-        let eps = export_eps(&project, false, &[]);
+        let eps = export_eps(&project, false, &[]).unwrap();
         assert!(
             !eps.contains("HELLO EPS"),
             "EPS should not emit editable text content separately"

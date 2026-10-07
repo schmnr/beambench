@@ -1,3 +1,4 @@
+import { isUserCancel } from './utils/userCancel';
 import { useArtLibraryStore } from './stores/artLibraryStore';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -39,7 +40,7 @@ import { useUpdateStore } from './stores/updateStore';
 import { useWelcomeStore, shouldShowWelcome } from './stores/welcomeStore';
 import { useMacroStore } from './stores/macroStore';
 import { useNotificationStore } from './stores/notificationStore';
-import { localizeImportWarning, wrapBackendError } from './i18n/errors';
+import { localizeBackendMessage, localizeImportWarning, wrapBackendError } from './i18n/errors';
 import { useEventListener } from './hooks/useEventListener';
 import { useAutosave } from './hooks/useAutosave';
 import { useMachinePolling } from './hooks/useMachinePolling';
@@ -133,7 +134,7 @@ interface CameraOverlayRenderRequestedPayload {
 }
 
 function isExportCancelledError(error: unknown): boolean {
-  return String(error).toLowerCase().includes('cancelled');
+  return isUserCancel(error);
 }
 
 function persistPostJobPromptOutcome(
@@ -956,6 +957,12 @@ function App() {
       });
     }
 
+    void appService.takePendingNotices().then((notices) => {
+      for (const notice of notices) {
+        useNotificationStore.getState().push(wrapBackendError(notice), 'warning');
+      }
+    }).catch(() => {});
+
     // Check for recovery files on startup
     persistenceService.checkRecovery().then((files) => {
       if (files.length > 0) {
@@ -1159,7 +1166,11 @@ function App() {
     if (event.type === 'job.failed' && isJobProgressPayload(event.payload)) {
       const message = event.payload.error_message?.trim();
       if (message) {
-        useNotificationStore.getState().push(wrapBackendError(message), 'error');
+        // Jobs run unattended: keep the reason until the user has seen it.
+        useMachineStore.setState({ lastJobFailure: localizeBackendMessage(message) });
+        useNotificationStore.getState().push(wrapBackendError(message), 'error', {
+          autoDismissMs: null,
+        });
       }
     }
     if (
@@ -1179,14 +1190,17 @@ function App() {
       const p = event.payload as { message?: unknown } | undefined;
       const message = typeof p?.message === 'string' && p.message.trim().length > 0
         ? p.message
-        : 'Job streaming tick failed';
+        : i18n.t('notifications.machine.job_tick_failed');
       useMachineStore.setState({
         jobProgress: null,
         activeJobPurpose: null,
         error: message,
         loading: false,
+        lastJobFailure: localizeBackendMessage(message),
       });
-      useNotificationStore.getState().push(wrapBackendError(message), 'error');
+      useNotificationStore.getState().push(wrapBackendError(message), 'error', {
+        autoDismissMs: null,
+      });
     }
     if (event.type === 'machine.disconnected') {
       const payload = event.payload as { stop_warning?: unknown; message?: unknown } | undefined;
@@ -1714,8 +1728,8 @@ function App() {
 
   const handleRestore = async (path: string) => {
     try {
-      const project = await persistenceService.restoreRecovery(path);
-      restoreRecoveredProject(project);
+      const restored = await persistenceService.restoreRecovery(path);
+      restoreRecoveredProject(restored.project, restored.path);
       useNotificationStore.getState().push(i18n.t('notifications.project_restored'), 'success');
       setRecoveries((prev) => prev.filter((r) => r.path !== path));
     } catch (e) {

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use beambench_core::ObjectId;
 
@@ -75,21 +75,21 @@ pub fn export_document(
             input.selection_only,
             selected_ids,
         )),
-        ExportFormat::Pdf => ExportDocumentContent::Pdf(beambench_core::export_pdf(
-            project,
-            input.selection_only,
-            selected_ids,
-        )),
-        ExportFormat::Eps => ExportDocumentContent::Eps(beambench_core::export_eps(
-            project,
-            input.selection_only,
-            selected_ids,
-        )),
-        ExportFormat::Ai => ExportDocumentContent::Ai(beambench_core::export_ai(
-            project,
-            input.selection_only,
-            selected_ids,
-        )),
+        ExportFormat::Pdf => ExportDocumentContent::Pdf(
+            beambench_core::export_pdf(project, input.selection_only, selected_ids).map_err(
+                |error| ServiceError::invalid_state(format!("Failed to export PDF: {error}")),
+            )?,
+        ),
+        ExportFormat::Eps => ExportDocumentContent::Eps(
+            beambench_core::export_eps(project, input.selection_only, selected_ids).map_err(
+                |error| ServiceError::invalid_state(format!("Failed to export EPS: {error}")),
+            )?,
+        ),
+        ExportFormat::Ai => ExportDocumentContent::Ai(
+            beambench_core::export_ai(project, input.selection_only, selected_ids).map_err(
+                |error| ServiceError::invalid_state(format!("Failed to export AI: {error}")),
+            )?,
+        ),
     };
     drop(project_guard);
 
@@ -102,22 +102,15 @@ pub fn export_document(
     };
 
     let path = if let Some(path) = input.path {
-        let path_buf = PathBuf::from(&path);
-        match &content {
+        let bytes: &[u8] = match &content {
             ExportDocumentContent::Svg(c)
             | ExportDocumentContent::Dxf(c)
             | ExportDocumentContent::Eps(c)
-            | ExportDocumentContent::Ai(c) => {
-                std::fs::write(&path_buf, c).map_err(|e| {
-                    ServiceError::persistence(format!("Failed to write export: {e}"))
-                })?;
-            }
-            ExportDocumentContent::Pdf(c) => {
-                std::fs::write(&path_buf, c).map_err(|e| {
-                    ServiceError::persistence(format!("Failed to write export: {e}"))
-                })?;
-            }
-        }
+            | ExportDocumentContent::Ai(c) => c.as_bytes(),
+            ExportDocumentContent::Pdf(c) => c,
+        };
+        write_export_atomically(&PathBuf::from(&path), bytes)
+            .map_err(|e| ServiceError::persistence(format!("Failed to write export: {e}")))?;
         Some(path)
     } else {
         None
@@ -129,6 +122,21 @@ pub fn export_document(
         bytes,
         content,
     })
+}
+
+/// Replace `path` only once the whole export is on disk, so a failed or
+/// interrupted export never leaves a truncated file in place of the old one.
+fn write_export_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let target = crate::persist::resolve_export_target(path);
+    let parent = match target.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    };
+    let mut file = tempfile::NamedTempFile::new_in(parent)?;
+    file.write_all(bytes)?;
+    file.as_file().sync_all()?;
+    crate::persist::persist_export(file, &target)
 }
 
 #[cfg(test)]

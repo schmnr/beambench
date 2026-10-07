@@ -462,6 +462,22 @@ export const projectService = {
     });
   },
 
+  /** Resize then rotate as one edit and one undo step. */
+  async scaleAndRotateObjects(
+    entries: { id: string; bounds: Bounds }[],
+    objectIds: string[],
+    degrees: number,
+    pivot: { x: number; y: number },
+  ): Promise<void> {
+    return invoke<void>('scale_and_rotate_objects', {
+      entries,
+      objectIds,
+      degrees,
+      pivotX: pivot.x,
+      pivotY: pivot.y,
+    });
+  },
+
   async rotateObjectsAndBakeActivePath(
     objectIds: string[],
     degrees: number,

@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use beambench_common::PALETTE_COLORS;
 use beambench_core::{AssetId, Layer, OperationType, Project};
 use beambench_project::{
-    RecoveryInfo, check_recovery, discard_recovery, load_project, load_recovery, save_project,
-    save_recovery,
+    RecoveryInfo, check_recovery, discard_recovery, load_project, load_recovery,
+    load_recovery_source, save_project, save_recovery, save_recovery_source,
 };
 use serde_json::json;
 
@@ -37,6 +37,28 @@ fn unique_migrated_layer_name(project: &Project, base: &str, operation: Operatio
     unreachable!()
 }
 
+/// Build the sibling layer for migrated content. It keeps the source layer's
+/// on/off, visibility and output state, so loading a project never makes
+/// disabled artwork burn.
+fn migrated_sibling_layer(source: &Layer, name: &str, operation: OperationType) -> Layer {
+    let mut layer = Layer::new(name, operation);
+    layer.color_tag = source.color_tag.clone();
+    layer.enabled = source.enabled;
+    layer.visible = source.visible;
+    layer.fill_opacity = source.fill_opacity;
+    let from = source.primary_entry();
+    let entry = layer.primary_entry_mut();
+    entry.speed_mm_min = from.speed_mm_min;
+    entry.power_percent = from.power_percent;
+    entry.power_min_percent = from.power_min_percent;
+    entry.air_assist = from.air_assist;
+    entry.z_offset_mm = from.z_offset_mm;
+    entry.gcode_prefix = from.gcode_prefix.clone();
+    entry.gcode_suffix = from.gcode_suffix.clone();
+    entry.output_enabled = from.output_enabled;
+    layer
+}
+
 /// Split any layer holding mixed raster/vector content into two
 /// sibling layers, one per content type. Called on project load so
 /// legacy projects self-heal to match the "raster and vector content
@@ -65,28 +87,17 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
         // the outer pass? No — layer_ids was snapshotted. Fresh
         // layers created here skip the scan, which is correct: they
         // hold only the migrated content and don't need splitting.)
-        let (layer_is_image, layer_color, layer_name, layer_speed, layer_power): (
-            bool,
-            _,
-            String,
-            f64,
-            f64,
-        ) = {
+        let source = {
             let Some(l) = project.layers.iter().find(|l| l.id == layer_id) else {
                 continue;
             };
             if l.is_tool_layer || beambench_common::is_tool_color(&l.color_tag.0) {
                 continue;
             }
-            let entry = l.primary_entry();
-            (
-                entry.operation == OperationType::Image,
-                l.color_tag.clone(),
-                l.name.clone(),
-                entry.speed_mm_min,
-                entry.power_percent,
-            )
+            l.clone()
         };
+        let layer_is_image = source.primary_entry().operation == OperationType::Image;
+        let layer_name = source.name.clone();
 
         // Collect object ids on this layer bucketed by raster vs
         // vector. Uses `effective_is_raster` so a VirtualClone
@@ -111,10 +122,7 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
             // Image layer with vectors → create a sibling Line layer.
             let base = crate::validation::strip_mode_suffix(&layer_name);
             let sibling_name = unique_migrated_layer_name(project, base, OperationType::Line);
-            let mut new_layer = Layer::new(&sibling_name, OperationType::Line);
-            new_layer.color_tag = layer_color.clone();
-            new_layer.primary_entry_mut().speed_mm_min = layer_speed;
-            new_layer.primary_entry_mut().power_percent = layer_power;
+            let new_layer = migrated_sibling_layer(&source, &sibling_name, OperationType::Line);
             let new_id = new_layer.id;
             project.layers.push(new_layer);
             for obj in project.objects.iter_mut() {
@@ -131,10 +139,7 @@ fn migrate_mixed_layers(project: &mut Project) -> Vec<String> {
             // Non-image layer with rasters → create a sibling Image layer.
             let base = crate::validation::strip_mode_suffix(&layer_name);
             let sibling_name = unique_migrated_layer_name(project, base, OperationType::Image);
-            let mut new_layer = Layer::new(&sibling_name, OperationType::Image);
-            new_layer.color_tag = layer_color.clone();
-            new_layer.primary_entry_mut().speed_mm_min = layer_speed;
-            new_layer.primary_entry_mut().power_percent = layer_power;
+            let new_layer = migrated_sibling_layer(&source, &sibling_name, OperationType::Image);
             let new_id = new_layer.id;
             project.layers.push(new_layer);
             for obj in project.objects.iter_mut() {
@@ -284,6 +289,10 @@ fn save_project_to_path_impl(
     ctx: &ServiceContext,
     requested_path: Option<&Path>,
 ) -> ServiceResult<String> {
+    let _edit_guard = ctx.lock_project_edits();
+    // Edits roll back their own panics, so the project is intact even if a
+    // panic poisoned its lock. Saving must still work.
+    ctx.project.clear_poison();
     // Document and destination are one transaction. All document replacements
     // acquire these locks in the same order: project, then project_path.
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
@@ -300,16 +309,19 @@ fn save_project_to_path_impl(
         .ok_or_else(|| {
             ServiceError::invalid_state("No save path set (project has never been saved)")
         })?;
-    let previous_name = project.metadata.project_name.clone();
+    let previous_metadata = project.metadata.clone();
     if let Some(name) = project_name_from_path(&save_path) {
         project.metadata.project_name = name;
     }
+    project.metadata.stamp_for_save();
     if let Err(error) = save_project(project, &save_path) {
-        project.metadata.project_name = previous_name;
+        project.metadata = previous_metadata;
         return Err(ServiceError::persistence(format!("Save failed: {error}")));
     }
     *path_guard = Some(save_path.clone());
     project.dirty = false;
+    ctx.project_save_count
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let saved_project = project.clone();
     if let Ok(dir) = recovery_dir() {
         let _ = discard_recovery(
@@ -338,6 +350,36 @@ fn save_project_to_path_impl(
 
 /// Load and migrate a project without changing app settings or session state.
 pub fn load_project_from_path(file_path: &str) -> ServiceResult<Project> {
+    let (project, migration_warnings) = load_project_with_migrations(file_path)?;
+    for w in &migration_warnings {
+        eprintln!("[migrate_mixed_layers] {w}");
+    }
+    Ok(project)
+}
+
+/// Tell the user once that opening a project reorganized its layers.
+fn queue_migration_notice(ctx: &ServiceContext, migration_warnings: &[String]) {
+    if migration_warnings.is_empty() {
+        return;
+    }
+    for w in migration_warnings {
+        tracing::info!("project migration: {w}");
+    }
+    if let Ok(mut notices) = ctx.pending_notices.lock() {
+        notices.push(format!(
+            "[{LAYERS_MIGRATED_CODE}] {}",
+            migration_warnings.join("; ")
+        ));
+    }
+}
+
+/// Stable code the frontend localizes for a project from a newer app version.
+pub const NEWER_APP_PROJECT_CODE: &str = "project_from_newer_app";
+
+/// Stable code the frontend localizes when opening split or merged layers.
+pub const LAYERS_MIGRATED_CODE: &str = "layers_migrated_on_open";
+
+fn load_project_with_migrations(file_path: &str) -> ServiceResult<(Project, Vec<String>)> {
     let open_path = PathBuf::from(file_path);
     let mut project = load_project(&open_path)
         .map_err(|e| ServiceError::persistence(format!("Failed to open project: {e}")))?;
@@ -348,16 +390,36 @@ pub fn load_project_from_path(file_path: &str) -> ServiceResult<Project> {
     // Normalize legacy tool-color siblings first, then split non-tool mixed raster/vector layers.
     let mut migration_warnings = migrate_tool_layers(&mut project);
     migration_warnings.extend(migrate_mixed_layers(&mut project));
-    for w in &migration_warnings {
-        eprintln!("[migrate_mixed_layers] {w}");
-    }
-    Ok(project)
+    Ok((project, migration_warnings))
 }
 
 pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceResult<Project> {
     let open_path = PathBuf::from(file_path);
-    let project = load_project_from_path(file_path)?;
+    let (project, migration_warnings) = match load_project_with_migrations(file_path) {
+        Ok(loaded) => loaded,
+        Err(error)
+            if std::fs::metadata(&open_path)
+                .is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound) =>
+        {
+            // Usually a Recent Projects entry for a file that was moved or
+            // deleted. Drop the stale entry so it is not offered again.
+            let removed = ctx
+                .settings
+                .lock()
+                .map_err(|e| lock_err("settings", e))?
+                .remove_recent_file(file_path);
+            if removed {
+                persist_settings_to_disk(ctx);
+            }
+            tracing::debug!("project open failed for a missing file: {error}");
+            return Err(ServiceError::not_found(format!(
+                "[project_file_missing] The project file was moved or deleted: {file_path}"
+            )));
+        }
+        Err(error) => return Err(error),
+    };
     {
+        let _edit_guard = ctx.lock_project_edits();
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
             .project_path
@@ -383,6 +445,15 @@ pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceR
     }
 
     persist_settings_to_disk(ctx);
+    queue_migration_notice(ctx, &migration_warnings);
+    if project.metadata.saved_by_newer_app()
+        && let Ok(mut notices) = ctx.pending_notices.lock()
+    {
+        notices.push(format!(
+            "[{NEWER_APP_PROJECT_CODE}] This project was saved by Beam Bench {}. Saving it here may drop settings this version does not support.",
+            project.metadata.app_version
+        ));
+    }
     ctx.emit_event(
         "project.opened",
         json!({
@@ -409,20 +480,48 @@ pub fn autosave_project(ctx: &ServiceContext) -> ServiceResult<String> {
 }
 
 fn autosave_project_to_dir(ctx: &ServiceContext, dir: &Path) -> ServiceResult<String> {
+    // Edits roll back their own panics, so the project is intact even if a
+    // panic poisoned its lock. Saving must still work.
+    ctx.project.clear_poison();
     std::fs::create_dir_all(dir)?;
 
-    let project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_ref()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    // Copy the project and write the archive outside the lock, so edits and
+    // the window are not held up while a large project is compressed.
+    let (project, saves_before, source_path) = {
+        let _edit_guard = ctx.lock_project_edits();
+        let guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let saves = ctx
+            .project_save_count
+            .load(std::sync::atomic::Ordering::SeqCst);
+        (
+            guard
+                .clone()
+                .ok_or_else(|| ServiceError::not_found("No project open"))?,
+            saves,
+            ctx.project_path
+                .lock()
+                .map_err(|e| lock_err("project_path", e))?
+                .clone(),
+        )
+    };
 
     // save_recovery takes the recovery *directory* and derives the file name
     // itself — passing a file path here would bury the archive inside a
     // directory named like a file, where check_recovery never finds it.
-    let recovery_path = save_recovery(project, dir)
+    let recovery_path = save_recovery(&project, dir)
         .map_err(|e| ServiceError::persistence(format!("Autosave failed: {e}")))?;
-    let summary = events::project_summary(project, None);
-    drop(project_guard);
+    save_recovery_source(&recovery_path, source_path.as_deref())
+        .map_err(|e| ServiceError::persistence(format!("Autosave failed: {e}")))?;
+    // A save that finished while this copy was being written already removed
+    // the recovery file; do not leave an older copy behind.
+    if ctx
+        .project_save_count
+        .load(std::sync::atomic::Ordering::SeqCst)
+        != saves_before
+    {
+        let _ = discard_recovery(&recovery_path);
+    }
+    let summary = events::project_summary(&project, None);
     ctx.emit_event(
         "project.autosaved",
         json!({
@@ -448,18 +547,19 @@ pub fn restore_recovery_file(ctx: &ServiceContext, recovery_path: &str) -> Servi
     // Normalize legacy tool-color siblings first, then split non-tool mixed raster/vector layers.
     let mut migration_warnings = migrate_tool_layers(&mut project);
     migration_warnings.extend(migrate_mixed_layers(&mut project));
-    for w in &migration_warnings {
-        eprintln!("[migrate_mixed_layers] {w}");
-    }
+    queue_migration_notice(ctx, &migration_warnings);
     project.dirty = true;
+    // Save goes back to the file the work came from, if it still exists.
+    let source_path = load_recovery_source(&path).filter(|source| source.is_file());
     {
+        let _edit_guard = ctx.lock_project_edits();
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
         *project_guard = Some(project.clone());
-        *path_guard = None;
+        *path_guard = source_path.clone();
         ctx.clear_project_history()
             .map_err(ServiceError::internal)?;
     }
@@ -470,12 +570,13 @@ pub fn restore_recovery_file(ctx: &ServiceContext, recovery_path: &str) -> Servi
             .map_err(|e| lock_err("plan_cache", e))?;
         *cache_guard = None;
     }
-    discard_recovery(&path)
-        .map_err(|e| ServiceError::persistence(format!("Failed to discard recovery: {e}")))?;
+    // Keep the recovery archive: it is the only durable copy until the user
+    // saves or the next autosave replaces it. Saving or a clean shutdown
+    // removes it.
     ctx.emit_event(
         "project.recovery.restored",
         json!({
-            "project": events::project_summary(&project, None),
+            "project": events::project_summary(&project, source_path.as_deref()),
             "recovery_path": recovery_path,
         }),
     );
@@ -503,15 +604,90 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn restore_recovery_discards_source_file() {
+    fn opening_a_missing_project_drops_it_from_recent_projects() {
+        let ctx = ServiceContext::new();
+        let dir = tempdir().unwrap();
+        let missing = dir.path().join("moved.lzrproj");
+        let missing = missing.to_string_lossy().into_owned();
+        let kept = dir
+            .path()
+            .join("kept.lzrproj")
+            .to_string_lossy()
+            .into_owned();
+        {
+            let mut settings = ctx.settings.lock().unwrap();
+            settings.push_recent_file(&kept, "kept");
+            settings.push_recent_file(&missing, "moved");
+        }
+
+        let error = open_project_from_path(&ctx, &missing).unwrap_err();
+        assert!(
+            error.message.starts_with("[project_file_missing]"),
+            "{error}"
+        );
+        let recent: Vec<_> = ctx
+            .settings
+            .lock()
+            .unwrap()
+            .get_recent_files()
+            .iter()
+            .map(|file| file.path.clone())
+            .collect();
+        assert_eq!(recent, vec![kept]);
+        assert!(ctx.project.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn opening_an_unreadable_project_keeps_it_in_recent_projects() {
+        let ctx = ServiceContext::new();
+        let dir = tempdir().unwrap();
+        let corrupt = dir.path().join("corrupt.lzrproj");
+        std::fs::write(&corrupt, b"not a project").unwrap();
+        let corrupt = corrupt.to_string_lossy().into_owned();
+        ctx.settings
+            .lock()
+            .unwrap()
+            .push_recent_file(&corrupt, "corrupt");
+
+        let error = open_project_from_path(&ctx, &corrupt).unwrap_err();
+        assert!(!error.message.contains("[project_file_missing]"), "{error}");
+        assert_eq!(ctx.settings.lock().unwrap().get_recent_files().len(), 1);
+    }
+
+    #[test]
+    fn restore_recovery_keeps_archive_and_original_save_path() {
+        let ctx = ServiceContext::new();
+        let dir = tempdir().unwrap();
+        let original = dir.path().join("original.lzrproj");
+        let project = Project::new("Recovery Test");
+        beambench_project::save_project(&project, &original).unwrap();
+        *ctx.project.lock().unwrap() = Some(project);
+        *ctx.project_path.lock().unwrap() = Some(original.clone());
+        let recovery_path = PathBuf::from(autosave_project_to_dir(&ctx, dir.path()).unwrap());
+
+        let restarted = ServiceContext::new();
+        let restored = restore_recovery_file(&restarted, &recovery_path.to_string_lossy()).unwrap();
+
+        assert_eq!(restored.metadata.project_name, "Recovery Test");
+        assert!(restored.dirty);
+        // A second crash before the next save must still find the work.
+        assert_eq!(check_recovery(dir.path()).unwrap().len(), 1);
+        assert_eq!(*restarted.project_path.lock().unwrap(), Some(original));
+
+        discard_recovery_file(&restarted, &recovery_path.to_string_lossy()).unwrap();
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn restore_recovery_of_never_saved_project_has_no_save_path() {
         let ctx = ServiceContext::new();
         let dir = tempdir().unwrap();
         let project = Project::new("Recovery Test");
         let recovery_path = beambench_project::save_recovery(&project, dir.path()).unwrap();
 
-        let restored = restore_recovery_file(&ctx, &recovery_path.to_string_lossy()).unwrap();
-        assert_eq!(restored.metadata.project_name, "Recovery Test");
-        assert!(!recovery_path.exists());
+        restore_recovery_file(&ctx, &recovery_path.to_string_lossy()).unwrap();
+        assert!(ctx.project_path.lock().unwrap().is_none());
+        assert!(recovery_path.exists());
     }
 
     #[test]
@@ -676,6 +852,42 @@ mod tests {
             project.layers.len(),
             "mixed-layer migration must not create duplicate stored names"
         );
+    }
+
+    #[test]
+    fn migrate_mixed_layers_keeps_disabled_layers_off() {
+        let mut project = Project::new("Legacy");
+        let mut line_layer = Layer::new("Line", OperationType::Line);
+        line_layer.enabled = false;
+        line_layer.visible = false;
+        line_layer.primary_entry_mut().output_enabled = false;
+        line_layer.primary_entry_mut().power_percent = 37.0;
+        let line_layer_id = line_layer.id;
+        project.layers.push(line_layer);
+        let raster = ProjectObject::new(
+            "Raster",
+            line_layer_id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+            ObjectData::RasterImage {
+                asset_key: "k".into(),
+                original_width_px: 10,
+                original_height_px: 10,
+                adjustments: None,
+                masks: Vec::new(),
+            },
+        );
+        let raster_id = raster.id;
+        project.add_object(raster);
+
+        migrate_mixed_layers(&mut project);
+
+        let moved = project.find_object(raster_id).unwrap();
+        let sibling = project.find_layer(moved.layer_id).unwrap();
+        assert_ne!(sibling.id, line_layer_id);
+        assert!(!sibling.enabled);
+        assert!(!sibling.visible);
+        assert!(!sibling.primary_entry().output_enabled);
+        assert_eq!(sibling.primary_entry().power_percent, 37.0);
     }
 
     #[test]

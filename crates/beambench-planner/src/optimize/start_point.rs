@@ -98,8 +98,14 @@ pub fn apply_start_point<T: Orderable>(
             }
         }
 
-        if let Some(last) = item.points().last() {
-            current_pos = *last;
+        // A closed contour is cut back to its first point.
+        let exit = if item.closed() {
+            item.points().first()
+        } else {
+            item.points().last()
+        };
+        if let Some(exit) = exit {
+            current_pos = *exit;
         }
         result.push(item);
     }

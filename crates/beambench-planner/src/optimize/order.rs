@@ -84,8 +84,14 @@ pub fn order_nearest_next_generic<T: Orderable>(mut items: Vec<T>) -> Vec<T> {
             nearest.points_mut().reverse();
         }
 
-        if let Some(last_point) = nearest.points().last() {
-            current_pos = *last_point;
+        // A closed contour is cut back to its first point.
+        let exit = if nearest.closed() {
+            nearest.points().first()
+        } else {
+            nearest.points().last()
+        };
+        if let Some(exit) = exit {
+            current_pos = *exit;
         }
 
         result.push(nearest);

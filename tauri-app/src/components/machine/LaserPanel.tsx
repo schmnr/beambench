@@ -154,6 +154,8 @@ export function LaserPanel() {
   const machineStatus = useMachineStore((s) => s.machineStatus);
   const preflightReport = useMachineStore((s) => s.preflightReport);
   const emergencyStop = useMachineStore((s) => s.emergencyStop);
+  const lastJobFailure = useMachineStore((s) => s.lastJobFailure);
+  const dismissJobFailure = useMachineStore((s) => s.dismissJobFailure);
   const setActiveProfile = useMachineStore((s) => s.setActiveProfile);
   const frameJob = useMachineStore((s) => s.frameJob);
   const loading = useMachineStore((s) => s.loading);
@@ -502,6 +504,23 @@ export function LaserPanel() {
                 {PLAY_ICON} {t('panels.machine.laser.start')}
               </button>
             )}
+          </div>
+        )}
+
+        {lastJobFailure && !hasJob && (
+          <div
+            className="flex items-start justify-between gap-2 rounded border border-bb-error/40 bg-bb-error/10 p-2 text-xs text-bb-error-fg"
+            data-testid="last-job-failure"
+            role="alert"
+          >
+            <span>{t('panels.machine.job_progress.last_failure', { message: lastJobFailure })}</span>
+            <button
+              type="button"
+              className="shrink-0 underline"
+              onClick={dismissJobFailure}
+            >
+              {t('notifications.dismiss')}
+            </button>
           </div>
         )}
 

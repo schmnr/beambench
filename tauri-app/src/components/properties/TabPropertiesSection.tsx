@@ -63,7 +63,7 @@ export function TabPropertiesSection() {
       icon={<TabsIcon size={16} />}
       testId="tab-properties-section"
     >
-      <NumberInput
+      <NumberInput commit="blur"
         label={`${t('panels.properties.width')} (${lengthUnitLabel(displayUnit)})`}
         value={roundDisplayLength(mmToDisplay(widthMm, displayUnit), displayUnit)}
         onChange={updateWidth}

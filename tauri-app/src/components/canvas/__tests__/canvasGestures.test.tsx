@@ -83,3 +83,39 @@ describe('Canvas interrupted gestures', () => {
     expect(reset).toHaveBeenCalledOnce();
   });
 });
+
+describe('cancelled canvas gestures', () => {
+  async function setup(activeTool: 'select' | 'two_point_rotate_scale', selected: boolean) {
+    const { makeProject, makeProjectObject, makeLayer } = await import('../../../test-utils/projectFixtures');
+    const obj = makeProjectObject({ id: 'gesture-obj', layer_id: 'layer1', bounds: { min: { x: 10, y: 10 }, max: { x: 20, y: 20 } }, data: { type: 'shape', kind: 'rectangle', width: 10, height: 10, corner_radius: 0 } });
+    useProjectStore.setState({ project: makeProject({ objects: [obj], layers: [makeLayer({ id: 'layer1' })] }), selectedObjectIds: selected ? [obj.id] : [] });
+    useUiStore.setState({ activeTool, zoom: 100, gridVisible: false, snapToGrid: false, snapToObjects: false });
+    const { container } = render(<Canvas />);
+    act(() => useUiStore.setState({ viewportOffset: { x: 0, y: 0 }, zoom: 100 }));
+    return { obj, overlay: container.querySelectorAll('canvas')[1] };
+  }
+
+  it('switching tools mid-drag puts the object back', async () => {
+    const { obj, overlay } = await setup('select', false);
+    const original = structuredClone(obj.bounds);
+    pointer(overlay, 'pointerdown', { button: 0, buttons: 1, clientX: 430, clientY: 330 });
+    pointer(overlay, 'pointermove', { buttons: 1, clientX: 450, clientY: 330 }); flush();
+    pointer(overlay, 'pointermove', { buttons: 1, clientX: 470, clientY: 330 }); flush();
+    expect(obj.bounds).not.toEqual(original);
+    act(() => useUiStore.setState({ activeTool: 'rect' }));
+    pointer(overlay, 'pointerup', { button: 0, buttons: 0, clientX: 470, clientY: 330 });
+    expect(obj.bounds).toEqual(original);
+  });
+
+  it('pointercancel restores a two-point rotate preview', async () => {
+    const { obj, overlay } = await setup('two_point_rotate_scale', true);
+    const original = structuredClone({ bounds: obj.bounds, transform: obj.transform });
+    pointer(overlay, 'pointerdown', { button: 0, buttons: 1, clientX: 400, clientY: 300 });
+    pointer(overlay, 'pointerup', { button: 0, buttons: 0, clientX: 400, clientY: 300 });
+    pointer(overlay, 'pointerdown', { button: 0, buttons: 1, clientX: 420, clientY: 300 });
+    pointer(overlay, 'pointermove', { buttons: 1, clientX: 400, clientY: 320 }); flush();
+    expect({ bounds: obj.bounds, transform: obj.transform }).not.toEqual(original);
+    pointer(overlay, 'pointercancel', {});
+    expect({ bounds: obj.bounds, transform: obj.transform }).toEqual(original);
+  });
+});

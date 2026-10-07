@@ -28,9 +28,9 @@ pub fn calculate_duration_with_calibration(
 fn segment_distance(segment: &PlanSegment) -> f64 {
     match segment {
         PlanSegment::Travel { start, end } => start.distance_to(end),
-        PlanSegment::Vector { polyline, .. } => {
-            polyline.windows(2).map(|w| w[0].distance_to(&w[1])).sum()
-        }
+        PlanSegment::Vector {
+            polyline, closed, ..
+        } => crate::plan::vector_path_length(polyline, *closed),
         PlanSegment::Frame { path, .. } => path.windows(2).map(|w| w[0].distance_to(&w[1])).sum(),
         PlanSegment::Raster {
             scanlines,
@@ -108,10 +108,11 @@ pub fn segment_duration_with_calibration(
         }
         PlanSegment::Vector {
             polyline,
+            closed,
             speed_mm_min,
             ..
         } => {
-            let dist: f64 = polyline.windows(2).map(|w| w[0].distance_to(&w[1])).sum();
+            let dist = crate::plan::vector_path_length(polyline, *closed);
             move_duration_secs(
                 dist,
                 effective_speed(*speed_mm_min, calibration),

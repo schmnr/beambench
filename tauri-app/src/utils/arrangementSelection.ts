@@ -126,10 +126,18 @@ export function expandArrangementSelectionMembers(project: Project, objectIds: s
   return expanded;
 }
 
-export function expandSelectionMembers(project: Project, objectIds: string[]): string[] {
+/**
+ * The selection plus every object inside selected groups. Inside an isolated
+ * group, members stay members: only what is selected there is expanded.
+ */
+export function expandSelectionMembers(
+  project: Project,
+  objectIds: string[],
+  isolationRootId: string | null = null,
+): string[] {
   const expanded: string[] = [];
   const seen = new Set<string>();
-  for (const rootId of normalizeSelectionMembers(project, objectIds)) {
+  for (const rootId of normalizeSelectionMembersWithinIsolation(project, objectIds, isolationRootId)) {
     if (!seen.has(rootId)) {
       seen.add(rootId);
       expanded.push(rootId);

@@ -2,7 +2,8 @@ import type { CanvasTool, CanvasMouseEvent, ToolContext } from './types';
 import type { ToolOverlay } from '../CanvasRenderer';
 import type { EditablePath, NodeBatchUpdate, NodeId, NodeSelectionTarget } from '../../types/vector';
 import type { Point2D, Bounds, ProjectObject } from '../../types/project';
-import { vectorService } from '../../services/vectorService';
+import { vectorService as rawVectorService } from '../../services/vectorService';
+import { guardDocumentReplies, isStaleDocument, getDocumentGeneration, requireCurrentDocument } from '../../stores/documentGeneration';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useUndoStore } from '../../stores/undoStore';
@@ -16,6 +17,13 @@ import { wrapBackendError } from '../../i18n/errors';
 import { pasteClipboardArtworkFromSystem } from '../../utils/systemClipboard';
 import { readNodeClipboard, writeNodeClipboard } from '../../utils/nodeClipboard';
 import i18n from '../../i18n';
+
+// Node edits that finish after a different document opened are dropped.
+const vectorService = guardDocumentReplies(rawVectorService);
+
+function reportNodeError(ctx: { setStatusMessage: (message: string) => void }, error: unknown): void {
+  if (!isStaleDocument(error)) ctx.setStatusMessage(wrapBackendError(String(error)));
+}
 
 export type NodeImmediateAction = 'midpoint' | 'align' | 'trim' | 'extend' | 'close_open' | 'auto_join';
 export type NodeEditAction = 'copy' | 'cut' | 'paste' | 'extract' | 'delete' | 'select_all';
@@ -118,6 +126,7 @@ export class NodeTool implements CanvasTool {
   }
 
   private handleMouseDown(e: CanvasMouseEvent, ctx: ToolContext, allowObjectSwitch: boolean): void {
+    const documentToken = getDocumentGeneration();
     const generation = this.gestureGeneration;
     const screenPt = { x: e.screenX, y: e.screenY };
     const subMode = useUiStore.getState().nodeSubMode;
@@ -136,6 +145,7 @@ export class NodeTool implements CanvasTool {
     // Convert supported objects lazily, then replay this click
     if (obj.data.type !== 'vector_path') {
       void this.prepareForSelection(ctx).then(() => {
+        if (documentToken !== getDocumentGeneration()) return;
         if (this.objectId && this.editablePaths.length > 0) this.replayMouseDown(generation, e, ctx, true);
       });
       return;
@@ -144,6 +154,7 @@ export class NodeTool implements CanvasTool {
     // Load editable path if not already loaded, then replay this click
     if (this.objectId !== objId) {
       void this.prepareForSelection(ctx).then(() => {
+        if (documentToken !== getDocumentGeneration()) return;
         if (this.objectId === objId && this.editablePaths.length > 0) {
           this.replayMouseDown(generation, e, ctx, false);
         }
@@ -155,6 +166,7 @@ export class NodeTool implements CanvasTool {
       const switchTarget = this.findSelectedVectorObjectAtPoint(screenPt, ctx, objId);
       if (switchTarget) {
         void this.loadEditablePath(switchTarget.id, ctx).then(() => {
+          if (documentToken !== getDocumentGeneration()) return;
           if (this.objectId === switchTarget.id && this.editablePaths.length > 0) {
             this.replayMouseDown(generation, e, ctx, false);
           }
@@ -379,6 +391,7 @@ export class NodeTool implements CanvasTool {
   }
 
   onMouseUp(_e: CanvasMouseEvent, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     this.releasedGeneration = this.gestureGeneration;
     switch (this.state.type) {
       case 'maybe-drag':
@@ -438,16 +451,17 @@ export class NodeTool implements CanvasTool {
             : Promise.resolve(null);
           const commit = updateBeforeJoin
             .then(async (updated) => {
+              if (documentToken !== getDocumentGeneration()) return;
               if (updated) {
                 this.applyUpdatedObject(updated);
                 this.localNodeDirty = false;
               }
-              const joined = await vectorService.joinSubpaths(objectId, dragTarget.nodeId, joinTarget);
+              const joined = requireCurrentDocument(documentToken, await vectorService.joinSubpaths(objectId, dragTarget.nodeId, joinTarget));
               this.applyUpdatedObject(joined);
-              await useUndoStore.getState().refresh();
-              await this.loadEditablePath(objectId, ctx, { preserveSelection: true });
+              requireCurrentDocument(documentToken, await useUndoStore.getState().refresh());
+              requireCurrentDocument(documentToken, await this.loadEditablePath(objectId, ctx, { preserveSelection: true }));
             })
-            .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+            .catch((err) => reportNodeError(ctx, err));
           this.trackNodeCommit(commit);
           return;
         }
@@ -456,12 +470,13 @@ export class NodeTool implements CanvasTool {
         const commit = vectorService
           .updateNodesBatch(objectId, updates)
             .then(async (updated) => {
+              if (documentToken !== getDocumentGeneration()) return;
               this.applyUpdatedObject(updated);
               void useUndoStore.getState().refresh();
-              await this.loadEditablePath(objectId, ctx, { preserveSelection: true });
+              requireCurrentDocument(documentToken, await this.loadEditablePath(objectId, ctx, { preserveSelection: true }));
               this.localNodeDirty = false;
             })
-          .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+          .catch((err) => reportNodeError(ctx, err));
         this.trackNodeCommit(commit);
         return;
       }
@@ -471,6 +486,7 @@ export class NodeTool implements CanvasTool {
   }
 
   onKeyDown(e: KeyboardEvent, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const subMode = useUiStore.getState().nodeSubMode;
     const setSubMode = useUiStore.getState().setNodeSubMode;
     const hasSelection = this.selectedTargets.length > 0 && this.objectId;
@@ -651,12 +667,13 @@ export class NodeTool implements CanvasTool {
       const commit = vectorService
         .updateNodesBatch(this.objectId, updates)
         .then(async (updated) => {
+          if (documentToken !== getDocumentGeneration()) return;
           this.applyUpdatedObject(updated);
           void useUndoStore.getState().refresh();
-          await this.loadEditablePath(this.objectId!, ctx, { preserveSelection: true });
+          requireCurrentDocument(documentToken, await this.loadEditablePath(this.objectId!, ctx, { preserveSelection: true }));
           this.localNodeDirty = false;
         })
-        .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+        .catch((err) => reportNodeError(ctx, err));
       this.trackNodeCommit(commit);
     }
   }
@@ -794,6 +811,7 @@ export class NodeTool implements CanvasTool {
   }
 
   performNodeAction(action: NodeEditAction, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     if (this.pendingNodeCommit) return;
     const objectId = this.objectId;
     const nodeIds = this.selectedNodeIds();
@@ -817,28 +835,28 @@ export class NodeTool implements CanvasTool {
     if (action === 'copy') {
       const commit = vectorService
         .copyNodes(objectId!, nodeIds)
-        .then(writeNodeClipboard)
-        .catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+        .then((copied) => { if (documentToken === getDocumentGeneration()) writeNodeClipboard(copied); })
+        .catch((error) => reportNodeError(ctx, error));
       this.trackNodeCommit(commit);
       return;
     }
 
     if (action === 'cut') {
       const commit = (async () => {
-        const copy = await vectorService.copyNodes(objectId!, nodeIds);
-        await writeNodeClipboard(copy);
+        const copy = requireCurrentDocument(documentToken, await vectorService.copyNodes(objectId!, nodeIds));
+        requireCurrentDocument(documentToken, await writeNodeClipboard(copy));
         if (this.isDeletingEveryEditableNode(nodeIds)) {
-          await useProjectStore.getState().removeObject(objectId!);
+          requireCurrentDocument(documentToken, await useProjectStore.getState().removeObject(objectId!));
           this.reset();
         } else {
-          const updated = await vectorService.deleteNodes(objectId!, nodeIds);
+          const updated = requireCurrentDocument(documentToken, await vectorService.deleteNodes(objectId!, nodeIds));
           this.applyUpdatedObject(updated);
           this.selectOnly(null);
-          await useUndoStore.getState().refresh();
-          await this.loadEditablePath(objectId!, ctx);
+          requireCurrentDocument(documentToken, await useUndoStore.getState().refresh());
+          requireCurrentDocument(documentToken, await this.loadEditablePath(objectId!, ctx));
         }
         ctx.requestRender();
-      })().catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+      })().catch((error) => reportNodeError(ctx, error));
       this.trackNodeCommit(commit);
       return;
     }
@@ -847,27 +865,28 @@ export class NodeTool implements CanvasTool {
       const commit = vectorService
         .extractNodesToPath(objectId!, nodeIds)
         .then(async (created) => {
+          if (documentToken !== getDocumentGeneration()) return;
           this.reset();
-          await useProjectStore.getState().loadProject();
+          requireCurrentDocument(documentToken, await useProjectStore.getState().loadProject());
           useProjectStore.getState().selectObjects([created.id]);
-          await useUndoStore.getState().refresh();
+          requireCurrentDocument(documentToken, await useUndoStore.getState().refresh());
           ctx.requestRender();
         })
-        .catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+        .catch((error) => reportNodeError(ctx, error));
       this.trackNodeCommit(commit);
       return;
     }
 
     const commit = (async () => {
-      const copiedPathJson = await readNodeClipboard();
+      const copiedPathJson = requireCurrentDocument(documentToken, await readNodeClipboard());
       if (!copiedPathJson || !objectId) {
-        await pasteClipboardArtworkFromSystem();
+        requireCurrentDocument(documentToken, await pasteClipboardArtworkFromSystem());
         return;
       }
-      const result = await vectorService.pasteNodes(objectId, copiedPathJson);
+      const result = requireCurrentDocument(documentToken, await vectorService.pasteNodes(objectId, copiedPathJson));
       this.applyUpdatedObject(result.object);
-      await useUndoStore.getState().refresh();
-      await this.loadEditablePath(objectId, ctx);
+      requireCurrentDocument(documentToken, await useUndoStore.getState().refresh());
+      requireCurrentDocument(documentToken, await this.loadEditablePath(objectId, ctx));
       const first = result.pastedSubpathStart;
       const last = first + result.pastedSubpathCount;
       this.selectTargets(this.editablePaths.flatMap((path) => {
@@ -876,7 +895,7 @@ export class NodeTool implements CanvasTool {
         return path.nodes.map((node) => ({ kind: 'node' as const, nodeId: node.id }));
       }));
       ctx.requestRender();
-    })().catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+    })().catch((error) => reportNodeError(ctx, error));
     this.trackNodeCommit(commit);
   }
 
@@ -904,6 +923,7 @@ export class NodeTool implements CanvasTool {
   }
 
   async prepareForSelection(ctx: ToolContext): Promise<void> {
+    const documentToken = getDocumentGeneration();
     if (ctx.selectedObjectIds.length === 0) {
       this.reset();
       ctx.setStatusMessage(i18n.t('canvas_status.select_vector_path_nodes'));
@@ -934,11 +954,12 @@ export class NodeTool implements CanvasTool {
       (obj.data.type === 'vector_path' && !this.isIdentityTransform(obj.transform))
     ) {
       try {
-        const updated = await vectorService.convertToPath(obj.id);
+        const updated = requireCurrentDocument(documentToken, await vectorService.convertToPath(obj.id));
         this.applyUpdatedObject(updated);
       } catch (err) {
+        if (isStaleDocument(err)) return;
         this.reset();
-        ctx.setStatusMessage(wrapBackendError(String(err)));
+        reportNodeError(ctx, err);
         return;
       }
     } else if (obj.data.type !== 'vector_path') {
@@ -966,6 +987,7 @@ export class NodeTool implements CanvasTool {
     ctx: ToolContext,
     options: LoadEditablePathOptions = {},
   ): Promise<void> {
+    const documentToken = getDocumentGeneration();
     const requestId = ++this.loadRequestId;
     const requestedTargets = options.selectTargets
       ? [...options.selectTargets]
@@ -979,7 +1001,7 @@ export class NodeTool implements CanvasTool {
         : null;
 
     try {
-      const paths = await vectorService.getEditablePath(objId);
+      const paths = requireCurrentDocument(documentToken, await vectorService.getEditablePath(objId));
       if (requestId !== this.loadRequestId) return;
       this.objectId = objId;
       this.editablePaths = paths;
@@ -1015,7 +1037,7 @@ export class NodeTool implements CanvasTool {
       ctx.requestRender();
     } catch (err) {
       if (requestId !== this.loadRequestId) return;
-      ctx.setStatusMessage(wrapBackendError(String(err)));
+      reportNodeError(ctx, err);
     }
   }
 
@@ -1682,6 +1704,7 @@ export class NodeTool implements CanvasTool {
     t: number,
     ctx: ToolContext,
   ): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     this.activeSubpathIdx = segment.nodeId.subpath_idx;
@@ -1689,14 +1712,16 @@ export class NodeTool implements CanvasTool {
     vectorService
       .insertNode(objectId, segment.nodeId.subpath_idx, segment.nodeId.command_idx, t)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx, { preserveSelection: true });
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private deleteNodeById(nodeId: NodeId, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     if (this.isDeletingEveryEditableNode([nodeId])) {
@@ -1708,15 +1733,17 @@ export class NodeTool implements CanvasTool {
     vectorService
       .deleteNode(objectId, nodeId.subpath_idx, nodeId.command_idx)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         this.state = { type: 'idle' };
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private deleteSelectedNodes(ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     const nodeIds = this.selectedNodeIds();
@@ -1730,28 +1757,32 @@ export class NodeTool implements CanvasTool {
     vectorService
       .deleteNodes(objectId, nodeIds)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         this.selectOnly(null);
         this.state = { type: 'idle' };
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private removeEditedObject(objectId: string, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const remove = useProjectStore
       .getState()
       .removeObject(objectId)
       .then(() => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.reset();
         ctx.requestRender();
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
     this.trackNodeCommit(remove);
   }
 
   private deleteSegmentByHit(segment: { nodeId: NodeId; t: number }, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     this.activeSubpathIdx = segment.nodeId.subpath_idx;
@@ -1759,16 +1790,18 @@ export class NodeTool implements CanvasTool {
     const commit = vectorService
       .deleteSegment(objectId, segment.nodeId.subpath_idx, segment.nodeId.command_idx)
       .then(async (updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         this.state = { type: 'idle' };
-        await useUndoStore.getState().refresh();
-        await this.loadEditablePath(objectId, ctx);
+        requireCurrentDocument(documentToken, await useUndoStore.getState().refresh());
+        requireCurrentDocument(documentToken, await this.loadEditablePath(objectId, ctx));
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
     this.trackNodeCommit(commit);
   }
 
   private breakPathAtNode(nodeId: NodeId, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     this.activeSubpathIdx = nodeId.subpath_idx;
@@ -1776,15 +1809,17 @@ export class NodeTool implements CanvasTool {
     vectorService
       .breakPathAtNode(objectId, nodeId.subpath_idx, nodeId.command_idx)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         this.state = { type: 'idle' };
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private convertSegmentToLine(segment: { nodeId: NodeId; t: number }, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     this.activeSubpathIdx = segment.nodeId.subpath_idx;
@@ -1792,12 +1827,13 @@ export class NodeTool implements CanvasTool {
     vectorService
       .convertSegmentToLine(objectId, segment.nodeId.subpath_idx, segment.nodeId.command_idx)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         this.state = { type: 'idle' };
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private convertNodeInboundSegmentToLine(nodeId: NodeId, ctx: ToolContext): void {
@@ -1806,6 +1842,7 @@ export class NodeTool implements CanvasTool {
   }
 
   private convertSegmentToCurve(segment: { nodeId: NodeId; t: number }, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     this.activeSubpathIdx = segment.nodeId.subpath_idx;
@@ -1820,6 +1857,7 @@ export class NodeTool implements CanvasTool {
     vectorService
       .convertSegmentToCurve(objectId, segment.nodeId.subpath_idx, segment.nodeId.command_idx)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         this.state = { type: 'idle' };
         void useUndoStore.getState().refresh();
@@ -1828,7 +1866,7 @@ export class NodeTool implements CanvasTool {
           primaryTarget: targets[targets.length - 1] ?? null,
         });
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private setNodeTypeById(
@@ -1836,6 +1874,7 @@ export class NodeTool implements CanvasTool {
     nodeType: 'smooth' | 'corner',
     ctx: ToolContext,
   ): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     this.activeSubpathIdx = nodeId.subpath_idx;
@@ -1844,6 +1883,7 @@ export class NodeTool implements CanvasTool {
     vectorService
       .setNodeType(objectId, nodeId.subpath_idx, nodeId.command_idx, nodeType)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         this.selectOnly(target);
         this.state = { type: 'idle' };
@@ -1853,10 +1893,11 @@ export class NodeTool implements CanvasTool {
           primaryTarget: target,
         });
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private trimSegmentToIntersection(segment: { nodeId: NodeId; t: number }, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     const world = this.segmentScreenToWorld(segment, ctx);
@@ -1871,14 +1912,16 @@ export class NodeTool implements CanvasTool {
         world.y,
       )
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private extendEndpointToIntersection(nodeId: NodeId, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     this.activeSubpathIdx = nodeId.subpath_idx;
@@ -1886,14 +1929,16 @@ export class NodeTool implements CanvasTool {
     vectorService
       .extendEndpointToIntersection(objectId, nodeId)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private alignSelectionToSegment(segment: { nodeId: NodeId; t: number }, ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     const objectId = this.objectId;
     if (!objectId) return;
     if (!this.isStraightSegment(segment.nodeId)) {
@@ -1924,10 +1969,11 @@ export class NodeTool implements CanvasTool {
       objectId,
     )
       .then(() => {
+        if (documentToken !== getDocumentGeneration()) return;
         ctx.setStatusMessage(i18n.t('canvas_status.aligned_selection', { deg: targetDeg.toFixed(0) }));
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   // --- Sub-mode handlers ---
@@ -2257,6 +2303,7 @@ export class NodeTool implements CanvasTool {
   }
 
   private handleCloseOpenClick(ctx: ToolContext): void {
+    const documentToken = getDocumentGeneration();
     // One-shot action: reset mode immediately, not after async completion
     this.state = { type: 'idle' };
     useUiStore.getState().setNodeSubMode('select');
@@ -2277,11 +2324,12 @@ export class NodeTool implements CanvasTool {
     vectorService
       .togglePathClosed(objectId, subpathIdx)
       .then((updated) => {
+        if (documentToken !== getDocumentGeneration()) return;
         this.applyUpdatedObject(updated);
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private resolveOpenSubpathForClose(): number | null {
@@ -2334,21 +2382,22 @@ export class NodeTool implements CanvasTool {
   }
 
   private async runAutoJoin(objectIds: string[], ctx: ToolContext): Promise<void> {
+    const documentToken = getDocumentGeneration();
     try {
       const beforeNodeCount = this.objectId && objectIds.includes(this.objectId)
         ? this.getNodeCount()
         : null;
       const pendingCommit = this.pendingNodeCommit;
       if (pendingCommit) {
-        await pendingCommit;
+        requireCurrentDocument(documentToken, await pendingCommit);
       }
-      await this.flushLocalNodeEdits(ctx);
+      requireCurrentDocument(documentToken, await this.flushLocalNodeEdits(ctx));
 
-      const result = await useProjectStore.getState().closeAndJoin(
+      const result = requireCurrentDocument(documentToken, await useProjectStore.getState().closeAndJoin(
         objectIds,
         0.5,
         { warnIfOpen: false },
-      );
+      ));
       if (!result) {
         ctx.requestRender();
         return;
@@ -2357,7 +2406,7 @@ export class NodeTool implements CanvasTool {
       const projectState = useProjectStore.getState();
       const joinedId = projectState.selectedObjectIds[0];
       if (joinedId) {
-        await this.loadEditablePath(joinedId, ctx);
+        requireCurrentDocument(documentToken, await this.loadEditablePath(joinedId, ctx));
       }
       const afterNodeCount = beforeNodeCount === null ? null : this.getNodeCount();
       ctx.setStatusMessage(
@@ -2369,12 +2418,13 @@ export class NodeTool implements CanvasTool {
       );
       ctx.requestRender();
     } catch (err) {
-      ctx.setStatusMessage(wrapBackendError(String(err)));
+      reportNodeError(ctx, err);
       ctx.requestRender();
     }
   }
 
   private async flushLocalNodeEdits(ctx: ToolContext): Promise<void> {
+    const documentToken = getDocumentGeneration();
     if (!this.localNodeDirty || !this.objectId) return;
     const objectId = this.objectId;
     const updates = this.buildBatchUpdates();
@@ -2383,10 +2433,10 @@ export class NodeTool implements CanvasTool {
       return;
     }
 
-    const updated = await vectorService.updateNodesBatch(objectId, updates);
+    const updated = requireCurrentDocument(documentToken, await vectorService.updateNodesBatch(objectId, updates));
     this.applyUpdatedObject(updated);
-    await useUndoStore.getState().refresh();
-    await this.loadEditablePath(objectId, ctx, { preserveSelection: true });
+    requireCurrentDocument(documentToken, await useUndoStore.getState().refresh());
+    requireCurrentDocument(documentToken, await this.loadEditablePath(objectId, ctx, { preserveSelection: true }));
     this.localNodeDirty = false;
   }
 

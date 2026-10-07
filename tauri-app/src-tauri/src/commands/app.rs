@@ -17,6 +17,16 @@ use beambench_service::persist;
 use tauri::{State, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
+async fn run_settings_update<T, F>(svc: Arc<ServiceContext>, operation: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce(&ServiceContext) -> beambench_service::ServiceResult<T> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(move || operation(&svc).map_err(String::from))
+        .await
+        .map_err(|e| format!("Settings update worker failed: {e}"))?
+}
+
 #[tauri::command]
 pub fn get_app_status(svc: State<'_, Arc<ServiceContext>>) -> Result<AppStatus, String> {
     app::get_app_status(&svc).map_err(Into::into)
@@ -73,6 +83,7 @@ pub fn mark_frontend_ready(state: State<'_, crate::state::FrontendReady>) -> Res
         .inner()
         .0
         .store(true, std::sync::atomic::Ordering::Release);
+    tracing::info!("Frontend ready");
     Ok(())
 }
 
@@ -163,9 +174,14 @@ pub fn get_app_settings(svc: State<'_, Arc<ServiceContext>>) -> Result<AppSettin
     app::get_app_settings(&svc).map_err(Into::into)
 }
 
+#[tauri::command]
+pub fn take_pending_notices(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<String>, String> {
+    app::take_pending_notices(&svc).map_err(Into::into)
+}
+
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
-pub fn update_app_settings(
+pub async fn update_app_settings(
     svc: State<'_, Arc<ServiceContext>>,
     display_unit: Option<String>,
     speed_time_unit: Option<SpeedTimeUnit>,
@@ -202,46 +218,46 @@ pub fn update_app_settings(
     custom_hotkeys: Option<HashMap<String, String>>,
     display_language: Option<String>,
 ) -> Result<AppSettings, String> {
-    app::update_app_settings(
-        &svc,
-        UpdateAppSettingsInput {
-            display_unit,
-            speed_time_unit,
-            autosave_enabled,
-            autosave_interval_secs,
-            api_enabled,
-            api_port,
-            api_localhost_only,
-            ui_theme,
-            dark_mode,
-            antialiasing,
-            artwork_display_mode,
-            transform_anchor,
-            filled_rendering,
-            reduce_motion,
-            show_palette_labels,
-            cursor_size,
-            toolbar_icon_size,
-            click_tolerance_px,
-            snap_threshold_px,
-            grid_spacing_mm,
-            nudge_step_mm,
-            nudge_step_fine_mm,
-            nudge_step_coarse_mm,
-            scroll_zoom,
-            debug_log_enabled,
-            panel_layout,
-            last_radius_mm,
-            export_settings,
-            allow_importing_to_tool_layers,
-            check_for_updates_on_startup,
-            update_snoozed_until,
-            skipped_update_version,
-            custom_hotkeys,
-            display_language,
-        },
-    )
-    .map_err(Into::into)
+    let input = UpdateAppSettingsInput {
+        display_unit,
+        speed_time_unit,
+        autosave_enabled,
+        autosave_interval_secs,
+        api_enabled,
+        api_port,
+        api_localhost_only,
+        ui_theme,
+        dark_mode,
+        antialiasing,
+        artwork_display_mode,
+        transform_anchor,
+        filled_rendering,
+        reduce_motion,
+        show_palette_labels,
+        cursor_size,
+        toolbar_icon_size,
+        click_tolerance_px,
+        snap_threshold_px,
+        grid_spacing_mm,
+        nudge_step_mm,
+        nudge_step_fine_mm,
+        nudge_step_coarse_mm,
+        scroll_zoom,
+        debug_log_enabled,
+        panel_layout,
+        last_radius_mm,
+        export_settings,
+        allow_importing_to_tool_layers,
+        check_for_updates_on_startup,
+        update_snoozed_until,
+        skipped_update_version,
+        custom_hotkeys,
+        display_language,
+    };
+    run_settings_update(svc.inner().clone(), move |svc| {
+        app::update_app_settings(svc, input)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -253,16 +269,19 @@ pub fn export_preferences(
 }
 
 #[tauri::command]
-pub fn import_preferences(
+pub async fn import_preferences(
     svc: State<'_, Arc<ServiceContext>>,
     path: String,
 ) -> Result<AppSettings, String> {
-    import_preferences_from_path(&svc, &PathBuf::from(path)).map_err(Into::into)
+    run_settings_update(svc.inner().clone(), move |svc| {
+        import_preferences_from_path(svc, &PathBuf::from(path))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn reset_preferences(svc: State<'_, Arc<ServiceContext>>) -> Result<AppSettings, String> {
-    reset_preferences_to_defaults_op(&svc).map_err(Into::into)
+pub async fn reset_preferences(svc: State<'_, Arc<ServiceContext>>) -> Result<AppSettings, String> {
+    run_settings_update(svc.inner().clone(), reset_preferences_to_defaults_op).await
 }
 
 #[tauri::command]
@@ -288,7 +307,7 @@ pub fn get_system_fonts() -> Result<Vec<String>, String> {
 /// Update display-related settings fields.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub fn update_display_settings(
+pub async fn update_display_settings(
     svc: State<'_, Arc<ServiceContext>>,
     ui_theme: Option<UiTheme>,
     dark_mode: Option<bool>,
@@ -304,26 +323,26 @@ pub fn update_display_settings(
     scroll_zoom: Option<bool>,
     debug_log_enabled: Option<bool>,
 ) -> Result<AppSettings, String> {
-    app::update_app_settings(
-        &svc,
-        UpdateAppSettingsInput {
-            ui_theme,
-            dark_mode,
-            antialiasing,
-            artwork_display_mode,
-            filled_rendering,
-            reduce_motion,
-            show_palette_labels,
-            cursor_size,
-            toolbar_icon_size,
-            click_tolerance_px,
-            snap_threshold_px,
-            scroll_zoom,
-            debug_log_enabled,
-            ..UpdateAppSettingsInput::default()
-        },
-    )
-    .map_err(Into::into)
+    let input = UpdateAppSettingsInput {
+        ui_theme,
+        dark_mode,
+        antialiasing,
+        artwork_display_mode,
+        filled_rendering,
+        reduce_motion,
+        show_palette_labels,
+        cursor_size,
+        toolbar_icon_size,
+        click_tolerance_px,
+        snap_threshold_px,
+        scroll_zoom,
+        debug_log_enabled,
+        ..UpdateAppSettingsInput::default()
+    };
+    run_settings_update(svc.inner().clone(), move |svc| {
+        app::update_app_settings(svc, input)
+    })
+    .await
 }
 
 // ---------------------------------------------------------------------------
@@ -404,5 +423,96 @@ mod update_environment_tests {
         let dir = tempfile::tempdir().unwrap();
         let exe = make_bundle(dir.path(), "Beam Bench.app/Contents/MacOS/beambench-tauri");
         assert_eq!(macos_update_environment_blocker(&exe), None);
+    }
+}
+
+#[cfg(test)]
+mod settings_worker_tests {
+    use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn blocking_settings_work_leaves_the_calling_runtime_responsive() {
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let ctx = Arc::new(ServiceContext::with_settings(AppSettings::default()));
+        let worker = tokio::spawn(run_settings_update(ctx, move |_| {
+            started_tx.send(()).unwrap();
+            release_rx
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .map_err(|e| beambench_service::ServiceError::internal(e.to_string()))?;
+            Ok(())
+        }));
+        started_rx.await.unwrap();
+        // This continuation can run while the blocking settings operation waits.
+        tokio::task::yield_now().await;
+        release_tx.send(()).unwrap();
+        worker.await.unwrap().unwrap();
+    }
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn conflicting_api_restart_keeps_the_calling_runtime_responsive() {
+        const TEST: &str = "commands::app::settings_worker_tests::conflicting_api_restart_keeps_the_calling_runtime_responsive";
+        if std::env::var("BEAMBENCH_SETTINGS_WORKER_CHILD").as_deref() != Ok("1") {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", TEST, "--nocapture"])
+                .env("BEAMBENCH_SETTINGS_WORKER_CHILD", "1")
+                .env("BEAMBENCH_API_TOKEN", "a".repeat(40))
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        let occupied = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+        let settings = AppSettings {
+            api_enabled: true,
+            api_port: occupied.local_addr().unwrap().port(),
+            ..Default::default()
+        };
+        let ctx = Arc::new(ServiceContext::with_settings(settings.clone()));
+        let api = crate::state::ApiRuntime::default();
+        api.sync_from_settings(ctx.clone(), &settings).unwrap();
+        let worker_api = api.clone();
+        let network = AppSettings {
+            api_localhost_only: false,
+            ..settings.clone()
+        };
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+                let start = std::time::Instant::now();
+                let worker_ctx = ctx.clone();
+                let updating = tokio::spawn(run_settings_update(ctx.clone(), move |_| {
+                    started_tx.send(()).unwrap();
+                    worker_api
+                        .sync_from_settings(worker_ctx, &network)
+                        .map_err(beambench_service::ServiceError::internal)
+                }));
+                started_rx.await.unwrap();
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                assert!(start.elapsed() < std::time::Duration::from_millis(500));
+                assert!(
+                    !updating.is_finished(),
+                    "The conflicting bind must still be retrying"
+                );
+                assert!(updating.await.unwrap().is_err());
+            });
+        // Recovery still serves the original port.
+        assert!(std::net::TcpStream::connect(("127.0.0.1", settings.api_port)).is_ok());
+        api.sync_from_settings(
+            ctx,
+            &AppSettings {
+                api_enabled: false,
+                ..settings
+            },
+        )
+        .unwrap();
     }
 }

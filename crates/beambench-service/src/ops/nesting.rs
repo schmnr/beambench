@@ -168,10 +168,15 @@ pub fn nest_selected(
     };
     let padding = options.padding_mm.max(0.0);
 
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
+    // Search on a copy: the layout can take the whole time limit, and
+    // holding the project lock that long freezes every other command.
+    let original = ctx
+        .project
+        .lock()
+        .map_err(|e| lock_err("project", e))?
+        .clone()
         .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    let project = &original;
 
     let selected_roots = normalize_arrangement_roots(project, &object_ids);
     let container = find_largest_container(project, &selected_roots)?;
@@ -225,31 +230,42 @@ pub fn nest_selected(
         options.rotation_step_deg,
         deadline,
     )?;
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    *project = next_project;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        if project_guard.as_ref() != Some(&original) {
+            return Err(ServiceError::stale_revision(
+                "The project changed while nesting was running. Run Nest Selected again.",
+            ));
+        }
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        *project = next_project;
 
-    project.dirty = true;
-    let placed_ids: Vec<ObjectId> = layout
-        .placements
-        .iter()
-        .flat_map(|placement| placement.root_ids.iter().copied())
-        .collect();
-    let unplaced_ids: Vec<ObjectId> = layout
-        .unplaced
-        .iter()
-        .flat_map(|part| part.root_ids.iter().copied())
-        .collect();
-    let utilization = layout.placed_area / container.region.area.max(EPS);
-    drop(project_guard);
-    planning::invalidate_plan_cache(ctx)?;
+        project.dirty = true;
+        let placed_ids: Vec<ObjectId> = layout
+            .placements
+            .iter()
+            .flat_map(|placement| placement.root_ids.iter().copied())
+            .collect();
+        let unplaced_ids: Vec<ObjectId> = layout
+            .unplaced
+            .iter()
+            .flat_map(|part| part.root_ids.iter().copied())
+            .collect();
+        let utilization = layout.placed_area / container.region.area.max(EPS);
+        drop(project_guard);
+        planning::invalidate_plan_cache(ctx)?;
 
-    Ok(NestResult {
-        target_container_id: container.object_id,
-        placed_object_ids: placed_ids,
-        unplaced_object_ids: unplaced_ids,
-        utilization,
-        elapsed_ms: started.elapsed().as_millis() as u64,
+        Ok(NestResult {
+            target_container_id: container.object_id,
+            placed_object_ids: placed_ids,
+            unplaced_object_ids: unplaced_ids,
+            utilization,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+        })
     })
 }
 

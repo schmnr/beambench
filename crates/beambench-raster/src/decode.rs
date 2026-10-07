@@ -42,10 +42,27 @@ pub fn decode_image_oriented(bytes: &[u8]) -> Result<DynamicImage, RasterError> 
 ///
 /// Returns `RasterError::DecodeError` if the image cannot be decoded.
 /// Returns `RasterError::EmptyImage` if the decoded image has zero width or height.
+/// Convert artwork to laser luminance, treating transparent pixels as white
+/// (no engraving). `to_luma8` alone drops alpha, so a transparent background
+/// stored as black would engrave solid.
+pub fn to_engraving_gray(img: &DynamicImage) -> GrayImage {
+    if !img.color().has_alpha() {
+        return img.to_luma8();
+    }
+    let luma_alpha = img.to_luma_alpha8();
+    GrayImage::from_fn(img.width(), img.height(), |x, y| {
+        let pixel = luma_alpha.get_pixel(x, y).0;
+        let luma = u16::from(pixel[0]);
+        let alpha = u16::from(pixel[1]);
+        let composited = (luma * alpha + 255 * (255 - alpha) + 127) / 255;
+        image::Luma([composited as u8])
+    })
+}
+
 pub fn decode_image(bytes: &[u8]) -> Result<GrayImage, RasterError> {
     let img = decode_image_oriented(bytes)?;
 
-    let gray = img.to_luma8();
+    let gray = to_engraving_gray(&img);
 
     if gray.width() == 0 || gray.height() == 0 {
         return Err(RasterError::EmptyImage);
@@ -83,6 +100,24 @@ mod tests {
             )
             .unwrap();
         bytes
+    }
+
+    #[test]
+    fn transparent_pixels_decode_as_white() {
+        let rgba = image::RgbaImage::from_fn(2, 1, |x, _| {
+            if x == 0 {
+                image::Rgba([0, 0, 0, 0])
+            } else {
+                image::Rgba([0, 0, 0, 255])
+            }
+        });
+        let mut bytes = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut bytes)
+            .write_image(rgba.as_raw(), 2, 1, image::ExtendedColorType::Rgba8)
+            .unwrap();
+        let gray = decode_image(&bytes).unwrap();
+        assert_eq!(gray.get_pixel(0, 0)[0], 255, "transparent must not burn");
+        assert_eq!(gray.get_pixel(1, 0)[0], 0, "opaque black still burns");
     }
 
     #[test]

@@ -350,6 +350,27 @@ describe('MovePanel', () => {
     });
   });
 
+  it('keeps a held continuous jog running while the machine reports Jog', async () => {
+    connectMachine();
+    render(<MovePanel />);
+    const up = await screen.findByTitle('Jog Up');
+    fireEvent.pointerDown(up, { pointerId: 1 });
+    await waitFor(() => {
+      expect(machineService.jog).toHaveBeenCalledWith(0, expect.any(Number), expect.any(Number), null, true);
+    }, { timeout: 2000 });
+    // The controller now reports the jog in progress.
+    act(() => {
+      useMachineStore.setState({ machineStatus: makeMachineStatus({ run_state: 'jog' }) });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(machineService.jogCancel).not.toHaveBeenCalled();
+    expect((up as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.pointerUp(up, { pointerId: 1 });
+    await waitFor(() => {
+      expect(machineService.jogCancel).toHaveBeenCalled();
+    });
+  });
+
   it('shows a Stop Jog button while jogging that cancels the jog', async () => {
     connectMachine();
     useMachineStore.setState({
@@ -689,5 +710,20 @@ describe('unreferenced position guidance', () => {
     expect(screen.getByText(/Position not homed/)).toBeTruthy();
     act(() => useMachineStore.setState({ machineCoordinatesValid: true }));
     expect(screen.queryByText(/Position not homed/)).toBeNull();
+  });
+});
+
+describe('cancelling a jog press', () => {
+  it.each(['blur', 'pointercancel', 'unmount'])('%s before release never starts a jog', async (end) => {
+    connectMachine();
+    const { unmount } = render(<MovePanel />);
+    const up = await screen.findByTitle('Jog Up');
+    vi.mocked(machineService.jog).mockClear();
+    fireEvent.pointerDown(up, { pointerId: 1 });
+    expect(machineService.jog).not.toHaveBeenCalled();
+    if (end === 'unmount') unmount();
+    else fireEvent(window, new Event(end));
+    await act(async () => {});
+    expect(machineService.jog).not.toHaveBeenCalled();
   });
 });

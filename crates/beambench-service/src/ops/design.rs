@@ -936,36 +936,38 @@ fn commit_design_project(
     transaction_id: Uuid,
     warnings: &[String],
 ) -> ServiceResult<()> {
-    {
-        let mut guard = ctx
-            .project
-            .lock()
-            .map_err(|e| ServiceError::internal(format!("Failed to lock project: {e}")))?;
-        if guard.as_ref() != Some(&original) {
-            return Err(ServiceError::stale_revision(
-                "The project changed while the design transaction was running. Retry against the current project.",
-            ));
+    ctx.atomic_edit(|| {
+        {
+            let mut guard = ctx
+                .project
+                .lock()
+                .map_err(|e| ServiceError::internal(format!("Failed to lock project: {e}")))?;
+            if guard.as_ref() != Some(&original) {
+                return Err(ServiceError::stale_revision(
+                    "The project changed while the design transaction was running. Retry against the current project.",
+                ));
+            }
+            ctx.push_project_undo_snapshot(&original)
+                .map_err(ServiceError::internal)?;
+            project.dirty = true;
+            *guard = Some(project);
         }
-        ctx.push_project_undo_snapshot(&original)
-            .map_err(ServiceError::internal)?;
-        project.dirty = true;
-        *guard = Some(project);
-    }
-    planning::invalidate_plan_cache(ctx)?;
-    ctx.emit_event(
-        "project.design.transaction_applied",
-        json!({
-            "transaction_id": transaction_id,
-            "op_count": summary.op_count,
-            "created_object_ids": summary.created_object_ids,
-            "modified_object_ids": summary.modified_object_ids,
-            "deleted_object_ids": summary.deleted_object_ids,
-            "touched_layer_ids": summary.touched_layer_ids,
-            "touched_cut_entry_ids": summary.touched_cut_entry_ids,
-            "warnings": warnings,
-        }),
-    );
-    Ok(())
+        planning::invalidate_plan_cache(ctx)?;
+        ctx.emit_event(
+            "project.design.transaction_applied",
+            json!({
+                "transaction_id": transaction_id,
+                "op_count": summary.op_count,
+                "created_object_ids": summary.created_object_ids,
+                "modified_object_ids": summary.modified_object_ids,
+                "deleted_object_ids": summary.deleted_object_ids,
+                "touched_layer_ids": summary.touched_layer_ids,
+                "touched_cut_entry_ids": summary.touched_cut_entry_ids,
+                "warnings": warnings,
+            }),
+        );
+        Ok(())
+    })
 }
 
 fn build_summary(

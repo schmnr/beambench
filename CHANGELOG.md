@@ -2,6 +2,196 @@
 
 ## Unreleased
 
+- Keep asking a GRBL network controller for its status for up to 3 seconds,
+  so Wi-Fi bridges that are slow to answer the first query can connect. Only
+  read-only status and identity queries are sent while connecting.
+- Include network controller traffic in feedback reports, as serial
+  connections already do, so failed Wi-Fi connections show what the controller
+  sent back.
+- Opening a project that was moved or deleted now explains what happened and
+  removes it from Recent Projects, instead of showing a raw file system error.
+- Disconnecting during a GRBL job or jog now stops the machine first instead of
+  only closing the connection, and warns if the stop cannot be confirmed.
+- Emergency Stop sends the reset even when reading from the controller fails,
+  before trying to reconnect.
+- Emergency Stop and app shutdown no longer accept a controller that still
+  reports laser output as stopped.
+- Press-and-hold jogging works on machines whose coordinates are negative, and
+  one press never travels more than the bed size when the position is offset.
+- Pausing a GRBL job in spindle mode (`$32=0`) now turns the output off once
+  the machine is holding, so a paused job never burns one spot. Resume turns it
+  back on.
+- A GRBL job now stops with a clear message if the controller stops answering
+  for 15 seconds, instead of showing Running indefinitely. Homing commands in
+  custom job G-code are allowed to take longer.
+- If Pause cannot be sent, the job now stops and the machine is released,
+  instead of stalling while still showing Running.
+- Air-assist commands combined with other words (for example `M7 S0`) now wait
+  for the controller's acknowledgement before any following motion is sent.
+- Marlin, Snapmaker and Smoothieware: a job that fails partway now sends the
+  controller's emergency halt (M112) instead of leaving queued moves running,
+  Emergency Stop can resend it afterwards, and disconnecting during a job halts
+  the machine first.
+- xTool M1: Emergency Stop now confirms from the machine's own status that it
+  stopped, reports an unconfirmed stop instead of assuming success, and is no
+  longer held up by a slow Wi-Fi status check for more than a few seconds.
+  Disconnecting during a job explains that the job keeps running on the
+  machine.
+- If a job fails and the automatic stop that follows also fails, Beam Bench now
+  says so and asks you to use the machine's physical stop.
+- Ruida and Lihuiyu recovery errors now include physical-stop guidance.
+- After a USB laser is unplugged or reset, Beam Bench no longer reconnects to a
+  different device that happens to use the same USB chip (common with CH340
+  boards). A renamed port is followed only when it is clearly the same device.
+- Replies already received from the controller are no longer lost when a later
+  read fails, and USB input without line endings is now bounded.
+- Press-and-hold jogging keeps moving while the button is held. It previously
+  stopped itself as soon as the machine reported it was jogging.
+- Test fire: if starting fails after the command may have reached the machine,
+  the laser is turned back off; moving, jogging and homing are refused while
+  test fire is held; and a failed laser-off during disconnect now falls back to
+  a controller reset instead of being ignored.
+- Emergency Stop no longer waits behind slow actions such as Check Job on a
+  large image or connecting, and those actions no longer freeze the window.
+- USB reconnect requires a matching device serial number before following a
+  renamed port, and rejects a reused port with a different known identity.
+- Failed test-fire starts retain laser-off retries when the first stop fails;
+  motion stays blocked until the stop succeeds. Manual motion and fire start
+  are synchronized so fire cannot begin between a safety check and a move.
+- Marlin and Smoothieware now report a failed automatic emergency halt alongside
+  the original job error, including physical-stop guidance.
+- Reduce travel moves no longer changes layer order, mixes passes, or cuts an
+  outline before the holes inside it; it now only reorders shapes within each
+  layer pass.
+- Fill and Offset Fill honor each object's power scale; an object set to 0%
+  power no longer burns. Inner-first cutting also works when objects use
+  different power scales. Mixed-power fills preserve holes and overlap
+  cancellation, and burn each surviving region once.
+- 180 and 270 degree scan angles engrave the image in place instead of
+  rotating it, so crosshatch passes line up.
+- Angled scans no longer distort images with non-square pixels. Rotated
+  bitmap limits are checked before allocating memory.
+- Transparent areas of images in older projects no longer engrave black.
+- Remove overlapping no longer deletes shapes that only resemble another. It
+  also preserves group order when objects use different power scales.
+- Images and fills are placed half a line more accurately, and filled shapes
+  no longer engrave slightly wider than their outline.
+- Very large fills at a tiny line interval are rejected up front instead of
+  exhausting memory.
+- The preview shows full detail for large fills, and closed shapes count their
+  final edge in distance and time estimates.
+- A plan warning now explains when an image is on a layer that cannot engrave
+  it. Multi-pass Offset Fill and jobs with many tabs plan faster.
+- A settings, material or macro file that cannot be read is no longer replaced
+  with defaults on the next save. Beam Bench keeps a copy of the original,
+  restores every setting it can still read (such as machine profiles), and
+  says so at startup.
+- Opening an older project that mixed images and vector shapes on one layer no
+  longer turns disabled or hidden artwork back on. Beam Bench now says when it
+  reorganized layers.
+- Restoring a crash-recovery copy keeps that copy until you save, so a second
+  crash loses nothing, and Save goes back to the original project file.
+- Projects from a newer Beam Bench file format are refused with a clear
+  message instead of opening with settings silently dropped. Projects last
+  saved by a newer version open with a warning.
+- Project saves keep the file's permissions and follow symbolic links, and
+  settings and projects are flushed to disk before they replace the old file.
+- Importing preferences backs up the current settings before replacing them.
+- PDF, EPS and AI exports are no longer upside down and now include images.
+  Design exports leave out hidden layers (such as PDF clipping masks) and
+  replace the destination only once the export is complete.
+- DXF, EPS and AI imports are no longer upside down. Their bottom-left corner
+  lines up with the bed's bottom-left, matching exports, so files round-trip.
+- SVG import: text follows the document's scaling and group transforms,
+  rotated or skewed text imports as outlines
+  instead of disappearing, clip paths are applied, hidden shapes are skipped,
+  and image links to files on this computer are no longer read.
+- Very large vector files and files with more than 250,000 shapes are refused
+  with an explanation instead of exhausting memory.
+- Editing a node on a shape that was moved or resized no longer makes the
+  shape jump back to where it was first drawn, and trimming a rotated shape no
+  longer rotates it a second time.
+- A failed edit now changes nothing. Previously some failures left a half
+  finished change behind, such as a linked clone becoming unlinked, and
+  cleared Redo. Undo after editing a clone's nodes now restores the link.
+- If an edit hits an internal error it is undone, and saving keeps working
+  instead of failing until the app restarts.
+- Beam Bench no longer saves a project it could not open again. A change that
+  would push an object beyond the range it can store is refused, and a save
+  names the object with an invalid size or position instead of writing it.
+- Delete inside a group (after double-clicking into it) removes only the
+  selected objects, not the whole group. Deleting objects also removes them
+  from their groups, and groups left empty are removed.
+- Copy Along Path on a closed shape places the number of copies you asked for.
+- Slow actions (import, export, offset, boolean operations, optimize, arrays,
+  convert to bitmap, Nest Selected and autosave) no longer freeze the window,
+  so Emergency Stop stays responsive while they run.
+- Beam Bench warns when automatic recovery copies keep failing, and undo
+  history is limited by memory as well as step count on very large designs.
+- Grid and circular arrays and Copy Along Path are limited to 100 copies per
+  axis for every caller, matching the dialogs.
+- Pressing a jog button and then switching windows, closing the Move panel or
+  losing the connection no longer starts a jog. Only releasing the button
+  completes a tap.
+- The toolbar New and Open buttons now ask about unsaved changes, like the
+  menus and shortcuts.
+- If a job stops with an error, the reason stays on screen until you dismiss
+  it, so it is still there if you were away from the machine.
+- Property fields (power, speed, line interval and others) save when you leave
+  the field or press Enter, within their allowed range, instead of on every
+  keystroke. Typing a value is one undo step.
+- Opening a project while an earlier refresh is still loading no longer brings
+  the earlier project back, refreshing no longer drops a vector's rotation,
+  a nudge is never applied twice, and the machine panel no longer shows Ready
+  after you disconnect.
+- Switching tools or losing the pointer mid-drag puts objects back where they
+  were, a two-point scale and rotate is one undo step, and a slow text or warp
+  result no longer interferes with what you are doing now.
+- Machine, camera, update and variable text messages are translated, and a
+  save error that happens to contain the word "cancelled" is no longer hidden.
+- Opening Beam Bench a second time brings the open window to the front, and
+  another program using its port no longer stops it from starting. The app
+  window now runs with a content security policy.
+- The local API refuses requests addressed to any host other than this
+  computer, which blocks DNS-rebinding web pages from reading project data.
+  Allowing network devices now requires an access token
+  (`BEAMBENCH_API_TOKEN`, see docs/cli.md); without one the network API does
+  not start. Files served by the API cannot run scripts.
+- Updated the TLS library used for updates and feedback to fix a published
+  vulnerability.
+- Emergency Stop is no longer held up while a large job is being prepared,
+  and on the xTool M1 it is sent on its own connection so a status check or
+  upload in progress cannot delay it.
+- Cancelling a GRBL job now confirms the machine stopped, like Emergency Stop,
+  and warns if it cannot. Cancelling while disconnected clears the job.
+- Disconnecting during a job no longer reports a spurious "job failed".
+- Test Fire still held when a job starts now blocks the start instead of
+  running into the job.
+- Custom header, footer and air-assist G-code that switches to relative or
+  inch mode no longer changes how the job's own moves are read.
+- Very slow speeds are written with decimals (for example F0.4) instead of
+  F0, which GRBL rejects.
+- Older GRBL 0.9 boards: their text error and alarm messages now stop the job
+  with the controller's own message.
+- xTool M1: a slow Wi-Fi reply no longer marks a running job as failed. Beam
+  Bench only gives up after 20 seconds without an answer.
+- Opening another project while an edit, ruler guide or material preset is
+  still finishing no longer changes the newly opened project. Switching
+  cameras no longer lets the previous camera's calibration overwrite the new
+  one.
+- Choosing an API port that is already taken keeps the API running on its
+  current port. Resetting or importing preferences that cannot be applied no
+  longer saves them anyway.
+- The job check before starting now shows every common check in your
+  language, and bed sizes, bounds, overscan and speed suggestions in your
+  chosen unit (millimetres or inches).
+- Connection failures now explain what to try (power, cable, USB driver,
+  baud rate, other software holding the port) in your language instead of
+  showing an internal code. Unconfirmed stops and lost connections show the
+  safety instruction in your language too.
+- Using the camera before a machine is set up now says to add a machine
+  first.
+
 ## 0.2.25
 
 - Translate the network connection label and job preparation/sleep warnings in

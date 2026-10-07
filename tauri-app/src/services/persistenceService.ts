@@ -238,8 +238,9 @@ export const persistenceService = {
     return invoke<RecoveryInfo[]>('check_recovery_files');
   },
 
-  async restoreRecovery(recoveryPath: string): Promise<Project> {
-    return invoke<Project>('restore_recovery', { recoveryPath });
+  /** Restore a recovery copy; `path` is the project file it saves back to. */
+  async restoreRecovery(recoveryPath: string): Promise<{ project: Project; path: string | null }> {
+    return invoke<{ project: Project; path: string | null }>('restore_recovery', { recoveryPath });
   },
 
   async discardRecovery(recoveryPath: string): Promise<void> {

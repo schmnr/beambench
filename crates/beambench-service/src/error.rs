@@ -89,3 +89,11 @@ impl From<ServiceError> for String {
 }
 
 pub type ServiceResult<T> = Result<T, ServiceError>;
+
+impl From<ServiceError> for beambench_core::QualityTestError {
+    fn from(error: ServiceError) -> Self {
+        beambench_core::QualityTestError::Internal {
+            message: error.message,
+        }
+    }
+}

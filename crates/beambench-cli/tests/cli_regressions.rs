@@ -32,11 +32,19 @@ impl Sandbox {
     }
 
     fn run(&self, args: &[&str]) -> Output {
+        self.run_with_token(args, "")
+    }
+
+    fn run_with_token(&self, args: &[&str], token: &str) -> Output {
         let mut child = Command::new(env!("CARGO_BIN_EXE_beambench-cli"))
             .args(args)
+            // This is the shipped CLI, not a nextest test process. It must use
+            // the deliberately supplied application sandbox below.
+            .env_remove("NEXTEST_EXECUTION_MODE")
             .current_dir(self.0.path())
             .env("BEAMBENCH_CONFIG_DIR", self.0.path())
             .env("BEAMBENCH_DATA_DIR", self.0.path().join("data"))
+            .env("BEAMBENCH_API_TOKEN", token)
             // A local API request must bypass inherited proxy configuration.
             .env("HTTP_PROXY", "http://127.0.0.1:1")
             .env("ALL_PROXY", "http://127.0.0.1:1")
@@ -103,6 +111,7 @@ struct Request {
     method: String,
     path: String,
     body: Value,
+    authorization: Option<String>,
 }
 struct Reply {
     status: u16,
@@ -130,6 +139,7 @@ fn shipped_cli_edits_previews_exports_and_undoes_against_real_api() {
         ..Default::default()
     };
     sandbox.settings(&settings);
+    let api_config = beambench_api::ApiConfig::from_settings(&settings);
     let ctx = Arc::new(beambench_service::ServiceContext::with_settings(settings));
     *ctx.project.lock().unwrap() = Some(project.clone());
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -139,7 +149,7 @@ fn shipped_cli_edits_previews_exports_and_undoes_against_real_api() {
         .unwrap();
     let _entered = runtime.enter();
     let listener = tokio::net::TcpListener::from_std(listener).unwrap();
-    let api = beambench_api::server::ApiServer::new(Default::default(), ctx.clone());
+    let api = beambench_api::server::ApiServer::new(api_config, ctx.clone());
     let server = runtime.spawn(async move {
         api.run_with_listener(listener).await.unwrap();
     });
@@ -410,6 +420,11 @@ impl MockApi {
                 }
                 let mut line = headers.lines().next().unwrap().split_whitespace();
                 captured.lock().unwrap().push(Request {
+                    authorization: headers.lines().find_map(|line| {
+                        let (name, value) = line.split_once(':')?;
+                        name.eq_ignore_ascii_case("authorization")
+                            .then(|| value.trim().to_owned())
+                    }),
                     method: line.next().unwrap().to_string(),
                     path: line.next().unwrap().to_string(),
                     body: if content_length == 0 {
@@ -1081,5 +1096,20 @@ fn incomplete_masked_image_plan_cannot_be_exported_or_reported_as_a_dry_run() {
     assert_eq!(
         std::fs::read_to_string(sandbox.0.path().join("out.gcode")).unwrap(),
         "original"
+    );
+}
+
+#[test]
+fn cli_sends_network_api_token_as_bearer_header() {
+    let sandbox = Sandbox::new();
+    let api = MockApi::new(&sandbox, vec![reply(200, json!({"project":null}))]);
+    let token = "0123456789abcdef0123456789abcdef";
+    json_output(
+        &sandbox.run_with_token(&["agent", "state", "--json"], token),
+        0,
+    );
+    assert_eq!(
+        api.requests()[0].authorization.as_deref(),
+        Some("Bearer 0123456789abcdef0123456789abcdef")
     );
 }

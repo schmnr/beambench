@@ -6,7 +6,7 @@ import { computeVisualBoundsWorld } from '../alignment';
 import { vectorService } from '../../services/vectorService';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { usePreviewStore } from '../../stores/previewStore';
-import { useProjectStore } from '../../stores/projectStore';
+import { getDocumentGeneration, useProjectStore } from '../../stores/projectStore';
 import { useUndoStore } from '../../stores/undoStore';
 import { useUiStore, type MeshDeformMode } from '../../stores/uiStore';
 import { resolveEffectiveData } from '../../commands/selectionContext';
@@ -122,6 +122,8 @@ export class SelectionMeshDeformTool implements CanvasTool {
   private previewObjects: MeshDeformPreviewObject[] = [];
   private livePreviewActive = false;
   private applying = false;
+  /** Bumped by reset, so a deform that finishes later cannot reset a newer gesture. */
+  private generation = 0;
   private hoveredIndex: number | null = null;
   private activeIndex: number | null = null;
 
@@ -293,6 +295,7 @@ export class SelectionMeshDeformTool implements CanvasTool {
     this.applying = false;
     this.hoveredIndex = null;
     this.activeIndex = null;
+    this.generation += 1;
   }
 
   private syncGrid(ctx: ToolContext): boolean {
@@ -428,6 +431,9 @@ export class SelectionMeshDeformTool implements CanvasTool {
   ): Promise<void> {
     const label = this.labelForMode(mode);
     ctx.setStatusMessage(i18n.t('canvas_status.applying_label', { label }));
+    const generation = this.generation;
+    const projectId = useProjectStore.getState().project?.metadata.project_id;
+    const documentGeneration = getDocumentGeneration();
     try {
       const updated = await vectorService.meshDeformSelection(
         ids,
@@ -436,8 +442,13 @@ export class SelectionMeshDeformTool implements CanvasTool {
         this.gridSizeForMode(mode),
         mode === 'warp',
       );
+      if (documentGeneration !== getDocumentGeneration()
+        || projectId !== useProjectStore.getState().project?.metadata.project_id) return;
       const updatedMap = new Map(updated.map((object) => [object.id, object]));
-      this.reset();
+      // The result belongs in the project either way, but the tool state now
+      // belongs to a newer gesture if the tool was reset meanwhile.
+      const current = generation === this.generation;
+      if (current) this.reset();
       useProjectStore.setState((state) => {
         if (!state.project) return state;
         return {
@@ -450,12 +461,16 @@ export class SelectionMeshDeformTool implements CanvasTool {
       });
       usePreviewStore.getState().invalidate();
       await useUndoStore.getState().refresh();
-      ctx.setStatusMessage('');
+      if (current) ctx.setStatusMessage('');
       this.requestOverlayRender(ctx);
     } catch (error) {
+      if (documentGeneration !== getDocumentGeneration()
+        || projectId !== useProjectStore.getState().project?.metadata.project_id) return;
       const message = String(error);
-      this.livePreviewActive = false;
-      this.applying = false;
+      if (generation === this.generation) {
+        this.livePreviewActive = false;
+        this.applying = false;
+      }
       ctx.setStatusMessage(message);
       useNotificationStore.getState().push(message, 'error');
       ctx.requestRender();

@@ -2,6 +2,11 @@ import { useEffect, useRef } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { useProjectStore } from '../stores/projectStore';
 import { persistenceService } from '../services/persistenceService';
+import { useNotificationStore } from '../stores/notificationStore';
+import i18n from '../i18n';
+
+/** Consecutive failures before the user is told that crash protection is off. */
+const AUTOSAVE_FAILURES_BEFORE_WARNING = 3;
 
 /**
  * Autosave hook: periodically saves a recovery copy of the project
@@ -12,6 +17,7 @@ export function useAutosave() {
   const project = useProjectStore((s) => s.project);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
+  const failuresRef = useRef(0);
 
   const enabled = settings?.autosave_enabled ?? true;
   const intervalSecs = settings?.autosave_interval_secs ?? 120;
@@ -44,8 +50,16 @@ export function useAutosave() {
       inFlightRef.current = true;
       try {
         await persistenceService.autosave();
+        failuresRef.current = 0;
       } catch {
-        // Autosave failures are silent — they shouldn't interrupt the user
+        // One failure is not worth interrupting for, but a run of them means
+        // there is no recovery copy if the app quits unexpectedly.
+        failuresRef.current += 1;
+        if (failuresRef.current === AUTOSAVE_FAILURES_BEFORE_WARNING) {
+          useNotificationStore
+            .getState()
+            .push(i18n.t('notifications.autosave_failing'), 'warning');
+        }
       } finally {
         inFlightRef.current = false;
         scheduleNext();

@@ -498,6 +498,31 @@ pub fn circular_array(
     results
 }
 
+/// The contour copies follow: the guide's first contour, with a closed
+/// contour's closing edge included.
+fn copy_guide_points(guide: &VecPath) -> Vec<Point2D> {
+    let Some(first) = flatten_vecpath(guide, DEFAULT_TOLERANCE_MM)
+        .into_iter()
+        .next()
+    else {
+        return Vec::new();
+    };
+    let mut points = first.points;
+    if first.closed && points.len() > 1 && points.first() != points.last() {
+        points.push(points[0]);
+    }
+    points
+}
+
+/// Length of the contour `copy_along_path` places copies on, so spacing for
+/// a requested count is measured on the same contour.
+pub fn copy_along_path_guide_length(guide: &VecPath) -> f64 {
+    copy_guide_points(guide)
+        .windows(2)
+        .map(|segment| segment[0].distance_to(&segment[1]))
+        .sum()
+}
+
 /// Copy an object along a path at regular intervals.
 pub fn copy_along_path(
     source: &ProjectObject,
@@ -507,20 +532,13 @@ pub fn copy_along_path(
     scale_copies: bool,
     final_scale_percent: f64,
 ) -> Vec<ProjectObject> {
-    let polylines = flatten_vecpath(guide, DEFAULT_TOLERANCE_MM);
-
-    if polylines.is_empty() {
-        return vec![];
-    }
-
-    // Use first polyline for now
-    let points = &polylines[0].points;
+    let points = copy_guide_points(guide);
     if points.len() < 2 {
         return vec![];
     }
 
     // Compute arc length samples
-    let samples = sample_path_at_intervals(points, spacing_mm);
+    let samples = sample_path_at_intervals(&points, spacing_mm);
 
     let mut results = Vec::new();
 
@@ -1485,6 +1503,26 @@ mod tests {
     }
 
     // ── Copy Along Path Tests ─────────────────────────────
+
+    #[test]
+    fn copy_along_closed_guide_uses_its_closing_edge() {
+        let source = ProjectObject::new(
+            "dot",
+            crate::layer::LayerId::new(),
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(1.0, 1.0)),
+            ObjectData::Shape {
+                kind: crate::object::ShapeKind::Rectangle,
+                width: 1.0,
+                height: 1.0,
+                corner_radius: 0.0,
+            },
+        );
+        let guide = VecPath::parse_svg_d("M0 0 L10 0 L10 10 L0 10 Z");
+        let length = copy_along_path_guide_length(&guide);
+        assert!((length - 40.0).abs() < 1e-9, "{length}");
+        let copies = copy_along_path(&source, &guide, length / 4.0, false, false, 100.0);
+        assert_eq!(copies.len(), 4);
+    }
 
     #[test]
     fn copy_along_path_creates_copies() {

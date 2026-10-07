@@ -171,12 +171,20 @@ fn activate_candidate(
 ) -> ServiceResult<AppSettings> {
     beambench_core::settings::normalize_display_language(&mut candidate);
     validate_app_settings(&candidate)?;
-    persist::save_settings(&candidate).map_err(|e| {
-        ServiceError::persistence(format!("Failed to persist imported preferences: {e}"))
-    })?;
+    // Back up first: if the backup fails, nothing has changed on disk.
     save_current_backup(&current)?;
+    // Activate before saving, so preferences the app rejects (for example an
+    // API port that is taken) are never written to disk.
     ctx.apply_settings_side_effects(&candidate)
         .map_err(ServiceError::internal)?;
+    if let Err(e) = persist::save_settings(&candidate) {
+        if let Err(restore) = ctx.apply_settings_side_effects(&current) {
+            tracing::warn!(error = %restore, "Failed to restore settings after a failed save");
+        }
+        return Err(ServiceError::persistence(format!(
+            "Failed to persist imported preferences: {e}"
+        )));
+    }
     {
         let mut settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
         *settings = candidate.clone();
@@ -213,6 +221,10 @@ pub fn import_preferences_from_path(
     path: &Path,
 ) -> ServiceResult<AppSettings> {
     let payload = parse_preference_payload(path)?;
+    let _edit = ctx
+        .settings_edit_gate
+        .lock()
+        .map_err(|e| lock_err("settings_edit_gate", e))?;
     let current = ctx
         .settings
         .lock()
@@ -223,6 +235,10 @@ pub fn import_preferences_from_path(
 }
 
 pub fn reset_preferences_to_defaults(ctx: &ServiceContext) -> ServiceResult<AppSettings> {
+    let _edit = ctx
+        .settings_edit_gate
+        .lock()
+        .map_err(|e| lock_err("settings_edit_gate", e))?;
     let current = ctx
         .settings
         .lock()
@@ -399,5 +415,21 @@ mod tests {
         assert!(err.to_string().contains("parse"));
         assert!(persist::list_preferences_backups().unwrap().is_empty());
         assert!(ctx.settings.lock().unwrap().autosave_enabled);
+    }
+
+    #[test]
+    fn rejected_preference_reset_leaves_disk_unchanged() {
+        let _guard = crate::test_support::PersistTestGuard::new();
+        let current = AppSettings {
+            autosave_enabled: false,
+            ..Default::default()
+        };
+        persist::save_settings(&current).unwrap();
+        let ctx = ServiceContext::with_settings(current);
+        ctx.set_settings_applier(|_| Err("Injected API binding failure".to_string()))
+            .unwrap();
+        assert!(reset_preferences_to_defaults(&ctx).is_err());
+        assert!(!ctx.settings.lock().unwrap().autosave_enabled);
+        assert!(!persist::load_settings().autosave_enabled);
     }
 }

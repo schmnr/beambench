@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { PreflightDialog } from '../PreflightDialog';
 import type { PreflightReport } from '../../../types/machine';
+import type { AppSettings } from '../../../types/commands';
+import { useAppStore } from '../../../stores/appStore';
 
 afterEach(cleanup);
 
@@ -89,12 +91,27 @@ describe('PreflightDialog', () => {
   it('localizes segment counts and failed bed bounds', () => {
     const report = makeReport('fail');
     report.checks = [
-      { category: 'plan', description: 'Plan has segments', passed: true, message: '1827 segments' },
+      {
+        category: 'plan',
+        description: 'Plan has segments',
+        passed: true,
+        message: '1827 segments',
+        detail: { kind: 'segment_count', count: 1827 },
+      },
       {
         category: 'bounds',
         description: 'Plan fits within machine bed',
         passed: false,
         message: 'Plan bounds (-8.1,9.3 to 156.0,143.3) exceed bed (300x300mm)',
+        detail: {
+          kind: 'plan_bounds',
+          min_x: -8.1,
+          min_y: 9.3,
+          max_x: 156,
+          max_y: 143.3,
+          bed_width: 300,
+          bed_height: 300,
+        },
       },
     ];
 
@@ -112,6 +129,7 @@ describe('PreflightDialog', () => {
       description: 'Raster motion (overscan and scanning offset) fits within machine bed',
       passed: false,
       message: 'Raster motion spans -15.9 to 156.1mm on the 0 to 300mm X axis (8.0mm of overscan and scanning offset beyond the burn area). Reduce overscan or move the design further from the bed edge.',
+      detail: { kind: 'raster_motion', axis: 'X', lo: -15.9, hi: 156.1, limit: 300, margin: 8 },
     }];
 
     render(
@@ -124,5 +142,31 @@ describe('PreflightDialog', () => {
 
     expect(screen.getByText(/move or reset User Origin farther from the bed edge/i)).toBeTruthy();
     expect(screen.queryByText(/move the design further/i)).toBeNull();
+  });
+
+  it('shows bounds, machine state and advisories in inches for inch users', () => {
+    useAppStore.setState({ settings: { display_unit: 'inches', speed_time_unit: 'minutes' } as AppSettings });
+    const report = makeReport('fail');
+    report.checks = [
+      {
+        category: 'machine',
+        description: 'Machine is idle',
+        passed: false,
+        message: 'Machine state: Alarm',
+        detail: { kind: 'machine_state', state: 'alarm' },
+      },
+      {
+        category: 'bounds',
+        description: 'Plan fits within machine bed',
+        passed: false,
+        message: 'Plan bounds (-25.4,0.0 to 254.0,254.0); bed 254x254mm',
+        detail: { kind: 'plan_bounds', min_x: -25.4, min_y: 0, max_x: 254, max_y: 254, bed_width: 254, bed_height: 254 },
+      },
+    ];
+    render(<PreflightDialog report={report} onClose={vi.fn()} />);
+    expect(screen.getByText('Machine state: ALARM')).toBeTruthy();
+    expect(screen.getByText(/\(-1, 0 to 10, 10\) exceed the 10 × 10 in machine bed/)).toBeTruthy();
+    cleanup();
+    useAppStore.setState({ settings: null });
   });
 });

@@ -371,8 +371,8 @@
       "outcome_fail": "Neuspešno",
       "warnings_block_start": "Pred zagonom opravila odpravite zgornja opozorila.",
       "advisory_choice": "To opravilo se lahko izvaja, vendar lahko popravek nasveta izboljša kakovost graviranja.",
-      "apply_overscan": "Uporabite {value} mm overscan in ponovno preverite",
-      "reduce_speed": "Uporabite {value} mm/min in ponovno preverite",
+      "apply_overscan": "Uporabite {value} {unit} overscan in ponovno preverite",
+      "reduce_speed": "Uporabite {value} {unit} in ponovno preverite",
       "continue_anyway": "Vseeno nadaljujte",
       "categories": {
         "connection": "Povezava",
@@ -382,7 +382,9 @@
         "settings": "nastavitve",
         "positioning": "Pozicioniranje",
         "planner": "Planer",
-        "machine_workspace": "Delovni prostor stroja"
+        "machine_workspace": "Delovni prostor stroja",
+        "controller": "Krmilnik",
+        "rotary": "Rotacijska enota"
       },
       "checks": {
         "session_ready": "Seja je pripravljena",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Rastrsko gibanje se prilega postelji stroja",
         "laser_mode": "Laserski način je omogočen ($32=1)",
         "homing_enabled": "Domovanje je omogočeno",
-        "relative_framed": "Relativna postavitev je bila uokvirjena na trenutni položaj"
+        "relative_framed": "Relativna postavitev je bila uokvirjena na trenutni položaj",
+        "machine_workspace_fits": "Načrtovano gibanje ustreza profilu stroja",
+        "rotary_safe": "Nastavitev rotacijske enote je varna",
+        "controller_supported": "Krmilnik lahko zažene opravila",
+        "image_detail_fits": "Podrobnost slike ustreza krmilniku",
+        "plan_generation": "Priprava opravila",
+        "ruida_compiles": "Opravilo je mogoče pretvoriti za krmilnik Ruida",
+        "lihuiyu_compiles": "Opravilo je mogoče pretvoriti za krmilnik Lihuiyu M2"
       },
       "messages": {
         "connected_ready": "Povezan in pripravljen",
@@ -406,8 +415,11 @@
         "frame_required": "Ta krmilnik ni domač, zato Beam Bench ne more preveriti fizičnih robov postelje. Po namestitvi laserja uokvirite opravilo in ga pred začetkom ponovno preverite.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segmentov",
-        "plan_bounds_exceed": "Načrtovane meje ({minX}, {minY} do {maxX}, {maxY}) presegajo delovno območje stroja {width} × {height} mm.",
-        "raster_motion_exceeds": "Rastrsko gibanje sega od {lo} do {hi} mm na osi {axis}, katere območje je od 0 do {limit} mm. Prekoračitev in zamik skeniranja dodata {margin} mm zunaj območja graviranja. {startFrom, select, current_position {Zmanjšajte prekoračitev ali premaknite laser dlje od roba delovnega območja.} user_origin {Zmanjšajte prekoračitev ali premaknite oziroma znova nastavite Uporabniško izhodišče dlje od roba delovnega območja.} other {Zmanjšajte prekoračitev ali premaknite motiv dlje od roba delovnega območja.}}"
+        "plan_bounds_exceed": "Načrtovane meje ({minX}, {minY} do {maxX}, {maxY}) presegajo delovno območje stroja {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Rastrsko gibanje sega od {lo} do {hi} {unit} na osi {axis}, katere območje je od 0 do {limit} {unit}. Prekoračitev in zamik skeniranja dodata {margin} {unit} zunaj območja graviranja. {startFrom, select, current_position {Zmanjšajte prekoračitev ali premaknite laser dlje od roba delovnega območja.} user_origin {Zmanjšajte prekoračitev ali premaknite oziroma znova nastavite Uporabniško izhodišče dlje od roba delovnega območja.} other {Zmanjšajte prekoračitev ali premaknite motiv dlje od roba delovnega območja.}}",
+        "session_state": "Povezava: {state}",
+        "machine_state": "Stanje stroja: {state}",
+        "plan_bounds_fit": "Načrtovane meje ({minX}, {minY} do {maxX}, {maxY}) se prilegajo delovni površini stroja {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "Prenašanje...",
       "installing": "Nameščanje...",
       "blocked_not_in_applications": "Posodobitve zahtevajo, da se Beam Bench izvaja iz mape Aplikacije. Videti je, da se izvaja iz namestitvene slike diska ali z drugega začasnega mesta. V Finderju povlecite Beam Bench v mapo Aplikacije, ga odprite od tam in znova poskusite s posodobitvijo.",
-      "blocked_other_disk": "Beam Bench je nameščen na drugem disku kot začasna mapa tega Maca, zato ga posodobitev ne more zamenjati. Premaknite Beam Bench v mapo Aplikacije na glavnem disku ali prenesite novo različico s beambench.com."
+      "blocked_other_disk": "Beam Bench je nameščen na drugem disku kot začasna mapa tega Maca, zato ga posodobitev ne more zamenjati. Premaknite Beam Bench v mapo Aplikacije na glavnem disku ali prenesite novo različico s beambench.com.",
+      "blocked_job_running": "Pred namestitvijo dokončajte ali ustavite trenutno opravilo.",
+      "blocked_machine_operation": "Pred namestitvijo počakajte, da se trenutna operacija stroja konča.",
+      "blocked_machine_busy": "Pred namestitvijo dokončajte ali ustavite trenutno operacijo stroja.",
+      "blocked_machine_moving": "Pred namestitvijo počakajte, da stroj spet miruje.",
+      "cancelled_unsaved": "Posodobitev preklicana. Projekt ni bil zavržen."
     },
     "camera_calibration": {
       "title": "Preslikava kamere",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} vrstic",
         "elapsed": "Preteklo: {time}",
         "remaining": "Preostalo: ~{time}",
-        "finishing": "Zaključevanje, čakanje na stroj..."
+        "finishing": "Zaključevanje, čakanje na stroj...",
+        "last_failure": "Zadnje opravilo se je ustavilo: {message}"
       },
       "overrides": {
         "title": "Prekoračitve",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Nastavitve ponastavljene na privzete.",
     "layout_restore_failed": "Shranjene postavitve podoken ni bilo mogoče obnoviti. Za to sejo se uporablja privzeta postavitev.",
     "recovery_check_failed": "Med zagonom ni bilo mogoče preveriti datotek za obnovitev.",
+    "autosave_failing": "Samodejne obnovitvene kopije ne uspevajo. Shranite projekt, da bo vaše delo varno.",
     "backend_subscribe_failed": "Ni se mogoče naročiti na dogodke zaledja. Nekatere posodobitve v živo morda v tej seji ne bodo na voljo.",
     "boolean_needs_two": "Izberite natanko 2 zaprta vektorska predmeta za Pomočnika za logične operacije",
     "project_restored": "Projekt obnovljen iz obnovitve",
@@ -2587,7 +2606,50 @@
       "postponed": "Opomnik za posodobitev odložen za 24 ur.",
       "skipped": "Beam Bench {version} preskočen."
     },
-    "import_oversized": "Uvoženo v izvirni velikosti: načrt meri {width} x {height} {unit}, kar je več od delovne površine {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Uvoženo v izvirni velikosti: načrt meri {width} x {height} {unit}, kar je več od delovne površine {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Uporablja se obstoječa povezava s strojem",
+      "preview_disconnected": "Predogledni stroj odklopljen",
+      "disconnected": "Odklopljeno",
+      "preview_connected": "Predogledni stroj povezan",
+      "homing_started": "Iskanje izhodišča začeto",
+      "discovery_started": "Iskanje strojev začeto",
+      "discovery_cancelled": "Iskanje strojev preklicano",
+      "connected_discovered": "Povezano z najdeno napravo",
+      "profile_from_discovery": "Profil stroja ustvarjen iz najdene naprave",
+      "estop_sent": "Zasilna zaustavitev poslana",
+      "estop_resent_disconnected": "Zasilna zaustavitev je bila znova poslana po ponovnem odprtju povezave s krmilnikom. Nato je Beam Bench prekinil povezavo. Pred nadaljevanjem se znova povežite.",
+      "user_origin_cleared": "Uporabniško izhodišče počiščeno",
+      "job_tick_failed": "Opravilo se je ustavilo, ker pošiljanje krmilniku ni uspelo.",
+      "lihuiyu_incomplete": "Povezava USB Lihuiyu ni bila dokončana.",
+      "connected_to": "Povezano z {name}",
+      "user_origin_set": "Uporabniško izhodišče nastavljeno na ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Zajet nov posnetek kamere",
+      "alignment_saved": "Poravnava kamere shranjena",
+      "mapping_solved": "Preslikava kamere izračunana",
+      "mapping_saved": "Preslikava kamere shranjena",
+      "mapping_reset": "Preslikava kamere ponastavljena",
+      "alignment_solved": "Poravnava kamere izračunana",
+      "alignment_reset": "Poravnava kamere ponastavljena"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Predloga uporablja nadomestne oznake {placeholder}, vendar način besedila ni Serijska številka.",
+      "date_outside_mode": "Predloga uporablja nadomestne oznake {placeholder}, vendar način besedila ni Datum/čas.",
+      "csv_outside_mode": "Predloga uporablja nadomestne oznake {placeholder}, vendar način besedila ni Spajanje CSV.",
+      "cut_outside_mode": "Predloga uporablja nadomestne oznake {placeholder}, vendar način besedila ni Nastavitev reza.",
+      "no_placeholders": "Izbrani način besedila nima ustreznih nadomestnih oznak v predlogi.",
+      "csv_load_failed": "Datoteke CSV ni bilo mogoče naložiti: {error}",
+      "resolve_failed": "Besedila ni bilo mogoče razrešiti: {error}",
+      "merge_fields_failed": "Polj za spajanje ni bilo mogoče prebrati: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Obrezovanje je ustvarilo več kosov. Izberite jih in jih združite z ukazom Zapri in združi.",
+      "open_path": "Obrezana pot je odprta, zato je ni mogoče zapolniti. Če potrebujete zaprto obliko, uporabite Zapri in združi."
+    },
+    "pick_guide_path": "Kliknite vektorski predmet ali obliko, ki bo vodilna pot",
+    "panel_layout_save_failed": "Sprememb razporeditve plošč ni bilo mogoče shraniti. Ob ponovnem zagonu se lahko izgubijo."
   },
   "status": {
     "preview_in_progress": "Ustvarjanje predogleda",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "Med pripravo opravila je bila pritisnjena zaustavitev v sili. Nič ni bilo poslano.",
     "sleep_protection_failed": "Med tem opravilom ni bilo mogoče preprečiti prehoda računalnika v stanje spanja. Računalnik naj ostane buden do konca opravila.",
+    "project_file_missing": "Ta projektna datoteka je bila premaknjena ali izbrisana, zato je bila odstranjena iz menija {recent}. Poiščite jo z {open}.",
+    "settings_file_recovered": "Nekaterih shranjenih nastavitev ni bilo mogoče prebrati, zato so bile ponastavljene. Kopija izvirne datoteke je ostala v mapi z nastavitvami.",
+    "layers_migrated_on_open": "Ta projekt je imel slike in vektorske oblike na isti plasti. Premaknjene so bile na ločene plasti z enakimi nastavitvami.",
+    "project_too_new": "Ta projekt je bil ustvarjen z novejšo različico programa Beam Bench ({version}). Za odpiranje posodobite Beam Bench.",
+    "project_from_newer_app": "Ta projekt je bil nazadnje shranjen z novejšo različico programa Beam Bench ({version}). Shranjevanje s to različico lahko odstrani nastavitve, ki jih ta različica ne podpira.",
+    "edit_invalid_geometry": "Ta sprememba bi premaknila ali spremenila velikost predmeta zunaj obsega, ki ga Beam Bench lahko shrani, zato ni bila uveljavljena.",
+    "edit_internal_error": "Pri tem urejanju je prišlo do notranje napake, zato je bilo razveljavljeno. Projekt je nespremenjen. Prosimo, prijavite to.",
+    "project_invalid_value": "Projekt vsebuje neveljavno vrednost nastavitve, zato ni bil shranjen.",
+    "project_invalid_value_object": "»{name}« ima neveljavno velikost ali položaj, zato projekt ni bil shranjen. Razveljavite zadnjo spremembo tega predmeta ali ga izbrišite in znova shranite.",
     "operation_failed_with_detail": "Operacija ni uspela: {detail}",
     "raster_plan_too_complex": "Ta slika pri trenutni velikosti in ločljivosti DPI ustvari preveč posameznih rastrskih premikov. Zmanjšajte DPI ali fizično velikost oziroma izberite manj razdrobljen slikovni način, nato znova ustvarite predogled.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "Uporabniški izvor je izbran, vendar ni nastavljen. Premaknite laser na predvideno izhodišče in izberite Set here pred okvirjanjem ali začetkom.",
     "current_position_unavailable": "Trenutni položaj potrebuje povezan stroj s prijavljenim položajem.",
     "dxf_no_usable_geometry": "Datoteka DXF ne vsebuje uporabne 2D-vektorske geometrije.",
-    "dxf_no_usable_geometry_with_entities": "Datoteka DXF ne vsebuje uporabne 2D-vektorske geometrije. Nepodprte ali nepravilne entitete: {entities}."
+    "dxf_no_usable_geometry_with_entities": "Datoteka DXF ne vsebuje uporabne 2D-vektorske geometrije. Nepodprte ali nepravilne entitete: {entities}.",
+    "camera": {
+      "stream_failed": "Pretoka kamere ni bilo mogoče zagnati.",
+      "frame_timeout": "Čas čakanja na posnetek kamere je potekel. Kamera se morda še ogreva ali jo uporablja druga aplikacija.",
+      "preview_timeout": "Čas zagona predogleda kamere je potekel.",
+      "warmup_timeout": "Čas čakanja, da je kamera pripravljena, je potekel.",
+      "encode_failed": "Posnetka kamere ni bilo mogoče shraniti.",
+      "unavailable": "Zajem s kamero v tem oknu ni na voljo.",
+      "empty_frame": "Kamera je vrnila prazen posnetek.",
+      "canvas_failed": "Posnetka kamere ni bilo mogoče pripraviti."
+    },
+    "serial_open_no_response": "Vrata so se odprla, vendar laser ni odgovoril. Preverite, ali je laser vklopljen, poskusite z drugim kablom ali vrati USB in se prepričajte, da so izbrana prava vrata. Nekatere plošče potrebujejo gonilnik USB CH340.",
+    "serial_protocol_unrecognized": "Laser je odgovoril, vendar Beam Bench ni prepoznal njegovega krmilnika. Preverite hitrost prenosa (baud) v profilu stroja (večina laserjev GRBL uporablja 115200) in zaprite drugo lasersko programsko opremo, ki uporablja ta vrata.",
+    "network_grbl_no_status": "Krmilnik na tem naslovu ni odgovoril kot laser GRBL. Preverite naslov IP in vrata, zaprite druge aplikacije, ki so povezane z njim (veliko modulov Wi-Fi dovoli le eno povezavo hkrati), in poskusite znova.",
+    "no_active_machine_profile": "Noben stroj še ni nastavljen. Najprej dodajte ali izberite profil stroja.",
+    "emergency_stop_unconfirmed": "Beam Bench ni mogel potrditi, da se je stroj ustavil. Takoj uporabite fizični zasilni izklop stroja ali odklopite napajanje laserja. Podrobnosti: {detail}",
+    "controller_connection_lost": "Povezava z laserjem je bila prekinjena. Preverite kabel in napajanje ter se znova povežite. Podrobnosti: {detail}"
   },
   "import": {
     "drop_to_import": "Spustite datoteke za uvoz"

@@ -6,6 +6,7 @@ import i18n from '../i18n';
 import { wrapBackendError } from '../i18n/errors';
 import { useProjectStore } from './projectStore';
 import { usePreviewStore } from './previewStore';
+import { getDocumentGeneration } from './documentGeneration';
 
 interface MaterialStoreState {
   presets: MaterialPreset[];
@@ -61,9 +62,13 @@ export const useMaterialStore = create<MaterialStoreState>((set, get) => ({
 
   applyPreset: async (presetId, layerId) => {
     try {
+      const generation = getDocumentGeneration();
       const response = await materialService.applyPreset(presetId, layerId);
+      // A different document opened meanwhile: this result is not about it.
+      if (generation !== getDocumentGeneration()) return;
       // loadProject refreshes project state, undo buttons, and preview
       await useProjectStore.getState().loadProject();
+      if (generation !== getDocumentGeneration()) return;
       // Mark dirty — the backend sets project.dirty but it's serde-skipped
       const currentProject = useProjectStore.getState().project;
       if (currentProject) {

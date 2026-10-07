@@ -194,6 +194,48 @@ pub fn object_to_world_vecpath(obj: &ProjectObject) -> Option<VecPath> {
     }
 }
 
+/// The affine map from a vector path's stored coordinates to the canvas:
+/// its intrinsic bounds fitted to the object bounds, then the object
+/// transform about the bounds center. `None` when the data has no geometry.
+pub fn vector_local_to_world_transform(obj: &ProjectObject) -> Option<Transform2D> {
+    // Node edits use stored SVG coordinates, before object_to_vecpath normalizes
+    // their origin. Fit those raw coordinates to the existing object bounds.
+    let mut path = match &obj.data {
+        ObjectData::VectorPath { path_data, .. } => VecPath::parse_svg_d(path_data),
+        _ => object_to_vecpath(&obj.data)?,
+    };
+    path.prune_orphan_subpaths();
+    let intrinsic = path.visual_bounds().or_else(|| path.bounds())?;
+    let old_w = intrinsic.max.x - intrinsic.min.x;
+    let old_h = intrinsic.max.y - intrinsic.min.y;
+    let sx = if old_w > 0.0 {
+        obj.bounds.width() / old_w
+    } else {
+        1.0
+    };
+    let sy = if old_h > 0.0 {
+        obj.bounds.height() / old_h
+    } else {
+        1.0
+    };
+    let fit = Transform2D {
+        a: sx,
+        b: 0.0,
+        c: 0.0,
+        d: sy,
+        tx: obj.bounds.min.x - intrinsic.min.x * sx,
+        ty: obj.bounds.min.y - intrinsic.min.y * sy,
+    };
+    let cx = (obj.bounds.min.x + obj.bounds.max.x) / 2.0;
+    let cy = (obj.bounds.min.y + obj.bounds.max.y) / 2.0;
+    Some(
+        Transform2D::translate(cx, cy)
+            .compose(&obj.transform)
+            .compose(&Transform2D::translate(-cx, -cy))
+            .compose(&fit),
+    )
+}
+
 fn bake_transform_around_bounds_center(
     path: &VecPath,
     transform: &Transform2D,

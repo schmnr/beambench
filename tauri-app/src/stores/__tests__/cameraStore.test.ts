@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCameraStore } from '../cameraStore';
+import { useMachineStore } from '../machineStore';
 import { cameraService } from '../../services/cameraService';
 import { captureBrowserCameraFrame } from '../../services/browserCameraCapture';
 import type {
@@ -43,6 +44,7 @@ vi.mock('../../services/cameraService', () => ({
 }));
 
 const initialState = useCameraStore.getState();
+const initialMachineState = useMachineStore.getState();
 
 const frame: CameraFrameHandle = {
   handle_id: 'frame-1',
@@ -123,6 +125,7 @@ function agentState(overrides: Partial<CameraAgentState> = {}): CameraAgentState
 describe('cameraStore overlay display state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useMachineStore.setState({ activeProfileId: 'profile-1' });
     vi.mocked(cameraService.updateOverlayDisplay).mockResolvedValue(agentState());
     vi.mocked(cameraService.getAgentState).mockResolvedValue(agentState());
     vi.mocked(cameraService.fitOverlayToBed).mockResolvedValue(agentState());
@@ -172,23 +175,49 @@ describe('cameraStore overlay display state', () => {
 
   afterEach(() => {
     useCameraStore.setState(initialState, true);
+    useMachineStore.setState(initialMachineState, true);
   });
 
-  it('keeps visibility and opacity as global frontend-only session state', () => {
+  it('uses confirmed display state and clamps opacity to the supported range', async () => {
+    vi.mocked(cameraService.updateOverlayDisplay).mockImplementation(async (update) => agentState({
+      display: {
+        ...agentState().display,
+        overlay_visible: update.overlayVisible ?? useCameraStore.getState().overlayVisible,
+        overlay_opacity: update.overlayOpacity ?? useCameraStore.getState().overlayOpacity,
+      },
+    }));
+    useCameraStore.getState().setOverlayVisible(true);
+    await vi.waitFor(() => expect(useCameraStore.getState().overlayVisible).toBe(true));
+    useCameraStore.getState().setOverlayOpacity(1.5);
+    await vi.waitFor(() => expect(useCameraStore.getState().overlayOpacity).toBe(1));
+    useCameraStore.getState().toggleOverlayVisible();
+    await vi.waitFor(() => expect(useCameraStore.getState().overlayVisible).toBe(false));
+    useCameraStore.getState().setOverlayOpacity(-0.5);
+    await vi.waitFor(() => expect(useCameraStore.getState().overlayOpacity).toBe(0));
+    expect(cameraService.updateOverlayDisplay).toHaveBeenCalledWith({ overlayOpacity: 1 });
+    expect(cameraService.updateOverlayDisplay).toHaveBeenCalledWith({ overlayOpacity: 0 });
+  });
+
+  it('does not send overlay display changes without an active profile', () => {
+    useMachineStore.setState({ activeProfileId: null });
+    useCameraStore.setState({ overlayVisible: false, overlayOpacity: 0.4 });
+    useCameraStore.getState().toggleOverlayVisible();
+    useCameraStore.getState().setOverlayOpacity(0.9);
+    expect(cameraService.updateOverlayDisplay).not.toHaveBeenCalled();
     expect(useCameraStore.getState().overlayVisible).toBe(false);
     expect(useCameraStore.getState().overlayOpacity).toBe(0.4);
+  });
 
-    useCameraStore.getState().setOverlayVisible(true);
-    useCameraStore.getState().setOverlayOpacity(1.5);
-
-    expect(useCameraStore.getState().overlayVisible).toBe(true);
-    expect(useCameraStore.getState().overlayOpacity).toBe(1);
-
-    useCameraStore.getState().toggleOverlayVisible();
-    useCameraStore.getState().setOverlayOpacity(-0.5);
-
+  it.each(['visibility', 'opacity'])('preserves confirmed %s after a failed display update', async (field) => {
+    useCameraStore.setState({ overlayVisible: false, overlayOpacity: 0.4 });
+    vi.mocked(cameraService.updateOverlayDisplay).mockRejectedValueOnce('display update failed');
+    if (field === 'visibility') useCameraStore.getState().toggleOverlayVisible();
+    else useCameraStore.getState().setOverlayOpacity(0.9);
     expect(useCameraStore.getState().overlayVisible).toBe(false);
-    expect(useCameraStore.getState().overlayOpacity).toBe(0);
+    expect(useCameraStore.getState().overlayOpacity).toBe(0.4);
+    await vi.waitFor(() => expect(useCameraStore.getState().error).toBe('display update failed'));
+    expect(useCameraStore.getState().overlayVisible).toBe(false);
+    expect(useCameraStore.getState().overlayOpacity).toBe(0.4);
   });
 
   it('shows the overlay again after updating a frame', async () => {
@@ -552,4 +581,70 @@ describe('cameraStore overlay display state', () => {
     expect(useCameraStore.getState().calibration).toBeNull();
     expect(useCameraStore.getState().alignment).toBeNull();
   });
+
+  it('a late calibration reply never replaces the newly selected camera calibration', async () => {
+    let resolve!: (value: CameraCalibration) => void;
+    vi.mocked(cameraService.getCalibration).mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    useCameraStore.setState({ selectedCameraId: 'cam-old', calibration: null });
+    const pending = useCameraStore.getState().refreshCalibration();
+    const next = { ...savedCalibration, image_width_px: 200 };
+    vi.mocked(cameraService.selectCamera).mockResolvedValueOnce('cam-new');
+    vi.mocked(cameraService.getAgentState).mockResolvedValueOnce(agentState({ selected_camera_id: 'cam-new', calibration: next }));
+    vi.mocked(cameraService.getCalibration).mockResolvedValueOnce(next);
+    vi.mocked(cameraService.getAlignment).mockResolvedValueOnce(null);
+    await useCameraStore.getState().selectCamera('cam-new');
+    expect(useCameraStore.getState().calibration?.image_width_px).toBe(200);
+    resolve(savedCalibration);
+    await pending;
+    expect(useCameraStore.getState().calibration?.image_width_px).toBe(200);
+  });
+  it.each(['saveCalibration','resetCalibration','saveAlignment','resetAlignment'] as const)(
+    'late %s completion cannot publish into another camera', async (action) => {
+      vi.mocked(cameraService.saveCalibration).mockReset();
+      vi.mocked(cameraService.resetCalibration).mockReset();
+      vi.mocked(cameraService.updateAlignment).mockReset();
+      vi.mocked(cameraService.resetAlignment).mockReset();
+      let resolve!: () => void;
+      const pending = new Promise<void>((r) => { resolve = r; });
+      useCameraStore.setState({selectedCameraId:'cam-old',calibration:savedCalibration,alignment:solvedAlignment});
+      vi.mocked(cameraService.saveCalibration).mockImplementationOnce(async () => {await pending; return savedCalibration;});
+      vi.mocked(cameraService.resetCalibration).mockReturnValueOnce(pending);
+      vi.mocked(cameraService.updateAlignment).mockImplementationOnce(async () => {await pending; return solvedAlignment;});
+      vi.mocked(cameraService.resetAlignment).mockReturnValueOnce(pending);
+      const operation = action === 'saveCalibration' ? useCameraStore.getState().saveCalibration('cam-old',savedCalibration)
+        : action === 'saveAlignment' ? useCameraStore.getState().saveAlignment(solvedAlignment)
+        : useCameraStore.getState()[action]();
+      const nextCalibration = {...savedCalibration,image_width_px:200};
+      const nextAlignment = {...solvedAlignment,rmse_mm:0.5};
+      vi.mocked(cameraService.selectCamera).mockResolvedValueOnce('cam-new');
+      vi.mocked(cameraService.getAgentState).mockResolvedValueOnce(agentState({selected_camera_id:'cam-new',calibration:nextCalibration,alignment:nextAlignment}));
+      vi.mocked(cameraService.getCalibration).mockResolvedValueOnce(nextCalibration);
+      vi.mocked(cameraService.getAlignment).mockResolvedValueOnce(nextAlignment);
+      await useCameraStore.getState().selectCamera('cam-new');
+      vi.mocked(cameraService.getAgentState).mockClear();
+      resolve();
+      await operation;
+      expect(useCameraStore.getState().calibration).toEqual(nextCalibration);
+      expect(useCameraStore.getState().alignment).toEqual(nextAlignment);
+      expect(cameraService.getAgentState).not.toHaveBeenCalled();
+    },
+  );
+
+  it('profile replacement discards an old calibration save even with the same camera ID', async () => {
+    const initialProfile = useMachineStore.getState().activeProfileId;
+    let resolve!: (value:CameraCalibration) => void;
+    useMachineStore.setState({activeProfileId:'old-profile'});
+    vi.mocked(cameraService.saveCalibration).mockReturnValueOnce(new Promise(r => {resolve=r;}));
+    useCameraStore.setState({selectedCameraId:'cam-1',calibration:savedCalibration});
+    const saving = useCameraStore.getState().saveCalibration('cam-1',savedCalibration);
+    const next = {...savedCalibration,image_width_px:200};
+    useMachineStore.setState({activeProfileId:'new-profile'});
+    useCameraStore.setState({calibration:next});
+    try {
+      resolve(savedCalibration);
+      await saving;
+      expect(useCameraStore.getState().calibration).toEqual(next);
+    } finally {useMachineStore.setState({activeProfileId:initialProfile});}
+  });
+
 });

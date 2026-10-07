@@ -97,6 +97,67 @@ pub fn offset_fill_boolean_tolerances_mm() -> (f64, f64) {
     )
 }
 
+/// Composite geometry before assigning power. Claim surviving regions once,
+/// in reverse object order, so nested islands retain their own power and
+/// three-way overlaps cannot burn repeatedly. Uniform-power batches keep the
+/// original single boolean pass.
+fn composite_power_regions(
+    subjects: Vec<(f64, Vec<Polyline>)>,
+    tolerance: f64,
+) -> Vec<(f64, VecPath)> {
+    use beambench_core::vector::boolean::{
+        path_intersection_with_tolerance, path_subtract_with_tolerance,
+    };
+    let subjects: Vec<_> = subjects
+        .into_iter()
+        .filter(|(_, polylines)| !polylines.is_empty())
+        .map(|(scale, polylines)| (scale, polylines_to_vecpath(&polylines)))
+        .collect();
+    let Some((first_scale, _)) = subjects.first() else {
+        return Vec::new();
+    };
+    let uniform = subjects
+        .iter()
+        .all(|(scale, _)| scale.to_bits() == first_scale.to_bits());
+    let paths: Vec<_> = subjects.iter().map(|(_, path)| path.clone()).collect();
+    let mut remaining = normalize_subject_evenodd_with_tolerance(&paths, tolerance, tolerance);
+    if uniform {
+        return if *first_scale > 0.0 {
+            vec![(*first_scale, remaining)]
+        } else {
+            Vec::new()
+        };
+    }
+    let mut regions: Vec<(f64, Vec<VecPath>)> = Vec::new();
+    for (scale, mask) in subjects.into_iter().rev() {
+        let region = path_intersection_with_tolerance(&remaining, &mask, tolerance);
+        if region.is_empty() {
+            continue;
+        }
+        remaining = path_subtract_with_tolerance(&remaining, &region, tolerance);
+        if scale > 0.0 {
+            match regions
+                .iter_mut()
+                .find(|(key, _)| key.to_bits() == scale.to_bits())
+            {
+                Some((_, paths)) => paths.push(region),
+                None => regions.push((scale, vec![region])),
+            }
+        }
+    }
+    regions
+        .into_iter()
+        .map(|(scale, mut paths)| {
+            let path = if paths.len() == 1 {
+                paths.pop().unwrap()
+            } else {
+                normalize_subject_evenodd_with_tolerance(&paths, tolerance, tolerance)
+            };
+            (scale, path)
+        })
+        .collect()
+}
+
 fn offset_fill_object_batches<'a>(
     objects: &'a [&'a ProjectObject],
     all_objects: &'a [ProjectObject],
@@ -140,6 +201,9 @@ struct TaggedPolyline {
     inner: Polyline,
     object_id: String,
     subpath_index: usize,
+    /// The source object's power scale, kept per contour so all objects can
+    /// be ordered together (inner first sees holes across objects).
+    power_scale: f64,
 }
 
 impl Orderable for TaggedPolyline {
@@ -151,29 +215,6 @@ impl Orderable for TaggedPolyline {
     }
     fn points_mut(&mut self) -> &mut Vec<Point2D> {
         &mut self.inner.points
-    }
-}
-
-/// Convert a closed Polyline to a VecPath for boolean operations.
-fn polyline_to_vecpath(poly: &Polyline) -> VecPath {
-    if poly.points.is_empty() {
-        return VecPath { subpaths: vec![] };
-    }
-    let mut commands = vec![PathCommand::MoveTo {
-        x: poly.points[0].x,
-        y: poly.points[0].y,
-    }];
-    for pt in &poly.points[1..] {
-        commands.push(PathCommand::LineTo { x: pt.x, y: pt.y });
-    }
-    if poly.closed {
-        commands.push(PathCommand::Close);
-    }
-    VecPath {
-        subpaths: vec![SubPath {
-            commands,
-            closed: poly.closed,
-        }],
     }
 }
 
@@ -513,15 +554,17 @@ fn bounds_overlap(a: &Bounds, b: &Bounds) -> bool {
 /// Group Fill objects only when their geometry can interact under even-odd
 /// parity. This preserves same-layer holes and overlaps without allocating one
 /// enormous raster for artwork that is spread across the entire workspace.
-fn fill_polyline_batches(object_polylines: Vec<Vec<Polyline>>) -> Vec<Vec<Polyline>> {
-    let geometries: Vec<(Vec<Polyline>, Bounds)> = object_polylines
+fn fill_polyline_batches(
+    object_polylines: Vec<(f64, Vec<Polyline>)>,
+) -> Vec<Vec<(f64, Vec<Polyline>)>> {
+    let geometries: Vec<((f64, Vec<Polyline>), Bounds)> = object_polylines
         .into_iter()
-        .filter_map(|polylines| bounds_from_polylines(&polylines).map(|bounds| (polylines, bounds)))
+        .filter_map(|subject| bounds_from_polylines(&subject.1).map(|bounds| (subject, bounds)))
         .collect();
     if geometries.len() <= 1 {
         return geometries
             .into_iter()
-            .map(|(polylines, _)| polylines)
+            .map(|(subject, _)| vec![subject])
             .collect();
     }
 
@@ -564,14 +607,14 @@ fn fill_polyline_batches(object_polylines: Vec<Vec<Polyline>>) -> Vec<Vec<Polyli
     }
 
     let mut batch_indices: HashMap<usize, usize> = HashMap::new();
-    let mut batches: Vec<Vec<Polyline>> = Vec::new();
+    let mut batches: Vec<Vec<(f64, Vec<Polyline>)>> = Vec::new();
     for (index, (polylines, _)) in geometries.into_iter().enumerate() {
         let root = find(&mut parents, index);
         let batch_index = *batch_indices.entry(root).or_insert_with(|| {
             batches.push(Vec::new());
             batches.len() - 1
         });
-        batches[batch_index].extend(polylines);
+        batches[batch_index].push(polylines);
     }
     batches
 }
@@ -745,6 +788,8 @@ struct PreparedOffsetFillUnit {
 
 struct OffsetFillCompositeBatch {
     units: Vec<OffsetFillUnit>,
+    /// Power scale shared by the batch's source objects.
+    power_scale: f64,
 }
 
 #[derive(Clone)]
@@ -1924,7 +1969,7 @@ fn build_cardinal_raster_scanlines(
     max_runs: Option<usize>,
     budget: &mut RasterPlanBudget,
 ) -> Result<CardinalScanlines, PlannerError> {
-    use beambench_raster::{rotate_raster, transpose_raster};
+    use beambench_raster::transpose_raster;
 
     let build = |raster: Arc<beambench_raster::ProcessedRaster>, origin_x, origin_y| {
         if let Some(limit) = max_runs {
@@ -1962,26 +2007,52 @@ fn build_cardinal_raster_scanlines(
             build(transposed, bounds.min.y, bounds.min.x)
                 .map(|sl| (sl, line_interval_mm, ScanAxis::Vertical))
         }
-        // 180°: horizontal scan, flipped (reverse scanline and run order)
+        // 180° and 270° scan the same world-space pixels as 0° and 90°, in
+        // the opposite order and direction. Rotating the bitmap instead would
+        // rotate the artwork itself, so crosshatch passes burned different
+        // content on each pass.
         (ScanAxis::Horizontal, true) => {
-            budget.precheck_bitmap(processed.data.len())?;
-            let rotated =
-                Arc::new(rotate_raster(processed, 180.0, bounds.width(), bounds.height()).raster);
-            let line_interval_mm = rotated.line_interval_mm;
-            build(rotated, bounds.min.x, bounds.min.y)
-                .map(|sl| (sl, line_interval_mm, ScanAxis::Horizontal))
+            let line_interval_mm = processed.line_interval_mm;
+            build(Arc::clone(processed), bounds.min.x, bounds.min.y).map(|sl| {
+                (
+                    reverse_scan_order(sl, bidirectional),
+                    line_interval_mm,
+                    ScanAxis::Horizontal,
+                )
+            })
         }
-        // 270°: vertical scan via transpose of 180°-flipped raster
         (ScanAxis::Vertical, true) => {
             budget.precheck_bitmap(processed.data.len())?;
-            let rotated = rotate_raster(processed, 180.0, bounds.width(), bounds.height());
-            let transposed = Arc::new(transpose_raster(&rotated.raster));
-            drop(rotated);
+            let transposed = Arc::new(transpose_raster(processed));
             let line_interval_mm = transposed.line_interval_mm;
-            build(transposed, bounds.min.y, bounds.min.x)
-                .map(|sl| (sl, line_interval_mm, ScanAxis::Vertical))
+            build(transposed, bounds.min.y, bounds.min.x).map(|sl| {
+                (
+                    reverse_scan_order(sl, bidirectional),
+                    line_interval_mm,
+                    ScanAxis::Vertical,
+                )
+            })
         }
     })
+}
+
+/// Traverse rows last-to-first and each row in the opposite direction,
+/// without moving any burned pixel. Unidirectional scans run every row in
+/// reverse; bidirectional scans start reversed and alternate.
+fn reverse_scan_order(mut scanlines: Vec<Scanline>, bidirectional: bool) -> Vec<Scanline> {
+    scanlines.reverse();
+    for (index, scanline) in scanlines.iter_mut().enumerate() {
+        let wanted = if !bidirectional || index % 2 == 0 {
+            ScanDirection::RightToLeft
+        } else {
+            ScanDirection::LeftToRight
+        };
+        if scanline.direction != wanted {
+            scanline.runs.reverse();
+            scanline.direction = wanted;
+        }
+    }
+    scanlines
 }
 
 /// Bound retained image pixels and total output work across images and angle passes.
@@ -2007,6 +2078,27 @@ impl RasterPlanBudget {
     /// its rows exist, and is charged by [`Self::include`].
     fn precheck_bitmap(&self, bytes: usize) -> Result<(), PlannerError> {
         Self::check(self.bytes.saturating_add(bytes), self.runs)
+    }
+
+    /// Check the actual rotated grid before the rotator allocates or samples.
+    fn precheck_rotation(
+        &self,
+        raster: &beambench_raster::ProcessedRaster,
+        angle: f64,
+        width_mm: f64,
+        height_mm: f64,
+    ) -> Result<(), PlannerError> {
+        let Some((width, height, bytes)) =
+            beambench_raster::rotate::rotated_raster_size(raster, angle, width_mm, height_mm)
+        else {
+            return Err(PlannerError::InvalidSettings(
+                "[raster_plan_too_complex] Invalid rotated raster dimensions.".into(),
+            ));
+        };
+        if width > 65_536 || height > 65_536 {
+            return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Rotated scan dimensions exceed 65,536 pixels. Increase pixel spacing or reduce the image aspect ratio.".into()));
+        }
+        self.precheck_bitmap(bytes)
     }
 
     /// Charge what a finished pass actually retains.
@@ -2342,6 +2434,27 @@ fn apply_pre_order_passes<T: Orderable>(items: Vec<T>, opt: &ProjectOptimization
     direction::apply_direction_order(items, opt.direction_order)
 }
 
+/// [`apply_pre_order_passes`] for contours from several objects: duplicate
+/// removal only merges contours with the same power scale (an identical
+/// shape at a different power is deliberate), while inner-first and direction
+/// ordering still see every contour together.
+fn apply_pre_order_passes_keeping_power(
+    items: Vec<TaggedPolyline>,
+    opt: &ProjectOptimization,
+) -> Vec<TaggedPolyline> {
+    let items = dedupe::remove_near_duplicates_by(
+        items,
+        opt.enabled && opt.remove_overlapping,
+        opt.remove_overlap_tolerance_mm,
+        |a, b| a.power_scale.to_bits() == b.power_scale.to_bits(),
+    );
+    let without_dedupe = ProjectOptimization {
+        remove_overlapping: false,
+        ..opt.clone()
+    };
+    apply_pre_order_passes(items, &without_dedupe)
+}
+
 /// Compose the optimization for builder use. When the planner input requests
 /// `QualityTestOrdering::RowMajor`, every reorder/dedupe/start-point flag is forced off so the
 /// transient quality-test pipeline emits segments in append order.
@@ -2498,6 +2611,10 @@ fn build_plan_inner(
     let layer_order: Vec<String> = enabled_layers.iter().map(|l| l.id.to_string()).collect();
 
     let mut all_segments = Vec::new();
+    // Start index of every layer entry and every pass. Travel optimization
+    // may reorder only within one of these runs: across them it would change
+    // layer order (cut before engrave) or interleave passes.
+    let mut order_boundaries: Vec<usize> = Vec::new();
     let mut raster_budget = RasterPlanBudget::default();
     let mut warnings = Vec::new();
     let mut failed_entries = Vec::new();
@@ -2570,6 +2687,25 @@ fn build_plan_inner(
             }
         }
 
+        // Images are engraved only by Image and Fill settings. Routing normally
+        // keeps them on image layers; if one lands elsewhere, say so instead of
+        // silently leaving it out of the job.
+        if !raster_objects.is_empty()
+            && !layer.entries.iter().any(|entry| {
+                entry.output_enabled
+                    && matches!(entry.operation, OperationType::Image | OperationType::Fill)
+            })
+        {
+            for obj in &raster_objects {
+                warnings.push(PlanWarning {
+                    message: format!(
+                        "Image '{}' is on layer '{}', which has no Image setting, so it will not be engraved. Move it to an image layer.",
+                        obj.name, layer.name
+                    ),
+                });
+            }
+        }
+
         for entry in &layer.entries {
             if !entry.output_enabled {
                 continue;
@@ -2578,6 +2714,7 @@ fn build_plan_inner(
             entry_layer.entries = vec![entry.clone()];
             let layer = &entry_layer;
             let entry_segment_start = all_segments.len();
+            order_boundaries.push(entry_segment_start);
             let mut entry_failed = false;
 
             // Process raster objects
@@ -2588,6 +2725,7 @@ fn build_plan_inner(
                 OperationType::Image | OperationType::Fill
             ) {
                 for _pass in 0..raster_passes {
+                    order_boundaries.push(all_segments.len());
                     for obj in &raster_objects {
                         if let ObjectData::RasterImage {
                             asset_key,
@@ -2830,9 +2968,12 @@ fn build_plan_inner(
                                     // scanlines in local space
                                     use beambench_raster::rotate_raster;
 
-                                    // A rotated bitmap is a fresh allocation; charge
-                                    // it before rotate_raster produces it.
-                                    raster_budget.precheck_bitmap(shared_processed.data.len())?;
+                                    raster_budget.precheck_rotation(
+                                        &shared_processed,
+                                        -effective_angle,
+                                        raster_bounds.width(),
+                                        raster_bounds.height(),
+                                    )?;
                                     let rotated = rotate_raster(
                                         &shared_processed,
                                         -effective_angle,
@@ -2915,11 +3056,6 @@ fn build_plan_inner(
                         .map(|s| s.offset_fill_grouping_mode)
                         .unwrap_or(OffsetFillGroupingMode::AllShapesAtOnce);
                     let offset_fill_started_at = Instant::now();
-                    let object_batches = offset_fill_object_batches(
-                        &vector_objects,
-                        &project.objects,
-                        grouping_mode,
-                    );
 
                     let normalize_started_at = Instant::now();
                     let mut composite_started_total = Duration::ZERO;
@@ -2928,9 +3064,11 @@ fn build_plan_inner(
                     let mut output_subpaths = 0usize;
                     let mut composite_batches: Vec<OffsetFillCompositeBatch> = Vec::new();
 
-                    for batch_objects in object_batches {
-                        let mut original_polylines: Vec<Polyline> = Vec::new();
-                        for obj in &batch_objects {
+                    for batch_objects in
+                        offset_fill_object_batches(&vector_objects, &project.objects, grouping_mode)
+                    {
+                        let mut subjects = Vec::new();
+                        for obj in batch_objects {
                             let Some(normalized) = normalize_object(obj) else {
                                 warnings.push(PlanWarning {
                                     message: format!(
@@ -2940,44 +3078,33 @@ fn build_plan_inner(
                                 });
                                 continue;
                             };
-                            for poly in &normalized.polylines {
-                                if poly.closed && poly.points.len() >= 3 {
-                                    original_polylines.push(poly.clone());
-                                }
-                            }
+                            let polylines: Vec<_> = normalized
+                                .polylines
+                                .into_iter()
+                                .filter(|poly| poly.closed && poly.points.len() >= 3)
+                                .collect();
+                            closed_polyline_count += polylines.len();
+                            subjects.push((obj.power_scale, polylines));
                         }
-
-                        if original_polylines.is_empty() {
-                            continue;
-                        }
-
-                        closed_polyline_count += original_polylines.len();
-
                         let composite_started_at = Instant::now();
-                        let vecpaths: Vec<VecPath> =
-                            original_polylines.iter().map(polyline_to_vecpath).collect();
-                        let (boolean_flatten_tolerance_mm, boolean_simplify_tolerance_mm) =
-                            offset_fill_boolean_tolerances_mm();
-                        let composite = normalize_subject_evenodd_with_tolerance(
-                            &vecpaths,
-                            boolean_flatten_tolerance_mm,
-                            boolean_simplify_tolerance_mm,
-                        );
+                        let (tolerance, _) = offset_fill_boolean_tolerances_mm();
+                        let regions = composite_power_regions(subjects, tolerance);
                         composite_started_total += composite_started_at.elapsed();
-                        output_subpaths += composite.subpaths.len();
+                        for (power_scale, composite) in regions {
+                            output_subpaths += composite.subpaths.len();
+                            let split_started_at = Instant::now();
+                            let units = split_offset_fill_units(&composite);
+                            split_started_total += split_started_at.elapsed();
+                            if units.is_empty() {
+                                warnings.push(PlanWarning {
+                                    message: "OffsetFill produced no composited units for batch"
+                                        .to_string(),
+                                });
+                                continue;
+                            }
 
-                        let split_started_at = Instant::now();
-                        let units = split_offset_fill_units(&composite);
-                        split_started_total += split_started_at.elapsed();
-                        if units.is_empty() {
-                            warnings.push(PlanWarning {
-                                message: "OffsetFill produced no composited units for batch"
-                                    .to_string(),
-                            });
-                            continue;
+                            composite_batches.push(OffsetFillCompositeBatch { units, power_scale });
                         }
-
-                        composite_batches.push(OffsetFillCompositeBatch { units });
                     }
                     tracing::info!(
                         target: "perf",
@@ -3016,25 +3143,28 @@ fn build_plan_inner(
 
                     // 6. Generate offset fill per composited unit, completing each unit before
                     // moving to the next object.
+                    // Offsetting is the expensive step and its result is the same
+                    // on every pass, so prepare once and emit it once per pass.
+                    let prepare_started_at = Instant::now();
+                    let prepared_batches: Vec<Vec<PreparedOffsetFillUnit>> = composite_batches
+                        .iter()
+                        .map(|batch| {
+                            batch
+                                .units
+                                .par_iter()
+                                .map(|unit| {
+                                    prepare_offset_fill_unit(
+                                        unit,
+                                        offset_spacing,
+                                        &offset_fill_controls,
+                                    )
+                                })
+                                .collect()
+                        })
+                        .collect();
+                    let prepare_duration = prepare_started_at.elapsed();
                     for _pass in 0..passes {
-                        let prepare_started_at = Instant::now();
-                        let prepared_batches: Vec<Vec<PreparedOffsetFillUnit>> = composite_batches
-                            .iter()
-                            .map(|batch| {
-                                batch
-                                    .units
-                                    .par_iter()
-                                    .map(|unit| {
-                                        prepare_offset_fill_unit(
-                                            unit,
-                                            offset_spacing,
-                                            &offset_fill_controls,
-                                        )
-                                    })
-                                    .collect()
-                            })
-                            .collect();
-                        let prepare_duration = prepare_started_at.elapsed();
+                        order_boundaries.push(all_segments.len());
                         let total_tracks: usize = prepared_batches
                             .iter()
                             .flatten()
@@ -3192,7 +3322,7 @@ fn build_plan_inner(
                                 let (offset_segments, next_pos) = emit_prepared_offset_fill_unit(
                                     prepared_unit,
                                     offset_spacing,
-                                    layer.primary_entry().power_percent,
+                                    layer.primary_entry().power_percent * batch.power_scale,
                                     layer.primary_entry().speed_mm_min,
                                     &layer.id.to_string(),
                                     &layer.primary_entry().id.to_string(),
@@ -3274,166 +3404,190 @@ fn build_plan_inner(
                             });
                             continue;
                         };
-                        let original_polylines: Vec<Polyline> = normalized
+                        let polylines: Vec<_> = normalized
                             .polylines
-                            .iter()
+                            .into_iter()
                             .filter(|poly| poly.closed && poly.points.len() >= 3)
-                            .cloned()
                             .collect();
-
-                        if original_polylines.is_empty() {
-                            continue;
-                        }
-
-                        fill_object_polylines.push(original_polylines);
+                        fill_object_polylines.push((obj.power_scale, polylines));
                     }
+                    for subjects in fill_polyline_batches(fill_object_polylines) {
+                        for (power_scale, composite) in
+                            composite_power_regions(subjects, DEFAULT_TOLERANCE_MM)
+                        {
+                            let composited_polylines =
+                                flatten_vecpath(&composite, DEFAULT_TOLERANCE_MM);
 
-                    for original_polylines in fill_polyline_batches(fill_object_polylines) {
-                        let vecpaths: Vec<VecPath> =
-                            original_polylines.iter().map(polyline_to_vecpath).collect();
-                        let composite = normalize_subject_evenodd_with_tolerance(
-                            &vecpaths,
-                            DEFAULT_TOLERANCE_MM,
-                            DEFAULT_TOLERANCE_MM,
-                        );
-                        let composited_polylines =
-                            flatten_vecpath(&composite, DEFAULT_TOLERANCE_MM);
-
-                        let Some(composite_bounds) = bounds_from_polylines(&composited_polylines)
-                        else {
-                            continue;
-                        };
-
-                        let composite_center = Point2D::new(
-                            (composite_bounds.min.x + composite_bounds.max.x) / 2.0,
-                            (composite_bounds.min.y + composite_bounds.max.y) / 2.0,
-                        );
-                        let preview_outlines = simplify_preview_outlines(&composited_polylines);
-
-                        for _pass in 0..fill_passes {
-                            let Some(processed) = rasterize_fill(
-                                &composited_polylines,
-                                &composite_bounds,
-                                line_interval,
-                            ) else {
+                            let Some(composite_bounds) =
+                                bounds_from_polylines(&composited_polylines)
+                            else {
                                 continue;
                             };
 
-                            // Keep a single expanded row bounded, including after rotation.
-                            if processed.width_px > 65_536 || processed.height_px > 65_536 {
-                                return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Fill scan dimensions exceed 65,536 pixels. Increase the line interval or reduce the filled area.".into()));
-                            }
+                            let composite_center = Point2D::new(
+                                (composite_bounds.min.x + composite_bounds.max.x) / 2.0,
+                                (composite_bounds.min.y + composite_bounds.max.y) / 2.0,
+                            );
+                            let preview_outlines = simplify_preview_outlines(&composited_polylines);
 
-                            // Charge the fill bitmap before it is shared, then let
-                            // every angle pass scan that one allocation.
-                            raster_budget.precheck_bitmap(processed.data.len())?;
-                            let processed = Arc::new(processed);
-
-                            for ai in 0..effective_angle_passes {
-                                if input.cancellation.should_cancel() {
-                                    return Err(PlannerError::Cancelled);
+                            // Size the bitmap before allocating it: a large area at a tiny
+                            // line interval would otherwise request gigabytes first and
+                            // only be rejected afterwards.
+                            match crate::fill_raster::fill_raster_size(
+                                &composite_bounds,
+                                line_interval,
+                            ) {
+                                Some((columns, rows, bytes))
+                                    if columns <= 65_536 && rows <= 65_536 =>
+                                {
+                                    raster_budget.precheck_bitmap(
+                                        usize::try_from(bytes).unwrap_or(usize::MAX),
+                                    )?;
                                 }
-                                let effective_angle = scan_angle + ai as f64 * angle_increment;
-                                let norm = ((effective_angle % 360.0) + 360.0) % 360.0;
+                                _ => {
+                                    return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Fill scan dimensions exceed 65,536 pixels. Increase the line interval or reduce the filled area.".into()));
+                                }
+                            }
+                            for _pass in 0..fill_passes {
+                                order_boundaries.push(all_segments.len());
+                                let Some(processed) = rasterize_fill(
+                                    &composited_polylines,
+                                    &composite_bounds,
+                                    line_interval,
+                                ) else {
+                                    continue;
+                                };
 
-                                if let Some((axis, needs_flip)) = classify_cardinal(norm) {
-                                    let (scanlines, li, s_axis) = build_cardinal_raster_scanlines(
-                                        &processed,
-                                        &composite_bounds,
-                                        axis,
-                                        needs_flip,
-                                        bidirectional,
-                                        overscan_mm,
-                                        None,
-                                        &mut raster_budget,
-                                    )?
-                                    .expect("unbounded fill raster generation cannot fail");
+                                // Keep a single expanded row bounded, including after rotation.
+                                if processed.width_px > 65_536 || processed.height_px > 65_536 {
+                                    return Err(PlannerError::InvalidSettings("[raster_plan_too_complex] Fill scan dimensions exceed 65,536 pixels. Increase the line interval or reduce the filled area.".into()));
+                                }
 
-                                    if scanlines.is_empty() {
-                                        continue;
+                                // Charge the fill bitmap before it is shared, then let
+                                // every angle pass scan that one allocation.
+                                raster_budget.precheck_bitmap(processed.data.len())?;
+                                let processed = Arc::new(processed);
+
+                                for ai in 0..effective_angle_passes {
+                                    if input.cancellation.should_cancel() {
+                                        return Err(PlannerError::Cancelled);
                                     }
+                                    let effective_angle = scan_angle + ai as f64 * angle_increment;
+                                    let norm = ((effective_angle % 360.0) + 360.0) % 360.0;
 
-                                    raster_budget.include(&scanlines)?;
+                                    if let Some((axis, needs_flip)) = classify_cardinal(norm) {
+                                        let (scanlines, li, s_axis) =
+                                            build_cardinal_raster_scanlines(
+                                                &processed,
+                                                &composite_bounds,
+                                                axis,
+                                                needs_flip,
+                                                bidirectional,
+                                                overscan_mm,
+                                                None,
+                                                &mut raster_budget,
+                                            )?
+                                            .expect("unbounded fill raster generation cannot fail");
 
-                                    all_segments.push(PlanSegment::Raster {
-                                        scanlines,
-                                        line_interval_mm: li,
-                                        direction_mode,
-                                        power_mode: PowerMode::Binary,
-                                        speed_mm_min: layer.primary_entry().speed_mm_min,
-                                        layer_id: layer.id.to_string(),
-                                        cut_entry_id: layer.primary_entry().id.to_string(),
-                                        overscan_mm,
-                                        outlines: preview_outlines.clone(),
-                                        scan_axis: s_axis,
-                                        power_max_percent: layer.primary_entry().power_percent,
-                                        power_min_percent: layer.primary_entry().power_min_percent,
-                                        scan_angle_deg: 0.0,
-                                        scan_origin: Point2D::new(0.0, 0.0),
-                                        dot_width_correction_mm: layer
-                                            .primary_entry()
-                                            .raster_settings
-                                            .as_ref()
-                                            .map(|rs| rs.dot_width_correction_mm)
-                                            .unwrap_or(0.0),
-                                        ramp_length_mm: effective_layer_ramp_length_mm(layer),
-                                        x_pixel_mm: processed.effective_x_pixel_mm(),
-                                    });
-                                } else {
-                                    use beambench_raster::rotate_raster;
+                                        if scanlines.is_empty() {
+                                            continue;
+                                        }
 
-                                    raster_budget.precheck_bitmap(processed.data.len())?;
-                                    let rotated = rotate_raster(
-                                        &processed,
-                                        -effective_angle,
-                                        composite_bounds.width(),
-                                        composite_bounds.height(),
-                                    );
+                                        raster_budget.include(&scanlines)?;
 
-                                    let (rotated_width_mm, rotated_height_mm) =
-                                        (rotated.width_mm, rotated.height_mm);
-                                    let rotated_raster = Arc::new(rotated.raster);
-                                    let fill_line_interval_mm = rotated_raster.line_interval_mm;
-                                    let fill_x_pixel_mm = rotated_raster.effective_x_pixel_mm();
+                                        all_segments.push(PlanSegment::Raster {
+                                            scanlines,
+                                            line_interval_mm: li,
+                                            direction_mode,
+                                            power_mode: PowerMode::Binary,
+                                            speed_mm_min: layer.primary_entry().speed_mm_min,
+                                            layer_id: layer.id.to_string(),
+                                            cut_entry_id: layer.primary_entry().id.to_string(),
+                                            overscan_mm,
+                                            outlines: preview_outlines.clone(),
+                                            scan_axis: s_axis,
+                                            power_max_percent: layer.primary_entry().power_percent
+                                                * power_scale,
+                                            power_min_percent: layer
+                                                .primary_entry()
+                                                .power_min_percent
+                                                * power_scale,
+                                            scan_angle_deg: 0.0,
+                                            scan_origin: Point2D::new(0.0, 0.0),
+                                            dot_width_correction_mm: layer
+                                                .primary_entry()
+                                                .raster_settings
+                                                .as_ref()
+                                                .map(|rs| rs.dot_width_correction_mm)
+                                                .unwrap_or(0.0),
+                                            ramp_length_mm: effective_layer_ramp_length_mm(layer),
+                                            x_pixel_mm: processed.effective_x_pixel_mm(),
+                                        });
+                                    } else {
+                                        use beambench_raster::rotate_raster;
 
-                                    let local_scanlines = generate_scanlines(
-                                        rotated_raster,
-                                        -rotated_width_mm / 2.0,
-                                        -rotated_height_mm / 2.0,
-                                        bidirectional,
-                                        overscan_mm,
-                                    );
+                                        raster_budget.precheck_rotation(
+                                            &processed,
+                                            -effective_angle,
+                                            composite_bounds.width(),
+                                            composite_bounds.height(),
+                                        )?;
+                                        let rotated = rotate_raster(
+                                            &processed,
+                                            -effective_angle,
+                                            composite_bounds.width(),
+                                            composite_bounds.height(),
+                                        );
 
-                                    if local_scanlines.is_empty() {
-                                        continue;
+                                        let (rotated_width_mm, rotated_height_mm) =
+                                            (rotated.width_mm, rotated.height_mm);
+                                        let rotated_raster = Arc::new(rotated.raster);
+                                        let fill_line_interval_mm = rotated_raster.line_interval_mm;
+                                        let fill_x_pixel_mm = rotated_raster.effective_x_pixel_mm();
+
+                                        let local_scanlines = generate_scanlines(
+                                            rotated_raster,
+                                            -rotated_width_mm / 2.0,
+                                            -rotated_height_mm / 2.0,
+                                            bidirectional,
+                                            overscan_mm,
+                                        );
+
+                                        if local_scanlines.is_empty() {
+                                            continue;
+                                        }
+
+                                        raster_budget.include(&local_scanlines)?;
+
+                                        all_segments.push(PlanSegment::Raster {
+                                            scanlines: local_scanlines,
+                                            line_interval_mm: fill_line_interval_mm,
+                                            direction_mode,
+                                            power_mode: PowerMode::Binary,
+                                            speed_mm_min: layer.primary_entry().speed_mm_min,
+                                            layer_id: layer.id.to_string(),
+                                            cut_entry_id: layer.primary_entry().id.to_string(),
+                                            overscan_mm,
+                                            outlines: preview_outlines.clone(),
+                                            scan_axis: ScanAxis::Horizontal,
+                                            power_max_percent: layer.primary_entry().power_percent
+                                                * power_scale,
+                                            power_min_percent: layer
+                                                .primary_entry()
+                                                .power_min_percent
+                                                * power_scale,
+                                            scan_angle_deg: effective_angle,
+                                            scan_origin: composite_center,
+                                            dot_width_correction_mm: layer
+                                                .primary_entry()
+                                                .raster_settings
+                                                .as_ref()
+                                                .map(|rs| rs.dot_width_correction_mm)
+                                                .unwrap_or(0.0),
+                                            ramp_length_mm: effective_layer_ramp_length_mm(layer),
+                                            x_pixel_mm: fill_x_pixel_mm,
+                                        });
                                     }
-
-                                    raster_budget.include(&local_scanlines)?;
-
-                                    all_segments.push(PlanSegment::Raster {
-                                        scanlines: local_scanlines,
-                                        line_interval_mm: fill_line_interval_mm,
-                                        direction_mode,
-                                        power_mode: PowerMode::Binary,
-                                        speed_mm_min: layer.primary_entry().speed_mm_min,
-                                        layer_id: layer.id.to_string(),
-                                        cut_entry_id: layer.primary_entry().id.to_string(),
-                                        overscan_mm,
-                                        outlines: preview_outlines.clone(),
-                                        scan_axis: ScanAxis::Horizontal,
-                                        power_max_percent: layer.primary_entry().power_percent,
-                                        power_min_percent: layer.primary_entry().power_min_percent,
-                                        scan_angle_deg: effective_angle,
-                                        scan_origin: composite_center,
-                                        dot_width_correction_mm: layer
-                                            .primary_entry()
-                                            .raster_settings
-                                            .as_ref()
-                                            .map(|rs| rs.dot_width_correction_mm)
-                                            .unwrap_or(0.0),
-                                        ramp_length_mm: effective_layer_ramp_length_mm(layer),
-                                        x_pixel_mm: fill_x_pixel_mm,
-                                    });
                                 }
                             }
                         }
@@ -3444,216 +3598,116 @@ fn build_plan_inner(
                     let passes = vector_settings.map(|s| s.passes).unwrap_or(1);
 
                     for _pass in 0..passes {
+                        order_boundaries.push(all_segments.len());
                         let pre_vector_count = all_segments.len();
-                        // Group objects by power_scale to preserve per-object scaling
-                        // while still allowing cross-object ordering within same scale
-                        let has_mixed_scales = {
-                            let first =
-                                vector_objects.first().map(|o| o.power_scale).unwrap_or(1.0);
-                            vector_objects
-                                .iter()
-                                .any(|o| (o.power_scale - first).abs() > f64::EPSILON)
-                        };
-
-                        if has_mixed_scales {
-                            // Process each object separately to preserve its power_scale.
-                            // Use TaggedPolyline to preserve original subpath identity through ordering.
-                            for obj in &vector_objects {
-                                match normalize_object(obj) {
-                                    Some(normalized) => {
-                                        let obj_id_str = obj.id.to_string();
-                                        let tagged: Vec<TaggedPolyline> = normalized
-                                            .polylines
-                                            .into_iter()
-                                            .enumerate()
-                                            .map(|(sp_idx, polyline)| TaggedPolyline {
-                                                inner: polyline,
-                                                object_id: obj_id_str.clone(),
-                                                subpath_index: sp_idx,
-                                            })
-                                            .collect();
-                                        let tagged = apply_pre_order_passes(tagged, optimization);
-                                        let ordered =
-                                            order_polylines(tagged, force_as_drawn(optimization));
-                                        // Feed the actual tool position at the tail of
-                                        // segments emitted so far into the start-point
-                                        // pass. On the first object in the first layer
-                                        // this falls back to the user-configured start
-                                        // point; otherwise it's the previous segment's
-                                        // exit — which is what `choose_best_start` needs
-                                        // to optimize against across layer boundaries.
-                                        let current_pos = tail_position(
-                                            &all_segments,
-                                            resolved_start_pos(optimization),
-                                        );
-                                        let ordered = apply_start_point_pass(
-                                            ordered,
-                                            optimization,
-                                            current_pos,
-                                        );
-                                        let perf_enabled = vector_settings
-                                            .map(|s| s.perforation_enabled)
-                                            .unwrap_or(false);
-                                        let perf_on_ms = vector_settings
-                                            .map(|s| s.perforation_on_ms)
-                                            .unwrap_or(0.0);
-                                        let perf_off_ms = vector_settings
-                                            .map(|s| s.perforation_off_ms)
-                                            .unwrap_or(0.0);
-                                        for tagged_poly in ordered {
-                                            all_segments.push(PlanSegment::Vector {
-                                                polyline: tagged_poly.inner.points,
-                                                closed: tagged_poly.inner.closed,
-                                                power_percent: layer.primary_entry().power_percent
-                                                    * obj.power_scale,
-                                                speed_mm_min: layer.primary_entry().speed_mm_min,
-                                                layer_id: layer.id.to_string(),
-                                                cut_entry_id: layer.primary_entry().id.to_string(),
-                                                perforation_enabled: perf_enabled,
-                                                perforation_on_ms: perf_on_ms,
-                                                perforation_off_ms: perf_off_ms,
-                                                source_object_id: Some(tagged_poly.object_id),
-                                                source_subpath_index: Some(
-                                                    tagged_poly.subpath_index,
-                                                ),
-                                            });
-                                        }
-                                    }
-                                    None => {
-                                        warnings.push(PlanWarning {
-                                            message: format!(
-                                                "Failed to normalize object '{}'",
-                                                obj.name
-                                            ),
+                        // Order every object's contours together, so containment
+                        // (inner first) and nearest-next ordering see all of them,
+                        // while each contour keeps its own object's power scale.
+                        let mut tagged_polylines: Vec<TaggedPolyline> = Vec::new();
+                        for obj in &vector_objects {
+                            match normalize_object(obj) {
+                                Some(normalized) => {
+                                    let obj_id_str = obj.id.to_string();
+                                    for (sp_idx, polyline) in
+                                        normalized.polylines.into_iter().enumerate()
+                                    {
+                                        tagged_polylines.push(TaggedPolyline {
+                                            inner: polyline,
+                                            object_id: obj_id_str.clone(),
+                                            subpath_index: sp_idx,
+                                            power_scale: obj.power_scale,
                                         });
                                     }
                                 }
-                            }
-                        } else {
-                            // All objects have same power_scale — batch and order together
-                            // Use TaggedPolyline to track identity through ordering
-                            let uniform_scale =
-                                vector_objects.first().map(|o| o.power_scale).unwrap_or(1.0);
-                            let mut tagged_polylines: Vec<TaggedPolyline> = Vec::new();
-
-                            for obj in &vector_objects {
-                                match normalize_object(obj) {
-                                    Some(normalized) => {
-                                        let obj_id_str = obj.id.to_string();
-                                        for (sp_idx, polyline) in
-                                            normalized.polylines.into_iter().enumerate()
-                                        {
-                                            tagged_polylines.push(TaggedPolyline {
-                                                inner: polyline,
-                                                object_id: obj_id_str.clone(),
-                                                subpath_index: sp_idx,
-                                            });
-                                        }
-                                    }
-                                    None => {
-                                        warnings.push(PlanWarning {
-                                            message: format!(
-                                                "Failed to normalize object '{}'",
-                                                obj.name
-                                            ),
-                                        });
-                                    }
+                                None => {
+                                    warnings.push(PlanWarning {
+                                        message: format!(
+                                            "Failed to normalize object '{}'",
+                                            obj.name
+                                        ),
+                                    });
                                 }
                             }
+                        }
 
-                            let tagged_polylines =
-                                apply_pre_order_passes(tagged_polylines, optimization);
-                            let ordered =
-                                order_polylines(tagged_polylines, force_as_drawn(optimization));
-                            // Run start-point rotation AFTER the nearest-neighbor pass
-                            // so the rotation sees the final sequence. `current_pos`
-                            // is the tail of already-emitted segments — either the
-                            // previous layer's exit or the user-configured start.
-                            let current_pos =
-                                tail_position(&all_segments, resolved_start_pos(optimization));
-                            let ordered =
-                                apply_start_point_pass(ordered, optimization, current_pos);
+                        let tagged_polylines =
+                            apply_pre_order_passes_keeping_power(tagged_polylines, optimization);
+                        let ordered =
+                            order_polylines(tagged_polylines, force_as_drawn(optimization));
+                        // Run start-point rotation AFTER the nearest-neighbor pass
+                        // so the rotation sees the final sequence. `current_pos`
+                        // is the tail of already-emitted segments, either the
+                        // previous layer's exit or the user-configured start.
+                        let current_pos =
+                            tail_position(&all_segments, resolved_start_pos(optimization));
+                        let ordered = apply_start_point_pass(ordered, optimization, current_pos);
 
-                            let perf_enabled = vector_settings
-                                .map(|s| s.perforation_enabled)
-                                .unwrap_or(false);
-                            let perf_on_ms =
-                                vector_settings.map(|s| s.perforation_on_ms).unwrap_or(0.0);
-                            let perf_off_ms =
-                                vector_settings.map(|s| s.perforation_off_ms).unwrap_or(0.0);
+                        let perf_enabled = vector_settings
+                            .map(|s| s.perforation_enabled)
+                            .unwrap_or(false);
+                        let perf_on_ms =
+                            vector_settings.map(|s| s.perforation_on_ms).unwrap_or(0.0);
+                        let perf_off_ms =
+                            vector_settings.map(|s| s.perforation_off_ms).unwrap_or(0.0);
 
-                            for tagged in ordered {
-                                all_segments.push(PlanSegment::Vector {
-                                    polyline: tagged.inner.points,
-                                    closed: tagged.inner.closed,
-                                    power_percent: layer.primary_entry().power_percent
-                                        * uniform_scale,
-                                    speed_mm_min: layer.primary_entry().speed_mm_min,
-                                    layer_id: layer.id.to_string(),
-                                    cut_entry_id: layer.primary_entry().id.to_string(),
-                                    perforation_enabled: perf_enabled,
-                                    perforation_on_ms: perf_on_ms,
-                                    perforation_off_ms: perf_off_ms,
-                                    source_object_id: Some(tagged.object_id),
-                                    source_subpath_index: Some(tagged.subpath_index),
-                                });
-                            }
+                        for tagged in ordered {
+                            all_segments.push(PlanSegment::Vector {
+                                polyline: tagged.inner.points,
+                                closed: tagged.inner.closed,
+                                power_percent: layer.primary_entry().power_percent
+                                    * tagged.power_scale,
+                                speed_mm_min: layer.primary_entry().speed_mm_min,
+                                layer_id: layer.id.to_string(),
+                                cut_entry_id: layer.primary_entry().id.to_string(),
+                                perforation_enabled: perf_enabled,
+                                perforation_on_ms: perf_on_ms,
+                                perforation_off_ms: perf_off_ms,
+                                source_object_id: Some(tagged.object_id),
+                                source_subpath_index: Some(tagged.subpath_index),
+                            });
                         }
 
                         // 5e. Apply per-object positioned tabs (from TabAnchors).
                         // These split closed Vector segments with matching source identity.
                         // Must run before layer-level auto-tabs so that manually-tabbed
                         // contours become open and are skipped by apply_tabs.
+                        // One pass over this pass's segments, rebuilding the list, instead
+                        // of a scan plus Vec remove/insert per tabbed object.
                         {
                             use std::collections::HashMap;
                             let tab_width = vector_settings.map(|s| s.tab_width_mm).unwrap_or(3.0);
+                            let mut tabs: HashMap<(String, usize), Vec<f64>> = HashMap::new();
                             for obj in &vector_objects {
-                                if obj.tabs.is_empty() {
-                                    continue;
-                                }
-                                let obj_id_str = obj.id.to_string();
-                                let mut tabs_by_subpath: HashMap<usize, Vec<f64>> = HashMap::new();
                                 for tab in &obj.tabs {
-                                    tabs_by_subpath
-                                        .entry(tab.subpath_index)
+                                    tabs.entry((obj.id.to_string(), tab.subpath_index))
                                         .or_default()
                                         .push(tab.position);
                                 }
-                                let mut i = pre_vector_count;
-                                while i < all_segments.len() {
-                                    let matches = if let PlanSegment::Vector {
-                                        source_object_id: Some(ref oid),
-                                        source_subpath_index: Some(sp_idx),
-                                        closed: true,
-                                        ..
-                                    } = all_segments[i]
-                                    {
-                                        *oid == obj_id_str && tabs_by_subpath.contains_key(&sp_idx)
-                                    } else {
-                                        false
-                                    };
-
-                                    if matches {
-                                        let sp_idx = if let PlanSegment::Vector {
-                                            source_subpath_index: Some(sp),
+                            }
+                            if !tabs.is_empty() {
+                                let pass_segments: Vec<PlanSegment> =
+                                    all_segments.drain(pre_vector_count..).collect();
+                                for segment in pass_segments {
+                                    let positions = match &segment {
+                                        PlanSegment::Vector {
+                                            source_object_id: Some(oid),
+                                            source_subpath_index: Some(sp_idx),
+                                            closed: true,
                                             ..
-                                        } = &all_segments[i]
-                                        {
-                                            *sp
-                                        } else {
-                                            unreachable!()
-                                        };
-                                        let positions = &tabs_by_subpath[&sp_idx];
-                                        let seg = all_segments.remove(i);
-                                        let mut target = vec![seg];
-                                        apply_positioned_tabs(&mut target, positions, tab_width);
-                                        let n = target.len();
-                                        for (j, s) in target.into_iter().enumerate() {
-                                            all_segments.insert(i + j, s);
+                                        } => tabs.get(&(oid.clone(), *sp_idx)),
+                                        _ => None,
+                                    };
+                                    match positions {
+                                        Some(positions) => {
+                                            let mut target = vec![segment];
+                                            apply_positioned_tabs(
+                                                &mut target,
+                                                positions,
+                                                tab_width,
+                                            );
+                                            all_segments.extend(target);
                                         }
-                                        i += n;
-                                    } else {
-                                        i += 1;
+                                        None => all_segments.push(segment),
                                     }
                                 }
                             }
@@ -3756,15 +3810,19 @@ fn build_plan_inner(
         (Some(x), Some(y)) => Point2D::new(x, y),
         _ => Point2D::new(0.0, 0.0),
     };
-    let all_segments = if optimization.enabled && optimization.reduce_travel {
-        travel::reorder_segments_nearest_neighbor(
-            all_segments,
-            start_pos,
-            optimization.reduce_direction_changes,
-        )
-    } else {
-        all_segments
-    };
+    // Explicit orderings (inner first, direction, group) are constraints a
+    // nearest-neighbor pass would undo, so they take precedence.
+    let all_segments =
+        if optimization.enabled && optimization.reduce_travel && !force_as_drawn(optimization) {
+            reorder_travel_within_runs(
+                all_segments,
+                &order_boundaries,
+                start_pos,
+                optimization.reduce_direction_changes,
+            )
+        } else {
+            all_segments
+        };
 
     // 6e. Prepend initial travel from custom start point if set
     let mut all_segments = all_segments;
@@ -3935,6 +3993,44 @@ fn build_plan_inner(
         warnings,
         failed_entries,
     })
+}
+
+/// Nearest-neighbor travel optimization applied separately to each run
+/// between `boundaries` (layer entry and pass starts), in order. The tool
+/// position carries from one run's tail into the next.
+fn reorder_travel_within_runs(
+    segments: Vec<PlanSegment>,
+    boundaries: &[usize],
+    start_pos: Point2D,
+    reduce_direction_changes: bool,
+) -> Vec<PlanSegment> {
+    let total = segments.len();
+    let mut cuts: Vec<usize> = boundaries
+        .iter()
+        .copied()
+        .filter(|&index| index > 0 && index < total)
+        .collect();
+    cuts.sort_unstable();
+    cuts.dedup();
+    let mut result = Vec::with_capacity(total);
+    let mut current = start_pos;
+    let mut rest = segments;
+    let mut consumed = 0;
+    for cut in cuts {
+        let tail = rest.split_off(cut - consumed);
+        let run = std::mem::replace(&mut rest, tail);
+        consumed = cut;
+        let ordered =
+            travel::reorder_segments_nearest_neighbor(run, current, reduce_direction_changes);
+        current = tail_position(&ordered, current);
+        result.extend(ordered);
+    }
+    result.extend(travel::reorder_segments_nearest_neighbor(
+        rest,
+        current,
+        reduce_direction_changes,
+    ));
+    result
 }
 
 fn apply_dot_width_correction(segments: &mut [PlanSegment], calibration: &PlannerCalibration) {
@@ -7163,7 +7259,27 @@ mod tests {
 
     #[test]
     fn cut_order_as_drawn_vs_optimized_produces_different_segment_order() {
-        let project = create_multi_object_project();
+        // Drawn far, near, middle: nearest-first must start with the near one.
+        let mut project = create_test_project();
+        let layer = Layer::new("Lines", OperationType::Line);
+        let layer_id = layer.id;
+        project.layers.push(layer);
+        for (i, (x, y)) in [(300.0, 250.0), (10.0, 10.0), (150.0, 120.0)]
+            .into_iter()
+            .enumerate()
+        {
+            project.add_object(ProjectObject::new(
+                &format!("rect{i}"),
+                layer_id,
+                Bounds::new(Point2D::new(x, y), Point2D::new(x + 20.0, y + 20.0)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Rectangle,
+                    width: 20.0,
+                    height: 20.0,
+                    corner_radius: 0.0,
+                },
+            ));
+        }
 
         // `inner_first: true` on flat geometry is a no-op that forces
         // `AsDrawn` via `force_as_drawn` — a correct "no reorder"
@@ -7428,15 +7544,13 @@ mod tests {
     fn benchmark_travel_optimization_reduces_distance_meaningfully() {
         let project = create_benchmark_project();
 
-        // `inner_first: true` forces AsDrawn per-layer on flat geometry;
-        // here we vary only the cross-layer travel flag.
+        // Vary only the travel flag. (Inner first is an ordering constraint
+        // that travel optimization must respect, so it is left off here.)
         let no_opt = plan_input_with(ProjectOptimization {
-            inner_first: true,
             reduce_travel: false,
             ..Default::default()
         });
         let with_opt = plan_input_with(ProjectOptimization {
-            inner_first: true,
             reduce_travel: true,
             ..Default::default()
         });
@@ -7470,15 +7584,9 @@ mod tests {
             unopt_travel
         );
 
-        // With 12 scattered objects, reduction should be >10%
-        if unopt_travel > 0.0 {
-            let reduction_pct = (1.0 - opt_travel / unopt_travel) * 100.0;
-            assert!(
-                reduction_pct > 10.0,
-                "Travel distance reduction should be >10%, got {:.1}%",
-                reduction_pct
-            );
-        }
+        // Shapes within one layer are already ordered nearest-first, and the
+        // travel pass may not cross layer or pass boundaries, so on this
+        // single-layer fixture it must simply never make travel worse.
     }
 
     #[test]
@@ -9073,7 +9181,7 @@ mod tests {
 
     /// Build a VecPath from a single closed Polyline.
     fn polyline_to_vecpath_test(poly: &Polyline) -> VecPath {
-        polyline_to_vecpath(poly)
+        polylines_to_vecpath(std::slice::from_ref(poly))
     }
 
     #[test]

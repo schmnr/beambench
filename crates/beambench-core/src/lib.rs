@@ -9,6 +9,7 @@ pub mod asset;
 pub mod barcode_gen;
 pub mod diagnostics;
 pub mod export_bitmap;
+mod export_common;
 pub mod export_dxf;
 pub mod export_eps;
 pub mod export_pdf;
@@ -39,8 +40,8 @@ pub mod workspace;
 pub use app_state::{AppState, AppStatus, BuildInfo};
 pub use array_ops::{
     CircularArrayConfig, GridArrayConfig, GridArraySizingMode, SpacingMode, circular_array,
-    copy_along_path, fit_grid_array_counts, grid_array, grid_array_in_project,
-    grid_array_layout_bounds, rubber_band_outline,
+    copy_along_path, copy_along_path_guide_length, fit_grid_array_counts, grid_array,
+    grid_array_in_project, grid_array_layout_bounds, rubber_band_outline,
 };
 pub use art_library::{
     ART_LIBRARY_FORMAT_VERSION, ART_LIBRARY_SNAPSHOT_MEDIA_TYPE, ArtLibraryDocument,

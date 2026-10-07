@@ -1,5 +1,6 @@
 //! DXF export for projects.
 
+use crate::export_common::{canvas_to_y_up, exportable_objects};
 use crate::object::ObjectId;
 use crate::project::Project;
 use crate::vector::convert::object_to_world_vecpath;
@@ -18,28 +19,9 @@ pub fn export_dxf(project: &Project, selection_only: bool, selected_ids: &[Objec
     // Entities section
     dxf.push_str("0\nSECTION\n2\nENTITIES\n");
 
-    // Pre-process: expand VirtualClone objects for export
-    let expanded_clones: Vec<_> = project
-        .objects
-        .iter()
-        .filter_map(|obj| project.resolve_clone(obj))
-        .collect();
-    let all_objects: Vec<&crate::ProjectObject> = project
-        .objects
-        .iter()
-        .filter(|o| !matches!(o.data, crate::ObjectData::VirtualClone { .. }))
-        .chain(expanded_clones.iter())
-        .collect();
-
-    for obj in all_objects {
-        if selection_only && !selected_ids.contains(&obj.id) {
-            continue;
-        }
-
-        if !obj.visible {
-            continue;
-        }
-
+    // DXF is Y-up; anchor the drawing at the bed's bottom-left corner.
+    let to_dxf = canvas_to_y_up(project.workspace.bed_height_mm, 1.0);
+    for obj in exportable_objects(project, selection_only, selected_ids) {
         // Get layer name for DXF entity
         let layer_name = project
             .layers
@@ -51,14 +33,14 @@ pub fn export_dxf(project: &Project, selection_only: bool, selected_ids: &[Objec
         // Text exports as line geometry only. Emitting MTEXT plus line fallback
         // duplicates laser/CAD geometry and can place the editable text at a
         // different anchor than the resolved glyph outlines.
-        if let Some(path) = object_to_world_vecpath(obj) {
+        if let Some(path) = object_to_world_vecpath(&obj) {
             for polyline in flatten_vecpath(&path, DEFAULT_TOLERANCE_MM) {
                 let mut points = polyline.points;
                 if polyline.closed && points.len() > 1 {
                     points.push(points[0]);
                 }
                 for pair in points.windows(2) {
-                    let (start, end) = (pair[0], pair[1]);
+                    let (start, end) = (to_dxf.apply(&pair[0]), to_dxf.apply(&pair[1]));
                     dxf.push_str(&format!(
                         "0\nLINE\n8\n{}\n10\n{}\n20\n{}\n11\n{}\n21\n{}\n",
                         layer_name, start.x, start.y, end.x, end.y

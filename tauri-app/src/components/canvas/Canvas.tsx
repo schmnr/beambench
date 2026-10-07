@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import { useRef, useEffect, useCallback, useMemo, useState, type DragEvent as ReactDragEvent } from 'react';
 import { useProjectStore } from '../../stores/projectStore';
 import { renderOptionsFromArtworkDisplayMode, useUiStore, type ToolType } from '../../stores/uiStore';
@@ -198,6 +199,7 @@ export function Canvas() {
   const addObject = useProjectStore((s) => s.addObject);
   const updateObject = useProjectStore((s) => s.updateObject);
   const rotateObjects = useProjectStore((s) => s.rotateObjects);
+  const scaleAndRotateObjects = useProjectStore((s) => s.scaleAndRotateObjects);
   const shearObjects = useProjectStore((s) => s.shearObjects);
   const updateObjectBoundsBatch = useProjectStore((s) => s.updateObjectBoundsBatch);
 
@@ -1057,6 +1059,7 @@ export function Canvas() {
       rotateObjects,
       shearObjects,
       updateObjectBoundsBatch,
+      scaleAndRotateObjects,
       setCursorWorldPos,
       setStatusMessage: (msg: string) => {
         statusMsgRef.current = msg;
@@ -1085,6 +1088,7 @@ export function Canvas() {
     rotateObjects,
     shearObjects,
     updateObjectBoundsBatch,
+    scaleAndRotateObjects,
     setCursorWorldPos,
     requestRender,
     requestOverlayRender,
@@ -1118,6 +1122,9 @@ export function Canvas() {
     scheduleInteractionStop();
     requestRender();
   }, [buildToolContext, requestRender, scheduleInteractionStop]);
+
+  const cancelPointerGestureRef = useRef(cancelPointerGesture);
+  cancelPointerGestureRef.current = cancelPointerGesture;
 
   // Lost key-up and pointer-up events are common when switching applications.
   useEffect(() => {
@@ -1420,7 +1427,7 @@ export function Canvas() {
           } else if (hit) {
             useNotificationStore
               .getState()
-              .push('Click a vector or shape object to use as guide path', 'warning');
+              .push(i18n.t('notifications.pick_guide_path'), 'warning');
           }
           // Stay in pick mode if click missed or hit invalid target — user can press Escape to cancel
           pointerDragCandidateRef.current = null;
@@ -1801,6 +1808,9 @@ export function Canvas() {
     }
     prevToolRef.current = activeTool;
 
+    // A drag still in progress would otherwise leave its preview geometry
+    // on screen with nothing committed. Cancel it so it rolls back first.
+    if (pointerGestureRef.current) cancelPointerGestureRef.current();
     Object.values(TOOL_INSTANCES).forEach((t) => t.reset());
     geometrySnapMemoryRef.current = null;
     rulerDragAxisRef.current = null;

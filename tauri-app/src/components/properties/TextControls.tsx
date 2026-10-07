@@ -195,7 +195,7 @@ export function TextControls({ value, onPatch, onShapeChange, pathControls, crea
       </div>
       {fixedWidth ? (
         <>
-          <NumberInput
+          <NumberInput commit="blur"
             label={labelWithUnit(t('panels.text_properties.width'), unitLabel)}
             value={roundDisplayLength(mmToDisplay(value.max_width!, displayUnit), displayUnit)}
             onChange={(width) => onPatch({ max_width: Math.max(0.1, displayToMm(width, displayUnit)) })}
@@ -226,12 +226,12 @@ export function TextControls({ value, onPatch, onShapeChange, pathControls, crea
           favoriteFontLabel={t('panels.text_properties.favorite_font')}
           unfavoriteFontLabel={t('panels.text_properties.unfavorite_font')}
         />
-        <NumberInput
+        <NumberInput commit="blur"
           label={labelWithUnit(t('panels.text_properties.size_mm'), unitLabel)}
           value={roundDisplayLength(mmToDisplay(value.font_size_mm, displayUnit), displayUnit)}
           onChange={(fontSize) => onPatch({ font_size_mm: displayToMm(fontSize, displayUnit) })}
           min={mmToDisplay(0.1, displayUnit)}
-          max={mmToDisplay(500, displayUnit)}
+          max={mmToDisplay(2000, displayUnit)}
           step={lengthStep(displayUnit, 0.5, 0.02)}
           inputWidthClassName={CONTROL_WIDTH_CLASS}
         />
@@ -278,14 +278,14 @@ export function TextControls({ value, onPatch, onShapeChange, pathControls, crea
             </div>
           </>
         ) : null}
-        <NumberInput
+        <NumberInput commit="blur"
           label={labelWithUnit(t('panels.text_properties.tracking'), unitLabel)}
           value={roundDisplayLength(mmToDisplay(value.h_spacing, displayUnit), displayUnit)}
           onChange={(tracking) => onPatch({ h_spacing: displayToMm(tracking, displayUnit) })}
           step={lengthStep(displayUnit)}
           inputWidthClassName={CONTROL_WIDTH_CLASS}
         />
-        <NumberInput
+        <NumberInput commit="blur"
           label={labelWithUnit(t('panels.text_properties.line_spacing'), unitLabel)}
           value={roundDisplayLength(mmToDisplay(value.v_spacing, displayUnit), displayUnit)}
           onChange={(lineSpacing) => onPatch({ v_spacing: displayToMm(lineSpacing, displayUnit) })}
@@ -317,7 +317,7 @@ export function TextControls({ value, onPatch, onShapeChange, pathControls, crea
           />
           {shape === 'path' ? pathControls : null}
           {shape === 'path' || shape === 'bend' ? (
-            <NumberInput
+            <NumberInput commit="blur"
               label={labelWithUnit(t('panels.text_properties.baseline_offset'), unitLabel)}
               value={roundDisplayLength(mmToDisplay(value.path_offset, displayUnit), displayUnit)}
               onChange={(pathOffset) => onPatch({ path_offset: displayToMm(pathOffset, displayUnit) })}
@@ -326,7 +326,7 @@ export function TextControls({ value, onPatch, onShapeChange, pathControls, crea
             />
           ) : null}
           {shape === 'bend' ? (
-            <NumberInput
+            <NumberInput commit="blur"
               label={labelWithUnit(t('panels.text_properties.bend_radius'), unitLabel)}
               value={roundDisplayLength(mmToDisplay(Math.abs(value.bend_radius), displayUnit), displayUnit)}
               onChange={(bendRadius) => onPatch({
@@ -369,7 +369,7 @@ export function TextControls({ value, onPatch, onShapeChange, pathControls, crea
             </div>
           ) : null}
           {usesEnvelopeStrength ? (
-            <NumberInput
+            <NumberInput commit="blur"
               label={t('panels.text_properties.strength')}
               value={Math.abs(value.transform_curve)}
               onChange={(strength) => onPatch({
@@ -383,7 +383,7 @@ export function TextControls({ value, onPatch, onShapeChange, pathControls, crea
           ) : null}
           {shape === 'circle' ? (
             <>
-              <NumberInput
+              <NumberInput commit="blur"
                 label={t('panels.text_properties.arc_span')}
                 value={circleCurveToDegrees(value.transform_curve)}
                 onChange={(degrees) => onPatch({ transform_curve: circleDegreesToCurve(degrees) })}

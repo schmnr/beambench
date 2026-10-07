@@ -83,6 +83,15 @@ pub fn get_app_settings(ctx: &ServiceContext) -> ServiceResult<AppSettings> {
     Ok(settings.clone())
 }
 
+/// Return the pending user notices, once.
+pub fn take_pending_notices(ctx: &ServiceContext) -> ServiceResult<Vec<String>> {
+    let mut notices = ctx
+        .pending_notices
+        .lock()
+        .map_err(|e| lock_err("pending_notices", e))?;
+    Ok(std::mem::take(&mut *notices))
+}
+
 pub fn apply_app_settings_update(
     current: &AppSettings,
     input: UpdateAppSettingsInput,
@@ -265,6 +274,10 @@ pub fn update_app_settings(
     ctx: &ServiceContext,
     input: UpdateAppSettingsInput,
 ) -> ServiceResult<AppSettings> {
+    let _edit = ctx
+        .settings_edit_gate
+        .lock()
+        .map_err(|e| lock_err("settings_edit_gate", e))?;
     let current = ctx
         .settings
         .lock()

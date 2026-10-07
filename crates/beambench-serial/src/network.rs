@@ -8,6 +8,7 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
+use crate::telemetry::{record_rx, record_tx};
 use crate::{SerialError, SerialTransport};
 
 const TELNET_IAC: u8 = 255;
@@ -163,7 +164,12 @@ impl TcpLineTransport {
                         "TCP controller closed the connection".to_string(),
                     ));
                 }
-                Ok(count) => written += count,
+                Ok(count) => {
+                    // Raw wire bytes, Telnet negotiation included, so a
+                    // feedback report shows exactly what reached the bridge.
+                    record_tx(&bytes[written..written + count]);
+                    written += count;
+                }
                 Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                     if Instant::now() >= deadline {
@@ -317,6 +323,9 @@ impl SerialTransport for TcpLineTransport {
             }
         }
 
+        if !wire.is_empty() {
+            record_rx(&wire);
+        }
         let (payload, negotiation_reply) = self.telnet.decode(&wire);
         if !negotiation_reply.is_empty() {
             self.write_wire_bytes(&negotiation_reply)?;
@@ -460,6 +469,46 @@ mod tests {
         }
         let _ = hold_tx.send(());
         server.join().unwrap();
+    }
+
+    #[test]
+    fn tcp_traffic_is_recorded_for_feedback_reports() {
+        use crate::telemetry::{
+            SERIAL_TRAFFIC_TEST_LOCK, recent_serial_traffic, reset_serial_traffic,
+        };
+        let _guard = SERIAL_TRAFFIC_TEST_LOCK.lock().unwrap();
+        reset_serial_traffic();
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut query = [0_u8; 1];
+            stream.read_exact(&mut query).unwrap();
+            // An unexpected, non-GRBL reply is exactly what a report must show.
+            stream.write_all(&[TELNET_IAC, TELNET_WILL, 1]).unwrap();
+            stream.write_all(b"ESP-LINK READY\r\n").unwrap();
+            let mut refusal = [0_u8; 3];
+            stream.read_exact(&mut refusal).unwrap();
+        });
+
+        let mut transport =
+            TcpLineTransport::with_config("127.0.0.1", address.port(), test_config());
+        transport.open().unwrap();
+        transport.write_bytes(b"?").unwrap();
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while transport.read_line().unwrap().is_none() {
+            assert!(Instant::now() < deadline, "reply timed out");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        server.join().unwrap();
+
+        let traffic = recent_serial_traffic();
+        assert!(traffic.tx_ascii.starts_with('?'), "{traffic:?}");
+        // The Telnet refusal reply is recorded as sent.
+        assert!(traffic.tx_hex.ends_with("FF FE 01"), "{traffic:?}");
+        assert!(traffic.rx_hex.starts_with("FF FB 01"), "{traffic:?}");
+        assert!(traffic.rx_ascii.contains("ESP-LINK READY"), "{traffic:?}");
+        transport.close().unwrap();
     }
 
     #[test]

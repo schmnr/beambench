@@ -133,8 +133,15 @@ export function drawRasterPreview(
     const localW = region.local_width_mm ?? 0;
     const localH = region.local_height_mm ?? 0;
     const sequence = region.sequence ?? -1;
+    const bitmapAvailable = !!bitmap && !!localOrigin && localW > 0 && localH > 0 && sequence >= 0;
+    // Stripes are only a faithful static footprint when they include every
+    // run. Sampled runs (large fills) would drop detail the exact bitmap keeps.
+    const runsComplete = region.run_extents_complete !== false;
     const useOutlinedRunPreview =
-      hasOutlines && !!region.run_extents && region.run_extents.length > 0;
+      hasOutlines &&
+      !!region.run_extents &&
+      region.run_extents.length > 0 &&
+      (runsComplete || !bitmapAvailable);
     // Overscan is a scanline-level behavior: the head overscans before the
     // first energized pixel of the row and after the last one. For image
     // rows with internal laser-off gaps, using sub-run extents paints fake

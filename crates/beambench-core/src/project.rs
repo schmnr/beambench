@@ -25,11 +25,53 @@ pub struct ProjectMetadata {
     pub modified_at: String,
 }
 
+/// Project file format this build writes. Bump the major number when an
+/// older build could no longer open or safely re-save the file.
+pub const PROJECT_FORMAT_VERSION: &str = "1.0";
+
+/// Compare dotted numeric versions such as `1.0` or `0.2.25`. Pre-release and
+/// build suffixes are ignored. Returns `None` when either is not numeric.
+pub fn compare_versions(a: &str, b: &str) -> Option<std::cmp::Ordering> {
+    fn parts(version: &str) -> Option<Vec<u64>> {
+        let core = version.trim().trim_start_matches('v');
+        let core = core.split(['-', '+']).next()?;
+        core.split('.').map(|part| part.parse().ok()).collect()
+    }
+    let (mut a, mut b) = (parts(a)?, parts(b)?);
+    let len = a.len().max(b.len());
+    a.resize(len, 0);
+    b.resize(len, 0);
+    Some(a.cmp(&b))
+}
+
 impl ProjectMetadata {
+    /// The file needs a newer format than this build understands.
+    pub fn format_is_newer_than_supported(&self) -> bool {
+        let major = |version: &str| version.trim().split('.').next()?.parse::<u64>().ok();
+        match (major(&self.format_version), major(PROJECT_FORMAT_VERSION)) {
+            (Some(file), Some(supported)) => file > supported,
+            // An unreadable version string is treated as unknown, not newer.
+            _ => false,
+        }
+    }
+
+    /// The file was last saved by a newer Beam Bench than this one.
+    pub fn saved_by_newer_app(&self) -> bool {
+        compare_versions(&self.app_version, env!("CARGO_PKG_VERSION"))
+            == Some(std::cmp::Ordering::Greater)
+    }
+
+    /// Record that this build is writing the file.
+    pub fn stamp_for_save(&mut self) {
+        self.format_version = PROJECT_FORMAT_VERSION.to_string();
+        self.app_version = env!("CARGO_PKG_VERSION").to_string();
+        self.modified_at = Utc::now().to_rfc3339();
+    }
+
     pub fn new(name: impl Into<String>) -> Self {
         let now = Utc::now().to_rfc3339();
         Self {
-            format_version: "1.0".to_string(),
+            format_version: PROJECT_FORMAT_VERSION.to_string(),
             app_version: env!("CARGO_PKG_VERSION").to_string(),
             project_id: Id::new(),
             project_name: name.into(),
@@ -336,11 +378,80 @@ impl Project {
         let len_before = self.objects.len();
         self.objects.retain(|o| o.id != id);
         if self.objects.len() != len_before {
+            let removed_ids = self.prune_group_members(removed_ids);
             self.prune_image_mask_refs(&removed_ids);
             self.dirty = true;
             true
         } else {
             false
+        }
+    }
+
+    /// The first object whose placement holds a NaN or infinite number.
+    pub fn first_non_finite_object(&self) -> Option<&ProjectObject> {
+        self.objects.iter().find(|object| {
+            let b = object.bounds;
+            let t = object.transform;
+            ![
+                b.min.x, b.min.y, b.max.x, b.max.y, t.a, t.b, t.c, t.d, t.tx, t.ty,
+            ]
+            .iter()
+            .all(|value| value.is_finite())
+                || matches!(&object.data, ObjectData::VectorPath { path_data, .. }
+                    if path_data.contains("NaN") || path_data.contains("inf"))
+        })
+    }
+
+    /// Drop deleted objects from the groups that contain them, delete groups
+    /// left empty (up through their parents), and refit the bounds of groups
+    /// that changed. Returns every removed id, including emptied groups.
+    fn prune_group_members(
+        &mut self,
+        mut removed: std::collections::HashSet<ObjectId>,
+    ) -> std::collections::HashSet<ObjectId> {
+        let mut changed_groups = std::collections::HashSet::new();
+        loop {
+            let mut emptied = Vec::new();
+            for object in &mut self.objects {
+                if let ObjectData::Group { children } = &mut object.data {
+                    let before = children.len();
+                    children.retain(|child| !removed.contains(child));
+                    if children.is_empty() {
+                        emptied.push(object.id);
+                    } else if children.len() != before {
+                        changed_groups.insert(object.id);
+                    }
+                }
+            }
+            if emptied.is_empty() {
+                // A surviving ancestor keeps the same child IDs but needs new
+                // bounds when one of those children was refitted.
+                loop {
+                    let parents: Vec<_> = self
+                        .objects
+                        .iter()
+                        .filter_map(|object| {
+                            if let ObjectData::Group { children } = &object.data {
+                                (!changed_groups.contains(&object.id)
+                                    && children.iter().any(|id| changed_groups.contains(id)))
+                                .then_some(object.id)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    if parents.is_empty() {
+                        break;
+                    }
+                    changed_groups.extend(parents);
+                }
+                for group_id in changed_groups {
+                    crate::operations::recompute_group_bounds(self, group_id);
+                }
+                return removed;
+            }
+            self.objects.retain(|object| !emptied.contains(&object.id));
+            removed.extend(emptied);
         }
     }
 
@@ -366,6 +477,7 @@ impl Project {
         self.objects.retain(|o| !id_set.contains(&o.id));
         let removed = len_before - self.objects.len();
         if removed > 0 {
+            let id_set = self.prune_group_members(id_set);
             self.prune_image_mask_refs(&id_set);
             self.dirty = true;
         }
@@ -504,6 +616,81 @@ impl Project {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn version_comparison_is_numeric() {
+        use std::cmp::Ordering;
+        assert_eq!(compare_versions("0.2.10", "0.2.9"), Some(Ordering::Greater));
+        assert_eq!(compare_versions("v1.0", "1.0.0"), Some(Ordering::Equal));
+        assert_eq!(
+            compare_versions("1.0.0-beta.1", "1.0.0"),
+            Some(Ordering::Equal)
+        );
+        assert_eq!(compare_versions("dev", "1.0"), None);
+        let mut meta = ProjectMetadata::new("x");
+        meta.app_version = "999.0.0".into();
+        assert!(meta.saved_by_newer_app());
+        meta.format_version = "2.0".into();
+        assert!(meta.format_is_newer_than_supported());
+        meta.stamp_for_save();
+        assert!(!meta.saved_by_newer_app());
+        assert!(!meta.format_is_newer_than_supported());
+    }
+
+    #[test]
+    fn deleting_group_members_prunes_and_empties_groups() {
+        use beambench_common::{Bounds, Point2D};
+        let mut project = Project::new("groups");
+        let layer = project.ensure_default_layer();
+        let shape = |x: f64| {
+            ProjectObject::new(
+                "r",
+                layer,
+                Bounds::new(Point2D::new(x, 0.0), Point2D::new(x + 10.0, 10.0)),
+                ObjectData::Shape {
+                    kind: crate::object::ShapeKind::Rectangle,
+                    width: 10.0,
+                    height: 10.0,
+                    corner_radius: 0.0,
+                },
+            )
+        };
+        let a = project.add_object(shape(0.0)).id;
+        let b = project.add_object(shape(20.0)).id;
+        let c = project.add_object(shape(40.0)).id;
+        let group_bounds = Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(50.0, 10.0));
+        let inner = project
+            .add_object(ProjectObject::new(
+                "inner",
+                layer,
+                group_bounds,
+                ObjectData::Group {
+                    children: vec![a, b],
+                },
+            ))
+            .id;
+        let outer = project
+            .add_object(ProjectObject::new(
+                "outer",
+                layer,
+                group_bounds,
+                ObjectData::Group {
+                    children: vec![inner, c],
+                },
+            ))
+            .id;
+
+        project.remove_object(a);
+        let ObjectData::Group { children } = &project.find_object(inner).unwrap().data else {
+            panic!("inner group kept");
+        };
+        assert_eq!(children, &vec![b]);
+        assert_eq!(project.find_object(inner).unwrap().bounds.min.x, 20.0);
+
+        project.remove_objects(&[b, c]);
+        assert!(project.find_object(inner).is_none());
+        assert!(project.find_object(outer).is_none());
+    }
+
     use super::*;
     use crate::asset::AssetMediaType;
     use crate::object::{ImageMaskPolarity, ImageMaskRef, ObjectData, ShapeKind};

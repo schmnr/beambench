@@ -15,8 +15,8 @@ use beambench_common::geometry::{Bounds, Point2D};
 use beambench_common::machine::{
     ControllerEvidenceState, ControllerFamily, ControllerModel, ControllerProductTier,
     DeviceCapabilities, DeviceIdentity, JobProgress, JobState, MachineConnectionTarget,
-    MachineRunState, MachineStatus, PortInfo, PreflightAdvisory, PreflightCheck, PreflightOutcome,
-    PreflightReport, SessionState, TransportKind,
+    MachineRunState, MachineStatus, PortInfo, PreflightAdvisory, PreflightCheck, PreflightDetail,
+    PreflightOutcome, PreflightReport, SessionState, TransportKind,
 };
 use beambench_core::object::ObjectData;
 use beambench_core::{MachineProfile, MachineProfileId, Project, RuidaTableAxis, Workspace};
@@ -55,7 +55,7 @@ use beambench_smoothieware::{
 use beambench_streamer::{
     JobController, check_raster_motion_bounds, check_tool_layers, run_preflight,
 };
-use beambench_xtool::{M1CompileConfig, compile_m1_job};
+use beambench_xtool::{M1CompileConfig, M1CompiledJob, compile_m1_job};
 use serde::Serialize;
 use serde_json::json;
 
@@ -82,6 +82,8 @@ const FIRE_DEADMAN_POLL: Duration = Duration::from_millis(100);
 const TERMINAL_JOB_CONSOLE_LIMIT: usize = 120;
 const CONTROLLER_CONNECTION_CHALLENGE_TTL: Duration = Duration::from_secs(120);
 const CONTROLLER_COMPATIBILITY_STATUS_TIMEOUT: Duration = Duration::from_secs(1);
+const NETWORK_STATUS_TIMEOUT: Duration = Duration::from_secs(3);
+const NETWORK_STATUS_RETRY_INTERVAL: Duration = Duration::from_millis(250);
 const CONTROLLER_SETTINGS_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
 const CONTROLLER_QUERY_POLL_INTERVAL: Duration = Duration::from_millis(20);
 const IDLE_STATUS_RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
@@ -293,8 +295,17 @@ pub(crate) fn smoothieware_gcode_commands(
     plan: &beambench_planner::ExecutionPlan,
     gcode: beambench_grbl::GcodeConfig,
 ) -> Result<Vec<String>, String> {
-    let maximum_s_value = session
-        .laser_maximum_s_value()
+    smoothieware_gcode_commands_for_scale(session.laser_maximum_s_value(), plan, gcode)
+}
+
+/// Like `smoothieware_gcode_commands`, from a power scale read earlier, so
+/// the commands can be built without holding the session lock.
+pub(crate) fn smoothieware_gcode_commands_for_scale(
+    laser_maximum_s_value: Option<f64>,
+    plan: &beambench_planner::ExecutionPlan,
+    gcode: beambench_grbl::GcodeConfig,
+) -> Result<Vec<String>, String> {
+    let maximum_s_value = laser_maximum_s_value
         .ok_or_else(|| "Smoothieware laser power scale is unavailable".to_string())?;
     let power_mode = if gcode.use_constant_power {
         SmoothiewarePowerMode::Constant
@@ -400,18 +411,23 @@ fn generic_preflight_checks(
             } else {
                 format!("Session state: {session_state:?}")
             },
+            detail: Some(PreflightDetail::session_state(session_state)),
         },
         PreflightCheck {
             category: "machine".to_string(),
             description: "Machine is idle".to_string(),
             passed: machine_idle,
             message: format!("Machine state: {run_state:?}"),
+            detail: Some(PreflightDetail::machine_state(run_state)),
         },
         PreflightCheck {
             category: "plan".to_string(),
             description: "Plan has segments".to_string(),
             passed: plan_not_empty,
             message: format!("{} segments", plan.segments.len()),
+            detail: Some(PreflightDetail::SegmentCount {
+                count: plan.segments.len(),
+            }),
         },
         PreflightCheck {
             category: "bounds".to_string(),
@@ -426,6 +442,14 @@ fn generic_preflight_checks(
                 workspace_width_mm,
                 workspace_height_mm
             ),
+            detail: Some(PreflightDetail::PlanBounds {
+                min_x: plan.bounds.min.x,
+                min_y: plan.bounds.min.y,
+                max_x: plan.bounds.max.x,
+                max_y: plan.bounds.max.y,
+                bed_width: workspace_width_mm,
+                bed_height: workspace_height_mm,
+            }),
         },
     ];
     let raster_motion = check_raster_motion_bounds(plan, profile);
@@ -466,6 +490,7 @@ fn run_ruida_preflight(
                 )
             })
             .unwrap_or_else(|error| error),
+        detail: None,
     });
     PreflightReport {
         outcome: if basics_ok && compilation_ok {
@@ -504,6 +529,7 @@ fn run_lihuiyu_preflight(
                 )
             })
             .unwrap_or_else(|error| error),
+        detail: None,
     });
     PreflightReport {
         outcome: if basics_ok && compilation_ok {
@@ -724,6 +750,7 @@ pub(crate) fn sync_open_project_workspace_from_profile(
     profile: &MachineProfile,
     source: &'static str,
 ) -> ServiceResult<bool> {
+    let _edit_guard = ctx.lock_project_edits();
     let workspace = workspace_from_profile(profile);
     let workspace_width_mm = workspace.bed_width_mm;
     let workspace_height_mm = workspace.bed_height_mm;
@@ -981,10 +1008,12 @@ fn try_grbl_banner_handshake(
         let responses = session
             .poll()
             .map_err(|e| ServiceError::machine(e.to_string()))?;
-        if responses
-            .iter()
-            .any(|r| matches!(r, GrblResponse::Banner(_) | GrblResponse::Alarm(_)))
-        {
+        if responses.iter().any(|r| {
+            matches!(
+                r,
+                GrblResponse::Banner(_) | GrblResponse::Alarm(_) | GrblResponse::AlarmText(_)
+            )
+        }) {
             banner_received = true;
             ctx.push_connection_event(
                 "banner_received",
@@ -1021,10 +1050,12 @@ fn try_grbl_banner_handshake(
             let responses = session
                 .poll()
                 .map_err(|e| ServiceError::machine(e.to_string()))?;
-            if responses
-                .iter()
-                .any(|r| matches!(r, GrblResponse::Banner(_) | GrblResponse::Alarm(_)))
-            {
+            if responses.iter().any(|r| {
+                matches!(
+                    r,
+                    GrblResponse::Banner(_) | GrblResponse::Alarm(_) | GrblResponse::AlarmText(_)
+                )
+            }) {
                 banner_received = true;
                 ctx.push_connection_event(
                     "banner_received",
@@ -1404,6 +1435,16 @@ fn request_grbl_settings_and_wait(session: &mut GrblSession) -> ServiceResult<()
                 GrblResponse::Alarm(code) => {
                     return Err(ServiceError::machine(format!(
                         "Controller entered alarm {code} while reading GRBL settings"
+                    )));
+                }
+                GrblResponse::ErrorText(text) => {
+                    return Err(ServiceError::machine(format!(
+                        "Controller rejected the GRBL settings query: {text}"
+                    )));
+                }
+                GrblResponse::AlarmText(text) => {
+                    return Err(ServiceError::machine(format!(
+                        "Controller entered an alarm while reading GRBL settings: {text}"
                     )));
                 }
                 _ => {}
@@ -2022,12 +2063,22 @@ fn open_grbl_network_for_connection(
     session
         .poll_status()
         .map_err(|error| ServiceError::machine(error.to_string()))?;
-    let deadline = Instant::now() + CONTROLLER_COMPATIBILITY_STATUS_TIMEOUT;
+    let deadline = Instant::now() + NETWORK_STATUS_TIMEOUT;
+    let mut next_status_query = Instant::now() + NETWORK_STATUS_RETRY_INTERVAL;
     while session.status_report_count() == status_count && Instant::now() < deadline {
         session
             .poll()
             .map_err(|error| ServiceError::machine(error.to_string()))?;
         if session.status_report_count() == status_count {
+            // A Wi-Fi bridge may still be starting when the first query arrives.
+            // Retry only the read-only status byte, within the overall deadline.
+            let now = Instant::now();
+            if now < deadline && now >= next_status_query {
+                session
+                    .poll_status()
+                    .map_err(|error| ServiceError::machine(error.to_string()))?;
+                next_status_query = now + NETWORK_STATUS_RETRY_INTERVAL;
+            }
             std::thread::sleep(Duration::from_millis(20));
         }
     }
@@ -2217,6 +2268,16 @@ fn register_machine_session(
             "The application is shutting down",
         ));
     }
+    // The emulated DSP and galvo sessions are test fixtures: their stop and
+    // jog only change local state. They must never stand in for a machine.
+    if matches!(
+        session,
+        MachineSessionHandle::Dsp(_) | MachineSessionHandle::Galvo(_)
+    ) {
+        return Err(ServiceError::invalid_state(
+            "Emulated DSP and galvo sessions are test fixtures and cannot be connected",
+        ));
+    }
     let profile_sync = match &session {
         MachineSessionHandle::Grbl(grbl) if !grbl.experimental_mode() => {
             sync_active_profile_from_grbl_settings(ctx, grbl.settings(), baud_rate_for_profile)?
@@ -2269,6 +2330,13 @@ fn register_machine_session(
         usb_driver: None,
         error: None,
     });
+    ctx.session_epoch.fetch_add(1, Ordering::AcqRel);
+    if let Ok(mut endpoint) = ctx.xtool_stop_endpoint.lock() {
+        *endpoint = match &session {
+            MachineSessionHandle::XToolM1(xtool) => Some(xtool.endpoint()),
+            _ => None,
+        };
+    }
     *session_lock = Some(session);
     drop(session_lock);
     // This is reached once per completed serial/TCP connection, including
@@ -2944,6 +3012,7 @@ pub fn begin_network_controller_connection(
         ));
     }
     clear_pending_controller_connection(ctx)?;
+    reset_serial_traffic();
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
@@ -3435,7 +3504,8 @@ fn refresh_idle_session_health(session: &mut MachineSessionHandle) -> ServiceRes
 
 fn handle_idle_connection_loss(ctx: &ServiceContext, error: &ServiceError) {
     let message = error.to_string();
-    drop_stale_machine_session(ctx);
+    // The machine was idle, so a failed stop here carries no extra risk.
+    let _ = drop_stale_machine_session(ctx);
     ctx.push_error(message.clone());
     ctx.emit_event(
         "machine.disconnected",
@@ -3565,28 +3635,77 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
         .controller_connection_gate
         .lock()
         .map_err(|e| lock_err("controller_connection_gate", e))?;
-    let _ = force_laser_fire_stop(ctx, "disconnect");
+    // A failed M5 must not be silently dropped: fall back to a controller
+    // reset below, and clear the fire state either way once disconnected.
+    let fire_stop_failed = force_laser_fire_stop(ctx, "disconnect").is_err();
     clear_pending_controller_connection(ctx)?;
     clear_relative_frame_confirmation(ctx)?;
     let mut disconnect_warning: Option<String> = None;
+    // Hold the job lock for the whole disconnect (job before session lock
+    // order). Releasing it between clearing the session and the job let a
+    // status tick see a job with no session and report a spurious failure.
+    let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+    let job_active = job_lock.is_some();
     {
         let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        // Closing the port does not stop a streaming controller: commands it
+        // already buffered keep running, possibly with the laser on. Stop it
+        // first. An unconfirmed stop still releases the session, with the same
+        // physical-stop guidance as Emergency Stop. (Ruida and Lihuiyu stop
+        // inside their own disconnect; the xTool M1 runs its uploaded file
+        // standalone.)
+        let stop_result = match session_lock.as_mut() {
+            Some(MachineSessionHandle::Grbl(grbl))
+                if job_active || ctx.active_jog.load(Ordering::Acquire) || fire_stop_failed =>
+            {
+                Some(send_grbl_emergency_stop(grbl))
+            }
+            Some(
+                session @ (MachineSessionHandle::Marlin(_) | MachineSessionHandle::Smoothieware(_)),
+            ) if job_active => Some(stop_session_output(session)),
+            _ => None,
+        };
+        if job_active
+            && matches!(
+                session_lock.as_ref(),
+                Some(MachineSessionHandle::XToolM1(_))
+            )
+        {
+            // The M1 runs its uploaded file standalone; disconnecting does not
+            // and cannot stop it.
+            disconnect_warning = Some(
+                "The xTool M1 keeps running its job after Beam Bench disconnects. Use the machine's button to stop it, or reconnect and stop it."
+                    .to_string(),
+            );
+        }
+        if let Some(Err(error)) = stop_result {
+            disconnect_warning = Some(format!(
+                "[emergency_stop_unconfirmed] Beam Bench disconnected during an active job but could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
+            ));
+        }
+        if let Ok(mut fire) = ctx.active_laser_fire.lock() {
+            fire.take();
+        }
         if let Some(ref mut session) = *session_lock {
             // Disconnect must always release the session: the phases where the
             // controller refuses a software stop (recovery, unowned activity,
             // power fault) are exactly the ones whose remedy is reconnecting.
             // Surface the failed stop as a warning instead of trapping the
             // user with an undroppable session.
-            if let Err(error) = session.disconnect() {
+            if let Err(error) = session.disconnect()
+                && disconnect_warning.is_none()
+            {
                 disconnect_warning = Some(error);
             }
         }
         *session_lock = None;
     }
+    if let Ok(mut endpoint) = ctx.xtool_stop_endpoint.lock() {
+        *endpoint = None;
+    }
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
-    let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
     *job_lock = None;
     clear_job_resources(ctx);
     drop(job_lock);
@@ -3659,6 +3778,7 @@ pub fn home(ctx: &ServiceContext) -> ServiceResult<()> {
             "Homing is disabled while rotary mode is active. Disable rotary mode and reconnect the normal axes before homing.",
         ));
     }
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
         .as_mut()
@@ -3780,6 +3900,7 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
     if input.continuous && ctx.active_jog.load(Ordering::Acquire) {
         return Err(ServiceError::busy("A continuous jog is already active"));
     }
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
         .as_mut()
@@ -3819,15 +3940,13 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
                     profile.rotary_enabled && profile.rotary_axis == beambench_core::RotaryAxis::X;
                 let rotary_y =
                     profile.rotary_enabled && profile.rotary_axis != beambench_core::RotaryAxis::X;
-                if !rotary_x && x_mm > 0.0 {
-                    x_mm = x_mm.min((profile.bed_width_mm - status.work_position.x).max(0.0));
-                } else if !rotary_x && x_mm < 0.0 {
-                    x_mm = -(-x_mm).min(status.work_position.x.max(0.0));
+                if !rotary_x {
+                    x_mm =
+                        continuous_jog_travel(status.work_position.x, profile.bed_width_mm, x_mm);
                 }
-                if !rotary_y && y_mm > 0.0 {
-                    y_mm = y_mm.min((profile.bed_height_mm - status.work_position.y).max(0.0));
-                } else if !rotary_y && y_mm < 0.0 {
-                    y_mm = -(-y_mm).min(status.work_position.y.max(0.0));
+                if !rotary_y {
+                    y_mm =
+                        continuous_jog_travel(status.work_position.y, profile.bed_height_mm, y_mm);
                 }
             }
             let mut z_mm = input.z_mm;
@@ -3940,6 +4059,31 @@ pub fn jog(ctx: &ServiceContext, input: JogMachineInput) -> ServiceResult<()> {
         }),
     );
     Ok(())
+}
+
+/// Limit a press-and-hold jog to the travel left inside the bed.
+///
+/// GRBL machines use either 0..size coordinates or, with the standard homing
+/// convention, -size..0. Work offsets can put the position outside both; then
+/// the frame of reference is unknown and one press never travels more than the
+/// bed size. Controller soft limits remain the final guard.
+fn continuous_jog_travel(position: f64, size: f64, requested: f64) -> f64 {
+    const TOLERANCE_MM: f64 = 0.001;
+    let (room_positive, room_negative) =
+        if (-TOLERANCE_MM..=size + TOLERANCE_MM).contains(&position) {
+            ((size - position).max(0.0), position.max(0.0))
+        } else if (-size - TOLERANCE_MM..=TOLERANCE_MM).contains(&position) {
+            ((-position).max(0.0), (size + position).max(0.0))
+        } else {
+            (size, size)
+        };
+    if requested > 0.0 {
+        requested.min(room_positive)
+    } else if requested < 0.0 {
+        -(-requested).min(room_negative)
+    } else {
+        0.0
+    }
 }
 
 pub fn jog_cancel(ctx: &ServiceContext) -> ServiceResult<()> {
@@ -4138,6 +4282,7 @@ fn run_preflight_check_with_plan(
                     description: "Plan generation".to_string(),
                     passed: false,
                     message: format!("{plan_err}"),
+                    detail: None,
                 }];
                 if let Some(tool_check) = tool_layer_check {
                     checks.push(tool_check);
@@ -4201,6 +4346,7 @@ fn run_preflight_check_with_plan(
                 message: format!(
                     "Images in this job need more than {runs} separate burn runs. This controller supports up to {IN_MEMORY_CONTROLLER_MAX_RASTER_RUNS}. Reduce the image DPI, physical size, or dithering detail."
                 ),
+                detail: None,
             }],
             advisories: Vec::new(),
         };
@@ -4234,6 +4380,7 @@ fn run_preflight_check_with_plan(
                 description: "Controller supports job start".to_string(),
                 passed: can_run_job,
                 message: format!("{:?}", session.controller_family()),
+                detail: None,
             });
             PreflightReport {
                 outcome: if basics_ok && can_run_job {
@@ -4279,6 +4426,7 @@ fn run_preflight_check_with_plan(
             description: "Planned motion fits the active machine profile".to_string(),
             passed: false,
             message,
+            detail: None,
         });
         report.outcome = PreflightOutcome::Fail;
     }
@@ -4300,6 +4448,7 @@ fn run_preflight_check_with_plan(
                 "This controller is not homed, so Beam Bench cannot verify physical bed edges. Frame the job after positioning the laser, then recheck before starting."
                     .to_string()
             },
+            detail: None,
         });
         if !framed {
             report.outcome = PreflightOutcome::Fail;
@@ -4345,6 +4494,7 @@ fn run_preflight_check_with_plan(
             description: "Rotary configuration is safe to run".to_string(),
             passed: rotary_ok,
             message,
+            detail: None,
         });
         if !rotary_ok {
             report.outcome = PreflightOutcome::Fail;
@@ -4385,6 +4535,7 @@ fn run_preflight_check_with_plan(
                     description: w.message.clone(),
                     passed: false,
                     message: w.message.clone(),
+                    detail: None,
                 });
                 report.outcome = PreflightOutcome::Fail;
             }
@@ -4425,6 +4576,7 @@ fn run_preflight_check_with_plan(
                 ),
                 passed: false,
                 message,
+                detail: None,
             });
         }
         report.outcome = PreflightOutcome::Fail;
@@ -4445,6 +4597,31 @@ fn run_preflight_check_with_plan(
         }),
     );
     Ok((report, Some((plan, project_for_controller, profile))))
+}
+
+/// What job output depends on from the connected session, read under the
+/// session lock so the output can be built without it.
+enum JobSessionInputs {
+    Grbl,
+    Marlin(ControllerDriverId),
+    Smoothieware(Option<f64>),
+    Ruida,
+    Lihuiyu,
+    XToolM1,
+    Dsp,
+    Galvo,
+}
+
+/// Controller output built outside the session lock.
+enum BuiltJob {
+    Grbl(Box<JobController>),
+    Marlin(ControllerDriverId, Vec<String>),
+    Smoothieware(Vec<String>),
+    Ruida(RuidaCompiledJob),
+    Lihuiyu(LihuiyuCompiledJob),
+    XToolM1(M1CompiledJob),
+    Dsp,
+    Galvo,
 }
 
 pub fn start_job(ctx: &ServiceContext) -> ServiceResult<JobProgress> {
@@ -4475,6 +4652,19 @@ pub fn start_job_with_options_confirming_advisories(
     if job_lock.is_some() {
         return Err(ServiceError::conflict(
             "A job is already active. Cancel or wait for it to finish.",
+        ));
+    }
+    // Test fire starts under the job lock, so this is settled now. A fire
+    // that began after the stop above must not run into the job, where its
+    // deadman would later send M5 mid-stream.
+    if ctx
+        .active_laser_fire
+        .lock()
+        .map_err(|e| lock_err("active_laser_fire", e))?
+        .is_some()
+    {
+        return Err(ServiceError::conflict(
+            "Release Test Fire before starting a job.",
         ));
     }
 
@@ -4514,33 +4704,118 @@ pub fn start_job_with_options_confirming_advisories(
     super::output::validate_rotary_feed_limit(&plan, &profile)
         .map_err(ServiceError::invalid_state)?;
 
+    // Read what the controller output depends on, then build it without the
+    // session lock: compiling a large raster takes seconds, and Emergency Stop
+    // needs that lock to reach the machine.
+    let (session_epoch, output_plan, session_inputs) = {
+        let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        ensure_no_emergency_stop_since(ctx, estop_generation)?;
+        let session = session_lock
+            .as_ref()
+            .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+        let output_plan = controller_output_plan(ctx, &plan, &project_for_gcode, session);
+        let inputs = match session {
+            MachineSessionHandle::Grbl(session) => {
+                if profile.rotary_enabled && !session.capabilities().supports_rotary {
+                    return Err(ServiceError::invalid_state(
+                        "The connected controller does not support Beam Bench's generic rotary workflow",
+                    ));
+                }
+                super::output::apply_rotary_runtime(
+                    &mut gcode_config,
+                    &project_for_gcode,
+                    &profile,
+                    session.last_status(),
+                )
+                .map_err(ServiceError::invalid_state)?;
+                JobSessionInputs::Grbl
+            }
+            MachineSessionHandle::Marlin(session) => JobSessionInputs::Marlin(session.driver()),
+            MachineSessionHandle::Smoothieware(session) => {
+                JobSessionInputs::Smoothieware(session.laser_maximum_s_value())
+            }
+            MachineSessionHandle::Ruida(_) => JobSessionInputs::Ruida,
+            MachineSessionHandle::Lihuiyu(_) => JobSessionInputs::Lihuiyu,
+            MachineSessionHandle::XToolM1(_) => JobSessionInputs::XToolM1,
+            MachineSessionHandle::Dsp(_) => JobSessionInputs::Dsp,
+            MachineSessionHandle::Galvo(_) => JobSessionInputs::Galvo,
+        };
+        (
+            ctx.session_epoch.load(Ordering::Acquire),
+            output_plan,
+            inputs,
+        )
+    };
+
+    let built = match session_inputs {
+        JobSessionInputs::Grbl => BuiltJob::Grbl(Box::new(
+            JobController::prepare(&output_plan, &gcode_config)
+                .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?,
+        )),
+        JobSessionInputs::Marlin(driver) => BuiltJob::Marlin(
+            driver,
+            acknowledged_gcode_commands(driver, &output_plan, gcode_config)
+                .map_err(ServiceError::machine)?,
+        ),
+        JobSessionInputs::Smoothieware(scale) => BuiltJob::Smoothieware(
+            smoothieware_gcode_commands_for_scale(scale, &output_plan, gcode_config)
+                .map_err(ServiceError::machine)?,
+        ),
+        JobSessionInputs::Ruida => BuiltJob::Ruida(
+            compile_ruida_execution_plan(&output_plan, &project_for_gcode, &profile)
+                .map_err(ServiceError::machine)?,
+        ),
+        JobSessionInputs::Lihuiyu => BuiltJob::Lihuiyu(
+            compile_lihuiyu_execution_plan(&output_plan, &project_for_gcode, &profile)
+                .map_err(ServiceError::machine)?,
+        ),
+        JobSessionInputs::XToolM1 => {
+            let material_thickness_mm = project_for_gcode.material_height_mm.ok_or_else(|| {
+                ServiceError::invalid_state(
+                    "Set Material Thickness before sending a job to the xTool M1 so Beam Bench can calculate the focus height",
+                )
+            })?;
+            BuiltJob::XToolM1(
+                compile_m1_job(
+                    &output_plan,
+                    &gcode_config,
+                    M1CompileConfig {
+                        material_thickness_mm,
+                        ..M1CompileConfig::default()
+                    },
+                )
+                .map_err(|error| {
+                    ServiceError::machine(format!("xTool M1 job prepare failed: {error}"))
+                })?,
+            )
+        }
+        JobSessionInputs::Dsp => BuiltJob::Dsp,
+        JobSessionInputs::Galvo => BuiltJob::Galvo,
+    };
+
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     ensure_no_emergency_stop_since(ctx, estop_generation)?;
-    let session = session_lock
-        .as_mut()
-        .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    let output_plan = controller_output_plan(ctx, &plan, &project_for_gcode, session);
-    let job = match session {
-        MachineSessionHandle::Grbl(session) => {
-            if profile.rotary_enabled && !session.capabilities().supports_rotary {
-                return Err(ServiceError::invalid_state(
-                    "The connected controller does not support Beam Bench's generic rotary workflow",
-                ));
-            }
-            super::output::apply_rotary_runtime(
-                &mut gcode_config,
-                &project_for_gcode,
-                &profile,
-                session.last_status(),
-            )
-            .map_err(ServiceError::invalid_state)?;
-            let config = gcode_config;
-            let mut job = JobController::prepare(&output_plan, &config)
-                .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
+    if ctx.session_epoch.load(Ordering::Acquire) != session_epoch {
+        return Err(ServiceError::invalid_state(
+            "The machine connection changed while the job was being prepared. Start the job again.",
+        ));
+    }
+    // Everything that can fail happens before the first byte is sent, so a
+    // started job is always tracked.
+    clear_retained_terminal_job(ctx)?;
+    install_job_resources(ctx, sleep, None, estop_generation)?;
+    let session = match session_lock.as_mut() {
+        Some(session) => session,
+        None => {
+            clear_job_resources(ctx);
+            return Err(ServiceError::invalid_state("Not connected"));
+        }
+    };
+    let started = match (session, built) {
+        (MachineSessionHandle::Grbl(session), BuiltJob::Grbl(mut job)) => {
             if let Err(error) = job.start(session) {
                 let error = ServiceError::machine(format!("Job start failed: {error}"));
-                let job = ActiveJobHandle::Grbl(job);
+                let job = ActiveJobHandle::Grbl(*job);
                 retain_terminal_job_diagnostic(
                     ctx,
                     "initial_send_failed",
@@ -4549,6 +4824,7 @@ pub fn start_job_with_options_confirming_advisories(
                     Some(&job),
                     session_lock.as_ref(),
                 );
+                clear_job_resources(ctx);
                 drop(session_lock);
                 drop(job_lock);
                 // The first batch can already be partially transmitted. Use the
@@ -4557,89 +4833,61 @@ pub fn start_job_with_options_confirming_advisories(
                 let _ = remember_job_progress(ctx, None);
                 return Err(error);
             }
-            ActiveJobHandle::Grbl(job)
+            Ok(ActiveJobHandle::Grbl(*job))
         }
-        MachineSessionHandle::Marlin(session) => {
-            let driver = session.driver();
-            let commands = acknowledged_gcode_commands(driver, &output_plan, gcode_config)
-                .map_err(ServiceError::machine)?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::Marlin(
-                MarlinRuntimeJob::start_with_duration(
-                    commands,
-                    session,
-                    Some(plan.estimated_duration_secs),
-                )
-                .map_err(|error| {
-                    ServiceError::machine(format!("{driver:?} job start failed: {error}"))
-                })?,
+        (MachineSessionHandle::Marlin(session), BuiltJob::Marlin(driver, commands)) => {
+            MarlinRuntimeJob::start_with_duration(
+                commands,
+                session,
+                Some(plan.estimated_duration_secs),
             )
+            .map(ActiveJobHandle::Marlin)
+            .map_err(|error| ServiceError::machine(format!("{driver:?} job start failed: {error}")))
         }
-        MachineSessionHandle::Smoothieware(session) => {
-            let commands = smoothieware_gcode_commands(session, &output_plan, gcode_config)
-                .map_err(ServiceError::machine)?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::Smoothieware(
-                SmoothiewareRuntimeJob::start_with_duration(
-                    commands,
-                    session,
-                    Some(plan.estimated_duration_secs),
-                )
-                .map_err(|error| {
-                    ServiceError::machine(format!("Smoothieware job start failed: {error}"))
-                })?,
+        (MachineSessionHandle::Smoothieware(session), BuiltJob::Smoothieware(commands)) => {
+            SmoothiewareRuntimeJob::start_with_duration(
+                commands,
+                session,
+                Some(plan.estimated_duration_secs),
             )
-        }
-        MachineSessionHandle::Ruida(session) => {
-            let compiled = compile_ruida_execution_plan(&output_plan, &project_for_gcode, &profile)
-                .map_err(ServiceError::machine)?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::Ruida(session.start_job(&compiled, false).map_err(|error| {
-                ServiceError::machine(format!("Ruida job start failed: {error}"))
-            })?)
-        }
-        MachineSessionHandle::Lihuiyu(session) => {
-            let compiled =
-                compile_lihuiyu_execution_plan(&output_plan, &project_for_gcode, &profile)
-                    .map_err(ServiceError::machine)?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::Lihuiyu(session.start_job(&compiled, false).map_err(|error| {
-                ServiceError::machine(format!("Lihuiyu job start failed: {error}"))
-            })?)
-        }
-        MachineSessionHandle::XToolM1(session) => {
-            let material_thickness_mm = project_for_gcode.material_height_mm.ok_or_else(|| {
-                ServiceError::invalid_state(
-                    "Set Material Thickness before sending a job to the xTool M1 so Beam Bench can calculate the focus height",
-                )
-            })?;
-            let compiled = compile_m1_job(
-                &output_plan,
-                &gcode_config,
-                M1CompileConfig {
-                    material_thickness_mm,
-                    ..M1CompileConfig::default()
-                },
-            )
+            .map(ActiveJobHandle::Smoothieware)
             .map_err(|error| {
-                ServiceError::machine(format!("xTool M1 job prepare failed: {error}"))
-            })?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::XToolM1(
-                XToolM1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
-                    .map_err(|error| {
-                        ServiceError::machine(format!("xTool M1 job upload failed: {error}"))
-                    })?,
-            )
+                ServiceError::machine(format!("Smoothieware job start failed: {error}"))
+            })
         }
-        MachineSessionHandle::Dsp(session) => ActiveJobHandle::Dsp(session.start_job(&output_plan)),
-        MachineSessionHandle::Galvo(session) => {
-            ActiveJobHandle::Galvo(session.start_job(&output_plan))
+        (MachineSessionHandle::Ruida(session), BuiltJob::Ruida(compiled)) => session
+            .start_job(&compiled, false)
+            .map(ActiveJobHandle::Ruida)
+            .map_err(|error| ServiceError::machine(format!("Ruida job start failed: {error}"))),
+        (MachineSessionHandle::Lihuiyu(session), BuiltJob::Lihuiyu(compiled)) => session
+            .start_job(&compiled, false)
+            .map(ActiveJobHandle::Lihuiyu)
+            .map_err(|error| ServiceError::machine(format!("Lihuiyu job start failed: {error}"))),
+        (MachineSessionHandle::XToolM1(session), BuiltJob::XToolM1(compiled)) => {
+            XToolM1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
+                .map(ActiveJobHandle::XToolM1)
+                .map_err(|error| {
+                    ServiceError::machine(format!("xTool M1 job upload failed: {error}"))
+                })
+        }
+        (MachineSessionHandle::Dsp(session), BuiltJob::Dsp) => {
+            Ok(ActiveJobHandle::Dsp(session.start_job(&output_plan)))
+        }
+        (MachineSessionHandle::Galvo(session), BuiltJob::Galvo) => {
+            Ok(ActiveJobHandle::Galvo(session.start_job(&output_plan)))
+        }
+        _ => Err(ServiceError::invalid_state(
+            "The machine connection changed while the job was being prepared. Start the job again.",
+        )),
+    };
+    let job = match started {
+        Ok(job) => job,
+        Err(error) => {
+            clear_job_resources(ctx);
+            return Err(error);
         }
     };
     let progress = job.progress();
-    clear_retained_terminal_job(ctx)?;
-    install_job_resources(ctx, sleep, None, estop_generation)?;
     *job_lock = Some(job);
     drop(session_lock);
     drop(job_lock);
@@ -4648,14 +4896,23 @@ pub fn start_job_with_options_confirming_advisories(
     Ok(progress)
 }
 
-fn drop_stale_machine_session(ctx: &ServiceContext) {
+/// Stop and release a session after a failure. Returns a warning when the
+/// stop attempt itself failed, so callers can tell the user the machine may
+/// still be running. (For controllers other than GRBL, `disconnect` is the
+/// stop attempt.)
+fn drop_stale_machine_session(ctx: &ServiceContext) -> Option<String> {
+    let mut stop_error = None;
     if let Ok(mut session_lock) = ctx.session.lock() {
         if let Some(MachineSessionHandle::Grbl(session)) = session_lock.as_mut() {
-            let _ = session.soft_reset();
+            if let Err(error) = session.soft_reset() {
+                stop_error = Some(error.to_string());
+            }
             let _ = session.send_command("M5");
         }
-        if let Some(session) = session_lock.as_mut() {
-            let _ = session.disconnect();
+        if let Some(session) = session_lock.as_mut()
+            && let Err(error) = session.disconnect()
+        {
+            stop_error.get_or_insert(error);
         }
         *session_lock = None;
     }
@@ -4664,10 +4921,15 @@ fn drop_stale_machine_session(ctx: &ServiceContext) {
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
     let _ = clear_relative_frame_confirmation(ctx);
+    stop_error.map(|error| {
+        format!(
+            "[emergency_stop_unconfirmed] The job stopped with an error and Beam Bench could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
+        )
+    })
 }
 
 fn handle_fatal_job_tick_error(ctx: &ServiceContext, message: String) {
-    drop_stale_machine_session(ctx);
+    let stop_warning = drop_stale_machine_session(ctx);
 
     if let Ok(mut job) = ctx.job.lock() {
         *job = None;
@@ -4683,16 +4945,16 @@ fn handle_fatal_job_tick_error(ctx: &ServiceContext, message: String) {
     );
     ctx.emit_event(
         "machine.disconnected",
-        json!({ "reason": "job_tick_failed" }),
+        json!({ "reason": "job_tick_failed", "stop_warning": stop_warning }),
     );
 }
 
 fn disconnect_failed_active_job(ctx: &ServiceContext, message: String) {
-    drop_stale_machine_session(ctx);
+    let stop_warning = drop_stale_machine_session(ctx);
     ctx.push_error(message);
     ctx.emit_event(
         "machine.disconnected",
-        json!({ "reason": "job_failed_while_active" }),
+        json!({ "reason": "job_failed_while_active", "stop_warning": stop_warning }),
     );
 }
 
@@ -5004,15 +5266,29 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
     let job = job_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("No active job"))?;
-    let session = session_lock
-        .as_mut()
-        .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+    let Some(session) = session_lock.as_mut() else {
+        // Without a connection there is nothing to stop. Drop the stale job
+        // now rather than leaving it for the next tick to report as a failure.
+        *job_lock = None;
+        clear_job_resources(ctx);
+        drop(session_lock);
+        drop(job_lock);
+        remember_job_progress(ctx, None)?;
+        return Err(ServiceError::invalid_state("Not connected"));
+    };
     let progress = job.cancel(session).map_err(|err| {
         ctx.push_error(format!(
             "Job cancellation failed; stop is not confirmed: {err}"
         ));
         ServiceError::machine(err)
     })?;
+    // GRBL cancel writes the reset without waiting for an answer. Confirm it
+    // the same way Emergency Stop does, so a dead link is reported instead of
+    // a Cancelled job on a machine that may still be running.
+    let unconfirmed = match session {
+        MachineSessionHandle::Grbl(grbl) => send_grbl_emergency_stop(grbl).err(),
+        _ => None,
+    };
     retain_terminal_job_diagnostic(
         ctx,
         "cancelled",
@@ -5027,6 +5303,13 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
     drop(job_lock);
     remember_job_progress(ctx, None)?;
     ctx.emit_event("job.cancelled", events::job_summary(&progress));
+    if let Some(error) = unconfirmed {
+        let message = format!(
+            "[emergency_stop_unconfirmed] The job was cancelled, but Beam Bench could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
+        );
+        ctx.push_error(message.clone());
+        return Err(ServiceError::machine(message));
+    }
     Ok(())
 }
 
@@ -5669,6 +5952,7 @@ pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResu
         ));
     }
     validate_optional_z(&profile, input.z, "Go")?;
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     let session = session_lock
         .as_mut()
@@ -5725,6 +6009,7 @@ pub fn move_laser_to(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResu
 }
 
 pub fn move_laser_to_machine(ctx: &ServiceContext, input: MoveLaserInput) -> ServiceResult<()> {
+    let _fire_guard = refuse_motion_during_test_fire(ctx)?;
     require_finite(input.x, "x")?;
     require_finite(input.y, "y")?;
     require_positive_finite(input.feed_rate, "feed_rate")?;
@@ -5777,6 +6062,24 @@ fn fire_s_value(profile: &MachineProfile, power_percent: f64) -> u32 {
         .clamp(0.0, 100.0);
     ((profile.s_value_max as f64 * capped_percent / 100.0).round() as u32)
         .clamp(1, profile.s_value_max.max(1))
+}
+
+/// Moving with test fire on would drag a live beam across the work. Refuse
+/// motion until the fire button is released.
+fn refuse_motion_during_test_fire(
+    ctx: &ServiceContext,
+) -> ServiceResult<std::sync::MutexGuard<'_, Option<LaserFireState>>> {
+    let guard = ctx
+        .active_laser_fire
+        .lock()
+        .map_err(|e| lock_err("active_laser_fire", e))?;
+    if guard.is_some() {
+        return Err(ServiceError::invalid_state(
+            "Release test fire before moving the laser",
+        ));
+    }
+    // Keep the guard through motion dispatch: fire start takes this same lock.
+    Ok(guard)
 }
 
 fn force_laser_fire_stop(ctx: &ServiceContext, reason: &str) -> ServiceResult<()> {
@@ -5855,11 +6158,11 @@ pub fn laser_fire_start(
     ctx: Arc<ServiceContext>,
     power_percent: Option<f64>,
 ) -> ServiceResult<LaserFireStartResult> {
+    // Keep job eligibility stable through fire dispatch, using job -> fire -> session.
     let job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
     if job_lock.is_some() {
         return Err(ServiceError::invalid_state("MACHINE_BUSY_JOB_RUNNING"));
     }
-    drop(job_lock);
 
     let profile = active_profile(&ctx)?;
     if !profile.enable_laser_fire_button {
@@ -5900,15 +6203,36 @@ pub fn laser_fire_start(
                 "Manual fire is only supported on GCode/GRBL controllers",
             ));
         };
-        session
-            .send_command(&grbl_commands::laser_fire_on(s_value))
-            .map_err(|e| ServiceError::machine(e.to_string()))?;
         *active_guard = Some(LaserFireState {
             token: token.clone(),
             expires_at: now + FIRE_KEEPALIVE_GRACE,
             max_expires_at: now + FIRE_MAX_HOLD,
             stop_requested: false,
         });
+        if let Err(error) = session.send_command(&grbl_commands::laser_fire_on(s_value)) {
+            // The M3 line may have reached the controller before the write
+            // reported failure (for example a flush timeout). Stop now,
+            // retaining the armed state for retries if the stop also fails.
+            return Err(
+                match session.send_command(grbl_commands::laser_fire_off()) {
+                    Ok(()) => {
+                        *active_guard = None;
+                        ServiceError::machine(format!("Manual fire could not start: {error}"))
+                    }
+                    Err(stop_error) => {
+                        let active = active_guard
+                            .as_mut()
+                            .expect("fire stop responsibility is armed");
+                        active.stop_requested = true;
+                        active.expires_at = Instant::now();
+                        spawn_laser_fire_deadman(Arc::clone(&ctx), token.clone());
+                        ServiceError::machine(format!(
+                            "[emergency_stop_unconfirmed] Manual fire failed to start and the laser-off command also failed: {error}; {stop_error}. Use the machine's physical emergency stop or disconnect laser power now."
+                        ))
+                    }
+                },
+            );
+        }
     }
 
     spawn_laser_fire_deadman(Arc::clone(&ctx), token.clone());
@@ -6067,27 +6391,38 @@ pub fn reset_all_overrides(ctx: &ServiceContext) -> ServiceResult<()> {
 
 fn send_grbl_emergency_stop(session: &mut GrblRuntimeSession) -> Result<(), String> {
     // Drain pre-existing responses so only traffic observed after Ctrl-X can
-    // confirm delivery of this stop.
-    session.poll().map_err(|error| error.to_string())?;
+    // confirm delivery of this stop. The drain is best effort: a read error
+    // must never prevent the reset write on a handle that may still accept it.
+    // The status count is taken either way, so stale traffic still cannot
+    // count as confirmation.
+    let _ = session.poll();
     let status_report_count = session.status_report_count();
     session.soft_reset().map_err(|error| error.to_string())?;
     let mut banner_received = false;
     let mut fresh_status_received = false;
     for poll_index in 0..EMERGENCY_STOP_CONFIRM_POLLS {
         let responses = session.poll().map_err(|error| error.to_string())?;
-        if responses
-            .iter()
-            .any(|response| matches!(response, GrblResponse::Banner(_) | GrblResponse::Alarm(_)))
-        {
+        if responses.iter().any(|response| {
+            matches!(
+                response,
+                GrblResponse::Banner(_) | GrblResponse::Alarm(_) | GrblResponse::AlarmText(_)
+            )
+        }) {
             banner_received = true;
             break;
         }
         if session.status_report_count() > status_report_count {
+            let status = session.last_status();
             if !matches!(
-                session.last_status().run_state,
+                status.run_state,
                 MachineRunState::Idle | MachineRunState::Alarm
             ) {
                 return Err("controller still reports active motion after the stop".into());
+            }
+            // Idle describes motion only. Apply the same output rule as the
+            // connection handshake: a reported laser output is not stopped.
+            if status.spindle_speed > 0.0 {
+                return Err("controller still reports active laser output after the stop".into());
             }
             fresh_status_received = true;
             break;
@@ -6277,6 +6612,19 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
+    // An xTool status poll or job upload can hold the session for seconds.
+    // Deliver the stop on its own connection first; the session path below
+    // still confirms it.
+    let xtool_endpoint = ctx
+        .xtool_stop_endpoint
+        .lock()
+        .ok()
+        .and_then(|endpoint| endpoint.clone());
+    if let Some((host, port)) = xtool_endpoint
+        && let Err(error) = crate::xtool_runtime::send_independent_stop(&host, port)
+    {
+        tracing::warn!(error = %error, "xTool direct stop failed; using the session path");
+    }
     // Do not take `job` here: start/frame hold it through planning, which can
     // take seconds. The stop only needs the session.
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
@@ -6363,122 +6711,126 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
 /// Capture the current work position and store it as user_origin on the project.
 /// Returns the captured (x, y) coordinates.
 pub fn set_work_origin(ctx: &ServiceContext) -> ServiceResult<(f64, f64)> {
-    // Capture a position reported after the button press. A cached status can
-    // predate the user's most recent jog on controllers that report slowly.
-    let captured = {
-        let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
-        let session = session_lock
-            .as_mut()
-            .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-        match session {
-            session @ MachineSessionHandle::Grbl(_) => {
-                let position = session
-                    .fresh_work_position(Duration::from_secs(1))
-                    .map_err(|error| {
-                        ServiceError::machine(format!("Could not set the user origin: {error}"))
-                    })?
-                    .ok_or_else(|| {
-                        ServiceError::invalid_state(
-                            "The connected controller does not report a work position",
-                        )
-                    })?;
-                (position.x, position.y)
+    ctx.atomic_edit(|| {
+        // Capture a position reported after the button press. A cached status can
+        // predate the user's most recent jog on controllers that report slowly.
+        let captured = {
+            let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+            let session = session_lock
+                .as_mut()
+                .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+            match session {
+                session @ MachineSessionHandle::Grbl(_) => {
+                    let position = session
+                        .fresh_work_position(Duration::from_secs(1))
+                        .map_err(|error| {
+                            ServiceError::machine(format!("Could not set the user origin: {error}"))
+                        })?
+                        .ok_or_else(|| {
+                            ServiceError::invalid_state(
+                                "The connected controller does not report a work position",
+                            )
+                        })?;
+                    (position.x, position.y)
+                }
+                MachineSessionHandle::Marlin(_)
+                | MachineSessionHandle::Smoothieware(_)
+                | MachineSessionHandle::XToolM1(_) => {
+                    return Err(invalid_capability(
+                        "Set work origin",
+                        ControllerFamily::Gcode,
+                    ));
+                }
+                MachineSessionHandle::Ruida(_) => {
+                    return Err(invalid_capability("Set work origin", ControllerFamily::Dsp));
+                }
+                MachineSessionHandle::Lihuiyu(_) => {
+                    return Err(invalid_capability("Set work origin", ControllerFamily::Dsp));
+                }
+                MachineSessionHandle::Dsp(session) => {
+                    let wp = &session.machine_status.work_position;
+                    (wp.x, wp.y)
+                }
+                MachineSessionHandle::Galvo(_) => {
+                    return Err(invalid_capability(
+                        "Set work origin",
+                        ControllerFamily::Galvo,
+                    ));
+                }
             }
-            MachineSessionHandle::Marlin(_)
-            | MachineSessionHandle::Smoothieware(_)
-            | MachineSessionHandle::XToolM1(_) => {
-                return Err(invalid_capability(
-                    "Set work origin",
-                    ControllerFamily::Gcode,
-                ));
-            }
-            MachineSessionHandle::Ruida(_) => {
-                return Err(invalid_capability("Set work origin", ControllerFamily::Dsp));
-            }
-            MachineSessionHandle::Lihuiyu(_) => {
-                return Err(invalid_capability("Set work origin", ControllerFamily::Dsp));
-            }
-            MachineSessionHandle::Dsp(session) => {
-                let wp = &session.machine_status.work_position;
-                (wp.x, wp.y)
-            }
-            MachineSessionHandle::Galvo(_) => {
-                return Err(invalid_capability(
-                    "Set work origin",
-                    ControllerFamily::Galvo,
-                ));
-            }
+        };
+
+        // Store as user_origin on the project (with undo snapshot)
+        {
+            let mut proj_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+            let project = proj_guard
+                .as_mut()
+                .ok_or_else(|| ServiceError::not_found("No project open"))?;
+            ctx.push_project_undo_snapshot(project)
+                .map_err(ServiceError::internal)?;
+            project.user_origin = Some(captured);
+            project.dirty = true;
         }
-    };
 
-    // Store as user_origin on the project (with undo snapshot)
-    {
-        let mut proj_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        let project = proj_guard
-            .as_mut()
-            .ok_or_else(|| ServiceError::not_found("No project open"))?;
-        ctx.push_project_undo_snapshot(project)
-            .map_err(ServiceError::internal)?;
-        project.user_origin = Some(captured);
-        project.dirty = true;
-    }
-
-    ctx.emit_event("machine.origin.set", json!({ "position": captured }));
-    Ok(captured)
+        ctx.emit_event("machine.origin.set", json!({ "position": captured }));
+        Ok(captured)
+    })
 }
 
 pub fn reset_work_origin(ctx: &ServiceContext) -> ServiceResult<()> {
-    // Verify connected (release lock before touching project)
-    {
-        let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
-        let session = session_lock
-            .as_ref()
-            .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-        match session {
-            MachineSessionHandle::Grbl(_) | MachineSessionHandle::Dsp(_) => {}
-            MachineSessionHandle::Marlin(_)
-            | MachineSessionHandle::Smoothieware(_)
-            | MachineSessionHandle::XToolM1(_) => {
-                return Err(invalid_capability(
-                    "Reset work origin",
-                    ControllerFamily::Gcode,
-                ));
-            }
-            MachineSessionHandle::Ruida(_) => {
-                return Err(invalid_capability(
-                    "Reset work origin",
-                    ControllerFamily::Dsp,
-                ));
-            }
-            MachineSessionHandle::Lihuiyu(_) => {
-                return Err(invalid_capability(
-                    "Reset work origin",
-                    ControllerFamily::Dsp,
-                ));
-            }
-            MachineSessionHandle::Galvo(_) => {
-                return Err(invalid_capability(
-                    "Reset work origin",
-                    ControllerFamily::Galvo,
-                ));
+    ctx.atomic_edit(|| {
+        // Verify connected (release lock before touching project)
+        {
+            let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+            let session = session_lock
+                .as_ref()
+                .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+            match session {
+                MachineSessionHandle::Grbl(_) | MachineSessionHandle::Dsp(_) => {}
+                MachineSessionHandle::Marlin(_)
+                | MachineSessionHandle::Smoothieware(_)
+                | MachineSessionHandle::XToolM1(_) => {
+                    return Err(invalid_capability(
+                        "Reset work origin",
+                        ControllerFamily::Gcode,
+                    ));
+                }
+                MachineSessionHandle::Ruida(_) => {
+                    return Err(invalid_capability(
+                        "Reset work origin",
+                        ControllerFamily::Dsp,
+                    ));
+                }
+                MachineSessionHandle::Lihuiyu(_) => {
+                    return Err(invalid_capability(
+                        "Reset work origin",
+                        ControllerFamily::Dsp,
+                    ));
+                }
+                MachineSessionHandle::Galvo(_) => {
+                    return Err(invalid_capability(
+                        "Reset work origin",
+                        ControllerFamily::Galvo,
+                    ));
+                }
             }
         }
-    }
 
-    // Clear user_origin on the project (with undo snapshot)
-    {
-        let mut proj_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-        let project = proj_guard
-            .as_mut()
-            .ok_or_else(|| ServiceError::not_found("No project open"))?;
-        ctx.push_project_undo_snapshot(project)
-            .map_err(ServiceError::internal)?;
-        project.user_origin = None;
-        project.dirty = true;
-    }
+        // Clear user_origin on the project (with undo snapshot)
+        {
+            let mut proj_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+            let project = proj_guard
+                .as_mut()
+                .ok_or_else(|| ServiceError::not_found("No project open"))?;
+            ctx.push_project_undo_snapshot(project)
+                .map_err(ServiceError::internal)?;
+            project.user_origin = None;
+            project.dirty = true;
+        }
 
-    ctx.emit_event("machine.origin.reset", json!({}));
-    Ok(())
+        ctx.emit_event("machine.origin.reset", json!({}));
+        Ok(())
+    })
 }
 
 pub fn test_air_assist(
@@ -6635,6 +6987,18 @@ pub fn persist_profiles(ctx: &ServiceContext) {
 
 #[cfg(test)]
 mod tests {
+
+    /// Cancel as test cleanup. A mock that never answers a reset leaves the
+    /// stop unconfirmed, which still releases the job.
+    fn cancel_job_for_cleanup(ctx: &ServiceContext) {
+        if let Err(error) = cancel_job(ctx) {
+            assert!(
+                error.message.contains("[emergency_stop_unconfirmed]"),
+                "{error}"
+            );
+        }
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
     use super::*;
     use crate::runtime::MachineSessionHandle;
     use crate::test_support::PersistTestGuard;
@@ -7613,6 +7977,14 @@ mod tests {
     fn spawn_network_grbl_fixture(
         fixture: NetworkGrblFixture,
     ) -> (u16, std::thread::JoinHandle<Vec<String>>) {
+        spawn_network_grbl_fixture_with_status_delay(fixture, Duration::ZERO, false)
+    }
+
+    fn spawn_network_grbl_fixture_with_status_delay(
+        fixture: NetworkGrblFixture,
+        first_status_delay: Duration,
+        ignore_first_query: bool,
+    ) -> (u16, std::thread::JoinHandle<Vec<String>>) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = listener.local_addr().unwrap().port();
         let server = std::thread::spawn(move || {
@@ -7628,6 +8000,12 @@ mod tests {
                     Ok(0) => break,
                     Ok(_) if byte[0] == b'?' && line.is_empty() => {
                         commands.push("?".to_string());
+                        if commands.len() == 1 {
+                            if ignore_first_query {
+                                continue;
+                            }
+                            std::thread::sleep(first_status_delay);
+                        }
                         stream
                             .write_all(b"<Idle|MPos:0.000,0.000,0.000|FS:0,0>\n")
                             .unwrap();
@@ -7809,6 +8187,83 @@ mod tests {
                 "connection must only query the controller: {commands:?}"
             );
         }
+    }
+
+    #[test]
+    fn grbl_tcp_retries_ignored_query_and_accepts_delayed_status() {
+        for (delay, ignore_first_query) in
+            [(Duration::from_millis(1200), false), (Duration::ZERO, true)]
+        {
+            let (port, server) = spawn_network_grbl_fixture_with_status_delay(
+                NetworkGrblFixture::Grbl,
+                delay,
+                ignore_first_query,
+            );
+            let ctx = ServiceContext::new();
+            let result = begin_network_controller_connection(
+                &ctx,
+                BeginNetworkControllerConnectionInput {
+                    host: "127.0.0.1".to_string(),
+                    port,
+                    selection: ControllerSelection::KnownDriver {
+                        driver: ControllerDriverId::Grbl,
+                    },
+                },
+            )
+            .unwrap();
+            assert!(matches!(
+                result,
+                ControllerConnectionResult::Connected {
+                    session_state: SessionState::Ready,
+                    ..
+                }
+            ));
+            disconnect_machine(&ctx).unwrap();
+            let commands = server.join().unwrap();
+            assert!(
+                commands
+                    .iter()
+                    .take_while(|command| *command == "?")
+                    .count()
+                    >= 2
+            );
+            assert!(
+                commands
+                    .iter()
+                    .all(|command| matches!(command.as_str(), "?" | "$I" | "$I+" | "$$"))
+            );
+        }
+    }
+
+    #[test]
+    fn grbl_tcp_silent_controller_times_out_and_closes_transport() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut bytes = Vec::new();
+            stream.read_to_end(&mut bytes).unwrap();
+            bytes
+        });
+        let started = Instant::now();
+        let ctx = ServiceContext::new();
+        let error = open_grbl_network_for_connection(&ctx, "127.0.0.1", port)
+            .err()
+            .expect("silent controller must be rejected");
+        assert!(
+            error
+                .message
+                .contains("did not return a GRBL status report")
+        );
+        assert!(started.elapsed() >= NETWORK_STATUS_TIMEOUT);
+        assert!(started.elapsed() < Duration::from_secs(5));
+        let bytes = server.join().unwrap();
+        assert!(bytes.len() >= 2 && bytes.len() <= 12, "{bytes:?}");
+        assert!(bytes.iter().all(|byte| *byte == b'?'));
+        assert!(ctx.session.lock().unwrap().is_none());
     }
 
     #[test]
@@ -9292,6 +9747,7 @@ mod tests {
         status_on_query: VecDeque<String>,
         lines: Vec<String>,
         bytes: Vec<Vec<u8>>,
+        motion_write_gate: Option<(std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>)>,
         fail_m5_writes: usize,
         fail_line_writes: usize,
         fail_line_after: Option<usize>,
@@ -9362,6 +9818,13 @@ mod tests {
         }
 
         fn write_line(&mut self, line: &str) -> Result<(), SerialError> {
+            if line.starts_with("G1 ") {
+                let gate = self.state.lock().unwrap().motion_write_gate.take();
+                if let Some((entered, release)) = gate {
+                    entered.send(()).unwrap();
+                    release.recv_timeout(Duration::from_secs(5)).unwrap();
+                }
+            }
             let mut state = self.state.lock().unwrap();
             state.lines.push(line.to_string());
             if let Some(remaining) = state.fail_line_after.as_mut() {
@@ -9820,6 +10283,231 @@ mod tests {
         profile.laser_on_when_framing = true;
         assert_eq!(frame_power_percent(false, &profile), 1.0);
         assert_eq!(frame_power_percent(true, &profile), 1.0);
+    }
+
+    fn sent_soft_resets(transport: &Arc<Mutex<RecordingTransportState>>) -> usize {
+        sent_bytes(transport)
+            .iter()
+            .filter(|bytes| bytes.as_slice() == grbl_commands::soft_reset())
+            .count()
+    }
+
+    #[test]
+    fn emergency_stop_sends_reset_even_when_the_first_read_fails() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_reads = 1;
+            state
+                .status_on_query
+                .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        }
+        let opens_before = transport.lock().unwrap().open_count;
+        emergency_stop(&ctx).unwrap();
+        assert_eq!(sent_soft_resets(&transport), 1);
+        assert_eq!(
+            transport.lock().unwrap().open_count,
+            opens_before,
+            "the stop must go out on the original handle, not after a reconnect"
+        );
+    }
+
+    #[test]
+    fn emergency_stop_tries_the_original_handle_before_giving_up() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_reads = 1_000;
+            state.fail_open_attempts = 4;
+        }
+        let error = emergency_stop(&ctx).unwrap_err();
+        assert!(
+            error.message.contains("emergency_stop_unconfirmed"),
+            "{error}"
+        );
+        assert!(
+            sent_soft_resets(&transport) >= 1,
+            "Ctrl-X was never attempted on the writable original handle"
+        );
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn stop_confirmation_rejects_idle_with_active_laser_output() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,1000>".into());
+        let error = prepare_shutdown(&ctx).unwrap_err();
+        assert!(error.message.contains("could not be confirmed"), "{error}");
+        assert!(!ctx.shutting_down.load(Ordering::Acquire));
+        assert!(
+            ctx.session.lock().unwrap().is_some(),
+            "window must stay connected"
+        );
+
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,1000>".into());
+        let error = emergency_stop(&ctx).unwrap_err();
+        assert!(
+            error.message.contains("emergency_stop_unconfirmed"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn disconnect_during_a_grbl_job_stops_the_machine_first() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        let mut job = JobController::prepare(&dummy_plan(), &GcodeConfig::default()).unwrap();
+        {
+            let mut session = ctx.session.lock().unwrap();
+            if let Some(MachineSessionHandle::Grbl(grbl)) = session.as_mut() {
+                job.start(grbl).unwrap();
+            }
+        }
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+        transport
+            .lock()
+            .unwrap()
+            .status_on_query
+            .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(
+            sent_soft_resets(&transport),
+            1,
+            "no stop sent before closing"
+        );
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn disconnect_during_a_marlin_job_sends_the_shutdown_first() {
+        use beambench_common::controller_choice::{
+            ControllerChoiceSource, ExplicitControllerSelection, ResolvedControllerChoice,
+        };
+        let mut transport = beambench_serial::MockSerialTransport::new("marlin");
+        for line in [
+            "FIRMWARE_NAME:Marlin 2.1.3 SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin PROTOCOL_VERSION:1.0 MACHINE_TYPE:Laser Cutter",
+            "Cap:EMERGENCY_PARSER:1",
+            "ok",
+        ] {
+            transport.enqueue_response(line);
+        }
+        let handle = transport.handle();
+        let mut serial = MarlinSerialSession::new(
+            Box::new(transport),
+            MarlinSerialSessionConfig {
+                identity_timeout: Duration::from_millis(200),
+                poll_interval: Duration::ZERO,
+                ..MarlinSerialSessionConfig::default()
+            },
+        );
+        serial.connect().unwrap();
+        serial.probe_identity().unwrap();
+        serial.activate().unwrap();
+        let choice = ResolvedControllerChoice {
+            selection: ExplicitControllerSelection::KnownDriver {
+                driver: ControllerDriverId::Marlin,
+            },
+            driver: ControllerDriverId::Marlin,
+            source: ControllerChoiceSource::KnownDriverSelection,
+            detected_identity: None,
+            requires_experimental_mode: true,
+            mismatch: false,
+            override_scope: None,
+            requires_experimental_compatibility_handshake: false,
+        };
+        let mut session = MarlinRuntimeSession::from_choice(serial, &choice);
+        let job = MarlinRuntimeJob::start_with_duration(
+            vec!["G1 X10 F1000".into(), "M5".into(), "M400".into()],
+            &mut session,
+            None,
+        )
+        .unwrap();
+        let ctx = ServiceContext::new();
+        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Marlin(session));
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Marlin(job));
+
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(
+            handle.sent_lines().last().map(String::as_str),
+            Some("M112"),
+            "disconnect must halt a running Marlin job, not just close the port"
+        );
+        assert!(ctx.session.lock().unwrap().is_none());
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn idle_disconnect_does_not_reset_the_controller() {
+        let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(sent_soft_resets(&transport), 0);
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn continuous_jog_handles_negative_and_offset_coordinates() {
+        let profile = MachineProfile {
+            bed_width_mm: 400.0,
+            bed_height_mm: 300.0,
+            ..MachineProfile::default()
+        };
+        // Standard GRBL homing at the max corner: coordinates run 0 to -size.
+        for (x, y, expected) in [
+            (-1000.0, 0.0, "$J=G21G91X-200.000Y0.000F1000"),
+            (1000.0, 0.0, "$J=G21G91X200.000Y0.000F1000"),
+            (0.0, -1000.0, "$J=G21G91X0.000Y-200.000F1000"),
+            (0.0, 1000.0, "$J=G21G91X0.000Y100.000F1000"),
+        ] {
+            let (ctx, transport) = ready_grbl_context_with_status(
+                profile.clone(),
+                "<Idle|MPos:-200.000,-100.000,0.000|WPos:-200.000,-100.000,0.000|FS:0,0>",
+            );
+            jog(
+                &ctx,
+                JogMachineInput {
+                    x_mm: x,
+                    y_mm: y,
+                    z_mm: None,
+                    feed_rate: 1000.0,
+                    continuous: true,
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                sent_lines(&transport).last().map(String::as_str),
+                Some(expected)
+            );
+        }
+        // A work offset outside both conventions: never travel more than the
+        // bed size in one press.
+        let (ctx, transport) = ready_grbl_context_with_status(
+            profile,
+            "<Idle|MPos:0.000,0.000,0.000|WPos:900.000,-900.000,0.000|FS:0,0>",
+        );
+        jog(
+            &ctx,
+            JogMachineInput {
+                x_mm: 100_000.0,
+                y_mm: -100_000.0,
+                z_mm: None,
+                feed_rate: 1000.0,
+                continuous: true,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            sent_lines(&transport).last().map(String::as_str),
+            Some("$J=G21G91X400.000Y-300.000F1000")
+        );
     }
 
     #[test]
@@ -10357,7 +11045,7 @@ mod tests {
         tick_job(&ctx).unwrap();
         assert_eq!(sent_lines(&transport).len(), count);
         assert!(ctx.job_resources.lock().unwrap()._sleep.is_some());
-        cancel_job(&ctx).unwrap();
+        cancel_job_for_cleanup(&ctx);
         assert!(ctx.job_resources.lock().unwrap()._sleep.is_none());
     }
 
@@ -10862,6 +11550,256 @@ mod tests {
         }
     }
 
+    fn fire_profile() -> MachineProfile {
+        MachineProfile {
+            enable_laser_fire_button: true,
+            default_fire_power_percent: 1.0,
+            s_value_max: 1000,
+            ..MachineProfile::default()
+        }
+    }
+
+    #[test]
+    fn failed_fire_and_stop_block_motion_until_deadman_retry_succeeds() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_line_writes = 1;
+            state.fail_m5_writes = 100;
+        }
+        let error = laser_fire_start(Arc::clone(&ctx), None).unwrap_err();
+        assert!(error.message.contains("emergency_stop_unconfirmed"));
+        assert!(
+            ctx.active_laser_fire
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .stop_requested
+        );
+        let error = move_laser_to(
+            &ctx,
+            MoveLaserInput {
+                x: 100.0,
+                y: 20.0,
+                z: None,
+                feed_rate: 1000.0,
+            },
+        )
+        .unwrap_err();
+        assert!(error.message.contains("test fire"));
+        assert!(laser_fire_start(Arc::clone(&ctx), None).is_err());
+        assert!(
+            !sent_lines(&transport)
+                .iter()
+                .any(|line| line.starts_with("G1"))
+        );
+        transport.lock().unwrap().fail_m5_writes = 0;
+        assert!(wait_for_sent_line_count(
+            &transport,
+            "M5",
+            2,
+            Duration::from_secs(2)
+        ));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while ctx.active_laser_fire.lock().unwrap().is_some() {
+            assert!(
+                Instant::now() < deadline,
+                "stop responsibility was not cleared"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
+    fn fire_start_waits_until_go_dispatch_finishes() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        transport.lock().unwrap().motion_write_gate = Some((entered_tx, release_rx));
+        let moving = Arc::clone(&ctx);
+        let motion = std::thread::spawn(move || {
+            move_laser_to(
+                &moving,
+                MoveLaserInput {
+                    x: 100.0,
+                    y: 20.0,
+                    z: None,
+                    feed_rate: 1000.0,
+                },
+            )
+        });
+        entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(matches!(
+            ctx.active_laser_fire.try_lock(),
+            Err(std::sync::TryLockError::WouldBlock)
+        ));
+        let firing = Arc::clone(&ctx);
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let fire = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            done_tx.send(laser_fire_start(firing, None)).unwrap();
+        });
+        started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(done_rx.recv_timeout(Duration::from_millis(50)).is_err());
+        release_tx.send(()).unwrap();
+        motion.join().unwrap().unwrap();
+        let result = done_rx
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap()
+            .unwrap();
+        fire.join().unwrap();
+        assert_eq!(
+            sent_lines(&transport),
+            vec!["G1 X100.000 Y20.000 F1000", "M3 S10"]
+        );
+        laser_fire_stop(&ctx, &result.token).unwrap();
+    }
+
+    #[test]
+    fn marlin_failed_automatic_halt_is_reported_and_can_be_retried() {
+        use beambench_common::controller_choice::{
+            ControllerChoiceSource, ResolvedControllerChoice,
+        };
+        let transport = Arc::new(Mutex::new(RecordingTransportState {
+            rx: VecDeque::from([
+                "FIRMWARE_NAME:Marlin 2.1.3 SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin PROTOCOL_VERSION:1.0 MACHINE_TYPE:Laser Cutter".into(),
+                "Cap:EMERGENCY_PARSER:1".into(), "ok".into(),
+            ]),
+            ..RecordingTransportState::default()
+        }));
+        let mut serial = MarlinSerialSession::new(
+            Box::new(RecordingTransport::new(Arc::clone(&transport))),
+            MarlinSerialSessionConfig {
+                identity_timeout: Duration::from_millis(200),
+                poll_interval: Duration::ZERO,
+                ..MarlinSerialSessionConfig::default()
+            },
+        );
+        serial.connect().unwrap();
+        serial.probe_identity().unwrap();
+        serial.activate().unwrap();
+        let choice = ResolvedControllerChoice {
+            selection: ExplicitControllerSelection::KnownDriver {
+                driver: ControllerDriverId::Marlin,
+            },
+            driver: ControllerDriverId::Marlin,
+            source: ControllerChoiceSource::KnownDriverSelection,
+            detected_identity: None,
+            requires_experimental_mode: true,
+            mismatch: false,
+            override_scope: None,
+            requires_experimental_compatibility_handshake: false,
+        };
+        let mut session = MarlinRuntimeSession::from_choice(serial, &choice);
+        let job = MarlinRuntimeJob::start_with_duration(
+            vec!["G1 X10 F1000".into(), "M5".into(), "M400".into()],
+            &mut session,
+            None,
+        )
+        .unwrap();
+        let ctx = ServiceContext::new();
+        *ctx.session.lock().unwrap() = Some(MachineSessionHandle::Marlin(session));
+        *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Marlin(job));
+        let mut events = ctx.events.subscribe();
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_reads = 1;
+            state.fail_line_after = Some(1); // G1 succeeds, emergency M112 fails.
+        }
+        let progress = tick_job(&ctx).unwrap().unwrap();
+        assert_eq!(progress.state, JobState::Failed);
+        let message = progress.error_message.unwrap();
+        assert!(message.contains("injected read failure"), "{message}");
+        assert!(message.contains("emergency_stop_unconfirmed"), "{message}");
+        assert!(message.contains("M112 failed"), "{message}");
+        assert!(message.contains("physical emergency stop"), "{message}");
+        let mut reported = false;
+        while let Ok(raw) = events.try_recv() {
+            reported |= raw.contains("emergency_stop_unconfirmed");
+        }
+        assert!(reported, "job progress must report the failed halt");
+        assert!(ctx.session.lock().unwrap().is_some());
+        emergency_stop(&ctx).unwrap();
+        assert_eq!(
+            sent_lines(&transport)
+                .iter()
+                .filter(|line| *line == "M112")
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn a_failed_fire_start_turns_the_laser_back_off() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        // The M3 line is written, then the write reports failure (as a flush
+        // timeout after delivery would): the laser may be on.
+        transport.lock().unwrap().fail_line_writes = 1;
+        assert!(laser_fire_start(Arc::clone(&ctx), None).is_err());
+        let lines = sent_lines(&transport);
+        assert_eq!(lines.last().map(String::as_str), Some("M5"), "{lines:?}");
+        assert!(ctx.active_laser_fire.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn disconnect_resets_when_the_fire_stop_fails() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        laser_fire_start(Arc::clone(&ctx), None).unwrap();
+        {
+            let mut state = transport.lock().unwrap();
+            state.fail_m5_writes = 100;
+            state
+                .status_on_query
+                .push_back("<Idle|MPos:0,0,0|FS:0,0>".into());
+        }
+        disconnect_machine(&ctx).unwrap();
+        assert_eq!(
+            sent_soft_resets(&transport),
+            1,
+            "a failed M5 must fall back to a reset"
+        );
+        assert!(ctx.active_laser_fire.lock().unwrap().is_none());
+        assert!(ctx.session.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn motion_is_refused_while_test_fire_is_active() {
+        let (ctx, transport) = ready_grbl_context(fire_profile());
+        laser_fire_start(Arc::clone(&ctx), None).unwrap();
+        let before = sent_lines(&transport).len();
+        let move_input = MoveLaserInput {
+            x: 10.0,
+            y: 10.0,
+            z: None,
+            feed_rate: 1000.0,
+        };
+        for result in [
+            move_laser_to(&ctx, move_input.clone()),
+            move_laser_to_machine(&ctx, move_input.clone()),
+            jog(
+                &ctx,
+                JogMachineInput {
+                    x_mm: 5.0,
+                    y_mm: 0.0,
+                    z_mm: None,
+                    feed_rate: 1000.0,
+                    continuous: false,
+                },
+            ),
+            home(&ctx),
+        ] {
+            let error = result.unwrap_err();
+            assert!(error.message.contains("test fire"), "{error}");
+        }
+        assert_eq!(
+            sent_lines(&transport).len(),
+            before,
+            "no motion while firing"
+        );
+    }
+
     #[test]
     fn laser_fire_scales_percent_and_stops_on_frontend_release() {
         let profile = MachineProfile {
@@ -11325,7 +12263,7 @@ mod tests {
                 connect();
                 assert!(ctx.job.lock().unwrap().is_none());
                 assert_eq!(start_job(&ctx).unwrap().state, JobState::Running);
-                cancel_job(&ctx).unwrap();
+                cancel_job_for_cleanup(&ctx);
                 disconnect_machine(&ctx).unwrap();
                 assert!(!state.lock().unwrap().open);
             }
@@ -11370,6 +12308,55 @@ mod tests {
         assert!(state.lock().unwrap().lines.is_empty());
         session.disconnect().unwrap();
         assert!(!state.lock().unwrap().open);
+    }
+
+    #[test]
+    fn a_failed_automatic_stop_after_a_job_error_is_reported() {
+        for stop_write_fails in [false, true] {
+            let (ctx, transport) = ready_grbl_context(MachineProfile::default());
+            let mut job = JobController::prepare(
+                &dummy_plan(),
+                &GcodeConfig {
+                    transfer_mode: beambench_core::TransferMode::Synchronous,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            {
+                let mut session_lock = ctx.session.lock().unwrap();
+                let MachineSessionHandle::Grbl(session) = session_lock.as_mut().unwrap() else {
+                    panic!("expected GRBL session");
+                };
+                job.start(session).unwrap();
+            }
+            *ctx.job.lock().unwrap() = Some(ActiveJobHandle::Grbl(job));
+            let mut events = ctx.events.subscribe();
+            {
+                let mut state = transport.lock().unwrap();
+                state.rx.push_back("ok".into());
+                state.fail_line_writes = 1;
+                if stop_write_fails {
+                    state.fail_byte_writes = 100;
+                }
+            }
+            assert!(tick_job(&ctx).is_err());
+            let mut warning = None;
+            while let Ok(raw) = events.try_recv() {
+                let event: serde_json::Value = serde_json::from_str(&raw).unwrap();
+                if event["type"] == "machine.disconnected" {
+                    warning = event["payload"]["stop_warning"].as_str().map(str::to_owned);
+                }
+            }
+            if stop_write_fails {
+                let warning = warning.expect("an unconfirmed automatic stop must be reported");
+                assert!(
+                    warning.contains("[emergency_stop_unconfirmed]"),
+                    "{warning}"
+                );
+            } else {
+                assert_eq!(warning, None);
+            }
+        }
     }
 
     #[test]
@@ -12069,7 +13056,7 @@ mod tests {
             worker.join().unwrap().unwrap().state,
             beambench_common::machine::JobState::Running
         );
-        cancel_job(&ctx).unwrap();
+        cancel_job_for_cleanup(&ctx);
     }
 
     fn profile_switch_preflight_context(design_height_mm: f64) -> ServiceContext {

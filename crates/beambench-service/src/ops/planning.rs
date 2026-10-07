@@ -676,7 +676,11 @@ pub fn prepare_gcode_export(
     if let Some(check) = raster_bounds
         && !check.passed
     {
-        return Err(ServiceError::invalid_state(check.message));
+        // The tag lets the app show this in the user's language and unit.
+        return Err(ServiceError::invalid_state(format!(
+            "[raster_motion_off_bed] {}",
+            check.message
+        )));
     }
     let (width, height) = profile.workspace_dimensions_mm();
     beambench_planner::validate::validate_bounds(&plan.segments, width, height).map_err(|err| {

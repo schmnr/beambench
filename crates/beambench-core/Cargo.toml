@@ -29,6 +29,7 @@ datamatrix = { workspace = true }
 pdf417 = { workspace = true }
 clipper2 = { workspace = true }
 roxmltree = { workspace = true }
+svgtypes = { workspace = true }
 flate2 = { workspace = true }
 
 lopdf = { version = "0.44", default-features = false }

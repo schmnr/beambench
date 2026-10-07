@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { PreflightReport } from '../../types/machine';
 import type { StartFromMode } from '../../types/project';
+import { useAppStore } from '../../stores/appStore';
+import { formatLength, preflightDetailText } from '../../i18n/preflightText';
+import { lengthUnitLabel } from '../../utils/lengthUnits';
+import { speedMmMinToDisplay, speedUnitLabel } from '../../utils/speedUnits';
 
 interface PreflightDialogProps {
   report: PreflightReport;
@@ -24,6 +28,9 @@ export function PreflightDialog({
   startFrom = 'absolute_coords',
 }: PreflightDialogProps) {
   const { t } = useTranslation();
+  const settings = useAppStore((s) => s.settings);
+  const displayUnit = settings?.display_unit === 'inches' ? 'inches' : 'mm';
+  const speedTimeUnit = settings?.speed_time_unit;
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !busy) {
@@ -59,6 +66,13 @@ export function PreflightDialog({
       'Laser mode enabled ($32=1)': 'laser_mode',
       'Homing is enabled': 'homing_enabled',
       'Relative placement was framed at the current position': 'relative_framed',
+      'Planned motion fits the active machine profile': 'machine_workspace_fits',
+      'Rotary configuration is safe to run': 'rotary_safe',
+      'Controller supports job start': 'controller_supported',
+      'Image detail fits the connected controller': 'image_detail_fits',
+      'Plan generation': 'plan_generation',
+      'Plan compiles for the connected Ruida target': 'ruida_compiles',
+      'Plan compiles for Lihuiyu M2-compatible mode': 'lihuiyu_compiles',
     };
     const key = keyByDescription[description];
     return key ? t(`dialog.preflight.checks.${key}`, { defaultValue: description }) : description;
@@ -75,37 +89,6 @@ export function PreflightDialog({
       'This controller is not homed, so Beam Bench cannot verify physical bed edges. Frame the job after positioning the laser, then recheck before starting.':
         'frame_required',
     };
-    const segmentMatch = message.match(/^(\d+) segments$/);
-    if (segmentMatch) {
-      const count = Number(segmentMatch[1]);
-      return t(`dialog.preflight.messages.segment_count_${count === 1 ? 'one' : 'other'}`, { count });
-    }
-    const boundsMatch = message.match(
-      /^Plan bounds \(([-\d.]+),([-\d.]+) to ([-\d.]+),([-\d.]+)\) exceed bed \(([\d.]+)x([\d.]+)mm\)$/,
-    );
-    if (boundsMatch) {
-      return t('dialog.preflight.messages.plan_bounds_exceed', {
-        minX: boundsMatch[1],
-        minY: boundsMatch[2],
-        maxX: boundsMatch[3],
-        maxY: boundsMatch[4],
-        width: boundsMatch[5],
-        height: boundsMatch[6],
-      });
-    }
-    const rasterMatch = message.match(
-      /^Raster motion spans ([-\d.]+) to ([-\d.]+)mm on the 0 to ([\d.]+)mm ([XY]) axis \(([\d.]+)mm of overscan and scanning offset beyond the burn area\)\. Reduce overscan or move the design further from the bed edge\.$/,
-    );
-    if (rasterMatch) {
-      return t('dialog.preflight.messages.raster_motion_exceeds', {
-        startFrom,
-        lo: rasterMatch[1],
-        hi: rasterMatch[2],
-        limit: rasterMatch[3],
-        axis: rasterMatch[4],
-        margin: rasterMatch[5],
-      });
-    }
     const key = keyByMessage[message];
     return key ? t(`dialog.preflight.messages.${key}`, { defaultValue: message }) : message;
   };
@@ -161,7 +144,9 @@ export function PreflightDialog({
                 <div className="text-sm text-bb-text">{localizeDescription(check.description)}</div>
                 {check.message && (
                   <div className="text-xs text-bb-text-dim italic mt-0.5">
-                    {localizeMessage(check.message)}
+                    {check.detail
+                      ? preflightDetailText(check.detail, check.passed, displayUnit, startFrom)
+                      : localizeMessage(check.message)}
                   </div>
                 )}
               </div>
@@ -208,7 +193,8 @@ export function PreflightDialog({
                 className="rounded border border-bb-border bg-bb-surface-2 px-3 py-1.5 text-xs font-medium text-bb-text hover:bg-bb-hover disabled:cursor-wait disabled:opacity-60"
               >
                 {t('dialog.preflight.apply_overscan', {
-                  value: overscanAdvisory.recommended_overscan_mm.toFixed(1),
+                  value: formatLength(overscanAdvisory.recommended_overscan_mm, displayUnit),
+                  unit: lengthUnitLabel(displayUnit),
                 })}
               </button>
             )}
@@ -223,7 +209,8 @@ export function PreflightDialog({
                 className="rounded border border-bb-border bg-bb-surface-2 px-3 py-1.5 text-xs font-medium text-bb-text hover:bg-bb-hover disabled:cursor-wait disabled:opacity-60"
               >
                 {t('dialog.preflight.reduce_speed', {
-                  value: Math.round(recommendedSpeed),
+                  value: Math.round(speedMmMinToDisplay(recommendedSpeed, displayUnit, speedTimeUnit) * 10) / 10,
+                  unit: speedUnitLabel(displayUnit, speedTimeUnit),
                 })}
               </button>
             )}

@@ -49,7 +49,7 @@ export default tseslint.config(
               'shortcut',
               'data-testid', 'testId', 'role', 'href', 'src', 'id',
               'titleId', 'toolKind', 'seedOperation', 'previewState', 'name', 'type', 'key', 'rel', 'target', 'autoComplete',
-              'value', 'defaultValue', 'min', 'max', 'step', 'pattern',
+              'value', 'defaultValue', 'min', 'max', 'step', 'pattern', 'commit',
               'method', 'action', 'autoCapitalize', 'autoCorrect', 'spellCheck',
               'inputMode', 'enterKeyHint', 'capture', 'accept', 'crossOrigin',
               'aria-controls', 'aria-describedby', 'aria-labelledby', 'aria-haspopup',

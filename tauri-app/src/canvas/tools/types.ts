@@ -48,6 +48,12 @@ export interface ToolContext {
   rotateObjects: (objectIds: string[], degrees: number, pivot?: { x: number; y: number }) => Promise<void>;
   shearObjects: (objectIds: string[], shearX: number, shearY: number, pivot?: { x: number; y: number }) => Promise<void>;
   updateObjectBoundsBatch: (entries: { id: string; bounds: Bounds }[]) => Promise<void>;
+  scaleAndRotateObjects: (
+    entries: { id: string; bounds: Bounds }[],
+    objectIds: string[],
+    degrees: number,
+    pivot: { x: number; y: number },
+  ) => Promise<void>;
   setCursorWorldPos: (pos: Point2D | null) => void;
   setStatusMessage: (msg: string) => void;
   requestRender: () => void;

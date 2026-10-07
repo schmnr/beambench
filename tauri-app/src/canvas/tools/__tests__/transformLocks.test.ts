@@ -59,6 +59,7 @@ function makeContext(object: ProjectObject, overrides: Partial<ToolContext> = {}
     rotateObjects: vi.fn().mockResolvedValue(undefined),
     shearObjects: vi.fn(),
     updateObjectBoundsBatch: vi.fn(),
+    scaleAndRotateObjects: vi.fn().mockResolvedValue(undefined),
     setCursorWorldPos: vi.fn(),
     setStatusMessage: vi.fn(),
     requestRender: vi.fn(),

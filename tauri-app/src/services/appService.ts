@@ -114,6 +114,11 @@ export const appService = {
     return invoke<AppSettings>('get_app_settings');
   },
 
+  /** Pending notices from settings loading or project opening, returned once. */
+  async takePendingNotices(): Promise<string[]> {
+    return (await invoke<string[] | null>('take_pending_notices')) ?? [];
+  },
+
   /**
    * Set the unsaved-changes confirmation flag and close the window from the
    * backend. Used after the user picks Save or Don't Save.
@@ -214,7 +219,7 @@ export const appService = {
           if (!layoutPersistFailureNotified) {
             layoutPersistFailureNotified = true;
             useNotificationStore.getState().push(
-              'Failed to save panel layout changes. They may be lost on restart.',
+              i18n.t('notifications.panel_layout_save_failed'),
               'error',
             );
           }

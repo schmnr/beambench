@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import i18n from '../../i18n';
 import { useVariableTextStore } from '../variableTextStore';
 
 vi.mock('../../services/variableTextService', () => ({
@@ -57,7 +58,7 @@ describe('variableTextStore', () => {
     expect(state.source?.start).toBe(1);
     expect(state.source?.end).toBe(1);
     expect(state.warnings).toContain(
-      'Template contains {Serial} placeholders outside Serial Number mode.',
+      i18n.t('notifications.variable_text.serial_outside_mode', { placeholder: '{Serial}' }),
     );
   });
 
@@ -194,7 +195,7 @@ describe('variableTextStore', () => {
     useVariableTextStore.getState().setTemplate('{Cut:Speed} {Const:Name}');
     useVariableTextStore.getState().setMode('serial_number');
     expect(useVariableTextStore.getState().warnings).toContain(
-      'Template contains {Cut:...} placeholders outside Cut Setting mode.',
+      i18n.t('notifications.variable_text.cut_outside_mode', { placeholder: '{Cut:...}' }),
     );
 
     useVariableTextStore.getState().setMode('cut_setting');

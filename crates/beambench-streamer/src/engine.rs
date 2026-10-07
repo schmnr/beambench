@@ -20,12 +20,35 @@ use tracing::{debug, warn};
 /// Every major GRBL sender plans against 127.
 const GRBL_RX_BUFFER_SIZE: usize = 127;
 
+/// True when the block contains a coolant word (M7, M8 or M9, any zero
+/// padding), alone or combined with other words. Comments are ignored.
 fn is_air_assist_command(command: &str) -> bool {
-    let command = command.split([';', '(']).next().unwrap_or_default().trim();
-    matches!(
-        command.to_ascii_uppercase().as_str(),
-        "M7" | "M07" | "M8" | "M08" | "M9" | "M09"
-    )
+    let mut block = String::new();
+    let mut in_paren = false;
+    for ch in command.chars() {
+        match ch {
+            ';' if !in_paren => break,
+            '(' => in_paren = true,
+            ')' => in_paren = false,
+            ch if !in_paren && !ch.is_whitespace() => block.push(ch.to_ascii_uppercase()),
+            _ => {}
+        }
+    }
+    for (index, letter) in block.char_indices() {
+        if !letter.is_ascii_alphabetic() {
+            continue;
+        }
+        let start = index + 1;
+        let end = block[start..]
+            .find(|ch: char| ch.is_ascii_alphabetic())
+            .map_or(block.len(), |offset| start + offset);
+        if letter == 'M'
+            && matches!(block[start..end].parse::<f64>(), Ok(code) if code == 7.0 || code == 8.0 || code == 9.0)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 const MAX_CONSOLE_ENTRIES: usize = 1_000;
@@ -185,6 +208,14 @@ impl StreamingEngine {
             .and_then(|seconds| Duration::try_from_secs_f64(seconds).ok())
     }
 
+    /// A homing cycle (`$H`) from custom job G-code is still unacknowledged.
+    /// Some firmware answers no status query until homing finishes.
+    pub(crate) fn homing_in_flight(&self) -> bool {
+        self.sent_commands
+            .iter()
+            .any(|command| command.trim_start().to_ascii_uppercase().starts_with("$H"))
+    }
+
     /// Check if all commands have been sent.
     pub fn all_sent(&self) -> bool {
         self.next_index >= self.commands.len()
@@ -327,6 +358,21 @@ impl StreamingEngine {
                 self.fail(format!("GRBL alarm {code}"), progress);
                 return Err(StreamerError::AlarmDuringJob(*code));
             }
+            GrblResponse::ErrorText(text) => {
+                let mut message = format!("GRBL error: {text}");
+                if !self.sent_commands.is_empty() {
+                    let index = self.next_index - self.sent_commands.len();
+                    let command = self.sent_commands.front().unwrap();
+                    message.push_str(&format!(" at G-code line {}: {command}", index + 1));
+                }
+                self.fail(message.clone(), progress);
+                return Err(StreamerError::JobFailed(message));
+            }
+            GrblResponse::AlarmText(text) => {
+                let message = format!("GRBL alarm: {text}");
+                self.fail(message.clone(), progress);
+                return Err(StreamerError::JobFailed(message));
+            }
             GrblResponse::Banner(_) => {
                 let message = "The controller restarted during the job. Streaming stopped because its queued commands and position can no longer be trusted.";
                 self.fail(message, progress);
@@ -402,6 +448,33 @@ mod tests {
     }
 
     #[test]
+    fn air_assist_barrier_recognizes_coolant_words_in_any_block() {
+        for command in [
+            "M7",
+            "M08",
+            "M9",
+            "M7 S0",
+            "G4 P0.5 M8",
+            "m8;air",
+            "M8 (on)",
+            "M7M3",
+        ] {
+            assert!(is_air_assist_command(command), "{command}");
+        }
+        for command in [
+            "M3 S100",
+            "G1 X7",
+            "M70",
+            "M17",
+            "(M8 note)",
+            "; M8",
+            "G0 X1 M3 S8",
+        ] {
+            assert!(!is_air_assist_command(command), "{command}");
+        }
+    }
+
+    #[test]
     fn long_job_retains_only_recent_console_entries() {
         let (_, mut engine, mut progress) = make_session_and_engine(vec![]);
         for _ in 0..10_000 {
@@ -449,6 +522,26 @@ mod tests {
             .handle_response(&GrblResponse::Ok, &mut progress)
             .unwrap();
         assert!(engine.bytes_in_flight() < initial_bytes);
+    }
+
+    #[test]
+    fn grbl_0_9_text_error_fails_job_with_its_message() {
+        let commands = vec!["G0 X10".to_string()];
+        let (mut session, mut engine, mut progress) = make_session_and_engine(commands);
+        engine.send_tick(&mut session, &mut progress).unwrap();
+
+        let result = engine.handle_response(
+            &GrblResponse::ErrorText("Expected command letter".into()),
+            &mut progress,
+        );
+
+        match result {
+            Err(StreamerError::JobFailed(message)) => {
+                assert!(message.contains("Expected command letter"), "{message}");
+                assert!(message.contains("G0 X10"), "{message}");
+            }
+            other => panic!("expected the job to fail, got {other:?}"),
+        }
     }
 
     #[test]

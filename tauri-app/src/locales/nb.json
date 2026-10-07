@@ -371,8 +371,8 @@
       "outcome_fail": "Mislyktes",
       "warnings_block_start": "Løs advarslene ovenfor før du starter jobben.",
       "advisory_choice": "Denne jobben kan kjøre, men korrigering av rådene kan forbedre graveringskvaliteten.",
-      "apply_overscan": "Bruk {value} mm overskanning og kontroller på nytt",
-      "reduce_speed": "Bruk {value} mm/min og kontroller på nytt",
+      "apply_overscan": "Bruk {value} {unit} overskanning og kontroller på nytt",
+      "reduce_speed": "Bruk {value} {unit} og kontroller på nytt",
       "continue_anyway": "Fortsett uansett",
       "categories": {
         "connection": "Tilkobling",
@@ -382,7 +382,9 @@
         "settings": "Innstillinger",
         "positioning": "Posisjonering",
         "planner": "Planlegger",
-        "machine_workspace": "Maskinarbeidsområde"
+        "machine_workspace": "Maskinarbeidsområde",
+        "controller": "Kontroller",
+        "rotary": "Rotasjonsenhet"
       },
       "checks": {
         "session_ready": "Sesjonen er klar",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Rasterbevegelse passer inn i maskinsengen",
         "laser_mode": "Lasermodus er aktivert ($32=1)",
         "homing_enabled": "Homing er aktivert",
-        "relative_framed": "Relativ plassering ble innrammet på gjeldende posisjon"
+        "relative_framed": "Relativ plassering ble innrammet på gjeldende posisjon",
+        "machine_workspace_fits": "Den planlagte bevegelsen passer til maskinprofilen",
+        "rotary_safe": "Rotasjonsoppsettet er trygt å kjøre",
+        "controller_supported": "Kontrolleren kan starte jobber",
+        "image_detail_fits": "Bildedetaljen passer til kontrolleren",
+        "plan_generation": "Klargjøring av jobb",
+        "ruida_compiles": "Jobben kan konverteres for Ruida-kontrolleren",
+        "lihuiyu_compiles": "Jobben kan konverteres for Lihuiyu M2-kontrolleren"
       },
       "messages": {
         "connected_ready": "Tilkoblet og klar",
@@ -406,8 +415,11 @@
         "frame_required": "Denne kontrolleren er ikke hjemme, så Beam Bench kan ikke verifisere de fysiske sengekantene. Ram inn jobben etter at laseren er plassert, og kontroller deretter på nytt før du starter.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segmenter",
-        "plan_bounds_exceed": "De planlagte grensene ({minX}, {minY} til {maxX}, {maxY}) overskrider maskinbordet på {width} × {height} mm.",
-        "raster_motion_exceeds": "Rasterbevegelsen strekker seg fra {lo} til {hi} mm på {axis}-aksen, som går fra 0 til {limit} mm. Overskanning og skanneforskyvning legger til {margin} mm utenfor graveringsområdet. {startFrom, select, current_position {Reduser overskanningen eller flytt laseren lenger fra bordkanten.} user_origin {Reduser overskanningen eller flytt eller tilbakestill Brukerorigin lenger fra bordkanten.} other {Reduser overskanningen eller flytt motivet lenger fra bordkanten.}}"
+        "plan_bounds_exceed": "De planlagte grensene ({minX}, {minY} til {maxX}, {maxY}) overskrider maskinbordet på {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Rasterbevegelsen strekker seg fra {lo} til {hi} {unit} på {axis}-aksen, som går fra 0 til {limit} {unit}. Overskanning og skanneforskyvning legger til {margin} {unit} utenfor graveringsområdet. {startFrom, select, current_position {Reduser overskanningen eller flytt laseren lenger fra bordkanten.} user_origin {Reduser overskanningen eller flytt eller tilbakestill Brukerorigin lenger fra bordkanten.} other {Reduser overskanningen eller flytt motivet lenger fra bordkanten.}}",
+        "session_state": "Tilkobling: {state}",
+        "machine_state": "Maskintilstand: {state}",
+        "plan_bounds_fit": "De planlagte grensene ({minX}, {minY} til {maxX}, {maxY}) passer på maskinens arbeidsflate på {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "Laster ned...",
       "installing": "Installerer...",
       "blocked_not_in_applications": "Oppdateringer krever at Beam Bench kjøres fra Programmer-mappen. Det ser ut til at det kjører fra installasjonsdiskbildet eller et annet midlertidig sted. Dra Beam Bench til Programmer i Finder, åpne det derfra og prøv oppdateringen på nytt.",
-      "blocked_other_disk": "Beam Bench er installert på en annen disk enn den midlertidige mappen på denne Macen, så oppdateringen kan ikke bytte det ut. Flytt Beam Bench til Programmer-mappen på hoveddisken, eller last ned den nye versjonen fra beambench.com."
+      "blocked_other_disk": "Beam Bench er installert på en annen disk enn den midlertidige mappen på denne Macen, så oppdateringen kan ikke bytte det ut. Flytt Beam Bench til Programmer-mappen på hoveddisken, eller last ned den nye versjonen fra beambench.com.",
+      "blocked_job_running": "Fullfør eller stopp gjeldende jobb før installasjon.",
+      "blocked_machine_operation": "Vent til gjeldende maskinoperasjon er ferdig før installasjon.",
+      "blocked_machine_busy": "Fullfør eller stopp gjeldende maskinoperasjon før installasjon.",
+      "blocked_machine_moving": "Vent til maskinen er i ro igjen før installasjon.",
+      "cancelled_unsaved": "Oppdatering avbrutt. Prosjektet ditt er ikke forkastet."
     },
     "camera_calibration": {
       "title": "Kamerakartlegging",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} linjer",
         "elapsed": "Forløpt: {time}",
         "remaining": "Gjenstår: ~{time}",
-        "finishing": "Fullfører, venter på maskinen..."
+        "finishing": "Fullfører, venter på maskinen...",
+        "last_failure": "Den siste jobben stoppet: {message}"
       },
       "overrides": {
         "title": "Overstyringer",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Innstillinger tilbakestilt til standard.",
     "layout_restore_failed": "Kunne ikke gjenopprette lagret paneloppsett. Standardoppsettet brukes for denne økten.",
     "recovery_check_failed": "Kunne ikke se etter gjenopprettingsfiler under oppstart.",
+    "autosave_failing": "Automatiske gjenopprettingskopier mislykkes. Lagre prosjektet for å holde arbeidet ditt trygt.",
     "backend_subscribe_failed": "Kunne ikke abonnere på backend-hendelser. Noen sanntidsoppdateringer kan være utilgjengelige denne økten.",
     "boolean_needs_two": "Velg nøyaktig 2 lukkede vektorobjekter for boolsk assistent",
     "project_restored": "Prosjekt gjenopprettet fra gjenoppretting",
@@ -2587,7 +2606,50 @@
       "postponed": "Oppdateringspåminnelse utsatt 24 timer.",
       "skipped": "Beam Bench {version} hoppet over."
     },
-    "import_oversized": "Importert i original størrelse: designet måler {width} x {height} {unit}, større enn arbeidsområdet på {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importert i original størrelse: designet måler {width} x {height} {unit}, større enn arbeidsområdet på {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Bruker den eksisterende maskintilkoblingen",
+      "preview_disconnected": "Forhåndsvisningsmaskin frakoblet",
+      "disconnected": "Frakoblet",
+      "preview_connected": "Forhåndsvisningsmaskin tilkoblet",
+      "homing_started": "Referansekjøring startet",
+      "discovery_started": "Maskinsøk startet",
+      "discovery_cancelled": "Maskinsøk avbrutt",
+      "connected_discovered": "Koblet til den funnede enheten",
+      "profile_from_discovery": "Maskinprofil opprettet fra den funnede enheten",
+      "estop_sent": "Nødstopp sendt",
+      "estop_resent_disconnected": "Nødstoppet ble sendt på nytt etter at tilkoblingen til kontrolleren ble åpnet igjen. Deretter koblet Beam Bench fra. Koble til igjen før du fortsetter.",
+      "user_origin_cleared": "Brukeropprinnelse fjernet",
+      "job_tick_failed": "Jobben stoppet fordi sendingen til kontrolleren mislyktes.",
+      "lihuiyu_incomplete": "Lihuiyu-USB-tilkoblingen ble ikke fullført.",
+      "connected_to": "Koblet til {name}",
+      "user_origin_set": "Brukeropprinnelse satt til ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Nytt kamerabilde tatt",
+      "alignment_saved": "Kamerajustering lagret",
+      "mapping_solved": "Kamerakartlegging beregnet",
+      "mapping_saved": "Kamerakartlegging lagret",
+      "mapping_reset": "Kamerakartlegging tilbakestilt",
+      "alignment_solved": "Kamerajustering beregnet",
+      "alignment_reset": "Kamerajustering tilbakestilt"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Malen bruker {placeholder}-plassholdere, men tekstmodusen er ikke Serienummer.",
+      "date_outside_mode": "Malen bruker {placeholder}-plassholdere, men tekstmodusen er ikke Dato/tid.",
+      "csv_outside_mode": "Malen bruker {placeholder}-plassholdere, men tekstmodusen er ikke CSV-fletting.",
+      "cut_outside_mode": "Malen bruker {placeholder}-plassholdere, men tekstmodusen er ikke Kutteinnstilling.",
+      "no_placeholders": "Den valgte tekstmodusen har ingen samsvarende plassholdere i malen.",
+      "csv_load_failed": "CSV-filen kunne ikke lastes inn: {error}",
+      "resolve_failed": "Teksten kunne ikke løses opp: {error}",
+      "merge_fields_failed": "Flettefeltene kunne ikke leses: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Trimmingen laget flere biter. Merk dem og bruk Lukk og slå sammen for å samle dem.",
+      "open_path": "Den trimmede banen er åpen og kan ikke fylles. Bruk Lukk og slå sammen hvis du trenger en lukket form."
+    },
+    "pick_guide_path": "Klikk på et vektor- eller formobjekt som skal brukes som styrebane",
+    "panel_layout_save_failed": "Endringer i panelordningen kunne ikke lagres. De kan gå tapt ved omstart."
   },
   "status": {
     "preview_in_progress": "Genererer forhåndsvisning",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "Nødstopp ble trykket inn mens jobben ble klargjort. Ingenting ble sendt.",
     "sleep_protection_failed": "Kunne ikke hindre at datamaskinen går i hvilemodus under denne jobben. Hold datamaskinen våken til jobben er ferdig.",
+    "project_file_missing": "Prosjektfilen er flyttet eller slettet, så den er fjernet fra {recent}. Bruk {open} for å finne den.",
+    "settings_file_recovered": "Noen lagrede innstillinger kunne ikke leses og ble tilbakestilt. En kopi av originalfilen er beholdt i innstillingsmappen.",
+    "layers_migrated_on_open": "Prosjektet hadde bilder og vektorformer på samme lag. De ble flyttet til egne lag med de samme innstillingene.",
+    "project_too_new": "Prosjektet er laget med en nyere versjon av Beam Bench ({version}). Oppdater Beam Bench for å åpne det.",
+    "project_from_newer_app": "Prosjektet ble sist lagret med en nyere versjon av Beam Bench ({version}). Lagring med denne versjonen kan fjerne innstillinger den ikke støtter.",
+    "edit_invalid_geometry": "Denne endringen ville flyttet eller skalert et objekt utenfor området Beam Bench kan lagre, så den ble ikke utført.",
+    "edit_internal_error": "Denne redigeringen fikk en intern feil og ble angret. Prosjektet ditt er uendret. Rapporter gjerne dette.",
+    "project_invalid_value": "Prosjektet har en ugyldig innstillingsverdi, så det ble ikke lagret.",
+    "project_invalid_value_object": "«{name}» har ugyldig størrelse eller posisjon, så prosjektet ble ikke lagret. Angre den siste endringen av det, eller slett det, og lagre på nytt.",
     "operation_failed_with_detail": "Operasjonen mislyktes: {detail}",
     "raster_plan_too_complex": "Dette bildet lager for mange individuelle rasterbevegelser med gjeldende størrelse og DPI. Reduser DPI eller fysisk størrelse, eller velg en mindre fragmentert bildemodus, og generer deretter forhåndsvisningen på nytt.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "Brukeropprinnelse er valgt, men er ikke angitt. Flytt laseren til den tiltenkte opprinnelsen og velg Sett her før innramming eller start.",
     "current_position_unavailable": "Gjeldende posisjon trenger en tilkoblet maskin med en rapportert posisjon.",
     "dxf_no_usable_geometry": "DXF-filen inneholder ingen brukbar 2D-vektorgeometri.",
-    "dxf_no_usable_geometry_with_entities": "DXF-filen inneholder ingen brukbar 2D-vektorgeometri. Ustøttede eller ugyldige enheter: {entities}."
+    "dxf_no_usable_geometry_with_entities": "DXF-filen inneholder ingen brukbar 2D-vektorgeometri. Ustøttede eller ugyldige enheter: {entities}.",
+    "camera": {
+      "stream_failed": "Kamerastrømmen kunne ikke startes.",
+      "frame_timeout": "Tidsavbrudd mens det ble ventet på et kamerabilde. Kameraet varmer kanskje fortsatt opp eller brukes av en annen app.",
+      "preview_timeout": "Tidsavbrudd ved start av kameraforhåndsvisningen.",
+      "warmup_timeout": "Tidsavbrudd mens det ble ventet på at kameraet ble klart.",
+      "encode_failed": "Kamerabildet kunne ikke lagres.",
+      "unavailable": "Kameraopptak er ikke tilgjengelig i dette vinduet.",
+      "empty_frame": "Kameraet returnerte et tomt bilde.",
+      "canvas_failed": "Kamerabildet kunne ikke klargjøres."
+    },
+    "serial_open_no_response": "Porten ble åpnet, men laseren svarte ikke. Kontroller at laseren er slått på, prøv en annen USB-kabel eller port, og sørg for at riktig port er valgt. Noen kort trenger USB-driveren CH340.",
+    "serial_protocol_unrecognized": "Laseren svarte, men Beam Bench gjenkjente ikke kontrolleren. Kontroller overføringshastigheten (baud) i maskinprofilen (de fleste GRBL-lasere bruker 115200), og lukk annen laserprogramvare som bruker denne porten.",
+    "network_grbl_no_status": "Kontrolleren på denne adressen svarte ikke som en GRBL-laser. Kontroller IP-adressen og porten, lukk andre apper som er koblet til den (mange Wi-Fi-moduler tillater bare én tilkobling om gangen), og prøv igjen.",
+    "no_active_machine_profile": "Ingen maskin er satt opp ennå. Legg til eller velg en maskinprofil først.",
+    "emergency_stop_unconfirmed": "Beam Bench kunne ikke bekrefte at maskinen stoppet. Bruk maskinens fysiske nødstopp eller koble fra strømmen til laseren nå. Detaljer: {detail}",
+    "controller_connection_lost": "Tilkoblingen til laseren ble brutt. Kontroller kabelen og strømmen, og koble til på nytt. Detaljer: {detail}"
   },
   "import": {
     "drop_to_import": "Slipp filer for å importere"

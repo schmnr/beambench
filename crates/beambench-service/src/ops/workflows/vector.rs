@@ -1058,78 +1058,80 @@ fn offset_shapes_inner(
     corner: beambench_core::vector::offset::CornerStyle,
     delete_original: bool,
 ) -> Result<Vec<ProjectObject>, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
 
-    let split = collect_and_split(project, oids)?;
-    if split.open_subpaths.is_empty() && split.closed_subpaths.is_empty() {
-        return Ok(vec![]);
-    }
-
-    // Derive name/layer from the first contributing (non-group) source object.
-    let (first_name, first_layer) = split
-        .source_ids
-        .iter()
-        .filter_map(|id| {
-            let obj = project.find_object(*id)?;
-            if matches!(obj.data, ObjectData::Group { .. }) {
-                None
-            } else {
-                Some((obj.name.clone(), obj.layer_id))
-            }
-        })
-        .next()
-        .unwrap_or_else(|| (String::new(), LayerRef::new()));
-    let result_layer = routed_vector_result_layer(project, first_layer)?;
-
-    let results = compute_offset_from_split(
-        &split.open_subpaths,
-        &split.closed_subpaths,
-        distance,
-        dir,
-        corner,
-    );
-
-    // Single undo snapshot for the entire batch.
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-
-    let mut created = Vec::new();
-
-    for (idx, path) in results.into_iter().enumerate() {
-        if is_degenerate_offset_result(&path) {
-            continue;
+        let split = collect_and_split(project, oids)?;
+        if split.open_subpaths.is_empty() && split.closed_subpaths.is_empty() {
+            return Ok(vec![]);
         }
-        let name = if first_name.is_empty() {
-            if idx == 0 {
-                "Offset".to_string()
-            } else {
-                format!("Offset {}", idx + 1)
+
+        // Derive name/layer from the first contributing (non-group) source object.
+        let (first_name, first_layer) = split
+            .source_ids
+            .iter()
+            .filter_map(|id| {
+                let obj = project.find_object(*id)?;
+                if matches!(obj.data, ObjectData::Group { .. }) {
+                    None
+                } else {
+                    Some((obj.name.clone(), obj.layer_id))
+                }
+            })
+            .next()
+            .unwrap_or_else(|| (String::new(), LayerRef::new()));
+        let result_layer = routed_vector_result_layer(project, first_layer)?;
+
+        let results = compute_offset_from_split(
+            &split.open_subpaths,
+            &split.closed_subpaths,
+            distance,
+            dir,
+            corner,
+        );
+
+        // Single undo snapshot for the entire batch.
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+
+        let mut created = Vec::new();
+
+        for (idx, path) in results.into_iter().enumerate() {
+            if is_degenerate_offset_result(&path) {
+                continue;
             }
-        } else {
-            let suffix = if idx == 0 {
-                " Offset".to_string()
+            let name = if first_name.is_empty() {
+                if idx == 0 {
+                    "Offset".to_string()
+                } else {
+                    format!("Offset {}", idx + 1)
+                }
             } else {
-                format!(" Offset {}", idx + 1)
+                let suffix = if idx == 0 {
+                    " Offset".to_string()
+                } else {
+                    format!(" Offset {}", idx + 1)
+                };
+                format!("{first_name}{suffix}")
             };
-            format!("{first_name}{suffix}")
-        };
-        created.push(add_routed_vecpath_result(
-            project,
-            name,
-            result_layer,
-            path,
-        )?);
-    }
-
-    // Delete all source objects when at least one valid offset was produced.
-    if delete_original && !created.is_empty() {
-        for sid in &split.source_ids {
-            project.remove_object(*sid);
+            created.push(add_routed_vecpath_result(
+                project,
+                name,
+                result_layer,
+                path,
+            )?);
         }
-    }
 
-    Ok(created)
+        // Delete all source objects when at least one valid offset was produced.
+        if delete_original && !created.is_empty() {
+            for sid in &split.source_ids {
+                project.remove_object(*sid);
+            }
+        }
+
+        Ok(created)
+    })
 }
 
 /// Result of gathering a selection's vector geometry and partitioning subpaths
@@ -1391,33 +1393,35 @@ pub fn close_path(svc: &Arc<ServiceContext>, object_id: String) -> Result<Projec
 }
 
 fn close_path_inner(svc: &ServiceContext, oid: ObjectId) -> Result<ProjectObject, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let source = project.find_object(oid).ok_or("Object not found")?.clone();
-    let path = object_to_world_vecpath_resolved(&source, project)
-        .ok_or_else(|| "Object is not a vector type".to_string())?;
-    let source_svg = path.to_svg_d();
-    let result_svg = beambench_core::vector::path_ops::close_paths_with_tolerance(
-        std::slice::from_ref(&source_svg),
-        0.5,
-    )
-    .into_iter()
-    .next()
-    .unwrap_or_else(|| source_svg.clone());
-    if result_svg == source_svg {
-        return Ok(source);
-    }
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let source = project.find_object(oid).ok_or("Object not found")?.clone();
+        let path = object_to_world_vecpath_resolved(&source, project)
+            .ok_or_else(|| "Object is not a vector type".to_string())?;
+        let source_svg = path.to_svg_d();
+        let result_svg = beambench_core::vector::path_ops::close_paths_with_tolerance(
+            std::slice::from_ref(&source_svg),
+            0.5,
+        )
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| source_svg.clone());
+        if result_svg == source_svg {
+            return Ok(source);
+        }
 
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-    path_ops_core::ensure_denormalized(project.find_object_mut(oid).ok_or("Object not found")?);
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+        path_ops_core::ensure_denormalized(project.find_object_mut(oid).ok_or("Object not found")?);
 
-    let result = VecPath::parse_svg_d(&result_svg);
-    let updated = replace_object_with_path(project, oid, result)?;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        let result = VecPath::parse_svg_d(&result_svg);
+        let updated = replace_object_with_path(project, oid, result)?;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 pub fn close_paths_with_tolerance(
@@ -1490,40 +1494,43 @@ fn close_selected_paths_with_tolerance_inner(
     tolerance: f64,
     mode: String,
 ) -> Result<CloseSelectedPathsWithToleranceResult, String> {
-    let mode = CloseToleranceMode::parse(&mode)?;
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|id| parse_id(id))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let summary = plan_close_selected_paths_with_tolerance(project, &parsed_ids, tolerance, mode)?;
-    let open_shapes_found = summary.open_shapes_found;
-    let shapes_closed = summary.shapes_closed;
-    let remaining_open = summary.remaining_open;
-    let mutation_count = summary.plans.len();
-    if mutation_count > 0 {
-        svc.push_project_undo_snapshot(project)
-            .map_err(|e| e.to_string())?;
-        for (oid, result) in summary.plans {
-            project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-            path_ops_core::ensure_denormalized(
-                project.find_object_mut(oid).ok_or("Object not found")?,
-            );
-            replace_object_with_path(project, oid, result)?;
+    svc.atomic_edit(|| {
+        let mode = CloseToleranceMode::parse(&mode)?;
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|id| parse_id(id))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let summary =
+            plan_close_selected_paths_with_tolerance(project, &parsed_ids, tolerance, mode)?;
+        let open_shapes_found = summary.open_shapes_found;
+        let shapes_closed = summary.shapes_closed;
+        let remaining_open = summary.remaining_open;
+        let mutation_count = summary.plans.len();
+        if mutation_count > 0 {
+            svc.push_project_undo_snapshot(project)
+                .map_err(|e| e.to_string())?;
+            for (oid, result) in summary.plans {
+                project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+                path_ops_core::ensure_denormalized(
+                    project.find_object_mut(oid).ok_or("Object not found")?,
+                );
+                replace_object_with_path(project, oid, result)?;
+            }
+            project.dirty = true;
         }
-        project.dirty = true;
-    }
 
-    drop(guard);
-    if mutation_count > 0 {
-        planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    }
-    Ok(CloseSelectedPathsWithToleranceResult {
-        open_shapes_found,
-        shapes_closed,
-        remaining_open,
-        object_ids,
+        drop(guard);
+        if mutation_count > 0 {
+            planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        }
+        Ok(CloseSelectedPathsWithToleranceResult {
+            open_shapes_found,
+            shapes_closed,
+            remaining_open,
+            object_ids,
+        })
     })
 }
 
@@ -1658,38 +1665,40 @@ pub fn break_apart(
 }
 
 fn break_apart_inner(svc: &ServiceContext, oid: ObjectId) -> Result<Vec<ProjectObject>, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let source = project.find_object(oid).ok_or("Object not found")?.clone();
-    let path = object_to_world_vecpath_resolved(&source, project)
-        .ok_or_else(|| "Object is not a vector type".to_string())?;
-    let parts = beambench_core::vector::path_ops::break_apart(&path.to_svg_d());
-    if parts.len() <= 1 {
-        return Ok(vec![]);
-    }
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let source = project.find_object(oid).ok_or("Object not found")?.clone();
+        let path = object_to_world_vecpath_resolved(&source, project)
+            .ok_or_else(|| "Object is not a vector type".to_string())?;
+        let parts = beambench_core::vector::path_ops::break_apart(&path.to_svg_d());
+        if parts.len() <= 1 {
+            return Ok(vec![]);
+        }
 
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
 
-    project.remove_object(oid);
-    let total = parts.len();
-    let mut created = Vec::with_capacity(total);
-    for (idx, part) in parts.into_iter().enumerate() {
-        created.push(add_routed_vecpath_result(
-            project,
-            if total <= 1 {
-                format!("{} Part", source.name)
-            } else {
-                format!("{} Part {}", source.name, idx + 1)
-            },
-            source.layer_id,
-            VecPath::parse_svg_d(&part),
-        )?);
-    }
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(created)
+        project.remove_object(oid);
+        let total = parts.len();
+        let mut created = Vec::with_capacity(total);
+        for (idx, part) in parts.into_iter().enumerate() {
+            created.push(add_routed_vecpath_result(
+                project,
+                if total <= 1 {
+                    format!("{} Part", source.name)
+                } else {
+                    format!("{} Part {}", source.name, idx + 1)
+                },
+                source.layer_id,
+                VecPath::parse_svg_d(&part),
+            )?);
+        }
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(created)
+    })
 }
 
 pub fn set_start_point(
@@ -1699,204 +1708,207 @@ pub fn set_start_point(
     y: f64,
     mode: Option<String>,
 ) -> Result<ProjectObject, String> {
-    use beambench_core::object::StartPointEdit;
+    svc.atomic_edit(|| {
+        use beambench_core::object::StartPointEdit;
 
-    let oid: ObjectId = parse_id(&object_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
+        let oid: ObjectId = parse_id(&object_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
 
-    let mode = mode.unwrap_or_else(|| "set".to_string());
+        let mode = mode.unwrap_or_else(|| "set".to_string());
 
-    // Use clone's bounds/transform for correct world vertex positions
-    let obj = project.find_object(oid).ok_or("Object not found")?;
-    let world_vp = object_to_world_vecpath_resolved(obj, project)
-        .ok_or_else(|| "Object is not a vector type".to_string())?;
-    let world_verts = path_ops_core::get_path_vertices(&world_vp);
-
-    // Find nearest closed-subpath vertex to click point
-    let mut nearest: Option<(usize, usize, f64)> = None;
-    for v in &world_verts {
-        if !v.subpath_closed {
-            continue;
-        }
-        let dx = v.x - x;
-        let dy = v.y - y;
-        let dist_sq = dx * dx + dy * dy;
-        if nearest.is_none() || dist_sq < nearest.unwrap().2 {
-            nearest = Some((v.subpath_index, v.vertex_index, dist_sq));
-        }
-    }
-    let Some((sp_idx, v_idx, _)) = nearest else {
-        // No closed subpath vertex found — return object unchanged (no undo entry)
+        // Use clone's bounds/transform for correct world vertex positions
         let obj = project.find_object(oid).ok_or("Object not found")?;
-        return Ok(obj.clone());
-    };
+        let world_vp = object_to_world_vecpath_resolved(obj, project)
+            .ok_or_else(|| "Object is not a vector type".to_string())?;
+        let world_verts = path_ops_core::get_path_vertices(&world_vp);
 
-    // Re-read effective object for no-op checks (VirtualClones see source's start_point_edits)
-    let obj = project.find_object(oid).ok_or("Object not found")?;
-    let resolved2 = project.resolve_clone(obj);
-    let effective2 = resolved2.as_ref().unwrap_or(obj);
-
-    // Early no-op checks before committing to undo
-    if mode == "reset" {
-        let has_entry = effective2
-            .start_point_edits
-            .iter()
-            .any(|e| e.subpath_index == sp_idx);
-        if !has_entry {
-            return Ok(obj.clone()); // No custom start for this subpath — no undo entry
-        }
-    }
-    if mode == "set" && v_idx == 0 {
-        let has_entry = effective2
-            .start_point_edits
-            .iter()
-            .any(|e| e.subpath_index == sp_idx);
-        if !has_entry {
-            // Clicking the current start vertex on a default path — nothing to change
-            return Ok(obj.clone());
-        }
-    }
-    // "set" on already-custom subpath at vertex 0 without reverse — no rotation, no change
-    if mode == "set" && v_idx == 0 {
-        let obj = project.find_object(oid).ok_or("Object not found")?;
-        return Ok(obj.clone());
-    }
-
-    // We will mutate — push undo snapshot, then resolve clone if needed
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-
-    let obj = project.find_object(oid).ok_or("Object not found")?;
-    let is_vector_path = matches!(obj.data, ObjectData::VectorPath { .. });
-
-    // Get a working VecPath representing the current state of the path.
-    // For VectorPath: parse from path_data (start_point_edits are already baked in).
-    // For non-VectorPath: generate from primitive via object_to_world_vecpath
-    //   (which now applies any existing start_point_edits lazily).
-    let mut vp = if is_vector_path {
-        let path_data = match &obj.data {
-            ObjectData::VectorPath { path_data, .. } => path_data.clone(),
-            _ => unreachable!(),
-        };
-        VecPath::parse_svg_d(&path_data)
-    } else {
-        to_world_vecpath(obj)?
-    };
-
-    let obj = project.find_object_mut(oid).ok_or("Object not found")?;
-
-    match mode.as_str() {
-        "reset" => {
-            // Find entry for this subpath (guaranteed to exist by check above)
-            let entry_idx = obj
-                .start_point_edits
-                .iter()
-                .position(|e| e.subpath_index == sp_idx)
-                .expect("entry existence verified above");
-
-            // For VectorPath: undo rotation/reversal on path_data to restore original.
-            // For non-VectorPath: the original primitive data is unchanged — just
-            // remove the metadata entry and the lazy application disappears.
-            if is_vector_path {
-                let entry = obj.start_point_edits[entry_idx].clone();
-                let v = entry.v_display;
-                let mut idx = entry.original_start_current_idx;
-                if entry.reversed {
-                    vp = path_ops_core::reverse_subpath_at(&vp, entry.subpath_index);
-                    if idx > 0 {
-                        idx = v - idx;
-                    }
-                }
-                vp = path_ops_core::rotate_subpath_start(&vp, entry.subpath_index, idx);
-                if entry.normalized && entry.subpath_index < vp.subpaths.len() {
-                    vp.subpaths[entry.subpath_index] = path_ops_core::denormalize_closed_subpath(
-                        &vp.subpaths[entry.subpath_index],
-                    );
-                }
-                if let ObjectData::VectorPath {
-                    ref mut path_data, ..
-                } = obj.data
-                {
-                    *path_data = vp.to_svg_d();
-                }
+        // Find nearest closed-subpath vertex to click point
+        let mut nearest: Option<(usize, usize, f64)> = None;
+        for v in &world_verts {
+            if !v.subpath_closed {
+                continue;
             }
-            obj.start_point_edits.remove(entry_idx);
-            project.dirty = true;
+            let dx = v.x - x;
+            let dy = v.y - y;
+            let dist_sq = dx * dx + dy * dy;
+            if nearest.is_none() || dist_sq < nearest.unwrap().2 {
+                nearest = Some((v.subpath_index, v.vertex_index, dist_sq));
+            }
         }
-        _ => {
-            // "set" or "set_and_reverse"
-            let do_reverse = mode == "set_and_reverse";
+        let Some((sp_idx, v_idx, _)) = nearest else {
+            // No closed subpath vertex found — return object unchanged (no undo entry)
+            let obj = project.find_object(oid).ok_or("Object not found")?;
+            return Ok(obj.clone());
+        };
 
-            // Normalize if no entry yet for this subpath
-            let has_entry = obj
+        // Re-read effective object for no-op checks (VirtualClones see source's start_point_edits)
+        let obj = project.find_object(oid).ok_or("Object not found")?;
+        let resolved2 = project.resolve_clone(obj);
+        let effective2 = resolved2.as_ref().unwrap_or(obj);
+
+        // Early no-op checks before committing to undo
+        if mode == "reset" {
+            let has_entry = effective2
                 .start_point_edits
                 .iter()
                 .any(|e| e.subpath_index == sp_idx);
             if !has_entry {
-                let (norm_sp, was_modified) =
-                    path_ops_core::normalize_closed_subpath(&vp.subpaths[sp_idx]);
-                let v_display = norm_sp
-                    .commands
-                    .iter()
-                    .filter(|c| !matches!(c, beambench_common::path::PathCommand::Close))
-                    .count()
-                    .saturating_sub(1);
-                vp.subpaths[sp_idx] = norm_sp;
-                obj.start_point_edits.push(StartPointEdit {
-                    subpath_index: sp_idx,
-                    original_start_current_idx: 0,
-                    reversed: false,
-                    v_display,
-                    normalized: was_modified,
-                });
+                return Ok(obj.clone()); // No custom start for this subpath — no undo entry
             }
-
-            // Get mutable entry
-            let entry = obj
-                .start_point_edits
-                .iter_mut()
-                .find(|e| e.subpath_index == sp_idx)
-                .unwrap();
-            let v = entry.v_display;
-
-            // Rotate
-            if v_idx > 0 {
-                entry.original_start_current_idx =
-                    (entry.original_start_current_idx + v - v_idx) % v;
-                vp = path_ops_core::rotate_subpath_start(&vp, sp_idx, v_idx);
-            }
-
-            // Reverse if requested
-            if do_reverse {
-                vp = path_ops_core::reverse_subpath_at(&vp, sp_idx);
-                let idx = entry.original_start_current_idx;
-                if idx > 0 {
-                    entry.original_start_current_idx = v - idx;
-                }
-                entry.reversed = !entry.reversed;
-            }
-
-            // Write modified path_data only for VectorPath objects.
-            // Non-VectorPath objects keep their original ObjectData;
-            // the start_point_edits metadata is applied lazily in
-            // object_to_world_vecpath.
-            if is_vector_path
-                && let ObjectData::VectorPath {
-                    ref mut path_data, ..
-                } = obj.data
-            {
-                *path_data = vp.to_svg_d();
-            }
-            project.dirty = true;
         }
-    }
+        if mode == "set" && v_idx == 0 {
+            let has_entry = effective2
+                .start_point_edits
+                .iter()
+                .any(|e| e.subpath_index == sp_idx);
+            if !has_entry {
+                // Clicking the current start vertex on a default path — nothing to change
+                return Ok(obj.clone());
+            }
+        }
+        // "set" on already-custom subpath at vertex 0 without reverse — no rotation, no change
+        if mode == "set" && v_idx == 0 {
+            let obj = project.find_object(oid).ok_or("Object not found")?;
+            return Ok(obj.clone());
+        }
 
-    let result = project.find_object(oid).ok_or("Object not found")?.clone();
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(result)
+        // We will mutate — push undo snapshot, then resolve clone if needed
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+
+        let obj = project.find_object(oid).ok_or("Object not found")?;
+        let is_vector_path = matches!(obj.data, ObjectData::VectorPath { .. });
+
+        // Get a working VecPath representing the current state of the path.
+        // For VectorPath: parse from path_data (start_point_edits are already baked in).
+        // For non-VectorPath: generate from primitive via object_to_world_vecpath
+        //   (which now applies any existing start_point_edits lazily).
+        let mut vp = if is_vector_path {
+            let path_data = match &obj.data {
+                ObjectData::VectorPath { path_data, .. } => path_data.clone(),
+                _ => unreachable!(),
+            };
+            VecPath::parse_svg_d(&path_data)
+        } else {
+            to_world_vecpath(obj)?
+        };
+
+        let obj = project.find_object_mut(oid).ok_or("Object not found")?;
+
+        match mode.as_str() {
+            "reset" => {
+                // Find entry for this subpath (guaranteed to exist by check above)
+                let entry_idx = obj
+                    .start_point_edits
+                    .iter()
+                    .position(|e| e.subpath_index == sp_idx)
+                    .expect("entry existence verified above");
+
+                // For VectorPath: undo rotation/reversal on path_data to restore original.
+                // For non-VectorPath: the original primitive data is unchanged — just
+                // remove the metadata entry and the lazy application disappears.
+                if is_vector_path {
+                    let entry = obj.start_point_edits[entry_idx].clone();
+                    let v = entry.v_display;
+                    let mut idx = entry.original_start_current_idx;
+                    if entry.reversed {
+                        vp = path_ops_core::reverse_subpath_at(&vp, entry.subpath_index);
+                        if idx > 0 {
+                            idx = v - idx;
+                        }
+                    }
+                    vp = path_ops_core::rotate_subpath_start(&vp, entry.subpath_index, idx);
+                    if entry.normalized && entry.subpath_index < vp.subpaths.len() {
+                        vp.subpaths[entry.subpath_index] =
+                            path_ops_core::denormalize_closed_subpath(
+                                &vp.subpaths[entry.subpath_index],
+                            );
+                    }
+                    if let ObjectData::VectorPath {
+                        ref mut path_data, ..
+                    } = obj.data
+                    {
+                        *path_data = vp.to_svg_d();
+                    }
+                }
+                obj.start_point_edits.remove(entry_idx);
+                project.dirty = true;
+            }
+            _ => {
+                // "set" or "set_and_reverse"
+                let do_reverse = mode == "set_and_reverse";
+
+                // Normalize if no entry yet for this subpath
+                let has_entry = obj
+                    .start_point_edits
+                    .iter()
+                    .any(|e| e.subpath_index == sp_idx);
+                if !has_entry {
+                    let (norm_sp, was_modified) =
+                        path_ops_core::normalize_closed_subpath(&vp.subpaths[sp_idx]);
+                    let v_display = norm_sp
+                        .commands
+                        .iter()
+                        .filter(|c| !matches!(c, beambench_common::path::PathCommand::Close))
+                        .count()
+                        .saturating_sub(1);
+                    vp.subpaths[sp_idx] = norm_sp;
+                    obj.start_point_edits.push(StartPointEdit {
+                        subpath_index: sp_idx,
+                        original_start_current_idx: 0,
+                        reversed: false,
+                        v_display,
+                        normalized: was_modified,
+                    });
+                }
+
+                // Get mutable entry
+                let entry = obj
+                    .start_point_edits
+                    .iter_mut()
+                    .find(|e| e.subpath_index == sp_idx)
+                    .unwrap();
+                let v = entry.v_display;
+
+                // Rotate
+                if v_idx > 0 {
+                    entry.original_start_current_idx =
+                        (entry.original_start_current_idx + v - v_idx) % v;
+                    vp = path_ops_core::rotate_subpath_start(&vp, sp_idx, v_idx);
+                }
+
+                // Reverse if requested
+                if do_reverse {
+                    vp = path_ops_core::reverse_subpath_at(&vp, sp_idx);
+                    let idx = entry.original_start_current_idx;
+                    if idx > 0 {
+                        entry.original_start_current_idx = v - idx;
+                    }
+                    entry.reversed = !entry.reversed;
+                }
+
+                // Write modified path_data only for VectorPath objects.
+                // Non-VectorPath objects keep their original ObjectData;
+                // the start_point_edits metadata is applied lazily in
+                // object_to_world_vecpath.
+                if is_vector_path
+                    && let ObjectData::VectorPath {
+                        ref mut path_data, ..
+                    } = obj.data
+                {
+                    *path_data = vp.to_svg_d();
+                }
+                project.dirty = true;
+            }
+        }
+
+        let result = project.find_object(oid).ok_or("Object not found")?.clone();
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(result)
+    })
 }
 
 pub fn get_path_vertices(
@@ -1918,83 +1930,91 @@ pub fn apply_radius(
     object_id: String,
     radius_mm: f64,
 ) -> Result<ProjectObject, String> {
-    let oid: ObjectId = parse_id(&object_id)?;
-    // Near-zero radius is a no-op — matches core apply_radius threshold
-    if radius_mm.abs() < 1e-12 {
-        let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-        let project = guard.as_ref().ok_or("No project open")?;
-        let obj = project.find_object(oid).ok_or("Object not found")?;
-        return Ok(obj.clone());
-    }
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-
-    let obj = project.find_object(oid).ok_or("Object not found")?;
-    let resolved = project.resolve_clone(obj);
-    let effective = resolved.as_ref().unwrap_or(obj);
-
-    if let ObjectData::Star {
-        points,
-        bulge,
-        ratio,
-        dual_radius,
-        ratio2,
-        corner_radius,
-        corner_radii,
-        ..
-    } = &effective.data
-    {
-        if bulge.abs() > 1e-9 {
-            return Err("Radius tool does not support bulged stars yet".into());
-        }
-        if radius_mm < 0.0 {
-            return Err("Negative radius is not supported for stars yet".into());
-        }
-        let local_radius =
-            star_local_radius_from_mm(effective, *points, *ratio, *dual_radius, *ratio2, radius_mm);
-        if (local_radius - *corner_radius).abs() < 1e-9 && corner_radii.is_empty() {
+    svc.atomic_edit(|| {
+        let oid: ObjectId = parse_id(&object_id)?;
+        // Near-zero radius is a no-op — matches core apply_radius threshold
+        if radius_mm.abs() < 1e-12 {
+            let guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+            let project = guard.as_ref().ok_or("No project open")?;
+            let obj = project.find_object(oid).ok_or("Object not found")?;
             return Ok(obj.clone());
         }
-        svc.push_project_undo_snapshot(project)
-            .map_err(|e| e.to_string())?;
-        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-        let target = project.find_object_mut(oid).ok_or("Object not found")?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+
+        let obj = project.find_object(oid).ok_or("Object not found")?;
+        let resolved = project.resolve_clone(obj);
+        let effective = resolved.as_ref().unwrap_or(obj);
+
         if let ObjectData::Star {
+            points,
+            bulge,
+            ratio,
+            dual_radius,
+            ratio2,
             corner_radius,
             corner_radii,
             ..
-        } = &mut target.data
+        } = &effective.data
         {
-            *corner_radius = local_radius.max(0.0);
-            corner_radii.clear();
+            if bulge.abs() > 1e-9 {
+                return Err("Radius tool does not support bulged stars yet".into());
+            }
+            if radius_mm < 0.0 {
+                return Err("Negative radius is not supported for stars yet".into());
+            }
+            let local_radius = star_local_radius_from_mm(
+                effective,
+                *points,
+                *ratio,
+                *dual_radius,
+                *ratio2,
+                radius_mm,
+            );
+            if (local_radius - *corner_radius).abs() < 1e-9 && corner_radii.is_empty() {
+                return Ok(obj.clone());
+            }
+            svc.push_project_undo_snapshot(project)
+                .map_err(|e| e.to_string())?;
+            project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+            let target = project.find_object_mut(oid).ok_or("Object not found")?;
+            if let ObjectData::Star {
+                corner_radius,
+                corner_radii,
+                ..
+            } = &mut target.data
+            {
+                *corner_radius = local_radius.max(0.0);
+                corner_radii.clear();
+            }
+            let updated = target.clone();
+            drop(guard);
+            planning::invalidate_plan_cache(svc).map_err(String::from)?;
+            return Ok(updated);
         }
-        let updated = target.clone();
+
+        // Compute the result read-only first to detect geometric no-ops
+        let vp = to_world_vecpath(effective)?;
+        let result = beambench_core::vector::path_ops::apply_radius(&vp, radius_mm);
+        // If the path is unchanged, return without touching undo or metadata
+        if result.to_svg_d() == vp.to_svg_d() {
+            let obj = project.find_object(oid).ok_or("Object not found")?;
+            return Ok(obj.clone());
+        }
+
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+        path_ops_core::ensure_denormalized(project.find_object_mut(oid).ok_or("Object not found")?);
+        // Re-compute on the now-resolved/denormalized object
+        let source = project.find_object(oid).ok_or("Object not found")?.clone();
+        let vp = to_world_vecpath(&source)?;
+        let result = beambench_core::vector::path_ops::apply_radius(&vp, radius_mm);
+        let updated = replace_object_with_path(project, oid, result)?;
         drop(guard);
         planning::invalidate_plan_cache(svc).map_err(String::from)?;
-        return Ok(updated);
-    }
-
-    // Compute the result read-only first to detect geometric no-ops
-    let vp = to_world_vecpath(effective)?;
-    let result = beambench_core::vector::path_ops::apply_radius(&vp, radius_mm);
-    // If the path is unchanged, return without touching undo or metadata
-    if result.to_svg_d() == vp.to_svg_d() {
-        let obj = project.find_object(oid).ok_or("Object not found")?;
-        return Ok(obj.clone());
-    }
-
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-    path_ops_core::ensure_denormalized(project.find_object_mut(oid).ok_or("Object not found")?);
-    // Re-compute on the now-resolved/denormalized object
-    let source = project.find_object(oid).ok_or("Object not found")?.clone();
-    let vp = to_world_vecpath(&source)?;
-    let result = beambench_core::vector::path_ops::apply_radius(&vp, radius_mm);
-    let updated = replace_object_with_path(project, oid, result)?;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        Ok(updated)
+    })
 }
 
 pub fn get_fillet_candidates(
@@ -2081,94 +2101,102 @@ fn apply_corner_radius_inner(
     vertex_index: usize,
     radius_mm: f64,
 ) -> Result<ProjectObject, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
 
-    let obj = project.find_object(oid).ok_or("Object not found")?;
-    let resolved = project.resolve_clone(obj);
-    let effective = resolved.as_ref().unwrap_or(obj);
+        let obj = project.find_object(oid).ok_or("Object not found")?;
+        let resolved = project.resolve_clone(obj);
+        let effective = resolved.as_ref().unwrap_or(obj);
 
-    if let ObjectData::Star {
-        points,
-        bulge,
-        ratio,
-        dual_radius,
-        ratio2,
-        corner_radius,
-        corner_radii,
-        ..
-    } = &effective.data
-    {
-        if bulge.abs() > 1e-9 {
-            return Err("Radius tool does not support bulged stars yet".into());
+        if let ObjectData::Star {
+            points,
+            bulge,
+            ratio,
+            dual_radius,
+            ratio2,
+            corner_radius,
+            corner_radii,
+            ..
+        } = &effective.data
+        {
+            if bulge.abs() > 1e-9 {
+                return Err("Radius tool does not support bulged stars yet".into());
+            }
+            if subpath_index != 0 {
+                return Err("Star only has one contour".into());
+            }
+            let anchor_count = canonical_star_anchor_count(*points, *dual_radius);
+            if vertex_index >= anchor_count {
+                return Err("Star corner index out of range".into());
+            }
+            if radius_mm < 0.0 {
+                return Err("Negative radius is not supported for stars yet".into());
+            }
+            let local_radius = star_local_radius_from_mm(
+                effective,
+                *points,
+                *ratio,
+                *dual_radius,
+                *ratio2,
+                radius_mm,
+            )
+            .max(0.0);
+            let mut next_radii = if corner_radii.len() == anchor_count {
+                corner_radii.clone()
+            } else {
+                vec![*corner_radius; anchor_count]
+            };
+            if (next_radii[vertex_index] - local_radius).abs() < 1e-9 {
+                // Same radius clicked again → toggle off (unfillet)
+                next_radii[vertex_index] = 0.0;
+            } else {
+                next_radii[vertex_index] = local_radius;
+            }
+
+            svc.push_project_undo_snapshot(project)
+                .map_err(|e| e.to_string())?;
+            project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+            let target = project.find_object_mut(oid).ok_or("Object not found")?;
+            if let ObjectData::Star { corner_radii, .. } = &mut target.data {
+                *corner_radii = next_radii;
+            }
+            let updated = target.clone();
+            drop(guard);
+            planning::invalidate_plan_cache(svc).map_err(String::from)?;
+            return Ok(updated);
         }
-        if subpath_index != 0 {
-            return Err("Star only has one contour".into());
-        }
-        let anchor_count = canonical_star_anchor_count(*points, *dual_radius);
-        if vertex_index >= anchor_count {
-            return Err("Star corner index out of range".into());
-        }
-        if radius_mm < 0.0 {
-            return Err("Negative radius is not supported for stars yet".into());
-        }
-        let local_radius =
-            star_local_radius_from_mm(effective, *points, *ratio, *dual_radius, *ratio2, radius_mm)
-                .max(0.0);
-        let mut next_radii = if corner_radii.len() == anchor_count {
-            corner_radii.clone()
-        } else {
-            vec![*corner_radius; anchor_count]
-        };
-        if (next_radii[vertex_index] - local_radius).abs() < 1e-9 {
-            // Same radius clicked again → toggle off (unfillet)
-            next_radii[vertex_index] = 0.0;
-        } else {
-            next_radii[vertex_index] = local_radius;
+
+        // Read-only check for no-op
+        let vp = to_world_vecpath(effective)?;
+        let result = beambench_core::vector::path_ops::apply_radius_at_corner(
+            &vp,
+            subpath_index,
+            vertex_index,
+            radius_mm,
+        );
+        if result.to_svg_d() == vp.to_svg_d() {
+            let obj = project.find_object(oid).ok_or("Object not found")?;
+            return Ok(obj.clone());
         }
 
         svc.push_project_undo_snapshot(project)
             .map_err(|e| e.to_string())?;
         project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-        let target = project.find_object_mut(oid).ok_or("Object not found")?;
-        if let ObjectData::Star { corner_radii, .. } = &mut target.data {
-            *corner_radii = next_radii;
-        }
-        let updated = target.clone();
+        path_ops_core::ensure_denormalized(project.find_object_mut(oid).ok_or("Object not found")?);
+        let source = project.find_object(oid).ok_or("Object not found")?.clone();
+        let vp = to_world_vecpath(&source)?;
+        let result = beambench_core::vector::path_ops::apply_radius_at_corner(
+            &vp,
+            subpath_index,
+            vertex_index,
+            radius_mm,
+        );
+        let updated = replace_object_with_path(project, oid, result)?;
         drop(guard);
         planning::invalidate_plan_cache(svc).map_err(String::from)?;
-        return Ok(updated);
-    }
-
-    // Read-only check for no-op
-    let vp = to_world_vecpath(effective)?;
-    let result = beambench_core::vector::path_ops::apply_radius_at_corner(
-        &vp,
-        subpath_index,
-        vertex_index,
-        radius_mm,
-    );
-    if result.to_svg_d() == vp.to_svg_d() {
-        let obj = project.find_object(oid).ok_or("Object not found")?;
-        return Ok(obj.clone());
-    }
-
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-    path_ops_core::ensure_denormalized(project.find_object_mut(oid).ok_or("Object not found")?);
-    let source = project.find_object(oid).ok_or("Object not found")?.clone();
-    let vp = to_world_vecpath(&source)?;
-    let result = beambench_core::vector::path_ops::apply_radius_at_corner(
-        &vp,
-        subpath_index,
-        vertex_index,
-        radius_mm,
-    );
-    let updated = replace_object_with_path(project, oid, result)?;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        Ok(updated)
+    })
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2479,6 +2507,9 @@ fn apply_transformed_source_to_existing(
     Ok(source_root.id)
 }
 
+/// The array dialogs' limit, enforced here too for API, CLI and agent callers.
+const ARRAY_MAX_PER_AXIS: u32 = 100;
+
 pub fn grid_array(
     svc: &Arc<ServiceContext>,
     object_ids: Vec<String>,
@@ -2505,144 +2536,152 @@ pub fn grid_array(
     auto_increment_text: Option<bool>,
     text_increment: Option<i64>,
 ) -> Result<ArrayResult, String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|id| parse_id(id))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let sources: Vec<ProjectObject> = parsed_ids
-        .iter()
-        .map(|id| project.find_object(*id).cloned().ok_or("Object not found"))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let spacing_mode_enum = match spacing_mode.as_deref() {
-        Some("edgeToEdge") => SpacingMode::EdgeToEdge,
-        _ => SpacingMode::CenterToCenter,
-    };
-    let sizing_mode_x_enum = match sizing_mode_x.as_deref() {
-        Some("total") => GridArraySizingMode::Total,
-        _ => GridArraySizingMode::Count,
-    };
-    let sizing_mode_y_enum = match sizing_mode_y.as_deref() {
-        Some("total") => GridArraySizingMode::Total,
-        _ => GridArraySizingMode::Count,
-    };
-
-    let use_virtual = create_virtual.unwrap_or(false);
-    let mut config = GridArrayConfig {
-        rows,
-        cols,
-        sizing_mode_x: sizing_mode_x_enum,
-        sizing_mode_y: sizing_mode_y_enum,
-        total_width_mm,
-        total_height_mm,
-        h_spacing_mm,
-        v_spacing_mm,
-        spacing_mode: spacing_mode_enum,
-        mirror_alternate_cols: mirror_alternate_cols.unwrap_or(false),
-        mirror_alternate_rows: mirror_alternate_rows.unwrap_or(false),
-        x_col_shift_mm: x_col_shift_mm.unwrap_or(0.0),
-        y_row_shift_mm: y_row_shift_mm.unwrap_or(0.0),
-        half_shift: half_shift.unwrap_or(false),
-        reverse_h: reverse_h.unwrap_or(false),
-        reverse_v: reverse_v.unwrap_or(false),
-        random_orientation: random_orientation.unwrap_or(false),
-        random_seed: random_seed.unwrap_or(0),
-        group_results: group_results.unwrap_or(false),
-        create_virtual: use_virtual,
-        // Virtual clones inherit geometry from source, so auto-increment is meaningless
-        auto_increment_text: if use_virtual {
-            false
-        } else {
-            auto_increment_text.unwrap_or(false)
-        },
-        text_increment: text_increment.unwrap_or(1),
-    };
-    let (fitted_rows, fitted_cols) = beambench_core::fit_grid_array_counts(&sources, &config, 100);
-    config.rows = fitted_rows;
-    config.cols = fitted_cols;
-
-    let transformed_roots = beambench_core::grid_array_in_project(project, &sources, &config);
-    let (copies, root_ids) =
-        materialize_array_copies(project, &sources, transformed_roots, config.create_virtual)?;
-
-    // `grid_array_in_project` and `materialize_array_copies` only read the
-    // project, so push the undo snapshot after they succeed — a failed
-    // materialize (dangling group child refs) must not leave a phantom
-    // no-op undo entry. The first project mutation is the add loop below.
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-
-    // Layer invariant: rasters stay on image layers, non-rasters stay
-    // off image layers. Virtual clones resolve to their source's data
-    // at plan time, so the clone's host layer must match the SOURCE's
-    // effective content type. Using `effective_is_raster` (rather
-    // than a literal RasterImage match) also handles clone-of-clone
-    // chains where the indirect source is a raster.
-    let mut added_root_ids = HashSet::new();
-    let mut created_ids = Vec::with_capacity(root_ids.len());
-    for mut copy in copies {
-        if matches!(copy.data, ObjectData::VirtualClone { .. }) {
-            let target = crate::RoutingTarget::from_data(&copy.data, project);
-            let (dest, _) = crate::resolve_layer_for_object(project, copy.layer_id, target)
-                .map_err(|e| e.to_string())?;
-            copy.layer_id = dest;
-        }
-        let added = project.add_object(copy).clone();
-        if root_ids.contains(&added.id) && added_root_ids.insert(added.id) {
-            created_ids.push(added.id.to_string());
-        }
+    if rows > ARRAY_MAX_PER_AXIS || cols > ARRAY_MAX_PER_AXIS {
+        return Err(format!(
+            "Grid arrays support up to {ARRAY_MAX_PER_AXIS} rows and {ARRAY_MAX_PER_AXIS} columns"
+        ));
     }
-
-    // Group results if requested
-    let group_id = if config.group_results && created_ids.len() > 1 {
-        let child_ids: Vec<ObjectId> = created_ids
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
             .iter()
-            .map(|s| parse_id(s))
+            .map(|id| parse_id(id))
             .collect::<Result<Vec<_>, _>>()?;
-        let mut min_x = f64::INFINITY;
-        let mut min_y = f64::INFINITY;
-        let mut max_x = f64::NEG_INFINITY;
-        let mut max_y = f64::NEG_INFINITY;
-        for id in &child_ids {
-            if let Some(obj) = project.find_object(*id) {
-                min_x = min_x.min(obj.bounds.min.x);
-                min_y = min_y.min(obj.bounds.min.y);
-                max_x = max_x.max(obj.bounds.max.x);
-                max_y = max_y.max(obj.bounds.max.y);
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let sources: Vec<ProjectObject> = parsed_ids
+            .iter()
+            .map(|id| project.find_object(*id).cloned().ok_or("Object not found"))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let spacing_mode_enum = match spacing_mode.as_deref() {
+            Some("edgeToEdge") => SpacingMode::EdgeToEdge,
+            _ => SpacingMode::CenterToCenter,
+        };
+        let sizing_mode_x_enum = match sizing_mode_x.as_deref() {
+            Some("total") => GridArraySizingMode::Total,
+            _ => GridArraySizingMode::Count,
+        };
+        let sizing_mode_y_enum = match sizing_mode_y.as_deref() {
+            Some("total") => GridArraySizingMode::Total,
+            _ => GridArraySizingMode::Count,
+        };
+
+        let use_virtual = create_virtual.unwrap_or(false);
+        let mut config = GridArrayConfig {
+            rows,
+            cols,
+            sizing_mode_x: sizing_mode_x_enum,
+            sizing_mode_y: sizing_mode_y_enum,
+            total_width_mm,
+            total_height_mm,
+            h_spacing_mm,
+            v_spacing_mm,
+            spacing_mode: spacing_mode_enum,
+            mirror_alternate_cols: mirror_alternate_cols.unwrap_or(false),
+            mirror_alternate_rows: mirror_alternate_rows.unwrap_or(false),
+            x_col_shift_mm: x_col_shift_mm.unwrap_or(0.0),
+            y_row_shift_mm: y_row_shift_mm.unwrap_or(0.0),
+            half_shift: half_shift.unwrap_or(false),
+            reverse_h: reverse_h.unwrap_or(false),
+            reverse_v: reverse_v.unwrap_or(false),
+            random_orientation: random_orientation.unwrap_or(false),
+            random_seed: random_seed.unwrap_or(0),
+            group_results: group_results.unwrap_or(false),
+            create_virtual: use_virtual,
+            // Virtual clones inherit geometry from source, so auto-increment is meaningless
+            auto_increment_text: if use_virtual {
+                false
+            } else {
+                auto_increment_text.unwrap_or(false)
+            },
+            text_increment: text_increment.unwrap_or(1),
+        };
+        let (fitted_rows, fitted_cols) =
+            beambench_core::fit_grid_array_counts(&sources, &config, 100);
+        config.rows = fitted_rows;
+        config.cols = fitted_cols;
+
+        let transformed_roots = beambench_core::grid_array_in_project(project, &sources, &config);
+        let (copies, root_ids) =
+            materialize_array_copies(project, &sources, transformed_roots, config.create_virtual)?;
+
+        // `grid_array_in_project` and `materialize_array_copies` only read the
+        // project, so push the undo snapshot after they succeed — a failed
+        // materialize (dangling group child refs) must not leave a phantom
+        // no-op undo entry. The first project mutation is the add loop below.
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+
+        // Layer invariant: rasters stay on image layers, non-rasters stay
+        // off image layers. Virtual clones resolve to their source's data
+        // at plan time, so the clone's host layer must match the SOURCE's
+        // effective content type. Using `effective_is_raster` (rather
+        // than a literal RasterImage match) also handles clone-of-clone
+        // chains where the indirect source is a raster.
+        let mut added_root_ids = HashSet::new();
+        let mut created_ids = Vec::with_capacity(root_ids.len());
+        for mut copy in copies {
+            if matches!(copy.data, ObjectData::VirtualClone { .. }) {
+                let target = crate::RoutingTarget::from_data(&copy.data, project);
+                let (dest, _) = crate::resolve_layer_for_object(project, copy.layer_id, target)
+                    .map_err(|e| e.to_string())?;
+                copy.layer_id = dest;
+            }
+            let added = project.add_object(copy).clone();
+            if root_ids.contains(&added.id) && added_root_ids.insert(added.id) {
+                created_ids.push(added.id.to_string());
             }
         }
-        let group_bounds = Bounds::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y));
-        // Group is non-raster, so route to a non-image sibling if
-        // sources live on an image layer.
-        let (layer_id, _) = crate::resolve_layer_for_object(
-            project,
-            sources[0].layer_id,
-            crate::RoutingTarget::NeedsNonImage,
-        )
-        .map_err(|e| e.to_string())?;
-        let group = ProjectObject::new(
-            "Array Group",
-            layer_id,
-            group_bounds,
-            ObjectData::Group {
-                children: child_ids,
-            },
-        );
-        let gid = group.id.to_string();
-        project.add_object(group);
-        Some(gid)
-    } else {
-        None
-    };
 
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(ArrayResult {
-        created_ids,
-        group_id,
+        // Group results if requested
+        let group_id = if config.group_results && created_ids.len() > 1 {
+            let child_ids: Vec<ObjectId> = created_ids
+                .iter()
+                .map(|s| parse_id(s))
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut min_x = f64::INFINITY;
+            let mut min_y = f64::INFINITY;
+            let mut max_x = f64::NEG_INFINITY;
+            let mut max_y = f64::NEG_INFINITY;
+            for id in &child_ids {
+                if let Some(obj) = project.find_object(*id) {
+                    min_x = min_x.min(obj.bounds.min.x);
+                    min_y = min_y.min(obj.bounds.min.y);
+                    max_x = max_x.max(obj.bounds.max.x);
+                    max_y = max_y.max(obj.bounds.max.y);
+                }
+            }
+            let group_bounds = Bounds::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y));
+            // Group is non-raster, so route to a non-image sibling if
+            // sources live on an image layer.
+            let (layer_id, _) = crate::resolve_layer_for_object(
+                project,
+                sources[0].layer_id,
+                crate::RoutingTarget::NeedsNonImage,
+            )
+            .map_err(|e| e.to_string())?;
+            let group = ProjectObject::new(
+                "Array Group",
+                layer_id,
+                group_bounds,
+                ObjectData::Group {
+                    children: child_ids,
+                },
+            );
+            let gid = group.id.to_string();
+            project.add_object(group);
+            Some(gid)
+        } else {
+            None
+        };
+
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(ArrayResult {
+            created_ids,
+            group_id,
+        })
     })
 }
 
@@ -2662,169 +2701,176 @@ pub fn circular_array(
     auto_increment_text: Option<bool>,
     text_increment: Option<i64>,
 ) -> Result<ArrayResult, String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|id| parse_id(id))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-
-    // If center_object_id is set, use that object's center as pivot and exclude it from sources
-    let center_oid = center_object_id
-        .as_ref()
-        .map(|id| parse_id(id))
-        .transpose()?;
-    let (explicit_cx, explicit_cy) = if let Some(coid) = center_oid {
-        let cobj = project.find_object(coid).ok_or("Center object not found")?;
-        let cx = (cobj.bounds.min.x + cobj.bounds.max.x) / 2.0;
-        let cy = (cobj.bounds.min.y + cobj.bounds.max.y) / 2.0;
-        (Some(cx), Some(cy))
-    } else {
-        (center_x, center_y)
-    };
-
-    let sources: Vec<ProjectObject> = parsed_ids
-        .iter()
-        .filter(|id| center_oid.is_none_or(|coid| **id != coid))
-        .map(|id| project.find_object(*id).cloned().ok_or("Object not found"))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    if sources.is_empty() {
-        return Err("No source objects for circular array".into());
+    if count > ARRAY_MAX_PER_AXIS {
+        return Err(format!(
+            "Circular arrays support up to {ARRAY_MAX_PER_AXIS} copies"
+        ));
     }
-
-    let use_virtual = create_virtual.unwrap_or(false);
-    let config = CircularArrayConfig {
-        count,
-        radius_mm,
-        rotate_copies: rotate_copies.unwrap_or(true),
-        center_x: explicit_cx,
-        center_y: explicit_cy,
-        start_angle_deg: start_angle_deg.unwrap_or(0.0),
-        end_angle_deg: end_angle_deg.unwrap_or(360.0),
-        group_results: group_results.unwrap_or(false),
-        create_virtual: use_virtual,
-        // Virtual clones inherit geometry from source, so auto-increment is meaningless
-        auto_increment_text: if use_virtual {
-            false
-        } else {
-            auto_increment_text.unwrap_or(false)
-        },
-        text_increment: text_increment.unwrap_or(1),
-    };
-
-    let all_positions = beambench_core::circular_array(&sources, &config);
-
-    // The push below must stay ahead of `apply_transformed_source_to_existing`
-    // (the first project mutation), which runs before `materialize_array_copies`
-    // — so the snapshot cannot move after materialize. Instead, hoist the only
-    // fallible step shared by both helpers (`collect_array_copy_templates`,
-    // which errors on dangling group child refs) as an up-front validation so
-    // a doomed command never pushes a phantom no-op undo entry.
-    for source in &sources {
-        collect_array_copy_templates(project, source.id)?;
-    }
-
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-
-    // First sources.len() items are position-0 (original IDs) — update originals in-place.
-    // Remaining items are new copies at positions 1..count.
-    let src_count = sources.len();
-    let (position_zero, new_copies) = if all_positions.len() > src_count {
-        all_positions.split_at(src_count)
-    } else {
-        (all_positions.as_slice(), [].as_slice())
-    };
-
-    // Update originals in-place to position 0 on the circle. Groups need the
-    // same unit transform applied to their children, not just to the shell.
-    let mut position_zero_root_ids = Vec::with_capacity(position_zero.len());
-    for (source, updated) in sources.iter().zip(position_zero.iter()) {
-        position_zero_root_ids.push(apply_transformed_source_to_existing(
-            project, source, updated,
-        )?);
-    }
-
-    let (new_copies, new_root_ids) = materialize_array_copies(
-        project,
-        &sources,
-        new_copies.to_vec(),
-        config.create_virtual,
-    )?;
-
-    // Include original IDs first, then new copies — all are part of the array.
-    // Virtual clones resolve to their source's data at plan time, so
-    // the clone's host layer must match the SOURCE's effective
-    // content type. `effective_is_raster` (via
-    // `RoutingTarget::from_data`) follows VirtualClone chains, so
-    // clone-of-clone-of-raster still lands on an image layer.
-    let mut created_ids = Vec::with_capacity(src_count + new_root_ids.len());
-    for root_id in position_zero_root_ids {
-        created_ids.push(root_id.to_string());
-    }
-    let mut added_root_ids = HashSet::new();
-    for mut copy in new_copies {
-        if matches!(copy.data, ObjectData::VirtualClone { .. }) {
-            let target = crate::RoutingTarget::from_data(&copy.data, project);
-            let (dest, _) = crate::resolve_layer_for_object(project, copy.layer_id, target)
-                .map_err(|e| e.to_string())?;
-            copy.layer_id = dest;
-        }
-        let added = project.add_object(copy).clone();
-        if new_root_ids.contains(&added.id) && added_root_ids.insert(added.id) {
-            created_ids.push(added.id.to_string());
-        }
-    }
-
-    // Group results if requested
-    let group_id = if config.group_results && created_ids.len() > 1 {
-        let child_ids: Vec<ObjectId> = created_ids
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
             .iter()
-            .map(|s| parse_id(s))
+            .map(|id| parse_id(id))
             .collect::<Result<Vec<_>, _>>()?;
-        let mut min_x = f64::INFINITY;
-        let mut min_y = f64::INFINITY;
-        let mut max_x = f64::NEG_INFINITY;
-        let mut max_y = f64::NEG_INFINITY;
-        for id in &child_ids {
-            if let Some(obj) = project.find_object(*id) {
-                min_x = min_x.min(obj.bounds.min.x);
-                min_y = min_y.min(obj.bounds.min.y);
-                max_x = max_x.max(obj.bounds.max.x);
-                max_y = max_y.max(obj.bounds.max.y);
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+
+        // If center_object_id is set, use that object's center as pivot and exclude it from sources
+        let center_oid = center_object_id
+            .as_ref()
+            .map(|id| parse_id(id))
+            .transpose()?;
+        let (explicit_cx, explicit_cy) = if let Some(coid) = center_oid {
+            let cobj = project.find_object(coid).ok_or("Center object not found")?;
+            let cx = (cobj.bounds.min.x + cobj.bounds.max.x) / 2.0;
+            let cy = (cobj.bounds.min.y + cobj.bounds.max.y) / 2.0;
+            (Some(cx), Some(cy))
+        } else {
+            (center_x, center_y)
+        };
+
+        let sources: Vec<ProjectObject> = parsed_ids
+            .iter()
+            .filter(|id| center_oid.is_none_or(|coid| **id != coid))
+            .map(|id| project.find_object(*id).cloned().ok_or("Object not found"))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        if sources.is_empty() {
+            return Err("No source objects for circular array".into());
+        }
+
+        let use_virtual = create_virtual.unwrap_or(false);
+        let config = CircularArrayConfig {
+            count,
+            radius_mm,
+            rotate_copies: rotate_copies.unwrap_or(true),
+            center_x: explicit_cx,
+            center_y: explicit_cy,
+            start_angle_deg: start_angle_deg.unwrap_or(0.0),
+            end_angle_deg: end_angle_deg.unwrap_or(360.0),
+            group_results: group_results.unwrap_or(false),
+            create_virtual: use_virtual,
+            // Virtual clones inherit geometry from source, so auto-increment is meaningless
+            auto_increment_text: if use_virtual {
+                false
+            } else {
+                auto_increment_text.unwrap_or(false)
+            },
+            text_increment: text_increment.unwrap_or(1),
+        };
+
+        let all_positions = beambench_core::circular_array(&sources, &config);
+
+        // The push below must stay ahead of `apply_transformed_source_to_existing`
+        // (the first project mutation), which runs before `materialize_array_copies`
+        // — so the snapshot cannot move after materialize. Instead, hoist the only
+        // fallible step shared by both helpers (`collect_array_copy_templates`,
+        // which errors on dangling group child refs) as an up-front validation so
+        // a doomed command never pushes a phantom no-op undo entry.
+        for source in &sources {
+            collect_array_copy_templates(project, source.id)?;
+        }
+
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+
+        // First sources.len() items are position-0 (original IDs) — update originals in-place.
+        // Remaining items are new copies at positions 1..count.
+        let src_count = sources.len();
+        let (position_zero, new_copies) = if all_positions.len() > src_count {
+            all_positions.split_at(src_count)
+        } else {
+            (all_positions.as_slice(), [].as_slice())
+        };
+
+        // Update originals in-place to position 0 on the circle. Groups need the
+        // same unit transform applied to their children, not just to the shell.
+        let mut position_zero_root_ids = Vec::with_capacity(position_zero.len());
+        for (source, updated) in sources.iter().zip(position_zero.iter()) {
+            position_zero_root_ids.push(apply_transformed_source_to_existing(
+                project, source, updated,
+            )?);
+        }
+
+        let (new_copies, new_root_ids) = materialize_array_copies(
+            project,
+            &sources,
+            new_copies.to_vec(),
+            config.create_virtual,
+        )?;
+
+        // Include original IDs first, then new copies — all are part of the array.
+        // Virtual clones resolve to their source's data at plan time, so
+        // the clone's host layer must match the SOURCE's effective
+        // content type. `effective_is_raster` (via
+        // `RoutingTarget::from_data`) follows VirtualClone chains, so
+        // clone-of-clone-of-raster still lands on an image layer.
+        let mut created_ids = Vec::with_capacity(src_count + new_root_ids.len());
+        for root_id in position_zero_root_ids {
+            created_ids.push(root_id.to_string());
+        }
+        let mut added_root_ids = HashSet::new();
+        for mut copy in new_copies {
+            if matches!(copy.data, ObjectData::VirtualClone { .. }) {
+                let target = crate::RoutingTarget::from_data(&copy.data, project);
+                let (dest, _) = crate::resolve_layer_for_object(project, copy.layer_id, target)
+                    .map_err(|e| e.to_string())?;
+                copy.layer_id = dest;
+            }
+            let added = project.add_object(copy).clone();
+            if new_root_ids.contains(&added.id) && added_root_ids.insert(added.id) {
+                created_ids.push(added.id.to_string());
             }
         }
-        let group_bounds = Bounds::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y));
-        // Group is non-raster, so route to a non-image sibling if
-        // sources live on an image layer.
-        let (layer_id, _) = crate::resolve_layer_for_object(
-            project,
-            sources[0].layer_id,
-            crate::RoutingTarget::NeedsNonImage,
-        )
-        .map_err(|e| e.to_string())?;
-        let group = ProjectObject::new(
-            "Array Group",
-            layer_id,
-            group_bounds,
-            ObjectData::Group {
-                children: child_ids,
-            },
-        );
-        let gid = group.id.to_string();
-        project.add_object(group);
-        Some(gid)
-    } else {
-        None
-    };
 
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(ArrayResult {
-        created_ids,
-        group_id,
+        // Group results if requested
+        let group_id = if config.group_results && created_ids.len() > 1 {
+            let child_ids: Vec<ObjectId> = created_ids
+                .iter()
+                .map(|s| parse_id(s))
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut min_x = f64::INFINITY;
+            let mut min_y = f64::INFINITY;
+            let mut max_x = f64::NEG_INFINITY;
+            let mut max_y = f64::NEG_INFINITY;
+            for id in &child_ids {
+                if let Some(obj) = project.find_object(*id) {
+                    min_x = min_x.min(obj.bounds.min.x);
+                    min_y = min_y.min(obj.bounds.min.y);
+                    max_x = max_x.max(obj.bounds.max.x);
+                    max_y = max_y.max(obj.bounds.max.y);
+                }
+            }
+            let group_bounds = Bounds::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y));
+            // Group is non-raster, so route to a non-image sibling if
+            // sources live on an image layer.
+            let (layer_id, _) = crate::resolve_layer_for_object(
+                project,
+                sources[0].layer_id,
+                crate::RoutingTarget::NeedsNonImage,
+            )
+            .map_err(|e| e.to_string())?;
+            let group = ProjectObject::new(
+                "Array Group",
+                layer_id,
+                group_bounds,
+                ObjectData::Group {
+                    children: child_ids,
+                },
+            );
+            let gid = group.id.to_string();
+            project.add_object(group);
+            Some(gid)
+        } else {
+            None
+        };
+
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(ArrayResult {
+            created_ids,
+            group_id,
+        })
     })
 }
 
@@ -2859,78 +2905,69 @@ fn copy_along_path_batch_inner(
     scale_copies: bool,
     final_scale_percent: f64,
 ) -> Result<Vec<ProjectObject>, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    if object_ids.is_empty() {
-        return Err("No source objects provided".to_string());
+    if count > ARRAY_MAX_PER_AXIS {
+        return Err(format!(
+            "Copy Along Path supports up to {ARRAY_MAX_PER_AXIS} copies"
+        ));
     }
-    project
-        .ensure_resolved(path_oid)
-        .map_err(|e| e.to_string())?;
-    let path_obj = project
-        .find_object(path_oid)
-        .ok_or("Path object not found")?
-        .clone();
-    let guide = to_world_vecpath(&path_obj)?;
-    let mut sources = Vec::with_capacity(object_ids.len());
-    for object_id in object_ids {
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        if object_ids.is_empty() {
+            return Err("No source objects provided".to_string());
+        }
         project
-            .ensure_resolved(*object_id)
+            .ensure_resolved(path_oid)
             .map_err(|e| e.to_string())?;
-        let source = project
-            .find_object(*object_id)
-            .ok_or("Source object not found")?
+        let path_obj = project
+            .find_object(path_oid)
+            .ok_or("Path object not found")?
             .clone();
-        sources.push(source);
-    }
-    let guide_length = beambench_core::vector::flatten::flatten_vecpath(
-        &guide,
-        beambench_core::vector::flatten::DEFAULT_TOLERANCE_MM,
-    )
-    .into_iter()
-    .map(|poly| {
-        let mut length = poly
-            .points
-            .windows(2)
-            .map(|segment| segment[0].distance_to(&segment[1]))
-            .sum::<f64>();
-        if poly.closed && poly.points.len() > 1 {
-            length += poly.points.last().unwrap().distance_to(&poly.points[0]);
+        let guide = to_world_vecpath(&path_obj)?;
+        let mut sources = Vec::with_capacity(object_ids.len());
+        for object_id in object_ids {
+            project
+                .ensure_resolved(*object_id)
+                .map_err(|e| e.to_string())?;
+            let source = project
+                .find_object(*object_id)
+                .ok_or("Source object not found")?
+                .clone();
+            sources.push(source);
         }
-        length
+        let guide_length = beambench_core::copy_along_path_guide_length(&guide);
+        let spacing_mm = if count == 0 {
+            guide_length.max(1.0)
+        } else {
+            (guide_length / count as f64).max(0.1)
+        };
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        let mut created = Vec::new();
+        for source in &sources {
+            let transformed_roots = beambench_core::copy_along_path(
+                source,
+                &guide,
+                spacing_mm,
+                rotate,
+                scale_copies,
+                final_scale_percent,
+            );
+            let (copies, _root_ids) = materialize_array_copies(
+                project,
+                std::slice::from_ref(source),
+                transformed_roots,
+                false,
+            )?;
+            created.reserve(copies.len());
+            for copy in copies {
+                created.push(project.add_object(copy).clone());
+            }
+        }
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(created)
     })
-    .sum::<f64>();
-    let spacing_mm = if count == 0 {
-        guide_length.max(1.0)
-    } else {
-        (guide_length / count as f64).max(0.1)
-    };
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    let mut created = Vec::new();
-    for source in &sources {
-        let transformed_roots = beambench_core::copy_along_path(
-            source,
-            &guide,
-            spacing_mm,
-            rotate,
-            scale_copies,
-            final_scale_percent,
-        );
-        let (copies, _root_ids) = materialize_array_copies(
-            project,
-            std::slice::from_ref(source),
-            transformed_roots,
-            false,
-        )?;
-        created.reserve(copies.len());
-        for copy in copies {
-            created.push(project.add_object(copy).clone());
-        }
-    }
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(created)
 }
 
 pub fn copy_along_path_batch(
@@ -2962,39 +2999,42 @@ pub fn rubber_band_outline(
     svc: &Arc<ServiceContext>,
     object_ids: Vec<String>,
 ) -> Result<ProjectObject, String> {
-    let parsed_ids: Vec<ObjectId> = object_ids
-        .iter()
-        .map(|s| parse_id(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    // Resolve VirtualClones to their source geometry (transient)
-    let objects: Vec<_> = project
-        .objects
-        .iter()
-        .filter(|o| parsed_ids.contains(&o.id))
-        .map(|o| project.resolve_clone(o).unwrap_or_else(|| o.clone()))
-        .collect();
-    let result = beambench_core::rubber_band_outline(&objects);
-    // rubber_band_outline produces a VectorPath — if the selection
-    // started with a raster on an image layer, the naive
-    // `objects.first().layer_id` would drop the new vector onto that
-    // image layer and violate the layer-content invariant. Route it
-    // to a matching non-image sibling instead.
-    let requested_layer = objects.first().ok_or("No objects provided")?.layer_id;
-    svc.push_project_undo_snapshot(project)
+    svc.atomic_edit(|| {
+        let parsed_ids: Vec<ObjectId> = object_ids
+            .iter()
+            .map(|s| parse_id(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        // Resolve VirtualClones to their source geometry (transient)
+        let objects: Vec<_> = project
+            .objects
+            .iter()
+            .filter(|o| parsed_ids.contains(&o.id))
+            .map(|o| project.resolve_clone(o).unwrap_or_else(|| o.clone()))
+            .collect();
+        let result = beambench_core::rubber_band_outline(&objects);
+        // rubber_band_outline produces a VectorPath — if the selection
+        // started with a raster on an image layer, the naive
+        // `objects.first().layer_id` would drop the new vector onto that
+        // image layer and violate the layer-content invariant. Route it
+        // to a matching non-image sibling instead.
+        let requested_layer = objects.first().ok_or("No objects provided")?.layer_id;
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        let (layer_id, _rerouted) = crate::resolve_layer_for_object(
+            project,
+            requested_layer,
+            crate::RoutingTarget::NeedsNonImage,
+        )
         .map_err(|e| e.to_string())?;
-    let (layer_id, _rerouted) = crate::resolve_layer_for_object(
-        project,
-        requested_layer,
-        crate::RoutingTarget::NeedsNonImage,
-    )
-    .map_err(|e| e.to_string())?;
-    let created = vecpath_to_project_object("Rubber Band Outline".to_string(), layer_id, result);
-    let created = project.add_object(created).clone();
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(created)
+        let created =
+            vecpath_to_project_object("Rubber Band Outline".to_string(), layer_id, result);
+        let created = project.add_object(created).clone();
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(created)
+    })
 }
 
 pub fn apply_path_to_text(
@@ -3002,58 +3042,60 @@ pub fn apply_path_to_text(
     text_object_id: String,
     path_object_id: String,
 ) -> Result<ProjectObject, String> {
-    let text_oid: ObjectId = parse_id(&text_object_id)?;
-    let path_oid: ObjectId = parse_id(&path_object_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project
-        .ensure_resolved(text_oid)
-        .map_err(|e| e.to_string())?;
-    project
-        .ensure_resolved(path_oid)
-        .map_err(|e| e.to_string())?;
-    let text_obj = project
-        .find_object(text_oid)
-        .ok_or("Text object not found")?
-        .clone();
-    let (text, font_family, font_size_mm, bold, italic) = match &text_obj.data {
-        ObjectData::Text {
-            content,
-            font_family,
+    svc.atomic_edit(|| {
+        let text_oid: ObjectId = parse_id(&text_object_id)?;
+        let path_oid: ObjectId = parse_id(&path_object_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project
+            .ensure_resolved(text_oid)
+            .map_err(|e| e.to_string())?;
+        project
+            .ensure_resolved(path_oid)
+            .map_err(|e| e.to_string())?;
+        let text_obj = project
+            .find_object(text_oid)
+            .ok_or("Text object not found")?
+            .clone();
+        let (text, font_family, font_size_mm, bold, italic) = match &text_obj.data {
+            ObjectData::Text {
+                content,
+                font_family,
+                font_size_mm,
+                bold,
+                italic,
+                ..
+            } => (
+                content.clone(),
+                font_family.clone(),
+                *font_size_mm,
+                *bold,
+                *italic,
+            ),
+            _ => return Err("Object is not a text object".to_string()),
+        };
+        let path_obj = project
+            .find_object(path_oid)
+            .ok_or("Path object not found")?
+            .clone();
+        let vp = to_world_vecpath(&path_obj)?;
+        let result = beambench_core::apply_path_to_text_with_options(
+            &text,
+            &font_family,
             font_size_mm,
             bold,
             italic,
-            ..
-        } => (
-            content.clone(),
-            font_family.clone(),
-            *font_size_mm,
-            *bold,
-            *italic,
-        ),
-        _ => return Err("Object is not a text object".to_string()),
-    };
-    let path_obj = project
-        .find_object(path_oid)
-        .ok_or("Path object not found")?
-        .clone();
-    let vp = to_world_vecpath(&path_obj)?;
-    let result = beambench_core::apply_path_to_text_with_options(
-        &text,
-        &font_family,
-        font_size_mm,
-        bold,
-        italic,
-        &vp,
-    );
-    project.remove_object(text_oid);
-    let created = vecpath_to_project_object(text_obj.name.clone(), text_obj.layer_id, result);
-    let created = project.add_object(created).clone();
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(created)
+            &vp,
+        );
+        project.remove_object(text_oid);
+        let created = vecpath_to_project_object(text_obj.name.clone(), text_obj.layer_id, result);
+        let created = project.add_object(created).clone();
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(created)
+    })
 }
 
 fn polyline_has_area(poly: &Polyline) -> bool {
@@ -3200,96 +3242,99 @@ pub fn crop_image(
     image_object_id: String,
     mask_object_id: String,
 ) -> Result<ProjectObject, String> {
-    let img_oid: ObjectId = parse_id(&image_object_id)?;
-    let mask_oid: ObjectId = parse_id(&mask_object_id)?;
-    if img_oid == mask_oid {
-        return Err("Image cannot crop itself".to_string());
-    }
+    svc.atomic_edit(|| {
+        let img_oid: ObjectId = parse_id(&image_object_id)?;
+        let mask_oid: ObjectId = parse_id(&mask_object_id)?;
+        if img_oid == mask_oid {
+            return Err("Image cannot crop itself".to_string());
+        }
 
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    project
-        .ensure_resolved(img_oid)
-        .map_err(|e| e.to_string())?;
-    project
-        .ensure_resolved(mask_oid)
-        .map_err(|e| e.to_string())?;
-    validate_closed_mask_object(project, mask_oid)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        project
+            .ensure_resolved(img_oid)
+            .map_err(|e| e.to_string())?;
+        project
+            .ensure_resolved(mask_oid)
+            .map_err(|e| e.to_string())?;
+        validate_closed_mask_object(project, mask_oid)?;
 
-    let image_obj = project
-        .find_object(img_oid)
-        .ok_or("Image object not found")?
-        .clone();
-    let mask_obj = project
-        .find_object(mask_oid)
-        .ok_or("Mask object not found")?
-        .clone();
-    let (asset_key, adjustments) = match &image_obj.data {
-        ObjectData::RasterImage {
-            asset_key,
-            adjustments,
-            ..
-        } => (asset_key.clone(), adjustments.clone()),
-        _ => return Err("Target object is not a raster image".to_string()),
-    };
-    let asset_id = AssetId::from_uuid(
-        Uuid::parse_str(&asset_key).map_err(|e| format!("Invalid image asset reference: {e}"))?,
-    );
-    let image_bytes = project
-        .asset_data
-        .get(&asset_id)
-        .cloned()
-        .ok_or("Image asset data not found")?;
-    let mask_path = object_to_world_vecpath_resolved(&mask_obj, project)
-        .ok_or("Mask object is not a vector type")?;
-    let (cropped_bytes, width_px, height_px, cropped_bounds) =
-        crop_raster_image_to_mask(&image_obj, &image_bytes, &mask_path)?;
-
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    let asset = Asset::new(
-        format!("{} Crop.png", image_obj.name),
-        AssetMediaType::Png,
-        cropped_bytes.len() as u64,
-        Some(width_px),
-        Some(height_px),
-    );
-    let new_asset_id = asset.id;
-    project.add_asset(asset, cropped_bytes);
-    {
-        let object = project
-            .find_object_mut(img_oid)
-            .ok_or("Image object not found")?;
-        object.data = ObjectData::RasterImage {
-            asset_key: new_asset_id.to_string(),
-            original_width_px: width_px,
-            original_height_px: height_px,
-            adjustments,
-            masks: Vec::new(),
+        let image_obj = project
+            .find_object(img_oid)
+            .ok_or("Image object not found")?
+            .clone();
+        let mask_obj = project
+            .find_object(mask_oid)
+            .ok_or("Mask object not found")?
+            .clone();
+        let (asset_key, adjustments) = match &image_obj.data {
+            ObjectData::RasterImage {
+                asset_key,
+                adjustments,
+                ..
+            } => (asset_key.clone(), adjustments.clone()),
+            _ => return Err("Target object is not a raster image".to_string()),
         };
-        object.bounds = cropped_bounds;
-        object.tabs.clear();
-        object.start_point_edits.clear();
-    }
-    project.remove_object(mask_oid);
-    let (dest_layer, _rerouted) = crate::resolve_layer_for_object(
-        project,
-        image_obj.layer_id,
-        crate::RoutingTarget::NeedsImage,
-    )
-    .map_err(|e| e.to_string())?;
-    if dest_layer != image_obj.layer_id
-        && let Some(object) = project.find_object_mut(img_oid)
-    {
-        object.layer_id = dest_layer;
-    }
-    let updated = project
-        .find_object(img_oid)
-        .ok_or("Image object not found")?
-        .clone();
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        let asset_id = AssetId::from_uuid(
+            Uuid::parse_str(&asset_key)
+                .map_err(|e| format!("Invalid image asset reference: {e}"))?,
+        );
+        let image_bytes = project
+            .asset_data
+            .get(&asset_id)
+            .cloned()
+            .ok_or("Image asset data not found")?;
+        let mask_path = object_to_world_vecpath_resolved(&mask_obj, project)
+            .ok_or("Mask object is not a vector type")?;
+        let (cropped_bytes, width_px, height_px, cropped_bounds) =
+            crop_raster_image_to_mask(&image_obj, &image_bytes, &mask_path)?;
+
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        let asset = Asset::new(
+            format!("{} Crop.png", image_obj.name),
+            AssetMediaType::Png,
+            cropped_bytes.len() as u64,
+            Some(width_px),
+            Some(height_px),
+        );
+        let new_asset_id = asset.id;
+        project.add_asset(asset, cropped_bytes);
+        {
+            let object = project
+                .find_object_mut(img_oid)
+                .ok_or("Image object not found")?;
+            object.data = ObjectData::RasterImage {
+                asset_key: new_asset_id.to_string(),
+                original_width_px: width_px,
+                original_height_px: height_px,
+                adjustments,
+                masks: Vec::new(),
+            };
+            object.bounds = cropped_bounds;
+            object.tabs.clear();
+            object.start_point_edits.clear();
+        }
+        project.remove_object(mask_oid);
+        let (dest_layer, _rerouted) = crate::resolve_layer_for_object(
+            project,
+            image_obj.layer_id,
+            crate::RoutingTarget::NeedsImage,
+        )
+        .map_err(|e| e.to_string())?;
+        if dest_layer != image_obj.layer_id
+            && let Some(object) = project.find_object_mut(img_oid)
+        {
+            object.layer_id = dest_layer;
+        }
+        let updated = project
+            .find_object(img_oid)
+            .ok_or("Image object not found")?
+            .clone();
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 pub fn apply_mask_to_image(
@@ -3297,52 +3342,54 @@ pub fn apply_mask_to_image(
     image_object_id: String,
     mask_object_id: String,
 ) -> Result<ProjectObject, String> {
-    let img_oid: ObjectId = parse_id(&image_object_id)?;
-    let mask_oid: ObjectId = parse_id(&mask_object_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project
-        .ensure_resolved(img_oid)
-        .map_err(|e| e.to_string())?;
-    project
-        .ensure_resolved(mask_oid)
-        .map_err(|e| e.to_string())?;
-    let img_obj = project
-        .find_object(img_oid)
-        .ok_or("Image object not found")?
-        .clone();
-    let mask_obj = project
-        .find_object(mask_oid)
-        .ok_or("Mask object not found")?
-        .clone();
-    let mask_vp = to_world_vecpath(&mask_obj)?;
-    let result = beambench_core::vector::boolean::apply_mask(&img_obj.bounds, &mask_vp);
-    let mut updated = replace_object_with_path(project, img_oid, result)?;
-    // Belt-and-suspenders: apply_mask_to_image converts a raster image
-    // into vector content in-place. `replace_object_with_path` already
-    // reroutes the new vector object off any image layer, but make it
-    // visible here too so the invariant is obvious at the command
-    // level, and keep the object's layer_id in the returned payload
-    // in sync with the rerouted destination.
-    if matches!(updated.data, ObjectData::VectorPath { .. }) {
-        let (dest_layer, _rerouted) = crate::resolve_layer_for_object(
-            project,
-            updated.layer_id,
-            crate::RoutingTarget::NeedsNonImage,
-        )
-        .map_err(|e| e.to_string())?;
-        if dest_layer != updated.layer_id {
-            if let Some(o) = project.find_object_mut(img_oid) {
-                o.layer_id = dest_layer;
+    svc.atomic_edit(|| {
+        let img_oid: ObjectId = parse_id(&image_object_id)?;
+        let mask_oid: ObjectId = parse_id(&mask_object_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project
+            .ensure_resolved(img_oid)
+            .map_err(|e| e.to_string())?;
+        project
+            .ensure_resolved(mask_oid)
+            .map_err(|e| e.to_string())?;
+        let img_obj = project
+            .find_object(img_oid)
+            .ok_or("Image object not found")?
+            .clone();
+        let mask_obj = project
+            .find_object(mask_oid)
+            .ok_or("Mask object not found")?
+            .clone();
+        let mask_vp = to_world_vecpath(&mask_obj)?;
+        let result = beambench_core::vector::boolean::apply_mask(&img_obj.bounds, &mask_vp);
+        let mut updated = replace_object_with_path(project, img_oid, result)?;
+        // Belt-and-suspenders: apply_mask_to_image converts a raster image
+        // into vector content in-place. `replace_object_with_path` already
+        // reroutes the new vector object off any image layer, but make it
+        // visible here too so the invariant is obvious at the command
+        // level, and keep the object's layer_id in the returned payload
+        // in sync with the rerouted destination.
+        if matches!(updated.data, ObjectData::VectorPath { .. }) {
+            let (dest_layer, _rerouted) = crate::resolve_layer_for_object(
+                project,
+                updated.layer_id,
+                crate::RoutingTarget::NeedsNonImage,
+            )
+            .map_err(|e| e.to_string())?;
+            if dest_layer != updated.layer_id {
+                if let Some(o) = project.find_object_mut(img_oid) {
+                    o.layer_id = dest_layer;
+                }
+                updated.layer_id = dest_layer;
             }
-            updated.layer_id = dest_layer;
         }
-    }
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 fn validate_closed_mask_object(project: &Project, mask_oid: ObjectId) -> Result<(), String> {
@@ -3435,41 +3482,43 @@ pub fn assign_image_mask(
     mask_object_ids: Vec<String>,
     polarity: ImageMaskPolarity,
 ) -> Result<ProjectObject, String> {
-    let image_oid: ObjectId = parse_id(&image_object_id)?;
-    let mut mask_oids = Vec::new();
-    let mut seen = HashSet::new();
-    for id in mask_object_ids {
-        let oid: ObjectId = parse_id(&id)?;
-        if oid == image_oid {
-            return Err("Image cannot mask itself".to_string());
+    svc.atomic_edit(|| {
+        let image_oid: ObjectId = parse_id(&image_object_id)?;
+        let mut mask_oids = Vec::new();
+        let mut seen = HashSet::new();
+        for id in mask_object_ids {
+            let oid: ObjectId = parse_id(&id)?;
+            if oid == image_oid {
+                return Err("Image cannot mask itself".to_string());
+            }
+            if seen.insert(oid) {
+                mask_oids.push(oid);
+            }
         }
-        if seen.insert(oid) {
-            mask_oids.push(oid);
+        if mask_oids.is_empty() {
+            return Err("Select at least one mask object".to_string());
         }
-    }
-    if mask_oids.is_empty() {
-        return Err("Select at least one mask object".to_string());
-    }
 
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let image_obj = project
-        .find_object(image_oid)
-        .ok_or("Image object not found")?;
-    if !matches!(image_obj.data, ObjectData::RasterImage { .. }) {
-        return Err("Target object is not a raster image".to_string());
-    }
-    for oid in &mask_oids {
-        validate_closed_mask_object(project, *oid)?;
-    }
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let image_obj = project
+            .find_object(image_oid)
+            .ok_or("Image object not found")?;
+        if !matches!(image_obj.data, ObjectData::RasterImage { .. }) {
+            return Err("Target object is not a raster image".to_string());
+        }
+        for oid in &mask_oids {
+            validate_closed_mask_object(project, *oid)?;
+        }
 
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    let updated = assign_image_mask_refs(project, image_oid, mask_oids, polarity)?;
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        let updated = assign_image_mask_refs(project, image_oid, mask_oids, polarity)?;
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 pub fn set_image_mask_polarity(
@@ -3478,28 +3527,30 @@ pub fn set_image_mask_polarity(
     mask_object_id: String,
     polarity: ImageMaskPolarity,
 ) -> Result<ProjectObject, String> {
-    let image_oid: ObjectId = parse_id(&image_object_id)?;
-    let mask_oid: ObjectId = parse_id(&mask_object_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    {
-        let image = project
-            .find_object(image_oid)
-            .ok_or("Image object not found")?;
-        let ObjectData::RasterImage { masks, .. } = &image.data else {
-            return Err("Target object is not a raster image".to_string());
-        };
-        if !masks.iter().any(|mask| mask.object_id == mask_oid) {
-            return Err("Mask reference not found".to_string());
+    svc.atomic_edit(|| {
+        let image_oid: ObjectId = parse_id(&image_object_id)?;
+        let mask_oid: ObjectId = parse_id(&mask_object_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        {
+            let image = project
+                .find_object(image_oid)
+                .ok_or("Image object not found")?;
+            let ObjectData::RasterImage { masks, .. } = &image.data else {
+                return Err("Target object is not a raster image".to_string());
+            };
+            if !masks.iter().any(|mask| mask.object_id == mask_oid) {
+                return Err("Mask reference not found".to_string());
+            }
         }
-    }
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    let updated = update_image_mask_polarity(project, image_oid, mask_oid, polarity)?;
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        let updated = update_image_mask_polarity(project, image_oid, mask_oid, polarity)?;
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 pub fn remove_image_mask(
@@ -3507,25 +3558,27 @@ pub fn remove_image_mask(
     image_object_id: String,
     mask_object_id: Option<String>,
 ) -> Result<ProjectObject, String> {
-    let image_oid: ObjectId = parse_id(&image_object_id)?;
-    let mask_oid = mask_object_id.as_deref().map(parse_id).transpose()?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    {
-        let image = project
-            .find_object(image_oid)
-            .ok_or("Image object not found")?;
-        if !matches!(image.data, ObjectData::RasterImage { .. }) {
-            return Err("Target object is not a raster image".to_string());
+    svc.atomic_edit(|| {
+        let image_oid: ObjectId = parse_id(&image_object_id)?;
+        let mask_oid = mask_object_id.as_deref().map(parse_id).transpose()?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        {
+            let image = project
+                .find_object(image_oid)
+                .ok_or("Image object not found")?;
+            if !matches!(image.data, ObjectData::RasterImage { .. }) {
+                return Err("Target object is not a raster image".to_string());
+            }
         }
-    }
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    let updated = remove_image_mask_refs(project, image_oid, mask_oid)?;
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        let updated = remove_image_mask_refs(project, image_oid, mask_oid)?;
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 pub fn convert_to_bitmap(
@@ -3533,59 +3586,64 @@ pub fn convert_to_bitmap(
     object_id: String,
     dpi: f64,
 ) -> Result<ProjectObject, String> {
-    let oid: ObjectId = parse_id(&object_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let source = project.find_object(oid).ok_or("Object not found")?;
-    let source = project
-        .resolve_clone(source)
-        .unwrap_or_else(|| source.clone());
-    let vp = to_world_vecpath(&source)?;
-    let (bytes, width_px, height_px, bounds) = rasterize_vecpath_to_png(&vp, dpi)?;
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-    let asset = Asset::new(
-        format!("{}.png", source.name),
-        AssetMediaType::Png,
-        bytes.len() as u64,
-        Some(width_px),
-        Some(height_px),
-    );
-    let asset_id = asset.id;
-    project.add_asset(asset, bytes);
-    let current_layer = {
-        let object = project.find_object_mut(oid).ok_or("Object not found")?;
-        object.data = ObjectData::RasterImage {
-            asset_key: asset_id.to_string(),
-            original_width_px: width_px,
-            original_height_px: height_px,
-            adjustments: None,
-            masks: Vec::new(),
-        };
-        object.bounds = bounds;
-        object.transform = Transform2D::identity();
-        object.start_point_edits.clear();
-        object.tabs.clear();
-        object.layer_id
-    };
-    // The object just became a raster — if it's on a non-image layer
-    // (because it used to be a vector there), reroute it to an image
-    // sibling so the layer-content invariant holds.
-    let (dest_layer, _rerouted) =
-        crate::resolve_layer_for_object(project, current_layer, crate::RoutingTarget::NeedsImage)
+    svc.atomic_edit(|| {
+        let oid: ObjectId = parse_id(&object_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let source = project.find_object(oid).ok_or("Object not found")?;
+        let source = project
+            .resolve_clone(source)
+            .unwrap_or_else(|| source.clone());
+        let vp = to_world_vecpath(&source)?;
+        let (bytes, width_px, height_px, bounds) = rasterize_vecpath_to_png(&vp, dpi)?;
+        svc.push_project_undo_snapshot(project)
             .map_err(|e| e.to_string())?;
-    if dest_layer != current_layer
-        && let Some(o) = project.find_object_mut(oid)
-    {
-        o.layer_id = dest_layer;
-    }
-    crate::ops::project::sync_passthrough_single_object(project, oid);
-    let updated = project.find_object(oid).ok_or("Object not found")?.clone();
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+        let asset = Asset::new(
+            format!("{}.png", source.name),
+            AssetMediaType::Png,
+            bytes.len() as u64,
+            Some(width_px),
+            Some(height_px),
+        );
+        let asset_id = asset.id;
+        project.add_asset(asset, bytes);
+        let current_layer = {
+            let object = project.find_object_mut(oid).ok_or("Object not found")?;
+            object.data = ObjectData::RasterImage {
+                asset_key: asset_id.to_string(),
+                original_width_px: width_px,
+                original_height_px: height_px,
+                adjustments: None,
+                masks: Vec::new(),
+            };
+            object.bounds = bounds;
+            object.transform = Transform2D::identity();
+            object.start_point_edits.clear();
+            object.tabs.clear();
+            object.layer_id
+        };
+        // The object just became a raster — if it's on a non-image layer
+        // (because it used to be a vector there), reroute it to an image
+        // sibling so the layer-content invariant holds.
+        let (dest_layer, _rerouted) = crate::resolve_layer_for_object(
+            project,
+            current_layer,
+            crate::RoutingTarget::NeedsImage,
+        )
+        .map_err(|e| e.to_string())?;
+        if dest_layer != current_layer
+            && let Some(o) = project.find_object_mut(oid)
+        {
+            o.layer_id = dest_layer;
+        }
+        crate::ops::project::sync_passthrough_single_object(project, oid);
+        let updated = project.find_object(oid).ok_or("Object not found")?.clone();
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 pub fn add_tabs(
@@ -3594,29 +3652,31 @@ pub fn add_tabs(
     count: u32,
     width_mm: f64,
 ) -> Result<ProjectObject, String> {
-    let oid: ObjectId = parse_id(&object_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
+    svc.atomic_edit(|| {
+        let oid: ObjectId = parse_id(&object_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
 
-    // Guard: auto-distribute tabs converts to VectorPath — require it already be one
-    let obj = project.find_object(oid).ok_or("Object not found")?;
-    let resolved = project.resolve_clone(obj);
-    let effective = resolved.as_ref().unwrap_or(obj);
-    if !matches!(effective.data, ObjectData::VectorPath { .. }) {
-        return Err("Convert to path first".into());
-    }
+        // Guard: auto-distribute tabs converts to VectorPath — require it already be one
+        let obj = project.find_object(oid).ok_or("Object not found")?;
+        let resolved = project.resolve_clone(obj);
+        let effective = resolved.as_ref().unwrap_or(obj);
+        if !matches!(effective.data, ObjectData::VectorPath { .. }) {
+            return Err("Convert to path first".into());
+        }
 
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-    path_ops_core::ensure_denormalized(project.find_object_mut(oid).ok_or("Object not found")?);
-    let source = project.find_object(oid).ok_or("Object not found")?.clone();
-    let vp = to_world_vecpath(&source)?;
-    let result = beambench_core::vector::tabs::add_tabs(&vp, count, width_mm);
-    let updated = replace_object_with_path(project, oid, result)?;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(updated)
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+        path_ops_core::ensure_denormalized(project.find_object_mut(oid).ok_or("Object not found")?);
+        let source = project.find_object(oid).ok_or("Object not found")?.clone();
+        let vp = to_world_vecpath(&source)?;
+        let result = beambench_core::vector::tabs::add_tabs(&vp, count, width_mm);
+        let updated = replace_object_with_path(project, oid, result)?;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(updated)
+    })
 }
 
 pub fn trim_shape(
@@ -3811,153 +3871,157 @@ fn cut_shapes_apply_inner(
     svc: &ServiceContext,
     parsed_ids: Vec<ObjectId>,
 ) -> Result<CutShapesApplyResult, String> {
-    let cutter_id = *parsed_ids
-        .last()
-        .ok_or("Cut Shapes requires a cutter object")?;
+    svc.atomic_edit(|| {
+        let cutter_id = *parsed_ids
+            .last()
+            .ok_or("Cut Shapes requires a cutter object")?;
 
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    for id in &parsed_ids {
-        project.ensure_resolved(*id).map_err(|e| e.to_string())?;
-    }
-    let cutter = project
-        .find_object(cutter_id)
-        .ok_or("Cutter object not found")?
-        .clone();
-    if matches!(cutter.data, ObjectData::Group { .. }) {
-        return Err("Cut Shapes cutter must be an ungrouped closed shape".to_string());
-    }
-    let cutter_path = object_to_world_vecpath_resolved(&cutter, project)
-        .ok_or("Cut Shapes cutter must be a vector-compatible object")?;
-    let cutter_is_closed = cutter_path
-        .subpaths
-        .iter()
-        .any(|sp| sp.closed && sp.commands.len() >= 4);
-    if !cutter_is_closed {
-        return Err("Cut Shapes cutter must be a closed vector shape".to_string());
-    }
-
-    let subjects = parsed_ids[..parsed_ids.len() - 1]
-        .iter()
-        .map(|id| {
-            project
-                .find_object(*id)
-                .cloned()
-                .ok_or_else(|| "Selected object not found".to_string())
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    // Validate every subject (and precompute vector subject paths) BEFORE
-    // pushing the undo snapshot or mutating the project. A mid-loop
-    // rejection used to leave orphaned mask/image copies in the project and
-    // a phantom no-op undo entry. `None` marks a raster subject.
-    let mut subject_paths: Vec<Option<VecPath>> = Vec::with_capacity(subjects.len());
-    for subject in &subjects {
-        if subject.locked {
-            return Err(format!("{} is locked", subject.name));
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        for id in &parsed_ids {
+            project.ensure_resolved(*id).map_err(|e| e.to_string())?;
         }
-        match &subject.data {
-            ObjectData::RasterImage { .. } => subject_paths.push(None),
-            ObjectData::Group { .. } => {
-                return Err("Cut Shapes subjects must be ungrouped objects".to_string());
-            }
-            _ => {
-                let subject_path = object_to_world_vecpath_resolved(subject, project)
-                    .ok_or_else(|| format!("{} is not vector-compatible", subject.name))?;
-                subject_paths.push(Some(subject_path));
-            }
+        let cutter = project
+            .find_object(cutter_id)
+            .ok_or("Cutter object not found")?
+            .clone();
+        if matches!(cutter.data, ObjectData::Group { .. }) {
+            return Err("Cut Shapes cutter must be an ungrouped closed shape".to_string());
         }
-    }
+        let cutter_path = object_to_world_vecpath_resolved(&cutter, project)
+            .ok_or("Cut Shapes cutter must be a vector-compatible object")?;
+        let cutter_is_closed = cutter_path
+            .subpaths
+            .iter()
+            .any(|sp| sp.closed && sp.commands.len() >= 4);
+        if !cutter_is_closed {
+            return Err("Cut Shapes cutter must be a closed vector shape".to_string());
+        }
 
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
+        let subjects = parsed_ids[..parsed_ids.len() - 1]
+            .iter()
+            .map(|id| {
+                project
+                    .find_object(*id)
+                    .cloned()
+                    .ok_or_else(|| "Selected object not found".to_string())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
-    let mut created_ids = Vec::new();
-    let mut inside_ids = Vec::new();
-    let mut outside_ids = Vec::new();
-    for (subject, subject_path) in subjects.iter().zip(subject_paths) {
-        match subject_path {
-            None => {
-                let inside_mask = add_cut_tool_mask_copy(
-                    project,
-                    &cutter_path,
-                    &format!("{} Cutter Inside", subject.name),
-                );
-                let outside_mask = add_cut_tool_mask_copy(
-                    project,
-                    &cutter_path,
-                    &format!("{} Cutter Outside", subject.name),
-                );
-                created_ids.push(inside_mask.id);
-                created_ids.push(outside_mask.id);
-                let inside = add_cut_image_copy(
-                    project,
-                    subject,
-                    "Inside",
-                    inside_mask.id,
-                    ImageMaskPolarity::KeepInside,
-                )?;
-                let outside = add_cut_image_copy(
-                    project,
-                    subject,
-                    "Outside",
-                    outside_mask.id,
-                    ImageMaskPolarity::KeepOutside,
-                )?;
-                inside_ids.push(inside.id);
-                outside_ids.push(outside.id);
-                created_ids.push(inside.id);
-                created_ids.push(outside.id);
+        // Validate every subject (and precompute vector subject paths) BEFORE
+        // pushing the undo snapshot or mutating the project. A mid-loop
+        // rejection used to leave orphaned mask/image copies in the project and
+        // a phantom no-op undo entry. `None` marks a raster subject.
+        let mut subject_paths: Vec<Option<VecPath>> = Vec::with_capacity(subjects.len());
+        for subject in &subjects {
+            if subject.locked {
+                return Err(format!("{} is locked", subject.name));
             }
-            Some(subject_path) => {
-                let inside =
-                    beambench_core::vector::boolean::path_intersection(&subject_path, &cutter_path);
-                if !inside.is_empty() {
-                    let object = add_routed_vecpath_result(
-                        project,
-                        format!("{} Inside", subject.name),
-                        subject.layer_id,
-                        inside,
-                    )?;
-                    inside_ids.push(object.id);
-                    created_ids.push(object.id);
+            match &subject.data {
+                ObjectData::RasterImage { .. } => subject_paths.push(None),
+                ObjectData::Group { .. } => {
+                    return Err("Cut Shapes subjects must be ungrouped objects".to_string());
                 }
-                let outside =
-                    beambench_core::vector::boolean::path_subtract(&subject_path, &cutter_path);
-                if !outside.is_empty() {
-                    let object = add_routed_vecpath_result(
-                        project,
-                        format!("{} Outside", subject.name),
-                        subject.layer_id,
-                        outside,
-                    )?;
-                    outside_ids.push(object.id);
-                    created_ids.push(object.id);
+                _ => {
+                    let subject_path = object_to_world_vecpath_resolved(subject, project)
+                        .ok_or_else(|| format!("{} is not vector-compatible", subject.name))?;
+                    subject_paths.push(Some(subject_path));
                 }
             }
         }
-    }
 
-    let inside_group_id = add_cut_shapes_group(project, "Cut Shapes Inside", &inside_ids)?;
-    let outside_group_id = add_cut_shapes_group(project, "Cut Shapes Outside", &outside_ids)?;
-    if let Some(id) = inside_group_id {
-        created_ids.push(id);
-    }
-    if let Some(id) = outside_group_id {
-        created_ids.push(id);
-    }
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
 
-    project.remove_objects(&parsed_ids);
-    project.dirty = true;
-    let result = CutShapesApplyResult {
-        created_object_ids: created_ids.iter().map(ToString::to_string).collect(),
-        inside_group_id: inside_group_id.map(|id| id.to_string()),
-        outside_group_id: outside_group_id.map(|id| id.to_string()),
-        cutter_object_id: cutter_id.to_string(),
-    };
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(result)
+        let mut created_ids = Vec::new();
+        let mut inside_ids = Vec::new();
+        let mut outside_ids = Vec::new();
+        for (subject, subject_path) in subjects.iter().zip(subject_paths) {
+            match subject_path {
+                None => {
+                    let inside_mask = add_cut_tool_mask_copy(
+                        project,
+                        &cutter_path,
+                        &format!("{} Cutter Inside", subject.name),
+                    );
+                    let outside_mask = add_cut_tool_mask_copy(
+                        project,
+                        &cutter_path,
+                        &format!("{} Cutter Outside", subject.name),
+                    );
+                    created_ids.push(inside_mask.id);
+                    created_ids.push(outside_mask.id);
+                    let inside = add_cut_image_copy(
+                        project,
+                        subject,
+                        "Inside",
+                        inside_mask.id,
+                        ImageMaskPolarity::KeepInside,
+                    )?;
+                    let outside = add_cut_image_copy(
+                        project,
+                        subject,
+                        "Outside",
+                        outside_mask.id,
+                        ImageMaskPolarity::KeepOutside,
+                    )?;
+                    inside_ids.push(inside.id);
+                    outside_ids.push(outside.id);
+                    created_ids.push(inside.id);
+                    created_ids.push(outside.id);
+                }
+                Some(subject_path) => {
+                    let inside = beambench_core::vector::boolean::path_intersection(
+                        &subject_path,
+                        &cutter_path,
+                    );
+                    if !inside.is_empty() {
+                        let object = add_routed_vecpath_result(
+                            project,
+                            format!("{} Inside", subject.name),
+                            subject.layer_id,
+                            inside,
+                        )?;
+                        inside_ids.push(object.id);
+                        created_ids.push(object.id);
+                    }
+                    let outside =
+                        beambench_core::vector::boolean::path_subtract(&subject_path, &cutter_path);
+                    if !outside.is_empty() {
+                        let object = add_routed_vecpath_result(
+                            project,
+                            format!("{} Outside", subject.name),
+                            subject.layer_id,
+                            outside,
+                        )?;
+                        outside_ids.push(object.id);
+                        created_ids.push(object.id);
+                    }
+                }
+            }
+        }
+
+        let inside_group_id = add_cut_shapes_group(project, "Cut Shapes Inside", &inside_ids)?;
+        let outside_group_id = add_cut_shapes_group(project, "Cut Shapes Outside", &outside_ids)?;
+        if let Some(id) = inside_group_id {
+            created_ids.push(id);
+        }
+        if let Some(id) = outside_group_id {
+            created_ids.push(id);
+        }
+
+        project.remove_objects(&parsed_ids);
+        project.dirty = true;
+        let result = CutShapesApplyResult {
+            created_object_ids: created_ids.iter().map(ToString::to_string).collect(),
+            inside_group_id: inside_group_id.map(|id| id.to_string()),
+            outside_group_id: outside_group_id.map(|id| id.to_string()),
+            cutter_object_id: cutter_id.to_string(),
+        };
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(result)
+    })
 }
 
 pub fn cut_shapes(
@@ -4020,48 +4084,50 @@ fn place_tab_inner(
     world_x: f64,
     world_y: f64,
 ) -> Result<ProjectObject, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let source = project.find_object(oid).ok_or("Object not found")?.clone();
-    let vp = object_to_world_vecpath_resolved(&source, project)
-        .ok_or_else(|| "Object is not a vector type".to_string())?;
-    let click = Point2D::new(world_x, world_y);
-    let (anchor, dist) = beambench_core::vector::tabs::project_point_to_tab_anchor(&vp, click)
-        .ok_or("No closed subpath found")?;
-    // Reject clicks that are too far from the path edge (5mm max)
-    if dist > 5.0 {
-        return Err("Click is too far from the path edge".to_string());
-    }
-
-    // Reject duplicate or near-duplicate anchors (within 1% of perimeter on same subpath)
-    let dup_tolerance = 0.01;
-    let has_duplicate = source.tabs.iter().any(|existing| {
-        existing.subpath_index == anchor.subpath_index && {
-            let diff = (existing.position - anchor.position).abs();
-            let circular_dist = diff.min(1.0 - diff);
-            circular_dist < dup_tolerance
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let source = project.find_object(oid).ok_or("Object not found")?.clone();
+        let vp = object_to_world_vecpath_resolved(&source, project)
+            .ok_or_else(|| "Object is not a vector type".to_string())?;
+        let click = Point2D::new(world_x, world_y);
+        let (anchor, dist) = beambench_core::vector::tabs::project_point_to_tab_anchor(&vp, click)
+            .ok_or("No closed subpath found")?;
+        // Reject clicks that are too far from the path edge (5mm max)
+        if dist > 5.0 {
+            return Err("Click is too far from the path edge".to_string());
         }
-    });
-    if has_duplicate {
-        return Err("A tab already exists at this position".to_string());
-    }
 
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+        // Reject duplicate or near-duplicate anchors (within 1% of perimeter on same subpath)
+        let dup_tolerance = 0.01;
+        let has_duplicate = source.tabs.iter().any(|existing| {
+            existing.subpath_index == anchor.subpath_index && {
+                let diff = (existing.position - anchor.position).abs();
+                let circular_dist = diff.min(1.0 - diff);
+                circular_dist < dup_tolerance
+            }
+        });
+        if has_duplicate {
+            return Err("A tab already exists at this position".to_string());
+        }
 
-    let obj = project.find_object_mut(oid).ok_or("Object not found")?;
-    obj.tabs.push(anchor);
-    obj.tabs.sort_by(|a, b| {
-        a.subpath_index
-            .cmp(&b.subpath_index)
-            .then(a.position.partial_cmp(&b.position).unwrap())
-    });
-    let result = obj.clone();
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(result)
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+
+        let obj = project.find_object_mut(oid).ok_or("Object not found")?;
+        obj.tabs.push(anchor);
+        obj.tabs.sort_by(|a, b| {
+            a.subpath_index
+                .cmp(&b.subpath_index)
+                .then(a.position.partial_cmp(&b.position).unwrap())
+        });
+        let result = obj.clone();
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(result)
+    })
 }
 
 pub fn remove_tab(
@@ -4078,23 +4144,25 @@ pub fn clear_tabs(svc: &Arc<ServiceContext>, object_id: String) -> Result<Projec
 }
 
 fn clear_tabs_inner(svc: &ServiceContext, oid: ObjectId) -> Result<ProjectObject, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let source = project.find_object(oid).ok_or("Object not found")?.clone();
-    if source.tabs.is_empty() {
-        return Ok(source);
-    }
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let source = project.find_object(oid).ok_or("Object not found")?.clone();
+        if source.tabs.is_empty() {
+            return Ok(source);
+        }
 
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
-    let obj = project.find_object_mut(oid).ok_or("Object not found")?;
-    obj.tabs.clear();
-    let result = obj.clone();
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(result)
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+        let obj = project.find_object_mut(oid).ok_or("Object not found")?;
+        obj.tabs.clear();
+        let result = obj.clone();
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(result)
+    })
 }
 
 fn remove_tab_inner(
@@ -4103,50 +4171,52 @@ fn remove_tab_inner(
     world_x: f64,
     world_y: f64,
 ) -> Result<ProjectObject, String> {
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    let source = project.find_object(oid).ok_or("Object not found")?.clone();
-    if source.tabs.is_empty() {
-        return Ok(source);
-    }
-    let vp = object_to_world_vecpath_resolved(&source, project)
-        .ok_or_else(|| "Object is not a vector type".to_string())?;
-
-    // Resolve all tab positions to world space, then find closest to click
-    let resolved = beambench_core::vector::tabs::resolve_tab_positions(&vp, &source.tabs);
-    if resolved.is_empty() {
-        return Ok(source);
-    }
-    let click = Point2D::new(world_x, world_y);
-    let mut best_resolved_idx = 0;
-    let mut best_dist = f64::INFINITY;
-    for (i, marker) in resolved.iter().enumerate() {
-        let d = click.distance_to(&Point2D::new(marker.world_x, marker.world_y));
-        if d < best_dist {
-            best_dist = d;
-            best_resolved_idx = i;
+    svc.atomic_edit(|| {
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        let source = project.find_object(oid).ok_or("Object not found")?.clone();
+        if source.tabs.is_empty() {
+            return Ok(source);
         }
-    }
-    // Reject clicks that are too far from any existing marker (5mm max)
-    if best_dist > 5.0 {
-        return Err("Click is too far from any tab marker".to_string());
-    }
-    // Use the original tabs index, not the filtered resolved-list index
-    let original_tab_idx = resolved[best_resolved_idx].original_index;
+        let vp = object_to_world_vecpath_resolved(&source, project)
+            .ok_or_else(|| "Object is not a vector type".to_string())?;
 
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+        // Resolve all tab positions to world space, then find closest to click
+        let resolved = beambench_core::vector::tabs::resolve_tab_positions(&vp, &source.tabs);
+        if resolved.is_empty() {
+            return Ok(source);
+        }
+        let click = Point2D::new(world_x, world_y);
+        let mut best_resolved_idx = 0;
+        let mut best_dist = f64::INFINITY;
+        for (i, marker) in resolved.iter().enumerate() {
+            let d = click.distance_to(&Point2D::new(marker.world_x, marker.world_y));
+            if d < best_dist {
+                best_dist = d;
+                best_resolved_idx = i;
+            }
+        }
+        // Reject clicks that are too far from any existing marker (5mm max)
+        if best_dist > 5.0 {
+            return Err("Click is too far from any tab marker".to_string());
+        }
+        // Use the original tabs index, not the filtered resolved-list index
+        let original_tab_idx = resolved[best_resolved_idx].original_index;
 
-    let obj = project.find_object_mut(oid).ok_or("Object not found")?;
-    if original_tab_idx < obj.tabs.len() {
-        obj.tabs.remove(original_tab_idx);
-    }
-    let result = obj.clone();
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(result)
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project.ensure_resolved(oid).map_err(|e| e.to_string())?;
+
+        let obj = project.find_object_mut(oid).ok_or("Object not found")?;
+        if original_tab_idx < obj.tabs.len() {
+            obj.tabs.remove(original_tab_idx);
+        }
+        let result = obj.clone();
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(result)
+    })
 }
 
 pub fn resolve_tab_markers(
@@ -4180,22 +4250,24 @@ pub fn unlink_virtual_clone(
     svc: &Arc<ServiceContext>,
     object_id: String,
 ) -> Result<ProjectObject, String> {
-    let oid: ObjectId = parse_id(&object_id)?;
-    let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
-    let project = guard.as_mut().ok_or("No project open")?;
-    svc.push_project_undo_snapshot(project)
-        .map_err(|e| e.to_string())?;
-    project
-        .resolve_clone_in_place(oid)
-        .map_err(|e| e.to_string())?;
-    let resolved = project
-        .find_object(oid)
-        .ok_or("Object not found after unlink")?
-        .clone();
-    project.dirty = true;
-    drop(guard);
-    planning::invalidate_plan_cache(svc).map_err(String::from)?;
-    Ok(resolved)
+    svc.atomic_edit(|| {
+        let oid: ObjectId = parse_id(&object_id)?;
+        let mut guard = svc.project.lock().map_err(|e| format!("lock: {e}"))?;
+        let project = guard.as_mut().ok_or("No project open")?;
+        svc.push_project_undo_snapshot(project)
+            .map_err(|e| e.to_string())?;
+        project
+            .resolve_clone_in_place(oid)
+            .map_err(|e| e.to_string())?;
+        let resolved = project
+            .find_object(oid)
+            .ok_or("Object not found after unlink")?
+            .clone();
+        project.dirty = true;
+        drop(guard);
+        planning::invalidate_plan_cache(svc).map_err(String::from)?;
+        Ok(resolved)
+    })
 }
 
 super::define_commands! {

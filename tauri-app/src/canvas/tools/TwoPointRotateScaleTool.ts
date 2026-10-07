@@ -222,20 +222,22 @@ export class TwoPointRotateScaleTool implements CanvasTool {
     ctx.setStatusMessage('');
     ctx.requestRender();
 
-    void (async () => {
-      if (shouldScale) {
-        const entries = ids
+    const entries = shouldScale
+      ? ids
           .map((id) => {
             const bounds = state.origBounds.get(id);
             return bounds ? { id, bounds: scaleBounds(bounds, state.pivot, scale) } : null;
           })
-          .filter((entry): entry is { id: string; bounds: Bounds } => entry !== null);
-        if (entries.length > 0) await ctx.updateObjectBoundsBatch(entries);
-      }
-      if (shouldRotate) {
-        await ctx.rotateObjects(ids, deltaDeg, state.pivot);
-      }
-    })();
+          .filter((entry): entry is { id: string; bounds: Bounds } => entry !== null)
+      : [];
+    // One gesture is one undo step, so scale and rotate commit together.
+    if (entries.length > 0 && shouldRotate) {
+      void ctx.scaleAndRotateObjects(entries, ids, deltaDeg, state.pivot);
+    } else if (entries.length > 0) {
+      void ctx.updateObjectBoundsBatch(entries);
+    } else if (shouldRotate) {
+      void ctx.rotateObjects(ids, deltaDeg, state.pivot);
+    }
   }
 
   onKeyDown(e: KeyboardEvent, ctx: ToolContext): void {
@@ -246,6 +248,16 @@ export class TwoPointRotateScaleTool implements CanvasTool {
     this.reset();
     ctx.setStatusMessage('');
     ctx.requestRender();
+  }
+
+  /** Pointer cancel, blur or a tool switch: put the live preview back. */
+  cancelDrag(ctx: ToolContext): boolean {
+    if (this.state.type !== 'dragging') return false;
+    this.restoreSnapshots(this.state, ctx);
+    this.reset();
+    ctx.setStatusMessage('');
+    ctx.requestRender();
+    return true;
   }
 
   getCursor(): string {

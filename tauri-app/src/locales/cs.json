@@ -371,8 +371,8 @@
       "outcome_fail": "Selhalo",
       "warnings_block_start": "Před spuštěním úlohy vyřešte výše uvedená upozornění.",
       "advisory_choice": "Tato úloha může běžet, ale oprava upozornění může zlepšit kvalitu gravírování.",
-      "apply_overscan": "Použijte {value} mm overscan a znovu zkontrolujte",
-      "reduce_speed": "Použijte {value} mm/min a znovu zkontrolujte",
+      "apply_overscan": "Použijte {value} {unit} overscan a znovu zkontrolujte",
+      "reduce_speed": "Použijte {value} {unit} a znovu zkontrolujte",
       "continue_anyway": "Přesto pokračujte",
       "categories": {
         "connection": "Připojení",
@@ -382,7 +382,9 @@
         "settings": "Nastavení",
         "positioning": "Polohování",
         "planner": "Plánovač",
-        "machine_workspace": "Pracovní prostor stroje"
+        "machine_workspace": "Pracovní prostor stroje",
+        "controller": "Řadič",
+        "rotary": "Rotační nástavec"
       },
       "checks": {
         "session_ready": "Relace je připravena",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Pohyb rastru zapadá do lože stroje",
         "laser_mode": "Laserový režim je povolen (32 $=1)",
         "homing_enabled": "Navádění je povoleno",
-        "relative_framed": "Relativní umístění bylo zarámováno na aktuální pozici"
+        "relative_framed": "Relativní umístění bylo zarámováno na aktuální pozici",
+        "machine_workspace_fits": "Plánovaný pohyb odpovídá profilu stroje",
+        "rotary_safe": "Nastavení rotačního nástavce je bezpečné",
+        "controller_supported": "Řadič může spouštět úlohy",
+        "image_detail_fits": "Detail obrázku odpovídá řadiči",
+        "plan_generation": "Příprava úlohy",
+        "ruida_compiles": "Úlohu lze převést pro řadič Ruida",
+        "lihuiyu_compiles": "Úlohu lze převést pro řadič Lihuiyu M2"
       },
       "messages": {
         "connected_ready": "Připojeno a připraveno",
@@ -406,8 +415,11 @@
         "frame_required": "Tento ovladač není umístěn, takže Beam Bench nemůže ověřit fyzické okraje postele. Po umístění laseru zarámujte úlohu a před zahájením znovu zkontrolujte.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segmentů",
-        "plan_bounds_exceed": "Plánované hranice ({minX}, {minY} až {maxX}, {maxY}) přesahují pracovní plochu stroje {width} × {height} mm.",
-        "raster_motion_exceeds": "Rastrový pohyb sahá od {lo} do {hi} mm na ose {axis}, jejíž rozsah je 0 až {limit} mm. Přeskenování a posun skenování přidávají {margin} mm mimo gravírovanou oblast. {startFrom, select, current_position {Snižte přeskenování nebo posuňte laser dál od okraje plochy.} user_origin {Snižte přeskenování nebo posuňte či znovu nastavte Uživatelský počátek dál od okraje plochy.} other {Snižte přeskenování nebo posuňte návrh dál od okraje plochy.}}"
+        "plan_bounds_exceed": "Plánované hranice ({minX}, {minY} až {maxX}, {maxY}) přesahují pracovní plochu stroje {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Rastrový pohyb sahá od {lo} do {hi} {unit} na ose {axis}, jejíž rozsah je 0 až {limit} {unit}. Přeskenování a posun skenování přidávají {margin} {unit} mimo gravírovanou oblast. {startFrom, select, current_position {Snižte přeskenování nebo posuňte laser dál od okraje plochy.} user_origin {Snižte přeskenování nebo posuňte či znovu nastavte Uživatelský počátek dál od okraje plochy.} other {Snižte přeskenování nebo posuňte návrh dál od okraje plochy.}}",
+        "session_state": "Připojení: {state}",
+        "machine_state": "Stav stroje: {state}",
+        "plan_bounds_fit": "Plánované hranice ({minX}, {minY} až {maxX}, {maxY}) se vejdou na pracovní plochu stroje {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "Stahuje se...",
       "installing": "Instaluje se...",
       "blocked_not_in_applications": "Aktualizace vyžadují, aby Beam Bench běžel ze složky Aplikace. Zdá se, že běží z instalačního obrazu disku nebo z jiného dočasného umístění. Ve Finderu přetáhněte Beam Bench do složky Aplikace, otevřete jej odtud a zkuste aktualizaci znovu.",
-      "blocked_other_disk": "Beam Bench je nainstalován na jiném disku, než kde je dočasná složka tohoto Macu, takže jej aktualizátor nemůže vyměnit. Přesuňte Beam Bench do složky Aplikace na hlavním disku, nebo si stáhněte novou verzi z beambench.com."
+      "blocked_other_disk": "Beam Bench je nainstalován na jiném disku, než kde je dočasná složka tohoto Macu, takže jej aktualizátor nemůže vyměnit. Přesuňte Beam Bench do složky Aplikace na hlavním disku, nebo si stáhněte novou verzi z beambench.com.",
+      "blocked_job_running": "Před instalací dokončete nebo zastavte aktuální úlohu.",
+      "blocked_machine_operation": "Před instalací počkejte na dokončení aktuální operace stroje.",
+      "blocked_machine_busy": "Před instalací dokončete nebo zastavte aktuální operaci stroje.",
+      "blocked_machine_moving": "Před instalací počkejte, až se stroj vrátí do klidu.",
+      "cancelled_unsaved": "Aktualizace zrušena. Projekt nebyl zahozen."
     },
     "camera_calibration": {
       "title": "Mapování kamery",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} řádků",
         "elapsed": "Uplynulo: {time}",
         "remaining": "Zbývá: ~{time}",
-        "finishing": "Dokončování, čekání na stroj..."
+        "finishing": "Dokončování, čekání na stroj...",
+        "last_failure": "Poslední úloha se zastavila: {message}"
       },
       "overrides": {
         "title": "Přepisy",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Předvolby obnoveny na výchozí hodnoty.",
     "layout_restore_failed": "Nelze obnovit uložené rozložení panelů. Pro tuto relaci se použije výchozí rozložení.",
     "recovery_check_failed": "Při spuštění nelze zkontrolovat soubory obnovení.",
+    "autosave_failing": "Automatické záložní kopie selhávají. Uložte projekt, aby byla vaše práce v bezpečí.",
     "backend_subscribe_failed": "Nelze se přihlásit k odběru událostí backendu. Některé živé aktualizace nemusí být v této relaci dostupné.",
     "boolean_needs_two": "Vyberte přesně 2 uzavřené vektorové objekty pro Booleovského asistenta",
     "project_restored": "Projekt obnoven z obnovení",
@@ -2587,7 +2606,50 @@
       "postponed": "Připomenutí aktualizace odloženo o 24 hodin.",
       "skipped": "Beam Bench {version} přeskočen."
     },
-    "import_oversized": "Importováno v původní velikosti: návrh měří {width} x {height} {unit}, což je více než pracovní plocha {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importováno v původní velikosti: návrh měří {width} x {height} {unit}, což je více než pracovní plocha {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Používá se stávající připojení stroje",
+      "preview_disconnected": "Náhledový stroj odpojen",
+      "disconnected": "Odpojeno",
+      "preview_connected": "Náhledový stroj připojen",
+      "homing_started": "Najíždění do výchozí polohy zahájeno",
+      "discovery_started": "Hledání strojů zahájeno",
+      "discovery_cancelled": "Hledání strojů zrušeno",
+      "connected_discovered": "Připojeno k nalezenému zařízení",
+      "profile_from_discovery": "Profil stroje vytvořen z nalezeného zařízení",
+      "estop_sent": "Nouzové zastavení odesláno",
+      "estop_resent_disconnected": "Nouzové zastavení bylo odesláno znovu po opětovném otevření připojení k řadiči. Poté se Beam Bench odpojil. Před pokračováním se znovu připojte.",
+      "user_origin_cleared": "Uživatelský počátek vymazán",
+      "job_tick_failed": "Úloha se zastavila, protože odesílání do řadiče selhalo.",
+      "lihuiyu_incomplete": "Připojení USB Lihuiyu nebylo dokončeno.",
+      "connected_to": "Připojeno k {name}",
+      "user_origin_set": "Uživatelský počátek nastaven na ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Pořízen nový snímek kamery",
+      "alignment_saved": "Zarovnání kamery uloženo",
+      "mapping_solved": "Mapování kamery vypočteno",
+      "mapping_saved": "Mapování kamery uloženo",
+      "mapping_reset": "Mapování kamery obnoveno",
+      "alignment_solved": "Zarovnání kamery vypočteno",
+      "alignment_reset": "Zarovnání kamery obnoveno"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Šablona používá zástupné symboly {placeholder}, ale režim textu není Sériové číslo.",
+      "date_outside_mode": "Šablona používá zástupné symboly {placeholder}, ale režim textu není Datum/čas.",
+      "csv_outside_mode": "Šablona používá zástupné symboly {placeholder}, ale režim textu není Sloučení CSV.",
+      "cut_outside_mode": "Šablona používá zástupné symboly {placeholder}, ale režim textu není Nastavení řezu.",
+      "no_placeholders": "Zvolený režim textu nemá v šabloně odpovídající zástupné symboly.",
+      "csv_load_failed": "Soubor CSV se nepodařilo načíst: {error}",
+      "resolve_failed": "Text se nepodařilo vyhodnotit: {error}",
+      "merge_fields_failed": "Slučovací pole se nepodařilo načíst: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Oříznutí vytvořilo několik částí. Vyberte je a spojte je pomocí Uzavřít a spojit.",
+      "open_path": "Oříznutá cesta je otevřená a nelze ji vyplnit. Pokud potřebujete uzavřený tvar, použijte Uzavřít a spojit."
+    },
+    "pick_guide_path": "Klikněte na vektorový objekt nebo tvar, který se použije jako vodicí cesta",
+    "panel_layout_save_failed": "Změny rozložení panelů se nepodařilo uložit. Po restartu se mohou ztratit."
   },
   "status": {
     "preview_in_progress": "Generování náhledu",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "Během přípravy úlohy bylo stisknuto nouzové zastavení. Nic nebylo odesláno.",
     "sleep_protection_failed": "Během této úlohy se nepodařilo zabránit uspání počítače. Udržujte počítač vzhůru až do dokončení úlohy.",
+    "project_file_missing": "Tento soubor projektu byl přesunut nebo odstraněn, proto byl odebrán z nabídky {recent}. Najděte ho pomocí {open}.",
+    "settings_file_recovered": "Některá uložená nastavení nešlo načíst, a proto byla obnovena na výchozí. Kopie původního souboru zůstala ve složce nastavení.",
+    "layers_migrated_on_open": "Tento projekt měl obrázky a vektorové tvary ve stejné vrstvě. Byly přesunuty do samostatných vrstev se stejným nastavením.",
+    "project_too_new": "Tento projekt byl vytvořen novější verzí Beam Bench ({version}). Pro otevření aktualizujte Beam Bench.",
+    "project_from_newer_app": "Tento projekt byl naposledy uložen novější verzí Beam Bench ({version}). Uložením v této verzi se mohou ztratit nastavení, která tato verze nepodporuje.",
+    "edit_invalid_geometry": "Tato změna by přesunula nebo změnila velikost objektu mimo rozsah, který Beam Bench dokáže uložit, proto nebyla použita.",
+    "edit_internal_error": "Při této úpravě došlo k vnitřní chybě a byla vrácena. Projekt se nezměnil. Nahlaste to prosím.",
+    "project_invalid_value": "Projekt obsahuje neplatnou hodnotu nastavení, proto nebyl uložen.",
+    "project_invalid_value_object": "„{name}“ má neplatnou velikost nebo polohu, proto projekt nebyl uložen. Vraťte poslední změnu tohoto objektu nebo ho smažte a uložte znovu.",
     "operation_failed_with_detail": "Operace se nezdařila: {detail}",
     "raster_plan_too_complex": "Tento obrázek při aktuální velikosti a DPI vytváří příliš mnoho jednotlivých rastrových pohybů. Snižte DPI nebo fyzickou velikost, případně zvolte méně fragmentovaný režim obrázku, a poté náhled vytvořte znovu.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "Uživatelský původ je vybrán, ale nebyl nastaven. Přesuňte laser na zamýšlený počátek a před rámováním nebo zahájením vyberte možnost Nastavit zde.",
     "current_position_unavailable": "Aktuální pozice potřebuje připojený stroj s nahlášenou pozicí.",
     "dxf_no_usable_geometry": "Soubor DXF neobsahuje žádnou použitelnou 2D vektorovou geometrii.",
-    "dxf_no_usable_geometry_with_entities": "Soubor DXF neobsahuje žádnou použitelnou 2D vektorovou geometrii. Nepodporované nebo poškozené entity: {entities}."
+    "dxf_no_usable_geometry_with_entities": "Soubor DXF neobsahuje žádnou použitelnou 2D vektorovou geometrii. Nepodporované nebo poškozené entity: {entities}.",
+    "camera": {
+      "stream_failed": "Datový proud kamery se nepodařilo spustit.",
+      "frame_timeout": "Vypršel čas čekání na snímek kamery. Kamera se možná ještě zahřívá nebo ji používá jiná aplikace.",
+      "preview_timeout": "Vypršel čas spouštění náhledu kamery.",
+      "warmup_timeout": "Vypršel čas čekání na připravenost kamery.",
+      "encode_failed": "Snímek kamery se nepodařilo uložit.",
+      "unavailable": "Snímání kamerou není v tomto okně dostupné.",
+      "empty_frame": "Kamera vrátila prázdný snímek.",
+      "canvas_failed": "Snímek kamery se nepodařilo připravit."
+    },
+    "serial_open_no_response": "Port se otevřel, ale laser neodpověděl. Zkontrolujte, že je laser zapnutý, zkuste jiný kabel USB nebo port a ověřte, že je vybrán správný port. Některé desky potřebují ovladač USB CH340.",
+    "serial_protocol_unrecognized": "Laser odpověděl, ale Beam Bench nerozpoznal jeho řadič. Zkontrolujte přenosovou rychlost v profilu stroje (většina laserů GRBL používá 115200) a zavřete jiný laserový software, který tento port používá.",
+    "network_grbl_no_status": "Řadič na této adrese neodpověděl jako laser GRBL. Zkontrolujte IP adresu a port, zavřete jiné aplikace, které jsou k němu připojené (mnoho modulů Wi-Fi povoluje jen jedno připojení najednou), a zkuste to znovu.",
+    "no_active_machine_profile": "Zatím není nastaven žádný stroj. Nejprve přidejte nebo vyberte profil stroje.",
+    "emergency_stop_unconfirmed": "Beam Bench nemohl potvrdit, že se stroj zastavil. Ihned použijte fyzické nouzové zastavení stroje nebo odpojte napájení laseru. Podrobnosti: {detail}",
+    "controller_connection_lost": "Spojení s laserem bylo ztraceno. Zkontrolujte kabel a napájení a poté se znovu připojte. Podrobnosti: {detail}"
   },
   "import": {
     "drop_to_import": "Přetáhněte soubory k importu"

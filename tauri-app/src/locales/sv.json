@@ -371,8 +371,8 @@
       "outcome_fail": "Misslyckades",
       "warnings_block_start": "Åtgärda varningarna ovan innan du startar jobbet.",
       "advisory_choice": "Det här jobbet kan köras, men korrigering av rådgivandet kan förbättra gravyrkvaliteten.",
-      "apply_overscan": "Använd {value} mm överskanning och kontrollera igen",
-      "reduce_speed": "Använd {value} mm/min och kontrollera igen",
+      "apply_overscan": "Använd {value} {unit} överskanning och kontrollera igen",
+      "reduce_speed": "Använd {value} {unit} och kontrollera igen",
       "continue_anyway": "Fortsätt i alla fall",
       "categories": {
         "connection": "Anslutning",
@@ -382,7 +382,9 @@
         "settings": "Inställningar",
         "positioning": "Positionering",
         "planner": "Planerare",
-        "machine_workspace": "Maskinarbetsyta"
+        "machine_workspace": "Maskinarbetsyta",
+        "controller": "Styrenhet",
+        "rotary": "Rotationsenhet"
       },
       "checks": {
         "session_ready": "Sessionen är klar",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Rasterrörelse passar in i maskinbädden",
         "laser_mode": "Laserläget är aktiverat ($32=1)",
         "homing_enabled": "Hemsökning är aktiverad",
-        "relative_framed": "Relativ placering inramades vid den aktuella positionen"
+        "relative_framed": "Relativ placering inramades vid den aktuella positionen",
+        "machine_workspace_fits": "Den planerade rörelsen passar maskinprofilen",
+        "rotary_safe": "Rotationsinställningen är säker att köra",
+        "controller_supported": "Styrenheten kan starta jobb",
+        "image_detail_fits": "Bilddetaljen passar styrenheten",
+        "plan_generation": "Förberedelse av jobb",
+        "ruida_compiles": "Jobbet kan konverteras för Ruida-styrenheten",
+        "lihuiyu_compiles": "Jobbet kan konverteras för Lihuiyu M2-styrenheten"
       },
       "messages": {
         "connected_ready": "Ansluten och klar",
@@ -406,8 +415,11 @@
         "frame_required": "Den här kontrollern är inte hemlig, så Beam Bench kan inte verifiera de fysiska sängkanterna. Rama in jobbet efter att ha placerat lasern och kontrollera sedan innan du startar.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segment",
-        "plan_bounds_exceed": "De planerade gränserna ({minX}, {minY} till {maxX}, {maxY}) överskrider maskinbädden på {width} × {height} mm.",
-        "raster_motion_exceeds": "Rasterrörelsen sträcker sig från {lo} till {hi} mm på {axis}-axeln, vars område är 0 till {limit} mm. Överskanning och skanningsförskjutning lägger till {margin} mm utanför gravyrens område. {startFrom, select, current_position {Minska överskanningen eller flytta lasern längre från bäddkanten.} user_origin {Minska överskanningen eller flytta eller återställ Användarorigin längre från bäddkanten.} other {Minska överskanningen eller flytta motivet längre från bäddkanten.}}"
+        "plan_bounds_exceed": "De planerade gränserna ({minX}, {minY} till {maxX}, {maxY}) överskrider maskinbädden på {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Rasterrörelsen sträcker sig från {lo} till {hi} {unit} på {axis}-axeln, vars område är 0 till {limit} {unit}. Överskanning och skanningsförskjutning lägger till {margin} {unit} utanför gravyrens område. {startFrom, select, current_position {Minska överskanningen eller flytta lasern längre från bäddkanten.} user_origin {Minska överskanningen eller flytta eller återställ Användarorigin längre från bäddkanten.} other {Minska överskanningen eller flytta motivet längre från bäddkanten.}}",
+        "session_state": "Anslutning: {state}",
+        "machine_state": "Maskinstatus: {state}",
+        "plan_bounds_fit": "De planerade gränserna ({minX}, {minY} till {maxX}, {maxY}) får plats på maskinens arbetsyta på {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "Laddar ner...",
       "installing": "Installerar...",
       "blocked_not_in_applications": "Uppdateringar kräver att Beam Bench körs från mappen Program. Det verkar köras från installationsskivavbilden eller en annan tillfällig plats. Dra Beam Bench till Program i Finder, öppna det därifrån och försök uppdatera igen.",
-      "blocked_other_disk": "Beam Bench är installerat på en annan disk än den här Macens tillfälliga mapp, så uppdateraren kan inte byta ut det. Flytta Beam Bench till mappen Program på huvuddisken eller hämta den nya versionen från beambench.com."
+      "blocked_other_disk": "Beam Bench är installerat på en annan disk än den här Macens tillfälliga mapp, så uppdateraren kan inte byta ut det. Flytta Beam Bench till mappen Program på huvuddisken eller hämta den nya versionen från beambench.com.",
+      "blocked_job_running": "Slutför eller stoppa det aktuella jobbet innan installation.",
+      "blocked_machine_operation": "Vänta tills den aktuella maskinåtgärden är klar innan installation.",
+      "blocked_machine_busy": "Slutför eller stoppa den aktuella maskinåtgärden innan installation.",
+      "blocked_machine_moving": "Vänta tills maskinen är i vila igen innan installation.",
+      "cancelled_unsaved": "Uppdateringen avbröts. Ditt projekt har inte kasserats."
     },
     "camera_calibration": {
       "title": "Kameramappning",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} rader",
         "elapsed": "Förflutet: {time}",
         "remaining": "Återstår: ~{time}",
-        "finishing": "Slutför, väntar på maskinen..."
+        "finishing": "Slutför, väntar på maskinen...",
+        "last_failure": "Det senaste jobbet stoppades: {message}"
       },
       "overrides": {
         "title": "Overrides",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Inställningar återställda till standard.",
     "layout_restore_failed": "Det gick inte att återställa den sparade panellayouten. Standardlayouten används för den här sessionen.",
     "recovery_check_failed": "Det gick inte att söka efter återställningsfiler vid start.",
+    "autosave_failing": "Automatiska återställningskopior misslyckas. Spara projektet för att skydda ditt arbete.",
     "backend_subscribe_failed": "Det gick inte att prenumerera på backend-händelser. Vissa liveuppdateringar kan vara otillgängliga den här sessionen.",
     "boolean_needs_two": "Markera exakt 2 slutna vektorobjekt för den booleska assistenten",
     "project_restored": "Projekt återställt från återställning",
@@ -2587,7 +2606,50 @@
       "postponed": "Uppdateringspåminnelse uppskjuten 24 timmar.",
       "skipped": "Beam Bench {version} hoppades över."
     },
-    "import_oversized": "Importerad i originalstorlek: designen mäter {width} x {height} {unit}, större än arbetsytan på {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importerad i originalstorlek: designen mäter {width} x {height} {unit}, större än arbetsytan på {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Använder den befintliga maskinanslutningen",
+      "preview_disconnected": "Förhandsgranskningsmaskin frånkopplad",
+      "disconnected": "Frånkopplad",
+      "preview_connected": "Förhandsgranskningsmaskin ansluten",
+      "homing_started": "Referenskörning startad",
+      "discovery_started": "Maskinsökning startad",
+      "discovery_cancelled": "Maskinsökning avbruten",
+      "connected_discovered": "Ansluten till den hittade enheten",
+      "profile_from_discovery": "Maskinprofil skapad från den hittade enheten",
+      "estop_sent": "Nödstopp skickat",
+      "estop_resent_disconnected": "Nödstoppet skickades igen efter att anslutningen till styrenheten öppnades på nytt. Därefter kopplade Beam Bench från. Anslut igen innan du fortsätter.",
+      "user_origin_cleared": "Användarorigo rensat",
+      "job_tick_failed": "Jobbet stoppades eftersom överföringen till styrenheten misslyckades.",
+      "lihuiyu_incomplete": "Lihuiyu-USB-anslutningen slutfördes inte.",
+      "connected_to": "Ansluten till {name}",
+      "user_origin_set": "Användarorigo satt till ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Ny kamerabild tagen",
+      "alignment_saved": "Kamerajustering sparad",
+      "mapping_solved": "Kameramappning beräknad",
+      "mapping_saved": "Kameramappning sparad",
+      "mapping_reset": "Kameramappning återställd",
+      "alignment_solved": "Kamerajustering beräknad",
+      "alignment_reset": "Kamerajustering återställd"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Mallen använder {placeholder}-platshållare, men textläget är inte Serienummer.",
+      "date_outside_mode": "Mallen använder {placeholder}-platshållare, men textläget är inte Datum/tid.",
+      "csv_outside_mode": "Mallen använder {placeholder}-platshållare, men textläget är inte CSV-sammanfogning.",
+      "cut_outside_mode": "Mallen använder {placeholder}-platshållare, men textläget är inte Skärinställning.",
+      "no_placeholders": "Det valda textläget har inga matchande platshållare i mallen.",
+      "csv_load_failed": "CSV-filen kunde inte läsas in: {error}",
+      "resolve_failed": "Texten kunde inte lösas upp: {error}",
+      "merge_fields_failed": "Kopplingsfälten kunde inte läsas: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Trimningen skapade flera delar. Markera dem och använd Stäng och sammanfoga för att slå ihop dem.",
+      "open_path": "Den trimmade banan är öppen och kan inte fyllas. Använd Stäng och sammanfoga om du behöver en sluten form."
+    },
+    "pick_guide_path": "Klicka på ett vektor- eller formobjekt som ska användas som styrbana",
+    "panel_layout_save_failed": "Ändringar i panellayouten kunde inte sparas. De kan gå förlorade vid omstart."
   },
   "status": {
     "preview_in_progress": "Genererar förhandsvisning",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "Nödstopp trycktes in medan jobbet förbereddes. Inget skickades.",
     "sleep_protection_failed": "Det gick inte att hindra datorn från att gå i viloläge under jobbet. Håll datorn vaken tills jobbet är klart.",
+    "project_file_missing": "Projektfilen har flyttats eller tagits bort, så den har tagits bort från {recent}. Använd {open} för att hitta den.",
+    "settings_file_recovered": "Vissa sparade inställningar kunde inte läsas och återställdes. En kopia av originalfilen sparades i inställningsmappen.",
+    "layers_migrated_on_open": "Projektet hade bilder och vektorformer på samma lager. De flyttades till separata lager med samma inställningar.",
+    "project_too_new": "Projektet skapades med en nyare version av Beam Bench ({version}). Uppdatera Beam Bench för att öppna det.",
+    "project_from_newer_app": "Projektet sparades senast med en nyare version av Beam Bench ({version}). Om du sparar med den här versionen kan inställningar som den inte stöder försvinna.",
+    "edit_invalid_geometry": "Den här ändringen skulle flytta eller skala ett objekt utanför det område Beam Bench kan spara, så den genomfördes inte.",
+    "edit_internal_error": "Redigeringen stötte på ett internt fel och ångrades. Projektet är oförändrat. Rapportera gärna detta.",
+    "project_invalid_value": "Projektet har ett ogiltigt inställningsvärde, så det sparades inte.",
+    "project_invalid_value_object": "”{name}” har ogiltig storlek eller position, så projektet sparades inte. Ångra den senaste ändringen av det, eller ta bort det, och spara igen.",
     "operation_failed_with_detail": "Åtgärden misslyckades: {detail}",
     "raster_plan_too_complex": "Den här bilden skapar för många enskilda rasterrörelser med aktuell storlek och DPI. Minska DPI eller den fysiska storleken, eller välj ett mindre fragmenterat bildläge, och generera sedan förhandsvisningen igen.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "Användarursprung är valt men har inte ställts in. Flytta lasern till det avsedda ursprunget och välj Ställ in här innan du ramar in eller startar.",
     "current_position_unavailable": "Aktuell position behöver en ansluten maskin med en rapporterad position.",
     "dxf_no_usable_geometry": "DXF-filen innehåller ingen användbar 2D-vektorgeometri.",
-    "dxf_no_usable_geometry_with_entities": "DXF-filen innehåller ingen användbar 2D-vektorgeometri. Entiteter som inte stöds eller är felaktiga: {entities}."
+    "dxf_no_usable_geometry_with_entities": "DXF-filen innehåller ingen användbar 2D-vektorgeometri. Entiteter som inte stöds eller är felaktiga: {entities}.",
+    "camera": {
+      "stream_failed": "Kameraströmmen kunde inte startas.",
+      "frame_timeout": "Tidsgränsen nåddes i väntan på en kamerabild. Kameran värms kanske fortfarande upp eller används av en annan app.",
+      "preview_timeout": "Tidsgränsen nåddes när kameraförhandsvisningen startades.",
+      "warmup_timeout": "Tidsgränsen nåddes i väntan på att kameran ska bli redo.",
+      "encode_failed": "Kamerabilden kunde inte sparas.",
+      "unavailable": "Kamerainspelning är inte tillgänglig i det här fönstret.",
+      "empty_frame": "Kameran returnerade en tom bild.",
+      "canvas_failed": "Kamerabilden kunde inte förberedas."
+    },
+    "serial_open_no_response": "Porten öppnades, men lasern svarade inte. Kontrollera att lasern är påslagen, prova en annan USB-kabel eller port och se till att rätt port är vald. Vissa kort behöver USB-drivrutinen CH340.",
+    "serial_protocol_unrecognized": "Lasern svarade, men Beam Bench kände inte igen dess styrenhet. Kontrollera överföringshastigheten (baud) i maskinprofilen (de flesta GRBL-lasrar använder 115200) och stäng annan laserprogramvara som använder den här porten.",
+    "network_grbl_no_status": "Styrenheten på den här adressen svarade inte som en GRBL-laser. Kontrollera IP-adressen och porten, stäng andra appar som är anslutna till den (många Wi-Fi-moduler tillåter bara en anslutning åt gången) och försök igen.",
+    "no_active_machine_profile": "Ingen maskin har konfigurerats ännu. Lägg först till eller välj en maskinprofil.",
+    "emergency_stop_unconfirmed": "Beam Bench kunde inte bekräfta att maskinen stannade. Använd maskinens fysiska nödstopp eller koppla bort strömmen till lasern nu. Detaljer: {detail}",
+    "controller_connection_lost": "Anslutningen till lasern bröts. Kontrollera kabeln och strömmen och anslut sedan igen. Detaljer: {detail}"
   },
   "import": {
     "drop_to_import": "Släpp filer för att importera"

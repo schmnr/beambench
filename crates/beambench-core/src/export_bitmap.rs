@@ -56,7 +56,7 @@ pub fn processed_bitmap_png_for_object(
     Ok(bytes)
 }
 
-fn processed_bitmap_image_for_object(
+pub(crate) fn processed_bitmap_image_for_object(
     project: &Project,
     obj: &crate::ProjectObject,
 ) -> Result<GrayImage, String> {

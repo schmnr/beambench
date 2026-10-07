@@ -399,8 +399,26 @@ export interface PreflightCheck {
   category: string;
   description: string;
   passed: boolean;
+  /** English summary; `detail` carries the values for localized display. */
   message: string;
+  detail?: PreflightDetail;
 }
+
+/** Values behind a preflight check message. Lengths are in millimetres. */
+export type PreflightDetail =
+  | { kind: 'session_state'; state: string }
+  | { kind: 'machine_state'; state: string }
+  | { kind: 'segment_count'; count: number }
+  | {
+      kind: 'plan_bounds';
+      min_x: number;
+      min_y: number;
+      max_x: number;
+      max_y: number;
+      bed_width: number;
+      bed_height: number;
+    }
+  | { kind: 'raster_motion'; axis: string; lo: number; hi: number; limit: number; margin: number };
 
 export interface PreflightAdvisory {
   code: string;

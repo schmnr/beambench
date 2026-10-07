@@ -54,6 +54,7 @@ function makeToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
     rotateObjects: vi.fn().mockResolvedValue(undefined),
     shearObjects: vi.fn().mockResolvedValue(undefined),
     updateObjectBoundsBatch: vi.fn().mockResolvedValue(undefined),
+    scaleAndRotateObjects: vi.fn().mockResolvedValue(undefined),
     setCursorWorldPos: vi.fn(),
     setStatusMessage: vi.fn(),
     requestRender: vi.fn(),
@@ -142,4 +143,22 @@ describe('TwoPointRotateScaleTool', () => {
     expect(ctx.rotateObjects).not.toHaveBeenCalled();
     expect(ctx.updateObjectBoundsBatch).not.toHaveBeenCalled();
   });
+});
+
+it('a combined scale and rotation is one commit and one undo step', async () => {
+  const ctx = makeToolContext();
+  const tool = new TwoPointRotateScaleTool();
+  tool.onMouseDown(makeMouseEvent({ snappedX: 0, snappedY: 0 }), ctx);
+  tool.onMouseDown(makeMouseEvent({ snappedX: 10, snappedY: 0 }), ctx);
+  tool.onMouseMove(makeMouseEvent({ snappedX: 0, snappedY: 20, shiftKey: true }), ctx);
+  tool.onMouseUp(makeMouseEvent({ snappedX: 0, snappedY: 20, shiftKey: true }), ctx);
+  await flushToolPromises(); await flushToolPromises();
+  expect(ctx.scaleAndRotateObjects).toHaveBeenCalledWith(
+    [{ id: 'obj', bounds: { min: { x: 20, y: 0 }, max: { x: 40, y: 20 } } }],
+    ['obj'],
+    90,
+    { x: 0, y: 0 },
+  );
+  expect(ctx.updateObjectBoundsBatch).not.toHaveBeenCalled();
+  expect(ctx.rotateObjects).not.toHaveBeenCalled();
 });

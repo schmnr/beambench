@@ -117,6 +117,82 @@ fn rotate_180(raster: &ProcessedRaster, width_mm: f64, height_mm: f64) -> Rotate
     }
 }
 
+/// Output dimensions and byte size, without allocating or sampling pixels.
+/// Uses the same physical grid as rotation, including cardinal fast paths.
+pub fn rotated_raster_size(
+    raster: &ProcessedRaster,
+    angle_deg: f64,
+    width_mm: f64,
+    height_mm: f64,
+) -> Option<(u32, u32, usize)> {
+    if !angle_deg.is_finite() {
+        return None;
+    }
+    let angle = angle_deg.rem_euclid(360.0);
+    let (width, height) = if !(0.5..=359.5).contains(&angle) || (angle - 180.0).abs() < 0.5 {
+        (raster.width_px, raster.height_px)
+    } else {
+        let (w, h, _, _) = rotation_grid(raster, angle, width_mm, height_mm)?;
+        (w, h)
+    };
+    let row_bytes = match raster.format {
+        RasterPixelFormat::Binary => (width as usize).div_ceil(8),
+        RasterPixelFormat::Grayscale8 => width as usize,
+    };
+    Some((width, height, row_bytes.checked_mul(height as usize)?))
+}
+
+fn rotation_grid(
+    raster: &ProcessedRaster,
+    angle_deg: f64,
+    width_mm: f64,
+    height_mm: f64,
+) -> Option<(u32, u32, f64, f64)> {
+    let (w, h) = (raster.width_px as f64, raster.height_px as f64);
+    let rad = angle_deg.to_radians();
+    let (sin_a, cos_a) = rad.sin_cos();
+    // Rotate in millimetres, not pixels. Pass-through images can have
+    // non-square pixels (each axis has its own size); rotating pixel indices
+    // and rescaling the axes separately afterwards distorts the artwork.
+    // Pixel size per axis, as the rest of the pipeline uses it (DPI rasters
+    // have square pixels; pass-through rasters carry each axis's own size).
+    // The output grid keeps the same column width and row spacing.
+    let src_px_x = if raster.x_pixel_mm > 0.0 {
+        raster.x_pixel_mm
+    } else if w > 0.0 {
+        width_mm / w
+    } else {
+        1.0
+    };
+    let src_px_y = if raster.line_interval_mm > 0.0 {
+        raster.line_interval_mm
+    } else if h > 0.0 {
+        height_mm / h
+    } else {
+        1.0
+    };
+    // Rows keep their spacing. Along a rotated row, step at the finer of the
+    // two source sizes: a coarse column (e.g. 5 mm) crossing at an angle would
+    // smear each pixel sideways into neighbouring rows.
+    let (dst_px_x, dst_px_y) = (src_px_x.min(src_px_y), src_px_y);
+
+    // Rotated bounding box, physically, then in output pixels.
+    let (span_x_mm, span_y_mm) = (w * src_px_x, h * src_px_y);
+    let rotated_w_mm = span_x_mm * cos_a.abs() + span_y_mm * sin_a.abs();
+    let rotated_h_mm = span_x_mm * sin_a.abs() + span_y_mm * cos_a.abs();
+    let columns = (rotated_w_mm / dst_px_x - 1e-9).ceil().max(0.0);
+    let rows = (rotated_h_mm / dst_px_y - 1e-9).ceil().max(0.0);
+    if !columns.is_finite()
+        || !rows.is_finite()
+        || columns > u32::MAX as f64
+        || rows > u32::MAX as f64
+    {
+        return None;
+    }
+    let (new_w_px, new_h_px) = (columns as u32, rows as u32);
+    Some((new_w_px, new_h_px, src_px_x, src_px_y))
+}
+
 fn rotate_general(
     raster: &ProcessedRaster,
     angle_deg: f64,
@@ -130,21 +206,29 @@ fn rotate_general(
     let cos_a = rad.cos();
     let sin_a = rad.sin();
 
-    // Compute rotated bounding box dimensions
-    let new_w_px = (w * cos_a.abs() + h * sin_a.abs()).ceil() as u32;
-    let new_h_px = (w * sin_a.abs() + h * cos_a.abs()).ceil() as u32;
+    let (new_w_px, new_h_px, src_px_x, src_px_y) =
+        rotation_grid(raster, angle_deg, width_mm, height_mm)
+            .expect("rotation dimensions must be checked before allocation");
+    let (dst_px_x, dst_px_y) = (src_px_x.min(src_px_y), src_px_y);
+    let new_width_mm = new_w_px as f64 * dst_px_x;
+    let new_height_mm = new_h_px as f64 * dst_px_y;
 
-    // Physical dimensions scale proportionally
-    let scale_x = if w > 0.0 { width_mm / w } else { 1.0 };
-    let scale_y = if h > 0.0 { height_mm / h } else { 1.0 };
-    let new_width_mm = new_w_px as f64 * scale_x;
-    let new_height_mm = new_h_px as f64 * scale_y;
-
-    // Centers
+    // Centers (pixels)
     let src_cx = w / 2.0;
     let src_cy = h / 2.0;
     let dst_cx = new_w_px as f64 / 2.0;
     let dst_cy = new_h_px as f64 / 2.0;
+    // Output pixel -> source pixel, via an inverse rotation in millimetres.
+    // Sample at the output pixel's center and take the source pixel that
+    // point falls inside (floor), not the nearest index: with wide source
+    // pixels, rounding reached up to half a pixel past the image edge.
+    let source_pixel = |dx: usize, dy: usize| {
+        let rx = (dx as f64 + 0.5 - dst_cx) * dst_px_x;
+        let ry = (dy as f64 + 0.5 - dst_cy) * dst_px_y;
+        let x_mm = rx * cos_a + ry * sin_a;
+        let y_mm = -rx * sin_a + ry * cos_a;
+        (x_mm / src_px_x + src_cx, y_mm / src_px_y + src_cy)
+    };
 
     match raster.format {
         RasterPixelFormat::Grayscale8 => {
@@ -154,14 +238,10 @@ fn rotate_general(
 
             for dy in 0..nh {
                 for dx in 0..nw {
-                    // Inverse rotation: find source pixel
-                    let rx = dx as f64 - dst_cx;
-                    let ry = dy as f64 - dst_cy;
-                    let sx = rx * cos_a + ry * sin_a + src_cx;
-                    let sy = -rx * sin_a + ry * cos_a + src_cy;
+                    let (sx, sy) = source_pixel(dx, dy);
 
-                    let sx_i = sx.round() as i64;
-                    let sy_i = sy.round() as i64;
+                    let sx_i = sx.floor() as i64;
+                    let sy_i = sy.floor() as i64;
 
                     if sx_i >= 0 && sx_i < w as i64 && sy_i >= 0 && sy_i < h as i64 {
                         let src_w = raster.width_px as usize;
@@ -174,8 +254,8 @@ fn rotate_general(
                 raster: ProcessedRaster {
                     width_px: new_w_px,
                     height_px: new_h_px,
-                    line_interval_mm: raster.line_interval_mm,
-                    x_pixel_mm: raster.x_pixel_mm,
+                    line_interval_mm: dst_px_y,
+                    x_pixel_mm: dst_px_x,
                     format: raster.format,
                     data,
                 },
@@ -194,13 +274,10 @@ fn rotate_general(
 
             for dy in 0..nh {
                 for dx in 0..nw {
-                    let rx = dx as f64 - dst_cx;
-                    let ry = dy as f64 - dst_cy;
-                    let sx = rx * cos_a + ry * sin_a + src_cx;
-                    let sy = -rx * sin_a + ry * cos_a + src_cy;
+                    let (sx, sy) = source_pixel(dx, dy);
 
-                    let sx_i = sx.round() as i64;
-                    let sy_i = sy.round() as i64;
+                    let sx_i = sx.floor() as i64;
+                    let sy_i = sy.floor() as i64;
 
                     if sx_i >= 0 && sx_i < w as i64 && sy_i >= 0 && sy_i < h as i64 {
                         let src_byte = sy_i as usize * src_row_bytes + sx_i as usize / 8;
@@ -221,8 +298,8 @@ fn rotate_general(
                 raster: ProcessedRaster {
                     width_px: new_w_px,
                     height_px: new_h_px,
-                    line_interval_mm: raster.line_interval_mm,
-                    x_pixel_mm: raster.x_pixel_mm,
+                    line_interval_mm: dst_px_y,
+                    x_pixel_mm: dst_px_x,
                     format: raster.format,
                     data,
                 },

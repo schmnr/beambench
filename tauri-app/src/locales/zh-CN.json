@@ -371,8 +371,8 @@
       "outcome_fail": "失败",
       "warnings_block_start": "请先解决上述警告，然后再开始作业。",
       "advisory_choice": "此作业可以运行，但更正建议可能会提高雕刻质量。",
-      "apply_overscan": "使用 {value} mm 过扫描并重新检查",
-      "reduce_speed": "使用 {value} mm/min 并重新检查",
+      "apply_overscan": "使用 {value} {unit} 过扫描并重新检查",
+      "reduce_speed": "使用 {value} {unit} 并重新检查",
       "continue_anyway": "仍然继续",
       "categories": {
         "connection": "连接方式",
@@ -382,7 +382,9 @@
         "settings": "设置",
         "positioning": "定位",
         "planner": "规划师",
-        "machine_workspace": "机器工作空间"
+        "machine_workspace": "机器工作空间",
+        "controller": "控制器",
+        "rotary": "旋转轴"
       },
       "checks": {
         "session_ready": "会话已准备就绪",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "光栅运动适合机器床身",
         "laser_mode": "激光模式已启用（$32=1）",
         "homing_enabled": "归位已启用",
-        "relative_framed": "相对位置以当前位置为框架"
+        "relative_framed": "相对位置以当前位置为框架",
+        "machine_workspace_fits": "计划运动符合机器配置文件",
+        "rotary_safe": "旋转轴设置可以安全运行",
+        "controller_supported": "控制器可以启动任务",
+        "image_detail_fits": "图像细节适合控制器",
+        "plan_generation": "任务准备",
+        "ruida_compiles": "任务可转换为 Ruida 控制器格式",
+        "lihuiyu_compiles": "任务可转换为 Lihuiyu M2 控制器格式"
       },
       "messages": {
         "connected_ready": "已连接并准备就绪",
@@ -406,8 +415,11 @@
         "frame_required": "该控制器未归位，因此 Beam Bench 无法验证物理床边缘。定位激光器后对作业进行构图，然后在开始前重新检查。",
         "segment_count_one": "1 段",
         "segment_count_other": "{count} 个片段",
-        "plan_bounds_exceed": "计划范围（{minX}, {minY} 到 {maxX}, {maxY}）超出 {width} × {height} mm 的机器工作区域。",
-        "raster_motion_exceeds": "光栅运动在 {axis} 轴上从 {lo} 延伸到 {hi} mm，该轴的范围为 0 到 {limit} mm。过扫描和扫描偏移在雕刻区域之外增加了 {margin} mm。{startFrom, select, current_position {请减少过扫描或将激光头移离工作区域边缘。} user_origin {请减少过扫描，或将用户原点移到离工作区域边缘更远的位置并重新设置。} other {请减少过扫描或将设计移离工作区域边缘。}}"
+        "plan_bounds_exceed": "计划范围（{minX}, {minY} 到 {maxX}, {maxY}）超出 {width} × {height} {unit} 的机器工作区域。",
+        "raster_motion_exceeds": "光栅运动在 {axis} 轴上从 {lo} 延伸到 {hi} {unit}，该轴的范围为 0 到 {limit} {unit}。过扫描和扫描偏移在雕刻区域之外增加了 {margin} {unit}。{startFrom, select, current_position {请减少过扫描或将激光头移离工作区域边缘。} user_origin {请减少过扫描，或将用户原点移到离工作区域边缘更远的位置并重新设置。} other {请减少过扫描或将设计移离工作区域边缘。}}",
+        "session_state": "连接：{state}",
+        "machine_state": "机器状态：{state}",
+        "plan_bounds_fit": "计划范围（{minX}, {minY} 到 {maxX}, {maxY}）在 {width} × {height} {unit} 的机器工作台之内。"
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "正在下载...",
       "installing": "正在安装...",
       "blocked_not_in_applications": "更新需要 Beam Bench 从“应用程序”文件夹运行。它似乎正在从安装器磁盘映像或其他临时位置运行。请在访达中将 Beam Bench 拖入“应用程序”文件夹，从那里打开后再重试更新。",
-      "blocked_other_disk": "Beam Bench 安装在与这台 Mac 临时文件夹不同的磁盘上，更新程序无法就地替换。请将 Beam Bench 移到主磁盘的“应用程序”文件夹，或从 beambench.com 下载新版本。"
+      "blocked_other_disk": "Beam Bench 安装在与这台 Mac 临时文件夹不同的磁盘上，更新程序无法就地替换。请将 Beam Bench 移到主磁盘的“应用程序”文件夹，或从 beambench.com 下载新版本。",
+      "blocked_job_running": "安装前请完成或停止当前作业。",
+      "blocked_machine_operation": "安装前请等待当前机器操作完成。",
+      "blocked_machine_busy": "安装前请完成或停止当前机器操作。",
+      "blocked_machine_moving": "安装前请等待机器回到空闲状态。",
+      "cancelled_unsaved": "已取消更新。您的项目未被丢弃。"
     },
     "camera_calibration": {
       "title": "相机映射",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} 行",
         "elapsed": "已用：{time}",
         "remaining": "剩余：~{time}",
-        "finishing": "正在完成，等待机器..."
+        "finishing": "正在完成，等待机器...",
+        "last_failure": "上一个作业已停止：{message}"
       },
       "overrides": {
         "title": "倍率",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "偏好设置已重置为默认值。",
     "layout_restore_failed": "无法恢复已保存的面板布局。本次会话将使用默认布局。",
     "recovery_check_failed": "启动期间无法检查恢复文件。",
+    "autosave_failing": "自动恢复副本创建失败。请保存项目以保护您的工作。",
     "backend_subscribe_failed": "无法订阅后端事件。本次会话部分实时更新可能不可用。",
     "boolean_needs_two": "请为布尔助手选择正好 2 个闭合矢量对象",
     "project_restored": "已从恢复中还原项目",
@@ -2587,7 +2606,50 @@
       "postponed": "更新提醒已推迟 24 小时。",
       "skipped": "已跳过 Beam Bench {version}。"
     },
-    "import_oversized": "已按原始尺寸导入：设计尺寸为 {width} x {height} {unit}，大于 {bedWidth} x {bedHeight} {unit} 的工作区域。"
+    "import_oversized": "已按原始尺寸导入：设计尺寸为 {width} x {height} {unit}，大于 {bedWidth} x {bedHeight} {unit} 的工作区域。",
+    "machine": {
+      "using_existing_connection": "正在使用现有的机器连接",
+      "preview_disconnected": "预览机器已断开",
+      "disconnected": "已断开",
+      "preview_connected": "预览机器已连接",
+      "homing_started": "已开始回原点",
+      "discovery_started": "已开始搜索机器",
+      "discovery_cancelled": "已取消搜索机器",
+      "connected_discovered": "已连接到找到的设备",
+      "profile_from_discovery": "已根据找到的设备创建机器配置",
+      "estop_sent": "已发送紧急停止",
+      "estop_resent_disconnected": "重新打开控制器连接后已再次发送紧急停止。随后 Beam Bench 已断开连接。继续前请重新连接。",
+      "user_origin_cleared": "已清除用户原点",
+      "job_tick_failed": "由于发送到控制器失败，作业已停止。",
+      "lihuiyu_incomplete": "Lihuiyu USB 连接未完成。",
+      "connected_to": "已连接到 {name}",
+      "user_origin_set": "用户原点已设为 ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "已拍摄新的相机图像",
+      "alignment_saved": "相机对齐已保存",
+      "mapping_solved": "相机映射已计算",
+      "mapping_saved": "相机映射已保存",
+      "mapping_reset": "相机映射已重置",
+      "alignment_solved": "相机对齐已计算",
+      "alignment_reset": "相机对齐已重置"
+    },
+    "variable_text": {
+      "serial_outside_mode": "模板使用了 {placeholder} 占位符，但文本模式不是序列号。",
+      "date_outside_mode": "模板使用了 {placeholder} 占位符，但文本模式不是日期/时间。",
+      "csv_outside_mode": "模板使用了 {placeholder} 占位符，但文本模式不是 CSV 合并。",
+      "cut_outside_mode": "模板使用了 {placeholder} 占位符，但文本模式不是切割设置。",
+      "no_placeholders": "所选文本模式在模板中没有匹配的占位符。",
+      "csv_load_failed": "无法加载 CSV 文件：{error}",
+      "resolve_failed": "无法解析文本：{error}",
+      "merge_fields_failed": "无法读取合并字段：{error}"
+    },
+    "trim": {
+      "multiple_pieces": "修剪生成了多个片段。请选中它们并使用“闭合并连接”进行合并。",
+      "open_path": "修剪后的路径是开放的，无法填充。如需闭合形状，请使用“闭合并连接”。"
+    },
+    "pick_guide_path": "点击一个矢量或形状对象作为引导路径",
+    "panel_layout_save_failed": "无法保存面板布局更改。重启后可能会丢失。"
   },
   "status": {
     "preview_in_progress": "正在生成预览",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "准备任务时按下了紧急停止。未发送任何内容。",
     "sleep_protection_failed": "无法阻止计算机在此任务期间进入睡眠。请让计算机保持唤醒状态，直到任务结束。",
+    "project_file_missing": "此项目文件已被移动或删除，因此已从“{recent}”中移除。请使用“{open}”查找它。",
+    "settings_file_recovered": "部分已保存的设置无法读取，已重置为默认值。原始文件的副本已保留在设置文件夹中。",
+    "layers_migrated_on_open": "此项目中的图像和矢量图形位于同一图层。它们已移到具有相同设置的单独图层。",
+    "project_too_new": "此项目由较新版本的 Beam Bench ({version}) 创建。请更新 Beam Bench 后再打开。",
+    "project_from_newer_app": "此项目上次由较新版本的 Beam Bench ({version}) 保存。使用此版本保存可能会丢失此版本不支持的设置。",
+    "edit_invalid_geometry": "此更改会将对象移动或缩放到 Beam Bench 无法保存的范围之外，因此未应用。",
+    "edit_internal_error": "此编辑遇到内部错误，已撤销。您的项目没有变化。请报告此问题。",
+    "project_invalid_value": "项目包含无效的设置值，因此未保存。",
+    "project_invalid_value_object": "“{name}”的大小或位置无效，因此项目未保存。请撤销对它的最后一次更改或将其删除，然后重新保存。",
     "operation_failed_with_detail": "操作失败：{detail}",
     "raster_plan_too_complex": "此图像在当前尺寸和 DPI 下会产生过多的独立栅格移动。请降低 DPI 或物理尺寸，或选择碎片较少的图像模式，然后重新生成预览。",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "用户原点已选择但尚未设置。将激光移动到预期原点，并在取景或开始之前选择在此处设置。",
     "current_position_unavailable": "当前位置需要具有报告位置的连接机器。",
     "dxf_no_usable_geometry": "DXF 文件不包含可用的二维矢量几何图形。",
-    "dxf_no_usable_geometry_with_entities": "DXF 文件不包含可用的二维矢量几何图形。不支持或格式错误的图元：{entities}。"
+    "dxf_no_usable_geometry_with_entities": "DXF 文件不包含可用的二维矢量几何图形。不支持或格式错误的图元：{entities}。",
+    "camera": {
+      "stream_failed": "无法启动相机视频流。",
+      "frame_timeout": "等待相机图像超时。相机可能仍在预热，或正被其他应用使用。",
+      "preview_timeout": "启动相机预览超时。",
+      "warmup_timeout": "等待相机就绪超时。",
+      "encode_failed": "无法保存相机图像。",
+      "unavailable": "此窗口中无法使用相机拍摄。",
+      "empty_frame": "相机返回了空图像。",
+      "canvas_failed": "无法准备相机图像。"
+    },
+    "serial_open_no_response": "端口已打开，但激光器没有响应。请确认激光器已开机，尝试更换 USB 线或端口，并确认选择了正确的端口。某些主板需要安装 CH340 USB 驱动程序。",
+    "serial_protocol_unrecognized": "激光器已响应，但 Beam Bench 无法识别其控制器。请检查机器配置文件中的波特率（大多数 GRBL 激光器使用 115200），并关闭正在使用此端口的其他激光软件。",
+    "network_grbl_no_status": "此地址的控制器没有以 GRBL 激光器的方式响应。请检查 IP 地址和端口，关闭连接到它的其他应用（许多 Wi-Fi 模块一次只允许一个连接），然后重试。",
+    "no_active_machine_profile": "尚未设置任何机器。请先添加或选择一个机器配置文件。",
+    "emergency_stop_unconfirmed": "Beam Bench 无法确认机器已停止。请立即使用机器的物理急停按钮或断开激光器电源。详细信息：{detail}",
+    "controller_connection_lost": "与激光器的连接已断开。请检查线缆和电源，然后重新连接。详细信息：{detail}"
   },
   "import": {
     "drop_to_import": "拖放文件以导入"

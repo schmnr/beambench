@@ -94,7 +94,7 @@ pub fn get_asset_data(
     persistence_ops::get_asset_data(&svc, id).map_err(Into::into)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn autosave_project(svc: State<'_, Arc<ServiceContext>>) -> Result<String, String> {
     persistence_ops::autosave_project(&svc).map_err(Into::into)
 }
@@ -104,12 +104,26 @@ pub fn check_recovery_files() -> Result<Vec<RecoveryInfo>, String> {
     persistence_ops::check_recovery_files().map_err(Into::into)
 }
 
+/// A restored project and the file it saves back to, when that is known.
+#[derive(serde::Serialize)]
+pub struct RestoredRecovery {
+    project: Project,
+    path: Option<String>,
+}
+
 #[tauri::command]
 pub fn restore_recovery(
     recovery_path: String,
     svc: State<'_, Arc<ServiceContext>>,
-) -> Result<Project, String> {
-    persistence_ops::restore_recovery_file(&svc, &recovery_path).map_err(Into::into)
+) -> Result<RestoredRecovery, String> {
+    let project = persistence_ops::restore_recovery_file(&svc, &recovery_path)?;
+    let path = svc
+        .project_path
+        .lock()
+        .map_err(|e| format!("Failed to lock project_path: {e}"))?
+        .as_ref()
+        .map(|path| path.to_string_lossy().to_string());
+    Ok(RestoredRecovery { project, path })
 }
 
 #[tauri::command]

@@ -102,6 +102,11 @@ pub struct RasterPreview {
     /// Per-planner-run burn extents used by animated-preview progress masking.
     #[serde(default)]
     pub run_extents: Vec<RasterRunExtent>,
+    /// False when `run_extents` is a sample of a larger set (large fills and
+    /// images). The static preview must then draw the exact bitmap instead of
+    /// stripes, or burn detail between samples would be missing.
+    #[serde(default)]
+    pub run_extents_complete: bool,
     /// One envelope per non-empty scanline, from the first energized position
     /// to the last. Overscan is applied around these extents.
     #[serde(default)]

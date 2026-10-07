@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import type { CanvasTool, CanvasMouseEvent, ToolContext } from './types';
 import type { ToolOverlay } from '../CanvasRenderer';
 import { screenToWorldDist, worldToScreen, type ViewportParams } from '../ViewportTransform';
@@ -33,13 +34,13 @@ export class TrimTool implements CanvasTool {
         usePreviewStore.getState().invalidate();
         if (result.healFailed) {
           useNotificationStore.getState().push(
-            'Trim produced multiple pieces \u2014 select them and use Close & Join to consolidate',
+            i18n.t('notifications.trim.multiple_pieces'),
             'info',
           );
         }
         if (result.openResult) {
           useNotificationStore.getState().push(
-            'Trimmed path is open (not fill-ready) \u2014 use Close & Join if a closed shape is needed',
+            i18n.t('notifications.trim.open_path'),
             'info',
           );
         }

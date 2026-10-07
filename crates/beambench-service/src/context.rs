@@ -24,7 +24,7 @@ use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::agent::AgentSelectionSnapshot;
-use crate::error::ServiceResult;
+use crate::error::{ServiceError, ServiceResult};
 use crate::events::ServiceEventEnvelope;
 use crate::history::{ProjectHistory, UndoState};
 use crate::material_apply::{
@@ -123,8 +123,12 @@ pub struct ServiceContext {
     /// Prevent new connections after the desktop has begun a verified shutdown.
     pub shutting_down: AtomicBool,
     pub project: Mutex<Option<Project>>,
+    /// Serializes document mutations and their history commit/rollback.
+    project_edit_gate: Mutex<()>,
     pub project_path: Mutex<Option<PathBuf>>,
     pub settings: Mutex<AppSettings>,
+    /// Serialize settings activation, persistence and rollback across interfaces.
+    pub(crate) settings_edit_gate: Mutex<()>,
     pub plan_cache: Mutex<Option<Arc<ExecutionPlan>>>,
     pub history: Mutex<ProjectHistory>,
     pub session: Mutex<Option<MachineSessionHandle>>,
@@ -145,6 +149,12 @@ pub struct ServiceContext {
     /// Bumped by every emergency stop, before it waits on any lock. A job or
     /// frame start that began planning before the stop must not proceed.
     pub emergency_stop_generation: AtomicU64,
+    /// Bumped each time a machine session is installed, so work prepared for
+    /// one connection is never started on another.
+    pub session_epoch: AtomicU64,
+    /// The connected xTool's address, readable without the session lock so
+    /// Emergency Stop can reach it while the session is busy.
+    pub xtool_stop_endpoint: Mutex<Option<(String, u16)>>,
     /// True only after the current connection has established machine
     /// coordinates. G53 absolute machine-coordinate moves require this.
     pub machine_coordinates_valid: AtomicBool,
@@ -209,6 +219,12 @@ pub struct ServiceContext {
     pub art_libraries: Mutex<Vec<super::persist::LoadedArtLibrary>>,
     /// Pending art-library load/persistence warnings surfaced to the UI on the next fetch.
     pub art_library_warnings: Mutex<Vec<String>>,
+    /// Notices for the user, such as a damaged settings file at startup or
+    /// layers split while opening a project. The frontend takes them once.
+    pub pending_notices: Mutex<Vec<String>>,
+    /// Counts completed project saves, so an autosave written at the same
+    /// time can tell that its recovery copy is already out of date.
+    pub project_save_count: AtomicU64,
     /// Content-addressed cache for processed raster results (planner only).
     pub raster_cache: Arc<beambench_raster::cache::RasterCache>,
     /// Separate preview cache — avoids evicting planner entries with transient slider settings.
@@ -238,10 +254,20 @@ impl ServiceContext {
     pub fn new() -> Self {
         let (tx, _rx) = broadcast::channel(256);
         let art_library_state = super::persist::load_art_libraries();
+        let (settings, settings_notice) = super::persist::load_settings_with_notice();
+        let (material_presets, presets_notice) =
+            super::persist::load_material_presets_with_notice();
+        let (macros, macros_notice) = super::persist::load_macros_with_notice();
+        let pending_notices = [settings_notice, presets_notice, macros_notice]
+            .into_iter()
+            .flatten()
+            .collect();
         Self {
             project: Mutex::new(None),
+            project_edit_gate: Mutex::new(()),
             project_path: Mutex::new(None),
-            settings: Mutex::new(super::persist::load_settings()),
+            settings: Mutex::new(settings),
+            settings_edit_gate: Mutex::new(()),
             plan_cache: Mutex::new(None),
             history: Mutex::new(ProjectHistory::default()),
             session: Mutex::new(None),
@@ -253,6 +279,8 @@ impl ServiceContext {
             shutting_down: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
             emergency_stop_generation: AtomicU64::new(0),
+            session_epoch: AtomicU64::new(0),
+            xtool_stop_endpoint: Mutex::new(None),
             machine_coordinates_valid: AtomicBool::new(false),
             relative_frame_confirmation: Mutex::new(None),
             pending_relative_frame_confirmation: Mutex::new(None),
@@ -275,12 +303,14 @@ impl ServiceContext {
             connection_events: Mutex::new(VecDeque::new()),
             panic_reports: Mutex::new(Vec::new()),
             settings_applier: Mutex::new(None),
-            material_presets: Mutex::new(super::persist::load_material_presets()),
-            macros: Mutex::new(super::persist::load_macros()),
+            material_presets: Mutex::new(material_presets),
+            macros: Mutex::new(macros),
             console_log: Mutex::new(VecDeque::new()),
             optimization_runtime: Mutex::new(OptimizationRuntime::default()),
             art_libraries: Mutex::new(art_library_state.libraries),
             art_library_warnings: Mutex::new(art_library_state.warnings),
+            pending_notices: Mutex::new(pending_notices),
+            project_save_count: AtomicU64::new(0),
             raster_cache: Arc::new(beambench_raster::cache::RasterCache::new(32)),
             preview_cache: Arc::new(beambench_raster::cache::RasterCache::new(16)),
             scaled_image_cache: Arc::new(beambench_raster::cache::ScaledImageCache::new(16)),
@@ -298,8 +328,10 @@ impl ServiceContext {
         let (tx, _rx) = broadcast::channel(256);
         Self {
             project: Mutex::new(None),
+            project_edit_gate: Mutex::new(()),
             project_path: Mutex::new(None),
             settings: Mutex::new(settings),
+            settings_edit_gate: Mutex::new(()),
             plan_cache: Mutex::new(None),
             history: Mutex::new(ProjectHistory::default()),
             session: Mutex::new(None),
@@ -311,6 +343,8 @@ impl ServiceContext {
             shutting_down: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
             emergency_stop_generation: AtomicU64::new(0),
+            session_epoch: AtomicU64::new(0),
+            xtool_stop_endpoint: Mutex::new(None),
             machine_coordinates_valid: AtomicBool::new(false),
             relative_frame_confirmation: Mutex::new(None),
             pending_relative_frame_confirmation: Mutex::new(None),
@@ -339,6 +373,8 @@ impl ServiceContext {
             optimization_runtime: Mutex::new(OptimizationRuntime::default()),
             art_libraries: Mutex::new(Vec::new()),
             art_library_warnings: Mutex::new(Vec::new()),
+            pending_notices: Mutex::new(Vec::new()),
+            project_save_count: AtomicU64::new(0),
             raster_cache: Arc::new(beambench_raster::cache::RasterCache::new(32)),
             preview_cache: Arc::new(beambench_raster::cache::RasterCache::new(16)),
             scaled_image_cache: Arc::new(beambench_raster::cache::ScaledImageCache::new(16)),
@@ -560,6 +596,72 @@ impl ServiceContext {
             .map_err(|e| format!("Failed to lock history: {e}"))?;
         history.push_snapshot(project);
         Ok(())
+    }
+
+    /// Always acquire this before project/history locks when writing the document.
+    pub(crate) fn lock_project_edits(&self) -> std::sync::MutexGuard<'_, ()> {
+        self.project_edit_gate
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Serialize an edit with document replacement, save and undo, and restore
+    /// both document and history on failure. Long searches belong outside this
+    /// section; only their stale check and commit need an atomic edit.
+    pub fn atomic_edit<T, E: From<ServiceError>>(
+        &self,
+        edit: impl FnOnce() -> Result<T, E>,
+    ) -> Result<T, E> {
+        let _edit_guard = self.lock_project_edits();
+        self.project.clear_poison();
+        self.history.clear_poison();
+        let before = self
+            .project
+            .lock()
+            .map_err(|e| {
+                E::from(ServiceError::internal(format!(
+                    "Failed to lock project: {e}"
+                )))
+            })?
+            .clone();
+        self.history
+            .lock()
+            .map_err(|e| {
+                E::from(ServiceError::internal(format!(
+                    "Failed to lock history: {e}"
+                )))
+            })?
+            .begin_edit();
+        let mut result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(edit)) {
+            Ok(result) => result,
+            Err(_) => {
+                self.project.clear_poison();
+                self.history.clear_poison();
+                Err(ServiceError::internal(
+                    "[edit_internal_error] This edit hit an internal error and was undone. Your project is unchanged; please report this.",
+                ).into())
+            }
+        };
+        let mut project = self.project.lock().unwrap_or_else(|e| e.into_inner());
+        let mut history = self.history.lock().unwrap_or_else(|e| e.into_inner());
+        if result.is_ok()
+            && history.has_edit_snapshot()
+            && project
+                .as_ref()
+                .and_then(Project::first_non_finite_object)
+                .is_some()
+        {
+            result = Err(ServiceError::invalid_input(
+                "[edit_invalid_geometry] This change would move or size an object outside the range Beam Bench can store, so it was not applied.",
+            ).into());
+        }
+        if result.is_err() {
+            *project = before;
+            history.rollback_edit();
+        } else {
+            history.commit_edit(before);
+        }
+        result
     }
 
     pub fn clear_project_history(&self) -> Result<(), String> {
@@ -1342,6 +1444,26 @@ mod tests {
     use beambench_common::ConsoleDirection;
     use beambench_grbl::GrblSession;
     use beambench_serial::MockSerialTransport;
+
+    #[test]
+    fn a_panicking_edit_is_rolled_back_and_leaves_save_working() {
+        let ctx = ServiceContext::new();
+        *ctx.project.lock().unwrap() = Some(Project::new("Panic"));
+        let before = ctx.project.lock().unwrap().clone();
+
+        let result: ServiceResult<()> = ctx.atomic_edit(|| {
+            let mut guard = ctx.project.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            ctx.push_project_undo_snapshot(project).unwrap();
+            project.metadata.project_name = "half edited".into();
+            panic!("edit bug");
+        });
+
+        assert!(result.is_err());
+        assert!(!ctx.project.is_poisoned());
+        assert_eq!(*ctx.project.lock().unwrap(), before);
+        assert!(!ctx.undo_state().unwrap().can_undo);
+    }
 
     #[test]
     fn new_context_has_no_project() {

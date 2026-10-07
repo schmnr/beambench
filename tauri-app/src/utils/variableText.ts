@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import type { VariableTextConfig, VariableTextMode, VariableTextSource } from '../types/variableText';
 
 export function defaultVariableTextSource(): VariableTextSource {
@@ -66,11 +67,11 @@ export function detectVariableTextWarnings(
   const hasConst = /\{Const:[^}]+\}/.test(template);
   const hasAny = hasSerial || hasDate || hasCsv || hasCut || hasConst;
 
-  if (hasSerial && mode !== 'serial_number') warnings.push('Template contains {Serial} placeholders outside Serial Number mode.');
-  if (hasDate && mode !== 'date_time') warnings.push('Template contains {Date:...} placeholders outside Date/Time mode.');
-  if (hasCsv && mode !== 'merge_csv') warnings.push('Template contains {CSV:...} placeholders outside Merge/CSV mode.');
-  if (hasCut && mode !== 'cut_setting') warnings.push('Template contains {Cut:...} placeholders outside Cut Setting mode.');
-  if (!hasAny && mode && mode !== 'normal') warnings.push('Selected Text Mode has no matching placeholders in the template.');
+  if (hasSerial && mode !== 'serial_number') warnings.push(i18n.t('notifications.variable_text.serial_outside_mode', { placeholder: '{Serial}' }));
+  if (hasDate && mode !== 'date_time') warnings.push(i18n.t('notifications.variable_text.date_outside_mode', { placeholder: '{Date:...}' }));
+  if (hasCsv && mode !== 'merge_csv') warnings.push(i18n.t('notifications.variable_text.csv_outside_mode', { placeholder: '{CSV:...}' }));
+  if (hasCut && mode !== 'cut_setting') warnings.push(i18n.t('notifications.variable_text.cut_outside_mode', { placeholder: '{Cut:...}' }));
+  if (!hasAny && mode && mode !== 'normal') warnings.push(i18n.t('notifications.variable_text.no_placeholders'));
 
   return warnings;
 }

@@ -1104,6 +1104,7 @@ fn compute_dock_target(
 }
 
 pub fn create_project(ctx: &ServiceContext, name: &str) -> ServiceResult<Project> {
+    let _edit_guard = ctx.lock_project_edits();
     let active_profile = {
         let settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
         match settings.active_profile_id {
@@ -1147,6 +1148,7 @@ pub fn create_project(ctx: &ServiceContext, name: &str) -> ServiceResult<Project
 }
 
 pub fn get_project(ctx: &ServiceContext) -> ServiceResult<Option<Project>> {
+    let _edit_guard = ctx.lock_project_edits();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     if let Some(project) = project_guard.as_mut() {
         refresh_project_text_caches(project);
@@ -1162,6 +1164,7 @@ pub fn require_project(ctx: &ServiceContext) -> ServiceResult<Project> {
 }
 
 pub fn close_project(ctx: &ServiceContext) -> ServiceResult<()> {
+    let _edit_guard = ctx.lock_project_edits();
     let (closed_project, path) = {
         let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
@@ -1185,6 +1188,7 @@ pub fn close_project(ctx: &ServiceContext) -> ServiceResult<()> {
 }
 
 pub fn replace_project(ctx: &ServiceContext, project: Project) -> ServiceResult<()> {
+    let _edit_guard = ctx.lock_project_edits();
     {
         let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let asset_data = guard
@@ -1196,12 +1200,15 @@ pub fn replace_project(ctx: &ServiceContext, project: Project) -> ServiceResult<
         refresh_project_text_caches(&mut restored);
         restored.dirty = true;
         *guard = Some(restored);
+        ctx.clear_project_history()
+            .map_err(ServiceError::internal)?;
     }
     invalidate_plan(ctx)?;
     Ok(())
 }
 
 pub fn replace_project_document(ctx: &ServiceContext, mut project: Project) -> ServiceResult<()> {
+    let _edit_guard = ctx.lock_project_edits();
     {
         let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
         let mut path_guard = ctx
@@ -1228,44 +1235,46 @@ pub fn replace_project_document(ctx: &ServiceContext, mut project: Project) -> S
 }
 
 pub fn bind_active_machine_profile(ctx: &ServiceContext) -> ServiceResult<Project> {
-    let (profile_id, snapshot, workspace) = {
-        let settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
-        let profile_id = settings
-            .active_profile_id
-            .ok_or_else(|| ServiceError::not_found("No active machine profile"))?;
-        let profile = settings
-            .machine_profiles
-            .iter()
-            .find(|p| p.id == profile_id)
-            .ok_or_else(|| ServiceError::not_found("Active machine profile not found"))?;
-        (
-            profile.id,
-            profile.snapshot(),
-            workspace_from_machine_profile(profile),
-        )
-    };
+    ctx.atomic_edit(|| {
+        let (profile_id, snapshot, workspace) = {
+            let settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
+            let profile_id = settings
+                .active_profile_id
+                .ok_or_else(|| ServiceError::not_found("No active machine profile"))?;
+            let profile = settings
+                .machine_profiles
+                .iter()
+                .find(|p| p.id == profile_id)
+                .ok_or_else(|| ServiceError::not_found("Active machine profile not found"))?;
+            (
+                profile.id,
+                profile.snapshot(),
+                workspace_from_machine_profile(profile),
+            )
+        };
 
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    project.machine_profile_id = Some(profile_id);
-    project.machine_profile_snapshot = Some(snapshot);
-    project.workspace = workspace;
-    project.dirty = true;
-    let result = project.clone();
-    invalidate_plan(ctx)?;
-    drop(project_guard);
-    ctx.emit_event(
-        "project.object.updated",
-        json!({
-            "project_id": result.metadata.project_id,
-            "machine_profile_id": profile_id,
-        }),
-    );
-    Ok(result)
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        project.machine_profile_id = Some(profile_id);
+        project.machine_profile_snapshot = Some(snapshot);
+        project.workspace = workspace;
+        project.dirty = true;
+        let result = project.clone();
+        invalidate_plan(ctx)?;
+        drop(project_guard);
+        ctx.emit_event(
+            "project.object.updated",
+            json!({
+                "project_id": result.metadata.project_id,
+                "machine_profile_id": profile_id,
+            }),
+        );
+        Ok(result)
+    })
 }
 
 pub fn current_project_path(ctx: &ServiceContext) -> ServiceResult<Option<PathBuf>> {
@@ -1277,6 +1286,7 @@ pub fn current_project_path(ctx: &ServiceContext) -> ServiceResult<Option<PathBu
 }
 
 pub fn undo_project(ctx: &ServiceContext) -> ServiceResult<Project> {
+    let _edit_guard = ctx.lock_project_edits();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let current = project_guard
         .as_ref()
@@ -1301,6 +1311,7 @@ pub fn undo_project(ctx: &ServiceContext) -> ServiceResult<Project> {
 }
 
 pub fn redo_project(ctx: &ServiceContext) -> ServiceResult<Project> {
+    let _edit_guard = ctx.lock_project_edits();
     let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
     let current = project_guard
         .as_ref()
@@ -1329,29 +1340,31 @@ pub fn get_layers(ctx: &ServiceContext) -> ServiceResult<Vec<Layer>> {
 }
 
 pub fn add_layer(ctx: &ServiceContext, input: AddLayerInput) -> ServiceResult<Layer> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let standard_count = PALETTE_COLORS.iter().filter(|p| !p.is_tool_layer).count();
-    let palette_idx = project.layers.len() % standard_count;
-    let mut layer = Layer::new_single_entry(input.name, input.operation);
-    layer.color_tag = ColorTag(PALETTE_COLORS[palette_idx].hex.to_string());
-    if layer.primary_entry().operation == OperationType::Tool {
-        layer.canonicalize_tool_layer();
-    }
-    let added = project.add_layer(layer).clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.added",
-        json!({
-            "layer": events::layer_summary(&added),
-        }),
-    );
-    Ok(added)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let standard_count = PALETTE_COLORS.iter().filter(|p| !p.is_tool_layer).count();
+        let palette_idx = project.layers.len() % standard_count;
+        let mut layer = Layer::new_single_entry(input.name, input.operation);
+        layer.color_tag = ColorTag(PALETTE_COLORS[palette_idx].hex.to_string());
+        if layer.primary_entry().operation == OperationType::Tool {
+            layer.canonicalize_tool_layer();
+        }
+        let added = project.add_layer(layer).clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.added",
+            json!({
+                "layer": events::layer_summary(&added),
+            }),
+        );
+        Ok(added)
+    })
 }
 
 /// If new_rs.pass_through is true AND (it just became true OR dpi changed),
@@ -1478,95 +1491,99 @@ pub fn update_layer(
     layer_id: LayerId,
     input: UpdateLayerInput,
 ) -> ServiceResult<Layer> {
-    let display_only_update = input.fill_opacity.is_some()
-        && input.name.is_none()
-        && input.enabled.is_none()
-        && input.visible.is_none()
-        && input.color_tag.is_none();
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let existing = project
-        .find_layer(layer_id)
-        .cloned()
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+    ctx.atomic_edit(|| {
+        let display_only_update = input.fill_opacity.is_some()
+            && input.name.is_none()
+            && input.enabled.is_none()
+            && input.visible.is_none()
+            && input.color_tag.is_none();
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let existing = project
+            .find_layer(layer_id)
+            .cloned()
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
 
-    let mut candidate = existing.clone();
-    if let Some(name) = input.name {
-        candidate.name = name;
-    }
-    if let Some(enabled) = input.enabled {
-        candidate.enabled = enabled;
-    }
-    if let Some(visible) = input.visible {
-        candidate.visible = visible;
-    }
-    if let Some(fill_opacity) = input.fill_opacity {
-        candidate.fill_opacity = fill_opacity.clamp(0.0, 1.0);
-    }
-    if let Some(ref color) = input.color_tag {
-        candidate.color_tag = ColorTag(canonical_palette_color_tag(color).to_string());
-        candidate.is_tool_layer = beambench_common::is_tool_color(&candidate.color_tag.0);
-        if candidate.is_tool_layer {
-            candidate.canonicalize_tool_layer();
-        } else if existing.is_tool_layer
-            || candidate.primary_entry().operation == OperationType::Tool
-        {
-            candidate.entries = vec![CutEntry::new(OperationType::Line)];
+        let mut candidate = existing.clone();
+        if let Some(name) = input.name {
+            candidate.name = name;
         }
-    }
-    if candidate == existing {
-        return Ok(existing);
-    }
+        if let Some(enabled) = input.enabled {
+            candidate.enabled = enabled;
+        }
+        if let Some(visible) = input.visible {
+            candidate.visible = visible;
+        }
+        if let Some(fill_opacity) = input.fill_opacity {
+            candidate.fill_opacity = fill_opacity.clamp(0.0, 1.0);
+        }
+        if let Some(ref color) = input.color_tag {
+            candidate.color_tag = ColorTag(canonical_palette_color_tag(color).to_string());
+            candidate.is_tool_layer = beambench_common::is_tool_color(&candidate.color_tag.0);
+            if candidate.is_tool_layer {
+                candidate.canonicalize_tool_layer();
+            } else if existing.is_tool_layer
+                || candidate.primary_entry().operation == OperationType::Tool
+            {
+                candidate.entries = vec![CutEntry::new(OperationType::Line)];
+            }
+        }
+        if candidate == existing {
+            return Ok(existing);
+        }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    *project
-        .find_layer_mut(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))? = candidate;
-    project.dirty = true;
-    let updated = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::internal("layer not found after mutation"))?
-        .clone();
-    drop(project_guard);
-    if !display_only_update {
-        invalidate_plan(ctx)?;
-    }
-    ctx.emit_event(
-        "project.layer.updated",
-        json!({
-            "layer": events::layer_summary(&updated),
-        }),
-    );
-    Ok(updated)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        *project
+            .find_layer_mut(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))? = candidate;
+        project.dirty = true;
+        let updated = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::internal("layer not found after mutation"))?
+            .clone();
+        drop(project_guard);
+        if !display_only_update {
+            invalidate_plan(ctx)?;
+        }
+        ctx.emit_event(
+            "project.layer.updated",
+            json!({
+                "layer": events::layer_summary(&updated),
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn remove_layer(ctx: &ServiceContext, layer_id: LayerId) -> ServiceResult<()> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let layer = if let Some(layer) = project.find_layer(layer_id).cloned() {
-        layer
-    } else {
-        return Err(ServiceError::not_found("Layer not found"));
-    };
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    if !project.remove_layer(layer_id) {
-        return Err(ServiceError::not_found("Layer not found"));
-    }
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.removed",
-        json!({
-            "layer": events::layer_summary(&layer),
-        }),
-    );
-    Ok(())
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let layer = if let Some(layer) = project.find_layer(layer_id).cloned() {
+            layer
+        } else {
+            return Err(ServiceError::not_found("Layer not found"));
+        };
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        if !project.remove_layer(layer_id) {
+            return Err(ServiceError::not_found("Layer not found"));
+        }
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.removed",
+            json!({
+                "layer": events::layer_summary(&layer),
+            }),
+        );
+        Ok(())
+    })
 }
 
 pub fn add_cut_entry(
@@ -1574,39 +1591,41 @@ pub fn add_cut_entry(
     layer_id: LayerId,
     after_entry_id: Option<CutEntryId>,
 ) -> ServiceResult<CutEntry> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
-    if layer.is_tool_layer {
-        return Err(ServiceError::invalid_input(
-            "Tool layers do not support cut settings",
-        ));
-    }
-    if layer.entries.len() >= 11 {
-        return Err(ServiceError::invalid_input(
-            "A layer can have at most 11 sub-layers",
-        ));
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let entry = project
-        .add_cut_entry(layer_id, after_entry_id)
-        .ok_or_else(|| ServiceError::not_found("Cut entry insertion point not found"))?;
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.updated",
-        json!({ "layer": events::layer_summary(&layer) }),
-    );
-    Ok(entry)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let layer = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+        if layer.is_tool_layer {
+            return Err(ServiceError::invalid_input(
+                "Tool layers do not support cut settings",
+            ));
+        }
+        if layer.entries.len() >= 11 {
+            return Err(ServiceError::invalid_input(
+                "A layer can have at most 11 sub-layers",
+            ));
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let entry = project
+            .add_cut_entry(layer_id, after_entry_id)
+            .ok_or_else(|| ServiceError::not_found("Cut entry insertion point not found"))?;
+        let layer = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.updated",
+            json!({ "layer": events::layer_summary(&layer) }),
+        );
+        Ok(entry)
+    })
 }
 
 /// Decide each layer's new flag value under a `LayerBatchToggle` mode.
@@ -1629,53 +1648,55 @@ fn apply_layer_batch_toggle(
     get: fn(&Layer) -> bool,
     set: fn(&mut Layer, bool),
 ) -> ServiceResult<Vec<Layer>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    // Validate `OnlyThisOn { keep }` references a real layer. Without this guard, a stale row
-    // action or direct IPC call with a bogus id would silently turn EVERY layer off/hidden
-    // instead of erroring out — the row action's intent ("disable all but THIS") becomes
-    // "disable all" once `keep` matches no layer, which is not what the user asked for.
-    if let LayerBatchToggle::OnlyThisOn { keep } = &mode {
-        if !project.layers.iter().any(|l| l.id == *keep) {
-            return Err(ServiceError::not_found("Layer not found"));
-        }
-    }
-
-    // Decide and short-circuit before snapshotting undo.
-    let mut any_changed = false;
-    let plan: Vec<(LayerId, bool, bool)> = project
-        .layers
-        .iter()
-        .map(|l| {
-            let current = get(l);
-            let next = apply_batch_toggle(current, l.id, &mode);
-            if current != next {
-                any_changed = true;
+        // Validate `OnlyThisOn { keep }` references a real layer. Without this guard, a stale row
+        // action or direct IPC call with a bogus id would silently turn EVERY layer off/hidden
+        // instead of erroring out — the row action's intent ("disable all but THIS") becomes
+        // "disable all" once `keep` matches no layer, which is not what the user asked for.
+        if let LayerBatchToggle::OnlyThisOn { keep } = &mode {
+            if !project.layers.iter().any(|l| l.id == *keep) {
+                return Err(ServiceError::not_found("Layer not found"));
             }
-            (l.id, current, next)
-        })
-        .collect();
-    if !any_changed {
-        return Ok(project.layers.clone());
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    for (layer_id, _, next) in plan {
-        if let Some(l) = project.find_layer_mut(layer_id) {
-            set(l, next);
         }
-    }
-    project.dirty = true;
-    let layers = project.layers.clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    let layer_ids: Vec<String> = layers.iter().map(|l| l.id.to_string()).collect();
-    ctx.emit_event(event_name, json!({ "layer_ids": layer_ids }));
-    Ok(layers)
+
+        // Decide and short-circuit before snapshotting undo.
+        let mut any_changed = false;
+        let plan: Vec<(LayerId, bool, bool)> = project
+            .layers
+            .iter()
+            .map(|l| {
+                let current = get(l);
+                let next = apply_batch_toggle(current, l.id, &mode);
+                if current != next {
+                    any_changed = true;
+                }
+                (l.id, current, next)
+            })
+            .collect();
+        if !any_changed {
+            return Ok(project.layers.clone());
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        for (layer_id, _, next) in plan {
+            if let Some(l) = project.find_layer_mut(layer_id) {
+                set(l, next);
+            }
+        }
+        project.dirty = true;
+        let layers = project.layers.clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        let layer_ids: Vec<String> = layers.iter().map(|l| l.id.to_string()).collect();
+        ctx.emit_event(event_name, json!({ "layer_ids": layer_ids }));
+        Ok(layers)
+    })
 }
 
 /// M4: re-stamp `order_index` for every layer per `Layer::cut_strength` (stable, ascending).
@@ -1683,62 +1704,64 @@ fn apply_layer_batch_toggle(
 /// Atomic: one undo snapshot, one cache invalidation, one event. No-op short-circuit when the
 /// computed order matches the current order (idempotent on repeat invocation).
 pub fn sort_layers_cut_last(ctx: &ServiceContext) -> ServiceResult<Vec<Layer>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    if project.layers.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    // Build (cut_strength, original_index, layer_id) tuples and stable-sort by strength.
-    let mut indexed: Vec<(f64, usize, LayerId)> = project
-        .layers
-        .iter()
-        .enumerate()
-        .map(|(i, l)| (l.cut_strength(), i, l.id))
-        .collect();
-    indexed.sort_by(|a, b| {
-        a.0.partial_cmp(&b.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then(a.1.cmp(&b.1))
-    });
-
-    // No-op short-circuit: compare against the actual `project.layers` Vec order, which is what
-    // the frontend renders. (Comparing only against `order_index` ordering would miss the case
-    // where a previous run restamped order_index but didn't reorder the Vec — the second call
-    // would then claim "already sorted" while the rendered list still showed the old order.)
-    let target_id_order: Vec<LayerId> = indexed.iter().map(|t| t.2).collect();
-    let current_vec_order: Vec<LayerId> = project.layers.iter().map(|l| l.id).collect();
-    if target_id_order == current_vec_order {
-        return Ok(project.layers.clone());
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    // Reorder the Vec to match target order, AND re-stamp order_index. The Vec is the source of
-    // truth for display order; order_index is its serialized mirror. Both must agree after this
-    // call so subsequent no-op checks and frontend renders see a consistent ordering.
-    let mut by_id: std::collections::HashMap<LayerId, Layer> =
-        project.layers.drain(..).map(|l| (l.id, l)).collect();
-    for (new_idx, layer_id) in target_id_order.iter().enumerate() {
-        if let Some(mut l) = by_id.remove(layer_id) {
-            l.order_index = new_idx as u32;
-            project.layers.push(l);
+        if project.layers.is_empty() {
+            return Ok(Vec::new());
         }
-    }
-    project.dirty = true;
-    let layers = project.layers.clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    let layer_ids: Vec<String> = target_id_order.iter().map(|id| id.to_string()).collect();
-    ctx.emit_event(
-        "project.layers.reordered",
-        json!({ "layer_ids": layer_ids }),
-    );
-    Ok(layers)
+
+        // Build (cut_strength, original_index, layer_id) tuples and stable-sort by strength.
+        let mut indexed: Vec<(f64, usize, LayerId)> = project
+            .layers
+            .iter()
+            .enumerate()
+            .map(|(i, l)| (l.cut_strength(), i, l.id))
+            .collect();
+        indexed.sort_by(|a, b| {
+            a.0.partial_cmp(&b.0)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(a.1.cmp(&b.1))
+        });
+
+        // No-op short-circuit: compare against the actual `project.layers` Vec order, which is what
+        // the frontend renders. (Comparing only against `order_index` ordering would miss the case
+        // where a previous run restamped order_index but didn't reorder the Vec — the second call
+        // would then claim "already sorted" while the rendered list still showed the old order.)
+        let target_id_order: Vec<LayerId> = indexed.iter().map(|t| t.2).collect();
+        let current_vec_order: Vec<LayerId> = project.layers.iter().map(|l| l.id).collect();
+        if target_id_order == current_vec_order {
+            return Ok(project.layers.clone());
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        // Reorder the Vec to match target order, AND re-stamp order_index. The Vec is the source of
+        // truth for display order; order_index is its serialized mirror. Both must agree after this
+        // call so subsequent no-op checks and frontend renders see a consistent ordering.
+        let mut by_id: std::collections::HashMap<LayerId, Layer> =
+            project.layers.drain(..).map(|l| (l.id, l)).collect();
+        for (new_idx, layer_id) in target_id_order.iter().enumerate() {
+            if let Some(mut l) = by_id.remove(layer_id) {
+                l.order_index = new_idx as u32;
+                project.layers.push(l);
+            }
+        }
+        project.dirty = true;
+        let layers = project.layers.clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        let layer_ids: Vec<String> = target_id_order.iter().map(|id| id.to_string()).collect();
+        ctx.emit_event(
+            "project.layers.reordered",
+            json!({ "layer_ids": layer_ids }),
+        );
+        Ok(layers)
+    })
 }
 
 /// M4: batch toggle for `Layer.enabled` (Output column).
@@ -1778,54 +1801,56 @@ pub fn reset_cut_entry_to_defaults(
     layer_id: LayerId,
     entry_id: CutEntryId,
 ) -> ServiceResult<CutEntry> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
-    if layer.is_tool_layer {
-        return Err(ServiceError::invalid_input(
-            "Tool layers do not support cut settings",
-        ));
-    }
-    let existing = layer
-        .entries
-        .iter()
-        .find(|e| e.id == entry_id)
-        .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?
-        .clone();
-    let mut defaults = CutEntry::defaults_for(existing.operation);
-    defaults.id = existing.id;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let layer = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+        if layer.is_tool_layer {
+            return Err(ServiceError::invalid_input(
+                "Tool layers do not support cut settings",
+            ));
+        }
+        let existing = layer
+            .entries
+            .iter()
+            .find(|e| e.id == entry_id)
+            .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?
+            .clone();
+        let mut defaults = CutEntry::defaults_for(existing.operation);
+        defaults.id = existing.id;
 
-    if defaults == existing {
-        return Ok(existing);
-    }
+        if defaults == existing {
+            return Ok(existing);
+        }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let layer = project
-        .find_layer_mut(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
-    let entry = layer
-        .entries
-        .iter_mut()
-        .find(|e| e.id == entry_id)
-        .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?;
-    *entry = defaults.clone();
-    project.dirty = true;
-    let layer_clone = project
-        .find_layer(layer_id)
-        .expect("layer existed above")
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.updated",
-        json!({ "layer": events::layer_summary(&layer_clone) }),
-    );
-    Ok(defaults)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let layer = project
+            .find_layer_mut(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+        let entry = layer
+            .entries
+            .iter_mut()
+            .find(|e| e.id == entry_id)
+            .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?;
+        *entry = defaults.clone();
+        project.dirty = true;
+        let layer_clone = project
+            .find_layer(layer_id)
+            .expect("layer existed above")
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.updated",
+            json!({ "layer": events::layer_summary(&layer_clone) }),
+        );
+        Ok(defaults)
+    })
 }
 
 /// M4: replace a layer's `entries[]` stack from a clipboard template.
@@ -1838,23 +1863,75 @@ pub fn paste_layer_entries(
     layer_id: LayerId,
     templates: Vec<CutEntryTemplate>,
 ) -> ServiceResult<Layer> {
-    if templates.is_empty() {
-        return Err(ServiceError::invalid_input(
-            "Cannot paste an empty clipboard — a layer must have at least one entry",
-        ));
-    }
-    if templates.len() > 11 {
-        return Err(ServiceError::invalid_input(
-            "A layer can have at most 11 sub-layers",
-        ));
-    }
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        if templates.is_empty() {
+            return Err(ServiceError::invalid_input(
+                "Cannot paste an empty clipboard — a layer must have at least one entry",
+            ));
+        }
+        if templates.len() > 11 {
+            return Err(ServiceError::invalid_input(
+                "A layer can have at most 11 sub-layers",
+            ));
+        }
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    // No-op short-circuit: compare templates against current entries' content (id-stripped).
-    let current_templates: Vec<CutEntryTemplate> = {
+        // No-op short-circuit: compare templates against current entries' content (id-stripped).
+        let current_templates: Vec<CutEntryTemplate> = {
+            let layer = project
+                .find_layer(layer_id)
+                .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+            if layer.is_tool_layer {
+                return Err(ServiceError::invalid_input(
+                    "Tool layers do not support cut settings",
+                ));
+            }
+            layer
+                .entries
+                .iter()
+                .map(CutEntryTemplate::from_entry)
+                .collect()
+        };
+        if current_templates == templates {
+            let layer = project
+                .find_layer(layer_id)
+                .expect("layer existed above")
+                .clone();
+            return Ok(layer);
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        project
+            .replace_layer_entries(layer_id, templates)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+        let layer = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.updated",
+            json!({ "layer": events::layer_summary(&layer) }),
+        );
+        Ok(layer)
+    })
+}
+
+pub fn remove_cut_entry(
+    ctx: &ServiceContext,
+    layer_id: LayerId,
+    entry_id: CutEntryId,
+) -> ServiceResult<()> {
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
         let layer = project
             .find_layer(layer_id)
             .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
@@ -1863,76 +1940,28 @@ pub fn paste_layer_entries(
                 "Tool layers do not support cut settings",
             ));
         }
-        layer
-            .entries
-            .iter()
-            .map(CutEntryTemplate::from_entry)
-            .collect()
-    };
-    if current_templates == templates {
+        if layer.entries.len() <= 1 {
+            return Err(ServiceError::invalid_input(
+                "A layer must keep at least one sub-layer",
+            ));
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        if !project.remove_cut_entry(layer_id, entry_id) {
+            return Err(ServiceError::not_found("Cut entry not found"));
+        }
         let layer = project
             .find_layer(layer_id)
-            .expect("layer existed above")
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?
             .clone();
-        return Ok(layer);
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    project
-        .replace_layer_entries(layer_id, templates)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.updated",
-        json!({ "layer": events::layer_summary(&layer) }),
-    );
-    Ok(layer)
-}
-
-pub fn remove_cut_entry(
-    ctx: &ServiceContext,
-    layer_id: LayerId,
-    entry_id: CutEntryId,
-) -> ServiceResult<()> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
-    if layer.is_tool_layer {
-        return Err(ServiceError::invalid_input(
-            "Tool layers do not support cut settings",
-        ));
-    }
-    if layer.entries.len() <= 1 {
-        return Err(ServiceError::invalid_input(
-            "A layer must keep at least one sub-layer",
-        ));
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    if !project.remove_cut_entry(layer_id, entry_id) {
-        return Err(ServiceError::not_found("Cut entry not found"));
-    }
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.updated",
-        json!({ "layer": events::layer_summary(&layer) }),
-    );
-    Ok(())
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.updated",
+            json!({ "layer": events::layer_summary(&layer) }),
+        );
+        Ok(())
+    })
 }
 
 pub fn reorder_cut_entry(
@@ -1941,34 +1970,36 @@ pub fn reorder_cut_entry(
     entry_id: CutEntryId,
     new_index: usize,
 ) -> ServiceResult<Layer> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
-    if layer.is_tool_layer {
-        return Err(ServiceError::invalid_input(
-            "Tool layers do not support cut settings",
-        ));
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    if !project.reorder_cut_entry(layer_id, entry_id, new_index) {
-        return Err(ServiceError::not_found("Cut entry not found"));
-    }
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.updated",
-        json!({ "layer": events::layer_summary(&layer) }),
-    );
-    Ok(layer)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let layer = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+        if layer.is_tool_layer {
+            return Err(ServiceError::invalid_input(
+                "Tool layers do not support cut settings",
+            ));
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        if !project.reorder_cut_entry(layer_id, entry_id, new_index) {
+            return Err(ServiceError::not_found("Cut entry not found"));
+        }
+        let layer = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.updated",
+            json!({ "layer": events::layer_summary(&layer) }),
+        );
+        Ok(layer)
+    })
 }
 
 pub fn update_cut_entry(
@@ -1977,52 +2008,54 @@ pub fn update_cut_entry(
     entry_id: CutEntryId,
     patch: CutEntryPatch,
 ) -> ServiceResult<CutEntry> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let existing = project
-        .find_layer(layer_id)
-        .and_then(|layer| layer.entries.iter().find(|entry| entry.id == entry_id))
-        .cloned()
-        .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?;
-    if project
-        .find_layer(layer_id)
-        .is_some_and(|layer| layer.is_tool_layer)
-    {
-        return Err(ServiceError::invalid_input(
-            "Tool layers do not support cut settings",
-        ));
-    }
-    let mut candidate = existing.clone();
-    if !candidate.apply_patch(&patch) {
-        return Ok(existing);
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let changed = project
-        .update_cut_entry(layer_id, entry_id, &patch)
-        .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?;
-    if !changed {
-        return Ok(existing);
-    }
-    let layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::not_found("Layer not found"))?
-        .clone();
-    let updated = layer
-        .entries
-        .iter()
-        .find(|entry| entry.id == entry_id)
-        .cloned()
-        .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.updated",
-        json!({ "layer": events::layer_summary(&layer) }),
-    );
-    Ok(updated)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let existing = project
+            .find_layer(layer_id)
+            .and_then(|layer| layer.entries.iter().find(|entry| entry.id == entry_id))
+            .cloned()
+            .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?;
+        if project
+            .find_layer(layer_id)
+            .is_some_and(|layer| layer.is_tool_layer)
+        {
+            return Err(ServiceError::invalid_input(
+                "Tool layers do not support cut settings",
+            ));
+        }
+        let mut candidate = existing.clone();
+        if !candidate.apply_patch(&patch) {
+            return Ok(existing);
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let changed = project
+            .update_cut_entry(layer_id, entry_id, &patch)
+            .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?;
+        if !changed {
+            return Ok(existing);
+        }
+        let layer = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::not_found("Layer not found"))?
+            .clone();
+        let updated = layer
+            .entries
+            .iter()
+            .find(|entry| entry.id == entry_id)
+            .cloned()
+            .ok_or_else(|| ServiceError::not_found("Cut entry not found"))?;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.updated",
+            json!({ "layer": events::layer_summary(&layer) }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn reorder_layer(
@@ -2030,30 +2063,32 @@ pub fn reorder_layer(
     layer_id: LayerId,
     new_index: usize,
 ) -> ServiceResult<Vec<Layer>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    if project.find_layer(layer_id).is_none() {
-        return Err(ServiceError::not_found("Layer not found"));
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    if !project.reorder_layer(layer_id, new_index) {
-        return Err(ServiceError::not_found("Layer not found"));
-    }
-    let layers = project.layers.clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.layer.reordered",
-        json!({
-            "layer_id": layer_id,
-            "new_index": new_index,
-            "layer_ids": layers.iter().map(|layer| layer.id).collect::<Vec<_>>(),
-        }),
-    );
-    Ok(layers)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        if project.find_layer(layer_id).is_none() {
+            return Err(ServiceError::not_found("Layer not found"));
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        if !project.reorder_layer(layer_id, new_index) {
+            return Err(ServiceError::not_found("Layer not found"));
+        }
+        let layers = project.layers.clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.layer.reordered",
+            json!({
+                "layer_id": layer_id,
+                "new_index": new_index,
+                "layer_ids": layers.iter().map(|layer| layer.id).collect::<Vec<_>>(),
+            }),
+        );
+        Ok(layers)
+    })
 }
 
 pub fn get_objects(ctx: &ServiceContext) -> ServiceResult<Vec<ProjectObject>> {
@@ -2061,126 +2096,138 @@ pub fn get_objects(ctx: &ServiceContext) -> ServiceResult<Vec<ProjectObject>> {
 }
 
 pub fn add_object(ctx: &ServiceContext, input: AddObjectInput) -> ServiceResult<ProjectObject> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    // Resolve layer — use requested layer if it exists, otherwise fall back to first layer or auto-create
-    let layer_id = if project.find_layer(input.layer_id).is_some() {
-        input.layer_id
-    } else if project.layers.is_empty() {
-        project.ensure_default_layer()
-    } else {
-        // Requested layer doesn't exist (may have been cleaned up); fall back to first layer
-        project.layers[0].id
-    };
-    // Enforce the raster/vector layer-content invariant before mutating.
-    // Frontend callers should have already resolved to a matching layer
-    // type; this is the belt-and-suspenders check for API/CLI paths.
-    {
-        let dest_layer = project
-            .find_layer(layer_id)
-            .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
-        crate::validation::check_layer_content_invariant(&input.object_data, dest_layer, project)?;
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let mut obj = ProjectObject::new(input.name, layer_id, input.bounds, input.object_data);
-    let project_snapshot = project.clone();
-    refresh_text_object_cache_with_project_context(&project_snapshot, &mut obj, None);
-    let added_id = project.add_object(obj).id;
-    // If target layer has pass-through enabled, resize raster images to native-DPI size
-    sync_passthrough_single_object(project, added_id);
-    let added = project
-        .find_object(added_id)
-        .ok_or_else(|| ServiceError::internal("Object not found after add"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.added",
-        json!({
-            "object": events::object_summary(&added),
-        }),
-    );
-    Ok(added)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        // Resolve layer — use requested layer if it exists, otherwise fall back to first layer or auto-create
+        let layer_id = if project.find_layer(input.layer_id).is_some() {
+            input.layer_id
+        } else if project.layers.is_empty() {
+            project.ensure_default_layer()
+        } else {
+            // Requested layer doesn't exist (may have been cleaned up); fall back to first layer
+            project.layers[0].id
+        };
+        // Enforce the raster/vector layer-content invariant before mutating.
+        // Frontend callers should have already resolved to a matching layer
+        // type; this is the belt-and-suspenders check for API/CLI paths.
+        {
+            let dest_layer = project
+                .find_layer(layer_id)
+                .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+            crate::validation::check_layer_content_invariant(
+                &input.object_data,
+                dest_layer,
+                project,
+            )?;
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let mut obj = ProjectObject::new(input.name, layer_id, input.bounds, input.object_data);
+        let project_snapshot = project.clone();
+        refresh_text_object_cache_with_project_context(&project_snapshot, &mut obj, None);
+        let added_id = project.add_object(obj).id;
+        // If target layer has pass-through enabled, resize raster images to native-DPI size
+        sync_passthrough_single_object(project, added_id);
+        let added = project
+            .find_object(added_id)
+            .ok_or_else(|| ServiceError::internal("Object not found after add"))?
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.added",
+            json!({
+                "object": events::object_summary(&added),
+            }),
+        );
+        Ok(added)
+    })
 }
 
 pub fn add_object_atomic(
     ctx: &ServiceContext,
     input: AddObjectAtomicInput,
 ) -> ServiceResult<AddObjectAtomicResult> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    let mut created_layer: Option<Layer> = None;
-    let layer_id = if let Some(spec) = input.create_layer.clone() {
-        ctx.push_project_undo_snapshot(project)
-            .map_err(ServiceError::internal)?;
-        let mut layer = Layer::new_single_entry(spec.name, spec.operation);
-        if let Some(color_tag) = spec.color_tag {
-            layer.color_tag = ColorTag(canonical_palette_color_tag(&color_tag).to_string());
-            layer.is_tool_layer = beambench_common::is_tool_color(&layer.color_tag.0);
+        let mut created_layer: Option<Layer> = None;
+        let layer_id = if let Some(spec) = input.create_layer.clone() {
+            ctx.push_project_undo_snapshot(project)
+                .map_err(ServiceError::internal)?;
+            let mut layer = Layer::new_single_entry(spec.name, spec.operation);
+            if let Some(color_tag) = spec.color_tag {
+                layer.color_tag = ColorTag(canonical_palette_color_tag(&color_tag).to_string());
+                layer.is_tool_layer = beambench_common::is_tool_color(&layer.color_tag.0);
+            }
+            if layer.is_tool_layer || layer.primary_entry().operation == OperationType::Tool {
+                layer.canonicalize_tool_layer();
+            } else if let Some(patch) = spec.entry_patch {
+                layer.entries[0].apply_patch(&patch);
+            }
+            let created = project.add_layer(layer).clone();
+            let created_id = created.id;
+            created_layer = Some(created);
+            created_id
+        } else if project.find_layer(input.layer_id).is_some() {
+            input.layer_id
+        } else if project.layers.is_empty() {
+            project.ensure_default_layer()
+        } else {
+            project.layers[0].id
+        };
+
+        {
+            let dest_layer = project
+                .find_layer(layer_id)
+                .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
+            crate::validation::check_layer_content_invariant(
+                &input.object_data,
+                dest_layer,
+                project,
+            )?;
         }
-        if layer.is_tool_layer || layer.primary_entry().operation == OperationType::Tool {
-            layer.canonicalize_tool_layer();
-        } else if let Some(patch) = spec.entry_patch {
-            layer.entries[0].apply_patch(&patch);
+
+        if created_layer.is_none() {
+            ctx.push_project_undo_snapshot(project)
+                .map_err(ServiceError::internal)?;
         }
-        let created = project.add_layer(layer).clone();
-        let created_id = created.id;
-        created_layer = Some(created);
-        created_id
-    } else if project.find_layer(input.layer_id).is_some() {
-        input.layer_id
-    } else if project.layers.is_empty() {
-        project.ensure_default_layer()
-    } else {
-        project.layers[0].id
-    };
 
-    {
-        let dest_layer = project
-            .find_layer(layer_id)
-            .ok_or_else(|| ServiceError::not_found("Layer not found"))?;
-        crate::validation::check_layer_content_invariant(&input.object_data, dest_layer, project)?;
-    }
-
-    if created_layer.is_none() {
-        ctx.push_project_undo_snapshot(project)
-            .map_err(ServiceError::internal)?;
-    }
-
-    let mut obj = ProjectObject::new(input.name, layer_id, input.bounds, input.object_data);
-    let project_snapshot = project.clone();
-    refresh_text_object_cache_with_project_context(&project_snapshot, &mut obj, None);
-    let added_id = project.add_object(obj).id;
-    sync_passthrough_single_object(project, added_id);
-    let added = project
-        .find_object(added_id)
-        .ok_or_else(|| ServiceError::internal("Object not found after add"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    if let Some(layer) = &created_layer {
+        let mut obj = ProjectObject::new(input.name, layer_id, input.bounds, input.object_data);
+        let project_snapshot = project.clone();
+        refresh_text_object_cache_with_project_context(&project_snapshot, &mut obj, None);
+        let added_id = project.add_object(obj).id;
+        sync_passthrough_single_object(project, added_id);
+        let added = project
+            .find_object(added_id)
+            .ok_or_else(|| ServiceError::internal("Object not found after add"))?
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        if let Some(layer) = &created_layer {
+            ctx.emit_event(
+                "project.layer.added",
+                json!({
+                    "layer": events::layer_summary(layer),
+                }),
+            );
+        }
         ctx.emit_event(
-            "project.layer.added",
+            "project.object.added",
             json!({
-                "layer": events::layer_summary(layer),
+                "object": events::object_summary(&added),
             }),
         );
-    }
-    ctx.emit_event(
-        "project.object.added",
-        json!({
-            "object": events::object_summary(&added),
-        }),
-    );
-    Ok(AddObjectAtomicResult {
-        object: added,
-        created_layer,
+        Ok(AddObjectAtomicResult {
+            object: added,
+            created_layer,
+        })
     })
 }
 
@@ -2189,100 +2236,104 @@ pub fn update_object(
     object_id: ObjectId,
     input: UpdateObjectInput,
 ) -> ServiceResult<ProjectObject> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    validate_update_object_patch_in_project(project, object_id, &input, None)?;
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let updated = apply_update_object_patch_in_project(project, object_id, input, None)?;
-    project.dirty = true;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.updated",
-        json!({
-            "object": events::object_summary(&updated),
-        }),
-    );
-    Ok(updated)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        validate_update_object_patch_in_project(project, object_id, &input, None)?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let updated = apply_update_object_patch_in_project(project, object_id, input, None)?;
+        project.dirty = true;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.updated",
+            json!({
+                "object": events::object_summary(&updated),
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn update_object_transform_state(
     ctx: &ServiceContext,
     input: UpdateObjectTransformStateInput,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    if input.object_ids.is_empty() {
-        return Err(ServiceError::invalid_input("No objects supplied"));
-    }
-    if input.transform_lock_key.is_some() != input.transform_enabled.is_some() {
-        return Err(ServiceError::invalid_input(
-            "Transform lock key and enabled state must be supplied together",
-        ));
-    }
-    if input.transform_locks.is_some() && input.transform_lock_key.is_some() {
-        return Err(ServiceError::invalid_input(
-            "Supply complete transform locks or one transform lock key, not both",
-        ));
-    }
-    if let Some(key) = input.transform_lock_key.as_deref()
-        && !matches!(
-            key,
-            "move_enabled" | "size_enabled" | "rotate_enabled" | "shear_enabled"
-        )
-    {
-        return Err(ServiceError::invalid_input("Unknown transform lock key"));
-    }
-    let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    for object_id in &input.object_ids {
-        if project.find_object(*object_id).is_none() {
-            return Err(ServiceError::not_found("Object not found"));
+    ctx.atomic_edit(|| {
+        if input.object_ids.is_empty() {
+            return Err(ServiceError::invalid_input("No objects supplied"));
         }
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let mut updated = Vec::with_capacity(input.object_ids.len());
-    for object_id in &input.object_ids {
-        let object = project
-            .find_object_mut(*object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-        if let Some(locks) = input.transform_locks {
-            object.transform_locks = locks;
-        } else if let (Some(key), Some(enabled)) =
-            (input.transform_lock_key.as_deref(), input.transform_enabled)
+        if input.transform_lock_key.is_some() != input.transform_enabled.is_some() {
+            return Err(ServiceError::invalid_input(
+                "Transform lock key and enabled state must be supplied together",
+            ));
+        }
+        if input.transform_locks.is_some() && input.transform_lock_key.is_some() {
+            return Err(ServiceError::invalid_input(
+                "Supply complete transform locks or one transform lock key, not both",
+            ));
+        }
+        if let Some(key) = input.transform_lock_key.as_deref()
+            && !matches!(
+                key,
+                "move_enabled" | "size_enabled" | "rotate_enabled" | "shear_enabled"
+            )
         {
-            match key {
-                "move_enabled" => object.transform_locks.move_enabled = enabled,
-                "size_enabled" => object.transform_locks.size_enabled = enabled,
-                "rotate_enabled" => object.transform_locks.rotate_enabled = enabled,
-                "shear_enabled" => object.transform_locks.shear_enabled = enabled,
-                _ => unreachable!("transform lock key was validated before mutation"),
+            return Err(ServiceError::invalid_input("Unknown transform lock key"));
+        }
+        let mut guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        for object_id in &input.object_ids {
+            if project.find_object(*object_id).is_none() {
+                return Err(ServiceError::not_found("Object not found"));
             }
         }
-        if let Some(lock_aspect_ratio) = input.lock_aspect_ratio {
-            object.lock_aspect_ratio = lock_aspect_ratio;
-        }
-        updated.push(object.clone());
-    }
-    project.dirty = true;
-    drop(guard);
 
-    ctx.emit_event(
-        "project.objects.transform_state_updated",
-        json!({
-            "object_ids": input.object_ids,
-            "transform_locks": input.transform_locks,
-            "transform_lock_key": input.transform_lock_key,
-            "transform_enabled": input.transform_enabled,
-            "lock_aspect_ratio": input.lock_aspect_ratio,
-        }),
-    );
-    Ok(updated)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let mut updated = Vec::with_capacity(input.object_ids.len());
+        for object_id in &input.object_ids {
+            let object = project
+                .find_object_mut(*object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+            if let Some(locks) = input.transform_locks {
+                object.transform_locks = locks;
+            } else if let (Some(key), Some(enabled)) =
+                (input.transform_lock_key.as_deref(), input.transform_enabled)
+            {
+                match key {
+                    "move_enabled" => object.transform_locks.move_enabled = enabled,
+                    "size_enabled" => object.transform_locks.size_enabled = enabled,
+                    "rotate_enabled" => object.transform_locks.rotate_enabled = enabled,
+                    "shear_enabled" => object.transform_locks.shear_enabled = enabled,
+                    _ => unreachable!("transform lock key was validated before mutation"),
+                }
+            }
+            if let Some(lock_aspect_ratio) = input.lock_aspect_ratio {
+                object.lock_aspect_ratio = lock_aspect_ratio;
+            }
+            updated.push(object.clone());
+        }
+        project.dirty = true;
+        drop(guard);
+
+        ctx.emit_event(
+            "project.objects.transform_state_updated",
+            json!({
+                "object_ids": input.object_ids,
+                "transform_locks": input.transform_locks,
+                "transform_lock_key": input.transform_lock_key,
+                "transform_enabled": input.transform_enabled,
+                "lock_aspect_ratio": input.lock_aspect_ratio,
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 fn validate_update_object_patch_in_project(
@@ -2514,56 +2565,58 @@ pub fn resize_shape_object(
     object_id: ObjectId,
     bounds: Bounds,
 ) -> ServiceResult<ProjectObject> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let current = project
-        .find_object(object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    if !matches!(
-        current.data,
-        ObjectData::Shape { .. } | ObjectData::Polygon { .. } | ObjectData::Star { .. }
-    ) {
-        return Err(ServiceError::invalid_input(
-            "Object does not support atomic shape resizing",
-        ));
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let obj = project
-        .find_object_mut(object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    obj.bounds = bounds;
-    match &mut obj.data {
-        ObjectData::Shape { width, height, .. } => {
-            *width = bounds.width();
-            *height = bounds.height();
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let current = project
+            .find_object(object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        if !matches!(
+            current.data,
+            ObjectData::Shape { .. } | ObjectData::Polygon { .. } | ObjectData::Star { .. }
+        ) {
+            return Err(ServiceError::invalid_input(
+                "Object does not support atomic shape resizing",
+            ));
         }
-        ObjectData::Polygon { radius, .. } => {
-            *radius = bounds.width().min(bounds.height()) / 2.0;
-        }
-        ObjectData::Star { .. } => {}
-        _ => unreachable!("validated supported resize object type"),
-    }
 
-    refresh_dependent_text_objects(project, object_id);
-    project.dirty = true;
-    let updated = project
-        .find_object(object_id)
-        .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.updated",
-        json!({
-            "object": events::object_summary(&updated),
-        }),
-    );
-    Ok(updated)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let obj = project
+            .find_object_mut(object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        obj.bounds = bounds;
+        match &mut obj.data {
+            ObjectData::Shape { width, height, .. } => {
+                *width = bounds.width();
+                *height = bounds.height();
+            }
+            ObjectData::Polygon { radius, .. } => {
+                *radius = bounds.width().min(bounds.height()) / 2.0;
+            }
+            ObjectData::Star { .. } => {}
+            _ => unreachable!("validated supported resize object type"),
+        }
+
+        refresh_dependent_text_objects(project, object_id);
+        project.dirty = true;
+        let updated = project
+            .find_object(object_id)
+            .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.updated",
+            json!({
+                "object": events::object_summary(&updated),
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn update_object_data(
@@ -2571,34 +2624,36 @@ pub fn update_object_data(
     object_id: ObjectId,
     data: ObjectData,
 ) -> ServiceResult<ProjectObject> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    validate_update_object_patch_in_project(
-        project,
-        object_id,
-        &UpdateObjectInput::default(),
-        Some(&data),
-    )?;
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let updated = apply_update_object_patch_in_project(
-        project,
-        object_id,
-        UpdateObjectInput::default(),
-        Some(data),
-    )?;
-    project.dirty = true;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.data_updated",
-        json!({
-            "object": events::object_summary(&updated),
-        }),
-    );
-    Ok(updated)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        validate_update_object_patch_in_project(
+            project,
+            object_id,
+            &UpdateObjectInput::default(),
+            Some(&data),
+        )?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let updated = apply_update_object_patch_in_project(
+            project,
+            object_id,
+            UpdateObjectInput::default(),
+            Some(data),
+        )?;
+        project.dirty = true;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.data_updated",
+            json!({
+                "object": events::object_summary(&updated),
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 /// Resize a straight area-text frame without scaling its typography. Generic
@@ -2609,52 +2664,54 @@ pub fn resize_text_area(
     object_id: ObjectId,
     bounds: Bounds,
 ) -> ServiceResult<ProjectObject> {
-    let width = bounds.width();
-    let height = bounds.height();
-    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
-        return Err(ServiceError::invalid_input(
-            "Text area width and height must be positive finite values",
-        ));
-    }
+    ctx.atomic_edit(|| {
+        let width = bounds.width();
+        let height = bounds.height();
+        if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+            return Err(ServiceError::invalid_input(
+                "Text area width and height must be positive finite values",
+            ));
+        }
 
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    let current = project
-        .find_object(object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    if straight_text_area_width(&current.data).is_none() {
-        return Err(ServiceError::invalid_input(
-            "Object is not straight area text",
-        ));
-    }
+        let current = project
+            .find_object(object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        if straight_text_area_width(&current.data).is_none() {
+            return Err(ServiceError::invalid_input(
+                "Object is not straight area text",
+            ));
+        }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let obj = project
-        .find_object_mut(object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    if let ObjectData::Text { max_width, .. } = &mut obj.data {
-        *max_width = Some(width);
-    }
-    obj.bounds = bounds;
-    refresh_text_object_cache(&mut obj.data, &obj.bounds);
-    project.dirty = true;
-    let updated = project
-        .find_object(object_id)
-        .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.data_updated",
-        json!({
-            "object": events::object_summary(&updated),
-        }),
-    );
-    Ok(updated)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let obj = project
+            .find_object_mut(object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        if let ObjectData::Text { max_width, .. } = &mut obj.data {
+            *max_width = Some(width);
+        }
+        obj.bounds = bounds;
+        refresh_text_object_cache(&mut obj.data, &obj.bounds);
+        project.dirty = true;
+        let updated = project
+            .find_object(object_id)
+            .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.data_updated",
+            json!({
+                "object": events::object_summary(&updated),
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 /// atomic apply for the Adjust Image dialog.
@@ -2670,71 +2727,73 @@ pub fn apply_adjust_image_dialog(
     layer_id: LayerId,
     raster_settings: RasterSettings,
 ) -> ServiceResult<(ProjectObject, Layer)> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    // Validate BEFORE pushing undo so a rejected request doesn't waste a snapshot.
-    let obj = project
-        .find_object(object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-    if !matches!(obj.data, ObjectData::RasterImage { .. }) {
-        return Err(ServiceError::invalid_input(
-            "apply_adjust_image_dialog requires a RasterImage object",
-        ));
-    }
-    if project.find_layer(layer_id).is_none() {
-        return Err(ServiceError::not_found("Layer not found"));
-    }
-
-    // Single undo snapshot covers both mutations.
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    // 1. Apply object-side adjustments.
-    if let Some(obj) = project.find_object_mut(object_id) {
-        if let ObjectData::RasterImage {
-            adjustments: ref mut adj_slot,
-            ..
-        } = obj.data
-        {
-            *adj_slot = adjustments;
+        // Validate BEFORE pushing undo so a rejected request doesn't waste a snapshot.
+        let obj = project
+            .find_object(object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+        if !matches!(obj.data, ObjectData::RasterImage { .. }) {
+            return Err(ServiceError::invalid_input(
+                "apply_adjust_image_dialog requires a RasterImage object",
+            ));
         }
-    }
+        if project.find_layer(layer_id).is_none() {
+            return Err(ServiceError::not_found("Layer not found"));
+        }
 
-    // 2. Apply layer-side raster settings.
-    if let Some(layer) = project.layers.iter_mut().find(|l| l.id == layer_id) {
-        layer.primary_entry_mut().raster_settings = Some(raster_settings);
-    }
+        // Single undo snapshot covers both mutations.
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
 
-    project.dirty = true;
+        // 1. Apply object-side adjustments.
+        if let Some(obj) = project.find_object_mut(object_id) {
+            if let ObjectData::RasterImage {
+                adjustments: ref mut adj_slot,
+                ..
+            } = obj.data
+            {
+                *adj_slot = adjustments;
+            }
+        }
 
-    let updated_obj = project
-        .find_object(object_id)
-        .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
-        .clone();
-    let updated_layer = project
-        .find_layer(layer_id)
-        .ok_or_else(|| ServiceError::internal("layer not found after mutation"))?
-        .clone();
-    drop(project_guard);
+        // 2. Apply layer-side raster settings.
+        if let Some(layer) = project.layers.iter_mut().find(|l| l.id == layer_id) {
+            layer.primary_entry_mut().raster_settings = Some(raster_settings);
+        }
 
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.data_updated",
-        json!({
-            "object": events::object_summary(&updated_obj),
-        }),
-    );
-    ctx.emit_event(
-        "project.layer.updated",
-        json!({
-            "layer_id": updated_layer.id.to_string(),
-        }),
-    );
+        project.dirty = true;
 
-    Ok((updated_obj, updated_layer))
+        let updated_obj = project
+            .find_object(object_id)
+            .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
+            .clone();
+        let updated_layer = project
+            .find_layer(layer_id)
+            .ok_or_else(|| ServiceError::internal("layer not found after mutation"))?
+            .clone();
+        drop(project_guard);
+
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.data_updated",
+            json!({
+                "object": events::object_summary(&updated_obj),
+            }),
+        );
+        ctx.emit_event(
+            "project.layer.updated",
+            json!({
+                "layer_id": updated_layer.id.to_string(),
+            }),
+        );
+
+        Ok((updated_obj, updated_layer))
+    })
 }
 
 pub fn set_text_guide_path(
@@ -2742,76 +2801,78 @@ pub fn set_text_guide_path(
     text_id: ObjectId,
     guide_path_id: Option<ObjectId>,
 ) -> ServiceResult<ProjectObject> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    // Validate text object exists and is Text variant
-    let text_obj = project
-        .find_object(text_id)
-        .ok_or_else(|| ServiceError::not_found("Text object not found"))?;
-    if !matches!(text_obj.data, ObjectData::Text { .. }) {
-        return Err(ServiceError::invalid_input("Object is not a text object"));
-    }
-    // Validate guide path object exists and has usable geometry (if setting, not clearing)
-    let guide_vecpath = if let Some(gid) = guide_path_id {
-        let guide_obj = project
-            .find_object(gid)
-            .ok_or_else(|| ServiceError::not_found("Guide path object not found"))?;
-        let vp = object_to_world_vecpath_resolved(guide_obj, project).ok_or_else(|| {
-            ServiceError::invalid_input(
-                "Selected object has no vector geometry that can serve as a guide path",
-            )
-        })?;
-        Some(vp)
-    } else {
-        None
-    };
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let project_snapshot = project.clone();
-    let obj = project
-        .find_object_mut(text_id)
-        .ok_or_else(|| ServiceError::not_found("Text object not found"))?;
-    if let ObjectData::Text {
-        guide_path_id: gid,
-        layout_mode,
-        on_path,
-        ..
-    } = &mut obj.data
-    {
-        *gid = guide_path_id;
-        if guide_path_id.is_some() {
-            *layout_mode = TextLayoutMode::Path;
-            *on_path = true;
-        } else {
-            *layout_mode = TextLayoutMode::Straight;
-            *on_path = false;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        // Validate text object exists and is Text variant
+        let text_obj = project
+            .find_object(text_id)
+            .ok_or_else(|| ServiceError::not_found("Text object not found"))?;
+        if !matches!(text_obj.data, ObjectData::Text { .. }) {
+            return Err(ServiceError::invalid_input("Object is not a text object"));
         }
-    }
-    let mapped_bounds = refresh_text_object_cache_with_project_context(
-        &project_snapshot,
-        obj,
-        guide_vecpath.as_ref(),
-    );
-    if let Some(mb) = mapped_bounds {
-        obj.bounds = mb;
-        obj.transform = Transform2D::identity();
-    }
-    project.dirty = true;
-    let updated = project
-        .find_object(text_id)
-        .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
-        .clone();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.data_updated",
-        json!({
-            "object": events::object_summary(&updated),
-        }),
-    );
-    Ok(updated)
+        // Validate guide path object exists and has usable geometry (if setting, not clearing)
+        let guide_vecpath = if let Some(gid) = guide_path_id {
+            let guide_obj = project
+                .find_object(gid)
+                .ok_or_else(|| ServiceError::not_found("Guide path object not found"))?;
+            let vp = object_to_world_vecpath_resolved(guide_obj, project).ok_or_else(|| {
+                ServiceError::invalid_input(
+                    "Selected object has no vector geometry that can serve as a guide path",
+                )
+            })?;
+            Some(vp)
+        } else {
+            None
+        };
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let project_snapshot = project.clone();
+        let obj = project
+            .find_object_mut(text_id)
+            .ok_or_else(|| ServiceError::not_found("Text object not found"))?;
+        if let ObjectData::Text {
+            guide_path_id: gid,
+            layout_mode,
+            on_path,
+            ..
+        } = &mut obj.data
+        {
+            *gid = guide_path_id;
+            if guide_path_id.is_some() {
+                *layout_mode = TextLayoutMode::Path;
+                *on_path = true;
+            } else {
+                *layout_mode = TextLayoutMode::Straight;
+                *on_path = false;
+            }
+        }
+        let mapped_bounds = refresh_text_object_cache_with_project_context(
+            &project_snapshot,
+            obj,
+            guide_vecpath.as_ref(),
+        );
+        if let Some(mb) = mapped_bounds {
+            obj.bounds = mb;
+            obj.transform = Transform2D::identity();
+        }
+        project.dirty = true;
+        let updated = project
+            .find_object(text_id)
+            .ok_or_else(|| ServiceError::internal("object not found after mutation"))?
+            .clone();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.data_updated",
+            json!({
+                "object": events::object_summary(&updated),
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 /// Auto-unlink any text objects whose guide_path_id matches one of the removed IDs.
@@ -2836,58 +2897,62 @@ fn unlink_guide_path_references(project: &mut Project, removed_ids: &[ObjectId])
 }
 
 pub fn remove_object(ctx: &ServiceContext, object_id: ObjectId) -> ServiceResult<()> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let object = if let Some(object) = project.find_object(object_id).cloned() {
-        object
-    } else {
-        return Err(ServiceError::not_found("Object not found"));
-    };
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    if !project.remove_object(object_id) {
-        return Err(ServiceError::not_found("Object not found"));
-    }
-    unlink_guide_path_references(project, &[object_id]);
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.removed",
-        json!({
-            "object": events::object_summary(&object),
-        }),
-    );
-    Ok(())
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let object = if let Some(object) = project.find_object(object_id).cloned() {
+            object
+        } else {
+            return Err(ServiceError::not_found("Object not found"));
+        };
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        if !project.remove_object(object_id) {
+            return Err(ServiceError::not_found("Object not found"));
+        }
+        unlink_guide_path_references(project, &[object_id]);
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.removed",
+            json!({
+                "object": events::object_summary(&object),
+            }),
+        );
+        Ok(())
+    })
 }
 
 pub fn remove_objects(ctx: &ServiceContext, object_ids: &[ObjectId]) -> ServiceResult<usize> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    // Verify at least one object exists
-    if !object_ids
-        .iter()
-        .any(|id| project.find_object(*id).is_some())
-    {
-        return Err(ServiceError::not_found("No matching objects found"));
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let removed = project.remove_objects(object_ids);
-    unlink_guide_path_references(project, object_ids);
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.objects.removed",
-        json!({
-            "count": removed,
-            "object_ids": object_ids,
-        }),
-    );
-    Ok(removed)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        // Verify at least one object exists
+        if !object_ids
+            .iter()
+            .any(|id| project.find_object(*id).is_some())
+        {
+            return Err(ServiceError::not_found("No matching objects found"));
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let removed = project.remove_objects(object_ids);
+        unlink_guide_path_references(project, object_ids);
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.objects.removed",
+            json!({
+                "count": removed,
+                "object_ids": object_ids,
+            }),
+        );
+        Ok(removed)
+    })
 }
 
 pub fn nudge_objects(
@@ -2896,30 +2961,32 @@ pub fn nudge_objects(
     dx: f64,
     dy: f64,
 ) -> ServiceResult<()> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    if !object_ids
-        .iter()
-        .any(|id| project.find_object(*id).is_some())
-    {
-        return Err(ServiceError::not_found("No matching objects found"));
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    beambench_core::operations::nudge_objects(project, object_ids, dx, dy);
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.objects.nudged",
-        json!({
-            "dx": dx,
-            "dy": dy,
-            "object_ids": object_ids,
-        }),
-    );
-    Ok(())
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        if !object_ids
+            .iter()
+            .any(|id| project.find_object(*id).is_some())
+        {
+            return Err(ServiceError::not_found("No matching objects found"));
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        beambench_core::operations::nudge_objects(project, object_ids, dx, dy);
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.objects.nudged",
+            json!({
+                "dx": dx,
+                "dy": dy,
+                "object_ids": object_ids,
+            }),
+        );
+        Ok(())
+    })
 }
 
 pub fn duplicate_object(ctx: &ServiceContext, object_id: ObjectId) -> ServiceResult<ProjectObject> {
@@ -2952,64 +3019,66 @@ pub fn paste_objects(
     objects: &[ProjectObject],
     in_place: bool,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    if objects.is_empty() {
-        return Ok(Vec::new());
-    }
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        if objects.is_empty() {
+            return Ok(Vec::new());
+        }
 
-    let id_map: HashMap<ObjectId, ObjectId> = objects
-        .iter()
-        .map(|object| (object.id, ObjectId::new()))
-        .collect();
-    let offset = if in_place { 0.0 } else { 5.0 };
+        let id_map: HashMap<ObjectId, ObjectId> = objects
+            .iter()
+            .map(|object| (object.id, ObjectId::new()))
+            .collect();
+        let offset = if in_place { 0.0 } else { 5.0 };
 
-    let mut prepared = Vec::with_capacity(objects.len());
-    for template in objects {
-        let mut object = template.clone();
-        object.id = id_map
-            .get(&template.id)
-            .copied()
-            .unwrap_or_else(ObjectId::new);
-        object.name = format!("{} copy", template.name);
-        object.bounds = Bounds::new(
-            Point2D::new(
-                template.bounds.min.x + offset,
-                template.bounds.min.y + offset,
-            ),
-            Point2D::new(
-                template.bounds.max.x + offset,
-                template.bounds.max.y + offset,
-            ),
+        let mut prepared = Vec::with_capacity(objects.len());
+        for template in objects {
+            let mut object = template.clone();
+            object.id = id_map
+                .get(&template.id)
+                .copied()
+                .unwrap_or_else(ObjectId::new);
+            object.name = format!("{} copy", template.name);
+            object.bounds = Bounds::new(
+                Point2D::new(
+                    template.bounds.min.x + offset,
+                    template.bounds.min.y + offset,
+                ),
+                Point2D::new(
+                    template.bounds.max.x + offset,
+                    template.bounds.max.y + offset,
+                ),
+            );
+            remap_object_refs(&mut object.data, &id_map);
+            prepared.push(object);
+        }
+        let pending_data: HashMap<ObjectId, ObjectData> = prepared
+            .iter()
+            .map(|object| (object.id, object.data.clone()))
+            .collect();
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let mut added = Vec::with_capacity(prepared.len());
+        for mut object in prepared {
+            let target = paste_routing_target(&object.data, project, &pending_data, 0);
+            object.layer_id = resolve_paste_layer(project, object.layer_id, target)?;
+            added.push(project.add_object(object).clone());
+        }
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.objects.pasted",
+            json!({
+                "count": added.len(),
+                "object_ids": added.iter().map(|object| object.id).collect::<Vec<_>>(),
+            }),
         );
-        remap_object_refs(&mut object.data, &id_map);
-        prepared.push(object);
-    }
-    let pending_data: HashMap<ObjectId, ObjectData> = prepared
-        .iter()
-        .map(|object| (object.id, object.data.clone()))
-        .collect();
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let mut added = Vec::with_capacity(prepared.len());
-    for mut object in prepared {
-        let target = paste_routing_target(&object.data, project, &pending_data, 0);
-        object.layer_id = resolve_paste_layer(project, object.layer_id, target)?;
-        added.push(project.add_object(object).clone());
-    }
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.objects.pasted",
-        json!({
-            "count": added.len(),
-            "object_ids": added.iter().map(|object| object.id).collect::<Vec<_>>(),
-        }),
-    );
-    Ok(added)
+        Ok(added)
+    })
 }
 
 fn resolve_paste_layer(
@@ -3156,55 +3225,57 @@ fn duplicate_objects_impl(
     object_ids: &[ObjectId],
     in_place: bool,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    if object_ids.is_empty() {
-        return Ok(Vec::new());
-    }
-    let originals = collect_object_copy_templates(project, object_ids)?;
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    let id_map: HashMap<ObjectId, ObjectId> = originals
-        .iter()
-        .map(|object| (object.id, ObjectId::new()))
-        .collect();
-    let source_ids: Vec<ObjectId> = originals.iter().map(|object| object.id).collect();
-    let offset = if in_place { 0.0 } else { 5.0 };
-    let mut added = Vec::with_capacity(originals.len());
-    for original in originals {
-        let mut dup = original.clone();
-        dup.id = id_map
-            .get(&original.id)
-            .copied()
-            .unwrap_or_else(ObjectId::new);
-        dup.name = format!("{} copy", original.name);
-        dup.bounds = Bounds::new(
-            Point2D::new(
-                original.bounds.min.x + offset,
-                original.bounds.min.y + offset,
-            ),
-            Point2D::new(
-                original.bounds.max.x + offset,
-                original.bounds.max.y + offset,
-            ),
-        );
-        remap_object_refs(&mut dup.data, &id_map);
-        added.push(project.add_object(dup).clone());
-    }
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    for (source_object_id, object) in source_ids.iter().zip(added.iter()) {
-        ctx.emit_event(
-            "project.object.duplicated",
-            json!({
-                "source_object_id": source_object_id,
-                "object": events::object_summary(object),
-            }),
-        );
-    }
-    Ok(added)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        if object_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let originals = collect_object_copy_templates(project, object_ids)?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        let id_map: HashMap<ObjectId, ObjectId> = originals
+            .iter()
+            .map(|object| (object.id, ObjectId::new()))
+            .collect();
+        let source_ids: Vec<ObjectId> = originals.iter().map(|object| object.id).collect();
+        let offset = if in_place { 0.0 } else { 5.0 };
+        let mut added = Vec::with_capacity(originals.len());
+        for original in originals {
+            let mut dup = original.clone();
+            dup.id = id_map
+                .get(&original.id)
+                .copied()
+                .unwrap_or_else(ObjectId::new);
+            dup.name = format!("{} copy", original.name);
+            dup.bounds = Bounds::new(
+                Point2D::new(
+                    original.bounds.min.x + offset,
+                    original.bounds.min.y + offset,
+                ),
+                Point2D::new(
+                    original.bounds.max.x + offset,
+                    original.bounds.max.y + offset,
+                ),
+            );
+            remap_object_refs(&mut dup.data, &id_map);
+            added.push(project.add_object(dup).clone());
+        }
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        for (source_object_id, object) in source_ids.iter().zip(added.iter()) {
+            ctx.emit_event(
+                "project.object.duplicated",
+                json!({
+                    "source_object_id": source_object_id,
+                    "object": events::object_summary(object),
+                }),
+            );
+        }
+        Ok(added)
+    })
 }
 
 pub fn align_objects(
@@ -3213,102 +3284,104 @@ pub fn align_objects(
     alignment_type: &str,
     anchor_object_id: Option<ObjectId>,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let units = build_arrangement_units(project, &object_ids)?;
-    if units.len() < 2 {
-        return Ok(Vec::new());
-    }
-    let mode = match alignment_type {
-        "left" => alignment::AnchorAlignment::Left,
-        "right" => alignment::AnchorAlignment::Right,
-        "top" => alignment::AnchorAlignment::Top,
-        "bottom" => alignment::AnchorAlignment::Bottom,
-        "centers_xy" => alignment::AnchorAlignment::CentersXy,
-        "centers_v" => alignment::AnchorAlignment::CentersV,
-        "centers_h" => alignment::AnchorAlignment::CentersH,
-        other => {
-            return Err(ServiceError::invalid_input(format!(
-                "Invalid alignment type: {other}"
-            )));
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let units = build_arrangement_units(project, &object_ids)?;
+        if units.len() < 2 {
+            return Ok(Vec::new());
         }
-    };
+        let mode = match alignment_type {
+            "left" => alignment::AnchorAlignment::Left,
+            "right" => alignment::AnchorAlignment::Right,
+            "top" => alignment::AnchorAlignment::Top,
+            "bottom" => alignment::AnchorAlignment::Bottom,
+            "centers_xy" => alignment::AnchorAlignment::CentersXy,
+            "centers_v" => alignment::AnchorAlignment::CentersV,
+            "centers_h" => alignment::AnchorAlignment::CentersH,
+            other => {
+                return Err(ServiceError::invalid_input(format!(
+                    "Invalid alignment type: {other}"
+                )));
+            }
+        };
 
-    let locked_indices: Vec<usize> = units
-        .iter()
-        .enumerate()
-        .filter_map(|(idx, unit)| arrangement_unit_is_locked(project, unit).then_some(idx))
-        .collect();
-    let movable: Vec<bool> = units
-        .iter()
-        .map(|unit| !arrangement_unit_is_locked(project, unit))
-        .collect();
-    if !movable.iter().any(|can_move| *can_move) {
-        return Ok(Vec::new());
-    }
-    let anchor_index = if locked_indices.len() == 1 {
-        locked_indices[0]
-    } else {
-        let anchor_root = anchor_object_id
-            .map(|id| top_level_group_for_object(project, id))
-            .unwrap_or_else(|| units.last().map(|unit| unit.root_id).unwrap());
-        let preferred = units
+        let locked_indices: Vec<usize> = units
             .iter()
-            .position(|unit| unit.root_id == anchor_root)
-            .unwrap_or(units.len() - 1);
-        if locked_indices.len() > 1 && !movable[preferred] {
-            movable
-                .iter()
-                .enumerate()
-                .rev()
-                .find_map(|(idx, can_move)| can_move.then_some(idx))
-                .unwrap_or(preferred)
-        } else {
-            preferred
+            .enumerate()
+            .filter_map(|(idx, unit)| arrangement_unit_is_locked(project, unit).then_some(idx))
+            .collect();
+        let movable: Vec<bool> = units
+            .iter()
+            .map(|unit| !arrangement_unit_is_locked(project, unit))
+            .collect();
+        if !movable.iter().any(|can_move| *can_move) {
+            return Ok(Vec::new());
         }
-    };
-    let bounds_list: Vec<Bounds> = units.iter().map(|unit| unit.bounds).collect();
-    let offsets = alignment::align_to_anchor(&bounds_list, mode, anchor_index, &movable);
-    let offsets_by_root: HashMap<ObjectId, Point2D> = units
-        .iter()
-        .zip(offsets.iter())
-        .map(|(unit, offset)| {
-            let offset = if arrangement_unit_is_locked(project, unit) {
-                Point2D::new(0.0, 0.0)
+        let anchor_index = if locked_indices.len() == 1 {
+            locked_indices[0]
+        } else {
+            let anchor_root = anchor_object_id
+                .map(|id| top_level_group_for_object(project, id))
+                .unwrap_or_else(|| units.last().map(|unit| unit.root_id).unwrap());
+            let preferred = units
+                .iter()
+                .position(|unit| unit.root_id == anchor_root)
+                .unwrap_or(units.len() - 1);
+            if locked_indices.len() > 1 && !movable[preferred] {
+                movable
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .find_map(|(idx, can_move)| can_move.then_some(idx))
+                    .unwrap_or(preferred)
             } else {
-                *offset
-            };
-            (unit.root_id, offset)
-        })
-        .collect();
-    let has_change = offsets_by_root
-        .values()
-        .any(|offset| offset.x.abs() > 1e-9 || offset.y.abs() > 1e-9);
-    if !has_change {
-        return Ok(Vec::new());
-    }
-    let entries = move_entries_for_units(project, &units, &offsets_by_root)?;
-    if entries.is_empty() {
-        return Ok(Vec::new());
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    beambench_core::operations::update_object_bounds_batch(project, &entries);
-    project.dirty = true;
-    let updated = updated_objects_for_entries(project, &entries)?;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.aligned",
-        json!({
-            "alignment_type": alignment_type,
-            "anchor_object_id": anchor_object_id,
-            "object_ids": object_ids,
-        }),
-    );
-    Ok(updated)
+                preferred
+            }
+        };
+        let bounds_list: Vec<Bounds> = units.iter().map(|unit| unit.bounds).collect();
+        let offsets = alignment::align_to_anchor(&bounds_list, mode, anchor_index, &movable);
+        let offsets_by_root: HashMap<ObjectId, Point2D> = units
+            .iter()
+            .zip(offsets.iter())
+            .map(|(unit, offset)| {
+                let offset = if arrangement_unit_is_locked(project, unit) {
+                    Point2D::new(0.0, 0.0)
+                } else {
+                    *offset
+                };
+                (unit.root_id, offset)
+            })
+            .collect();
+        let has_change = offsets_by_root
+            .values()
+            .any(|offset| offset.x.abs() > 1e-9 || offset.y.abs() > 1e-9);
+        if !has_change {
+            return Ok(Vec::new());
+        }
+        let entries = move_entries_for_units(project, &units, &offsets_by_root)?;
+        if entries.is_empty() {
+            return Ok(Vec::new());
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        beambench_core::operations::update_object_bounds_batch(project, &entries);
+        project.dirty = true;
+        let updated = updated_objects_for_entries(project, &entries)?;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.aligned",
+            json!({
+                "alignment_type": alignment_type,
+                "anchor_object_id": anchor_object_id,
+                "object_ids": object_ids,
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 /// Atomic batch: create offset duplicates with resolved text, all in one undo
@@ -3324,165 +3397,169 @@ pub fn generate_variable_text_batch(
     copies: Vec<BatchCopyInput>,
     offset_step: f64,
 ) -> ServiceResult<BatchResult> {
-    if copies.is_empty() {
-        return Err(ServiceError::invalid_input("No copies provided"));
-    }
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let original = project
-        .find_object(object_id)
-        .ok_or_else(|| ServiceError::not_found("Object not found"))?
-        .clone();
-    match &original.data {
-        ObjectData::Text { .. } => {}
-        _ => return Err(ServiceError::invalid_input("Object is not a text object")),
-    }
-
-    // Single undo snapshot before all mutations
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    let mut result_ids = Vec::new();
-    let copy_count = copies.len();
-
-    // Create duplicates for all copies, each with resolved text + per-copy config.
-    for (i, copy) in copies.iter().enumerate() {
-        let dx = (i as f64 + 1.0) * offset_step;
-        let dy = (i as f64 + 1.0) * offset_step;
-        let mut dup = ProjectObject::new(
-            format!("{} copy", original.name),
-            original.layer_id,
-            Bounds::new(
-                Point2D::new(original.bounds.min.x + dx, original.bounds.min.y + dy),
-                Point2D::new(original.bounds.max.x + dx, original.bounds.max.y + dy),
-            ),
-            original.data.clone(),
-        );
-        dup.transform = original.transform;
-        dup.visible = original.visible;
-        if let ObjectData::Text {
-            ref mut content,
-            ref mut variable_text,
-            ..
-        } = dup.data
-        {
-            *content = copy.resolved_text.clone();
-            *variable_text = Some(copy.variable_text_config.clone());
+    ctx.atomic_edit(|| {
+        if copies.is_empty() {
+            return Err(ServiceError::invalid_input("No copies provided"));
         }
-        let project_snapshot = project.clone();
-        refresh_text_object_cache_with_project_context(&project_snapshot, &mut dup, None);
-        let added = project.add_object(dup);
-        result_ids.push(added.id);
-    }
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let original = project
+            .find_object(object_id)
+            .ok_or_else(|| ServiceError::not_found("Object not found"))?
+            .clone();
+        match &original.data {
+            ObjectData::Text { .. } => {}
+            _ => return Err(ServiceError::invalid_input("Object is not a text object")),
+        }
 
-    // Advance (or initialize) the original object's variable_text source state.
-    // This ensures the first batch run on a fresh object also persists the config
-    // in the same undo step — no separate updateObjectData needed on the frontend.
-    if let Some(orig) = project.find_object_mut(object_id) {
-        if let ObjectData::Text {
-            ref mut variable_text,
-            ..
-        } = orig.data
-        {
-            let config = variable_text.get_or_insert_with(|| {
-                // Initialize from the first copy's config (template + base source)
-                copies[0].variable_text_config.clone()
-            });
-            let delta = config.source.advance_by * copy_count as i64;
-            config.source.current = advance_sequence_value(
-                config.source.current,
-                config.source.start,
-                config.source.end,
-                delta,
+        // Single undo snapshot before all mutations
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        let mut result_ids = Vec::new();
+        let copy_count = copies.len();
+
+        // Create duplicates for all copies, each with resolved text + per-copy config.
+        for (i, copy) in copies.iter().enumerate() {
+            let dx = (i as f64 + 1.0) * offset_step;
+            let dy = (i as f64 + 1.0) * offset_step;
+            let mut dup = ProjectObject::new(
+                format!("{} copy", original.name),
+                original.layer_id,
+                Bounds::new(
+                    Point2D::new(original.bounds.min.x + dx, original.bounds.min.y + dy),
+                    Point2D::new(original.bounds.max.x + dx, original.bounds.max.y + dy),
+                ),
+                original.data.clone(),
             );
+            dup.transform = original.transform;
+            dup.visible = original.visible;
+            if let ObjectData::Text {
+                ref mut content,
+                ref mut variable_text,
+                ..
+            } = dup.data
+            {
+                *content = copy.resolved_text.clone();
+                *variable_text = Some(copy.variable_text_config.clone());
+            }
+            let project_snapshot = project.clone();
+            refresh_text_object_cache_with_project_context(&project_snapshot, &mut dup, None);
+            let added = project.add_object(dup);
+            result_ids.push(added.id);
         }
-    }
 
-    let updated_original = project
-        .find_object(object_id)
-        .cloned()
-        .ok_or_else(|| ServiceError::not_found("Original not found after update"))?;
+        // Advance (or initialize) the original object's variable_text source state.
+        // This ensures the first batch run on a fresh object also persists the config
+        // in the same undo step — no separate updateObjectData needed on the frontend.
+        if let Some(orig) = project.find_object_mut(object_id) {
+            if let ObjectData::Text {
+                ref mut variable_text,
+                ..
+            } = orig.data
+            {
+                let config = variable_text.get_or_insert_with(|| {
+                    // Initialize from the first copy's config (template + base source)
+                    copies[0].variable_text_config.clone()
+                });
+                let delta = config.source.advance_by * copy_count as i64;
+                config.source.current = advance_sequence_value(
+                    config.source.current,
+                    config.source.start,
+                    config.source.end,
+                    delta,
+                );
+            }
+        }
 
-    project.dirty = true;
-    let result_objects: Vec<ProjectObject> = result_ids
-        .iter()
-        .filter_map(|id| project.find_object(*id).cloned())
-        .collect();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.batch.generated",
-        json!({
-            "source_object_id": object_id,
-            "count": result_objects.len(),
-        }),
-    );
-    Ok(BatchResult {
-        copies: result_objects,
-        updated_original,
+        let updated_original = project
+            .find_object(object_id)
+            .cloned()
+            .ok_or_else(|| ServiceError::not_found("Original not found after update"))?;
+
+        project.dirty = true;
+        let result_objects: Vec<ProjectObject> = result_ids
+            .iter()
+            .filter_map(|id| project.find_object(*id).cloned())
+            .collect();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.batch.generated",
+            json!({
+                "source_object_id": object_id,
+                "count": result_objects.len(),
+            }),
+        );
+        Ok(BatchResult {
+            copies: result_objects,
+            updated_original,
+        })
     })
 }
 
 pub fn advance_auto_variable_text(ctx: &ServiceContext) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
 
-    let object_ids: Vec<ObjectId> = project
-        .objects
-        .iter()
-        .filter_map(|object| match &object.data {
-            ObjectData::Text {
+        let object_ids: Vec<ObjectId> = project
+            .objects
+            .iter()
+            .filter_map(|object| match &object.data {
+                ObjectData::Text {
+                    variable_text: Some(config),
+                    ..
+                } if config.source.auto_advance => Some(object.id),
+                _ => None,
+            })
+            .collect();
+
+        if object_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+
+        for object in &mut project.objects {
+            if !object_ids.contains(&object.id) {
+                continue;
+            }
+            if let ObjectData::Text {
                 variable_text: Some(config),
                 ..
-            } if config.source.auto_advance => Some(object.id),
-            _ => None,
-        })
-        .collect();
-
-    if object_ids.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-
-    for object in &mut project.objects {
-        if !object_ids.contains(&object.id) {
-            continue;
+            } = &mut object.data
+            {
+                config.source.current = advance_sequence_value(
+                    config.source.current,
+                    config.source.start,
+                    config.source.end,
+                    config.source.advance_by,
+                );
+            }
         }
-        if let ObjectData::Text {
-            variable_text: Some(config),
-            ..
-        } = &mut object.data
-        {
-            config.source.current = advance_sequence_value(
-                config.source.current,
-                config.source.start,
-                config.source.end,
-                config.source.advance_by,
-            );
-        }
-    }
 
-    refresh_project_text_caches(project);
-    project.dirty = true;
-    let updated = object_ids
-        .iter()
-        .filter_map(|id| project.find_object(*id).cloned())
-        .collect::<Vec<_>>();
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.variable_text.advanced",
-        json!({
-            "object_ids": object_ids,
-        }),
-    );
-    Ok(updated)
+        refresh_project_text_caches(project);
+        project.dirty = true;
+        let updated = object_ids
+            .iter()
+            .filter_map(|id| project.find_object(*id).cloned())
+            .collect::<Vec<_>>();
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.variable_text.advanced",
+            json!({
+                "object_ids": object_ids,
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn distribute_objects(
@@ -3490,65 +3567,67 @@ pub fn distribute_objects(
     object_ids: Vec<ObjectId>,
     direction: &str,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let units = build_arrangement_units(project, &object_ids)?;
-    if units.len() < 3 {
-        return Err(ServiceError::invalid_input(
-            "Distribution requires at least three movable objects",
-        ));
-    }
-    let bounds_list: Vec<Bounds> = units.iter().map(|unit| unit.bounds).collect();
-    let offsets = match direction {
-        "h_centered" => alignment::distribute_h_centered(&bounds_list),
-        "v_centered" => alignment::distribute_v_centered(&bounds_list),
-        "h_spaced" => alignment::distribute_h_spaced(&bounds_list),
-        "v_spaced" => alignment::distribute_v_spaced(&bounds_list),
-        other => {
-            return Err(ServiceError::invalid_input(format!(
-                "Invalid distribution direction: {other}"
-            )));
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let units = build_arrangement_units(project, &object_ids)?;
+        if units.len() < 3 {
+            return Err(ServiceError::invalid_input(
+                "Distribution requires at least three movable objects",
+            ));
         }
-    };
-    let offsets_by_root: HashMap<ObjectId, Point2D> = units
-        .iter()
-        .zip(offsets.iter())
-        .map(|(unit, offset)| {
-            let offset = if arrangement_unit_is_locked(project, unit) {
-                Point2D::new(0.0, 0.0)
-            } else {
-                *offset
-            };
-            (unit.root_id, offset)
-        })
-        .collect();
-    let has_change = offsets_by_root
-        .values()
-        .any(|offset| offset.x.abs() > 1e-9 || offset.y.abs() > 1e-9);
-    if !has_change {
-        return Ok(Vec::new());
-    }
-    let entries = move_entries_for_units(project, &units, &offsets_by_root)?;
-    if entries.is_empty() {
-        return Ok(Vec::new());
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    beambench_core::operations::update_object_bounds_batch(project, &entries);
-    project.dirty = true;
-    let updated = updated_objects_for_entries(project, &entries)?;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.object.distributed",
-        json!({
-            "direction": direction,
-            "object_ids": object_ids,
-        }),
-    );
-    Ok(updated)
+        let bounds_list: Vec<Bounds> = units.iter().map(|unit| unit.bounds).collect();
+        let offsets = match direction {
+            "h_centered" => alignment::distribute_h_centered(&bounds_list),
+            "v_centered" => alignment::distribute_v_centered(&bounds_list),
+            "h_spaced" => alignment::distribute_h_spaced(&bounds_list),
+            "v_spaced" => alignment::distribute_v_spaced(&bounds_list),
+            other => {
+                return Err(ServiceError::invalid_input(format!(
+                    "Invalid distribution direction: {other}"
+                )));
+            }
+        };
+        let offsets_by_root: HashMap<ObjectId, Point2D> = units
+            .iter()
+            .zip(offsets.iter())
+            .map(|(unit, offset)| {
+                let offset = if arrangement_unit_is_locked(project, unit) {
+                    Point2D::new(0.0, 0.0)
+                } else {
+                    *offset
+                };
+                (unit.root_id, offset)
+            })
+            .collect();
+        let has_change = offsets_by_root
+            .values()
+            .any(|offset| offset.x.abs() > 1e-9 || offset.y.abs() > 1e-9);
+        if !has_change {
+            return Ok(Vec::new());
+        }
+        let entries = move_entries_for_units(project, &units, &offsets_by_root)?;
+        if entries.is_empty() {
+            return Ok(Vec::new());
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        beambench_core::operations::update_object_bounds_batch(project, &entries);
+        project.dirty = true;
+        let updated = updated_objects_for_entries(project, &entries)?;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.object.distributed",
+            json!({
+                "direction": direction,
+                "object_ids": object_ids,
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn move_objects_together(
@@ -3557,58 +3636,60 @@ pub fn move_objects_together(
     axis: MoveTogetherAxis,
     anchor_object_id: ObjectId,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let units = build_arrangement_units(project, &object_ids)?;
-    if units.len() < 2 {
-        return Err(ServiceError::invalid_input(
-            "Move Together requires at least two movable objects",
-        ));
-    }
-    let anchor_index = units
-        .iter()
-        .position(|unit| unit.root_id == anchor_object_id)
-        .ok_or_else(|| {
-            ServiceError::invalid_input("Anchor object is not in the movable selection")
-        })?;
-    let bounds_list: Vec<Bounds> = units.iter().map(|unit| unit.bounds).collect();
-    let offsets = match axis {
-        MoveTogetherAxis::Horizontal => alignment::move_together_h(&bounds_list, anchor_index),
-        MoveTogetherAxis::Vertical => alignment::move_together_v(&bounds_list, anchor_index),
-    };
-    let offsets_by_root: HashMap<ObjectId, Point2D> = units
-        .iter()
-        .zip(offsets.iter())
-        .map(|(unit, offset)| (unit.root_id, *offset))
-        .collect();
-    let has_change = offsets_by_root
-        .values()
-        .any(|offset| offset.x.abs() > 1e-9 || offset.y.abs() > 1e-9);
-    if !has_change {
-        return Ok(Vec::new());
-    }
-    let entries = move_entries_for_units(project, &units, &offsets_by_root)?;
-    if entries.is_empty() {
-        return Ok(Vec::new());
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    beambench_core::operations::update_object_bounds_batch(project, &entries);
-    project.dirty = true;
-    let updated = updated_objects_for_entries(project, &entries)?;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.objects.moved_together",
-        json!({
-            "axis": axis,
-            "anchor_object_id": anchor_object_id,
-            "object_ids": object_ids,
-        }),
-    );
-    Ok(updated)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let units = build_arrangement_units(project, &object_ids)?;
+        if units.len() < 2 {
+            return Err(ServiceError::invalid_input(
+                "Move Together requires at least two movable objects",
+            ));
+        }
+        let anchor_index = units
+            .iter()
+            .position(|unit| unit.root_id == anchor_object_id)
+            .ok_or_else(|| {
+                ServiceError::invalid_input("Anchor object is not in the movable selection")
+            })?;
+        let bounds_list: Vec<Bounds> = units.iter().map(|unit| unit.bounds).collect();
+        let offsets = match axis {
+            MoveTogetherAxis::Horizontal => alignment::move_together_h(&bounds_list, anchor_index),
+            MoveTogetherAxis::Vertical => alignment::move_together_v(&bounds_list, anchor_index),
+        };
+        let offsets_by_root: HashMap<ObjectId, Point2D> = units
+            .iter()
+            .zip(offsets.iter())
+            .map(|(unit, offset)| (unit.root_id, *offset))
+            .collect();
+        let has_change = offsets_by_root
+            .values()
+            .any(|offset| offset.x.abs() > 1e-9 || offset.y.abs() > 1e-9);
+        if !has_change {
+            return Ok(Vec::new());
+        }
+        let entries = move_entries_for_units(project, &units, &offsets_by_root)?;
+        if entries.is_empty() {
+            return Ok(Vec::new());
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        beambench_core::operations::update_object_bounds_batch(project, &entries);
+        project.dirty = true;
+        let updated = updated_objects_for_entries(project, &entries)?;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.objects.moved_together",
+            json!({
+                "axis": axis,
+                "anchor_object_id": anchor_object_id,
+                "object_ids": object_ids,
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn mirror_across_line(
@@ -3616,66 +3697,68 @@ pub fn mirror_across_line(
     object_ids: Vec<ObjectId>,
     axis_object_id: ObjectId,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let (line_start, line_end) = extract_mirror_axis_points(project, axis_object_id)?;
-    let source_ids: Vec<ObjectId> = object_ids
-        .into_iter()
-        .filter(|object_id| *object_id != axis_object_id)
-        .collect();
-    let source_roots = normalize_arrangement_roots(project, &source_ids);
-    if source_roots.is_empty() {
-        return Err(ServiceError::invalid_input(
-            "Mirror Across Line requires at least one source object",
-        ));
-    }
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let (line_start, line_end) = extract_mirror_axis_points(project, axis_object_id)?;
+        let source_ids: Vec<ObjectId> = object_ids
+            .into_iter()
+            .filter(|object_id| *object_id != axis_object_id)
+            .collect();
+        let source_roots = normalize_arrangement_roots(project, &source_ids);
+        if source_roots.is_empty() {
+            return Err(ServiceError::invalid_input(
+                "Mirror Across Line requires at least one source object",
+            ));
+        }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
 
-    let reflection = reflection_transform_for_line(line_start, line_end);
-    let mut created = Vec::new();
-    let mut root_duplicates = Vec::new();
-    let mut duplicate_member_ids = Vec::new();
-    for root_id in source_roots {
-        let duplicated_root_id = duplicate_subtree(project, root_id, &mut created)?;
-        root_duplicates.push(duplicated_root_id);
-        collect_group_members(project, duplicated_root_id, &mut duplicate_member_ids);
-    }
+        let reflection = reflection_transform_for_line(line_start, line_end);
+        let mut created = Vec::new();
+        let mut root_duplicates = Vec::new();
+        let mut duplicate_member_ids = Vec::new();
+        for root_id in source_roots {
+            let duplicated_root_id = duplicate_subtree(project, root_id, &mut created)?;
+            root_duplicates.push(duplicated_root_id);
+            collect_group_members(project, duplicated_root_id, &mut duplicate_member_ids);
+        }
 
-    for duplicate_id in &duplicate_member_ids {
-        let object = project
-            .find_object_mut(*duplicate_id)
-            .ok_or_else(|| ServiceError::internal("Mirrored duplicate not found"))?;
-        let center = bounds_center(object.bounds);
-        let reflected_center = reflect_point_across_line(center, line_start, line_end);
-        let delta = Point2D::new(reflected_center.x - center.x, reflected_center.y - center.y);
-        object.bounds = translate_bounds(object.bounds, delta.x, delta.y);
-        object.transform = reflection.compose(&object.transform);
-    }
-    project.dirty = true;
-    let created_ids: Vec<ObjectId> = created.iter().map(|object| object.id).collect();
-    let created = created_ids
-        .iter()
-        .map(|object_id| {
-            project
-                .find_object(*object_id)
-                .cloned()
-                .ok_or_else(|| ServiceError::internal("Mirrored duplicate not found"))
-        })
-        .collect::<ServiceResult<Vec<_>>>()?;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.objects.mirrored_across_line",
-        json!({
-            "axis_object_id": axis_object_id,
-            "duplicated_root_ids": root_duplicates,
-        }),
-    );
-    Ok(created)
+        for duplicate_id in &duplicate_member_ids {
+            let object = project
+                .find_object_mut(*duplicate_id)
+                .ok_or_else(|| ServiceError::internal("Mirrored duplicate not found"))?;
+            let center = bounds_center(object.bounds);
+            let reflected_center = reflect_point_across_line(center, line_start, line_end);
+            let delta = Point2D::new(reflected_center.x - center.x, reflected_center.y - center.y);
+            object.bounds = translate_bounds(object.bounds, delta.x, delta.y);
+            object.transform = reflection.compose(&object.transform);
+        }
+        project.dirty = true;
+        let created_ids: Vec<ObjectId> = created.iter().map(|object| object.id).collect();
+        let created = created_ids
+            .iter()
+            .map(|object_id| {
+                project
+                    .find_object(*object_id)
+                    .cloned()
+                    .ok_or_else(|| ServiceError::internal("Mirrored duplicate not found"))
+            })
+            .collect::<ServiceResult<Vec<_>>>()?;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.objects.mirrored_across_line",
+            json!({
+                "axis_object_id": axis_object_id,
+                "duplicated_root_ids": root_duplicates,
+            }),
+        );
+        Ok(created)
+    })
 }
 
 pub fn make_same_size(
@@ -3685,37 +3768,39 @@ pub fn make_same_size(
     axis: SameSizeAxis,
     preserve_aspect: bool,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let entries = build_same_size_entries(
-        project,
-        &object_ids,
-        anchor_object_id,
-        axis,
-        preserve_aspect,
-    )?;
-    if entries.is_empty() {
-        return Ok(Vec::new());
-    }
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    beambench_core::operations::update_object_bounds_batch(project, &entries);
-    project.dirty = true;
-    let updated = updated_objects_for_entries(project, &entries)?;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.objects.same_size",
-        json!({
-            "axis": axis,
-            "anchor_object_id": anchor_object_id,
-            "object_ids": object_ids,
-            "preserve_aspect": preserve_aspect,
-        }),
-    );
-    Ok(updated)
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let entries = build_same_size_entries(
+            project,
+            &object_ids,
+            anchor_object_id,
+            axis,
+            preserve_aspect,
+        )?;
+        if entries.is_empty() {
+            return Ok(Vec::new());
+        }
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        beambench_core::operations::update_object_bounds_batch(project, &entries);
+        project.dirty = true;
+        let updated = updated_objects_for_entries(project, &entries)?;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.objects.same_size",
+            json!({
+                "axis": axis,
+                "anchor_object_id": anchor_object_id,
+                "object_ids": object_ids,
+                "preserve_aspect": preserve_aspect,
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn resize_slots(
@@ -3723,192 +3808,194 @@ pub fn resize_slots(
     object_ids: Vec<ObjectId>,
     options: ResizeSlotsOptions,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    if options.current_thickness_mm <= 0.0 {
-        return Err(ServiceError::invalid_input(
-            "Current thickness must be greater than 0",
-        ));
-    }
-    if options.new_thickness_mm <= 0.0 {
-        return Err(ServiceError::invalid_input(
-            "New thickness must be greater than 0",
-        ));
-    }
-    if options.tolerance_mm < 0.0 {
-        return Err(ServiceError::invalid_input(
-            "Tolerance must be greater than or equal to 0",
-        ));
-    }
+    ctx.atomic_edit(|| {
+        if options.current_thickness_mm <= 0.0 {
+            return Err(ServiceError::invalid_input(
+                "Current thickness must be greater than 0",
+            ));
+        }
+        if options.new_thickness_mm <= 0.0 {
+            return Err(ServiceError::invalid_input(
+                "New thickness must be greater than 0",
+            ));
+        }
+        if options.tolerance_mm < 0.0 {
+            return Err(ServiceError::invalid_input(
+                "Tolerance must be greater than or equal to 0",
+            ));
+        }
 
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let target_slot_width = options.new_thickness_mm + options.tolerance_mm;
-    let roots = normalize_arrangement_roots(project, &object_ids);
-    if roots.is_empty() {
-        return Err(ServiceError::invalid_input(
-            "No selectable slot geometry found",
-        ));
-    }
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let target_slot_width = options.new_thickness_mm + options.tolerance_mm;
+        let roots = normalize_arrangement_roots(project, &object_ids);
+        if roots.is_empty() {
+            return Err(ServiceError::invalid_input(
+                "No selectable slot geometry found",
+            ));
+        }
 
-    let mut changed_ids = Vec::new();
-    let mut changed_set = HashSet::new();
-    let mut changed_paths: Vec<(ObjectId, ObjectData, Bounds, Transform2D)> = Vec::new();
-    let mut changed_bounds: Vec<(ObjectId, Bounds)> = Vec::new();
+        let mut changed_ids = Vec::new();
+        let mut changed_set = HashSet::new();
+        let mut changed_paths: Vec<(ObjectId, ObjectData, Bounds, Transform2D)> = Vec::new();
+        let mut changed_bounds: Vec<(ObjectId, Bounds)> = Vec::new();
 
-    for root_id in roots {
-        let mut member_ids = Vec::new();
-        collect_group_members(project, root_id, &mut member_ids);
-        for member_id in member_ids {
-            project
-                .ensure_resolved(member_id)
-                .map_err(ServiceError::invalid_state)?;
-            let Some(object) = project.find_object(member_id).cloned() else {
-                continue;
-            };
-            if is_arrangement_excluded_object(project, &object) {
-                continue;
-            }
-            match &object.data {
-                ObjectData::Shape {
-                    kind: beambench_core::ShapeKind::Rectangle,
-                    corner_radius,
-                    ..
-                } if *corner_radius == 0.0 => {
-                    let rect = SlotRect {
-                        center: bounds_center(object.bounds),
-                        width: object.bounds.width(),
-                        height: object.bounds.height(),
-                        narrow_axis: if (object.bounds.width() - object.bounds.height()).abs()
-                            <= SLOT_SQUARE_TOLERANCE_MM
+        for root_id in roots {
+            let mut member_ids = Vec::new();
+            collect_group_members(project, root_id, &mut member_ids);
+            for member_id in member_ids {
+                project
+                    .ensure_resolved(member_id)
+                    .map_err(ServiceError::invalid_state)?;
+                let Some(object) = project.find_object(member_id).cloned() else {
+                    continue;
+                };
+                if is_arrangement_excluded_object(project, &object) {
+                    continue;
+                }
+                match &object.data {
+                    ObjectData::Shape {
+                        kind: beambench_core::ShapeKind::Rectangle,
+                        corner_radius,
+                        ..
+                    } if *corner_radius == 0.0 => {
+                        let rect = SlotRect {
+                            center: bounds_center(object.bounds),
+                            width: object.bounds.width(),
+                            height: object.bounds.height(),
+                            narrow_axis: if (object.bounds.width() - object.bounds.height()).abs()
+                                <= SLOT_SQUARE_TOLERANCE_MM
+                            {
+                                continue;
+                            } else if object.bounds.width() < object.bounds.height() {
+                                SlotAxis::Horizontal
+                            } else {
+                                SlotAxis::Vertical
+                            },
+                        };
+                        if !slot_matches_thickness(rect, options.current_thickness_mm) {
+                            continue;
+                        }
+                        let next = resize_slot_rect(rect, target_slot_width);
+                        let next_bounds = Bounds::new(
+                            Point2D::new(
+                                next.center.x - next.width / 2.0,
+                                next.center.y - next.height / 2.0,
+                            ),
+                            Point2D::new(
+                                next.center.x + next.width / 2.0,
+                                next.center.y + next.height / 2.0,
+                            ),
+                        );
+                        if (next_bounds.width() - object.bounds.width()).abs() <= 1e-9
+                            && (next_bounds.height() - object.bounds.height()).abs() <= 1e-9
                         {
                             continue;
-                        } else if object.bounds.width() < object.bounds.height() {
-                            SlotAxis::Horizontal
-                        } else {
-                            SlotAxis::Vertical
-                        },
-                    };
-                    if !slot_matches_thickness(rect, options.current_thickness_mm) {
-                        continue;
-                    }
-                    let next = resize_slot_rect(rect, target_slot_width);
-                    let next_bounds = Bounds::new(
-                        Point2D::new(
-                            next.center.x - next.width / 2.0,
-                            next.center.y - next.height / 2.0,
-                        ),
-                        Point2D::new(
-                            next.center.x + next.width / 2.0,
-                            next.center.y + next.height / 2.0,
-                        ),
-                    );
-                    if (next_bounds.width() - object.bounds.width()).abs() <= 1e-9
-                        && (next_bounds.height() - object.bounds.height()).abs() <= 1e-9
-                    {
-                        continue;
-                    }
-                    changed_bounds.push((member_id, next_bounds));
-                    if changed_set.insert(member_id) {
-                        changed_ids.push(member_id);
-                    }
-                }
-                ObjectData::VectorPath {
-                    ruler_guide_axis: None,
-                    ..
-                } => {
-                    let Some(world) = object_to_world_vecpath_resolved(&object, project) else {
-                        continue;
-                    };
-                    let mut any_changed = false;
-                    let mut next_subpaths = Vec::with_capacity(world.subpaths.len());
-                    for subpath in &world.subpaths {
-                        if let Some(rect) = axis_aligned_rect_from_subpath(subpath)
-                            && slot_matches_thickness(rect, options.current_thickness_mm)
-                        {
-                            let resized = resize_slot_rect(rect, target_slot_width);
-                            let width_changed = (resized.width - rect.width).abs() > 1e-9;
-                            let height_changed = (resized.height - rect.height).abs() > 1e-9;
-                            if width_changed || height_changed {
-                                next_subpaths.push(slot_rect_to_subpath(resized));
-                                any_changed = true;
-                                continue;
-                            }
                         }
-                        next_subpaths.push(subpath.clone());
+                        changed_bounds.push((member_id, next_bounds));
+                        if changed_set.insert(member_id) {
+                            changed_ids.push(member_id);
+                        }
                     }
-                    if !any_changed {
-                        continue;
+                    ObjectData::VectorPath {
+                        ruler_guide_axis: None,
+                        ..
+                    } => {
+                        let Some(world) = object_to_world_vecpath_resolved(&object, project) else {
+                            continue;
+                        };
+                        let mut any_changed = false;
+                        let mut next_subpaths = Vec::with_capacity(world.subpaths.len());
+                        for subpath in &world.subpaths {
+                            if let Some(rect) = axis_aligned_rect_from_subpath(subpath)
+                                && slot_matches_thickness(rect, options.current_thickness_mm)
+                            {
+                                let resized = resize_slot_rect(rect, target_slot_width);
+                                let width_changed = (resized.width - rect.width).abs() > 1e-9;
+                                let height_changed = (resized.height - rect.height).abs() > 1e-9;
+                                if width_changed || height_changed {
+                                    next_subpaths.push(slot_rect_to_subpath(resized));
+                                    any_changed = true;
+                                    continue;
+                                }
+                            }
+                            next_subpaths.push(subpath.clone());
+                        }
+                        if !any_changed {
+                            continue;
+                        }
+                        let next_world = VecPath {
+                            subpaths: next_subpaths,
+                        };
+                        let Some((normalized, bounds)) = normalize_world_vecpath(next_world) else {
+                            continue;
+                        };
+                        changed_paths.push((
+                            member_id,
+                            ObjectData::VectorPath {
+                                path_data: normalized.to_svg_d(),
+                                closed: normalized.subpaths.iter().all(|subpath| subpath.closed),
+                                ruler_guide_axis: None,
+                            },
+                            bounds,
+                            Transform2D::identity(),
+                        ));
+                        if changed_set.insert(member_id) {
+                            changed_ids.push(member_id);
+                        }
                     }
-                    let next_world = VecPath {
-                        subpaths: next_subpaths,
-                    };
-                    let Some((normalized, bounds)) = normalize_world_vecpath(next_world) else {
-                        continue;
-                    };
-                    changed_paths.push((
-                        member_id,
-                        ObjectData::VectorPath {
-                            path_data: normalized.to_svg_d(),
-                            closed: normalized.subpaths.iter().all(|subpath| subpath.closed),
-                            ruler_guide_axis: None,
-                        },
-                        bounds,
-                        Transform2D::identity(),
-                    ));
-                    if changed_set.insert(member_id) {
-                        changed_ids.push(member_id);
-                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
-    }
 
-    if changed_ids.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    for (object_id, bounds) in &changed_bounds {
-        let object = project
-            .find_object_mut(*object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-        object.bounds = *bounds;
-        if let ObjectData::Shape { width, height, .. } = &mut object.data {
-            *width = bounds.width();
-            *height = bounds.height();
+        if changed_ids.is_empty() {
+            return Ok(Vec::new());
         }
-    }
-    for (object_id, data, bounds, transform) in &changed_paths {
-        let object = project
-            .find_object_mut(*object_id)
-            .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-        object.data = data.clone();
-        object.bounds = *bounds;
-        object.transform = *transform;
-    }
-    project.dirty = true;
-    let updated = changed_ids
-        .iter()
-        .map(|object_id| {
-            project
-                .find_object(*object_id)
-                .cloned()
-                .ok_or_else(|| ServiceError::internal("Object not found after slot resize"))
-        })
-        .collect::<ServiceResult<Vec<_>>>()?;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.objects.slots_resized",
-        json!({
-            "object_ids": changed_ids,
-            "options": options,
-        }),
-    );
-    Ok(updated)
+
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        for (object_id, bounds) in &changed_bounds {
+            let object = project
+                .find_object_mut(*object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+            object.bounds = *bounds;
+            if let ObjectData::Shape { width, height, .. } = &mut object.data {
+                *width = bounds.width();
+                *height = bounds.height();
+            }
+        }
+        for (object_id, data, bounds, transform) in &changed_paths {
+            let object = project
+                .find_object_mut(*object_id)
+                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+            object.data = data.clone();
+            object.bounds = *bounds;
+            object.transform = *transform;
+        }
+        project.dirty = true;
+        let updated = changed_ids
+            .iter()
+            .map(|object_id| {
+                project
+                    .find_object(*object_id)
+                    .cloned()
+                    .ok_or_else(|| ServiceError::internal("Object not found after slot resize"))
+            })
+            .collect::<ServiceResult<Vec<_>>>()?;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.objects.slots_resized",
+            json!({
+                "object_ids": changed_ids,
+                "options": options,
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 pub fn dock_objects(
@@ -3917,96 +4004,98 @@ pub fn dock_objects(
     direction: DockDirection,
     options: DockOptions,
 ) -> ServiceResult<Vec<ProjectObject>> {
-    let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
-    let project = project_guard
-        .as_mut()
-        .ok_or_else(|| ServiceError::not_found("No project open"))?;
-    let units = build_arrangement_units(project, &object_ids)?;
-    if units.is_empty() {
-        return Err(ServiceError::invalid_input("No movable objects to dock"));
-    }
-    let selected_member_ids: HashSet<ObjectId> = units
-        .iter()
-        .flat_map(|unit| unit.member_ids.iter().copied())
-        .collect();
-    let workspace = Bounds::new(
-        Point2D::new(0.0, 0.0),
-        Point2D::new(
-            project.workspace.bed_width_mm,
-            project.workspace.bed_height_mm,
-        ),
-    );
-    let mut blockers = Vec::new();
-    blockers.extend(
-        project
-            .objects
+    ctx.atomic_edit(|| {
+        let mut project_guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+        let project = project_guard
+            .as_mut()
+            .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        let units = build_arrangement_units(project, &object_ids)?;
+        if units.is_empty() {
+            return Err(ServiceError::invalid_input("No movable objects to dock"));
+        }
+        let selected_member_ids: HashSet<ObjectId> = units
             .iter()
-            .filter(|object| !selected_member_ids.contains(&object.id))
-            .filter_map(|object| blocker_object_bounds(project, object.id)),
-    );
-
-    let mut clusters = build_dock_clusters(&units, &options);
-    clusters.sort_by(|a, b| {
-        dock_cluster_sort_value(a, direction)
-            .partial_cmp(&dock_cluster_sort_value(b, direction))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    let mut entries = Vec::new();
-    let mut moved_ids = HashSet::new();
-    let mut any_change = false;
-    for cluster in &clusters {
-        let delta = compute_dock_target(
-            cluster.bounds,
-            &blockers,
-            direction,
-            &workspace,
-            options.padding_mm,
+            .flat_map(|unit| unit.member_ids.iter().copied())
+            .collect();
+        let workspace = Bounds::new(
+            Point2D::new(0.0, 0.0),
+            Point2D::new(
+                project.workspace.bed_width_mm,
+                project.workspace.bed_height_mm,
+            ),
         );
-        if delta.x.abs() > 1e-9 || delta.y.abs() > 1e-9 {
-            any_change = true;
-        }
-        let moved_bounds = translate_bounds(cluster.bounds, delta.x, delta.y);
-        if !options.move_as_group {
-            blockers.push(moved_bounds);
-        }
-        for object_id in &cluster.member_ids {
-            if !moved_ids.insert(*object_id) {
-                continue;
-            }
+        let mut blockers = Vec::new();
+        blockers.extend(
             project
-                .ensure_resolved(*object_id)
-                .map_err(ServiceError::invalid_state)?;
-            let object = project
-                .find_object(*object_id)
-                .ok_or_else(|| ServiceError::not_found("Object not found"))?;
-            entries.push((
-                *object_id,
-                translate_bounds(object.bounds, delta.x, delta.y),
-            ));
+                .objects
+                .iter()
+                .filter(|object| !selected_member_ids.contains(&object.id))
+                .filter_map(|object| blocker_object_bounds(project, object.id)),
+        );
+
+        let mut clusters = build_dock_clusters(&units, &options);
+        clusters.sort_by(|a, b| {
+            dock_cluster_sort_value(a, direction)
+                .partial_cmp(&dock_cluster_sort_value(b, direction))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let mut entries = Vec::new();
+        let mut moved_ids = HashSet::new();
+        let mut any_change = false;
+        for cluster in &clusters {
+            let delta = compute_dock_target(
+                cluster.bounds,
+                &blockers,
+                direction,
+                &workspace,
+                options.padding_mm,
+            );
+            if delta.x.abs() > 1e-9 || delta.y.abs() > 1e-9 {
+                any_change = true;
+            }
+            let moved_bounds = translate_bounds(cluster.bounds, delta.x, delta.y);
+            if !options.move_as_group {
+                blockers.push(moved_bounds);
+            }
+            for object_id in &cluster.member_ids {
+                if !moved_ids.insert(*object_id) {
+                    continue;
+                }
+                project
+                    .ensure_resolved(*object_id)
+                    .map_err(ServiceError::invalid_state)?;
+                let object = project
+                    .find_object(*object_id)
+                    .ok_or_else(|| ServiceError::not_found("Object not found"))?;
+                entries.push((
+                    *object_id,
+                    translate_bounds(object.bounds, delta.x, delta.y),
+                ));
+            }
         }
-    }
 
-    if !any_change || entries.is_empty() {
-        return Ok(Vec::new());
-    }
+        if !any_change || entries.is_empty() {
+            return Ok(Vec::new());
+        }
 
-    ctx.push_project_undo_snapshot(project)
-        .map_err(ServiceError::internal)?;
-    beambench_core::operations::update_object_bounds_batch(project, &entries);
-    project.dirty = true;
-    let updated = updated_objects_for_entries(project, &entries)?;
-    drop(project_guard);
-    invalidate_plan(ctx)?;
-    ctx.emit_event(
-        "project.objects.docked",
-        json!({
-            "direction": direction,
-            "options": options,
-            "object_ids": object_ids,
-        }),
-    );
-    Ok(updated)
+        ctx.push_project_undo_snapshot(project)
+            .map_err(ServiceError::internal)?;
+        beambench_core::operations::update_object_bounds_batch(project, &entries);
+        project.dirty = true;
+        let updated = updated_objects_for_entries(project, &entries)?;
+        drop(project_guard);
+        invalidate_plan(ctx)?;
+        ctx.emit_event(
+            "project.objects.docked",
+            json!({
+                "direction": direction,
+                "options": options,
+                "object_ids": object_ids,
+            }),
+        );
+        Ok(updated)
+    })
 }
 
 #[cfg(test)]

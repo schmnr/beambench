@@ -4,6 +4,7 @@ use base64::{Engine as _, engine::general_purpose};
 use beambench_common::Transform2D;
 
 use crate::export_bitmap::processed_bitmap_png_for_object;
+use crate::export_common::exportable_objects;
 use crate::object::{ObjectData, ObjectId, ProjectObject};
 use crate::project::Project;
 use crate::vector::convert::object_to_world_vecpath;
@@ -25,30 +26,8 @@ pub fn export_svg(
     ));
     svg.push('\n');
 
-    // Pre-process: expand VirtualClone objects for export
-    let expanded_clones: Vec<_> = project
-        .objects
-        .iter()
-        .filter_map(|obj| project.resolve_clone(obj))
-        .collect();
-
-    // Export objects (concrete + expanded clones)
-    let all_objects: Vec<&crate::ProjectObject> = project
-        .objects
-        .iter()
-        .filter(|o| !matches!(o.data, ObjectData::VirtualClone { .. }))
-        .chain(expanded_clones.iter())
-        .collect();
-
-    for obj in all_objects {
-        if selection_only && !selected_ids.contains(&obj.id) {
-            continue;
-        }
-
-        if !obj.visible {
-            continue;
-        }
-
+    for obj in exportable_objects(project, selection_only, selected_ids) {
+        let obj = &obj;
         match &obj.data {
             ObjectData::RasterImage { .. } => svg.push_str(&raster_image_svg(project, obj)?),
             _ => {

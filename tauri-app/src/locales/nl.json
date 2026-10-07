@@ -371,8 +371,8 @@
       "outcome_fail": "Mislukt",
       "warnings_block_start": "Los de bovenstaande waarschuwingen op voordat je de taak start.",
       "advisory_choice": "Deze taak kan worden uitgevoerd, maar het corrigeren van het advies kan de graveerkwaliteit verbeteren.",
-      "apply_overscan": "Gebruik een overscan van {value} mm en controleer opnieuw",
-      "reduce_speed": "Gebruik {value} mm/min en controleer opnieuw",
+      "apply_overscan": "Gebruik een overscan van {value} {unit} en controleer opnieuw",
+      "reduce_speed": "Gebruik {value} {unit} en controleer opnieuw",
       "continue_anyway": "Ga toch door",
       "categories": {
         "connection": "Verbinding",
@@ -382,7 +382,9 @@
         "settings": "Instellingen",
         "positioning": "Positionering",
         "planner": "Planner",
-        "machine_workspace": "Machinewerkruimte"
+        "machine_workspace": "Machinewerkruimte",
+        "controller": "Controller",
+        "rotary": "Rotatie-eenheid"
       },
       "checks": {
         "session_ready": "Sessie is klaar",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Rasterbeweging past binnen het machinebed",
         "laser_mode": "Lasermodus is ingeschakeld ($32=1)",
         "homing_enabled": "Homing is ingeschakeld",
-        "relative_framed": "De relatieve plaatsing werd op de huidige positie ingekaderd"
+        "relative_framed": "De relatieve plaatsing werd op de huidige positie ingekaderd",
+        "machine_workspace_fits": "De geplande beweging past binnen het machineprofiel",
+        "rotary_safe": "De rotatie-instelling is veilig",
+        "controller_supported": "De controller kan taken starten",
+        "image_detail_fits": "Het beelddetail past bij de controller",
+        "plan_generation": "Taakvoorbereiding",
+        "ruida_compiles": "De taak kan worden omgezet voor de Ruida-controller",
+        "lihuiyu_compiles": "De taak kan worden omgezet voor de Lihuiyu M2-controller"
       },
       "messages": {
         "connected_ready": "Verbonden en klaar",
@@ -406,8 +415,11 @@
         "frame_required": "Deze controller is niet thuis, dus Beam Bench kan de fysieke bedranden niet verifiëren. Kadreer de taak na het positioneren van de laser en controleer opnieuw voordat u begint.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segmenten",
-        "plan_bounds_exceed": "De geplande grenzen ({minX}, {minY} tot {maxX}, {maxY}) overschrijden het machinebed van {width} × {height} mm.",
-        "raster_motion_exceeds": "De rasterbeweging loopt van {lo} tot {hi} mm op de {axis}-as, met een bereik van 0 tot {limit} mm. Overscan en scanverschuiving voegen {margin} mm buiten het graveergebied toe. {startFrom, select, current_position {Verminder de overscan of verplaats de laser verder van de bedrand.} user_origin {Verminder de overscan of verplaats of stel de Gebruikersoorsprong verder van de bedrand opnieuw in.} other {Verminder de overscan of verplaats het ontwerp verder van de bedrand.}}"
+        "plan_bounds_exceed": "De geplande grenzen ({minX}, {minY} tot {maxX}, {maxY}) overschrijden het machinebed van {width} × {height} {unit}.",
+        "raster_motion_exceeds": "De rasterbeweging loopt van {lo} tot {hi} {unit} op de {axis}-as, met een bereik van 0 tot {limit} {unit}. Overscan en scanverschuiving voegen {margin} {unit} buiten het graveergebied toe. {startFrom, select, current_position {Verminder de overscan of verplaats de laser verder van de bedrand.} user_origin {Verminder de overscan of verplaats of stel de Gebruikersoorsprong verder van de bedrand opnieuw in.} other {Verminder de overscan of verplaats het ontwerp verder van de bedrand.}}",
+        "session_state": "Verbinding: {state}",
+        "machine_state": "Machinestatus: {state}",
+        "plan_bounds_fit": "De geplande grenzen ({minX}, {minY} tot {maxX}, {maxY}) passen op het werkblad van de machine van {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "Downloaden...",
       "installing": "Installeren...",
       "blocked_not_in_applications": "Voor updates moet Beam Bench vanuit de map Apps worden uitgevoerd. Het lijkt te draaien vanaf de installatieschijfkopie of een andere tijdelijke locatie. Sleep Beam Bench in de Finder naar Apps, open het daarvandaan en probeer de update opnieuw.",
-      "blocked_other_disk": "Beam Bench is geïnstalleerd op een andere schijf dan de tijdelijke map van deze Mac, dus de updater kan het niet vervangen. Verplaats Beam Bench naar de map Apps op de hoofdschijf of download de nieuwe versie van beambench.com."
+      "blocked_other_disk": "Beam Bench is geïnstalleerd op een andere schijf dan de tijdelijke map van deze Mac, dus de updater kan het niet vervangen. Verplaats Beam Bench naar de map Apps op de hoofdschijf of download de nieuwe versie van beambench.com.",
+      "blocked_job_running": "Voltooi of stop de huidige taak voordat je installeert.",
+      "blocked_machine_operation": "Wacht tot de huidige machinebewerking klaar is voordat je installeert.",
+      "blocked_machine_busy": "Voltooi of stop de huidige machinebewerking voordat je installeert.",
+      "blocked_machine_moving": "Wacht tot de machine weer stilstaat voordat je installeert.",
+      "cancelled_unsaved": "Update geannuleerd. Je project is niet weggegooid."
     },
     "camera_calibration": {
       "title": "Cameramapping",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} regels",
         "elapsed": "Verstreken: {time}",
         "remaining": "Resterend: ~{time}",
-        "finishing": "Afronden, wachten op de machine..."
+        "finishing": "Afronden, wachten op de machine...",
+        "last_failure": "De laatste taak is gestopt: {message}"
       },
       "overrides": {
         "title": "Overrides",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Voorkeuren teruggezet naar standaardwaarden.",
     "layout_restore_failed": "Kan opgeslagen panelindeling niet herstellen. De standaardindeling wordt voor deze sessie gebruikt.",
     "recovery_check_failed": "Kan tijdens het opstarten niet controleren op herstelbestanden.",
+    "autosave_failing": "Automatische herstelkopieën mislukken. Sla je project op om je werk veilig te houden.",
     "backend_subscribe_failed": "Kan niet abonneren op backend-gebeurtenissen. Sommige live-updates zijn deze sessie mogelijk niet beschikbaar.",
     "boolean_needs_two": "Selecteer precies 2 gesloten vectorobjecten voor de Boolean-assistent",
     "project_restored": "Project hersteld vanuit herstel",
@@ -2587,7 +2606,50 @@
       "postponed": "Updateherinnering met 24 uur uitgesteld.",
       "skipped": "Beam Bench {version} overgeslagen."
     },
-    "import_oversized": "Geïmporteerd op originele grootte: het ontwerp meet {width} x {height} {unit}, groter dan het werkgebied van {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Geïmporteerd op originele grootte: het ontwerp meet {width} x {height} {unit}, groter dan het werkgebied van {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Bestaande machineverbinding wordt gebruikt",
+      "preview_disconnected": "Voorbeeldmachine losgekoppeld",
+      "disconnected": "Losgekoppeld",
+      "preview_connected": "Voorbeeldmachine verbonden",
+      "homing_started": "Homing gestart",
+      "discovery_started": "Machines zoeken gestart",
+      "discovery_cancelled": "Machines zoeken geannuleerd",
+      "connected_discovered": "Verbonden met het gevonden apparaat",
+      "profile_from_discovery": "Machineprofiel gemaakt van het gevonden apparaat",
+      "estop_sent": "Noodstop verzonden",
+      "estop_resent_disconnected": "De noodstop is opnieuw verzonden nadat de controllerverbinding opnieuw was geopend. Daarna heeft Beam Bench de verbinding verbroken. Maak opnieuw verbinding voordat je verdergaat.",
+      "user_origin_cleared": "Gebruikersoorsprong gewist",
+      "job_tick_failed": "De taak is gestopt omdat het verzenden naar de controller mislukte.",
+      "lihuiyu_incomplete": "De Lihuiyu-USB-verbinding is niet voltooid.",
+      "connected_to": "Verbonden met {name}",
+      "user_origin_set": "Gebruikersoorsprong ingesteld op ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Nieuwe camerafoto vastgelegd",
+      "alignment_saved": "Camera-uitlijning opgeslagen",
+      "mapping_solved": "Cameratoewijzing berekend",
+      "mapping_saved": "Cameratoewijzing opgeslagen",
+      "mapping_reset": "Cameratoewijzing teruggezet",
+      "alignment_solved": "Camera-uitlijning berekend",
+      "alignment_reset": "Camera-uitlijning teruggezet"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Het sjabloon gebruikt {placeholder}-plaatshouders, maar de tekstmodus is niet Serienummer.",
+      "date_outside_mode": "Het sjabloon gebruikt {placeholder}-plaatshouders, maar de tekstmodus is niet Datum/tijd.",
+      "csv_outside_mode": "Het sjabloon gebruikt {placeholder}-plaatshouders, maar de tekstmodus is niet CSV samenvoegen.",
+      "cut_outside_mode": "Het sjabloon gebruikt {placeholder}-plaatshouders, maar de tekstmodus is niet Snij-instelling.",
+      "no_placeholders": "De gekozen tekstmodus heeft geen passende plaatshouders in het sjabloon.",
+      "csv_load_failed": "Het CSV-bestand kon niet worden geladen: {error}",
+      "resolve_failed": "De tekst kon niet worden opgelost: {error}",
+      "merge_fields_failed": "De samenvoegvelden konden niet worden gelezen: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Bijsnijden heeft meerdere stukken gemaakt. Selecteer ze en gebruik Sluiten en verbinden om ze samen te voegen.",
+      "open_path": "Het bijgesneden pad is open en kan niet worden gevuld. Gebruik Sluiten en verbinden als je een gesloten vorm nodig hebt."
+    },
+    "pick_guide_path": "Klik op een vector- of vormobject om als hulppad te gebruiken",
+    "panel_layout_save_failed": "Wijzigingen in de paneelindeling konden niet worden opgeslagen. Ze kunnen bij opnieuw starten verloren gaan."
   },
   "status": {
     "preview_in_progress": "Voorbeeld wordt gegenereerd",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "De noodstop is ingedrukt terwijl de opdracht werd voorbereid. Er is niets verzonden.",
     "sleep_protection_failed": "De slaapstand van de computer kon tijdens deze opdracht niet worden voorkomen. Houd de computer wakker totdat de opdracht klaar is.",
+    "project_file_missing": "Dit projectbestand is verplaatst of verwijderd en daarom uit {recent} gehaald. Gebruik {open} om het te zoeken.",
+    "settings_file_recovered": "Sommige opgeslagen instellingen konden niet worden gelezen en zijn teruggezet. Een kopie van het oorspronkelijke bestand staat in de instellingenmap.",
+    "layers_migrated_on_open": "Dit project had afbeeldingen en vectorvormen op dezelfde laag. Ze zijn verplaatst naar aparte lagen met dezelfde instellingen.",
+    "project_too_new": "Dit project is gemaakt met een nieuwere versie van Beam Bench ({version}). Werk Beam Bench bij om het te openen.",
+    "project_from_newer_app": "Dit project is het laatst opgeslagen met een nieuwere versie van Beam Bench ({version}). Opslaan met deze versie kan instellingen verwijderen die deze versie niet ondersteunt.",
+    "edit_invalid_geometry": "Deze wijziging zou een object verplaatsen of schalen buiten het bereik dat Beam Bench kan opslaan, dus is ze niet toegepast.",
+    "edit_internal_error": "Deze bewerking liep tegen een interne fout aan en is ongedaan gemaakt. Je project is niet gewijzigd. Meld dit alstublieft.",
+    "project_invalid_value": "Het project bevat een ongeldige instellingswaarde en is daarom niet opgeslagen.",
+    "project_invalid_value_object": "\"{name}\" heeft een ongeldige grootte of positie, dus het project is niet opgeslagen. Maak de laatste wijziging eraan ongedaan of verwijder het, en sla opnieuw op.",
     "operation_failed_with_detail": "Bewerking mislukt: {detail}",
     "raster_plan_too_complex": "Deze afbeelding maakt met de huidige grootte en DPI te veel afzonderlijke rasterbewegingen. Verlaag de DPI of de fysieke grootte, of kies een minder gefragmenteerde afbeeldingsmodus, en genereer daarna opnieuw het voorbeeld.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "Gebruikersoorsprong is geselecteerd maar niet ingesteld. Verplaats de laser naar de beoogde oorsprong en kies Hier instellen voordat u gaat kadreren of starten.",
     "current_position_unavailable": "Huidige positie heeft een aangesloten machine nodig met een gerapporteerde positie.",
     "dxf_no_usable_geometry": "Het DXF-bestand bevat geen bruikbare 2D-vectorgeometrie.",
-    "dxf_no_usable_geometry_with_entities": "Het DXF-bestand bevat geen bruikbare 2D-vectorgeometrie. Niet-ondersteunde of ongeldige entiteiten: {entities}."
+    "dxf_no_usable_geometry_with_entities": "Het DXF-bestand bevat geen bruikbare 2D-vectorgeometrie. Niet-ondersteunde of ongeldige entiteiten: {entities}.",
+    "camera": {
+      "stream_failed": "De camerastream kon niet worden gestart.",
+      "frame_timeout": "Time-out bij het wachten op een camerabeeld. De camera warmt misschien nog op of wordt door een andere app gebruikt.",
+      "preview_timeout": "Time-out bij het starten van het cameravoorbeeld.",
+      "warmup_timeout": "Time-out bij het wachten tot de camera klaar is.",
+      "encode_failed": "Het camerabeeld kon niet worden opgeslagen.",
+      "unavailable": "Cameraopname is niet beschikbaar in dit venster.",
+      "empty_frame": "De camera gaf een leeg beeld terug.",
+      "canvas_failed": "Het camerabeeld kon niet worden voorbereid."
+    },
+    "serial_open_no_response": "De poort is geopend, maar de laser antwoordde niet. Controleer of de laser is ingeschakeld, probeer een andere USB-kabel of -poort en controleer of de juiste poort is geselecteerd. Sommige borden hebben het USB-stuurprogramma CH340 nodig.",
+    "serial_protocol_unrecognized": "De laser antwoordde, maar Beam Bench herkende de controller niet. Controleer de baudrate in het machineprofiel (de meeste GRBL-lasers gebruiken 115200) en sluit andere lasersoftware die deze poort gebruikt.",
+    "network_grbl_no_status": "De controller op dit adres antwoordde niet als een GRBL-laser. Controleer het IP-adres en de poort, sluit andere apps die ermee verbonden zijn (veel wifi-modules staan maar één verbinding tegelijk toe) en probeer het opnieuw.",
+    "no_active_machine_profile": "Er is nog geen machine ingesteld. Voeg eerst een machineprofiel toe of selecteer er een.",
+    "emergency_stop_unconfirmed": "Beam Bench kon niet bevestigen dat de machine is gestopt. Gebruik nu de fysieke noodstop van de machine of schakel de stroom van de laser uit. Details: {detail}",
+    "controller_connection_lost": "De verbinding met de laser is verbroken. Controleer de kabel en de stroomvoorziening en maak daarna opnieuw verbinding. Details: {detail}"
   },
   "import": {
     "drop_to_import": "Sleep bestanden om te importeren"

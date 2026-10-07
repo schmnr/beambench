@@ -32,9 +32,14 @@ impl ReqwestM1HttpIo {
         } else {
             format!("{host}:{port}")
         };
+        // Status polls and stop actions run while the job tick holds the
+        // machine session, which Emergency Stop also needs. Keep them short so
+        // a slow Wi-Fi reply delays a stop by seconds, not tens of seconds.
+        // Only the job upload (below) may take longer; the M1 cannot be moving
+        // then, because it starts only from its physical button.
         let client = Client::builder()
-            .connect_timeout(Duration::from_secs(3))
-            .timeout(Duration::from_secs(10))
+            .connect_timeout(Duration::from_secs(2))
+            .timeout(Duration::from_secs(3))
             .redirect(Policy::none())
             .build()
             .map_err(|error| format!("could not create xTool M1 HTTP client: {error}"))?;
@@ -96,6 +101,24 @@ impl M1HttpIo for ReqwestM1HttpIo {
     }
 }
 
+/// Send the M1 stop action on its own short-lived connection, without the
+/// session. Emergency Stop uses this first, so a status poll or job upload
+/// holding the session cannot delay delivery. Confirmation still happens
+/// through the session afterwards.
+pub fn send_independent_stop(host: &str, port: u16) -> Result<(), String> {
+    let io = ReqwestM1HttpIo::new(host, port)?;
+    let response = io
+        .client
+        .get(format!("{}/cnc/data?action=stop", io.base_url))
+        .send()
+        .map_err(|error| error.to_string())?;
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("stop returned HTTP {}", response.status().as_u16()))
+    }
+}
+
 pub struct XToolM1RuntimeSession {
     runtime: M1Runtime<ReqwestM1HttpIo>,
     host: String,
@@ -130,6 +153,11 @@ impl XToolM1RuntimeSession {
 
     pub const fn driver(&self) -> ControllerDriverId {
         ControllerDriverId::XToolM1
+    }
+
+    /// Host and port, for stops sent outside the session.
+    pub fn endpoint(&self) -> (String, u16) {
+        (self.host.clone(), self.port)
     }
 
     pub const fn controller_model(&self) -> ControllerModel {
@@ -284,12 +312,19 @@ impl XToolM1RuntimeSession {
     }
 }
 
+/// How long status polls may keep failing before a running job is reported
+/// as failed. One slow Wi-Fi reply must not end the job: the M1 keeps running
+/// its uploaded file regardless, and each poll gives up after a few seconds.
+const XTOOL_POLL_FAILURE_GRACE: Duration = Duration::from_secs(20);
+
 pub struct XToolM1RuntimeJob {
     total_lines: usize,
     started_at: Instant,
     state: JobState,
     error_message: Option<String>,
     planned_duration_secs: Option<f64>,
+    /// When the current run of failed status polls began.
+    polls_failing_since: Option<Instant>,
 }
 
 impl XToolM1RuntimeJob {
@@ -305,6 +340,7 @@ impl XToolM1RuntimeJob {
             state: JobState::ReadyToRun,
             error_message: None,
             planned_duration_secs: planned_duration_secs.filter(|value| *value > 0.0),
+            polls_failing_since: None,
         })
     }
 
@@ -353,10 +389,18 @@ impl XToolM1RuntimeJob {
             }
             Ok(M1RuntimePhase::Disconnected | M1RuntimePhase::Ready) => {}
             Err(error) => {
-                self.state = JobState::Failed;
-                self.error_message = Some(error);
+                let since = *self.polls_failing_since.get_or_insert_with(Instant::now);
+                if since.elapsed() >= XTOOL_POLL_FAILURE_GRACE {
+                    self.state = JobState::Failed;
+                    self.error_message = Some(format!(
+                        "The xTool M1 has not answered status checks for {} seconds: {error}",
+                        XTOOL_POLL_FAILURE_GRACE.as_secs()
+                    ));
+                }
+                return self.progress();
             }
         }
+        self.polls_failing_since = None;
         self.progress()
     }
 
@@ -376,5 +420,37 @@ impl XToolM1RuntimeJob {
         session.cancel_job()?;
         self.state = JobState::Cancelled;
         Ok(self.progress())
+    }
+}
+
+#[cfg(test)]
+mod independent_stop_tests {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    #[test]
+    fn independent_stop_sends_the_stop_action_without_a_session() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 1024];
+            let read = stream.read(&mut request).unwrap();
+            let request = String::from_utf8_lossy(&request[..read]).to_string();
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"result\":\"ok\"}",
+                )
+                .unwrap();
+            request
+        });
+
+        super::send_independent_stop("127.0.0.1", port).unwrap();
+
+        let request = server.join().unwrap();
+        assert!(
+            request.starts_with("GET /cnc/data?action=stop "),
+            "{request}"
+        );
     }
 }

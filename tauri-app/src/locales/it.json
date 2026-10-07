@@ -371,8 +371,8 @@
       "outcome_fail": "Fallito",
       "warnings_block_start": "Risolvi gli avvisi qui sopra prima di avviare il lavoro.",
       "advisory_choice": "Questo lavoro può essere eseguito, ma la correzione dell'avviso può migliorare la qualità dell'incisione.",
-      "apply_overscan": "Utilizza l'overscan di {value} mm e ricontrolla",
-      "reduce_speed": "Utilizzare {value} mm/min e ricontrollare",
+      "apply_overscan": "Utilizza l'overscan di {value} {unit} e ricontrolla",
+      "reduce_speed": "Utilizzare {value} {unit} e ricontrollare",
       "continue_anyway": "Continua comunque",
       "categories": {
         "connection": "Connessione",
@@ -382,7 +382,9 @@
         "settings": "Impostazioni",
         "positioning": "Posizionamento",
         "planner": "Pianificatore",
-        "machine_workspace": "Area di lavoro della macchina"
+        "machine_workspace": "Area di lavoro della macchina",
+        "controller": "Controller",
+        "rotary": "Rotativo"
       },
       "checks": {
         "session_ready": "La sessione è pronta",
@@ -393,7 +395,14 @@
         "raster_motion_fits": "Il movimento raster si adatta al basamento della macchina",
         "laser_mode": "La modalità laser è abilitata ($32=1)",
         "homing_enabled": "L'homing è abilitato",
-        "relative_framed": "Il posizionamento relativo è stato inquadrato nella posizione attuale"
+        "relative_framed": "Il posizionamento relativo è stato inquadrato nella posizione attuale",
+        "machine_workspace_fits": "Il movimento pianificato rientra nel profilo della macchina",
+        "rotary_safe": "La configurazione del rotativo è sicura",
+        "controller_supported": "Il controller può avviare lavori",
+        "image_detail_fits": "Il dettaglio dell’immagine è adatto al controller",
+        "plan_generation": "Preparazione del lavoro",
+        "ruida_compiles": "Il lavoro può essere convertito per il controller Ruida",
+        "lihuiyu_compiles": "Il lavoro può essere convertito per il controller Lihuiyu M2"
       },
       "messages": {
         "connected_ready": "Connesso e pronto",
@@ -406,8 +415,11 @@
         "frame_required": "Questo controller non è in home, quindi Beam Bench non può verificare i bordi fisici del letto. Inquadrare il lavoro dopo aver posizionato il laser, quindi ricontrollare prima di iniziare.",
         "segment_count_one": "1 segmento",
         "segment_count_other": "{count} segmenti",
-        "plan_bounds_exceed": "I limiti previsti ({minX}, {minY} a {maxX}, {maxY}) superano il piano macchina di {width} × {height} mm.",
-        "raster_motion_exceeds": "Il movimento raster va da {lo} a {hi} mm sull’asse {axis}, il cui intervallo è da 0 a {limit} mm. L’overscan e l’offset di scansione aggiungono {margin} mm oltre l’area incisa. {startFrom, select, current_position {Riduci l’overscan o allontana il laser dal bordo del piano.} user_origin {Riduci l’overscan oppure sposta o reimposta l’Origine utente più lontano dal bordo del piano.} other {Riduci l’overscan o allontana il disegno dal bordo del piano.}}"
+        "plan_bounds_exceed": "I limiti previsti ({minX}, {minY} a {maxX}, {maxY}) superano il piano macchina di {width} × {height} {unit}.",
+        "raster_motion_exceeds": "Il movimento raster va da {lo} a {hi} {unit} sull’asse {axis}, il cui intervallo è da 0 a {limit} {unit}. L’overscan e l’offset di scansione aggiungono {margin} {unit} oltre l’area incisa. {startFrom, select, current_position {Riduci l’overscan o allontana il laser dal bordo del piano.} user_origin {Riduci l’overscan oppure sposta o reimposta l’Origine utente più lontano dal bordo del piano.} other {Riduci l’overscan o allontana il disegno dal bordo del piano.}}",
+        "session_state": "Connessione: {state}",
+        "machine_state": "Stato della macchina: {state}",
+        "plan_bounds_fit": "I limiti pianificati ({minX}, {minY} a {maxX}, {maxY}) rientrano nell’area di lavoro della macchina di {width} × {height} {unit}."
       },
       "advisories": {
         "raster_overscan": {
@@ -433,7 +445,12 @@
       "downloading": "Download in corso...",
       "installing": "Installazione in corso...",
       "blocked_not_in_applications": "Gli aggiornamenti richiedono che Beam Bench venga eseguito dalla cartella Applicazioni. Sembra che sia in esecuzione dall'immagine disco di installazione o da un'altra posizione temporanea. Nel Finder, trascina Beam Bench in Applicazioni, aprilo da lì e riprova l'aggiornamento.",
-      "blocked_other_disk": "Beam Bench è installato su un disco diverso da quello della cartella temporanea di questo Mac, quindi l'aggiornamento non può sostituirlo. Sposta Beam Bench nella cartella Applicazioni del disco principale oppure scarica la nuova versione da beambench.com."
+      "blocked_other_disk": "Beam Bench è installato su un disco diverso da quello della cartella temporanea di questo Mac, quindi l'aggiornamento non può sostituirlo. Sposta Beam Bench nella cartella Applicazioni del disco principale oppure scarica la nuova versione da beambench.com.",
+      "blocked_job_running": "Completa o ferma il lavoro in corso prima di installare.",
+      "blocked_machine_operation": "Attendi la fine dell'operazione della macchina in corso prima di installare.",
+      "blocked_machine_busy": "Completa o ferma l'operazione della macchina in corso prima di installare.",
+      "blocked_machine_moving": "Attendi che la macchina torni a riposo prima di installare.",
+      "cancelled_unsaved": "Aggiornamento annullato. Il progetto non è stato scartato."
     },
     "camera_calibration": {
       "title": "Mappatura fotocamera",
@@ -1954,7 +1971,8 @@
         "lines": "{acknowledged} / {total} righe",
         "elapsed": "Trascorso: {time}",
         "remaining": "Rimanente: ~{time}",
-        "finishing": "Completamento, in attesa della macchina..."
+        "finishing": "Completamento, in attesa della macchina...",
+        "last_failure": "L'ultimo lavoro si è fermato: {message}"
       },
       "overrides": {
         "title": "Override",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Preferenze ripristinate ai valori predefiniti.",
     "layout_restore_failed": "Impossibile ripristinare il layout dei pannelli salvato. Per questa sessione verrà usato il layout predefinito.",
     "recovery_check_failed": "Impossibile verificare la presenza di file di ripristino all'avvio.",
+    "autosave_failing": "Le copie di ripristino automatiche non riescono. Salva il progetto per proteggere il tuo lavoro.",
     "backend_subscribe_failed": "Impossibile sottoscrivere gli eventi del backend. Alcuni aggiornamenti in tempo reale potrebbero non essere disponibili in questa sessione.",
     "boolean_needs_two": "Seleziona esattamente 2 oggetti vettoriali chiusi per l'Assistente booleano",
     "project_restored": "Progetto ripristinato dal ripristino",
@@ -2587,7 +2606,50 @@
       "postponed": "Promemoria di aggiornamento posticipato di 24 ore.",
       "skipped": "Beam Bench {version} ignorato."
     },
-    "import_oversized": "Importato nelle dimensioni originali: il disegno misura {width} x {height} {unit}, più grande dell'area di lavoro di {bedWidth} x {bedHeight} {unit}."
+    "import_oversized": "Importato nelle dimensioni originali: il disegno misura {width} x {height} {unit}, più grande dell'area di lavoro di {bedWidth} x {bedHeight} {unit}.",
+    "machine": {
+      "using_existing_connection": "Uso della connessione macchina esistente",
+      "preview_disconnected": "Macchina di anteprima disconnessa",
+      "disconnected": "Disconnesso",
+      "preview_connected": "Macchina di anteprima connessa",
+      "homing_started": "Azzeramento avviato",
+      "discovery_started": "Ricerca macchine avviata",
+      "discovery_cancelled": "Ricerca macchine annullata",
+      "connected_discovered": "Connesso al dispositivo trovato",
+      "profile_from_discovery": "Profilo macchina creato dal dispositivo trovato",
+      "estop_sent": "Arresto di emergenza inviato",
+      "estop_resent_disconnected": "L'arresto di emergenza è stato inviato di nuovo dopo la riapertura della connessione al controller. Poi Beam Bench si è disconnesso. Riconnetti prima di continuare.",
+      "user_origin_cleared": "Origine utente cancellata",
+      "job_tick_failed": "Il lavoro si è fermato perché l'invio al controller non è riuscito.",
+      "lihuiyu_incomplete": "La connessione USB Lihuiyu non è stata completata.",
+      "connected_to": "Connesso a {name}",
+      "user_origin_set": "Origine utente impostata su ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "Nuova immagine della fotocamera acquisita",
+      "alignment_saved": "Allineamento della fotocamera salvato",
+      "mapping_solved": "Mappatura della fotocamera calcolata",
+      "mapping_saved": "Mappatura della fotocamera salvata",
+      "mapping_reset": "Mappatura della fotocamera reimpostata",
+      "alignment_solved": "Allineamento della fotocamera calcolato",
+      "alignment_reset": "Allineamento della fotocamera reimpostato"
+    },
+    "variable_text": {
+      "serial_outside_mode": "Il modello usa segnaposto {placeholder}, ma la modalità testo non è Numero di serie.",
+      "date_outside_mode": "Il modello usa segnaposto {placeholder}, ma la modalità testo non è Data/Ora.",
+      "csv_outside_mode": "Il modello usa segnaposto {placeholder}, ma la modalità testo non è Unione CSV.",
+      "cut_outside_mode": "Il modello usa segnaposto {placeholder}, ma la modalità testo non è Impostazione di taglio.",
+      "no_placeholders": "La modalità testo scelta non ha segnaposto corrispondenti nel modello.",
+      "csv_load_failed": "Impossibile caricare il file CSV: {error}",
+      "resolve_failed": "Impossibile risolvere il testo: {error}",
+      "merge_fields_failed": "Impossibile leggere i campi di unione: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Il taglio ha creato più pezzi. Selezionali e usa Chiudi e unisci per combinarli.",
+      "open_path": "Il tracciato tagliato è aperto e non può essere riempito. Usa Chiudi e unisci se ti serve una forma chiusa."
+    },
+    "pick_guide_path": "Fai clic su un oggetto vettoriale o una forma da usare come tracciato guida",
+    "panel_layout_save_failed": "Non è stato possibile salvare le modifiche alla disposizione dei pannelli. Potrebbero andare perse al riavvio."
   },
   "status": {
     "preview_in_progress": "Generazione anteprima in corso",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "È stato premuto l’arresto di emergenza durante la preparazione del lavoro. Non è stato inviato nulla.",
     "sleep_protection_failed": "Non è stato possibile impedire la sospensione del computer durante questo lavoro. Mantieni il computer attivo fino al termine del lavoro.",
+    "project_file_missing": "Questo file di progetto è stato spostato o eliminato, quindi è stato rimosso da {recent}. Usa {open} per trovarlo.",
+    "settings_file_recovered": "Alcune impostazioni salvate non sono state lette e sono state ripristinate. Una copia del file originale è stata conservata nella cartella delle impostazioni.",
+    "layers_migrated_on_open": "Questo progetto aveva immagini e forme vettoriali sullo stesso livello. Sono state spostate su livelli separati con le stesse impostazioni.",
+    "project_too_new": "Questo progetto è stato creato con una versione più recente di Beam Bench ({version}). Aggiorna Beam Bench per aprirlo.",
+    "project_from_newer_app": "Questo progetto è stato salvato l'ultima volta con una versione più recente di Beam Bench ({version}). Salvarlo con questa versione può eliminare impostazioni che questa versione non supporta.",
+    "edit_invalid_geometry": "Questa modifica sposterebbe o ridimensionerebbe un oggetto fuori dall'intervallo che Beam Bench può salvare, quindi non è stata applicata.",
+    "edit_internal_error": "Questa modifica ha riscontrato un errore interno ed è stata annullata. Il progetto non è cambiato. Segnalalo, per favore.",
+    "project_invalid_value": "Il progetto contiene un valore di impostazione non valido, quindi non è stato salvato.",
+    "project_invalid_value_object": "\"{name}\" ha dimensioni o posizione non valide, quindi il progetto non è stato salvato. Annulla l'ultima modifica a questo oggetto o eliminalo, poi salva di nuovo.",
     "operation_failed_with_detail": "Operazione non riuscita: {detail}",
     "raster_plan_too_complex": "Questa immagine crea troppi movimenti raster individuali con le dimensioni e i DPI attuali. Riduci i DPI o le dimensioni fisiche, oppure scegli una modalità immagine meno frammentata, quindi genera nuovamente l’anteprima.",
     "machine_zero_requires_home": "Home the machine first to use machine zero.",
@@ -2668,7 +2739,23 @@
     "user_origin_not_set": "L'origine utente è selezionata ma non è stata impostata. Spostare il laser sull'origine prevista e scegliere Imposta qui prima di inquadrare o iniziare.",
     "current_position_unavailable": "La posizione attuale necessita di una macchina connessa con una posizione segnalata.",
     "dxf_no_usable_geometry": "Il file DXF non contiene geometria vettoriale 2D utilizzabile.",
-    "dxf_no_usable_geometry_with_entities": "Il file DXF non contiene geometria vettoriale 2D utilizzabile. Entità non supportate o non valide: {entities}."
+    "dxf_no_usable_geometry_with_entities": "Il file DXF non contiene geometria vettoriale 2D utilizzabile. Entità non supportate o non valide: {entities}.",
+    "camera": {
+      "stream_failed": "Impossibile avviare il flusso della fotocamera.",
+      "frame_timeout": "Tempo scaduto in attesa di un'immagine della fotocamera. La fotocamera potrebbe essere ancora in avvio o in uso da un'altra app.",
+      "preview_timeout": "Tempo scaduto durante l'avvio dell'anteprima della fotocamera.",
+      "warmup_timeout": "Tempo scaduto in attesa che la fotocamera sia pronta.",
+      "encode_failed": "Impossibile salvare l'immagine della fotocamera.",
+      "unavailable": "L'acquisizione dalla fotocamera non è disponibile in questa finestra.",
+      "empty_frame": "La fotocamera ha restituito un'immagine vuota.",
+      "canvas_failed": "Impossibile preparare l'immagine della fotocamera."
+    },
+    "serial_open_no_response": "La porta si è aperta, ma il laser non ha risposto. Verificare che il laser sia acceso, provare un altro cavo o porta USB e assicurarsi che sia selezionata la porta corretta. Alcune schede richiedono il driver USB CH340.",
+    "serial_protocol_unrecognized": "Il laser ha risposto, ma Beam Bench non ha riconosciuto il suo controller. Verificare la velocità in baud nel profilo della macchina (la maggior parte dei laser GRBL usa 115200) e chiudere qualsiasi altro software laser che usa questa porta.",
+    "network_grbl_no_status": "Il controller a questo indirizzo non ha risposto come un laser GRBL. Verificare l’indirizzo IP e la porta, chiudere le altre app collegate (molti moduli Wi-Fi consentono una sola connessione alla volta) e riprovare.",
+    "no_active_machine_profile": "Nessuna macchina è ancora configurata. Aggiungere o selezionare prima un profilo macchina.",
+    "emergency_stop_unconfirmed": "Beam Bench non è riuscito a confermare che la macchina si sia fermata. Usare subito l’arresto di emergenza fisico della macchina o scollegare l’alimentazione del laser. Dettagli: {detail}",
+    "controller_connection_lost": "La connessione con il laser si è interrotta. Controllare il cavo e l’alimentazione, quindi riconnettersi. Dettagli: {detail}"
   },
   "import": {
     "drop_to_import": "Trascina i file da importare"

@@ -157,7 +157,7 @@ pub fn distribute_h_centered(bounds: &[Bounds]) -> Vec<Point2D> {
 
     // Build sorted indices by center_x
     let mut indices: Vec<usize> = (0..bounds.len()).collect();
-    indices.sort_by(|&a, &b| centers[a].partial_cmp(&centers[b]).unwrap());
+    indices.sort_by(|&a, &b| centers[a].total_cmp(&centers[b]));
 
     let first_center = centers[indices[0]];
     let last_center = centers[*indices.last().unwrap()];
@@ -188,7 +188,7 @@ pub fn distribute_v_centered(bounds: &[Bounds]) -> Vec<Point2D> {
 
     // Build sorted indices by center_y
     let mut indices: Vec<usize> = (0..bounds.len()).collect();
-    indices.sort_by(|&a, &b| centers[a].partial_cmp(&centers[b]).unwrap());
+    indices.sort_by(|&a, &b| centers[a].total_cmp(&centers[b]));
 
     let first_center = centers[indices[0]];
     let last_center = centers[*indices.last().unwrap()];
@@ -215,7 +215,7 @@ pub fn distribute_h_spaced(bounds: &[Bounds]) -> Vec<Point2D> {
     }
 
     let mut indices: Vec<usize> = (0..bounds.len()).collect();
-    indices.sort_by(|&a, &b| bounds[a].min.x.partial_cmp(&bounds[b].min.x).unwrap());
+    indices.sort_by(|&a, &b| bounds[a].min.x.total_cmp(&bounds[b].min.x));
 
     let first_min = bounds[indices[0]].min.x;
     let last_max = bounds[*indices.last().unwrap()].max.x;
@@ -247,7 +247,7 @@ pub fn distribute_v_spaced(bounds: &[Bounds]) -> Vec<Point2D> {
     }
 
     let mut indices: Vec<usize> = (0..bounds.len()).collect();
-    indices.sort_by(|&a, &b| bounds[a].min.y.partial_cmp(&bounds[b].min.y).unwrap());
+    indices.sort_by(|&a, &b| bounds[a].min.y.total_cmp(&bounds[b].min.y));
 
     let first_min = bounds[indices[0]].min.y;
     let last_max = bounds[*indices.last().unwrap()].max.y;
@@ -284,7 +284,7 @@ pub fn move_together_h(bounds: &[Bounds], anchor_index: usize) -> Vec<Point2D> {
     left.sort_by(|&a, &b| {
         let ac = (bounds[a].min.x + bounds[a].max.x) / 2.0;
         let bc = (bounds[b].min.x + bounds[b].max.x) / 2.0;
-        bc.partial_cmp(&ac).unwrap()
+        bc.total_cmp(&ac)
     });
 
     let mut cursor = anchor.min.x;
@@ -303,7 +303,7 @@ pub fn move_together_h(bounds: &[Bounds], anchor_index: usize) -> Vec<Point2D> {
     right.sort_by(|&a, &b| {
         let ac = (bounds[a].min.x + bounds[a].max.x) / 2.0;
         let bc = (bounds[b].min.x + bounds[b].max.x) / 2.0;
-        ac.partial_cmp(&bc).unwrap()
+        ac.total_cmp(&bc)
     });
 
     cursor = anchor.max.x;
@@ -335,7 +335,7 @@ pub fn move_together_v(bounds: &[Bounds], anchor_index: usize) -> Vec<Point2D> {
     above.sort_by(|&a, &b| {
         let ac = (bounds[a].min.y + bounds[a].max.y) / 2.0;
         let bc = (bounds[b].min.y + bounds[b].max.y) / 2.0;
-        bc.partial_cmp(&ac).unwrap()
+        bc.total_cmp(&ac)
     });
 
     let mut cursor = anchor.min.y;
@@ -354,7 +354,7 @@ pub fn move_together_v(bounds: &[Bounds], anchor_index: usize) -> Vec<Point2D> {
     below.sort_by(|&a, &b| {
         let ac = (bounds[a].min.y + bounds[a].max.y) / 2.0;
         let bc = (bounds[b].min.y + bounds[b].max.y) / 2.0;
-        ac.partial_cmp(&bc).unwrap()
+        ac.total_cmp(&bc)
     });
 
     cursor = anchor.max.y;

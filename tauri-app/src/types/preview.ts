@@ -84,6 +84,8 @@ export interface RasterPreview {
   local_height_mm: number;
   /** Per-planner-run burn extents for playback progress. */
   run_extents: RasterRunExtent[];
+  /** False when run_extents is a sample; the static preview then draws the exact bitmap. */
+  run_extents_complete?: boolean;
   /** One full envelope per non-empty scanline, used for overscan markers. */
   scanline_extents?: RasterRunExtent[];
   /** Finer-grained burn extents, currently retained for future use and

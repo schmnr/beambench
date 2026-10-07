@@ -199,7 +199,7 @@ mod tests {
                 corner_radius: 0.0,
             },
         ));
-        export_pdf(&project, false, &[])
+        export_pdf(&project, false, &[]).unwrap()
     }
 
     #[tokio::test]

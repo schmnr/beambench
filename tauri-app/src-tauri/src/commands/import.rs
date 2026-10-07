@@ -139,7 +139,7 @@ pub struct ClipboardArtworkPayload {
     media_type: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_svg_file(
     svc: State<'_, Arc<ServiceContext>>,
     file_path: String,
@@ -155,7 +155,7 @@ pub fn import_svg_file(
     .map_err(Into::into)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_image_file(
     svc: State<'_, Arc<ServiceContext>>,
     file_path: String,
@@ -281,7 +281,7 @@ pub fn write_clipboard_text(text: String) -> Result<(), String> {
         .map_err(|error| format!("Failed to write clipboard text: {error}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_clipboard_artwork(
     svc: State<'_, Arc<ServiceContext>>,
     data_base64: String,
@@ -322,7 +322,7 @@ pub fn import_clipboard_artwork(
     apply_drop_position_after_import(&svc, created, drop_position)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_files(
     svc: State<'_, Arc<ServiceContext>>,
     file_paths: Vec<String>,
@@ -342,7 +342,7 @@ pub fn import_files(
 
 /// Import files delivered by content (HTML5 drag-drop), where the webview
 /// cannot expose OS file paths.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_file_data(
     svc: State<'_, Arc<ServiceContext>>,
     files: Vec<imports::ImportFileData>,
@@ -420,7 +420,7 @@ pub fn pick_and_import_files(
 // Import commands
 // ---------------------------------------------------------------------------
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_dxf_file(
     svc: State<'_, Arc<ServiceContext>>,
     file_path: String,
@@ -437,7 +437,7 @@ pub fn import_dxf_file(
     .map_err(Into::into)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_pdf_file(
     svc: State<'_, Arc<ServiceContext>>,
     file_path: String,
@@ -454,7 +454,7 @@ pub fn import_pdf_file(
     .map_err(Into::into)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_ai_file(
     svc: State<'_, Arc<ServiceContext>>,
     file_path: String,
@@ -471,7 +471,7 @@ pub fn import_ai_file(
     .map_err(Into::into)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_eps_file(
     svc: State<'_, Arc<ServiceContext>>,
     file_path: String,
@@ -488,7 +488,7 @@ pub fn import_eps_file(
     .map_err(Into::into)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_gcode_file(
     svc: State<'_, Arc<ServiceContext>>,
     file_path: String,

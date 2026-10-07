@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beginNewDocument } from '../../stores/documentGeneration';
 import { NodeTool } from './NodeTool';
 import type { CanvasMouseEvent, ToolContext } from './types';
 import { worldToScreen, type ViewportParams } from '../ViewportTransform';
@@ -153,6 +154,7 @@ function makeToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
     rotateObjects: vi.fn(),
     shearObjects: vi.fn(),
     updateObjectBoundsBatch: vi.fn(),
+    scaleAndRotateObjects: vi.fn().mockResolvedValue(undefined),
     setCursorWorldPos: vi.fn(),
     setStatusMessage: vi.fn(),
     requestRender: vi.fn(),
@@ -360,6 +362,8 @@ describe('NodeTool', () => {
       handle_in: null, handle_out: null, node_type: 'corner',
     })) }]);
     await pending.promise;
+    // Replies pass through the document-reply guard: one more turn.
+    await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     const overlay = tool.getOverlay();
@@ -1986,4 +1990,17 @@ describe('NodeTool', () => {
       );
     });
   });
+  it('drops node paths when the document changes between proxy validation and consumption', async () => {
+    const object = makeVectorPathObj('path1', {min:{x:0,y:0},max:{x:10,y:10}});
+    const ctx = makeToolContext({selectedObjectIds:['path1'],objects:[object]});
+    const pending = deferred<EditablePath[]>();
+    vi.mocked(vectorService.getEditablePath).mockReturnValueOnce(pending.promise);
+    const preparation = tool.prepareForSelection(ctx);
+    pending.resolve([makeLineEditablePath(0,{x:0,y:0},{x:10,y:10})]);
+    queueMicrotask(beginNewDocument);
+    await preparation;
+    expect(uiState.setNodeEditNodeCount).not.toHaveBeenCalled();
+    expect(ctx.setStatusMessage).not.toHaveBeenCalled();
+  });
+
 });

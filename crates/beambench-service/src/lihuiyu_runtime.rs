@@ -327,7 +327,12 @@ impl LihuiyuRuntimeJob {
                         self.error_message = snapshot
                             .recovery_reason
                             .map(|reason| format!("Lihuiyu recovery required: {reason:?}"))
-                            .or_else(|| Some(format!("Lihuiyu job entered {:?}", snapshot.phase)));
+                            .or_else(|| Some(format!("Lihuiyu job entered {:?}", snapshot.phase)))
+                            .map(|message| {
+                                format!(
+                                    "{message}. If the machine is still moving, use its physical stop, then reconnect."
+                                )
+                            });
                     }
                     phase => {
                         self.state = JobState::Failed;

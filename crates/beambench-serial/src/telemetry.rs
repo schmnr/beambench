@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
-use std::sync::{LazyLock, Mutex};
+#[cfg(not(test))]
+use std::sync::LazyLock;
+use std::sync::Mutex;
 
 use beambench_common::feedback::DiagnosticSerialTraffic;
 
@@ -15,16 +17,35 @@ struct SerialTrafficRing {
     rx: VecDeque<u8>,
 }
 
+#[cfg(not(test))]
 static SERIAL_TRAFFIC: LazyLock<Mutex<SerialTrafficRing>> =
     LazyLock::new(|| Mutex::new(SerialTrafficRing::default()));
 #[cfg(test)]
 pub(crate) static SERIAL_TRAFFIC_TEST_LOCK: Mutex<()> = Mutex::new(());
 
+// Unit tests run transports in parallel threads; a per-thread ring keeps one
+// test's traffic out of another's assertions. The app uses one shared ring.
+#[cfg(test)]
+thread_local! {
+    static SERIAL_TRAFFIC: std::cell::RefCell<SerialTrafficRing> =
+        std::cell::RefCell::new(SerialTrafficRing::default());
+}
+
+#[cfg(not(test))]
+fn with_ring<R>(f: impl FnOnce(&mut SerialTrafficRing) -> R) -> Option<R> {
+    SERIAL_TRAFFIC.lock().ok().map(|mut ring| f(&mut ring))
+}
+
+#[cfg(test)]
+fn with_ring<R>(f: impl FnOnce(&mut SerialTrafficRing) -> R) -> Option<R> {
+    SERIAL_TRAFFIC.with(|ring| Some(f(&mut ring.borrow_mut())))
+}
+
 pub fn reset_serial_traffic() {
-    if let Ok(mut ring) = SERIAL_TRAFFIC.lock() {
+    with_ring(|ring| {
         ring.tx.clear();
         ring.rx.clear();
-    }
+    });
 }
 
 pub fn record_tx(bytes: &[u8]) {
@@ -36,12 +57,9 @@ pub fn record_rx(bytes: &[u8]) {
 }
 
 pub fn recent_serial_traffic() -> DiagnosticSerialTraffic {
-    let Ok(ring) = SERIAL_TRAFFIC.lock() else {
+    let Some((tx, rx)) = with_ring(|ring| (last_bytes(&ring.tx), last_bytes(&ring.rx))) else {
         return DiagnosticSerialTraffic::default();
     };
-
-    let tx = last_bytes(&ring.tx);
-    let rx = last_bytes(&ring.rx);
 
     DiagnosticSerialTraffic {
         tx_hex: bytes_to_hex(&tx),
@@ -57,21 +75,18 @@ enum Direction {
 }
 
 fn record(bytes: &[u8], direction: Direction) {
-    let Ok(mut ring) = SERIAL_TRAFFIC.lock() else {
-        return;
-    };
-
-    let target = match direction {
-        Direction::Tx => &mut ring.tx,
-        Direction::Rx => &mut ring.rx,
-    };
-
-    for byte in bytes {
-        target.push_back(*byte);
-        while target.len() > MAX_RING_BYTES {
-            target.pop_front();
+    with_ring(|ring| {
+        let target = match direction {
+            Direction::Tx => &mut ring.tx,
+            Direction::Rx => &mut ring.rx,
+        };
+        for byte in bytes {
+            target.push_back(*byte);
+            while target.len() > MAX_RING_BYTES {
+                target.pop_front();
+            }
         }
-    }
+    });
 }
 
 fn last_bytes(ring: &VecDeque<u8>) -> Vec<u8> {

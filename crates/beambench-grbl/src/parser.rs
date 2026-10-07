@@ -10,7 +10,11 @@ use crate::settings::{GrblSettingId, parse_setting_line};
 pub enum GrblResponse {
     Ok,
     Error(u8),
+    /// An error reported as text, as GRBL 0.9 does ("error: Bad number format").
+    ErrorText(String),
     Alarm(u8),
+    /// An alarm reported as text, as GRBL 0.9 does ("ALARM: Hard limit").
+    AlarmText(String),
     Status(MachineStatus),
     Banner(String),
     Setting(GrblSettingId, f64),
@@ -44,14 +48,14 @@ pub fn parse_response(line: &str) -> GrblResponse {
         if let Ok(code) = rest.trim().parse::<u8>() {
             return GrblResponse::Error(code);
         }
-        return GrblResponse::Unknown(trimmed.to_string());
+        return GrblResponse::ErrorText(rest.trim().to_string());
     }
 
     if let Some(rest) = trimmed.strip_prefix("ALARM:") {
         if let Ok(code) = rest.trim().parse::<u8>() {
             return GrblResponse::Alarm(code);
         }
-        return GrblResponse::Unknown(trimmed.to_string());
+        return GrblResponse::AlarmText(rest.trim().to_string());
     }
 
     if trimmed.starts_with('<') && trimmed.ends_with('>') {
@@ -404,6 +408,18 @@ mod tests {
             GrblResponse::Feedback(f) => assert!(f.starts_with("GC:")),
             _ => panic!("expected feedback"),
         }
+    }
+
+    #[test]
+    fn grbl_0_9_text_errors_and_alarms_are_recognized() {
+        assert_eq!(
+            parse_response("error: Expected command letter"),
+            GrblResponse::ErrorText("Expected command letter".into())
+        );
+        assert_eq!(
+            parse_response("ALARM: Hard/soft limit"),
+            GrblResponse::AlarmText("Hard/soft limit".into())
+        );
     }
 
     #[test]

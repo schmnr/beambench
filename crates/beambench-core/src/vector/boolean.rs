@@ -69,6 +69,16 @@ pub fn normalize_subject_evenodd_with_tolerance(
     flatten_tolerance: f64,
     simplify_tolerance: f64,
 ) -> VecPath {
+    normalize_subject_with_tolerance(paths, flatten_tolerance, simplify_tolerance, false)
+}
+
+/// Normalize winding once so subsequent even-odd operations preserve the region.
+pub(crate) fn normalize_subject_with_tolerance(
+    paths: &[VecPath],
+    flatten_tolerance: f64,
+    simplify_tolerance: f64,
+    nonzero: bool,
+) -> VecPath {
     let subject_contours: Vec<Vec<[f64; 2]>> = paths
         .iter()
         .flat_map(|path| vecpath_to_overlay_contours(path, flatten_tolerance))
@@ -87,7 +97,14 @@ pub fn normalize_subject_evenodd_with_tolerance(
         },
         Default::default(),
     )
-    .overlay(OverlayRule::Subject, FillRule::EvenOdd);
+    .overlay(
+        OverlayRule::Subject,
+        if nonzero {
+            FillRule::NonZero
+        } else {
+            FillRule::EvenOdd
+        },
+    );
 
     overlay_shapes_to_vecpath(&shapes, simplify_tolerance)
 }

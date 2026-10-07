@@ -67,7 +67,13 @@ export function NumberStepper({
         'value',
       )?.set;
       nativeInputValueSetter?.call(input, String(next));
-      input.dispatchEvent(new Event('input', { bubbles: true }));
+      // Lets commit-on-blur fields tell an arrow step (commit now) from typing.
+      input.dataset.stepping = 'true';
+      try {
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      } finally {
+        delete input.dataset.stepping;
+      }
     },
     [disabled, min, max, numStep, value],
   );

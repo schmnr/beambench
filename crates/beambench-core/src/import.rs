@@ -10,6 +10,9 @@ use crate::object::{
     ObjectData, ObjectId, ProjectObject, TextAlignment, TextAlignmentV, TextLayoutMode,
 };
 use crate::project::Project;
+use crate::vector::boolean::{
+    normalize_subject_with_tolerance, path_intersection_with_tolerance, weld_shapes_with_tolerance,
+};
 use crate::vector::flatten::flatten_vecpath;
 use crate::vector::normalize::{VECTOR_PATH_FLATTEN_TOLERANCE_MM, cleanup_vecpath_for_planner};
 use crate::vector::text_to_path::{can_resolve_font, font_ascender_mm};
@@ -83,6 +86,125 @@ fn style_property<'a>(style: Option<&'a str>, prop: &str) -> Option<&'a str> {
     })
 }
 
+/// Map the root `viewBox` onto the document size in px, the space usvg
+/// reports paths in, so text placed in user units lands with the paths.
+fn root_viewbox_transform(root: roxmltree::Node) -> Transform2D {
+    let identity = Transform2D::identity();
+    let Some(view_box) = root
+        .attribute("viewBox")
+        .and_then(|value| value.parse::<svgtypes::ViewBox>().ok())
+        .filter(|vb| vb.w > 0.0 && vb.h > 0.0)
+    else {
+        return identity;
+    };
+    let length_px = |name: &str| -> Option<f64> {
+        let length = root.attribute(name)?.parse::<svgtypes::Length>().ok()?;
+        let factor = match length.unit {
+            svgtypes::LengthUnit::None | svgtypes::LengthUnit::Px => 1.0,
+            svgtypes::LengthUnit::In => 96.0,
+            svgtypes::LengthUnit::Cm => 96.0 / 2.54,
+            svgtypes::LengthUnit::Mm => 96.0 / 25.4,
+            svgtypes::LengthUnit::Pt => 96.0 / 72.0,
+            svgtypes::LengthUnit::Pc => 16.0,
+            _ => return None,
+        };
+        Some(length.number * factor).filter(|px| *px > 0.0)
+    };
+    let width = length_px("width").unwrap_or(view_box.w);
+    let height = length_px("height").unwrap_or(view_box.h);
+    let (sx, sy) = (width / view_box.w, height / view_box.h);
+    let aspect = root
+        .attribute("preserveAspectRatio")
+        .and_then(|value| value.parse::<svgtypes::AspectRatio>().ok())
+        .unwrap_or_default();
+    use svgtypes::Align;
+    let (fx, fy) = match aspect.align {
+        Align::None => {
+            return Transform2D {
+                a: sx,
+                b: 0.0,
+                c: 0.0,
+                d: sy,
+                tx: -view_box.x * sx,
+                ty: -view_box.y * sy,
+            };
+        }
+        Align::XMinYMin => (0.0, 0.0),
+        Align::XMidYMin => (0.5, 0.0),
+        Align::XMaxYMin => (1.0, 0.0),
+        Align::XMinYMid => (0.0, 0.5),
+        Align::XMidYMid => (0.5, 0.5),
+        Align::XMaxYMid => (1.0, 0.5),
+        Align::XMinYMax => (0.0, 1.0),
+        Align::XMidYMax => (0.5, 1.0),
+        Align::XMaxYMax => (1.0, 1.0),
+    };
+    let s = if aspect.slice { sx.max(sy) } else { sx.min(sy) };
+    Transform2D {
+        a: s,
+        b: 0.0,
+        c: 0.0,
+        d: s,
+        tx: -view_box.x * s + (width - view_box.w * s) * fx,
+        ty: -view_box.y * s + (height - view_box.h * s) * fy,
+    }
+}
+
+/// The transform from a `<text>` element's user units to document px, when
+/// the text is drawn directly with a uniform scale and no rotation or skew.
+fn editable_text_transform(text: roxmltree::Node, root_map: &Transform2D) -> Option<Transform2D> {
+    let root = text.document().root_element();
+    let mut chain = Vec::new();
+    for node in text.ancestors().filter(|node| node.is_element()) {
+        let name = node.tag_name().name();
+        if matches!(
+            name,
+            "defs" | "symbol" | "clipPath" | "mask" | "pattern" | "marker" | "switch"
+        ) || (name == "svg" && node != root)
+        {
+            return None;
+        }
+        let style = node.attribute("style");
+        let hidden = node
+            .attribute("display")
+            .or_else(|| style_property(style, "display"))
+            == Some("none")
+            || node
+                .attribute("visibility")
+                .or_else(|| style_property(style, "visibility"))
+                .is_some_and(|value| value == "hidden" || value == "collapse")
+            || node.attribute("clip-path").is_some()
+            || style_property(style, "clip-path").is_some();
+        if hidden {
+            return None;
+        }
+        if let Some(value) = node.attribute("transform") {
+            if node == root {
+                return None;
+            }
+            let t = value.parse::<svgtypes::Transform>().ok()?;
+            chain.push(Transform2D {
+                a: t.a,
+                b: t.b,
+                c: t.c,
+                d: t.d,
+                tx: t.e,
+                ty: t.f,
+            });
+        }
+    }
+    let mut map = *root_map;
+    for t in chain.iter().rev() {
+        map = map.compose(t);
+    }
+    let tolerance = 1e-9 * map.a.abs().max(1.0);
+    let uniform = map.a > 0.0
+        && (map.a - map.d).abs() <= tolerance
+        && map.b.abs() <= tolerance
+        && map.c.abs() <= tolerance;
+    uniform.then_some(map)
+}
+
 /// Pre-parse SVG XML to extract `<text>` elements with their metadata.
 /// Returns extracted text elements and modified SVG bytes with those `<text>` elements removed.
 fn extract_svg_text_elements(svg_bytes: &[u8]) -> (Vec<SvgTextElement>, Vec<u8>) {
@@ -98,9 +220,16 @@ fn extract_svg_text_elements(svg_bytes: &[u8]) -> (Vec<SvgTextElement>, Vec<u8>)
 
     let mut texts = Vec::new();
     let mut remove_ranges: Vec<std::ops::Range<usize>> = Vec::new();
+    let root_map = root_viewbox_transform(doc.root_element());
 
     for node in doc.descendants() {
         if node.tag_name().name() == "text" {
+            // Editable text keeps a position, size and spacing, but no
+            // rotation or skew. Anything else stays in the SVG and imports as
+            // exact outlines, as does text that is not drawn directly.
+            let Some(user_to_document) = editable_text_transform(node, &root_map) else {
+                continue;
+            };
             // Extract text content (direct text children + <tspan> content)
             let content: String = node
                 .descendants()
@@ -218,17 +347,19 @@ fn extract_svg_text_elements(svg_bytes: &[u8]) -> (Vec<SvgTextElement>, Vec<u8>)
 
             // Check if we can resolve this font
             if can_resolve_font(&font_family, bold, italic) {
+                let scale = user_to_document.a;
+                let position = user_to_document.apply(&Point2D::new(x, y));
                 texts.push(SvgTextElement {
                     content,
                     font_family,
-                    font_size_px,
-                    x,
-                    y,
+                    font_size_px: font_size_px * scale,
+                    x: position.x,
+                    y: position.y,
                     bold,
                     italic,
                     alignment,
                     alignment_v,
-                    h_spacing_px,
+                    h_spacing_px: h_spacing_px * scale,
                     rtl,
                 });
                 // Mark this element for removal from SVG
@@ -250,6 +381,30 @@ fn extract_svg_text_elements(svg_bytes: &[u8]) -> (Vec<SvgTextElement>, Vec<u8>)
     (texts, modified.into_bytes())
 }
 
+fn ensure_svg_fallback_fonts(db: &mut fontdb::Database) {
+    db.load_font_data(include_bytes!("../../fonts/LiberationSans-Regular.ttf").to_vec());
+    // Preserve system generic families where they resolve. usvg uses Serif as
+    // its final fallback, so both mappings must work on a fontless system.
+    if db
+        .query(&fontdb::Query {
+            families: &[fontdb::Family::SansSerif],
+            ..Default::default()
+        })
+        .is_none()
+    {
+        db.set_sans_serif_family("Liberation Sans");
+    }
+    if db
+        .query(&fontdb::Query {
+            families: &[fontdb::Family::Serif],
+            ..Default::default()
+        })
+        .is_none()
+    {
+        db.set_serif_family("Liberation Sans");
+    }
+}
+
 /// Import an SVG file into the project.
 ///
 /// First pre-parses XML to extract `<text>` elements. If a text element's font
@@ -269,7 +424,21 @@ pub fn import_svg(
     let (text_elements, remaining_svg) = extract_svg_text_elements(svg_bytes);
 
     // Phase 2: Parse remaining SVG with usvg for path extraction
-    let options = usvg::Options::default();
+    let mut options = usvg::Options {
+        // Only embedded data: an imported SVG must not pull in arbitrary
+        // files from this computer through `<image href="/path">`.
+        image_href_resolver: usvg::ImageHrefResolver {
+            resolve_data: usvg::ImageHrefResolver::default_data_resolver(),
+            resolve_string: Box::new(|_, _| None),
+        },
+        ..usvg::Options::default()
+    };
+    // Text left in the SVG (fonts Beam Bench cannot edit with, rotated or
+    // clipped text) is drawn as outlines, which needs the system fonts.
+    if remaining_svg.windows(5).any(|window| window == b"<text") {
+        options.fontdb_mut().load_system_fonts();
+        ensure_svg_fallback_fonts(options.fontdb_mut());
+    }
     let tree = usvg::Tree::from_data(&remaining_svg, &options)
         .map_err(|e| ImportError::ParseError(e.to_string()))?;
 
@@ -365,7 +534,14 @@ pub fn import_svg(
     // is how multi-operation designs mark which parts get which settings;
     // a single flattened object made parts unselectable — report #13).
     let mut paint_groups: Vec<PaintGroup> = Vec::new();
-    collect_paths_by_paint(tree.root(), scale, offset_x, offset_y, &mut paint_groups);
+    collect_paths_by_paint(
+        tree.root(),
+        scale,
+        offset_x,
+        offset_y,
+        None,
+        &mut paint_groups,
+    );
 
     // Preserve embedded raster artwork as real project image assets. usvg
     // already resolves data-URI PNG/JPEG/GIF/WebP payloads and computes the
@@ -698,21 +874,10 @@ pub fn import_image(
 }
 
 /// Convert color artwork to laser luminance while treating transparent pixels
-/// as white (no engraving). Dropping alpha would turn transparent SVG image
-/// backgrounds black after the grayscale conversion.
+/// as white (no engraving). Shared with the engraving decoder so every path
+/// treats transparency the same way.
 fn image_to_engraving_grayscale(img: &image::DynamicImage) -> image::GrayImage {
-    if !img.color().has_alpha() {
-        return img.to_luma8();
-    }
-
-    let luma_alpha = img.to_luma_alpha8();
-    image::GrayImage::from_fn(img.width(), img.height(), |x, y| {
-        let pixel = luma_alpha.get_pixel(x, y).0;
-        let luma = u16::from(pixel[0]);
-        let alpha = u16::from(pixel[1]);
-        let composited = (luma * alpha + 255 * (255 - alpha) + 127) / 255;
-        image::Luma([composited as u8])
-    })
+    beambench_raster::decode::to_engraving_gray(img)
 }
 
 /// Recursively collect all path segments from a usvg group, transforming
@@ -748,12 +913,29 @@ fn collect_paths_by_paint(
     scale: f64,
     offset_x: f64,
     offset_y: f64,
+    clip: Option<&VecPath>,
     groups: &mut Vec<PaintGroup>,
 ) {
     for node in group.children() {
         match node {
             usvg::Node::Path(path) => {
-                let mut bed_path = transform_path_to_bed_space(path, scale, offset_x, offset_y);
+                // Hidden shapes are not artwork, and must never burn.
+                if !path.is_visible() {
+                    continue;
+                }
+                let mut bed_path = transform_path_to_bed_space(
+                    path,
+                    &path.abs_transform(),
+                    scale,
+                    offset_x,
+                    offset_y,
+                );
+                if let Some(clip) = clip {
+                    if let Some(fill) = path.fill() {
+                        bed_path = normalize_svg_fill(bed_path, fill.rule());
+                    }
+                    bed_path = clip_to_region(&bed_path, path.fill().is_some(), clip);
+                }
                 cleanup_vecpath_for_planner(&mut bed_path, VECTOR_PATH_FLATTEN_TOLERANCE_MM);
                 if flatten_vecpath(&bed_path, VECTOR_PATH_FLATTEN_TOLERANCE_MM).is_empty() {
                     continue;
@@ -805,11 +987,196 @@ fn collect_paths_by_paint(
                 entry.max_y = entry.max_y.max(bbox.max.y);
             }
             usvg::Node::Group(g) => {
-                collect_paths_by_paint(g, scale, offset_x, offset_y, groups);
+                let own_clip = g
+                    .clip_path()
+                    .map(|clip_path| clip_region(g, clip_path, scale, offset_x, offset_y));
+                let combined = match (clip, own_clip) {
+                    (Some(outer), Some(inner)) => Some(path_intersection_with_tolerance(
+                        outer,
+                        &inner,
+                        VECTOR_PATH_FLATTEN_TOLERANCE_MM,
+                    )),
+                    (outer, inner) => inner.or_else(|| outer.cloned()),
+                };
+                collect_paths_by_paint(g, scale, offset_x, offset_y, combined.as_ref(), groups);
             }
-            _ => {} // Text and images are imported by their dedicated passes.
+            // Text that was not extracted as editable is drawn as outlines.
+            usvg::Node::Text(text) => {
+                collect_paths_by_paint(text.flattened(), scale, offset_x, offset_y, clip, groups);
+            }
+            usvg::Node::Image(_) => {} // Imported by their dedicated pass.
         }
     }
+}
+
+/// The region a `clip-path` keeps, in bed space. Clip contents are positioned
+/// by the clipped group's transform, then the clip path's own transform.
+fn clip_region(
+    group: &usvg::Group,
+    clip_path: &usvg::ClipPath,
+    scale: f64,
+    offset_x: f64,
+    offset_y: f64,
+) -> VecPath {
+    fn collect(
+        clip_group: &usvg::Group,
+        base: &usvg::Transform,
+        scale: f64,
+        offset_x: f64,
+        offset_y: f64,
+        region: &mut Vec<VecPath>,
+    ) {
+        for node in clip_group.children() {
+            match node {
+                usvg::Node::Path(path) if path.is_visible() => {
+                    let t = base.pre_concat(path.abs_transform());
+                    let bed_path = transform_path_to_bed_space(path, &t, scale, offset_x, offset_y);
+                    region.push(normalize_svg_fill(
+                        bed_path,
+                        path.fill().map(|fill| fill.rule()).unwrap_or_default(),
+                    ));
+                }
+                usvg::Node::Group(child) => collect(child, base, scale, offset_x, offset_y, region),
+                usvg::Node::Text(text) => {
+                    collect(text.flattened(), base, scale, offset_x, offset_y, region)
+                }
+                _ => {}
+            }
+        }
+    }
+    let base = group.abs_transform().pre_concat(clip_path.transform());
+    let mut parts = Vec::new();
+    collect(
+        clip_path.root(),
+        &base,
+        scale,
+        offset_x,
+        offset_y,
+        &mut parts,
+    );
+    let mut region = weld_shapes_with_tolerance(&parts, VECTOR_PATH_FLATTEN_TOLERANCE_MM);
+    if let Some(inner) = clip_path.clip_path() {
+        region = path_intersection_with_tolerance(
+            &region,
+            &clip_region(group, inner, scale, offset_x, offset_y),
+            VECTOR_PATH_FLATTEN_TOLERANCE_MM,
+        );
+    }
+    region
+}
+
+fn normalize_svg_fill(mut path: VecPath, rule: usvg::FillRule) -> VecPath {
+    // SVG fills implicitly close open contours.
+    for subpath in &mut path.subpaths {
+        if !subpath.closed {
+            subpath.commands.push(PathCommand::Close);
+            subpath.closed = true;
+        }
+    }
+    normalize_subject_with_tolerance(
+        &[path],
+        VECTOR_PATH_FLATTEN_TOLERANCE_MM,
+        VECTOR_PATH_FLATTEN_TOLERANCE_MM,
+        rule == usvg::FillRule::NonZero,
+    )
+}
+
+/// Keep the part of `path` inside `region`. Filled shapes become the
+/// overlapping area; stroke-only lines are cut where they leave the region,
+/// as a viewer draws them.
+fn clip_to_region(path: &VecPath, filled: bool, region: &VecPath) -> VecPath {
+    if filled {
+        return path_intersection_with_tolerance(path, region, VECTOR_PATH_FLATTEN_TOLERANCE_MM);
+    }
+    let rings: Vec<Vec<Point2D>> = flatten_vecpath(region, VECTOR_PATH_FLATTEN_TOLERANCE_MM)
+        .into_iter()
+        .filter(|ring| ring.points.len() >= 3)
+        .map(|ring| ring.points)
+        .collect();
+    let inside = |p: Point2D| {
+        let mut crossings = 0;
+        for ring in &rings {
+            for (i, a) in ring.iter().enumerate() {
+                let b = ring[(i + 1) % ring.len()];
+                if (a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y)
+                {
+                    crossings += 1;
+                }
+            }
+        }
+        crossings % 2 == 1
+    };
+    let mut subpaths = Vec::new();
+    for line in flatten_vecpath(path, VECTOR_PATH_FLATTEN_TOLERANCE_MM) {
+        let mut points = line.points;
+        if line.closed && points.len() > 1 {
+            points.push(points[0]);
+        }
+        let mut current: Vec<Point2D> = Vec::new();
+        let mut flush = |current: &mut Vec<Point2D>| {
+            if current.len() >= 2 {
+                let mut subpath = SubPath::new();
+                subpath.commands.push(PathCommand::MoveTo {
+                    x: current[0].x,
+                    y: current[0].y,
+                });
+                for p in &current[1..] {
+                    subpath
+                        .commands
+                        .push(PathCommand::LineTo { x: p.x, y: p.y });
+                }
+                subpaths.push(subpath);
+            }
+            current.clear();
+        };
+        for pair in points.windows(2) {
+            let (start, end) = (pair[0], pair[1]);
+            // Split the segment wherever it crosses the region's boundary.
+            let mut cuts = vec![0.0, 1.0];
+            for ring in &rings {
+                for (i, a) in ring.iter().enumerate() {
+                    let b = ring[(i + 1) % ring.len()];
+                    if let Some(t) = segment_crossing(start, end, *a, b) {
+                        cuts.push(t);
+                    }
+                }
+            }
+            cuts.sort_by(f64::total_cmp);
+            cuts.dedup_by(|a, b| (*a - *b).abs() < 1e-12);
+            let at = |t: f64| {
+                Point2D::new(
+                    start.x + (end.x - start.x) * t,
+                    start.y + (end.y - start.y) * t,
+                )
+            };
+            for span in cuts.windows(2) {
+                if inside(at((span[0] + span[1]) / 2.0)) {
+                    if current.is_empty() {
+                        current.push(at(span[0]));
+                    }
+                    current.push(at(span[1]));
+                } else {
+                    flush(&mut current);
+                }
+            }
+        }
+        flush(&mut current);
+    }
+    VecPath { subpaths }
+}
+
+/// Parameter along `p0 -> p1` where it crosses `q0 -> q1`, if it does.
+fn segment_crossing(p0: Point2D, p1: Point2D, q0: Point2D, q1: Point2D) -> Option<f64> {
+    let r = (p1.x - p0.x, p1.y - p0.y);
+    let s = (q1.x - q0.x, q1.y - q0.y);
+    let denominator = r.0 * s.1 - r.1 * s.0;
+    if denominator.abs() < 1e-15 {
+        return None;
+    }
+    let qp = (q0.x - p0.x, q0.y - p0.y);
+    let t = (qp.0 * s.1 - qp.1 * s.0) / denominator;
+    let u = (qp.0 * r.1 - qp.1 * r.0) / denominator;
+    ((0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u)).then_some(t)
 }
 
 fn import_embedded_svg_images(
@@ -896,11 +1263,12 @@ fn import_embedded_svg_images(
 /// coordinates transformed from path-local space → SVG document space → bed space.
 fn transform_path_to_bed_space(
     path: &usvg::Path,
+    t: &usvg::Transform,
     scale: f64,
     offset_x: f64,
     offset_y: f64,
 ) -> VecPath {
-    let t = path.abs_transform();
+    let t = *t;
     let mut subpaths = Vec::new();
     let mut current = SubPath::new();
 
@@ -1847,6 +2215,184 @@ mod tests {
             }
             _ => unreachable!(),
         }
+    }
+
+    fn imported_vector_widths(project: &Project, ids: &[ObjectId]) -> Vec<f64> {
+        ids.iter()
+            .filter_map(|id| project.find_object(*id))
+            .filter(|obj| matches!(obj.data, ObjectData::VectorPath { .. }))
+            .map(|obj| obj.bounds.width())
+            .collect()
+    }
+
+    #[test]
+    fn import_svg_skips_hidden_vectors() {
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+            <rect x="10" y="10" width="20" height="20" visibility="hidden"/>
+            <g style="visibility:hidden"><rect x="50" y="50" width="20" height="20"/></g>
+        </svg>"#;
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+        let ids = import_svg(svg, &mut project, layer_id).unwrap();
+        assert!(imported_vector_widths(&project, &ids).is_empty());
+    }
+
+    #[test]
+    fn import_svg_applies_clip_paths() {
+        let px = 25.4 / 96.0;
+        // A filled 20 px square and a stroked 20 px line, both clipped to 10 px.
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+            <defs><clipPath id="c"><rect x="0" y="0" width="10" height="100"/></clipPath></defs>
+            <rect clip-path="url(#c)" x="0" y="0" width="20" height="20" fill="black"/>
+            <g clip-path="url(#c)"><path d="M0 50 L20 50" fill="none" stroke="red"/></g>
+        </svg>"#;
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+        let ids = import_svg(svg, &mut project, layer_id).unwrap();
+        let widths = imported_vector_widths(&project, &ids);
+        assert_eq!(widths.len(), 2, "{widths:?}");
+        for width in widths {
+            assert!((width - 10.0 * px).abs() < 0.01, "{width}");
+        }
+    }
+
+    #[test]
+    fn svg_clipping_respects_subject_and_clip_winding_rules() {
+        for clip_rule in ["nonzero", "evenodd"] {
+            for subject in ["stroke", "nonzero", "evenodd"] {
+                let data = "M0 0 H20 V20 H0 Z M10 0 H30 V20 H10 Z";
+                let subject = if subject == "stroke" {
+                    r#"<path d="M0 10 H30" fill="none" stroke="red"/>"#.to_string()
+                } else {
+                    format!(r#"<path d="{data}" fill-rule="{subject}"/>"#)
+                };
+                let svg = format!(
+                    r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+                    <defs><clipPath id="c"><path clip-rule="{clip_rule}" d="{data}"/></clipPath></defs>
+                    <g clip-path="url(#c)">{subject}</g></svg>"#
+                );
+                let mut project = test_project();
+                let layer_id = first_layer_id(&mut project);
+                let ids = import_svg(svg.as_bytes(), &mut project, layer_id).unwrap();
+                let lines: Vec<_> = ids
+                    .iter()
+                    .filter_map(|id| project.find_object(*id))
+                    .filter_map(|object| match &object.data {
+                        ObjectData::VectorPath { path_data, .. } => {
+                            Some(VecPath::parse_svg_d(path_data))
+                        }
+                        _ => None,
+                    })
+                    .flat_map(|path| flatten_vecpath(&path, 0.01))
+                    .collect();
+                let offset_x = (project.workspace.bed_width_mm - 100.0 * 25.4 / 96.0) / 2.0;
+                let overlap_x = offset_x + 15.0 * 25.4 / 96.0;
+                let retains_overlap = if subject.contains("stroke=") {
+                    lines.iter().any(|line| {
+                        line.points.windows(2).any(|p| {
+                            p[0].x.min(p[1].x) < overlap_x && p[0].x.max(p[1].x) > overlap_x
+                        })
+                    })
+                } else {
+                    // The midpoint of each retained region's bounds distinguishes
+                    // a full 30 px union from the two disjoint 10 px strips.
+                    lines.iter().any(|line| {
+                        let min = line
+                            .points
+                            .iter()
+                            .map(|p| p.x)
+                            .fold(f64::INFINITY, f64::min);
+                        let max = line
+                            .points
+                            .iter()
+                            .map(|p| p.x)
+                            .fold(f64::NEG_INFINITY, f64::max);
+                        min < overlap_x && max > overlap_x
+                    })
+                };
+                let expected = clip_rule == "nonzero" && !subject.contains("fill-rule=\"evenodd\"");
+                assert_eq!(
+                    retains_overlap, expected,
+                    "clip {clip_rule}, subject {subject}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn svg_outline_text_uses_bundled_fallback_without_system_fonts() {
+        let mut options = usvg::Options::default();
+        assert_eq!(options.fontdb.faces().count(), 0);
+        ensure_svg_fallback_fonts(options.fontdb_mut());
+        for family in ["sans-serif", "serif", "Missing Font"] {
+            let svg = format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" font-family="{family}" transform="rotate(30)">Turned</text></svg>"#
+            );
+            let tree = usvg::Tree::from_data(svg.as_bytes(), &options).unwrap();
+            let mut groups = Vec::new();
+            collect_paths_by_paint(tree.root(), 1.0, 0.0, 0.0, None, &mut groups);
+            assert!(
+                !groups.is_empty(),
+                "{family} must produce outlines without system fonts"
+            );
+        }
+    }
+
+    #[test]
+    fn import_svg_text_follows_viewbox_scale_and_parent_transforms() {
+        // 100 mm wide document with a 100 unit viewBox: one unit is 1 mm.
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm" viewBox="0 0 100 100">
+            <g transform="translate(20 0)">
+                <text x="10" y="50" font-family="sans-serif" font-size="10">Label</text>
+            </g>
+            <text x="10" y="80" font-family="sans-serif" font-size="10" transform="rotate(30)">Turned</text>
+        </svg>"#;
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+        let ids = import_svg(svg, &mut project, layer_id).unwrap();
+        let texts: Vec<_> = ids
+            .iter()
+            .filter_map(|id| project.find_object(*id))
+            .filter_map(|obj| match &obj.data {
+                ObjectData::Text {
+                    content,
+                    font_size_mm,
+                    ..
+                } => Some((content.clone(), *font_size_mm, obj.bounds.min.x)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            texts.len(),
+            1,
+            "rotated text imports as outlines: {texts:?}"
+        );
+        assert!(
+            !imported_vector_widths(&project, &ids).is_empty(),
+            "rotated text outlines are imported, not dropped"
+        );
+        let (content, size, x) = &texts[0];
+        assert_eq!(content, "Label");
+        assert!((size - 10.0).abs() < 1e-6, "font size {size}");
+        let offset_x = (project.workspace.bed_width_mm - 100.0) / 2.0;
+        assert!((x - (offset_x + 30.0)).abs() < 1e-6, "x {x}");
+    }
+
+    #[test]
+    fn import_svg_does_not_read_local_files_through_image_links() {
+        let dir = tempfile::tempdir().unwrap();
+        let local = dir.path().join("private.png");
+        std::fs::write(&local, create_test_png(2, 2)).unwrap();
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+                <image href="{}" x="0" y="0" width="10" height="10"/>
+            </svg>"#,
+            local.display()
+        );
+        let mut project = test_project();
+        let layer_id = first_layer_id(&mut project);
+        import_svg(svg.as_bytes(), &mut project, layer_id).unwrap();
+        assert!(project.assets.is_empty());
     }
 
     #[test]

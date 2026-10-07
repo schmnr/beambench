@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useProjectStore } from '../../stores/projectStore';
+import { getDocumentGeneration, useProjectStore } from '../../stores/projectStore';
 import { TextInput } from '../shared/TextInput';
 import { NumberInput } from '../shared/NumberInput';
 import { TextPropertiesPanel } from './TextPropertiesPanel';
@@ -89,7 +89,7 @@ export function PropertiesPanel() {
       && !selectionContext.imageMaskSelectionHasInvalidMasks;
 
     return (
-      <div className={cardClass} data-testid="properties-card">
+      <div key={`${getDocumentGeneration()}:${selectedObjectIds.join(',')}`} className={cardClass} data-testid="properties-card">
       <div className={flowClass}>
         <TransformSection />
         <section className="flex flex-col gap-2" data-properties-primary>
@@ -303,7 +303,7 @@ export function PropertiesPanel() {
   const isVectorObject = isEffectiveVector(selectedObject, project?.objects ?? []);
 
   return (
-    <div className={cardClass} data-testid="properties-card">
+    <div key={`${getDocumentGeneration()}:${selectedObjectIds.join(',')}`} className={cardClass} data-testid="properties-card">
     <div className={flowClass}>
       <TransformSection />
       <section className="flex flex-col gap-2" data-properties-primary>
@@ -346,7 +346,7 @@ export function PropertiesPanel() {
         })}
       </div>
 
-      <NumberInput
+      <NumberInput commit="blur"
         label={t('panels.properties.cut_priority')}
         value={selectedObject.priority ?? 0}
         onChange={(v) => updateObject(selectedObject.id, { priority: v })}
@@ -386,7 +386,7 @@ export function PropertiesPanel() {
         <section className="flex flex-col gap-1.5 border-t border-bb-border pt-1">
           <div className={INSPECTOR_SECTION_HEADER_CLASS}>{t('panels.properties.shape')}</div>
           {isRectangleShape && selectedObject.data.type === 'shape' && (
-            <NumberInput
+            <NumberInput commit="blur"
               label={t('panels.properties.corner_radius')}
               value={selectedObject.data.corner_radius}
               onChange={(value) => {
@@ -398,7 +398,7 @@ export function PropertiesPanel() {
             />
           )}
           {polygonData && (
-            <NumberInput
+            <NumberInput commit="blur"
               label={t('panels.properties.sides')}
               value={polygonData.sides}
               onChange={(sides) => updateObjectData(selectedObject.id, { ...polygonData, sides: Math.max(3, Math.round(sides)) })}
@@ -408,7 +408,7 @@ export function PropertiesPanel() {
           )}
           {starData && (
             <div className="flex flex-col gap-1.5">
-          <NumberInput
+          <NumberInput commit="blur"
             label={t('panels.properties.points')}
             value={starData.points}
             onChange={(points) => updateObjectData(selectedObject.id, {
@@ -419,7 +419,7 @@ export function PropertiesPanel() {
             step={1}
             min={3}
           />
-          <NumberInput
+          <NumberInput commit="blur"
             label={t('panels.properties.bulge')}
             value={starData.bulge}
             onChange={(bulge) => updateObjectData(selectedObject.id, { ...starData, bulge })}
@@ -427,7 +427,7 @@ export function PropertiesPanel() {
             min={0}
             max={1}
           />
-          <NumberInput
+          <NumberInput commit="blur"
             label={t('panels.properties.ratio')}
             value={starData.ratio}
             onChange={(ratio) => updateObjectData(selectedObject.id, { ...starData, ratio })}
@@ -449,7 +449,7 @@ export function PropertiesPanel() {
             />
           </label>
           {starData.dual_radius && (
-            <NumberInput
+            <NumberInput commit="blur"
               label={t('panels.properties.ratio_2')}
               value={starData.ratio2 ?? 0.7}
               onChange={(ratio2) => updateObjectData(selectedObject.id, { ...starData, ratio2 })}

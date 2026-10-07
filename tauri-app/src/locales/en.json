@@ -500,8 +500,8 @@
       "outcome_fail": "Fail",
       "warnings_block_start": "Resolve the warnings above before starting the job.",
       "advisory_choice": "This job can run, but correcting the advisory may improve engraving quality.",
-      "apply_overscan": "Use {value} mm overscan and recheck",
-      "reduce_speed": "Use {value} mm/min and recheck",
+      "apply_overscan": "Use {value} {unit} overscan and recheck",
+      "reduce_speed": "Use {value} {unit} and recheck",
       "continue_anyway": "Continue anyway",
       "categories": {
         "connection": "Connection",
@@ -511,7 +511,9 @@
         "settings": "Settings",
         "positioning": "Positioning",
         "planner": "Planner",
-        "machine_workspace": "Machine workspace"
+        "machine_workspace": "Machine workspace",
+        "controller": "Controller",
+        "rotary": "Rotary"
       },
       "checks": {
         "session_ready": "Session is ready",
@@ -522,7 +524,14 @@
         "raster_motion_fits": "Raster motion fits within the machine bed",
         "laser_mode": "Laser mode is enabled ($32=1)",
         "homing_enabled": "Homing is enabled",
-        "relative_framed": "Relative placement was framed at the current position"
+        "relative_framed": "Relative placement was framed at the current position",
+        "machine_workspace_fits": "Planned motion fits the machine profile",
+        "rotary_safe": "Rotary setup is safe to run",
+        "controller_supported": "Controller can start jobs",
+        "image_detail_fits": "Image detail fits the controller",
+        "plan_generation": "Job preparation",
+        "ruida_compiles": "Job converts for the Ruida controller",
+        "lihuiyu_compiles": "Job converts for the Lihuiyu M2 controller"
       },
       "messages": {
         "connected_ready": "Connected and ready",
@@ -535,8 +544,11 @@
         "frame_required": "This controller is not homed, so Beam Bench cannot verify the physical bed edges. Frame the job after positioning the laser, then recheck before starting.",
         "segment_count_one": "1 segment",
         "segment_count_other": "{count} segments",
-        "plan_bounds_exceed": "The planned bounds ({minX}, {minY} to {maxX}, {maxY}) exceed the {width} × {height} mm machine bed.",
-        "raster_motion_exceeds": "Raster motion spans {lo} to {hi} mm on the 0 to {limit} mm {axis} axis. Overscan and scanning offset add {margin} mm beyond the burn area. {startFrom, select, current_position {Reduce overscan or move the laser farther from the bed edge.} user_origin {Reduce overscan or move or reset User Origin farther from the bed edge.} other {Reduce overscan or move the artwork farther from the bed edge.}}"
+        "plan_bounds_exceed": "The planned bounds ({minX}, {minY} to {maxX}, {maxY}) exceed the {width} × {height} {unit} machine bed.",
+        "raster_motion_exceeds": "Raster motion spans {lo} to {hi} {unit} on the 0 to {limit} {unit} {axis} axis. Overscan and scanning offset add {margin} {unit} beyond the burn area. {startFrom, select, current_position {Reduce overscan or move the laser farther from the bed edge.} user_origin {Reduce overscan or move or reset User Origin farther from the bed edge.} other {Reduce overscan or move the artwork farther from the bed edge.}}",
+        "session_state": "Connection: {state}",
+        "machine_state": "Machine state: {state}",
+        "plan_bounds_fit": "The planned bounds ({minX}, {minY} to {maxX}, {maxY}) fit the {width} × {height} {unit} machine bed."
       },
       "advisories": {
         "raster_overscan": {
@@ -562,7 +574,12 @@
       "downloading": "Downloading...",
       "installing": "Installing...",
       "blocked_not_in_applications": "Updates need Beam Bench to run from the Applications folder. It looks like it is running from the installer disk image or another temporary location. In Finder, drag Beam Bench into Applications, open it from there, and try the update again.",
-      "blocked_other_disk": "Beam Bench is installed on a different disk than this Mac's temporary folder, so the updater cannot swap it in place. Move Beam Bench to the Applications folder on the main disk, or download the new version from beambench.com."
+      "blocked_other_disk": "Beam Bench is installed on a different disk than this Mac's temporary folder, so the updater cannot swap it in place. Move Beam Bench to the Applications folder on the main disk, or download the new version from beambench.com.",
+      "blocked_job_running": "Finish or stop the current job before installing.",
+      "blocked_machine_operation": "Wait for the current machine operation to finish before installing.",
+      "blocked_machine_busy": "Finish or stop the current machine operation before installing.",
+      "blocked_machine_moving": "Wait for the machine to return to idle before installing.",
+      "cancelled_unsaved": "Update cancelled. Your project has not been discarded."
     },
     "camera_calibration": {
       "title": "Camera Mapping",
@@ -2103,6 +2120,7 @@
           "failed": "FAILED",
           "cancelled": "CANCELLED"
         },
+        "last_failure": "The last job stopped: {message}",
         "lines": "{acknowledged} / {total} lines",
         "elapsed": "Elapsed: {time}",
         "remaining": "Remaining: ~{time}",
@@ -2559,6 +2577,7 @@
     "preferences_reset": "Preferences reset to defaults.",
     "layout_restore_failed": "Failed to restore saved panel layout. Using the default layout for this session.",
     "recovery_check_failed": "Failed to check for recovery files during startup.",
+    "autosave_failing": "Automatic recovery copies are failing. Save your project to keep your work safe.",
     "backend_subscribe_failed": "Failed to subscribe to backend events. Some live updates may be unavailable this session.",
     "boolean_needs_two": "Select exactly 2 closed vector objects for Boolean Assistant",
     "project_restored": "Project restored from recovery",
@@ -2587,7 +2606,50 @@
       "postponed": "Update reminder postponed for 24 hours.",
       "skipped": "Beam Bench {version} skipped."
     },
-    "import_oversized": "Imported at original size: the design measures {width} x {height} {unit}, larger than the {bedWidth} x {bedHeight} {unit} workspace."
+    "import_oversized": "Imported at original size: the design measures {width} x {height} {unit}, larger than the {bedWidth} x {bedHeight} {unit} workspace.",
+    "machine": {
+      "using_existing_connection": "Using the existing machine connection",
+      "preview_disconnected": "Preview machine disconnected",
+      "disconnected": "Disconnected",
+      "preview_connected": "Preview machine connected",
+      "homing_started": "Homing started",
+      "discovery_started": "Machine discovery started",
+      "discovery_cancelled": "Machine discovery cancelled",
+      "connected_discovered": "Connected to the discovered device",
+      "profile_from_discovery": "Machine profile created from the discovered device",
+      "estop_sent": "Emergency stop sent",
+      "estop_resent_disconnected": "Emergency stop was sent again after the controller connection was reopened. Beam Bench then disconnected. Reconnect before continuing.",
+      "user_origin_cleared": "User origin cleared",
+      "job_tick_failed": "The job stopped because sending it to the controller failed.",
+      "lihuiyu_incomplete": "The Lihuiyu USB connection did not complete.",
+      "connected_to": "Connected to {name}",
+      "user_origin_set": "User origin set to ({x}, {y})"
+    },
+    "camera": {
+      "image_captured": "New camera image captured",
+      "alignment_saved": "Camera alignment saved",
+      "mapping_solved": "Camera mapping solved",
+      "mapping_saved": "Camera mapping saved",
+      "mapping_reset": "Camera mapping reset",
+      "alignment_solved": "Camera alignment solved",
+      "alignment_reset": "Camera alignment reset"
+    },
+    "variable_text": {
+      "serial_outside_mode": "The template uses {placeholder} placeholders, but the text mode is not Serial Number.",
+      "date_outside_mode": "The template uses {placeholder} placeholders, but the text mode is not Date/Time.",
+      "csv_outside_mode": "The template uses {placeholder} placeholders, but the text mode is not Merge CSV.",
+      "cut_outside_mode": "The template uses {placeholder} placeholders, but the text mode is not Cut Setting.",
+      "no_placeholders": "The selected text mode has no matching placeholders in the template.",
+      "csv_load_failed": "Could not load the CSV file: {error}",
+      "resolve_failed": "Could not resolve the text: {error}",
+      "merge_fields_failed": "Could not read the merge fields: {error}"
+    },
+    "trim": {
+      "multiple_pieces": "Trim made several pieces. Select them and use Close & Join to combine them.",
+      "open_path": "The trimmed path is open, so it cannot be filled. Use Close & Join if you need a closed shape."
+    },
+    "pick_guide_path": "Click a vector or shape object to use as the guide path",
+    "panel_layout_save_failed": "Panel layout changes could not be saved. They may be lost when you restart."
   },
   "status": {
     "preview_in_progress": "Preview generation in progress",
@@ -2650,6 +2712,15 @@
   "errors": {
     "job_preparation_stopped": "Emergency stop was pressed while the job was being prepared. Nothing was sent.",
     "sleep_protection_failed": "Could not prevent computer sleep during this job. Keep the computer awake until the job ends.",
+    "project_file_missing": "This project file was moved or deleted, so it was removed from {recent}. Use {open} to find it.",
+    "settings_file_recovered": "Some saved settings could not be read and were reset. A copy of the original file was kept in the settings folder.",
+    "layers_migrated_on_open": "This project had images and vector shapes on the same layer. They were moved to separate layers with the same settings.",
+    "project_too_new": "This project was made with a newer version of Beam Bench ({version}). Update Beam Bench to open it.",
+    "project_from_newer_app": "This project was last saved with a newer version of Beam Bench ({version}). Saving it with this version may drop settings this version does not support.",
+    "edit_invalid_geometry": "This change would move or size an object outside the range Beam Bench can store, so it was not applied.",
+    "edit_internal_error": "This edit hit an internal error and was undone. Your project is unchanged. Please report this.",
+    "project_invalid_value": "The project has an invalid setting value, so it was not saved.",
+    "project_invalid_value_object": "\"{name}\" has an invalid size or position, so the project was not saved. Undo the last change to it, or delete it, then save again.",
     "user_origin_not_set": "User Origin is selected but has not been set. Move the laser to the intended origin and choose Set here before framing or starting.",
     "current_position_unavailable": "Current Position needs a connected machine with a reported position.",
     "dxf_no_usable_geometry": "The DXF file contains no usable 2D vector geometry.",
@@ -2668,7 +2739,23 @@
     "artwork_outside_workspace": "{hasObject, select, yes {The planned position of “{object}” extends {amount} {unit} beyond the {edge} edge of the workspace. It has been selected. Adjust the job placement or move the object inside the workspace before previewing or running the job.} other {The planned job position extends {amount} {unit} beyond the {edge} edge of the workspace. Adjust the job placement before previewing or running the job.}}",
     "relative_job_outside_workspace": "{mode, select, current_position {Current Position places the {anchor} Job Origin at the laser head. This placement extends {amount} {unit} beyond the {edge} edge. Move the laser at least {amount} {unit} away from the {edge} edge, choose another Job Origin, or use Absolute Coordinates.} user_origin {User Origin places the {anchor} Job Origin at the saved user origin. This placement extends {amount} {unit} beyond the {edge} edge. Move or reset User Origin at least {amount} {unit} away from the {edge} edge, choose another Job Origin, or use Absolute Coordinates.} other {The planned job position extends {amount} {unit} beyond the {edge} edge. Adjust the job placement before previewing or running the job.}}",
     "ui_error_title": "Beam Bench hit a UI error",
-    "reload": "Reload"
+    "reload": "Reload",
+    "camera": {
+      "stream_failed": "Could not start the camera stream.",
+      "frame_timeout": "Timed out waiting for a camera image. The camera may still be warming up or in use by another app.",
+      "preview_timeout": "Timed out starting the camera preview.",
+      "warmup_timeout": "Timed out waiting for the camera to warm up.",
+      "encode_failed": "Could not save the camera image.",
+      "unavailable": "Camera capture is not available in this window.",
+      "empty_frame": "The camera returned an empty image.",
+      "canvas_failed": "Could not prepare the camera image."
+    },
+    "serial_open_no_response": "The port opened, but the laser did not answer. Check that the laser is switched on, try another USB cable or port, and make sure the right port is selected. Some boards need the CH340 USB driver.",
+    "serial_protocol_unrecognized": "The laser answered, but Beam Bench did not recognize its controller. Check the baud rate in the machine profile (most GRBL lasers use 115200) and close any other laser software using this port.",
+    "network_grbl_no_status": "The controller at this address did not answer as a GRBL laser. Check the IP address and port, close other apps connected to it (many Wi-Fi modules allow only one connection at a time), and try again.",
+    "no_active_machine_profile": "No machine is set up yet. Add or select a machine profile first.",
+    "emergency_stop_unconfirmed": "{detail}",
+    "controller_connection_lost": "{detail}"
   },
   "import": {
     "drop_to_import": "Drop files to import"

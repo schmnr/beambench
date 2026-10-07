@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import { create } from 'zustand';
 import type {
   MergeFieldInfo,
@@ -150,7 +151,7 @@ export const useVariableTextStore = create<VariableTextState>((set, get) => ({
         previewRow: 0,
       }));
     } catch (e) {
-      notifyError(`Failed to load CSV: ${e}`);
+      notifyError(i18n.t('notifications.variable_text.csv_load_failed', { error: String(e) }));
     }
   },
 
@@ -191,7 +192,7 @@ export const useVariableTextStore = create<VariableTextState>((set, get) => ({
       const resolved = await variableTextService.resolveVariableText(objectId, config, row);
       set({ previewText: resolved });
     } catch (e) {
-      notifyError(`Failed to resolve text: ${e}`);
+      notifyError(i18n.t('notifications.variable_text.resolve_failed', { error: String(e) }));
     }
   },
 
@@ -205,7 +206,7 @@ export const useVariableTextStore = create<VariableTextState>((set, get) => ({
       const fields = await variableTextService.parseMergeFields(text);
       set({ mergeFields: fields });
     } catch (e) {
-      notifyError(`Failed to parse merge fields: ${e}`);
+      notifyError(i18n.t('notifications.variable_text.merge_fields_failed', { error: String(e) }));
     }
   },
 
