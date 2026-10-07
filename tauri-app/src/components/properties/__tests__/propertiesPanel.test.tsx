@@ -906,3 +906,32 @@ describe('PropertiesPanel', () => {
     expect(screen.queryByRole('button', { name: 'Break Apart' })).toBeNull();
   });
 });
+
+it('a selection change with equal values discards the previous object number draft', () => {
+  const project = makeProject({ priority: 0 });
+  project.objects.push({ ...project.objects[0], id: 'obj2', name: 'Rect2' });
+  const updateObject = vi.fn().mockResolvedValue(undefined);
+  useProjectStore.setState({ project, selectedObjectIds: ['obj1'], selectedLayerId: 'l1', updateObject });
+  render(<PropertiesPanel />);
+  const input = screen.getByLabelText('Cut Priority');
+  fireEvent.change(input, { target: { value: '7' } });
+  act(() => useProjectStore.getState().selectObjects(['obj2']));
+  fireEvent.blur(input);
+  expect(updateObject).not.toHaveBeenCalled();
+});
+
+it('document replacement discards a number draft even when object IDs and values match', () => {
+  const project = makeProject({ priority: 0 });
+  const updateObject = vi.fn().mockResolvedValue(undefined);
+  useProjectStore.setState({ project, selectedObjectIds: ['obj1'], selectedLayerId: 'l1', updateObject });
+  render(<PropertiesPanel />);
+  fireEvent.change(screen.getByLabelText('Cut Priority'), { target: { value: '7' } });
+  act(() => {
+    useProjectStore.getState().setProject(makeProject({ priority: 0 }));
+    useProjectStore.getState().selectObjects(['obj1']);
+  });
+  const nextInput = screen.getByLabelText('Cut Priority');
+  expect(nextInput).toHaveProperty('value', '0');
+  fireEvent.blur(nextInput);
+  expect(updateObject).not.toHaveBeenCalled();
+});

@@ -49,6 +49,13 @@ impl ApiRuntime {
             .api_enabled
             .then(|| ApiConfig::from_settings(settings));
 
+        // Reject invalid authentication settings before disrupting a working API.
+        if let Some(config) = desired.as_ref() {
+            ApiServer::new(config.clone(), ctx.clone())
+                .validate_config()
+                .map_err(|e| format!("Invalid API configuration: {e}"))?;
+        }
+
         let mut guard = self
             .server
             .lock()
@@ -129,5 +136,63 @@ mod tests {
     fn api_runtime_starts_empty() {
         let runtime = ApiRuntime::default();
         assert!(runtime.server.lock().unwrap().is_none());
+    }
+    #[test]
+    fn failed_network_enable_preserves_working_loopback_api() {
+        const TEST: &str = "state::tests::failed_network_enable_preserves_working_loopback_api";
+        if std::env::var("BEAMBENCH_ROLLBACK_TEST_CHILD").as_deref() != Ok("1") {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", TEST, "--nocapture"])
+                .env("BEAMBENCH_ROLLBACK_TEST_CHILD", "1")
+                .env("BEAMBENCH_API_TOKEN", "")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        let reserved = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = reserved.local_addr().unwrap().port();
+        drop(reserved);
+        let settings = AppSettings {
+            api_enabled: true,
+            api_port: port,
+            ..Default::default()
+        };
+        let ctx = Arc::new(ServiceContext::with_settings(settings.clone()));
+        let runtime = ApiRuntime::default();
+        runtime.sync_from_settings(ctx.clone(), &settings).unwrap();
+        let assert_serving = || {
+            use std::io::{Read, Write};
+            let mut socket = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+            socket
+                .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                .unwrap();
+            write!(socket, "GET /api/v1/app/status HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n").unwrap();
+            let mut response = String::new();
+            socket.read_to_string(&mut response).unwrap();
+            assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+        };
+        assert_serving();
+        let remote = AppSettings {
+            api_localhost_only: false,
+            ..settings.clone()
+        };
+        assert!(runtime.sync_from_settings(ctx.clone(), &remote).is_err());
+        assert!(runtime.server.lock().unwrap().is_some());
+        assert_serving();
+        runtime
+            .sync_from_settings(
+                ctx,
+                &AppSettings {
+                    api_enabled: false,
+                    ..settings
+                },
+            )
+            .unwrap();
     }
 }

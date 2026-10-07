@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useProjectStore } from '../../stores/projectStore';
+import { getDocumentGeneration, useProjectStore } from '../../stores/projectStore';
 import { TextInput } from '../shared/TextInput';
 import { NumberInput } from '../shared/NumberInput';
 import { TextPropertiesPanel } from './TextPropertiesPanel';
@@ -89,7 +89,7 @@ export function PropertiesPanel() {
       && !selectionContext.imageMaskSelectionHasInvalidMasks;
 
     return (
-      <div className={cardClass} data-testid="properties-card">
+      <div key={`${getDocumentGeneration()}:${selectedObjectIds.join(',')}`} className={cardClass} data-testid="properties-card">
       <div className={flowClass}>
         <TransformSection />
         <section className="flex flex-col gap-2" data-properties-primary>
@@ -303,7 +303,7 @@ export function PropertiesPanel() {
   const isVectorObject = isEffectiveVector(selectedObject, project?.objects ?? []);
 
   return (
-    <div className={cardClass} data-testid="properties-card">
+    <div key={`${getDocumentGeneration()}:${selectedObjectIds.join(',')}`} className={cardClass} data-testid="properties-card">
     <div className={flowClass}>
       <TransformSection />
       <section className="flex flex-col gap-2" data-properties-primary>

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useProjectStore } from '../../stores/projectStore';
+import { getDocumentGeneration, useProjectStore } from '../../stores/projectStore';
 import { TextInput } from '../shared/TextInput';
 import { Toggle } from '../shared/Toggle';
 import { SubLayerStack } from './SubLayerStack';
@@ -20,7 +20,7 @@ export function LayerSettingsPanel() {
   const entryCount = selectedLayer.entries?.length ?? 1;
 
   return (
-    <div className="flex flex-col gap-3 px-2">
+    <div key={`${getDocumentGeneration()}:${selectedLayer.id}`} className="flex flex-col gap-3 px-2">
       <div className="flex flex-col gap-2 rounded border border-bb-border bg-bb-bg-alt/60 p-2">
         <TextInput
           key={selectedLayer.id}

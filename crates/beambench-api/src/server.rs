@@ -32,7 +32,8 @@ impl ApiServer {
         ))
     }
 
-    fn validate_config(&self) -> std::io::Result<()> {
+    /// Validate authentication before binding or replacing an active listener.
+    pub fn validate_config(&self) -> std::io::Result<()> {
         if !self.config.localhost_only && !valid_token(self.config.bearer_token.as_deref()) {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,

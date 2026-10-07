@@ -74,16 +74,11 @@ fn test_process_root() -> Option<&'static Path> {
     .map(|dir| dir.path())
 }
 
-fn isolated_directory(kind: &str, env: &str, real: Option<PathBuf>) -> Option<PathBuf> {
-    let root = test_process_root()?;
-    if let Some(path) = std::env::var_os(env).map(PathBuf::from) {
-        let resolved = fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
-        let real = real.map(|path| fs::canonicalize(&path).unwrap_or(path));
-        if !real.as_ref().is_some_and(|real| resolved.starts_with(real)) {
-            return Some(path);
-        }
-    }
-    Some(root.join(kind))
+// Application directory overrides can point at real user preferences. A test
+// harness must never trust inherited app paths; explicit unit-test guards above
+// the process fallback remain the way to choose a test-specific sandbox.
+fn isolated_directory(kind: &str) -> Option<PathBuf> {
+    test_process_root().map(|root| root.join(kind))
 }
 
 /// Return the config directory for Beam Bench.
@@ -93,11 +88,7 @@ pub fn config_dir() -> Option<PathBuf> {
     if let Some(path) = crate::test_support::persistence_config_dir_for_current_test() {
         return Some(path);
     }
-    if let Some(path) = isolated_directory(
-        "config",
-        CONFIG_DIR_ENV,
-        dirs::config_dir().map(|d| d.join("beam-bench")),
-    ) {
+    if let Some(path) = isolated_directory("config") {
         return Some(path);
     }
     if let Some(path) = std::env::var_os(CONFIG_DIR_ENV) {
@@ -435,11 +426,7 @@ pub fn data_dir() -> Option<PathBuf> {
     if let Some(path) = crate::test_support::persistence_data_dir_for_current_test() {
         return Some(path);
     }
-    if let Some(path) = isolated_directory(
-        "data",
-        DATA_DIR_ENV,
-        dirs::data_dir().map(|d| d.join("beam-bench")),
-    ) {
+    if let Some(path) = isolated_directory("data") {
         return Some(path);
     }
     if let Some(path) = std::env::var_os(DATA_DIR_ENV) {

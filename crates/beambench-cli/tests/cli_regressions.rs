@@ -38,6 +38,9 @@ impl Sandbox {
     fn run_with_token(&self, args: &[&str], token: &str) -> Output {
         let mut child = Command::new(env!("CARGO_BIN_EXE_beambench-cli"))
             .args(args)
+            // This is the shipped CLI, not a nextest test process. It must use
+            // the deliberately supplied application sandbox below.
+            .env_remove("NEXTEST_EXECUTION_MODE")
             .current_dir(self.0.path())
             .env("BEAMBENCH_CONFIG_DIR", self.0.path())
             .env("BEAMBENCH_DATA_DIR", self.0.path().join("data"))
