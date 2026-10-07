@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.26
+
 - Keep asking a GRBL network controller for its status for up to 3 seconds,
   so Wi-Fi bridges that are slow to answer the first query can connect. Only
   read-only status and identity queries are sent while connecting.
@@ -189,8 +191,16 @@
   baud rate, other software holding the port) in your language instead of
   showing an internal code. Unconfirmed stops and lost connections show the
   safety instruction in your language too.
-- Using the camera before a machine is set up now says to add a machine
-  first.
+- Camera overlay controls require a selected machine profile and explain how
+  to set one up. Failed visibility and opacity changes keep the confirmed state.
+- Replies from edits and node tools are checked when they are applied, so a
+  reply that arrives while another project opens cannot alter that project.
+- Camera calibration and alignment saves and resets discard replies after
+  switching cameras or machine profiles.
+- Importing or resetting preferences and changing API settings run in the
+  background, keeping the window responsive during network retries.
+- Outlined SVG text uses the bundled font when system generic fonts are
+  unavailable, so rotated text does not disappear on those systems.
 
 ## 0.2.25
 
