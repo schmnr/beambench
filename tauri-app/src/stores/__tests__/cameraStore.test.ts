@@ -552,4 +552,21 @@ describe('cameraStore overlay display state', () => {
     expect(useCameraStore.getState().calibration).toBeNull();
     expect(useCameraStore.getState().alignment).toBeNull();
   });
+
+  it('a late calibration reply never replaces the newly selected camera calibration', async () => {
+    let resolve!: (value: CameraCalibration) => void;
+    vi.mocked(cameraService.getCalibration).mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    useCameraStore.setState({ selectedCameraId: 'cam-old', calibration: null });
+    const pending = useCameraStore.getState().refreshCalibration();
+    const next = { ...savedCalibration, image_width_px: 200 };
+    vi.mocked(cameraService.selectCamera).mockResolvedValueOnce('cam-new');
+    vi.mocked(cameraService.getAgentState).mockResolvedValueOnce(agentState({ selected_camera_id: 'cam-new', calibration: next }));
+    vi.mocked(cameraService.getCalibration).mockResolvedValueOnce(next);
+    vi.mocked(cameraService.getAlignment).mockResolvedValueOnce(null);
+    await useCameraStore.getState().selectCamera('cam-new');
+    expect(useCameraStore.getState().calibration?.image_width_px).toBe(200);
+    resolve(savedCalibration);
+    await pending;
+    expect(useCameraStore.getState().calibration?.image_width_px).toBe(200);
+  });
 });

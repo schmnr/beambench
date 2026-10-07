@@ -1,3 +1,4 @@
+import { isStaleDocument } from './documentGeneration';
 import { create } from 'zustand';
 import type { FeedbackSourceContext } from '../types/feedback';
 
@@ -54,6 +55,8 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
   notifications: [],
 
   push: (message, type, options) => {
+    // A reply to a document that has since been replaced is not news.
+    if (isStaleDocument(message)) return '';
     const delay =
       options?.autoDismissMs === undefined ? AUTO_DISMISS_MS[type] : options.autoDismissMs;
 

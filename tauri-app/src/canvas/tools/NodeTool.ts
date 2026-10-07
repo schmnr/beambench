@@ -2,7 +2,8 @@ import type { CanvasTool, CanvasMouseEvent, ToolContext } from './types';
 import type { ToolOverlay } from '../CanvasRenderer';
 import type { EditablePath, NodeBatchUpdate, NodeId, NodeSelectionTarget } from '../../types/vector';
 import type { Point2D, Bounds, ProjectObject } from '../../types/project';
-import { vectorService } from '../../services/vectorService';
+import { vectorService as rawVectorService } from '../../services/vectorService';
+import { guardDocumentReplies, isStaleDocument } from '../../stores/documentGeneration';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useUndoStore } from '../../stores/undoStore';
@@ -16,6 +17,13 @@ import { wrapBackendError } from '../../i18n/errors';
 import { pasteClipboardArtworkFromSystem } from '../../utils/systemClipboard';
 import { readNodeClipboard, writeNodeClipboard } from '../../utils/nodeClipboard';
 import i18n from '../../i18n';
+
+// Node edits that finish after a different document opened are dropped.
+const vectorService = guardDocumentReplies(rawVectorService);
+
+function reportNodeError(ctx: { setStatusMessage: (message: string) => void }, error: unknown): void {
+  if (!isStaleDocument(error)) ctx.setStatusMessage(wrapBackendError(String(error)));
+}
 
 export type NodeImmediateAction = 'midpoint' | 'align' | 'trim' | 'extend' | 'close_open' | 'auto_join';
 export type NodeEditAction = 'copy' | 'cut' | 'paste' | 'extract' | 'delete' | 'select_all';
@@ -447,7 +455,7 @@ export class NodeTool implements CanvasTool {
               await useUndoStore.getState().refresh();
               await this.loadEditablePath(objectId, ctx, { preserveSelection: true });
             })
-            .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+            .catch((err) => reportNodeError(ctx, err));
           this.trackNodeCommit(commit);
           return;
         }
@@ -461,7 +469,7 @@ export class NodeTool implements CanvasTool {
               await this.loadEditablePath(objectId, ctx, { preserveSelection: true });
               this.localNodeDirty = false;
             })
-          .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+          .catch((err) => reportNodeError(ctx, err));
         this.trackNodeCommit(commit);
         return;
       }
@@ -656,7 +664,7 @@ export class NodeTool implements CanvasTool {
           await this.loadEditablePath(this.objectId!, ctx, { preserveSelection: true });
           this.localNodeDirty = false;
         })
-        .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+        .catch((err) => reportNodeError(ctx, err));
       this.trackNodeCommit(commit);
     }
   }
@@ -818,7 +826,7 @@ export class NodeTool implements CanvasTool {
       const commit = vectorService
         .copyNodes(objectId!, nodeIds)
         .then(writeNodeClipboard)
-        .catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+        .catch((error) => reportNodeError(ctx, error));
       this.trackNodeCommit(commit);
       return;
     }
@@ -838,7 +846,7 @@ export class NodeTool implements CanvasTool {
           await this.loadEditablePath(objectId!, ctx);
         }
         ctx.requestRender();
-      })().catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+      })().catch((error) => reportNodeError(ctx, error));
       this.trackNodeCommit(commit);
       return;
     }
@@ -853,7 +861,7 @@ export class NodeTool implements CanvasTool {
           await useUndoStore.getState().refresh();
           ctx.requestRender();
         })
-        .catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+        .catch((error) => reportNodeError(ctx, error));
       this.trackNodeCommit(commit);
       return;
     }
@@ -876,7 +884,7 @@ export class NodeTool implements CanvasTool {
         return path.nodes.map((node) => ({ kind: 'node' as const, nodeId: node.id }));
       }));
       ctx.requestRender();
-    })().catch((error) => ctx.setStatusMessage(wrapBackendError(String(error))));
+    })().catch((error) => reportNodeError(ctx, error));
     this.trackNodeCommit(commit);
   }
 
@@ -938,7 +946,7 @@ export class NodeTool implements CanvasTool {
         this.applyUpdatedObject(updated);
       } catch (err) {
         this.reset();
-        ctx.setStatusMessage(wrapBackendError(String(err)));
+        reportNodeError(ctx, err);
         return;
       }
     } else if (obj.data.type !== 'vector_path') {
@@ -1015,7 +1023,7 @@ export class NodeTool implements CanvasTool {
       ctx.requestRender();
     } catch (err) {
       if (requestId !== this.loadRequestId) return;
-      ctx.setStatusMessage(wrapBackendError(String(err)));
+      reportNodeError(ctx, err);
     }
   }
 
@@ -1693,7 +1701,7 @@ export class NodeTool implements CanvasTool {
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx, { preserveSelection: true });
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private deleteNodeById(nodeId: NodeId, ctx: ToolContext): void {
@@ -1713,7 +1721,7 @@ export class NodeTool implements CanvasTool {
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private deleteSelectedNodes(ctx: ToolContext): void {
@@ -1736,7 +1744,7 @@ export class NodeTool implements CanvasTool {
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private removeEditedObject(objectId: string, ctx: ToolContext): void {
@@ -1747,7 +1755,7 @@ export class NodeTool implements CanvasTool {
         this.reset();
         ctx.requestRender();
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
     this.trackNodeCommit(remove);
   }
 
@@ -1764,7 +1772,7 @@ export class NodeTool implements CanvasTool {
         await useUndoStore.getState().refresh();
         await this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
     this.trackNodeCommit(commit);
   }
 
@@ -1781,7 +1789,7 @@ export class NodeTool implements CanvasTool {
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private convertSegmentToLine(segment: { nodeId: NodeId; t: number }, ctx: ToolContext): void {
@@ -1797,7 +1805,7 @@ export class NodeTool implements CanvasTool {
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private convertNodeInboundSegmentToLine(nodeId: NodeId, ctx: ToolContext): void {
@@ -1828,7 +1836,7 @@ export class NodeTool implements CanvasTool {
           primaryTarget: targets[targets.length - 1] ?? null,
         });
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private setNodeTypeById(
@@ -1853,7 +1861,7 @@ export class NodeTool implements CanvasTool {
           primaryTarget: target,
         });
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private trimSegmentToIntersection(segment: { nodeId: NodeId; t: number }, ctx: ToolContext): void {
@@ -1875,7 +1883,7 @@ export class NodeTool implements CanvasTool {
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private extendEndpointToIntersection(nodeId: NodeId, ctx: ToolContext): void {
@@ -1890,7 +1898,7 @@ export class NodeTool implements CanvasTool {
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private alignSelectionToSegment(segment: { nodeId: NodeId; t: number }, ctx: ToolContext): void {
@@ -1927,7 +1935,7 @@ export class NodeTool implements CanvasTool {
         ctx.setStatusMessage(i18n.t('canvas_status.aligned_selection', { deg: targetDeg.toFixed(0) }));
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   // --- Sub-mode handlers ---
@@ -2281,7 +2289,7 @@ export class NodeTool implements CanvasTool {
         void useUndoStore.getState().refresh();
         void this.loadEditablePath(objectId, ctx);
       })
-      .catch((err) => ctx.setStatusMessage(wrapBackendError(String(err))));
+      .catch((err) => reportNodeError(ctx, err));
   }
 
   private resolveOpenSubpathForClose(): number | null {
@@ -2369,7 +2377,7 @@ export class NodeTool implements CanvasTool {
       );
       ctx.requestRender();
     } catch (err) {
-      ctx.setStatusMessage(wrapBackendError(String(err)));
+      reportNodeError(ctx, err);
       ctx.requestRender();
     }
   }

@@ -92,6 +92,12 @@ function applyAgentState(state: CameraAgentState) {
   };
 }
 
+/**
+ * Bumped when a camera is selected. Camera replies that started before a newer
+ * selection belong to the previous camera and are discarded.
+ */
+let selectionGeneration = 0;
+
 export const useCameraStore = create<CameraStoreState>((set, get) => ({
   devices: [],
   selectedCameraId: null,
@@ -127,7 +133,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
       if (cameraId !== get().selectedCameraId) {
         disposeBrowserCameraSession();
       }
+      const generation = ++selectionGeneration;
       const selectedCameraId = await cameraService.selectCamera(cameraId);
+      if (generation !== selectionGeneration) return;
       set({
         selectedCameraId,
         draftOverlayTransform: null,
@@ -149,7 +157,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
 
   refreshOverlayState: async () => {
     try {
+      const generation = selectionGeneration;
       const state = await cameraService.getAgentState();
+      if (generation !== selectionGeneration) return;
       set(applyAgentState(state));
     } catch (e) {
       const msg = String(e);
@@ -160,8 +170,11 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
 
   setOverlayVisible: (overlayVisible) => {
     set({ overlayVisible });
+    const generation = selectionGeneration;
     void cameraService.updateOverlayDisplay({ overlayVisible })
-      .then((state) => set(applyAgentState(state)))
+      .then((state) => {
+        if (generation === selectionGeneration) set(applyAgentState(state));
+      })
       .catch((e) => {
         const msg = String(e);
         set({ error: msg });
@@ -177,8 +190,11 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
   setOverlayOpacity: (opacity) => {
     const overlayOpacity = Math.max(0, Math.min(1, opacity));
     set({ overlayOpacity });
+    const generation = selectionGeneration;
     void cameraService.updateOverlayDisplay({ overlayOpacity })
-      .then((state) => set(applyAgentState(state)))
+      .then((state) => {
+        if (generation === selectionGeneration) set(applyAgentState(state));
+      })
       .catch((e) => {
         const msg = String(e);
         set({ error: msg });
@@ -188,7 +204,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
 
   refreshCalibration: async () => {
     try {
+      const generation = selectionGeneration;
       const calibration = await cameraService.getCalibration(get().selectedCameraId);
+      if (generation !== selectionGeneration) return;
       set({ calibration, error: null });
     } catch (e) {
       const msg = String(e);
@@ -199,7 +217,9 @@ export const useCameraStore = create<CameraStoreState>((set, get) => ({
 
   refreshAlignment: async () => {
     try {
+      const generation = selectionGeneration;
       const alignment = await cameraService.getAlignment();
+      if (generation !== selectionGeneration) return;
       set({ alignment, error: null });
     } catch (e) {
       const msg = String(e);

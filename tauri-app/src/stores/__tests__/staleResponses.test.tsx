@@ -7,6 +7,9 @@ import { useUndoStore } from '../undoStore';
 import { projectService } from '../../services/projectService';
 import { persistenceService } from '../../services/persistenceService';
 import { machineService } from '../../services/machineService';
+import { materialService } from '../../services/materialService';
+import { vectorService } from '../../services/vectorService';
+import { useMaterialStore } from '../materialStore';
 import { makeProject, makeProjectObject } from '../../test-utils/projectFixtures';
 import { isUserCancel } from '../../utils/userCancel';
 import i18n from '../../i18n';
@@ -247,3 +250,66 @@ it.each(['undo', 'redo'] as const)(
     );
   },
 );
+
+async function openOtherDocument() {
+  const next = makeProject({
+    dirty: false,
+    objects: [makeProjectObject({ id: 'shared', name: 'New object' })],
+    metadata: { ...makeProject().metadata, project_id: 'new-doc' },
+  });
+  vi.spyOn(persistenceService, 'openProjectFromPath').mockResolvedValue(next);
+  await useProjectStore.getState().openProjectFromPath('/new.lzrproj');
+}
+
+it('a late object update never replaces a same-ID object in the next document', async () => {
+  useProjectStore.setState({ project: makeProject({ objects: [makeProjectObject({ id: 'shared' })] }) });
+  const pending = deferred<ReturnType<typeof makeProjectObject>>();
+  vi.spyOn(projectService, 'updateObject').mockReturnValue(pending.promise);
+  const action = useProjectStore.getState().updateObject('shared', { name: 'Old edit' });
+  await openOtherDocument();
+  pending.resolve(makeProjectObject({ id: 'shared', name: 'Old edit' }));
+  await action;
+  const state = useProjectStore.getState();
+  expect(state.project?.objects[0].name).toBe('New object');
+  expect(state.project?.dirty).toBe(false);
+  expect(state.error).toBeNull();
+  expect(useNotificationStore.getState().notifications).toEqual([]);
+});
+
+it('a late vector edit failure is not reported against the next document', async () => {
+  useProjectStore.setState({ project: makeProject({ objects: [makeProjectObject({ id: 'shared' })] }) });
+  let reject!: (error: unknown) => void;
+  vi.spyOn(vectorService, 'closePath').mockReturnValue(new Promise((_, r) => { reject = r; }));
+  const action = useProjectStore.getState().closePath('shared');
+  await openOtherDocument();
+  reject(new Error('Object not found'));
+  await action;
+  expect(useProjectStore.getState().error).toBeNull();
+  expect(useNotificationStore.getState().notifications).toEqual([]);
+});
+
+it('a late ruler guide never brings back the previous document', async () => {
+  useProjectStore.setState({ project: makeProject({ metadata: { ...makeProject().metadata, project_id: 'old-doc' } }) });
+  const pending = deferred<Awaited<ReturnType<typeof projectService.addObjectAtomic>>>();
+  vi.spyOn(projectService, 'addObjectAtomic').mockReturnValue(pending.promise);
+  const action = useProjectStore.getState().addRulerGuide('x', 10);
+  await openOtherDocument();
+  pending.resolve({ object: makeProjectObject({ id: 'guide' }), createdLayer: null });
+  await action;
+  expect(useProjectStore.getState().project?.metadata.project_id).toBe('new-doc');
+  expect(useProjectStore.getState().project?.objects.map((o) => o.id)).toEqual(['shared']);
+});
+
+it('a late material preset never dirties the next document', async () => {
+  useProjectStore.setState({ project: makeProject() });
+  const pending = deferred<Awaited<ReturnType<typeof materialService.applyPreset>>>();
+  vi.spyOn(materialService, 'applyPreset').mockReturnValue(pending.promise);
+  const action = useMaterialStore.getState().applyPreset('preset', 'layer-1');
+  await openOtherDocument();
+  const next = useProjectStore.getState().project!;
+  vi.spyOn(projectService, 'getProject').mockResolvedValue(next);
+  pending.resolve({ warnings: [] });
+  await action;
+  expect(useProjectStore.getState().project?.dirty).toBe(false);
+  expect(useNotificationStore.getState().notifications).toEqual([]);
+});

@@ -175,6 +175,10 @@
   with the controller's own message.
 - xTool M1: a slow Wi-Fi reply no longer marks a running job as failed. Beam
   Bench only gives up after 20 seconds without an answer.
+- Opening another project while an edit, ruler guide or material preset is
+  still finishing no longer changes the newly opened project. Switching
+  cameras no longer lets the previous camera's calibration overwrite the new
+  one.
 
 ## 0.2.25
 

@@ -361,6 +361,8 @@ describe('NodeTool', () => {
       handle_in: null, handle_out: null, node_type: 'corner',
     })) }]);
     await pending.promise;
+    // Replies pass through the document-reply guard: one more turn.
+    await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     const overlay = tool.getOverlay();

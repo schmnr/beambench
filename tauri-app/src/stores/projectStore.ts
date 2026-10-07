@@ -34,12 +34,19 @@ import type {
   OffsetCornerStyle,
   OffsetDirection,
 } from '../types/vector';
-import { projectService, type DrawOrderDirection } from '../services/projectService';
-import { importService, type ImportLayer } from '../services/importService';
+import { projectService as rawProjectService, type DrawOrderDirection } from '../services/projectService';
+import { importService as rawImportService, type ImportLayer } from '../services/importService';
 import { persistenceService } from '../services/persistenceService';
 import { previewService } from '../services/previewService';
 import { sessionJobOptions } from '../types/jobOptions';
-import { vectorService } from '../services/vectorService';
+import { vectorService as rawVectorService } from '../services/vectorService';
+import {
+  beginNewDocument,
+  documentGeneration,
+  dropStaleDocumentErrors,
+  guardDocumentReplies,
+  isStaleDocument,
+} from './documentGeneration';
 import { PALETTE_COLORS } from '../constants/palette';
 import { usePreviewStore } from './previewStore';
 import { useNotificationStore } from './notificationStore';
@@ -69,7 +76,15 @@ import { parsePathData, computePathBBox, mapPathCoordToBounds } from '../canvas/
 import { applyAroundCenter, getCombinedBounds, resolveCloneForGeometry } from '../canvas/alignment';
 
 const invalidatePreview = () => usePreviewStore.getState().invalidate();
-const notifyError = (msg: string) => useNotificationStore.getState().push(wrapBackendError(msg), 'error');
+// Replies to a document that has since been replaced are dropped, not shown.
+const projectService = guardDocumentReplies(rawProjectService, ['createProject', 'closeProject']);
+const vectorService = guardDocumentReplies(rawVectorService);
+const importService = guardDocumentReplies(rawImportService);
+
+const notifyError = (msg: string) => {
+  if (isStaleDocument(msg)) return;
+  useNotificationStore.getState().push(wrapBackendError(msg), 'error');
+};
 const projectCreationBlocked = () => useUiStore.getState().workspaceMode === 'run';
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 const TOOL1_COLOR = PALETTE_COLORS.find((entry) => entry.name === 'Tool 1')?.hex ?? '#DA0B3F';
@@ -137,13 +152,7 @@ export function decorateProject(project: Project | null | undefined): Project | 
   });
 }
 
-/** Bumped whenever a different document replaces the open one. */
-let documentGeneration = 0;
-export const getDocumentGeneration = () => documentGeneration;
-
-function beginNewDocument(): void {
-  documentGeneration += 1;
-}
+export { getDocumentGeneration } from './documentGeneration';
 
 /**
  * Fetch the backend project for a refresh. A reply that arrives after a
@@ -684,7 +693,7 @@ function resolveSelectedLayerForObjects(
   return selectedLayers[0];
 }
 
-export const useProjectStore = create<ProjectStoreState>((set, get) => ({
+export const useProjectStore = create<ProjectStoreState>(dropStaleDocumentErrors((set, get) => ({
   project: null,
   projectPath: null,
   selectedLayerId: null,
@@ -3867,7 +3876,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       notifyError(String(e));
     }
   },
-}));
+})));
 
 const RASTER_IMPORT_EXTS = ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff', 'webp', 'tga'];
 const GCODE_IMPORT_EXTS = ['gc', 'gcode', 'nc', 'ngc'];
