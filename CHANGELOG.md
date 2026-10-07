@@ -179,6 +179,9 @@
   still finishing no longer changes the newly opened project. Switching
   cameras no longer lets the previous camera's calibration overwrite the new
   one.
+- Choosing an API port that is already taken keeps the API running on its
+  current port. Resetting or importing preferences that cannot be applied no
+  longer saves them anyway.
 
 ## 0.2.25
 
