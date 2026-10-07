@@ -1661,13 +1661,16 @@ describe('projectStore — new actions', () => {
     );
   });
 
-  it('createProject selects the first layer by default', async () => {
-    const project = makeProject();
+  it('createProject keeps the initialized document clean and selects its first layer', async () => {
+    const project = makeProject({ dirty: false });
     mockedProject.createProject.mockResolvedValue(project);
 
     await useProjectStore.getState().createProject('Test');
 
     expect(useProjectStore.getState().selectedLayerId).toBe('layer1');
+    expect(useProjectStore.getState().project?.dirty).toBe(false);
+    expect(mockedProject.addLayer).not.toHaveBeenCalled();
+    expect(mockedProject.updateLayer).not.toHaveBeenCalled();
   });
 
   it('openProjectFromPath re-stretches persisted ruler guides to the current workspace', async () => {

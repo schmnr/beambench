@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Quitting an untouched new project no longer asks to save. Its starter C00
+  layer is initialized without marking the document as changed.
+
 ## 0.2.26
 
 - Keep asking a GRBL network controller for its status for up to 3 seconds,
