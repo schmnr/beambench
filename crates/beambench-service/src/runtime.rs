@@ -789,7 +789,11 @@ pub enum MachineSessionHandle {
     Ruida(RuidaRuntimeSession),
     Lihuiyu(LihuiyuRuntimeSession),
     XToolM1(XToolM1RuntimeSession),
+    /// Emulated test fixture, not Ruida/DSP support: Emergency Stop and jog
+    /// only change local state. No connection path creates it, and
+    /// `register_machine_session` refuses it.
     Dsp(DspSession),
+    /// Emulated test fixture, not galvo support. See `Dsp`.
     Galvo(GalvoSession),
 }
 

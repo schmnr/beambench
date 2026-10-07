@@ -147,6 +147,12 @@ pub struct ServiceContext {
     /// Bumped by every emergency stop, before it waits on any lock. A job or
     /// frame start that began planning before the stop must not proceed.
     pub emergency_stop_generation: AtomicU64,
+    /// Bumped each time a machine session is installed, so work prepared for
+    /// one connection is never started on another.
+    pub session_epoch: AtomicU64,
+    /// The connected xTool's address, readable without the session lock so
+    /// Emergency Stop can reach it while the session is busy.
+    pub xtool_stop_endpoint: Mutex<Option<(String, u16)>>,
     /// True only after the current connection has established machine
     /// coordinates. G53 absolute machine-coordinate moves require this.
     pub machine_coordinates_valid: AtomicBool,
@@ -270,6 +276,8 @@ impl ServiceContext {
             shutting_down: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
             emergency_stop_generation: AtomicU64::new(0),
+            session_epoch: AtomicU64::new(0),
+            xtool_stop_endpoint: Mutex::new(None),
             machine_coordinates_valid: AtomicBool::new(false),
             relative_frame_confirmation: Mutex::new(None),
             pending_relative_frame_confirmation: Mutex::new(None),
@@ -331,6 +339,8 @@ impl ServiceContext {
             shutting_down: AtomicBool::new(false),
             active_jog: AtomicBool::new(false),
             emergency_stop_generation: AtomicU64::new(0),
+            session_epoch: AtomicU64::new(0),
+            xtool_stop_endpoint: Mutex::new(None),
             machine_coordinates_valid: AtomicBool::new(false),
             relative_frame_confirmation: Mutex::new(None),
             pending_relative_frame_confirmation: Mutex::new(None),

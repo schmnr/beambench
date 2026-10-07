@@ -231,7 +231,7 @@ export function TextControls({ value, onPatch, onShapeChange, pathControls, crea
           value={roundDisplayLength(mmToDisplay(value.font_size_mm, displayUnit), displayUnit)}
           onChange={(fontSize) => onPatch({ font_size_mm: displayToMm(fontSize, displayUnit) })}
           min={mmToDisplay(0.1, displayUnit)}
-          max={mmToDisplay(500, displayUnit)}
+          max={mmToDisplay(2000, displayUnit)}
           step={lengthStep(displayUnit, 0.5, 0.02)}
           inputWidthClassName={CONTROL_WIDTH_CLASS}
         />

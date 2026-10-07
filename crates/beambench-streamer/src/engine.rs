@@ -358,6 +358,21 @@ impl StreamingEngine {
                 self.fail(format!("GRBL alarm {code}"), progress);
                 return Err(StreamerError::AlarmDuringJob(*code));
             }
+            GrblResponse::ErrorText(text) => {
+                let mut message = format!("GRBL error: {text}");
+                if !self.sent_commands.is_empty() {
+                    let index = self.next_index - self.sent_commands.len();
+                    let command = self.sent_commands.front().unwrap();
+                    message.push_str(&format!(" at G-code line {}: {command}", index + 1));
+                }
+                self.fail(message.clone(), progress);
+                return Err(StreamerError::JobFailed(message));
+            }
+            GrblResponse::AlarmText(text) => {
+                let message = format!("GRBL alarm: {text}");
+                self.fail(message.clone(), progress);
+                return Err(StreamerError::JobFailed(message));
+            }
             GrblResponse::Banner(_) => {
                 let message = "The controller restarted during the job. Streaming stopped because its queued commands and position can no longer be trusted.";
                 self.fail(message, progress);
@@ -507,6 +522,26 @@ mod tests {
             .handle_response(&GrblResponse::Ok, &mut progress)
             .unwrap();
         assert!(engine.bytes_in_flight() < initial_bytes);
+    }
+
+    #[test]
+    fn grbl_0_9_text_error_fails_job_with_its_message() {
+        let commands = vec!["G0 X10".to_string()];
+        let (mut session, mut engine, mut progress) = make_session_and_engine(commands);
+        engine.send_tick(&mut session, &mut progress).unwrap();
+
+        let result = engine.handle_response(
+            &GrblResponse::ErrorText("Expected command letter".into()),
+            &mut progress,
+        );
+
+        match result {
+            Err(StreamerError::JobFailed(message)) => {
+                assert!(message.contains("Expected command letter"), "{message}");
+                assert!(message.contains("G0 X10"), "{message}");
+            }
+            other => panic!("expected the job to fail, got {other:?}"),
+        }
     }
 
     #[test]

@@ -159,6 +159,22 @@
   not start. Files served by the API cannot run scripts.
 - Updated the TLS library used for updates and feedback to fix a published
   vulnerability.
+- Emergency Stop is no longer held up while a large job is being prepared,
+  and on the xTool M1 it is sent on its own connection so a status check or
+  upload in progress cannot delay it.
+- Cancelling a GRBL job now confirms the machine stopped, like Emergency Stop,
+  and warns if it cannot. Cancelling while disconnected clears the job.
+- Disconnecting during a job no longer reports a spurious "job failed".
+- Test Fire still held when a job starts now blocks the start instead of
+  running into the job.
+- Custom header, footer and air-assist G-code that switches to relative or
+  inch mode no longer changes how the job's own moves are read.
+- Very slow speeds are written with decimals (for example F0.4) instead of
+  F0, which GRBL rejects.
+- Older GRBL 0.9 boards: their text error and alarm messages now stop the job
+  with the controller's own message.
+- xTool M1: a slow Wi-Fi reply no longer marks a running job as failed. Beam
+  Bench only gives up after 20 seconds without an answer.
 
 ## 0.2.25
 

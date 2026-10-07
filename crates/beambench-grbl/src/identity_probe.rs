@@ -126,6 +126,11 @@ impl GrblFamilyIdentityProbeSequence {
                     Some(IdentityProbeCommand::ExtendedControllerInfo)
                 }
             }
+            (IdentityProbePhase::WaitingForControllerInfo, GrblResponse::ErrorText(_)) => {
+                self.controller_info = GrblFamilyIdentityProbeOutcome::Rejected(0);
+                self.phase = IdentityProbePhase::Complete;
+                None
+            }
             (IdentityProbePhase::WaitingForControllerInfo, GrblResponse::Error(code)) => {
                 self.controller_info = GrblFamilyIdentityProbeOutcome::Rejected(*code);
                 self.phase = IdentityProbePhase::Complete;
@@ -133,6 +138,11 @@ impl GrblFamilyIdentityProbeSequence {
             }
             (IdentityProbePhase::WaitingForExtendedControllerInfo, GrblResponse::Ok) => {
                 self.extended_controller_info = GrblFamilyIdentityProbeOutcome::Succeeded;
+                self.phase = IdentityProbePhase::Complete;
+                None
+            }
+            (IdentityProbePhase::WaitingForExtendedControllerInfo, GrblResponse::ErrorText(_)) => {
+                self.extended_controller_info = GrblFamilyIdentityProbeOutcome::Rejected(0);
                 self.phase = IdentityProbePhase::Complete;
                 None
             }

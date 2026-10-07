@@ -645,7 +645,9 @@ fn prepare_pending_imports(file_paths: Vec<String>) -> ServiceResult<Vec<Pending
 }
 
 /// Largest vector document (SVG, DXF, EPS, AI, LightBurn) parsed in memory.
-const VECTOR_IMPORT_BYTE_LIMIT: usize = 64 * 1024 * 1024;
+/// SVG and LightBurn files can embed full-resolution photos as base64, so
+/// this guards against runaway files rather than ordinary large designs.
+const VECTOR_IMPORT_BYTE_LIMIT: usize = 256 * 1024 * 1024;
 /// Most objects one import may add. Matches what a saved project can reopen.
 const IMPORT_OBJECT_LIMIT: usize = 250_000;
 

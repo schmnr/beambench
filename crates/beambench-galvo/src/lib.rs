@@ -1,3 +1,5 @@
+//! Emulated galvo session used as a test fixture. It has no transport: stop and
+//! jog only change local state. Beam Bench refuses to connect it as a machine.
 use beambench_common::machine::{
     ControllerModel, JobProgress, JobState, MachinePosition, MachineRunState, MachineStatus,
     SessionState,

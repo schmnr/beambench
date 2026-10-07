@@ -250,6 +250,22 @@ fn mapped_feed(
     surface_feed_mm_min * command_distance / surface_distance
 }
 
+/// A feed rate for an F word. Whole numbers as before; a positive feed under
+/// 1 mm/min keeps its decimals instead of rounding to F0, which GRBL rejects.
+fn fmt_feed(feed: f64) -> String {
+    if feed >= 1.0 || feed <= 0.0 {
+        format!("{feed:.0}")
+    } else {
+        let text = format!("{feed:.3}");
+        let text = text.trim_end_matches('0').trim_end_matches('.');
+        if text == "0" {
+            "0.001".to_string()
+        } else {
+            text.to_string()
+        }
+    }
+}
+
 fn mapped_motion(
     code: &str,
     point: Point2D,
@@ -259,7 +275,7 @@ fn mapped_motion(
 ) -> String {
     let words = map_point(point, config).words();
     match feed {
-        Some(feed) => format!("{code} {words} F{feed:.0}{suffix}"),
+        Some(feed) => format!("{code} {words} F{}{suffix}", fmt_feed(feed)),
         None => format!("{code} {words}{suffix}"),
     }
 }
@@ -321,6 +337,7 @@ pub fn generate_gcode_to(
                 lines.push(trimmed.to_string());
             }
         }
+        restore_generated_modes_after(&mut lines, &config.gcode_prefix);
     }
 
     let air_assist_cut_entry_ids: HashSet<&str> = config
@@ -342,6 +359,7 @@ pub fn generate_gcode_to(
             segment_cut_entry_id(segment).is_some_and(|id| air_assist_cut_entry_ids.contains(id));
         if wants_air_assist && !air_assist_active {
             push_custom_gcode(&mut lines, &config.air_assist_on_gcode);
+            restore_generated_modes_after(&mut lines, &config.air_assist_on_gcode);
             if config.air_assist_on_delay_ms > 0 {
                 lines.push(format!(
                     "G4 P{:.3}",
@@ -351,6 +369,7 @@ pub fn generate_gcode_to(
             air_assist_active = true;
         } else if !wants_air_assist && air_assist_active {
             push_custom_gcode(&mut lines, &config.air_assist_off_gcode);
+            restore_generated_modes_after(&mut lines, &config.air_assist_off_gcode);
             air_assist_active = false;
         }
         emit_z_if_needed(
@@ -368,6 +387,7 @@ pub fn generate_gcode_to(
 
     if air_assist_active {
         push_custom_gcode(&mut lines, &config.air_assist_off_gcode);
+        restore_generated_modes_after(&mut lines, &config.air_assist_off_gcode);
     }
 
     emit_final_z_return(
@@ -385,6 +405,7 @@ pub fn generate_gcode_to(
                 lines.push(trimmed.to_string());
             }
         }
+        restore_generated_modes_after(&mut lines, &config.gcode_suffix);
     }
 
     // Postamble
@@ -412,6 +433,39 @@ fn push_custom_gcode(lines: &mut LineSink<'_>, block: &str) {
             lines.push(trimmed.to_string());
         }
     }
+}
+
+/// Generated moves are absolute millimetres. A custom block may switch to
+/// relative distances (G91) or inches (G20) for its own commands; switch
+/// back afterwards so the job's coordinates keep their meaning.
+fn restore_generated_modes_after(lines: &mut LineSink<'_>, block: &str) {
+    let changes_modes = block.lines().any(|line| {
+        let code = line.split([';', '(']).next().unwrap_or("");
+        code.split_whitespace()
+            .flat_map(split_gcode_words)
+            .any(|word| {
+                let word = word.to_ascii_uppercase();
+                matches!(word.as_str(), "G91" | "G20" | "G91.0" | "G20.0")
+            })
+    });
+    if changes_modes {
+        lines.push("G90".into());
+        lines.push("G21".into());
+    }
+}
+
+/// Split "G91G0X5" style run-together words into "G91", "G0", "X5".
+fn split_gcode_words(token: &str) -> Vec<&str> {
+    let mut words = Vec::new();
+    let mut start = 0;
+    for (index, ch) in token.char_indices().skip(1) {
+        if ch.is_ascii_alphabetic() {
+            words.push(&token[start..index]);
+            start = index;
+        }
+    }
+    words.push(&token[start..]);
+    words
 }
 
 fn z_values_equal(a: f64, b: f64) -> bool {
@@ -678,14 +732,25 @@ impl RasterLineGeometry {
                 Self::Orthogonal {
                     axis: ScanAxis::Horizontal,
                     cross_pos,
-                } => format!("G1 X{run_pos:.3} Y{cross_pos:.3} S0 F{speed_mm_min:.0}"),
+                } => format!(
+                    "G1 X{run_pos:.3} Y{cross_pos:.3} S0 F{}",
+                    fmt_feed(speed_mm_min)
+                ),
                 Self::Orthogonal {
                     axis: ScanAxis::Vertical,
                     cross_pos,
-                } => format!("G1 X{cross_pos:.3} Y{run_pos:.3} S0 F{speed_mm_min:.0}"),
+                } => format!(
+                    "G1 X{cross_pos:.3} Y{run_pos:.3} S0 F{}",
+                    fmt_feed(speed_mm_min)
+                ),
                 Self::Rotated { .. } => {
                     let point = self.point(run_pos);
-                    format!("G1 X{:.3} Y{:.3} S0 F{speed_mm_min:.0}", point.x, point.y)
+                    format!(
+                        "G1 X{:.3} Y{:.3} S0 F{}",
+                        point.x,
+                        point.y,
+                        fmt_feed(speed_mm_min)
+                    )
                 }
             };
         }
@@ -710,21 +775,26 @@ impl RasterLineGeometry {
                     axis: ScanAxis::Horizontal,
                     ..
                 } => match speed_mm_min {
-                    Some(speed) => format!("G1 X{run_pos:.3} F{speed:.0}{suffix}"),
+                    Some(speed) => format!("G1 X{run_pos:.3} F{}{suffix}", fmt_feed(speed)),
                     None => format!("G1 X{run_pos:.3}{suffix}"),
                 },
                 Self::Orthogonal {
                     axis: ScanAxis::Vertical,
                     ..
                 } => match speed_mm_min {
-                    Some(speed) => format!("G1 Y{run_pos:.3} F{speed:.0}{suffix}"),
+                    Some(speed) => format!("G1 Y{run_pos:.3} F{}{suffix}", fmt_feed(speed)),
                     None => format!("G1 Y{run_pos:.3}{suffix}"),
                 },
                 Self::Rotated { .. } => {
                     let point = self.point(run_pos);
                     match speed_mm_min {
                         Some(speed) => {
-                            format!("G1 X{:.3} Y{:.3} F{speed:.0}{suffix}", point.x, point.y)
+                            format!(
+                                "G1 X{:.3} Y{:.3} F{}{suffix}",
+                                point.x,
+                                point.y,
+                                fmt_feed(speed)
+                            )
                         }
                         None => format!("G1 X{:.3} Y{:.3}{suffix}", point.x, point.y),
                     }
@@ -918,7 +988,7 @@ fn generate_segment(
                 let off_dist = speed_mm_min / 60_000.0 * perforation_off_ms;
 
                 if config.rotary.is_none() {
-                    lines.push(format!("F{speed_mm_min:.0}"));
+                    lines.push(format!("F{}", fmt_feed(*speed_mm_min)));
                 }
 
                 let mut laser_on = false;
@@ -2643,6 +2713,59 @@ mod tests {
         // Then postamble
         assert_eq!(gcode[5], "M5");
         assert_eq!(gcode[6], "G0 X0 Y0");
+    }
+
+    #[test]
+    fn custom_blocks_that_change_modes_do_not_leak_into_generated_moves() {
+        let plan = make_plan(vec![PlanSegment::Travel {
+            start: Point2D::new(0.0, 0.0),
+            end: Point2D::new(10.0, 10.0),
+        }]);
+        let config = GcodeConfig {
+            gcode_prefix: "G91".to_string(),
+            gcode_suffix: "G91 G20\nG0 X5".to_string(),
+            finish_position: FinishPosition::Origin,
+            ..Default::default()
+        };
+        let gcode = generate_gcode(&plan, &config).unwrap();
+        let prefix = gcode.iter().position(|line| line == "G91").unwrap();
+        assert_eq!(&gcode[prefix + 1..prefix + 3], ["G90", "G21"]);
+        let finish = gcode.iter().rposition(|line| line == "G0 X0 Y0").unwrap();
+        let last_relative = gcode
+            .iter()
+            .rposition(|line| line.starts_with("G91"))
+            .unwrap();
+        let restore = gcode.iter().rposition(|line| line == "G90").unwrap();
+        assert!(last_relative < restore && restore < finish, "{gcode:?}");
+    }
+
+    #[test]
+    fn slow_feeds_never_round_to_f0() {
+        assert_eq!(fmt_feed(1000.0), "1000");
+        assert_eq!(fmt_feed(1.4), "1");
+        assert_eq!(fmt_feed(0.4), "0.4");
+        assert_eq!(fmt_feed(0.125), "0.125");
+        assert_eq!(fmt_feed(0.0001), "0.001");
+        assert_eq!(
+            mapped_motion(
+                "G1",
+                Point2D::new(1.0, 2.0),
+                Some(0.4),
+                "",
+                &GcodeConfig::default()
+            ),
+            "G1 X1.000 Y2.000 F0.4"
+        );
+    }
+
+    #[test]
+    fn mode_neutral_custom_blocks_add_nothing() {
+        let config = GcodeConfig {
+            gcode_prefix: "M7".to_string(),
+            ..Default::default()
+        };
+        let gcode = generate_gcode(&make_plan(Vec::new()), &config).unwrap();
+        assert_eq!(gcode.iter().filter(|line| *line == "G90").count(), 1);
     }
 
     #[test]

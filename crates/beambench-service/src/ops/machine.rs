@@ -55,7 +55,7 @@ use beambench_smoothieware::{
 use beambench_streamer::{
     JobController, check_raster_motion_bounds, check_tool_layers, run_preflight,
 };
-use beambench_xtool::{M1CompileConfig, compile_m1_job};
+use beambench_xtool::{M1CompileConfig, M1CompiledJob, compile_m1_job};
 use serde::Serialize;
 use serde_json::json;
 
@@ -295,8 +295,17 @@ pub(crate) fn smoothieware_gcode_commands(
     plan: &beambench_planner::ExecutionPlan,
     gcode: beambench_grbl::GcodeConfig,
 ) -> Result<Vec<String>, String> {
-    let maximum_s_value = session
-        .laser_maximum_s_value()
+    smoothieware_gcode_commands_for_scale(session.laser_maximum_s_value(), plan, gcode)
+}
+
+/// Like `smoothieware_gcode_commands`, from a power scale read earlier, so
+/// the commands can be built without holding the session lock.
+pub(crate) fn smoothieware_gcode_commands_for_scale(
+    laser_maximum_s_value: Option<f64>,
+    plan: &beambench_planner::ExecutionPlan,
+    gcode: beambench_grbl::GcodeConfig,
+) -> Result<Vec<String>, String> {
+    let maximum_s_value = laser_maximum_s_value
         .ok_or_else(|| "Smoothieware laser power scale is unavailable".to_string())?;
     let power_mode = if gcode.use_constant_power {
         SmoothiewarePowerMode::Constant
@@ -984,10 +993,12 @@ fn try_grbl_banner_handshake(
         let responses = session
             .poll()
             .map_err(|e| ServiceError::machine(e.to_string()))?;
-        if responses
-            .iter()
-            .any(|r| matches!(r, GrblResponse::Banner(_) | GrblResponse::Alarm(_)))
-        {
+        if responses.iter().any(|r| {
+            matches!(
+                r,
+                GrblResponse::Banner(_) | GrblResponse::Alarm(_) | GrblResponse::AlarmText(_)
+            )
+        }) {
             banner_received = true;
             ctx.push_connection_event(
                 "banner_received",
@@ -1024,10 +1035,12 @@ fn try_grbl_banner_handshake(
             let responses = session
                 .poll()
                 .map_err(|e| ServiceError::machine(e.to_string()))?;
-            if responses
-                .iter()
-                .any(|r| matches!(r, GrblResponse::Banner(_) | GrblResponse::Alarm(_)))
-            {
+            if responses.iter().any(|r| {
+                matches!(
+                    r,
+                    GrblResponse::Banner(_) | GrblResponse::Alarm(_) | GrblResponse::AlarmText(_)
+                )
+            }) {
                 banner_received = true;
                 ctx.push_connection_event(
                     "banner_received",
@@ -1407,6 +1420,16 @@ fn request_grbl_settings_and_wait(session: &mut GrblSession) -> ServiceResult<()
                 GrblResponse::Alarm(code) => {
                     return Err(ServiceError::machine(format!(
                         "Controller entered alarm {code} while reading GRBL settings"
+                    )));
+                }
+                GrblResponse::ErrorText(text) => {
+                    return Err(ServiceError::machine(format!(
+                        "Controller rejected the GRBL settings query: {text}"
+                    )));
+                }
+                GrblResponse::AlarmText(text) => {
+                    return Err(ServiceError::machine(format!(
+                        "Controller entered an alarm while reading GRBL settings: {text}"
                     )));
                 }
                 _ => {}
@@ -2230,6 +2253,16 @@ fn register_machine_session(
             "The application is shutting down",
         ));
     }
+    // The emulated DSP and galvo sessions are test fixtures: their stop and
+    // jog only change local state. They must never stand in for a machine.
+    if matches!(
+        session,
+        MachineSessionHandle::Dsp(_) | MachineSessionHandle::Galvo(_)
+    ) {
+        return Err(ServiceError::invalid_state(
+            "Emulated DSP and galvo sessions are test fixtures and cannot be connected",
+        ));
+    }
     let profile_sync = match &session {
         MachineSessionHandle::Grbl(grbl) if !grbl.experimental_mode() => {
             sync_active_profile_from_grbl_settings(ctx, grbl.settings(), baud_rate_for_profile)?
@@ -2282,6 +2315,13 @@ fn register_machine_session(
         usb_driver: None,
         error: None,
     });
+    ctx.session_epoch.fetch_add(1, Ordering::AcqRel);
+    if let Ok(mut endpoint) = ctx.xtool_stop_endpoint.lock() {
+        *endpoint = match &session {
+            MachineSessionHandle::XToolM1(xtool) => Some(xtool.endpoint()),
+            _ => None,
+        };
+    }
     *session_lock = Some(session);
     drop(session_lock);
     // This is reached once per completed serial/TCP connection, including
@@ -3586,8 +3626,11 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
     clear_pending_controller_connection(ctx)?;
     clear_relative_frame_confirmation(ctx)?;
     let mut disconnect_warning: Option<String> = None;
-    // Read before taking the session (job before session lock order).
-    let job_active = ctx.job.lock().map_err(|e| lock_err("job", e))?.is_some();
+    // Hold the job lock for the whole disconnect (job before session lock
+    // order). Releasing it between clearing the session and the job let a
+    // status tick see a job with no session and report a spurious failure.
+    let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
+    let job_active = job_lock.is_some();
     {
         let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
         // Closing the port does not stop a streaming controller: commands it
@@ -3642,10 +3685,12 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
         }
         *session_lock = None;
     }
+    if let Ok(mut endpoint) = ctx.xtool_stop_endpoint.lock() {
+        *endpoint = None;
+    }
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
-    let mut job_lock = ctx.job.lock().map_err(|e| lock_err("job", e))?;
     *job_lock = None;
     clear_job_resources(ctx);
     drop(job_lock);
@@ -4531,6 +4576,31 @@ fn run_preflight_check_with_plan(
     Ok((report, Some((plan, project_for_controller, profile))))
 }
 
+/// What job output depends on from the connected session, read under the
+/// session lock so the output can be built without it.
+enum JobSessionInputs {
+    Grbl,
+    Marlin(ControllerDriverId),
+    Smoothieware(Option<f64>),
+    Ruida,
+    Lihuiyu,
+    XToolM1,
+    Dsp,
+    Galvo,
+}
+
+/// Controller output built outside the session lock.
+enum BuiltJob {
+    Grbl(Box<JobController>),
+    Marlin(ControllerDriverId, Vec<String>),
+    Smoothieware(Vec<String>),
+    Ruida(RuidaCompiledJob),
+    Lihuiyu(LihuiyuCompiledJob),
+    XToolM1(M1CompiledJob),
+    Dsp,
+    Galvo,
+}
+
 pub fn start_job(ctx: &ServiceContext) -> ServiceResult<JobProgress> {
     start_job_with_options(ctx, &planning::SessionJobOptions::default())
 }
@@ -4559,6 +4629,19 @@ pub fn start_job_with_options_confirming_advisories(
     if job_lock.is_some() {
         return Err(ServiceError::conflict(
             "A job is already active. Cancel or wait for it to finish.",
+        ));
+    }
+    // Test fire starts under the job lock, so this is settled now. A fire
+    // that began after the stop above must not run into the job, where its
+    // deadman would later send M5 mid-stream.
+    if ctx
+        .active_laser_fire
+        .lock()
+        .map_err(|e| lock_err("active_laser_fire", e))?
+        .is_some()
+    {
+        return Err(ServiceError::conflict(
+            "Release Test Fire before starting a job.",
         ));
     }
 
@@ -4598,33 +4681,118 @@ pub fn start_job_with_options_confirming_advisories(
     super::output::validate_rotary_feed_limit(&plan, &profile)
         .map_err(ServiceError::invalid_state)?;
 
+    // Read what the controller output depends on, then build it without the
+    // session lock: compiling a large raster takes seconds, and Emergency Stop
+    // needs that lock to reach the machine.
+    let (session_epoch, output_plan, session_inputs) = {
+        let session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        ensure_no_emergency_stop_since(ctx, estop_generation)?;
+        let session = session_lock
+            .as_ref()
+            .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+        let output_plan = controller_output_plan(ctx, &plan, &project_for_gcode, session);
+        let inputs = match session {
+            MachineSessionHandle::Grbl(session) => {
+                if profile.rotary_enabled && !session.capabilities().supports_rotary {
+                    return Err(ServiceError::invalid_state(
+                        "The connected controller does not support Beam Bench's generic rotary workflow",
+                    ));
+                }
+                super::output::apply_rotary_runtime(
+                    &mut gcode_config,
+                    &project_for_gcode,
+                    &profile,
+                    session.last_status(),
+                )
+                .map_err(ServiceError::invalid_state)?;
+                JobSessionInputs::Grbl
+            }
+            MachineSessionHandle::Marlin(session) => JobSessionInputs::Marlin(session.driver()),
+            MachineSessionHandle::Smoothieware(session) => {
+                JobSessionInputs::Smoothieware(session.laser_maximum_s_value())
+            }
+            MachineSessionHandle::Ruida(_) => JobSessionInputs::Ruida,
+            MachineSessionHandle::Lihuiyu(_) => JobSessionInputs::Lihuiyu,
+            MachineSessionHandle::XToolM1(_) => JobSessionInputs::XToolM1,
+            MachineSessionHandle::Dsp(_) => JobSessionInputs::Dsp,
+            MachineSessionHandle::Galvo(_) => JobSessionInputs::Galvo,
+        };
+        (
+            ctx.session_epoch.load(Ordering::Acquire),
+            output_plan,
+            inputs,
+        )
+    };
+
+    let built = match session_inputs {
+        JobSessionInputs::Grbl => BuiltJob::Grbl(Box::new(
+            JobController::prepare(&output_plan, &gcode_config)
+                .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?,
+        )),
+        JobSessionInputs::Marlin(driver) => BuiltJob::Marlin(
+            driver,
+            acknowledged_gcode_commands(driver, &output_plan, gcode_config)
+                .map_err(ServiceError::machine)?,
+        ),
+        JobSessionInputs::Smoothieware(scale) => BuiltJob::Smoothieware(
+            smoothieware_gcode_commands_for_scale(scale, &output_plan, gcode_config)
+                .map_err(ServiceError::machine)?,
+        ),
+        JobSessionInputs::Ruida => BuiltJob::Ruida(
+            compile_ruida_execution_plan(&output_plan, &project_for_gcode, &profile)
+                .map_err(ServiceError::machine)?,
+        ),
+        JobSessionInputs::Lihuiyu => BuiltJob::Lihuiyu(
+            compile_lihuiyu_execution_plan(&output_plan, &project_for_gcode, &profile)
+                .map_err(ServiceError::machine)?,
+        ),
+        JobSessionInputs::XToolM1 => {
+            let material_thickness_mm = project_for_gcode.material_height_mm.ok_or_else(|| {
+                ServiceError::invalid_state(
+                    "Set Material Thickness before sending a job to the xTool M1 so Beam Bench can calculate the focus height",
+                )
+            })?;
+            BuiltJob::XToolM1(
+                compile_m1_job(
+                    &output_plan,
+                    &gcode_config,
+                    M1CompileConfig {
+                        material_thickness_mm,
+                        ..M1CompileConfig::default()
+                    },
+                )
+                .map_err(|error| {
+                    ServiceError::machine(format!("xTool M1 job prepare failed: {error}"))
+                })?,
+            )
+        }
+        JobSessionInputs::Dsp => BuiltJob::Dsp,
+        JobSessionInputs::Galvo => BuiltJob::Galvo,
+    };
+
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
     ensure_no_emergency_stop_since(ctx, estop_generation)?;
-    let session = session_lock
-        .as_mut()
-        .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
-    let output_plan = controller_output_plan(ctx, &plan, &project_for_gcode, session);
-    let job = match session {
-        MachineSessionHandle::Grbl(session) => {
-            if profile.rotary_enabled && !session.capabilities().supports_rotary {
-                return Err(ServiceError::invalid_state(
-                    "The connected controller does not support Beam Bench's generic rotary workflow",
-                ));
-            }
-            super::output::apply_rotary_runtime(
-                &mut gcode_config,
-                &project_for_gcode,
-                &profile,
-                session.last_status(),
-            )
-            .map_err(ServiceError::invalid_state)?;
-            let config = gcode_config;
-            let mut job = JobController::prepare(&output_plan, &config)
-                .map_err(|e| ServiceError::machine(format!("Job prepare failed: {e}")))?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
+    if ctx.session_epoch.load(Ordering::Acquire) != session_epoch {
+        return Err(ServiceError::invalid_state(
+            "The machine connection changed while the job was being prepared. Start the job again.",
+        ));
+    }
+    // Everything that can fail happens before the first byte is sent, so a
+    // started job is always tracked.
+    clear_retained_terminal_job(ctx)?;
+    install_job_resources(ctx, sleep, None, estop_generation)?;
+    let session = match session_lock.as_mut() {
+        Some(session) => session,
+        None => {
+            clear_job_resources(ctx);
+            return Err(ServiceError::invalid_state("Not connected"));
+        }
+    };
+    let started = match (session, built) {
+        (MachineSessionHandle::Grbl(session), BuiltJob::Grbl(mut job)) => {
             if let Err(error) = job.start(session) {
                 let error = ServiceError::machine(format!("Job start failed: {error}"));
-                let job = ActiveJobHandle::Grbl(job);
+                let job = ActiveJobHandle::Grbl(*job);
                 retain_terminal_job_diagnostic(
                     ctx,
                     "initial_send_failed",
@@ -4633,6 +4801,7 @@ pub fn start_job_with_options_confirming_advisories(
                     Some(&job),
                     session_lock.as_ref(),
                 );
+                clear_job_resources(ctx);
                 drop(session_lock);
                 drop(job_lock);
                 // The first batch can already be partially transmitted. Use the
@@ -4641,89 +4810,61 @@ pub fn start_job_with_options_confirming_advisories(
                 let _ = remember_job_progress(ctx, None);
                 return Err(error);
             }
-            ActiveJobHandle::Grbl(job)
+            Ok(ActiveJobHandle::Grbl(*job))
         }
-        MachineSessionHandle::Marlin(session) => {
-            let driver = session.driver();
-            let commands = acknowledged_gcode_commands(driver, &output_plan, gcode_config)
-                .map_err(ServiceError::machine)?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::Marlin(
-                MarlinRuntimeJob::start_with_duration(
-                    commands,
-                    session,
-                    Some(plan.estimated_duration_secs),
-                )
-                .map_err(|error| {
-                    ServiceError::machine(format!("{driver:?} job start failed: {error}"))
-                })?,
+        (MachineSessionHandle::Marlin(session), BuiltJob::Marlin(driver, commands)) => {
+            MarlinRuntimeJob::start_with_duration(
+                commands,
+                session,
+                Some(plan.estimated_duration_secs),
             )
+            .map(ActiveJobHandle::Marlin)
+            .map_err(|error| ServiceError::machine(format!("{driver:?} job start failed: {error}")))
         }
-        MachineSessionHandle::Smoothieware(session) => {
-            let commands = smoothieware_gcode_commands(session, &output_plan, gcode_config)
-                .map_err(ServiceError::machine)?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::Smoothieware(
-                SmoothiewareRuntimeJob::start_with_duration(
-                    commands,
-                    session,
-                    Some(plan.estimated_duration_secs),
-                )
-                .map_err(|error| {
-                    ServiceError::machine(format!("Smoothieware job start failed: {error}"))
-                })?,
+        (MachineSessionHandle::Smoothieware(session), BuiltJob::Smoothieware(commands)) => {
+            SmoothiewareRuntimeJob::start_with_duration(
+                commands,
+                session,
+                Some(plan.estimated_duration_secs),
             )
-        }
-        MachineSessionHandle::Ruida(session) => {
-            let compiled = compile_ruida_execution_plan(&output_plan, &project_for_gcode, &profile)
-                .map_err(ServiceError::machine)?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::Ruida(session.start_job(&compiled, false).map_err(|error| {
-                ServiceError::machine(format!("Ruida job start failed: {error}"))
-            })?)
-        }
-        MachineSessionHandle::Lihuiyu(session) => {
-            let compiled =
-                compile_lihuiyu_execution_plan(&output_plan, &project_for_gcode, &profile)
-                    .map_err(ServiceError::machine)?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::Lihuiyu(session.start_job(&compiled, false).map_err(|error| {
-                ServiceError::machine(format!("Lihuiyu job start failed: {error}"))
-            })?)
-        }
-        MachineSessionHandle::XToolM1(session) => {
-            let material_thickness_mm = project_for_gcode.material_height_mm.ok_or_else(|| {
-                ServiceError::invalid_state(
-                    "Set Material Thickness before sending a job to the xTool M1 so Beam Bench can calculate the focus height",
-                )
-            })?;
-            let compiled = compile_m1_job(
-                &output_plan,
-                &gcode_config,
-                M1CompileConfig {
-                    material_thickness_mm,
-                    ..M1CompileConfig::default()
-                },
-            )
+            .map(ActiveJobHandle::Smoothieware)
             .map_err(|error| {
-                ServiceError::machine(format!("xTool M1 job prepare failed: {error}"))
-            })?;
-            ensure_no_emergency_stop_since(ctx, estop_generation)?;
-            ActiveJobHandle::XToolM1(
-                XToolM1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
-                    .map_err(|error| {
-                        ServiceError::machine(format!("xTool M1 job upload failed: {error}"))
-                    })?,
-            )
+                ServiceError::machine(format!("Smoothieware job start failed: {error}"))
+            })
         }
-        MachineSessionHandle::Dsp(session) => ActiveJobHandle::Dsp(session.start_job(&output_plan)),
-        MachineSessionHandle::Galvo(session) => {
-            ActiveJobHandle::Galvo(session.start_job(&output_plan))
+        (MachineSessionHandle::Ruida(session), BuiltJob::Ruida(compiled)) => session
+            .start_job(&compiled, false)
+            .map(ActiveJobHandle::Ruida)
+            .map_err(|error| ServiceError::machine(format!("Ruida job start failed: {error}"))),
+        (MachineSessionHandle::Lihuiyu(session), BuiltJob::Lihuiyu(compiled)) => session
+            .start_job(&compiled, false)
+            .map(ActiveJobHandle::Lihuiyu)
+            .map_err(|error| ServiceError::machine(format!("Lihuiyu job start failed: {error}"))),
+        (MachineSessionHandle::XToolM1(session), BuiltJob::XToolM1(compiled)) => {
+            XToolM1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
+                .map(ActiveJobHandle::XToolM1)
+                .map_err(|error| {
+                    ServiceError::machine(format!("xTool M1 job upload failed: {error}"))
+                })
+        }
+        (MachineSessionHandle::Dsp(session), BuiltJob::Dsp) => {
+            Ok(ActiveJobHandle::Dsp(session.start_job(&output_plan)))
+        }
+        (MachineSessionHandle::Galvo(session), BuiltJob::Galvo) => {
+            Ok(ActiveJobHandle::Galvo(session.start_job(&output_plan)))
+        }
+        _ => Err(ServiceError::invalid_state(
+            "The machine connection changed while the job was being prepared. Start the job again.",
+        )),
+    };
+    let job = match started {
+        Ok(job) => job,
+        Err(error) => {
+            clear_job_resources(ctx);
+            return Err(error);
         }
     };
     let progress = job.progress();
-    clear_retained_terminal_job(ctx)?;
-    install_job_resources(ctx, sleep, None, estop_generation)?;
     *job_lock = Some(job);
     drop(session_lock);
     drop(job_lock);
@@ -5102,15 +5243,29 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
     let job = job_lock
         .as_mut()
         .ok_or_else(|| ServiceError::invalid_state("No active job"))?;
-    let session = session_lock
-        .as_mut()
-        .ok_or_else(|| ServiceError::invalid_state("Not connected"))?;
+    let Some(session) = session_lock.as_mut() else {
+        // Without a connection there is nothing to stop. Drop the stale job
+        // now rather than leaving it for the next tick to report as a failure.
+        *job_lock = None;
+        clear_job_resources(ctx);
+        drop(session_lock);
+        drop(job_lock);
+        remember_job_progress(ctx, None)?;
+        return Err(ServiceError::invalid_state("Not connected"));
+    };
     let progress = job.cancel(session).map_err(|err| {
         ctx.push_error(format!(
             "Job cancellation failed; stop is not confirmed: {err}"
         ));
         ServiceError::machine(err)
     })?;
+    // GRBL cancel writes the reset without waiting for an answer. Confirm it
+    // the same way Emergency Stop does, so a dead link is reported instead of
+    // a Cancelled job on a machine that may still be running.
+    let unconfirmed = match session {
+        MachineSessionHandle::Grbl(grbl) => send_grbl_emergency_stop(grbl).err(),
+        _ => None,
+    };
     retain_terminal_job_diagnostic(
         ctx,
         "cancelled",
@@ -5125,6 +5280,13 @@ pub fn cancel_job(ctx: &ServiceContext) -> ServiceResult<()> {
     drop(job_lock);
     remember_job_progress(ctx, None)?;
     ctx.emit_event("job.cancelled", events::job_summary(&progress));
+    if let Some(error) = unconfirmed {
+        let message = format!(
+            "[emergency_stop_unconfirmed] The job was cancelled, but Beam Bench could not confirm the machine stopped: {error}. Use the machine's physical emergency stop or disconnect laser power now."
+        );
+        ctx.push_error(message.clone());
+        return Err(ServiceError::machine(message));
+    }
     Ok(())
 }
 
@@ -6217,10 +6379,12 @@ fn send_grbl_emergency_stop(session: &mut GrblRuntimeSession) -> Result<(), Stri
     let mut fresh_status_received = false;
     for poll_index in 0..EMERGENCY_STOP_CONFIRM_POLLS {
         let responses = session.poll().map_err(|error| error.to_string())?;
-        if responses
-            .iter()
-            .any(|response| matches!(response, GrblResponse::Banner(_) | GrblResponse::Alarm(_)))
-        {
+        if responses.iter().any(|response| {
+            matches!(
+                response,
+                GrblResponse::Banner(_) | GrblResponse::Alarm(_) | GrblResponse::AlarmText(_)
+            )
+        }) {
             banner_received = true;
             break;
         }
@@ -6425,6 +6589,19 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
     ctx.active_jog.store(false, Ordering::Release);
+    // An xTool status poll or job upload can hold the session for seconds.
+    // Deliver the stop on its own connection first; the session path below
+    // still confirms it.
+    let xtool_endpoint = ctx
+        .xtool_stop_endpoint
+        .lock()
+        .ok()
+        .and_then(|endpoint| endpoint.clone());
+    if let Some((host, port)) = xtool_endpoint
+        && let Err(error) = crate::xtool_runtime::send_independent_stop(&host, port)
+    {
+        tracing::warn!(error = %error, "xTool direct stop failed; using the session path");
+    }
     // Do not take `job` here: start/frame hold it through planning, which can
     // take seconds. The stop only needs the session.
     let mut session_lock = ctx.session.lock().map_err(|e| lock_err("session", e))?;
@@ -6787,6 +6964,18 @@ pub fn persist_profiles(ctx: &ServiceContext) {
 
 #[cfg(test)]
 mod tests {
+
+    /// Cancel as test cleanup. A mock that never answers a reset leaves the
+    /// stop unconfirmed, which still releases the job.
+    fn cancel_job_for_cleanup(ctx: &ServiceContext) {
+        if let Err(error) = cancel_job(ctx) {
+            assert!(
+                error.message.contains("[emergency_stop_unconfirmed]"),
+                "{error}"
+            );
+        }
+        assert!(ctx.job.lock().unwrap().is_none());
+    }
     use super::*;
     use crate::runtime::MachineSessionHandle;
     use crate::test_support::PersistTestGuard;
@@ -10833,7 +11022,7 @@ mod tests {
         tick_job(&ctx).unwrap();
         assert_eq!(sent_lines(&transport).len(), count);
         assert!(ctx.job_resources.lock().unwrap()._sleep.is_some());
-        cancel_job(&ctx).unwrap();
+        cancel_job_for_cleanup(&ctx);
         assert!(ctx.job_resources.lock().unwrap()._sleep.is_none());
     }
 
@@ -12051,7 +12240,7 @@ mod tests {
                 connect();
                 assert!(ctx.job.lock().unwrap().is_none());
                 assert_eq!(start_job(&ctx).unwrap().state, JobState::Running);
-                cancel_job(&ctx).unwrap();
+                cancel_job_for_cleanup(&ctx);
                 disconnect_machine(&ctx).unwrap();
                 assert!(!state.lock().unwrap().open);
             }
@@ -12844,7 +13033,7 @@ mod tests {
             worker.join().unwrap().unwrap().state,
             beambench_common::machine::JobState::Running
         );
-        cancel_job(&ctx).unwrap();
+        cancel_job_for_cleanup(&ctx);
     }
 
     fn profile_switch_preflight_context(design_height_mm: f64) -> ServiceContext {

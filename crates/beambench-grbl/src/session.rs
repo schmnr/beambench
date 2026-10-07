@@ -339,10 +339,15 @@ impl GrblSession {
                 self.clear_pending_homing();
                 self.state_machine.force(SessionState::Alarm);
             }
+            GrblResponse::AlarmText(text) => {
+                warn!(description = text.as_str(), "GRBL alarm received");
+                self.clear_pending_homing();
+                self.state_machine.force(SessionState::Alarm);
+            }
             GrblResponse::Ok if self.is_homing() => {
                 self.homing_acknowledged = true;
             }
-            GrblResponse::Error(_) if self.is_homing() => {
+            GrblResponse::Error(_) | GrblResponse::ErrorText(_) if self.is_homing() => {
                 self.clear_pending_homing();
                 self.last_status.run_state = MachineRunState::Idle;
             }
