@@ -381,6 +381,30 @@ fn extract_svg_text_elements(svg_bytes: &[u8]) -> (Vec<SvgTextElement>, Vec<u8>)
     (texts, modified.into_bytes())
 }
 
+fn ensure_svg_fallback_fonts(db: &mut fontdb::Database) {
+    db.load_font_data(include_bytes!("../../fonts/LiberationSans-Regular.ttf").to_vec());
+    // Preserve system generic families where they resolve. usvg uses Serif as
+    // its final fallback, so both mappings must work on a fontless system.
+    if db
+        .query(&fontdb::Query {
+            families: &[fontdb::Family::SansSerif],
+            ..Default::default()
+        })
+        .is_none()
+    {
+        db.set_sans_serif_family("Liberation Sans");
+    }
+    if db
+        .query(&fontdb::Query {
+            families: &[fontdb::Family::Serif],
+            ..Default::default()
+        })
+        .is_none()
+    {
+        db.set_serif_family("Liberation Sans");
+    }
+}
+
 /// Import an SVG file into the project.
 ///
 /// First pre-parses XML to extract `<text>` elements. If a text element's font
@@ -413,6 +437,7 @@ pub fn import_svg(
     // clipped text) is drawn as outlines, which needs the system fonts.
     if remaining_svg.windows(5).any(|window| window == b"<text") {
         options.fontdb_mut().load_system_fonts();
+        ensure_svg_fallback_fonts(options.fontdb_mut());
     }
     let tree = usvg::Tree::from_data(&remaining_svg, &options)
         .map_err(|e| ImportError::ParseError(e.to_string()))?;
@@ -2291,6 +2316,25 @@ mod tests {
                     "clip {clip_rule}, subject {subject}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn svg_outline_text_uses_bundled_fallback_without_system_fonts() {
+        let mut options = usvg::Options::default();
+        assert_eq!(options.fontdb.faces().count(), 0);
+        ensure_svg_fallback_fonts(options.fontdb_mut());
+        for family in ["sans-serif", "serif", "Missing Font"] {
+            let svg = format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" font-family="{family}" transform="rotate(30)">Turned</text></svg>"#
+            );
+            let tree = usvg::Tree::from_data(svg.as_bytes(), &options).unwrap();
+            let mut groups = Vec::new();
+            collect_paths_by_paint(tree.root(), 1.0, 0.0, 0.0, None, &mut groups);
+            assert!(
+                !groups.is_empty(),
+                "{family} must produce outlines without system fonts"
+            );
         }
     }
 
