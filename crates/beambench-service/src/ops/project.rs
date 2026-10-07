@@ -1104,6 +1104,16 @@ fn compute_dock_target(
 }
 
 pub fn create_project(ctx: &ServiceContext, name: &str) -> ServiceResult<Project> {
+    create_project_with_initial_layer(ctx, name, None)
+}
+
+/// Include the desktop's starter layer in the clean document baseline, before
+/// publishing the project or accepting edits.
+pub fn create_project_with_initial_layer(
+    ctx: &ServiceContext,
+    name: &str,
+    initial_layer: Option<Layer>,
+) -> ServiceResult<Project> {
     let _edit_guard = ctx.lock_project_edits();
     let active_profile = {
         let settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
@@ -1118,6 +1128,10 @@ pub fn create_project(ctx: &ServiceContext, name: &str) -> ServiceResult<Project
     };
 
     let mut project = Project::new(name);
+    if let Some(layer) = initial_layer {
+        project.add_layer(layer);
+        project.dirty = false;
+    }
     if let Some(profile) = active_profile {
         project.workspace = new_project_workspace_from_machine_profile(&profile);
         project.machine_profile_id = Some(profile.id);

@@ -5,7 +5,8 @@ use crate::ops::{planning, project as project_ops};
 use crate::{ServiceContext, UndoState};
 use beambench_common::path::VecPath;
 use beambench_common::{
-    AnchorPoint, Bounds, Id, Point2D, StartFromMode, Transform2D, TransformLocks,
+    AnchorPoint, Bounds, ColorTag, Id, PALETTE_COLORS, Point2D, StartFromMode, Transform2D,
+    TransformLocks,
 };
 use beambench_core::{
     CutEntry, CutEntryId, CutEntryPatch, CutEntryTemplate, Layer, LayerBatchToggle, LayerPatch,
@@ -23,7 +24,9 @@ pub fn parse_id<T>(id_str: &str) -> Result<Id<T>, String> {
 }
 
 pub fn create_project(svc: &Arc<ServiceContext>, name: String) -> Result<Project, String> {
-    project_ops::create_project(svc, &name).map_err(Into::into)
+    let mut layer = Layer::new_single_entry("C00", OperationType::Line);
+    layer.color_tag = ColorTag(PALETTE_COLORS[0].hex.to_string());
+    project_ops::create_project_with_initial_layer(svc, &name, Some(layer)).map_err(Into::into)
 }
 
 pub fn get_project(svc: &Arc<ServiceContext>) -> Result<Option<Project>, String> {
@@ -1690,6 +1693,55 @@ mod tests {
     use beambench_core::{
         Layer, ObjectData, OperationType, Project, ProjectObject, ProjectOptimizationPatch,
     };
+
+    #[test]
+    fn desktop_new_project_starts_clean_with_starter_layer_and_no_undo() {
+        let svc = std::sync::Arc::new(ServiceContext::new());
+        let mut events = svc.events.subscribe();
+        let project = super::create_project(&svc, "Untitled Project".into()).unwrap();
+
+        assert!(!project.dirty);
+        assert!(project.objects.is_empty());
+        assert_eq!(project.layers.len(), 1);
+        assert_eq!(project.layers[0].name, "C00");
+        assert_eq!(project.layers[0].color_tag.0, "#000000");
+        assert_eq!(
+            project.layers[0].primary_entry().operation,
+            OperationType::Line
+        );
+        assert!(!super::get_project(&svc).unwrap().unwrap().dirty);
+        let history = svc.undo_state().unwrap();
+        assert!(!history.can_undo);
+        assert!(!history.can_redo);
+        let event: serde_json::Value = serde_json::from_str(&events.try_recv().unwrap()).unwrap();
+        assert_eq!(event["type"], "project.created");
+        assert_eq!(event["payload"]["project"]["dirty"], false);
+    }
+
+    #[test]
+    fn desktop_first_edit_is_dirty_and_undo_keeps_starter_layer() {
+        let svc = std::sync::Arc::new(ServiceContext::new());
+        let project = super::create_project(&svc, "Untitled Project".into()).unwrap();
+        super::update_layer(
+            &svc,
+            project.layers[0].id.to_string(),
+            beambench_core::LayerPatch {
+                name: Some("Cut".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert!(super::get_project(&svc).unwrap().unwrap().dirty);
+        assert!(svc.undo_state().unwrap().can_undo);
+        let restored = super::undo_project(&svc).unwrap();
+        assert!(restored.dirty);
+        assert_eq!(restored.layers, project.layers);
+        assert!(!svc.undo_state().unwrap().can_undo);
+        let redone = super::redo_project(&svc).unwrap();
+        assert!(redone.dirty);
+        assert_eq!(redone.layers[0].name, "Cut");
+    }
 
     #[test]
     fn scale_and_rotate_is_one_undo_step() {
