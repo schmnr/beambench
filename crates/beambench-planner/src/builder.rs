@@ -170,7 +170,69 @@ fn offset_fill_object_batches<'a>(
     match grouping_mode {
         OffsetFillGroupingMode::AllShapesAtOnce => vec![objects.to_vec()],
         OffsetFillGroupingMode::ShapesIndividually => {
-            objects.iter().map(|obj| vec![*obj]).collect()
+            // A hole is part of its enclosing fill, even when its outline is a
+            // separate object. Keep nesting families together before compositing.
+            let contours: Vec<Vec<Polyline>> = objects
+                .iter()
+                .map(|obj| {
+                    normalize_object(obj)
+                        .map(|geometry| {
+                            geometry
+                                .polylines
+                                .into_iter()
+                                .filter(|poly| poly.closed && poly.points.len() >= 3)
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect();
+            let analyses: Vec<_> = contours
+                .iter()
+                .map(|polys| analyze_polylines(polys))
+                .collect();
+            let mut roots: Vec<usize> = (0..objects.len()).collect();
+            for right in 0..objects.len() {
+                for left in 0..right {
+                    if roots[left] == roots[right] {
+                        continue;
+                    }
+                    let nested = contours[left].iter().enumerate().any(|(a, outer)| {
+                        contours[right].iter().enumerate().any(|(b, inner)| {
+                            let a_info = analyses[left][a];
+                            let b_info = analyses[right][b];
+                            let (Some(a_bounds), Some(b_bounds)) = (a_info.bounds, b_info.bounds)
+                            else {
+                                return false;
+                            };
+                            (a_info.abs_area > b_info.abs_area + 1e-9
+                                && bounds_contains_bounds(&a_bounds, &b_bounds)
+                                && inner_first::polyline_contains(&outer.points, &inner.points))
+                                || (b_info.abs_area > a_info.abs_area + 1e-9
+                                    && bounds_contains_bounds(&b_bounds, &a_bounds)
+                                    && inner_first::polyline_contains(&inner.points, &outer.points))
+                        })
+                    });
+                    if nested {
+                        let old_root = roots[right];
+                        let new_root = roots[left];
+                        for root in &mut roots {
+                            if *root == old_root {
+                                *root = new_root;
+                            }
+                        }
+                    }
+                }
+            }
+            let mut batch_indices = HashMap::new();
+            let mut batches: Vec<Vec<&ProjectObject>> = Vec::new();
+            for (index, object) in objects.iter().enumerate() {
+                let batch_index = *batch_indices.entry(roots[index]).or_insert_with(|| {
+                    batches.push(Vec::new());
+                    batches.len() - 1
+                });
+                batches[batch_index].push(*object);
+            }
+            batches
         }
         OffsetFillGroupingMode::GroupsTogether => {
             let top_ancestors = crate::optimize::sort_keys::build_top_ancestor_map(all_objects);
@@ -8300,6 +8362,84 @@ mod tests {
 
         assert_eq!(batches.len(), 2);
         assert!(batches.iter().all(|batch| batch.len() == 1));
+    }
+
+    #[test]
+    fn individual_offset_fill_uses_transformed_contours_not_bounding_boxes() {
+        let layer = Layer::new("OffsetFill", OperationType::OffsetFill);
+        let id = layer.id;
+        let outer = ProjectObject::new(
+            "outer",
+            id,
+            Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+            ObjectData::Shape {
+                kind: ShapeKind::Ellipse,
+                width: 10.0,
+                height: 10.0,
+                corner_radius: 0.0,
+            },
+        );
+        let corner = ProjectObject::new(
+            "outside circle",
+            id,
+            Bounds::new(Point2D::new(0.1, 0.1), Point2D::new(0.5, 0.5)),
+            ObjectData::Shape {
+                kind: ShapeKind::Rectangle,
+                width: 0.4,
+                height: 0.4,
+                corner_radius: 0.0,
+            },
+        );
+        let mut moved = ProjectObject::new(
+            "moved hole",
+            id,
+            Bounds::new(Point2D::new(20.0, 20.0), Point2D::new(22.0, 22.0)),
+            ObjectData::Shape {
+                kind: ShapeKind::Rectangle,
+                width: 2.0,
+                height: 2.0,
+                corner_radius: 0.0,
+            },
+        );
+        moved.transform = Transform2D::translate(-16.0, -16.0);
+        let objects = vec![outer, corner, moved];
+        let refs: Vec<_> = objects.iter().collect();
+        let batches =
+            offset_fill_object_batches(&refs, &objects, OffsetFillGroupingMode::ShapesIndividually);
+        let names: Vec<Vec<_>> = batches
+            .iter()
+            .map(|batch| batch.iter().map(|obj| obj.name.as_str()).collect())
+            .collect();
+        assert_eq!(
+            names,
+            vec![vec!["outer", "moved hole"], vec!["outside circle"]]
+        );
+    }
+
+    #[test]
+    fn individual_offset_fill_does_not_treat_concavity_crossing_as_a_hole() {
+        let layer = Layer::new("OffsetFill", OperationType::OffsetFill);
+        let id = layer.id;
+        let path = |name: &str, data: &str| {
+            ProjectObject::new(
+                name,
+                id,
+                Bounds::new(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0)),
+                ObjectData::VectorPath {
+                    path_data: data.into(),
+                    closed: true,
+                    ruler_guide_axis: None,
+                },
+            )
+        };
+        let objects = vec![
+            path("U", "M0 0 L10 0 L10 10 L6 10 L6 4 L4 4 L4 10 L0 10 Z"),
+            path("crossing", "M2 8 L5 2 L8 8 Z"),
+        ];
+        let refs: Vec<_> = objects.iter().collect();
+        let batches =
+            offset_fill_object_batches(&refs, &objects, OffsetFillGroupingMode::ShapesIndividually);
+        assert_eq!(batches.len(), 2);
     }
 
     #[test]

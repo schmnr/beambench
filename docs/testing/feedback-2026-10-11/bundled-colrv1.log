@@ -1,0 +1,8 @@
+WebKit 2 50 4
+libEGL warning: DRI3 error: Could not get DRI3 device
+libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering
+load <enum WEBKIT_LOAD_STARTED of type WebKit2.LoadEvent>
+load <enum WEBKIT_LOAD_COMMITTED of type WebKit2.LoadEvent>
+load <enum WEBKIT_LOAD_FINISHED of type WebKit2.LoadEvent>
+././/include/c++/12/bits/stl_vector.h:1123: constexpr std::vector<_Tp, _Alloc>::reference std::vector<_Tp, _Alloc>::operator[](size_type) [with _Tp = {anonymous}::colrv1_configure_skpaint(FT_Face, const SkSpan<unsigned int>&, SkColor, const FT_COLR_Paint&, SkPaint*)::<lambda(const FT_ColorStopIterator&, std::vector<float>&, std::vector<SkRGBA4f<kUnpremul_SkAlphaType> >&)>::ColorStop; _Alloc = std::allocator<{anonymous}::colrv1_configure_skpaint(FT_Face, const SkSpan<unsigned int>&, SkColor, const FT_COLR_Paint&, SkPaint*)::<lambda(const FT_ColorStopIterator&, std::vector<float>&, std::vector<SkRGBA4f<kUnpremul_SkAlphaType> >&)>::ColorStop>; reference = {anonymous}::colrv1_configure_skpaint(FT_Face, const SkSpan<unsigned int>&, SkColor, const FT_COLR_Paint&, SkPaint*)::<lambda(const FT_ColorStopIterator&, std::vector<float>&, std::vector<SkRGBA4f<kUnpremul_SkAlphaType> >&)>::ColorStop&; size_type = long unsigned int]: Assertion '__n < this->size()' failed.
+WEB PROCESS TERMINATED <enum WEBKIT_WEB_PROCESS_CRASHED of type WebKit2.WebProcessTerminationReason>

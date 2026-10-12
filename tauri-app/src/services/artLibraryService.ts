@@ -1,5 +1,5 @@
 import type { ProjectObject } from '../types/project';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import type {
   ArtLibraryAddItemResult,
   ArtLibraryItem,

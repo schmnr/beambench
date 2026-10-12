@@ -1,0 +1,25 @@
+
+> beambench-ui@0.2.26 test
+> vitest run src/i18n/errors.test.ts src/components/import/__tests__/importDropZone.test.tsx src/components/machine/__tests__/machineProfileDialog.test.tsx
+
+
+ RUN  v3.2.7 /Users/schmnr/Documents/GitHub/Beam Bench/tauri-app
+
+stdout | src/i18n/errors.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/machine/__tests__/machineProfileDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/import/__tests__/importDropZone.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/i18n/errors.test.ts (38 tests) 56ms
+ ✓ src/components/import/__tests__/importDropZone.test.tsx (18 tests) 588ms
+ ✓ src/components/machine/__tests__/machineProfileDialog.test.tsx (18 tests) 753ms
+
+ Test Files  3 passed (3)
+      Tests  74 passed (74)
+   Start at  09:38:41
+   Duration  2.52s (transform 707ms, setup 626ms, collect 2.17s, tests 1.40s, environment 1.23s, prepare 564ms)
+

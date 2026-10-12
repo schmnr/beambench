@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 0.2.27
+
+- Put the layer color beside its name and group Show, Output, and Air Assist
+  for layers with one cut setting. Compact icon buttons have a clearer enabled
+  highlight; Air Assist remains independent for each setting in a cut stack.
+  Use the full Output label in each supported language.
+- Linux AppImage: avoid the renderer crash caused by newer system color fonts.
+  The app uses monochrome font fallbacks; normal system fonts remain available.
+  Respect an explicit display backend and use native Wayland when X11 is absent.
+- Keep the preceding Linux startup log and include bounded, scrubbed startup
+  output in feedback, so restarting after a crash no longer loses the evidence.
+- Error reports retain the failed operation's name. A missing-machine-profile
+  error now opens Machine Profiles directly from the notification.
+- Add documentation-based USB presets for Creality Falcon2 Pro 40W and
+  Two Trees TT-5.5S. The TT-5.5S uses its documented M3 constant-power mode.
+  Preset guidance is available in all supported languages.
+- Applying a GRBL preset after connecting keeps the controller's detected power
+  scale, including in the preset preview, instead of replacing it with a default.
+
+- Accept CR, LF, and CRLF line endings from TCP controllers, including split
+  CRLF replies. Failed network handshakes now distinguish no response bytes
+  from received data without a recognizable GRBL status reply.
+
+- Offset Fill preserves holes and nested islands when “Fill shapes individually”
+  is selected, even when their outlines are separate objects.
+
 - Quitting an untouched new project no longer asks to save. Its starter C00
   layer is initialized without marking the document as changed.
 

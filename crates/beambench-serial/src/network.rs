@@ -131,6 +131,8 @@ pub struct TcpLineTransport {
     config: TcpLineTransportConfig,
     stream: Option<TcpStream>,
     line_buffer: Vec<u8>,
+    skip_lf_after_cr: bool,
+    received_bytes: u64,
     telnet: TelnetDecoder,
 }
 
@@ -149,6 +151,8 @@ impl TcpLineTransport {
             config,
             stream: None,
             line_buffer: Vec::new(),
+            skip_lf_after_cr: false,
+            received_bytes: 0,
             telnet: TelnetDecoder::default(),
         }
     }
@@ -199,12 +203,19 @@ impl TcpLineTransport {
     }
 
     fn take_buffered_line(&mut self) -> Option<String> {
-        let newline = self.line_buffer.iter().position(|&byte| byte == b'\n')?;
-        let mut line = self.line_buffer.drain(..=newline).collect::<Vec<_>>();
-        line.pop();
-        if line.last() == Some(&b'\r') {
-            line.pop();
+        if self.skip_lf_after_cr {
+            let first = *self.line_buffer.first()?;
+            if first == b'\n' {
+                self.line_buffer.remove(0);
+            }
+            self.skip_lf_after_cr = false;
         }
+        let newline = self
+            .line_buffer
+            .iter()
+            .position(|&byte| byte == b'\r' || byte == b'\n')?;
+        let mut line = self.line_buffer.drain(..=newline).collect::<Vec<_>>();
+        self.skip_lf_after_cr = line.pop() == Some(b'\r');
         Some(String::from_utf8_lossy(&line).into_owned())
     }
 }
@@ -245,6 +256,8 @@ impl SerialTransport for TcpLineTransport {
                     stream.set_nonblocking(true).map_err(SerialError::IoError)?;
                     self.stream = Some(stream);
                     self.line_buffer.clear();
+                    self.skip_lf_after_cr = false;
+                    self.received_bytes = 0;
                     self.telnet = TelnetDecoder::default();
                     return Ok(());
                 }
@@ -265,8 +278,13 @@ impl SerialTransport for TcpLineTransport {
         let stream = self.stream.take().ok_or(SerialError::NotOpen)?;
         let _ = stream.shutdown(Shutdown::Both);
         self.line_buffer.clear();
+        self.skip_lf_after_cr = false;
         self.telnet = TelnetDecoder::default();
         Ok(())
+    }
+
+    fn received_byte_count(&self) -> Option<u64> {
+        Some(self.received_bytes)
     }
 
     fn is_open(&self) -> bool {
@@ -308,6 +326,7 @@ impl SerialTransport for TcpLineTransport {
                     break;
                 }
                 Ok(count) => {
+                    self.received_bytes = self.received_bytes.saturating_add(count as u64);
                     wire.extend_from_slice(&chunk[..count]);
                     // The budget bounds per-poll work, not connection health:
                     // a read may straddle it by up to one chunk. Stop reading
@@ -388,6 +407,52 @@ mod tests {
             max_read_bytes_per_poll: 1024,
             max_line_buffer_bytes: 16 * 1024,
         }
+    }
+
+    #[test]
+    fn line_endings_survive_every_fragment_boundary() {
+        for wire in [
+            b"ok\r<Idle|MPos:0,0,0>\r\ralarm\r".as_slice(),
+            b"ok\n<Idle|MPos:0,0,0>\n\nalarm\n".as_slice(),
+            b"ok\r\n<Idle|MPos:0,0,0>\r\n\r\nalarm\r\n".as_slice(),
+            b"ok\r\n<Idle|MPos:0,0,0>\r\nalarm\n".as_slice(),
+        ] {
+            let expected = if wire == b"ok\r\n<Idle|MPos:0,0,0>\r\nalarm\n" {
+                vec!["ok", "<Idle|MPos:0,0,0>", "alarm"]
+            } else {
+                vec!["ok", "<Idle|MPos:0,0,0>", "", "alarm"]
+            };
+            for split in 0..=wire.len() {
+                let mut transport = TcpLineTransport::new("localhost", 23);
+                let mut lines = Vec::new();
+                for chunk in [&wire[..split], &wire[split..]] {
+                    transport.line_buffer.extend_from_slice(chunk);
+                    while let Some(line) = transport.take_buffered_line() {
+                        lines.push(line);
+                    }
+                }
+                assert_eq!(lines, expected, "wire={wire:?}, split={split}");
+                assert!(transport.line_buffer.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn incomplete_lines_wait_for_a_terminator() {
+        let mut transport = TcpLineTransport::new("localhost", 23);
+        for byte in b"<Idle|MPos:0,0,0>" {
+            transport.line_buffer.push(*byte);
+            assert_eq!(transport.take_buffered_line(), None);
+        }
+        transport.line_buffer.push(b'\r');
+        assert_eq!(
+            transport.take_buffered_line().as_deref(),
+            Some("<Idle|MPos:0,0,0>")
+        );
+        transport.line_buffer.push(b'\n');
+        assert_eq!(transport.take_buffered_line(), None);
+        transport.line_buffer.extend_from_slice(b"ok\n");
+        assert_eq!(transport.take_buffered_line().as_deref(), Some("ok"));
     }
 
     #[test]

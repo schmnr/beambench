@@ -1,0 +1,2814 @@
+warning: field `0` is never read
+   --> vendor/lopdf/src/datetime.rs:155:21
+    |
+155 | pub struct DateTime(String);
+    |            -------- ^^^^^^
+    |            |
+    |            field in this struct
+    |
+    = help: consider removing this field
+    = note: `DateTime` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `lopdf` (lib) generated 1 warning
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/array_ops.rs:632:5
+    |
+632 | /     if let ObjectData::Text {
+633 | |         ref mut content,
+634 | |         ref mut variable_text,
+635 | |         ..
+...   |
+683 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+    = note: `#[warn(clippy::collapsible_if)]` on by default
+help: collapse nested if block
+    |
+636 ~     } = obj.data
+637 ~         && let Some(vt_config) = variable_text.as_ref() {
+638 |             let mut updated_source = vt_config.source.clone();
+...
+680 |             });
+681 ~         }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/array_ops.rs:642:13
+    |
+642 | /             if let Some(start_str) = updated_source.field_defaults.get("_serial_start") {
+643 | |                 if let Ok(start) = start_str.parse::<i64>() {
+644 | |                     let new_start = start + copy_index as i64 * text_increment;
+645 | |                     updated_source
+...   |
+649 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+642 ~             if let Some(start_str) = updated_source.field_defaults.get("_serial_start")
+643 ~                 && let Ok(start) = start_str.parse::<i64>() {
+644 |                     let new_start = start + copy_index as i64 * text_increment;
+...
+647 |                         .insert("_serial_start".to_string(), new_start.to_string());
+648 ~                 }
+    |
+
+warning: this expression creates a reference which is immediately dereferenced by the compiler
+   --> crates/beambench-core/src/export_print.rs:141:64
+    |
+141 |                 if let Some(image) = raster_image_svg(project, &obj)? {
+    |                                                                ^^^^ help: change this to: `obj`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_borrow
+    = note: `#[warn(clippy::needless_borrow)]` on by default
+
+warning: consider using `sort_by_key`
+   --> crates/beambench-core/src/import.rs:376:5
+    |
+376 |     remove_ranges.sort_by(|a, b| b.start.cmp(&a.start));
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#unnecessary_sort_by
+    = note: `#[warn(clippy::unnecessary_sort_by)]` on by default
+help: try
+    |
+376 -     remove_ranges.sort_by(|a, b| b.start.cmp(&a.start));
+376 +     remove_ranges.sort_by_key(|b| std::cmp::Reverse(b.start));
+    |
+
+warning: the borrowed expression implements the required traits
+   --> crates/beambench-core/src/import.rs:491:13
+    |
+491 |             &format!("Text: {}", text_el.content),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: change this to: `format!("Text: {}", text_el.content)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_borrows_for_generic_args
+    = note: `#[warn(clippy::needless_borrows_for_generic_args)]` on by default
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/import.rs:723:13
+    |
+723 | /             if let Some(dpi) = jfif {
+724 | |                 if is_sane_dpi(dpi) {
+725 | |                     return Some(dpi);
+726 | |                 }
+727 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+723 ~             if let Some(dpi) = jfif
+724 ~                 && is_sane_dpi(dpi) {
+725 |                     return Some(dpi);
+726 ~                 }
+    |
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-core/src/import_lbrn.rs:426:13
+    |
+426 |             adjustments.gamma = parse_attr_f64(node, "Gamma").unwrap_or(1.0).clamp(0.1, 3.0);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_common::RasterAdjustments { gamma: parse_attr_f64(node, "Gamma").unwrap_or(1.0).clamp(0.1, 3.0), contrast: normalize_percent_adjustment(parse_attr_f64(node, "Contrast")), brightness: normalize_percent_adjustment(parse_attr_f64(node, "Brightness")), enhance_amount: parse_attr_f64(node, "EnhanceAmount")
+                      .unwrap_or(0.0)
+                      .max(0.0), enhance_radius: parse_attr_f64(node, "EnhanceRadius")
+                      .unwrap_or(0.0)
+                      .max(0.0), enhance_denoise: parse_attr_f64(node, "EnhanceDenoise")
+                      .unwrap_or(0.0)
+                      .max(0.0), ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-core/src/import_lbrn.rs:425:13
+    |
+425 |             let mut adjustments = RasterAdjustments::default();
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+    = note: `#[warn(clippy::field_reassign_with_default)]` on by default
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/import_lbrn.rs:568:9
+    |
+568 | /         if has_inline_vertices(node) {
+569 | |             if let Some(id) = node.attribute("VertID") {
+570 | |                 shared.vertices.entry(id).or_insert(node);
+571 | |             }
+572 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+568 ~         if has_inline_vertices(node)
+569 ~             && let Some(id) = node.attribute("VertID") {
+570 |                 shared.vertices.entry(id).or_insert(node);
+571 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/import_lbrn.rs:573:9
+    |
+573 | /         if has_inline_primitives(node) {
+574 | |             if let Some(id) = node.attribute("PrimID") {
+575 | |                 shared.primitives.entry(id).or_insert(node);
+576 | |             }
+577 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+573 ~         if has_inline_primitives(node)
+574 ~             && let Some(id) = node.attribute("PrimID") {
+575 |                 shared.primitives.entry(id).or_insert(node);
+576 ~             }
+    |
+
+warning: large size difference between variants
+   --> crates/beambench-core/src/object.rs:115:1
+    |
+115 | /   pub enum ObjectData {
+116 | | /     RasterImage {
+117 | | |         asset_key: String,
+118 | | |         original_width_px: u32,
+119 | | |         original_height_px: u32,
+...   | |
+123 | | |         masks: Vec<ImageMaskRef>,
+124 | | |     },
+    | | |_____- the second-largest variant contains at least 128 bytes
+...   |
+152 | | /     Text {
+153 | | |         content: String,
+154 | | |         font_family: String,
+155 | | |         font_size_mm: f64,
+...   | |
+215 | | |         variable_text: Option<VariableTextConfig>,
+216 | | |     },
+    | | |_____- the largest variant contains at least 409 bytes
+...   |
+236 | |       },
+237 | |   }
+    | |___^ the entire enum is at least 416 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#large_enum_variant
+    = note: `#[warn(clippy::large_enum_variant)]` on by default
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+215 -         variable_text: Option<VariableTextConfig>,
+215 +         variable_text: Box<Option<VariableTextConfig>>,
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/operations.rs:231:5
+    |
+231 | /     if found {
+232 | |         if let Some(group) = project.objects.iter_mut().find(|obj| obj.id == group_id) {
+233 | |             group.bounds = Bounds {
+234 | |                 min: Point2D::new(min_x, min_y),
+...   |
+238 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+231 ~     if found
+232 ~         && let Some(group) = project.objects.iter_mut().find(|obj| obj.id == group_id) {
+233 |             group.bounds = Bounds {
+...
+236 |             };
+237 ~         }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/operations.rs:465:9
+    |
+465 | /         if effective == TextLayoutMode::Path {
+466 | |             if let Some(guide_obj) = project.find_object(*guide_id) {
+467 | |                 return object_to_world_vecpath_resolved(guide_obj, project);
+468 | |             }
+469 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+465 ~         if effective == TextLayoutMode::Path
+466 ~             && let Some(guide_obj) = project.find_object(*guide_id) {
+467 |                 return object_to_world_vecpath_resolved(guide_obj, project);
+468 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/operations.rs:487:17
+    |
+487 | /                 if let ObjectData::VirtualClone { source_id } = &o.data {
+488 | |                     if affected_ids.contains(source_id) && !affected_ids.contains(&o.id) {
+489 | |                         return Some(o.id);
+490 | |                     }
+491 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+487 ~                 if let ObjectData::VirtualClone { source_id } = &o.data
+488 ~                     && affected_ids.contains(source_id) && !affected_ids.contains(&o.id) {
+489 |                         return Some(o.id);
+490 ~                     }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/operations.rs:510:17
+    |
+510 | /                 if let ObjectData::Text {
+511 | |                     guide_path_id: Some(gid),
+512 | |                     transform_style,
+513 | |                     ..
+...   |
+519 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+514 ~                 } = &obj.data
+515 ~                     && *transform_style == TextTransformStyle::None && *gid == aid {
+516 |                         return Some(obj.id);
+517 ~                     }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/optimization.rs:261:9
+    |
+261 | /         if let Some(v) = &patch.ordering {
+262 | |             if self.ordering != *v {
+263 | |                 self.ordering = v.clone();
+264 | |                 changed = true;
+265 | |             }
+266 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+261 ~         if let Some(v) = &patch.ordering
+262 ~             && self.ordering != *v {
+263 |                 self.ordering = v.clone();
+264 |                 changed = true;
+265 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/optimization.rs:280:9
+    |
+280 | /         if let Some(v) = patch.start_point_x {
+281 | |             if self.start_point_x != v {
+282 | |                 self.start_point_x = v;
+283 | |                 changed = true;
+284 | |             }
+285 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+280 ~         if let Some(v) = patch.start_point_x
+281 ~             && self.start_point_x != v {
+282 |                 self.start_point_x = v;
+283 |                 changed = true;
+284 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/optimization.rs:286:9
+    |
+286 | /         if let Some(v) = patch.start_point_y {
+287 | |             if self.start_point_y != v {
+288 | |                 self.start_point_y = v;
+289 | |                 changed = true;
+290 | |             }
+291 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+286 ~         if let Some(v) = patch.start_point_y
+287 ~             && self.start_point_y != v {
+288 |                 self.start_point_y = v;
+289 |                 changed = true;
+290 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/optimization.rs:292:9
+    |
+292 | /         if let Some(v) = patch.finish_x {
+293 | |             if self.finish_x != v {
+294 | |                 self.finish_x = v;
+295 | |                 changed = true;
+296 | |             }
+297 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+292 ~         if let Some(v) = patch.finish_x
+293 ~             && self.finish_x != v {
+294 |                 self.finish_x = v;
+295 |                 changed = true;
+296 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/optimization.rs:298:9
+    |
+298 | /         if let Some(v) = patch.finish_y {
+299 | |             if self.finish_y != v {
+300 | |                 self.finish_y = v;
+301 | |                 changed = true;
+302 | |             }
+303 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+298 ~         if let Some(v) = patch.finish_y
+299 ~             && self.finish_y != v {
+300 |                 self.finish_y = v;
+301 |                 changed = true;
+302 ~             }
+    |
+
+warning: the loop variable `y` is used to index `bm`
+   --> crates/beambench-core/src/potrace/bitmap.rs:181:14
+    |
+181 |     for y in 0..bm.len() {
+    |              ^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_range_loop
+    = note: `#[warn(clippy::needless_range_loop)]` on by default
+help: consider using an iterator and enumerate()
+    |
+181 -     for y in 0..bm.len() {
+181 +     for (y, <item>) in bm.iter().enumerate() {
+    |
+
+warning: the loop variable `x` is used to index `bm`
+   --> crates/beambench-core/src/potrace/bitmap.rs:182:18
+    |
+182 |         for x in 0..bm[y].len() {
+    |                  ^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+182 -         for x in 0..bm[y].len() {
+182 +         for (x, <item>) in bm.iter().enumerate().take(bm[y].len()) {
+    |
+
+warning: writing `&mut Vec` instead of `&mut [_]` involves a new object where a slice will do
+   --> crates/beambench-core/src/potrace/bitmap.rs:195:9
+    |
+195 |     bm: &mut Vec<Vec<bool>>,
+    |         ^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#ptr_arg
+    = note: `#[warn(clippy::ptr_arg)]` on by default
+help: change this to
+    |
+195 ~     bm: &mut [Vec<bool>],
+196 |     turdsize: i64,
+197 |     turnpolicy: TurnPolicy,
+198 | ) -> Vec<InternalPath> {
+199 ~     let original = bm.to_owned();
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/potrace/convert.rs:112:9
+    |
+112 | /         if !used_inners[ii] {
+113 | |             if let Some(ref fc) = paths[ii].fcurve {
+114 | |                 let sp = curve_to_subpath(fc);
+115 | |                 results.push(VecPath { subpaths: vec![sp] });
+116 | |             }
+117 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+112 ~         if !used_inners[ii]
+113 ~             && let Some(ref fc) = paths[ii].fcurve {
+114 |                 let sp = curve_to_subpath(fc);
+115 |                 results.push(VecPath { subpaths: vec![sp] });
+116 ~             }
+    |
+
+warning: unneeded late initialization
+  --> crates/beambench-core/src/potrace/curve.rs:47:9
+   |
+47 |         let alpha;
+   |         ^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_late_init
+   = note: `#[warn(clippy::needless_late_init)]` on by default
+help: move the declaration `alpha` here and remove the assignments from the branches
+   |
+47 ~
+48 ~         let alpha = if denom != 0.0 {
+49 |             let dd = dpara(
+...
+54 |             let dd = dd.abs();
+55 ~             if dd > 1.0 {
+56 |                 (1.0 - 1.0 / dd) / 0.75
+57 |             } else {
+58 |                 0.0 / 0.75
+59 ~             }
+60 |         } else {
+61 ~             4.0 / 3.0
+62 ~         };
+   |
+
+warning: clamp-like pattern without using clamp function
+  --> crates/beambench-core/src/potrace/curve.rs:71:21
+   |
+71 |               let a = if alpha < 0.55 {
+   |  _____________________^
+72 | |                 0.55
+73 | |             } else if alpha > 1.0 {
+74 | |                 1.0
+75 | |             } else {
+76 | |                 alpha
+77 | |             };
+   | |_____________^ help: replace with clamp: `alpha.clamp(0.55, 1.0)`
+   |
+   = note: clamp will panic if max < min, min.is_nan(), or max.is_nan()
+   = note: clamp returns NaN if the input is NaN
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#manual_clamp
+   = note: `#[warn(clippy::manual_clamp)]` on by default
+
+warning: the loop variable `i` is used to index `convc`
+   --> crates/beambench-core/src/potrace/curve.rs:289:14
+    |
+289 |     for i in 0..m {
+    |              ^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+289 -     for i in 0..m {
+289 +     for (i, <item>) in convc.iter_mut().enumerate().take(m) {
+    |
+
+warning: the loop variable `i` is used to index `s_arr`
+   --> crates/beambench-core/src/potrace/curve.rs:396:14
+    |
+396 |     for i in 0..om {
+    |              ^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+396 -     for i in 0..om {
+396 +     for (i, <item>) in s_arr.iter().enumerate().take(om) {
+    |
+
+warning: the loop variable `i` is used to index `clip0`
+   --> crates/beambench-core/src/potrace/polygon.rs:242:14
+    |
+242 |     for i in 0..n {
+    |              ^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+242 -     for i in 0..n {
+242 +     for (i, <item>) in clip0.iter_mut().enumerate().take(n) {
+    |
+
+warning: the loop variable `i` is used to index `clip0`
+   --> crates/beambench-core/src/potrace/polygon.rs:257:14
+    |
+257 |     for i in 0..n {
+    |              ^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+257 -     for i in 0..n {
+257 +     for (i, <item>) in clip0.iter().enumerate().take(n) {
+    |
+
+warning: this `impl` can be derived
+   --> crates/beambench-core/src/potrace/types.rs:98:1
+    |
+ 98 | / impl Default for TurnPolicy {
+ 99 | |     fn default() -> Self {
+100 | |         TurnPolicy::Minority
+101 | |     }
+102 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#derivable_impls
+    = note: `#[warn(clippy::derivable_impls)]` on by default
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+ 88 + #[derive(Default)]
+ 89 | pub enum TurnPolicy {
+ 90 |     Black,
+...
+ 93 |     Right,
+ 94 ~     #[default]
+ 95 ~     Minority,
+    |
+
+warning: struct `InternalPath` has a public `len` method, but no `is_empty` method
+   --> crates/beambench-core/src/potrace/types.rs:146:5
+    |
+146 |     pub fn len(&self) -> usize {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#len_without_is_empty
+    = note: `#[warn(clippy::len_without_is_empty)]` on by default
+
+warning: large size difference between variants
+   --> crates/beambench-core/src/quality_test.rs:263:1
+    |
+263 | / pub enum QualityTestRequest {
+264 | |     Material(MaterialTestSettings),
+    | |     ------------------------------ the largest variant contains at least 864 bytes
+265 | |     Focus(FocusTestSettings),
+266 | |     Interval(IntervalTestSettings),
+    | |     ------------------------------ the second-largest variant contains at least 64 bytes
+267 | | }
+    | |_^ the entire enum is at least 864 bytes
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#large_enum_variant
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+    |
+264 -     Material(MaterialTestSettings),
+264 +     Material(Box<MaterialTestSettings>),
+    |
+
+warning: this function has too many arguments (12/7)
+   --> crates/beambench-core/src/text_path.rs:370:1
+    |
+370 | / pub fn layout_text_on_path(
+371 | |     content: &str,
+372 | |     font_family: &str,
+373 | |     font_size_mm: f64,
+...   |
+382 | |     guide: &VecPath,
+383 | | ) -> Option<VecPath> {
+    | |____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+    = note: `#[warn(clippy::too_many_arguments)]` on by default
+
+warning: this function has too many arguments (12/7)
+   --> crates/beambench-core/src/text_path.rs:403:1
+    |
+403 | / pub(crate) fn layout_text_on_path_resolved(
+404 | |     content: &str,
+405 | |     font_family: &str,
+406 | |     font_size_mm: f64,
+...   |
+415 | |     guide: &VecPath,
+416 | | ) -> Option<PathTextResult> {
+    | |___________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (14/7)
+   --> crates/beambench-core/src/text_path.rs:435:1
+    |
+435 | / pub(crate) fn layout_text_on_path_resolved_with_options(
+436 | |     content: &str,
+437 | |     font_family: &str,
+438 | |     font_size_mm: f64,
+...   |
+449 | |     guide: &VecPath,
+450 | | ) -> Option<PathTextResult> {
+    | |___________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (15/7)
+   --> crates/beambench-core/src/text_path.rs:470:1
+    |
+470 | / pub(crate) fn layout_text_on_path_resolved_with_options_and_normal_offset(
+471 | |     content: &str,
+472 | |     font_family: &str,
+473 | |     font_size_mm: f64,
+...   |
+485 | |     guide: &VecPath,
+486 | | ) -> Option<PathTextResult> {
+    | |___________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/text_path.rs:563:5
+    |
+563 | /     if rtl {
+564 | |         if let Some(bounds) = text_path.bounds() {
+565 | |             let center_x = (bounds.min.x + bounds.max.x) / 2.0;
+566 | |             for subpath in &mut text_path.subpaths {
+...   |
+586 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+563 ~     if rtl
+564 ~         && let Some(bounds) = text_path.bounds() {
+565 |             let center_x = (bounds.min.x + bounds.max.x) / 2.0;
+...
+584 |             }
+585 ~         }
+    |
+
+warning: using `clone` on type `TextFontSource` which implements the `Copy` trait
+   --> crates/beambench-core/src/text_path.rs:673:31
+    |
+673 |         resolved_font_source: font_source.clone(),
+    |                               ^^^^^^^^^^^^^^^^^^^ help: try removing the `clone` call: `font_source`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#clone_on_copy
+    = note: `#[warn(clippy::clone_on_copy)]` on by default
+
+warning: this `if` has identical blocks
+   --> crates/beambench-core/src/trace.rs:933:24
+    |
+933 |       if configured <= 1 {
+    |  ________________________^
+934 | |         1
+935 | |     } else if width.max(height) > 1400 {
+    | |_____^
+    |
+note: same as this
+   --> crates/beambench-core/src/trace.rs:935:40
+    |
+935 |       } else if width.max(height) > 1400 {
+    |  ________________________________________^
+936 | |         1
+937 | |     } else {
+    | |_____^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#if_same_then_else
+    = note: `#[warn(clippy::if_same_then_else)]` on by default
+
+warning: unnecessary closure used to substitute value for `Option::None`
+   --> crates/beambench-core/src/variable_text.rs:111:23
+    |
+111 |           let current = raw.current.unwrap_or_else(|| {
+    |  _______________________^
+112 | |             if let Some(current_row) = raw.current_row {
+113 | |                 current_row as i64
+114 | |             } else if csv_row_count > 0 {
+...   |
+119 | |         });
+    | |__________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#unnecessary_lazy_evaluations
+    = note: `#[warn(clippy::unnecessary_lazy_evaluations)]` on by default
+help: use `unwrap_or` instead
+    |
+111 ~         let current = raw.current.unwrap_or({
+112 +             if let Some(current_row) = raw.current_row {
+113 +                 current_row as i64
+114 +             } else if csv_row_count > 0 {
+115 +                 0
+116 +             } else {
+117 +                 start
+118 +             }
+119 ~         });
+    |
+
+warning: this function has too many arguments (9/7)
+   --> crates/beambench-core/src/vector/convert.rs:864:1
+    |
+864 | / fn bulge_control_point(
+865 | |     cx: f64,
+866 | |     cy: f64,
+867 | |     ax: f64,
+...   |
+873 | |     bulge: f64,
+874 | | ) -> (f64, f64) {
+    | |_______________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/node_edit.rs:286:5
+    |
+286 | /     if cmd_idx == 0 && subpath.closed {
+287 | |         if let Some(last_idx) = last_draw_idx(subpath) {
+288 | |             return match subpath.commands[last_idx] {
+289 | |                 PathCommand::CubicTo { c2x, c2y, .. } => {
+...   |
+298 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+286 ~     if cmd_idx == 0 && subpath.closed
+287 ~         && let Some(last_idx) = last_draw_idx(subpath) {
+288 |             return match subpath.commands[last_idx] {
+...
+296 |             };
+297 ~         }
+    |
+
+warning: this `let...else` may be rewritten with the `?` operator
+   --> crates/beambench-core/src/vector/node_edit.rs:307:5
+    |
+307 | /     let Some(next_idx) = next_explicit_draw_idx(subpath, cmd_idx) else {
+308 | |         return None;
+309 | |     };
+    | |______^ help: replace it with: `let next_idx = next_explicit_draw_idx(subpath, cmd_idx)?;`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#question_mark
+    = note: `#[warn(clippy::question_mark)]` on by default
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/node_edit.rs:380:5
+    |
+380 | /     if node_id.command_idx == 0 && subpath.closed {
+381 | |         if let Some(last_idx) = last_draw_idx(subpath) {
+382 | |             match &mut subpath.commands[last_idx] {
+383 | |                 PathCommand::CubicTo { c2x, c2y, .. } => {
+...   |
+394 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+380 ~     if node_id.command_idx == 0 && subpath.closed
+381 ~         && let Some(last_idx) = last_draw_idx(subpath) {
+382 |             match &mut subpath.commands[last_idx] {
+...
+392 |             }
+393 ~         }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/node_edit.rs:399:5
+    |
+399 | /     if node_id.command_idx == 0 && subpath.closed {
+400 | |         if let Some(last_idx) = last_draw_idx(subpath) {
+401 | |             if let Some((lx, ly)) = endpoint_of(&subpath.commands[last_idx]) {
+402 | |                 if (lx - old_x).abs() < 1e-9 && (ly - old_y).abs() < 1e-9 {
+...   |
+415 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+399 ~     if node_id.command_idx == 0 && subpath.closed
+400 ~         && let Some(last_idx) = last_draw_idx(subpath) {
+401 |             if let Some((lx, ly)) = endpoint_of(&subpath.commands[last_idx]) {
+...
+413 |             }
+414 ~         }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/node_edit.rs:400:9
+    |
+400 | /         if let Some(last_idx) = last_draw_idx(subpath) {
+401 | |             if let Some((lx, ly)) = endpoint_of(&subpath.commands[last_idx]) {
+402 | |                 if (lx - old_x).abs() < 1e-9 && (ly - old_y).abs() < 1e-9 {
+403 | |                     match &mut subpath.commands[last_idx] {
+...   |
+414 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+400 ~         if let Some(last_idx) = last_draw_idx(subpath)
+401 ~             && let Some((lx, ly)) = endpoint_of(&subpath.commands[last_idx]) {
+402 |                 if (lx - old_x).abs() < 1e-9 && (ly - old_y).abs() < 1e-9 {
+...
+412 |                 }
+413 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/node_edit.rs:401:13
+    |
+401 | /             if let Some((lx, ly)) = endpoint_of(&subpath.commands[last_idx]) {
+402 | |                 if (lx - old_x).abs() < 1e-9 && (ly - old_y).abs() < 1e-9 {
+403 | |                     match &mut subpath.commands[last_idx] {
+404 | |                         PathCommand::CubicTo { x, y, .. }
+...   |
+413 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+401 ~             if let Some((lx, ly)) = endpoint_of(&subpath.commands[last_idx])
+402 ~                 && (lx - old_x).abs() < 1e-9 && (ly - old_y).abs() < 1e-9 {
+403 |                     match &mut subpath.commands[last_idx] {
+...
+411 |                     }
+412 ~                 }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/node_edit.rs:718:9
+    |
+718 | /         if let Some(last_idx) = last_draw_idx(subpath) {
+719 | |             if endpoint_of(&subpath.commands[last_idx])
+720 | |                 .map(|(x, y)| points_coincident(Point2D::new(x, y), node))
+721 | |                 .unwrap_or(false)
+...   |
+725 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+718 ~         if let Some(last_idx) = last_draw_idx(subpath)
+719 ~             && endpoint_of(&subpath.commands[last_idx])
+720 |                 .map(|(x, y)| points_coincident(Point2D::new(x, y), node))
+...
+723 |                 return Some(last_idx);
+724 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/node_edit.rs:918:17
+    |
+918 | /                 if needs_materialized_close
+919 | |                     || !move_handle(path, node_id, HandleType::In, handle_pos)
+920 | |                 {
+921 | |                     if !materialize_in_handle(path, node_id, handle_pos) {
+...   |
+924 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+918 ~                 if (needs_materialized_close
+919 ~                     || !move_handle(path, node_id, HandleType::In, handle_pos)
+920 ~                     || !move_handle(path, node_id, HandleType::In, handle_pos))
+921 |                 {
+922 ~                     && !materialize_in_handle(path, node_id, handle_pos) {
+923 |                         return false;
+924 ~                     }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/node_edit.rs:940:17
+    |
+940 | /                 if needs_materialized_close
+941 | |                     || !move_handle(path, node_id, HandleType::Out, handle_pos)
+942 | |                 {
+943 | |                     if !materialize_out_handle(path, node_id, handle_pos) {
+...   |
+946 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+940 ~                 if (needs_materialized_close
+941 ~                     || !move_handle(path, node_id, HandleType::Out, handle_pos)
+942 ~                     || !move_handle(path, node_id, HandleType::Out, handle_pos))
+943 |                 {
+944 ~                     && !materialize_out_handle(path, node_id, handle_pos) {
+945 |                         return false;
+946 ~                     }
+    |
+
+warning: doc list item without indentation
+    --> crates/beambench-core/src/vector/node_edit.rs:1039:5
+     |
+1039 | /// Returns false if the command is MoveTo, or Close on an open path, or indices are invalid.
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#doc_lazy_continuation
+     = note: `#[warn(clippy::doc_lazy_continuation)]` on by default
+help: indent this line
+     |
+1039 | ///   Returns false if the command is MoveTo, or Close on an open path, or indices are invalid.
+     |     ++
+
+warning: doc list item without indentation
+    --> crates/beambench-core/src/vector/node_edit.rs:1146:5
+     |
+1146 | /// Returns false if indices are invalid.
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#doc_lazy_continuation
+help: indent this line
+     |
+1146 | ///   Returns false if indices are invalid.
+     |     ++
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-core/src/vector/path_ops.rs:493:5
+    |
+493 | /     if let Some(idx) = last_draw_idx {
+494 | |         if let PathCommand::LineTo { x, y } = sp.commands[idx] {
+495 | |             let dx = x - first_pt.x;
+496 | |             let dy = y - first_pt.y;
+...   |
+514 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+493 ~     if let Some(idx) = last_draw_idx
+494 ~         && let PathCommand::LineTo { x, y } = sp.commands[idx] {
+495 |             let dx = x - first_pt.x;
+...
+512 |             }
+513 ~         }
+    |
+
+warning: this `if` has identical blocks
+    --> crates/beambench-core/src/vector/path_ops.rs:1631:37
+     |
+1631 |     let corner_count = if is_closed { full_len } else { full_len };
+     |                                     ^^^^^^^^^^^^
+     |
+note: same as this
+    --> crates/beambench-core/src/vector/path_ops.rs:1631:55
+     |
+1631 |     let corner_count = if is_closed { full_len } else { full_len };
+     |                                                       ^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#if_same_then_else
+
+warning: this function has too many arguments (15/7)
+   --> crates/beambench-core/src/vector/text_to_path.rs:549:1
+    |
+549 | / fn render_text_with_system_fallback(
+550 | |     db: &Database,
+551 | |     primary_id: ID,
+552 | |     primary_face: &Face<'_>,
+...   |
+564 | |     allow_wrap: bool,
+565 | | ) -> Option<(VecPath, Vec<usize>, Vec<String>)> {
+    | |_______________________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (13/7)
+   --> crates/beambench-core/src/vector/text_to_path.rs:670:1
+    |
+670 | / fn render_text_with_face(
+671 | |     face: &Face<'_>,
+672 | |     content: &str,
+673 | |     font_size_mm: f64,
+...   |
+683 | |     allow_wrap: bool,
+684 | | ) -> Option<(VecPath, Vec<usize>, Vec<String>)> {
+    | |_______________________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (15/7)
+   --> crates/beambench-core/src/vector/text_to_path.rs:786:1
+    |
+786 | / fn resolve_with_system_font(
+787 | |     content: &str,
+788 | |     font_family: &str,
+789 | |     font_size_mm: f64,
+...   |
+801 | |     allow_wrap: bool,
+802 | | ) -> Option<ResolvedTextPath> {
+    | |_____________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (13/7)
+   --> crates/beambench-core/src/vector/text_to_path.rs:870:1
+    |
+870 | / fn resolve_with_fallback_font(
+871 | |     content: &str,
+872 | |     font_size_mm: f64,
+873 | |     alignment: TextAlignment,
+...   |
+883 | |     missing_font: bool,
+884 | | ) -> Option<ResolvedTextPath> {
+    | |_____________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (15/7)
+    --> crates/beambench-core/src/vector/text_to_path.rs:1138:1
+     |
+1138 | / pub(crate) fn resolve_text_in_box_with_options(
+1139 | |     content: &str,
+1140 | |     font_family: &str,
+1141 | |     font_size_mm: f64,
+...    |
+1153 | |     allow_wrap: bool,
+1154 | | ) -> Option<ResolvedTextPath> {
+     | |_____________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (12/7)
+    --> crates/beambench-core/src/vector/text_to_path.rs:1192:1
+     |
+1192 | / pub fn resolve_text_in_box(
+1193 | |     content: &str,
+1194 | |     font_family: &str,
+1195 | |     font_size_mm: f64,
+...    |
+1204 | |     box_h: f64,
+1205 | | ) -> Option<ResolvedTextPath> {
+     | |_____________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: explicit call to `.into_iter()` in function argument accepting `IntoIterator`
+    --> crates/beambench-core/src/vector/trim.rs:1903:47
+     |
+1903 |             for sp in chain.into_iter().chain(remaining.into_iter()) {
+     |                                               ^^^^^^^^^^^^^^^^^^^^^
+     |
+note: this parameter accepts any `IntoIterator`, so you don't need to call `.into_iter()`
+    --> /rustc/ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96/library/core/src/iter/traits/iterator.rs:515:11
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#useless_conversion
+     = note: `#[warn(clippy::useless_conversion)]` on by default
+help: consider removing the `.into_iter()`
+     |
+1903 -             for sp in chain.into_iter().chain(remaining.into_iter()) {
+1903 +             for sp in chain.into_iter().chain(remaining) {
+     |
+
+warning: explicit call to `.into_iter()` in function argument accepting `IntoIterator`
+    --> crates/beambench-core/src/vector/trim.rs:1980:43
+     |
+1980 |         for sp in chain.into_iter().chain(remaining.into_iter()) {
+     |                                           ^^^^^^^^^^^^^^^^^^^^^
+     |
+note: this parameter accepts any `IntoIterator`, so you don't need to call `.into_iter()`
+    --> /rustc/ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96/library/core/src/iter/traits/iterator.rs:515:11
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#useless_conversion
+help: consider removing the `.into_iter()`
+     |
+1980 -         for sp in chain.into_iter().chain(remaining.into_iter()) {
+1980 +         for sp in chain.into_iter().chain(remaining) {
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-core/src/vector/trim.rs:2008:9
+     |
+2008 | /         if let Some(start_pt) = subpath_first_point(&SubPath {
+2009 | |             commands: cmds.clone(),
+2010 | |             closed: false,
+2011 | |         }) {
+...    |
+2023 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+2011 ~         })
+2012 ~             && let Some(last_cmd) = cmds.last_mut() {
+2013 |                 match last_cmd {
+ ...
+2021 |                 }
+2022 ~             }
+     |
+
+warning: this `match` can be collapsed into the outer `if let`
+    --> crates/beambench-core/src/vector/trim.rs:2013:17
+     |
+2013 | /                 match last_cmd {
+2014 | |                     PathCommand::LineTo { x, y }
+2015 | |                     | PathCommand::QuadTo { x, y, .. }
+2016 | |                     | PathCommand::CubicTo { x, y, .. } => {
+...    |
+2020 | |                     _ => {}
+2021 | |                 }
+     | |_________________^
+     |
+help: the outer pattern can be modified to include the inner pattern
+    --> crates/beambench-core/src/vector/trim.rs:2012:25
+     |
+2012 |               if let Some(last_cmd) = cmds.last_mut() {
+     |                           ^^^^^^^^ replace this binding
+2013 |                   match last_cmd {
+2014 | /                     PathCommand::LineTo { x, y }
+2015 | |                     | PathCommand::QuadTo { x, y, .. }
+2016 | |                     | PathCommand::CubicTo { x, y, .. } => {
+     | |_______________________________________________________^ with this pattern
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_match
+     = note: `#[warn(clippy::collapsible_match)]` on by default
+
+warning: `beambench-core` (lib) generated 64 warnings (run `cargo clippy --fix --lib -p beambench-core -- ` to apply 33 suggestions)
+warning: unnecessary closure used to substitute value for `Option::None`
+    --> crates/beambench-planner/src/builder.rs:1519:44
+     |
+1519 |                       let candidate_parity = iteration_parities
+     |  ____________________________________________^
+1520 | |                         .get(idx)
+1521 | |                         .copied()
+1522 | |                         .unwrap_or_else(|| if analysis.signed_area >= 0.0 { 0 } else { 1 });
+     | |___________________________________________________________________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#unnecessary_lazy_evaluations
+     = note: `#[warn(clippy::unnecessary_lazy_evaluations)]` on by default
+help: use `unwrap_or` instead
+     |
+1522 -                         .unwrap_or_else(|| if analysis.signed_area >= 0.0 { 0 } else { 1 });
+1522 +                         .unwrap_or(if analysis.signed_area >= 0.0 { 0 } else { 1 });
+     |
+
+warning: deref which would be done by auto-deref
+    --> crates/beambench-planner/src/builder.rs:2873:37
+     |
+2873 | ...                   &*processed_arc
+     |                       ^^^^^^^^^^^^^^^ help: try: `&processed_arc`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#explicit_auto_deref
+     = note: `#[warn(clippy::explicit_auto_deref)]` on by default
+
+warning: this function has too many arguments (8/7)
+   --> crates/beambench-planner/src/validate.rs:257:1
+    |
+257 | / fn record_point_violations(
+258 | |     worst: &mut Option<BoundsViolation>,
+259 | |     point: &Point2D,
+260 | |     bed_width_mm: f64,
+...   |
+265 | |     source_object_id: Option<&str>,
+266 | | ) {
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+    = note: `#[warn(clippy::too_many_arguments)]` on by default
+
+warning: `beambench-planner` (lib) generated 3 warnings (run `cargo clippy --fix --lib -p beambench-planner -- ` to apply 2 suggestions)
+    Checking beambench-service v0.2.26 (<checkout>/crates/beambench-service)
+warning: this function has too many arguments (12/7)
+  --> crates/beambench-service/src/agent.rs:80:1
+   |
+80 | / fn cap(
+81 | |     id: &'static str,
+82 | |     title: &'static str,
+83 | |     group: &'static str,
+...  |
+92 | |     notes: Vec<&'static str>,
+93 | | ) -> AgentCapability {
+   | |____________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+   = note: `#[warn(clippy::too_many_arguments)]` on by default
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/agent.rs:1063:9
+     |
+1063 | /         if let ObjectData::RasterImage { asset_key, .. } = &object.data {
+1064 | |             if !assets.contains(asset_key) && !loaded_asset_data.contains(asset_key) {
+1065 | |                 missing.push(asset_key.clone());
+1066 | |             }
+1067 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+     = note: `#[warn(clippy::collapsible_if)]` on by default
+help: collapse nested if block
+     |
+1063 ~         if let ObjectData::RasterImage { asset_key, .. } = &object.data
+1064 ~             && !assets.contains(asset_key) && !loaded_asset_data.contains(asset_key) {
+1065 |                 missing.push(asset_key.clone());
+1066 ~             }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/agent.rs:1167:9
+     |
+1167 | /         if let Some(profile) = active_profile.as_ref() {
+1168 | |             if (profile.bed_width_mm - project.workspace.bed_width_mm).abs() > 1e-6
+1169 | |                 || (profile.bed_height_mm - project.workspace.bed_height_mm).abs() > 1e-6
+...    |
+1180 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1167 ~         if let Some(profile) = active_profile.as_ref()
+1168 ~             && ((profile.bed_width_mm - project.workspace.bed_width_mm).abs() > 1e-6
+1169 ~                 || (profile.bed_height_mm - project.workspace.bed_height_mm).abs() > 1e-6)
+1170 |             {
+ ...
+1178 |                 ));
+1179 ~             }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/agent.rs:1182:9
+     |
+1182 | /         if let Some(snapshot) = project.machine_profile_snapshot.as_ref() {
+1183 | |             if (snapshot.bed_width_mm - project.workspace.bed_width_mm).abs() > 1e-6
+1184 | |                 || (snapshot.bed_height_mm - project.workspace.bed_height_mm).abs() > 1e-6
+...    |
+1195 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1182 ~         if let Some(snapshot) = project.machine_profile_snapshot.as_ref()
+1183 ~             && ((snapshot.bed_width_mm - project.workspace.bed_width_mm).abs() > 1e-6
+1184 ~                 || (snapshot.bed_height_mm - project.workspace.bed_height_mm).abs() > 1e-6)
+1185 |             {
+ ...
+1193 |                 ));
+1194 ~             }
+     |
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/agent.rs:1633:9
+     |
+1633 |         settings.api_localhost_only = false;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::AppSettings { api_localhost_only: false, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/agent.rs:1632:9
+     |
+1632 |         let mut settings = AppSettings::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+     = note: `#[warn(clippy::field_reassign_with_default)]` on by default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/agent.rs:1635:9
+     |
+1635 |         profile.bed_width_mm = 50.0;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { bed_width_mm: 50.0, bed_height_mm: 50.0, preset_id: Some("sculpfun_s30_pro_max_20w".to_string()), preset_version: Some(1), ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/agent.rs:1634:9
+     |
+1634 |         let mut profile = MachineProfile::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: this `if` statement can be collapsed
+  --> crates/beambench-service/src/material_apply.rs:68:24
+   |
+68 |                   } else if let Some(dpi) = preset.dpi {
+   |  ________________________^
+69 | |                     if dpi > 0 {
+70 | |                         raster_settings.dpi = dpi;
+71 | |                         raster_settings.line_interval_mm = 25.4 / dpi as f64;
+72 | |                     }
+73 | |                 }
+   | |_________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+   |
+68 ~                 } else if let Some(dpi) = preset.dpi
+69 ~                     && dpi > 0 {
+70 |                         raster_settings.dpi = dpi;
+71 |                         raster_settings.line_interval_mm = 25.4 / dpi as f64;
+72 ~                     }
+   |
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/material_apply.rs:190:9
+    |
+190 |         rs.scan_angle = 45.0;
+    |         ^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::RasterSettings { scan_angle: 45.0, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/material_apply.rs:189:9
+    |
+189 |         let mut rs = RasterSettings::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/camera.rs:647:5
+    |
+647 | /     if runtime.draft_dirty || runtime.overlay_adjust_mode {
+648 | |         if let Some(transform) = runtime.draft_overlay_transform.clone() {
+649 | |             return Some(transform);
+650 | |         }
+651 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+647 ~     if (runtime.draft_dirty || runtime.overlay_adjust_mode) {
+648 ~         && let Some(transform) = runtime.draft_overlay_transform.clone() {
+649 |             return Some(transform);
+650 ~         }
+    |
+
+warning: this `impl` can be derived
+   --> crates/beambench-service/src/ops/design.rs:159:1
+    |
+159 | / impl Default for RefValue {
+160 | |     fn default() -> Self {
+161 | |         RefValue::None
+162 | |     }
+163 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#derivable_impls
+    = note: `#[warn(clippy::derivable_impls)]` on by default
+help: replace the manual implementation with a derive attribute and mark the default variant
+    |
+115 + #[derive(Default)]
+116 | enum RefValue {
+117 |     Object(ObjectId),
+...
+125 |     CutEntries(Vec<(LayerId, CutEntryId)>),
+126 ~     #[default]
+127 ~     None,
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/design.rs:196:9
+    |
+196 | /         if let Some(snapshot) = &project.machine_profile_snapshot {
+197 | |             if (snapshot.bed_width_mm - project.workspace.bed_width_mm).abs() > 1e-6
+198 | |                 || (snapshot.bed_height_mm - project.workspace.bed_height_mm).abs() > 1e-6
+...   |
+202 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+196 ~         if let Some(snapshot) = &project.machine_profile_snapshot
+197 ~             && ((snapshot.bed_width_mm - project.workspace.bed_width_mm).abs() > 1e-6
+198 ~                 || (snapshot.bed_height_mm - project.workspace.bed_height_mm).abs() > 1e-6)
+199 |             {
+200 |                 warnings.push("profile_project_bed_mismatch".to_string());
+201 ~             }
+    |
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/camera.rs:1691:9
+     |
+1691 |         settings.active_profile_id = Some(profile_id);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::AppSettings { active_profile_id: Some(profile_id), ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/camera.rs:1690:9
+     |
+1690 |         let mut settings = AppSettings::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/design.rs:2574:5
+     |
+2574 | /     if let Some(object) = project.find_object(object_id) {
+2575 | |         if let ObjectData::Group { children } = &object.data {
+2576 | |             for child in children {
+2577 | |                 collect_group_members(project, *child, members);
+...    |
+2580 | |     }
+     | |_____^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+2574 ~     if let Some(object) = project.find_object(object_id)
+2575 ~         && let ObjectData::Group { children } = &object.data {
+2576 |             for child in children {
+2577 |                 collect_group_members(project, *child, members);
+2578 |             }
+2579 ~         }
+     |
+
+warning: redundant closure
+    --> crates/beambench-service/src/ops/design.rs:2799:14
+     |
+2799 |     .map_err(|e| boolean_error(e))?;
+     |              ^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `boolean_error`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#redundant_closure
+     = note: `#[warn(clippy::redundant_closure)]` on by default
+
+warning: redundant closure
+    --> crates/beambench-service/src/ops/design.rs:2818:14
+     |
+2818 |     .map_err(|e| boolean_error(e))?;
+     |              ^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the function itself: `boolean_error`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#redundant_closure
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/feedback.rs:2315:9
+     |
+2315 |         progress.state = JobState::Failed;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_common::JobProgress { state: JobState::Failed, error_message: Some("Controller reported Idle while bytes were pending".to_string()), ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/feedback.rs:2314:9
+     |
+2314 |         let mut progress = JobProgress::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: very complex type used. Consider factoring parts into `type` definitions
+    --> crates/beambench-service/src/ops/machine.rs:4265:6
+     |
+4265 |   ) -> ServiceResult<(
+     |  ______^
+4266 | |     PreflightReport,
+4267 | |     Option<(ExecutionPlan, Project, MachineProfile)>,
+4268 | | )> {
+     | |__^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#type_complexity
+     = note: `#[warn(clippy::type_complexity)]` on by default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/feedback.rs:2403:9
+     |
+2403 |         progress.state = JobState::Completed;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_common::JobProgress { state: JobState::Completed, total_lines: 42, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/feedback.rs:2402:9
+     |
+2402 |         let mut progress = JobProgress::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/machine.rs:5114:13
+     |
+5114 | /             if progress.state == beambench_common::machine::JobState::Completed {
+5115 | |                 if let Some(fingerprint) = pending_frame {
+5116 | |                     *ctx.relative_frame_confirmation
+5117 | |                         .lock()
+...    |
+5121 | |             }
+     | |_____________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+5114 ~             if progress.state == beambench_common::machine::JobState::Completed
+5115 ~                 && let Some(fingerprint) = pending_frame {
+5116 |                     *ctx.relative_frame_confirmation
+ ...
+5119 |                         Some(fingerprint);
+5120 ~                 }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/machine.rs:6155:13
+     |
+6155 | /             if should_stop {
+6156 | |                 if force_laser_fire_stop(&ctx, "deadman_timeout").is_ok() {
+6157 | |                     return;
+6158 | |                 }
+6159 | |             }
+     | |_____________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+6155 ~             if should_stop
+6156 ~                 && force_laser_fire_stop(&ctx, "deadman_timeout").is_ok() {
+6157 |                     return;
+6158 ~                 }
+     |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/nesting.rs:380:5
+    |
+380 | /     if let Some(object) = project.find_object(object_id) {
+381 | |         if let ObjectData::Group { children } = &object.data {
+382 | |             for child in children {
+383 | |                 collect_group_members(project, *child, members);
+...   |
+386 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+380 ~     if let Some(object) = project.find_object(object_id)
+381 ~         && let ObjectData::Group { children } = &object.data {
+382 |             for child in children {
+383 |                 collect_group_members(project, *child, members);
+384 |             }
+385 ~         }
+    |
+
+warning: this function has too many arguments (9/7)
+   --> crates/beambench-service/src/ops/nesting.rs:698:1
+    |
+698 | / fn compute_valid_layout(
+699 | |     project: &Project,
+700 | |     container: &ContainerRegion,
+701 | |     part_roots: &[ObjectId],
+...   |
+707 | |     deadline: Option<Instant>,
+708 | | ) -> ServiceResult<(LayoutResult, Project)> {
+    | |___________________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (9/7)
+    --> crates/beambench-service/src/ops/nesting.rs:1121:1
+     |
+1121 | / fn find_part_placement(
+1122 | |     container: &ContainerRegion,
+1123 | |     container_bounds: Bounds,
+1124 | |     part: &NestPart,
+...    |
+1130 | |     deadline: Option<Instant>,
+1131 | | ) -> ServiceResult<Option<(Placement, PlacedPart)>> {
+     | |___________________________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: manual `Range::contains` implementation
+    --> crates/beambench-service/src/ops/imports.rs:4675:37
+     |
+4675 |             if x >= 16 && x < 48 && y >= 16 && y < 48 {
+     |                                     ^^^^^^^^^^^^^^^^^ help: use: `(16..48).contains(&y)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#manual_range_contains
+     = note: `#[warn(clippy::manual_range_contains)]` on by default
+
+warning: manual `Range::contains` implementation
+    --> crates/beambench-service/src/ops/imports.rs:4675:16
+     |
+4675 |             if x >= 16 && x < 48 && y >= 16 && y < 48 {
+     |                ^^^^^^^^^^^^^^^^^ help: use: `(16..48).contains(&x)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#manual_range_contains
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/project.rs:201:9
+    |
+201 | /         if effective == TextLayoutMode::Path {
+202 | |             if let Some(guide_obj) = project.find_object(*guide_id) {
+203 | |                 return object_to_world_vecpath_resolved(guide_obj, project);
+204 | |             }
+205 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+201 ~         if effective == TextLayoutMode::Path
+202 ~             && let Some(guide_obj) = project.find_object(*guide_id) {
+203 |                 return object_to_world_vecpath_resolved(guide_obj, project);
+204 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/project.rs:223:17
+    |
+223 | /                 if let ObjectData::VirtualClone { source_id } = &o.data {
+224 | |                     if affected_ids.contains(source_id) && !affected_ids.contains(&o.id) {
+225 | |                         return Some(o.id);
+226 | |                     }
+227 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+223 ~                 if let ObjectData::VirtualClone { source_id } = &o.data
+224 ~                     && affected_ids.contains(source_id) && !affected_ids.contains(&o.id) {
+225 |                         return Some(o.id);
+226 ~                     }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/project.rs:246:17
+    |
+246 | /                 if let ObjectData::Text {
+247 | |                     guide_path_id: Some(gid),
+248 | |                     ..
+249 | |                 } = &obj.data
+...   |
+254 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+249 ~                 } = &obj.data
+250 ~                     && *gid == aid {
+251 |                         return Some(obj.id);
+252 ~                     }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/project.rs:355:13
+    |
+355 | /             if effective == TextLayoutMode::Path {
+356 | |                 if let Some(guide_obj) = project.find_object(*guide_id) {
+357 | |                     if let Some(vecpath) = object_to_world_vecpath_resolved(guide_obj, project) {
+358 | |                         guide_paths.insert(obj.id, vecpath);
+...   |
+361 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+355 ~             if effective == TextLayoutMode::Path
+356 ~                 && let Some(guide_obj) = project.find_object(*guide_id) {
+357 |                     if let Some(vecpath) = object_to_world_vecpath_resolved(guide_obj, project) {
+358 |                         guide_paths.insert(obj.id, vecpath);
+359 |                     }
+360 ~                 }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/project.rs:356:17
+    |
+356 | /                 if let Some(guide_obj) = project.find_object(*guide_id) {
+357 | |                     if let Some(vecpath) = object_to_world_vecpath_resolved(guide_obj, project) {
+358 | |                         guide_paths.insert(obj.id, vecpath);
+359 | |                     }
+360 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+356 ~                 if let Some(guide_obj) = project.find_object(*guide_id)
+357 ~                     && let Some(vecpath) = object_to_world_vecpath_resolved(guide_obj, project) {
+358 |                         guide_paths.insert(obj.id, vecpath);
+359 ~                     }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/beambench-service/src/ops/project.rs:515:5
+    |
+515 | /     if let Some(object) = project.find_object(object_id) {
+516 | |         if let ObjectData::Group { children } = &object.data {
+517 | |             for child in children {
+518 | |                 collect_group_members(project, *child, members);
+...   |
+521 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+515 ~     if let Some(object) = project.find_object(object_id)
+516 ~         && let ObjectData::Group { children } = &object.data {
+517 |             for child in children {
+518 |                 collect_group_members(project, *child, members);
+519 |             }
+520 ~         }
+    |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/project.rs:1675:9
+     |
+1675 | /         if let LayerBatchToggle::OnlyThisOn { keep } = &mode {
+1676 | |             if !project.layers.iter().any(|l| l.id == *keep) {
+1677 | |                 return Err(ServiceError::not_found("Layer not found"));
+1678 | |             }
+1679 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1675 ~         if let LayerBatchToggle::OnlyThisOn { keep } = &mode
+1676 ~             && !project.layers.iter().any(|l| l.id == *keep) {
+1677 |                 return Err(ServiceError::not_found("Layer not found"));
+1678 ~             }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/project.rs:2768:9
+     |
+2768 | /         if let Some(obj) = project.find_object_mut(object_id) {
+2769 | |             if let ObjectData::RasterImage {
+2770 | |                 adjustments: ref mut adj_slot,
+2771 | |                 ..
+...    |
+2776 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+2768 ~         if let Some(obj) = project.find_object_mut(object_id)
+2769 ~             && let ObjectData::RasterImage {
+2770 |                 adjustments: ref mut adj_slot,
+ ...
+2774 |                 *adj_slot = adjustments;
+2775 ~             }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/project.rs:2895:9
+     |
+2895 | /         if let ObjectData::Text {
+2896 | |             guide_path_id,
+2897 | |             layout_mode,
+2898 | |             on_path,
+...    |
+2909 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+2900 ~         } = &mut obj.data
+2901 ~             && let Some(gid) = guide_path_id {
+2902 |                 if removed_ids.contains(gid) {
+ ...
+2906 |                 }
+2907 ~             }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/project.rs:2902:13
+     |
+2902 | /             if let Some(gid) = guide_path_id {
+2903 | |                 if removed_ids.contains(gid) {
+2904 | |                     *guide_path_id = None;
+2905 | |                     *layout_mode = TextLayoutMode::Straight;
+...    |
+2908 | |             }
+     | |_____________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+2902 ~             if let Some(gid) = guide_path_id
+2903 ~                 && removed_ids.contains(gid) {
+2904 |                     *guide_path_id = None;
+2905 |                     *layout_mode = TextLayoutMode::Straight;
+2906 |                     *on_path = false;
+2907 ~                 }
+     |
+
+warning: this `if let` can be collapsed into the outer `match`
+    --> crates/beambench-service/src/ops/project.rs:3160:13
+     |
+3160 | /             if let Some(id) = guide_path_id {
+3161 | |                 if let Some(mapped) = id_map.get(id) {
+3162 | |                     *id = *mapped;
+3163 | |                 }
+3164 | |             }
+     | |_____________^
+     |
+help: the outer pattern can be modified to include the inner pattern
+    --> crates/beambench-service/src/ops/project.rs:3159:28
+     |
+3159 |         ObjectData::Text { guide_path_id, .. } => {
+     |                            ^^^^^^^^^^^^^ replace this binding
+3160 |             if let Some(id) = guide_path_id {
+     |                    ^^^^^^^^ with this pattern, prefixed by `guide_path_id: `
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_match
+     = note: `#[warn(clippy::collapsible_match)]` on by default
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/project.rs:3160:13
+     |
+3160 | /             if let Some(id) = guide_path_id {
+3161 | |                 if let Some(mapped) = id_map.get(id) {
+3162 | |                     *id = *mapped;
+3163 | |                 }
+3164 | |             }
+     | |_____________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+3160 ~             if let Some(id) = guide_path_id
+3161 ~                 && let Some(mapped) = id_map.get(id) {
+3162 |                     *id = *mapped;
+3163 ~                 }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/project.rs:3471:9
+     |
+3471 | /         if let Some(orig) = project.find_object_mut(object_id) {
+3472 | |             if let ObjectData::Text {
+3473 | |                 ref mut variable_text,
+3474 | |                 ..
+...    |
+3489 | |         }
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+3471 ~         if let Some(orig) = project.find_object_mut(object_id)
+3472 ~             && let ObjectData::Text {
+3473 |                 ref mut variable_text,
+ ...
+3487 |                 );
+3488 ~             }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/quality_test.rs:1081:5
+     |
+1081 | /     if let Some((x, y)) = material_center(request) {
+1082 | |         if let Some(bounds) = union_bounds(&synthetic.objects) {
+1083 | |             let center_x = bounds.min.x + bounds.width() * 0.5;
+1084 | |             let center_y = bounds.min.y + bounds.height() * 0.5;
+...    |
+1087 | |     }
+     | |_____^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+1081 ~     if let Some((x, y)) = material_center(request)
+1082 ~         && let Some(bounds) = union_bounds(&synthetic.objects) {
+1083 |             let center_x = bounds.min.x + bounds.width() * 0.5;
+1084 |             let center_y = bounds.min.y + bounds.height() * 0.5;
+1085 |             translate_project_objects(&mut synthetic.objects, x - center_x, y - center_y);
+1086 ~         }
+     |
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/machine.rs:8872:9
+     |
+8872 |         settings.active_profile_id = Some(profile.id);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::AppSettings { active_profile_id: Some(profile.id), ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/machine.rs:8871:9
+     |
+8871 |         let mut settings = AppSettings::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+     --> crates/beambench-service/src/ops/machine.rs:10000:9
+      |
+10000 |         profile.acceleration_mm_s2 = 100.0;
+      |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+note: consider initializing the variable with `beambench_core::MachineProfile { acceleration_mm_s2: 100.0, max_speed_mm_min: 10_000.0, ..Default::default() }` and removing relevant reassignments
+     --> crates/beambench-service/src/ops/machine.rs:9999:9
+      |
+ 9999 |         let mut profile = MachineProfile::default();
+      |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: use of `unwrap_or_else` to construct default value
+    --> crates/beambench-service/src/ops/vector.rs:1337:41
+     |
+1337 |         return paths.into_iter().next().unwrap_or_else(VecPath::new);
+     |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `unwrap_or_default()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#unwrap_or_default
+     = note: `#[warn(clippy::unwrap_or_default)]` on by default
+
+warning: use of `unwrap_or_else` to construct default value
+    --> crates/beambench-service/src/ops/vector.rs:1391:12
+     |
+1391 |     result.unwrap_or_else(VecPath::new)
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `unwrap_or_default()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#unwrap_or_default
+
+warning: `Box::new(_)` of default value
+     --> crates/beambench-service/src/ops/machine.rs:11043:55
+      |
+11043 |         let frame = PreparedFrame::Grbl(dummy_plan(), Box::new(GcodeConfig::default()));
+      |                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `Box::default()`
+      |
+      = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#box_default
+      = note: `#[warn(clippy::box_default)]` on by default
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/vector.rs:2228:17
+     |
+2228 | /                 if let ObjectData::Text {
+2229 | |                     guide_path_id: Some(guide_path_id),
+2230 | |                     ..
+2231 | |                 } = &mut object.data
+...    |
+2236 | |                 }
+     | |_________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+2231 ~                 } = &mut object.data
+2232 ~                     && *guide_path_id == input.object_id {
+2233 |                         *guide_path_id = result.id;
+2234 ~                     }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/vector.rs:3104:17
+     |
+3104 | /                 if let Some(hit) = ray_segment_intersection(origin, direction, start, end) {
+3105 | |                     if best_hit.is_none_or(|current| hit.0 < current.0) {
+3106 | |                         best_hit = Some(hit);
+3107 | |                     }
+3108 | |                 }
+     | |_________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+3104 ~                 if let Some(hit) = ray_segment_intersection(origin, direction, start, end)
+3105 ~                     && best_hit.is_none_or(|current| hit.0 < current.0) {
+3106 |                         best_hit = Some(hit);
+3107 ~                     }
+     |
+
+warning: this `if` statement can be collapsed
+    --> crates/beambench-service/src/ops/vector.rs:3131:21
+     |
+3131 | /                     if let Some(hit) = ray_segment_intersection(origin, direction, start, end) {
+3132 | |                         if best_hit.is_none_or(|current| hit.0 < current.0) {
+3133 | |                             best_hit = Some(hit);
+3134 | |                         }
+3135 | |                     }
+     | |_____________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+     |
+3131 ~                     if let Some(hit) = ray_segment_intersection(origin, direction, start, end)
+3132 ~                         && best_hit.is_none_or(|current| hit.0 < current.0) {
+3133 |                             best_hit = Some(hit);
+3134 ~                         }
+     |
+
+warning: used `assert_eq!` with a literal bool
+     --> crates/beambench-service/src/ops/machine.rs:13112:9
+      |
+13112 |         assert_eq!(ctx.job.lock().unwrap().is_some(), false);
+      |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#bool_assert_comparison
+      = note: `#[warn(clippy::bool_assert_comparison)]` on by default
+help: replace it with `assert!(..)`
+      |
+13112 -         assert_eq!(ctx.job.lock().unwrap().is_some(), false);
+13112 +         assert!(!ctx.job.lock().unwrap().is_some());
+      |
+
+warning: this `if` statement can be collapsed
+     --> crates/beambench-service/src/ops/machine.rs:13127:13
+      |
+13127 | /             if let Ok(event) = events.try_recv() {
+13128 | |                 if serde_json::from_str::<serde_json::Value>(&event).unwrap()["type"]
+13129 | |                     == "job.preflight.completed"
+...     |
+13133 | |             }
+      | |_____________^
+      |
+      = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+      |
+13127 ~             if let Ok(event) = events.try_recv()
+13128 ~                 && serde_json::from_str::<serde_json::Value>(&event).unwrap()["type"]
+13129 |                     == "job.preflight.completed"
+13130 |                 {
+13131 |                     break;
+13132 ~                 }
+      |
+
+warning: struct update has no effect, all the fields in the struct have already been specified
+  --> crates/beambench-service/src/ops/workflows/project.rs:87:15
+   |
+87 |             ..Default::default()
+   |               ^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_update
+   = note: `#[warn(clippy::needless_update)]` on by default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/output.rs:291:9
+    |
+291 |         profile.use_constant_power = true;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::MachineProfile { use_constant_power: true, emit_s_every_g1: true, s_value_max: 500, use_g0_for_overscan: false, supports_z_moves: true, z_move_feed_mm_min: 333.0, air_assist_on_gcode: "M8".to_string(), air_assist_on_delay_ms: 300, scanning_offsets: vec![
+                  ScanningOffsetEntry {
+                      speed_mm_min: 1000.0,
+                      offset_mm: 0.1,
+                  },
+                  ScanningOffsetEntry {
+                      speed_mm_min: 2000.0,
+                      offset_mm: 0.2,
+                  },
+              ], enable_scanning_offset: true, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/output.rs:290:9
+    |
+290 |         let mut profile = MachineProfile::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/output.rs:464:9
+    |
+464 |         profile.air_assist_on_gcode = "M8".to_string();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::MachineProfile { air_assist_on_gcode: "M8".to_string(), ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/output.rs:463:9
+    |
+463 |         let mut profile = MachineProfile::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/output.rs:573:9
+    |
+573 |         profile.supports_z_moves = true;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::MachineProfile { supports_z_moves: true, z_move_feed_mm_min: 333.0, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/output.rs:572:9
+    |
+572 |         let mut profile = MachineProfile::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/output.rs:615:9
+    |
+615 |         profile.supports_z_moves = false;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::MachineProfile { supports_z_moves: false, z_move_feed_mm_min: 333.0, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/output.rs:614:9
+    |
+614 |         let mut profile = MachineProfile::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/output.rs:634:9
+    |
+634 |         profile.supports_z_moves = true;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::MachineProfile { supports_z_moves: true, z_move_feed_mm_min: 333.0, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/output.rs:633:9
+    |
+633 |         let mut profile = MachineProfile::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/output.rs:653:9
+    |
+653 |         opt.finish_position = FinishPosition::CustomXY;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::ProjectOptimization { finish_position: FinishPosition::CustomXY, finish_x: Some(42.0), finish_y: Some(99.0), ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/output.rs:652:9
+    |
+652 |         let mut opt = ProjectOptimization::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/output.rs:669:9
+    |
+669 |         profile.enable_scanning_offset = true;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::MachineProfile { enable_scanning_offset: true, scanning_offsets: vec![
+                  ScanningOffsetEntry {
+                      speed_mm_min: 3000.0,
+                      offset_mm: 0.3,
+                  },
+                  ScanningOffsetEntry {
+                      speed_mm_min: 0.0,
+                      offset_mm: 0.9,
+                  },
+                  ScanningOffsetEntry {
+                      speed_mm_min: 1000.0,
+                      offset_mm: 0.1,
+                  },
+                  ScanningOffsetEntry {
+                      speed_mm_min: 1000.0,
+                      offset_mm: 0.2,
+                  },
+              ], ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/output.rs:668:9
+    |
+668 |         let mut profile = MachineProfile::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/output.rs:697:9
+    |
+697 |         profile.dot_width_mm = 0.15;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::MachineProfile { dot_width_mm: 0.15, enable_dot_width: true, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/output.rs:696:9
+    |
+696 |         let mut profile = MachineProfile::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: the borrowed expression implements the required traits
+   --> crates/beambench-service/src/ops/output.rs:787:17
+    |
+787 |                 &format!("rect{i}"),
+    |                 ^^^^^^^^^^^^^^^^^^^ help: change this to: `format!("rect{i}")`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_borrows_for_generic_args
+    = note: `#[warn(clippy::needless_borrows_for_generic_args)]` on by default
+
+warning: the borrowed expression implements the required traits
+   --> crates/beambench-service/src/ops/planning.rs:841:17
+    |
+841 |                 &format!("rect{i}"),
+    |                 ^^^^^^^^^^^^^^^^^^^ help: change this to: `format!("rect{i}")`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_borrows_for_generic_args
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/preferences.rs:330:9
+    |
+330 |         imported.autosave_enabled = false;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::AppSettings { autosave_enabled: false, ui_theme: UiTheme::System, api_enabled: true, api_port: 7000, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/preferences.rs:329:9
+    |
+329 |         let mut imported = AppSettings::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/preferences.rs:345:9
+    |
+345 |         current.api_port = 4567;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::AppSettings { api_port: 4567, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/preferences.rs:344:9
+    |
+344 |         let mut current = AppSettings::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+   --> crates/beambench-service/src/ops/preferences.rs:368:9
+    |
+368 |         current.display_unit = DisplayUnit::Inches;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: consider initializing the variable with `beambench_core::AppSettings { display_unit: DisplayUnit::Inches, speed_time_unit: SpeedTimeUnit::Seconds, autosave_enabled: false, ui_theme: UiTheme::Light, api_port: 4567, ..Default::default() }` and removing relevant reassignments
+   --> crates/beambench-service/src/ops/preferences.rs:367:9
+    |
+367 |         let mut current = AppSettings::default();
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: items after a test module
+    --> crates/beambench-service/src/ops/profiles.rs:1364:1
+     |
+1364 |   mod tests {
+     |   ^^^^^^^^^
+...
+2341 | / pub fn set_active_profile(
+2342 | |     ctx: &ServiceContext,
+2343 | |     profile_id: Option<MachineProfileId>,
+2344 | | ) -> ServiceResult<()> {
+     | |______________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#items_after_test_module
+     = note: `#[warn(clippy::items_after_test_module)]` on by default
+     = help: move the items to before the test module was defined
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/project.rs:4240:9
+     |
+4240 |         new_rs.pass_through = true;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::RasterSettings { pass_through: true, dpi: 254, line_interval_mm: 25.4 / 254.0, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/project.rs:4239:9
+     |
+4239 |         let mut new_rs = RasterSettings::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/project.rs:4385:13
+     |
+4385 |             profile.bed_width_mm = 600.0;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { bed_width_mm: 600.0, bed_height_mm: 300.0, origin: WorkspaceOrigin::BottomLeft, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/project.rs:4384:13
+     |
+4384 |             let mut profile = MachineProfile::default();
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: this function has too many arguments (24/7)
+    --> crates/beambench-service/src/ops/workflows/vector.rs:2513:1
+     |
+2513 | / pub fn grid_array(
+2514 | |     svc: &Arc<ServiceContext>,
+2515 | |     object_ids: Vec<String>,
+2516 | |     rows: u32,
+...    |
+2537 | |     text_increment: Option<i64>,
+2538 | | ) -> Result<ArrayResult, String> {
+     | |________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (14/7)
+    --> crates/beambench-service/src/ops/workflows/vector.rs:2688:1
+     |
+2688 | / pub fn circular_array(
+2689 | |     svc: &Arc<ServiceContext>,
+2690 | |     object_ids: Vec<String>,
+2691 | |     count: u32,
+...    |
+2702 | |     text_increment: Option<i64>,
+2703 | | ) -> Result<ArrayResult, String> {
+     | |________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/project.rs:5178:9
+     |
+5178 |         new_settings.mode = RasterMode::Threshold;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::RasterSettings { mode: RasterMode::Threshold, line_interval_mm: 0.2, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/project.rs:5177:9
+     |
+5177 |         let mut new_settings = RasterSettings::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/project.rs:5300:9
+     |
+5300 |         profile.bed_width_mm = 730.0;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { bed_width_mm: 730.0, bed_height_mm: 410.0, origin: WorkspaceOrigin::BottomLeft, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/project.rs:5299:9
+     |
+5299 |         let mut profile = MachineProfile::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: the borrowed expression implements the required traits
+    --> crates/beambench-service/src/ops/project.rs:6541:40
+     |
+6541 |             let mut layer = Layer::new(&format!("L{i}"), *op);
+     |                                        ^^^^^^^^^^^^^^^^ help: change this to: `format!("L{i}")`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_borrows_for_generic_args
+
+warning: returning the result of a `let` binding from a block
+    --> crates/beambench-service/src/ops/project.rs:6876:13
+     |
+6875 |             let p = project.layers[1].id;
+     |             ----------------------------- unnecessary `let` binding
+6876 |             p
+     |             ^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#let_and_return
+     = note: `#[warn(clippy::let_and_return)]` on by default
+help: return the expression directly
+     |
+6875 ~
+6876 ~             project.layers[1].id
+     |
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/quality_test.rs:1649:9
+     |
+1649 |         settings.active_profile_id = Some(profile.id);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::AppSettings { active_profile_id: Some(profile.id), ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/quality_test.rs:1648:9
+     |
+1648 |         let mut settings = AppSettings::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/quality_test.rs:1917:9
+     |
+1917 |         profile.bed_width_mm = 410.0;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { bed_width_mm: 410.0, bed_height_mm: 290.0, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/quality_test.rs:1916:9
+     |
+1916 |         let mut profile = MachineProfile::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/quality_test.rs:2134:9
+     |
+2134 |         profile.bed_width_mm = 400.0;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { bed_width_mm: 400.0, bed_height_mm: 400.0, origin: beambench_core::workspace::WorkspaceOrigin::BottomLeft, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/quality_test.rs:2133:9
+     |
+2133 |         let mut profile = MachineProfile::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/quality_test.rs:2165:9
+     |
+2165 |         profile.bed_width_mm = 400.0;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { bed_width_mm: 400.0, bed_height_mm: 400.0, origin: beambench_core::workspace::WorkspaceOrigin::BottomLeft, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/quality_test.rs:2164:9
+     |
+2164 |         let mut profile = MachineProfile::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/quality_test.rs:2464:9
+     |
+2464 |         profile.supports_z_moves = true;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { supports_z_moves: true, z_move_feed_mm_min: 450.0, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/quality_test.rs:2463:9
+     |
+2463 |         let mut profile = MachineProfile::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/quality_test.rs:2488:9
+     |
+2488 |         profile.supports_z_moves = true;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { supports_z_moves: true, z_move_feed_mm_min: 450.0, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/quality_test.rs:2487:9
+     |
+2487 |         let mut profile = MachineProfile::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: field assignment outside of initializer for an instance created with Default::default()
+    --> crates/beambench-service/src/ops/quality_test.rs:2514:9
+     |
+2514 |         profile.supports_z_moves = true;
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: consider initializing the variable with `beambench_core::MachineProfile { supports_z_moves: true, ..Default::default() }` and removing relevant reassignments
+    --> crates/beambench-service/src/ops/quality_test.rs:2513:9
+     |
+2513 |         let mut profile = MachineProfile::default();
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#field_reassign_with_default
+
+warning: redundant pattern matching, consider using `is_some()`
+    --> crates/beambench-service/src/ops/quality_test.rs:2601:17
+     |
+2601 |           assert!(matches!(
+     |  _________________^
+2602 | |             warnings
+2603 | |                 .iter()
+2604 | |                 .find(|w| matches!(w, QualityTestWarning::BoundsExceeded { .. })),
+2605 | |             Some(_)
+2606 | |         ));
+     | |_________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#redundant_pattern_matching
+     = note: `#[warn(clippy::redundant_pattern_matching)]` on by default
+help: try
+     |
+2601 ~         assert!(warnings
+2602 +                 .iter()
+2603 ~                 .find(|w| matches!(w, QualityTestWarning::BoundsExceeded { .. })).is_some());
+     |
+
+warning: this boolean expression can be simplified
+   --> crates/beambench-service/src/persist.rs:627:12
+    |
+627 |         if !path.extension().is_some_and(|ext| ext == "json") {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `path.extension().is_none_or(|ext| ext != "json")`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#nonminimal_bool
+    = note: `#[warn(clippy::nonminimal_bool)]` on by default
+
+warning: this loop could be written as a `while let` loop
+   --> crates/beambench-service/src/ops/event_stream_scenarios.rs:167:5
+    |
+167 | /     loop {
+168 | |         match rx.try_recv() {
+169 | |             Ok(msg) => {
+170 | |                 let value: serde_json::Value = serde_json::from_str(&msg).unwrap();
+...   |
+176 | |     }
+    | |_____^ help: try: `while let Ok(msg) = rx.try_recv() { .. }`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#while_let_loop
+    = note: `#[warn(clippy::while_let_loop)]` on by default
+
+warning: manual `Range::contains` implementation
+   --> crates/beambench-service/src/ops/image_scenarios.rs:615:49
+    |
+615 |             let alpha = if x >= 10 && x < 30 && y >= 10 && y < 30 {
+    |                                                 ^^^^^^^^^^^^^^^^^ help: use: `(10..30).contains(&y)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#manual_range_contains
+
+warning: manual `Range::contains` implementation
+   --> crates/beambench-service/src/ops/image_scenarios.rs:615:28
+    |
+615 |             let alpha = if x >= 10 && x < 30 && y >= 10 && y < 30 {
+    |                            ^^^^^^^^^^^^^^^^^ help: use: `(10..30).contains(&x)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#manual_range_contains
+
+warning: length comparison to zero
+    --> crates/beambench-service/src/ops/image_scenarios.rs:1189:9
+     |
+1189 |         ctx.preview_cache.len() > 0,
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: using `!is_empty` is clearer and more explicit: `!ctx.preview_cache.is_empty()`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#len_zero
+     = note: `#[warn(clippy::len_zero)]` on by default
+
+warning: large size difference between variants
+    --> crates/beambench-service/src/runtime.rs:1161:1
+     |
+1161 | / pub enum ActiveJobHandle {
+1162 | |     Grbl(JobController),
+     | |     ------------------- the largest variant contains at least 456 bytes
+1163 | |     Marlin(MarlinRuntimeJob),
+1164 | |     Smoothieware(SmoothiewareRuntimeJob),
+...    |
+1168 | |     Dsp(DspJob),
+     | |     ----------- the second-largest variant contains at least 128 bytes
+1169 | |     Galvo(GalvoJob),
+1170 | | }
+     | |_^ the entire enum is at least 456 bytes
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#large_enum_variant
+     = note: `#[warn(clippy::large_enum_variant)]` on by default
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+     |
+1162 -     Grbl(JobController),
+1162 +     Grbl(Box<JobController>),
+     |
+
+warning: `beambench-service` (lib) generated 41 warnings (run `cargo clippy --fix --lib -p beambench-service -- ` to apply 32 suggestions)
+    Checking beambench-api v0.2.26 (<checkout>/crates/beambench-api)
+warning: this function has too many arguments (10/7)
+    --> crates/beambench-service/src/ops/workflows/vector.rs:4603:5
+     |
+4603 | /     fn run_grid_array(
+4604 | |         svc: &ServiceContext,
+4605 | |         object_ids: Vec<String>,
+4606 | |         rows: u32,
+...    |
+4613 | |         v_spacing_mm: f64,
+4614 | |     ) -> Result<ArrayResult, String> {
+     | |____________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: `beambench-service` (lib test) generated 87 warnings (41 duplicates) (run `cargo clippy --fix --lib -p beambench-service --tests -- ` to apply 14 suggestions)
+warning: unnecessary closure used to substitute value for `Option::None`
+   --> crates/beambench-api/src/routes/machine.rs:308:16
+    |
+308 |       let port = body.port.unwrap_or_else(|| match &body.selection {
+    |  ________________^
+309 | |         ControllerSelection::KnownDriver {
+310 | |             driver: ControllerDriverId::Ruida,
+311 | |         } => 50200,
+...   |
+318 | |         _ => 23,
+319 | |     });
+    | |______^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#unnecessary_lazy_evaluations
+    = note: `#[warn(clippy::unnecessary_lazy_evaluations)]` on by default
+help: use `unwrap_or` instead
+    |
+308 ~     let port = body.port.unwrap_or(match &body.selection {
+309 +         ControllerSelection::KnownDriver {
+310 +             driver: ControllerDriverId::Ruida,
+311 +         } => 50200,
+312 +         ControllerSelection::KnownDriver {
+313 +             driver: ControllerDriverId::LaserPecker,
+314 +         } => 8888,
+315 +         ControllerSelection::KnownDriver {
+316 +             driver: ControllerDriverId::XToolM1,
+317 +         } => 8080,
+318 +         _ => 23,
+319 ~     });
+    |
+
+warning: struct update has no effect, all the fields in the struct have already been specified
+   --> crates/beambench-api/src/routes/projects.rs:245:15
+    |
+245 |             ..Default::default()
+    |               ^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_update
+    = note: `#[warn(clippy::needless_update)]` on by default
+
+warning: `beambench-api` (lib) generated 2 warnings (run `cargo clippy --fix --lib -p beambench-api -- ` to apply 1 suggestion)
+    Checking beambench-tauri v0.2.26 (<checkout>/tauri-app/src-tauri)
+warning: unneeded `return` statement
+  --> tauri-app/src-tauri/src/commands/export.rs:42:9
+   |
+42 | /         return pick_artwork_export_path_macos(
+43 | |             app,
+44 | |             title,
+45 | |             default_path,
+46 | |             formats,
+47 | |             selected_extension,
+48 | |         );
+   | |_________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_return
+   = note: `#[warn(clippy::needless_return)]` on by default
+help: remove `return`
+   |
+42 ~         pick_artwork_export_path_macos(
+43 +             app,
+44 +             title,
+45 +             default_path,
+46 +             formats,
+47 +             selected_extension,
+48 ~         )
+   |
+
+warning: this `if` statement can be collapsed
+   --> tauri-app/src-tauri/src/commands/export.rs:113:5
+    |
+113 | /     if let Some(directory) = default.parent().filter(|path| !path.as_os_str().is_empty()) {
+114 | |         if let Some(directory) = directory.to_str() {
+115 | |             let url = NSURL::fileURLWithPath_isDirectory(&NSString::from_str(directory), true);
+116 | |             panel.setDirectoryURL(Some(&url));
+117 | |         }
+118 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+    = note: `#[warn(clippy::collapsible_if)]` on by default
+help: collapse nested if block
+    |
+113 ~     if let Some(directory) = default.parent().filter(|path| !path.as_os_str().is_empty())
+114 ~         && let Some(directory) = directory.to_str() {
+115 |             let url = NSURL::fileURLWithPath_isDirectory(&NSString::from_str(directory), true);
+116 |             panel.setDirectoryURL(Some(&url));
+117 ~         }
+    |
+
+warning: this `if` statement can be collapsed
+   --> tauri-app/src-tauri/src/commands/import.rs:231:9
+    |
+231 | /         if candidate.is_absolute() && candidate.is_file() {
+232 | |             if let Some(payload) = artwork_payload_from_file(candidate) {
+233 | |                 return Ok(Some(payload));
+234 | |             }
+235 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+231 ~         if candidate.is_absolute() && candidate.is_file()
+232 ~             && let Some(payload) = artwork_payload_from_file(candidate) {
+233 |                 return Ok(Some(payload));
+234 ~             }
+    |
+
+warning: this function has too many arguments (11/7)
+   --> tauri-app/src-tauri/src/commands/import.rs:508:1
+    |
+508 | / pub async fn trace_image_preview(
+509 | |     svc: State<'_, Arc<ServiceContext>>,
+510 | |     object_id: String,
+511 | |     threshold: u8,
+...   |
+519 | |     boundary: Option<imports::TraceBoundaryPx>,
+520 | | ) -> Result<imports::TracePreviewOutput, String> {
+    | |________________________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+    = note: `#[warn(clippy::too_many_arguments)]` on by default
+
+warning: this function has too many arguments (11/7)
+   --> tauri-app/src-tauri/src/commands/import.rs:553:1
+    |
+553 | / pub async fn trace_image(
+554 | |     svc: State<'_, Arc<ServiceContext>>,
+555 | |     object_id: String,
+556 | |     threshold: u8,
+...   |
+564 | |     boundary: Option<imports::TraceBoundaryPx>,
+565 | | ) -> Result<Vec<ProjectObject>, String> {
+    | |_______________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this expression creates a reference which is immediately dereferenced by the compiler
+   --> tauri-app/src-tauri/src/commands/import.rs:622:25
+    |
+622 |     replace_image_inner(&svc, object_id, source_path, false)
+    |                         ^^^^ help: change this to: `svc`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_borrow
+    = note: `#[warn(clippy::needless_borrow)]` on by default
+
+warning: this `if` statement can be collapsed
+   --> tauri-app/src-tauri/src/commands/import.rs:703:5
+    |
+703 | /     if preserve_bounds {
+704 | |         if let Some(object) = project.find_object_mut(object_id) {
+705 | |             object.bounds = existing_bounds;
+706 | |         }
+707 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+703 ~     if preserve_bounds
+704 ~         && let Some(object) = project.find_object_mut(object_id) {
+705 |             object.bounds = existing_bounds;
+706 ~         }
+    |
+
+warning: this `if` statement can be collapsed
+   --> tauri-app/src-tauri/src/commands/import.rs:708:5
+    |
+708 | /     if let Some(old_asset_id) = old_asset_id {
+709 | |         if !project_references_asset_key(project, &old_asset_key) {
+710 | |             project.remove_asset(old_asset_id);
+711 | |         }
+712 | |     }
+    | |_____^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+708 ~     if let Some(old_asset_id) = old_asset_id
+709 ~         && !project_references_asset_key(project, &old_asset_key) {
+710 |             project.remove_asset(old_asset_id);
+711 ~         }
+    |
+
+warning: this expression creates a reference which is immediately dereferenced by the compiler
+   --> tauri-app/src-tauri/src/commands/import.rs:718:61
+    |
+718 |     beambench_service::ops::planning::invalidate_plan_cache(&svc).map_err(String::from)?;
+    |                                                             ^^^^ help: change this to: `svc`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#needless_borrow
+
+warning: this function has too many arguments (23/7)
+   --> tauri-app/src-tauri/src/commands/import.rs:723:1
+    |
+723 | / pub async fn adjust_image_preview(
+724 | |     svc: State<'_, Arc<ServiceContext>>,
+725 | |     object_id: String,
+726 | |     brightness: f64,
+...   |
+746 | |     request_id: u64,
+747 | | ) -> Result<imports::AdjustImagePreviewOutput, String> {
+    | |______________________________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this `if` statement can be collapsed
+   --> tauri-app/src-tauri/src/commands/import.rs:950:9
+    |
+950 | /         if let Some(entry) = layer.entries.first_mut() {
+951 | |             if let Some(raster) = entry.raster_settings.as_mut() {
+952 | |                 raster.pass_through = pass_through;
+953 | |                 raster.dpi = 100;
+954 | |             }
+955 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+950 ~         if let Some(entry) = layer.entries.first_mut()
+951 ~             && let Some(raster) = entry.raster_settings.as_mut() {
+952 |                 raster.pass_through = pass_through;
+953 |                 raster.dpi = 100;
+954 ~             }
+    |
+
+warning: this function has too many arguments (24/7)
+   --> tauri-app/src-tauri/src/commands/vector.rs:526:1
+    |
+526 | / pub fn grid_array(
+527 | |     svc: State<'_, Arc<ServiceContext>>,
+528 | |     object_ids: Vec<String>,
+529 | |     rows: u32,
+...   |
+550 | |     text_increment: Option<i64>,
+551 | | ) -> Result<ArrayResult, String> {
+    | |________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: this function has too many arguments (14/7)
+   --> tauri-app/src-tauri/src/commands/vector.rs:580:1
+    |
+580 | / pub fn circular_array(
+581 | |     svc: State<'_, Arc<ServiceContext>>,
+582 | |     object_ids: Vec<String>,
+583 | |     count: u32,
+...   |
+594 | |     text_increment: Option<i64>,
+595 | | ) -> Result<ArrayResult, String> {
+    | |________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.96.0/index.html#too_many_arguments
+
+warning: `beambench-tauri` (bin "beambench-tauri") generated 12 warnings (7 duplicates) (run `cargo clippy --fix --bin "beambench-tauri" -p beambench-tauri -- ` to apply 3 suggestions)
+warning: `beambench-tauri` (bin "beambench-tauri" test) generated 13 warnings (5 duplicates) (run `cargo clippy --fix --bin "beambench-tauri" -p beambench-tauri --tests -- ` to apply 5 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 55.50s

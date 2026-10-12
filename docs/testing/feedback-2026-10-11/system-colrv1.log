@@ -1,0 +1,7 @@
+WebKit 2 52 6
+libEGL warning: DRI3 error: Could not get DRI3 device
+libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering
+load <enum WEBKIT_LOAD_STARTED of type WebKit2.LoadEvent>
+load <enum WEBKIT_LOAD_COMMITTED of type WebKit2.LoadEvent>
+load <enum WEBKIT_LOAD_FINISHED of type WebKit2.LoadEvent>
+PROBE SURVIVED

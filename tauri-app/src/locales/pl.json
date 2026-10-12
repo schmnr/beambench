@@ -1797,7 +1797,7 @@
         "layer": "Warstwa",
         "mode": "Tryb",
         "speed_power": "Pręd./Moc",
-        "output": "Wyj.",
+        "output": "Wyjście",
         "show": "Pokaż",
         "air": "Air"
       },
@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "Profil BlazeX M3 10W oparty na dokumentacji i konfiguracji właściciela.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 bodów. Sieć: port 8080. Wykonaj bazowanie lub włącz je po połączeniu. Złącze Z służy do przystawki obrotowej."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "Ustawienie USB dla oryginalnego sprzętu na podstawie dokumentacji. Sprawdź zakres ruchu i maksymalną wartość S. Testy na urządzeniu są jeszcze nieprzeprowadzone."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "Ustawienie USB dla oryginalnego sprzętu na podstawie dokumentacji. Sprawdź zakres ruchu i maksymalną wartość S. Testy na urządzeniu są jeszcze nieprzeprowadzone."
           }
         },
         "report_active_profile": "Zapisz i aktywuj ten profil, aby udostępnić jego ustawienia wraz z wynikami.",

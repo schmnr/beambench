@@ -1,0 +1,1079 @@
+
+> beambench-ui@0.2.26 test
+> vitest run
+
+
+ RUN  v3.2.7 <checkout>/tauri-app
+
+stdout | src/services/__tests__/project-app-import-services.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/machine/__tests__/machineProfileDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/services/canvasScreenshotExportService.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/services/__tests__/vector-machine-services.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/__tests__/offsetTraceDialogs.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/welcome/__tests__/welcomeDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/tools/TrimTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/__tests__/deviceSettingsDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/tools/__tests__/laserAndMeasure.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/properties/__tests__/transformSection.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/settings/__tests__/settingsDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/services/printService.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/tools/TabTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/services/canvasScreenshotExportService.test.ts (5 tests) 5ms
+ ✓ src/services/printService.test.ts (2 tests) 20ms
+ ✓ src/canvas/tools/__tests__/laserAndMeasure.test.ts (10 tests) 72ms
+stdout | src/services/qualityTestService.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/services/__tests__/artLibraryService.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/services/__tests__/artLibraryService.test.ts (4 tests) 3ms
+ ✓ src/services/qualityTestService.test.ts (4 tests) 2ms
+stdout | src/services/__tests__/new-services.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/services/__tests__/new-services.test.ts (5 tests) 3ms
+stdout | src/components/dialogs/__tests__/AdjustImageDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/App.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/services/__tests__/vector-machine-services.test.ts (40 tests) 21ms
+ ✓ src/services/__tests__/project-app-import-services.test.ts (38 tests) 24ms
+ ✓ src/canvas/tools/TabTool.test.ts (8 tests) 38ms
+stdout | src/locales/__tests__/locale-parity.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/welcome/__tests__/welcomeDialog.test.tsx (11 tests) 141ms
+ ✓ src/canvas/tools/TrimTool.test.ts (12 tests) 749ms
+stdout | src/components/machine/__tests__/movePanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/__tests__/cameraDialogs.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/properties/__tests__/propertiesPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/__tests__/tracePreviewPan.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/settings/__tests__/settingsDialog.test.tsx (20 tests) 1307ms
+   ✓ SettingsDialog > resets all shortcut customizations to their defaults  519ms
+ ✓ src/components/machine/__tests__/machineProfileDialog.test.tsx (18 tests) 1397ms
+stdout | src/components/properties/__tests__/textPropertiesPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/properties/__tests__/transformSection.test.tsx (59 tests) 1649ms
+stdout | src/components/layout/__tests__/menuBar.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/locales/__tests__/locale-parity.test.ts (45 tests) 1892ms
+stdout | src/components/layout/__tests__/rightPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/dialogs/__tests__/deviceSettingsDialog.test.tsx (49 tests) 2503ms
+ ✓ src/components/dialogs/__tests__/offsetTraceDialogs.test.tsx (37 tests) 2615ms
+   ✓ TraceImageDialog > renders preview canvas and calls traceImagePreview on mount  521ms
+ ✓ src/components/dialogs/__tests__/tracePreviewPan.test.tsx (2 tests) 1259ms
+   ✓ TraceImageDialog pan while zoomed > space+left-drag pans the preview after zooming in  671ms
+   ✓ TraceImageDialog pan while zoomed > space+drag still pans when focus is inside a number input  588ms
+stdout | src/components/dialogs/__tests__/qualityTestDialogs.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/__tests__/feedbackReportDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/properties/__tests__/textPropertiesPanel.test.tsx (14 tests) 1011ms
+ ✓ src/components/dialogs/__tests__/cameraDialogs.test.tsx (13 tests) 1932ms
+   ✓ CameraAlignmentDialog > picks camera coordinates directly from the captured frame  439ms
+ ✓ src/components/layout/__tests__/rightPanel.test.tsx (18 tests) 627ms
+stdout | src/components/dialogs/__tests__/arrayDialogs.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/tools/NodeTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/layers/__tests__/cutSettingsEditor.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/machine/__tests__/laserPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/layers/__tests__/layerList.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/import/__tests__/importDropZone.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/tools/NodeTool.test.ts (64 tests) 767ms
+ ✓ src/components/machine/__tests__/movePanel.test.tsx (43 tests) 3673ms
+   ✓ MovePanel > keeps a held continuous jog running while the machine reports Jog  442ms
+ ✓ src/components/dialogs/__tests__/AdjustImageDialog.test.tsx (16 tests) 4674ms
+   ✓ AdjustImageDialog > exposes legacy double inversion and prevents selecting both controls again  455ms
+   ✓ AdjustImageDialog > shows threshold and denoise controls and sends updated preview params  386ms
+   ✓ AdjustImageDialog > requests a planned-resolution crop when 1:1 sample is enabled  666ms
+   ✓ AdjustImageDialog > shows the raster object rotation in both image previews  332ms
+   ✓ AdjustImageDialog > saves and reapplies presets with the full raster adjustment payload  653ms
+   ✓ AdjustImageDialog > shows preview failures inline and retries without closing the dialog  711ms
+   ✓ AdjustImageDialog > keeps preview request ids increasing across dialog reopen  675ms
+ ✓ src/components/properties/__tests__/propertiesPanel.test.tsx (45 tests) 3716ms
+   ✓ PropertiesPanel > shows missing glyph warnings for text objects  350ms
+stdout | src/App.test.tsx > App bootstrap > offers a one-time non-modal compatibility review for an experimental controller
+[Beam Bench] Event received: job.completed {
+  state: 'completed',
+  total_lines: 10,
+  queued_lines: 0,
+  sent_lines: 4,
+  acknowledged_lines: 3,
+  elapsed_secs: 2,
+  estimated_remaining_secs: 8,
+  buffer_fill_bytes: 12,
+  error_message: null
+}
+
+ ✓ src/components/dialogs/__tests__/feedbackReportDialog.test.tsx (13 tests) 1252ms
+   ✓ FeedbackReportDialog > keeps keyboard focus in the report instead of the underlying machine settings  350ms
+ ✓ src/components/dialogs/__tests__/arrayDialogs.test.tsx (16 tests) 1083ms
+   ✓ GridArrayDialog > renders all form fields  304ms
+stdout | src/canvas/tools/__tests__/textEditing.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/dialogs/__tests__/qualityTestDialogs.test.tsx (19 tests) 1837ms
+stdout | src/App.test.tsx > App bootstrap > does not offer compatibility feedback for established GRBL
+[Beam Bench] Event received: job.completed {
+  state: 'completed',
+  total_lines: 10,
+  queued_lines: 0,
+  sent_lines: 4,
+  acknowledged_lines: 3,
+  elapsed_secs: 2,
+  estimated_remaining_secs: 8,
+  buffer_fill_bytes: 12,
+  error_message: null
+}
+
+stdout | src/App.test.tsx > App bootstrap > does not prompt after a framing pass completes
+[Beam Bench] Event received: job.completed {
+  state: 'completed',
+  total_lines: 10,
+  queued_lines: 0,
+  sent_lines: 4,
+  acknowledged_lines: 3,
+  elapsed_secs: 2,
+  estimated_remaining_secs: 8,
+  buffer_fill_bytes: 12,
+  error_message: null
+}
+
+ ✓ src/components/layout/__tests__/menuBar.test.tsx (46 tests) 2972ms
+ ✓ src/components/import/__tests__/importDropZone.test.tsx (18 tests) 707ms
+stdout | src/App.test.tsx > App bootstrap > refreshes profiles and invalidates preview on backend profile events
+[Beam Bench] Event received: profile.activated { profile_id: 'prof-1' }
+
+stdout | src/components/settings/__tests__/hotkeyEditorDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/layers/__tests__/cutSettingsEditor.test.tsx (26 tests) 1519ms
+stdout | src/components/machine/__tests__/materialLibrary.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/App.test.tsx > App bootstrap > does not swallow unrelated backend profile events when a local event is suppressed
+[Beam Bench] Event received: profile.saved { profile: { id: 'prof-2' } }
+
+stdout | src/components/properties/__tests__/layerSettingsPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/machine/__tests__/laserPanel.test.tsx (34 tests) 1319ms
+stdout | src/App.test.tsx > App bootstrap > does not invalidate preview for backend saves to inactive profiles
+[Beam Bench] Event received: profile.saved { profile: { id: 'prof-inactive' } }
+
+stdout | src/components/dialogs/__tests__/closeSelectedPathsDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/panels/__tests__/ConnectionDiagnosticsPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/layers/__tests__/layerList.test.tsx (35 tests) 1295ms
+stdout | src/components/shared/__tests__/numberStepper.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/tools/__tests__/textEditing.test.ts (20 tests) 597ms
+stdout | src/components/layout/__tests__/toolbars.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/__tests__/PreviewWindow.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/layers/__tests__/layerActionsWiring.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/shared/__tests__/numberStepper.test.tsx (17 tests) 260ms
+stdout | src/components/panels/__tests__/ArtLibraryPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/machine/__tests__/materialLibrary.test.tsx (11 tests) 332ms
+ ✓ src/components/properties/__tests__/layerSettingsPanel.test.tsx (5 tests) 432ms
+stdout | src/components/layers/__tests__/m4Workflow.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/panels/__tests__/ConnectionDiagnosticsPanel.test.tsx (5 tests) 342ms
+ ✓ src/components/dialogs/__tests__/closeSelectedPathsDialog.test.tsx (3 tests) 458ms
+ ✓ src/components/settings/__tests__/hotkeyEditorDialog.test.tsx (4 tests) 745ms
+stdout | src/components/panels/__tests__/OutlinerPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/shared/__tests__/contextMenu.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/dialogs/__tests__/PreviewWindow.test.tsx (6 tests) 434ms
+ ✓ src/components/layers/__tests__/layerActionsWiring.test.tsx (7 tests) 414ms
+stdout | src/stores/__tests__/cameraStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/layers/__tests__/m4Workflow.test.tsx (10 tests) 381ms
+stdout | src/components/settings/__tests__/aboutDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/machine/JobControlPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/machine/__tests__/cameraOverlayControls.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/layout/__tests__/appShell.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/panels/__tests__/ArtLibraryPanel.test.tsx (15 tests) 751ms
+ ✓ src/components/shared/__tests__/contextMenu.test.tsx (18 tests) 296ms
+ ✓ src/components/layout/__tests__/toolbars.test.tsx (24 tests) 986ms
+stdout | src/App.test.tsx > Keyboard shortcuts > warns when the OS cannot protect an active job from sleep
+[Beam Bench] Event received: job.sleep_protection_failed {
+  message: '[sleep_protection_failed] Could not prevent computer sleep during this job. Keep the computer awake until the job ends. Native power manager unavailable.'
+}
+
+stdout | src/App.test.tsx > Keyboard shortcuts > surfaces import completion events as notifications
+[Beam Bench] Event received: project.import.completed { file_count: 2, object_ids: [ 'o1', 'o2', 'o3' ] }
+
+ ✓ src/components/panels/__tests__/OutlinerPanel.test.tsx (6 tests) 447ms
+stdout | src/App.test.tsx > Keyboard shortcuts > applies settings payloads from settings, import, and reset events
+[Beam Bench] Event received: app.settings.updated {
+  settings: {
+    display_unit: 'mm',
+    autosave_enabled: true,
+    autosave_interval_secs: 300,
+    machine_profiles: [],
+    active_profile_id: null,
+    recent_files: [],
+    api_enabled: false,
+    api_port: 5900,
+    api_localhost_only: false,
+    ui_theme: 'dark',
+    dark_mode: false,
+    antialiasing: false,
+    filled_rendering: false,
+    reduce_motion: false,
+    show_palette_labels: false,
+    cursor_size: 'normal',
+    toolbar_icon_size: 'normal',
+    click_tolerance_px: 5,
+    snap_threshold_px: 5,
+    grid_spacing_mm: 10,
+    nudge_step_mm: 5,
+    nudge_step_fine_mm: 1,
+    nudge_step_coarse_mm: 20,
+    scroll_zoom: true,
+    debug_log_enabled: false,
+    panel_layout: null,
+    saved_positions: [],
+    last_radius_mm: 5,
+    image_presets: [],
+    custom_hotkeys: {},
+    export_settings: { last_directory: null, last_format: 'svg', filename_stem: null }
+  }
+}
+
+stdout | src/App.test.tsx > Keyboard shortcuts > applies settings payloads from settings, import, and reset events
+[Beam Bench] Event received: app.preferences.imported {
+  settings: {
+    display_unit: 'mm',
+    autosave_enabled: true,
+    autosave_interval_secs: 300,
+    machine_profiles: [],
+    active_profile_id: null,
+    recent_files: [],
+    api_enabled: false,
+    api_port: 5900,
+    api_localhost_only: false,
+    ui_theme: 'light',
+    dark_mode: false,
+    antialiasing: false,
+    filled_rendering: false,
+    reduce_motion: false,
+    show_palette_labels: false,
+    cursor_size: 'normal',
+    toolbar_icon_size: 'normal',
+    click_tolerance_px: 5,
+    snap_threshold_px: 5,
+    grid_spacing_mm: 10,
+    nudge_step_mm: 5,
+    nudge_step_fine_mm: 1,
+    nudge_step_coarse_mm: 20,
+    scroll_zoom: true,
+    debug_log_enabled: false,
+    panel_layout: null,
+    saved_positions: [],
+    last_radius_mm: 5,
+    image_presets: [],
+    custom_hotkeys: {},
+    export_settings: { last_directory: null, last_format: 'svg', filename_stem: null }
+  }
+}
+
+stdout | src/App.test.tsx > Keyboard shortcuts > applies settings payloads from settings, import, and reset events
+[Beam Bench] Event received: app.preferences.reset {
+  settings: {
+    display_unit: 'mm',
+    autosave_enabled: true,
+    autosave_interval_secs: 300,
+    machine_profiles: [],
+    active_profile_id: null,
+    recent_files: [],
+    api_enabled: false,
+    api_port: 5900,
+    api_localhost_only: false,
+    ui_theme: 'dark',
+    dark_mode: false,
+    antialiasing: false,
+    filled_rendering: false,
+    reduce_motion: false,
+    show_palette_labels: false,
+    cursor_size: 'normal',
+    toolbar_icon_size: 'normal',
+    click_tolerance_px: 5,
+    snap_threshold_px: 5,
+    grid_spacing_mm: 10,
+    nudge_step_mm: 5,
+    nudge_step_fine_mm: 1,
+    nudge_step_coarse_mm: 20,
+    scroll_zoom: true,
+    debug_log_enabled: false,
+    panel_layout: null,
+    saved_positions: [],
+    last_radius_mm: 5,
+    image_presets: [],
+    custom_hotkeys: {},
+    export_settings: { last_directory: null, last_format: 'svg', filename_stem: null }
+  }
+}
+
+stdout | src/components/dialogs/__tests__/barcodeDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/canvas/__tests__/canvasGestures.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/App.test.tsx > Keyboard shortcuts > surfaces backend job tick failures and clears stale running progress
+[Beam Bench] Event received: job.tick_failed {
+  message: 'Job streaming tick failed: serial error: injected read failure'
+}
+
+stdout | src/App.test.tsx > Keyboard shortcuts > surfaces backend job tick failures and clears stale running progress
+[Beam Bench] Event received: machine.disconnected { reason: 'job_tick_failed' }
+
+stdout | src/App.test.tsx > Keyboard shortcuts > surfaces a warning when disconnect could not confirm a software stop
+[Beam Bench] Event received: machine.disconnected {
+  stop_warning: "Lihuiyu could not confirm a software stop; use the machine's physical stop"
+}
+
+ ✓ src/stores/__tests__/cameraStore.test.ts (21 tests) 332ms
+stdout | src/App.test.tsx > Keyboard shortcuts > updates machine state on disconnect events while preserving terminal job failure details
+[Beam Bench] Event received: job.failed {
+  state: 'failed',
+  total_lines: 10,
+  queued_lines: 0,
+  sent_lines: 4,
+  acknowledged_lines: 3,
+  elapsed_secs: 2,
+  estimated_remaining_secs: 8,
+  buffer_fill_bytes: 12,
+  error_message: 'GRBL error 2: Bad number format'
+}
+
+stdout | src/App.test.tsx > Keyboard shortcuts > updates machine state on disconnect events while preserving terminal job failure details
+[Beam Bench] Event received: machine.disconnected { reason: 'job_failed_while_running' }
+
+stdout | src/components/machine/__tests__/macrosWindow.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/App.test.tsx > Keyboard shortcuts > reloads project state after project.design.transaction_applied events
+[Beam Bench] Event received: project.design.transaction_applied { transaction_id: 'tx-1' }
+
+stdout | src/App.test.tsx > Keyboard shortcuts > reloads project state after project.workflow.applied events
+[Beam Bench] Event received: project.workflow.applied { transaction_id: 'tx-1' }
+
+ ✓ src/components/settings/__tests__/aboutDialog.test.tsx (6 tests) 288ms
+ ✓ src/components/machine/JobControlPanel.test.tsx (13 tests) 210ms
+ ✓ src/components/machine/__tests__/cameraOverlayControls.test.tsx (6 tests) 204ms
+stdout | src/components/properties/__tests__/measurementPropertiesSection.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/layout/__tests__/appShell.test.tsx (21 tests) 383ms
+stdout | src/components/machine/__tests__/controllerChoiceControls.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/commands/arrangeActions.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/App.test.tsx (58 tests) 7175ms
+   ✓ App > syncs frontend selection to the agent surface on a trailing timer  424ms
+   ✓ App > renders a global cancellable preview generation dialog  353ms
+stdout | src/components/dialogs/__tests__/dockDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/dialogs/__tests__/barcodeDialog.test.tsx (4 tests) 296ms
+ ✓ src/components/canvas/__tests__/canvasGestures.test.tsx (6 tests) 257ms
+stdout | src/components/__tests__/accessibility.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/machine/__tests__/macrosWindow.test.tsx (11 tests) 288ms
+stdout | src/components/machine/__tests__/preflightDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/commands/arrangeActions.test.ts (8 tests) 250ms
+stdout | src/components/panels/__tests__/panelContextMenu.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/stores/previewStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/__tests__/resizeSlotsDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/properties/__tests__/measurementPropertiesSection.test.tsx (3 tests) 477ms
+   ✓ measurement workspace coordinates > shows and copies the same bottom-left coordinates as Properties without changing distances  322ms
+ ✓ src/components/machine/__tests__/controllerChoiceControls.test.tsx (6 tests) 473ms
+stdout | src/components/shared/__tests__/numberInputCommit.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/dialogs/__tests__/dockDialog.test.tsx (3 tests) 568ms
+   ✓ DockDialog > persists dock settings while editing, even before apply  435ms
+stdout | src/components/machine/__tests__/cameraWindow.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/layers/__tests__/stackButtonsWiring.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/shared/__tests__/numberInputCommit.test.tsx (4 tests) 315ms
+ ✓ src/components/machine/__tests__/preflightDialog.test.tsx (8 tests) 349ms
+ ✓ src/stores/previewStore.test.ts (28 tests) 350ms
+ ✓ src/components/__tests__/accessibility.test.tsx (4 tests) 410ms
+ ✓ src/components/panels/__tests__/panelContextMenu.test.tsx (17 tests) 454ms
+stdout | src/components/canvas/__tests__/textEditOverlay.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/hooks/__tests__/useAutosave.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/__tests__/PrintDialog.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/dialogs/__tests__/resizeSlotsDialog.test.tsx (3 tests) 538ms
+   ✓ ResizeSlotsDialog > blocks invalid numeric input before applying  409ms
+stdout | src/components/panels/__tests__/ProjectNotesPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/layout/__tests__/statusBar.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/machine/__tests__/cameraWindow.test.tsx (2 tests) 417ms
+ ✓ src/components/layers/__tests__/stackButtonsWiring.test.tsx (1 test) 356ms
+   ✓ pass stack buttons in the panel > delete and reorder call the store actions  355ms
+ ✓ src/hooks/__tests__/useAutosave.test.ts (6 tests) 173ms
+stdout | src/canvas/CanvasRenderer.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/hooks/__tests__/useFocusTrap.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/machine/__tests__/consoleWindow.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/hitTest.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/canvas/__tests__/textEditOverlay.test.tsx (25 tests) 398ms
+ ✓ src/components/dialogs/__tests__/PrintDialog.test.tsx (2 tests) 420ms
+   ✓ PrintDialog > prints with operation-aware black output by default  326ms
+ ✓ src/components/panels/__tests__/ProjectNotesPanel.test.tsx (5 tests) 292ms
+stdout | src/canvas/meshDeformPreview.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/hooks/__tests__/useFocusTrap.test.tsx (8 tests) 235ms
+ ✓ src/components/layout/__tests__/statusBar.test.tsx (9 tests) 370ms
+stdout | src/i18n/errors.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/meshDeformPreview.test.ts (5 tests) 320ms
+   ✓ mesh deform live preview > uses a bounded sample for extremely dense paths  315ms
+stdout | src/components/properties/__tests__/rasterPropertiesPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/dialogs/UnsavedUpdateProtection.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/machine/__tests__/consoleWindow.test.tsx (9 tests) 230ms
+ ✓ src/canvas/__tests__/hitTest.test.ts (10 tests) 131ms
+stdout | src/components/layout/__tests__/floatingPanel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/CanvasRenderer.test.ts (52 tests) 403ms
+ ✓ src/i18n/errors.test.ts (38 tests) 105ms
+stdout | src/canvas/tools/SelectTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/layers/__tests__/ditherSamplePreview.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/constants/__tests__/palette.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/constants/__tests__/palette.test.ts (8 tests) 12ms
+ ✓ src/components/layout/__tests__/floatingPanel.test.tsx (7 tests) 163ms
+stdout | src/canvas/tools/__tests__/transformLocks.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/layout/__tests__/modifiersToolbar.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/layers/__tests__/ditherSamplePreview.test.tsx (2 tests) 169ms
+ ✓ src/components/properties/__tests__/rasterPropertiesPanel.test.tsx (2 tests) 254ms
+stdout | src/canvas/canvasPerfBudget.perf.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/dialogs/UnsavedUpdateProtection.test.tsx (1 test) 117ms
+stdout | src/components/shared/__tests__/textInput.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/tools/SelectTool.test.ts (50 tests) 152ms
+stdout | src/commands/appCommands.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/tools/__tests__/transformLocks.test.ts (2 tests) 15ms
+stdout | src/stores/__tests__/projectStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/shared/__tests__/textInput.test.tsx (4 tests) 199ms
+stdout | src/services/updateProtection.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/stores/__tests__/staleResponses.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/machine/__tests__/jobProgressBar.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/canvasPerfBudget.perf.test.ts (1 test) 168ms
+ ✓ src/components/layout/__tests__/modifiersToolbar.test.tsx (8 tests) 279ms
+stdout | src/components/shared/__tests__/Toggle.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/properties/__tests__/contextualToolSection.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/commands/appCommands.test.ts (56 tests) 363ms
+stdout | src/stores/__tests__/variableTextStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/stores/__tests__/projectStore.test.ts (114 tests) 200ms
+ ✓ src/services/updateProtection.test.ts (2 tests) 77ms
+stdout | src/stores/__tests__/materialStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/shared/__tests__/Toggle.test.tsx (1 test) 201ms
+ ✓ src/components/properties/__tests__/contextualToolSection.test.tsx (1 test) 48ms
+ ✓ src/stores/__tests__/staleResponses.test.tsx (20 tests) 175ms
+stdout | src/canvas/tools/TwoPointRotateScaleTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/machine/__tests__/jobProgressBar.test.tsx (5 tests) 156ms
+stdout | src/components/shared/__tests__/MovableResizableDialogFrame.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/stores/__tests__/variableTextStore.test.ts (9 tests) 83ms
+stdout | src/services/updateService.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/stores/__tests__/materialStore.test.ts (6 tests) 16ms
+stdout | src/stores/__tests__/machineStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/shared/__tests__/MovableResizableDialogFrame.test.tsx (5 tests) 233ms
+ ✓ src/canvas/tools/TwoPointRotateScaleTool.test.ts (5 tests) 18ms
+stdout | src/stores/__tests__/appStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/services/__tests__/serviceCommandParity.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/canvas/__tests__/canvasContextMenu.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/services/__tests__/serviceCommandParity.test.ts (5 tests) 112ms
+ ✓ src/stores/__tests__/machineStore.test.ts (33 tests) 96ms
+ ✓ src/services/updateService.test.ts (3 tests) 74ms
+stdout | src/panels/__tests__/PanelHost.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/commands/commandRegistry.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/commands/commandRegistry.test.ts (13 tests) 8ms
+stdout | src/canvas/tools/SelectionMeshDeformTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/panels/__tests__/panelTabMenuItems.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/panels/__tests__/panelTabMenuItems.test.ts (12 tests) 18ms
+ ✓ src/stores/__tests__/appStore.test.ts (6 tests) 9ms
+stdout | src/hooks/useMachinePolling.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/panels/__tests__/PanelHost.test.tsx (2 tests) 133ms
+stdout | src/stores/__tests__/consoleStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/canvas/__tests__/canvasContextMenu.test.ts (35 tests) 172ms
+stdout | src/panels/__tests__/dndEngine.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/tools/SelectionMeshDeformTool.test.ts (12 tests) 71ms
+ ✓ src/panels/__tests__/dndEngine.test.ts (10 tests) 11ms
+stdout | src/canvas/alignment.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/stores/__tests__/macroStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/alignment.test.ts (48 tests) 10ms
+ ✓ src/stores/__tests__/consoleStore.test.ts (9 tests) 119ms
+ ✓ src/hooks/useMachinePolling.test.ts (6 tests) 155ms
+stdout | src/services/browserCameraCapture.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/stores/updateStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/services/browserCameraCapture.test.ts (11 tests) 18ms
+stdout | src/i18n/previewBoundsError.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/i18n/previewBoundsError.test.ts (6 tests) 63ms
+stdout | src/themeTokens.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/stores/__tests__/undoStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/snapping.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/snapping.test.ts (19 tests) 5ms
+ ✓ src/stores/__tests__/macroStore.test.ts (6 tests) 19ms
+stdout | src/panels/__tests__/dndIntegration.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/stores/updateStore.test.ts (7 tests) 16ms
+stdout | src/canvas/drawObjects.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/stores/__tests__/notificationStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/drawObjects.test.ts (30 tests) 35ms
+stdout | src/canvas/drawPreview.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/stores/__tests__/undoStore.test.ts (4 tests) 19ms
+ ✓ src/canvas/drawPreview.test.ts (20 tests) 57ms
+stdout | src/canvas/hitTest.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/stores/__tests__/uiStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/drawPreviewAnimated.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/__tests__/drawPreviewAnimated.test.ts (48 tests) 25ms
+ ✓ src/panels/__tests__/dndIntegration.test.ts (14 tests) 7ms
+stdout | src/services/perfMarks.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/stores/__tests__/notificationStore.test.ts (10 tests) 23ms
+ ✓ src/services/perfMarks.test.ts (3 tests) 4ms
+stdout | src/components/canvas/__tests__/guidePathCancel.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/tools/MoveTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/drawSelection.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/tools/LineTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/stores/__tests__/uiStore.test.ts (39 tests) 21ms
+ ✓ src/canvas/hitTest.test.ts (22 tests) 94ms
+ ✓ src/canvas/tools/LineTool.test.ts (8 tests) 15ms
+ ✓ src/canvas/drawSelection.test.ts (20 tests) 8ms
+ ✓ src/components/canvas/__tests__/guidePathCancel.test.ts (2 tests) 5ms
+stdout | src/stores/__tests__/layerFamilyResolver.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/tools/MoveTool.test.ts (4 tests) 10ms
+ ✓ src/stores/__tests__/layerFamilyResolver.test.ts (20 tests) 48ms
+stdout | src/canvas/tools/MeasureTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/i18n/__tests__/localeManifest.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/utils/__tests__/clipboard.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/textEditSession.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/i18n/__tests__/localeManifest.test.ts (6 tests) 6ms
+stdout | src/canvas/tools/PolygonTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/textMeasure.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/rasterPreviewMotion.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/utils/__tests__/controllerConnection.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/__tests__/textMeasure.test.ts (17 tests) 4ms
+ ✓ src/canvas/__tests__/rasterPreviewMotion.test.ts (6 tests) 7ms
+ ✓ src/utils/__tests__/controllerConnection.test.ts (13 tests) 3ms
+stdout | src/types/__tests__/rasterSettings.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/tools/MeasureTool.test.ts (10 tests) 8ms
+ ✓ src/types/__tests__/rasterSettings.test.ts (9 tests) 5ms
+ ✓ src/utils/__tests__/clipboard.test.ts (10 tests) 16ms
+ ✓ src/canvas/__tests__/textEditSession.test.ts (10 tests) 10ms
+ ✓ src/canvas/tools/PolygonTool.test.ts (3 tests) 4ms
+stdout | src/components/canvas/__tests__/artLibraryCanvasDrop.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/canvas/__tests__/artLibraryCanvasDrop.test.ts (5 tests) 3ms
+stdout | src/locales/__tests__/unit-label-guard.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/theme.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/locales/__tests__/unit-label-guard.test.ts (23 tests) 4ms
+ ✓ src/theme.test.ts (5 tests) 5ms
+stdout | src/canvas/offsetPreview.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/offsetPreview.test.ts (2 tests) 2ms
+stdout | src/canvas/tools/__tests__/penTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/types/__tests__/schemaContract.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/tools/__tests__/penTool.test.ts (13 tests) 7ms
+ ✓ src/types/__tests__/schemaContract.test.ts (11 tests) 3ms
+stdout | src/locales/__tests__/post-job-localization-guard.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/drawRulers.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/cameraOverlay.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/locales/__tests__/post-job-localization-guard.test.ts (22 tests) 2ms
+ ✓ src/canvas/__tests__/drawRulers.test.ts (12 tests) 8ms
+stdout | src/canvas/__tests__/previewTimeline.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/__tests__/cameraOverlay.test.ts (8 tests) 5ms
+ ✓ src/canvas/__tests__/previewTimeline.test.ts (22 tests) 4ms
+stdout | src/canvas/tools/RadiusTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/stores/__tests__/artLibraryStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/CanvasRenderer.offsetPreview.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/utils/__tests__/arrangementSelection.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/__tests__/arrangementSelection.test.ts (8 tests) 5ms
+stdout | src/canvas/rasterTransform.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/pointerSnap.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/rasterTransform.test.ts (12 tests) 5ms
+ ✓ src/canvas/pointerSnap.test.ts (6 tests) 4ms
+ ✓ src/canvas/tools/RadiusTool.test.ts (5 tests) 3ms
+ ✓ src/stores/__tests__/artLibraryStore.test.ts (14 tests) 6ms
+ ✓ src/canvas/__tests__/CanvasRenderer.offsetPreview.test.ts (3 tests) 3ms
+stdout | src/types/__tests__/machine-commands.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/services/jobService.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/ViewportTransform.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/types/__tests__/machine-commands.test.ts (5 tests) 6ms
+ ✓ src/services/jobService.test.ts (5 tests) 2ms
+stdout | src/canvas/measurement.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/locales/__tests__/rotary-localization-guard.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/ViewportTransform.test.ts (22 tests) 33ms
+stdout | src/canvas/tools/RectTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/locales/__tests__/rotary-localization-guard.test.ts (22 tests) 3ms
+ ✓ src/canvas/measurement.test.ts (8 tests) 6ms
+stdout | src/types/__tests__/controller-choice.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/sceneIndex.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/types/__tests__/controller-choice.test.ts (3 tests) 2ms
+ ✓ src/canvas/sceneIndex.test.ts (6 tests) 3ms
+stdout | src/canvas/__tests__/CanvasRenderer.cameraOverlay.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/commands/__tests__/selectionContext.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/commands/__tests__/selectionContext.test.ts (5 tests) 3ms
+ ✓ src/canvas/tools/RectTool.test.ts (1 test) 4ms
+stdout | src/panels/__tests__/panelRegistry.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/canvasSurface.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/panels/__tests__/panelRegistry.test.ts (15 tests) 10ms
+ ✓ src/canvas/canvasSurface.test.ts (5 tests) 4ms
+ ✓ src/canvas/__tests__/CanvasRenderer.cameraOverlay.test.ts (3 tests) 17ms
+stdout | src/utils/__tests__/speedUnits.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/__tests__/speedUnits.test.ts (3 tests) 2ms
+stdout | src/panels/__tests__/layoutState.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/types/__tests__/grbl-family.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/types/__tests__/grbl-family.test.ts (3 tests) 3ms
+stdout | src/canvas/__tests__/CanvasRenderer.measurement.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/services/invoke.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/panels/__tests__/layoutState.test.ts (10 tests) 5ms
+ ✓ src/themeTokens.test.ts (5 tests) 14ms
+ ✓ src/services/invoke.test.ts (4 tests) 10ms
+stdout | src/utils/postJobCompatibilityPrompt.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/drawPreviewOverscan.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/types/__tests__/planContract.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/postJobCompatibilityPrompt.test.ts (5 tests) 17ms
+ ✓ src/types/__tests__/planContract.test.ts (1 test) 2ms
+ ✓ src/canvas/__tests__/drawPreviewOverscan.test.ts (2 tests) 4ms
+ ✓ src/canvas/__tests__/CanvasRenderer.measurement.test.ts (3 tests) 4ms
+stdout | src/utils/__tests__/serialPorts.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/__tests__/serialPorts.test.ts (7 tests) 2ms
+stdout | src/utils/__tests__/systemClipboard.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/utils/__tests__/hotkeyMatch.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/__tests__/hotkeyMatch.test.ts (11 tests) 3ms
+stdout | src/utils/lengthUnits.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/services/__tests__/cameraFrameAsset.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/services/__tests__/cameraFrameAsset.test.ts (3 tests) 3ms
+ ✓ src/utils/lengthUnits.test.ts (7 tests) 2ms
+stdout | scripts/upload-release-assets.test.mjs
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/canvas/__tests__/tabMarkerPreview.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ scripts/upload-release-assets.test.mjs (5 tests) 2ms
+stdout | src/commands/__tests__/arrangeActions.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/__tests__/systemClipboard.test.ts (5 tests) 5ms
+stdout | src/canvas/previewViewport.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/previewViewport.test.ts (3 tests) 2ms
+ ✓ src/canvas/__tests__/tabMarkerPreview.test.ts (3 tests) 1ms
+ ✓ src/commands/__tests__/arrangeActions.test.ts (2 tests) 2ms
+stdout | src/types/__tests__/new-types.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/properties/__tests__/textShapeMode.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/properties/__tests__/textShapeMode.test.ts (4 tests) 2ms
+ ✓ src/types/__tests__/new-types.test.ts (5 tests) 5ms
+stdout | src/i18n/__tests__/pseudo.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/i18n/__tests__/pseudo.test.ts (8 tests) 2ms
+stdout | src/utils/__tests__/rulerGuides.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/utils/windowTitle.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/windowTitle.test.ts (4 tests) 1ms
+ ✓ src/utils/__tests__/rulerGuides.test.ts (4 tests) 3ms
+stdout | src/constants/__tests__/serial.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/constants/__tests__/serial.test.ts (3 tests) 2ms
+stdout | src/canvas/selectionDashAnimation.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/types/__tests__/project.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/components/machine/__tests__/machineStateThemeGuard.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/types/__tests__/project.test.ts (6 tests) 2ms
+ ✓ src/canvas/selectionDashAnimation.test.ts (4 tests) 1ms
+ ✓ src/components/machine/__tests__/machineStateThemeGuard.test.ts (4 tests) 3ms
+stdout | src/utils/__tests__/recovery.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/utils/selectionSimilar.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/__tests__/recovery.test.ts (1 test) 2ms
+stdout | src/panels/__tests__/panelComponents.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/selectionSimilar.test.ts (1 test) 2ms
+stdout | src/utils/__tests__/nodeClipboard.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/__tests__/nodeClipboard.test.ts (2 tests) 16ms
+stdout | src/utils/__tests__/workspaceCoordinates.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/utils/__tests__/lihuiyuUsb.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/utils/__tests__/workspaceCoordinates.test.ts (2 tests) 5ms
+ ✓ src/utils/__tests__/lihuiyuUsb.test.ts (1 test) 3ms
+stdout | src/components/canvas/__tests__/rulerGuideDrag.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/components/canvas/__tests__/rulerGuideDrag.test.ts (4 tests) 2ms
+stdout | src/canvas/__tests__/workspaceCanvasTool.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/utils/platform.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/canvas/__tests__/workspaceCanvasTool.test.ts (3 tests) 1ms
+ ✓ src/utils/platform.test.ts (3 tests) 3ms
+stdout | src/stores/__tests__/welcomeStore.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/stores/__tests__/welcomeStore.test.ts (2 tests) 1ms
+stdout | src/locales/__tests__/notification-literal-guard.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/locales/__tests__/extraction-coverage.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/i18n/__tests__/backendErrorCodes.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/panels/__tests__/panelComponents.test.tsx (3 tests) 2ms
+stdout | src/components/canvas/__tests__/startPointPick.test.ts
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/i18n/__tests__/backendErrorCodes.test.ts (1 test) 87ms
+ ✓ src/components/canvas/__tests__/startPointPick.test.ts (1 test) 1ms
+ ✓ src/locales/__tests__/extraction-coverage.test.ts (128 tests) 8ms
+ ✓ src/locales/__tests__/notification-literal-guard.test.ts (1 test) 4ms
+
+ Test Files  210 passed (210)
+      Tests  2770 passed (2770)
+   Start at  11:22:59
+   Duration  33.43s (transform 13.48s, setup 53.28s, collect 102.10s, tests 71.47s, environment 131.29s, prepare 23.18s)
+

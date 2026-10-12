@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "根據文件和使用者設定建立的 BlazeX M3 10W 預設。",
             "advisory": "200 x 150 mm，S1000。USB：115200 傳輸速率。網路：連接埠 8080。請回原點或啟用連線時回原點。Z 接口用於旋轉配件。"
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "依據文件建立的原廠硬體 USB 預設。請核對行程和最大 S 值。尚未進行實機測試。"
+          },
+          "twotrees_tt_5_5s": {
+            "description": "依據文件建立的原廠硬體 USB 預設。請核對行程和最大 S 值。尚未進行實機測試。"
           }
         },
         "report_active_profile": "請儲存並啟用此設定檔，以便隨測試結果分享其設定。",

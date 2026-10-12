@@ -1,7 +1,7 @@
 import i18n from '../i18n';
 import { check, type DownloadEvent, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import { useProjectStore } from '../stores/projectStore';
 import { useUnsavedGuardStore } from '../stores/unsavedGuardStore';
 import { useMachineStore } from '../stores/machineStore';

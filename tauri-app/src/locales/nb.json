@@ -1788,7 +1788,7 @@
     },
     "layers": {
       "tool_layer_help": "Verktøylag er hjelpelag og gir aldri laserutgang.",
-      "output_show_help": "Ut tar med dette laget i laserjobben. Vis endrer bare lerretsvisningen.",
+      "output_show_help": "Utdata tar med dette laget i laserjobben. Vis endrer bare lerretsvisningen.",
       "opacity_help": "Bare forhåndsvisning på lerretet. Dette endrer ikke lasereffekt eller bildebehandling.",
       "delete_layer": "Slett lag",
       "add_layer": "Legg til lag",
@@ -1797,7 +1797,7 @@
         "layer": "Lag",
         "mode": "Modus",
         "speed_power": "Hast./Eff.",
-        "output": "Ut",
+        "output": "Utdata",
         "show": "Vis",
         "air": "Luft"
       },
@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "BlazeX M3 10W-forhåndsinnstilling basert på dokumentasjon og en eiers konfigurasjon.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Nettverk: port 8080. Referansekjør eller aktiver det ved tilkobling. Z-kontakten er for rotasjonstilbehør."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "USB-forhåndsinnstilling for original maskinvare basert på dokumentasjon. Kontroller vandring og maksimal S-verdi. Fysisk testing gjenstår."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "USB-forhåndsinnstilling for original maskinvare basert på dokumentasjon. Kontroller vandring og maksimal S-verdi. Fysisk testing gjenstår."
           }
         },
         "report_active_profile": "Lagre og aktiver denne profilen for å dele innstillingene med resultatene dine.",

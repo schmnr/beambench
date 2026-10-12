@@ -1,0 +1,133 @@
+{
+  "date": "2026-10-11",
+  "base_commit": "192bdf2dc1031e0e642cd15fb6ae5d0bf585efdd",
+  "scope": "local next-release preparation; existing dirty changes preserved",
+  "published": false,
+  "reporters_contacted": false,
+  "reports_reviewed": [
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54
+  ],
+  "input_sha256": {
+    "original_appimage": "834ada69b7090bbb21c4a7c5280912144e6b3b7045290ee1d7b0b40322b5f5d6",
+    "repaired_appimage": "81f328e1af2634397f4ec28dd48714a61d881dbbbe0248de1a2f1db3230b445e",
+    "test_font": "94c6c870925aaafd3fdda338fc4b2e4dfb74260c9aefa87d4aa8a145a993a5a2"
+  },
+  "checks": [
+    {
+      "log": "full-backend-tests.log",
+      "command": "cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-serial -p beambench-core",
+      "exit_code": 0,
+      "passed": 2542,
+      "failed": 0,
+      "ignored": 3
+    },
+    {
+      "log": "final-profile-tests.log",
+      "command": "cargo test -p beambench-service ops::profiles::tests",
+      "exit_code": 0,
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "tauri-tests.log",
+      "command": "cargo test -p beambench-tauri",
+      "exit_code": 0,
+      "passed": 49,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "full-ui-tests.log",
+      "cwd": "tauri-app",
+      "command": "npx vitest run",
+      "exit_code": 0,
+      "passed": 2770,
+      "failed": 0
+    },
+    {
+      "log": "final-ui-tests.log",
+      "cwd": "tauri-app",
+      "command": "npx vitest run src/components/shared/Toast.test.tsx src/services/invoke.test.ts src/stores/__tests__/notificationStore.test.ts",
+      "exit_code": 0,
+      "passed": 16,
+      "failed": 0
+    },
+    {
+      "log": "runtime-tests.log",
+      "command": "python3 scripts/test-linux-appimage-runtime.py",
+      "exit_code": 0
+    },
+    {
+      "log": "clippy.log",
+      "command": "cargo clippy -p beambench-service -p beambench-tauri --all-targets",
+      "exit_code": 0
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "cwd": "tauri-app",
+      "exit_code": 0
+    },
+    {
+      "command": "targeted ESLint for changed invocation/store/toast/menu implementation and tests",
+      "cwd": "tauri-app",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "command": "npm run build",
+      "cwd": "tauri-app",
+      "log": "production-build.log",
+      "exit_code": 0,
+      "note": "Existing Vite large-chunk warning retained."
+    },
+    {
+      "command": "bash -n scripts/harden-linux-appimage scripts/linux-appimage-runtime.sh",
+      "exit_code": 0
+    },
+    {
+      "command": "Local documentation link check and JSON parsing/preset presence across 23 locales",
+      "exit_code": 0
+    }
+  ],
+  "linux": {
+    "environment": "Ubuntu 24.04 amd64 emulated on ARM64 macOS",
+    "bundled_webkit": "2.50.4",
+    "font_before": "matching COLRv1 assertion and web process termination",
+    "font_after": "same probe survives ten seconds",
+    "package_audit": "passes final repaired AppImage",
+    "displays": [
+      "X11 frontend ready",
+      "native Wayland frontend ready",
+      "invalid X11 plus valid Wayland frontend ready"
+    ],
+    "host_opener": "Linux helper compile/test and fixture child-process environment check pass",
+    "no_sandbox_disabling_override": true,
+    "static_appimage_runtime_executed": false,
+    "new_full_linux_binary_compiled": false
+  },
+  "physical_lasers_tested": false,
+  "counts_note": "Full and filtered runs overlap. The final profile test includes the later power-scale fix; final UI tests include two new recovery tests."
+}

@@ -1788,7 +1788,7 @@
     },
     "layers": {
       "tool_layer_help": "Verktygslager fungerar som hjälplinjer och ger aldrig laserutmatning.",
-      "output_show_help": "Ut tar med detta lager i laserjobbet. Visa ändrar bara arbetsytans vy.",
+      "output_show_help": "Utdata tar med detta lager i laserjobbet. Visa ändrar bara arbetsytans vy.",
       "opacity_help": "Endast förhandsvisning på arbetsytan. Detta ändrar inte lasereffekt eller bildbearbetning.",
       "delete_layer": "Ta bort lager",
       "add_layer": "Lägg till lager",
@@ -1797,7 +1797,7 @@
         "layer": "Lager",
         "mode": "Läge",
         "speed_power": "Hast./Eff.",
-        "output": "Ut",
+        "output": "Utdata",
         "show": "Visa",
         "air": "Luft"
       },
@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "BlazeX M3 10W-förinställning baserad på dokumentation och en ägares konfiguration.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Nätverk: port 8080. Referenskör eller aktivera det vid anslutning. Z-uttaget är för ett rotationstillbehör."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "USB-förinställning för originalhårdvara baserad på dokumentation. Kontrollera rörelseområde och högsta S-värde. Fysisk testning återstår."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "USB-förinställning för originalhårdvara baserad på dokumentation. Kontrollera rörelseområde och högsta S-värde. Fysisk testning återstår."
           }
         },
         "report_active_profile": "Spara och aktivera profilen för att dela dess inställningar med resultaten.",

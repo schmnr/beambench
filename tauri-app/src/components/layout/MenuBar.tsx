@@ -14,7 +14,7 @@ import { useNotificationStore } from '../../stores/notificationStore';
 import { wrapBackendError } from '../../i18n/errors';
 import { useUpdateStore } from '../../stores/updateStore';
 import { appService } from '../../services/appService';
-import { openFeedbackReport } from '../../feedbackEvents';
+import { MACHINE_PROFILES_OPEN_EVENT, openFeedbackReport } from '../../feedbackEvents';
 import { executeAppCommand, QUICK_HELP_DOCS_URL, type AppCommandDialogActions } from '../../commands/appCommands';
 import { APP_COMMANDS } from '../../commands/appCommandIds';
 import { getEffectiveHotkey } from '../../commands/commandRegistry';
@@ -128,6 +128,11 @@ export function MenuBar() {
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
+  useEffect(() => {
+    const openProfiles = () => setShowProfileDialog(true);
+    window.addEventListener(MACHINE_PROFILES_OPEN_EVENT, openProfiles);
+    return () => window.removeEventListener(MACHINE_PROFILES_OPEN_EVENT, openProfiles);
+  }, []);
   const [showDeviceSettingsDialog, setShowDeviceSettingsDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);

@@ -41,7 +41,12 @@ jobs:
             libssl-dev \
             libudev-dev \
             libgtk-3-dev \
-            libayatana-appindicator3-dev
+            libayatana-appindicator3-dev \
+            squashfs-tools \
+            fontconfig
+
+      - name: Test AppImage display and font compatibility policy
+        run: python3 scripts/test-linux-appimage-runtime.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

@@ -366,6 +366,61 @@ fn fresh_profile_id(existing: &[MachineProfile]) -> MachineProfileId {
 
 pub fn profile_presets() -> Vec<MachineProfilePreset> {
     vec![
+        // Sources and stock hardware scope: docs/machines/creality-falcon2-pro-40w.md.
+        MachineProfilePreset {
+            id: "creality_falcon2_pro_40w",
+            version: 1,
+            name: "Creality Falcon2 Pro 40W",
+            description: "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending.",
+            advisory_text: None,
+            firmware_type: "grbl",
+            default_baud_rate: 115_200,
+            bed_width_mm: 400.0,
+            bed_height_mm: 415.0,
+            max_speed_mm_min: 6000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::BottomLeft,
+            use_constant_power: false,
+            emit_s_every_g1: false,
+            use_g0_for_overscan: false,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: None,
+        },
+        // Stock TT-5.5S is an 8-bit USB machine, not the Wi-Fi TTS-55.
+        // Sources and scope: docs/machines/twotrees-tt-5-5s.md.
+        MachineProfilePreset {
+            id: "twotrees_tt_5_5s",
+            version: 1,
+            name: "Two Trees TT-5.5S",
+            description: "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending.",
+            advisory_text: None,
+            firmware_type: "grbl",
+            default_baud_rate: 115_200,
+            bed_width_mm: 300.0,
+            bed_height_mm: 300.0,
+            max_speed_mm_min: 3000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::BottomLeft,
+            use_constant_power: true,
+            emit_s_every_g1: false,
+            use_g0_for_overscan: false,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: None,
+        },
         // Sources and stock hardware scope: docs/machines/sculpfun-s30-pro-10w.md.
         MachineProfilePreset {
             id: "sculpfun_s30_pro_10w",
@@ -956,8 +1011,38 @@ pub fn profile_preset_diff(
     preset_id: &str,
 ) -> ServiceResult<Vec<ProfileFieldDiff>> {
     let profile = get_profile(ctx, ProfileLookup::Id(profile_id))?;
-    let preset = find_preset(preset_id)?;
+    let preset = preset_for_profile(ctx, profile_id, preset_id)?;
     Ok(diff_for_profile(&profile, &preset))
+}
+
+fn preset_for_profile(
+    ctx: &ServiceContext,
+    profile_id: MachineProfileId,
+    preset_id: &str,
+) -> ServiceResult<MachineProfilePreset> {
+    let mut preset = find_preset(preset_id)?;
+    let is_active = ctx
+        .settings
+        .lock()
+        .map_err(|e| lock_err("settings", e))?
+        .active_profile_id
+        == Some(profile_id);
+    if is_active && preset.firmware_type == "grbl" {
+        let session = ctx.session.lock().map_err(|e| lock_err("session", e))?;
+        if let Some(crate::runtime::MachineSessionHandle::Grbl(grbl)) = session.as_ref()
+            && !grbl.experimental_mode()
+            && grbl.session_state() != beambench_common::machine::SessionState::Disconnected
+            && let Some(value) = grbl
+                .settings()
+                .max_spindle_speed()
+                .filter(|value| value.is_finite() && *value >= 1.0 && *value <= u32::MAX as f64)
+        {
+            // Connecting already reads $30. A model's starting default
+            // must not undo that power mapping when applied afterwards.
+            preset.s_value_max = value.round() as u32;
+        }
+    }
+    Ok(preset)
 }
 
 pub fn apply_profile_preset(
@@ -965,7 +1050,7 @@ pub fn apply_profile_preset(
     profile_id: MachineProfileId,
     preset_id: &str,
 ) -> ServiceResult<ApplyPresetResult> {
-    let preset = find_preset(preset_id)?;
+    let preset = preset_for_profile(ctx, profile_id, preset_id)?;
     let mut settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
     let profile = settings
         .machine_profiles
@@ -1036,7 +1121,11 @@ pub fn suggest_profile_preset(ctx: &ServiceContext) -> ServiceResult<PresetSugge
         });
     }
     // S30 models have different travel. A generic family name is insufficient.
-    let normalized = haystack.replace("s 30", "s30");
+    let normalized = haystack
+        .replace("s 30", "s30")
+        .replace("falcon 2", "falcon2")
+        .replace("two trees", "twotrees")
+        .replace("tt5.5s", "tt 5.5s");
     let words: Vec<_> = normalized
         .split(|ch: char| !ch.is_ascii_alphanumeric())
         .filter(|word| !word.is_empty())
@@ -1051,6 +1140,16 @@ pub fn suggest_profile_preset(ctx: &ServiceContext) -> ServiceResult<PresetSugge
         .any(|model| model == ["sculpfun", "s30", "pro", "10w"])
     {
         Some("sculpfun_s30_pro_10w")
+    } else if words.contains(&"creality")
+        && words
+            .windows(3)
+            .any(|model| model == ["falcon2", "pro", "40w"])
+    {
+        Some("creality_falcon2_pro_40w")
+    } else if words.contains(&"twotrees")
+        && words.windows(3).any(|model| model == ["tt", "5", "5s"])
+    {
+        Some("twotrees_tt_5_5s")
     } else {
         None
     };
@@ -1751,20 +1850,61 @@ mod tests {
     }
 
     #[test]
-    fn documented_sculpfun_presets_apply_stock_settings_and_generate_grbl_output() {
+    fn applying_grbl_presets_retains_connected_controller_power_scale() {
+        let _guard = PersistTestGuard::new();
+        let ctx = ServiceContext::with_settings(AppSettings::default());
+        let active = save_profile(&ctx, sample_input()).unwrap();
+        set_active_profile(&ctx, Some(active.id)).unwrap();
+        install_grbl_session_with_info(&ctx, &["Grbl 1.1h ['$' for help]", "$30=255", "ok"]);
+
+        for preset_id in ["creality_falcon2_pro_40w", "twotrees_tt_5_5s"] {
+            let diff = profile_preset_diff(&ctx, active.id, preset_id).unwrap();
+            let power_change = diff.iter().find(|change| change.field == "s_value_max");
+            if let Some(change) = power_change {
+                assert_eq!(change.new, json!(255));
+            }
+            let applied = apply_profile_preset(&ctx, active.id, preset_id).unwrap();
+            assert_eq!(applied.diff, diff);
+            assert_eq!(applied.profile.s_value_max, 255);
+            assert!(
+                profile_preset_diff(&ctx, active.id, preset_id)
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+
+        let inactive = save_profile(&ctx, sample_input()).unwrap();
+        let applied = apply_profile_preset(&ctx, inactive.id, "twotrees_tt_5_5s").unwrap();
+        assert_eq!(applied.profile.s_value_max, 1000);
+        assert_eq!(
+            get_profile(&ctx, ProfileLookup::Id(active.id))
+                .unwrap()
+                .s_value_max,
+            255
+        );
+
+        install_grbl_session_with_info(&ctx, &["Grbl 1.1h ['$' for help]", "$30=0", "ok"]);
+        let applied = apply_profile_preset(&ctx, active.id, "twotrees_tt_5_5s").unwrap();
+        assert_eq!(applied.profile.s_value_max, 1000);
+    }
+
+    #[test]
+    fn documented_diode_presets_apply_stock_settings_and_generate_grbl_output() {
         use beambench_core::layer::{Layer, OperationType};
         use beambench_core::object::{ObjectData, ProjectObject, ShapeKind};
         use beambench_grbl::generate_gcode;
         use beambench_planner::build_plan;
 
-        for (preset_id, width, height, max_speed, air_on) in [
-            ("sculpfun_s9", 410.0, 415.0, 3000.0, ""),
-            ("sculpfun_s30_pro_10w", 380.0, 385.0, 6000.0, "M8"),
+        for (preset_id, width, height, max_speed, air_on, constant_power) in [
+            ("sculpfun_s9", 410.0, 415.0, 3000.0, "", false),
+            ("sculpfun_s30_pro_10w", 380.0, 385.0, 6000.0, "M8", false),
+            ("creality_falcon2_pro_40w", 400.0, 415.0, 6000.0, "", false),
+            ("twotrees_tt_5_5s", 300.0, 300.0, 3000.0, "", true),
         ] {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             let created = save_profile(&ctx, sample_input()).unwrap();
             set_active_profile(&ctx, Some(created.id)).unwrap();
-            let mut project = Project::new("Sculpfun stock setup");
+            let mut project = Project::new("Stock diode setup");
             project.machine_profile_id = Some(created.id);
             project.workspace.origin = WorkspaceOrigin::BottomLeft;
             let mut layer = Layer::new("Line", OperationType::Line);
@@ -1802,7 +1942,7 @@ mod tests {
             assert!(!profile.homing_enabled);
             assert!(!profile.home_on_connect);
             assert!(!profile.supports_z_moves);
-            assert!(!profile.use_constant_power);
+            assert_eq!(profile.use_constant_power, constant_power);
             assert_eq!(profile.air_assist_on_gcode, air_on);
             assert_eq!(
                 profile.air_assist_off_gcode,
@@ -1829,7 +1969,11 @@ mod tests {
             assert!(!config.air_assist_cut_entry_ids.is_empty());
             let gcode = generate_gcode(&plan, &config).unwrap();
             assert!(
-                gcode.iter().any(|line| line.starts_with("M4 S250")),
+                gcode.iter().any(|line| line.starts_with(if constant_power {
+                    "M3 S250"
+                } else {
+                    "M4 S250"
+                })),
                 "{gcode:?}"
             );
             assert!(
@@ -2021,11 +2165,15 @@ mod tests {
     }
 
     #[test]
-    fn suggest_profile_preset_matches_sculpfun_s30_build_info_only() {
+    fn suggest_profile_preset_matches_explicit_documented_model_identities() {
         for (identity, preset_id) in [
             ("Sculpfun S30 Pro Max 20W", "sculpfun_s30_pro_max_20w"),
             ("Sculpfun S30 Pro 10W", "sculpfun_s30_pro_10w"),
             ("SCULPFUN S 30 PRO 10W", "sculpfun_s30_pro_10w"),
+            ("Creality Falcon2 Pro 40W", "creality_falcon2_pro_40w"),
+            ("CREALITY FALCON 2 PRO 40W", "creality_falcon2_pro_40w"),
+            ("Two Trees TT-5.5S", "twotrees_tt_5_5s"),
+            ("TWOTREES TT5.5S", "twotrees_tt_5_5s"),
         ] {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             install_grbl_session_with_info(
@@ -2060,6 +2208,23 @@ mod tests {
                 "[VER:Sculpfun S30 Pro Max 10W:]",
             ],
             vec!["Grbl 1.1h ['$' for help]", "[VER:Sculpfun S300 Pro 10W:]"],
+            vec![
+                "Grbl 1.1h ['$' for help]",
+                "[VER:Creality Falcon2 Pro 22W:]",
+            ],
+            vec![
+                "Grbl 1.1h ['$' for help]",
+                "[VER:Creality Falcon2 Pro 60W:]",
+            ],
+            vec![
+                "Grbl 1.1h ['$' for help]",
+                "[VER:Creality Falcon2 Pro S 40W:]",
+            ],
+            vec!["Grbl 1.1h ['$' for help]", "[VER:Creality Falcon2 40W:]"],
+            vec!["Grbl 1.1h ['$' for help]", "[VER:Falcon2 Pro 40W:]"],
+            vec!["Grbl 1.1h ['$' for help]", "[VER:Two Trees TTS-55:]"],
+            vec!["Grbl 1.1h ['$' for help]", "[VER:Two Trees TT-50:]"],
+            vec!["Grbl 1.1h ['$' for help]", "[VER:TT-5.5S:]"],
         ] {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             install_grbl_session_with_info(&ctx, &lines);

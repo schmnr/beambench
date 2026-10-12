@@ -1797,7 +1797,7 @@
         "layer": "Ebene",
         "mode": "Modus",
         "speed_power": "Geschw./Leist.",
-        "output": "Ausg.",
+        "output": "Ausgabe",
         "show": "Anz.",
         "air": "Luft"
       },
@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "BlazeX M3 10W-Voreinstellung anhand der Dokumentation und einer Besitzerkonfiguration.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 Baud. Netzwerk: Port 8080. Referenzfahrt ausführen oder beim Verbinden aktivieren. Der Z-Anschluss ist für eine Rotationseinheit."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "USB-Voreinstellung für Originalhardware auf Basis der Dokumentation. Verfahrweg und maximalen S-Wert prüfen. Praxistest steht aus."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "USB-Voreinstellung für Originalhardware auf Basis der Dokumentation. Verfahrweg und maximalen S-Wert prüfen. Praxistest steht aus."
           }
         },
         "report_active_profile": "Speichern und aktivieren Sie dieses Profil, um seine Einstellungen mit den Ergebnissen zu teilen.",

@@ -1,0 +1,151 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+warning: field `0` is never read
+   --> vendor/lopdf/src/datetime.rs:155:21
+    |
+155 | pub struct DateTime(String);
+    |            -------- ^^^^^^
+    |            |
+    |            field in this struct
+    |
+    = help: consider removing this field
+    = note: `DateTime` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `lopdf` (lib) generated 1 warning
+   Compiling beambench-serial v0.2.26 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-serial)
+   Compiling beambench-grbl v0.2.26 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-grbl)
+   Compiling beambench-planner v0.2.26 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-planner)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 39.11s
+     Running unittests src/lib.rs (target/debug/deps/beambench_planner-1f4822cc3d43fe04)
+
+running 68 tests
+test builder::tests::calculate_bounds_horizontal_scan_raster_unchanged ... ok
+test builder::tests::calculate_bounds_vertical_scan_raster_untransposes ... ok
+test builder::tests::calculate_bounds_rotated_raster_uses_world_space_scan_origin ... ok
+test builder::tests::build_cardinal_raster_180_deg_flipped ... ok
+test builder::tests::build_cardinal_raster_270_deg_transposed_flipped ... ok
+test builder::tests::build_cardinal_raster_0_deg_horizontal ... ok
+test builder::tests::build_cardinal_raster_90_deg_vertical ... ok
+test builder::tests::dot_width_correction_trims_raster_runs ... ok
+test builder::tests::raster_object_mirror_is_baked_into_pixels ... ok
+test builder::tests::raster_object_rotation_is_baked_into_pixels_and_bounds ... ok
+test builder::tests::raster_object_shear_expands_output_bounds_without_losing_pixels ... ok
+test extensions::tests::raster_segment_offset_applied ... ok
+test builder::tests::raster_object_without_asset_data_generates_warning ... ok
+test extensions::tests::translate_segments_angled_raster_moves_origin_only ... ok
+test extensions::tests::translate_segments_vertical_axis_raster_swaps_components ... ok
+test fill_raster::tests::degenerate_bounds_returns_none ... ok
+test builder::tests::fill_distant_shapes_keep_separate_raster_batches ... ok
+test fill_raster::tests::empty_polylines_returns_none ... ok
+test fill_raster::tests::filled_unit_square_all_bits_set ... ok
+test fill_raster::tests::mixed_open_and_closed_only_fills_closed ... ok
+test fill_raster::tests::open_polyline_returns_none ... ok
+test builder::tests::fill_layer_produces_raster_segment ... ok
+test fill_raster::tests::square_with_hole_even_odd ... ok
+test fill_raster::tests::triangle_has_partial_fill ... ok
+test fill_raster::tests::two_separate_squares_both_filled ... ok
+test image_params::tests::builds_params_from_layer_raster_settings ... ok
+test builder::tests::fill_layer_raster_segment_uses_cut_entry_speed ... ok
+test image_params::tests::uses_defaults_when_raster_settings_missing ... ok
+test fill_raster::tests::zero_line_interval_returns_none ... ok
+test optimize::travel::tests::raster_ltr_overscan_adjusts_start_and_end ... ok
+test optimize::travel::tests::raster_ltr_scanline_endpoints_unchanged ... ok
+test optimize::travel::tests::raster_multiple_scanlines ... ok
+test optimize::travel::tests::raster_rtl_overscan_adjusts_start_and_end ... ok
+test builder::tests::image_mask_fully_containing_mask_leaves_raster_unchanged ... ok
+test optimize::travel::tests::raster_rtl_scanline_endpoints_respect_direction ... ok
+test optimize::travel::tests::raster_segment_endpoints ... ok
+test builder::tests::image_mask_clips_raster_scanlines ... ok
+test plan::tests::raster_motion_points_apply_direction_overscan_and_vertical_axis ... ok
+test plan::tests::plan_segment_tagged_serialization_raster ... ok
+test plan::tests::raster_power_fields_roundtrip_non_default ... ok
+test scanline::tests::all_black_raster_binary ... ok
+test scanline::tests::all_white_raster_binary ... ok
+test plan::tests::raster_motion_points_rotate_about_scan_origin ... ok
+test stats::tests::calculate_distance_raster_overscan_multi_run ... ok
+test stats::tests::calculate_distance_raster_segment ... ok
+test plan::tests::raster_power_fields_backward_compat_deserialization ... ok
+test stats::tests::calculate_distance_raster_multiple_runs_per_scanline ... ok
+test stats::tests::calculate_distance_raster_unidirectional_return_travel ... ok
+test stats::tests::calculate_distance_raster_with_overscan ... ok
+test stats::tests::calculate_duration_raster_segment ... ok
+test stats::tests::calculate_duration_raster_with_overscan ... ok
+test stats::tests::raster_duration_uses_feed_speed_for_slow_overscan_row_transitions ... ok
+test validate::tests::validate_raster_coordinates_within_geometric_tolerance_ok ... ok
+test validate::tests::validate_raster_run_endpoints_materially_below_origin_report_lower_bound ... ok
+test validate::tests::validate_raster_segment_within_bounds ... ok
+test validate::tests::validate_raster_scanline_materially_below_origin_reports_lower_bound ... ok
+test validate::tests::validate_raster_segment_x_exceeds_bounds ... ok
+test validate::tests::validate_raster_segment_y_exceeds_bounds ... ok
+test validate::tests::validate_travel_allows_right_edge_raster_overscan ... ok
+test validate::tests::validate_vertical_raster_cross_axis_x_within_bed_width_ok ... ok
+test validate::tests::validate_vertical_raster_run_y_exceeds_bed_height ... ok
+test builder::tests::current_position_uses_object_bounds_when_raster_burn_pixels_are_off_center ... ok
+test builder::tests::raster_all_white_png_produces_no_runs ... ok
+test builder::tests::raster_all_black_png_produces_runs ... ok
+test builder::tests::scan_angle_45_produces_rotated_raster_segment ... ok
+test builder::tests::bottom_left_workspace_flips_image_raster_scanlines_to_machine_coordinates ... ok
+test builder::tests::integration_mixed_raster_vector_project ... ok
+test builder::tests::raster_passes_creates_multiple_raster_segments ... ok
+
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 274 filtered out; finished in 0.02s
+
+     Running tests/benchmark_fixtures.rs (target/debug/deps/benchmark_fixtures-e1130b224e5d84a8)
+
+running 1 test
+test binary_raster_overscan_loads_and_plans ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.02s
+
+     Running tests/benchmark_snapshots.rs (target/debug/deps/benchmark_snapshots-b179595ebd6501e0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/characterization_sort.rs (target/debug/deps/characterization_sort-f0e2d408f097de54)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/fill_integration.rs (target/debug/deps/fill_integration-e61bb56c6c622b6d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/generate_fixtures.rs (target/debug/deps/generate_fixtures-e47e696006c8629f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/phase4b_flag_effects.rs (target/debug/deps/phase4b_flag_effects-47a1ff950a290280)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/phase4c_flag_effects.rs (target/debug/deps/phase4c_flag_effects-cfb11e6f482ed1d5)
+
+running 2 tests
+test angled_raster_rejects_expanded_bitmap_before_allocation ... ok
+test hide_backlash_forces_unidirectional_raster_segments ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.00s
+
+     Running tests/sub_layers_integration.rs (target/debug/deps/sub_layers_integration-e905e331de6b09d0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/tab_workflow.rs (target/debug/deps/tab_workflow-e24a5c704c6d7aff)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+

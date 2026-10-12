@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useProjectStore } from '../../stores/projectStore';
 import { projectService } from '../../services/projectService';
 import { SubLayerModeControl, SubLayerStack } from '../properties/SubLayerStack';
-import { CheckSquare, Eye, EyeOff, Layers3, Lock, ClipboardCopy, ClipboardPaste, Trash2, Zap, ZapOff } from 'lucide-react';
+import { CheckSquare, Eye, EyeOff, Layers3, Lock, ClipboardCopy, ClipboardPaste, Trash2, Wind, Zap, ZapOff } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { TextInput } from '../shared/TextInput';
 import { RangeInput } from '../shared/RangeInput';
@@ -30,6 +30,7 @@ export function LayerList() {
   const layers = useProjectStore((s) => s.project?.layers ?? []);
   const selectedLayerId = useProjectStore((s) => s.selectedLayerId);
   const updateLayer = useProjectStore((s) => s.updateLayer);
+  const updateCutEntry = useProjectStore((s) => s.updateCutEntry);
   const reorderLayer = useProjectStore((s) => s.reorderLayer);
   const removeLayer = useProjectStore((s) => s.removeLayer);
   const objects = useProjectStore((s) => s.project?.objects ?? []);
@@ -47,6 +48,7 @@ export function LayerList() {
 
   const selectedLayer = layers.find((l) => l.id === selectedLayerId) ?? null;
   const activeLayer = selectedLayer ?? layers[0] ?? null;
+  const singleCutEntry = activeLayer?.entries.length === 1 ? activeLayer.entries[0] : null;
   const activeLayerObjs = activeLayer ? objects.filter((o) => o.layer_id === activeLayer.id) : [];
   const layerAllLocked = activeLayerObjs.length > 0 && activeLayerObjs.every((o) => o.locked);
   const usesFilledAppearance = activeLayer ? layerUsesFilledAppearance(activeLayer) : false;
@@ -228,36 +230,52 @@ export function LayerList() {
           </div>
 
           <div className="px-3 py-2.5" data-layer-summary>
-          <TextInput
-            label={t('panels.properties.name')}
-            value={layerNameDraft}
-            onChange={setLayerNameDraft}
-            onBlur={() => void commitLayerName()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur();
-            }}
-            data-testid="layer-quick-name-input"
-          />
+          <div className="flex items-center gap-2" data-testid="quick-edit">
+            <div className="min-w-0 flex-1 [&_input]:min-w-0 [&_input]:w-full">
+              <TextInput
+                label={t('panels.properties.name')}
+                value={layerNameDraft}
+                onChange={setLayerNameDraft}
+                onBlur={() => void commitLayerName()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.currentTarget.blur();
+                }}
+                data-testid="layer-quick-name-input"
+              />
+            </div>
+              <button
+                type="button"
+                className="h-8 w-8 shrink-0 rounded-lg border border-bb-control-border hover:ring-1 hover:ring-bb-accent"
+                data-testid="quick-edit-color"
+                style={{ backgroundColor: activeLayer.color_tag }}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setColorPicker((cur) => (cur ? null : {
+                    x: Math.max(8, Math.min(rect.right - 224, window.innerWidth - 232)),
+                    y: rect.bottom + 240 <= window.innerHeight ? rect.bottom + 4 : Math.max(8, rect.top - 240),
+                  }));
+                }}
+                aria-label={t('panels.layers.quick_edit.color')}
+                title={t('panels.layers.quick_edit.color')}
+              />
+          </div>
 
           <div className={`mt-1 ${INSPECTOR_HELP_TEXT_CLASS}`} data-testid="layer-settings-scope">
             {t('panels.layers.settings_scope', { count: activeLayerObjs.length })}
           </div>
 
-          <div className="mt-2 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5 text-xs" data-testid="quick-edit">
-              <span className="text-bb-text-muted shrink-0">{t('panels.layers.quick_edit.color')}</span>
-              <button
-                className="h-6 w-8 rounded-md border border-bb-border shrink-0 hover:ring-1 hover:ring-bb-accent"
-                data-testid="quick-edit-color"
-                style={{ backgroundColor: activeLayer.color_tag }}
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setColorPicker((cur) => (cur ? null : { x: rect.left, y: rect.bottom + 4 }));
-                }}
-                aria-label={t('panels.layers.quick_edit.color')}
-              />
-            </div>
-            <div className="flex items-center gap-5">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-x-5 gap-y-2" data-testid="layer-quick-controls">
+              <div className="flex items-center gap-1.5 text-xs text-bb-text-muted">
+                {t('panels.layers.header.show')}
+                <IconToggleButton
+                  active={activeLayer.visible !== false}
+                  label={t('panels.layers.header.show')}
+                  icon={<Eye size={16} />}
+                  inactiveIcon={<EyeOff size={16} />}
+                  onClick={() => void handleToggleVisible(activeLayer.id, activeLayer.visible === false)}
+                  testId="show-toggle"
+                />
+              </div>
               {!activeLayer.is_tool_layer && (
                 <div className="flex items-center gap-1.5 text-xs text-bb-text-muted">
                   {t('panels.layers.header.output')}
@@ -271,19 +289,19 @@ export function LayerList() {
                   />
                 </div>
               )}
-              <div className="flex items-center gap-1.5 text-xs text-bb-text-muted">
-                {t('panels.layers.header.show')}
-                <IconToggleButton
-                  active={activeLayer.visible !== false}
-                  label={t('panels.layers.header.show')}
-                  icon={<Eye size={16} />}
-                  inactiveIcon={<EyeOff size={16} />}
-                  onClick={() => void handleToggleVisible(activeLayer.id, activeLayer.visible === false)}
-                  testId="show-toggle"
-                />
-              </div>
+              {!activeLayer.is_tool_layer && singleCutEntry && (
+                <div className="flex items-center gap-1.5 text-xs text-bb-text-muted">
+                  {t('panels.sub_layer_stack.air_assist')}
+                  <IconToggleButton
+                    active={singleCutEntry.air_assist}
+                    label={t('panels.sub_layer_stack.air_assist')}
+                    icon={<Wind size={16} />}
+                    onClick={() => void updateCutEntry(activeLayer.id, singleCutEntry.id, { air_assist: !singleCutEntry.air_assist })}
+                    testId={`sub-layer-air-assist-${singleCutEntry.id}`}
+                  />
+                </div>
+              )}
             </div>
-          </div>
 
           {wide && !activeLayer.is_tool_layer && (
             <SubLayerModeControl
@@ -299,7 +317,7 @@ export function LayerList() {
                 defaultValue: 'Tool layers are guides and never produce laser output.',
               })
               : t('panels.layers.output_show_help', {
-                defaultValue: 'Out includes this layer in the laser job. Show changes only the canvas view.',
+                defaultValue: 'Output includes this layer in the laser job. Show changes only the canvas view.',
               })}
           </div>
 
@@ -338,6 +356,7 @@ export function LayerList() {
                 layerId={activeLayer.id}
                 activeEntryId={wide ? activeLayerEntryId : undefined}
                 onActiveEntryChange={wide ? setActiveCutEntryId : undefined}
+                showAirAssist={!singleCutEntry}
               />
             </div>
           )}

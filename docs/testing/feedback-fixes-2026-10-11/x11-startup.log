@@ -1,0 +1,5 @@
+2026-10-11T15:23:02.052252Z  INFO beambench_tauri: Beam Bench starting
+2026-10-11T15:23:02.388984Z  WARN tauri_utils: `APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.
+libEGL warning: DRI3 error: Could not get DRI3 device
+libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering
+2026-10-11T15:23:06.417812Z  INFO beambench_tauri::commands::app: Frontend ready

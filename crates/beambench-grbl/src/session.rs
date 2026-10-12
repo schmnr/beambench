@@ -76,6 +76,11 @@ impl GrblSession {
         self.status_report_count
     }
 
+    /// Raw transport bytes received since connect, when tracked.
+    pub fn received_byte_count(&self) -> Option<u64> {
+        self.transport.received_byte_count()
+    }
+
     /// Number of status reports that carried a current `MPos` or `WPos`.
     pub fn position_report_count(&self) -> u64 {
         self.position_report_count

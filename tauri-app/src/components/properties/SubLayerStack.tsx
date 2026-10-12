@@ -240,9 +240,10 @@ interface SubLayerStackProps {
   layerId: string;
   activeEntryId?: string | null;
   onActiveEntryChange?: (entryId: string | null) => void;
+  showAirAssist?: boolean;
 }
 
-export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: SubLayerStackProps) {
+export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange, showAirAssist = true }: SubLayerStackProps) {
   const { t } = useTranslation();
   const { orientation } = usePanelHost();
   const layer = useProjectStore((s) => s.project?.layers.find((candidate) => candidate.id === layerId) ?? null);
@@ -516,6 +517,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                     testId={`sub-layer-passes-slider-${entry.id}`}
                   />
                 </div>
+                {showAirAssist && (
                 <div className="flex min-h-6 items-center justify-between text-xs" data-cut-control="air-assist">
                   <span className="text-bb-text-muted">{t('panels.sub_layer_stack.air_assist')}</span>
                   <IconToggleButton
@@ -526,6 +528,7 @@ export function SubLayerStack({ layerId, activeEntryId, onActiveEntryChange }: S
                     testId={`sub-layer-air-assist-${entry.id}`}
                   />
                 </div>
+                )}
                 {showZOffset && (
                   <div data-cut-control="advanced">
                     <NumberInput commit="blur"

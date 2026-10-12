@@ -1,0 +1,43 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on shared package cache
+warning: field `0` is never read
+   --> vendor/lopdf/src/datetime.rs:155:21
+    |
+155 | pub struct DateTime(String);
+    |            -------- ^^^^^^
+    |            |
+    |            field in this struct
+    |
+    = help: consider removing this field
+    = note: `DateTime` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `lopdf` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.06s
+     Running unittests src/lib.rs (target/debug/deps/beambench_service-fa0c0e47e71b4dd7)
+
+running 7 tests
+test ops::machine::tests::oem_grbl_tcp_connection_homes_through_compatibility_choice ... ok
+test ops::machine::tests::grbl_tcp_selections_reject_motion_and_active_output ... ok
+test ops::machine::tests::grbl_tcp_accepts_cr_only_and_fragmented_status_replies ... ok
+test ops::machine::tests::grbl_tcp_connects_via_auto_explicit_and_generic_selections_without_motion ... ok
+test ops::machine::tests::grbl_tcp_retries_ignored_query_and_accepts_delayed_status ... ok
+test ops::machine::tests::grbl_tcp_silent_controller_times_out_and_closes_transport ... ok
+test ops::machine::tests::grbl_tcp_unrecognized_and_unterminated_replies_are_distinguished_from_silence ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 865 filtered out; finished in 6.04s
+
+     Running tests/persistence_isolation.rs (target/debug/deps/persistence_isolation-a11a4a52c299dbcb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/phase4_corrections.rs (target/debug/deps/phase4_corrections-50d0c368adf99aac)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+

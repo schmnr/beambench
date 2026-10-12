@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+   Compiling beambench-common v0.2.26 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-common)
+   Compiling beambench-raster v0.2.26 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-raster)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 23.70s
+     Running unittests src/lib.rs (target/debug/deps/beambench_raster-eed251820ea05c58)
+
+running 11 tests
+test decode::tests::decode_empty_bytes_returns_error ... ok
+test decode::tests::decode_invalid_bytes_returns_error ... ok
+test pipeline::tests::invalid_bytes_returns_decode_error ... ok
+test decode::tests::decode_bmp_format ... ok
+test decode::tests::decode_oriented_plain_png ... ok
+test decode::tests::decode_valid_black_png ... ok
+test decode::tests::decode_valid_white_png ... ok
+test decode::tests::decode_grayscale_gradient ... ok
+test decode::tests::transparent_pixels_decode_as_white ... ok
+test decode::tests::decode_gif_format ... ok
+test decode::tests::decode_oriented_applies_exif_rotation ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 153 filtered out; finished in 0.00s
+

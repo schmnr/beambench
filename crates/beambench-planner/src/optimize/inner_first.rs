@@ -68,24 +68,23 @@ pub fn reorder_inner_first<T: Orderable>(items: Vec<T>, enabled: bool) -> Vec<T>
 /// Both must hold. If either fails, `inner` is not fully contained.
 /// Caller is responsible for passing closed geometry; the function
 /// doesn't panic on open polylines but the result is undefined.
-fn polyline_contains(outer: &[Point2D], inner: &[Point2D]) -> bool {
+pub(crate) fn polyline_contains(outer: &[Point2D], inner: &[Point2D]) -> bool {
     if inner.is_empty() || outer.len() < 3 {
         return false;
     }
     if !inner.iter().all(|pt| point_in_polyline(pt.x, pt.y, outer)) {
         return false;
     }
-    // No inner edge may cross an outer edge. Edges are the vertex pairs
-    // [i, i+1] for i in 0..n-1 — the closing-duplicate convention means
-    // the last pair is already the closing edge.
-    let outer_n = outer.len() - 1;
-    let inner_n = inner.len() - 1;
+    // Include the closing edges whether or not the caller repeats the first
+    // vertex. Normalized geometry may use either representation.
+    let outer_n = outer.len();
+    let inner_n = inner.len();
     for i in 0..inner_n {
         let a1 = inner[i];
-        let a2 = inner[i + 1];
+        let a2 = inner[(i + 1) % inner_n];
         for j in 0..outer_n {
             let b1 = outer[j];
-            let b2 = outer[j + 1];
+            let b2 = outer[(j + 1) % outer_n];
             if segments_intersect_strict(a1, a2, b1, b2) {
                 return false;
             }
@@ -159,6 +158,28 @@ mod tests {
             ],
             closed: true,
         }
+    }
+
+    #[test]
+    fn containment_checks_closing_edge_without_duplicate_vertex() {
+        let outer = vec![
+            Point2D::new(0.0, 0.0),
+            Point2D::new(10.0, 0.0),
+            Point2D::new(10.0, 10.0),
+            Point2D::new(6.0, 10.0),
+            Point2D::new(6.0, 4.0),
+            Point2D::new(4.0, 4.0),
+            Point2D::new(4.0, 10.0),
+            Point2D::new(0.0, 10.0),
+        ];
+        // All vertices are inside the U, but the last-to-first edge
+        // crosses its notch. Neither input repeats its first vertex.
+        let inner = vec![
+            Point2D::new(2.0, 8.0),
+            Point2D::new(5.0, 2.0),
+            Point2D::new(8.0, 8.0),
+        ];
+        assert!(!polyline_contains(&outer, &inner));
     }
 
     #[test]

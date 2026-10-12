@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import i18n from '../i18n';
 import type {

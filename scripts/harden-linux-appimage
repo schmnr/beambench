@@ -17,6 +17,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 appimage="$1"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 if [ ! -f "$appimage" ]; then
   echo "AppImage not found: $appimage" >&2
   exit 1
@@ -75,6 +76,18 @@ squashfs_offset="$(find_squashfs_offset)"
 extracted_dir="$work_dir/AppDir"
 extract_appimage "$extracted_dir"
 
+runtime_dir="$extracted_dir/usr/share/beambench"
+gtk_hook="$extracted_dir/apprun-hooks/linuxdeploy-plugin-gtk.sh"
+runtime_hook='source "$APPDIR/usr/share/beambench/linux-runtime.sh"'
+
+runtime_policy_matches() {
+  [ -f "$gtk_hook" ] &&
+    grep -Fxq "$runtime_hook" "$gtk_hook" &&
+    ! grep -q '^export GDK_BACKEND=x11' "$gtk_hook" &&
+    cmp -s "$script_dir/linux-appimage-runtime.sh" "$runtime_dir/linux-runtime.sh" &&
+    cmp -s "$script_dir/linux-appimage-fonts.conf" "$runtime_dir/fonts.conf"
+}
+
 mapfile -t incompatible_libraries < <(find_incompatible_libraries "$extracted_dir")
 if [ "$mode" = "check" ]; then
   if [ "${#incompatible_libraries[@]}" -ne 0 ]; then
@@ -82,17 +95,39 @@ if [ "$mode" = "check" ]; then
     printf '  %s\n' "${incompatible_libraries[@]}" >&2
     exit 1
   fi
-  echo "AppImage runtime library audit passed: $appimage"
+  if ! runtime_policy_matches; then
+    echo "AppImage is missing the current display and color-font compatibility policy." >&2
+    exit 1
+  fi
+  echo "AppImage runtime library and compatibility audit passed: $appimage"
   exit 0
 fi
 
-if [ "${#incompatible_libraries[@]}" -eq 0 ]; then
-  echo "AppImage did not contain host-incompatible runtime libraries."
+if [ "${#incompatible_libraries[@]}" -eq 0 ] && runtime_policy_matches; then
+  echo "AppImage runtime libraries and compatibility policy are already current."
   exit 0
 fi
 
 printf 'Removing %d host-incompatible runtime libraries.\n' "${#incompatible_libraries[@]}"
 rm -f -- "${incompatible_libraries[@]}"
+
+if [ ! -f "$gtk_hook" ]; then
+  echo "AppImage is missing the generated GTK launcher hook." >&2
+  exit 1
+fi
+if grep -q '^export GDK_BACKEND=x11' "$gtk_hook"; then
+  sed -i '/^export GDK_BACKEND=x11/c\source "$APPDIR/usr/share/beambench/linux-runtime.sh"' "$gtk_hook"
+elif ! grep -Fxq "$runtime_hook" "$gtk_hook"; then
+  echo "Unrecognized GTK launcher hook; refusing to leave display selection unpatched." >&2
+  exit 1
+fi
+mkdir -p "$runtime_dir"
+cp "$script_dir/linux-appimage-runtime.sh" "$runtime_dir/linux-runtime.sh"
+cp "$script_dir/linux-appimage-fonts.conf" "$runtime_dir/fonts.conf"
+if ! runtime_policy_matches; then
+  echo "Failed to install the AppImage compatibility policy." >&2
+  exit 1
+fi
 
 remaining="$(find_incompatible_libraries "$extracted_dir" | head -n 1)"
 if [ -n "$remaining" ]; then
@@ -113,7 +148,7 @@ mksquashfs "$extracted_dir" "$rebuilt_squashfs" \
 
 rebuilt_appimage="$work_dir/rebuilt.AppImage"
 dd if="$appimage" of="$rebuilt_appimage" bs=1 count="$squashfs_offset" status=none
-dd if="$rebuilt_squashfs" of="$rebuilt_appimage" bs=1 seek="$squashfs_offset" conv=notrunc status=none
+cat "$rebuilt_squashfs" >> "$rebuilt_appimage"
 chmod --reference="$appimage" "$rebuilt_appimage"
 mv "$rebuilt_appimage" "$appimage"
 
@@ -121,4 +156,4 @@ mv "$rebuilt_appimage" "$appimage"
 # The release workflow signs the repaired artifact immediately after this step.
 rm -f "${appimage}.sig"
 
-echo "Hardened AppImage runtime libraries: $appimage"
+echo "Hardened AppImage runtime libraries, display selection, and font policy: $appimage"

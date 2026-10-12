@@ -15,7 +15,6 @@ use beambench_service::ops::preferences::{
 };
 use beambench_service::persist;
 use tauri::{State, WebviewWindow};
-use tauri_plugin_opener::OpenerExt;
 
 async fn run_settings_update<T, F>(svc: Arc<ServiceContext>, operation: F) -> Result<T, String>
 where
@@ -164,9 +163,7 @@ pub fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), Strin
     if !(url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:")) {
         return Err(format!("Refusing to open non-http(s)/mailto URL: {url}"));
     }
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| format!("Failed to open URL: {e}"))
+    crate::host_opener::open_url(&app, &url).map_err(|e| format!("Failed to open URL: {e}"))
 }
 
 #[tauri::command]
@@ -288,8 +285,7 @@ pub async fn reset_preferences(svc: State<'_, Arc<ServiceContext>>) -> Result<Ap
 pub fn open_preferences_folder(app: tauri::AppHandle) -> Result<(), String> {
     let dir = persist::config_dir().ok_or("Could not determine config directory")?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create config directory: {e}"))?;
-    app.opener()
-        .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+    crate::host_opener::open_path(&app, &dir)
         .map_err(|e| format!("Failed to open preferences folder: {e}"))
 }
 

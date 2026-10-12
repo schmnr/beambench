@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "根据文档和用户配置建立的 BlazeX M3 10W 预设。",
             "advisory": "200 x 150 mm，S1000。USB：115200 波特率。网络：端口 8080。请回零或启用连接时回零。Z 接口用于旋转附件。"
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "基于文档的原装硬件 USB 预设。请核对行程和最大 S 值。尚未进行实机测试。"
+          },
+          "twotrees_tt_5_5s": {
+            "description": "基于文档的原装硬件 USB 预设。请核对行程和最大 S 值。尚未进行实机测试。"
           }
         },
         "report_active_profile": "请保存并启用此配置，以便随测试结果分享其设置。",

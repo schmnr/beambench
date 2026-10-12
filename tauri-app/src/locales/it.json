@@ -1788,7 +1788,7 @@
     },
     "layers": {
       "tool_layer_help": "I livelli strumento fungono da guide e non producono mai un’uscita laser.",
-      "output_show_help": "Uscita include questo livello nel lavoro laser. Mostra modifica solo la vista dell’area di lavoro.",
+      "output_show_help": "Output include questo livello nel lavoro laser. Mostra modifica solo la vista dell’area di lavoro.",
       "opacity_help": "Solo anteprima dell’area di lavoro. Non modifica la potenza laser né l’elaborazione dell’immagine.",
       "delete_layer": "Elimina livello",
       "add_layer": "Aggiungi livello",
@@ -1797,7 +1797,7 @@
         "layer": "Livello",
         "mode": "Modo",
         "speed_power": "Vel./Pot.",
-        "output": "Uscita",
+        "output": "Output",
         "show": "Mostra",
         "air": "Aria"
       },
@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "Preimpostazione BlazeX M3 10W basata sulla documentazione e sulla configurazione di un proprietario.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Rete: porta 8080. Eseguire l’azzeramento o abilitarlo alla connessione. Il connettore Z è per un accessorio rotativo."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "Preimpostazione USB per hardware originale basata sulla documentazione. Verifica la corsa e il valore S massimo. Test fisici ancora da eseguire."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "Preimpostazione USB per hardware originale basata sulla documentazione. Verifica la corsa e il valore S massimo. Test fisici ancora da eseguire."
           }
         },
         "report_active_profile": "Salva e attiva questo profilo per condividere le impostazioni con i risultati.",

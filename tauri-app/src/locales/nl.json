@@ -1788,7 +1788,7 @@
     },
     "layers": {
       "tool_layer_help": "Hulplagen dienen als hulplijnen en produceren nooit laseruitvoer.",
-      "output_show_help": "Uit neemt deze laag op in de lasertaak. Toon verandert alleen de canvasweergave.",
+      "output_show_help": "Uitvoer neemt deze laag op in de lasertaak. Toon verandert alleen de canvasweergave.",
       "opacity_help": "Alleen canvasvoorvertoning. Dit verandert het laservermogen of de beeldverwerking niet.",
       "delete_layer": "Laag verwijderen",
       "add_layer": "Laag toevoegen",
@@ -1797,7 +1797,7 @@
         "layer": "Laag",
         "mode": "Modus",
         "speed_power": "Snelh./Verm.",
-        "output": "Uit",
+        "output": "Uitvoer",
         "show": "Toon",
         "air": "Lucht"
       },
@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "BlazeX M3 10W-voorinstelling op basis van documentatie en de configuratie van een eigenaar.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Netwerk: poort 8080. Home de machine of schakel homen bij verbinden in. De Z-aansluiting is voor een rotatieaccessoire."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "USB-voorinstelling voor originele hardware op basis van documentatie. Controleer het bereik en de maximale S-waarde. Praktijktests zijn nog niet uitgevoerd."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "USB-voorinstelling voor originele hardware op basis van documentatie. Controleer het bereik en de maximale S-waarde. Praktijktests zijn nog niet uitgevoerd."
           }
         },
         "report_active_profile": "Sla dit profiel op en activeer het om de instellingen met je resultaten te delen.",

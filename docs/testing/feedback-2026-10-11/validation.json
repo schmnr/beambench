@@ -1,0 +1,181 @@
+{
+  "date": "2026-10-11",
+  "checkout_head": "192bdf2dc1031e0e642cd15fb6ae5d0bf585efdd",
+  "checkout_note": "Includes pre-existing uncommitted network and planner changes; application code was not modified by the investigation.",
+  "test_environment": "macOS ARM64",
+  "test_invocation_count": 16,
+  "test_pass_count_including_overlap": 238,
+  "test_fail_count": 0,
+  "invocations": [
+    {
+      "name": "pdf",
+      "command": "cargo test -p beambench-core import_pdf",
+      "working_directory": ".",
+      "passed": 51,
+      "failed": 0,
+      "log": "pdf-tests.log"
+    },
+    {
+      "name": "tcp",
+      "command": "cargo test -p beambench-service grbl_tcp",
+      "working_directory": ".",
+      "passed": 7,
+      "failed": 0,
+      "log": "tcp-tests.log"
+    },
+    {
+      "name": "ui",
+      "command": "npm test -- src/i18n/errors.test.ts src/components/import/__tests__/importDropZone.test.tsx src/components/machine/__tests__/machineProfileDialog.test.tsx",
+      "working_directory": "tauri-app",
+      "passed": 74,
+      "failed": 0,
+      "log": "ui-tests.log"
+    },
+    {
+      "name": "persistence",
+      "command": "cargo test -p beambench-service opening_a_",
+      "working_directory": ".",
+      "passed": 1,
+      "failed": 0,
+      "log": "persistence-tests.log"
+    },
+    {
+      "name": "home",
+      "command": "cargo test -p beambench-service oem_grbl_tcp_connection_homes_through_compatibility_choice",
+      "working_directory": ".",
+      "passed": 1,
+      "failed": 0,
+      "log": "home-tests.log"
+    },
+    {
+      "name": "sculpfun",
+      "command": "cargo test -p beambench-service sculpfun",
+      "working_directory": ".",
+      "passed": 2,
+      "failed": 0,
+      "log": "sculpfun-tests.log"
+    },
+    {
+      "name": "raster",
+      "command": "cargo test -p beambench-planner raster",
+      "working_directory": ".",
+      "passed": 71,
+      "failed": 0,
+      "log": "raster-tests.log"
+    },
+    {
+      "name": "image",
+      "command": "cargo test -p beambench-core import_image",
+      "working_directory": ".",
+      "passed": 5,
+      "failed": 0,
+      "log": "image-tests.log"
+    },
+    {
+      "name": "decode",
+      "command": "cargo test -p beambench-raster decode",
+      "working_directory": ".",
+      "passed": 11,
+      "failed": 0,
+      "log": "decode-tests.log"
+    },
+    {
+      "name": "serial",
+      "command": "cargo test -p beambench-service serial_port",
+      "working_directory": ".",
+      "passed": 1,
+      "failed": 0,
+      "log": "serial-tests.log"
+    },
+    {
+      "name": "detection",
+      "command": "cargo test -p beambench-service auto_detection",
+      "working_directory": ".",
+      "passed": 3,
+      "failed": 0,
+      "log": "detection-tests.log"
+    },
+    {
+      "name": "jpeg",
+      "command": "cargo test -p beambench-core jpeg",
+      "working_directory": ".",
+      "passed": 6,
+      "failed": 0,
+      "log": "jpeg-tests.log"
+    },
+    {
+      "name": "raster-limit",
+      "command": "cargo test -p beambench-planner four_million_runs_fit_and_the_next_row_is_rejected",
+      "working_directory": ".",
+      "passed": 1,
+      "failed": 0,
+      "log": "raster-limit-tests.log"
+    },
+    {
+      "name": "catalog",
+      "command": "cargo test -p beambench-service catalog_presets_have_unique_ids_and_valid_machine_settings",
+      "working_directory": ".",
+      "passed": 1,
+      "failed": 0,
+      "log": "catalog-tests.log"
+    },
+    {
+      "name": "no-profile",
+      "command": "cargo test -p beambench-service no_active_profile_is_a_hard_error_for_all_entry_points",
+      "working_directory": ".",
+      "passed": 1,
+      "failed": 0,
+      "log": "no-profile-tests.log"
+    },
+    {
+      "name": "bind",
+      "command": "cargo test -p beambench-service bind_active_machine_profile",
+      "working_directory": ".",
+      "passed": 2,
+      "failed": 0,
+      "log": "bind-tests.log"
+    }
+  ],
+  "linux_probe_environment": {
+    "container_image": "ubuntu:24.04",
+    "architecture": "linux/amd64 emulated on ARM64 Mac",
+    "display": "Xvfb",
+    "bundled_webkit": "2.50.4",
+    "host_webkit": "2.52.6",
+    "no_sandbox_override": true,
+    "not_reproduced": [
+      "Fedora desktop environment",
+      "Original JPG import interaction"
+    ]
+  },
+  "external_inputs": [
+    {
+      "name": "Beam.Bench_0.2.26_amd64.AppImage",
+      "sha256": "834ada69b7090bbb21c4a7c5280912144e6b3b7045290ee1d7b0b40322b5f5d6",
+      "included": false
+    },
+    {
+      "name": "Noto-COLRv1.ttf",
+      "sha256": "94c6c870925aaafd3fdda338fc4b2e4dfb74260c9aefa87d4aa8a145a993a5a2",
+      "included": false
+    }
+  ],
+  "report_numbers": [
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54
+  ]
+}

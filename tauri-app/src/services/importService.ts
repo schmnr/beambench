@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { CutEntryPatch, GcodeLine, OperationType, ProjectObject, RasterAdjustments, RasterMode } from '../types/project';
 import { measureAsyncPerf } from './perfMarks';

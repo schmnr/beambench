@@ -1,0 +1,104 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+   Compiling beambench-common v0.2.26 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-common)
+   Compiling rand v0.10.2
+   Compiling lopdf v0.44.0 (/Users/schmnr/Documents/GitHub/Beam Bench/vendor/lopdf)
+   Compiling beambench-raster v0.2.26 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-raster)
+warning: field `0` is never read
+   --> vendor/lopdf/src/datetime.rs:155:21
+    |
+155 | pub struct DateTime(String);
+    |            -------- ^^^^^^
+    |            |
+    |            field in this struct
+    |
+    = help: consider removing this field
+    = note: `DateTime` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling beambench-core v0.2.26 (/Users/schmnr/Documents/GitHub/Beam Bench/crates/beambench-core)
+warning: `lopdf` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 01s
+     Running unittests src/lib.rs (target/debug/deps/beambench_core-c418396712c6670f)
+
+running 51 tests
+test import_pdf::document_regressions::eager_cross_reference_predictor_rows_are_bounded_before_allocation ... ok
+test import_pdf::document_regressions::clipped_curves_and_graphics_state_restore_preserve_visible_bounds ... ok
+test import_pdf::document_regressions::clips_visible_paths_and_rejects_missing_forms ... ok
+test import_pdf::document_regressions::images_preserve_top_row_decode_and_clipping ... ok
+test import_pdf::document_regressions::accepts_empty_and_normal_blend_array_graphics_states ... ok
+test import_pdf::document_regressions::page_resources_replace_inherited_graphics_states ... ok
+test import_pdf::document_regressions::form_cycles_groups_and_missing_resources_fail_atomically ... ok
+test import_pdf::document_regressions::encoding_names_in_metadata_comments_and_stream_bytes_are_not_encodings ... ok
+test import_pdf::document_regressions::jpeg_and_png_predictor_images_decode ... ok
+test import_pdf::document_regressions::compressed_object_streams_match_classic_encoding ... ok
+test import_pdf::document_regressions::compressed_and_split_page_streams_preserve_state_and_geometry ... ok
+test import_pdf::document_regressions::ordinary_solid_dash_reset_is_geometry_neutral ... ok
+test import_pdf::document_regressions::referenced_forms_and_images_preserve_artwork ... ok
+test import_pdf::objects::tests::object_stream_index_must_match_authoritative_xref ... ok
+test import_pdf::objects::tests::overlapping_nested_string_offsets_cannot_amplify_parsed_memory ... ok
+test import_pdf::tests::eps_points_scale_to_mm ... ok
+test import_pdf::tests::parse_empty_pdf_returns_error ... ok
+test import_pdf::tests::parse_eps_curveto ... ok
+test import_pdf::document_regressions::real_encryption_is_rejected_even_with_an_empty_password ... ok
+test import_pdf::document_regressions::unused_form_does_not_become_geometry ... ok
+test import_pdf::tests::parse_eps_postscript_operators ... ok
+test import_pdf::tests::parse_pdf_close_and_discard_operators_terminate_paths ... ok
+test import_pdf::tests::parse_pdf_crlf_after_stream_keyword ... ok
+test import_pdf::tests::parse_pdf_ctm_concatenates_and_restores_with_graphics_state ... ok
+test import_pdf::tests::parse_pdf_ctm_transforms_all_curve_coordinates ... ok
+test import_pdf::tests::parse_pdf_ctm_transforms_rectangle_corners ... ok
+test import_pdf::tests::parse_pdf_curve_shorthands_preserve_implicit_controls ... ok
+test import_pdf::tests::parse_pdf_curveto ... ok
+test import_pdf::tests::parse_pdf_device_color_space_operators ... ok
+test import_pdf::tests::parse_pdf_eof_geometry_uses_unspecified_paint_fallback ... ok
+test import_pdf::document_regressions::unused_graphics_state_effects_do_not_block_import ... ok
+test import_pdf::tests::parse_pdf_fill_stroke_carries_both_colors ... ok
+test import_pdf::tests::parse_pdf_graphics_state_restores_colors ... ok
+test import_pdf::tests::parse_pdf_gray_and_cmyk_are_clamped_and_converted ... ok
+test import_pdf::tests::parse_pdf_moveto_lineto ... ok
+test import_pdf::tests::parse_pdf_flate_decode_preserves_paint_color ... ok
+test import_pdf::tests::parse_pdf_rectangle ... ok
+test import_pdf::tests::parse_pdf_nested_dict_flate_detection ... ok
+test import_pdf::tests::parse_pdf_separates_painted_paths_and_preserves_rgb_colors ... ok
+test import_pdf::tests::parse_pdf_flate_decode_stream ... ok
+test import_pdf::tests::pdf_points_scale_to_mm ... ok
+test import_pdf::document_regressions::rejects_missing_or_malformed_graphics_state_resources ... ok
+test import_pdf::document_regressions::accepts_opaque_graphics_states_without_changing_geometry_or_colors ... ok
+test import_pdf::document_regressions::unsupported_images_fail_without_returning_partial_paths ... ok
+test import_pdf::document_regressions::rejects_graphics_state_effects_instead_of_importing_partial_artwork ... ok
+test import_pdf::document_regressions::eager_cross_reference_decompression_stays_bounded ... ok
+test import_pdf::objects::tests::aggregate_object_expansion_is_charged_before_parsing ... ok
+test import_pdf::document_regressions::content_operation_limit_and_malformed_tail_do_not_return_partial_artwork ... ok
+test import_pdf::document_regressions::repeated_forms_share_the_content_budget ... ok
+test import_pdf::document_regressions::rejects_oversized_page_content ... ok
+test import_pdf::document_regressions::repeated_images_share_the_pixel_budget ... ok
+
+test result: ok. 51 passed; 0 failed; 0 ignored; 0 measured; 921 filtered out; finished in 1.14s
+
+     Running tests/image_formats.rs (target/debug/deps/image_formats-a0b605a74a46fe48)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/pdf_artwork.rs (target/debug/deps/pdf_artwork-3660b0e25bf7f9f4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/potrace_tests.rs (target/debug/deps/potrace_tests-4c4b3cd3d942df88)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/workflow_scenarios.rs (target/debug/deps/workflow_scenarios-5710a9bdd3318f47)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+

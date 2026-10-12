@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
@@ -34,6 +34,7 @@ use crate::persist;
 const MAX_PANIC_REPORT_FILE_BYTES: u64 = 256 * 1024;
 const MAX_DIAGNOSTIC_PROJECT_ITEMS: usize = 10_000;
 const MAX_PANIC_REPORT_BUNDLE_BYTES: usize = 512 * 1024;
+const MAX_STARTUP_LOG_BYTES: u64 = 64 * 1024;
 
 pub const KNOWN_ISSUES: &[KnownIssueDefinition] = &[
     KnownIssueDefinition {
@@ -90,6 +91,12 @@ pub fn build_bundle(
         .ok()
         .map(|settings| settings.display_language.clone());
 
+    let mut recent_logs = active_error_entries(ctx);
+    if cfg!(target_os = "linux")
+        && let Some(dir) = persist::data_dir()
+    {
+        recent_logs.extend(startup_log_entries(&dir.join("diagnostics")));
+    }
     let mut bundle = DiagnosticBundleV1 {
         schema_version: FEEDBACK_SCHEMA_VERSION,
         kind: input.kind,
@@ -106,7 +113,7 @@ pub fn build_bundle(
         ports_detected,
         connection_events,
         recent_serial: recent_serial_traffic(),
-        recent_logs: active_error_entries(ctx),
+        recent_logs,
         recent_panics: recent_panic_reports_for_bundle(ctx),
         terminal_job: ctx
             .last_terminal_job
@@ -1111,6 +1118,42 @@ fn log_entry_from_active_error(entry: &ActiveErrorEntry) -> DiagnosticLogEntry {
     }
 }
 
+fn startup_log_entries(dir: &Path) -> Vec<DiagnosticLogEntry> {
+    ["startup.previous.log", "startup.log"]
+        .into_iter()
+        .filter_map(|name| {
+            let mut file = fs::File::open(dir.join(name)).ok()?;
+            let metadata = file.metadata().ok()?;
+            if !metadata.is_file() || metadata.len() == 0 {
+                return None;
+            }
+            let mut bytes = Vec::new();
+            let mut message = String::new();
+            if metadata.len() > MAX_STARTUP_LOG_BYTES {
+                Read::by_ref(&mut file)
+                    .take(4096)
+                    .read_to_end(&mut bytes)
+                    .ok()?;
+                message.push_str(&String::from_utf8_lossy(&bytes));
+                message.push_str("\n--- middle of startup log omitted ---\n");
+                bytes.clear();
+                file.seek(SeekFrom::End(-((MAX_STARTUP_LOG_BYTES - 4096) as i64)))
+                    .ok()?;
+            }
+            file.take(MAX_STARTUP_LOG_BYTES - message.len().min(4096) as u64)
+                .read_to_end(&mut bytes)
+                .ok()?;
+            message.push_str(&String::from_utf8_lossy(&bytes));
+            Some(DiagnosticLogEntry {
+                ts: DateTime::<Utc>::from(metadata.modified().ok()?).to_rfc3339(),
+                level: "info".to_owned(),
+                target: format!("native_startup::{name}"),
+                message,
+            })
+        })
+        .collect()
+}
+
 fn recent_panic_reports_for_bundle(ctx: &ServiceContext) -> Vec<DiagnosticPanic> {
     let mut total_bytes = 2usize;
     let mut reports = Vec::new();
@@ -1493,6 +1536,49 @@ mod tests {
     use beambench_core::Project;
     use std::io::Read;
     use tempfile::TempDir;
+
+    #[test]
+    fn startup_logs_and_full_error_history_stay_within_the_intake_limit() {
+        let ctx = ServiceContext::new();
+        for i in 0..200 {
+            ctx.push_error_at(format!("ERROR controller: error {i}"), Utc::now());
+        }
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("startup.previous.log"), "prior launch").unwrap();
+        fs::write(dir.path().join("startup.log"), "current launch").unwrap();
+        let startup_logs = startup_log_entries(dir.path());
+        let mut logs = active_error_entries(&ctx);
+        logs.extend(startup_logs);
+        assert_eq!(logs.len(), 102);
+        assert_eq!(logs[0].message, "error 100");
+        assert_eq!(logs[99].message, "error 199");
+        assert_eq!(logs[100].message, "prior launch");
+        assert_eq!(logs[101].message, "current launch");
+    }
+
+    #[test]
+    fn startup_diagnostics_include_both_launches_with_bounded_scrubbed_output() {
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("startup.previous.log"),
+            "Failed to initialize GTK",
+        )
+        .unwrap();
+        let mut large = b"app_version=0.2.26\n".to_vec();
+        large.extend(vec![b'x'; MAX_STARTUP_LOG_BYTES as usize * 4]);
+        large.extend(b"\ncolrv1 assertion at /home/alice/photo.jpg\n");
+        fs::write(dir.path().join("startup.log"), large).unwrap();
+        let entries: Vec<DiagnosticLogEntry> =
+            scrub_deserialized(&startup_log_entries(dir.path())).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert!(entries[0].message.contains("Failed to initialize GTK"));
+        assert!(entries[1].message.contains("app_version=0.2.26"));
+        assert!(entries[1].message.contains("middle of startup log omitted"));
+        assert!(entries[1].message.contains("colrv1 assertion"));
+        assert!(!entries[1].message.contains("alice"));
+        assert!(entries[1].message.len() < MAX_STARTUP_LOG_BYTES as usize + 200);
+        assert!(startup_log_entries(&dir.path().join("missing")).is_empty());
+    }
 
     fn bug_input() -> FeedbackReportInput {
         FeedbackReportInput {

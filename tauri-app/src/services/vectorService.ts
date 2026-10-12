@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import type { ArrayResult, Bounds, ImageMaskPolarity, Point2D, ProjectObject } from '../types/project';
 import type {
   CopyAlongPathOptions,

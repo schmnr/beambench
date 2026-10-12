@@ -435,6 +435,19 @@ pub fn data_dir() -> Option<PathBuf> {
     dirs::data_dir().map(|d| d.join("beam-bench"))
 }
 
+/// Keep the preceding launch available when a renderer or GTK failure forces
+/// the user to restart before submitting feedback.
+pub fn preserve_previous_startup_log(path: &Path) -> std::io::Result<()> {
+    if path.try_exists()? {
+        let previous = path.with_extension("previous.log");
+        if previous.try_exists()? {
+            fs::remove_file(&previous)?;
+        }
+        fs::rename(path, previous)?;
+    }
+    Ok(())
+}
+
 pub fn libraries_dir() -> Option<PathBuf> {
     data_dir().map(|d| d.join("libraries"))
 }
@@ -742,6 +755,33 @@ pub fn load_art_libraries() -> ArtLibraryLoadState {
 mod tests {
     use super::*;
     use beambench_core::DisplayUnit;
+
+    #[test]
+    fn startup_diagnostics_preserve_the_latest_previous_launch() {
+        let dir = tempfile::tempdir().unwrap();
+        let current = dir.path().join("startup.log");
+        let previous = dir.path().join("startup.previous.log");
+        fs::write(&previous, "older launch").unwrap();
+        preserve_previous_startup_log(&current).unwrap();
+        assert_eq!(fs::read_to_string(&previous).unwrap(), "older launch");
+        fs::write(&current, "renderer assertion").unwrap();
+        preserve_previous_startup_log(&current).unwrap();
+        assert!(!current.exists());
+        assert_eq!(fs::read_to_string(&previous).unwrap(), "renderer assertion");
+        fs::write(&current, "next launch").unwrap();
+        preserve_previous_startup_log(&current).unwrap();
+        assert_eq!(fs::read_to_string(&previous).unwrap(), "next launch");
+    }
+
+    #[test]
+    fn failed_startup_log_rotation_keeps_the_current_log() {
+        let dir = tempfile::tempdir().unwrap();
+        let current = dir.path().join("startup.log");
+        fs::write(&current, "crash evidence").unwrap();
+        fs::create_dir(dir.path().join("startup.previous.log")).unwrap();
+        assert!(preserve_previous_startup_log(&current).is_err());
+        assert_eq!(fs::read_to_string(current).unwrap(), "crash evidence");
+    }
 
     #[test]
     fn roundtrip_settings() {

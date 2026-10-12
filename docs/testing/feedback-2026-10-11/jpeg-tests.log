@@ -1,0 +1,50 @@
+warning: field `0` is never read
+   --> vendor/lopdf/src/datetime.rs:155:21
+    |
+155 | pub struct DateTime(String);
+    |            -------- ^^^^^^
+    |            |
+    |            field in this struct
+    |
+    = help: consider removing this field
+    = note: `DateTime` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `lopdf` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running unittests src/lib.rs (target/debug/deps/beambench_core-c418396712c6670f)
+
+running 4 tests
+test import::tests::jpeg_dpi_sane_jfif_density_wins_over_exif ... ok
+test import::tests::jpeg_dpi_falls_back_to_exif_when_jfif_has_no_units ... ok
+test import::tests::jpeg_dpi_junk_jfif_density_does_not_shadow_valid_exif ... ok
+test import_pdf::document_regressions::jpeg_and_png_predictor_images_decode ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 968 filtered out; finished in 0.04s
+
+     Running tests/image_formats.rs (target/debug/deps/image_formats-a0b605a74a46fe48)
+
+running 2 tests
+test decode_1x1_jpeg ... ok
+test decode_jpeg ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s
+
+     Running tests/pdf_artwork.rs (target/debug/deps/pdf_artwork-3660b0e25bf7f9f4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/potrace_tests.rs (target/debug/deps/potrace_tests-4c4b3cd3d942df88)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/workflow_scenarios.rs (target/debug/deps/workflow_scenarios-5710a9bdd3318f47)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+

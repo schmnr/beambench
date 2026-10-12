@@ -141,6 +141,10 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
   physical testing pending.
 - [Sculpfun S30 Pro 10W, preset version 1](machines/sculpfun-s30-pro-10w.md):
   documentation-based, physical testing pending.
+- [Creality Falcon2 Pro 40W, preset version 1](machines/creality-falcon2-pro-40w.md):
+  documentation-based USB preset, physical testing pending.
+- [Two Trees TT-5.5S, preset version 1](machines/twotrees-tt-5-5s.md):
+  documentation-based USB preset with M3, physical testing pending.
 
 Existing S30 Pro Max, ACMER S2, xTool M1, and LaserPecker entries predate this
 record format. Their current scope remains in the controller compatibility

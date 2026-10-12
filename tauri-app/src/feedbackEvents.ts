@@ -1,6 +1,7 @@
 import type { FeedbackKind, FeedbackSourceContext } from './types/feedback';
 
 export const FEEDBACK_REPORT_OPEN_EVENT = 'beam-bench-open-feedback-report';
+export const MACHINE_PROFILES_OPEN_EVENT = 'beam-bench-open-machine-profiles';
 
 export interface FeedbackReportOpenDetail {
   kind: FeedbackKind;

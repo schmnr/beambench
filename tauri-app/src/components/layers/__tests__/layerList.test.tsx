@@ -40,6 +40,50 @@ afterEach(() => {
 });
 
 describe('LayerList', () => {
+  it('changes only the single cut setting when using quick Air Assist', () => {
+    const layer = makeLayer({ id: 'l1', enabled: false, visible: false, air_assist: false });
+    const updateCutEntry = vi.fn().mockResolvedValue(true);
+    const updateLayer = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [] }),
+      selectedLayerId: layer.id,
+      updateCutEntry,
+      updateLayer,
+    });
+
+    render(<LayerList />);
+
+    expect(screen.getAllByRole('button', { name: 'Air Assist' })).toHaveLength(1);
+    fireEvent.click(screen.getByTestId(`sub-layer-air-assist-${layer.entries[0].id}`));
+
+    expect(updateCutEntry).toHaveBeenCalledWith(layer.id, layer.entries[0].id, { air_assist: true });
+    expect(updateLayer).not.toHaveBeenCalled();
+    expect(screen.getByTestId('output-toggle').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByTestId('show-toggle').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('keeps Air Assist independent for each cut setting in a stack', () => {
+    const layer = makeLayer({ id: 'l1', air_assist: false });
+    layer.entries.push({ ...layer.entries[0], id: 'entry-2', air_assist: true });
+    const updateCutEntry = vi.fn().mockResolvedValue(true);
+    useProjectStore.setState({
+      project: makeProject({ layers: [layer], objects: [] }),
+      selectedLayerId: layer.id,
+      updateCutEntry,
+    });
+
+    render(<LayerList />);
+
+    fireEvent.click(screen.getByTestId(`sub-layer-air-assist-${layer.entries[0].id}`));
+    expect(updateCutEntry).toHaveBeenLastCalledWith(layer.id, layer.entries[0].id, { air_assist: true });
+
+    fireEvent.click(screen.getByTestId('sub-layer-tab-1'));
+    expect(screen.getByTestId('sub-layer-air-assist-entry-2').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByTestId('sub-layer-air-assist-entry-2'));
+    expect(updateCutEntry).toHaveBeenLastCalledWith(layer.id, 'entry-2', { air_assist: false });
+    expect(updateCutEntry).toHaveBeenCalledTimes(2);
+  });
+
   it('does not expose layer creation in the Run workspace', () => {
     useUiStore.setState({ workspaceMode: 'run' });
     useProjectStore.setState({
@@ -289,7 +333,7 @@ describe('LayerList', () => {
     const outputToggle = screen.getByTestId('output-toggle');
     expect(outputToggle.getAttribute('aria-pressed')).toBe('true');
     expect(outputToggle.querySelector('.lucide-zap')).not.toBeNull();
-    expect(screen.getByTestId('layer-output-show-help').textContent).toContain('Out includes this layer in the laser job');
+    expect(screen.getByTestId('layer-output-show-help').textContent).toContain('Output includes this layer in the laser job');
     fireEvent.click(outputToggle);
 
     expect(updateLayerSpy).toHaveBeenCalledWith('l1', { enabled: false });

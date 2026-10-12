@@ -2083,10 +2083,17 @@ fn open_grbl_network_for_connection(
         }
     }
     if session.status_report_count() == status_count {
+        let detail = match session.received_byte_count() {
+            Some(0) => "TCP connected, but no response bytes were received",
+            Some(_) => {
+                "TCP connected and received data, but no recognizable GRBL status reply was found"
+            }
+            None => "TCP connected, but no recognizable GRBL status reply was found",
+        };
         let _ = session.disconnect();
-        return Err(ServiceError::machine(
-            "The network controller did not return a GRBL status report",
-        ));
+        return Err(ServiceError::machine(format!(
+            "The network controller did not return a GRBL status report: {detail}"
+        )));
     }
     session
         .begin_validation_from_fresh_status(status_count)
@@ -8236,6 +8243,84 @@ mod tests {
     }
 
     #[test]
+    fn grbl_tcp_accepts_cr_only_and_fragmented_status_replies() {
+        for chunks in [
+            vec![b"<Idle|MPos:0,0,0|FS:0,0>\r".as_slice()],
+            vec![
+                b"startup\r".as_slice(),
+                b"\n<Idle|MPos:0,0,0|FS:0,",
+                b"0>\r",
+                b"\n",
+            ],
+        ] {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let (sent, received) = std::sync::mpsc::channel();
+            let server = std::thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut query = [0; 1];
+                stream.read_exact(&mut query).unwrap();
+                assert_eq!(query, [b'?']);
+                for chunk in chunks {
+                    stream.write_all(chunk).unwrap();
+                    std::thread::sleep(Duration::from_millis(40));
+                }
+                sent.send(()).unwrap();
+                let mut bytes = Vec::new();
+                stream.read_to_end(&mut bytes).unwrap();
+                assert!(bytes.iter().all(|byte| *byte == b'?'));
+            });
+            let ctx = ServiceContext::new();
+            let mut session = open_grbl_network_for_connection(&ctx, "127.0.0.1", port).unwrap();
+            assert_eq!(session.status_report_count(), 1);
+            assert!(session.received_byte_count().unwrap() > 0);
+            received.recv_timeout(Duration::from_secs(2)).unwrap();
+            session.disconnect().unwrap();
+            server.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn grbl_tcp_unrecognized_and_unterminated_replies_are_distinguished_from_silence() {
+        for reply in [
+            b"not a GRBL controller\r".as_slice(),
+            b"<Idle|MPos:0,0,0|FS:0,0>",
+        ] {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let server = std::thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut query = [0; 1];
+                stream.read_exact(&mut query).unwrap();
+                assert_eq!(query, [b'?']);
+                stream.write_all(reply).unwrap();
+                let mut bytes = Vec::new();
+                stream.read_to_end(&mut bytes).unwrap();
+                assert!(bytes.iter().all(|byte| *byte == b'?'));
+            });
+            let ctx = ServiceContext::new();
+            let error = open_grbl_network_for_connection(&ctx, "127.0.0.1", port)
+                .err()
+                .expect("unrecognized reply must be rejected");
+            assert!(
+                error
+                    .message
+                    .contains("received data, but no recognizable GRBL status reply"),
+                "{}",
+                error.message
+            );
+            assert!(ctx.session.lock().unwrap().is_none());
+            server.join().unwrap();
+        }
+    }
+
+    #[test]
     fn grbl_tcp_silent_controller_times_out_and_closes_transport() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = listener.local_addr().unwrap().port();
@@ -8258,6 +8343,7 @@ mod tests {
                 .message
                 .contains("did not return a GRBL status report")
         );
+        assert!(error.message.contains("no response bytes were received"));
         assert!(started.elapsed() >= NETWORK_STATUS_TIMEOUT);
         assert!(started.elapsed() < Duration::from_secs(5));
         let bytes = server.join().unwrap();

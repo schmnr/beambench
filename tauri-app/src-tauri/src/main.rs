@@ -2,6 +2,7 @@
 
 mod commands;
 mod events;
+mod host_opener;
 mod logging;
 mod native_menu;
 mod panic_reports;
@@ -166,8 +167,6 @@ fn main() {
         }
     }
 
-    let startup_diagnostics_path = logging::install_startup_diagnostics();
-
     panic_reports::install_panic_hook();
     // Before anything reads or repairs settings: a second launch must not
     // touch files the running copy owns.
@@ -186,6 +185,7 @@ fn main() {
             None
         }
     };
+    let startup_diagnostics_path = logging::install_startup_diagnostics();
     let ctx = Arc::new(ServiceContext::new());
     panic_reports::load_startup_panics_into_context(&ctx);
     let api_runtime = ApiRuntime::default();

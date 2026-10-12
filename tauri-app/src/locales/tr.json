@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "Belgelere ve bir kullanıcının yapılandırmasına dayalı BlazeX M3 10W ön ayarı.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Ağ: 8080 numaralı bağlantı noktası. Referanslayın veya bağlantıda referanslamayı açın. Z soketi döner aksesuar içindir."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "Belgeler temelinde hazırlanmış, standart donanım için USB ön ayarı. Hareket mesafesini ve en yüksek S değerini kontrol edin. Fiziksel testler henüz yapılmadı."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "Belgeler temelinde hazırlanmış, standart donanım için USB ön ayarı. Hareket mesafesini ve en yüksek S değerini kontrol edin. Fiziksel testler henüz yapılmadı."
           }
         },
         "report_active_profile": "Ayarlarını sonuçlarınızla paylaşmak için bu profili kaydedip etkinleştirin.",

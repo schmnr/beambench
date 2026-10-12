@@ -26,9 +26,15 @@ pub trait SerialTransport: Send {
     /// Read all currently available bytes from the port.
     fn read_available(&mut self) -> Result<Vec<u8>, SerialError>;
 
-    /// Read a complete line (terminated by \n) from the port.
+    /// Read a complete line using the transport's supported line endings.
     /// Returns `None` if no complete line is available yet.
     fn read_line(&mut self) -> Result<Option<String>, SerialError>;
+
+    /// Raw bytes received since the last successful open, when tracked.
+    /// Includes incomplete lines and transport negotiation bytes.
+    fn received_byte_count(&self) -> Option<u64> {
+        None
+    }
 
     /// Flush the output buffer.
     fn flush(&mut self) -> Result<(), SerialError>;

@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "Preajuste BlazeX M3 10W basado en la documentación y la configuración de un propietario.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudios. Red: puerto 8080. Busque el origen o active la búsqueda al conectar. El conector Z es para un accesorio rotativo."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "Ajuste USB para el hardware original basado en documentación. Verifica el recorrido y el valor S máximo. Pruebas físicas pendientes."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "Ajuste USB para el hardware original basado en documentación. Verifica el recorrido y el valor S máximo. Pruebas físicas pendientes."
           }
         },
         "report_active_profile": "Guarda y activa este perfil para compartir sus ajustes con los resultados.",

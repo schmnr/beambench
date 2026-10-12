@@ -28,6 +28,10 @@ pub fn install_startup_diagnostics() -> Option<PathBuf> {
         return None;
     }
 
+    if let Err(error) = beambench_service::persist::preserve_previous_startup_log(&path) {
+        eprintln!("Failed to preserve the previous startup diagnostics: {error}");
+        return None;
+    }
     let mut file = match OpenOptions::new()
         .create(true)
         .truncate(true)
@@ -92,6 +96,14 @@ fn write_startup_header(file: &mut File) -> io::Result<()> {
         )?;
     }
     writeln!(file, "APPIMAGE={}", std::env::var_os("APPIMAGE").is_some())?;
+    for key in ["DISPLAY", "WAYLAND_DISPLAY"] {
+        writeln!(file, "{key}_present={}", std::env::var_os(key).is_some())?;
+    }
+    writeln!(
+        file,
+        "appimage_font_policy={}",
+        std::env::var_os("BEAMBENCH_APPIMAGE_FONT_POLICY").is_some()
+    )?;
     writeln!(file, "--- process output ---")?;
     file.flush()
 }

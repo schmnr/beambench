@@ -106,8 +106,13 @@ jobs:
             libgtk-3-dev \
             libayatana-appindicator3-dev \
             squashfs-tools \
+            fontconfig \
+            python3 \
             file \
             wget
+
+      - name: Test AppImage display and font compatibility policy
+        run: python3 scripts/test-linux-appimage-runtime.py
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable

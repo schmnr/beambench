@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Slash } from 'lucide-react';
 
 interface IconToggleButtonProps {
   active: boolean;
@@ -28,11 +29,16 @@ export function IconToggleButton({
       data-testid={testId}
       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border outline-none transition-colors focus-visible:ring-1 focus-visible:ring-bb-accent ${
         active
-          ? 'border-bb-accent/50 bg-bb-accent/15 text-bb-accent hover:bg-bb-accent/20'
+          ? 'border-bb-accent bg-bb-accent text-bb-on-accent hover:border-bb-accent-hover hover:bg-bb-accent-hover'
           : 'border-bb-border bg-bb-bg text-bb-text-muted hover:border-bb-accent/40 hover:bg-bb-hover hover:text-bb-text'
       }`}
     >
-      {active ? icon : (inactiveIcon ?? icon)}
+      {active ? icon : (inactiveIcon ?? (
+        <span className="relative inline-flex">
+          {icon}
+          <Slash size={18} className="absolute -left-px -top-px" aria-hidden={true} />
+        </span>
+      ))}
     </button>
   );
 }

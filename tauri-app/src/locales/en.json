@@ -1940,7 +1940,7 @@
     },
     "layers": {
       "tool_layer_help": "Tool layers are guides and never produce laser output.",
-      "output_show_help": "Out includes this layer in the laser job. Show changes only the canvas view.",
+      "output_show_help": "Output includes this layer in the laser job. Show changes only the canvas view.",
       "opacity_help": "Canvas preview only. This does not change laser power or image processing.",
       "delete_layer": "Delete layer",
       "add_layer": "Add layer",
@@ -1949,7 +1949,7 @@
         "layer": "Layer",
         "mode": "Mode",
         "speed_power": "Spd/Pwr",
-        "output": "Out",
+        "output": "Output",
         "show": "Show",
         "air": "Air"
       },
@@ -2375,6 +2375,12 @@
           "blazex_m3_10w": {
             "description": "BlazeX M3 10W preset based on documentation and an owner configuration.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Network: port 8080. Use Home or enable Home on connect. The Z socket is for a rotary accessory."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
           }
         },
         "report_active_profile": "Save and activate this profile to share its settings with your results.",

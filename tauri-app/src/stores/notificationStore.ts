@@ -1,6 +1,8 @@
 import { isStaleDocument } from './documentGeneration';
 import { create } from 'zustand';
 import type { FeedbackSourceContext } from '../types/feedback';
+import { invocationFailureContext } from '../services/invoke';
+import { wrapBackendError } from '../i18n/errors';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -57,6 +59,12 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
   push: (message, type, options) => {
     // A reply to a document that has since been replaced is not news.
     if (isStaleDocument(message)) return '';
+    const inferredContext = type === 'error'
+      ? invocationFailureContext(message, wrapBackendError)
+      : undefined;
+    const feedbackContext = inferredContext
+      ? { ...inferredContext, ...options?.feedbackContext }
+      : options?.feedbackContext;
     const delay =
       options?.autoDismissMs === undefined ? AUTO_DISMISS_MS[type] : options.autoDismissMs;
 
@@ -70,7 +78,7 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
             ? {
                 ...notification,
                 createdAt: Date.now(),
-                feedbackContext: options?.feedbackContext ?? notification.feedbackContext,
+                feedbackContext: feedbackContext ?? notification.feedbackContext,
               }
             : notification,
         ),
@@ -95,7 +103,7 @@ export const useNotificationStore = create<NotificationStoreState>((set, get) =>
       createdAt: Date.now(),
       actionLabel: options?.actionLabel,
       onAction: options?.onAction,
-      feedbackContext: options?.feedbackContext,
+      feedbackContext,
     };
 
     set((s) => {

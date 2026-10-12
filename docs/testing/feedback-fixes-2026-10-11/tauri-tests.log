@@ -1,0 +1,72 @@
+warning: field `0` is never read
+   --> vendor/lopdf/src/datetime.rs:155:21
+    |
+155 | pub struct DateTime(String);
+    |            -------- ^^^^^^
+    |            |
+    |            field in this struct
+    |
+    = help: consider removing this field
+    = note: `DateTime` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `lopdf` (lib) generated 1 warning
+   Compiling beambench-service v0.2.26 (<checkout>/crates/beambench-service)
+   Compiling beambench-api v0.2.26 (<checkout>/crates/beambench-api)
+   Compiling beambench-tauri v0.2.26 (<checkout>/tauri-app/src-tauri)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 37.08s
+     Running unittests src/main.rs (target/debug/deps/beambench_tauri-312cb4fe191a58bc)
+
+running 49 tests
+test commands::export::tests::write_export_bytes_surfaces_io_errors ... ok
+test commands::export::tests::write_export_bytes_writes_exact_bytes ... ok
+test commands::app::update_environment_tests::dev_build_without_bundle_is_not_blocked ... ok
+test commands::app::update_environment_tests::writable_bundle_on_temp_volume_is_not_blocked ... ok
+test commands::app::update_environment_tests::translocated_bundle_is_blocked ... ok
+test commands::import::tests::artwork_payload_rejects_unsupported_files ... ok
+test commands::import::tests::artwork_payload_reads_image_file_contents ... ok
+test commands::machine::tests::import_macros_atomic_preserves_existing_macros_when_persist_fails ... ok
+test commands::import::tests::refresh_image_errors_when_source_path_is_missing ... ok
+test commands::machine::tests::import_macros_atomic_replaces_macros_only_after_successful_persist ... ok
+test commands::machine::tests::import_materials_atomic_replaces_presets_only_after_successful_persist ... ok
+test commands::machine::tests::import_materials_atomic_preserves_existing_presets_when_persist_fails ... ok
+test host_opener::tests::external_launches_remove_only_the_app_font_policy ... ok
+test native_menu::tests::disabled_native_menu_items_have_no_effective_accelerator ... ok
+test native_menu::tests::enabled_state_restores_default_accelerator_when_not_overridden ... ok
+test commands::planner::tests::cache_invalid_when_empty ... ok
+test native_menu::tests::native_menu_arrange_shape_matches_product_order ... ok
+test commands::planner::tests::revision_hash_matches_plan_hash ... ok
+test commands::planner::tests::cache_invalid_for_different_project ... ok
+test commands::import::tests::refresh_image_uses_absolute_source_path_and_rewrites_asset_key ... ok
+test commands::import::tests::replace_image_preserves_old_asset_when_another_raster_still_references_it ... ok
+test native_menu::tests::native_language_menu_matches_locale_manifest ... ok
+test native_menu::tests::native_menu_edit_shape_matches_product_order ... ok
+test commands::import::tests::replace_image_to_fit_preserves_bounds_on_pass_through_layer ... ok
+test commands::import::tests::replace_image_removes_unreferenced_old_asset_and_clone_resolves_to_new_asset ... ok
+test native_menu::tests::native_menu_file_shape_matches_product_order ... ok
+test commands::app::settings_worker_tests::blocking_settings_work_leaves_the_calling_runtime_responsive ... ok
+test commands::planner::tests::cache_valid_when_project_unchanged ... ok
+test native_menu::tests::native_menu_laser_tools_keeps_machine_movement_together ... ok
+test native_menu::tests::native_menu_state_update_payload_maps_frontend_shape ... ok
+test native_menu::tests::native_menu_top_level_order_includes_language_before_help ... ok
+test commands::planner::tests::cache_invalid_after_project_mutation ... ok
+test state::tests::api_runtime_starts_empty ... ok
+test native_menu::tests::native_menu_window_order_matches_react_window_order ... ok
+test native_menu::tests::native_menu_tools_order_matches_contract ... ok
+test state::tests::plan_cache_starts_empty ... ok
+test state::tests::service_context_wraps_all_state ... ok
+test state::tests::session_starts_empty ... ok
+test theme::tests::background_mapping_uses_dark_fail_safe_for_unresolved_system ... ok
+test theme::tests::generated_window_config_gets_theme_and_background ... ok
+test theme::tests::native_theme_mapping_preserves_system_mode ... ok
+test native_menu::tests::native_menu_command_ids_are_unique_and_stable ... ok
+test native_menu::tests::agent_debug_refs_point_to_existing_native_entries ... ok
+test native_menu::tests::native_menu_commands_are_mapped_in_agent_registry ... ok
+test state::tests::taken_port_keeps_the_running_api ... ok
+test state::tests::switching_to_network_mode_on_the_same_port_restarts_the_api ... ok
+test panic_reports::tests::panic_report_write_scrubs_paths ... ok
+test state::tests::failed_network_enable_preserves_working_loopback_api ... ok
+test commands::app::settings_worker_tests::conflicting_api_restart_keeps_the_calling_runtime_responsive ... ok
+
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+

@@ -2223,6 +2223,12 @@
           "blazex_m3_10w": {
             "description": "Prednastavitev BlazeX M3 10W temelji na dokumentaciji in konfiguraciji lastnika.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudov. Omrežje: vrata 8080. Izvedite referenciranje ali ga omogočite ob povezavi. Priključek Z je za rotacijski dodatek."
+          },
+          "creality_falcon2_pro_40w": {
+            "description": "Prednastavitev USB za izvirno strojno opremo na podlagi dokumentacije. Preverite hod in največjo vrednost S. Fizično testiranje še ni opravljeno."
+          },
+          "twotrees_tt_5_5s": {
+            "description": "Prednastavitev USB za izvirno strojno opremo na podlagi dokumentacije. Preverite hod in največjo vrednost S. Fizično testiranje še ni opravljeno."
           }
         },
         "report_active_profile": "Shranite in aktivirajte ta profil, da njegove nastavitve delite z rezultati.",

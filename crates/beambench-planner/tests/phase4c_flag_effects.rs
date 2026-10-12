@@ -17,7 +17,7 @@
 use beambench_common::geometry::{Bounds, Point2D};
 use beambench_common::{RasterAdjustments, RasterMode};
 use beambench_core::asset::{Asset, AssetMediaType};
-use beambench_core::layer::{Layer, OperationType};
+use beambench_core::layer::{Layer, OffsetFillGroupingMode, OperationType};
 use beambench_core::object::{ObjectData, ObjectId, ProjectObject, ShapeKind};
 use beambench_core::project::Project;
 use beambench_core::{OptimizationOrderKey, ProjectOptimization, WorkspaceOrigin};
@@ -1102,4 +1102,124 @@ fn nested_islands_keep_their_own_power() {
             "hole must remain unburned for {operation:?}"
         );
     }
+}
+
+// LightBurn 1.6.03 preserves these separate nested outlines in individual mode.
+#[test]
+fn individual_offset_fill_preserves_separate_nested_circles() {
+    for reverse in [false, true] {
+        let mut project = fill_project(OperationType::OffsetFill, 1.0);
+        let id = project.layers[0].id;
+        project.objects.clear();
+        for (name, x, diameter) in [("outer", 20.0, 50.0), ("hole", 25.0, 40.0)] {
+            project.objects.push(ProjectObject::new(
+                name,
+                id,
+                Bounds::new(Point2D::new(x, x), Point2D::new(x + diameter, x + diameter)),
+                ObjectData::Shape {
+                    kind: ShapeKind::Ellipse,
+                    width: diameter,
+                    height: diameter,
+                    corner_radius: 0.0,
+                },
+            ));
+        }
+        if reverse {
+            project.objects.reverse();
+        }
+        let together = build(&project, ProjectOptimization::default());
+        project.layers[0]
+            .primary_entry_mut()
+            .vector_settings
+            .as_mut()
+            .unwrap()
+            .offset_fill_grouping_mode = OffsetFillGroupingMode::ShapesIndividually;
+        let individual = build(&project, ProjectOptimization::default());
+        assert!(!burn_powers(&individual).is_empty());
+        assert_eq!(
+            burn_segments_in_region(&individual, 40.0, 50.0),
+            0,
+            "hole must remain empty"
+        );
+        // Compare all emitted burn paths, not just a few sample points.
+        let paths = |plan: &ExecutionPlan| {
+            plan.segments
+                .iter()
+                .filter_map(|segment| match segment {
+                    PlanSegment::Vector {
+                        polyline,
+                        power_percent,
+                        ..
+                    } => Some((polyline.clone(), *power_percent)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            paths(&individual),
+            paths(&together),
+            "individual mode must preserve the ring"
+        );
+    }
+}
+
+#[test]
+fn individual_offset_fill_preserves_nested_island_power_and_zero_power() {
+    for island_scale in [0.25, 0.0] {
+        let mut project = fill_project(OperationType::OffsetFill, 1.0);
+        let id = project.layers[0].id;
+        project.objects.clear();
+        add_rectangle(&mut project, "outer", id, 20.0, 20.0, 30.0, 30.0);
+        add_rectangle(&mut project, "hole", id, 25.0, 25.0, 20.0, 20.0);
+        project.objects.last_mut().unwrap().power_scale = 0.5;
+        add_rectangle(&mut project, "island", id, 30.0, 30.0, 10.0, 10.0);
+        project.objects.last_mut().unwrap().power_scale = island_scale;
+        project.layers[0]
+            .primary_entry_mut()
+            .vector_settings
+            .as_mut()
+            .unwrap()
+            .offset_fill_grouping_mode = OffsetFillGroupingMode::ShapesIndividually;
+        let plan = build(&project, ProjectOptimization::default());
+        let layer_power = project.layers[0].primary_entry().power_percent;
+        let powers = burn_powers(&plan);
+        assert!(powers.contains(&layer_power));
+        assert!(
+            !powers.contains(&(layer_power * 0.5)),
+            "hole must not burn at its own power"
+        );
+        assert_eq!(
+            burn_segments_in_region(&plan, 26.0, 29.0),
+            0,
+            "hole around island must remain empty"
+        );
+        if island_scale > 0.0 {
+            assert!(powers.contains(&(layer_power * island_scale)));
+            assert!(burn_segments_in_region(&plan, 32.0, 38.0) > 0);
+        } else {
+            assert_eq!(burn_segments_in_region(&plan, 32.0, 38.0), 0);
+        }
+    }
+}
+
+#[test]
+fn individual_offset_fill_keeps_partial_overlaps_independent() {
+    let mut project = fill_project(OperationType::OffsetFill, 1.0);
+    let id = project.layers[0].id;
+    project.objects.clear();
+    add_rectangle(&mut project, "a", id, 20.0, 20.0, 20.0, 20.0);
+    add_rectangle(&mut project, "b", id, 30.0, 30.0, 20.0, 20.0);
+    let together = build(&project, ProjectOptimization::default());
+    assert_eq!(burn_segments_in_region(&together, 33.0, 37.0), 0);
+    project.layers[0]
+        .primary_entry_mut()
+        .vector_settings
+        .as_mut()
+        .unwrap()
+        .offset_fill_grouping_mode = OffsetFillGroupingMode::ShapesIndividually;
+    let individual = build(&project, ProjectOptimization::default());
+    assert!(
+        burn_segments_in_region(&individual, 33.0, 37.0) > 0,
+        "individual shapes must retain their independent overlap behavior"
+    );
 }

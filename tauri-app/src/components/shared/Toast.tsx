@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { Notification, NotificationType } from '../../stores/notificationStore';
-import { openFeedbackReport } from '../../feedbackEvents';
+import { MACHINE_PROFILES_OPEN_EVENT, openFeedbackReport } from '../../feedbackEvents';
 import { useUiStore } from '../../stores/uiStore';
 
 const STYLES: Record<NotificationType, string> = {
@@ -45,6 +45,16 @@ export function Toast({
           className="rounded border border-current/30 px-2 py-0.5 text-xs font-medium opacity-80 hover:opacity-100"
         >
           {notification.actionLabel}
+        </button>
+      ) : notification.type === 'error' && notification.message === t('errors.no_active_machine_profile') ? (
+        <button
+          onClick={() => {
+            window.dispatchEvent(new Event(MACHINE_PROFILES_OPEN_EVENT));
+            onDismiss(notification.id);
+          }}
+          className="rounded border border-current/30 px-2 py-0.5 text-xs font-medium opacity-80 hover:opacity-100"
+        >
+          {t('dialog.machine_profile.title')}
         </button>
       ) : null}
       {notification.type === 'error' ? (
