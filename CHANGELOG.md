@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 0.2.27
+## 0.2.28
 
 - Put the layer color beside its name and group Show, Output, and Air Assist
   for layers with one cut setting. Compact icon buttons have a clearer enabled
@@ -16,7 +16,8 @@
 - Keep the preceding Linux startup log and include bounded, scrubbed startup
   output in feedback, so restarting after a crash no longer loses the evidence.
 - Error reports retain the failed operation's name. A missing-machine-profile
-  error now opens Machine Profiles directly from the notification.
+  error now opens Machine Profiles directly from the notification on every
+  platform, including macOS with its native menu.
 - Add documentation-based USB presets for Creality Falcon2 Pro 40W and
   Two Trees TT-5.5S. The TT-5.5S uses its documented M3 constant-power mode.
   Preset guidance is available in all supported languages.

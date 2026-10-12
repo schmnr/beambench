@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { MainToolbar } from '../MainToolbar';
+import { Toast } from '../../shared/Toast';
+import i18n from '../../../i18n';
 import { CreationToolbar } from '../CreationToolbar';
 import { useUndoStore } from '../../../stores/undoStore';
 import { useProjectStore } from '../../../stores/projectStore';
@@ -14,6 +16,11 @@ import { makeAppSettings, makeLayer, makeProject, makeProjectObject, makeTransfo
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
+vi.mock('../../dialogs/DeviceSettingsDialog', () => ({
+  DeviceSettingsDialog: ({ initialTab }: { initialTab?: string }) => (
+    <div role="dialog">Machine setup {initialTab}</div>
+  ),
+}));
 
 const initialUndoState = useUndoStore.getState();
 const initialProjectState = useProjectStore.getState();
@@ -41,6 +48,20 @@ afterEach(() => {
 });
 
 describe('MainToolbar', () => {
+  it('opens profile recovery without the web menu, as on macOS', () => {
+    const onDismiss = vi.fn();
+    render(<>
+      <MainToolbar />
+      <Toast notification={{
+        id: 'missing-profile', type: 'error', createdAt: Date.now(),
+        message: i18n.t('errors.no_active_machine_profile'),
+      }} onDismiss={onDismiss} />
+    </>);
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('dialog.machine_profile.title') }));
+    expect(screen.getByRole('dialog').textContent).toContain('profiles');
+    expect(onDismiss).toHaveBeenCalledWith('missing-profile');
+  });
+
   it('renders file operation buttons', () => {
     render(<MainToolbar />);
     expect(screen.getByTitle('New')).toBeDefined();

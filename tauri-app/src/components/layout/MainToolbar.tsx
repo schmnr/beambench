@@ -16,6 +16,7 @@ import { zoomToFitBounds } from '../../canvas/ViewportTransform';
 import { getCanvasViewportSize } from '../../canvas/canvasViewportRegistry';
 import { DeviceSettingsDialog } from '../dialogs/DeviceSettingsDialog';
 import { ROTARY_SETUP_OPEN_EVENT } from '../../rotaryEvents';
+import { MACHINE_PROFILES_OPEN_EVENT } from '../../feedbackEvents';
 import { DockDialog } from '../dialogs/DockDialog';
 import { IconButton } from '../shared/IconButton';
 // New and Open go through the app commands so they ask about unsaved changes.
@@ -76,6 +77,7 @@ const FLIP_VERTICAL = 'vertical' as const;
 const EMERGENCY_STOP_SYMBOL = '■';
 const CONNECTION_SETTINGS_TAB = 'connection' as const;
 const MACHINE_SETTINGS_TAB = 'machine' as const;
+const PROFILES_SETTINGS_TAB = 'profiles' as const;
 const TOOL_SELECT = 'select' as const;
 const TOOL_LASER_POSITION = 'laser_position' as const;
 
@@ -124,7 +126,7 @@ export function MainToolbar() {
 
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [deviceSettingsInitialTab, setDeviceSettingsInitialTab] = useState<
-    typeof CONNECTION_SETTINGS_TAB | typeof MACHINE_SETTINGS_TAB
+    typeof CONNECTION_SETTINGS_TAB | typeof MACHINE_SETTINGS_TAB | typeof PROFILES_SETTINGS_TAB
   >(CONNECTION_SETTINGS_TAB);
   const [dockDialogObjectIds, setDockDialogObjectIds] = useState<string[] | null>(null);
 
@@ -141,8 +143,16 @@ export function MainToolbar() {
       setDeviceSettingsInitialTab(MACHINE_SETTINGS_TAB);
       setShowDeviceSettings(true);
     };
+    const openProfiles = () => {
+      setDeviceSettingsInitialTab(PROFILES_SETTINGS_TAB);
+      setShowDeviceSettings(true);
+    };
     window.addEventListener(ROTARY_SETUP_OPEN_EVENT, openRotary);
-    return () => window.removeEventListener(ROTARY_SETUP_OPEN_EVENT, openRotary);
+    window.addEventListener(MACHINE_PROFILES_OPEN_EVENT, openProfiles);
+    return () => {
+      window.removeEventListener(ROTARY_SETUP_OPEN_EVENT, openRotary);
+      window.removeEventListener(MACHINE_PROFILES_OPEN_EVENT, openProfiles);
+    };
   }, []);
 
   const hasSelection = selectedObjectIds.length > 0;

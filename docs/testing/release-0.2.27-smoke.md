@@ -41,3 +41,9 @@
 - Follow-up native check: rebuilt 0.2.27 app reports the correct version. The application-menu Settings label initially remained English because its Preferences title lacked a translation mapping. Reusing the existing Settings translation displays Einstellungen in German; native verification passes.
 
 See [feedback fix evidence](feedback-fixes-2026-10-11.md) and [layer control review](../feedback-layer-controls-2026-10-11.md) for reproduction details and limits. New presets use manufacturer documentation and have not been physically tested.
+
+## Superseded candidate
+
+The 0.2.27 candidate was not published. A final cross-platform review found
+that its profile recovery event listener was in MenuBar, which macOS does not
+mount. The corrected release is 0.2.28. Existing tags are preserved.
