@@ -8270,7 +8270,15 @@ mod tests {
                 }
                 sent.send(()).unwrap();
                 let mut bytes = Vec::new();
-                stream.read_to_end(&mut bytes).unwrap();
+                // Windows can reset a socket closed with unread reply bytes.
+                // The handshake assertions above cover the controller reply;
+                // this read only checks that no motion commands were sent.
+                if let Err(error) = stream.read_to_end(&mut bytes) {
+                    assert!(matches!(
+                        error.kind(),
+                        ErrorKind::ConnectionReset | ErrorKind::ConnectionAborted
+                    ));
+                }
                 assert!(bytes.iter().all(|byte| *byte == b'?'));
             });
             let ctx = ServiceContext::new();
