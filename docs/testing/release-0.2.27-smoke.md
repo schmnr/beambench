@@ -38,5 +38,6 @@
 - Known failures: none in the implemented fixes. Encrypted PDFs and raster complexity limits remain documented limitations.
 - Checks not run: physical hardware, native Windows/Intel macOS installation, additional native raster workflows, and packages before their builds exist.
 - Decision: source candidate approved by the user. Publish only after exact-tag platform build gates, signing, notarization, checksum/manifest validation and isolated upgrade smoke succeed.
+- Follow-up native check: rebuilt 0.2.27 app reports the correct version. The application-menu Settings label initially remained English because its Preferences title lacked a translation mapping. Reusing the existing Settings translation displays Einstellungen in German; native verification passes.
 
 See [feedback fix evidence](feedback-fixes-2026-10-11.md) and [layer control review](../feedback-layer-controls-2026-10-11.md) for reproduction details and limits. New presets use manufacturer documentation and have not been physically tested.

@@ -8,6 +8,8 @@
   for layers with one cut setting. Compact icon buttons have a clearer enabled
   highlight; Air Assist remains independent for each setting in a cut stack.
   Use the full Output label in each supported language.
+- Translate the macOS application-menu Settings command with the selected
+  language, as the Settings dialog already does.
 - Linux AppImage: avoid the renderer crash caused by newer system color fonts.
   The app uses monochrome font fallbacks; normal system fonts remain available.
   Respect an explicit display backend and use native Wayland when X11 is absent.

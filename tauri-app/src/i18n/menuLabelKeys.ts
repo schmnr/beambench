@@ -60,6 +60,7 @@ export const MENU_LABEL_KEYS = {
   'Replace Image': 'menus.edit.replace_image',
   'Replace Image to Fit': 'menus.edit.replace_image_to_fit',
   Settings: 'menus.edit.settings',
+  'Preferences...': 'menus.edit.settings',
   View: 'menus.view.label',
   'Zoom In': 'menus.view.zoom_in',
   'Zoom Out': 'menus.view.zoom_out',
