@@ -2378,7 +2378,13 @@
             "description": "BlazeX M3 10W preset based on documentation and an owner configuration.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Network: port 8080. Use Home or enable Home on connect. The Z socket is for a rotary accessory."
           },
+          "creality_falcon2_pro_22w": {
+            "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
+          },
           "creality_falcon2_pro_40w": {
+            "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
+          },
+          "creality_falcon2_pro_60w": {
             "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
           },
           "twotrees_tt_5_5s": {

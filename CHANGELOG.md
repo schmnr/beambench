@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Import LightBurn `.clb` material libraries and save complete, ordered material
+  recipes, including all sub-layers and their advanced settings.
+- Apply kerf compensation to closed Line cuts in preview and machine output,
+  including opposite offsets for nested holes. Preserve tab source information.
+- Restore saved panel layouts before mounting the workspace so startup effects
+  cannot overwrite panel sizes with defaults.
+- Add documentation-based USB presets for Creality Falcon2 Pro 22W and 60W,
+  with their respective 400 x 415 mm and 400 x 400 mm workspaces. Physical
+  testing is pending. Exact model suggestions avoid ambiguous Falcon variants.
+
 ## 0.2.29
 
 - Panel layouts and other preferences can be saved even when the local API

@@ -141,8 +141,12 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
   physical testing pending.
 - [Sculpfun S30 Pro 10W, preset version 1](machines/sculpfun-s30-pro-10w.md):
   documentation-based, physical testing pending.
+- [Creality Falcon2 Pro 22W, preset version 1](machines/creality-falcon2-pro-22w.md):
+  documentation-based USB preset, 400 x 415 mm, physical testing pending.
 - [Creality Falcon2 Pro 40W, preset version 1](machines/creality-falcon2-pro-40w.md):
   documentation-based USB preset, physical testing pending.
+- [Creality Falcon2 Pro 60W, preset version 1](machines/creality-falcon2-pro-60w.md):
+  documentation-based USB preset, 400 x 400 mm, physical testing pending.
 - [Two Trees TT-5.5S, preset version 1](machines/twotrees-tt-5-5s.md):
   documentation-based USB preset with M3, physical testing pending.
 

@@ -2226,7 +2226,13 @@
             "description": "BlazeX M3 10W-forhåndsinnstilling basert på dokumentasjon og en eiers konfigurasjon.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Nettverk: port 8080. Referansekjør eller aktiver det ved tilkobling. Z-kontakten er for rotasjonstilbehør."
           },
+          "creality_falcon2_pro_22w": {
+            "description": "USB-forhåndsinnstilling for original maskinvare basert på dokumentasjon. Kontroller vandring og maksimal S-verdi. Fysisk testing gjenstår."
+          },
           "creality_falcon2_pro_40w": {
+            "description": "USB-forhåndsinnstilling for original maskinvare basert på dokumentasjon. Kontroller vandring og maksimal S-verdi. Fysisk testing gjenstår."
+          },
+          "creality_falcon2_pro_60w": {
             "description": "USB-forhåndsinnstilling for original maskinvare basert på dokumentasjon. Kontroller vandring og maksimal S-verdi. Fysisk testing gjenstår."
           },
           "twotrees_tt_5_5s": {

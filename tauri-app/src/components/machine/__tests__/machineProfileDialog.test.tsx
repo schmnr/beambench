@@ -562,6 +562,8 @@ describe('MachineProfileDialog', () => {
     { presetId: 'sculpfun_s30_pro_10w', name: 'Sculpfun S30 Pro 10W', airOn: 'M8', width: 380, height: 385, homing: false },
     { presetId: 'sculpfun_s30_pro_max_20w', name: 'Sculpfun S30 Pro Max 20W', airOn: 'M8', width: 370, height: 360, homing: true },
     { presetId: 'sculpfun_s9', name: 'Sculpfun S9 (5.5W)', airOn: '', width: 410, height: 415, homing: false },
+    { presetId: 'creality_falcon2_pro_22w', name: 'Creality Falcon2 Pro 22W', airOn: '', width: 400, height: 415, homing: false },
+    { presetId: 'creality_falcon2_pro_60w', name: 'Creality Falcon2 Pro 60W', airOn: '', width: 400, height: 400, homing: false },
   ])('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing }) => {
     const profile = makeProfile({ id: 'prof-preset', name: 'Preset Profile' });
     const appliedProfile = {
@@ -575,6 +577,7 @@ describe('MachineProfileDialog', () => {
       homing_enabled: homing,
     };
 
+    let storedProfile = profile;
     mockInvoke.mockImplementation((cmd: string, args?: unknown) => {
       if (cmd === 'get_machine_profile_presets') {
         return Promise.resolve([
@@ -582,7 +585,7 @@ describe('MachineProfileDialog', () => {
             id: presetId,
             version: 1,
             name,
-            description: 'Sculpfun defaults',
+            description: 'Documented stock defaults',
             advisory_text: 'Use a wall outlet if air assist resets the controller.',
             origin: 'bottom_left',
             firmware_type: 'grbl',
@@ -614,6 +617,7 @@ describe('MachineProfileDialog', () => {
         return Promise.resolve([{ field: 'air_assist_on_gcode', old: 'M7', new: airOn }]);
       }
       if (cmd === 'apply_machine_profile_preset') {
+        storedProfile = appliedProfile;
         expect(args).toMatchObject({
           profileId: 'prof-preset',
           presetId,
@@ -628,7 +632,9 @@ describe('MachineProfileDialog', () => {
       return Promise.resolve([]);
     });
 
-    const loadProfiles = vi.fn().mockResolvedValue(undefined);
+    const loadProfiles = vi.fn(async () => {
+      useMachineStore.setState({ profiles: [storedProfile] });
+    });
     useMachineStore.setState({
       profiles: [profile],
       activeProfileId: null,
@@ -654,6 +660,9 @@ describe('MachineProfileDialog', () => {
       expect(screen.getByText(/Hardware testing is pending/)).toBeDefined();
       expect(screen.getByText(/380 x 385 mm workspace, S1000, M8\/M9 air assist/)).toBeDefined();
     }
+    if (presetId.startsWith('creality_falcon2_pro_')) {
+      expect(screen.getByText(/Physical testing pending/)).toBeDefined();
+    }
     expect((screen.getByTestId('machine-preset-apply') as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(screen.getByTestId('machine-preset-preview'));
@@ -671,6 +680,8 @@ describe('MachineProfileDialog', () => {
         confirmDiff: true,
       });
       expect((screen.getByLabelText('Air On G-code') as HTMLInputElement).value).toBe(airOn);
+      expect((screen.getByLabelText('Width (mm)') as HTMLInputElement).value).toBe(String(width));
+      expect((screen.getByLabelText('Height (mm)') as HTMLInputElement).value).toBe(String(height));
       expect(loadProfiles).toHaveBeenCalled();
     });
   });
