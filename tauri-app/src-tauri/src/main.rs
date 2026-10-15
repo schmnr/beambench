@@ -654,6 +654,8 @@ fn main() {
             commands::machine::apply_material_preset_to_seed,
             commands::machine::export_material_presets,
             commands::machine::import_material_presets,
+            commands::machine::preview_clb_material_library,
+            commands::machine::import_reviewed_material_presets,
             commands::machine::get_macros,
             commands::machine::save_macro,
             commands::machine::delete_macro,

@@ -2271,7 +2271,10 @@
         "notes": "Notatki",
         "duplicate": "Duplikat",
         "edit": "Edytuj",
-        "delete": "Usuń"
+        "delete": "Usuń",
+        "clb_review": "Sprawdź import LightBurn",
+        "clb_summary": "{count} ustawień do importu; pominięto: {skipped}",
+        "clb_notice": "Importowane są tylko obsługiwane ustawienia. Pozostałe pozostają w notatkach i wymagają ręcznego sprawdzenia. Podwarstwy stają się osobnymi ustawieniami. Przed użyciem sprawdź ustawienia swojego lasera."
       },
       "camera": {
         "status": {

@@ -2271,7 +2271,10 @@
         "notes": "Notas",
         "duplicate": "Duplicar",
         "edit": "Editar",
-        "delete": "Eliminar"
+        "delete": "Eliminar",
+        "clb_review": "Revisar importación de LightBurn",
+        "clb_summary": "{count} preajustes para importar; {skipped} omitidos",
+        "clb_notice": "Solo se importan los ajustes compatibles. Los demás se conservan en las notas y requieren revisión manual. Las subcapas se convierten en preajustes separados. Compruebe los ajustes de su láser antes de usarlos."
       },
       "camera": {
         "status": {

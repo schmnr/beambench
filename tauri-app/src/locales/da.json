@@ -2271,7 +2271,10 @@
         "notes": "Noter",
         "duplicate": "Duplikat",
         "edit": "Rediger",
-        "delete": "Slet"
+        "delete": "Slet",
+        "clb_review": "Gennemgå LightBurn-import",
+        "clb_summary": "{count} forudindstillinger til import; {skipped} sprunget over",
+        "clb_notice": "Kun understøttede indstillinger importeres. Andre bevares i noterne og skal gennemgås manuelt. Underlag bliver separate forudindstillinger. Kontrollér indstillingerne for din laser før brug."
       },
       "camera": {
         "status": {

@@ -766,6 +766,39 @@ pub fn import_material_presets(
     })
 }
 
+/// Preview conversion without changing the user's library. Bound reads as well
+/// as XML parsing, including when the selected file grows during the read.
+#[tauri::command]
+pub async fn preview_clb_material_library(
+    path: String,
+) -> Result<beambench_core::import_clb::ClbImportReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use beambench_core::import_clb::{MAX_CLB_BYTES, parse_clb_library};
+        use std::io::Read;
+        let file = std::fs::File::open(path).map_err(|e| format!("Read failed: {e}"))?;
+        let mut data = String::new();
+        file.take(MAX_CLB_BYTES as u64 + 1)
+            .read_to_string(&mut data)
+            .map_err(|e| format!("Read failed: {e}"))?;
+        parse_clb_library(&data)
+    })
+    .await
+    .map_err(|e| format!("Import preview failed: {e}"))?
+}
+
+/// Commit exactly the converted presets shown in the preview, even if the
+/// source file has since changed. Use the same atomic save as JSON import.
+#[tauri::command]
+pub fn import_reviewed_material_presets(
+    svc: State<'_, Arc<ServiceContext>>,
+    presets: Vec<MaterialPreset>,
+) -> Result<Vec<MaterialPreset>, String> {
+    import_materials_atomic(&svc, presets, |presets| {
+        persist::save_material_presets(presets)
+            .map_err(|e| format!("Failed to persist materials: {e}"))
+    })
+}
+
 #[tauri::command]
 pub fn get_macros(svc: State<'_, Arc<ServiceContext>>) -> Result<Vec<MacroDefinition>, String> {
     svc.get_macros()
@@ -1009,6 +1042,29 @@ mod tests {
         assert!(stored[1].id != stored[2].id);
         assert_ne!(stored[1].id, stored[0].id);
         assert_ne!(stored[2].id, stored[0].id);
+    }
+
+    #[test]
+    fn reviewed_clb_import_preserves_settings_notes_and_existing_library() {
+        let svc = ServiceContext::with_settings(AppSettings::default());
+        let existing = material_preset("Existing");
+        svc.save_material(existing.clone()).unwrap();
+        let report = beambench_core::import_clb::parse_clb_library(
+            r#"<LightBurnLibrary><Material name="Birch"><Entry Thickness="3" Desc="Cut"><CutSetting type="Cut"><speed Value="10"/><kerf Value="0.2"/></CutSetting></Entry></Material></LightBurnLibrary>"#,
+        ).unwrap();
+        let imported = report.presets[0].clone();
+        let merged = import_materials_atomic(&svc, report.presets, |presets| {
+            let json = serde_json::to_string(presets).unwrap();
+            let roundtrip: Vec<MaterialPreset> = serde_json::from_str(&json).unwrap();
+            assert_eq!(roundtrip[1].notes, imported.notes);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(merged[0], existing);
+        assert_eq!(merged[1].speed_mm_min, 600.0);
+        assert_eq!(merged[1].notes, imported.notes);
+        assert_ne!(merged[1].id, imported.id);
+        assert_eq!(svc.get_materials().unwrap(), merged);
     }
 
     #[test]

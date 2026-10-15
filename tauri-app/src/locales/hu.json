@@ -2271,7 +2271,10 @@
         "notes": "Megjegyzések",
         "duplicate": "Megkettőzés",
         "edit": "Szerkesztés",
-        "delete": "Törölje"
+        "delete": "Törölje",
+        "clb_review": "LightBurn-import ellenőrzése",
+        "clb_summary": "{count} importálható beállítás; {skipped} kihagyva",
+        "clb_notice": "Csak a támogatott beállítások importálhatók. A többi a jegyzetekben marad, és kézi ellenőrzést igényel. Az alrétegekből külön beállítások lesznek. Használat előtt ellenőrizze a lézer beállításait."
       },
       "camera": {
         "status": {

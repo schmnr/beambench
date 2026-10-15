@@ -2271,7 +2271,10 @@
         "notes": "Anteckningar",
         "duplicate": "Duplicera",
         "edit": "Redigera",
-        "delete": "Ta bort"
+        "delete": "Ta bort",
+        "clb_review": "Granska LightBurn-import",
+        "clb_summary": "{count} förinställningar att importera; {skipped} överhoppade",
+        "clb_notice": "Endast inställningar som stöds importeras. Övriga finns kvar i anteckningarna och måste granskas manuellt. Underlager blir separata förinställningar. Kontrollera inställningarna för din laser före användning."
       },
       "camera": {
         "status": {

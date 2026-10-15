@@ -16,6 +16,7 @@ pub mod export_pdf;
 pub mod export_print;
 pub mod export_svg;
 pub mod import;
+pub mod import_clb;
 pub mod import_dxf;
 pub mod import_gcode;
 pub mod import_lbrn;

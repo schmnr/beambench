@@ -2271,7 +2271,10 @@
         "notes": "註解",
         "duplicate": "重複",
         "edit": "編輯",
-        "delete": "刪除"
+        "delete": "刪除",
+        "clb_review": "檢查 LightBurn 匯入",
+        "clb_summary": "待匯入預設：{count}；已略過：{skipped}",
+        "clb_notice": "僅匯入支援的設定。其他設定保留在備註中，需要手動檢查。子圖層將成為個別的預設。使用前請檢查您的雷射設備設定。"
       },
       "camera": {
         "status": {

@@ -38,3 +38,8 @@ export interface MaterialPreset {
   category: string;
   device_profile?: string | null;
 }
+
+export interface ClbImportReport {
+  presets: MaterialPreset[];
+  skipped: Array<{ name: string; reason: string }>;
+}

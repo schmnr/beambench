@@ -2271,7 +2271,10 @@
         "notes": "Poznámky",
         "duplicate": "Duplicitní",
         "edit": "Upravit",
-        "delete": "Smazat"
+        "delete": "Smazat",
+        "clb_review": "Zkontrolovat import LightBurn",
+        "clb_summary": "{count} předvoleb k importu; přeskočeno: {skipped}",
+        "clb_notice": "Importuje se pouze podporované nastavení. Ostatní zůstává v poznámkách a vyžaduje ruční kontrolu. Podvrstvy se stanou samostatnými předvolbami. Před použitím zkontrolujte nastavení pro svůj laser."
       },
       "camera": {
         "status": {

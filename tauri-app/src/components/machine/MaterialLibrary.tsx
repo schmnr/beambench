@@ -8,7 +8,8 @@ import { useProjectStore } from '../../stores/projectStore.js';
 import { useNotificationStore } from '../../stores/notificationStore.js';
 import { wrapBackendError } from '../../i18n/errors';
 import { useAppStore } from '../../stores/appStore.js';
-import type { MaterialPreset } from '../../types/material.js';
+import type { ClbImportReport, MaterialPreset } from '../../types/material.js';
+import { MaterialLibraryImportReview } from './MaterialLibraryImportReview';
 import type { OperationType } from '../../types/project.js';
 import { effectiveDpi, effectiveLineIntervalMm } from '../../types/rasterSettings.js';
 import {
@@ -90,6 +91,9 @@ export function MaterialLibrary() {
   const effectiveLayerId = selectedLayerId ?? project?.layers[0]?.id ?? null;
 
   const [search, setSearch] = useState('');
+  const [importReview, setImportReview] = useState<ClbImportReport | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [opFilter, setOpFilter] = useState<string>('all');
   const [deviceFilter, setDeviceFilter] = useState<string>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -265,23 +269,51 @@ export function MaterialLibrary() {
   }
 
   async function handleImport() {
+    setImportBusy(true);
     try {
       const selected = await open({
-        filters: [{ name: 'JSON', extensions: ['json'] }],
+        filters: [{ name: 'JSON / LightBurn', extensions: ['json', 'clb'] }],
         multiple: false,
       });
       if (selected === null || Array.isArray(selected)) return;
       const path = selected;
+      if (/\.clb$/i.test(path)) {
+        const report = await invoke<ClbImportReport>('preview_clb_material_library', { path });
+        setImportError(null);
+        setImportReview(report);
+        return;
+      }
       await invoke<MaterialPreset[]>('import_material_presets', { path });
       await loadPresets();
       useNotificationStore.getState().push(t('panels.machine.material_library.presets_imported'), 'success');
     } catch (e) {
       useNotificationStore.getState().push(wrapBackendError(String(e)), 'error');
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
+  async function handleReviewedImport() {
+    if (!importReview || importBusy) return;
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const merged = await invoke<MaterialPreset[]>('import_reviewed_material_presets', { presets: importReview.presets });
+      // The response is the persisted library. Do not allow a failed follow-up
+      // reload to offer a retry that would import the same presets twice.
+      useMaterialStore.setState({ presets: merged });
+      setImportReview(null);
+      useNotificationStore.getState().push(t('panels.machine.material_library.presets_imported'), 'success');
+    } catch (e) {
+      setImportError(wrapBackendError(String(e)));
+    } finally {
+      setImportBusy(false);
     }
   }
 
   return (
     <div className={orientation === 'wide' ? 'bb-bottom-worklist' : 'space-y-1 px-2 pb-2'}>
+      {importReview && <MaterialLibraryImportReview report={importReview} importing={importBusy} error={importError} onCancel={() => setImportReview(null)} onImport={() => void handleReviewedImport()} />}
       <div className="space-y-1" data-worklist-tools>
       {pendingEditPreset && (
         <div className="rounded border border-bb-warning-border bg-bb-warning-bg p-2 text-xs text-bb-text">
@@ -348,6 +380,7 @@ export function MaterialLibrary() {
         </button>
         <button
           data-testid="import-presets"
+          disabled={importBusy || importReview !== null}
           className="px-2 py-1 text-xs bg-bb-bg border border-bb-border text-bb-text rounded hover:bg-bb-hover"
           onClick={() => void handleImport()}
         >

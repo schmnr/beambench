@@ -2271,7 +2271,10 @@
         "notes": "Opmerkingen",
         "duplicate": "Duplicaat",
         "edit": "Bewerken",
-        "delete": "Verwijderen"
+        "delete": "Verwijderen",
+        "clb_review": "LightBurn-import controleren",
+        "clb_summary": "{count} voorinstellingen om te importeren; {skipped} overgeslagen",
+        "clb_notice": "Alleen ondersteunde instellingen worden geïmporteerd. Andere blijven in de notities en moeten handmatig worden gecontroleerd. Sublagen worden afzonderlijke voorinstellingen. Controleer de instellingen voor uw laser voor gebruik."
       },
       "camera": {
         "status": {

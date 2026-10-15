@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+import '@testing-library/jest-dom/vitest';
 
 import { MaterialLibrary } from '../MaterialLibrary.js';
 import { useMaterialStore } from '../../../stores/materialStore.js';
@@ -10,6 +13,7 @@ import { makeLayer, makeProject, makeRasterSettings } from '../../../test-utils/
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
+vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn(), save: vi.fn() }));
 
 const initialMaterialState = useMaterialStore.getState();
 const initialProjectState = useProjectStore.getState();
@@ -120,9 +124,102 @@ afterEach(() => {
   cleanup();
   useMaterialStore.setState(initialMaterialState, true);
   useProjectStore.setState(initialProjectState, true);
+  vi.mocked(invoke).mockReset().mockResolvedValue(null);
+  vi.mocked(open).mockReset();
 });
 
 describe('MaterialLibrary', () => {
+  it('previews CLB without saving, then imports exactly the reviewed presets', async () => {
+    seedStores();
+    vi.mocked(open).mockResolvedValue('/materials.CLB');
+    vi.mocked(invoke).mockResolvedValueOnce({
+      presets: [samplePresets[0]],
+      skipped: [{ name: 'Image preset', reason: 'Unsupported operation: Image' }],
+    }).mockResolvedValueOnce([...samplePresets, { ...samplePresets[0], id: 'new-id' }]);
+    render(<MaterialLibrary />);
+    fireEvent.click(screen.getByTestId('import-presets'));
+    const dialog = await screen.findByTestId('clb-import-review');
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ filters: [{ name: 'JSON / LightBurn', extensions: ['json', 'clb'] }] }));
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledWith('preview_clb_material_library', { path: '/materials.CLB' });
+    expect(within(dialog).getByText('1 preset to import; 1 skipped')).toBeDefined();
+    expect(within(dialog).getByText('Image preset: Unsupported operation: Image')).toBeDefined();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Import' }));
+    await waitFor(() => expect(screen.queryByTestId('clb-import-review')).toBeNull());
+    expect(invoke).toHaveBeenLastCalledWith('import_reviewed_material_presets', { presets: [samplePresets[0]] });
+    expect(useMaterialStore.getState().presets).toHaveLength(3);
+  });
+
+  it('cancels CLB review without changing the library', async () => {
+    seedStores();
+    vi.mocked(open).mockResolvedValue('/materials.clb');
+    vi.mocked(invoke).mockResolvedValue({ presets: [samplePresets[0]], skipped: [] });
+    render(<MaterialLibrary />);
+    fireEvent.click(screen.getByTestId('import-presets'));
+    const dialog = await screen.findByTestId('clb-import-review');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByTestId('clb-import-review')).toBeNull();
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(useMaterialStore.getState().presets).toEqual(samplePresets);
+  });
+
+  it('includes preset details in the dialog keyboard focus cycle', async () => {
+    seedStores();
+    vi.mocked(open).mockResolvedValue('/materials.clb');
+    vi.mocked(invoke).mockResolvedValue({ presets: [samplePresets[0]], skipped: [] });
+    render(<MaterialLibrary />);
+    fireEvent.click(screen.getByTestId('import-presets'));
+    const dialog = await screen.findByTestId('clb-import-review');
+    const summary = dialog.querySelector('summary')!;
+    fireEvent.keyDown(dialog, { key: 'Tab' });
+    expect(document.activeElement).toBe(summary);
+    const importButton = within(dialog).getByRole('button', { name: 'Import' });
+    importButton.focus();
+    fireEvent.keyDown(importButton, { key: 'Tab' });
+    expect(document.activeElement).toBe(summary);
+    fireEvent.keyDown(summary, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(importButton);
+  });
+
+  it('keeps a failed import open for retry without changing local presets', async () => {
+    seedStores();
+    vi.mocked(open).mockResolvedValue('/materials.clb');
+    vi.mocked(invoke).mockResolvedValueOnce({ presets: [samplePresets[0]], skipped: [] })
+      .mockRejectedValueOnce('Disk full');
+    render(<MaterialLibrary />);
+    fireEvent.click(screen.getByTestId('import-presets'));
+    const dialog = await screen.findByTestId('clb-import-review');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Import' }));
+    await waitFor(() => expect(within(dialog).getByRole('alert').textContent).toContain('Disk full'));
+    expect(useMaterialStore.getState().presets).toEqual(samplePresets);
+    expect(within(dialog).getByRole('button', { name: 'Import' })).not.toBeDisabled();
+  });
+
+  it('disables import when the CLB contains only unsupported entries', async () => {
+    seedStores();
+    vi.mocked(open).mockResolvedValue('/materials.clb');
+    vi.mocked(invoke).mockResolvedValue({ presets: [], skipped: [{ name: 'Tool', reason: 'Unsupported operation: Tool' }] });
+    render(<MaterialLibrary />);
+    fireEvent.click(screen.getByTestId('import-presets'));
+    const dialog = await screen.findByTestId('clb-import-review');
+    expect(within(dialog).getByRole('button', { name: 'Import' })).toBeDisabled();
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves JSON import and does nothing when the picker is cancelled', async () => {
+    const loadPresets = vi.fn().mockResolvedValue(undefined);
+    seedStores({ loadPresets });
+    vi.mocked(open).mockResolvedValueOnce(null).mockResolvedValueOnce('/materials.json');
+    render(<MaterialLibrary />);
+    fireEvent.click(screen.getByTestId('import-presets'));
+    await waitFor(() => expect(screen.getByTestId('import-presets')).not.toBeDisabled());
+    expect(invoke).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('import-presets'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('import_material_presets', { path: '/materials.json' }));
+    expect(screen.queryByTestId('clb-import-review')).toBeNull();
+    expect(loadPresets).toHaveBeenCalledTimes(2); // Initial load and import reload.
+  });
+
   it('renders preset list with names', () => {
     seedStores();
     render(<MaterialLibrary />);

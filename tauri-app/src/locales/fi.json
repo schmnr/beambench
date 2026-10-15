@@ -2271,7 +2271,10 @@
         "notes": "Huomautuksia",
         "duplicate": "Kopioi",
         "edit": "Muokkaa",
-        "delete": "Poista"
+        "delete": "Poista",
+        "clb_review": "Tarkista LightBurn-tuonti",
+        "clb_summary": "{count} tuotavaa esiasetusta; {skipped} ohitettu",
+        "clb_notice": "Vain tuetut asetukset tuodaan. Muut säilyvät muistiinpanoissa ja vaativat manuaalisen tarkistuksen. Alitasoista tulee erillisiä esiasetuksia. Tarkista laserisi asetukset ennen käyttöä."
       },
       "camera": {
         "status": {

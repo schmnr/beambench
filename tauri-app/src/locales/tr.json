@@ -2271,7 +2271,10 @@
         "notes": "Notlar",
         "duplicate": "Çoğalt",
         "edit": "Düzenle",
-        "delete": "Sil"
+        "delete": "Sil",
+        "clb_review": "LightBurn içe aktarımını incele",
+        "clb_summary": "İçe aktarılacak ön ayar: {count}; atlanan: {skipped}",
+        "clb_notice": "Yalnızca desteklenen ayarlar içe aktarılır. Diğer ayarlar notlarda tutulur ve elle incelenmelidir. Alt katmanlar ayrı ön ayarlara dönüşür. Kullanmadan önce lazerinizin ayarlarını kontrol edin."
       },
       "camera": {
         "status": {
