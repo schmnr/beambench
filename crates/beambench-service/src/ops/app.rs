@@ -285,7 +285,7 @@ pub fn update_app_settings(
         .clone();
     let next_settings = apply_app_settings_update(&current, input)?;
 
-    ctx.apply_settings_side_effects(&next_settings)
+    ctx.apply_settings_side_effects(Some(&current), &next_settings)
         .map_err(ServiceError::internal)?;
     {
         let mut settings = ctx.settings.lock().map_err(|e| lock_err("settings", e))?;
@@ -421,7 +421,7 @@ mod tests {
         let mut rx = ctx.events.subscribe();
         let applied_theme = std::sync::Arc::new(std::sync::Mutex::new(None));
         let applied_theme_for_hook = std::sync::Arc::clone(&applied_theme);
-        ctx.set_settings_applier(move |settings| {
+        ctx.set_settings_applier(move |_, settings| {
             *applied_theme_for_hook.lock().unwrap() = Some(settings.ui_theme);
             Ok(())
         })

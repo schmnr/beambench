@@ -471,7 +471,8 @@ mod settings_worker_tests {
         };
         let ctx = Arc::new(ServiceContext::with_settings(settings.clone()));
         let api = crate::state::ApiRuntime::default();
-        api.sync_from_settings(ctx.clone(), &settings).unwrap();
+        api.sync_from_settings(ctx.clone(), None, &settings)
+            .unwrap();
         let worker_api = api.clone();
         let network = AppSettings {
             api_localhost_only: false,
@@ -488,7 +489,7 @@ mod settings_worker_tests {
                 let updating = tokio::spawn(run_settings_update(ctx.clone(), move |_| {
                     started_tx.send(()).unwrap();
                     worker_api
-                        .sync_from_settings(worker_ctx, &network)
+                        .sync_from_settings(worker_ctx, None, &network)
                         .map_err(beambench_service::ServiceError::internal)
                 }));
                 started_rx.await.unwrap();
@@ -504,6 +505,7 @@ mod settings_worker_tests {
         assert!(std::net::TcpStream::connect(("127.0.0.1", settings.api_port)).is_ok());
         api.sync_from_settings(
             ctx,
+            None,
             &AppSettings {
                 api_enabled: false,
                 ..settings

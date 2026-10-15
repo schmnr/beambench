@@ -43,8 +43,19 @@ impl ApiRuntime {
     pub fn sync_from_settings(
         &self,
         ctx: Arc<ServiceContext>,
+        previous: Option<&AppSettings>,
         settings: &AppSettings,
     ) -> Result<(), String> {
+        // Startup always attempts the saved API configuration. Later updates
+        // must not retry a failed API just to save a layout or other preference.
+        if previous.is_some_and(|previous| {
+            previous.api_enabled == settings.api_enabled
+                && previous.api_port == settings.api_port
+                && previous.api_localhost_only == settings.api_localhost_only
+        }) {
+            return Ok(());
+        }
+
         let desired = settings
             .api_enabled
             .then(|| ApiConfig::from_settings(settings));
@@ -214,6 +225,166 @@ mod tests {
         let runtime = ApiRuntime::default();
         assert!(runtime.server.lock().unwrap().is_none());
     }
+
+    #[test]
+    fn unrelated_settings_save_after_api_startup_failure() {
+        const TEST: &str = "state::tests::unrelated_settings_save_after_api_startup_failure";
+        if std::env::var("BEAMBENCH_SETTINGS_TEST_CHILD").as_deref() != Ok("1") {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", TEST, "--nocapture"])
+                .env("BEAMBENCH_SETTINGS_TEST_CHILD", "1")
+                .env("BEAMBENCH_API_TOKEN", "")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+
+        use beambench_core::UiTheme;
+        use beambench_service::ops::app::{UpdateAppSettingsInput, update_app_settings};
+        use beambench_service::persist;
+
+        // Missing network authentication and an occupied loopback port must
+        // both leave unrelated preferences usable after startup fails.
+        for localhost_only in [false, true] {
+            let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let settings = AppSettings {
+                api_enabled: true,
+                api_localhost_only: localhost_only,
+                api_port: occupied.local_addr().unwrap().port(),
+                ..Default::default()
+            };
+            persist::save_settings(&settings).unwrap();
+            let ctx = Arc::new(ServiceContext::with_settings(settings.clone()));
+            let runtime = ApiRuntime::default();
+            assert!(
+                runtime
+                    .sync_from_settings(ctx.clone(), None, &settings)
+                    .is_err()
+            );
+            assert!(runtime.server.lock().unwrap().is_none());
+            let applied_theme = Arc::new(Mutex::new(settings.ui_theme));
+            ctx.set_settings_applier({
+                let ctx = ctx.clone();
+                let runtime = runtime.clone();
+                let applied_theme = applied_theme.clone();
+                move |previous, settings| {
+                    runtime.sync_from_settings(ctx.clone(), previous, settings)?;
+                    *applied_theme.lock().unwrap() = settings.ui_theme;
+                    Ok(())
+                }
+            })
+            .unwrap();
+            let mut events = ctx.events.subscribe();
+            let layout = serde_json::from_value(serde_json::json!({
+                "layout_version": 3, "zones": {}, "hidden_panel_ids": [],
+                "upper_split_ratio": 0.65, "right_panel_width": 410.0
+            }))
+            .unwrap();
+            let saved = update_app_settings(
+                &ctx,
+                UpdateAppSettingsInput {
+                    panel_layout: Some(layout),
+                    ui_theme: Some(UiTheme::Light),
+                    autosave_enabled: Some(false),
+                    // SettingsDialog also resubmits unchanged API fields.
+                    api_enabled: Some(true),
+                    api_localhost_only: Some(localhost_only),
+                    api_port: Some(settings.api_port),
+                    ..Default::default()
+                },
+            )
+            .expect("an API startup failure must not block layout or theme saving");
+            let restarted = ServiceContext::new();
+            let reloaded = restarted.settings.lock().unwrap();
+            assert_eq!(
+                reloaded.panel_layout.as_ref().unwrap().right_panel_width,
+                410.0
+            );
+            assert_eq!(reloaded.ui_theme, UiTheme::Light);
+            assert!(!reloaded.autosave_enabled);
+            assert_eq!(*applied_theme.lock().unwrap(), UiTheme::Light);
+            assert!(runtime.server.lock().unwrap().is_none());
+            assert!(events.try_recv().unwrap().contains("app.settings.updated"));
+
+            // An actual invalid API edit must still reject the entire update.
+            let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = reserve.local_addr().unwrap().port();
+            let disk_before = std::fs::read(persist::settings_path().unwrap()).unwrap();
+            let error = update_app_settings(
+                &ctx,
+                UpdateAppSettingsInput {
+                    api_localhost_only: Some(false),
+                    api_port: Some(port),
+                    ui_theme: Some(UiTheme::Dark),
+                    ..Default::default()
+                },
+            )
+            .unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("Network API requires BEAMBENCH_API_TOKEN")
+            );
+            assert_eq!(
+                serde_json::to_value(&*ctx.settings.lock().unwrap()).unwrap(),
+                serde_json::to_value(&saved).unwrap()
+            );
+            assert_eq!(
+                std::fs::read(persist::settings_path().unwrap()).unwrap(),
+                disk_before
+            );
+            assert_eq!(*applied_theme.lock().unwrap(), UiTheme::Light);
+            assert!(events.try_recv().is_err());
+            assert!(runtime.server.lock().unwrap().is_none());
+
+            // Both supported recovery paths remain usable.
+            update_app_settings(
+                &ctx,
+                UpdateAppSettingsInput {
+                    api_enabled: Some(false),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            drop(reserve);
+            update_app_settings(
+                &ctx,
+                UpdateAppSettingsInput {
+                    api_enabled: Some(true),
+                    api_localhost_only: Some(true),
+                    api_port: Some(port),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            assert!(
+                runtime
+                    .server
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .unwrap()
+                    .config
+                    .localhost_only
+            );
+            assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
+            update_app_settings(
+                &ctx,
+                UpdateAppSettingsInput {
+                    api_enabled: Some(false),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        }
+    }
+
     #[test]
     fn failed_network_enable_preserves_working_loopback_api() {
         const TEST: &str = "state::tests::failed_network_enable_preserves_working_loopback_api";
@@ -242,7 +413,9 @@ mod tests {
         };
         let ctx = Arc::new(ServiceContext::with_settings(settings.clone()));
         let runtime = ApiRuntime::default();
-        runtime.sync_from_settings(ctx.clone(), &settings).unwrap();
+        runtime
+            .sync_from_settings(ctx.clone(), None, &settings)
+            .unwrap();
         let assert_serving = || {
             use std::io::{Read, Write};
             let mut socket = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
@@ -259,12 +432,17 @@ mod tests {
             api_localhost_only: false,
             ..settings.clone()
         };
-        assert!(runtime.sync_from_settings(ctx.clone(), &remote).is_err());
+        assert!(
+            runtime
+                .sync_from_settings(ctx.clone(), Some(&settings), &remote)
+                .is_err()
+        );
         assert!(runtime.server.lock().unwrap().is_some());
         assert_serving();
         runtime
             .sync_from_settings(
                 ctx,
+                None,
                 &AppSettings {
                     api_enabled: false,
                     ..settings
@@ -287,12 +465,18 @@ mod tests {
         };
         let ctx = Arc::new(ServiceContext::with_settings(settings.clone()));
         let runtime = ApiRuntime::default();
-        runtime.sync_from_settings(ctx.clone(), &settings).unwrap();
+        runtime
+            .sync_from_settings(ctx.clone(), None, &settings)
+            .unwrap();
         let rejected = AppSettings {
             api_port: occupied.local_addr().unwrap().port(),
             ..settings.clone()
         };
-        assert!(runtime.sync_from_settings(ctx.clone(), &rejected).is_err());
+        assert!(
+            runtime
+                .sync_from_settings(ctx.clone(), Some(&settings), &rejected)
+                .is_err()
+        );
         let running_port = runtime
             .server
             .lock()
@@ -304,6 +488,7 @@ mod tests {
         runtime
             .sync_from_settings(
                 ctx,
+                None,
                 &AppSettings {
                     api_enabled: false,
                     ..settings
@@ -341,12 +526,16 @@ mod tests {
         };
         let ctx = Arc::new(ServiceContext::with_settings(settings.clone()));
         let runtime = ApiRuntime::default();
-        runtime.sync_from_settings(ctx.clone(), &settings).unwrap();
+        runtime
+            .sync_from_settings(ctx.clone(), None, &settings)
+            .unwrap();
         let network = AppSettings {
             api_localhost_only: false,
             ..settings.clone()
         };
-        runtime.sync_from_settings(ctx.clone(), &network).unwrap();
+        runtime
+            .sync_from_settings(ctx.clone(), Some(&settings), &network)
+            .unwrap();
         let running = runtime
             .server
             .lock()
@@ -357,6 +546,7 @@ mod tests {
         runtime
             .sync_from_settings(
                 ctx,
+                None,
                 &AppSettings {
                     api_enabled: false,
                     ..settings

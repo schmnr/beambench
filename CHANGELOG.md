@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.2.29
+
+- Panel layouts and other preferences can be saved even when the local API
+  could not start because its token is invalid or its port is unavailable.
+  Actual API changes still require valid configuration before they are saved.
+
 ## 0.2.28
 
 - Put the layer color beside its name and group Show, Output, and Air Assist

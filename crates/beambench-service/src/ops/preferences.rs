@@ -175,10 +175,10 @@ fn activate_candidate(
     save_current_backup(&current)?;
     // Activate before saving, so preferences the app rejects (for example an
     // API port that is taken) are never written to disk.
-    ctx.apply_settings_side_effects(&candidate)
+    ctx.apply_settings_side_effects(Some(&current), &candidate)
         .map_err(ServiceError::internal)?;
     if let Err(e) = persist::save_settings(&candidate) {
-        if let Err(restore) = ctx.apply_settings_side_effects(&current) {
+        if let Err(restore) = ctx.apply_settings_side_effects(Some(&candidate), &current) {
             tracing::warn!(error = %restore, "Failed to restore settings after a failed save");
         }
         return Err(ServiceError::persistence(format!(
@@ -426,10 +426,44 @@ mod tests {
         };
         persist::save_settings(&current).unwrap();
         let ctx = ServiceContext::with_settings(current);
-        ctx.set_settings_applier(|_| Err("Injected API binding failure".to_string()))
+        ctx.set_settings_applier(|_, _| Err("Injected API binding failure".to_string()))
             .unwrap();
         assert!(reset_preferences_to_defaults(&ctx).is_err());
         assert!(!ctx.settings.lock().unwrap().autosave_enabled);
         assert!(!persist::load_settings().autosave_enabled);
+    }
+
+    #[test]
+    fn failed_preference_save_reverses_the_applied_settings_change() {
+        let _guard = PersistTestGuard::new();
+        let current = AppSettings {
+            ui_theme: UiTheme::Light,
+            ..Default::default()
+        };
+        let ctx = ServiceContext::with_settings(current);
+        let changes = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        ctx.set_settings_applier({
+            let changes = changes.clone();
+            move |previous, candidate| {
+                changes
+                    .lock()
+                    .unwrap()
+                    .push((previous.unwrap().ui_theme, candidate.ui_theme));
+                Ok(())
+            }
+        })
+        .unwrap();
+        // Backups can succeed, but replacing this directory with settings JSON cannot.
+        fs::create_dir_all(persist::settings_path().unwrap()).unwrap();
+
+        assert!(reset_preferences_to_defaults(&ctx).is_err());
+        assert_eq!(ctx.settings.lock().unwrap().ui_theme, UiTheme::Light);
+        assert_eq!(
+            *changes.lock().unwrap(),
+            vec![
+                (UiTheme::Light, UiTheme::Dark),
+                (UiTheme::Dark, UiTheme::Light),
+            ]
+        );
     }
 }

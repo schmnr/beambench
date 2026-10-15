@@ -730,13 +730,15 @@ fn main() {
             ctx.set_settings_applier({
                 let ctx = ctx.inner().clone();
                 let app_handle = app.handle().clone();
-                move |settings| {
-                    // Keep the existing fail-closed API runtime behavior. Native
-                    // appearance is applied only after API synchronization
-                    // succeeds, and its own failures are logged as non-fatal.
-                    api_runtime.sync_from_settings(ctx.clone(), settings)?;
-                    theme::apply_to_app(&app_handle, settings.ui_theme);
-                    Ok(())
+                move |previous, settings| {
+                    let api_result =
+                        api_runtime.sync_from_settings(ctx.clone(), previous, settings);
+                    // At startup, appearance still applies if the saved API
+                    // cannot start. Rejected edits leave appearance unchanged.
+                    if previous.is_none() || api_result.is_ok() {
+                        theme::apply_to_app(&app_handle, settings.ui_theme);
+                    }
+                    api_result
                 }
             })?;
             let settings = ctx
@@ -744,7 +746,7 @@ fn main() {
                 .lock()
                 .map_err(|e| format!("Failed to lock settings: {e}"))?
                 .clone();
-            if let Err(error) = ctx.apply_settings_side_effects(&settings) {
+            if let Err(error) = ctx.apply_settings_side_effects(None, &settings) {
                 tracing::warn!(error = %error, "Failed to apply startup settings side effects");
                 ctx.push_error(format!("API startup warning: {error}"));
             }

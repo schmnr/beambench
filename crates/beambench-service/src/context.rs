@@ -32,7 +32,8 @@ use crate::material_apply::{
 };
 use crate::runtime::{ActiveJobHandle, MachineSessionHandle, PendingControllerConnection};
 
-type SettingsApplier = dyn Fn(&AppSettings) -> Result<(), String> + Send + Sync;
+type SettingsApplier =
+    dyn Fn(Option<&AppSettings>, &AppSettings) -> Result<(), String> + Send + Sync;
 
 /// Maximum number of entries in the log buffer.
 const LOG_BUFFER_CAP: usize = 500;
@@ -683,7 +684,7 @@ impl ServiceContext {
 
     pub fn set_settings_applier<F>(&self, applier: F) -> Result<(), String>
     where
-        F: Fn(&AppSettings) -> Result<(), String> + Send + Sync + 'static,
+        F: Fn(Option<&AppSettings>, &AppSettings) -> Result<(), String> + Send + Sync + 'static,
     {
         let mut guard = self
             .settings_applier
@@ -693,14 +694,20 @@ impl ServiceContext {
         Ok(())
     }
 
-    pub fn apply_settings_side_effects(&self, settings: &AppSettings) -> Result<(), String> {
+    /// `previous` is absent at startup and otherwise describes the settings
+    /// whose effects are being replaced, including during rollback.
+    pub fn apply_settings_side_effects(
+        &self,
+        previous: Option<&AppSettings>,
+        settings: &AppSettings,
+    ) -> Result<(), String> {
         let applier = self
             .settings_applier
             .lock()
             .map_err(|e| format!("Failed to lock settings_applier: {e}"))?
             .clone();
         if let Some(applier) = applier {
-            applier(settings)?;
+            applier(previous, settings)?;
         }
         Ok(())
     }
