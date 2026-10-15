@@ -15,6 +15,7 @@ import { suppressProfileEvent } from './stores/machineStore';
 import { previewService } from './services/previewService';
 import { persistenceService } from './services/persistenceService';
 import { appService } from './services/appService';
+import * as serviceInvoke from './services/invoke';
 import { feedbackService } from './services/feedbackService';
 import { machineService } from './services/machineService';
 import { APP_COMMANDS } from './commands/appCommandIds';
@@ -474,6 +475,56 @@ describe('App bootstrap', () => {
         ),
       ).toBe(true);
     });
+    expect(screen.getByTitle('Select')).toBeDefined();
+  });
+
+  it.each([0, 1000])('preserves saved panel sizes across launches with a %i ms settings delay', async (delay) => {
+    vi.useFakeTimers();
+    let savedLayout = {
+      ...makePersistedDesignLayout(['outliner', 'cuts_layers', 'properties']),
+      layout_version: 9,
+      right_panel_width: 520,
+      left_panel_width: 336,
+      bottom_panel_height: 144,
+    };
+    vi.spyOn(appService, 'getSettings').mockImplementation(() => {
+      const settings = makeSettings({ panel_layout: structuredClone(savedLayout) });
+      return new Promise((resolve) => window.setTimeout(() => resolve(settings), delay));
+    });
+    const originalInvoke = serviceInvoke.invoke;
+    const invokeSpy = vi.spyOn(serviceInvoke, 'invoke').mockImplementation((command, args) => {
+      const layout = (args as { panelLayout?: typeof savedLayout } | undefined)?.panelLayout;
+      if (command === 'update_app_settings' && layout) {
+        savedLayout = structuredClone(layout);
+        return Promise.resolve(makeSettings({ panel_layout: savedLayout }));
+      }
+      return originalInvoke(command, args);
+    });
+
+    try {
+      for (let launch = 0; launch < 2; launch += 1) {
+        useUiStore.setState(initialUiState, true);
+        await act(async () => { render(<StrictMode><App /></StrictMode>); });
+        await act(async () => { await vi.advanceTimersByTimeAsync(delay + 1000); });
+
+        expect(useUiStore.getState().panelLayout.rightPanelWidth).toBe(520);
+        expect(savedLayout).toMatchObject({
+          right_panel_width: 520,
+          left_panel_width: 336,
+          bottom_panel_height: 144,
+          zones: { 'top-right': { panel_ids: ['outliner', 'cuts_layers', 'properties'] } },
+        });
+        await act(async () => {
+          fireEvent.click(screen.getByRole('tab', { name: 'Outliner' }));
+          await vi.advanceTimersByTimeAsync(500);
+        });
+        expect(savedLayout.zones['top-right'].active_tab).toBe('outliner');
+        expect(savedLayout.right_panel_width).toBe(520);
+        cleanup();
+      }
+    } finally {
+      invokeSpy.mockRestore();
+    }
   });
 
   it('repairs the Run Move panel lost by the v4 dock migration', async () => {
