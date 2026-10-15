@@ -442,21 +442,36 @@ mod tests {
         };
         let ctx = ServiceContext::with_settings(current);
         let changes = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let config_dir = persist::config_dir().unwrap();
+        let preserved_dir = config_dir.with_extension("rollback-test");
         ctx.set_settings_applier({
             let changes = changes.clone();
+            let config_dir = config_dir.clone();
+            let preserved_dir = preserved_dir.clone();
             move |previous, candidate| {
                 changes
                     .lock()
                     .unwrap()
                     .push((previous.unwrap().ui_theme, candidate.ui_theme));
+                if candidate.ui_theme == UiTheme::Dark {
+                    // Fail the save after its backup and side effects succeed.
+                    // A file cannot be used as a parent directory on any OS.
+                    fs::rename(&config_dir, &preserved_dir).unwrap();
+                    fs::write(&config_dir, b"not a directory").unwrap();
+                }
                 Ok(())
             }
         })
         .unwrap();
-        // Backups can succeed, but replacing this directory with settings JSON cannot.
-        fs::create_dir_all(persist::settings_path().unwrap()).unwrap();
-
-        assert!(reset_preferences_to_defaults(&ctx).is_err());
+        let result = reset_preferences_to_defaults(&ctx);
+        fs::remove_file(&config_dir).unwrap();
+        fs::rename(&preserved_dir, &config_dir).unwrap();
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Failed to persist imported preferences")
+        );
         assert_eq!(ctx.settings.lock().unwrap().ui_theme, UiTheme::Light);
         assert_eq!(
             *changes.lock().unwrap(),

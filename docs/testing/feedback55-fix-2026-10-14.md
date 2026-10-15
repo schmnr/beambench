@@ -61,3 +61,10 @@ records the failing regression before the guard and all passing suites afterward
 Validation ran on ARM64 macOS. Native Windows/Linux execution and physical
 laser operation were not run; the changed settings/API code is shared across
 desktop platforms. No production preferences were modified.
+
+During release CI, the first Windows run exposed a nonportable test fixture:
+Windows deliberately moves an existing destination aside, so a directory at
+the settings-file path did not force a failure. The fixture now temporarily
+places a file at the parent-directory path after backup/activation, forcing a
+save failure on every OS. The Windows source and packaging checks now include
+the desktop tests, so the #55 regression runs on the originally reported platform.
