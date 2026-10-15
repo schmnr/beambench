@@ -2224,7 +2224,13 @@
             "description": "Předvolba BlazeX M3 10W založená na dokumentaci a konfiguraci majitele.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudů. Síť: port 8080. Proveďte referování nebo je zapněte při připojení. Konektor Z je určen pro rotační příslušenství."
           },
+          "creality_falcon2_pro_22w": {
+            "description": "Předvolba USB pro původní hardware podle dokumentace. Ověřte rozsah pohybu a maximální hodnotu S. Fyzické testování čeká na provedení."
+          },
           "creality_falcon2_pro_40w": {
+            "description": "Předvolba USB pro původní hardware podle dokumentace. Ověřte rozsah pohybu a maximální hodnotu S. Fyzické testování čeká na provedení."
+          },
+          "creality_falcon2_pro_60w": {
             "description": "Předvolba USB pro původní hardware podle dokumentace. Ověřte rozsah pohybu a maximální hodnotu S. Fyzické testování čeká na provedení."
           },
           "twotrees_tt_5_5s": {

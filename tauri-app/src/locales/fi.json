@@ -2224,7 +2224,13 @@
             "description": "BlazeX M3 10W -esiasetus perustuu dokumentaatioon ja omistajan kokoonpanoon.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudia. Verkko: portti 8080. Tee kotihaku tai ota se käyttöön yhdistettäessä. Z-liitin on pyörityslisälaitteelle."
           },
+          "creality_falcon2_pro_22w": {
+            "description": "Dokumentaatioon perustuva USB-esiasetus alkuperäiselle laitteistolle. Tarkista liikealue ja S-arvon enimmäismäärä. Fyysinen testaus on vielä tekemättä."
+          },
           "creality_falcon2_pro_40w": {
+            "description": "Dokumentaatioon perustuva USB-esiasetus alkuperäiselle laitteistolle. Tarkista liikealue ja S-arvon enimmäismäärä. Fyysinen testaus on vielä tekemättä."
+          },
+          "creality_falcon2_pro_60w": {
             "description": "Dokumentaatioon perustuva USB-esiasetus alkuperäiselle laitteistolle. Tarkista liikealue ja S-arvon enimmäismäärä. Fyysinen testaus on vielä tekemättä."
           },
           "twotrees_tt_5_5s": {

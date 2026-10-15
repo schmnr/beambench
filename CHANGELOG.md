@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add documentation-based USB presets for Creality Falcon2 Pro 22W and 60W,
+  with their respective 400 x 415 mm and 400 x 400 mm workspaces. Physical
+  testing is pending. Exact model suggestions avoid ambiguous Falcon variants.
+
 ## 0.2.28
 
 - Put the layer color beside its name and group Show, Output, and Air Assist

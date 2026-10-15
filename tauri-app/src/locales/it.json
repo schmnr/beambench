@@ -2224,7 +2224,13 @@
             "description": "Preimpostazione BlazeX M3 10W basata sulla documentazione e sulla configurazione di un proprietario.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Rete: porta 8080. Eseguire l’azzeramento o abilitarlo alla connessione. Il connettore Z è per un accessorio rotativo."
           },
+          "creality_falcon2_pro_22w": {
+            "description": "Preimpostazione USB per hardware originale basata sulla documentazione. Verifica la corsa e il valore S massimo. Test fisici ancora da eseguire."
+          },
           "creality_falcon2_pro_40w": {
+            "description": "Preimpostazione USB per hardware originale basata sulla documentazione. Verifica la corsa e il valore S massimo. Test fisici ancora da eseguire."
+          },
+          "creality_falcon2_pro_60w": {
             "description": "Preimpostazione USB per hardware originale basata sulla documentazione. Verifica la corsa e il valore S massimo. Test fisici ancora da eseguire."
           },
           "twotrees_tt_5_5s": {

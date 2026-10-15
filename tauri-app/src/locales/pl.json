@@ -2224,7 +2224,13 @@
             "description": "Profil BlazeX M3 10W oparty na dokumentacji i konfiguracji właściciela.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 bodów. Sieć: port 8080. Wykonaj bazowanie lub włącz je po połączeniu. Złącze Z służy do przystawki obrotowej."
           },
+          "creality_falcon2_pro_22w": {
+            "description": "Ustawienie USB dla oryginalnego sprzętu na podstawie dokumentacji. Sprawdź zakres ruchu i maksymalną wartość S. Testy na urządzeniu są jeszcze nieprzeprowadzone."
+          },
           "creality_falcon2_pro_40w": {
+            "description": "Ustawienie USB dla oryginalnego sprzętu na podstawie dokumentacji. Sprawdź zakres ruchu i maksymalną wartość S. Testy na urządzeniu są jeszcze nieprzeprowadzone."
+          },
+          "creality_falcon2_pro_60w": {
             "description": "Ustawienie USB dla oryginalnego sprzętu na podstawie dokumentacji. Sprawdź zakres ruchu i maksymalną wartość S. Testy na urządzeniu są jeszcze nieprzeprowadzone."
           },
           "twotrees_tt_5_5s": {
