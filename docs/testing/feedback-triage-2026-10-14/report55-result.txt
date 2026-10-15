@@ -1,0 +1,12 @@
+Source: ce46a06a with the documented temporary investigation module.
+Command: BEAMBENCH_API_TOKEN='' cargo test -p beambench-tauri feedback55_investigation -- --nocapture
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 07s
+     Running unittests src/main.rs (target/debug/deps/beambench_tauri-80f5e554cb92dd59)
+
+running 1 test
+Confirmed: invalid network API blocks layout save; disabling API recovers it.
+test state::feedback55_investigation::invalid_network_api_blocks_layout_save ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.07s
+

@@ -1,0 +1,23 @@
+Report #55 fix validation, October 14, 2026.
+Source: ce46a06a plus working-tree fix.
+
+Red regression before API-change guard
+cargo test -p beambench-tauri unrelated_settings_save_after_api_startup_failure -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.05s
+an API startup failure must not block layout or theme saving: ServiceError { code: Internal, message: "Invalid API configuration: Network API requires BEAMBENCH_API_TOKEN with at least 32 ASCII characters and no whitespace", details: None }
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.06s
+
+Desktop suite after fix
+cargo test -p beambench-tauri
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+
+Preferences suite
+cargo test -p beambench-service --lib ops::preferences::tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 872 filtered out; finished in 0.12s
+
+App settings suite
+cargo test -p beambench-service --lib ops::app::tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 872 filtered out; finished in 0.30s
+
+cargo fmt --all -- --check: passed
+git diff --check: passed

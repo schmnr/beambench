@@ -1,0 +1,235 @@
+{
+  "date": "2026-10-14",
+  "source_commit": "ce46a06a",
+  "closed": [
+    {
+      "number": 54,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/54#issuecomment-6183097555",
+      "rationale": "The released AppImage renderer assertion is addressed in v0.2.28 by excluding host COLRv1 color fonts from the app's font policy. The exact assertion was reproduced before the change and the same probe survives afterward. Closing the confirmed renderer defect. The reporter's complete Fedora/JPG interaction was not independently reproduced; a recurrence on 0.2.28 should be reopened with the retained startup log."
+    },
+    {
+      "number": 51,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/51#issuecomment-6183097986",
+      "rationale": "v0.2.28 removes the forced-X11 launcher policy, supports native Wayland, falls back after an unusable advertised X11 display, and retains startup logs. The matching GTK initialization failure and successful display cases are documented in the feedback validation record. Closing the addressed startup compatibility case. The original Mint display configuration is unknown; reopen if it recurs on 0.2.28 with a usable desktop display."
+    },
+    {
+      "number": 53,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/53#issuecomment-6183098586",
+      "rationale": "The exact Two Trees TT-5.5S USB preset shipped in v0.2.28, separately from TTS-55, with documentation-based M3 constant-power settings. This fulfills the catalog request. Physical machine operation has not been tested."
+    },
+    {
+      "number": 52,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/52#issuecomment-6183099195",
+      "rationale": "The exact Creality Falcon2 Pro 40W USB preset shipped in v0.2.28. This fulfills the catalog request; physical machine operation and accessory integration have not been tested."
+    },
+    {
+      "number": 50,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/50#issuecomment-6183099588",
+      "rationale": "The submitted snapshot has no active machine profile. Refusing a profile-dependent operation in that state is expected. v0.2.28 also adds a Machine Profiles recovery action and failed-command context. Closing this setup/precondition report; the original action was not captured, so no separate broken operation is established."
+    },
+    {
+      "number": 49,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/49#issuecomment-6183100006",
+      "rationale": "The reported missing-file case is handled in v0.2.26 and later: a localized explanation replaces the raw OS error and the stale Recent Projects entry is removed. The missing-file regression passes in the recorded October 11 validation. This cannot restore a deleted or moved file, but the application error-handling defect is addressed."
+    },
+    {
+      "number": 47,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/47#issuecomment-6183100389",
+      "rationale": "The diagnostic log shows Windows denying COM3 immediately on open, before any protocol probe. The application correctly reports an unavailable port and suggests closing other serial applications and reconnecting. Closing as a transport/setup failure, not a confirmed application defect. The log does not identify which process owns the port; do not infer controller incompatibility from it."
+    },
+    {
+      "number": 45,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/45#issuecomment-6183100804",
+      "rationale": "Consolidating this report into #43. Both capture the same combined encrypted-PDF/compressed-object-stream rejection within minutes in the same profile, with shared layer IDs. This is a likely repeat from the same session; identical source files are not proven. #43 remains open to distinguish encryption from the object-stream capability already released in 0.2.25."
+    },
+    {
+      "number": 44,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/44#issuecomment-6183101216",
+      "rationale": "The specific rejected PDF Do operator is supported for nested Form XObjects and supported embedded images starting in v0.2.25. Resource scopes, transforms and clipping have passing regressions in the October 11 validation. Closing the implemented capability gap. The original PDF was not attached; a different unsupported PDF feature can still require a separate report."
+    },
+    {
+      "number": 42,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/42#issuecomment-6183101647",
+      "rationale": "The requested Sculpfun S30 Pro 10W preset shipped in v0.2.25. Preset application and generated-output regressions pass. Closing the fulfilled catalog request; physical compatibility remains untested."
+    },
+    {
+      "number": 41,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/41#issuecomment-6183102085",
+      "rationale": "This is the intended bounded rejection of an overly fragmented raster, not a crash or failed import. The regression accepts exactly 4,000,000 burn runs per image and rejects 4,000,001. Reduce DPI, physical size or raster fragmentation. Closing as expected behavior; memory improvements do not remove this limit."
+    },
+    {
+      "number": 29,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/29#issuecomment-6183102546",
+      "rationale": "The bundle's connection events show repeated macOS serial-open failures with Invalid argument and no received bytes, despite the final unsupported-protocol message. v0.2.19 addresses inherited nonstandard baud initialization and preserves transport failures rather than reporting them as unsupported firmware. The current auto_detection_preserves_transport_errors_without_protocol_retries regression covers this exact error. Closing these identified initialization/classification defects; physical hardware was not retested."
+    },
+    {
+      "number": 21,
+      "state": "closed",
+      "reason": "completed",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/21#issuecomment-6183103003",
+      "rationale": "This 0.2.8 framing report is covered by the v0.2.9 homed Current Position/User Origin placement correction. Its physical center is (150, 140) mm after the recorded work offset is applied, and its approximately 117.62 mm square artwork fits the 300 mm bed; the old 72.32 mm left-edge rejection is consistent with checking unconverted coordinates. Frames now apply work offsets before checking physical edges and share job placement. Closing the addressed coordinate-conversion defect."
+    },
+    {
+      "number": 24,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/24#issuecomment-6183103434",
+      "rationale": "The diagnostic placement is genuinely outside the physical bed. The recorded machine center is (30, 30) mm after converting the current work position; the artwork is approximately 134.09 mm square. Center placement therefore reaches about -37.04 mm at the lower edge, matching the reported rejection. Closing as expected workspace protection. Move the head inward or choose a safe placement before framing."
+    },
+    {
+      "number": 10,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/10#issuecomment-6183103790",
+      "rationale": "The report contains an explicit workspace-bound rejection and no evidence that an in-bounds placement was rejected. Artwork imported at true size can extend beyond the bed; the intended behavior is to select it and refuse preview/output until placement is corrected. Closing as expected bounds protection, not as a reproduced software fix. Reopen with a current project and placement diagnostics if the physical placement is actually safe."
+    },
+    {
+      "number": 12,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/12#issuecomment-6183104276",
+      "rationale": "The submitted error reports artwork extending 127.2 mm below the workspace. Refusing output outside the bed is intentional. This old bundle lacks the placement/project evidence needed to establish an incorrect rejection. Closing the reported guard as expected behavior; reopen with current placement diagnostics if a physically safe job is rejected."
+    },
+    {
+      "number": 14,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/14#issuecomment-6183104643",
+      "rationale": "The submitted error reports artwork extending 151.81 mm beyond the left edge. Refusing output outside the workspace is intentional. The bundle does not establish a safe physical placement or a defect in this check. Closing as expected bounds protection. The unrelated serial-access warnings do not explain the reported bounds error."
+    },
+    {
+      "number": 18,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/18#issuecomment-6183104994",
+      "rationale": "The reported behavior is a workspace guard identifying artwork 32.23 mm beyond the left edge. That refusal is intentional; this report supplies no assertion or reproduction showing that the physical placement should be safe. Closing as expected behavior, not as a verified fix. A protected project attachment exists but was not retrieved in this triage. Reopen with current placement diagnostics if the saved project is rejected despite safe physical bounds."
+    },
+    {
+      "number": 37,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/37#issuecomment-6183105438",
+      "rationale": "The plan contains a point at y=-0.932 mm, outside the lower workspace edge. Rejecting that point is expected. The misleading old wording describing a negative coordinate as exceeding the far bed edge was corrected in v0.1.6. Closing this bounds/error-wording report; the source project was not attached."
+    },
+    {
+      "number": 7,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/7#issuecomment-6183105817",
+      "rationale": "The failure is Windows rejecting the CH341 interface because an incompatible driver is installed. Beam Bench cannot claim that interface through the incompatible driver. v0.2.1 and later detect this condition earlier and provide driver/setup guidance. Closing as a driver prerequisite rather than a confirmed native-transfer defect."
+    },
+    {
+      "number": 2,
+      "state": "closed",
+      "reason": "not_planned",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/2#issuecomment-6183106190",
+      "rationale": "Closing as a workflow/support report, following the existing investigation. Duplicate the text, select the duplicate and assign the red palette color for a separate cutting layer, or use Add sub-layer to apply multiple operations to the same geometry. The report contains no captured application failure or project that demonstrates broken layer creation. Reopen with a reproducible failure of that workflow."
+    }
+  ],
+  "left_open": [
+    {
+      "number": 55,
+      "state": "open",
+      "title": "[bug] Invalid network API configuration blocks panel layout and preference saves",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/55#issuecomment-6183109524",
+      "rationale": "Confirmed current-code failure path. A saved configuration with api_enabled=true and api_localhost_only=false, combined with an absent/invalid BEAMBENCH_API_TOKEN, fails startup validation. persistLayout then calls update_app_settings; that function unconditionally reapplies API side effects before committing settings, so the same API error rejects an unrelated layout update. Native theme updates use the same callback and can be blocked too.\n\nThe submitted startup warning matches this path. The report does not contain the layout command's backend exception or the saved API fields, so this identifies a reproducible explanation rather than proving it was the only failure on that Windows installation. It remains present in the 0.2.28 source.\n\nWorkaround: turn off the local API, or change it to localhost-only, then save the panel arrangement again. Intended fix: let unrelated preferences persist while an API startup failure is recorded; continue rejecting explicitly invalid API changes and never start an unauthenticated network listener. Test layout persistence across restart, theme/preferences changes, disabling/local-only recovery, and atomic rejection of invalid API edits."
+    },
+    {
+      "number": 48,
+      "state": "open",
+      "title": "[needs retest] Network GRBL handshake fails on port 5001",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/48#issuecomment-6183109772",
+      "rationale": "Keep open for device compatibility evidence. The old report proves TCP opened but status validation timed out; ports 23/80 were refused separately. v0.2.26 adds delayed status retries and v0.2.28 adds CR/LF/fragmented-CRLF support and better failure classification. These address known gaps but the report has no controller identity or received traffic. Next: retest the exact controller/bridge on 0.2.28 with the retained TCP traffic, endpoint and controller model. Do not call this hardware case resolved solely because the unit tests pass."
+    },
+    {
+      "number": 46,
+      "state": "open",
+      "title": "[needs retest] Intermittent serial GRBL discovery on Windows",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/46#issuecomment-6183110225",
+      "rationale": "Keep open for current-version hardware confirmation. This 0.1.4 report has repeated banner timeouts but one successful Ready transition after soft reset. Current discovery uses status-first detection and a reset fallback for explicitly selected classic GRBL. Next: repeat on 0.2.28 and record controller identity and full handshake traffic. The submitted evidence does not prove current discovery still fails or that the device is unsupported."
+    },
+    {
+      "number": 43,
+      "state": "open",
+      "title": "[needs source PDF] Distinguish encryption from old object-stream rejection",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/43#issuecomment-6183110616",
+      "rationale": "Keep this as the canonical report for #43/#45. v0.2.25 supports compressed PDF object streams; encrypted PDFs remain intentionally unsupported. The old error combined those two conditions, and neither source PDF is attached, so the report cannot establish which branch failed. Next: inspect the original PDF's encryption/object-stream structure. Close as fixed for unencrypted object streams, or expected unsupported behavior for encryption; investigate further only if a supported unencrypted file still fails. #45 is consolidated here without claiming its file is identical."
+    },
+    {
+      "number": 38,
+      "state": "open",
+      "title": "[needs reproduction] Vector command rejects an unknown object type",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/38#issuecomment-6183110999",
+      "rationale": "Keep open because the operation and object type were not captured. This 0.1.5 bundle contains Object is not a vector type, one object, no source project and no command context. A vector-only operation can correctly reject a raster, but the report does not establish that input or whether the UI incorrectly enabled the command. Next: reproduce with the project, selected object type and command on 0.2.28 before classifying as expected behavior or a UI guard defect."
+    },
+    {
+      "number": 30,
+      "state": "open",
+      "title": "[compatibility] AlgoLaser TCP connects but job receives GRBL error 20",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/30#issuecomment-6183111318",
+      "rationale": "The submitted evidence shows a successful TCP handshake to Ready and working jog/status traffic. The actual failure is GRBL error 20 during the first job commands, not initial connection. The retained console contains M7, M4 and subsequent motion commands, with multiple rejection/echo lines. Because several commands were buffered, do not attribute the entire failure to M7 alone.\n\nNext: establish the exact AlgoLaser MK2 DIY controller firmware and its supported job/power/air commands, then compare with current generated output. Keep open as a job-protocol compatibility investigation. New handshake retries alone do not fix this captured command rejection."
+    },
+    {
+      "number": 27,
+      "state": "open",
+      "title": "[needs retest] Silent Windows serial controller during discovery",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/27#issuecomment-6183111788",
+      "rationale": "This 0.2.13 report opens COM5 at 115200 and 921600 but receives no banner/status evidence, including after reset. Current detection and baud sweeps are newer, but the controller model and documented serial settings are absent. Keep open for a 0.2.28 diagnostic run with the exact board, selected port, baud and RX/TX evidence; do not mark it fixed or duplicate another silent device just from the shared symptom."
+    },
+    {
+      "number": 23,
+      "state": "open",
+      "title": "[needs diagnostics] Elidor Z6 connects but cutting fails with alarms",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/23#issuecomment-6183112244",
+      "rationale": "The submitted snapshot is connected and idle with GRBL identified; it also records repeated alarms while the user says cutting does not work. The old bundle lacks the alarm number, failing action and command-level failure evidence. Keep open for a current report preserving alarm codes and terminal-job context, plus exact machine/controller identity. No specific code defect or fix can be established from generic GRBL alarm warnings."
+    },
+    {
+      "number": 20,
+      "state": "open",
+      "title": "[needs retest] macOS controller stop could not be confirmed after USB failure",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/20#issuecomment-6183112644",
+      "rationale": "Keep open for current stop/recovery confirmation. This 0.2.6 report contains No such device or address polling failures and an Invalid argument reconnect failure. v0.2.19 fixes a known macOS serial initialization cause of Invalid argument, and v0.2.26 strengthens stop transmission and confirmation. Those are relevant improvements, but they do not prove a stop reached this physical controller. Next: validate current stop/reconnect behavior with the same device and a controlled no-output test. The original USB fault's cause remains unknown."
+    },
+    {
+      "number": 11,
+      "state": "open",
+      "title": "[needs retest] Windows emergency-stop write denied by serial transport",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/11#issuecomment-6183113078",
+      "rationale": "Keep open for transport and stop-path validation. This 0.2.3 report records Access is denied during the stop write. Newer stop/reconnect logic is stronger, but code changes cannot establish delivery through an OS-denied handle. Next: use the same controller on 0.2.28 in a controlled no-output test, retain the surrounding disconnect/access events and verify reset transmission plus stop confirmation. Do not close as fixed solely from generic emergency-stop release notes."
+    },
+    {
+      "number": 1,
+      "state": "open",
+      "title": "[needs reproduction] Windows artwork import raises NotReadableError",
+      "comment_url": "https://github.com/schmnr/beambench-feedback/issues/1#issuecomment-6183113584",
+      "rationale": "Keep open as an unverified import case. The 0.1.4 report contains a file-read permission/access error but no file, import method or reproduction. That can be an expected OS/browser permission failure, or a stale-handle/import-flow defect; the report cannot distinguish them. Next: reproduce on 0.2.28 with the exact import method and file location/availability. Do not claim a decoder failure or a fix without that evidence."
+    }
+  ],
+  "verification": "All 21 closed states and all 11 open states/titles verified against GitHub after mutation.",
+  "report55_runtime_evidence_comment": "https://github.com/schmnr/beambench-feedback/issues/55#issuecomment-6183151211",
+  "report55_unreleased_fix_comment": "https://github.com/schmnr/beambench-feedback/issues/55#issuecomment-6183274618"
+}
