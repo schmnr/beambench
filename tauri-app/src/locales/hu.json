@@ -12,7 +12,9 @@
     "hide": "Elrejtés",
     "rename": "Átnevezés",
     "loading": "Betöltés...",
-    "go": "Ugrás"
+    "go": "Ugrás",
+    "on": "Be",
+    "off": "Ki"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Törölje",
         "clb_review": "LightBurn-import ellenőrzése",
         "clb_summary": "{count} importálható beállítás; {skipped} kihagyva",
-        "clb_notice": "Csak a támogatott beállítások importálhatók. A többi a jegyzetekben marad, és kézi ellenőrzést igényel. Az alrétegekből külön beállítások lesznek. Használat előtt ellenőrizze a lézer beállításait."
+        "clb_notice": "Csak a támogatott beállítások importálhatók. A többi a jegyzetekben marad, és kézi ellenőrzést igényel. Az alrétegek egy beállításban együtt maradnak. Használat előtt ellenőrizze a lézer beállításait."
       },
       "camera": {
         "status": {

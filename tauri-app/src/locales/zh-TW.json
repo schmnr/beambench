@@ -12,7 +12,9 @@
     "hide": "隱藏",
     "rename": "重新命名",
     "loading": "正在載入...",
-    "go": "前往"
+    "go": "前往",
+    "on": "開啟",
+    "off": "關閉"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "刪除",
         "clb_review": "檢查 LightBurn 匯入",
         "clb_summary": "待匯入預設：{count}；已略過：{skipped}",
-        "clb_notice": "僅匯入支援的設定。其他設定保留在備註中，需要手動檢查。子圖層將成為個別的預設。使用前請檢查您的雷射設備設定。"
+        "clb_notice": "僅匯入支援的設定。其他設定保留在備註中，需要手動檢查。子圖層保留在同一個預設中。使用前請檢查您的雷射設備設定。"
       },
       "camera": {
         "status": {

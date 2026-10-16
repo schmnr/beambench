@@ -2,7 +2,7 @@ import { invoke } from './invoke';
 import type { MaterialPreset } from '../types/material';
 
 export interface MaterialApplyWarning {
-  code: 'multi_entry_layer_targeted_primary';
+  code: 'multi_entry_layer_targeted_primary' | 'multi_entry_preset_targeted_primary';
   message: string;
 }
 

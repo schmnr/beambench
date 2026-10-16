@@ -12,7 +12,9 @@
     "hide": "Hide",
     "rename": "Rename",
     "loading": "Loading...",
-    "go": "Go"
+    "go": "Go",
+    "on": "On",
+    "off": "Off"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2426,7 +2428,7 @@
         "delete": "Delete",
         "clb_review": "Review LightBurn import",
         "clb_summary": "{count, plural, one {# preset to import} other {# presets to import}}; {skipped} skipped",
-        "clb_notice": "Only supported settings are imported. Other settings stay in notes and need manual review. Sub-layers become separate presets. Check settings for your laser before use."
+        "clb_notice": "Only supported settings are imported. Other settings stay in notes and need manual review. Sub-layers stay together in one preset. Check settings for your laser before use."
       },
       "camera": {
         "status": {

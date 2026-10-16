@@ -12,7 +12,9 @@
     "hide": "Skjul",
     "rename": "Gi nytt navn",
     "loading": "Laster...",
-    "go": "Gå"
+    "go": "Gå",
+    "on": "På",
+    "off": "Av"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Slett",
         "clb_review": "Se gjennom LightBurn-import",
         "clb_summary": "{count} forhåndsinnstillinger for import; {skipped} hoppet over",
-        "clb_notice": "Bare støttede innstillinger importeres. Andre beholdes i notatene og må gjennomgås manuelt. Underlag blir separate forhåndsinnstillinger. Kontroller innstillingene for laseren din før bruk."
+        "clb_notice": "Bare støttede innstillinger importeres. Andre beholdes i notatene og må gjennomgås manuelt. Underlag beholdes samlet i én forhåndsinnstilling. Kontroller innstillingene for laseren din før bruk."
       },
       "camera": {
         "status": {

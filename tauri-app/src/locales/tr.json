@@ -12,7 +12,9 @@
     "hide": "Gizle",
     "rename": "Yeniden adlandır",
     "loading": "Yükleniyor...",
-    "go": "Git"
+    "go": "Git",
+    "on": "Açık",
+    "off": "Kapalı"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Sil",
         "clb_review": "LightBurn içe aktarımını incele",
         "clb_summary": "İçe aktarılacak ön ayar: {count}; atlanan: {skipped}",
-        "clb_notice": "Yalnızca desteklenen ayarlar içe aktarılır. Diğer ayarlar notlarda tutulur ve elle incelenmelidir. Alt katmanlar ayrı ön ayarlara dönüşür. Kullanmadan önce lazerinizin ayarlarını kontrol edin."
+        "clb_notice": "Yalnızca desteklenen ayarlar içe aktarılır. Diğer ayarlar notlarda tutulur ve elle incelenmelidir. Alt katmanlar tek bir ön ayarda birlikte tutulur. Kullanmadan önce lazerinizin ayarlarını kontrol edin."
       },
       "camera": {
         "status": {

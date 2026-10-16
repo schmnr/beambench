@@ -12,7 +12,9 @@
     "hide": "隐藏",
     "rename": "重命名",
     "loading": "正在加载...",
-    "go": "前往"
+    "go": "前往",
+    "on": "开启",
+    "off": "关闭"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "删除",
         "clb_review": "检查 LightBurn 导入",
         "clb_summary": "待导入预设：{count}；已跳过：{skipped}",
-        "clb_notice": "仅导入受支持的设置。其他设置保留在备注中，需要手动检查。子图层将成为单独的预设。使用前请检查您的激光设备设置。"
+        "clb_notice": "仅导入受支持的设置。其他设置保留在备注中，需要手动检查。子图层保留在同一个预设中。使用前请检查您的激光设备设置。"
       },
       "camera": {
         "status": {

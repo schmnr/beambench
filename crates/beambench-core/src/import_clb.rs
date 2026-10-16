@@ -1,6 +1,6 @@
 //! LightBurn material-library XML import. No machine or library state is changed here.
 
-use crate::{MaterialPreset, OperationType};
+use crate::{CutEntry, CutEntryTemplate, MaterialPreset, OperationType};
 use beambench_common::RasterMode;
 use roxmltree::Node;
 use serde::{Deserialize, Serialize};
@@ -73,24 +73,40 @@ pub fn parse_clb_library(xml: &str) -> Result<ClbImportReport, String> {
                 });
                 continue;
             }
-            for (index, setting) in settings.iter().enumerate() {
-                let name = if settings.len() > 1 {
-                    format!("{name} / {}", index + 1)
-                } else {
-                    name.clone()
-                };
-                match parse_preset(*setting, entry, material_name, &name) {
-                    Ok(mut preset) => {
-                        if settings.len() > 1 {
-                            preset.notes.push_str("\nSub-layers were imported as separate presets. Apply them in the source order; applying one preset does not run the other sub-layers.");
-                        }
-                        report.presets.push(preset);
+            if settings.len() > 11 {
+                report.skipped.push(ClbSkippedPreset {
+                    name,
+                    reason: "A recipe can have at most 11 sub-layers".into(),
+                });
+                continue;
+            }
+            // A source Entry is one complete recipe. Never import a partial stack
+            // when an unsupported or invalid sub-layer is found.
+            let converted: Result<Vec<_>, _> = settings
+                .iter()
+                .map(|setting| parse_preset(*setting, entry, material_name, &name))
+                .collect();
+            match converted {
+                Ok(mut presets) => {
+                    let mut preset = presets.remove(0);
+                    for sublayer in presets {
+                        preset.entries.extend(sublayer.entries);
                     }
-                    Err(reason) => report.skipped.push(ClbSkippedPreset { name, reason }),
+                    preset.notes = format!(
+                        "Imported from LightBurn .clb. Speed converted from mm/s to mm/min.\nThis preset restores the complete sub-layer stack. Machine-specific settings without an equivalent still need manual review. Enabled percentage overscan uses Beam Bench's default distance (2.5 mm); adjust it for your machine. Original entry follows:\n{}",
+                        &doc.input_text()[entry.range()]
+                    );
+                    if preset.entries.iter().any(|entry| {
+                        entry
+                            .vector_settings
+                            .as_ref()
+                            .is_some_and(|settings| settings.kerf_offset_mm != 0.0)
+                    }) {
+                        preset.notes.insert_str(0, "Kerf offset is preserved as a setting, but Beam Bench job planning currently does not apply kerf compensation.\n");
+                    }
+                    report.presets.push(preset);
                 }
-                if report.presets.len() + report.skipped.len() > 10_000 {
-                    return Err("Material library exceeds the 10,000 preset limit".into());
-                }
+                Err(reason) => report.skipped.push(ClbSkippedPreset { name, reason }),
             }
         }
     }
@@ -143,12 +159,6 @@ fn parse_preset(
     if material.is_empty() {
         return Err("Material name is missing".into());
     }
-    // Disabled parent layers must also disable their sub-layers.
-    for parent in setting.ancestors().take_while(|n| *n != entry) {
-        if !boolean(parent, "output", true)? || !boolean(parent, "suboutput", true)? {
-            return Err("Output is disabled in the source library".into());
-        }
-    }
     let operation = match setting.attribute("type").unwrap_or("Cut") {
         "Cut" if !setting.has_tag_name("CutSetting_Img") => OperationType::Line,
         "Scan" => OperationType::Fill,
@@ -182,15 +192,12 @@ fn parse_preset(
         speed_mm_min: speed,
         power_percent: power,
         passes: passes as u32,
-        notes: "Imported from LightBurn .clb. Speed converted from mm/s to mm/min.\nOnly operation, speed, maximum power, passes and supported fill/image settings are applied. Minimum power, air assist, Z, kerf, timing, laser selection and other source settings must be reviewed manually. Omitted source values use LightBurn defaults, including minimum power 20%, air assist on and overscan 2.5%. Original settings follow:".into(),
         ..MaterialPreset::default()
     };
-    if thickness == -1.0 {
-        preset
-            .notes
-            .push_str("\nSource has no thickness; imported thickness is 0 mm.");
-    }
-    if matches!(operation, OperationType::Fill | OperationType::Image) {
+    if matches!(
+        operation,
+        OperationType::Fill | OperationType::Image | OperationType::OffsetFill
+    ) {
         let interval = number(setting, "interval", 0.1)?;
         if interval <= 0.0 {
             return Err("Line interval must be positive".into());
@@ -234,17 +241,58 @@ fn parse_preset(
         preset.invert = Some(boolean(setting, "negative", false)?);
         preset.pass_through = Some(boolean(setting, "passThrough", false)?);
     }
-    for attribute in entry.attributes() {
-        preset
-            .notes
-            .push_str(&format!("\n{}={}", attribute.name(), attribute.value()));
+    let mut cut = CutEntry::new(operation);
+    cut.speed_mm_min = speed;
+    cut.power_percent = power;
+    cut.power_min_percent = number(setting, "minPower", 20.0)?;
+    if !(0.0..=100.0).contains(&cut.power_min_percent) {
+        return Err("Minimum power must be between 0 and 100 percent".into());
     }
-    // Store the exact XML, including unknown values and future extensions. The
-    // UI renders this as text and exports retain it in the ordinary notes field.
-    preset.notes.push('\n');
-    preset
-        .notes
-        .push_str(&setting.document().input_text()[setting.range()]);
+    cut.air_assist = boolean(setting, "runBlower", true)?;
+    cut.z_offset_mm = number(setting, "zOffset", 0.0)?;
+    let layer_setting = setting
+        .ancestors()
+        .find(|n| matches!(n.tag_name().name(), "CutSetting" | "CutSetting_Img"))
+        .unwrap_or(setting);
+    cut.output_enabled =
+        boolean(layer_setting, "output", true)? && boolean(setting, "suboutput", true)?;
+    if let Some(rs) = cut.raster_settings.as_mut() {
+        rs.passes = passes as u32;
+        rs.line_interval_mm = preset.line_interval_mm.unwrap_or(0.1);
+        rs.dpi = (25.4 / rs.line_interval_mm).round() as u32;
+        rs.scan_angle = preset.scan_angle.unwrap_or(0.0);
+        rs.bidirectional = preset.bidirectional.unwrap_or(true);
+        rs.flood_fill = preset.flood_fill.unwrap_or(false);
+        rs.angle_passes = preset.angle_passes.unwrap_or(1);
+        rs.crosshatch = boolean(setting, "crossHatch", false)?;
+        rs.angle_increment_deg = preset.angle_increment_deg.unwrap_or(90.0);
+        rs.overscan_mm = preset.overscan_mm.unwrap_or(2.5);
+        if let Some(mode) = preset.raster_mode {
+            rs.mode = mode;
+        }
+        rs.invert = preset.invert.unwrap_or(false);
+        rs.pass_through = preset.pass_through.unwrap_or(false);
+    }
+    if let Some(vs) = cut.vector_settings.as_mut() {
+        vs.passes = passes as u32;
+        vs.kerf_offset_mm = number(setting, "kerf", 0.0)?;
+        // LightBurn stores cut/skip distances; Beam Bench stores dwell times.
+        // At the imported constant feed, distance / speed gives milliseconds.
+        vs.perforation_enabled = boolean(setting, "perforate", false)?;
+        if vs.perforation_enabled {
+            let on = number(setting, "perfLen", 0.1)?;
+            let off = number(setting, "perfSkip", 0.1)?;
+            if on <= 0.0 || off < 0.0 {
+                return Err("Invalid perforation distance".into());
+            }
+            vs.perforation_on_ms = on / speed * 60_000.0;
+            vs.perforation_off_ms = off / speed * 60_000.0;
+            if !vs.perforation_on_ms.is_finite() || !vs.perforation_off_ms.is_finite() {
+                return Err("Invalid perforation timing".into());
+            }
+        }
+    }
+    preset.entries = vec![CutEntryTemplate::from_entry(&cut)];
     Ok(preset)
 }
 
@@ -289,13 +337,15 @@ mod tests {
     }
 
     #[test]
-    fn splits_sublayers_without_inheriting_sibling_values() {
+    fn keeps_sublayers_together_in_order_without_inheriting_sibling_values() {
         let report = parse_clb_library(&library(r#"<CutSetting type="Scan"><maxPower Value="40"/><SubLayer type="Cut" index="1"><speed Value="10"/></SubLayer></CutSetting>"#)).unwrap();
-        assert_eq!(report.presets.len(), 2);
-        assert!(report.presets[0].name.ends_with(" / 1"));
-        assert!(report.presets[1].name.ends_with(" / 2"));
-        assert_eq!(report.presets[1].power_percent, 20.0);
-        assert!(report.presets[1].notes.contains("source order"));
+        assert_eq!(report.presets.len(), 1);
+        let p = &report.presets[0];
+        assert_eq!(p.entries.len(), 2);
+        assert_eq!(p.entries[0].operation, OperationType::Fill);
+        assert_eq!(p.entries[1].operation, OperationType::Line);
+        assert_eq!(p.entries[1].power_percent, 20.0);
+        assert_eq!(p.entries[1].speed_mm_min, 600.0);
     }
 
     #[test]
@@ -309,7 +359,7 @@ mod tests {
     }
 
     #[test]
-    fn reports_unsupported_disabled_and_invalid_entries_without_losing_valid_ones() {
+    fn rejects_the_whole_recipe_when_any_entry_is_unsupported_or_invalid() {
         for invalid in [
             r#"<CutSetting type="Image"><ditherMode Value="3DSlice"/></CutSetting>"#,
             r#"<CutSetting type="Tool"/>"#,
@@ -318,12 +368,41 @@ mod tests {
             r#"<CutSetting><maxPower Value="101"/></CutSetting>"#,
             r#"<CutSetting><numPasses Value="1.5"/></CutSetting>"#,
             r#"<CutSetting><interval Value="bad"/><speed Value="0"/></CutSetting>"#,
-            r#"<CutSetting><output Value="0"/><SubLayer type="Cut"/></CutSetting>"#,
         ] {
             let report = parse_clb_library(&library(&format!("<CutSetting/>{invalid}"))).unwrap();
-            assert_eq!(report.presets.len(), 1, "{invalid}");
-            assert!(!report.skipped.is_empty(), "{invalid}");
+            assert!(report.presets.is_empty(), "{invalid}");
+            assert_eq!(report.skipped.len(), 1, "{invalid}");
         }
+    }
+
+    #[test]
+    fn preserves_minimum_power_air_z_kerf_perforation_and_disabled_sublayers() {
+        let report = parse_clb_library(&library(r#"<CutSetting type="Cut"><speed Value="10"/><minPower Value="12"/><runBlower Value="0"/><zOffset Value="-1.2"/><kerf Value="0.15"/><perforate Value="1"/><perfLen Value="0.4"/><perfSkip Value="0.2"/><suboutput Value="0"/><SubLayer type="Scan"><runBlower Value="1"/></SubLayer></CutSetting>"#)).unwrap();
+        let p = &report.presets[0];
+        assert_eq!(p.entries.len(), 2);
+        let first = &p.entries[0];
+        assert_eq!(first.power_min_percent, 12.0);
+        assert!(!first.air_assist);
+        assert_eq!(first.z_offset_mm, -1.2);
+        assert!(!first.output_enabled);
+        let vector = first.vector_settings.as_ref().unwrap();
+        assert_eq!(vector.kerf_offset_mm, 0.15);
+        assert!(p.notes.contains("does not apply kerf compensation"));
+        assert!(vector.perforation_enabled);
+        assert!((vector.perforation_on_ms - 40.0).abs() < 1e-10);
+        assert!((vector.perforation_off_ms - 20.0).abs() < 1e-10);
+        assert!(p.entries[1].air_assist);
+        assert!(p.entries[1].output_enabled);
+        let disabled = parse_clb_library(&library(
+            r#"<CutSetting><output Value="0"/><SubLayer type="Cut"/></CutSetting>"#,
+        ))
+        .unwrap();
+        assert!(
+            disabled.presets[0]
+                .entries
+                .iter()
+                .all(|e| !e.output_enabled)
+        );
     }
 
     #[test]

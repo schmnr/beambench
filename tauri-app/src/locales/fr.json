@@ -12,7 +12,9 @@
     "hide": "Masquer",
     "rename": "Renommer",
     "loading": "Chargement...",
-    "go": "Aller"
+    "go": "Aller",
+    "on": "Activé",
+    "off": "Désactivé"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Supprimer",
         "clb_review": "Vérifier l’import LightBurn",
         "clb_summary": "{count} préréglages à importer ; {skipped} ignorés",
-        "clb_notice": "Seuls les paramètres pris en charge sont importés. Les autres restent dans les notes et doivent être vérifiés manuellement. Les sous-calques deviennent des préréglages distincts. Vérifiez les paramètres pour votre laser avant utilisation."
+        "clb_notice": "Seuls les paramètres pris en charge sont importés. Les autres restent dans les notes et doivent être vérifiés manuellement. Les sous-calques restent ensemble dans un même préréglage. Vérifiez les paramètres pour votre laser avant utilisation."
       },
       "camera": {
         "status": {

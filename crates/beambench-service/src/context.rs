@@ -950,6 +950,28 @@ impl ServiceContext {
         if layer.is_tool_layer {
             return Err("Tool layers do not support material presets".to_string());
         }
+        if !preset.entries.is_empty() {
+            if preset.entries.len() > 11
+                || preset
+                    .entries
+                    .iter()
+                    .any(|e| e.operation == beambench_core::OperationType::Tool)
+            {
+                return Err("Material recipes must contain at most 11 non-tool sub-layers".into());
+            }
+            // A recipe replaces the complete stack, with fresh entry IDs on each
+            // application. Legacy presets below retain their partial-update behavior.
+            layer.entries = preset
+                .entries
+                .into_iter()
+                .map(|entry| entry.into_entry())
+                .collect();
+            return Ok(MaterialApplyResponse {
+                applied_layer_id: layer_id,
+                targeted_entry_id: layer.primary_entry().id,
+                warnings: Vec::new(),
+            });
+        }
         let mut warnings = Vec::new();
         if layer.entries.len() > 1 {
             warnings.push(MaterialApplyWarning {
@@ -1730,6 +1752,7 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
         let id = preset.id;
 
@@ -1774,6 +1797,7 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
 
         ctx.save_material(preset1).unwrap();
@@ -1807,6 +1831,7 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
 
         ctx.save_material(preset2).unwrap();
@@ -2040,6 +2065,7 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
         let preset_id = preset.id;
         ctx.save_material(preset).unwrap();
@@ -2096,6 +2122,7 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
         let preset_id = preset.id;
         ctx.save_material(preset).unwrap();
@@ -2164,6 +2191,7 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
         let preset_id = preset.id;
         ctx.save_material(preset).unwrap();
@@ -2200,6 +2228,74 @@ mod tests {
         let result = ctx.apply_material(nonexistent_id, layer_id, &mut project);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
+    }
+
+    #[test]
+    fn complete_material_recipe_roundtrips_and_restores_the_full_stack_with_fresh_ids() {
+        use beambench_core::{CutEntry, CutEntryTemplate, OperationType};
+        let ctx = ServiceContext::with_settings(AppSettings::default());
+        let mut fill = CutEntry::new(OperationType::Fill);
+        fill.speed_mm_min = 1800.0;
+        fill.power_min_percent = 12.0;
+        fill.air_assist = true;
+        fill.z_offset_mm = -1.25;
+        fill.gcode_prefix = "M8".into();
+        fill.gcode_suffix = "M9".into();
+        let rs = fill.raster_settings.as_mut().unwrap();
+        rs.passes = 3;
+        rs.scan_angle = 45.0;
+        rs.line_interval_mm = 0.08;
+        rs.overscan_mm = 4.0;
+        let mut cut = CutEntry::new(OperationType::Line);
+        cut.speed_mm_min = 600.0;
+        cut.power_percent = 85.0;
+        cut.output_enabled = false;
+        let vs = cut.vector_settings.as_mut().unwrap();
+        vs.kerf_offset_mm = 0.15;
+        vs.tab_count = 3;
+        vs.tab_width_mm = 0.8;
+        vs.perforation_enabled = true;
+        vs.perforation_on_ms = 35.0;
+        let templates = vec![
+            CutEntryTemplate::from_entry(&fill),
+            CutEntryTemplate::from_entry(&cut),
+        ];
+        let preset = MaterialPreset {
+            entries: templates.clone(),
+            ..MaterialPreset::default()
+        };
+        let preset_id = preset.id;
+        // The same representation is used by persisted libraries and JSON import/export.
+        let encoded = serde_json::to_string(&vec![preset]).unwrap();
+        ctx.replace_materials(serde_json::from_str(&encoded).unwrap())
+            .unwrap();
+        let mut project = Project::new("Recipe test");
+        let layer_id = project.ensure_default_layer();
+        let response = ctx
+            .apply_material(preset_id, layer_id, &mut project)
+            .unwrap();
+        assert!(response.warnings.is_empty());
+        let first_ids: Vec<_> = project.layers[0].entries.iter().map(|e| e.id).collect();
+        let restored: Vec<_> = project.layers[0]
+            .entries
+            .iter()
+            .map(CutEntryTemplate::from_entry)
+            .collect();
+        assert_eq!(restored, templates);
+        assert_ne!(first_ids[0], fill.id);
+        assert_ne!(first_ids[1], cut.id);
+        ctx.apply_material(preset_id, layer_id, &mut project)
+            .unwrap();
+        assert_ne!(project.layers[0].entries[0].id, first_ids[0]);
+        assert_ne!(project.layers[0].entries[1].id, first_ids[1]);
+        assert_eq!(
+            project.layers[0]
+                .entries
+                .iter()
+                .map(CutEntryTemplate::from_entry)
+                .collect::<Vec<_>>(),
+            templates
+        );
     }
 
     #[test]

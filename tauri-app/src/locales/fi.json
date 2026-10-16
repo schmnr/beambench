@@ -12,7 +12,9 @@
     "hide": "Piilota",
     "rename": "Nimeä uudelleen",
     "loading": "Ladataan...",
-    "go": "Siirry"
+    "go": "Siirry",
+    "on": "Päällä",
+    "off": "Pois"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Poista",
         "clb_review": "Tarkista LightBurn-tuonti",
         "clb_summary": "{count} tuotavaa esiasetusta; {skipped} ohitettu",
-        "clb_notice": "Vain tuetut asetukset tuodaan. Muut säilyvät muistiinpanoissa ja vaativat manuaalisen tarkistuksen. Alitasoista tulee erillisiä esiasetuksia. Tarkista laserisi asetukset ennen käyttöä."
+        "clb_notice": "Vain tuetut asetukset tuodaan. Muut säilyvät muistiinpanoissa ja vaativat manuaalisen tarkistuksen. Alitasot säilyvät yhdessä esiasetuksessa. Tarkista laserisi asetukset ennen käyttöä."
       },
       "camera": {
         "status": {

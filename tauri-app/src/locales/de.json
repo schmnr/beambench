@@ -12,7 +12,9 @@
     "hide": "Ausblenden",
     "rename": "Umbenennen",
     "loading": "Wird geladen...",
-    "go": "Los"
+    "go": "Los",
+    "on": "Ein",
+    "off": "Aus"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Löschen",
         "clb_review": "LightBurn-Import prüfen",
         "clb_summary": "{count} Vorlagen zum Importieren; {skipped} übersprungen",
-        "clb_notice": "Nur unterstützte Einstellungen werden importiert. Andere bleiben in den Notizen und müssen manuell geprüft werden. Unterebenen werden zu einzelnen Vorlagen. Prüfen Sie die Einstellungen für Ihren Laser vor der Verwendung."
+        "clb_notice": "Nur unterstützte Einstellungen werden importiert. Andere bleiben in den Notizen und müssen manuell geprüft werden. Unterebenen bleiben in einer gemeinsamen Vorlage. Prüfen Sie die Einstellungen für Ihren Laser vor der Verwendung."
       },
       "camera": {
         "status": {

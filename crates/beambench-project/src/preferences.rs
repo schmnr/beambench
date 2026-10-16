@@ -93,6 +93,7 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         }];
 
         let macros = vec![MacroDefinition {

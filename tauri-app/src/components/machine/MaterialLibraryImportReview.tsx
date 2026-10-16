@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ClbImportReport } from '../../types/material';
 import { useAppStore } from '../../stores/appStore';
 import { formatSpeedForDisplay, speedUnitLabel } from '../../utils/speedUnits';
+import { lengthUnitLabel, mmToDisplay, roundDisplayLength } from '../../utils/lengthUnits';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
 import { DIALOG_TONE, DialogButton, DialogFooter, DialogNotice } from '../shared/DialogPrimitives';
 
@@ -26,7 +27,7 @@ export function MaterialLibraryImportReview({ report, importing, error, onCancel
       titleId="clb-review-title"
       testId="clb-import-review"
       initialWidth={620}
-      initialHeight={520}
+      initialHeight={640}
       minWidth={360}
       minHeight={300}
       onRequestClose={importing ? undefined : onCancel}
@@ -51,14 +52,31 @@ export function MaterialLibraryImportReview({ report, importing, error, onCancel
         {report.presets.map((preset) => (
           <details key={preset.id} className="border-b border-bb-border pb-2">
             <summary tabIndex={0} className="cursor-pointer break-words font-medium">
-              {preset.name} ({t(`panels.machine.material_library.operation.${preset.operation}`)})
+              {preset.name} ({(preset.entries?.length ?? 0) > 1
+                ? t('panels.layer_settings.sub_layers_count', { count: preset.entries!.length })
+                : t(`panels.machine.material_library.operation.${preset.operation}`)})
             </summary>
-            <dl className="my-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            {preset.entries?.length ? preset.entries.map((entry, index) => (
+              <div key={index} className="my-3 text-xs">
+                <p className="font-medium">{index + 1}. {t(`panels.machine.material_library.operation.${entry.operation}`)}</p>
+                <dl className="my-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                  <dt>{t('panels.machine.material_library.speed_with_unit', { unit: speedUnitLabel(unit, timeUnit) })}</dt>
+                  <dd>{formatSpeedForDisplay(entry.speed_mm_min, unit, timeUnit)}</dd>
+                  <dt>{t('panels.sub_layer_stack.power_percent')}</dt><dd>{entry.power_percent}</dd>
+                  <dt>{t('panels.sub_layer_stack.min_power_percent')}</dt><dd>{entry.power_min_percent}</dd>
+                  <dt>{t('panels.machine.material_library.passes')}</dt><dd>{entry.vector_settings?.passes ?? entry.raster_settings?.passes ?? 1}</dd>
+                  <dt>{t('panels.sub_layer_stack.air_assist')}</dt><dd>{t(entry.air_assist ? 'common.on' : 'common.off')}</dd>
+                  <dt>{t('panels.sub_layer_stack.z_offset_mm')}</dt><dd>{roundDisplayLength(mmToDisplay(entry.z_offset_mm, unit), unit)} {lengthUnitLabel(unit)}</dd>
+                  {entry.vector_settings && <><dt>{t('panels.sub_layer_stack.kerf_offset_mm')}</dt><dd>{roundDisplayLength(mmToDisplay(entry.vector_settings.kerf_offset_mm ?? 0, unit), unit)} {lengthUnitLabel(unit)}</dd></>}
+                  <dt>{t('panels.sub_layer_stack.output')}</dt><dd>{t(entry.output_enabled ? 'common.on' : 'common.off')}</dd>
+                </dl>
+              </div>
+            )) : <dl className="my-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               <dt>{t('panels.machine.material_library.speed_with_unit', { unit: speedUnitLabel(unit, timeUnit) })}</dt>
               <dd>{formatSpeedForDisplay(preset.speed_mm_min, unit, timeUnit)}</dd>
               <dt>{t('panels.machine.material_library.power_percent')}</dt><dd>{preset.power_percent}</dd>
               <dt>{t('panels.machine.material_library.passes')}</dt><dd>{preset.passes}</dd>
-            </dl>
+            </dl>}
             <pre className="whitespace-pre-wrap break-words text-xs text-bb-text-muted">{preset.notes}</pre>
           </details>
         ))}

@@ -12,7 +12,9 @@
     "hide": "Nascondi",
     "rename": "Rinomina",
     "loading": "Caricamento...",
-    "go": "Vai"
+    "go": "Vai",
+    "on": "Attivo",
+    "off": "Disattivo"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Elimina",
         "clb_review": "Verifica importazione LightBurn",
         "clb_summary": "{count} preimpostazioni da importare; {skipped} ignorate",
-        "clb_notice": "Vengono importate solo le impostazioni supportate. Le altre restano nelle note e richiedono una verifica manuale. I sottolivelli diventano preimpostazioni separate. Verifica le impostazioni per il tuo laser prima dell’uso."
+        "clb_notice": "Vengono importate solo le impostazioni supportate. Le altre restano nelle note e richiedono una verifica manuale. I sottolivelli restano insieme in una preimpostazione. Verifica le impostazioni per il tuo laser prima dell’uso."
       },
       "camera": {
         "status": {

@@ -1,8 +1,10 @@
-import type { OperationType } from './project';
+import type { CutEntryTemplate, OperationType } from './project';
 
 /** Material preset types for the material library — matches Rust MaterialPreset. */
 
 export interface MaterialPreset {
+  /** Complete recipe; absent on legacy partial presets. */
+  entries?: CutEntryTemplate[];
   id: string;
   name: string;
   material: string;

@@ -12,7 +12,9 @@
     "hide": "Skrij",
     "rename": "Preimenuj",
     "loading": "Nalaganje...",
-    "go": "Pojdi"
+    "go": "Pojdi",
+    "on": "Vklopljeno",
+    "off": "Izklopljeno"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Izbriši",
         "clb_review": "Pregled uvoza LightBurn",
         "clb_summary": "{count} prednastavitev za uvoz; {skipped} preskočenih",
-        "clb_notice": "Uvozijo se samo podprte nastavitve. Druge ostanejo v opombah in zahtevajo ročni pregled. Podplasti postanejo ločene prednastavitve. Pred uporabo preverite nastavitve svojega laserja."
+        "clb_notice": "Uvozijo se samo podprte nastavitve. Druge ostanejo v opombah in zahtevajo ročni pregled. Podplasti ostanejo skupaj v eni prednastavitvi. Pred uporabo preverite nastavitve svojega laserja."
       },
       "camera": {
         "status": {

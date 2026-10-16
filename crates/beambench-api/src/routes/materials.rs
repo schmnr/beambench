@@ -235,6 +235,7 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
 
         let response = router
@@ -316,9 +317,13 @@ mod tests {
             notes: String::new(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
 
-        // Import a one-element array via the new /import endpoint.
+        let recipe = beambench_core::import_clb::parse_clb_library(
+            r#"<LightBurnLibrary><Material name="Birch"><Entry Thickness="3" Desc="Engrave then cut"><CutSetting type="Scan"><speed Value="50"/><minPower Value="12"/><runBlower Value="1"/><zOffset Value="-1"/><SubLayer type="Cut"><kerf Value="0.15"/></SubLayer></CutSetting></Entry></Material></LightBurnLibrary>"#,
+        ).unwrap().presets.remove(0);
+        // Both legacy presets and full recipes survive the JSON transport.
         let import_response = router
             .clone()
             .oneshot(
@@ -327,7 +332,7 @@ mod tests {
                     .uri("/api/v1/materials/import")
                     .header("content-type", "application/json")
                     .body(axum::body::Body::from(
-                        serde_json::to_string(&vec![preset.clone()]).unwrap(),
+                        serde_json::to_string(&vec![preset.clone(), recipe.clone()]).unwrap(),
                     ))
                     .unwrap(),
             )
@@ -338,6 +343,7 @@ mod tests {
         // Export should return a JSON array containing the imported preset
         // (with a regenerated ID, since import always regenerates).
         let export_response = router
+            .clone()
             .oneshot(
                 axum::http::Request::builder()
                     .uri("/api/v1/materials/export")
@@ -355,10 +361,40 @@ mod tests {
             .unwrap()
             .to_bytes();
         let exported: Vec<MaterialPreset> = serde_json::from_slice(&body).unwrap();
-        assert_eq!(exported.len(), 1);
+        assert_eq!(exported.len(), 2);
         assert_eq!(exported[0].name, "Imported Plywood");
         // The ID should have been regenerated during import, so it must differ
         // from the original preset.id.
         assert_ne!(exported[0].id, preset.id);
+        assert_eq!(exported[1].entries, recipe.entries);
+
+        let mut original = beambench_core::Project::new("Apply recipe");
+        let layer_id = original.ensure_default_layer();
+        *ctx.project.lock().unwrap() = Some(original.clone());
+        let response = router
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/materials/{}/apply", exported[1].id))
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::json!({"layer_id": layer_id.to_string()}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let applied = ctx.project.lock().unwrap().clone().unwrap();
+        assert_eq!(
+            applied.layers[0]
+                .entries
+                .iter()
+                .map(beambench_core::CutEntryTemplate::from_entry)
+                .collect::<Vec<_>>(),
+            recipe.entries
+        );
+        let undone = beambench_service::ops::project::undo_project(&ctx).unwrap();
+        assert_eq!(undone.layers, original.layers);
     }
 }

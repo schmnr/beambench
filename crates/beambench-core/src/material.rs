@@ -1,6 +1,6 @@
 //! Material presets and cut settings.
 
-use crate::layer::OperationType;
+use crate::layer::{CutEntryTemplate, OperationType};
 use beambench_common::RasterMode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -8,6 +8,10 @@ use uuid::Uuid;
 /// Material preset with operation settings.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaterialPreset {
+    /// Complete ordered recipe. Empty only for older single-operation presets.
+    /// The flat fields below remain as a primary-entry summary and legacy format.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entries: Vec<CutEntryTemplate>,
     pub id: Uuid,
     pub name: String,
     pub material: String,
@@ -65,6 +69,7 @@ pub struct MaterialPreset {
 impl Default for MaterialPreset {
     fn default() -> Self {
         Self {
+            entries: Vec::new(),
             id: Uuid::new_v4(),
             name: String::new(),
             material: String::new(),
@@ -174,6 +179,14 @@ mod tests {
         assert_eq!(preset.passes, 1);
         assert!(preset.dpi.is_none());
         assert_eq!(preset.notes, "");
+        let legacy = serde_json::to_value(&preset).unwrap();
+        assert!(legacy.get("entries").is_none());
+        assert!(
+            serde_json::from_value::<MaterialPreset>(legacy)
+                .unwrap()
+                .entries
+                .is_empty()
+        );
     }
 
     #[test]
@@ -207,6 +220,7 @@ mod tests {
             notes: "Use air assist".to_string(),
             category: String::new(),
             device_profile: None,
+            entries: Vec::new(),
         };
         let json = serde_json::to_string(&preset).unwrap();
         let restored: MaterialPreset = serde_json::from_str(&json).unwrap();
@@ -244,6 +258,7 @@ mod tests {
             notes: String::new(),
             category: "Image".to_string(),
             device_profile: None,
+            entries: Vec::new(),
         };
         let json = serde_json::to_string(&preset).unwrap();
         let restored: MaterialPreset = serde_json::from_str(&json).unwrap();

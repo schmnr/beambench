@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum MaterialApplyWarningCode {
     MultiEntryLayerTargetedPrimary,
+    MultiEntryPresetTargetedPrimary,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -35,7 +36,55 @@ pub fn apply_material_to_entry(
     seed: &CutEntry,
 ) -> (CutEntry, Vec<MaterialApplyWarning>) {
     let mut entry = seed.clone();
-    let warnings: Vec<MaterialApplyWarning> = Vec::new();
+    let mut warnings: Vec<MaterialApplyWarning> = Vec::new();
+    if let Some(template) = preset.entries.first() {
+        let source = template.clone().into_entry();
+        if source.operation == seed.operation {
+            entry = source;
+            entry.id = seed.id;
+        } else {
+            // A quality-test tool deliberately chooses its own operation. Use
+            // the recipe's primary settings without changing that tool's mode.
+            entry.speed_mm_min = source.speed_mm_min;
+            entry.power_percent = source.power_percent;
+            entry.power_min_percent = source.power_min_percent;
+            entry.air_assist = source.air_assist;
+            entry.z_offset_mm = source.z_offset_mm;
+            entry.gcode_prefix = source.gcode_prefix.clone();
+            entry.gcode_suffix = source.gcode_suffix.clone();
+            entry.output_enabled = source.output_enabled;
+            if matches!(
+                seed.operation,
+                OperationType::Fill | OperationType::Image | OperationType::OffsetFill
+            ) {
+                entry.ensure_raster_settings();
+            }
+            if let Some(rs) = entry.raster_settings.as_mut() {
+                rs.passes = source.passes_for_operation();
+                if let Some(source_rs) = source.raster_settings.as_ref() {
+                    rs.dpi = source_rs.dpi;
+                    rs.line_interval_mm = source_rs.line_interval_mm;
+                    rs.scan_angle = source_rs.scan_angle;
+                    rs.bidirectional = source_rs.bidirectional;
+                    rs.overscan_mm = source_rs.overscan_mm;
+                    rs.crosshatch = source_rs.crosshatch;
+                    rs.flood_fill = source_rs.flood_fill;
+                    rs.angle_passes = source_rs.angle_passes;
+                    rs.angle_increment_deg = source_rs.angle_increment_deg;
+                }
+            }
+            if let Some(vs) = entry.vector_settings.as_mut() {
+                vs.passes = source.passes_for_operation();
+            }
+        }
+        if preset.entries.len() > 1 {
+            warnings.push(MaterialApplyWarning {
+                code: MaterialApplyWarningCode::MultiEntryPresetTargetedPrimary,
+                message: "Quality test uses only the first sub-layer of the material preset".into(),
+            });
+        }
+        return (entry, warnings);
+    }
 
     entry.speed_mm_min = preset.speed_mm_min;
     entry.power_percent = preset.power_percent;
@@ -136,6 +185,35 @@ mod tests {
     use beambench_core::{CutEntry, MaterialPreset, OperationType, RasterSettings};
     use uuid::Uuid;
 
+    #[test]
+    fn quality_test_uses_the_primary_recipe_entry_without_changing_its_tool_mode() {
+        let mut source = CutEntry::new(OperationType::Fill);
+        source.power_min_percent = 8.0;
+        source.air_assist = true;
+        source.z_offset_mm = -0.75;
+        source.raster_settings.as_mut().unwrap().passes = 4;
+        let preset = MaterialPreset {
+            entries: vec![beambench_core::CutEntryTemplate::from_entry(&source); 2],
+            ..MaterialPreset::default()
+        };
+        let seed = CutEntry::new(OperationType::Line);
+        let (updated, warnings) = apply_material_to_entry(&preset, &seed);
+        assert_eq!(updated.id, seed.id);
+        assert_eq!(updated.operation, OperationType::Line);
+        assert_eq!(updated.power_min_percent, 8.0);
+        assert!(updated.air_assist);
+        assert_eq!(updated.z_offset_mm, -0.75);
+        assert_eq!(updated.vector_settings.unwrap().passes, 4);
+        assert_eq!(
+            warnings[0].code,
+            MaterialApplyWarningCode::MultiEntryPresetTargetedPrimary
+        );
+        let same_mode_seed = CutEntry::new(OperationType::Fill);
+        let (updated, _) = apply_material_to_entry(&preset, &same_mode_seed);
+        assert_eq!(updated.raster_settings, source.raster_settings);
+        assert_eq!(updated.id, same_mode_seed.id);
+    }
+
     fn fill_preset(line_interval: f64) -> MaterialPreset {
         MaterialPreset {
             id: Uuid::new_v4(),
@@ -148,6 +226,43 @@ mod tests {
             passes: 2,
             line_interval_mm: Some(line_interval),
             ..Default::default()
+        }
+    }
+
+    #[test]
+    fn image_and_offset_recipes_preserve_shared_raster_settings_in_fill_quality_tests() {
+        for operation in [OperationType::Image, OperationType::OffsetFill] {
+            let mut source = CutEntry::new(operation);
+            let rs = source.raster_settings.as_mut().unwrap();
+            rs.line_interval_mm = 0.08;
+            rs.dpi = 318;
+            rs.scan_angle = 45.0;
+            rs.bidirectional = false;
+            rs.overscan_mm = 4.0;
+            rs.crosshatch = true;
+            rs.flood_fill = true;
+            rs.angle_passes = 3;
+            rs.angle_increment_deg = 60.0;
+            rs.pass_through = true;
+            let preset = MaterialPreset {
+                entries: vec![beambench_core::CutEntryTemplate::from_entry(&source)],
+                ..MaterialPreset::default()
+            };
+            let seed = CutEntry::new(OperationType::Fill);
+            let (updated, _) = apply_material_to_entry(&preset, &seed);
+            assert_eq!(updated.operation, OperationType::Fill);
+            assert_eq!(updated.id, seed.id);
+            let rs = updated.raster_settings.unwrap();
+            assert_eq!(rs.line_interval_mm, 0.08);
+            assert_eq!(rs.dpi, 318);
+            assert_eq!(rs.scan_angle, 45.0);
+            assert!(!rs.bidirectional);
+            assert_eq!(rs.overscan_mm, 4.0);
+            assert!(rs.crosshatch);
+            assert!(rs.flood_fill);
+            assert_eq!(rs.angle_passes, 3);
+            assert_eq!(rs.angle_increment_deg, 60.0);
+            assert!(!rs.pass_through); // Image-only behavior must not leak into a Fill test.
         }
     }
 

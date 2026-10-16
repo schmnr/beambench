@@ -1010,6 +1010,7 @@ mod tests {
                 notes: "Use air assist".to_string(),
                 category: String::new(),
                 device_profile: None,
+                entries: Vec::new(),
             },
             MaterialPreset {
                 id: Uuid::new_v4(),
@@ -1040,6 +1041,7 @@ mod tests {
                 notes: String::new(),
                 category: String::new(),
                 device_profile: None,
+                entries: Vec::new(),
             },
         ];
 

@@ -12,7 +12,9 @@
     "hide": "Ocultar",
     "rename": "Renombrar",
     "loading": "Cargando...",
-    "go": "Ir"
+    "go": "Ir",
+    "on": "Activado",
+    "off": "Desactivado"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Eliminar",
         "clb_review": "Revisar importación de LightBurn",
         "clb_summary": "{count} preajustes para importar; {skipped} omitidos",
-        "clb_notice": "Solo se importan los ajustes compatibles. Los demás se conservan en las notas y requieren revisión manual. Las subcapas se convierten en preajustes separados. Compruebe los ajustes de su láser antes de usarlos."
+        "clb_notice": "Solo se importan los ajustes compatibles. Los demás se conservan en las notas y requieren revisión manual. Las subcapas se conservan juntas en un preajuste. Compruebe los ajustes de su láser antes de usarlos."
       },
       "camera": {
         "status": {

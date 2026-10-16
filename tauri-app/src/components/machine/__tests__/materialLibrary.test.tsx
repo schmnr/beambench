@@ -10,6 +10,8 @@ import { useProjectStore } from '../../../stores/projectStore.js';
 import type { MaterialPreset } from '../../../types/material.js';
 import type { Project } from '../../../types/project.js';
 import { makeLayer, makeProject, makeRasterSettings } from '../../../test-utils/projectFixtures.js';
+import { defaultVectorSettings } from '../../../types/cutEntryDefaults';
+import { withMaterialEntries } from '../../../utils/materialPresets';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
@@ -306,11 +308,11 @@ describe('MaterialLibrary', () => {
     render(<MaterialLibrary />);
 
     const filter = screen.getByTestId('operation-filter');
-    expect(optionLabels(filter)).toEqual(['All Ops', 'Line', 'Fill', 'Offset Fill']);
+    expect(optionLabels(filter)).toEqual(['All Ops', 'Line', 'Fill', 'Offset Fill', 'Image']);
 
     fireEvent.click(screen.getAllByTitle('Edit')[0]);
     const select = screen.getByTestId('operation-select');
-    expect(optionLabels(select)).toEqual(['Line', 'Fill', 'Offset Fill']);
+    expect(optionLabels(select)).toEqual(['Line', 'Fill', 'Offset Fill', 'Image']);
   });
 
   it('preserves an existing unsupported operation without offering it for new presets', () => {
@@ -329,7 +331,7 @@ describe('MaterialLibrary', () => {
     const select = screen.getByTestId('operation-select') as HTMLSelectElement;
 
     expect(select.value).toBe('cut');
-    expect(optionLabels(select)).toEqual(['Line', 'Fill', 'Offset Fill', 'Cut (existing)']);
+    expect(optionLabels(select)).toEqual(['Line', 'Fill', 'Offset Fill', 'Image', 'Cut (existing)']);
   });
 
   it('keeps the editor open when saving fails', async () => {
@@ -379,6 +381,62 @@ describe('MaterialLibrary', () => {
         newsprint_frequency: null,
       }),
     );
+  });
+
+  it('captures every sub-layer and its complete settings without retaining entry IDs or references', () => {
+    const savePreset = vi.fn();
+    const project = createProjectWithRasterLayer();
+    const first = project.layers[0].entries[0];
+    first.power_min_percent = 12;
+    first.air_assist = true;
+    first.z_offset_mm = -1.2;
+    first.gcode_prefix = 'M8';
+    const second = { ...first, id: 'entry-two', operation: 'line' as const, output_enabled: false, raster_settings: null, vector_settings: { ...defaultVectorSettings(), kerf_offset_mm: 0.15, tab_count: 4, passes: 3 } };
+    project.layers[0].entries.push(second);
+    seedStores({ savePreset, project, selectedLayerId: 'l1' });
+    render(<MaterialLibrary />);
+    fireEvent.click(screen.getByTestId('create-from-layer'));
+    const saved = savePreset.mock.calls[0][0] as MaterialPreset;
+    expect(saved.entries).toHaveLength(2);
+    expect(saved.entries![0]).toMatchObject({ power_min_percent: 12, air_assist: true, z_offset_mm: -1.2, gcode_prefix: 'M8', raster_settings: first.raster_settings });
+    expect(saved.entries![1]).toMatchObject({ operation: 'line', output_enabled: false, vector_settings: second.vector_settings });
+    expect(saved.entries![0]).not.toHaveProperty('id');
+    first.raster_settings!.scan_angle = 99;
+    expect(saved.entries![0].raster_settings!.scan_angle).toBe(45);
+  });
+
+  it('finds a recipe by operations used by its secondary sub-layers', () => {
+    const first = createProjectWithRasterLayer().layers[0].entries[0];
+    const second = { ...first, id: 'entry-two', operation: 'line' as const, raster_settings: null, vector_settings: defaultVectorSettings() };
+    const preset = withMaterialEntries(samplePresets[0], [first, second]);
+    seedStores({ presets: [preset] });
+    render(<MaterialLibrary />);
+    fireEvent.change(screen.getByTestId('operation-filter'), { target: { value: 'line' } });
+    expect(screen.getByText(preset.name)).toBeDefined();
+    expect(screen.getByText('2 sub-layers')).toBeDefined();
+  });
+
+  it('retains the complete recipe when editing metadata or primary settings, including zero values', async () => {
+    const project = createProjectWithRasterLayer();
+    const first = project.layers[0].entries[0];
+    first.power_min_percent = 8;
+    first.air_assist = true;
+    const second = { ...first, id: 'entry-two', vector_settings: null, z_offset_mm: -2 };
+    const preset = withMaterialEntries({ ...samplePresets[0], thickness_mm: 0, power_percent: 0 }, [first, second]);
+    preset.power_percent = 0;
+    preset.entries![0].power_percent = 0;
+    const savePreset = vi.fn().mockResolvedValue(true);
+    seedStores({ savePreset, presets: [preset] });
+    render(<MaterialLibrary />);
+    fireEvent.click(screen.getByTitle('Edit'));
+    fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Complete recipe' } });
+    fireEvent.click(screen.getByText('Save'));
+    const saved = savePreset.mock.calls[0][0] as MaterialPreset;
+    expect(saved.name).toBe('Complete recipe');
+    expect(saved.thickness_mm).toBe(0);
+    expect(saved.power_percent).toBe(0);
+    expect(saved.entries).toEqual(preset.entries);
+    await waitFor(() => expect(screen.queryByPlaceholderText('Name')).toBeNull());
   });
 
   it('guards switching presets when the current edit is dirty', () => {

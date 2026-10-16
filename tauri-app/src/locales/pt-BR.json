@@ -12,7 +12,9 @@
     "hide": "Ocultar",
     "rename": "Renomear",
     "loading": "Carregando...",
-    "go": "Ir"
+    "go": "Ir",
+    "on": "Ativado",
+    "off": "Desativado"
   },
   "controller_choice": {
     "controller": "Controller",
@@ -2274,7 +2276,7 @@
         "delete": "Excluir",
         "clb_review": "Revisar importação do LightBurn",
         "clb_summary": "{count} predefinições para importar; {skipped} ignoradas",
-        "clb_notice": "Somente configurações compatíveis são importadas. As demais ficam nas notas e precisam de revisão manual. As subcamadas se tornam predefinições separadas. Verifique as configurações do seu laser antes de usar."
+        "clb_notice": "Somente configurações compatíveis são importadas. As demais ficam nas notas e precisam de revisão manual. As subcamadas ficam juntas em uma predefinição. Verifique as configurações do seu laser antes de usar."
       },
       "camera": {
         "status": {
