@@ -96,10 +96,10 @@ const samplePresets: MaterialPreset[] = [
 
 function seedStores(overrides?: {
   presets?: MaterialPreset[];
-  savePreset?: ReturnType<typeof vi.fn>;
-  loadPresets?: ReturnType<typeof vi.fn>;
-  deletePreset?: ReturnType<typeof vi.fn>;
-  applyPreset?: ReturnType<typeof vi.fn>;
+  savePreset?: ReturnType<typeof useMaterialStore.getState>['savePreset'];
+  loadPresets?: ReturnType<typeof useMaterialStore.getState>['loadPresets'];
+  deletePreset?: ReturnType<typeof useMaterialStore.getState>['deletePreset'];
+  applyPreset?: ReturnType<typeof useMaterialStore.getState>['applyPreset'];
   project?: Project | null;
   selectedLayerId?: string | null;
 }) {

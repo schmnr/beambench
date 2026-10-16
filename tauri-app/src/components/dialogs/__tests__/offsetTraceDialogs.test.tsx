@@ -35,13 +35,13 @@ const mockCtx = {
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCtx);
 
 // Mock Path2D (not available in jsdom)
-globalThis.Path2D = vi.fn().mockImplementation(() => ({
+globalThis.Path2D = vi.fn().mockImplementation(function () { return {
   moveTo: vi.fn(),
   lineTo: vi.fn(),
   quadraticCurveTo: vi.fn(),
   bezierCurveTo: vi.fn(),
   closePath: vi.fn(),
-}));
+}; });
 
 afterEach(() => {
   cleanup();

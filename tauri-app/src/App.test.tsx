@@ -218,6 +218,7 @@ globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserv
 // jsdom doesn't have canvas 2D context — stub it
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
   fillRect: vi.fn(),
+  drawImage: vi.fn(),
   strokeRect: vi.fn(),
   fillText: vi.fn(),
   beginPath: vi.fn(),

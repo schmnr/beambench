@@ -28,9 +28,13 @@ Maintainers normally squash a pull request when merging it. A pull request may
 be closed when it is out of scope, duplicates existing work, creates an
 unacceptable safety risk, or cannot be maintained.
 
+Maintainer work should finish committed on `main`, with completed pull requests
+merged and their temporary branches removed. Keep required checks in place.
+Publishing a binary release is a separate step from merging source changes.
+
 ## Development setup
 
-Install a current stable Rust toolchain, Node.js, and the platform prerequisites
+Install a current stable Rust toolchain, Node.js 22.12 or newer, and the platform prerequisites
 listed by the Tauri 2 project. Then install the frontend dependencies:
 
 ```sh

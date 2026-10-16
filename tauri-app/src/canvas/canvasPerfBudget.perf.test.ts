@@ -48,11 +48,11 @@ const defaultVp: ViewportParams = {
   canvasHeight: 900,
 };
 
-globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
+globalThis.ResizeObserver = vi.fn().mockImplementation(function () { return {
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-}));
+}; });
 
 const mockGetContext = vi.fn();
 HTMLCanvasElement.prototype.getContext = mockGetContext;
@@ -203,7 +203,7 @@ function expectWithinBudget(metric: CanvasPerfMetric, summary: PerfSummary): voi
   ).toBeLessThanOrEqual(budget.maxMs);
 }
 
-describe.sequential('canvas performance budgets', () => {
+describe('canvas performance budgets', { concurrent: false }, () => {
   const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
   beforeEach(() => {

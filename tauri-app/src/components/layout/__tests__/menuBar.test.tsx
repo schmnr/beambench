@@ -29,6 +29,11 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
   clearRect: vi.fn(),
   drawImage: vi.fn(),
+  setTransform: vi.fn(),
+  save: vi.fn(),
+  restore: vi.fn(),
+  translate: vi.fn(),
+  scale: vi.fn(),
   getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4) })),
   putImageData: vi.fn(),
   fillRect: vi.fn(),

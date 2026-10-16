@@ -27,9 +27,9 @@ const mockCtx = {
 
 beforeEach(() => {
   HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCtx);
-  globalThis.Path2D = vi.fn().mockImplementation(() => ({
+  globalThis.Path2D = vi.fn().mockImplementation(function () { return {
     moveTo: vi.fn(), lineTo: vi.fn(), quadraticCurveTo: vi.fn(), bezierCurveTo: vi.fn(), closePath: vi.fn(),
-  }));
+  }; });
   translateCalls.length = 0;
   mockCtx.stroke.mockClear();
 });

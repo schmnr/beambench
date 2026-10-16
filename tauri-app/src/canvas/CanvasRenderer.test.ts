@@ -17,11 +17,11 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 // Need to mock the canvas context before importing the renderer
 // Mock ResizeObserver for jsdom
-globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
+globalThis.ResizeObserver = vi.fn().mockImplementation(function () { return {
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
-}));
+}; });
 
 // Mock canvas 2D context
 const mockGetContext = vi.fn();

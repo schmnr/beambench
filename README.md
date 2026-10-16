@@ -5,6 +5,9 @@ engraving jobs. The application includes a Tauri/React interface and a Rust
 workspace containing its import, geometry, planning, preview, and controller
 support.
 
+[Download the latest release](https://github.com/schmnr/beambench/releases/latest)
+or visit [beambench.com](https://beambench.com).
+
 ## Help and contributions
 
 - For product help or to submit an in-app diagnostic report, visit

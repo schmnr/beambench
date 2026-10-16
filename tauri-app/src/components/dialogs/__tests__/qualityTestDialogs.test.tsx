@@ -52,13 +52,13 @@ const mockCtx = {
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCtx);
 globalThis.Path2D = vi
   .fn()
-  .mockImplementation(() => ({ rect: vi.fn(), addPath: vi.fn() })) as never;
+  .mockImplementation(function () { return { rect: vi.fn(), addPath: vi.fn() }; }) as never;
 if (typeof globalThis.ResizeObserver === 'undefined') {
-  globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
+  globalThis.ResizeObserver = vi.fn().mockImplementation(function () { return {
     observe: vi.fn(),
     unobserve: vi.fn(),
     disconnect: vi.fn(),
-  })) as never;
+  }; }) as never;
 }
 
 const initialProjectState = useProjectStore.getState();
