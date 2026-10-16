@@ -507,6 +507,7 @@ function App() {
   const runStartupUpdateCheck = useUpdateStore((s) => s.runStartupCheck);
   const welcomeDialogOpen = useWelcomeStore((s) => s.dialogOpen);
   const projectBootstrapStartedRef = useRef(false);
+  const [layoutReady, setLayoutReady] = useState(false);
 
   const [recoveries, setRecoveries] = useState<RecoveryInfo[]>([]);
   // dismissing the recovery dialog (X / backdrop) should hide it for
@@ -939,6 +940,8 @@ function App() {
       useNotificationStore
         .getState()
         .push(i18n.t('notifications.layout_restore_failed'), 'warning');
+    }).finally(() => {
+      setLayoutReady(true);
     });
     // Load persisted machine settings from backend. Optimization is
     // now part of the project and arrives via `loadProject()` below,
@@ -1769,7 +1772,8 @@ function App() {
       <AgentSelectionSyncBridge />
       <WindowTitleBridge />
       <FeedbackErrorBoundary>
-        <AppShell />
+        {/* Panel mount effects must save the restored layout, not startup defaults. */}
+        {layoutReady && <AppShell />}
       </FeedbackErrorBoundary>
       <ToastContainer />
       {updateDialogOpen && <UpdateDialog />}
