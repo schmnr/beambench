@@ -51,8 +51,8 @@ build Beam Bench.
 Build and test the Rust workspace:
 
 ```sh
-cargo build --workspace
-cargo test --workspace
+cargo build --workspace --exclude pdf417
+cargo test --workspace --exclude pdf417
 ```
 
 Build the desktop application after installing the platform prerequisites for
