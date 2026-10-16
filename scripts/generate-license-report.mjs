@@ -25,7 +25,12 @@ function textLicenseFiles(directory) {
 }
 
 function normalizedText(path) {
-  return readFileSync(path, 'utf8').replace(/\r\n/g, '\n').trim();
+  return readFileSync(path, 'utf8')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
+    .trim();
 }
 
 function collectCargo() {
