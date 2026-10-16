@@ -89,7 +89,7 @@ pub(crate) fn remove_near_duplicates_by<T: Orderable>(
 ///   both trace the same path but vertex-for-vertex forward comparison
 ///   would miss the duplicate. We strip the closing duplicate, then try
 ///   every rotational offset (forward and reversed) against `a`'s ring.
-fn near_duplicate(
+pub(crate) fn near_duplicate(
     a: &[Point2D],
     a_closed: bool,
     b: &[Point2D],

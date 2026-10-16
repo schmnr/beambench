@@ -6,26 +6,6 @@ use beambench_common::geometry::{Bounds, Point2D};
 use beambench_core::FocusTestZMode;
 use beambench_core::workspace::WorkspaceOrigin;
 
-/// Apply kerf offset to vector segments.
-///
-/// Kerf offset compensates for material removal during cutting.
-/// Positive kerf_mm moves the path outward, negative inward.
-/// Uses perpendicular miter-join offsetting on each polyline.
-pub fn apply_kerf_offset(segments: &mut [PlanSegment], kerf_mm: f64) {
-    if kerf_mm.abs() < 1e-9 {
-        return;
-    }
-    for segment in segments.iter_mut() {
-        if let PlanSegment::Vector {
-            polyline, closed, ..
-        } = segment
-            && polyline.len() >= 2
-        {
-            *polyline = offset_polyline_points(polyline, kerf_mm, *closed);
-        }
-    }
-}
-
 /// Insert tab gaps in vector segments.
 ///
 /// Tabs are small uncut regions that hold parts in place during cutting.
@@ -101,6 +81,9 @@ fn generate_positioned_tabs(
         power_percent,
         speed_mm_min,
         layer_id,
+        cut_entry_id,
+        source_object_id,
+        source_subpath_index,
         perf_enabled,
         perf_on,
         perf_off,
@@ -111,6 +94,9 @@ fn generate_positioned_tabs(
             power_percent,
             speed_mm_min,
             layer_id,
+            cut_entry_id,
+            source_object_id,
+            source_subpath_index,
             perforation_enabled,
             perforation_on_ms,
             perforation_off_ms,
@@ -121,6 +107,9 @@ fn generate_positioned_tabs(
             *power_percent,
             *speed_mm_min,
             layer_id.clone(),
+            cut_entry_id,
+            source_object_id,
+            source_subpath_index,
             *perforation_enabled,
             *perforation_on_ms,
             *perforation_off_ms,
@@ -233,12 +222,12 @@ fn generate_positioned_tabs(
                 power_percent,
                 speed_mm_min,
                 layer_id: layer_id.clone(),
-                cut_entry_id: String::new(),
+                cut_entry_id: cut_entry_id.clone(),
                 perforation_enabled: perf_enabled,
                 perforation_on_ms: perf_on,
                 perforation_off_ms: perf_off,
-                source_object_id: None,
-                source_subpath_index: None,
+                source_object_id: source_object_id.clone(),
+                source_subpath_index: *source_subpath_index,
             });
         }
 
@@ -263,6 +252,9 @@ fn generate_tabs(segment: &PlanSegment, tab_count: u32, tab_width_mm: f64) -> Ve
         power_percent,
         speed_mm_min,
         layer_id,
+        cut_entry_id,
+        source_object_id,
+        source_subpath_index,
         perf_enabled,
         perf_on,
         perf_off,
@@ -273,6 +265,9 @@ fn generate_tabs(segment: &PlanSegment, tab_count: u32, tab_width_mm: f64) -> Ve
             power_percent,
             speed_mm_min,
             layer_id,
+            cut_entry_id,
+            source_object_id,
+            source_subpath_index,
             perforation_enabled,
             perforation_on_ms,
             perforation_off_ms,
@@ -283,6 +278,9 @@ fn generate_tabs(segment: &PlanSegment, tab_count: u32, tab_width_mm: f64) -> Ve
             *power_percent,
             *speed_mm_min,
             layer_id.clone(),
+            cut_entry_id,
+            source_object_id,
+            source_subpath_index,
             *perforation_enabled,
             *perforation_on_ms,
             *perforation_off_ms,
@@ -384,12 +382,12 @@ fn generate_tabs(segment: &PlanSegment, tab_count: u32, tab_width_mm: f64) -> Ve
                 power_percent,
                 speed_mm_min,
                 layer_id: layer_id.clone(),
-                cut_entry_id: String::new(),
+                cut_entry_id: cut_entry_id.clone(),
                 perforation_enabled: perf_enabled,
                 perforation_on_ms: perf_on,
                 perforation_off_ms: perf_off,
-                source_object_id: None,
-                source_subpath_index: None,
+                source_object_id: source_object_id.clone(),
+                source_subpath_index: *source_subpath_index,
             });
         }
 
@@ -704,113 +702,6 @@ pub fn z_offset_command(z_mm: f64, mode: FocusTestZMode, feed_mm_min: f64) -> St
 
 // Helper functions
 
-/// Offset a polyline by `distance` mm using perpendicular miter-join offsetting.
-///
-/// Positive distance offsets outward (to the right of travel direction),
-/// negative distance offsets inward (to the left of travel direction).
-/// For a CCW-wound closed polygon, positive = outward and negative = inward.
-fn offset_polyline_points(points: &[Point2D], distance: f64, closed: bool) -> Vec<Point2D> {
-    if points.len() < 2 {
-        return points.to_vec();
-    }
-
-    let n = points.len();
-    let mut result = Vec::with_capacity(n);
-
-    for i in 0..n {
-        let prev_i = if i == 0 {
-            if closed { n - 1 } else { 0 }
-        } else {
-            i - 1
-        };
-
-        let next_i = if i == n - 1 {
-            if closed { 0 } else { n - 1 }
-        } else {
-            i + 1
-        };
-
-        let p = points[i];
-        let prev = points[prev_i];
-        let next = points[next_i];
-
-        let offset_pt = if i == 0 && !closed {
-            // First point of open path: use edge to next
-            compute_perpendicular_offset(p, p, next, distance)
-        } else if i == n - 1 && !closed {
-            // Last point of open path: use edge from prev
-            compute_perpendicular_offset(p, prev, p, distance)
-        } else {
-            // Interior or closed-path point: use miter offset
-            compute_perpendicular_offset(p, prev, next, distance)
-        };
-
-        result.push(offset_pt);
-    }
-
-    result
-}
-
-/// Compute the offset position for a point on the polyline, given its
-/// predecessor and successor.  Uses the bisector of the two adjacent edge
-/// normals (miter join).
-fn compute_perpendicular_offset(
-    p: Point2D,
-    prev: Point2D,
-    next: Point2D,
-    distance: f64,
-) -> Point2D {
-    // Edge vectors
-    let d1x = p.x - prev.x;
-    let d1y = p.y - prev.y;
-    let len1 = (d1x * d1x + d1y * d1y).sqrt();
-
-    let d2x = next.x - p.x;
-    let d2y = next.y - p.y;
-    let len2 = (d2x * d2x + d2y * d2y).sqrt();
-
-    // Degenerate: both edges have zero length
-    if len1 < 1e-9 && len2 < 1e-9 {
-        return p;
-    }
-
-    // Right-hand perpendicular normals: (dy, -dx) / len
-    let (n1x, n1y) = if len1 > 1e-9 {
-        (d1y / len1, -d1x / len1)
-    } else {
-        (d2y / len2, -d2x / len2)
-    };
-
-    let (n2x, n2y) = if len2 > 1e-9 {
-        (d2y / len2, -d2x / len2)
-    } else {
-        (n1x, n1y)
-    };
-
-    // Bisector of the two normals
-    let nx = n1x + n2x;
-    let ny = n1y + n2y;
-    let nlen = (nx * nx + ny * ny).sqrt();
-
-    if nlen < 1e-9 {
-        // Collinear edges forming a 180-degree turn — just use one normal
-        Point2D::new(p.x + n1x * distance, p.y + n1y * distance)
-    } else {
-        // Miter scale: 1 / cos(half-angle) so perpendicular distance equals `distance`
-        let cos_half = (n1x * nx + n1y * ny) / nlen;
-        let miter_scale = if cos_half.abs() > 1e-9 {
-            1.0 / cos_half
-        } else {
-            1.0
-        };
-
-        Point2D::new(
-            p.x + (nx / nlen) * distance * miter_scale,
-            p.y + (ny / nlen) * distance * miter_scale,
-        )
-    }
-}
-
 fn compute_path_length(points: &[Point2D], closed: bool) -> f64 {
     if points.len() < 2 {
         return 0.0;
@@ -839,154 +730,6 @@ fn compute_path_length(points: &[Point2D], closed: bool) -> f64 {
 mod tests {
     use super::*;
     use crate::plan::{ScanAxis, ScanDirection, ScanRun, Scanline};
-
-    #[test]
-    fn kerf_offset_offsets_open_polyline() {
-        let mut segments = vec![PlanSegment::Vector {
-            polyline: vec![
-                Point2D::new(0.0, 0.0),
-                Point2D::new(10.0, 0.0),
-                Point2D::new(10.0, 10.0),
-            ],
-            closed: false,
-            power_percent: 80.0,
-            speed_mm_min: 1000.0,
-            layer_id: "layer1".to_string(),
-            cut_entry_id: String::new(),
-            perforation_enabled: false,
-            perforation_on_ms: 0.0,
-            perforation_off_ms: 0.0,
-            source_object_id: None,
-            source_subpath_index: None,
-        }];
-
-        apply_kerf_offset(&mut segments, 1.0);
-
-        // Verify the segment was modified and points shifted perpendicular to edges
-        if let PlanSegment::Vector { polyline, .. } = &segments[0] {
-            assert_eq!(polyline.len(), 3);
-            // First point on horizontal edge going right: right-hand normal is (0, -1),
-            // so positive offset moves downward in screen coords => y decreases by 1
-            assert!((polyline[0].x - 0.0).abs() < 0.01);
-            assert!((polyline[0].y - (-1.0)).abs() < 0.01);
-        }
-    }
-
-    #[test]
-    fn kerf_offset_inward_on_ccw_rectangle() {
-        // CCW rectangle: (0,0) -> (10,0) -> (10,10) -> (0,10)
-        // For a CCW-wound polygon, negative distance = inward offset.
-        let mut segments = vec![PlanSegment::Vector {
-            polyline: vec![
-                Point2D::new(0.0, 0.0),
-                Point2D::new(10.0, 0.0),
-                Point2D::new(10.0, 10.0),
-                Point2D::new(0.0, 10.0),
-            ],
-            closed: true,
-            power_percent: 80.0,
-            speed_mm_min: 1000.0,
-            layer_id: "layer1".to_string(),
-            cut_entry_id: String::new(),
-            perforation_enabled: false,
-            perforation_on_ms: 0.0,
-            perforation_off_ms: 0.0,
-            source_object_id: None,
-            source_subpath_index: None,
-        }];
-
-        let kerf = -1.0; // inward
-        apply_kerf_offset(&mut segments, kerf);
-
-        if let PlanSegment::Vector { polyline, .. } = &segments[0] {
-            assert_eq!(polyline.len(), 4);
-
-            // All corners should have moved inward by ~1mm.
-            // For a CCW rectangle, inward (negative kerf) shrinks the rectangle.
-            // The min-x should increase, max-x should decrease, etc.
-            let min_x = polyline.iter().map(|p| p.x).fold(f64::INFINITY, f64::min);
-            let max_x = polyline
-                .iter()
-                .map(|p| p.x)
-                .fold(f64::NEG_INFINITY, f64::max);
-            let min_y = polyline.iter().map(|p| p.y).fold(f64::INFINITY, f64::min);
-            let max_y = polyline
-                .iter()
-                .map(|p| p.y)
-                .fold(f64::NEG_INFINITY, f64::max);
-
-            let width = max_x - min_x;
-            let height = max_y - min_y;
-
-            // Original was 10x10, inward by 1mm on each side => 8x8
-            assert!((width - 8.0).abs() < 0.1, "Expected width ~8, got {width}");
-            assert!(
-                (height - 8.0).abs() < 0.1,
-                "Expected height ~8, got {height}"
-            );
-        } else {
-            panic!("Expected Vector segment");
-        }
-    }
-
-    #[test]
-    fn kerf_offset_outward_on_ccw_rectangle() {
-        // CCW rectangle: (0,0) -> (10,0) -> (10,10) -> (0,10)
-        // For a CCW-wound polygon, positive distance = outward offset.
-        let mut segments = vec![PlanSegment::Vector {
-            polyline: vec![
-                Point2D::new(0.0, 0.0),
-                Point2D::new(10.0, 0.0),
-                Point2D::new(10.0, 10.0),
-                Point2D::new(0.0, 10.0),
-            ],
-            closed: true,
-            power_percent: 80.0,
-            speed_mm_min: 1000.0,
-            layer_id: "layer1".to_string(),
-            cut_entry_id: String::new(),
-            perforation_enabled: false,
-            perforation_on_ms: 0.0,
-            perforation_off_ms: 0.0,
-            source_object_id: None,
-            source_subpath_index: None,
-        }];
-
-        let kerf = 1.0; // outward
-        apply_kerf_offset(&mut segments, kerf);
-
-        if let PlanSegment::Vector { polyline, .. } = &segments[0] {
-            assert_eq!(polyline.len(), 4);
-
-            // All corners should have moved outward by ~1mm.
-            // For a CCW rectangle, outward (positive kerf) enlarges the rectangle.
-            let min_x = polyline.iter().map(|p| p.x).fold(f64::INFINITY, f64::min);
-            let max_x = polyline
-                .iter()
-                .map(|p| p.x)
-                .fold(f64::NEG_INFINITY, f64::max);
-            let min_y = polyline.iter().map(|p| p.y).fold(f64::INFINITY, f64::min);
-            let max_y = polyline
-                .iter()
-                .map(|p| p.y)
-                .fold(f64::NEG_INFINITY, f64::max);
-
-            let width = max_x - min_x;
-            let height = max_y - min_y;
-
-            // Original was 10x10, outward by 1mm on each side => 12x12
-            assert!(
-                (width - 12.0).abs() < 0.1,
-                "Expected width ~12, got {width}"
-            );
-            assert!(
-                (height - 12.0).abs() < 0.1,
-                "Expected height ~12, got {height}"
-            );
-        } else {
-            panic!("Expected Vector segment");
-        }
-    }
 
     #[test]
     fn translate_segments_shifts_travel() {

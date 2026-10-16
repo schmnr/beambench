@@ -68,12 +68,32 @@ LightBurn omits values equal to its built-in defaults. Missing values use
 off, and Stucki Image mode. Invalid explicit values are skipped rather than
 clamped or replaced with defaults.
 
-## Remaining conversion limits
+## Kerf compensation
 
-Kerf is currently a stored layer setting that is not wired into Beam Bench job
-planning. The recipe preserves its value, but this does not produce kerf
-compensation in machine output. Imports with nonzero kerf receive an explicit
-warning in their notes. This existing execution gap must be fixed separately.
+Kerf Offset is a normal per-sub-layer setting in the layer's vector controls.
+Material recipes save and restore it, and LightBurn imports preserve the signed
+offset distance without doubling or halving it. The value is the path offset,
+usually half the measured width of material removed by a cut.
+
+Closed Line contours, including legacy Cut/Score operations, are compensated
+when generating the execution plan. A positive offset expands outer contours
+and contracts holes; negative offsets reverse those directions. Further nested
+islands alternate again. Nesting is evaluated across objects on the same
+sub-layer and does not depend on path winding or the optimization switches.
+Open paths and raster/Offset Fill operations are unchanged.
+
+Compensation changes the execution plan, not the artwork. Preview and machine
+output use the same compensated paths. Ordering, tab gaps, travel moves, job
+bounds, and duration use the resulting geometry. Zero offset preserves the
+previous planning behavior. Existing artwork-based job-origin placement is
+preserved, so compensation may extend the output beyond the artwork bounds.
+
+Offsets that collapse or split a contour stop planning with an error instead
+of silently dropping a cut or relocating its tabs onto multiple contours.
+Repair the contour or reduce the offset. Verify the preview and calibrate the
+offset for the machine, material, and cutting settings before making fitted parts.
+
+## Remaining conversion limits
 
 Enabled percentage overscan cannot be translated to a fixed distance without
 machine acceleration. Imported recipes use Beam Bench's default 2.5 mm distance

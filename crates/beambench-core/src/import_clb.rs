@@ -96,14 +96,6 @@ pub fn parse_clb_library(xml: &str) -> Result<ClbImportReport, String> {
                         "Imported from LightBurn .clb. Speed converted from mm/s to mm/min.\nThis preset restores the complete sub-layer stack. Machine-specific settings without an equivalent still need manual review. Enabled percentage overscan uses Beam Bench's default distance (2.5 mm); adjust it for your machine. Original entry follows:\n{}",
                         &doc.input_text()[entry.range()]
                     );
-                    if preset.entries.iter().any(|entry| {
-                        entry
-                            .vector_settings
-                            .as_ref()
-                            .is_some_and(|settings| settings.kerf_offset_mm != 0.0)
-                    }) {
-                        preset.notes.insert_str(0, "Kerf offset is preserved as a setting, but Beam Bench job planning currently does not apply kerf compensation.\n");
-                    }
                     report.presets.push(preset);
                 }
                 Err(reason) => report.skipped.push(ClbSkippedPreset { name, reason }),
@@ -387,7 +379,7 @@ mod tests {
         assert!(!first.output_enabled);
         let vector = first.vector_settings.as_ref().unwrap();
         assert_eq!(vector.kerf_offset_mm, 0.15);
-        assert!(p.notes.contains("does not apply kerf compensation"));
+        assert!(!p.notes.contains("does not apply kerf compensation"));
         assert!(vector.perforation_enabled);
         assert!((vector.perforation_on_ms - 40.0).abs() < 1e-10);
         assert!((vector.perforation_off_ms - 20.0).abs() < 1e-10);

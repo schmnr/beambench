@@ -51,7 +51,7 @@ use beambench_core::vector::offset::signed_area;
 use beambench_core::vector::{
     OFFSET_FILL_BOOLEAN_TOLERANCE_MM, normalize_subject_evenodd_with_tolerance, optimize_path,
 };
-use clipper2::{EndType, JoinType, Milli, Paths};
+use clipper2::{EndType, FillRule, JoinType, Milli, Paths, PointScaler};
 // process_raster is called via beambench_raster::process_raster_with_cache
 use beambench_raster::types::RasterPixelFormat;
 use rayon::prelude::*;
@@ -278,6 +278,138 @@ impl Orderable for TaggedPolyline {
     fn points_mut(&mut self) -> &mut Vec<Point2D> {
         &mut self.inner.points
     }
+}
+
+/// Compensate closed cutting contours before ordering and tab splitting. Each
+/// contour keeps its source identity, winding, and approximate starting point.
+/// Nesting is evaluated across the entry, independently of drawing direction.
+fn apply_kerf_offset(items: &mut [TaggedPolyline], offset_mm: f64) -> Result<(), PlannerError> {
+    if !offset_mm.is_finite() {
+        return Err(PlannerError::InvalidSettings(
+            "Kerf offset must be finite".into(),
+        ));
+    }
+    if offset_mm == 0.0 {
+        return Ok(());
+    }
+
+    let analyses: Vec<_> = items
+        .iter()
+        .map(|item| {
+            let area = signed_area(&item.inner.points);
+            PolylineAnalysis {
+                bounds: bounds_from_polylines(std::slice::from_ref(&item.inner)),
+                signed_area: area,
+                abs_area: area.abs(),
+            }
+        })
+        .collect();
+    let depths: Vec<_> = items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            if !item.inner.closed {
+                return 0;
+            }
+            let mut containers: Vec<usize> = Vec::new();
+            for (j, outer) in items.iter().enumerate() {
+                if i != j
+                    && outer.inner.closed
+                    // Equal/duplicate contours are not each other's holes.
+                    && analyses[j].abs_area > analyses[i].abs_area + 1e-9
+                    && polyline_maybe_contains(i, j, &analyses)
+                    && inner_first::polyline_contains(&outer.inner.points, &item.inner.points)
+                    // Duplicated containers must not flip a hole's parity,
+                    // even when overlap removal is disabled or powers differ.
+                    && !containers.iter().any(|&k| {
+                        dedupe::near_duplicate(
+                            &items[k].inner.points,
+                            true,
+                            &outer.inner.points,
+                            true,
+                            0.0,
+                        )
+                    })
+                {
+                    containers.push(j);
+                }
+            }
+            containers.len()
+        })
+        .collect();
+
+    for (i, item) in items.iter_mut().enumerate() {
+        if !item.inner.closed {
+            continue;
+        }
+        let invalid = |reason: &str| {
+            PlannerError::InvalidSettings(format!(
+                "Kerf offset for object {}: {reason}. Reduce the offset or repair the contour.",
+                item.object_id
+            ))
+        };
+        let source = &item.inner.points;
+        if source.len() < 3
+            || !analyses[i].abs_area.is_finite()
+            || analyses[i].abs_area < 1e-9
+            || source
+                .iter()
+                .any(|p| !p.x.is_finite() || !p.y.is_finite() || p.x.abs() > 1e9 || p.y.abs() > 1e9)
+            || offset_mm.abs() > 1e9
+        {
+            return Err(invalid("contour or offset is invalid"));
+        }
+        let start = source[0];
+        let paths: Paths<Milli> = source.iter().map(|p| (p.x, p.y)).collect::<Vec<_>>().into();
+        // Clipper requires intersections to be resolved before inflation.
+        let paths = paths
+            .to_clipper_subject()
+            .add_clip(Paths::<Milli>::default())
+            .union(FillRule::EvenOdd)
+            .map_err(|_| invalid("contour could not be normalized"))?;
+        if paths.len() != 1 {
+            return Err(invalid("contour is degenerate or self-intersecting"));
+        }
+        let delta = if depths[i] % 2 == 0 {
+            offset_mm
+        } else {
+            -offset_mm
+        };
+        // clipper2 0.5 scales the unitless miter limit with the coordinates.
+        let result = paths.inflate(
+            delta,
+            JoinType::Miter,
+            EndType::Polygon,
+            2.0 / Milli::MULTIPLIER,
+        );
+        if result.len() != 1 {
+            // Do not silently omit a collapsed cut or assign a source's tabs
+            // to several different contours after a topology change.
+            return Err(invalid("offset collapses or splits the contour"));
+        }
+        let mut points: Vec<_> = result
+            .iter()
+            .next()
+            .unwrap()
+            .iter()
+            .map(|p| Point2D::new(p.x(), p.y()))
+            .collect();
+        if points.len() < 3 || signed_area(&points).abs() < 1e-9 {
+            return Err(invalid("offset collapses the contour"));
+        }
+        if signed_area(&points).signum() != analyses[i].signed_area.signum() {
+            points.reverse();
+        }
+        let start_index = points
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| a.distance_to(&start).total_cmp(&b.distance_to(&start)))
+            .unwrap()
+            .0;
+        points.rotate_left(start_index);
+        item.inner.points = points;
+    }
+    Ok(())
 }
 
 /// Check if point (px, py) is inside a closed polyline using ray-casting.
@@ -3692,6 +3824,10 @@ fn build_plan_inner(
                             }
                         }
 
+                        apply_kerf_offset(
+                            &mut tagged_polylines,
+                            vector_settings.map(|s| s.kerf_offset_mm).unwrap_or(0.0),
+                        )?;
                         let tagged_polylines =
                             apply_pre_order_passes_keeping_power(tagged_polylines, optimization);
                         let ordered =

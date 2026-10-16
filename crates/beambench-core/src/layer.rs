@@ -171,6 +171,8 @@ pub struct VectorSettings {
     pub perforation_enabled: bool,
     pub perforation_on_ms: f64,
     pub perforation_off_ms: f64,
+    /// Signed path offset for closed Line/Cut/Score contours. Positive expands
+    /// outer contours and contracts holes; zero disables kerf compensation.
     #[serde(default)]
     pub kerf_offset_mm: f64,
     #[serde(default)]

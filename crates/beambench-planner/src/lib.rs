@@ -22,9 +22,8 @@ pub use builder::{
 };
 pub use error::{BoundsAxis, BoundsBoundary, BoundsViolation, PlannerError};
 pub use extensions::{
-    air_assist_commands, anchor_segments_to_target, apply_kerf_offset, apply_tabs,
-    apply_workspace_origin_transform, flip_bounds_y, job_anchor_point, translate_segments,
-    z_offset_command,
+    air_assist_commands, anchor_segments_to_target, apply_tabs, apply_workspace_origin_transform,
+    flip_bounds_y, job_anchor_point, translate_segments, z_offset_command,
 };
 pub use image_params::build_image_raster_params;
 pub use optimize::{OptimizationRuntime, PlannerCancellation, PlannerInput};
