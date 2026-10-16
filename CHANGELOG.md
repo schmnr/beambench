@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.30
+
 - Import LightBurn `.clb` material libraries and save complete, ordered material
   recipes, including all sub-layers and their advanced settings.
 - Apply kerf compensation to closed Line cuts in preview and machine output,
@@ -11,6 +13,9 @@
 - Add documentation-based USB presets for Creality Falcon2 Pro 22W and 60W,
   with their respective 400 x 415 mm and 400 x 400 mm workspaces. Physical
   testing is pending. Exact model suggestions avoid ambiguous Falcon variants.
+
+- Update vulnerable frontend test and build tooling. Document the remaining
+  build-tool Braces and native Linux GLib dependency advisories.
 
 ## 0.2.29
 
