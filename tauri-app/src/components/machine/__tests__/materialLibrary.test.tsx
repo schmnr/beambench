@@ -172,6 +172,7 @@ describe('MaterialLibrary', () => {
     render(<MaterialLibrary />);
     fireEvent.click(screen.getByTestId('import-presets'));
     const dialog = await screen.findByTestId('clb-import-review');
+    await waitFor(() => expect(dialog.parentElement).toHaveFocus());
     const summary = dialog.querySelector('summary')!;
     fireEvent.keyDown(dialog, { key: 'Tab' });
     expect(document.activeElement).toBe(summary);
