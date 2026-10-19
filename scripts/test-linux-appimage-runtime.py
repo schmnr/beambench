@@ -1,18 +1,59 @@
 #!/usr/bin/env python3
-"""Exercise display selection, Fontconfig behavior, and actual AppImage repair."""
+"""Exercise camera discovery, display/fonts, and actual AppImage repair.
+
+Set BEAMBENCH_TEST_APPIMAGE to test the final package with real GStreamer.
+"""
 import hashlib
+import json
 import os
 from pathlib import Path
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
 SCRIPTS = Path(__file__).resolve().parent
 
 
+def camera_environment():
+    return {k: v for k, v in os.environ.items() if not (
+        k.startswith('GST_') or k.startswith('BEAMBENCH_ORIGINAL_GST_')
+    )}
+
+
 class RuntimePolicyTests(unittest.TestCase):
+    def test_camera_paths_survive_the_generated_launcher_and_arguments_are_preserved(self):
+        with tempfile.TemporaryDirectory(prefix='camera AppDir ') as temporary:
+            root = Path(temporary)
+            executable = root / 'beambench-tauri'
+            shutil.copyfile(SCRIPTS / 'linux-appimage-exec.sh', executable)
+            executable.chmod(0o755)
+            binary = root / 'beambench-tauri.bin'
+            binary.write_text('''#!/usr/bin/env python3
+import json, os, sys
+print(json.dumps({'paths': {k: v for k, v in os.environ.items() if k.startswith('GST_') or k.startswith('BEAMBENCH_ORIGINAL_GST_')}, 'args': sys.argv[1:]}))
+''')
+            binary.chmod(0o755)
+            source = shlex.quote(str(SCRIPTS / 'linux-appimage-runtime.sh'))
+            for paths in [{}, {'GST_PLUGIN_SYSTEM_PATH': ''},
+                          {'GST_PLUGIN_SYSTEM_PATH_1_0': ''},
+                          {'GST_PLUGIN_SYSTEM_PATH': '/legacy plugins',
+                           'GST_PLUGIN_SYSTEM_PATH_1_0': '/custom plugins:/other',
+                           'GST_PLUGIN_PATH_1_0': '/extra plugins'}]:
+                with self.subTest(paths=paths):
+                    env = camera_environment()
+                    env.update(APPDIR=str(root), **paths)
+                    result = subprocess.run(['bash', '-c', f'''source {source}
+export GST_PLUGIN_SYSTEM_PATH="$APPDIR/usr/lib/gstreamer:${{GST_PLUGIN_SYSTEM_PATH-}}"
+export GST_PLUGIN_SYSTEM_PATH_1_0="$APPDIR/usr/lib/gstreamer-1.0:${{GST_PLUGIN_SYSTEM_PATH_1_0-}}"
+exec {shlex.quote(str(executable))} 'project with spaces.bb' '' '--flag'
+'''], env=env, check=True, capture_output=True, text=True)
+                    self.assertEqual(json.loads(result.stdout), {
+                        'paths': paths, 'args': ['project with spaces.bb', '', '--flag'],
+                    })
+
     def runtime(self, **overrides):
         env = {k: v for k, v in os.environ.items() if k not in {
             'GDK_BACKEND', 'DISPLAY', 'WAYLAND_DISPLAY', 'FONTCONFIG_FILE',
@@ -41,7 +82,7 @@ printf '%s\\n%s\\n%s\\n' "${{GDK_BACKEND:-}}" "${{FONTCONFIG_FILE:-}}" "${{BEAMB
         self.assertEqual(self.runtime()[1:], ['/fixture AppDir/usr/share/beambench/fonts.conf', '1'])
         self.assertEqual(self.runtime(FONTCONFIG_FILE='/custom/fonts.conf')[1:], ['/custom/fonts.conf', ''])
 
-    @unittest.skipUnless(shutil.which('fc-match') and shutil.which('fc-list'), 'Fontconfig tools unavailable')
+    @unittest.skipUnless(sys.platform == 'linux' and shutil.which('fc-match') and shutil.which('fc-list'), 'Linux Fontconfig tools unavailable')
     def test_normal_fonts_are_preserved_and_color_fallbacks_are_excluded(self):
         env = dict(os.environ)
         env.pop('FONTCONFIG_FILE', None)
@@ -66,6 +107,10 @@ class AppImageRepairTests(unittest.TestCase):
             (payload / 'usr/lib').mkdir(parents=True)
             (payload / 'usr/lib/libwayland-client.so.0').write_bytes(b'incompatible fixture')
             (payload / 'usr/lib/libordinary.so.1').write_bytes(b'keep this library')
+            binary = payload / 'usr/bin/beambench-tauri'
+            binary.parent.mkdir()
+            binary.write_text('#!/bin/bash\nprintf "original binary\\n"\n')
+            binary.chmod(0o755)
             hook = payload / 'apprun-hooks/linuxdeploy-plugin-gtk.sh'
             hook.parent.mkdir()
             hook.write_text('#!/bin/bash\nexport GDK_BACKEND=x11 # generated GTK hook\n')
@@ -91,6 +136,46 @@ class AppImageRepairTests(unittest.TestCase):
             subprocess.run(['unsquashfs', '-q', '-no-progress', '-o', str(len(b'fixture-runtime\n')), '-d', str(extracted), str(image)], check=True, capture_output=True)
             self.assertFalse((extracted / 'usr/lib/libwayland-client.so.0').exists())
             self.assertEqual((extracted / 'usr/lib/libordinary.so.1').read_bytes(), b'keep this library')
+            self.assertEqual((extracted / 'usr/bin/beambench-tauri.bin').read_bytes(), binary.read_bytes())
+            self.assertEqual((extracted / 'usr/bin/beambench-tauri').read_bytes(), (SCRIPTS / 'linux-appimage-exec.sh').read_bytes())
+
+
+@unittest.skipUnless(os.environ.get('BEAMBENCH_TEST_APPIMAGE'), 'No final AppImage supplied')
+class PackagedCameraTests(unittest.TestCase):
+    def test_final_launcher_loads_host_plugins_and_captures_synthetic_frames(self):
+        image = Path(os.environ['BEAMBENCH_TEST_APPIMAGE']).resolve()
+        for tool in ['unsquashfs', 'gst-inspect-1.0', 'gst-launch-1.0']:
+            self.assertIsNotNone(shutil.which(tool), f'Required package test tool missing: {tool}')
+        env = camera_environment()
+        for element in ['appsink', 'v4l2src', 'videoconvert']:
+            subprocess.run(['gst-inspect-1.0', element], env=env, check=True, capture_output=True)
+        subprocess.run(['bash', str(SCRIPTS / 'harden-linux-appimage'), '--check', str(image)], check=True, capture_output=True)
+        with tempfile.TemporaryDirectory(prefix='packaged camera ') as temporary:
+            root = Path(temporary)
+            payload = image.read_bytes()
+            offset = -1
+            while True:
+                offset = payload.find(b'hsqs', offset + 1)
+                self.assertNotEqual(offset, -1, 'No valid SquashFS payload')
+                if subprocess.run(['unsquashfs', '-s', '-o', str(offset), str(image)], capture_output=True).returncode == 0:
+                    break
+            appdir = root / 'AppDir'
+            subprocess.run(['unsquashfs', '-q', '-no-progress', '-o', str(offset), '-d', str(appdir), str(image)], check=True, capture_output=True)
+            # Retain the published AppRun, ELF launcher and executable wrapper.
+            # Replace only the desktop binary with a real media-runtime probe.
+            binary = appdir / 'usr/bin/beambench-tauri.bin'
+            binary.write_text('''#!/usr/bin/env bash
+set -euo pipefail
+for element in appsink v4l2src videoconvert; do
+  gst-inspect-1.0 "$element" >/dev/null
+done
+gst-launch-1.0 -q videotestsrc num-buffers=3 ! videoconvert ! appsink sync=false wait-on-eos=false
+printf 'packaged camera pipeline passed\\n'
+''')
+            binary.chmod(0o755)
+            env['GST_REGISTRY_1_0'] = str(root / 'registry.bin')
+            result = subprocess.run([str(appdir / 'AppRun')], env=env, check=True, capture_output=True, text=True, timeout=60)
+            self.assertIn('packaged camera pipeline passed', result.stdout)
 
 
 if __name__ == '__main__':

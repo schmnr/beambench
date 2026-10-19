@@ -78,12 +78,17 @@ extract_appimage "$extracted_dir"
 
 runtime_dir="$extracted_dir/usr/share/beambench"
 gtk_hook="$extracted_dir/apprun-hooks/linuxdeploy-plugin-gtk.sh"
+app_executable="$extracted_dir/usr/bin/beambench-tauri"
+app_binary="${app_executable}.bin"
 runtime_hook='source "$APPDIR/usr/share/beambench/linux-runtime.sh"'
 
 runtime_policy_matches() {
   [ -f "$gtk_hook" ] &&
     grep -Fxq "$runtime_hook" "$gtk_hook" &&
     ! grep -q '^export GDK_BACKEND=x11' "$gtk_hook" &&
+    [ -x "$app_binary" ] &&
+    [ -x "$app_executable" ] &&
+    cmp -s "$script_dir/linux-appimage-exec.sh" "$app_executable" &&
     cmp -s "$script_dir/linux-appimage-runtime.sh" "$runtime_dir/linux-runtime.sh" &&
     cmp -s "$script_dir/linux-appimage-fonts.conf" "$runtime_dir/fonts.conf"
 }
@@ -96,7 +101,7 @@ if [ "$mode" = "check" ]; then
     exit 1
   fi
   if ! runtime_policy_matches; then
-    echo "AppImage is missing the current display and color-font compatibility policy." >&2
+    echo "AppImage is missing the current camera, display, or color-font compatibility policy." >&2
     exit 1
   fi
   echo "AppImage runtime library and compatibility audit passed: $appimage"
@@ -124,6 +129,15 @@ fi
 mkdir -p "$runtime_dir"
 cp "$script_dir/linux-appimage-runtime.sh" "$runtime_dir/linux-runtime.sh"
 cp "$script_dir/linux-appimage-fonts.conf" "$runtime_dir/fonts.conf"
+if [ ! -f "$app_binary" ]; then
+  if [ ! -x "$app_executable" ]; then
+    echo "AppImage is missing its desktop executable." >&2
+    exit 1
+  fi
+  mv "$app_executable" "$app_binary"
+fi
+cp "$script_dir/linux-appimage-exec.sh" "$app_executable"
+chmod 755 "$app_executable"
 if ! runtime_policy_matches; then
   echo "Failed to install the AppImage compatibility policy." >&2
   exit 1
@@ -156,4 +170,4 @@ mv "$rebuilt_appimage" "$appimage"
 # The release workflow signs the repaired artifact immediately after this step.
 rm -f "${appimage}.sig"
 
-echo "Hardened AppImage runtime libraries, display selection, and font policy: $appimage"
+echo "Hardened AppImage runtime libraries, camera discovery, display selection, and font policy: $appimage"

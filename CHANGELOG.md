@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.2.31
+
+- Fix Linux AppImage camera capture failing with "Camera not found" when the
+  launcher hid installed GStreamer plugins. Restore normal host plugin discovery
+  while preserving explicit user settings. Add a final-package media regression
+  check so releases verify the generated launcher and a synthetic capture.
+
 ## 0.2.30
 
 - Import LightBurn `.clb` material libraries and save complete, ordered material

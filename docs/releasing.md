@@ -44,6 +44,24 @@ removes host-level Wayland, GLib, and GStreamer libraries that linuxdeploy can
 copy from the build runner even though the host graphics and WebKit stack must
 provide them. `scripts/harden-linux-appimage --check <artifact>` is the
 deterministic release audit and must pass on the final signed binary.
+The generated ELF launcher overrides GStreamer's system plugin paths. A
+desktop executable wrapper restores the user's original values after that
+launcher runs, allowing GStreamer's normal host discovery when unset. Both
+wrappers are required; changing only the GTK hook is too early.
+
+The Linux workflow also runs the final AppImage's complete launcher chain
+against installed host `appsink`, `v4l2src`, and `videoconvert` plugins and a
+three-frame synthetic capture pipeline. To repeat this check on Linux with
+SquashFS tools and GStreamer base/good plugins installed:
+
+```sh
+BEAMBENCH_TEST_APPIMAGE=/absolute/path/to/Beam.Bench.AppImage \
+  python3 scripts/test-linux-appimage-runtime.py
+```
+
+This test substitutes a media probe for the extracted desktop binary while
+retaining the packaged launchers. It does not validate a physical camera or
+change the signed AppImage.
 
 Dispatch the platform workflows one at a time. They share a same-tag concurrency
 group, and GitHub retains at most one pending run in that group.

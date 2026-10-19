@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Sourced by the generated GTK hook before the desktop process starts.
+# AppRun.wrapped replaces these with paths into the AppImage. Preserve the
+# original values for the executable wrapper, including explicitly empty paths.
+export BEAMBENCH_ORIGINAL_GST_PLUGIN_SYSTEM_PATH_SET="${GST_PLUGIN_SYSTEM_PATH+x}"
+export BEAMBENCH_ORIGINAL_GST_PLUGIN_SYSTEM_PATH="${GST_PLUGIN_SYSTEM_PATH-}"
+export BEAMBENCH_ORIGINAL_GST_PLUGIN_SYSTEM_PATH_1_0_SET="${GST_PLUGIN_SYSTEM_PATH_1_0+x}"
+export BEAMBENCH_ORIGINAL_GST_PLUGIN_SYSTEM_PATH_1_0="${GST_PLUGIN_SYSTEM_PATH_1_0-}"
+
 if [ -z "${GDK_BACKEND:-}" ]; then
   if [ -n "${DISPLAY:-}" ]; then
     if [ -n "${WAYLAND_DISPLAY:-}" ]; then

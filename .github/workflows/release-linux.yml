@@ -107,11 +107,14 @@ jobs:
             libayatana-appindicator3-dev \
             squashfs-tools \
             fontconfig \
+            gstreamer1.0-tools \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
             python3 \
             file \
             wget
 
-      - name: Test AppImage display and font compatibility policy
+      - name: Test AppImage camera, display and font compatibility policy
         run: python3 scripts/test-linux-appimage-runtime.py
 
       - name: Install Rust toolchain
@@ -207,6 +210,8 @@ jobs:
             npx tauri signer sign "$GITHUB_WORKSPACE/$appimage"
           )
           scripts/harden-linux-appimage --check "$appimage"
+          BEAMBENCH_TEST_APPIMAGE="$GITHUB_WORKSPACE/$appimage" \
+            python3 scripts/test-linux-appimage-runtime.py
 
           if [ ! -f "${appimage}.sig" ]; then
             echo "No updater signature produced for the hardened AppImage." >&2
