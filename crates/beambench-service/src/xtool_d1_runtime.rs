@@ -407,11 +407,27 @@ impl XToolD1RuntimeSession {
     }
 
     pub fn upload_job(&mut self, job: &D1CompiledJob) -> Result<(), String> {
-        self.runtime
+        let result = self
+            .runtime
             .upload(job, &format!("BeamBench-{}", uuid::Uuid::new_v4()))
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| error.to_string());
+        let result = if let Err(error) = result {
+            if self.runtime.has_pending_file() {
+                let stopped = match self.runtime.stop() {
+                    Ok(()) => "Stop confirmed idle.".to_string(),
+                    Err(stop) => {
+                        format!("Stop could not be confirmed. Use the physical stop now. {stop}")
+                    }
+                };
+                Err(format!("{error}. {stopped}"))
+            } else {
+                Err(error)
+            }
+        } else {
+            result
+        };
         self.refresh_machine_status();
-        Ok(())
+        result
     }
 
     pub fn poll_job(&mut self) -> Result<D1RuntimePhase, String> {
@@ -439,12 +455,8 @@ impl XToolD1RuntimeSession {
     }
 
     pub fn emergency_stop(&mut self) -> Result<(), String> {
-        if matches!(
-            self.runtime.phase(),
-            D1RuntimePhase::Ready | D1RuntimePhase::Completed | D1RuntimePhase::Stopped
-        ) {
-            return Ok(());
-        }
+        // The physical button can start work after our last idle poll. Always
+        // send stop/output-off and confirm fresh idle, even from cached Ready.
         self.cancel_job()
     }
 
@@ -453,6 +465,10 @@ impl XToolD1RuntimeSession {
         self.runtime.disconnect();
         self.refresh_machine_status();
         result
+    }
+
+    pub fn has_pending_file(&self) -> bool {
+        self.runtime.has_pending_file()
     }
 
     pub fn stock_workspace_mm(&self) -> (f64, f64) {

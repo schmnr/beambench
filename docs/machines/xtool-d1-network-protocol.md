@@ -83,8 +83,10 @@ silently restore completion. A new physical-button repeat is unowned work.
 
 The transport reads continuously through uploads, bounds messages to 4 KiB and
 the event queue to 64, sends heartbeat pings every two seconds, and fails after
-seven seconds without a matching pong. A ping/pong barrier drains earlier
-events before a new upload. It never reconnects silently during an owned job.
+seven seconds without a matching pong. Ping/pong barriers drain earlier
+events before upload and before verified readiness. Motion during transfer is
+rejected, and an interrupted or unverified upload attempts a confirmed stop and
+removes only its own pending file. It never reconnects silently during an owned job.
 A network loss does not itself stop a stored program. Use the physical stop if
 Beam Bench cannot confirm its stop request.
 

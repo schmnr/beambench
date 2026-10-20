@@ -15,6 +15,7 @@ struct Machine {
     bad_readback: bool,
     status_lost: bool,
     reject_control: bool,
+    start_during_upload: bool,
 }
 #[derive(Clone, Default)]
 struct Io(Rc<RefCell<Machine>>);
@@ -91,6 +92,10 @@ impl XToolHttpIo for Io {
         let mut m = self.0.borrow_mut();
         m.posts += 1;
         m.file = file.as_bytes().to_vec();
+        if m.start_during_upload {
+            m.working = 2;
+            m.events.push("ok:WORKING_OFFLINE".into());
+        }
         Ok(response(serde_json::json!({"result":"ok"})))
     }
 }
@@ -325,4 +330,16 @@ fn http_may_lead_ordered_events_without_proving_start_or_completion() {
     assert_eq!(rt.poll().unwrap(), D1RuntimePhase::Running);
     event(&io, "ok:IDLE", 0);
     assert_eq!(rt.poll().unwrap(), D1RuntimePhase::Completed);
+}
+
+#[test]
+fn motion_during_upload_is_not_claimed_as_the_new_owned_job() {
+    let (mut rt, io) = connected();
+    io.0.borrow_mut().start_during_upload = true;
+    assert!(rt.upload(&job(), "test-boundary").is_err());
+    assert_eq!(rt.phase(), D1RuntimePhase::RecoveryRequired);
+    assert!(rt.has_pending_file());
+    rt.stop().unwrap();
+    assert!(!rt.has_pending_file());
+    assert!(io.0.borrow().file.is_empty());
 }

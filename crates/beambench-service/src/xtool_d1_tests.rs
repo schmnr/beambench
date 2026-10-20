@@ -32,6 +32,9 @@ struct State {
     requests: Vec<String>,
     uploads: Vec<String>,
     close_status: bool,
+    ignore_stop: bool,
+    upload_hook: Option<Box<dyn FnOnce() + Send>>,
+    corrupt_readback: bool,
 }
 struct Emulator {
     state: Arc<Mutex<State>>,
@@ -125,13 +128,25 @@ impl Emulator {
                         m.file = file.as_bytes().to_vec();
                         m.uploads.push(file);
                         m.events.push_back("ok:WORKING_ONLINE_READY".into());
+                        if let Some(hook) = m.upload_hook.take() {
+                            hook();
+                        }
                         br#"{"result":"ok"}"#.to_vec()
                     }
-                    "/tmp.gcode" => m.file.clone(),
+                    "/tmp.gcode" => {
+                        if m.corrupt_readback {
+                            m.corrupt_readback = false;
+                            b"unverified".to_vec()
+                        } else {
+                            m.file.clone()
+                        }
+                    }
                     "/cnc/data?action=stop" => {
-                        m.working = 0;
-                        m.events.push_back("WORK_STOPPED".into());
-                        m.events.push_back("ok:IDLE".into());
+                        if !m.ignore_stop {
+                            m.working = 0;
+                            m.events.push_back("WORK_STOPPED".into());
+                            m.events.push_back("ok:IDLE".into());
+                        }
                         br#"{"result":"ok"}"#.to_vec()
                     }
                     "/delete?file=/tmp.gcode" => {
@@ -368,5 +383,101 @@ fn d1_independent_stop_does_not_need_the_status_socket_or_a_session() {
     assert_eq!(
         emulator.state.lock().unwrap().requests,
         vec!["/cnc/data?action=stop", "/cmd?cmd=M9+S0+N0"]
+    );
+}
+
+#[test]
+fn d1_emergency_stop_rechecks_idle_and_rejects_an_ineffective_stop() {
+    for ignore_stop in [false, true] {
+        let emulator = Emulator::new();
+        let mut session = emulator.session();
+        let baseline = emulator.state.lock().unwrap().requests.len();
+        // Simulate a physical start that has not reached the status reader.
+        {
+            let mut state = emulator.state.lock().unwrap();
+            state.working = 2;
+            state.ignore_stop = ignore_stop;
+        }
+        assert_eq!(session.emergency_stop().is_err(), ignore_stop);
+        let state = emulator.state.lock().unwrap();
+        let requests = &state.requests[baseline..];
+        for path in [
+            "/cnc/data?action=stop",
+            "/cmd?cmd=M9+S0+N0",
+            "/system?action=get_working_sta",
+        ] {
+            assert!(requests.iter().any(|request| request == path));
+        }
+    }
+}
+
+#[test]
+fn d1_interrupted_uploads_never_publish_a_ready_job_or_frame_proof() {
+    for actual_job in [false, true] {
+        let emulator = Emulator::new();
+        let ctx = Arc::new(context(&emulator));
+        if actual_job {
+            machine::frame_job(&ctx, "rectangular", &[], false, None).unwrap();
+            emulator.running();
+            wait_state(&ctx, JobState::Running);
+            emulator.complete();
+            wait_state(&ctx, JobState::Completed);
+        }
+        let interrupted = Arc::clone(&ctx);
+        emulator.state.lock().unwrap().upload_hook = Some(Box::new(move || {
+            interrupted
+                .emergency_stop_generation
+                .fetch_add(1, Ordering::AcqRel);
+        }));
+        let result = if actual_job {
+            machine::start_job_with_options_confirming_advisories(
+                &ctx,
+                &planning::SessionJobOptions::default(),
+                true,
+            )
+        } else {
+            machine::frame_job(&ctx, "rectangular", &[], false, None)
+        };
+        assert!(result.is_err());
+        assert!(ctx.job.lock().unwrap().is_none());
+        assert!(ctx.relative_frame_confirmation.lock().unwrap().is_none());
+        assert!(emulator.state.lock().unwrap().file.is_empty());
+    }
+}
+#[test]
+fn d1_unverified_upload_is_stopped_and_owned_file_is_removed() {
+    let emulator = Emulator::new();
+    let mut session = emulator.session();
+    emulator.state.lock().unwrap().corrupt_readback = true;
+    let job = beambench_xtool::D1CompiledJob {
+        gcode: "M17 S1\nG1 S0\nM18\n".into(),
+        line_count: 3,
+    };
+    assert!(session.upload_job(&job).is_err());
+    let state = emulator.state.lock().unwrap();
+    assert_eq!(state.uploads.len(), 1);
+    assert!(state.file.is_empty());
+    assert!(
+        state
+            .requests
+            .iter()
+            .any(|path| path == "/cmd?cmd=M9+S0+N0")
+    );
+}
+
+#[test]
+fn d1_frame_refused_before_upload_does_not_stop_someone_elses_job() {
+    let emulator = Emulator::new();
+    let ctx = context(&emulator);
+    let baseline = emulator.state.lock().unwrap().requests.len();
+    emulator.state.lock().unwrap().working = 2;
+    assert!(machine::frame_job(&ctx, "rectangular", &[], false, None).is_err());
+    assert!(ctx.session.lock().unwrap().is_some());
+    let state = emulator.state.lock().unwrap();
+    assert!(state.uploads.is_empty());
+    assert!(
+        !state.requests[baseline..]
+            .iter()
+            .any(|path| path.starts_with("/cnc/data?action=") || path.starts_with("/cmd?"))
     );
 }

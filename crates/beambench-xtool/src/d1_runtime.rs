@@ -108,6 +108,9 @@ impl<I: D1NetworkIo> D1Runtime<I> {
     pub fn progress(&self) -> Option<D1Progress> {
         self.last_progress
     }
+    pub fn has_pending_file(&self) -> bool {
+        self.owned_file.is_some()
+    }
     pub fn recovery_reason(&self) -> Option<&str> {
         self.recovery_reason.as_deref()
     }
@@ -244,6 +247,28 @@ impl<I: D1NetworkIo> D1Runtime<I> {
             if response.status != 200 || response.body != job.gcode.as_bytes() {
                 return Err(D1RuntimeError::UploadNotVerified);
             }
+            // A button press during transfer could run the previous file.
+            // Reject any motion predating verified readiness rather than
+            // attribute its later Idle to this new program.
+            for frame in self
+                .io
+                .synchronize_status()
+                .map_err(D1RuntimeError::Transport)?
+            {
+                if !matches!(
+                    parse_d1_status_event(&frame)?,
+                    D1StatusEvent::Idle | D1StatusEvent::AwaitingButton
+                ) {
+                    return Err(D1RuntimeError::Unconfirmed(
+                        "motion or an alarm arrived before upload verification",
+                    ));
+                }
+            }
+            if self.working_state()? != D1WorkingState::Idle {
+                return Err(D1RuntimeError::Unconfirmed(
+                    "controller started before upload verification",
+                ));
+            }
             self.phase = D1RuntimePhase::ReadyToRun;
             self.poll()?;
             Ok(())
@@ -359,8 +384,8 @@ impl<I: D1NetworkIo> D1Runtime<I> {
                 D1RuntimePhase::BusyUnowned
             };
         }
-        // HTTP and WebSocket use separate connections. Either can report a
-        // transition first. Wait briefly for ordered evidence, never infer
+        // HTTP can report a transition before the separate WebSocket
+        // delivers its event. Wait briefly for ordered evidence, never infer
         // start/completion from the coarse HTTP state alone.
         let awaiting_event = (matches!(
             self.phase,

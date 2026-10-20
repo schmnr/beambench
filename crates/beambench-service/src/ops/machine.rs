@@ -4968,9 +4968,13 @@ pub fn start_job_with_options_confirming_advisories(
             // No bed-relative position is reported. Spend this frame proof
             // once, even when the ensuing upload or job is cancelled.
             clear_relative_frame_confirmation(ctx)?;
-            XToolD1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
-                .map(ActiveJobHandle::XToolD1)
-                .map_err(ServiceError::machine)
+            start_d1_job(
+                ctx,
+                &compiled,
+                session,
+                Some(plan.estimated_duration_secs),
+                estop_generation,
+            )
         }
         (MachineSessionHandle::XToolM1(session), BuiltJob::XToolM1(compiled)) => {
             XToolM1RuntimeJob::start(&compiled, session, Some(plan.estimated_duration_secs))
@@ -5615,12 +5619,12 @@ impl PreparedFrame {
                 Ok(ActiveJobHandle::Grbl(job))
             }
             (Self::XToolD1(compiled), MachineSessionHandle::XToolD1(session)) => {
-                XToolD1RuntimeJob::start(compiled, session, None)
-                    .map(ActiveJobHandle::XToolD1)
-                    .map_err(|error| FrameStartError {
-                        error: ServiceError::machine(error),
-                        sent: true,
-                    })
+                start_d1_job(ctx, compiled, session, None, estop_generation).map_err(|error| {
+                    FrameStartError {
+                        error,
+                        sent: session.has_pending_file(),
+                    }
+                })
             }
             (Self::Marlin(commands, duration), MachineSessionHandle::Marlin(session)) => {
                 MarlinRuntimeJob::start_with_duration(commands.clone(), session, Some(*duration))
@@ -7131,6 +7135,27 @@ pub fn list_profiles(ctx: &ServiceContext) -> ServiceResult<Vec<MachineProfile>>
 
 pub fn persist_profiles(ctx: &ServiceContext) {
     persist_settings_to_disk(ctx);
+}
+
+fn start_d1_job(
+    ctx: &ServiceContext,
+    compiled: &D1CompiledJob,
+    session: &mut XToolD1RuntimeSession,
+    duration: Option<f64>,
+    generation: u64,
+) -> ServiceResult<ActiveJobHandle> {
+    ensure_no_emergency_stop_since(ctx, generation)?;
+    let mut job =
+        XToolD1RuntimeJob::start(compiled, session, duration).map_err(ServiceError::machine)?;
+    if let Err(interrupted) = ensure_no_emergency_stop_since(ctx, generation) {
+        return match job.cancel(session) {
+            Ok(_) => Err(interrupted),
+            Err(stop) => Err(ServiceError::machine(format!(
+                "{interrupted}. Stop could not be confirmed. Use the physical stop now. {stop}"
+            ))),
+        };
+    }
+    Ok(ActiveJobHandle::XToolD1(job))
 }
 
 fn d1_compile_config(profile: &MachineProfile, frame: bool) -> D1CompileConfig {
