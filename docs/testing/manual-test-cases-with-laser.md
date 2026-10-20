@@ -498,6 +498,19 @@ Shared fixtures:
 - Undo / Redo Expectation: Runtime actions do not enter project history; Material Thickness follows the existing project-field undo/persistence behavior
 - Status: Active, awaiting physical-machine results
 
+### HW-038: xTool D1 / D1 Pro native Wi-Fi lifecycle
+- Source Ref: `docs/machines/xtool-d1-network-protocol.md`
+- Feature / Function: Exact identity, verified file upload, laser-off frame, physical-button start, ordered status, pause/resume, stop and cleanup
+- Hardware Requirement: Stock blue-diode D1 5W/10W or D1 Pro 5W/10W/20W/40W, SD card, reachable HTTP 8080 and WebSocket 8081; physical stop accessible
+- Prerequisites: Set up Wi-Fi with xTool software, close other controller applications, and record model, installed module, firmware and frame. This case has not been run on physical hardware.
+- Setup / Fixture: Apply the matching native Wi-Fi preset. Use a top-left workspace, Current Position at the laser spot and a small asymmetric shape plus a low-power raster inside clear stock-frame travel space. Do not use crosshair offsets or accessories.
+- Steps: Connect with the D1 Wi-Fi choice. Start must be blocked before Frame. Upload a laser-off frame, check Ready to run and press the physical button. Confirm all expected endpoints and return to the starting spot. After completion, upload the job and press the button again. Exercise pause/resume, completion, a separate cancellation and Emergency Stop. Repeat separately for each claimed module and firmware.
+- Expected Result: Upload never starts motion by itself. Frames emit no cutting light. Only ordered running then Idle confirms completion; cancellation never grants frame confirmation. Each actual job consumes its frame confirmation. Pause/resume reflect device events, and stop confirms Idle before owned-file cleanup.
+- Edge / Negative Cases: Missing SD card, wrong model/module, oversized workspace, blocked status port, failed readback, status loss during upload/run, physical stop, and another application's overwritten pending file. A lost network must not be described as a stopped machine; use physical stop when software cannot confirm it.
+- Persistence / Reopen Check: Reconnect after relaunch without an automatic job replay or frame confirmation. A physical-button repeat is unowned work.
+- Undo / Redo Expectation: Runtime-only.
+- Status: Active; physical execution not run
+
 ## Camera
 
 ### CAM-001 — Camera Device Refresh, Select, And No-Profile State

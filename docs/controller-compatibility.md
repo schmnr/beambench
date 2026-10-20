@@ -146,6 +146,7 @@ beambench-cli machine connect-serial --port /dev/ttyUSB0 --controller marlin
 beambench-cli machine connect-serial --port /dev/ttyUSB0 --baud 460800 --controller laser-pecker
 beambench-cli machine connect-network --host 192.168.253.1 --controller laser-pecker
 beambench-cli machine connect-network --host 201.234.3.1 --controller xtool-m1
+beambench-cli machine connect-network --host 192.168.1.100 --controller xtool-d1
 beambench-cli machine connect-network --host 192.168.1.100 --controller ruida
 beambench-cli machine list-lihuiyu-usb
 ```
@@ -153,8 +154,8 @@ beambench-cli machine list-lihuiyu-usb
 Serial controller values are `auto-detect`, `grbl`, `fluid-nc`, `grbl-hal`,
 `laser-pecker`, `marlin`, `snapmaker`, `smoothieware`, and
 `generic-grbl-compatible`. Network controller values are `auto-detect`,
-`fluid-nc`, `grbl-hal`, `laser-pecker`, `xtool-m1`, `xtool-d1`, and `ruida`. xTool M1
-defaults to HTTP port 8080, LaserPecker defaults to TCP port 8888, Ruida defaults
+`fluid-nc`, `grbl-hal`, `laser-pecker`, `xtool-m1`, `xtool-d1`, and `ruida`. xTool M1 and D1
+default to HTTP port 8080, LaserPecker defaults to TCP port 8888, Ruida defaults
 to UDP port 50200, and the other Network choices default to TCP port 23.
 `list-lihuiyu-usb` returns the bus, address, and physical port chain needed
 by `connect-lihuiyu`.
