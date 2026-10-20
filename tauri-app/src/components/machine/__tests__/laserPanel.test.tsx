@@ -346,6 +346,20 @@ describe('LaserPanel', () => {
     expect(screen.getByTestId('job-progress-bar')).toBeDefined();
   });
 
+  it('keeps D1 framing laser-off even with Shift held', async () => {
+    setConnectedWithProject();
+    useMachineStore.setState({ controllerSelection: { mode: 'known_driver', driver: 'xtool_d1' } });
+    vi.mocked(machineService.frameJob).mockResolvedValueOnce(makeJobProgress({ state: 'ready_to_run' }));
+    render(<LaserPanel />);
+    expect((screen.getByTestId('laser-frame-toggle') as HTMLInputElement).disabled).toBe(true);
+    fireEvent.mouseMove(screen.getByTestId('frame-button'), { shiftKey: true });
+    expect(screen.getByTestId('frame-button').textContent).toBe('Frame');
+    fireEvent.click(screen.getByTestId('frame-button'), { shiftKey: true });
+    expect(screen.getByTestId('frame-button').textContent).toBe('Confirm Frame');
+    fireEvent.click(screen.getByTestId('frame-button'));
+    await waitFor(() => expect(machineService.frameJob).toHaveBeenCalledWith('rectangular', undefined, false, 1000));
+  });
+
   it('shift-held frame shows laser-on state before confirmation and passes the one-shot override', async () => {
     setConnectedWithProject();
     vi.mocked(machineService.frameJob).mockResolvedValueOnce(makeJobProgress({ state: 'running' }));

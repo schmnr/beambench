@@ -148,6 +148,9 @@ export function LaserPanel() {
   const setJobOrigin = useProjectStore((s) => s.setJobOrigin);
   const updateCutEntry = useProjectStore((s) => s.updateCutEntry);
   const sessionState = useMachineStore((s) => s.sessionState);
+  const laserOffFrameOnly = useMachineStore((s) =>
+    s.controllerSelection.mode === 'known_driver' && s.controllerSelection.driver === 'xtool_d1',
+  );
   const profiles = useMachineStore((s) => s.profiles) ?? [];
   const activeProfileId = useMachineStore((s) => s.activeProfileId);
   const jobProgress = useMachineStore((s) => s.jobProgress);
@@ -259,10 +262,10 @@ export function LaserPanel() {
           : 'from-gray-500 to-gray-700';
 
   const activeProfile = activeProfileId ? profiles.find((p) => p.id === activeProfileId) : null;
-  const profileLaserOnFraming = activeProfile?.laser_on_when_framing ?? false;
-  const laserOnFramingArmed = frameConfirm
+  const profileLaserOnFraming = !laserOffFrameOnly && (activeProfile?.laser_on_when_framing ?? false);
+  const laserOnFramingArmed = !laserOffFrameOnly && (frameConfirm
     ? frameLaserOnConfirm
-    : profileLaserOnFraming || laserFrameRequested || frameShiftArmed;
+    : profileLaserOnFraming || laserFrameRequested || frameShiftArmed);
 
   const isConnected =
     sessionState === 'ready' ||
@@ -305,7 +308,7 @@ export function LaserPanel() {
 
   const handleFrame = async (laserOnOverride: boolean) => {
     try {
-      await frameJob(frameMode, undefined, laserOnOverride);
+      await frameJob(frameMode, undefined, !laserOffFrameOnly && laserOnOverride);
       setFrameConfirm(false);
       setFrameLaserOnConfirm(false);
       setLaserFrameRequested(false);
@@ -317,7 +320,7 @@ export function LaserPanel() {
   };
 
   const handleFrameClick = (shiftKey: boolean) => {
-    const armed = profileLaserOnFraming || laserFrameRequested || shiftKey || frameShiftArmed;
+    const armed = !laserOffFrameOnly && (profileLaserOnFraming || laserFrameRequested || shiftKey || frameShiftArmed);
     if (frameConfirm) {
       void handleFrame(frameLaserOnConfirm || armed);
     } else {
@@ -543,7 +546,7 @@ export function LaserPanel() {
               }
             >
               {frameConfirm
-                ? frameLaserOnConfirm
+                ? laserOnFramingArmed
                   ? t('panels.machine.laser.confirm_laser_frame')
                   : t('panels.machine.laser.confirm_frame')
                 : laserOnFramingArmed
@@ -577,14 +580,14 @@ export function LaserPanel() {
                   laserOnFramingArmed
                     ? 'bg-bb-error-bg border-bb-error-border text-bb-error-fg'
                     : 'bg-bb-bg border-bb-border text-bb-text hover:bg-bb-hover'
-                } ${!canUseMotionControls || frameConfirm || profileLaserOnFraming ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                } ${laserOffFrameOnly || !canUseMotionControls || frameConfirm || profileLaserOnFraming ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 title={t('panels.machine.laser.laser_on_frame_warning')}
               >
                 <input
                   type="checkbox"
                   data-testid="laser-frame-toggle"
-                  checked={profileLaserOnFraming || laserFrameRequested}
-                  disabled={!canUseMotionControls || frameConfirm || profileLaserOnFraming}
+                  checked={!laserOffFrameOnly && (profileLaserOnFraming || laserFrameRequested)}
+                  disabled={laserOffFrameOnly || !canUseMotionControls || frameConfirm || profileLaserOnFraming}
                   onChange={(event) => setLaserFrameRequested(event.target.checked)}
                   className="accent-bb-error"
                 />
