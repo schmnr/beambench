@@ -26,6 +26,10 @@ pub enum ControllerModel {
     LaserPecker,
     #[serde(rename = "xtool_m1")]
     XToolM1,
+    #[serde(rename = "xtool_d1")]
+    XToolD1,
+    #[serde(rename = "xtool_d1_pro")]
+    XToolD1Pro,
     Marlin,
     Snapmaker,
     Smoothieware,

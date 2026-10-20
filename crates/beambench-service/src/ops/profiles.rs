@@ -1042,6 +1042,118 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             preferred_default_origin: Some(WorkspaceOrigin::BottomLeft),
         },
         MachineProfilePreset {
+            id: "xtool_d1_5w_10w_wifi",
+            version: 1,
+            name: "xTool D1 5W / 10W (Wi-Fi)",
+            description: "Experimental native Wi-Fi profile for stock xTool D1 blue-diode modules. Physical validation pending.",
+            advisory_text: Some(
+                "Select xTool D1 / D1 Pro under Network, port 8080; status also needs port 8081. Use Current Position at the laser spot. Frame and Start each upload a file, then wait for the physical button. Complete a laser-off Frame before Start. USB, crosshair offsets, rotary and extensions are not supported.",
+            ),
+            firmware_type: "xtool_d1",
+            default_baud_rate: 230400,
+            bed_width_mm: 432.0,
+            bed_height_mm: 406.0,
+            max_speed_mm_min: 6000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::TopLeft,
+            use_constant_power: false,
+            emit_s_every_g1: true,
+            use_g0_for_overscan: false,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
+        },
+        MachineProfilePreset {
+            id: "xtool_d1_pro_5w_10w_wifi",
+            version: 1,
+            name: "xTool D1 Pro 5W / 10W (Wi-Fi)",
+            description: "Experimental native Wi-Fi profile for stock xTool D1 blue-diode modules. Physical validation pending.",
+            advisory_text: Some(
+                "Select xTool D1 / D1 Pro under Network, port 8080; status also needs port 8081. Use Current Position at the laser spot. Frame and Start each upload a file, then wait for the physical button. Complete a laser-off Frame before Start. USB, crosshair offsets, rotary and extensions are not supported.",
+            ),
+            firmware_type: "xtool_d1",
+            default_baud_rate: 230400,
+            bed_width_mm: 430.0,
+            bed_height_mm: 400.0,
+            max_speed_mm_min: 6000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::TopLeft,
+            use_constant_power: false,
+            emit_s_every_g1: true,
+            use_g0_for_overscan: false,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
+        },
+        MachineProfilePreset {
+            id: "xtool_d1_pro_20w_wifi",
+            version: 1,
+            name: "xTool D1 Pro 20W (Wi-Fi)",
+            description: "Experimental native Wi-Fi profile for stock xTool D1 blue-diode modules. Physical validation pending.",
+            advisory_text: Some(
+                "Select xTool D1 / D1 Pro under Network, port 8080; status also needs port 8081. Use Current Position at the laser spot. Frame and Start each upload a file, then wait for the physical button. Complete a laser-off Frame before Start. USB, crosshair offsets, rotary and extensions are not supported.",
+            ),
+            firmware_type: "xtool_d1",
+            default_baud_rate: 230400,
+            bed_width_mm: 430.0,
+            bed_height_mm: 390.0,
+            max_speed_mm_min: 6000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::TopLeft,
+            use_constant_power: false,
+            emit_s_every_g1: true,
+            use_g0_for_overscan: false,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
+        },
+        MachineProfilePreset {
+            id: "xtool_d1_pro_40w_wifi",
+            version: 1,
+            name: "xTool D1 Pro 40W (Wi-Fi)",
+            description: "Experimental native Wi-Fi profile for stock xTool D1 blue-diode modules. Physical validation pending.",
+            advisory_text: Some(
+                "Select xTool D1 / D1 Pro under Network, port 8080; status also needs port 8081. Use Current Position at the laser spot. Frame and Start each upload a file, then wait for the physical button. Complete a laser-off Frame before Start. USB, crosshair offsets, rotary and extensions are not supported.",
+            ),
+            firmware_type: "xtool_d1",
+            default_baud_rate: 230400,
+            bed_width_mm: 430.0,
+            bed_height_mm: 348.0,
+            max_speed_mm_min: 6000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::TopLeft,
+            use_constant_power: false,
+            emit_s_every_g1: true,
+            use_g0_for_overscan: false,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::TopLeft),
+        },
+        MachineProfilePreset {
             id: "xtool_m1_original",
             version: 1,
             name: "xTool M1 (Original)",
@@ -1482,10 +1594,44 @@ fn diff_for_profile(
         &profile.preferred_default_origin,
         &preset.preferred_default_origin,
     );
+    if preset.firmware_type == "xtool_d1" {
+        push_diff(
+            &mut diff,
+            "enable_laser_offset",
+            &profile.enable_laser_offset,
+            &false,
+        );
+        push_diff(
+            &mut diff,
+            "enable_scanning_offset",
+            &profile.enable_scanning_offset,
+            &false,
+        );
+        push_diff(&mut diff, "rotary_enabled", &profile.rotary_enabled, &false);
+        push_diff(
+            &mut diff,
+            "supports_z_moves",
+            &profile.supports_z_moves,
+            &false,
+        );
+        push_diff(
+            &mut diff,
+            "home_on_connect",
+            &profile.home_on_connect,
+            &false,
+        );
+    }
     diff
 }
 
 fn apply_preset_fields(profile: &mut MachineProfile, preset: &MachineProfilePreset) {
+    if preset.firmware_type == "xtool_d1" {
+        profile.enable_laser_offset = false;
+        profile.enable_scanning_offset = false;
+        profile.rotary_enabled = false;
+        profile.supports_z_moves = false;
+        profile.home_on_connect = false;
+    }
     profile.preset_id = Some(preset.id.to_string());
     profile.preset_version = Some(preset.version);
     profile.bed_width_mm = preset.bed_width_mm;
@@ -2439,6 +2585,54 @@ mod tests {
         install_grbl_session_with_info(&ctx, &["Grbl 1.1h ['$' for help]", "$30=0", "ok"]);
         let applied = apply_profile_preset(&ctx, active.id, "twotrees_tt_5_5s").unwrap();
         assert_eq!(applied.profile.s_value_max, 1000);
+    }
+
+    #[test]
+    fn d1_presets_preview_and_clear_inherited_accessories_and_offsets() {
+        for (id, width, height) in [
+            ("xtool_d1_5w_10w_wifi", 432.0, 406.0),
+            ("xtool_d1_pro_5w_10w_wifi", 430.0, 400.0),
+            ("xtool_d1_pro_20w_wifi", 430.0, 390.0),
+            ("xtool_d1_pro_40w_wifi", 430.0, 348.0),
+        ] {
+            let preset = find_preset(id).unwrap();
+            assert_eq!((preset.bed_width_mm, preset.bed_height_mm), (width, height));
+            assert_eq!(preset.firmware_type, "xtool_d1");
+            assert_eq!(preset.s_value_max, 1000);
+            let mut profile = MachineProfile {
+                enable_laser_offset: true,
+                enable_scanning_offset: true,
+                rotary_enabled: true,
+                supports_z_moves: true,
+                home_on_connect: true,
+                ..Default::default()
+            };
+            let diff = diff_for_profile(&profile, &preset);
+            for field in [
+                "enable_laser_offset",
+                "enable_scanning_offset",
+                "rotary_enabled",
+                "supports_z_moves",
+                "home_on_connect",
+            ] {
+                assert!(
+                    diff.iter()
+                        .any(|change| change.field == field && change.new == false),
+                    "{id}: {field}"
+                );
+            }
+            apply_preset_fields(&mut profile, &preset);
+            assert!(diff_for_profile(&profile, &preset).is_empty());
+            assert!(
+                !profile.enable_laser_offset
+                    && !profile.enable_scanning_offset
+                    && !profile.rotary_enabled
+                    && !profile.supports_z_moves
+                    && !profile.home_on_connect
+            );
+            assert_eq!(profile.origin, WorkspaceOrigin::TopLeft);
+            assert!(profile.air_assist_on_gcode.is_empty() && profile.job_header_gcode.is_empty());
+        }
     }
 
     #[test]

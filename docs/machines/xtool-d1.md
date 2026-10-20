@@ -1,13 +1,36 @@
-# xTool D1 and D1 Pro support investigation
+# xTool D1 and D1 Pro support
 
-- Status: Needs review. No D1 or D1 Pro adapter or preset is available in Beam Bench.
+- Status: Experimental native Wi-Fi adapter and four stock-module presets, unreleased. USB remains under investigation.
 - Sources checked: October 20, 2026.
-- Proposed first scope: stock blue-diode modules, flat work, USB serial.
+- First scope: stock blue-diode modules, flat work, native Wi-Fi. USB is deferred.
 - Physical testing: not run. No D1-family machine was connected.
 
-## Protocol decision
+## Wi-Fi setup
 
-D1 support needs a controller adapter. Adding dimensions to a GRBL preset
+This capability is on `main` for the next release. It is not in v0.2.31.
+Choose **xTool D1 / D1 Pro Wi-Fi (Experimental)** under **Network**, enter the
+machine's LAN address and port **8080**, and allow status port **8081**.
+An inserted SD card and both services are required. Set up the machine's Wi-Fi
+with xTool's own software first, then close other controller applications.
+
+Apply the stock Wi-Fi preset for D1 5W/10W or D1 Pro 5W/10W, 20W or 40W.
+Use **Start From: Current Position**, a top-left workspace, and the **laser
+spot**, not the crosshair, as the positioning reference. Presets do not change
+a saved project's Start From mode. Manually position while idle, then run a
+laser-off **Frame**. After **Ready to run**, press the machine's physical
+button and wait for the frame to complete. Start then uploads the actual job
+and waits for the physical button again. Repeat framing if the head, material,
+profile or artwork changes. Keep the computer awake and supervise the machine.
+
+The [native protocol evidence and limits](xtool-d1-network-protocol.md) document
+identity, verified file readback, status events, stop recovery, coordinates and
+tests. Physical validation is pending. USB, IR, extension frames, rotary,
+crosshair offsets, manual jog/home/fire, automatic air and custom G-code are
+outside this first adapter.
+
+## USB protocol investigation
+
+D1 USB support needs a separate controller adapter. Adding dimensions to a GRBL preset
 would leave important control differences unresolved. The original M1's HTTP
 adapter also does not establish D1 compatibility.
 
@@ -116,9 +139,9 @@ The read-only reply examples are preserved in
 checks that neither acknowledgement order establishes GRBL readiness or an
 Idle state. This records a protocol gap; it does not claim a working D1 adapter.
 
-Machine profiles already store pointer and scanning offsets, but the preset
-application contract does not currently apply those fields. A D1 entry must
-include them in both its preview diff and application, with regression coverage.
+Machine profiles store pointer and scanning offsets. The native Wi-Fi presets
+explicitly clear inherited offset and accessory flags in both preview and
+application, with regression coverage. Native USB positioning remains separate.
 Start From behavior also needs an explicit decision; changing a profile must
 not silently rewrite a saved project's positioning mode.
 
@@ -130,7 +153,7 @@ status contract must not be reused merely because it also uses HTTP port 8080.
 No third-party code, vendor profile, firmware or binary is bundled by this
 investigation.
 
-## Evidence needed to implement the adapter
+## Evidence still needed for USB
 
 Extend the public serial observations with a published native specification or
 reviewed communication traces

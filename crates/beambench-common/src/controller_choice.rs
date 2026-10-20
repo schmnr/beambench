@@ -26,6 +26,8 @@ pub enum ControllerDriverId {
     LaserPecker,
     #[serde(rename = "xtool_m1")]
     XToolM1,
+    #[serde(rename = "xtool_d1")]
+    XToolD1,
     Marlin,
     Snapmaker,
     Smoothieware,

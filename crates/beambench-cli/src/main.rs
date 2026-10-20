@@ -335,6 +335,7 @@ enum ControllerArg {
     GrblHal,
     LaserPecker,
     XtoolM1,
+    XtoolD1,
     Marlin,
     Snapmaker,
     Smoothieware,
@@ -351,6 +352,7 @@ impl ControllerArg {
             Self::FluidNc => known_controller_selection("fluid_nc"),
             Self::GrblHal => known_controller_selection("grbl_hal"),
             Self::LaserPecker => known_controller_selection("laser_pecker"),
+            Self::XtoolD1 => known_controller_selection("xtool_d1"),
             Self::XtoolM1 => known_controller_selection("xtool_m1"),
             Self::Marlin => known_controller_selection("marlin"),
             Self::Snapmaker => known_controller_selection("snapmaker"),
@@ -400,6 +402,7 @@ enum NetworkControllerArg {
     GrblHal,
     LaserPecker,
     XtoolM1,
+    XtoolD1,
     Ruida,
 }
 
@@ -410,6 +413,7 @@ impl NetworkControllerArg {
             Self::FluidNc => ControllerArg::FluidNc.selection_json(),
             Self::GrblHal => ControllerArg::GrblHal.selection_json(),
             Self::LaserPecker => ControllerArg::LaserPecker.selection_json(),
+            Self::XtoolD1 => known_controller_selection("xtool_d1"),
             Self::XtoolM1 => ControllerArg::XtoolM1.selection_json(),
             Self::Ruida => ControllerArg::Ruida.selection_json(),
         }
@@ -419,6 +423,7 @@ impl NetworkControllerArg {
         match self {
             Self::Ruida => 50200,
             Self::LaserPecker => 8888,
+            Self::XtoolD1 => 8080,
             Self::XtoolM1 => 8080,
             Self::AutoDetect | Self::FluidNc | Self::GrblHal => 23,
         }

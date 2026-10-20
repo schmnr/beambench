@@ -313,7 +313,7 @@ async fn connect_controller_network(
             driver: ControllerDriverId::LaserPecker,
         } => 8888,
         ControllerSelection::KnownDriver {
-            driver: ControllerDriverId::XToolM1,
+            driver: ControllerDriverId::XToolD1 | ControllerDriverId::XToolM1,
         } => 8080,
         _ => 23,
     });

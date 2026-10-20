@@ -6,6 +6,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+beambench-core = { path = "../beambench-core" }
+serde = { workspace = true }
 beambench-grbl = { path = "../beambench-grbl" }
 beambench-planner = { path = "../beambench-planner" }
 serde_json = { workspace = true }

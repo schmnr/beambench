@@ -1547,6 +1547,11 @@ fn stream_job(
                     })?,
             )
         }
+        MachineSessionHandle::XToolD1(_) => {
+            return Err(ServiceError::invalid_state(
+                "Run xTool D1 test patterns as a normal Current Position job after a laser-off Frame",
+            ));
+        }
         MachineSessionHandle::XToolM1(session) => {
             if event_name == "job.frame.started" {
                 return Err(ServiceError::invalid_state(

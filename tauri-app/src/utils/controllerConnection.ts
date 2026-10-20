@@ -24,12 +24,14 @@ export const GCODE_HOST_PLACEHOLDER = 'fluidnc.local';
 export const RUIDA_DEFAULT_PORT = 50200;
 export const LASERPECKER_DEFAULT_PORT = 8888;
 export const XTOOL_M1_DEFAULT_PORT = 8080;
+export const XTOOL_D1_DEFAULT_PORT = 8080;
 export const GCODE_DEFAULT_PORT = 23;
 
-export type NetworkControllerKind = 'gcode' | 'laserpecker' | 'xtool_m1' | 'ruida';
+export type NetworkControllerKind = 'gcode' | 'laserpecker' | 'xtool_m1' | 'xtool_d1' | 'ruida';
 
 function defaultPortForController(controller: NetworkControllerKind): number {
   if (controller === 'laserpecker') return LASERPECKER_DEFAULT_PORT;
+  if (controller === 'xtool_d1') return XTOOL_D1_DEFAULT_PORT;
   if (controller === 'xtool_m1') return XTOOL_M1_DEFAULT_PORT;
   if (controller === 'ruida') return RUIDA_DEFAULT_PORT;
   return GCODE_DEFAULT_PORT;

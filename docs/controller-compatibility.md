@@ -28,10 +28,9 @@ entries do not cover the RAY5 mini/miniS or Nano families.
 The [common GRBL USB expansion](machines/common-grbl-usb-presets.md) adds exact
 Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun and Two Trees
 configurations, also documentation-based. These presets do not establish
-brand-wide compatibility or cover the xTool D1/D1 Pro. The
-[D1/D1 Pro investigation](machines/xtool-d1.md) records their vendor profile
-settings and the native serial protocol evidence still needed. Those machines
-do not yet have a Beam Bench adapter or preset.
+brand-wide compatibility. D1/D1 Pro use a separate [native Wi-Fi adapter](machines/xtool-d1.md)
+and stock-module presets on unreleased `main`; USB remains deferred.
+
 
 | Controller choice | Connection | Status | Current scope |
 | --- | --- | --- | --- |
@@ -41,6 +40,7 @@ do not yet have a Beam Bench adapter or preset.
 | grblHAL | Serial or Network (TCP, normally port 23) | Experimental | Requires exact grblHAL firmware identity and uses the normal GRBL-family job and machine controls. |
 | LaserPecker LX1 / LX1 Max, LP2 Plus, LP4 / LP4 Safeguard, LP5 | Serial (460800 baud) | Experimental | Explicit LaserPecker adapter with official-profile workspaces, power scales, top-left coordinates, regular-mode commands, dual-laser selection for LP4/LP5, and shared GRBL-family jobs and controls. |
 | LaserPecker LX2 | Network (GRBL/TCP port 8888) | Experimental | Explicit LaserPecker adapter with the official 500 x 305 mm, S0-1000 profile and required `START_PRINT` job header. |
+| xTool D1 5W/10W, D1 Pro 5W/10W/20W/40W stock blue diode | Native Wi-Fi, HTTP 8080 and status WebSocket 8081 | Experimental, unreleased | Verified native file upload, physical-button start, vector/raster, required laser-off frame, confirmed pause/resume and stop. Current Position at the laser spot only. Physical validation pending; no USB, IR, extension, rotary, jog/home/fire or automatic air. |
 | xTool M1 (original 5W/10W, not M1 Ultra) | Network (HTTP port 8080 over Wi-Fi or the USB network interface) | Experimental | Native M1 file upload with vector and raster jobs, material-thickness focus calculation, physical-button start, status polling, pause/resume, cancel, and emergency stop. Framing, camera alignment, blade mode, rotary mode, riser/open-plane focusing, jogging, homing, and raw G-code are not exposed. |
 | Generic GRBL-compatible | Serial or Network (TCP) | Experimental | Explicit fallback for unidentified or rebranded GRBL-compatible firmware. Job, frame, jog, unlock, origin, and pause/resume are available; homing remains hidden. |
 | Standard Marlin | Serial | Experimental | Requires a standard Marlin `M115` identity. Vector, raster, perforation, frame, custom G-code, air-assist, Z-offset, and finish-position output are supported. Manual motion and pause/resume are not yet exposed; cancel requires reconnecting. |
@@ -153,7 +153,7 @@ beambench-cli machine list-lihuiyu-usb
 Serial controller values are `auto-detect`, `grbl`, `fluid-nc`, `grbl-hal`,
 `laser-pecker`, `marlin`, `snapmaker`, `smoothieware`, and
 `generic-grbl-compatible`. Network controller values are `auto-detect`,
-`fluid-nc`, `grbl-hal`, `laser-pecker`, `xtool-m1`, and `ruida`. xTool M1
+`fluid-nc`, `grbl-hal`, `laser-pecker`, `xtool-m1`, `xtool-d1`, and `ruida`. xTool M1
 defaults to HTTP port 8080, LaserPecker defaults to TCP port 8888, Ruida defaults
 to UDP port 50200, and the other Network choices default to TCP port 23.
 `list-lihuiyu-usb` returns the bus, address, and physical port chain needed

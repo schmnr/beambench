@@ -18,6 +18,12 @@ afterEach(() => {
 const FINISHING_KEY = /Finishing, waiting for the machine/;
 
 describe('JobProgressBar', () => {
+  it('explains physical start after a file upload', () => {
+    useMachineStore.setState({ jobProgress: makeJobProgress({ state: 'ready_to_run' }) });
+    render(<JobProgressBar />);
+    expect(screen.getByText(/Press the machine's physical start button/)).toBeTruthy();
+  });
+
   it('renders nothing without job progress', () => {
     const { container } = render(<JobProgressBar />);
     expect(container.firstChild).toBeNull();

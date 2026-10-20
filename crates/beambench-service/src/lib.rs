@@ -16,6 +16,9 @@ mod power;
 mod ruida_runtime;
 pub mod runtime;
 pub mod validation;
+mod xtool_d1_runtime;
+#[cfg(test)]
+mod xtool_d1_tests;
 mod xtool_runtime;
 
 pub use context::ServiceContext;

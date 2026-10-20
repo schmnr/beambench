@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add Experimental native Wi-Fi support for stock xTool D1 5W/10W and D1 Pro
+  5W/10W/20W/40W blue-diode modules. Verify file readback, use physical-button
+  start and ordered status confirmation, and require a laser-off frame before
+  Current Position jobs. Include stock-module presets and protocol evidence.
+  Physical validation is pending; USB and accessory modes remain deferred.
+
 - Add 24 documentation-based GRBL USB presets across Ortur/Aufero, AtomStack
   Pro V2, standard Creality Falcon2, Sculpfun S10/S30/Ultra and Two Trees
   TTS/TS2 configurations. Use model-specific workspaces, power modes and

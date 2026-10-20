@@ -33,6 +33,7 @@ describe('ControllerChoiceControls', () => {
       mode: 'known_driver',
       driver: 'laser_pecker',
     });
+    expect(controllerSelectionFromValue('xtool_d1')).toEqual({ mode: 'known_driver', driver: 'xtool_d1' });
     expect(controllerSelectionFromValue('xtool_m1')).toEqual({
       mode: 'known_driver',
       driver: 'xtool_m1',
@@ -151,6 +152,7 @@ describe('ControllerChoiceControls', () => {
       'FluidNC (Experimental)',
       'grblHAL (Experimental)',
       'LaserPecker (Experimental)',
+      'xTool D1 / D1 Pro Wi-Fi (Experimental)',
       'Original xTool M1 (Experimental)',
       'Ruida (Experimental)',
     ]);

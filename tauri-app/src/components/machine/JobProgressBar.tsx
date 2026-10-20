@@ -54,6 +54,12 @@ export function JobProgressBar() {
         />
       </div>
 
+      {jobProgress.state === 'ready_to_run' && (
+        <div className="text-xs text-bb-text-muted">
+          {t('panels.machine.job_progress.physical_start')}
+        </div>
+      )}
+
       {isFinishing && (
         <div className="text-xs text-bb-text-muted">
           {t('panels.machine.job_progress.finishing')}

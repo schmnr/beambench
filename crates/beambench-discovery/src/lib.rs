@@ -22,6 +22,8 @@ fn capabilities_for_model(model: ControllerModel) -> DeviceCapabilities {
         | ControllerModel::FluidNc
         | ControllerModel::GrblHal
         | ControllerModel::LaserPecker
+        | ControllerModel::XToolD1
+        | ControllerModel::XToolD1Pro
         | ControllerModel::XToolM1
         | ControllerModel::Marlin
         | ControllerModel::Snapmaker
@@ -49,6 +51,8 @@ fn compatibility_for_model(
         | ControllerModel::FluidNc
         | ControllerModel::GrblHal
         | ControllerModel::LaserPecker
+        | ControllerModel::XToolD1
+        | ControllerModel::XToolD1Pro
         | ControllerModel::XToolM1
         | ControllerModel::Marlin
         | ControllerModel::Snapmaker

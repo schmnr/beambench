@@ -155,7 +155,7 @@ pub struct ServiceContext {
     pub session_epoch: AtomicU64,
     /// The connected xTool's address, readable without the session lock so
     /// Emergency Stop can reach it while the session is busy.
-    pub xtool_stop_endpoint: Mutex<Option<(String, u16)>>,
+    pub xtool_stop_endpoint: Mutex<Option<(String, u16, beambench_common::ControllerDriverId)>>,
     /// True only after the current connection has established machine
     /// coordinates. G53 absolute machine-coordinate moves require this.
     pub machine_coordinates_valid: AtomicBool,

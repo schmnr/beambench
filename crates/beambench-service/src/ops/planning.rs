@@ -393,6 +393,9 @@ pub fn sync_current_position(ctx: &ServiceContext) -> ServiceResult<()> {
                 let wp = &session.machine_status.work_position;
                 (Some((wp.x, wp.y)), true)
             }
+            // The native file sets G92 at the current laser spot. This is a
+            // job-local anchor, not a measured or homed machine position.
+            Some(MachineSessionHandle::XToolD1(_)) => (Some((0.0, 0.0)), false),
             Some(_) => (None, true),
             None => (None, false),
         }
@@ -403,6 +406,7 @@ pub fn sync_current_position(ctx: &ServiceContext) -> ServiceResult<()> {
                 ctx.machine_coordinates_valid.load(Ordering::Acquire)
                     && session.work_to_machine_offset().is_some()
             }
+            Some(MachineSessionHandle::XToolD1(_)) => false,
             Some(_) => true,
             None => false,
         };
@@ -662,6 +666,12 @@ pub fn prepare_gcode_export(
     options: &SessionJobOptions,
 ) -> ServiceResult<(ExecutionPlan, GcodeSpool)> {
     let (plan, project, profile) = prepare_job_snapshot(ctx, options)?;
+    if profile.firmware_type.eq_ignore_ascii_case("xtool_d1") {
+        return Err(ServiceError::invalid_state(
+            "The xTool D1 Wi-Fi adapter prepares native files through Frame and Start. Generic GRBL G-code export is unavailable for this profile.",
+        ));
+    }
+
     if plan.segments.is_empty() {
         return Err(ServiceError::invalid_state(
             "Cannot export G-code because the job contains no output paths",

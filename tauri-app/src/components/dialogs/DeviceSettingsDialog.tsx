@@ -305,13 +305,15 @@ function ConnectionTab({ active }: { active: boolean }) {
     controllerSelection.mode === 'known_driver' && controllerSelection.driver === 'laser_pecker';
   const xtoolM1Selected =
     controllerSelection.mode === 'known_driver' && controllerSelection.driver === 'xtool_m1';
+  const xtoolD1Selected =
+    controllerSelection.mode === 'known_driver' && controllerSelection.driver === 'xtool_d1';
   const networkController: NetworkControllerKind = ruidaSelected
     ? 'ruida'
     : laserPeckerSelected
       ? 'laserpecker'
       : xtoolM1Selected
         ? 'xtool_m1'
-        : 'gcode';
+        : xtoolD1Selected ? 'xtool_d1' : 'gcode';
   const previousNetworkController = useRef<NetworkControllerKind>('gcode');
   const restoredProfileId = useRef<string | null>(null);
 
@@ -360,7 +362,8 @@ function ConnectionTab({ active }: { active: boolean }) {
           : preference.controller_selection.mode === 'known_driver' &&
               preference.controller_selection.driver === 'xtool_m1'
             ? 'xtool_m1'
-            : 'gcode';
+            : preference.controller_selection.mode === 'known_driver' && preference.controller_selection.driver === 'xtool_d1'
+              ? 'xtool_d1' : 'gcode';
     setControllerSelection(preference.controller_selection);
     if (preference.type === 'serial') {
       setTransportKind(SERIAL_TRANSPORT);
@@ -574,7 +577,7 @@ function ConnectionTab({ active }: { active: boolean }) {
                     ? LASERPECKER_HOST_PLACEHOLDER
                     : xtoolM1Selected
                       ? xtoolM1Host
-                      : GCODE_HOST_PLACEHOLDER
+                      : xtoolD1Selected ? '192.168.1.100' : GCODE_HOST_PLACEHOLDER
               }
               className="min-w-0 rounded border border-bb-border bg-bb-bg px-2 py-1 text-bb-text disabled:opacity-60"
               data-testid="device-settings-network-host"

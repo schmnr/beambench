@@ -233,6 +233,9 @@ fn driver_for_identity(identity: &PositiveControllerIdentity) -> Option<Controll
         (ControllerFamily::Gcode, ControllerModel::LaserPecker) => {
             Some(ControllerDriverId::LaserPecker)
         }
+        (ControllerFamily::Gcode, ControllerModel::XToolD1 | ControllerModel::XToolD1Pro) => {
+            Some(ControllerDriverId::XToolD1)
+        }
         (ControllerFamily::Gcode, ControllerModel::XToolM1) => Some(ControllerDriverId::XToolM1),
         (ControllerFamily::Gcode, ControllerModel::Marlin) => Some(ControllerDriverId::Marlin),
         (ControllerFamily::Gcode, ControllerModel::Snapmaker) => {
@@ -253,7 +256,7 @@ fn driver_is_available(driver: ControllerDriverId) -> bool {
     match driver {
         ControllerDriverId::Grbl => true,
         ControllerDriverId::LaserPecker => true,
-        ControllerDriverId::XToolM1 => true,
+        ControllerDriverId::XToolD1 | ControllerDriverId::XToolM1 => true,
         ControllerDriverId::FluidNc => {
             FluidNcSerialAdapter::new().descriptor().transport_kind == TransportKind::Serial
         }
@@ -288,6 +291,7 @@ fn driver_runs_experimentally(driver: ControllerDriverId) -> bool {
             | ControllerDriverId::Smoothieware
             | ControllerDriverId::Ruida
             | ControllerDriverId::Lihuiyu
+            | ControllerDriverId::XToolD1
             | ControllerDriverId::XToolM1
     )
 }
@@ -316,7 +320,7 @@ fn driver_supports_transport(driver: ControllerDriverId, transport: TransportKin
             GrblHalNetworkAdapter::new().descriptor().transport_kind == TransportKind::Tcp
         }
         (ControllerDriverId::LaserPecker, TransportKind::Tcp) => true,
-        (ControllerDriverId::XToolM1, TransportKind::Tcp) => true,
+        (ControllerDriverId::XToolD1 | ControllerDriverId::XToolM1, TransportKind::Tcp) => true,
         (ControllerDriverId::Ruida, TransportKind::Udp) => {
             RuidaEthernetAdapter::new().descriptor().transport_kind == TransportKind::Udp
         }

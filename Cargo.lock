@@ -773,6 +773,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "tungstenite",
  "u-nesting-d2",
  "uuid",
  "zbus",
@@ -860,9 +861,11 @@ name = "beambench-xtool"
 version = "0.2.31"
 dependencies = [
  "beambench-common",
+ "beambench-core",
  "beambench-grbl",
  "beambench-planner",
  "chrono",
+ "serde",
  "serde_json",
  "thiserror 2.0.18",
  "uuid",

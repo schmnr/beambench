@@ -12,6 +12,11 @@ import {
   xtoolM1DefaultHost,
 } from '../controllerConnection';
 
+it('uses native D1 HTTP port and preserves custom endpoints', () => {
+  expect(defaultPortForDriverSwitch(GCODE_DEFAULT_PORT, 'gcode', 'xtool_d1')).toBe(8080);
+  expect(defaultPortForDriverSwitch(9000, 'gcode', 'xtool_d1')).toBe(9000);
+});
+
 describe('defaultPortForDriverSwitch', () => {
   it('switches to the Ruida UDP port only from the default G-code port', () => {
     expect(defaultPortForDriverSwitch(GCODE_DEFAULT_PORT, 'gcode', 'ruida')).toBe(
