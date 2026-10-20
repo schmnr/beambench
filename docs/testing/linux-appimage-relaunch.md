@@ -36,7 +36,8 @@ The packaged probe checks real `appsink`, `v4l2src` and `videoconvert` loading,
 three synthetic frames, and font discovery. It repeats with inherited 0.2.30,
 0.2.31, custom-font and mount-marker environments whose old mount does not
 exist. Unit cases also preserve explicit empty/custom plugin settings, spaces,
-empty path components and unrelated directories with the same name prefix.
+empty path components, renamed AppImages and unrelated directories with the
+same name prefix.
 These restart cases fail against the published 0.2.31 runtime policy.
 
 The test replaces only the extracted desktop binary, leaving the AppRun shell,

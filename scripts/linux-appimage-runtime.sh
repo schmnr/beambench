@@ -13,7 +13,7 @@ fi
 # This fallback covers legacy launches with an explicit custom font config.
 beambench_legacy_gst_paths="${GST_PLUGIN_SYSTEM_PATH_1_0-}:${GST_PLUGIN_SYSTEM_PATH-}"
 if [ -z "$beambench_previous_appdir" ] &&
-    [[ "$beambench_legacy_gst_paths" =~ (^|:)(/[^:]*/\.mount_Beam\.B[^:/]*)/usr/lib/gstreamer(-1\.0)?(:|$) ]]; then
+    [[ "$beambench_legacy_gst_paths" =~ (^|:)(/[^:]*/\.mount_[^:/]*)/usr/lib/gstreamer(-1\.0)?(:|$) ]]; then
   beambench_previous_appdir="${BASH_REMATCH[2]}"
 fi
 

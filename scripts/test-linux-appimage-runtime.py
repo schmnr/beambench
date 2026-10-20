@@ -27,7 +27,8 @@ class RuntimePolicyTests(unittest.TestCase):
     def test_relaunch_cleans_previous_mount_paths_and_preserves_user_overrides(self):
         with tempfile.TemporaryDirectory(prefix='camera restart ') as temporary:
             root = Path(temporary)
-            previous = '/tmp/.mount_Beam.Bprevious'
+            # The mount prefix follows the AppImage filename, which users can rename.
+            previous = '/tmp/.mount_RenamedLaser123'
             executable = root / 'beambench-tauri'
             shutil.copyfile(SCRIPTS / 'linux-appimage-exec.sh', executable)
             executable.chmod(0o755)
@@ -235,7 +236,7 @@ printf 'packaged camera pipeline passed\\n'
             binary.chmod(0o755)
             env['GST_REGISTRY_1_0'] = str(root / 'registry.bin')
             env['APPDIR'] = str(appdir)
-            previous = str(root / '.mount_Beam.Bprevious')
+            previous = str(root / '.mount_RenamedLaser123')
             for inherited in [
                 {},
                 {'FONTCONFIG_FILE': previous + '/usr/share/beambench/fonts.conf',
