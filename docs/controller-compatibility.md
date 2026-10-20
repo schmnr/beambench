@@ -25,6 +25,10 @@ other RAY5 firmware, offline controls or accessories. The additional
 are also documentation-based USB configurations. RAY5 20W starts at a smaller
 375 x 365 mm workspace because LONGER's published dimensions conflict. These
 entries do not cover the RAY5 mini/miniS or Nano families.
+The [common GRBL USB expansion](machines/common-grbl-usb-presets.md) adds exact
+Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun and Two Trees
+configurations, also documentation-based. These presets do not establish
+brand-wide compatibility or cover the xTool D1/D1 Pro.
 
 | Controller choice | Connection | Status | Current scope |
 | --- | --- | --- | --- |

@@ -2250,6 +2250,102 @@
             "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
             "advisory": "450 x 440 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "ortur_lm3_10w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "ortur_lm3_20w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 380 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "ortur_lm3_40w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 380 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "aufero_laser_1": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "180 x 180 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "aufero_laser_2": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "390 x 390 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 365 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Usa il punto laser per il posizionamento. Il mirino e la messa a fuoco automatica richiedono una configurazione separata."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 365 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Usa il punto laser per il posizionamento. Il mirino e la messa a fuoco automatica richiedono una configurazione separata."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "385 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Usa il punto laser per il posizionamento. Il mirino e la messa a fuoco automatica richiedono una configurazione separata."
+          },
+          "creality_falcon2_12w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 415 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "creality_falcon2_22w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 415 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "creality_falcon2_40w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 415 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "sculpfun_s10": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "385 x 385 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "380 x 385 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "590 x 595 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "590 x 595 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "590 x 595 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "twotrees_tts_55": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "300 x 300 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "300 x 300 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "300 x 300 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "418 x 418 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "450 x 450 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "410 x 410 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
           "longer_ray5_10w": {
             "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
             "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."

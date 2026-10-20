@@ -2250,6 +2250,102 @@
             "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
             "advisory": "450 x 440 mm, początek z przodu po lewej, S1000, nadmuch M8/M9. Sprawdź $30, $32=1, krańcówki i pompę. Automatyczne bazowanie jest domyślnie wyłączone. Zmodyfikowane maszyny wymagają osobnej konfiguracji."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "ortur_lm3_10w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "ortur_lm3_20w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 380 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "ortur_lm3_40w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 380 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "aufero_laser_1": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "180 x 180 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "aufero_laser_2": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "390 x 390 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 365 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Do pozycjonowania używaj punktu lasera. Celownik krzyżowy i autofokus wymagają osobnej konfiguracji."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 365 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Do pozycjonowania używaj punktu lasera. Celownik krzyżowy i autofokus wymagają osobnej konfiguracji."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "385 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Do pozycjonowania używaj punktu lasera. Celownik krzyżowy i autofokus wymagają osobnej konfiguracji."
+          },
+          "creality_falcon2_12w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 415 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "creality_falcon2_22w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 415 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "creality_falcon2_40w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "400 x 415 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."
+          },
+          "sculpfun_s10": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "385 x 385 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Stała moc (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "380 x 385 mm, początek z przodu po lewej, S1000, nadmuch M8/M9. Sprawdź $30, $32=1, krańcówki i pompę. Automatyczne bazowanie jest domyślnie wyłączone. Zmodyfikowane maszyny wymagają osobnej konfiguracji."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "590 x 595 mm, początek z przodu po lewej, S1000, nadmuch M8/M9. Sprawdź $30, $32=1, krańcówki i pompę. Automatyczne bazowanie jest domyślnie wyłączone. Zmodyfikowane maszyny wymagają osobnej konfiguracji."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "590 x 595 mm, początek z przodu po lewej, S1000, nadmuch M8/M9. Sprawdź $30, $32=1, krańcówki i pompę. Automatyczne bazowanie jest domyślnie wyłączone. Zmodyfikowane maszyny wymagają osobnej konfiguracji."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "590 x 595 mm, początek z przodu po lewej, S1000, nadmuch M8/M9. Sprawdź $30, $32=1, krańcówki i pompę. Automatyczne bazowanie jest domyślnie wyłączone. Zmodyfikowane maszyny wymagają osobnej konfiguracji."
+          },
+          "twotrees_tts_55": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "300 x 300 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Stała moc (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "300 x 300 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Stała moc (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "300 x 300 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Stała moc (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "418 x 418 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Stała moc (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "450 x 450 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Stała moc (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
+            "advisory": "410 x 410 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji. Stała moc (M3)."
+          },
           "longer_ray5_10w": {
             "description": "Ustawienie USB dla GRBL 1.1 oparte na dokumentacji. Testy na maszynie nie zostały jeszcze wykonane.",
             "advisory": "400 x 400 mm, początek z przodu po lewej, S1000. Sprawdź $30 i tryb lasera $32=1. Bazowanie i automatyczny nadmuch są wyłączone. Inne oprogramowanie układowe i rozszerzenia wymagają osobnej konfiguracji."

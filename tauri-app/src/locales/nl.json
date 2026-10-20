@@ -2250,6 +2250,102 @@
             "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
             "advisory": "450 x 440 mm, oorsprong linksvoor, S1000, M8/M9-luchtondersteuning. Controleer $30, $32=1, eindschakelaars en pomp. Automatisch homen staat standaard uit. Aangepaste machines vereisen een aparte configuratie."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "ortur_lm3_10w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "ortur_lm3_20w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 380 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "ortur_lm3_40w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 380 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "aufero_laser_1": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "180 x 180 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "aufero_laser_2": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "390 x 390 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 365 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Gebruik de laserspot voor positionering. Positionering met het dradenkruis en autofocus vereisen aparte instellingen."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 365 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Gebruik de laserspot voor positionering. Positionering met het dradenkruis en autofocus vereisen aparte instellingen."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "385 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Gebruik de laserspot voor positionering. Positionering met het dradenkruis en autofocus vereisen aparte instellingen."
+          },
+          "creality_falcon2_12w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 415 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "creality_falcon2_22w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 415 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "creality_falcon2_40w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 415 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "sculpfun_s10": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "385 x 385 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Constant vermogen (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "380 x 385 mm, oorsprong linksvoor, S1000, M8/M9-luchtondersteuning. Controleer $30, $32=1, eindschakelaars en pomp. Automatisch homen staat standaard uit. Aangepaste machines vereisen een aparte configuratie."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "590 x 595 mm, oorsprong linksvoor, S1000, M8/M9-luchtondersteuning. Controleer $30, $32=1, eindschakelaars en pomp. Automatisch homen staat standaard uit. Aangepaste machines vereisen een aparte configuratie."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "590 x 595 mm, oorsprong linksvoor, S1000, M8/M9-luchtondersteuning. Controleer $30, $32=1, eindschakelaars en pomp. Automatisch homen staat standaard uit. Aangepaste machines vereisen een aparte configuratie."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "590 x 595 mm, oorsprong linksvoor, S1000, M8/M9-luchtondersteuning. Controleer $30, $32=1, eindschakelaars en pomp. Automatisch homen staat standaard uit. Aangepaste machines vereisen een aparte configuratie."
+          },
+          "twotrees_tts_55": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "300 x 300 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Constant vermogen (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "300 x 300 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Constant vermogen (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "300 x 300 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Constant vermogen (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "418 x 418 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Constant vermogen (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "450 x 450 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Constant vermogen (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "410 x 410 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Constant vermogen (M3)."
+          },
           "longer_ray5_10w": {
             "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
             "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."

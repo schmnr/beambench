@@ -2250,6 +2250,102 @@
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "450 x 440 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "ortur_lm3_10w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "ortur_lm3_20w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 380 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "ortur_lm3_40w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 380 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "aufero_laser_1": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "180 x 180 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "aufero_laser_2": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "390 x 390 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 365 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Brug laserpunktet til positionering. Trådkorspositionering og autofokus kræver separat opsætning."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 365 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Brug laserpunktet til positionering. Trådkorspositionering og autofokus kræver separat opsætning."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "385 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Brug laserpunktet til positionering. Trådkorspositionering og autofokus kræver separat opsætning."
+          },
+          "creality_falcon2_12w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 415 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "creality_falcon2_22w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 415 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "creality_falcon2_40w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 415 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "sculpfun_s10": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "385 x 385 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "380 x 385 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "590 x 595 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "590 x 595 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "590 x 595 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "twotrees_tts_55": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "300 x 300 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "300 x 300 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "300 x 300 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "418 x 418 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "450 x 450 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "410 x 410 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
           "longer_ray5_10w": {
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."

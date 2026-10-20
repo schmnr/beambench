@@ -2250,6 +2250,102 @@
             "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
             "advisory": "450 x 440 mm, origo fram till vänster, S1000, luftassistans M8/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "ortur_lm3_10w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "ortur_lm3_20w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 380 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "ortur_lm3_40w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 380 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "aufero_laser_1": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "180 x 180 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "aufero_laser_2": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "390 x 390 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 365 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Använd laserpunkten för positionering. Hårkorspositionering och autofokus kräver separata inställningar."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 365 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Använd laserpunkten för positionering. Hårkorspositionering och autofokus kräver separata inställningar."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "385 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Använd laserpunkten för positionering. Hårkorspositionering och autofokus kräver separata inställningar."
+          },
+          "creality_falcon2_12w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 415 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "creality_falcon2_22w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 415 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "creality_falcon2_40w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "400 x 415 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."
+          },
+          "sculpfun_s10": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "385 x 385 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "380 x 385 mm, origo fram till vänster, S1000, luftassistans M8/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "590 x 595 mm, origo fram till vänster, S1000, luftassistans M8/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "590 x 595 mm, origo fram till vänster, S1000, luftassistans M8/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "590 x 595 mm, origo fram till vänster, S1000, luftassistans M8/M9. Kontrollera $30, $32=1, gränslägesbrytare och pump. Automatisk hemkörning är av som standard. Modifierade maskiner kräver separat inställning."
+          },
+          "twotrees_tts_55": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "300 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "300 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "300 x 300 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "418 x 418 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "450 x 450 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
+            "advisory": "410 x 410 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning. Konstant effekt (M3)."
+          },
           "longer_ray5_10w": {
             "description": "USB-förinställning för GRBL 1.1 baserad på dokumentation. Tester på maskinen återstår.",
             "advisory": "400 x 400 mm, origo fram till vänster, S1000. Kontrollera $30 och laserläge $32=1. Referenskörning och automatisk luftassistans är avstängda. Annan firmware och utbyggnader kräver separat inställning."

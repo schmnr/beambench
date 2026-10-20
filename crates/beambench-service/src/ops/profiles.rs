@@ -364,8 +364,255 @@ fn fresh_profile_id(existing: &[MachineProfile]) -> MachineProfileId {
     }
 }
 
+// Common starting defaults only. Model scope and sources:
+// docs/machines/common-grbl-usb-presets.md.
+fn documented_grbl_usb_preset(
+    id: &'static str,
+    name: &'static str,
+    bed_width_mm: f64,
+    bed_height_mm: f64,
+    advisory: &'static str,
+) -> MachineProfilePreset {
+    MachineProfilePreset {
+        id,
+        version: 1,
+        name,
+        description: "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+        advisory_text: Some(advisory),
+        firmware_type: "grbl",
+        default_baud_rate: 115_200,
+        bed_width_mm,
+        bed_height_mm,
+        max_speed_mm_min: 6000.0,
+        max_power_percent: 100.0,
+        s_value_max: 1000,
+        homing_enabled: false,
+        origin: WorkspaceOrigin::BottomLeft,
+        use_constant_power: false,
+        emit_s_every_g1: false,
+        use_g0_for_overscan: false,
+        air_assist_on_gcode: "",
+        air_assist_off_gcode: "",
+        air_assist_on_delay_ms: 0,
+        job_header_gcode: "",
+        job_footer_gcode: "",
+        transfer_mode: TransferMode::Buffered,
+        preferred_default_origin: Some(WorkspaceOrigin::BottomLeft),
+    }
+}
+
 pub fn profile_presets() -> Vec<MachineProfilePreset> {
     vec![
+        // Documentation-based model entries: docs/machines/common-grbl-usb-presets.md.
+        documented_grbl_usb_preset(
+            "ortur_lm2_pro_s2",
+            "Ortur Laser Master 2 Pro S2 (LU2-2 / LU2-4)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_10w",
+            "Ortur Laser Master 3 10W (LU2-10A)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_20w",
+            "Ortur Laser Master 3 20W (LU3-20A)",
+            400.0,
+            380.0,
+            "400 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_40w",
+            "Ortur Laser Master 3 40W (LU3-40A)",
+            400.0,
+            380.0,
+            "400 x 380 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "ortur_lm3_le_10w",
+            "Ortur Laser Master 3 LE 10W (LU2-10A)",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            ..documented_grbl_usb_preset(
+                "aufero_laser_1",
+                "Aufero Laser 1 (LU2-2 / LU2-4)",
+                180.0,
+                180.0,
+                "180 x 180 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            )
+        },
+        documented_grbl_usb_preset(
+            "aufero_laser_2",
+            "Aufero Laser 2 (LU2-2 / LU2-4)",
+            390.0,
+            390.0,
+            "390 x 390 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "atomstack_a10_pro_v2",
+            "AtomStack A10 Pro V2",
+            400.0,
+            365.0,
+            "400 x 365 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Use laser-spot positioning. Crosshair positioning and autofocus need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "atomstack_a20_pro_v2",
+            "AtomStack A20 Pro V2",
+            400.0,
+            365.0,
+            "400 x 365 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Use laser-spot positioning. Crosshair positioning and autofocus need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "atomstack_a40_pro_v2",
+            "AtomStack A40 Pro V2",
+            385.0,
+            400.0,
+            "385 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Use laser-spot positioning. Crosshair positioning and autofocus need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "creality_falcon2_12w",
+            "Creality Falcon2 12W",
+            400.0,
+            415.0,
+            "400 x 415 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "creality_falcon2_22w",
+            "Creality Falcon2 22W",
+            400.0,
+            415.0,
+            "400 x 415 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "creality_falcon2_40w",
+            "Creality Falcon2 40W",
+            400.0,
+            415.0,
+            "400 x 415 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        MachineProfilePreset {
+            max_speed_mm_min: 3000.0,
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "sculpfun_s10",
+                "Sculpfun S10 10W",
+                385.0,
+                385.0,
+                "385 x 385 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M8",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "sculpfun_s30_5w",
+                "Sculpfun S30 5W",
+                380.0,
+                385.0,
+                "380 x 385 mm, front-left origin, S1000, M8/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M8",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "sculpfun_s30_ultra_11w",
+                "Sculpfun S30 Ultra 11W",
+                590.0,
+                595.0,
+                "590 x 595 mm, front-left origin, S1000, M8/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M8",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "sculpfun_s30_ultra_22w",
+                "Sculpfun S30 Ultra 22W",
+                590.0,
+                595.0,
+                "590 x 595 mm, front-left origin, S1000, M8/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            air_assist_on_gcode: "M8",
+            air_assist_off_gcode: "M9",
+            ..documented_grbl_usb_preset(
+                "sculpfun_s30_ultra_33w",
+                "Sculpfun S30 Ultra 33W",
+                590.0,
+                595.0,
+                "590 x 595 mm, front-left origin, S1000, M8/M9 air assist. Verify $30, $32=1, limit switches and pump. Automatic homing is off by default. Modified machines need separate setup.",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tts_55",
+                "Two Trees TTS-55 (original)",
+                300.0,
+                300.0,
+                "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tts_55_pro",
+                "Two Trees TTS-55 Pro",
+                300.0,
+                300.0,
+                "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tts_10_pro",
+                "Two Trees TTS-10 Pro",
+                300.0,
+                300.0,
+                "300 x 300 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_tts_20_pro",
+                "Two Trees TTS-20 Pro",
+                418.0,
+                418.0,
+                "418 x 418 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_ts2_10w",
+                "Two Trees TS2 10W",
+                450.0,
+                450.0,
+                "450 x 450 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
+        MachineProfilePreset {
+            use_constant_power: true,
+            ..documented_grbl_usb_preset(
+                "twotrees_ts2_20w",
+                "Two Trees TS2 20W",
+                410.0,
+                410.0,
+                "410 x 410 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup. Constant Power (M3).",
+            )
+        },
         // Sources and stock hardware scope: docs/machines/creality-falcon2-pro-22w.md.
         MachineProfilePreset {
             id: "creality_falcon2_pro_22w",
@@ -2132,6 +2379,30 @@ mod tests {
             "creality_falcon2_pro_40w",
             "creality_falcon2_pro_60w",
             "longer_ray5_10w",
+            "ortur_lm2_pro_s2",
+            "ortur_lm3_10w",
+            "ortur_lm3_20w",
+            "ortur_lm3_40w",
+            "ortur_lm3_le_10w",
+            "aufero_laser_1",
+            "aufero_laser_2",
+            "atomstack_a10_pro_v2",
+            "atomstack_a20_pro_v2",
+            "atomstack_a40_pro_v2",
+            "creality_falcon2_12w",
+            "creality_falcon2_22w",
+            "creality_falcon2_40w",
+            "sculpfun_s10",
+            "sculpfun_s30_5w",
+            "sculpfun_s30_ultra_11w",
+            "sculpfun_s30_ultra_22w",
+            "sculpfun_s30_ultra_33w",
+            "twotrees_tts_55",
+            "twotrees_tts_55_pro",
+            "twotrees_tts_10_pro",
+            "twotrees_tts_20_pro",
+            "twotrees_ts2_10w",
+            "twotrees_ts2_20w",
             "longer_ray5_5w",
             "longer_ray5_20w",
             "longer_ray5_40w",
@@ -2223,6 +2494,102 @@ mod tests {
             ("longer_b1_20w", 450.0, 440.0, 6000.0, "M8", false, true),
             ("longer_b1_30w", 450.0, 440.0, 6000.0, "M8", false, true),
             ("longer_b1_40w", 450.0, 440.0, 6000.0, "M8", false, true),
+            ("ortur_lm2_pro_s2", 400.0, 400.0, 6000.0, "", false, false),
+            ("ortur_lm3_10w", 400.0, 400.0, 6000.0, "", false, false),
+            ("ortur_lm3_20w", 400.0, 380.0, 6000.0, "", false, false),
+            ("ortur_lm3_40w", 400.0, 380.0, 6000.0, "", false, false),
+            ("ortur_lm3_le_10w", 400.0, 400.0, 6000.0, "", false, false),
+            ("aufero_laser_1", 180.0, 180.0, 3000.0, "", false, false),
+            ("aufero_laser_2", 390.0, 390.0, 6000.0, "", false, false),
+            (
+                "atomstack_a10_pro_v2",
+                400.0,
+                365.0,
+                6000.0,
+                "",
+                false,
+                false,
+            ),
+            (
+                "atomstack_a20_pro_v2",
+                400.0,
+                365.0,
+                6000.0,
+                "",
+                false,
+                false,
+            ),
+            (
+                "atomstack_a40_pro_v2",
+                385.0,
+                400.0,
+                6000.0,
+                "",
+                false,
+                false,
+            ),
+            (
+                "creality_falcon2_12w",
+                400.0,
+                415.0,
+                6000.0,
+                "",
+                false,
+                false,
+            ),
+            (
+                "creality_falcon2_22w",
+                400.0,
+                415.0,
+                6000.0,
+                "",
+                false,
+                false,
+            ),
+            (
+                "creality_falcon2_40w",
+                400.0,
+                415.0,
+                6000.0,
+                "",
+                false,
+                false,
+            ),
+            ("sculpfun_s10", 385.0, 385.0, 3000.0, "", true, false),
+            ("sculpfun_s30_5w", 380.0, 385.0, 6000.0, "M8", false, false),
+            (
+                "sculpfun_s30_ultra_11w",
+                590.0,
+                595.0,
+                6000.0,
+                "M8",
+                false,
+                false,
+            ),
+            (
+                "sculpfun_s30_ultra_22w",
+                590.0,
+                595.0,
+                6000.0,
+                "M8",
+                false,
+                false,
+            ),
+            (
+                "sculpfun_s30_ultra_33w",
+                590.0,
+                595.0,
+                6000.0,
+                "M8",
+                false,
+                false,
+            ),
+            ("twotrees_tts_55", 300.0, 300.0, 6000.0, "", true, false),
+            ("twotrees_tts_55_pro", 300.0, 300.0, 6000.0, "", true, false),
+            ("twotrees_tts_10_pro", 300.0, 300.0, 6000.0, "", true, false),
+            ("twotrees_tts_20_pro", 418.0, 418.0, 6000.0, "", true, false),
+            ("twotrees_ts2_10w", 450.0, 450.0, 6000.0, "", true, false),
+            ("twotrees_ts2_20w", 410.0, 410.0, 6000.0, "", true, false),
         ] {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             let created = save_profile(&ctx, sample_input()).unwrap();

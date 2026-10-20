@@ -2250,6 +2250,102 @@
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "450 x 440 mm, izhodišče spredaj levo, S1000, zračna podpora M8/M9. Preverite $30, $32=1, končna stikala in črpalko. Samodejno referenciranje je privzeto izklopljeno. Spremenjeni stroji zahtevajo ločeno nastavitev."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "ortur_lm3_10w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "ortur_lm3_20w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 380 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "ortur_lm3_40w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 380 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "aufero_laser_1": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "180 x 180 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "aufero_laser_2": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "390 x 390 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 365 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Za pozicioniranje uporabite lasersko piko. Pozicioniranje s križcem in samodejno ostrenje zahtevata ločeno nastavitev."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 365 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Za pozicioniranje uporabite lasersko piko. Pozicioniranje s križcem in samodejno ostrenje zahtevata ločeno nastavitev."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "385 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Za pozicioniranje uporabite lasersko piko. Pozicioniranje s križcem in samodejno ostrenje zahtevata ločeno nastavitev."
+          },
+          "creality_falcon2_12w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 415 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "creality_falcon2_22w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 415 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "creality_falcon2_40w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 415 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "sculpfun_s10": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "385 x 385 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Konstantna moč (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "380 x 385 mm, izhodišče spredaj levo, S1000, zračna podpora M8/M9. Preverite $30, $32=1, končna stikala in črpalko. Samodejno referenciranje je privzeto izklopljeno. Spremenjeni stroji zahtevajo ločeno nastavitev."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "590 x 595 mm, izhodišče spredaj levo, S1000, zračna podpora M8/M9. Preverite $30, $32=1, končna stikala in črpalko. Samodejno referenciranje je privzeto izklopljeno. Spremenjeni stroji zahtevajo ločeno nastavitev."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "590 x 595 mm, izhodišče spredaj levo, S1000, zračna podpora M8/M9. Preverite $30, $32=1, končna stikala in črpalko. Samodejno referenciranje je privzeto izklopljeno. Spremenjeni stroji zahtevajo ločeno nastavitev."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "590 x 595 mm, izhodišče spredaj levo, S1000, zračna podpora M8/M9. Preverite $30, $32=1, končna stikala in črpalko. Samodejno referenciranje je privzeto izklopljeno. Spremenjeni stroji zahtevajo ločeno nastavitev."
+          },
+          "twotrees_tts_55": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "300 x 300 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Konstantna moč (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "300 x 300 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Konstantna moč (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "300 x 300 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Konstantna moč (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "418 x 418 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Konstantna moč (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "450 x 450 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Konstantna moč (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "410 x 410 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Konstantna moč (M3)."
+          },
           "longer_ray5_10w": {
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."

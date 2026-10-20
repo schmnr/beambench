@@ -559,19 +559,43 @@ describe('MachineProfileDialog', () => {
   });
 
   it.each([
-    { presetId: 'sculpfun_s30_pro_10w', name: 'Sculpfun S30 Pro 10W', airOn: 'M8', width: 380, height: 385, homing: false },
-    { presetId: 'sculpfun_s30_pro_max_20w', name: 'Sculpfun S30 Pro Max 20W', airOn: 'M8', width: 370, height: 360, homing: true },
-    { presetId: 'sculpfun_s9', name: 'Sculpfun S9 (5.5W)', airOn: '', width: 410, height: 415, homing: false },
-    { presetId: 'creality_falcon2_pro_22w', name: 'Creality Falcon2 Pro 22W', airOn: '', width: 400, height: 415, homing: false },
-    { presetId: 'creality_falcon2_pro_60w', name: 'Creality Falcon2 Pro 60W', airOn: '', width: 400, height: 400, homing: false },
-    { presetId: 'longer_ray5_10w', name: 'Longer RAY5 10W', airOn: '', width: 400, height: 400, homing: false },
-    { presetId: 'longer_ray5_5w', name: 'Longer RAY5 5W', airOn: '', width: 400, height: 400, homing: false },
-    { presetId: 'longer_ray5_20w', name: 'Longer RAY5 20W', airOn: '', width: 375, height: 365, homing: false },
-    { presetId: 'longer_ray5_40w', name: 'Longer RAY5 40W', airOn: '', width: 385, height: 385, homing: false },
-    { presetId: 'longer_b1_20w', name: 'Longer Laser B1 20W', airOn: 'M8', width: 450, height: 440, homing: true },
-    { presetId: 'longer_b1_30w', name: 'Longer Laser B1 30W', airOn: 'M8', width: 450, height: 440, homing: true },
-    { presetId: 'longer_b1_40w', name: 'Longer Laser B1 40W', airOn: 'M8', width: 450, height: 440, homing: true },
-  ])('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing }) => {
+    { presetId: 'sculpfun_s30_pro_10w', name: 'Sculpfun S30 Pro 10W', airOn: 'M8', width: 380, height: 385, homing: false, constantPower: false, usbEvidence: false },
+    { presetId: 'sculpfun_s30_pro_max_20w', name: 'Sculpfun S30 Pro Max 20W', airOn: 'M8', width: 370, height: 360, homing: true, constantPower: false, usbEvidence: false },
+    { presetId: 'sculpfun_s9', name: 'Sculpfun S9 (5.5W)', airOn: '', width: 410, height: 415, homing: false, constantPower: false, usbEvidence: false },
+    { presetId: 'creality_falcon2_pro_22w', name: 'Creality Falcon2 Pro 22W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: false },
+    { presetId: 'creality_falcon2_pro_60w', name: 'Creality Falcon2 Pro 60W', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: false },
+    { presetId: 'longer_ray5_10w', name: 'Longer RAY5 10W', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'longer_ray5_5w', name: 'Longer RAY5 5W', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'longer_ray5_20w', name: 'Longer RAY5 20W', airOn: '', width: 375, height: 365, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'longer_ray5_40w', name: 'Longer RAY5 40W', airOn: '', width: 385, height: 385, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'longer_b1_20w', name: 'Longer Laser B1 20W', airOn: 'M8', width: 450, height: 440, homing: true, constantPower: false, usbEvidence: true },
+    { presetId: 'longer_b1_30w', name: 'Longer Laser B1 30W', airOn: 'M8', width: 450, height: 440, homing: true, constantPower: false, usbEvidence: true },
+    { presetId: 'longer_b1_40w', name: 'Longer Laser B1 40W', airOn: 'M8', width: 450, height: 440, homing: true, constantPower: false, usbEvidence: true },
+    { presetId: 'ortur_lm2_pro_s2', name: 'Ortur Laser Master 2 Pro S2 (LU2-2 / LU2-4)', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'ortur_lm3_10w', name: 'Ortur Laser Master 3 10W (LU2-10A)', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'ortur_lm3_20w', name: 'Ortur Laser Master 3 20W (LU3-20A)', airOn: '', width: 400, height: 380, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'ortur_lm3_40w', name: 'Ortur Laser Master 3 40W (LU3-40A)', airOn: '', width: 400, height: 380, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'ortur_lm3_le_10w', name: 'Ortur Laser Master 3 LE 10W (LU2-10A)', airOn: '', width: 400, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'aufero_laser_1', name: 'Aufero Laser 1 (LU2-2 / LU2-4)', airOn: '', width: 180, height: 180, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'aufero_laser_2', name: 'Aufero Laser 2 (LU2-2 / LU2-4)', airOn: '', width: 390, height: 390, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'atomstack_a10_pro_v2', name: 'AtomStack A10 Pro V2', airOn: '', width: 400, height: 365, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'atomstack_a20_pro_v2', name: 'AtomStack A20 Pro V2', airOn: '', width: 400, height: 365, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'atomstack_a40_pro_v2', name: 'AtomStack A40 Pro V2', airOn: '', width: 385, height: 400, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'creality_falcon2_12w', name: 'Creality Falcon2 12W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'creality_falcon2_22w', name: 'Creality Falcon2 22W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'creality_falcon2_40w', name: 'Creality Falcon2 40W', airOn: '', width: 400, height: 415, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'sculpfun_s10', name: 'Sculpfun S10 10W', airOn: '', width: 385, height: 385, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'sculpfun_s30_5w', name: 'Sculpfun S30 5W', airOn: 'M8', width: 380, height: 385, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'sculpfun_s30_ultra_11w', name: 'Sculpfun S30 Ultra 11W', airOn: 'M8', width: 590, height: 595, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'sculpfun_s30_ultra_22w', name: 'Sculpfun S30 Ultra 22W', airOn: 'M8', width: 590, height: 595, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'sculpfun_s30_ultra_33w', name: 'Sculpfun S30 Ultra 33W', airOn: 'M8', width: 590, height: 595, homing: false, constantPower: false, usbEvidence: true },
+    { presetId: 'twotrees_tts_55', name: 'Two Trees TTS-55 (original)', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tts_55_pro', name: 'Two Trees TTS-55 Pro', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tts_10_pro', name: 'Two Trees TTS-10 Pro', airOn: '', width: 300, height: 300, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_tts_20_pro', name: 'Two Trees TTS-20 Pro', airOn: '', width: 418, height: 418, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_ts2_10w', name: 'Two Trees TS2 10W', airOn: '', width: 450, height: 450, homing: false, constantPower: true, usbEvidence: true },
+    { presetId: 'twotrees_ts2_20w', name: 'Two Trees TS2 20W', airOn: '', width: 410, height: 410, homing: false, constantPower: true, usbEvidence: true },
+  ])('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing, constantPower, usbEvidence }) => {
     const profile = makeProfile({ id: 'prof-preset', name: 'Preset Profile' });
     const appliedProfile = {
       ...profile,
@@ -582,7 +606,7 @@ describe('MachineProfileDialog', () => {
       bed_width_mm: width,
       bed_height_mm: height,
       homing_enabled: homing,
-      use_constant_power: presetId === 'longer_ray5_40w',
+      use_constant_power: constantPower,
     };
 
     let storedProfile = profile;
@@ -604,7 +628,7 @@ describe('MachineProfileDialog', () => {
             max_power_percent: 100,
             s_value_max: 1000,
             homing_enabled: homing,
-            use_constant_power: presetId === 'longer_ray5_40w',
+            use_constant_power: constantPower,
             emit_s_every_g1: false,
             use_g0_for_overscan: true,
             air_assist_on_gcode: airOn,
@@ -671,13 +695,13 @@ describe('MachineProfileDialog', () => {
     if (presetId.startsWith('creality_falcon2_pro_')) {
       expect(screen.getByText(/Physical testing pending/)).toBeDefined();
     }
-    if (presetId.startsWith('longer_')) {
+    if (usbEvidence) {
       expect(screen.getByText(/Documentation-based GRBL 1.1 USB preset/)).toBeDefined();
-      expect(screen.getByText(presetId.startsWith('longer_b1_')
+      expect(screen.getByText(airOn !== ''
         ? /Automatic homing is off by default/
         : /Homing and automatic air assist are off/)).toBeDefined();
-      if (presetId === 'longer_ray5_40w') {
-        expect(screen.getByText(/setup\. Constant Power \(M3\)\./)).toBeDefined();
+      if (constantPower) {
+        expect(screen.getByText(/\. Constant Power \(M3\)\./)).toBeDefined();
       }
     }
     expect((screen.getByTestId('machine-preset-apply') as HTMLButtonElement).disabled).toBe(true);
@@ -699,6 +723,7 @@ describe('MachineProfileDialog', () => {
       expect((screen.getByLabelText('Air On G-code') as HTMLInputElement).value).toBe(airOn);
       expect((screen.getByLabelText('Width (mm)') as HTMLInputElement).value).toBe(String(width));
       expect((screen.getByLabelText('Height (mm)') as HTMLInputElement).value).toBe(String(height));
+      expect((screen.getByText('Constant Power (M3)', { exact: true }).parentElement?.querySelector('input') as HTMLInputElement).checked).toBe(constantPower);
       expect(loadProfiles).toHaveBeenCalled();
     });
   });

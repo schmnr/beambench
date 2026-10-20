@@ -2250,6 +2250,102 @@
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "450 x 440 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "ortur_lm3_10w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "ortur_lm3_20w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 380 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "ortur_lm3_40w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 380 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "aufero_laser_1": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "180 x 180 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "aufero_laser_2": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "390 x 390 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 365 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Pro polohování používejte laserový bod. Zaměřovací kříž a automatické ostření vyžadují samostatné nastavení."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 365 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Pro polohování používejte laserový bod. Zaměřovací kříž a automatické ostření vyžadují samostatné nastavení."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "385 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Pro polohování používejte laserový bod. Zaměřovací kříž a automatické ostření vyžadují samostatné nastavení."
+          },
+          "creality_falcon2_12w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 415 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "creality_falcon2_22w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 415 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "creality_falcon2_40w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 415 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "sculpfun_s10": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "385 x 385 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "380 x 385 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "590 x 595 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "590 x 595 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "590 x 595 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "twotrees_tts_55": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "300 x 300 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "300 x 300 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "300 x 300 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "418 x 418 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "450 x 450 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "410 x 410 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
           "longer_ray5_10w": {
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."

@@ -2250,6 +2250,102 @@
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "450 x 440 mm, origen frontal izquierdo, S1000, asistencia de aire M8/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "ortur_lm3_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "ortur_lm3_20w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 380 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "ortur_lm3_40w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 380 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "aufero_laser_1": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "180 x 180 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "aufero_laser_2": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "390 x 390 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 365 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Usa el punto láser para posicionar. El posicionamiento con cruceta y el enfoque automático requieren otra configuración."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 365 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Usa el punto láser para posicionar. El posicionamiento con cruceta y el enfoque automático requieren otra configuración."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "385 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Usa el punto láser para posicionar. El posicionamiento con cruceta y el enfoque automático requieren otra configuración."
+          },
+          "creality_falcon2_12w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 415 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "creality_falcon2_22w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 415 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "creality_falcon2_40w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 415 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
+          "sculpfun_s10": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "385 x 385 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "380 x 385 mm, origen frontal izquierdo, S1000, asistencia de aire M8/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "590 x 595 mm, origen frontal izquierdo, S1000, asistencia de aire M8/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "590 x 595 mm, origen frontal izquierdo, S1000, asistencia de aire M8/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "590 x 595 mm, origen frontal izquierdo, S1000, asistencia de aire M8/M9. Comprueba $30, $32=1, los finales de carrera y la bomba. El retorno automático al origen está desactivado por defecto. Las máquinas modificadas requieren otra configuración."
+          },
+          "twotrees_tts_55": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "300 x 300 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "300 x 300 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "300 x 300 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "418 x 418 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "450 x 450 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "410 x 410 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte. Potencia constante (M3)."
+          },
           "longer_ray5_10w": {
             "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
             "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."

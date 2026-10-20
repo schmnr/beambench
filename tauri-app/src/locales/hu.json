@@ -2250,6 +2250,102 @@
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "450 x 440 mm, bal elülső origó, S1000, M8/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "ortur_lm3_10w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "ortur_lm3_20w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 380 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "ortur_lm3_40w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 380 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "aufero_laser_1": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "180 x 180 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "aufero_laser_2": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "390 x 390 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 365 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A pozicionáláshoz a lézerpontot használja. A célkeresztes pozicionálás és az automatikus fókusz külön beállítást igényel."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 365 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A pozicionáláshoz a lézerpontot használja. A célkeresztes pozicionálás és az automatikus fókusz külön beállítást igényel."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "385 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. A pozicionáláshoz a lézerpontot használja. A célkeresztes pozicionálás és az automatikus fókusz külön beállítást igényel."
+          },
+          "creality_falcon2_12w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 415 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "creality_falcon2_22w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 415 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "creality_falcon2_40w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "400 x 415 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."
+          },
+          "sculpfun_s10": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "385 x 385 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "380 x 385 mm, bal elülső origó, S1000, M8/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "590 x 595 mm, bal elülső origó, S1000, M8/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "590 x 595 mm, bal elülső origó, S1000, M8/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "590 x 595 mm, bal elülső origó, S1000, M8/M9 levegőrásegítés. Ellenőrizze a $30, $32=1 értékeket, a végálláskapcsolókat és a szivattyút. Az automatikus alaphelyzetbe állás alapértelmezetten ki van kapcsolva. A módosított gépek külön beállítást igényelnek."
+          },
+          "twotrees_tts_55": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "300 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "300 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "300 x 300 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "418 x 418 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "450 x 450 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
+            "advisory": "410 x 410 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek. Állandó teljesítmény (M3)."
+          },
           "longer_ray5_10w": {
             "description": "Dokumentáció alapján készült GRBL 1.1 USB-előbeállítás. A fizikai gépen végzett tesztelés még hátravan.",
             "advisory": "400 x 400 mm, elöl bal oldali origó, S1000. Ellenőrizze a $30 értékét és a $32=1 lézermódot. Az alaphelyzet-keresés és az automatikus levegőrásegítés ki van kapcsolva. Más firmware és bővítések külön beállítást igényelnek."

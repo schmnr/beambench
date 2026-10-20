@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add 24 documentation-based GRBL USB presets across Ortur/Aufero, AtomStack
+  Pro V2, standard Creality Falcon2, Sculpfun S10/S30/Ultra and Two Trees
+  TTS/TS2 configurations. Use model-specific workspaces, power modes and
+  documented S30 air control. Guidance is translated in all 23 languages;
+  physical testing is pending.
 - Add documentation-based USB presets for Longer RAY5 5W, 20W and 40W,
   and Laser B1 20W, 30W and 40W. Use model-specific workspaces, M3 for
   RAY5 40W, and M8/M9 air control for B1. Physical testing is pending.

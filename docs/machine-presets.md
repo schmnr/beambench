@@ -154,6 +154,9 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 - [Longer RAY5 5W/20W/40W and Laser B1 20W/30W/40W, preset version 1](machines/longer-usb-presets.md):
   documentation-based USB presets with model-specific workspaces and controls,
   physical testing pending. Includes the remaining LONGER candidates and blockers.
+- [Common GRBL USB expansion, 24 presets at version 1](machines/common-grbl-usb-presets.md):
+  Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun S10/S30/Ultra and
+  Two Trees TTS/TS2. Documentation-based, physical testing pending.
 
 Existing S30 Pro Max, ACMER S2, xTool M1, and LaserPecker entries predate this
 record format. Their current scope remains in the controller compatibility

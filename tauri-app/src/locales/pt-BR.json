@@ -2250,6 +2250,102 @@
             "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
             "advisory": "450 x 440 mm, origem frontal esquerda, S1000, assistência de ar M8/M9. Verifique $30, $32=1, os fins de curso e a bomba. O retorno automático à origem vem desativado. Máquinas modificadas precisam de configuração separada."
           },
+          "ortur_lm2_pro_s2": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "ortur_lm3_10w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "ortur_lm3_20w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 380 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "ortur_lm3_40w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 380 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "ortur_lm3_le_10w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "aufero_laser_1": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "180 x 180 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "aufero_laser_2": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "390 x 390 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "atomstack_a10_pro_v2": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 365 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Use o ponto do laser para posicionar. A mira e o foco automático precisam de configuração separada."
+          },
+          "atomstack_a20_pro_v2": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 365 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Use o ponto do laser para posicionar. A mira e o foco automático precisam de configuração separada."
+          },
+          "atomstack_a40_pro_v2": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "385 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Use o ponto do laser para posicionar. A mira e o foco automático precisam de configuração separada."
+          },
+          "creality_falcon2_12w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 415 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "creality_falcon2_22w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 415 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "creality_falcon2_40w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 415 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "sculpfun_s10": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "385 x 385 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Potência Constante (M3)."
+          },
+          "sculpfun_s30_5w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "380 x 385 mm, origem frontal esquerda, S1000, assistência de ar M8/M9. Verifique $30, $32=1, os fins de curso e a bomba. O retorno automático à origem vem desativado. Máquinas modificadas precisam de configuração separada."
+          },
+          "sculpfun_s30_ultra_11w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "590 x 595 mm, origem frontal esquerda, S1000, assistência de ar M8/M9. Verifique $30, $32=1, os fins de curso e a bomba. O retorno automático à origem vem desativado. Máquinas modificadas precisam de configuração separada."
+          },
+          "sculpfun_s30_ultra_22w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "590 x 595 mm, origem frontal esquerda, S1000, assistência de ar M8/M9. Verifique $30, $32=1, os fins de curso e a bomba. O retorno automático à origem vem desativado. Máquinas modificadas precisam de configuração separada."
+          },
+          "sculpfun_s30_ultra_33w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "590 x 595 mm, origem frontal esquerda, S1000, assistência de ar M8/M9. Verifique $30, $32=1, os fins de curso e a bomba. O retorno automático à origem vem desativado. Máquinas modificadas precisam de configuração separada."
+          },
+          "twotrees_tts_55": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "300 x 300 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Potência Constante (M3)."
+          },
+          "twotrees_tts_55_pro": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "300 x 300 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Potência Constante (M3)."
+          },
+          "twotrees_tts_10_pro": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "300 x 300 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Potência Constante (M3)."
+          },
+          "twotrees_tts_20_pro": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "418 x 418 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Potência Constante (M3)."
+          },
+          "twotrees_ts2_10w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "450 x 450 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Potência Constante (M3)."
+          },
+          "twotrees_ts2_20w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "410 x 410 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada. Potência Constante (M3)."
+          },
           "longer_ray5_10w": {
             "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
             "advisory": "400 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
