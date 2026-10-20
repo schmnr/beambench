@@ -166,6 +166,15 @@ impl Emulator {
                     Err(e) => panic!("{e}"),
                 }
             };
+            // Accepted sockets inherit nonblocking mode on some platforms.
+            // The HTTP upgrade must finish before the event loop starts.
+            stream.set_nonblocking(false).unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            stream
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
             let mut socket = tungstenite::accept(stream).unwrap();
             socket.get_mut().set_nonblocking(true).unwrap();
             while !done.load(Ordering::Acquire) {
@@ -224,7 +233,10 @@ impl Drop for Emulator {
     fn drop(&mut self) {
         self.stopped.store(true, Ordering::Release);
         for t in self.threads.drain(..) {
-            t.join().unwrap();
+            let result = t.join();
+            if !std::thread::panicking() {
+                assert!(result.is_ok(), "D1 emulator worker failed");
+            }
         }
     }
 }

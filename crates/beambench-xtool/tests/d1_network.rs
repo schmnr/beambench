@@ -312,3 +312,17 @@ fn unowned_busy_controller_is_read_only_until_explicit_stop() {
     assert!(rt.pause().is_err());
     assert_eq!(io.0.borrow().posts, 0);
 }
+
+#[test]
+fn http_may_lead_ordered_events_without_proving_start_or_completion() {
+    let (mut rt, io) = connected();
+    rt.upload(&job(), "test-boundary").unwrap();
+    io.0.borrow_mut().working = 2;
+    assert_eq!(rt.poll().unwrap(), D1RuntimePhase::ReadyToRun);
+    event(&io, "ok:WORKING_OFFLINE", 2);
+    assert_eq!(rt.poll().unwrap(), D1RuntimePhase::Running);
+    io.0.borrow_mut().working = 0;
+    assert_eq!(rt.poll().unwrap(), D1RuntimePhase::Running);
+    event(&io, "ok:IDLE", 0);
+    assert_eq!(rt.poll().unwrap(), D1RuntimePhase::Completed);
+}
