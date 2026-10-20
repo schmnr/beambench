@@ -2226,6 +2226,30 @@
             "description": "Prednastavitev BlazeX M3 10W temelji na dokumentaciji in konfiguraciji lastnika.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudov. Omrežje: vrata 8080. Izvedite referenciranje ali ga omogočite ob povezavi. Priključek Z je za rotacijski dodatek."
           },
+          "longer_ray5_5w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "longer_ray5_20w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "375 x 365 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
+          "longer_ray5_40w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "385 x 385 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev. Konstantna moč (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "450 x 440 mm, izhodišče spredaj levo, S1000, zračna podpora M8/M9. Preverite $30, $32=1, končna stikala in črpalko. Samodejno referenciranje je privzeto izklopljeno. Spremenjeni stroji zahtevajo ločeno nastavitev."
+          },
+          "longer_b1_30w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "450 x 440 mm, izhodišče spredaj levo, S1000, zračna podpora M8/M9. Preverite $30, $32=1, končna stikala in črpalko. Samodejno referenciranje je privzeto izklopljeno. Spremenjeni stroji zahtevajo ločeno nastavitev."
+          },
+          "longer_b1_40w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "450 x 440 mm, izhodišče spredaj levo, S1000, zračna podpora M8/M9. Preverite $30, $32=1, končna stikala in črpalko. Samodejno referenciranje je privzeto izklopljeno. Spremenjeni stroji zahtevajo ločeno nastavitev."
+          },
           "longer_ray5_10w": {
             "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
             "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."

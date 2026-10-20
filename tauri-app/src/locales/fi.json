@@ -2226,6 +2226,30 @@
             "description": "BlazeX M3 10W -esiasetus perustuu dokumentaatioon ja omistajan kokoonpanoon.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudia. Verkko: portti 8080. Tee kotihaku tai ota se käyttöön yhdistettäessä. Z-liitin on pyörityslisälaitteelle."
           },
+          "longer_ray5_5w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "400 x 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
+          },
+          "longer_ray5_20w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "375 x 365 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."
+          },
+          "longer_ray5_40w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "385 x 385 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen. Vakioteho (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "450 x 440 mm, origo edessä vasemmalla, S1000, M8/M9-ilma-avustus. Tarkista $30, $32=1, rajakytkimet ja pumppu. Automaattinen kotiajo on oletuksena pois käytöstä. Muokatut koneet vaativat erilliset asetukset."
+          },
+          "longer_b1_30w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "450 x 440 mm, origo edessä vasemmalla, S1000, M8/M9-ilma-avustus. Tarkista $30, $32=1, rajakytkimet ja pumppu. Automaattinen kotiajo on oletuksena pois käytöstä. Muokatut koneet vaativat erilliset asetukset."
+          },
+          "longer_b1_40w": {
+            "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
+            "advisory": "450 x 440 mm, origo edessä vasemmalla, S1000, M8/M9-ilma-avustus. Tarkista $30, $32=1, rajakytkimet ja pumppu. Automaattinen kotiajo on oletuksena pois käytöstä. Muokatut koneet vaativat erilliset asetukset."
+          },
           "longer_ray5_10w": {
             "description": "Dokumentaatioon perustuva GRBL 1.1:n USB-esiasetus. Testaus fyysisellä koneella on tekemättä.",
             "advisory": "400 x 400 mm, origo edessä vasemmalla, S1000. Tarkista $30 ja lasertila $32=1. Kotihaku ja automaattinen ilma-avustus ovat pois käytöstä. Muu laiteohjelmisto ja laajennukset vaativat erillisen määrityksen."

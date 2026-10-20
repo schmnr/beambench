@@ -565,6 +565,12 @@ describe('MachineProfileDialog', () => {
     { presetId: 'creality_falcon2_pro_22w', name: 'Creality Falcon2 Pro 22W', airOn: '', width: 400, height: 415, homing: false },
     { presetId: 'creality_falcon2_pro_60w', name: 'Creality Falcon2 Pro 60W', airOn: '', width: 400, height: 400, homing: false },
     { presetId: 'longer_ray5_10w', name: 'Longer RAY5 10W', airOn: '', width: 400, height: 400, homing: false },
+    { presetId: 'longer_ray5_5w', name: 'Longer RAY5 5W', airOn: '', width: 400, height: 400, homing: false },
+    { presetId: 'longer_ray5_20w', name: 'Longer RAY5 20W', airOn: '', width: 375, height: 365, homing: false },
+    { presetId: 'longer_ray5_40w', name: 'Longer RAY5 40W', airOn: '', width: 385, height: 385, homing: false },
+    { presetId: 'longer_b1_20w', name: 'Longer Laser B1 20W', airOn: 'M8', width: 450, height: 440, homing: true },
+    { presetId: 'longer_b1_30w', name: 'Longer Laser B1 30W', airOn: 'M8', width: 450, height: 440, homing: true },
+    { presetId: 'longer_b1_40w', name: 'Longer Laser B1 40W', airOn: 'M8', width: 450, height: 440, homing: true },
   ])('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing }) => {
     const profile = makeProfile({ id: 'prof-preset', name: 'Preset Profile' });
     const appliedProfile = {
@@ -576,6 +582,7 @@ describe('MachineProfileDialog', () => {
       bed_width_mm: width,
       bed_height_mm: height,
       homing_enabled: homing,
+      use_constant_power: presetId === 'longer_ray5_40w',
     };
 
     let storedProfile = profile;
@@ -597,7 +604,7 @@ describe('MachineProfileDialog', () => {
             max_power_percent: 100,
             s_value_max: 1000,
             homing_enabled: homing,
-            use_constant_power: false,
+            use_constant_power: presetId === 'longer_ray5_40w',
             emit_s_every_g1: false,
             use_g0_for_overscan: true,
             air_assist_on_gcode: airOn,
@@ -664,9 +671,14 @@ describe('MachineProfileDialog', () => {
     if (presetId.startsWith('creality_falcon2_pro_')) {
       expect(screen.getByText(/Physical testing pending/)).toBeDefined();
     }
-    if (presetId === 'longer_ray5_10w') {
+    if (presetId.startsWith('longer_')) {
       expect(screen.getByText(/Documentation-based GRBL 1.1 USB preset/)).toBeDefined();
-      expect(screen.getByText(/Homing and automatic air assist are off/)).toBeDefined();
+      expect(screen.getByText(presetId.startsWith('longer_b1_')
+        ? /Automatic homing is off by default/
+        : /Homing and automatic air assist are off/)).toBeDefined();
+      if (presetId === 'longer_ray5_40w') {
+        expect(screen.getByText(/setup\. Constant Power \(M3\)\./)).toBeDefined();
+      }
     }
     expect((screen.getByTestId('machine-preset-apply') as HTMLButtonElement).disabled).toBe(true);
 

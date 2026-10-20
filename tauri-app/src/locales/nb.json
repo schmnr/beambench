@@ -2226,6 +2226,30 @@
             "description": "BlazeX M3 10W-forhåndsinnstilling basert på dokumentasjon og en eiers konfigurasjon.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Nettverk: port 8080. Referansekjør eller aktiver det ved tilkobling. Z-kontakten er for rotasjonstilbehør."
           },
+          "longer_ray5_5w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "400 x 400 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
+          "longer_ray5_20w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "375 x 365 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
+          "longer_ray5_40w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "385 x 385 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett. Konstant strøm (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "450 x 440 mm, origo foran til venstre, S1000, luftassistanse M8/M9. Kontroller $30, $32=1, endebrytere og pumpe. Automatisk hjemkjøring er av som standard. Modifiserte maskiner må konfigureres separat."
+          },
+          "longer_b1_30w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "450 x 440 mm, origo foran til venstre, S1000, luftassistanse M8/M9. Kontroller $30, $32=1, endebrytere og pumpe. Automatisk hjemkjøring er av som standard. Modifiserte maskiner må konfigureres separat."
+          },
+          "longer_b1_40w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "450 x 440 mm, origo foran til venstre, S1000, luftassistanse M8/M9. Kontroller $30, $32=1, endebrytere og pumpe. Automatisk hjemkjøring er av som standard. Modifiserte maskiner må konfigureres separat."
+          },
           "longer_ray5_10w": {
             "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
             "advisory": "400 x 400 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."

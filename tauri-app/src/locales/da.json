@@ -2226,6 +2226,30 @@
             "description": "BlazeX M3 10W-forudindstilling baseret på dokumentation og en ejers konfiguration.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Netværk: port 8080. Kør referencekørsel, eller aktivér den ved tilslutning. Z-stikket er til rotationstilbehør."
           },
+          "longer_ray5_5w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "longer_ray5_20w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "375 x 365 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."
+          },
+          "longer_ray5_40w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "385 x 385 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning. Konstant strøm (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "450 x 440 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "longer_b1_30w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "450 x 440 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
+          "longer_b1_40w": {
+            "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
+            "advisory": "450 x 440 mm, nulpunkt forrest til venstre, S1000, luftassistance M8/M9. Kontrollér $30, $32=1, endestop og pumpe. Automatisk hjemkørsel er som standard slået fra. Ændrede maskiner kræver separat opsætning."
+          },
           "longer_ray5_10w": {
             "description": "USB-forudindstilling til GRBL 1.1 baseret på dokumentation. Test på maskinen mangler.",
             "advisory": "400 x 400 mm, nulpunkt forrest til venstre, S1000. Kontrollér $30 og lasertilstand $32=1. Referencesøgning og automatisk luftassistance er slået fra. Anden firmware og udvidelser kræver separat opsætning."

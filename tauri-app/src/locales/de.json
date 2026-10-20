@@ -2226,6 +2226,30 @@
             "description": "BlazeX M3 10W-Voreinstellung anhand der Dokumentation und einer Besitzerkonfiguration.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 Baud. Netzwerk: Port 8080. Referenzfahrt ausführen oder beim Verbinden aktivieren. Der Z-Anschluss ist für eine Rotationseinheit."
           },
+          "longer_ray5_5w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "longer_ray5_20w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "375 x 365 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
+          "longer_ray5_40w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "385 x 385 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden. Konstante Leistung (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "450 x 440 mm, Ursprung vorne links, S1000, M8/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
+          "longer_b1_30w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "450 x 440 mm, Ursprung vorne links, S1000, M8/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
+          "longer_b1_40w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "450 x 440 mm, Ursprung vorne links, S1000, M8/M9-Luftunterstützung. $30, $32=1, Endschalter und Pumpe prüfen. Automatisches Referenzieren ist standardmäßig aus. Modifizierte Maschinen separat einrichten."
+          },
           "longer_ray5_10w": {
             "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
             "advisory": "400 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."

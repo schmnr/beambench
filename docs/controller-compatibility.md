@@ -20,7 +20,11 @@ They do not change an adapter's status below. See the
 is documentation-based, with physical Beam Bench testing pending.
 The [Longer RAY5 10W preset](machines/longer-ray5-10w.md) supplies documented
 defaults for GRBL 1.1 over USB serial. It does not establish compatibility with
-other RAY5 firmware, offline controls or accessories.
+other RAY5 firmware, offline controls or accessories. The additional
+[RAY5 5W/20W/40W and Laser B1 20W/30W/40W presets](machines/longer-usb-presets.md)
+are also documentation-based USB configurations. RAY5 20W starts at a smaller
+375 x 365 mm workspace because LONGER's published dimensions conflict. These
+entries do not cover the RAY5 mini/miniS or Nano families.
 
 | Controller choice | Connection | Status | Current scope |
 | --- | --- | --- | --- |

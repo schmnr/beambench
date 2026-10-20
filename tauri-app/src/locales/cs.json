@@ -2226,6 +2226,30 @@
             "description": "Předvolba BlazeX M3 10W založená na dokumentaci a konfiguraci majitele.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudů. Síť: port 8080. Proveďte referování nebo je zapněte při připojení. Konektor Z je určen pro rotační příslušenství."
           },
+          "longer_ray5_5w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "longer_ray5_20w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "375 x 365 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "longer_ray5_40w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "385 x 385 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení. Konstantní výkon (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "450 x 440 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "longer_b1_30w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "450 x 440 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
+          "longer_b1_40w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "450 x 440 mm, počátek vpředu vlevo, S1000, ofuk M8/M9. Ověřte $30, $32=1, koncové spínače a čerpadlo. Automatické najetí do výchozí polohy je ve výchozím nastavení vypnuté. Upravené stroje vyžadují samostatné nastavení."
+          },
           "longer_ray5_10w": {
             "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
             "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."

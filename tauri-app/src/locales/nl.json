@@ -2226,6 +2226,30 @@
             "description": "BlazeX M3 10W-voorinstelling op basis van documentatie en de configuratie van een eigenaar.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Netwerk: poort 8080. Home de machine of schakel homen bij verbinden in. De Z-aansluiting is voor een rotatieaccessoire."
           },
+          "longer_ray5_5w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "longer_ray5_20w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "375 x 365 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "longer_ray5_40w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "385 x 385 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld. Constant vermogen (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "450 x 440 mm, oorsprong linksvoor, S1000, M8/M9-luchtondersteuning. Controleer $30, $32=1, eindschakelaars en pomp. Automatisch homen staat standaard uit. Aangepaste machines vereisen een aparte configuratie."
+          },
+          "longer_b1_30w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "450 x 440 mm, oorsprong linksvoor, S1000, M8/M9-luchtondersteuning. Controleer $30, $32=1, eindschakelaars en pomp. Automatisch homen staat standaard uit. Aangepaste machines vereisen een aparte configuratie."
+          },
+          "longer_b1_40w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "450 x 440 mm, oorsprong linksvoor, S1000, M8/M9-luchtondersteuning. Controleer $30, $32=1, eindschakelaars en pomp. Automatisch homen staat standaard uit. Aangepaste machines vereisen een aparte configuratie."
+          },
           "longer_ray5_10w": {
             "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
             "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."

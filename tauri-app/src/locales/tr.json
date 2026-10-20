@@ -2226,6 +2226,30 @@
             "description": "Belgelere ve bir kullanıcının yapılandırmasına dayalı BlazeX M3 10W ön ayarı.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Ağ: 8080 numaralı bağlantı noktası. Referanslayın veya bağlantıda referanslamayı açın. Z soketi döner aksesuar içindir."
           },
+          "longer_ray5_5w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "400 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
+          "longer_ray5_20w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "375 x 365 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
+          "longer_ray5_40w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "385 x 385 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir. Sabit Güç (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "450 x 440 mm, ön sol başlangıç noktası, S1000, M8/M9 hava desteği. $30, $32=1, limit anahtarları ve pompayı doğrulayın. Otomatik referanslama varsayılan olarak kapalıdır. Değiştirilmiş makineler ayrı kurulum gerektirir."
+          },
+          "longer_b1_30w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "450 x 440 mm, ön sol başlangıç noktası, S1000, M8/M9 hava desteği. $30, $32=1, limit anahtarları ve pompayı doğrulayın. Otomatik referanslama varsayılan olarak kapalıdır. Değiştirilmiş makineler ayrı kurulum gerektirir."
+          },
+          "longer_b1_40w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "450 x 440 mm, ön sol başlangıç noktası, S1000, M8/M9 hava desteği. $30, $32=1, limit anahtarları ve pompayı doğrulayın. Otomatik referanslama varsayılan olarak kapalıdır. Değiştirilmiş makineler ayrı kurulum gerektirir."
+          },
           "longer_ray5_10w": {
             "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
             "advisory": "400 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."

@@ -151,6 +151,9 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
   documentation-based USB preset with M3, physical testing pending.
 - [Longer RAY5 10W, preset version 1](machines/longer-ray5-10w.md):
   documentation-based GRBL 1.1 USB preset, physical testing pending.
+- [Longer RAY5 5W/20W/40W and Laser B1 20W/30W/40W, preset version 1](machines/longer-usb-presets.md):
+  documentation-based USB presets with model-specific workspaces and controls,
+  physical testing pending. Includes the remaining LONGER candidates and blockers.
 
 Existing S30 Pro Max, ACMER S2, xTool M1, and LaserPecker entries predate this
 record format. Their current scope remains in the controller compatibility

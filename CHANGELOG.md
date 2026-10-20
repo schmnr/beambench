@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add documentation-based USB presets for Longer RAY5 5W, 20W and 40W,
+  and Laser B1 20W, 30W and 40W. Use model-specific workspaces, M3 for
+  RAY5 40W, and M8/M9 air control for B1. Physical testing is pending.
 - Add a Longer RAY5 10W preset for GRBL 1.1 USB controllers, with documented
   workspace, origin, baud and power scale. Physical testing is pending.
 - Linux AppImages recover from the environment inherited during an automatic

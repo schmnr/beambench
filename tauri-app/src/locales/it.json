@@ -2226,6 +2226,30 @@
             "description": "Preimpostazione BlazeX M3 10W basata sulla documentazione e sulla configurazione di un proprietario.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Rete: porta 8080. Eseguire l’azzeramento o abilitarlo alla connessione. Il connettore Z è per un accessorio rotativo."
           },
+          "longer_ray5_5w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "longer_ray5_20w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "375 x 365 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
+          },
+          "longer_ray5_40w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "385 x 385 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata. Potenza costante (M3)."
+          },
+          "longer_b1_20w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "450 x 440 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "longer_b1_30w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "450 x 440 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
+          "longer_b1_40w": {
+            "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
+            "advisory": "450 x 440 mm, origine anteriore sinistra, S1000, assistenza aria M8/M9. Verifica $30, $32=1, finecorsa e pompa. Il ritorno automatico all’origine è disattivato per impostazione predefinita. Le macchine modificate richiedono una configurazione separata."
+          },
           "longer_ray5_10w": {
             "description": "Preset USB GRBL 1.1 basato sulla documentazione. Test sulla macchina ancora da eseguire.",
             "advisory": "400 x 400 mm, origine anteriore sinistra, S1000. Verificare $30 e la modalità laser $32=1. Homing e assistenza aria automatica sono disattivati. Altri firmware ed estensioni richiedono una configurazione separata."
