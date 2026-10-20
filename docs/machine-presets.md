@@ -157,6 +157,9 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 - [Common GRBL USB expansion, 24 presets at version 1](machines/common-grbl-usb-presets.md):
   Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun S10/S30/Ultra and
   Two Trees TTS/TS2. Documentation-based, physical testing pending.
+- [xTool D1/D1 Pro investigation](machines/xtool-d1.md): Needs review, no
+  shipping preset. Records vendor profile facts, control differences and the
+  native serial protocol evidence needed before implementation.
 
 Existing S30 Pro Max, ACMER S2, xTool M1, and LaserPecker entries predate this
 record format. Their current scope remains in the controller compatibility

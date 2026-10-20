@@ -228,7 +228,8 @@ module, frame and accessory coverage must accompany any future physical report.
 These are manual preset choices; a generic GRBL banner or shared USB chip does
 not identify a model. Saved profiles are not silently rewritten.
 
-The separate D1/D1 Pro follow-up must review vendor profiles, commands,
-positioning, firmware, rotary and streaming before adding those models. Other
+The [D1/D1 Pro investigation](xtool-d1.md) records verified vendor profile
+settings and unresolved native serial control behavior. Those models need an
+adapter before catalog inclusion. Other
 unlisted revisions, original AtomStack Pro models, Elegoo Phecda, NEJE and
 proprietary/galvo families remain outside this batch.

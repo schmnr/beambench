@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/whodafloater/xtd1_toolkit/blob/508ac22ba1fc85cb87b6ef3b7238b7b24b5ac53a/serial/README.md",
+  "description": "Public D1 USB serial observations, not a native protocol specification or Beam Bench hardware validation. Motion and credential-setting examples are excluded.",
+  "status_replies": ["ok", "<MPos:0.000000,0.000000,0.000000,0.000000>"],
+  "identity_reply_orders": [
+    ["[xTool D1:ver 40.30.009.01 B7]", "ok"],
+    ["ok", "[xTool D1:ver 40.30.009.01 B7]"]
+  ]
+}

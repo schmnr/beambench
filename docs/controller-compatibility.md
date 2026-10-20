@@ -28,7 +28,10 @@ entries do not cover the RAY5 mini/miniS or Nano families.
 The [common GRBL USB expansion](machines/common-grbl-usb-presets.md) adds exact
 Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun and Two Trees
 configurations, also documentation-based. These presets do not establish
-brand-wide compatibility or cover the xTool D1/D1 Pro.
+brand-wide compatibility or cover the xTool D1/D1 Pro. The
+[D1/D1 Pro investigation](machines/xtool-d1.md) records their vendor profile
+settings and the native serial protocol evidence still needed. Those machines
+do not yet have a Beam Bench adapter or preset.
 
 | Controller choice | Connection | Status | Current scope |
 | --- | --- | --- | --- |
