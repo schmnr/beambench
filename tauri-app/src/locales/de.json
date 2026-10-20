@@ -2226,6 +2226,10 @@
             "description": "BlazeX M3 10W-Voreinstellung anhand der Dokumentation und einer Besitzerkonfiguration.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 Baud. Netzwerk: Port 8080. Referenzfahrt ausführen oder beim Verbinden aktivieren. Der Z-Anschluss ist für eine Rotationseinheit."
           },
+          "longer_ray5_10w": {
+            "description": "USB-Voreinstellung für GRBL 1.1 auf Grundlage der Dokumentation. Tests am Gerät stehen noch aus.",
+            "advisory": "400 x 400 mm, Ursprung vorne links, S1000. $30 und Lasermodus $32=1 prüfen. Referenzfahrt und automatische Luftunterstützung sind aus. Andere Firmware und Erweiterungen müssen separat eingerichtet werden."
+          },
           "creality_falcon2_pro_22w": {
             "description": "USB-Voreinstellung für Originalhardware auf Basis der Dokumentation. Verfahrweg und maximalen S-Wert prüfen. Praxistest steht aus."
           },

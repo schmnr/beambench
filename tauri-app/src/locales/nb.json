@@ -2226,6 +2226,10 @@
             "description": "BlazeX M3 10W-forhåndsinnstilling basert på dokumentasjon og en eiers konfigurasjon.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Nettverk: port 8080. Referansekjør eller aktiver det ved tilkobling. Z-kontakten er for rotasjonstilbehør."
           },
+          "longer_ray5_10w": {
+            "description": "USB-forhåndsinnstilling for GRBL 1.1 basert på dokumentasjon. Testing på maskinen gjenstår.",
+            "advisory": "400 x 400 mm, origo foran til venstre, S1000. Kontroller $30 og lasermodus $32=1. Referansekjøring og automatisk luftassistanse er slått av. Annen fastvare og utvidelser krever eget oppsett."
+          },
           "creality_falcon2_pro_22w": {
             "description": "USB-forhåndsinnstilling for original maskinvare basert på dokumentasjon. Kontroller vandring og maksimal S-verdi. Fysisk testing gjenstår."
           },

@@ -149,6 +149,8 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
   documentation-based USB preset, 400 x 400 mm, physical testing pending.
 - [Two Trees TT-5.5S, preset version 1](machines/twotrees-tt-5-5s.md):
   documentation-based USB preset with M3, physical testing pending.
+- [Longer RAY5 10W, preset version 1](machines/longer-ray5-10w.md):
+  documentation-based GRBL 1.1 USB preset, physical testing pending.
 
 Existing S30 Pro Max, ACMER S2, xTool M1, and LaserPecker entries predate this
 record format. Their current scope remains in the controller compatibility

@@ -2226,6 +2226,10 @@
             "description": "Preajuste BlazeX M3 10W basado en la documentación y la configuración de un propietario.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudios. Red: puerto 8080. Busque el origen o active la búsqueda al conectar. El conector Z es para un accesorio rotativo."
           },
+          "longer_ray5_10w": {
+            "description": "Preajuste USB para GRBL 1.1 basado en documentación. Pendiente de pruebas con la máquina.",
+            "advisory": "400 x 400 mm, origen delantero izquierdo, S1000. Comprueba $30 y el modo láser $32=1. El retorno al origen y el aire asistido automático están desactivados. Otro firmware y las ampliaciones requieren una configuración aparte."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Ajuste USB para el hardware original basado en documentación. Comprueba el recorrido y el valor S máximo. Pruebas físicas pendientes."
           },

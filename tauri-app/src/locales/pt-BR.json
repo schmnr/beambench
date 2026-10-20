@@ -2226,6 +2226,10 @@
             "description": "Predefinição BlazeX M3 10W baseada na documentação e na configuração de um proprietário.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Rede: porta 8080. Referencie ou ative a referência ao conectar. O conector Z é para um acessório rotativo."
           },
+          "longer_ray5_10w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Predefinição USB para o hardware original baseada na documentação. Confira o curso e o valor S máximo. Testes físicos pendentes."
           },

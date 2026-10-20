@@ -18,6 +18,9 @@ They do not change an adapter's status below. See the
 [preset catalog process and evidence records](machine-presets.md). The original
 [Sculpfun S9 preset](machines/sculpfun-s9.md) uses the existing GRBL adapter and
 is documentation-based, with physical Beam Bench testing pending.
+The [Longer RAY5 10W preset](machines/longer-ray5-10w.md) supplies documented
+defaults for GRBL 1.1 over USB serial. It does not establish compatibility with
+other RAY5 firmware, offline controls or accessories.
 
 | Controller choice | Connection | Status | Current scope |
 | --- | --- | --- | --- |

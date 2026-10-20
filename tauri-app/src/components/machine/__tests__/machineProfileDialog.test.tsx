@@ -564,6 +564,7 @@ describe('MachineProfileDialog', () => {
     { presetId: 'sculpfun_s9', name: 'Sculpfun S9 (5.5W)', airOn: '', width: 410, height: 415, homing: false },
     { presetId: 'creality_falcon2_pro_22w', name: 'Creality Falcon2 Pro 22W', airOn: '', width: 400, height: 415, homing: false },
     { presetId: 'creality_falcon2_pro_60w', name: 'Creality Falcon2 Pro 60W', airOn: '', width: 400, height: 400, homing: false },
+    { presetId: 'longer_ray5_10w', name: 'Longer RAY5 10W', airOn: '', width: 400, height: 400, homing: false },
   ])('previews and applies $presetId with explicit confirmation', async ({ presetId, name, airOn, width, height, homing }) => {
     const profile = makeProfile({ id: 'prof-preset', name: 'Preset Profile' });
     const appliedProfile = {
@@ -662,6 +663,10 @@ describe('MachineProfileDialog', () => {
     }
     if (presetId.startsWith('creality_falcon2_pro_')) {
       expect(screen.getByText(/Physical testing pending/)).toBeDefined();
+    }
+    if (presetId === 'longer_ray5_10w') {
+      expect(screen.getByText(/Documentation-based GRBL 1.1 USB preset/)).toBeDefined();
+      expect(screen.getByText(/Homing and automatic air assist are off/)).toBeDefined();
     }
     expect((screen.getByTestId('machine-preset-apply') as HTMLButtonElement).disabled).toBe(true);
 

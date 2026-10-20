@@ -2226,6 +2226,10 @@
             "description": "Prednastavitev BlazeX M3 10W temelji na dokumentaciji in konfiguraciji lastnika.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baudov. Omrežje: vrata 8080. Izvedite referenciranje ali ga omogočite ob povezavi. Priključek Z je za rotacijski dodatek."
           },
+          "longer_ray5_10w": {
+            "description": "Prednastavitev USB za GRBL 1.1 na podlagi dokumentacije. Preizkusi na napravi še niso opravljeni.",
+            "advisory": "400 x 400 mm, izhodišče spredaj levo, S1000. Preverite $30 in laserski način $32=1. Iskanje izhodišča in samodejni vpih zraka sta izklopljena. Druga strojna programska oprema in razširitve zahtevajo ločeno nastavitev."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Prednastavitev USB za izvirno strojno opremo na podlagi dokumentacije. Preverite hod in največjo vrednost S. Fizično testiranje še ni opravljeno."
           },

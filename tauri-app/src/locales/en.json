@@ -2378,6 +2378,10 @@
             "description": "BlazeX M3 10W preset based on documentation and an owner configuration.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Network: port 8080. Use Home or enable Home on connect. The Z socket is for a rotary accessory."
           },
+          "longer_ray5_10w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
           },

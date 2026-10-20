@@ -2226,6 +2226,10 @@
             "description": "Belgelere ve bir kullanıcının yapılandırmasına dayalı BlazeX M3 10W ön ayarı.",
             "advisory": "200 x 150 mm, S1000. USB: 115200 baud. Ağ: 8080 numaralı bağlantı noktası. Referanslayın veya bağlantıda referanslamayı açın. Z soketi döner aksesuar içindir."
           },
+          "longer_ray5_10w": {
+            "description": "Belgelere dayalı GRBL 1.1 USB ön ayarı. Fiziksel makine testleri henüz yapılmadı.",
+            "advisory": "400 x 400 mm, sol ön başlangıç noktası, S1000. $30 değerini ve $32=1 lazer modunu doğrulayın. Referansa dönüş ve otomatik hava desteği kapalıdır. Diğer donanım yazılımları ve genişletmeler ayrı kurulum gerektirir."
+          },
           "creality_falcon2_pro_22w": {
             "description": "Belgeler temelinde hazırlanmış, standart donanım için USB ön ayarı. Hareket mesafesini ve en yüksek S değerini kontrol edin. Fiziksel testler henüz yapılmadı."
           },

@@ -447,6 +447,35 @@ pub fn profile_presets() -> Vec<MachineProfilePreset> {
             transfer_mode: TransferMode::Buffered,
             preferred_default_origin: None,
         },
+        // GRBL 1.1 USB scope and sources: docs/machines/longer-ray5-10w.md.
+        MachineProfilePreset {
+            id: "longer_ray5_10w",
+            version: 1,
+            name: "Longer RAY5 10W",
+            description: "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            advisory_text: Some(
+                "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+            ),
+            firmware_type: "grbl",
+            default_baud_rate: 115_200,
+            bed_width_mm: 400.0,
+            bed_height_mm: 400.0,
+            max_speed_mm_min: 6000.0,
+            max_power_percent: 100.0,
+            s_value_max: 1000,
+            homing_enabled: false,
+            origin: WorkspaceOrigin::BottomLeft,
+            use_constant_power: false,
+            emit_s_every_g1: false,
+            use_g0_for_overscan: false,
+            air_assist_on_gcode: "",
+            air_assist_off_gcode: "",
+            air_assist_on_delay_ms: 0,
+            job_header_gcode: "",
+            job_footer_gcode: "",
+            transfer_mode: TransferMode::Buffered,
+            preferred_default_origin: Some(WorkspaceOrigin::BottomLeft),
+        },
         // Stock TT-5.5S is an 8-bit USB machine, not the Wi-Fi TTS-55.
         // Sources and scope: docs/machines/twotrees-tt-5-5s.md.
         MachineProfilePreset {
@@ -1928,6 +1957,7 @@ mod tests {
             "creality_falcon2_pro_22w",
             "creality_falcon2_pro_40w",
             "creality_falcon2_pro_60w",
+            "longer_ray5_10w",
             "twotrees_tt_5_5s",
         ] {
             let diff = profile_preset_diff(&ctx, active.id, preset_id).unwrap();
@@ -1973,6 +2003,7 @@ mod tests {
             ("creality_falcon2_pro_22w", 400.0, 415.0, 6000.0, "", false),
             ("creality_falcon2_pro_40w", 400.0, 415.0, 6000.0, "", false),
             ("creality_falcon2_pro_60w", 400.0, 400.0, 6000.0, "", false),
+            ("longer_ray5_10w", 400.0, 400.0, 6000.0, "", false),
             ("twotrees_tt_5_5s", 300.0, 300.0, 3000.0, "", true),
         ] {
             let ctx = ServiceContext::with_settings(AppSettings::default());
@@ -2317,6 +2348,8 @@ mod tests {
             vec!["Grbl 1.1h ['$' for help]", "[VER:Two Trees TTS-55:]"],
             vec!["Grbl 1.1h ['$' for help]", "[VER:Two Trees TT-50:]"],
             vec!["Grbl 1.1h ['$' for help]", "[VER:TT-5.5S:]"],
+            vec!["Grbl 1.1h ['$' for help]", "[VER:MKS DLC32 V2.1:]"],
+            vec!["Grbl 1.1h ['$' for help]", "[VER:Longer RAY5:]"],
         ] {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             install_grbl_session_with_info(&ctx, &lines);

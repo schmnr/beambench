@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a Longer RAY5 10W preset for GRBL 1.1 USB controllers, with documented
+  workspace, origin, baud and power scale. Physical testing is pending.
 - Linux AppImages recover from the environment inherited during an automatic
   update restart. Camera plugins and the bundled font policy use the new mount
   without requiring a manual quit and reopen. Custom host paths remain intact.
