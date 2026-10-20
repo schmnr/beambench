@@ -5342,6 +5342,7 @@ mod tests {
                 "grbl-hal",
                 "laser-pecker",
                 "xtool-m1",
+                "xtool-d1",
                 "marlin",
                 "snapmaker",
                 "smoothieware",
@@ -5384,11 +5385,29 @@ mod tests {
                 "grbl-hal",
                 "laser-pecker",
                 "xtool-m1",
+                "xtool-d1",
                 "ruida"
             ]
         );
         assert_eq!(NetworkControllerArg::LaserPecker.default_port(), 8888);
         assert_eq!(NetworkControllerArg::XtoolM1.default_port(), 8080);
+        assert_eq!(NetworkControllerArg::XtoolD1.default_port(), 8080);
+        assert_eq!(
+            NetworkControllerArg::XtoolD1.selection_json(),
+            known_controller_selection("xtool_d1")
+        );
+        assert!(
+            Cli::try_parse_from([
+                "beambench",
+                "machine",
+                "connect-serial",
+                "--port",
+                "/dev/ttyUSB0",
+                "--controller",
+                "xtool-d1"
+            ])
+            .is_err()
+        );
     }
 
     #[test]
