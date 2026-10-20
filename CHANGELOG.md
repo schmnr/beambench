@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Linux AppImages recover from the environment inherited during an automatic
+  update restart. Camera plugins and the bundled font policy use the new mount
+  without requiring a manual quit and reopen. Custom host paths remain intact.
+
 ## 0.2.31
 
 - Fix Linux AppImage camera capture failing with "Camera not found" when the

@@ -24,6 +24,64 @@ def camera_environment():
 
 
 class RuntimePolicyTests(unittest.TestCase):
+    def test_relaunch_cleans_previous_mount_paths_and_preserves_user_overrides(self):
+        with tempfile.TemporaryDirectory(prefix='camera restart ') as temporary:
+            root = Path(temporary)
+            previous = '/tmp/.mount_Beam.Bprevious'
+            executable = root / 'beambench-tauri'
+            shutil.copyfile(SCRIPTS / 'linux-appimage-exec.sh', executable)
+            executable.chmod(0o755)
+            binary = root / 'beambench-tauri.bin'
+            keys = ['PATH', 'LD_LIBRARY_PATH', 'FONTCONFIG_FILE',
+                    'GST_PLUGIN_SYSTEM_PATH', 'GST_PLUGIN_SYSTEM_PATH_1_0',
+                    'GST_PLUGIN_PATH_1_0', 'BEAMBENCH_APPIMAGE_RUNTIME_DIR']
+            binary.write_text(f'''#!/usr/bin/env python3
+import json, os
+print(json.dumps({{k: os.environ.get(k) for k in {keys!r}}}))
+''')
+            binary.chmod(0o755)
+            source = shlex.quote(str(SCRIPTS / 'linux-appimage-runtime.sh'))
+            cases = [
+                # 0.2.30 inherited linuxdeploy's empty system plugin paths.
+                ({'GST_PLUGIN_SYSTEM_PATH': previous + '/usr/lib/gstreamer:',
+                  'GST_PLUGIN_SYSTEM_PATH_1_0': previous + '/usr/lib/gstreamer-1.0:'}, None, None),
+                # 0.2.31 restored plugin discovery but retained the old font file.
+                ({}, None, None),
+                # Legacy launches with custom fonts still expose their mount in GST.
+                ({'FONTCONFIG_FILE': '/custom fonts/fonts.conf',
+                  'GST_PLUGIN_SYSTEM_PATH': previous + '/usr/lib/gstreamer:/custom gst',
+                  'GST_PLUGIN_SYSTEM_PATH_1_0': previous + '/usr/lib/gstreamer-1.0:/custom gst'},
+                 '/custom gst', '/custom gst'),
+                # Fixed releases identify the previous mount, even with custom fonts.
+                ({'BEAMBENCH_APPIMAGE_RUNTIME_DIR': previous,
+                  'FONTCONFIG_FILE': '/custom fonts/fonts.conf',
+                  'GST_PLUGIN_SYSTEM_PATH': '', 'GST_PLUGIN_SYSTEM_PATH_1_0': ''}, '', ''),
+            ]
+            for overrides, system, versioned in cases:
+                with self.subTest(overrides=overrides):
+                    env = camera_environment()
+                    env.update(APPDIR=str(root),
+                               BEAMBENCH_APPIMAGE_FONT_POLICY='1',
+                               FONTCONFIG_FILE=previous + '/usr/share/beambench/fonts.conf',
+                               PATH=previous + '/usr/bin:/usr/bin:/bin:' + previous + '-other/bin',
+                               LD_LIBRARY_PATH=previous + '/usr/lib:/custom libs::',
+                               GST_PLUGIN_PATH_1_0=previous + '/plugins:/custom plugins')
+                    env.update(overrides)
+                    result = subprocess.check_output(['bash', '-c', f'''source {source}
+export GST_PLUGIN_SYSTEM_PATH="$APPDIR/usr/lib/gstreamer:${{GST_PLUGIN_SYSTEM_PATH-}}"
+export GST_PLUGIN_SYSTEM_PATH_1_0="$APPDIR/usr/lib/gstreamer-1.0:${{GST_PLUGIN_SYSTEM_PATH_1_0-}}"
+exec {shlex.quote(str(executable))}
+'''], env=env, text=True)
+                    self.assertEqual(json.loads(result), {
+                        'PATH': '/usr/bin:/bin:' + previous + '-other/bin',
+                        'LD_LIBRARY_PATH': '/custom libs::',
+                        'FONTCONFIG_FILE': overrides.get('FONTCONFIG_FILE', str(root / 'usr/share/beambench/fonts.conf')),
+                        'GST_PLUGIN_SYSTEM_PATH': system,
+                        'GST_PLUGIN_SYSTEM_PATH_1_0': versioned,
+                        'GST_PLUGIN_PATH_1_0': '/custom plugins',
+                        'BEAMBENCH_APPIMAGE_RUNTIME_DIR': str(root),
+                    })
+
     def test_camera_paths_survive_the_generated_launcher_and_arguments_are_preserved(self):
         with tempfile.TemporaryDirectory(prefix='camera AppDir ') as temporary:
             root = Path(temporary)
@@ -170,12 +228,34 @@ for element in appsink v4l2src videoconvert; do
   gst-inspect-1.0 "$element" >/dev/null
 done
 gst-launch-1.0 -q videotestsrc num-buffers=3 ! videoconvert ! appsink sync=false wait-on-eos=false
+test -f "$FONTCONFIG_FILE"
+test -n "$(fc-match sans-serif -f '%{file}')"
 printf 'packaged camera pipeline passed\\n'
 ''')
             binary.chmod(0o755)
             env['GST_REGISTRY_1_0'] = str(root / 'registry.bin')
-            result = subprocess.run([str(appdir / 'AppRun')], env=env, check=True, capture_output=True, text=True, timeout=60)
-            self.assertIn('packaged camera pipeline passed', result.stdout)
+            env['APPDIR'] = str(appdir)
+            previous = str(root / '.mount_Beam.Bprevious')
+            for inherited in [
+                {},
+                {'FONTCONFIG_FILE': previous + '/usr/share/beambench/fonts.conf',
+                 'BEAMBENCH_APPIMAGE_FONT_POLICY': '1',
+                 'GST_PLUGIN_SYSTEM_PATH': previous + '/usr/lib/gstreamer:',
+                 'GST_PLUGIN_SYSTEM_PATH_1_0': previous + '/usr/lib/gstreamer-1.0:'},
+                {'FONTCONFIG_FILE': previous + '/usr/share/beambench/fonts.conf',
+                 'BEAMBENCH_APPIMAGE_FONT_POLICY': '1'},
+                {'FONTCONFIG_FILE': '/etc/fonts/fonts.conf',
+                 'GST_PLUGIN_SYSTEM_PATH_1_0': previous + '/usr/lib/gstreamer-1.0:'},
+                {'FONTCONFIG_FILE': previous + '/usr/share/beambench/fonts.conf',
+                 'BEAMBENCH_APPIMAGE_FONT_POLICY': '1',
+                 'BEAMBENCH_APPIMAGE_RUNTIME_DIR': previous},
+            ]:
+                with self.subTest(inherited=inherited):
+                    launch_env = dict(env, **inherited)
+                    launch_env['LD_LIBRARY_PATH'] = previous + '/usr/lib:'
+                    launch_env['PATH'] = previous + '/usr/bin:' + env['PATH']
+                    result = subprocess.run([str(appdir / 'AppRun')], env=launch_env, check=True, capture_output=True, text=True, timeout=60)
+                    self.assertIn('packaged camera pipeline passed', result.stdout)
 
 
 if __name__ == '__main__':

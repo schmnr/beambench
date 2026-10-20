@@ -63,6 +63,13 @@ This test substitutes a media probe for the extracted desktop binary while
 retaining the packaged launchers. It does not validate a physical camera or
 change the signed AppImage.
 
+The same test covers automatic relaunch environments from older AppImages.
+It checks camera capture and font discovery after the previous mount is gone,
+including the GStreamer overrides exported before 0.2.31. Keep this transition
+coverage when changing either launcher. See
+[Linux AppImage relaunch](testing/linux-appimage-relaunch.md) for the scope and
+remaining native updater checks.
+
 Dispatch the platform workflows one at a time. They share a same-tag concurrency
 group, and GitHub retains at most one pending run in that group.
 
