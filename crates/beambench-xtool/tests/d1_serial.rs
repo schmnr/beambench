@@ -129,7 +129,6 @@ fn job(frame: bool) -> D1CompiledJob {
     D1CompiledJob {
         line_count: gcode.lines().count(),
         gcode,
-        frame,
     }
 }
 fn send_all(r: &mut D1SerialRuntime<Io>) {
@@ -208,7 +207,7 @@ fn physical_start_is_required_and_acks_do_not_complete_a_job() {
     assert!(!r.has_pending_job());
 }
 #[test]
-fn frame_and_processing_send_their_native_mode_with_no_speculative_commands() {
+fn frame_and_processing_use_the_regular_online_recipe_with_no_speculative_commands() {
     for frame in [true, false] {
         let (mut r, io) = connected();
         r.arm(&job(frame)).unwrap();
@@ -217,7 +216,8 @@ fn frame_and_processing_send_their_native_mode_with_no_speculative_commands() {
         io.finish();
         r.tick().unwrap();
         let m = io.0.lock().unwrap();
-        assert!(m.writes.contains(&format!("M207 S{}", u8::from(!frame))));
+        assert!(m.writes.contains(&"M207 S1".into()));
+        assert!(!m.writes.contains(&"M207 S0".into()));
         assert!(
             !m.writes
                 .iter()

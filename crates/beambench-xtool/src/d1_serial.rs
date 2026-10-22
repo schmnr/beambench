@@ -373,8 +373,9 @@ impl<I: D1SerialIo> D1SerialRuntime<I> {
         {
             return Err("D1 USB requires a complete native compiled program".into());
         }
-        // Same native head as Studio: processing S1, laser-off framing S0.
-        lines.insert(1, format!("M207 S{}", u8::from(!job.frame)));
+        // Both operations use the regular online-job recipe. The compiler
+        // forces frame motion power to zero; native walk-border mode is unused.
+        lines.insert(1, "M207 S1".into());
         if !self.idle()? {
             return self.fail("D1 USB became busy before arming");
         }

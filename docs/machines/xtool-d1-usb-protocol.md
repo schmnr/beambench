@@ -72,8 +72,9 @@ The older LightBurn profile's DTR flags belong to its compatibility path.
 | Program end | `ok:IDLE`, `MSG:Pgm End`, `[MSG:Pgm End]`, `ok[MSG:Pgm End]` | Require an owned running job, the complete transmitted and acknowledged tail, and a fresh `M96 N0` before reporting Completed. |
 | Alarms | `err:*`, `ok:ERROR`, temperature/key-lock errors | Retain failure and attempt Stop/output-off for owned work. Never continue automatically. |
 
-The native header adds `M207 S1` for processing, or `M207 S0` for a laser-off
-frame, after `M17 S1`. The existing D1 compiler supplies the remaining native
+The regular native online header adds `M207 S1` after `M17 S1`, for both
+processing and the all-zero-power online frame. Native walk-border mode pairs
+`M8 N13` with `M207 S0`; Beam Bench does not mix that mode into an online job. The existing D1 compiler supplies the remaining native
 header, local `G92` anchor, inline power and `M18` tail. A frame uses an
 ordinary, all-zero-power online program and the same physical-button flow.
 It does not use an unverified automatic framing shortcut.

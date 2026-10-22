@@ -14,7 +14,6 @@ pub struct D1CompileConfig {
 pub struct D1CompiledJob {
     pub gcode: String,
     pub line_count: usize,
-    pub frame: bool,
 }
 
 /// Native D-series file output uses inline G1 power, not the GRBL serial
@@ -132,7 +131,6 @@ pub fn compile_d1_job(
     Ok(D1CompiledJob {
         gcode,
         line_count: count,
-        frame: config.frame,
     })
 }
 

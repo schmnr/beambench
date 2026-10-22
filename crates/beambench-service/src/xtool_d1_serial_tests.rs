@@ -131,7 +131,6 @@ fn simple_job() -> beambench_xtool::D1CompiledJob {
     beambench_xtool::D1CompiledJob {
         gcode: "M17 S1\nG1 X10 Y20 S0\nM18\n".into(),
         line_count: 3,
-        frame: true,
     }
 }
 

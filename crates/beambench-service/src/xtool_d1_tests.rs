@@ -456,7 +456,6 @@ fn d1_unverified_upload_is_stopped_and_owned_file_is_removed() {
     let job = beambench_xtool::D1CompiledJob {
         gcode: "M17 S1\nG1 S0\nM18\n".into(),
         line_count: 3,
-        frame: false,
     };
     assert!(session.upload_job(&job).is_err());
     let state = emulator.state.lock().unwrap();
