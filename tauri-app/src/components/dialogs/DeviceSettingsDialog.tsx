@@ -314,6 +314,9 @@ function ConnectionTab({ active }: { active: boolean }) {
       : xtoolM1Selected
         ? 'xtool_m1'
         : xtoolD1Selected ? 'xtool_d1' : 'gcode';
+  useEffect(() => {
+    if (xtoolD1Selected && transportKind === SERIAL_TRANSPORT) setBaudRate(230400);
+  }, [xtoolD1Selected, transportKind]);
   const previousNetworkController = useRef<NetworkControllerKind>('gcode');
   const restoredProfileId = useRef<string | null>(null);
 
@@ -348,7 +351,15 @@ function ConnectionTab({ active }: { active: boolean }) {
       setBaudRate(activeProfile.default_baud_rate);
       setNetworkHost('');
       setNetworkPort(GCODE_DEFAULT_PORT);
-      setControllerSelection({ mode: 'known_driver', driver: 'grbl' });
+      if (activeProfile.firmware_type === 'xtool_d1') {
+        setControllerSelection({ mode: 'known_driver', driver: 'xtool_d1' });
+        if (activeProfile.preset_id?.endsWith('_wifi')) {
+          setTransportKind(NETWORK_TRANSPORT);
+          setNetworkPort(8080);
+        }
+      } else {
+        setControllerSelection({ mode: 'known_driver', driver: 'grbl' });
+      }
       return;
     }
 

@@ -8,6 +8,7 @@ mod compiler;
 mod d1_compiler;
 mod d1_protocol;
 mod d1_runtime;
+mod d1_serial;
 mod protocol;
 mod runtime;
 
@@ -21,6 +22,7 @@ pub use d1_protocol::{
     parse_d1_progress, parse_d1_status_event, parse_d1_working_state, require_d1_ack,
 };
 pub use d1_runtime::{D1Identity, D1NetworkIo, D1Runtime, D1RuntimeError, D1RuntimePhase};
+pub use d1_serial::{D1_SERIAL_BAUD, D1SerialIo, D1SerialRuntime, D1SerialSnapshot};
 pub use protocol::{M1HttpIo as XToolHttpIo, M1HttpResponse as XToolHttpResponse};
 pub use protocol::{
     M1HttpIo, M1HttpResponse, M1Identity, M1IdentityConfidence, M1ProtocolError, M1Status,

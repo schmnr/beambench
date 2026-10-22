@@ -321,6 +321,7 @@ fn driver_supports_transport(driver: ControllerDriverId, transport: TransportKin
         }
         (ControllerDriverId::LaserPecker, TransportKind::Tcp) => true,
         (ControllerDriverId::XToolD1 | ControllerDriverId::XToolM1, TransportKind::Tcp) => true,
+        (ControllerDriverId::XToolD1, TransportKind::Serial) => true,
         (ControllerDriverId::Ruida, TransportKind::Udp) => {
             RuidaEthernetAdapter::new().descriptor().transport_kind == TransportKind::Udp
         }

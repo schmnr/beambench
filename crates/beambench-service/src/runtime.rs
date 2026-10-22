@@ -834,7 +834,7 @@ impl MachineSessionHandle {
             Self::Marlin(_) | Self::Smoothieware(_) => TransportKind::Serial,
             Self::Ruida(_) => TransportKind::Udp,
             Self::Lihuiyu(_) => TransportKind::UsbPacket,
-            Self::XToolD1(_) => TransportKind::Tcp,
+            Self::XToolD1(session) => session.transport_kind(),
             Self::XToolM1(_) => TransportKind::Tcp,
             Self::Dsp(_) => TransportKind::Tcp,
             Self::Galvo(_) => TransportKind::UsbPacket,

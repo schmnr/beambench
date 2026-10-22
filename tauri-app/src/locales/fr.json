@@ -36,7 +36,7 @@
     "option_fluidnc": "FluidNC (Experimental)",
     "option_grblhal": "grblHAL (Experimental)",
     "option_laserpecker": "LaserPecker (Experimental)",
-    "option_xtool_d1": "xTool D1 / D1 Pro Wi-Fi (Experimental)",
+    "option_xtool_d1": "xTool D1 / D1 Pro USB / Wi-Fi (Experimental)",
     "option_xtool_m1": "xTool M1 originale (Experimental)",
     "option_marlin": "Marlin (Experimental)",
     "option_snapmaker": "Snapmaker 2.0 (Experimental)",
@@ -1961,7 +1961,7 @@
         "axis_z": "Z:"
       },
       "job_progress": {
-        "physical_start": "Travail chargé. Appuyez sur le bouton de démarrage de la machine lorsque vous êtes prêt.",
+        "physical_start": "Appuyez sur le bouton physique de la machine pour démarrer ou reprendre.",
         "state": {
           "idle": "INACTIF",
           "preparing": "PRÉPARATION",

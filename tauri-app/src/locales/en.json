@@ -36,7 +36,7 @@
     "option_fluidnc": "FluidNC (Experimental)",
     "option_grblhal": "grblHAL (Experimental)",
     "option_laserpecker": "LaserPecker (Experimental)",
-    "option_xtool_d1": "xTool D1 / D1 Pro Wi-Fi (Experimental)",
+    "option_xtool_d1": "xTool D1 / D1 Pro USB / Wi-Fi (Experimental)",
     "option_xtool_m1": "Original xTool M1 (Experimental)",
     "option_marlin": "Marlin (Experimental)",
     "option_snapmaker": "Snapmaker 2.0 (Experimental)",
@@ -2113,7 +2113,7 @@
         "axis_z": "Z:"
       },
       "job_progress": {
-        "physical_start": "Job uploaded. Press the machine's physical start button when ready.",
+        "physical_start": "Press the machine's physical button to start or resume.",
         "state": {
           "idle": "IDLE",
           "preparing": "PREPARING",

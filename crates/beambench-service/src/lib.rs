@@ -17,6 +17,9 @@ mod ruida_runtime;
 pub mod runtime;
 pub mod validation;
 mod xtool_d1_runtime;
+mod xtool_d1_serial;
+#[cfg(test)]
+mod xtool_d1_serial_tests;
 #[cfg(test)]
 mod xtool_d1_tests;
 mod xtool_runtime;

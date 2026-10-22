@@ -228,7 +228,7 @@ module, frame and accessory coverage must accompany any future physical report.
 These are manual preset choices; a generic GRBL banner or shared USB chip does
 not identify a model. Saved profiles are not silently rewritten.
 
-The [D1/D1 Pro native Wi-Fi adapter](xtool-d1.md) has separate stock-module
-presets on unreleased `main`. Its USB serial lifecycle is still under investigation. Other
+The [D1/D1 Pro native USB and Wi-Fi adapters](xtool-d1.md) have separate stock-module
+presets on unreleased `main`, with physical testing pending. Other
 unlisted revisions, original AtomStack Pro models, Elegoo Phecda, NEJE and
 proprietary/galvo families remain outside this batch.

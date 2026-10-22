@@ -1010,6 +1010,22 @@ describe('DeviceSettingsDialog', () => {
     });
   });
 
+  it.each(['usb', 'wifi'])('selects the native D1 adapter for a new %s preset', async (transport) => {
+    const profile = makeProfile({ firmware_type: 'xtool_d1', preset_id: `xtool_d1_pro_20w_${transport}`, default_baud_rate: 230400 });
+    useMachineStore.setState({
+      profiles: [profile], activeProfileId: profile.id, sessionState: 'disconnected',
+      connectedPort: null, availablePorts: [], loading: false,
+      controllerConnectionChallenge: null, controllerSelection: { mode: 'known_driver', driver: 'grbl' },
+      refreshPorts: vi.fn().mockResolvedValue(undefined),
+    });
+    render(<DeviceSettingsDialog onClose={vi.fn()} />);
+    await waitFor(() => {
+      expect((screen.getByLabelText('Controller') as HTMLSelectElement).value).toBe('xtool_d1');
+      expect((screen.getByLabelText('Connection') as HTMLSelectElement).value).toBe(transport === 'usb' ? 'serial' : 'tcp');
+    });
+    if (transport === 'usb') expect((screen.getByLabelText('Baud Rate') as HTMLSelectElement).value).toBe('230400');
+  });
+
   it.each(['grbl', 'generic_grbl_compatible', 'auto_detect'])(
     'connects a network controller using %s from the Devices connection tab', async (controller) => {
     const connectNetwork = vi.fn();

@@ -128,4 +128,4 @@ cleanup ownership and bounded real HTTP/WebSocket transport. Owner validation
 must still record the exact machine, installed module, firmware, frame,
 workspace orientation and physical endpoints, including an asymmetric shape,
 a small vector/raster job, pause/resume and physical/network interruption.
-USB remains blocked on the serial lifecycle evidence in [the USB investigation](xtool-d1.md).
+USB now has a separate [native serial adapter and evidence record](xtool-d1-usb-protocol.md). Neither transport has physical Beam Bench validation yet.

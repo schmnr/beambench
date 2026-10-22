@@ -36,7 +36,7 @@
     "option_fluidnc": "FluidNC (Experimental)",
     "option_grblhal": "grblHAL (Experimental)",
     "option_laserpecker": "LaserPecker (Experimental)",
-    "option_xtool_d1": "xTool D1 / D1 Pro Wi-Fi (Experimental)",
+    "option_xtool_d1": "xTool D1 / D1 Pro USB / Wi-Fi (Experimental)",
     "option_xtool_m1": "Original xTool M1 (Experimental)",
     "option_marlin": "Marlin (Experimental)",
     "option_snapmaker": "Snapmaker 2.0 (Experimental)",
@@ -1961,7 +1961,7 @@
         "axis_z": "Z:"
       },
       "job_progress": {
-        "physical_start": "任务已上传。准备好后，请按机器的实体启动按钮。",
+        "physical_start": "按机器上的实体按钮开始或继续。",
         "state": {
           "idle": "空闲",
           "preparing": "准备中",

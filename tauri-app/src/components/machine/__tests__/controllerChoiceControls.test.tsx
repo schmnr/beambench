@@ -120,6 +120,7 @@ describe('ControllerChoiceControls', () => {
       'Auto-detect',
       'FluidNC (Experimental)',
       'grblHAL (Experimental)',
+      'xTool D1 / D1 Pro USB / Wi-Fi (Experimental)',
       'LaserPecker (Experimental)',
       'Marlin (Experimental)',
       'Snapmaker 2.0 (Experimental)',
@@ -152,7 +153,7 @@ describe('ControllerChoiceControls', () => {
       'FluidNC (Experimental)',
       'grblHAL (Experimental)',
       'LaserPecker (Experimental)',
-      'xTool D1 / D1 Pro Wi-Fi (Experimental)',
+      'xTool D1 / D1 Pro USB / Wi-Fi (Experimental)',
       'Original xTool M1 (Experimental)',
       'Ruida (Experimental)',
     ]);

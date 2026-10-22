@@ -281,6 +281,7 @@ pub fn send_independent_stop(host: &str, port: u16) -> Result<(), String> {
     stop.map(|_| ()).map_err(|e| e.to_string())
 }
 
+use crate::xtool_d1_serial::{D1SerialStop, D1SerialWorker};
 use beambench_common::{
     ControllerDriverId, ControllerEvidenceState, ControllerFamily, ControllerModel,
     ControllerProductTier, DeviceCapabilities, ExplicitControllerSelection, JobProgress, JobState,
@@ -289,8 +290,82 @@ use beambench_common::{
 use beambench_xtool::{D1CompiledJob, D1Model, D1Runtime, D1RuntimePhase};
 use std::collections::HashMap;
 
+enum D1Backend {
+    Network(D1Runtime<ReqwestD1NetworkIo>),
+    Serial(D1SerialWorker),
+}
+impl D1Backend {
+    fn identity(&self) -> Option<&beambench_xtool::D1Identity> {
+        match self {
+            Self::Network(r) => r.identity(),
+            Self::Serial(r) => Some(r.identity()),
+        }
+    }
+    fn phase(&self) -> D1RuntimePhase {
+        match self {
+            Self::Network(r) => r.phase(),
+            Self::Serial(r) => r.snapshot().phase,
+        }
+    }
+    fn has_pending_file(&self) -> bool {
+        match self {
+            Self::Network(r) => r.has_pending_file(),
+            Self::Serial(r) => matches!(
+                r.snapshot().phase,
+                D1RuntimePhase::ReadyToRun
+                    | D1RuntimePhase::Running
+                    | D1RuntimePhase::PauseRequested
+                    | D1RuntimePhase::Paused
+                    | D1RuntimePhase::ResumeRequested
+            ),
+        }
+    }
+    fn upload(&mut self, job: &D1CompiledJob, marker: &str) -> Result<(), String> {
+        match self {
+            Self::Network(r) => r.upload(job, marker).map_err(|e| e.to_string()),
+            Self::Serial(r) => r.arm(job),
+        }
+    }
+    fn poll(&mut self) -> Result<D1RuntimePhase, String> {
+        match self {
+            Self::Network(r) => r.poll().map_err(|e| e.to_string()),
+            Self::Serial(r) => {
+                let s = r.snapshot();
+                if let Some(error) = s.error {
+                    Err(error)
+                } else {
+                    Ok(s.phase)
+                }
+            }
+        }
+    }
+    fn pause(&mut self) -> Result<(), String> {
+        match self {
+            Self::Network(r) => r.pause().map_err(|e| e.to_string()),
+            Self::Serial(r) => r.pause(),
+        }
+    }
+    fn resume(&mut self) -> Result<(), String> {
+        match self {
+            Self::Network(r) => r.resume().map_err(|e| e.to_string()),
+            Self::Serial(r) => r.resume(),
+        }
+    }
+    fn stop(&mut self) -> Result<(), String> {
+        match self {
+            Self::Network(r) => r.stop().map_err(|e| e.to_string()),
+            Self::Serial(r) => r.stop(),
+        }
+    }
+    fn disconnect(&mut self) {
+        if let Self::Network(r) = self {
+            r.disconnect();
+        }
+    }
+}
+
 pub struct XToolD1RuntimeSession {
-    runtime: D1Runtime<ReqwestD1NetworkIo>,
+    runtime: D1Backend,
     host: String,
     port: u16,
     machine_status: MachineStatus,
@@ -305,13 +380,50 @@ impl XToolD1RuntimeSession {
         let mut runtime = D1Runtime::new(io);
         runtime.connect().map_err(|error| error.to_string())?;
         let mut session = Self {
-            runtime,
+            runtime: D1Backend::Network(runtime),
             host: host.trim().to_string(),
             port,
             machine_status: MachineStatus::default(),
         };
         session.refresh_machine_status();
         Ok(session)
+    }
+
+    pub fn connect_serial(path: &str) -> Result<Self, String> {
+        Self::from_serial_worker(path, D1SerialWorker::connect(path)?)
+    }
+
+    pub(crate) fn from_serial_worker(path: &str, worker: D1SerialWorker) -> Result<Self, String> {
+        let mut session = Self {
+            runtime: D1Backend::Serial(worker),
+            host: path.to_owned(),
+            port: 0,
+            machine_status: MachineStatus::default(),
+        };
+        session.refresh_machine_status();
+        Ok(session)
+    }
+
+    pub fn transport_kind(&self) -> beambench_common::TransportKind {
+        if matches!(self.runtime, D1Backend::Serial(_)) {
+            beambench_common::TransportKind::Serial
+        } else {
+            beambench_common::TransportKind::Tcp
+        }
+    }
+
+    pub(crate) fn serial_stop_handle(&self) -> Option<D1SerialStop> {
+        match &self.runtime {
+            D1Backend::Serial(r) => Some(r.stop_handle()),
+            _ => None,
+        }
+    }
+
+    pub fn serial_progress(&self) -> Option<beambench_xtool::D1SerialSnapshot> {
+        match &self.runtime {
+            D1Backend::Serial(r) => Some(r.snapshot()),
+            _ => None,
+        }
     }
 
     pub const fn driver(&self) -> ControllerDriverId {
@@ -361,9 +473,10 @@ impl XToolD1RuntimeSession {
             firmware_identity: identity
                 .map(|identity| format!("{:?} {}W", identity.model, identity.power_watts)),
             firmware_version: identity.and_then(|identity| identity.firmware_version.clone()),
-            evidence: vec![
-                "xTool D1 / D1 Pro identity confirmed through its HTTP controller API".to_string(),
-            ],
+            evidence: vec![format!(
+                "xTool D1 / D1 Pro identity confirmed through its native {:?} protocol",
+                self.transport_kind()
+            )],
         }
     }
 
@@ -385,9 +498,20 @@ impl XToolD1RuntimeSession {
 
     pub fn controller_info(&self) -> HashMap<String, String> {
         let mut info = HashMap::new();
-        info.insert("transport".to_string(), "xTool D1 HTTP".to_string());
-        info.insert("host".to_string(), self.host.clone());
-        info.insert("port".to_string(), self.port.to_string());
+        info.insert(
+            "transport".to_string(),
+            format!("xTool D1 {:?}", self.transport_kind()),
+        );
+        if self.transport_kind() == beambench_common::TransportKind::Serial {
+            info.insert("port".into(), self.host.clone());
+            info.insert(
+                "baud_rate".into(),
+                beambench_xtool::D1_SERIAL_BAUD.to_string(),
+            );
+        } else {
+            info.insert("host".into(), self.host.clone());
+            info.insert("port".into(), self.port.to_string());
+        }
         if let Some(identity) = self.runtime.identity() {
             info.insert("machine_type".into(), format!("{:?}", identity.model));
             info.insert("laser_power_watts".into(), identity.power_watts.to_string());
@@ -399,7 +523,11 @@ impl XToolD1RuntimeSession {
     }
 
     pub fn endpoint_name(&self) -> String {
-        format!("{}:{}", self.host, self.port)
+        if self.transport_kind() == beambench_common::TransportKind::Serial {
+            self.host.clone()
+        } else {
+            format!("{}:{}", self.host, self.port)
+        }
     }
 
     pub fn machine_status(&self) -> &MachineStatus {
@@ -501,6 +629,7 @@ pub struct XToolD1RuntimeJob {
     state: JobState,
     error_message: Option<String>,
     planned_duration_secs: Option<f64>,
+    serial_counts: Option<(usize, usize)>,
 }
 
 impl XToolD1RuntimeJob {
@@ -511,11 +640,14 @@ impl XToolD1RuntimeJob {
     ) -> Result<Self, String> {
         session.upload_job(job)?;
         Ok(Self {
-            total_lines: job.line_count,
+            total_lines: job.line_count + usize::from(session.serial_progress().is_some()),
             started_at: Instant::now(),
             state: JobState::ReadyToRun,
             error_message: None,
             planned_duration_secs: planned_duration_secs.filter(|value| *value > 0.0),
+            serial_counts: session
+                .serial_progress()
+                .map(|s| (s.sent_lines, s.acknowledged_lines)),
         })
     }
 
@@ -535,8 +667,10 @@ impl XToolD1RuntimeJob {
             state: self.state,
             total_lines: self.total_lines,
             queued_lines: self.total_lines,
-            sent_lines: self.total_lines,
-            acknowledged_lines: if completed { self.total_lines } else { 0 },
+            sent_lines: self.serial_counts.map_or(self.total_lines, |c| c.0),
+            acknowledged_lines: self
+                .serial_counts
+                .map_or(if completed { self.total_lines } else { 0 }, |c| c.1),
             elapsed_secs,
             estimated_remaining_secs,
             buffer_fill_bytes: 0,
@@ -563,6 +697,9 @@ impl XToolD1RuntimeJob {
                 self.error_message = Some("xTool D1 entered a recovery-required state".to_string());
             }
             Ok(D1RuntimePhase::Disconnected | D1RuntimePhase::Ready) => {}
+            Ok(D1RuntimePhase::ResumeRequested) if session.serial_progress().is_some() => {
+                self.state = JobState::ReadyToRun
+            }
             Ok(D1RuntimePhase::PauseRequested | D1RuntimePhase::ResumeRequested) => {}
             Err(error) => {
                 self.state = JobState::Failed;
@@ -571,6 +708,9 @@ impl XToolD1RuntimeJob {
                 ));
             }
         }
+        self.serial_counts = session
+            .serial_progress()
+            .map(|s| (s.sent_lines, s.acknowledged_lines));
         if self.state == JobState::Failed {
             let stop = session.cancel_job();
             let detail = match stop {

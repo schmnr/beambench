@@ -737,3 +737,16 @@ Shared fixtures:
 - Persistence / Reopen Check: N/A
 - Undo / Redo Expectation: Depends on whether a real setting is changed; otherwise N/A.
 - Status: Active
+
+### HW-039: xTool D1 / D1 Pro native USB lifecycle
+- Source Ref: `docs/machines/xtool-d1-usb-protocol.md`
+- Feature / Function: Native serial identification, framing, streaming, controls and recovery.
+- Hardware Requirement: Stock D1 5W/10W or D1 Pro 5W/10W/20W/40W, with exact module, firmware and OS recorded.
+- Prerequisites: Unreleased build with native USB support; matching USB preset; Serial at 230400 baud; other controller apps closed.
+- Setup / Fixture: Current Position at the actual laser spot, top-left profile/project, asymmetric laser-off frame, small vector and raster jobs.
+- Steps: Capture M99/M116/M96 replies and acknowledgements in native mode. Frame must wait for the physical button and complete before Start is allowed. Check frame endpoints and return to the anchor. Start the job using the physical button. Pause, choose Resume, then press the physical button. Separately test cancellation, Emergency Stop, Stop while idle, disconnect during streaming and app close. Repeat with a longer raster job.
+- Expected Result: Correct laser-spot placement, S1000 power and orientation; no program bytes before the start event; no completion from ACKs alone; confirmed output-off/idle after Stop; no data replay or automatic reconnection after interruption.
+- Edge / Negative Cases: Wrong model/module/baud; busy connection; missing mode echo or ACK; physical pause/cancel; unknown/alarm state; unplug; stop refused or status missing. Confirm the app reports failure and hardware Stop remains usable. Record any throughput pauses.
+- Persistence / Reopen Check: Fresh identity/idle check, new frame and physical-button start required after reconnect; no pending job resumes.
+- Undo / Redo Expectation: Runtime-only.
+- Status: Pending hardware validation. Software/emulator tests are not a hardware pass.

@@ -2403,10 +2403,18 @@ fn register_machine_session(
                 let (host, port) = xtool.endpoint();
                 Some((host, port, ControllerDriverId::XToolM1))
             }
-            MachineSessionHandle::XToolD1(xtool) => {
+            MachineSessionHandle::XToolD1(xtool)
+                if xtool.transport_kind() == TransportKind::Tcp =>
+            {
                 let (host, port) = xtool.endpoint();
                 Some((host, port, ControllerDriverId::XToolD1))
             }
+            _ => None,
+        };
+    }
+    if let Ok(mut stop) = ctx.xtool_d1_serial_stop.lock() {
+        *stop = match &session {
+            MachineSessionHandle::XToolD1(d1) => d1.serial_stop_handle(),
             _ => None,
         };
     }
@@ -2911,6 +2919,49 @@ pub fn begin_controller_connection(
     if matches!(
         input.selection,
         ControllerSelection::KnownDriver {
+            driver: ControllerDriverId::XToolD1
+        }
+    ) {
+        if input.baud_rate != beambench_xtool::D1_SERIAL_BAUD {
+            return Err(ServiceError::invalid_input(
+                "xTool D1 / D1 Pro USB requires 230400 baud",
+            ));
+        }
+        let session =
+            XToolD1RuntimeSession::connect_serial(&port_name).map_err(ServiceError::machine)?;
+        let endpoint = ControllerConnectionEndpoint::Serial {
+            port_name,
+            baud_rate: input.baud_rate,
+        };
+        let choice = ResolvedControllerChoice {
+            selection: ExplicitControllerSelection::KnownDriver {
+                driver: ControllerDriverId::XToolD1,
+            },
+            driver: ControllerDriverId::XToolD1,
+            source:
+                beambench_common::controller_choice::ControllerChoiceSource::KnownDriverSelection,
+            detected_identity: Some(session.detected_identity()),
+            requires_experimental_mode: true,
+            mismatch: false,
+            override_scope: None,
+            requires_experimental_compatibility_handshake: false,
+        };
+        let state = register_machine_session(
+            ctx,
+            MachineSessionHandle::XToolD1(session),
+            json!({ "target": endpoint, "device": device_identity, "selection": choice.selection }),
+            Some(input.baud_rate),
+            Some(&choice),
+        )?;
+        return Ok(ControllerConnectionResult::Connected {
+            session_state: state,
+            endpoint,
+            choice,
+        });
+    }
+    if matches!(
+        input.selection,
+        ControllerSelection::KnownDriver {
             driver: ControllerDriverId::Ruida
         }
     ) {
@@ -2931,11 +2982,11 @@ pub fn begin_controller_connection(
     if matches!(
         input.selection,
         ControllerSelection::KnownDriver {
-            driver: ControllerDriverId::XToolD1 | ControllerDriverId::XToolM1
+            driver: ControllerDriverId::XToolM1
         }
     ) {
         return Err(ServiceError::invalid_input(
-            "xTool D1 / D1 Pro and original M1 (Experimental) use the Network connection on port 8080",
+            "The original xTool M1 (Experimental) uses the Network connection on port 8080",
         ));
     }
     if matches!(
@@ -3714,6 +3765,7 @@ pub fn connect_machine(
 }
 
 pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
+    interrupt_d1_serial(ctx);
     let _connection_gate = ctx
         .controller_connection_gate
         .lock()
@@ -3785,6 +3837,9 @@ pub fn disconnect_machine(ctx: &ServiceContext) -> ServiceResult<()> {
     }
     if let Ok(mut endpoint) = ctx.xtool_stop_endpoint.lock() {
         *endpoint = None;
+    }
+    if let Ok(mut stop) = ctx.xtool_d1_serial_stop.lock() {
+        *stop = None;
     }
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
@@ -6701,6 +6756,7 @@ fn stop_session_output(session: &mut MachineSessionHandle) -> Result<(), String>
 /// Stop output before allowing the desktop to close. A failed stop retains
 /// the connection so the open window can offer retry/reconnect controls.
 pub fn prepare_shutdown(ctx: &ServiceContext) -> ServiceResult<()> {
+    interrupt_d1_serial(ctx);
     ctx.shutting_down.store(true, Ordering::Release);
     let result = (|| {
         let _connection_gate = ctx
@@ -6751,9 +6807,20 @@ pub fn prepare_shutdown(ctx: &ServiceContext) -> ServiceResult<()> {
     result
 }
 
+fn interrupt_d1_serial(ctx: &ServiceContext) -> bool {
+    if let Ok(stop) = ctx.xtool_d1_serial_stop.lock()
+        && let Some(stop) = stop.as_ref()
+    {
+        stop.interrupt();
+        return true;
+    }
+    false
+}
+
 pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
     // Signal cancellation before any helper can wait for a controller lock.
     ctx.emergency_stop_generation.fetch_add(1, Ordering::AcqRel);
+    let d1_serial_connected = interrupt_d1_serial(ctx);
     let _ = force_laser_fire_stop(ctx, "emergency_stop");
     ctx.machine_coordinates_valid
         .store(false, Ordering::Release);
@@ -6766,7 +6833,7 @@ pub fn emergency_stop(ctx: &ServiceContext) -> ServiceResult<()> {
         .lock()
         .ok()
         .and_then(|endpoint| endpoint.clone());
-    if matches!(xtool_endpoint, Some((_, _, ControllerDriverId::XToolD1))) {
+    if d1_serial_connected || matches!(xtool_endpoint, Some((_, _, ControllerDriverId::XToolD1))) {
         clear_relative_frame_confirmation(ctx)?;
     }
     if let Some((host, port, driver)) = xtool_endpoint
@@ -7176,24 +7243,24 @@ fn validate_d1_scope(
     let (stock_width, stock_height) = session.stock_workspace_mm();
     if project.start_from != StartFromMode::CurrentPosition {
         return Err(ServiceError::invalid_state(
-            "xTool D1 Wi-Fi requires Start From: Current Position. Position the laser spot manually, then complete a laser-off Frame before Start.",
+            "xTool D1 requires Start From: Current Position. Position the laser spot manually, then complete a laser-off Frame before Start.",
         ));
     }
     if width > stock_width || height > stock_height {
         return Err(ServiceError::invalid_state(
-            "The profile workspace exceeds the connected xTool D1 laser module. Apply the matching stock Wi-Fi preset.",
+            "The profile workspace exceeds the connected xTool D1 laser module. Apply the matching stock USB or Wi-Fi preset.",
         ));
     }
     if profile.origin != beambench_core::WorkspaceOrigin::TopLeft
         || project.workspace.origin != beambench_core::WorkspaceOrigin::TopLeft
     {
         return Err(ServiceError::invalid_state(
-            "xTool D1 Wi-Fi requires a top-left workspace origin. Apply its Wi-Fi preset and use a top-left project workspace.",
+            "xTool D1 requires a top-left workspace origin. Apply its USB or Wi-Fi preset and use a top-left project workspace.",
         ));
     }
     if profile.rotary_enabled || profile.enable_laser_offset {
         return Err(ServiceError::invalid_state(
-            "xTool D1 Wi-Fi currently supports flat work positioned at the laser spot. Disable rotary and laser pointer offset.",
+            "xTool D1 currently supports flat work positioned at the laser spot. Disable rotary and laser pointer offset.",
         ));
     }
     Ok(())

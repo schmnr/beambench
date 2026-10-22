@@ -8,7 +8,7 @@
 ## Wi-Fi setup
 
 This capability is on `main` for the next release. It is not in v0.2.31.
-Choose **xTool D1 / D1 Pro Wi-Fi (Experimental)** under **Network**, enter the
+Choose **xTool D1 / D1 Pro USB / Wi-Fi (Experimental)** under **Network**, enter the
 machine's LAN address and port **8080**, and allow status port **8081**.
 An inserted SD card and both services are required. Set up the machine's Wi-Fi
 with xTool's own software first, then close other controller applications.
@@ -24,30 +24,43 @@ profile or artwork changes. Keep the computer awake and supervise the machine.
 
 The [native protocol evidence and limits](xtool-d1-network-protocol.md) document
 identity, verified file readback, status events, stop recovery, coordinates and
-tests. Physical validation is pending. USB, IR, extension frames, rotary,
+tests. Physical validation is pending. IR, extension frames, rotary,
 crosshair offsets, manual jog/home/fire, automatic air and custom G-code are
 outside this first adapter.
 
-## USB protocol investigation
+## Native USB setup
 
-D1 USB support needs a separate controller adapter. Adding dimensions to a GRBL preset
-would leave important control differences unresolved. The original M1's HTTP
-adapter also does not establish D1 compatibility.
+Experimental USB support is available on unreleased `main`, for the same stock
+blue-diode modules as Wi-Fi. It is not included in stable 0.2.31. Physical
+validation is pending.
 
-xTool's older LightBurn profiles select GRBL, but this is a compatibility layer
-over xTool firmware. LightBurn's developer
-[recommends its dedicated xTool device type](https://forum.lightburnsoftware.com/t/continuous-framing-xtool-d1-pro/181211/5).
-Its [June 2026 D1 support response](https://forum.lightburnsoftware.com/t/lightburn-2-0-upgrade-doesnt-leave-home-position/190735/3)
-describes failures with the legacy path and again recommends the dedicated
-protocol. The [current LightBurn setup guide](https://docs.lightburnsoftware.com/2.2/Reference/DeviceTypes/xTool/)
-uses the xTool device type and explicitly supports D1/D1 Pro USB connections.
-This establishes that an implementation exists elsewhere, not its wire contract
-or permission to copy that implementation.
+Choose the matching **USB** machine preset, then select **Serial**, the
+machine's COM/serial port, **230400 baud**, and **xTool D1 / D1 Pro USB / Wi-Fi
+(Experimental)**. Close other controller applications. Use **Current
+Position**, a top-left workspace and the actual laser spot as described above.
+Complete a laser-off Frame before Start. Both operations wait for the machine's
+physical button before streaming. After Pause, click Resume in Beam Bench and
+press the machine's button to continue. Keep the computer awake and connected
+throughout the job. USB does not require the Wi-Fi transport's SD-card upload.
 
-Implement native D1 communication from documented protocol facts or reviewed
-interoperability traces. Keep the existing GRBL and M1 behavior unchanged.
-Do not advertise D1 support through Generic GRBL-compatible or infer a D1
-from a CH340 USB chip, model-name substring, or GRBL-shaped status alone.
+USB uses its own native serial worker. It does not use GRBL initialization,
+reset, jog, realtime polling or compatibility fallback. The
+[USB protocol evidence](xtool-d1-usb-protocol.md) records public vendor
+communication definitions, corroborating serial observations, stricter
+acknowledgement gates, tests and the remaining hardware checks.
+
+The first USB adapter shares Wi-Fi's flat-work limits: no IR, rotary,
+extensions, crosshair offsets, manual jog/home/fire, automatic air or custom
+G-code. A lost connection never resumes or retries work automatically. If Stop
+cannot confirm idle, use the physical stop and reconnect before further work.
+
+## Legacy USB research
+
+xTool's older LightBurn GRBL profiles describe a compatibility layer. The
+[current LightBurn setup guide](https://docs.lightburnsoftware.com/2.2/Reference/DeviceTypes/xTool/)
+uses a dedicated xTool device type for D1/D1 Pro USB. Beam Bench independently
+implements native serial communication from the public sources above.
+The legacy facts below remain research records, not native USB defaults.
 
 ## Verified legacy profile facts
 
@@ -141,7 +154,7 @@ Idle state. This records a protocol gap; it does not claim a working D1 adapter.
 
 Machine profiles store pointer and scanning offsets. The native Wi-Fi presets
 explicitly clear inherited offset and accessory flags in both preview and
-application, with regression coverage. Native USB positioning remains separate.
+application, with regression coverage. Native USB uses the same laser-spot compiler and required frame as Wi-Fi.
 Start From behavior also needs an explicit decision; changing a profile must
 not silently rewrite a saved project's positioning mode.
 
@@ -153,37 +166,16 @@ status contract must not be reused merely because it also uses HTTP port 8080.
 No third-party code, vendor profile, firmware or binary is bundled by this
 investigation.
 
-## Evidence still needed for USB
+## Physical validation still needed
 
-Extend the public serial observations with a published native specification or
-reviewed communication traces
-from an owner using supported software. Record the exact D1/Pro model, module,
-stock or modified frame, firmware, OS and software version with each trace.
-An exported `.lbdev` file supplies configuration facts but cannot supply the
-missing command/response sequence.
+The source-extracted native contract now has a separate implementation and
+bounded emulator tests. Physical testing is still pending. Complete HW-039 in
+[the hardware checklist](../testing/manual-test-cases-with-laser.md), recording
+exact model, module, stock frame, firmware, OS and application version.
 
-The minimum trace set must establish:
-
-1. Connection, identity, idle position/status and reconnection, including baud,
-   DTR, line endings and any entry/exit from vendor or compatibility mode.
-2. Laser-off short XY moves and framing, with both crosshair and spot reference
-   positions recorded. Include the expected endpoints of an asymmetric shape.
-3. A small vector and raster job, covering power scale, startup/shutdown,
-   coordinate orientation, scan compensation, buffering and acknowledgements.
-4. Pause, resume, cancel and completion, including the machine's replies after
-   the command acknowledgement. Document device-button and disconnect behavior.
-
-Owners should capture operations they already perform with supported software.
-Do not ask them to send speculative native commands. Review logs before sharing
-and remove device identifiers, network credentials and unrelated project data.
-
-Turn the reviewed sequences into bounded offline fixtures before enabling a
-named USB adapter. Tests must reject unrelated models, busy/output-active
-connections, unknown status, missing acknowledgements and ambiguous completion.
-Exercise real planner/emitter output and the streaming lifecycle, including
-interruptions, rather than treating a synthetic `ok` as hardware proof.
-
-After that contract passes, add separate stock-module presets with preview/apply
-tests, translated guidance and the normal owner-validation checklist. Physical
-testing pending is an acceptable preset evidence level after protocol behavior
-is established; it is not a substitute for an unexplained control protocol.
+Owner traces should cover connection and reconnection; native queries and
+acknowledgements; an asymmetric laser-off frame; small vector and raster jobs;
+pause/button resume; cancellation and completion; and disconnect behavior.
+Record actual endpoints and output-off behavior. Tests must not be reported as
+hardware captures. Remove identifiers, credentials and unrelated project data
+before sharing logs.

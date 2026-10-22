@@ -21,7 +21,7 @@ describe('JobProgressBar', () => {
   it('explains physical start after a file upload', () => {
     useMachineStore.setState({ jobProgress: makeJobProgress({ state: 'ready_to_run' }) });
     render(<JobProgressBar />);
-    expect(screen.getByText(/Press the machine's physical start button/)).toBeTruthy();
+    expect(screen.getByText(/Press the machine's physical button to start or resume/)).toBeTruthy();
   });
 
   it('renders nothing without job progress', () => {

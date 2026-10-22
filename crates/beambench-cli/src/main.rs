@@ -373,6 +373,7 @@ enum SerialControllerArg {
     FluidNc,
     GrblHal,
     LaserPecker,
+    XtoolD1,
     Marlin,
     Snapmaker,
     Smoothieware,
@@ -387,6 +388,7 @@ impl SerialControllerArg {
             Self::FluidNc => ControllerArg::FluidNc.selection_json(),
             Self::GrblHal => ControllerArg::GrblHal.selection_json(),
             Self::LaserPecker => ControllerArg::LaserPecker.selection_json(),
+            Self::XtoolD1 => ControllerArg::XtoolD1.selection_json(),
             Self::Marlin => ControllerArg::Marlin.selection_json(),
             Self::Snapmaker => ControllerArg::Snapmaker.selection_json(),
             Self::Smoothieware => ControllerArg::Smoothieware.selection_json(),
@@ -5365,6 +5367,7 @@ mod tests {
                 "fluid-nc",
                 "grbl-hal",
                 "laser-pecker",
+                "xtool-d1",
                 "marlin",
                 "snapmaker",
                 "smoothieware",
@@ -5406,7 +5409,7 @@ mod tests {
                 "--controller",
                 "xtool-d1"
             ])
-            .is_err()
+            .is_ok()
         );
     }
 

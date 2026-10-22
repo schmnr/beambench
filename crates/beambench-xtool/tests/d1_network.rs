@@ -121,6 +121,7 @@ fn job() -> D1CompiledJob {
     D1CompiledJob {
         gcode: "M17 S1\nG1 S0\nG1 X10 Y20 S250\nM18\n".into(),
         line_count: 4,
+        frame: false,
     }
 }
 fn event(io: &Io, text: &str, working: u8) {
