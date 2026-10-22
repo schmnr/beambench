@@ -1184,7 +1184,7 @@ copyrights. Regenerate it with `node scripts/generate-license-report.mjs`.
 | npm | update-browserslist-db | 1.3.2 | MIT |
 | npm | uri-js | 4.4.1 | BSD-2-Clause |
 | npm | util-deprecate | 1.0.2 | MIT |
-| npm | vite | 6.4.3 | MIT |
+| npm | vite | 6.4.5 | MIT |
 | npm | vitest | 5.0.4 | MIT |
 | npm | void-elements | 3.1.0 | MIT |
 | npm | w3c-xmlserializer | 5.0.0 | MIT |
@@ -16200,7 +16200,7 @@ SOFTWARE.
 
 ### 8a292beae225
 
-Packages: npm:vite@6.4.3
+Packages: npm:vite@6.4.5
 
 ```text
 # Vite core license
