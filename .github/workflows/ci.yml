@@ -150,10 +150,15 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-source-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Test planning and machine-service behavior
+      - name: Test Windows initial DTR configuration
         run: |
-          cargo test -p serialport --lib
-          cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-serial -p beambench-tauri
+          $serialTestRoot = Join-Path $env:RUNNER_TEMP 'beambench-serialport-tests'
+          Copy-Item vendor/serialport $serialTestRoot -Recurse
+          Add-Content (Join-Path $serialTestRoot 'Cargo.toml') "`n[workspace]"
+          cargo test --manifest-path "$serialTestRoot/Cargo.toml" --target-dir target/serialport-regression --lib
+
+      - name: Test planning and machine-service behavior
+        run: cargo test -p beambench-service -p beambench-planner -p beambench-grbl -p beambench-serial -p beambench-tauri
 
       - name: Install frontend dependencies
         working-directory: tauri-app
