@@ -82,7 +82,7 @@ impl COMPort {
         let mut com = COMPort::open_from_raw_handle(handle as RawHandle);
 
         let mut dcb = dcb::get_dcb(handle)?;
-        dcb::init(&mut dcb);
+        dcb::init(&mut dcb, builder.dtr_on_open);
         dcb::set_baud_rate(&mut dcb, builder.baud_rate);
         dcb::set_data_bits(&mut dcb, builder.data_bits);
         dcb::set_parity(&mut dcb, builder.parity);

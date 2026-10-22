@@ -187,7 +187,7 @@ pub(crate) fn get_dcb(handle: HANDLE) -> Result<DCB> {
 
 /// Initialize the DCB struct
 /// Set all values that won't be affected by `SerialPortBuilder` options.
-pub(crate) fn init(dcb: &mut DCB) {
+pub(crate) fn init(dcb: &mut DCB, initial_dtr: Option<bool>) {
     // dcb.DCBlength
     // dcb.BaudRate
     // dcb.wReserved
@@ -208,7 +208,13 @@ pub(crate) fn init(dcb: &mut DCB) {
     // dcb.set_fOutxCtsFlow()
     // serialport-rs doesn't support toggling DSR: so disable fOutxDsrFlow
     dcb.set_fOutxDsrFlow(false);
-    dcb.set_fDtrControl(DtrControl::Disable);
+    // Apply an explicit opening level in the first SetCommState. Setting
+    // Disable here and asserting DTR later briefly drops an already-high line.
+    dcb.set_fDtrControl(if initial_dtr == Some(true) {
+        DtrControl::Enable
+    } else {
+        DtrControl::Disable
+    });
     // disable because fOutxDsrFlow is disabled as well
     dcb.set_fDsrSensitivity(false);
     // dcb.set_fTXContinueOnXoff()
@@ -280,6 +286,32 @@ pub(crate) fn set_flow_control(dcb: &mut DCB, flow_control: FlowControl) {
             dcb.set_fRtsControl(RtsControl::Enable);
             dcb.set_fOutX(false);
             dcb.set_fInX(false);
+        }
+    }
+}
+
+#[cfg(test)]
+mod opening_dtr_tests {
+    use super::*;
+
+    #[test]
+    fn first_windows_configuration_keeps_an_explicit_high_dtr() {
+        // A DCB read from an already-used port can have DTR high. The first
+        // configuration sent to the driver must not lower that line when
+        // the caller requested high at open.
+        let mut dcb: DCB = unsafe { std::mem::zeroed() };
+        dcb.set_fDtrControl(DtrControl::Enable);
+        init(&mut dcb, Some(true));
+        assert_eq!((dcb._bitfield >> 4) & 0b11, DtrControl::Enable as u32);
+    }
+
+    #[test]
+    fn default_and_explicit_low_keep_the_existing_opening_policy() {
+        for level in [None, Some(false)] {
+            let mut dcb: DCB = unsafe { std::mem::zeroed() };
+            dcb.set_fDtrControl(DtrControl::Enable);
+            init(&mut dcb, level);
+            assert_eq!((dcb._bitfield >> 4) & 0b11, DtrControl::Disable as u32);
         }
     }
 }

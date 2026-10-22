@@ -89,18 +89,14 @@ impl D1SerialWorker {
     pub fn connect(path: &str) -> Result<Self, String> {
         // Native Studio opens without a DTR low/high reset pulse. Do not use
         // GRBL's reset-on-connect or any baud/reset fallback here.
-        Self::from_transport(Box::new(RealSerialTransport::new_without_dtr(
-            path,
-            D1_SERIAL_BAUD,
-        )))
+        #[cfg(windows)]
+        let transport = RealSerialTransport::new_with_initial_dtr(path, D1_SERIAL_BAUD, true);
+        #[cfg(not(windows))]
+        let transport = RealSerialTransport::new_without_dtr(path, D1_SERIAL_BAUD);
+        Self::from_transport(Box::new(transport))
     }
     pub(crate) fn from_transport(mut transport: Box<dyn SerialTransport>) -> Result<Self, String> {
         transport.open().map_err(|e| e.to_string())?;
-        // Studio's bundled Windows binding enables DTR once (hupcl=true).
-        // Rust's serialport defaults preserve/disable it on Windows instead.
-        // Assert the native level without GRBL's low/high reset pulse.
-        #[cfg(windows)]
-        transport.set_dtr(true).map_err(|e| e.to_string())?;
         let stop = D1SerialStop {
             requested: Arc::new(AtomicU64::new(0)),
             handled: Arc::new(AtomicU64::new(0)),

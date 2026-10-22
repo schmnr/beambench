@@ -261,9 +261,9 @@ fn d1_usb_emergency_stop_reaches_worker_while_service_session_is_locked() {
 }
 
 #[test]
-fn d1_usb_native_open_never_pulses_dtr() {
+fn d1_usb_worker_never_toggles_dtr_after_open() {
     let (worker, state) = worker();
-    let expected: &[bool] = if cfg!(windows) { &[true] } else { &[] };
+    let expected: &[bool] = &[];
     assert_eq!(state.lock().unwrap().dtr, expected);
     drop(worker);
 }

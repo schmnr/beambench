@@ -59,6 +59,7 @@ pub struct RealSerialTransport {
     port_name: String,
     baud_rate: u32,
     toggle_dtr_on_open: bool,
+    initial_dtr: Option<bool>,
     usb_identity: Option<UsbIdentity>,
     /// Other ports present at the last successful open. A replacement is
     /// never chosen from these: they belong to other devices.
@@ -81,11 +82,19 @@ impl RealSerialTransport {
         Self::with_dtr(port_name, baud_rate, false)
     }
 
+    /// Set the initial port configuration's DTR level without a reset pulse.
+    pub fn new_with_initial_dtr(port_name: &str, baud_rate: u32, level: bool) -> Self {
+        let mut transport = Self::with_dtr(port_name, baud_rate, false);
+        transport.initial_dtr = Some(level);
+        transport
+    }
+
     fn with_dtr(port_name: &str, baud_rate: u32, toggle_dtr_on_open: bool) -> Self {
         let mut transport = Self {
             port_name: port_name.to_string(),
             baud_rate,
             toggle_dtr_on_open,
+            initial_dtr: None,
             usb_identity: None,
             known_other_ports: HashSet::new(),
             port: None,
@@ -251,8 +260,12 @@ impl SerialTransport for RealSerialTransport {
         debug!(port = %self.port_name, baud = self.baud_rate, "Opening serial port");
         self.rediscover_usb_port()?;
 
-        let port = serialport::new(&self.port_name, self.baud_rate)
-            .timeout(Duration::from_millis(100))
+        let mut builder =
+            serialport::new(&self.port_name, self.baud_rate).timeout(Duration::from_millis(100));
+        if let Some(level) = self.initial_dtr {
+            builder = builder.dtr_on_open(level);
+        }
+        let port = builder
             .open()
             .map_err(|e| map_open_error(&self.port_name, e))?;
 
