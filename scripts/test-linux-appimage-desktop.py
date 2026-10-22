@@ -8,7 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
-import tempfile
+import uuid
 
 
 def digest(path):
@@ -31,34 +31,32 @@ def main():
     original_digest = digest(image)
     results = []
     # Unique tags prevent concurrent validations from sharing mutable images.
-    with tempfile.TemporaryDirectory(prefix='beambench-desktop-') as temporary:
-        suffix = Path(temporary).name
-        for version in args.ubuntu:
-            tag = f'{suffix}:ubuntu{version}'
-            try:
-                subprocess.run(['docker', 'build', '--build-arg', f'UBUNTU_VERSION={version}',
-                                '-t', tag, str(scripts)], check=True, timeout=600)
-                for scenario in ['x11', 'plasma-wayland-env']:
-                    run = subprocess.run([
-                        'docker', 'run', '--rm', '--network', 'none', '--cap-drop', 'ALL',
-                        '--memory', '2g', '--cpus', '2', '--pids-limit', '256', '--read-only',
-                        '--tmpfs', '/tmp:rw,exec,mode=1777,size=1g',
-                        '--tmpfs', '/home/beamtest:rw,uid=1100,gid=1100,mode=700,size=128m',
-                        '--mount', f'type=bind,source={image},target=/test.AppImage,readonly',
-                        '--mount', f'type=bind,source={scripts},target=/probe,readonly',
-                        tag, 'python3', '/probe/probe.py', scenario,
-                    ], capture_output=True, text=True, timeout=90)
-                    result = json.loads(run.stdout)
-                    result.update(ubuntu=version, returncode=run.returncode)
-                    results.append(result)
-                    print(json.dumps(result), flush=True)
-                    args.output.write_text(json.dumps({
-                        'sha256': original_digest, 'cases': results,
-                    }, indent=2) + '\n')
-                    if run.returncode or not result['frontend_ready']:
-                        raise RuntimeError(f'Desktop failed on Ubuntu {version}: {scenario}')
-            finally:
-                subprocess.run(['docker', 'image', 'rm', tag], check=False)
+    for version in args.ubuntu:
+        tag = f'beambench-desktop-{uuid.uuid4().hex}:ubuntu{version}'
+        try:
+            subprocess.run(['docker', 'build', '--build-arg', f'UBUNTU_VERSION={version}',
+                            '-t', tag, str(scripts)], check=True, timeout=600)
+            for scenario in ['x11', 'plasma-wayland-env']:
+                run = subprocess.run([
+                    'docker', 'run', '--rm', '--network', 'none', '--cap-drop', 'ALL',
+                    '--memory', '2g', '--cpus', '2', '--pids-limit', '256', '--read-only',
+                    '--tmpfs', '/tmp:rw,exec,mode=1777,size=1g',
+                    '--tmpfs', '/home/beamtest:rw,uid=1100,gid=1100,mode=700,size=128m',
+                    '--mount', f'type=bind,source={image},target=/test.AppImage,readonly',
+                    '--mount', f'type=bind,source={scripts},target=/probe,readonly',
+                    tag, 'python3', '/probe/probe.py', scenario,
+                ], capture_output=True, text=True, timeout=90)
+                result = json.loads(run.stdout)
+                result.update(ubuntu=version, returncode=run.returncode)
+                results.append(result)
+                print(json.dumps(result), flush=True)
+                args.output.write_text(json.dumps({
+                    'sha256': original_digest, 'cases': results,
+                }, indent=2) + '\n')
+                if run.returncode or not result['frontend_ready']:
+                    raise RuntimeError(f'Desktop failed on Ubuntu {version}: {scenario}')
+        finally:
+            subprocess.run(['docker', 'image', 'rm', tag], check=False)
     if digest(image) != original_digest:
         raise RuntimeError('AppImage changed during validation')
 
