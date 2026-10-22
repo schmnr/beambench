@@ -96,6 +96,11 @@ impl D1SerialWorker {
     }
     pub(crate) fn from_transport(mut transport: Box<dyn SerialTransport>) -> Result<Self, String> {
         transport.open().map_err(|e| e.to_string())?;
+        // Studio's bundled Windows binding enables DTR once (hupcl=true).
+        // Rust's serialport defaults preserve/disable it on Windows instead.
+        // Assert the native level without GRBL's low/high reset pulse.
+        #[cfg(windows)]
+        transport.set_dtr(true).map_err(|e| e.to_string())?;
         let stop = D1SerialStop {
             requested: Arc::new(AtomicU64::new(0)),
             handled: Arc::new(AtomicU64::new(0)),

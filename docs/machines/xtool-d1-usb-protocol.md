@@ -49,6 +49,10 @@ Both model bundles select V1 with `channelType: serial` for USB. The native
 serial service opens at 230400 baud, writes ASCII lines ending in LF, and
 matches GET replies by their command prefix. It does not pulse DTR low/high
 as a GRBL reset, and does not use a bare realtime `?` or Ctrl-X handshake.
+Studio's bundled Windows serial binding enables DTR once through its default
+`hupcl` setting. Beam Bench matches that native Windows level without a reset
+pulse. On Unix it leaves the opening level to the OS, as that binding does.
+The older LightBurn profile's DTR flags belong to its compatibility path.
 
 | Operation | Command or event | Interpretation |
 | --- | --- | --- |

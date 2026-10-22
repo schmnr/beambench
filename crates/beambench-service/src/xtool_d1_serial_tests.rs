@@ -15,6 +15,7 @@ use std::{
 
 #[derive(Default)]
 struct State {
+    dtr: Vec<bool>,
     input: VecDeque<u8>,
     writes: Vec<String>,
     busy: bool,
@@ -36,6 +37,10 @@ impl SerialTransport for Transport {
     }
     fn port_name(&self) -> &str {
         "emulated-D1-USB"
+    }
+    fn set_dtr(&mut self, level: bool) -> Result<(), SerialError> {
+        self.0.lock().unwrap().dtr.push(level);
+        Ok(())
     }
     fn flush(&mut self) -> Result<(), SerialError> {
         Ok(())
@@ -253,4 +258,12 @@ fn d1_usb_emergency_stop_reaches_worker_while_service_session_is_locked() {
         ctx.session.lock().unwrap().as_ref(),
         Some(MachineSessionHandle::XToolD1(_))
     ));
+}
+
+#[test]
+fn d1_usb_native_open_never_pulses_dtr() {
+    let (worker, state) = worker();
+    let expected: &[bool] = if cfg!(windows) { &[true] } else { &[] };
+    assert_eq!(state.lock().unwrap().dtr, expected);
+    drop(worker);
 }
