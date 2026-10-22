@@ -40,7 +40,7 @@ uploads the generated WiX inputs as a diagnostic artifact when MSI packaging
 fails.
 
 The Linux workflow repairs the generated AppImage before signing it. The repair
-removes host-level Wayland, GLib, and GStreamer libraries that linuxdeploy can
+removes host-level systemd, Wayland, GLib, and GStreamer libraries that linuxdeploy can
 copy from the build runner even though the host graphics and WebKit stack must
 provide them. `scripts/harden-linux-appimage --check <artifact>` is the
 deterministic release audit and must pass on the final signed binary.
@@ -62,6 +62,26 @@ BEAMBENCH_TEST_APPIMAGE=/absolute/path/to/Beam.Bench.AppImage \
 This test substitutes a media probe for the extracted desktop binary while
 retaining the packaged launchers. It does not validate a physical camera or
 change the signed AppImage.
+
+The release also launches the unmodified signed AppImage in disposable Ubuntu
+22.04, 24.04 and 26.04 containers. Each host must reach the actual desktop's
+`Frontend ready` callback and remain alive. Both X11 and mixed Plasma/Wayland
+environment variables are exercised with Xvfb. This is software-rendered X11
+coverage, not a native KWin/Wayland or physical hardware test. Docker's nested
+WebKit sandbox limitation is handled only inside the isolated test containers.
+The package is mounted read-only, with a fresh home, an unprivileged user and
+network access disabled. Linux artifacts cannot be attached to the release until
+these checks pass. Evidence is uploaded as a workflow artifact.
+
+```sh
+python3 scripts/test-linux-appimage-desktop.py /absolute/path/to/Beam.Bench.AppImage \
+  --output linux-desktop-smoke.json
+```
+
+Keep the oldest-supported Ubuntu 22.04 build runner even when adding newer test
+hosts. Read [Linux packaging incidents](testing/linux-packaging-incidents.md)
+before changing packaging. In particular, a substituted media probe and a clean
+library audit missed the 0.2.31 startup regression. All three checks are required.
 
 The same test covers automatic relaunch environments from older AppImages.
 It checks camera capture and font discovery after the previous mount is gone,

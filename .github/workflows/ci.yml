@@ -46,7 +46,9 @@ jobs:
             fontconfig
 
       - name: Test AppImage camera, display and font compatibility policy
-        run: python3 scripts/test-linux-appimage-runtime.py
+        run: |
+          python3 scripts/test-linux-appimage-runtime.py
+          python3 scripts/test-linux-appimage-desktop-probe.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

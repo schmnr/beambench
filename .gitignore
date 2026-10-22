@@ -38,3 +38,7 @@ Thumbs.db
 
 # Local review notes, audits and reproductions. Never commit.
 docs/reviews/
+
+# Python packaging checks
+__pycache__/
+*.pyc

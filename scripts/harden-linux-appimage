@@ -57,6 +57,7 @@ find_incompatible_libraries() {
   local app_dir="$1"
   find "$app_dir/usr/lib" \( -type f -o -type l \) \( \
     -name 'libwayland-*.so*' -o \
+    -name 'libsystemd.so*' -o \
     -name 'libglib-2.0.so*' -o \
     -name 'libgio-2.0.so*' -o \
     -name 'libgobject-2.0.so*' -o \

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.2.33
+
+- Fix Linux AppImages failing before startup on newer distributions when the
+  bundled systemd library overrides the host library required by the launcher.
+  Remove that library from the package while retaining the Ubuntu 22.04 build
+  baseline and existing camera, font and update-relaunch compatibility.
+- Linux releases must now start the final signed, unmodified AppImage and reach
+  the actual frontend on Ubuntu 22.04, 24.04 and 26.04 before upload. Record
+  both Kubuntu packaging incidents and the required regression checks.
+
 ## 0.2.32
 
 - Add Experimental native USB support for stock xTool D1 5W/10W and D1 Pro

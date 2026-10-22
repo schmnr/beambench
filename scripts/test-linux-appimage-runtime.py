@@ -165,6 +165,7 @@ class AppImageRepairTests(unittest.TestCase):
             payload = root / 'payload'
             (payload / 'usr/lib').mkdir(parents=True)
             (payload / 'usr/lib/libwayland-client.so.0').write_bytes(b'incompatible fixture')
+            (payload / 'usr/lib/libsystemd.so.0').write_bytes(b'incompatible systemd fixture')
             (payload / 'usr/lib/libordinary.so.1').write_bytes(b'keep this library')
             binary = payload / 'usr/bin/beambench-tauri'
             binary.parent.mkdir()
@@ -194,6 +195,7 @@ class AppImageRepairTests(unittest.TestCase):
             extracted = root / 'extracted'
             subprocess.run(['unsquashfs', '-q', '-no-progress', '-o', str(len(b'fixture-runtime\n')), '-d', str(extracted), str(image)], check=True, capture_output=True)
             self.assertFalse((extracted / 'usr/lib/libwayland-client.so.0').exists())
+            self.assertFalse((extracted / 'usr/lib/libsystemd.so.0').exists())
             self.assertEqual((extracted / 'usr/lib/libordinary.so.1').read_bytes(), b'keep this library')
             self.assertEqual((extracted / 'usr/bin/beambench-tauri.bin').read_bytes(), binary.read_bytes())
             self.assertEqual((extracted / 'usr/bin/beambench-tauri').read_bytes(), (SCRIPTS / 'linux-appimage-exec.sh').read_bytes())
