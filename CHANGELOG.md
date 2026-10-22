@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.32
+
 - Add Experimental native USB support for stock xTool D1 5W/10W and D1 Pro
   5W/10W/20W/40W blue-diode modules at 230400 baud. Include four USB presets,
   physical-button start/resume, acknowledged streaming, required laser-off
@@ -27,6 +29,8 @@
 - Linux AppImages recover from the environment inherited during an automatic
   update restart. Camera plugins and the bundled font policy use the new mount
   without requiring a manual quit and reopen. Custom host paths remain intact.
+
+- Update Vite to 6.4.5 to include development-server file-access fixes.
 
 ## 0.2.31
 

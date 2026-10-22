@@ -1,6 +1,6 @@
 # D1 native USB protocol evidence
 
-Status: Experimental on unreleased `main`, software/emulator tested. Physical
+Status: Experimental in 0.2.32, software/emulator tested. Physical
 validation is pending for both D1 and D1 Pro. Nothing in this record claims a
 Beam Bench test on an actual laser.
 

@@ -1,13 +1,13 @@
 # xTool D1 and D1 Pro support
 
-- Status: Experimental native Wi-Fi adapter and four stock-module presets, unreleased. USB remains under investigation.
+- Status: Experimental native USB and Wi-Fi adapters with eight stock-module presets in 0.2.32. Physical validation is pending.
 - Sources checked: October 20, 2026.
 - First scope: stock blue-diode modules, flat work, native Wi-Fi. USB is deferred.
 - Physical testing: not run. No D1-family machine was connected.
 
 ## Wi-Fi setup
 
-This capability is on `main` for the next release. It is not in v0.2.31.
+Native USB and Wi-Fi support is included in 0.2.32. Both adapters remain Experimental and require physical validation.
 Choose **xTool D1 / D1 Pro USB / Wi-Fi (Experimental)** under **Network**, enter the
 machine's LAN address and port **8080**, and allow status port **8081**.
 An inserted SD card and both services are required. Set up the machine's Wi-Fi
@@ -30,8 +30,8 @@ outside this first adapter.
 
 ## Native USB setup
 
-Experimental USB support is available on unreleased `main`, for the same stock
-blue-diode modules as Wi-Fi. It is not included in stable 0.2.31. Physical
+Experimental USB support is included in 0.2.32 for the same stock
+blue-diode modules as Wi-Fi. Physical
 validation is pending.
 
 Choose the matching **USB** machine preset, then select **Serial**, the

@@ -158,7 +158,7 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
   Ortur/Aufero, AtomStack Pro V2, standard Falcon2, Sculpfun S10/S30/Ultra and
   Two Trees TTS/TS2. Documentation-based, physical testing pending.
 - [xTool D1/D1 Pro](machines/xtool-d1.md): eight Experimental stock-module
-  presets at version 1 on unreleased `main`, four USB and four Wi-Fi. Physical testing pending.
+  presets at version 1 in 0.2.32, four USB and four Wi-Fi. Physical testing pending.
   USB uses 230400 baud and physical-button start/resume.
 
 Existing S30 Pro Max, ACMER S2, xTool M1, and LaserPecker entries predate this
