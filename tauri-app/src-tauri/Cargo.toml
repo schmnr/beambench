@@ -35,12 +35,15 @@ image = { workspace = true }
 sha2 = "0.10"
 base64 = { workspace = true }
 dirs = { workspace = true }
+keyring-core = { version = "=1.0.1", default-features = false }
+zeroize = { version = "1", features = ["derive"] }
 arboard = "3.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "=1.0.2", default-features = false, features = ["keychain"] }
 objc2 = { version = "0.6.4", default-features = false, features = ["std"] }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "NSButton",
@@ -63,7 +66,11 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "std",
 ] }
 
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = { version = "=1.1.0", default-features = false }
+
 [target.'cfg(target_os = "linux")'.dependencies]
+zbus-secret-service-keyring-store = { version = "=1.0.1", default-features = false, features = ["rt-tokio-crypto-rust"] }
 libc = "0.2"
 open = "5.3"
 

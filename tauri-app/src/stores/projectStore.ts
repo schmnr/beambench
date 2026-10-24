@@ -1,3 +1,4 @@
+import { connectedLibraryService, type LibraryFile } from '../services/connectedLibraryService';
 import { isUserCancel } from '../utils/userCancel';
 import { create } from 'zustand';
 import type {
@@ -472,6 +473,7 @@ interface ProjectStoreState {
   ) => Promise<void>;
   restoreRecoveredProject: (project: Project, projectPath?: string | null) => void;
 
+  importCraftgineerFile: (file: LibraryFile) => Promise<void>;
   importFiles: (layerId?: string) => Promise<void>;
   importFilePaths: (filePaths: string[], layerId?: string) => Promise<void>;
   importFileData: (
@@ -1992,6 +1994,14 @@ export const useProjectStore = create<ProjectStoreState>(dropStaleDocumentErrors
         ? importService.importFilePaths(artworkPaths, resolvedLayerId, createLayer)
         : importService.importFilePaths(artworkPaths, resolvedLayerId),
     );
+  },
+
+  importCraftgineerFile: async (file) => {
+    const project = get().project;
+    if (!project) return;
+    const extension = { 'image/svg+xml': 'svg', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.mimeType];
+    await importArtworkBatch([`artwork.${extension}`], undefined, (layerId, createLayer) =>
+      connectedLibraryService.insert(file, project.metadata.project_id, layerId, createLayer));
   },
 
   importFileData: async (files, layerId) => {

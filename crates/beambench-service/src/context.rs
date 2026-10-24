@@ -153,6 +153,8 @@ pub struct ServiceContext {
     /// Bumped each time a machine session is installed, so work prepared for
     /// one connection is never started on another.
     pub session_epoch: AtomicU64,
+    /// Changes whenever a document is opened, created, closed or recovered.
+    pub document_epoch: AtomicU64,
     /// The connected xTool's address, readable without the session lock so
     /// Emergency Stop can reach it while the session is busy.
     pub xtool_stop_endpoint: Mutex<Option<(String, u16, beambench_common::ControllerDriverId)>>,
@@ -282,6 +284,7 @@ impl ServiceContext {
             active_jog: AtomicBool::new(false),
             emergency_stop_generation: AtomicU64::new(0),
             session_epoch: AtomicU64::new(0),
+            document_epoch: AtomicU64::new(0),
             xtool_stop_endpoint: Mutex::new(None),
             xtool_d1_serial_stop: Mutex::new(None),
             machine_coordinates_valid: AtomicBool::new(false),
@@ -347,6 +350,7 @@ impl ServiceContext {
             active_jog: AtomicBool::new(false),
             emergency_stop_generation: AtomicU64::new(0),
             session_epoch: AtomicU64::new(0),
+            document_epoch: AtomicU64::new(0),
             xtool_stop_endpoint: Mutex::new(None),
             xtool_d1_serial_stop: Mutex::new(None),
             machine_coordinates_valid: AtomicBool::new(false),

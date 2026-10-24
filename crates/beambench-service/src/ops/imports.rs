@@ -1280,6 +1280,22 @@ fn import_pending(
     pending: Vec<PendingImport>,
     create_layer: Option<super::project::AddObjectLayerInput>,
 ) -> ServiceResult<Vec<ProjectObject>> {
+    import_pending_guarded(ctx, layer_id, pending, create_layer, None)
+}
+
+pub struct ConnectedLibraryDestination<'a> {
+    pub project_id: &'a str,
+    pub epoch: u64,
+    pub still_current: &'a dyn Fn() -> bool,
+}
+
+fn import_pending_guarded(
+    ctx: &ServiceContext,
+    layer_id: LayerId,
+    pending: Vec<PendingImport>,
+    create_layer: Option<super::project::AddObjectLayerInput>,
+    expected: Option<ConnectedLibraryDestination<'_>>,
+) -> ServiceResult<Vec<ProjectObject>> {
     ctx.atomic_edit(|| {
         let file_count = pending.len();
         if pending.is_empty() {
@@ -1293,6 +1309,13 @@ fn import_pending(
         let original = project_guard
             .as_ref()
             .ok_or_else(|| ServiceError::not_found("No project open"))?;
+        if let Some(expected) = expected.as_ref() {
+            if original.metadata.project_id.to_string() != expected.project_id
+                || ctx.document_epoch.load(Ordering::Acquire) != expected.epoch
+                || !(expected.still_current)() {
+                return Err(ServiceError::invalid_input("[stale_document]"));
+            }
+        }
         // Stage the entire batch before changing the live project or undo history.
         // Asset bytes are Arc-backed and stay shared with the original project.
         let mut working = original.clone();
@@ -1593,6 +1616,9 @@ fn import_pending(
                 })
         };
 
+        if expected.as_ref().is_some_and(|destination| !(destination.still_current)()) {
+            return Err(ServiceError::invalid_input("[stale_document]"));
+        }
         ctx.push_project_undo_snapshot(original)
             .map_err(ServiceError::internal)?;
         *project_guard = Some(working);
@@ -2083,6 +2109,40 @@ pub fn import_art_library_item(
     };
 
     import_pending(ctx, layer_id, vec![pending], None)
+}
+
+/// Capture a document lease under the same edit lock used for replacement.
+pub fn connected_library_document_epoch(
+    ctx: &ServiceContext,
+    project_id: &str,
+) -> ServiceResult<u64> {
+    let _edit = ctx.lock_project_edits();
+    let guard = ctx.project.lock().map_err(|e| lock_err("project", e))?;
+    if guard
+        .as_ref()
+        .is_none_or(|project| project.metadata.project_id.to_string() != project_id)
+    {
+        return Err(ServiceError::invalid_input("[stale_document]"));
+    }
+    Ok(ctx.document_epoch.load(Ordering::Acquire))
+}
+
+/// Downloads are prepared outside the edit lock; bind the final commit to the original document.
+pub fn import_connected_library_file(
+    ctx: &ServiceContext,
+    filename: &str,
+    bytes: Vec<u8>,
+    layer_id: LayerId,
+    create_layer: Option<super::project::AddObjectLayerInput>,
+    destination: ConnectedLibraryDestination<'_>,
+) -> ServiceResult<Vec<ProjectObject>> {
+    import_pending_guarded(
+        ctx,
+        layer_id,
+        vec![prepare_pending_import(filename, bytes, None)?],
+        create_layer,
+        Some(destination),
+    )
 }
 
 pub fn import_vector_file_from_path(
@@ -3351,6 +3411,65 @@ mod tests {
 
         assert_eq!(objects.len(), 1);
         assert!(matches!(objects[0].data, ObjectData::RasterImage { .. }));
+    }
+
+    #[test]
+    fn connected_library_rejects_a_replaced_document_without_undo_or_assets() {
+        let ctx = ServiceContext::new();
+        let mut project = beambench_core::Project::new("Original");
+        let layer = project
+            .add_layer(beambench_core::Layer::new("Line", OperationType::Line))
+            .id;
+        let id = project.metadata.project_id.to_string();
+        *ctx.project.lock().unwrap() = Some(project.clone());
+        let bytes = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0L10 10"/></svg>"#.to_vec();
+        ctx.document_epoch.fetch_add(1, Ordering::AcqRel);
+        let result = import_connected_library_file(
+            &ctx,
+            "art.svg",
+            bytes.clone(),
+            layer,
+            None,
+            ConnectedLibraryDestination {
+                project_id: &id,
+                epoch: 0,
+                still_current: &|| true,
+            },
+        );
+        assert!(result.unwrap_err().to_string().contains("stale_document"));
+        assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &project);
+        assert!(!ctx.undo_state().unwrap().can_undo);
+        let permit = std::cell::Cell::new(true);
+        let result = import_connected_library_file(
+            &ctx,
+            "art.svg",
+            bytes.clone(),
+            layer,
+            None,
+            ConnectedLibraryDestination {
+                project_id: &id,
+                epoch: 1,
+                still_current: &|| permit.replace(false),
+            },
+        );
+        assert!(result.unwrap_err().to_string().contains("stale_document"));
+        assert_eq!(ctx.project.lock().unwrap().as_ref().unwrap(), &project);
+        assert!(!ctx.undo_state().unwrap().can_undo);
+        let imported = import_connected_library_file(
+            &ctx,
+            "art.svg",
+            bytes,
+            layer,
+            None,
+            ConnectedLibraryDestination {
+                project_id: &id,
+                epoch: 1,
+                still_current: &|| true,
+            },
+        )
+        .unwrap();
+        assert!(!imported.is_empty());
+        assert!(ctx.undo_state().unwrap().can_undo);
     }
 
     #[test]

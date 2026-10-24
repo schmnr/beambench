@@ -1145,6 +1145,8 @@ pub fn create_project_with_initial_layer(
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
+        ctx.document_epoch
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         *project_guard = Some(project.clone());
         *path_guard = None;
         ctx.clear_project_history()
@@ -1187,7 +1189,11 @@ pub fn close_project(ctx: &ServiceContext) -> ServiceResult<()> {
             .map_err(|e| lock_err("project_path", e))?;
         ctx.clear_project_history()
             .map_err(ServiceError::internal)?;
-        (project_guard.take(), path_guard.take())
+        {
+            ctx.document_epoch
+                .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+            (project_guard.take(), path_guard.take())
+        }
     };
     invalidate_plan(ctx)?;
     if let Some(project) = closed_project {
@@ -1235,6 +1241,8 @@ pub fn replace_project_document(ctx: &ServiceContext, mut project: Project) -> S
             .unwrap_or_default();
         refresh_project_text_caches(&mut project);
         project.dirty = true;
+        ctx.document_epoch
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         *guard = Some(project.clone());
         *path_guard = None;
         ctx.clear_project_history()

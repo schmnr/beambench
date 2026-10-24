@@ -2929,5 +2929,36 @@
     "activate_layers": "啟用圖層",
     "activate_properties": "啟用屬性",
     "activate_outliner": "啟用大綱"
+  },
+  "connected_library": {
+    "title": "Craftgineer 連線",
+    "manage": "管理連線",
+    "disclosure": "連結您的 Craftgineer 付費帳戶，即可讀取素材庫中儲存的檔案。在 Craftgineer 上編輯並儲存檔案後，重新整理此頁面。插入的圖稿會儲存在 Beam Bench 專案中，離線時仍可使用。",
+    "remember": "在這部電腦上安全儲存此帳戶資訊",
+    "connect": "連結 Craftgineer",
+    "disconnect": "中斷連線",
+    "browse": "瀏覽素材庫",
+    "session_only": "僅在本次工作階段中連線。無法使用安全的憑證儲存空間。重新啟動 Beam Bench 後，請再次連線。",
+    "waiting": "請在瀏覽器中完成連線。您可以在此取消。",
+    "search": "搜尋已儲存的檔案",
+    "refresh": "重新整理",
+    "open_project": "請開啟專案以插入圖稿。",
+    "empty": "找不到已儲存的檔案。請將檔案儲存到 Craftgineer 素材庫，然後重新整理此頁面。",
+    "insert": "插入",
+    "more": "載入更多",
+    "errors": {
+      "subscription_required": "需要有效的 Craftgineer 付費訂閱。請在 Craftgineer 上管理您的訂閱。",
+      "invalid_token": "此連線已到期或遭到撤銷。請先中斷連線，再重新連線。",
+      "revision_conflict": "此檔案已變更。請重新整理素材庫後再試。",
+      "access_denied": "已在瀏覽器中取消連線。",
+      "connection_timeout": "連線逾時。請嘗試重新連線。",
+      "wallet_cleanup_required": "已在本次工作階段中中斷帳戶連線，但無法移除已儲存的憑證。請解鎖密碼儲存空間，然後再次中斷連線。您也可以在 Craftgineer 設定中撤銷 Beam Bench 的存取權限。",
+      "revocation_pending": "已在這部電腦上中斷連線。無法連上網站以撤銷存取權限。請在 Craftgineer 設定中撤銷 Beam Bench 的存取權限。",
+      "rate_limited": "要求過多。請稍候一分鐘再重新整理。",
+      "stale_document": "載入圖稿期間，專案發生變更。請將圖稿重新插入目標專案。",
+      "unavailable": "無法連線至 Craftgineer。請檢查網路連線後再試。"
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

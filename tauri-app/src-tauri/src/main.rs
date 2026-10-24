@@ -239,6 +239,7 @@ fn main() {
         .manage(CloseConfirmed::default())
         .manage(CloseShutdown::default())
         .manage(FrontendReady::default())
+        .manage(commands::connected_library::ConnectedLibrary::default())
         .on_window_event({
             let ctx = ctx.clone();
             move |window, event| {
@@ -349,6 +350,14 @@ fn main() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::connected_library::craftgineer_status,
+            commands::connected_library::craftgineer_connect,
+            commands::connected_library::craftgineer_cancel,
+            commands::connected_library::craftgineer_disconnect,
+            commands::connected_library::craftgineer_files,
+            commands::connected_library::craftgineer_thumbnail,
+            commands::connected_library::craftgineer_prepare_insert,
+            commands::connected_library::craftgineer_insert,
             // App
             commands::app::get_app_status,
             commands::app::get_build_info,

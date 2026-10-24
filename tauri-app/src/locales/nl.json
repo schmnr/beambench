@@ -2929,5 +2929,36 @@
     "activate_layers": "Lagen activeren",
     "activate_properties": "Eigenschappen activeren",
     "activate_outliner": "Overzicht activeren"
+  },
+  "connected_library": {
+    "title": "Craftgineer-verbinding",
+    "manage": "Verbindingen beheren",
+    "disclosure": "Verbind je betaalde Craftgineer-account om opgeslagen bibliotheekbestanden te lezen. Bewerk en bewaar bestanden op Craftgineer en vernieuw daarna deze weergave. Ingevoegde afbeeldingen worden in je Beam Bench-project opgeslagen en blijven offline beschikbaar.",
+    "remember": "Dit account veilig onthouden op deze computer",
+    "connect": "Craftgineer verbinden",
+    "disconnect": "Verbinding verbreken",
+    "browse": "Bibliotheek bekijken",
+    "session_only": "Alleen voor deze sessie verbonden. Veilige opslag van inloggegevens is niet beschikbaar. Maak na het herstarten van Beam Bench opnieuw verbinding.",
+    "waiting": "Voltooi de verbinding in je browser. Je kunt hier annuleren.",
+    "search": "Opgeslagen bestanden zoeken",
+    "refresh": "Vernieuwen",
+    "open_project": "Open een project om afbeeldingen in te voegen.",
+    "empty": "Geen opgeslagen bestanden gevonden. Bewaar een bestand in je Craftgineer-bibliotheek en vernieuw deze weergave.",
+    "insert": "Invoegen",
+    "more": "Meer laden",
+    "errors": {
+      "subscription_required": "Een actief betaald Craftgineer-abonnement is vereist. Beheer je abonnement op Craftgineer.",
+      "invalid_token": "Deze verbinding is verlopen of ingetrokken. Verbreek de verbinding en verbind opnieuw.",
+      "revision_conflict": "Dit bestand is gewijzigd. Vernieuw de bibliotheek en probeer het opnieuw.",
+      "access_denied": "Verbinding geannuleerd in de browser.",
+      "connection_timeout": "Het verbinden duurde te lang. Probeer opnieuw verbinding te maken.",
+      "wallet_cleanup_required": "Het account is voor deze sessie losgekoppeld, maar de opgeslagen inloggegevens konden niet worden verwijderd. Ontgrendel de wachtwoordopslag van je systeem en verbreek de verbinding opnieuw. Je kunt de toegang van Beam Bench ook intrekken in de Craftgineer-instellingen.",
+      "revocation_pending": "Losgekoppeld op deze computer. De website was niet bereikbaar om de toegang in te trekken. Trek de toegang van Beam Bench in via de Craftgineer-instellingen.",
+      "rate_limited": "Te veel verzoeken. Wacht een minuut en vernieuw de weergave.",
+      "stale_document": "Het project is gewijzigd tijdens het laden van de afbeelding. Voeg deze opnieuw in het bedoelde project in.",
+      "unavailable": "Craftgineer is niet bereikbaar. Controleer je verbinding en probeer het opnieuw."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

@@ -2929,5 +2929,36 @@
     "activate_layers": "Activate Layers",
     "activate_properties": "Activate Properties",
     "activate_outliner": "Activate Outliner"
+  },
+  "connected_library": {
+    "title": "Craftgineer connection",
+    "manage": "Manage connections",
+    "disclosure": "Connect your paid Craftgineer account to read saved library files. Edit and save files on Craftgineer, then refresh here. Inserted artwork is stored in your Beam Bench project and remains available offline.",
+    "remember": "Remember this account securely on this computer",
+    "connect": "Connect Craftgineer",
+    "disconnect": "Disconnect",
+    "browse": "Browse library",
+    "session_only": "Connected for this session only. Secure credential storage is unavailable. Reconnect after restarting Beam Bench.",
+    "waiting": "Finish connecting in your browser. You can cancel here.",
+    "search": "Search saved files",
+    "refresh": "Refresh",
+    "open_project": "Open a project to insert artwork.",
+    "empty": "No saved files found. Save a file to your Craftgineer library, then refresh.",
+    "insert": "Insert",
+    "more": "Load more",
+    "errors": {
+      "subscription_required": "An active paid Craftgineer subscription is required. Manage your subscription on Craftgineer.",
+      "invalid_token": "This connection has expired or was revoked. Disconnect, then reconnect.",
+      "revision_conflict": "This file changed. Refresh the library and try again.",
+      "access_denied": "Connection cancelled in the browser.",
+      "connection_timeout": "The connection timed out. Try connecting again.",
+      "wallet_cleanup_required": "The account was disconnected for this session, but stored credentials could not be removed. Unlock your password store and disconnect again. You can also revoke Beam Bench in Craftgineer settings.",
+      "revocation_pending": "Disconnected on this computer. The website could not be reached to revoke access. Revoke Beam Bench in Craftgineer settings.",
+      "rate_limited": "Too many requests. Wait a minute, then refresh.",
+      "stale_document": "The project changed while the artwork was loading. Insert it again in the intended project.",
+      "unavailable": "Craftgineer could not be reached. Check your connection and try again."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

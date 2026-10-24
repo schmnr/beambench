@@ -1,4 +1,4 @@
-//! Read-only desktop library protocol. Authentication and transport are Phase 2.
+//! Read-only desktop library protocol shared with Craftgineer.
 use serde::{Deserialize, Serialize};
 
 pub const LIBRARY_SCHEMA_VERSION: u32 = 1;

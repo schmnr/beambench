@@ -58,6 +58,9 @@ export function wrapBackendError(detail: string): string {
   if (normalized.startsWith(NETWORK_GRBL_NO_STATUS)) {
     return i18n.t('errors.network_grbl_no_status');
   }
+  if (normalized.includes('[stale_document]')) {
+    return i18n.t('connected_library.errors.stale_document');
+  }
   if (normalized === NO_ACTIVE_MACHINE_PROFILE) {
     return i18n.t('errors.no_active_machine_profile');
   }

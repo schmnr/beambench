@@ -2929,5 +2929,36 @@
     "activate_layers": "Aktiviraj plasti",
     "activate_properties": "Aktiviraj lastnosti",
     "activate_outliner": "Aktiviraj oris"
+  },
+  "connected_library": {
+    "title": "Povezava s Craftgineer",
+    "manage": "Upravljanje povezav",
+    "disclosure": "Povežite svoj plačljivi račun Craftgineer za branje datotek, shranjenih v knjižnici. Datoteke uredite in shranite v storitvi Craftgineer, nato osvežite ta pogled. Vstavljena grafika se shrani v projekt Beam Bench in ostane na voljo brez povezave.",
+    "remember": "Varno si zapomni ta račun v tem računalniku",
+    "connect": "Poveži Craftgineer",
+    "disconnect": "Prekini povezavo",
+    "browse": "Prebrskaj knjižnico",
+    "session_only": "Povezava velja samo za to sejo. Varno shranjevanje poverilnic ni na voljo. Po ponovnem zagonu aplikacije Beam Bench se povežite znova.",
+    "waiting": "Dokončajte povezavo v brskalniku. Tukaj jo lahko prekličete.",
+    "search": "Iskanje shranjenih datotek",
+    "refresh": "Osveži",
+    "open_project": "Za vstavljanje grafike odprite projekt.",
+    "empty": "Ni shranjenih datotek. Shranite datoteko v knjižnico Craftgineer in nato osvežite ta pogled.",
+    "insert": "Vstavi",
+    "more": "Naloži več",
+    "errors": {
+      "subscription_required": "Potrebna je aktivna plačljiva naročnina na Craftgineer. Naročnino upravljajte v storitvi Craftgineer.",
+      "invalid_token": "Ta povezava je potekla ali je bila preklicana. Prekinite jo in se povežite znova.",
+      "revision_conflict": "Ta datoteka se je spremenila. Osvežite knjižnico in poskusite znova.",
+      "access_denied": "Povezava je bila preklicana v brskalniku.",
+      "connection_timeout": "Čas za povezavo je potekel. Poskusite se povezati znova.",
+      "wallet_cleanup_required": "Račun je bil odklopljen za to sejo, vendar shranjenih poverilnic ni bilo mogoče odstraniti. Odklenite shrambo gesel in znova prekinite povezavo. Dostop aplikacije Beam Bench lahko prekličete tudi v nastavitvah storitve Craftgineer.",
+      "revocation_pending": "Povezava v tem računalniku je prekinjena. Spletnega mesta ni bilo mogoče doseči za preklic dostopa. Dostop aplikacije Beam Bench prekličite v nastavitvah storitve Craftgineer.",
+      "rate_limited": "Preveč zahtev. Počakajte minuto in nato osvežite.",
+      "stale_document": "Projekt se je med nalaganjem grafike spremenil. Znova jo vstavite v želeni projekt.",
+      "unavailable": "Storitve Craftgineer ni bilo mogoče doseči. Preverite povezavo in poskusite znova."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

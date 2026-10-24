@@ -2929,5 +2929,36 @@
     "activate_layers": "Aktiver lag",
     "activate_properties": "Aktiver egenskaper",
     "activate_outliner": "Aktiver disposisjon"
+  },
+  "connected_library": {
+    "title": "Craftgineer-tilkobling",
+    "manage": "Administrer tilkoblinger",
+    "disclosure": "Koble til den betalte Craftgineer-kontoen din for å lese lagrede bibliotekfiler. Rediger og lagre filer på Craftgineer, og oppdater deretter denne visningen. Innsatte bilder lagres i Beam Bench-prosjektet ditt og er tilgjengelige uten nett.",
+    "remember": "Husk denne kontoen sikkert på denne datamaskinen",
+    "connect": "Koble til Craftgineer",
+    "disconnect": "Koble fra",
+    "browse": "Bla i biblioteket",
+    "session_only": "Tilkoblet bare for denne økten. Sikker lagring av påloggingsinformasjon er utilgjengelig. Koble til igjen etter at du har startet Beam Bench på nytt.",
+    "waiting": "Fullfør tilkoblingen i nettleseren. Du kan avbryte her.",
+    "search": "Søk i lagrede filer",
+    "refresh": "Oppdater",
+    "open_project": "Åpne et prosjekt for å sette inn bilder.",
+    "empty": "Ingen lagrede filer funnet. Lagre en fil i Craftgineer-biblioteket ditt og oppdater denne visningen.",
+    "insert": "Sett inn",
+    "more": "Last inn flere",
+    "errors": {
+      "subscription_required": "Du trenger et aktivt betalt Craftgineer-abonnement. Administrer abonnementet ditt på Craftgineer.",
+      "invalid_token": "Denne tilkoblingen har utløpt eller blitt tilbakekalt. Koble fra og koble til igjen.",
+      "revision_conflict": "Denne filen er endret. Oppdater biblioteket og prøv igjen.",
+      "access_denied": "Tilkoblingen ble avbrutt i nettleseren.",
+      "connection_timeout": "Tilkoblingen fikk tidsavbrudd. Prøv å koble til igjen.",
+      "wallet_cleanup_required": "Kontoen ble koblet fra for denne økten, men lagret påloggingsinformasjon kunne ikke fjernes. Lås opp passordlageret og koble fra igjen. Du kan også tilbakekalle tilgangen til Beam Bench i innstillingene i Craftgineer.",
+      "revocation_pending": "Frakoblet på denne datamaskinen. Nettstedet kunne ikke nås for å tilbakekalle tilgangen. Tilbakekall tilgangen til Beam Bench i innstillingene i Craftgineer.",
+      "rate_limited": "For mange forespørsler. Vent ett minutt og oppdater deretter.",
+      "stale_document": "Prosjektet ble endret mens bildet ble lastet inn. Sett det inn igjen i ønsket prosjekt.",
+      "unavailable": "Kunne ikke nå Craftgineer. Kontroller tilkoblingen og prøv igjen."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

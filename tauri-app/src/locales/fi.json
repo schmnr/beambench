@@ -2929,5 +2929,36 @@
     "activate_layers": "Aktivoi tasot",
     "activate_properties": "Aktivoi ominaisuudet",
     "activate_outliner": "Aktivoi rakenne"
+  },
+  "connected_library": {
+    "title": "Craftgineer-yhteys",
+    "manage": "Hallitse yhteyksiä",
+    "disclosure": "Yhdistä maksullinen Craftgineer-tilisi lukeaksesi kirjastoon tallennettuja tiedostoja. Muokkaa ja tallenna tiedostot Craftgineerissä ja päivitä sitten tämä näkymä. Lisätty grafiikka tallennetaan Beam Bench -projektiisi ja on käytettävissä myös ilman verkkoyhteyttä.",
+    "remember": "Muista tämä tili turvallisesti tällä tietokoneella",
+    "connect": "Yhdistä Craftgineer",
+    "disconnect": "Katkaise yhteys",
+    "browse": "Selaa kirjastoa",
+    "session_only": "Yhdistetty vain tämän istunnon ajaksi. Tunnistetietojen turvallinen tallennus ei ole käytettävissä. Yhdistä uudelleen Beam Benchin uudelleenkäynnistyksen jälkeen.",
+    "waiting": "Viimeistele yhteys selaimessa. Voit peruuttaa sen tästä.",
+    "search": "Hae tallennettuja tiedostoja",
+    "refresh": "Päivitä",
+    "open_project": "Avaa projekti grafiikan lisäämistä varten.",
+    "empty": "Tallennettuja tiedostoja ei löytynyt. Tallenna tiedosto Craftgineer-kirjastoosi ja päivitä sitten tämä näkymä.",
+    "insert": "Lisää",
+    "more": "Lataa lisää",
+    "errors": {
+      "subscription_required": "Tarvitset voimassa olevan maksullisen Craftgineer-tilauksen. Hallitse tilaustasi Craftgineerissä.",
+      "invalid_token": "Tämä yhteys on vanhentunut tai sen käyttöoikeus on peruttu. Katkaise yhteys ja yhdistä uudelleen.",
+      "revision_conflict": "Tämä tiedosto on muuttunut. Päivitä kirjasto ja yritä uudelleen.",
+      "access_denied": "Yhteys peruutettiin selaimessa.",
+      "connection_timeout": "Yhteyden muodostus aikakatkaistiin. Yritä yhdistää uudelleen.",
+      "wallet_cleanup_required": "Tilin yhteys katkaistiin tämän istunnon ajaksi, mutta tallennettuja tunnistetietoja ei voitu poistaa. Avaa salasanavarastosi lukitus ja katkaise yhteys uudelleen. Voit myös perua Beam Benchin käyttöoikeuden Craftgineerin asetuksissa.",
+      "revocation_pending": "Yhteys katkaistu tällä tietokoneella. Sivustoon ei saatu yhteyttä käyttöoikeuden perumista varten. Peru Beam Benchin käyttöoikeus Craftgineerin asetuksissa.",
+      "rate_limited": "Liian monta pyyntöä. Odota minuutti ja päivitä sitten näkymä.",
+      "stale_document": "Projekti vaihtui grafiikan latauksen aikana. Lisää grafiikka uudelleen haluamaasi projektiin.",
+      "unavailable": "Craftgineeriin ei saatu yhteyttä. Tarkista verkkoyhteys ja yritä uudelleen."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }
