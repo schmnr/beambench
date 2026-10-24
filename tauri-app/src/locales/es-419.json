@@ -2952,7 +2952,7 @@
       "revision_conflict": "Este archivo cambió. Actualiza la biblioteca e inténtalo de nuevo.",
       "access_denied": "Conexión cancelada en el navegador.",
       "connection_timeout": "Se agotó el tiempo de conexión. Vuelve a intentar conectarte.",
-      "wallet_cleanup_required": "La cuenta se desconectó para esta sesión, pero no se pudieron eliminar las credenciales guardadas. Desbloquea tu administrador de contraseñas y vuelve a desconectarla. También puedes revocar el acceso de Beam Bench en la configuración de Craftgineer.",
+      "wallet_cleanup_required": "La cuenta se desconectó para esta sesión, pero no se pudieron eliminar las credenciales guardadas. Desbloquea el almacén de contraseñas del sistema y vuelve a desconectarla. También puedes revocar el acceso de Beam Bench en la configuración de Craftgineer.",
       "revocation_pending": "Desconectado en esta computadora. No se pudo contactar con el sitio web para revocar el acceso. Revoca el acceso de Beam Bench en la configuración de Craftgineer.",
       "rate_limited": "Demasiadas solicitudes. Espera un minuto y actualiza la vista.",
       "stale_document": "El proyecto cambió mientras se cargaba la ilustración. Vuelve a insertarla en el proyecto deseado.",

@@ -2952,7 +2952,7 @@
       "revision_conflict": "Den här filen har ändrats. Uppdatera biblioteket och försök igen.",
       "access_denied": "Anslutningen avbröts i webbläsaren.",
       "connection_timeout": "Tidsgränsen för anslutningen överskreds. Försök ansluta igen.",
-      "wallet_cleanup_required": "Kontot kopplades från för den här sessionen, men sparade inloggningsuppgifter kunde inte tas bort. Lås upp din lösenordshanterare och koppla från igen. Du kan också återkalla Beam Bench-åtkomsten i Craftgineers inställningar.",
+      "wallet_cleanup_required": "Kontot kopplades från för den här sessionen, men sparade inloggningsuppgifter kunde inte tas bort. Lås upp systemets lösenordslager och koppla från igen. Du kan också återkalla Beam Bench-åtkomsten i Craftgineers inställningar.",
       "revocation_pending": "Frånkopplad på den här datorn. Webbplatsen kunde inte nås för att återkalla åtkomsten. Återkalla Beam Bench-åtkomsten i Craftgineers inställningar.",
       "rate_limited": "För många förfrågningar. Vänta en minut och uppdatera sedan.",
       "stale_document": "Projektet ändrades medan bilden lästes in. Infoga den igen i det avsedda projektet.",

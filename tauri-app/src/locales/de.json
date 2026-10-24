@@ -2951,7 +2951,7 @@
       "invalid_token": "Diese Verbindung ist abgelaufen oder wurde widerrufen. Trenne sie und verbinde dich erneut.",
       "revision_conflict": "Diese Datei wurde geändert. Aktualisiere die Bibliothek und versuche es erneut.",
       "access_denied": "Verbindung im Browser abgebrochen.",
-      "connection_timeout": "Die Verbindung ist abgelaufen. Versuche erneut, eine Verbindung herzustellen.",
+      "connection_timeout": "Zeitüberschreitung beim Verbindungsaufbau. Versuche erneut, eine Verbindung herzustellen.",
       "wallet_cleanup_required": "Das Konto wurde für diese Sitzung getrennt, aber gespeicherte Zugangsdaten konnten nicht entfernt werden. Entsperre deinen Passwortspeicher und trenne die Verbindung erneut. Du kannst den Zugriff von Beam Bench auch in den Craftgineer-Einstellungen widerrufen.",
       "revocation_pending": "Auf diesem Computer getrennt. Die Website konnte zum Widerrufen des Zugriffs nicht erreicht werden. Widerrufe den Zugriff von Beam Bench in den Craftgineer-Einstellungen.",
       "rate_limited": "Zu viele Anfragen. Warte eine Minute und aktualisiere dann die Ansicht.",

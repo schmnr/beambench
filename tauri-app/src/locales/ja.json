@@ -2934,7 +2934,7 @@
     "title": "Craftgineer 接続",
     "manage": "接続を管理",
     "disclosure": "有料の Craftgineer アカウントを接続すると、ライブラリに保存したファイルを読み込めます。Craftgineer でファイルを編集・保存してから、この画面を更新してください。挿入したアートワークは Beam Bench のプロジェクト内に保存され、オフラインでも利用できます。",
-    "remember": "このコンピューターでアカウントを安全に記憶する",
+    "remember": "このコンピューターにアカウント情報を安全に保存する",
     "connect": "Craftgineer に接続",
     "disconnect": "接続を解除",
     "browse": "ライブラリを開く",
