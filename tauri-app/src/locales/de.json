@@ -2929,5 +2929,36 @@
     "activate_layers": "Ebenen aktivieren",
     "activate_properties": "Eigenschaften aktivieren",
     "activate_outliner": "Gliederung aktivieren"
+  },
+  "connected_library": {
+    "title": "Craftgineer-Verbindung",
+    "manage": "Verbindungen verwalten",
+    "disclosure": "Verbinde dein kostenpflichtiges Craftgineer-Konto, um gespeicherte Bibliotheksdateien zu lesen. Bearbeite und speichere Dateien auf Craftgineer und aktualisiere anschließend diese Ansicht. Eingefügte Grafiken werden in deinem Beam Bench-Projekt gespeichert und bleiben offline verfügbar.",
+    "remember": "Dieses Konto auf diesem Computer sicher speichern",
+    "connect": "Craftgineer verbinden",
+    "disconnect": "Trennen",
+    "browse": "Bibliothek durchsuchen",
+    "session_only": "Nur für diese Sitzung verbunden. Die sichere Speicherung der Zugangsdaten ist nicht verfügbar. Verbinde dich nach dem Neustart von Beam Bench erneut.",
+    "waiting": "Schließe die Verbindung im Browser ab. Du kannst hier abbrechen.",
+    "search": "Gespeicherte Dateien suchen",
+    "refresh": "Aktualisieren",
+    "open_project": "Öffne ein Projekt, um Grafiken einzufügen.",
+    "empty": "Keine gespeicherten Dateien gefunden. Speichere eine Datei in deiner Craftgineer-Bibliothek und aktualisiere dann diese Ansicht.",
+    "insert": "Einfügen",
+    "more": "Mehr laden",
+    "errors": {
+      "subscription_required": "Ein aktives kostenpflichtiges Craftgineer-Abonnement ist erforderlich. Verwalte dein Abonnement auf Craftgineer.",
+      "invalid_token": "Diese Verbindung ist abgelaufen oder wurde widerrufen. Trenne sie und verbinde dich erneut.",
+      "revision_conflict": "Diese Datei wurde geändert. Aktualisiere die Bibliothek und versuche es erneut.",
+      "access_denied": "Verbindung im Browser abgebrochen.",
+      "connection_timeout": "Die Verbindung ist abgelaufen. Versuche erneut, eine Verbindung herzustellen.",
+      "wallet_cleanup_required": "Das Konto wurde für diese Sitzung getrennt, aber gespeicherte Zugangsdaten konnten nicht entfernt werden. Entsperre deinen Passwortspeicher und trenne die Verbindung erneut. Du kannst den Zugriff von Beam Bench auch in den Craftgineer-Einstellungen widerrufen.",
+      "revocation_pending": "Auf diesem Computer getrennt. Die Website konnte zum Widerrufen des Zugriffs nicht erreicht werden. Widerrufe den Zugriff von Beam Bench in den Craftgineer-Einstellungen.",
+      "rate_limited": "Zu viele Anfragen. Warte eine Minute und aktualisiere dann die Ansicht.",
+      "stale_document": "Das Projekt wurde während des Ladens der Grafik gewechselt. Füge sie erneut in das gewünschte Projekt ein.",
+      "unavailable": "Craftgineer konnte nicht erreicht werden. Prüfe deine Verbindung und versuche es erneut."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

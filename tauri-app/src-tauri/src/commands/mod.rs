@@ -2,6 +2,7 @@ pub mod agent;
 pub mod app;
 pub mod art_library;
 pub mod camera;
+pub mod connected_library;
 pub mod export;
 pub mod feedback;
 pub mod import;

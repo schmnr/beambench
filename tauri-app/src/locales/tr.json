@@ -2929,5 +2929,36 @@
     "activate_layers": "Katmanları etkinleştir",
     "activate_properties": "Özellikleri etkinleştir",
     "activate_outliner": "Ana hattı etkinleştir"
+  },
+  "connected_library": {
+    "title": "Craftgineer bağlantısı",
+    "manage": "Bağlantıları yönet",
+    "disclosure": "Kütüphaneye kaydettiğin dosyaları okumak için ücretli Craftgineer hesabını bağla. Dosyaları Craftgineer'da düzenleyip kaydet, ardından bu görünümü yenile. Eklenen çizimler Beam Bench projesine kaydedilir ve çevrimdışı kullanılabilir.",
+    "remember": "Bu hesabı bu bilgisayarda güvenle hatırla",
+    "connect": "Craftgineer'ı bağla",
+    "disconnect": "Bağlantıyı kes",
+    "browse": "Kütüphaneye göz at",
+    "session_only": "Yalnızca bu oturum için bağlanıldı. Kimlik bilgilerinin güvenli depolanması kullanılamıyor. Beam Bench'i yeniden başlattıktan sonra tekrar bağlan.",
+    "waiting": "Bağlantıyı tarayıcında tamamla. Buradan iptal edebilirsin.",
+    "search": "Kayıtlı dosyalarda ara",
+    "refresh": "Yenile",
+    "open_project": "Çizim eklemek için bir proje aç.",
+    "empty": "Kayıtlı dosya bulunamadı. Craftgineer kütüphanene bir dosya kaydet, ardından bu görünümü yenile.",
+    "insert": "Ekle",
+    "more": "Daha fazla yükle",
+    "errors": {
+      "subscription_required": "Etkin bir ücretli Craftgineer aboneliği gerekiyor. Aboneliğini Craftgineer'da yönet.",
+      "invalid_token": "Bu bağlantının süresi doldu veya erişimi iptal edildi. Bağlantıyı kesip yeniden bağlan.",
+      "revision_conflict": "Bu dosya değişti. Kütüphaneyi yenileyip tekrar dene.",
+      "access_denied": "Bağlantı tarayıcıda iptal edildi.",
+      "connection_timeout": "Bağlantı zaman aşımına uğradı. Yeniden bağlanmayı dene.",
+      "wallet_cleanup_required": "Bu oturum için hesabın bağlantısı kesildi ancak kayıtlı kimlik bilgileri kaldırılamadı. Parola deponun kilidini açıp bağlantıyı tekrar kes. Beam Bench'in erişimini Craftgineer ayarlarından da iptal edebilirsin.",
+      "revocation_pending": "Bu bilgisayarda bağlantı kesildi. Erişimi iptal etmek için web sitesine ulaşılamadı. Beam Bench'in erişimini Craftgineer ayarlarından iptal et.",
+      "rate_limited": "Çok fazla istek gönderildi. Bir dakika bekleyip yenile.",
+      "stale_document": "Çizim yüklenirken proje değişti. Çizimi istediğin projeye yeniden ekle.",
+      "unavailable": "Craftgineer'a ulaşılamadı. Bağlantını kontrol edip tekrar dene."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

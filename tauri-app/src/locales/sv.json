@@ -2929,5 +2929,36 @@
     "activate_layers": "Aktivera lager",
     "activate_properties": "Aktivera egenskaper",
     "activate_outliner": "Aktivera disposition"
+  },
+  "connected_library": {
+    "title": "Craftgineer-anslutning",
+    "manage": "Hantera anslutningar",
+    "disclosure": "Anslut ditt betalda Craftgineer-konto för att läsa sparade biblioteksfiler. Redigera och spara filer på Craftgineer och uppdatera sedan den här vyn. Infogade bilder sparas i ditt Beam Bench-projekt och är tillgängliga offline.",
+    "remember": "Kom ihåg det här kontot säkert på den här datorn",
+    "connect": "Anslut Craftgineer",
+    "disconnect": "Koppla från",
+    "browse": "Bläddra i biblioteket",
+    "session_only": "Ansluten endast för den här sessionen. Säker lagring av inloggningsuppgifter är inte tillgänglig. Anslut igen efter att du har startat om Beam Bench.",
+    "waiting": "Slutför anslutningen i webbläsaren. Du kan avbryta här.",
+    "search": "Sök bland sparade filer",
+    "refresh": "Uppdatera",
+    "open_project": "Öppna ett projekt för att infoga bilder.",
+    "empty": "Inga sparade filer hittades. Spara en fil i ditt Craftgineer-bibliotek och uppdatera sedan den här vyn.",
+    "insert": "Infoga",
+    "more": "Läs in fler",
+    "errors": {
+      "subscription_required": "En aktiv betald Craftgineer-prenumeration krävs. Hantera din prenumeration på Craftgineer.",
+      "invalid_token": "Den här anslutningen har upphört att gälla eller har återkallats. Koppla från och anslut sedan igen.",
+      "revision_conflict": "Den här filen har ändrats. Uppdatera biblioteket och försök igen.",
+      "access_denied": "Anslutningen avbröts i webbläsaren.",
+      "connection_timeout": "Tidsgränsen för anslutningen överskreds. Försök ansluta igen.",
+      "wallet_cleanup_required": "Kontot kopplades från för den här sessionen, men sparade inloggningsuppgifter kunde inte tas bort. Lås upp din lösenordshanterare och koppla från igen. Du kan också återkalla Beam Bench-åtkomsten i Craftgineers inställningar.",
+      "revocation_pending": "Frånkopplad på den här datorn. Webbplatsen kunde inte nås för att återkalla åtkomsten. Återkalla Beam Bench-åtkomsten i Craftgineers inställningar.",
+      "rate_limited": "För många förfrågningar. Vänta en minut och uppdatera sedan.",
+      "stale_document": "Projektet ändrades medan bilden lästes in. Infoga den igen i det avsedda projektet.",
+      "unavailable": "Craftgineer kunde inte nås. Kontrollera anslutningen och försök igen."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

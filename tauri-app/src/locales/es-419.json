@@ -2929,5 +2929,36 @@
     "activate_layers": "Activar capas",
     "activate_properties": "Activar propiedades",
     "activate_outliner": "Activar esquema"
+  },
+  "connected_library": {
+    "title": "Conexión con Craftgineer",
+    "manage": "Administrar conexiones",
+    "disclosure": "Conecta tu cuenta de pago de Craftgineer para leer los archivos guardados en tu biblioteca. Edita y guarda los archivos en Craftgineer y luego actualiza esta vista. Las ilustraciones insertadas se guardan en tu proyecto de Beam Bench y siguen disponibles sin conexión.",
+    "remember": "Recordar esta cuenta de forma segura en esta computadora",
+    "connect": "Conectar Craftgineer",
+    "disconnect": "Desconectar",
+    "browse": "Explorar la biblioteca",
+    "session_only": "Conexión solo para esta sesión. El almacenamiento seguro de credenciales no está disponible. Vuelve a conectarte después de reiniciar Beam Bench.",
+    "waiting": "Completa la conexión en tu navegador. Puedes cancelarla aquí.",
+    "search": "Buscar archivos guardados",
+    "refresh": "Actualizar",
+    "open_project": "Abre un proyecto para insertar ilustraciones.",
+    "empty": "No se encontraron archivos guardados. Guarda un archivo en tu biblioteca de Craftgineer y luego actualiza esta vista.",
+    "insert": "Insertar",
+    "more": "Cargar más",
+    "errors": {
+      "subscription_required": "Se necesita una suscripción de pago activa de Craftgineer. Administra tu suscripción en Craftgineer.",
+      "invalid_token": "Esta conexión venció o se revocó. Desconéctala y vuelve a conectarte.",
+      "revision_conflict": "Este archivo cambió. Actualiza la biblioteca e inténtalo de nuevo.",
+      "access_denied": "Conexión cancelada en el navegador.",
+      "connection_timeout": "Se agotó el tiempo de conexión. Vuelve a intentar conectarte.",
+      "wallet_cleanup_required": "La cuenta se desconectó para esta sesión, pero no se pudieron eliminar las credenciales guardadas. Desbloquea tu administrador de contraseñas y vuelve a desconectarla. También puedes revocar el acceso de Beam Bench en la configuración de Craftgineer.",
+      "revocation_pending": "Desconectado en esta computadora. No se pudo contactar con el sitio web para revocar el acceso. Revoca el acceso de Beam Bench en la configuración de Craftgineer.",
+      "rate_limited": "Demasiadas solicitudes. Espera un minuto y actualiza la vista.",
+      "stale_document": "El proyecto cambió mientras se cargaba la ilustración. Vuelve a insertarla en el proyecto deseado.",
+      "unavailable": "No se pudo contactar con Craftgineer. Revisa tu conexión e inténtalo de nuevo."
+    },
+    "provider": "Craftgineer",
+    "account": "Craftgineer · {account}"
   }
 }

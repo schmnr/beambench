@@ -425,6 +425,8 @@ pub fn open_project_from_path(ctx: &ServiceContext, file_path: &str) -> ServiceR
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
+        ctx.document_epoch
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         *project_guard = Some(project.clone());
         *path_guard = Some(open_path.clone());
         ctx.clear_project_history()
@@ -558,6 +560,8 @@ pub fn restore_recovery_file(ctx: &ServiceContext, recovery_path: &str) -> Servi
             .project_path
             .lock()
             .map_err(|e| lock_err("project_path", e))?;
+        ctx.document_epoch
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         *project_guard = Some(project.clone());
         *path_guard = source_path.clone();
         ctx.clear_project_history()

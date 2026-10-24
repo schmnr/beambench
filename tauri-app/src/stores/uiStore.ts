@@ -186,7 +186,7 @@ interface UiStoreState {
   sidePanelsVisible: boolean;
   /** Library drawer (Art / Materials) next to the tool rail. */
   libraryDrawerOpen: boolean;
-  libraryDrawerTab: 'art' | 'materials';
+  libraryDrawerTab: 'art' | 'materials' | 'craftgineer' | 'connections';
   /** Design (draw/arrange) vs Run (machine/job) workspace. */
   workspaceMode: 'design' | 'run';
 
@@ -372,7 +372,7 @@ interface UiStoreState {
   // Side panels actions
   toggleSidePanels: () => void;
   toggleLibraryDrawer: () => void;
-  setLibraryDrawerTab: (tab: 'art' | 'materials') => void;
+  setLibraryDrawerTab: (tab: 'art' | 'materials' | 'craftgineer' | 'connections') => void;
   setWorkspaceMode: (mode: 'design' | 'run') => void;
 
   // Mode toggle actions
