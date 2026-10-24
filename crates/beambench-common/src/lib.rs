@@ -3,6 +3,7 @@
 pub mod barcode;
 pub mod camera;
 pub mod color;
+pub mod connected_library;
 pub mod console;
 pub mod controller_choice;
 pub mod error;
