@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 1,
+  "now": "2026-10-24T16:00:00.000Z",
+  "accessCases": [
+    {
+      "name": "active paid subscriber",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "active"
+    },
+    {
+      "name": "paid subscriber above a downgraded storage quota",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false,
+        "storedFileCount": 201,
+        "storedFileLimit": 5
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "active"
+    },
+    {
+      "name": "active legacy paid subscriber",
+      "account": {
+        "id": "account-paid",
+        "tier": "legacy",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "active"
+    },
+    {
+      "name": "free account",
+      "account": {
+        "id": "account-paid",
+        "tier": "free",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "subscription_required"
+    },
+    {
+      "name": "lapsed subscriber",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-10-23T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "subscription_required"
+    },
+    {
+      "name": "billing period ends exactly now",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-10-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "subscription_required"
+    },
+    {
+      "name": "cancellation scheduled follows existing Craftgineer policy",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": true
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "subscription_required"
+    },
+    {
+      "name": "missing billing period",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": null,
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "subscription_required"
+    },
+    {
+      "name": "unknown billing price",
+      "account": {
+        "id": "account-paid",
+        "tier": "unknown",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "subscription_required"
+    },
+    {
+      "name": "revoked connection",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": "2026-10-24T15:59:00.000Z",
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "invalid_token"
+    },
+    {
+      "name": "deleted account",
+      "account": null,
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "invalid_token"
+    },
+    {
+      "name": "expired connection",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:00:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "invalid_token"
+    },
+    {
+      "name": "connection belongs to another account",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-other",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": [
+          "library:read"
+        ]
+      },
+      "expected": "invalid_token"
+    },
+    {
+      "name": "missing read scope",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": {
+        "subjectId": "account-paid",
+        "expiresAt": "2026-10-24T16:15:00.000Z",
+        "revokedAt": null,
+        "scopes": []
+      },
+      "expected": "insufficient_scope"
+    },
+    {
+      "name": "missing connection",
+      "account": {
+        "id": "account-paid",
+        "tier": "maker",
+        "periodEnd": "2026-11-24T16:00:00.000Z",
+        "cancelAtPeriodEnd": false
+      },
+      "connection": null,
+      "expected": "invalid_token"
+    }
+  ],
+  "accountResponse": {
+    "schemaVersion": 1,
+    "provider": "craftgineer",
+    "account": {
+      "id": "account-paid",
+      "displayName": "Sample maker"
+    },
+    "access": "active",
+    "capabilities": {
+      "mimeTypes": [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/svg+xml"
+      ],
+      "maxFileBytes": 26214400,
+      "maxPageSize": 50
+    }
+  },
+  "listingResponse": {
+    "schemaVersion": 1,
+    "provider": "craftgineer",
+    "accountId": "account-paid",
+    "files": [
+      {
+        "id": "file-1",
+        "name": "Sample artwork.svg",
+        "mimeType": "image/svg+xml",
+        "sizeBytes": 128,
+        "revision": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "sourceTool": "monotrace",
+        "createdAt": "2026-10-24T15:00:00.000Z",
+        "collection": null
+      },
+      {
+        "id": "file-2",
+        "name": "Sample artwork.png",
+        "mimeType": "image/png",
+        "sizeBytes": 129,
+        "revision": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "sourceTool": "photo-converter",
+        "createdAt": "2026-10-24T15:00:00.000Z",
+        "collection": null
+      },
+      {
+        "id": "file-3",
+        "name": "Sample artwork.jpg",
+        "mimeType": "image/jpeg",
+        "sizeBytes": 130,
+        "revision": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "sourceTool": "canvas-pro",
+        "createdAt": "2026-10-24T15:00:00.000Z",
+        "collection": null
+      },
+      {
+        "id": "file-4",
+        "name": "Sample artwork.webp",
+        "mimeType": "image/webp",
+        "sizeBytes": 131,
+        "revision": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "sourceTool": "canvas-pro",
+        "createdAt": "2026-10-24T15:00:00.000Z",
+        "collection": null
+      }
+    ],
+    "nextCursor": null
+  },
+  "emptyListingResponse": {
+    "schemaVersion": 1,
+    "provider": "craftgineer",
+    "accountId": "account-paid",
+    "files": [],
+    "nextCursor": null
+  },
+  "errorResponses": [
+    {
+      "status": 400,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "invalid_request"
+        }
+      }
+    },
+    {
+      "status": 401,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "invalid_token"
+        }
+      }
+    },
+    {
+      "status": 403,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "insufficient_scope"
+        }
+      }
+    },
+    {
+      "status": 403,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "subscription_required"
+        }
+      }
+    },
+    {
+      "status": 404,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "not_found"
+        }
+      }
+    },
+    {
+      "status": 412,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "revision_conflict"
+        }
+      }
+    },
+    {
+      "status": 413,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "file_too_large"
+        }
+      }
+    },
+    {
+      "status": 415,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "unsupported_media_type"
+        }
+      }
+    },
+    {
+      "status": 429,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "rate_limited"
+        }
+      }
+    },
+    {
+      "status": 503,
+      "body": {
+        "schemaVersion": 1,
+        "error": {
+          "code": "service_unavailable"
+        }
+      }
+    }
+  ]
+}
