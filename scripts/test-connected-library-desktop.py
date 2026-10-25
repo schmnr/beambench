@@ -70,6 +70,8 @@ class HostedAccount:
             response = self.opener.open(request, timeout=35)
         except urllib.error.HTTPError as error:
             response = error
+        except urllib.error.URLError as error:
+            raise RuntimeError('hosted_network_' + type(error.reason).__name__) from None
         with response:
             body = response.read(2 * 1024 * 1024 + 1)
             if len(body) > 2 * 1024 * 1024:
@@ -119,9 +121,12 @@ class HostedAccount:
         if status != 303 or target._replace(query='', fragment='') != callback or result.get('state') != query.get('state') or 'code' not in result:
             raise RuntimeError('consent_callback_invalid')
         # Normal browser callback to the real app's listener. Never print the URL.
-        with urllib.request.urlopen(target.geturl(), timeout=10) as response:
-            if response.status != 204:
-                raise RuntimeError('native_callback_failed')
+        try:
+            with urllib.request.urlopen(target.geturl(), timeout=10) as response:
+                if response.status != 204:
+                    raise RuntimeError('native_callback_failed')
+        except urllib.error.URLError as error:
+            raise RuntimeError('callback_network_' + type(error.reason).__name__) from None
 
     def delete_disposable(self, proof):
         if proof.get('label') != self.account['label'] or not re.fullmatch(r'[a-f0-9]{64}', proof.get('token','')):
@@ -169,6 +174,8 @@ class Driver:
             except Exception:
                 code = 'invalid_response'
             raise RuntimeError('webdriver_' + code.replace(' ', '_')) from None
+        except urllib.error.URLError as error:
+            raise RuntimeError('driver_network_' + type(error.reason).__name__) from None
         if isinstance(value, dict) and 'error' in value:
             raise RuntimeError('webdriver_' + value['error'].replace(' ', '_'))
         return value
