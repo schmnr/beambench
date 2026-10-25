@@ -20,6 +20,11 @@ on:
         required: false
         default: false
         type: boolean
+      attach_to_release:
+        description: "Attach Windows artifacts to the GitHub Release. Leave off for package validation."
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   # Serialize expensive same-tag builds and release uploads. The shared asset
@@ -436,7 +441,33 @@ jobs:
           path: ${{ steps.locate.outputs.files }}
           retention-days: 30
 
+      - name: Test signed installer and actual desktop startup
+        run: |
+          $installers = @(Get-ChildItem -Path "target\release\bundle\nsis" -File -Filter "*-setup.exe")
+          if ($installers.Count -ne 1) { throw "Expected one signed NSIS installer." }
+          ./scripts/test-windows-installed-package.ps1 `
+            -Installer $installers[0].FullName `
+            -OutputDirectory "$env:RUNNER_TEMP\beambench-installed-smoke"
+
+      - name: Test native Windows credential backend
+        run: |
+          $result = & cargo run --locked --manifest-path scripts/credential-store-probe/Cargo.toml -- --native
+          if ($LASTEXITCODE -ne 0 -or ($result -join "`n").Trim() -ne "credential_round_trip=ok") {
+            throw "The disposable native credential round trip failed."
+          }
+          $result | Set-Content "$env:RUNNER_TEMP\beambench-installed-smoke\credential-probe.txt"
+
+      - name: Upload installed desktop test evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: BeamBench-Windows-installed-${{ steps.tag.outputs.value }}
+          path: ${{ runner.temp }}/beambench-installed-smoke
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Attach Windows artifacts to GitHub Release
+        if: ${{ inputs.attach_to_release }}
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.tag.outputs.value }}

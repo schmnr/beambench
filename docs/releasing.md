@@ -23,6 +23,11 @@ Run the macOS, Windows, and Linux release workflows for the same tag. Verify the
 signatures, checksums, installers, CLI archives, and source archives before
 publishing the release or updating the application manifest.
 
+For package validation, use a prerelease version and matching tag. The Linux and
+Windows workflows save signed workflow artifacts without attaching them to a
+GitHub Release by default. Enable `attach_to_release` only for an authorized
+release upload. The local macOS script stages artifacts without uploading them.
+
 Each platform workflow runs the critical planner, machine-service, and frontend
 tests against the checked-out tag before packaging. A source-test failure is a
 release failure even if an installer can still be built locally.
