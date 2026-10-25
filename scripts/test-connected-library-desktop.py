@@ -178,7 +178,7 @@ class Driver:
         return self.request(method, '/session/' + self.session + path, data)
 
     def text(self):
-        return self.command('POST', '/execute/sync', {'script': 'return document.body.innerText', 'args': []})
+        return self.command('GET','/element/'+self.element('/html/body')+'/text')
 
     def element(self, xpath):
         return self.command('POST', '/element', {'using': 'xpath', 'value': xpath})[ELEMENT]
@@ -207,7 +207,7 @@ class Driver:
     def screenshot(self, path):
         try:
             path.write_bytes(base64.b64decode(self.command('GET', '/screenshot')))
-        except (RuntimeError, TypeError):
+        except (RuntimeError, TypeError, TimeoutError):
             subprocess.run(['scrot',str(path)],check=True,timeout=10)
 
     def ready(self):
@@ -412,9 +412,12 @@ def main():
             print('checkpoint=native_connect_clicked',flush=True)
             active.wait(capture.exists, 'external_consent')
             web.consent(capture.read_text())
+            print('checkpoint=hosted_consent_completed',flush=True)
             capture.unlink()
             active.wait(lambda: account['name'] in active.text(), 'account_connected')
+            print('checkpoint=connected_account_visible',flush=True)
             active.button('Browse library')
+            print('checkpoint=library_opened',flush=True)
             active.wait(lambda: account['fixture'] in active.text(), 'account_listing')
             other = next(a for a in accounts['accounts'] if a['id'] != account['id'])
             if other['fixture'] in active.text():
