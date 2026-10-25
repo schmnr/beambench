@@ -128,6 +128,7 @@ class Driver:
     def __init__(self, endpoint, capabilities):
         self.endpoint = endpoint
         self.session = None
+        self.process = None
         result = self.request('POST', '/session', {'capabilities': {'alwaysMatch': capabilities}})
         self.session = result['sessionId']
 
@@ -181,7 +182,30 @@ class Driver:
         path.write_bytes(base64.b64decode(self.command('GET', '/screenshot')))
 
     def quit(self):
-        self.command('DELETE', '')
+        try:
+            self.command('DELETE', '')
+        finally:
+            if self.process is not None and self.process.poll() is None:
+                # A driver attached to WebView2 does not own the app. Close only
+                # this test process's native window, as a user clicking X would.
+                import ctypes
+                user32 = ctypes.windll.user32
+                callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+                def close(window, _):
+                    owner = ctypes.c_ulong()
+                    user32.GetWindowThreadProcessId(window, ctypes.byref(owner))
+                    if owner.value == self.process.pid:
+                        user32.PostMessageW(window, 0x0010, 0, 0)
+                    return True
+
+                user32.EnumWindows(callback_type(close), 0)
+                try:
+                    self.process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    self.process.terminate()
+                    self.process.wait(timeout=10)
+                    raise RuntimeError('native_window_failed_to_close')
 
 
 def capture_opener(root):
@@ -243,7 +267,7 @@ def main():
     application = args.application.resolve(strict=True)
     original_hash = hashlib.sha256(application.read_bytes()).hexdigest()
     capabilities = ({'browserName': 'webview2', 'ms:edgeChromium': True,
-        'ms:edgeOptions': {'binary': str(application)}}
+        'ms:edgeOptions': {'debuggerAddress': '127.0.0.1:17557'}}
         if sys.platform == 'win32' else
         {'browserName': 'MiniBrowser', 'webkitgtk:browserOptions': {'binary': str(application)}})
     log = (root/'driver.log').open('w')
@@ -259,7 +283,37 @@ def main():
                 time.sleep(0.1)
 
         def launch():
-            active = Driver('http://127.0.0.1:17556', capabilities)
+            owned = None
+            if sys.platform == 'win32':
+                # Tauri chooses its own WebView data folder. Attaching to its
+                # explicit loopback port avoids EdgeDriver looking for the port
+                # file in EdgeDriver's unrelated temporary profile.
+                app_env = dict(os.environ,
+                    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=17557')
+                with (root/'desktop.log').open('a') as app_log:
+                    owned = subprocess.Popen([str(application)], env=app_env,
+                        stdout=app_log, stderr=app_log)
+                deadline = time.monotonic() + 45
+                while time.monotonic() < deadline:
+                    if owned.poll() is not None:
+                        raise RuntimeError('signed_desktop_exited')
+                    try:
+                        urllib.request.urlopen('http://127.0.0.1:17557/json/version',timeout=1).close()
+                        break
+                    except urllib.error.URLError:
+                        time.sleep(0.1)
+                else:
+                    owned.terminate()
+                    owned.wait(timeout=10)
+                    raise RuntimeError('webview_debug_port_unavailable')
+            try:
+                active = Driver('http://127.0.0.1:17556', capabilities)
+            except Exception:
+                if owned is not None and owned.poll() is None:
+                    owned.terminate()
+                    owned.wait(timeout=10)
+                raise
+            active.process = owned
             active.wait(lambda: active.element('//button[@aria-label="Library" or @title="Library"]'), 'frontend')
             try:
                 active.button('Close welcome')
@@ -269,6 +323,10 @@ def main():
                 active.click('//button[@aria-label="Library" or @title="Library"]')
             active.button('Manage connections')
             return active
+
+        def passed(name):
+            results.append(name)
+            print('passed=' + name, flush=True)
 
         def connect(active, account, remember):
             if capture.exists():
@@ -296,24 +354,24 @@ def main():
         if args.scenario == 'lifecycle':
             connect(driver, first, True)
             driver.screenshot(root/'account-a.png')
-            results.append('paid_connect_and_listing_a')
+            passed('paid_connect_and_listing_a')
             driver.quit()
             driver = launch()
             driver.wait(lambda: first['name'] in driver.text(), 'remembered_account_a')
-            results.append('remembered_restart_a')
+            passed('remembered_restart_a')
             driver.button('Disconnect')
             driver.wait(lambda: 'Connect Craftgineer' in driver.text(), 'disconnect_a')
             if first['name'] in driver.text():
                 raise RuntimeError('old_account_visible_after_disconnect')
             connect(driver, second, True)
             driver.screenshot(root/'account-b.png')
-            results.append('switch_to_b_without_a_files')
+            passed('switch_to_b_without_a_files')
             driver.quit()
             driver = launch()
             driver.wait(lambda: second['name'] in driver.text(), 'remembered_account_b')
             if first['name'] in driver.text():
                 raise RuntimeError('wrong_account_restored')
-            results.append('remembered_restart_b')
+            passed('remembered_restart_b')
             driver.button('Disconnect')
             driver.wait(lambda: 'Connect Craftgineer' in driver.text(), 'disconnect_b')
             driver.quit()
@@ -321,15 +379,15 @@ def main():
             driver.wait(lambda: 'Connect Craftgineer' in driver.text(), 'disconnect_persisted')
             if first['name'] in driver.text() or second['name'] in driver.text():
                 raise RuntimeError('account_restored_after_disconnect')
-            results.append('disconnect_and_restart_without_account')
+            passed('disconnect_and_restart_without_account')
         connect(driver, second, False)
-        results.append('explicit_session_only_connection')
+        passed('explicit_session_only_connection')
         driver.quit()
         driver = launch()
         driver.wait(lambda: 'Connect Craftgineer' in driver.text(), 'session_only_not_restored')
         if second['name'] in driver.text():
             raise RuntimeError('session_only_restored')
-        results.append('session_only_not_restored')
+        passed('session_only_not_restored')
         driver.screenshot(root/'disconnected.png')
         if hashlib.sha256(application.read_bytes()).hexdigest() != original_hash:
             raise RuntimeError('signed_application_changed')
