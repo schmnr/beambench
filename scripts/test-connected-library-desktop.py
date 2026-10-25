@@ -61,7 +61,8 @@ class HostedAccount:
 
     def request(self, path, data=None, headers=None):
         url = urllib.parse.urljoin(ORIGIN, path)
-        if urllib.parse.urlsplit(url).netloc != 'craftgineer.com':
+        destination = urllib.parse.urlsplit(url)
+        if destination.scheme != 'https' or destination.netloc != 'craftgineer.com':
             raise RuntimeError('hosted_request_origin_rejected')
         request = urllib.request.Request(url, data=data, headers={
             'Origin': ORIGIN, 'Accept-Language': 'en',
