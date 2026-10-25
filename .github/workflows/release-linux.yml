@@ -43,6 +43,14 @@ on:
         options:
           - gnome
           - kde
+      validation_scenario:
+        description: "Full wallet lifecycle, or final deletion of approved disposable account B."
+        required: false
+        default: full
+        type: choice
+        options:
+          - full
+          - deletion
 
 concurrency:
   # Serialize expensive same-tag builds and release uploads. The shared asset
@@ -360,6 +368,8 @@ jobs:
         env:
           BEAMBENCH_PILOT_ACCOUNTS: ${{ secrets.CRAFTGINEER_PHASE2_TEST_ACCOUNTS }}
           WALLET_PROVIDER: ${{ inputs.wallet_provider }}
+          VALIDATION_SCENARIO: ${{ inputs.validation_scenario }}
+          BEAMBENCH_PILOT_DELETE_PROOF: ${{ secrets.CRAFTGINEER_PHASE2_DELETE_PROOF }}
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/beambench-connected-library"
@@ -367,10 +377,11 @@ jobs:
           sudo chown 1100:1100 "$evidence"
           docker run --rm --cap-drop ALL --memory 3g --cpus 2 --pids-limit 768 \
             --env BEAMBENCH_PILOT_ACCOUNTS \
+            --env BEAMBENCH_PILOT_DELETE_PROOF \
             --mount "type=bind,source=$CANDIDATE_APPIMAGE,target=/test.AppImage,readonly" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/scripts,readonly" \
             --mount "type=bind,source=$evidence,target=/evidence" \
-            beambench-wallet-validation bash /scripts/connected-library-smoke/run.sh "$WALLET_PROVIDER"
+            beambench-wallet-validation bash /scripts/connected-library-smoke/run.sh "$WALLET_PROVIDER" "$VALIDATION_SCENARIO"
 
       - name: Upload non-secret lifecycle evidence
         if: always()

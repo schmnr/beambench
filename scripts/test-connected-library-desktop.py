@@ -123,6 +123,27 @@ class HostedAccount:
             if response.status != 204:
                 raise RuntimeError('native_callback_failed')
 
+    def delete_disposable(self, proof):
+        if proof.get('label') != self.account['label'] or not re.fullmatch(r'[a-f0-9]{64}', proof.get('token','')):
+            raise RuntimeError('disposable_deletion_proof_invalid')
+        status, _, body = self.request('/api/auth/delete-account/confirm?token=' + proof['token'])
+        if status != 200 or b'Permanently delete your account?' not in body:
+            raise RuntimeError('deletion_confirmation_missing')
+        status, _, body = self.request('/api/auth/session')
+        if status != 200 or json.loads(body).get('user',{}).get('id') != self.account['id']:
+            raise RuntimeError('deletion_get_changed_account')
+        form = urllib.parse.urlencode({'token':proof['token']}).encode()
+        headers = {'Content-Type':'application/x-www-form-urlencoded'}
+        status, _, body = self.request('/api/auth/delete-account/confirm',form,headers)
+        if status != 200 or b'Your account has been deleted' not in body:
+            raise RuntimeError('disposable_deletion_failed')
+        status, _, _ = self.request('/api/auth/delete-account/confirm',form,headers)
+        if status != 400:
+            raise RuntimeError('deletion_proof_replay_accepted')
+        status, _, body = self.request('/api/auth/session')
+        if status != 200 or json.loads(body).get('user',{}).get('id'):
+            raise RuntimeError('deleted_website_session_still_authenticated')
+
 
 class Driver:
     def __init__(self, endpoint, capabilities):
@@ -314,10 +335,12 @@ def main():
     parser.add_argument('--application', type=Path, required=True)
     parser.add_argument('--driver', type=Path)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['lifecycle', 'session-only', 'wallet-unlock', 'wallet-deny', 'wallet-unavailable'], default='lifecycle')
+    parser.add_argument('--scenario', choices=['lifecycle', 'session-only', 'wallet-unlock', 'wallet-deny', 'wallet-unavailable', 'deletion'], default='lifecycle')
     parser.add_argument('--wallet-provider', choices=['gnome','kde'])
     args = parser.parse_args()
     accounts = json.loads(os.environ.pop('BEAMBENCH_PILOT_ACCOUNTS'))
+    deletion_input = os.environ.pop('BEAMBENCH_PILOT_DELETE_PROOF','')
+    deletion_proof = json.loads(deletion_input) if deletion_input else None
     if accounts['run'] != 'beambench-phase2-final-20261025' or len(accounts['accounts']) != 2:
         raise RuntimeError('invalid_disposable_accounts')
     for account in accounts['accounts']:
@@ -480,14 +503,36 @@ def main():
             if first['name'] in driver.text() or second['name'] in driver.text():
                 raise RuntimeError('account_restored_after_disconnect')
             passed('disconnect_and_restart_without_account')
-        connect(driver, second, False)
-        passed('explicit_session_only_connection')
-        driver.quit()
-        driver = launch()
-        driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'session_only_not_restored')
-        if second['name'] in driver.text():
-            raise RuntimeError('session_only_restored')
-        passed('session_only_not_restored')
+        if args.scenario == 'deletion':
+            connect(driver,second,True)
+            driver.button('Browse library')
+            driver.wait(lambda: second['fixture'] in driver.text(),'cached_library_before_delete')
+            if not deletion_proof:
+                raise RuntimeError('disposable_deletion_proof_required')
+            web = HostedAccount(second)
+            web.login()
+            web.delete_disposable(deletion_proof)
+            passed('hosted_confirmation_delete_and_session_revocation')
+            driver.button('Refresh')
+            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'deleted_account_disconnected')
+            if second['name'] in driver.text() or second['fixture'] in driver.text():
+                raise RuntimeError('deleted_account_visible')
+            passed('deleted_account_revoked_native_library_and_credential')
+            driver.quit()
+            driver = launch()
+            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'deleted_account_not_restored')
+            if second['name'] in driver.text():
+                raise RuntimeError('deleted_account_restored')
+            passed('deleted_account_not_restored_after_restart')
+        else:
+            connect(driver, second, False)
+            passed('explicit_session_only_connection')
+            driver.quit()
+            driver = launch()
+            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'session_only_not_restored')
+            if second['name'] in driver.text():
+                raise RuntimeError('session_only_restored')
+            passed('session_only_not_restored')
         driver.screenshot(root/'disconnected.png')
         if hashlib.sha256(application.read_bytes()).hexdigest() != original_hash:
             raise RuntimeError('signed_application_changed')

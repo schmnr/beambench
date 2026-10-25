@@ -27,7 +27,9 @@ else
   exit 1
 fi
 python3 /scripts/connected-library-smoke/wallet.py metadata --provider "$1" --output /evidence/provider.json
-for scenario in lifecycle wallet-unlock wallet-deny wallet-unavailable; do
+scenarios=(lifecycle wallet-unlock wallet-deny wallet-unavailable)
+if [[ "${2:-full}" == deletion ]]; then scenarios=(deletion); fi
+for scenario in "${scenarios[@]}"; do
   python3 /scripts/test-connected-library-desktop.py \
     --application /test.AppImage --driver /usr/bin/WebKitWebDriver \
     --scenario "$scenario" --wallet-provider "$1" --output "/evidence/$scenario"

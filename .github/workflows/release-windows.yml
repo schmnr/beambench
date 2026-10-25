@@ -565,6 +565,15 @@ jobs:
             --output "$env:RUNNER_TEMP\beambench-connected-library"
           if ($LASTEXITCODE -ne 0) { throw 'Connected-library desktop validation failed.' }
 
+      - name: Verify remembered credential was removed
+        run: |
+          $entries = cmdkey /list
+          if ($LASTEXITCODE -ne 0) { throw 'Credential metadata could not be checked.' }
+          if (($entries -join "`n") -match [regex]::Escape('com.beambench.desktop-library')) {
+            throw 'A provider credential remains after disconnect and session-only testing.'
+          }
+          '{"providerCredentialAbsent":true}' | Set-Content "$env:RUNNER_TEMP\beambench-connected-library\credential-cleanup.json"
+
       - name: Upload non-secret lifecycle evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -574,6 +583,7 @@ jobs:
             ${{ runner.temp }}/beambench-connected-library/results.json
             ${{ runner.temp }}/beambench-connected-library/failure.json
             ${{ runner.temp }}/beambench-connected-library/desktop.log
+            ${{ runner.temp }}/beambench-connected-library/credential-cleanup.json
             ${{ runner.temp }}/beambench-connected-library/*.png
           if-no-files-found: warn
           retention-days: 14
