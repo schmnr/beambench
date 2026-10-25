@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.2.34-rc.1
+
+- Add the optional Craftgineer library connection for active paid subscribers.
+  Browse, search, preview and insert saved SVG, PNG, JPEG and WebP files in the
+  Library drawer. Inserted artwork is saved locally with the project.
+- Use browser sign-in and the operating system's password store, with a
+  session-only option when secure storage is unavailable. Recheck access and
+  the destination project before inserting a downloaded file.
+- Prepare signed candidate packages for account and platform validation. This
+  candidate does not advance the stable update manifest.
+
 ## 0.2.33
 
 - Fix Linux AppImages failing before startup on newer distributions when the

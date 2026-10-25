@@ -135,6 +135,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Check installed-package smoke script syntax
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Join-Path $PWD 'scripts/test-windows-installed-package.ps1'),
+            [ref]$tokens, [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) { throw ($errors -join "`n") }
+
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: actions/setup-node@v7
