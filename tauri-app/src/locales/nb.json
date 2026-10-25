@@ -2959,6 +2959,48 @@
       "unavailable": "Kunne ikke nå Craftgineer. Kontroller tilkoblingen og prøv igjen."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Gå tilbake til Beam Bench for å kontrollere tilkoblingen. Du kan lukke denne fanen."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve-tilkobling",
+    "manage": "Administrer tilkoblinger",
+    "disclosure": "Koble til PrintCutCarve-kontoen din for å se pakker som er tilgjengelige gjennom et aktivt betalt medlemskap eller fullførte pakkekjøp. Velg en pakke, og sett deretter inn et design. Bilder som settes inn, lagres i Beam Bench-prosjektet ditt og er tilgjengelige uten nettilkobling.",
+    "remember": "Husk denne kontoen sikkert på denne datamaskinen",
+    "connect": "Koble til PrintCutCarve",
+    "disconnect": "Koble fra",
+    "browse": "Bla i biblioteket",
+    "session_only": "Tilkoblet bare for denne økten. Sikker lagring av påloggingsinformasjon er utilgjengelig. Koble til igjen etter at du har startet Beam Bench på nytt.",
+    "waiting": "Fullfør tilkoblingen i nettleseren. Du kan avbryte her.",
+    "search": "Søk etter design i denne pakken",
+    "refresh": "Oppdater",
+    "open_project": "Åpne et prosjekt for å sette inn bilder.",
+    "empty": "Ingen samsvarende design i denne pakken.",
+    "insert": "Sett inn",
+    "more": "Last inn flere",
+    "errors": {
+      "subscription_required": "Et aktivt betalt medlemskap eller en kjøpt designpakke er nødvendig. Administrer kontoen din på PrintCutCarve.",
+      "invalid_token": "Denne tilkoblingen har utløpt eller blitt tilbakekalt. Koble fra og koble til igjen.",
+      "revision_conflict": "Denne filen er endret. Oppdater biblioteket og prøv igjen.",
+      "access_denied": "Tilkoblingen ble avbrutt i nettleseren.",
+      "connection_timeout": "Tilkoblingen fikk tidsavbrudd. Prøv å koble til igjen.",
+      "wallet_cleanup_required": "Kontoen ble koblet fra for denne økten, men lagret påloggingsinformasjon kunne ikke fjernes. Lås opp passordlageret og koble fra igjen. Du kan også tilbakekalle tilgangen til Beam Bench under Tilkoblinger til skrivebordsapper på PrintCutCarve.",
+      "revocation_pending": "Frakoblet på denne datamaskinen. Nettstedet kunne ikke nås for å tilbakekalle tilgangen. Tilbakekall tilgangen til Beam Bench under Tilkoblinger til skrivebordsapper på PrintCutCarve.",
+      "rate_limited": "For mange forespørsler. Vent ett minutt og oppdater deretter.",
+      "stale_document": "Prosjektet ble endret mens bildet ble lastet inn. Sett det inn igjen i ønsket prosjekt.",
+      "unavailable": "Kunne ikke nå PrintCutCarve. Kontroller tilkoblingen og prøv igjen.",
+      "file_too_large": "Denne filen eller forhåndsvisningen er for stor til å importeres. Åpne pakken på PrintCutCarve.",
+      "unsupported_media_type": "Denne filen kan ikke settes inn i Beam Bench. Åpne den på PrintCutCarve for å se nedlastingsalternativer.",
+      "not_found": "Denne filen er ikke lenger tilgjengelig. Oppdater pakken, eller åpne den på PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Gå tilbake til Beam Bench for å kontrollere tilkoblingen. Du kan lukke denne fanen.",
+    "pack_search": "Søk i pakkene dine",
+    "empty_packs": "Ingen pakker funnet. Prøv et annet søk, eller sjekk Mine nedlastinger på PrintCutCarve.",
+    "back_to_packs": "Tilbake til pakker",
+    "file_count": "{count, plural, one {# fil} other {# filer}}",
+    "website": "Åpne på PrintCutCarve",
+    "unavailable_file": "Denne filen kan ikke settes inn. Åpne pakken på PrintCutCarve for nedlastingsalternativer."
   }
 }

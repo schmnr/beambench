@@ -1,10 +1,11 @@
-//! Craftgineer credentials and authenticated bytes stay in the native process.
+//! Connected-library credentials and authenticated bytes stay in the native process.
 use base64::{
     Engine,
     engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
 };
 use beambench_common::connected_library::{
-    LibraryAccountResponse, LibraryFile, LibraryListingResponse, LibraryMimeType,
+    LibraryAccountResponse, LibraryCollectionsResponse, LibraryFile, LibraryListingResponse,
+    LibraryMimeType, LibraryProvider,
 };
 use beambench_core::ProjectObject;
 use beambench_service::{ServiceContext, ops::imports};
@@ -17,17 +18,56 @@ use std::{
     },
     time::Duration,
 };
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::{Mutex, oneshot},
 };
 use zeroize::{Zeroize, Zeroizing};
 
-const ORIGIN: &str = "https://craftgineer.com";
 const API: &str = "/api/integrations/desktop/v1";
+#[cfg(test)]
 const CALLBACK: &str = "/oauth/craftgineer/callback";
+fn origin(provider: LibraryProvider) -> &'static str {
+    match provider {
+        LibraryProvider::Craftgineer => "https://craftgineer.com",
+        LibraryProvider::Printcutcarve => "https://printcutcarve.com",
+    }
+}
+fn callback(provider: LibraryProvider) -> &'static str {
+    match provider {
+        LibraryProvider::Craftgineer => "/oauth/craftgineer/callback",
+        LibraryProvider::Printcutcarve => "/oauth/printcutcarve/callback",
+    }
+}
 const MAX_FILE: usize = 25 * 1024 * 1024;
+pub struct ConnectedLibrary {
+    craftgineer: ProviderConnection,
+    printcutcarve: ProviderConnection,
+}
+impl Default for ConnectedLibrary {
+    fn default() -> Self {
+        Self {
+            craftgineer: ProviderConnection::default(),
+            printcutcarve: ProviderConnection {
+                provider: LibraryProvider::Printcutcarve,
+                ..Default::default()
+            },
+        }
+    }
+}
+impl ConnectedLibrary {
+    pub fn bind_events(&self, app: &tauri::AppHandle) {
+        let _ = self.craftgineer.events.set(app.clone());
+        let _ = self.printcutcarve.events.set(app.clone());
+    }
+    fn provider(&self, provider: LibraryProvider) -> &ProviderConnection {
+        match provider {
+            LibraryProvider::Craftgineer => &self.craftgineer,
+            LibraryProvider::Printcutcarve => &self.printcutcarve,
+        }
+    }
+}
 type Result<T> = std::result::Result<T, String>;
 fn error(code: &str) -> String {
     code.to_owned()
@@ -59,21 +99,30 @@ impl Drop for Tokens {
     }
 }
 struct Connection {
+    last_account: Option<LibraryAccountResponse>,
     tokens: Tokens,
     expires: tokio::time::Instant,
     remembered: bool,
     wallet_unavailable: bool,
     completed_inserts: std::collections::VecDeque<String>,
+    inflight_inserts: std::collections::HashSet<String>,
 }
-#[derive(Serialize, Default)]
+#[derive(Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionStatus {
     account: Option<LibraryAccountResponse>,
     remembered: bool,
     wallet_unavailable: bool,
+    native_generation: u64,
+}
+#[derive(Clone, Serialize)]
+struct ConnectionChange {
+    provider: LibraryProvider,
+    status: ConnectionStatus,
+    error: Option<String>,
 }
 
-// Exactly one lazy worker. A blocked wallet consumes at most this one thread;
+// One lazy worker per provider. A blocked wallet consumes at most that one thread;
 // timeouts never start another. Generation checks remove late credential writes.
 struct Vault {
     sender: std::sync::mpsc::SyncSender<VaultJob>,
@@ -96,10 +145,22 @@ fn install_credential_store() -> Result<()> {
     Ok(())
 }
 impl Vault {
-    fn new() -> Self {
-        Self::with_initializer(install_credential_store, "com.beambench.desktop-library")
+    fn new(provider: LibraryProvider) -> Self {
+        Self::with_provider(
+            install_credential_store,
+            "com.beambench.desktop-library",
+            provider.id(),
+        )
     }
+    #[cfg(test)]
     fn with_initializer(initialize: fn() -> Result<()>, service: &'static str) -> Self {
+        Self::with_provider(initialize, service, "craftgineer")
+    }
+    fn with_provider(
+        initialize: fn() -> Result<()>,
+        service: &'static str,
+        user: &'static str,
+    ) -> Self {
         let (sender, receiver) = std::sync::mpsc::sync_channel::<VaultJob>(1);
         let generation = Arc::new(AtomicU64::new(0));
         let worker_generation = generation.clone();
@@ -124,7 +185,7 @@ impl Vault {
                             initialize()?;
                             initialized = true;
                         }
-                        let entry = keyring_core::Entry::new(service, "craftgineer")
+                        let entry = keyring_core::Entry::new(service, user)
                             .map_err(|_| error("wallet_unavailable"))?;
                         if worker_generation.load(Ordering::Acquire) != job.generation {
                             let _ = entry.delete_credential();
@@ -190,14 +251,40 @@ impl Vault {
 }
 
 #[derive(Default)]
-pub struct ConnectedLibrary {
+struct ProviderConnection {
+    provider: LibraryProvider,
+    pending_connect: Arc<AtomicU64>,
     connection: Mutex<Option<Connection>>,
     generation: Arc<AtomicU64>,
     vault: OnceLock<Vault>,
+    events: OnceLock<tauri::AppHandle>,
 }
-impl ConnectedLibrary {
+struct PendingConnect(Arc<AtomicU64>, u64);
+impl Drop for PendingConnect {
+    fn drop(&mut self) {
+        let _ = self
+            .0
+            .compare_exchange(self.1, 0, Ordering::AcqRel, Ordering::Acquire);
+    }
+}
+impl ProviderConnection {
+    fn publish(&self, status: &ConnectionStatus) {
+        self.publish_error(status, None);
+    }
+    fn publish_error(&self, status: &ConnectionStatus, error: Option<&str>) {
+        if let Some(app) = self.events.get() {
+            let _ = app.emit(
+                "connected-library-changed",
+                ConnectionChange {
+                    provider: self.provider,
+                    status: status.clone(),
+                    error: error.map(str::to_owned),
+                },
+            );
+        }
+    }
     fn vault(&self) -> &Vault {
-        self.vault.get_or_init(Vault::new)
+        self.vault.get_or_init(|| Vault::new(self.provider))
     }
     fn check(&self, generation: u64) -> Result<()> {
         if generation == self.generation.load(Ordering::Acquire) {
@@ -238,6 +325,8 @@ async fn bounded(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8
         403 => return Err(error("subscription_required")),
         404 => return Err(error("not_found")),
         412 => return Err(error("revision_conflict")),
+        413 => return Err(error("file_too_large")),
+        415 => return Err(error("unsupported_media_type")),
         429 => return Err(error("rate_limited")),
         _ => return Err(error("service_unavailable")),
     }
@@ -280,11 +369,14 @@ impl TokenRequestError {
         }
     }
 }
-async fn token_request(fields: &[(&str, &str)]) -> std::result::Result<Tokens, TokenRequestError> {
+async fn token_request(
+    provider: LibraryProvider,
+    fields: &[(&str, &str)],
+) -> std::result::Result<Tokens, TokenRequestError> {
     receive_tokens(
         client()
             .map_err(TokenRequestError::Retryable)?
-            .post(format!("{ORIGIN}{API}/token"))
+            .post(format!("{}{API}/token", origin(provider)))
             .form(fields),
     )
     .await
@@ -331,9 +423,9 @@ async fn receive_tokens(
     }
     Ok(tokens)
 }
-async fn account(tokens: &Tokens) -> Result<LibraryAccountResponse> {
+async fn account(provider: LibraryProvider, tokens: &Tokens) -> Result<LibraryAccountResponse> {
     let response = client()?
-        .get(format!("{ORIGIN}{API}/account"))
+        .get(format!("{}{API}/account", origin(provider)))
         .bearer_auth(&tokens.access_token)
         .send()
         .await
@@ -341,13 +433,13 @@ async fn account(tokens: &Tokens) -> Result<LibraryAccountResponse> {
     let account: LibraryAccountResponse =
         serde_json::from_slice(&bounded(response, 512 * 1024).await?)
             .map_err(|_| error("invalid_response"))?;
-    account.validate().map_err(error)?;
+    account.validate_for_provider(provider).map_err(error)?;
     if account.account.id != tokens.account_id {
         return Err(error("library_account_mismatch"));
     }
     Ok(account)
 }
-async fn refreshed(manager: &ConnectedLibrary, connection: &mut Connection) -> Result<()> {
+async fn refreshed(manager: &ProviderConnection, connection: &mut Connection) -> Result<()> {
     if connection.expires > tokio::time::Instant::now() {
         return Ok(());
     }
@@ -356,16 +448,19 @@ async fn refreshed(manager: &ConnectedLibrary, connection: &mut Connection) -> R
         return Err(error("invalid_token"));
     }
     let old_refresh = Zeroizing::new(std::mem::take(&mut connection.tokens.refresh_token));
-    let result = token_request(&[
-        ("client_id", "beambench-desktop"),
-        ("grant_type", "refresh_token"),
-        ("refresh_token", &old_refresh),
-    ])
+    let result = token_request(
+        manager.provider,
+        &[
+            ("client_id", "beambench-desktop"),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", &old_refresh),
+        ],
+    )
     .await;
     complete_refresh(manager, connection, old_refresh, result).await
 }
 async fn complete_refresh(
-    manager: &ConnectedLibrary,
+    manager: &ProviderConnection,
     connection: &mut Connection,
     mut old_refresh: Zeroizing<String>,
     result: std::result::Result<Tokens, TokenRequestError>,
@@ -397,7 +492,7 @@ async fn complete_refresh(
     Ok(())
 }
 async fn restored(
-    manager: &ConnectedLibrary,
+    manager: &ProviderConnection,
     generation: u64,
     saved: Saved,
     result: std::result::Result<Tokens, TokenRequestError>,
@@ -414,17 +509,25 @@ async fn restored(
         tokens,
         remembered,
         wallet_unavailable: !remembered,
+        last_account: None,
         completed_inserts: Default::default(),
+        inflight_inserts: Default::default(),
     })
 }
 
 #[tauri::command]
-pub async fn craftgineer_status(
+pub async fn connected_library_status(
+    provider: LibraryProvider,
     manager: State<'_, ConnectedLibrary>,
     restore: bool,
 ) -> Result<ConnectionStatus> {
-    let generation = manager.generation.load(Ordering::Acquire);
+    let manager = manager.provider(provider);
+    let mut generation = manager.generation.load(Ordering::Acquire);
     let mut guard = manager.connection.lock().await;
+    manager.check(generation)?;
+    if guard.is_none() && manager.pending_connect.load(Ordering::Acquire) != 0 {
+        return Err(error("connection_changed"));
+    }
     let result = async {
         if guard.is_none() && restore {
             let saved = match manager.vault().call(None, true).await {
@@ -439,25 +542,46 @@ pub async fn craftgineer_status(
             if let Some(saved) = saved {
                 let saved: Saved =
                     serde_json::from_str(&saved).map_err(|_| error("invalid_token"))?;
-                let result = token_request(&[
-                    ("client_id", "beambench-desktop"),
-                    ("grant_type", "refresh_token"),
-                    ("refresh_token", &saved.refresh_token),
-                ])
+                let result = token_request(
+                    manager.provider,
+                    &[
+                        ("client_id", "beambench-desktop"),
+                        ("grant_type", "refresh_token"),
+                        ("refresh_token", &saved.refresh_token),
+                    ],
+                )
                 .await;
-                *guard = Some(restored(&manager, generation, saved, result).await?);
+                *guard = Some(restored(manager, generation, saved, result).await?);
             }
         }
         let Some(connection) = guard.as_mut() else {
             return Ok(ConnectionStatus::default());
         };
-        refreshed(&manager, connection).await?;
-        let account = account(&connection.tokens).await?;
+        refreshed(manager, connection).await?;
+        let account = account(manager.provider, &connection.tokens).await?;
         manager.check(generation)?;
+        if connection
+            .last_account
+            .as_ref()
+            .is_some_and(|old| old.access != account.access)
+        {
+            manager
+                .generation
+                .compare_exchange(
+                    generation,
+                    generation + 1,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                )
+                .map_err(|_| error("connection_changed"))?;
+            generation += 1;
+        }
+        connection.last_account = Some(account.clone());
         Ok(ConnectionStatus {
             account: Some(account),
             remembered: connection.remembered,
             wallet_unavailable: connection.wallet_unavailable,
+            native_generation: generation,
         })
     }
     .await;
@@ -465,11 +589,19 @@ pub async fn craftgineer_status(
         manager.vault().invalidate();
         let _ = manager.vault().call(None, false).await;
     }
-    finish(&manager, &mut guard, result).await
+    let result = finish(manager, &mut guard, result).await;
+    if let Ok(status) = &result {
+        manager.check(generation)?;
+        let mut status = status.clone();
+        status.native_generation = generation;
+        manager.publish(&status);
+        return Ok(status);
+    }
+    result
 }
 
 async fn finish<T>(
-    manager: &ConnectedLibrary,
+    manager: &ProviderConnection,
     guard: &mut Option<Connection>,
     result: Result<T>,
 ) -> Result<T> {
@@ -479,9 +611,87 @@ async fn finish<T>(
         })
     {
         *guard = None;
-        manager.generation.fetch_add(1, Ordering::AcqRel);
+        let generation = manager.generation.fetch_add(1, Ordering::AcqRel) + 1;
+        manager.publish_error(
+            &ConnectionStatus {
+                native_generation: generation,
+                ..Default::default()
+            },
+            result.as_ref().err().map(String::as_str),
+        );
         manager.vault().invalidate();
         let _ = manager.vault().call(None, false).await;
+    }
+    result
+}
+
+struct Authorized {
+    account_id: String,
+    access_token: Zeroizing<String>,
+}
+async fn authorized(manager: &ProviderConnection, generation: u64) -> Result<Authorized> {
+    let mut guard = manager.connection.lock().await;
+    let result = async {
+        manager.check(generation)?;
+        let connection = guard.as_mut().ok_or_else(|| error("invalid_token"))?;
+        // Refresh remains serialized, while ordinary downloads use an access-only snapshot.
+        refreshed(manager, connection).await?;
+        manager.check(generation)?;
+        Ok(Authorized {
+            account_id: connection.tokens.account_id.clone(),
+            access_token: Zeroizing::new(connection.tokens.access_token.clone()),
+        })
+    }
+    .await;
+    finish(manager, &mut guard, result).await
+}
+async fn finish_request<T>(
+    manager: &ProviderConnection,
+    generation: u64,
+    result: Result<T>,
+) -> Result<T> {
+    manager.check(generation)?;
+    if result
+        .as_ref()
+        .is_err_and(|code| code == "subscription_required")
+    {
+        let mut guard = manager.connection.lock().await;
+        manager.check(generation)?;
+        if let Some(connection) = guard.as_mut()
+            && let Some(account) = connection.last_account.as_mut()
+        {
+            let mut resulting_generation = generation;
+            if account.access
+                != beambench_common::connected_library::LibraryAccess::SubscriptionRequired
+            {
+                manager
+                    .generation
+                    .compare_exchange(
+                        generation,
+                        generation + 1,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    )
+                    .map_err(|_| error("connection_changed"))?;
+                resulting_generation += 1;
+            }
+            account.access =
+                beambench_common::connected_library::LibraryAccess::SubscriptionRequired;
+            manager.publish(&ConnectionStatus {
+                account: Some(account.clone()),
+                remembered: connection.remembered,
+                wallet_unavailable: connection.wallet_unavailable,
+                native_generation: resulting_generation,
+            });
+        }
+    }
+    if result
+        .as_ref()
+        .is_err_and(|code| matches!(code.as_str(), "invalid_token" | "library_account_mismatch"))
+    {
+        let mut guard = manager.connection.lock().await;
+        manager.check(generation)?;
+        return finish(manager, &mut guard, result).await;
     }
     result
 }
@@ -492,14 +702,34 @@ fn random_secret() -> String {
     bytes.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
     URL_SAFE_NO_PAD.encode(bytes)
 }
-fn callback_code(request: &str, port: u16, expected_state: &str) -> Result<String> {
+fn callback_response(message: &str, accepted: bool) -> Vec<u8> {
+    // The translated instruction contains no account data, code, state or credential.
+    let escaped = message
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;");
+    let body = format!(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Beam Bench</title></head><body><h1>Beam Bench</h1><p>{}</p></body></html>",
+        if accepted { &escaped } else { "Beam Bench" }
+    );
+    format!("HTTP/1.1 {}\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\nContent-Security-Policy: default-src 'none'; frame-ancestors 'none'\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        if accepted { "200 OK" } else { "400 Bad Request" }, body.len(), body).into_bytes()
+}
+fn callback_code(
+    request: &str,
+    port: u16,
+    expected_state: &str,
+    provider: LibraryProvider,
+) -> Result<String> {
     let mut lines = request.split("\r\n");
     let line = lines.next().ok_or_else(|| error("invalid_callback"))?;
     let parts: Vec<_> = line.split(' ').collect();
     if parts.len() != 3
         || parts[0] != "GET"
         || parts[2] != "HTTP/1.1"
-        || !parts[1].starts_with(&format!("{CALLBACK}?"))
+        || !parts[1].starts_with(&format!("{}?", callback(provider)))
     {
         return Err(error("invalid_callback"));
     }
@@ -525,8 +755,20 @@ fn callback_code(request: &str, port: u16, expected_state: &str) -> Result<Strin
     if values("state") != [expected_state] {
         return Err(error("invalid_callback"));
     }
+    if params
+        .iter()
+        .any(|(key, _)| !matches!(key.as_ref(), "state" | "code" | "error"))
+    {
+        return Err(error("invalid_callback"));
+    }
     if values("error") == ["access_denied"] && values("code").is_empty() {
         return Err(error("access_denied"));
+    }
+    if values("error") == ["temporarily_unavailable"] && values("code").is_empty() {
+        return Err(error("rate_limited"));
+    }
+    if !values("error").is_empty() {
+        return Err(error("invalid_callback"));
     }
     let codes = values("code");
     if codes.len() != 1
@@ -540,17 +782,26 @@ fn callback_code(request: &str, port: u16, expected_state: &str) -> Result<Strin
     Ok(codes[0].to_owned())
 }
 #[tauri::command]
-pub async fn craftgineer_connect(
+pub async fn connected_library_connect(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
+    provider: LibraryProvider,
     manager: State<'_, ConnectedLibrary>,
     remember: bool,
+    browser_message: String,
 ) -> Result<ConnectionStatus> {
-    let generation = manager.generation.fetch_add(1, Ordering::AcqRel) + 1;
-    let mut guard = manager.connection.lock().await;
-    if guard.is_some() {
+    if browser_message.trim().is_empty() || browser_message.len() > 2048 {
+        return Err(error("invalid_request"));
+    }
+    let manager = manager.provider(provider);
+    let guard = manager.connection.lock().await;
+    if guard.is_some() || manager.pending_connect.load(Ordering::Acquire) != 0 {
         return Err(error("already_connected"));
     }
+    let generation = manager.generation.fetch_add(1, Ordering::AcqRel) + 1;
+    manager.pending_connect.store(generation, Ordering::Release);
+    let _pending = PendingConnect(manager.pending_connect.clone(), generation);
+    drop(guard);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .map_err(|_| error("loopback_unavailable"))?;
@@ -558,12 +809,15 @@ pub async fn craftgineer_connect(
         .local_addr()
         .map_err(|_| error("loopback_unavailable"))?
         .port();
-    let redirect = format!("http://127.0.0.1:{port}{CALLBACK}");
+    let redirect = format!("http://127.0.0.1:{port}{}", callback(manager.provider));
     let verifier = Zeroizing::new(random_secret());
     let state = random_secret();
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
-    let mut url = reqwest::Url::parse(&format!("{ORIGIN}/integrations/desktop/authorize"))
-        .map_err(|_| error("invalid_request"))?;
+    let mut url = reqwest::Url::parse(&format!(
+        "{}/integrations/desktop/authorize",
+        origin(manager.provider)
+    ))
+    .map_err(|_| error("invalid_request"))?;
     url.query_pairs_mut().extend_pairs([
         ("client_id", "beambench-desktop"),
         ("response_type", "code"),
@@ -577,41 +831,76 @@ pub async fn craftgineer_connect(
     let code = tokio::time::timeout(Duration::from_secs(120), async {
         loop {
             manager.check(generation)?;
-            if window.is_visible().is_err() { return Err(error("connection_changed")); }
-            let accepted = tokio::time::timeout(Duration::from_millis(250), listener.accept()).await;
-            let Ok(Ok((mut stream, _))) = accepted else { continue; };
+            if window.is_visible().is_err() {
+                return Err(error("connection_changed"));
+            }
+            let accepted =
+                tokio::time::timeout(Duration::from_millis(250), listener.accept()).await;
+            let Ok(Ok((mut stream, _))) = accepted else {
+                continue;
+            };
             let mut bytes = Vec::new();
             let read = tokio::time::timeout(Duration::from_secs(2), async {
                 while bytes.len() < 8192 && !bytes.ends_with(b"\r\n\r\n") {
                     let mut byte = [0];
-                    if stream.read(&mut byte).await.unwrap_or(0) == 0 { break; }
+                    if stream.read(&mut byte).await.unwrap_or(0) == 0 {
+                        break;
+                    }
                     bytes.push(byte[0]);
                 }
-            }).await;
-            if read.is_err() || !bytes.ends_with(b"\r\n\r\n") { continue; }
-            let result = callback_code(&String::from_utf8_lossy(&bytes), port, &state);
-            // No secrets or account data in the browser response; the app reports success.
-            let response = b"HTTP/1.1 204 No Content\r\nCache-Control: no-store\r\nContent-Security-Policy: default-src 'none'\r\nConnection: close\r\n\r\n";
-            let _ = tokio::time::timeout(Duration::from_secs(1), stream.write_all(response)).await;
-            match result { Ok(code) => return Ok(code), Err(code) if code == "access_denied" => return Err(code), Err(_) => continue }
+            })
+            .await;
+            if read.is_err() || !bytes.ends_with(b"\r\n\r\n") {
+                continue;
+            }
+            let result = callback_code(
+                &String::from_utf8_lossy(&bytes),
+                port,
+                &state,
+                manager.provider,
+            );
+            let accepted = result.is_ok()
+                || result
+                    .as_ref()
+                    .is_err_and(|code| matches!(code.as_str(), "access_denied" | "rate_limited"));
+            let response = callback_response(&browser_message, accepted);
+            let _ = tokio::time::timeout(Duration::from_secs(1), stream.write_all(&response)).await;
+            match result {
+                Ok(code) => return Ok(code),
+                Err(code) if matches!(code.as_str(), "access_denied" | "rate_limited") => {
+                    return Err(code);
+                }
+                Err(_) => continue,
+            }
         }
-    }).await.map_err(|_| error("connection_timeout"))??;
+    })
+    .await
+    .map_err(|_| error("connection_timeout"))??;
     manager.check(generation)?;
-    let tokens = token_request(&[
-        ("client_id", "beambench-desktop"),
-        ("grant_type", "authorization_code"),
-        ("code", &code),
-        ("code_verifier", &verifier),
-        ("redirect_uri", &redirect),
-    ])
+    let tokens = token_request(
+        manager.provider,
+        &[
+            ("client_id", "beambench-desktop"),
+            ("grant_type", "authorization_code"),
+            ("code", &code),
+            ("code_verifier", &verifier),
+            ("redirect_uri", &redirect),
+        ],
+    )
     .await
     .map_err(TokenRequestError::code)?;
+    let account_result = account(manager.provider, &tokens).await;
+    // Serialize the final wallet write and commit with disconnect. Cancellation
+    // can invalidate immediately; its cleanup cannot finish ahead of this write.
+    let mut guard = manager.connection.lock().await;
+    let mut wallet_touched = false;
     let result = async {
-        let account = account(&tokens).await?;
+        let account = account_result?;
         manager.check(generation)?;
         if window.is_visible().is_err() {
             return Err(error("connection_changed"));
         }
+        wallet_touched = remember;
         let remembered = remember && manager.remember(&tokens).await;
         manager.check(generation)?;
         if window.is_visible().is_err() {
@@ -623,13 +912,18 @@ pub async fn craftgineer_connect(
         window
             .set_focus()
             .map_err(|_| error("connection_changed"))?;
+        manager.check(generation)?;
         Ok::<_, String>((account, remembered))
     }
     .await;
     let (account, remembered) = match result {
         Ok(value) => value,
         Err(code) => {
-            let _ = revoke_remote(&tokens.refresh_token).await;
+            if wallet_touched {
+                manager.vault().invalidate();
+                let _ = manager.vault().call(None, false).await;
+            }
+            let _ = revoke_remote(manager.provider, &tokens.refresh_token).await;
             return Err(code);
         }
     };
@@ -639,22 +933,30 @@ pub async fn craftgineer_connect(
         tokens,
         remembered,
         wallet_unavailable: remember && !remembered,
+        last_account: Some(account.clone()),
         completed_inserts: Default::default(),
+        inflight_inserts: Default::default(),
     });
-    Ok(ConnectionStatus {
+    let status = ConnectionStatus {
         account: Some(account),
         remembered,
         wallet_unavailable: remember && !remembered,
-    })
+        native_generation: generation,
+    };
+    manager.publish(&status);
+    Ok(status)
 }
 #[tauri::command]
-pub async fn craftgineer_cancel(manager: State<'_, ConnectedLibrary>) -> Result<()> {
-    craftgineer_disconnect(manager).await
+pub async fn connected_library_cancel(
+    provider: LibraryProvider,
+    manager: State<'_, ConnectedLibrary>,
+) -> Result<()> {
+    connected_library_disconnect(provider, manager).await
 }
-async fn revoke_remote(token: &str) -> bool {
+async fn revoke_remote(provider: LibraryProvider, token: &str) -> bool {
     tokio::time::timeout(Duration::from_secs(4), async {
         client()?
-            .post(format!("{ORIGIN}{API}/revoke"))
+            .post(format!("{}{API}/revoke", origin(provider)))
             .form(&[("client_id", "beambench-desktop"), ("token", token)])
             .send()
             .await
@@ -667,16 +969,25 @@ async fn revoke_remote(token: &str) -> bool {
     .is_ok_and(|result| result.is_ok())
 }
 #[tauri::command]
-pub async fn craftgineer_disconnect(manager: State<'_, ConnectedLibrary>) -> Result<()> {
-    manager.generation.fetch_add(1, Ordering::AcqRel);
+pub async fn connected_library_disconnect(
+    provider: LibraryProvider,
+    manager: State<'_, ConnectedLibrary>,
+) -> Result<()> {
+    let manager = manager.provider(provider);
+    manager.pending_connect.store(0, Ordering::Release);
+    let generation = manager.generation.fetch_add(1, Ordering::AcqRel) + 1;
     if let Some(vault) = manager.vault.get() {
         vault.invalidate();
     }
     let mut guard = manager.connection.lock().await;
     let connection = guard.take();
+    manager.publish(&ConnectionStatus {
+        native_generation: generation,
+        ..Default::default()
+    });
     let removed = manager.vault().call(None, false).await.is_ok();
     let revoked = if let Some(connection) = connection {
-        revoke_remote(&connection.tokens.refresh_token).await
+        revoke_remote(manager.provider, &connection.tokens.refresh_token).await
     } else {
         true
     };
@@ -689,20 +1000,23 @@ pub async fn craftgineer_disconnect(manager: State<'_, ConnectedLibrary>) -> Res
     }
 }
 #[tauri::command]
-pub async fn craftgineer_files(
+pub async fn connected_library_collections(
+    provider: LibraryProvider,
     manager: State<'_, ConnectedLibrary>,
     q: String,
     cursor: Option<String>,
-) -> Result<LibraryListingResponse> {
-    if q.chars().count() > 120 || cursor.as_ref().is_some_and(|v| v.len() > 2048) {
+) -> Result<LibraryCollectionsResponse> {
+    if provider != LibraryProvider::Printcutcarve
+        || q.chars().count() > 120
+        || cursor.as_ref().is_some_and(|value| value.len() > 2048)
+    {
         return Err(error("invalid_request"));
     }
+    let manager = manager.provider(provider);
     let generation = manager.generation.load(Ordering::Acquire);
-    let mut guard = manager.connection.lock().await;
+    let auth = authorized(manager, generation).await?;
     let result = async {
-        let connection = guard.as_mut().ok_or_else(|| error("invalid_token"))?;
-        refreshed(&manager, connection).await?;
-        let mut url = reqwest::Url::parse(&format!("{ORIGIN}{API}/files"))
+        let mut url = reqwest::Url::parse(&format!("{}{API}/collections", origin(provider)))
             .map_err(|_| error("invalid_request"))?;
         url.query_pairs_mut()
             .append_pair("q", &q)
@@ -712,7 +1026,61 @@ pub async fn craftgineer_files(
         }
         let response = client()?
             .get(url)
-            .bearer_auth(&connection.tokens.access_token)
+            .bearer_auth(auth.access_token.as_str())
+            .send()
+            .await
+            .map_err(|_| error("service_unavailable"))?;
+        let listing: LibraryCollectionsResponse =
+            serde_json::from_slice(&bounded(response, 512 * 1024).await?)
+                .map_err(|_| error("invalid_response"))?;
+        listing
+            .validate_for(provider, &auth.account_id)
+            .map_err(error)?;
+        Ok(listing)
+    }
+    .await;
+    finish_request(manager, generation, result).await
+}
+#[tauri::command]
+pub async fn connected_library_files(
+    provider: LibraryProvider,
+    manager: State<'_, ConnectedLibrary>,
+    q: String,
+    cursor: Option<String>,
+    collection: Option<String>,
+) -> Result<LibraryListingResponse> {
+    if q.chars().count() > 120
+        || cursor.as_ref().is_some_and(|value| value.len() > 2048)
+        || (provider == LibraryProvider::Printcutcarve
+            && !collection.as_ref().is_some_and(|value| {
+                !value.is_empty()
+                    && value.len() <= 128
+                    && value
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+            }))
+        || (provider == LibraryProvider::Craftgineer && collection.is_some())
+    {
+        return Err(error("invalid_request"));
+    }
+    let manager = manager.provider(provider);
+    let generation = manager.generation.load(Ordering::Acquire);
+    let auth = authorized(manager, generation).await?;
+    let result = async {
+        let mut url = reqwest::Url::parse(&format!("{}{API}/files", origin(provider)))
+            .map_err(|_| error("invalid_request"))?;
+        url.query_pairs_mut()
+            .append_pair("q", &q)
+            .append_pair("limit", "24");
+        if let Some(cursor) = cursor {
+            url.query_pairs_mut().append_pair("cursor", &cursor);
+        }
+        if let Some(collection) = &collection {
+            url.query_pairs_mut().append_pair("collection", collection);
+        }
+        let response = client()?
+            .get(url)
+            .bearer_auth(auth.access_token.as_str())
             .send()
             .await
             .map_err(|_| error("service_unavailable"))?;
@@ -720,33 +1088,71 @@ pub async fn craftgineer_files(
             serde_json::from_slice(&bounded(response, 512 * 1024).await?)
                 .map_err(|_| error("invalid_response"))?;
         listing
-            .validate_for(&connection.tokens.account_id)
+            .validate_for_provider(provider, &auth.account_id)
             .map_err(error)?;
-        manager.check(generation)?;
+        if let Some(collection) = &collection {
+            if listing
+                .files
+                .iter()
+                .any(|file| file.collection.as_ref().map(|value| &value.id) != Some(collection))
+            {
+                return Err(error("invalid_library_collection"));
+            }
+        }
         Ok(listing)
     }
     .await;
-    finish(&manager, &mut guard, result).await
+    finish_request(manager, generation, result).await
+}
+#[tauri::command]
+pub fn connected_library_open_website(
+    app: tauri::AppHandle,
+    provider: LibraryProvider,
+    slug: Option<String>,
+) -> Result<()> {
+    let suffix = match slug {
+        Some(slug)
+            if provider == LibraryProvider::Printcutcarve
+                && !slug.is_empty()
+                && slug.len() <= 200
+                && slug
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-') =>
+        {
+            format!("/account/downloads/{slug}")
+        }
+        Some(_) => return Err(error("invalid_request")),
+        None if provider == LibraryProvider::Printcutcarve => "/account/downloads".to_owned(),
+        None => "/files".to_owned(),
+    };
+    crate::host_opener::open_url(&app, &format!("{}{suffix}", origin(provider)))
+        .map_err(|_| error("browser_unavailable"))
 }
 async fn file_bytes(
-    connection: &Connection,
+    provider: LibraryProvider,
+    auth: &Authorized,
     file: &LibraryFile,
     thumbnail: bool,
 ) -> Result<Vec<u8>> {
     // Validate even when the renderer supplied this metadata.
     LibraryListingResponse {
         schema_version: 1,
-        provider: beambench_common::connected_library::LibraryProvider::Craftgineer,
-        account_id: connection.tokens.account_id.clone(),
+        provider,
+        account_id: auth.account_id.clone(),
         files: vec![file.clone()],
         next_cursor: None,
+        unavailable_files: Vec::new(),
     }
-    .validate_for(&connection.tokens.account_id)
+    .validate_for_provider(provider, &auth.account_id)
     .map_err(error)?;
     let suffix = if thumbnail { "thumbnail" } else { "content" };
     let response = client()?
-        .get(format!("{ORIGIN}{API}/files/{}/{suffix}", file.id))
-        .bearer_auth(&connection.tokens.access_token)
+        .get(format!(
+            "{}{API}/files/{}/{suffix}",
+            origin(provider),
+            file.id
+        ))
+        .bearer_auth(auth.access_token.as_str())
         .header("If-Match", format!("\"{}\"", file.revision))
         .send()
         .await
@@ -784,16 +1190,16 @@ fn mime(value: &LibraryMimeType) -> (&'static str, &'static str) {
     }
 }
 #[tauri::command]
-pub async fn craftgineer_thumbnail(
+pub async fn connected_library_thumbnail(
+    provider: LibraryProvider,
     manager: State<'_, ConnectedLibrary>,
     file: LibraryFile,
 ) -> Result<String> {
+    let manager = manager.provider(provider);
     let generation = manager.generation.load(Ordering::Acquire);
-    let mut guard = manager.connection.lock().await;
+    let auth = authorized(manager, generation).await?;
     let result = async {
-        let connection = guard.as_mut().ok_or_else(|| error("invalid_token"))?;
-        refreshed(&manager, connection).await?;
-        let bytes = file_bytes(connection, &file, true).await?;
+        let bytes = file_bytes(manager.provider, &auth, &file, true).await?;
         let reader =
             image::ImageReader::with_format(std::io::Cursor::new(&bytes), image::ImageFormat::WebP);
         let (width, height) = reader
@@ -806,18 +1212,19 @@ pub async fn craftgineer_thumbnail(
         Ok(format!("data:image/webp;base64,{}", STANDARD.encode(bytes)))
     }
     .await;
-    finish(&manager, &mut guard, result).await
+    finish_request(manager, generation, result).await
 }
 #[tauri::command]
-pub fn craftgineer_prepare_insert(
+pub fn connected_library_prepare_insert(
     svc: State<'_, Arc<ServiceContext>>,
     project_id: String,
 ) -> Result<u64> {
     imports::connected_library_document_epoch(&svc, &project_id).map_err(Into::into)
 }
 #[tauri::command]
-pub async fn craftgineer_insert(
+pub async fn connected_library_insert(
     window: tauri::WebviewWindow,
+    provider: LibraryProvider,
     manager: State<'_, ConnectedLibrary>,
     svc: State<'_, Arc<ServiceContext>>,
     file: LibraryFile,
@@ -827,20 +1234,33 @@ pub async fn craftgineer_insert(
     layer_id: String,
     create_layer: Option<beambench_service::ops::project::AddObjectLayerInput>,
 ) -> Result<Vec<ProjectObject>> {
+    let manager = manager.provider(provider);
     if request_id.len() != 36 || uuid::Uuid::parse_str(&request_id).is_err() {
         return Err(error("invalid_request"));
     }
     let epoch = expected_epoch;
     let generation = manager.generation.load(Ordering::Acquire);
-    let mut guard = manager.connection.lock().await;
-    let result = async {
+    let auth = authorized(manager, generation).await?;
+    {
+        let mut guard = manager.connection.lock().await;
+        manager.check(generation)?;
         let connection = guard.as_mut().ok_or_else(|| error("invalid_token"))?;
         if connection.completed_inserts.contains(&request_id) {
             return Ok(Vec::new());
         }
-        refreshed(&manager, connection).await?;
-        let bytes = file_bytes(connection, &file, false).await?;
+        if connection.inflight_inserts.contains(&request_id) {
+            return Err(error("request_in_progress"));
+        }
+        if connection.inflight_inserts.len() >= 32 {
+            return Err(error("rate_limited"));
+        }
+        connection.inflight_inserts.insert(request_id.clone());
+    }
+    let result = async {
+        let bytes = file_bytes(manager.provider, &auth, &file, false).await?;
+        let mut guard = manager.connection.lock().await;
         manager.check(generation)?;
+        let connection = guard.as_mut().ok_or_else(|| error("invalid_token"))?;
         if window.is_visible().is_err() {
             return Err(error("connection_changed"));
         }
@@ -884,14 +1304,22 @@ pub async fn craftgineer_insert(
         })
         .await
         .map_err(|_| error("import_failed"))??;
-        connection.completed_inserts.push_back(request_id);
+        connection.completed_inserts.push_back(request_id.clone());
         if connection.completed_inserts.len() > 128 {
             connection.completed_inserts.pop_front();
         }
         Ok(objects)
     }
     .await;
-    finish(&manager, &mut guard, result).await
+    {
+        let mut guard = manager.connection.lock().await;
+        if manager.check(generation).is_ok() {
+            if let Some(connection) = guard.as_mut() {
+                connection.inflight_inserts.remove(&request_id);
+            }
+        }
+    }
+    finish_request(manager, generation, result).await
 }
 
 #[cfg(test)]
@@ -915,6 +1343,96 @@ mod tests {
             token_type: "Bearer".into(),
             scope: "library:read".into(),
         }
+    }
+    #[tokio::test]
+    async fn access_loss_invalidates_pending_work_only_for_its_provider() {
+        let manager = ConnectedLibrary::default();
+        let pcc = manager.provider(LibraryProvider::Printcutcarve);
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../crates/beambench-common/tests/fixtures/printcutcarve_library_v1.json"
+        ))
+        .unwrap();
+        let account: LibraryAccountResponse =
+            serde_json::from_value(fixture["accountResponse"].clone()).unwrap();
+        *pcc.connection.lock().await = Some(Connection {
+            tokens: fixture_tokens('p'),
+            expires: tokio::time::Instant::now() + Duration::from_secs(900),
+            remembered: false,
+            wallet_unavailable: false,
+            last_account: Some(account),
+            completed_inserts: Default::default(),
+            inflight_inserts: Default::default(),
+        });
+        assert_eq!(
+            finish_request::<()>(pcc, 0, Err(error("subscription_required"))).await,
+            Err(error("subscription_required"))
+        );
+        assert_eq!(pcc.check(0), Err(error("connection_changed")));
+        assert_eq!(manager.craftgineer.check(0), Ok(()));
+        let guard = pcc.connection.lock().await;
+        let connection = guard.as_ref().unwrap();
+        assert_eq!(
+            connection.last_account.as_ref().unwrap().access,
+            beambench_common::connected_library::LibraryAccess::SubscriptionRequired
+        );
+        assert_eq!(connection.tokens.refresh_token, "p".repeat(43));
+    }
+    #[tokio::test]
+    async fn providers_keep_separate_credentials_and_connection_locks() {
+        let manager = ConnectedLibrary {
+            craftgineer: ProviderConnection {
+                vault: OnceLock::from(Vault::with_provider(
+                    mock_store,
+                    "com.beambench.desktop-library.test.providers",
+                    "craftgineer",
+                )),
+                ..Default::default()
+            },
+            printcutcarve: ProviderConnection {
+                provider: LibraryProvider::Printcutcarve,
+                vault: OnceLock::from(Vault::with_provider(
+                    mock_store,
+                    "com.beambench.desktop-library.test.providers",
+                    "printcutcarve",
+                )),
+                ..Default::default()
+            },
+        };
+        let cg = manager.provider(LibraryProvider::Craftgineer);
+        let pcc = manager.provider(LibraryProvider::Printcutcarve);
+        assert!(cg.remember(&fixture_tokens('c')).await);
+        assert!(pcc.remember(&fixture_tokens('p')).await);
+        let stored = cg.vault().call(None, true).await.unwrap().unwrap();
+        let stored: Saved = serde_json::from_str(&stored).unwrap();
+        assert_eq!(stored.refresh_token, "c".repeat(43));
+        pcc.vault().call(None, false).await.unwrap();
+        assert!(pcc.vault().call(None, true).await.unwrap().is_none());
+        assert!(cg.vault().call(None, true).await.unwrap().is_some());
+        let _slow_cg = cg.connection.lock().await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), pcc.connection.lock())
+                .await
+                .is_ok()
+        );
+        pcc.generation.fetch_add(1, Ordering::AcqRel);
+        assert!(cg.check(0).is_ok());
+        cg.vault().call(None, false).await.unwrap();
+    }
+
+    #[test]
+    fn callback_response_escapes_translated_text_and_replaces_the_consent_page() {
+        let response = String::from_utf8(callback_response(
+            "Return <script>bad</script> & check",
+            true,
+        ))
+        .unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.contains("&lt;script&gt;bad&lt;/script&gt; &amp;"));
+        assert!(!response.contains("<script>"));
+        assert!(response.contains("Cache-Control: no-store"));
+        assert!(response.contains("frame-ancestors 'none'"));
+        let invalid = String::from_utf8(callback_response("Return", false)).unwrap();
+        assert!(invalid.starts_with("HTTP/1.1 400 Bad Request"));
     }
     async fn token_response(
         status: u16,
@@ -972,7 +1490,7 @@ mod tests {
 
     #[tokio::test]
     async fn remembered_refresh_survives_offline_and_pre_rotation_rejections() {
-        let manager = ConnectedLibrary {
+        let manager = ProviderConnection {
             vault: OnceLock::from(Vault::with_initializer(
                 mock_store,
                 "com.beambench.desktop-library.test.retry",
@@ -984,7 +1502,9 @@ mod tests {
             expires: tokio::time::Instant::now(),
             remembered: true,
             wallet_unavailable: false,
+            last_account: None,
             completed_inserts: Default::default(),
+            inflight_inserts: Default::default(),
         };
         assert!(manager.remember(&connection.tokens).await);
         // A refused connection uses the same reqwest is_connect classification as DNS failure.
@@ -1033,8 +1553,8 @@ mod tests {
 
     #[tokio::test]
     async fn remembered_restore_retries_after_an_outage_without_browser_login() {
-        fn manager() -> ConnectedLibrary {
-            ConnectedLibrary {
+        fn manager() -> ProviderConnection {
+            ProviderConnection {
                 vault: OnceLock::from(Vault::with_initializer(
                     mock_store,
                     "com.beambench.desktop-library.test.restore",
@@ -1091,7 +1611,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejected_or_ambiguous_refresh_discards_the_credential() {
-        let manager = ConnectedLibrary {
+        let manager = ProviderConnection {
             vault: OnceLock::from(Vault::with_initializer(
                 mock_store,
                 "com.beambench.desktop-library.test.discard",
@@ -1104,7 +1624,9 @@ mod tests {
                 expires: tokio::time::Instant::now(),
                 remembered: true,
                 wallet_unavailable: false,
+                last_account: None,
                 completed_inserts: Default::default(),
+                inflight_inserts: Default::default(),
             };
             assert!(manager.remember(&connection.tokens).await);
             let old = Zeroizing::new(std::mem::take(&mut connection.tokens.refresh_token));
@@ -1159,7 +1681,16 @@ mod tests {
         let request = format!(
             "GET {CALLBACK}?state={state}&code={code} HTTP/1.1\r\nHost: 127.0.0.1:43210\r\n\r\n"
         );
-        assert_eq!(callback_code(&request, 43210, &state).unwrap(), code);
+        assert_eq!(
+            callback_code(&request, 43210, &state, LibraryProvider::Craftgineer).unwrap(),
+            code
+        );
+        assert!(callback_code(&request, 43210, &state, LibraryProvider::Printcutcarve).is_err());
+        let pcc_request = request.replace(CALLBACK, callback(LibraryProvider::Printcutcarve));
+        assert_eq!(
+            callback_code(&pcc_request, 43210, &state, LibraryProvider::Printcutcarve).unwrap(),
+            code
+        );
         for bad in [
             request.replace(":43210", ":43211"),
             request.replace("state=", "state=x"),
@@ -1167,7 +1698,7 @@ mod tests {
             request.replace(CALLBACK, "/other"),
             request.replace("GET", "POST"),
         ] {
-            assert!(callback_code(&bad, 43210, &state).is_err());
+            assert!(callback_code(&bad, 43210, &state, LibraryProvider::Craftgineer).is_err());
         }
     }
 }

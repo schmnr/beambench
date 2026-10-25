@@ -2959,6 +2959,48 @@
       "unavailable": "Craftgineer kunne ikke kontaktes. Kontrollér din forbindelse, og prøv igen."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Vend tilbage til Beam Bench for at kontrollere forbindelsen. Du kan lukke denne fane."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve-forbindelse",
+    "manage": "Administrer forbindelser",
+    "disclosure": "Forbind din PrintCutCarve-konto for at se pakker, der er tilgængelige via et aktivt betalt medlemskab eller gennemførte pakkekøb. Vælg en pakke, og indsæt derefter et design. Indsatte billeder gemmes i dit Beam Bench-projekt og er tilgængelige offline.",
+    "remember": "Husk denne konto sikkert på denne computer",
+    "connect": "Forbind PrintCutCarve",
+    "disconnect": "Afbryd forbindelsen",
+    "browse": "Gennemse biblioteket",
+    "session_only": "Kun forbundet i denne session. Sikker lagring af loginoplysninger er ikke tilgængelig. Opret forbindelse igen, når du har genstartet Beam Bench.",
+    "waiting": "Fuldfør forbindelsen i din browser. Du kan annullere her.",
+    "search": "Søg efter design i denne pakke",
+    "refresh": "Opdater",
+    "open_project": "Åbn et projekt for at indsætte billeder.",
+    "empty": "Ingen matchende design i denne pakke.",
+    "insert": "Indsæt",
+    "more": "Indlæs flere",
+    "errors": {
+      "subscription_required": "Et aktivt betalt medlemskab eller en købt designpakke er påkrævet. Administrer din konto på PrintCutCarve.",
+      "invalid_token": "Denne forbindelse er udløbet eller tilbagekaldt. Afbryd forbindelsen, og forbind igen.",
+      "revision_conflict": "Denne fil er ændret. Opdater biblioteket, og prøv igen.",
+      "access_denied": "Forbindelsen blev annulleret i browseren.",
+      "connection_timeout": "Forbindelsen fik timeout. Prøv at oprette forbindelse igen.",
+      "wallet_cleanup_required": "Kontoen blev afbrudt i denne session, men de gemte loginoplysninger kunne ikke fjernes. Lås dit adgangskodelager op, og afbryd forbindelsen igen. Du kan også tilbagekalde adgangen for Beam Bench under Forbindelser til skrivebordsapps på PrintCutCarve.",
+      "revocation_pending": "Forbindelsen er afbrudt på denne computer. Webstedet kunne ikke kontaktes for at tilbagekalde adgangen. Tilbagekald adgangen for Beam Bench under Forbindelser til skrivebordsapps på PrintCutCarve.",
+      "rate_limited": "For mange anmodninger. Vent et minut, og opdater derefter.",
+      "stale_document": "Projektet blev ændret, mens billedet blev indlæst. Indsæt det igen i det ønskede projekt.",
+      "unavailable": "PrintCutCarve kunne ikke kontaktes. Kontrollér din forbindelse, og prøv igen.",
+      "file_too_large": "Denne fil eller dens forhåndsvisning er for stor til at importere. Åbn pakken på PrintCutCarve.",
+      "unsupported_media_type": "Denne fil kan ikke indsættes i Beam Bench. Åbn den på PrintCutCarve for at se downloadmuligheder.",
+      "not_found": "Denne fil er ikke længere tilgængelig. Opdater pakken, eller åbn den på PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Vend tilbage til Beam Bench for at kontrollere forbindelsen. Du kan lukke denne fane.",
+    "pack_search": "Søg i dine pakker",
+    "empty_packs": "Ingen pakker fundet. Prøv en anden søgning, eller se Mine downloads på PrintCutCarve.",
+    "back_to_packs": "Tilbage til pakker",
+    "file_count": "{count, plural, one {# fil} other {# filer}}",
+    "website": "Åbn på PrintCutCarve",
+    "unavailable_file": "Denne fil kan ikke indsættes. Åbn pakken på PrintCutCarve for at se downloadmuligheder."
   }
 }

@@ -2959,6 +2959,48 @@
       "unavailable": "Craftgineer is niet bereikbaar. Controleer je verbinding en probeer het opnieuw."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Ga terug naar Beam Bench om je verbinding te controleren. Je kunt dit tabblad sluiten."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve-verbinding",
+    "manage": "Verbindingen beheren",
+    "disclosure": "Verbind je PrintCutCarve-account om pakketten te bekijken die beschikbaar zijn via een actief betaald lidmaatschap of afgeronde pakketaankopen. Kies een pakket en voeg daarna een ontwerp in. Ingevoegde afbeeldingen worden in je Beam Bench-project opgeslagen en blijven offline beschikbaar.",
+    "remember": "Dit account veilig onthouden op deze computer",
+    "connect": "PrintCutCarve verbinden",
+    "disconnect": "Verbinding verbreken",
+    "browse": "Bibliotheek bekijken",
+    "session_only": "Alleen voor deze sessie verbonden. Veilige opslag van inloggegevens is niet beschikbaar. Maak na het herstarten van Beam Bench opnieuw verbinding.",
+    "waiting": "Voltooi de verbinding in je browser. Je kunt hier annuleren.",
+    "search": "Ontwerpen in dit pakket zoeken",
+    "refresh": "Vernieuwen",
+    "open_project": "Open een project om afbeeldingen in te voegen.",
+    "empty": "Geen overeenkomende ontwerpen in dit pakket.",
+    "insert": "Invoegen",
+    "more": "Meer laden",
+    "errors": {
+      "subscription_required": "Een actief betaald lidmaatschap of een gekocht ontwerppakket is vereist. Beheer je account op PrintCutCarve.",
+      "invalid_token": "Deze verbinding is verlopen of ingetrokken. Verbreek de verbinding en verbind opnieuw.",
+      "revision_conflict": "Dit bestand is gewijzigd. Vernieuw de bibliotheek en probeer het opnieuw.",
+      "access_denied": "Verbinding geannuleerd in de browser.",
+      "connection_timeout": "Het verbinden duurde te lang. Probeer opnieuw verbinding te maken.",
+      "wallet_cleanup_required": "Het account is voor deze sessie losgekoppeld, maar de opgeslagen inloggegevens konden niet worden verwijderd. Ontgrendel de wachtwoordopslag van je systeem en verbreek de verbinding opnieuw. Je kunt de toegang van Beam Bench ook intrekken bij Desktopverbindingen op PrintCutCarve.",
+      "revocation_pending": "Losgekoppeld op deze computer. De website was niet bereikbaar om de toegang in te trekken. Trek de toegang van Beam Bench in bij Desktopverbindingen op PrintCutCarve.",
+      "rate_limited": "Te veel verzoeken. Wacht een minuut en vernieuw de weergave.",
+      "stale_document": "Het project is gewijzigd tijdens het laden van de afbeelding. Voeg deze opnieuw in het bedoelde project in.",
+      "unavailable": "PrintCutCarve is niet bereikbaar. Controleer je verbinding en probeer het opnieuw.",
+      "file_too_large": "Dit bestand of de voorvertoning ervan is te groot om te importeren. Open het pakket op PrintCutCarve.",
+      "unsupported_media_type": "Dit bestand kan niet in Beam Bench worden ingevoegd. Open het op PrintCutCarve om de downloadopties te bekijken.",
+      "not_found": "Dit bestand is niet meer beschikbaar. Vernieuw het pakket of open het op PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Ga terug naar Beam Bench om je verbinding te controleren. Je kunt dit tabblad sluiten.",
+    "pack_search": "Je pakketten doorzoeken",
+    "empty_packs": "Geen pakketten gevonden. Probeer een andere zoekopdracht of bekijk Mijn downloads op PrintCutCarve.",
+    "back_to_packs": "Terug naar pakketten",
+    "file_count": "{count, plural, one {# bestand} other {# bestanden}}",
+    "website": "Openen op PrintCutCarve",
+    "unavailable_file": "Dit bestand kan niet worden ingevoegd. Open het pakket op PrintCutCarve voor downloadopties."
   }
 }

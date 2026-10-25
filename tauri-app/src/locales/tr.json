@@ -2959,6 +2959,48 @@
       "unavailable": "Craftgineer'a ulaşılamadı. Bağlantını kontrol edip tekrar dene."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Bağlantını kontrol etmek için Beam Bench uygulamasına dön. Bu sekmeyi kapatabilirsin."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve bağlantısı",
+    "manage": "Bağlantıları yönet",
+    "disclosure": "Etkin bir ücretli üyelik veya tamamlanmış paket satın alımlarıyla erişilebilen paketleri görüntülemek için PrintCutCarve hesabını bağla. Bir paket seç, ardından bir tasarım ekle. Eklenen çizimler Beam Bench projesine kaydedilir ve çevrimdışı kullanılabilir.",
+    "remember": "Bu hesabı bu bilgisayarda güvenle hatırla",
+    "connect": "PrintCutCarve hesabını bağla",
+    "disconnect": "Bağlantıyı kes",
+    "browse": "Kitaplığa göz at",
+    "session_only": "Yalnızca bu oturum için bağlanıldı. Kimlik bilgilerinin güvenli depolanması kullanılamıyor. Beam Bench'i yeniden başlattıktan sonra tekrar bağlan.",
+    "waiting": "Bağlantıyı tarayıcında tamamla. Buradan iptal edebilirsin.",
+    "search": "Bu paketteki tasarımlarda ara",
+    "refresh": "Yenile",
+    "open_project": "Çizim eklemek için bir proje aç.",
+    "empty": "Bu pakette eşleşen tasarım yok.",
+    "insert": "Ekle",
+    "more": "Daha fazla yükle",
+    "errors": {
+      "subscription_required": "Etkin bir ücretli üyelik veya satın alınmış bir tasarım paketi gerekiyor. Hesabını PrintCutCarve üzerinden yönet.",
+      "invalid_token": "Bu bağlantının süresi doldu veya erişimi iptal edildi. Bağlantıyı kesip yeniden bağlan.",
+      "revision_conflict": "Bu dosya değişti. Kitaplığı yenileyip tekrar dene.",
+      "access_denied": "Bağlantı tarayıcıda iptal edildi.",
+      "connection_timeout": "Bağlantı zaman aşımına uğradı. Yeniden bağlanmayı dene.",
+      "wallet_cleanup_required": "Bu oturum için hesabın bağlantısı kesildi ancak kayıtlı kimlik bilgileri kaldırılamadı. Parola deponun kilidini açıp bağlantıyı tekrar kes. Beam Bench erişimini PrintCutCarve üzerindeki Masaüstü bağlantıları bölümünden de iptal edebilirsin.",
+      "revocation_pending": "Bu bilgisayarda bağlantı kesildi. Erişimi iptal etmek için web sitesine ulaşılamadı. Beam Bench erişimini PrintCutCarve üzerindeki Masaüstü bağlantıları bölümünden iptal et.",
+      "rate_limited": "Çok fazla istek gönderildi. Bir dakika bekleyip yenile.",
+      "stale_document": "Çizim yüklenirken proje değişti. Çizimi istediğin projeye yeniden ekle.",
+      "unavailable": "PrintCutCarve hizmetine ulaşılamadı. Bağlantını kontrol edip tekrar dene.",
+      "file_too_large": "Bu dosya veya önizlemesi içe aktarılamayacak kadar büyük. Paketi PrintCutCarve üzerinden aç.",
+      "unsupported_media_type": "Bu dosya Beam Bench uygulamasına eklenemiyor. İndirme seçeneklerini görmek için dosyayı PrintCutCarve üzerinden aç.",
+      "not_found": "Bu dosya artık kullanılamıyor. Paketi yenile veya dosyayı PrintCutCarve üzerinden aç."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Bağlantını kontrol etmek için Beam Bench uygulamasına dön. Bu sekmeyi kapatabilirsin.",
+    "pack_search": "Paketlerinde ara",
+    "empty_packs": "Paket bulunamadı. Başka bir arama dene veya PrintCutCarve üzerindeki İndirmelerim bölümünü kontrol et.",
+    "back_to_packs": "Paketlere dön",
+    "file_count": "{count, plural, one {# dosya} other {# dosya}}",
+    "website": "PrintCutCarve üzerinden aç",
+    "unavailable_file": "Bu dosya eklenemiyor. İndirme seçenekleri için paketi PrintCutCarve üzerinden aç."
   }
 }

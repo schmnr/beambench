@@ -1,0 +1,73 @@
+{
+  "accountResponse": {
+    "schemaVersion": 1,
+    "provider": "printcutcarve",
+    "account": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "displayName": "Pack buyer"
+    },
+    "access": "active",
+    "capabilities": {
+      "mimeTypes": [
+        "image/svg+xml"
+      ],
+      "maxFileBytes": 26214400,
+      "maxPageSize": 50
+    }
+  },
+  "collectionsResponse": {
+    "schemaVersion": 1,
+    "provider": "printcutcarve",
+    "accountId": "00000000-0000-4000-8000-000000000001",
+    "collections": [
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "name": "Woodland pack",
+        "slug": "woodland-pack",
+        "fileCount": 2,
+        "preview": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "name": "Maple.svg",
+          "mimeType": "image/svg+xml",
+          "sizeBytes": 142,
+          "revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceTool": null,
+          "createdAt": "2026-10-25T12:00:00.000Z",
+          "collection": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "name": "Woodland pack"
+          }
+        }
+      }
+    ],
+    "nextCursor": null
+  },
+  "listingResponse": {
+    "schemaVersion": 1,
+    "provider": "printcutcarve",
+    "accountId": "00000000-0000-4000-8000-000000000001",
+    "files": [
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "name": "Maple.svg",
+        "mimeType": "image/svg+xml",
+        "sizeBytes": 142,
+        "revision": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceTool": null,
+        "createdAt": "2026-10-25T12:00:00.000Z",
+        "collection": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "name": "Woodland pack"
+        }
+      }
+    ],
+    "unavailableFiles": [
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "name": "Future.pdf",
+        "reason": "unsupported_media_type"
+      }
+    ],
+    "nextCursor": null
+  }
+}

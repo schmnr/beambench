@@ -2959,6 +2959,48 @@
       "unavailable": "Craftgineer に接続できませんでした。接続を確認して、もう一度お試しください。"
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Beam Bench に戻って接続を確認してください。このタブは閉じてもかまいません。"
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve 接続",
+    "manage": "接続を管理",
+    "disclosure": "PrintCutCarve アカウントを接続すると、有効な有料メンバーシップまたは完了したパック購入により利用可能なパックを参照できます。パックを選択し、デザインを挿入してください。挿入した図柄は Beam Bench プロジェクトに保存され、オフラインでも利用できます。",
+    "remember": "このコンピューターにアカウント情報を安全に保存する",
+    "connect": "PrintCutCarve に接続",
+    "disconnect": "接続を解除",
+    "browse": "ライブラリを開く",
+    "session_only": "このセッション中のみ接続されています。認証情報の安全な保存先を利用できません。Beam Bench を再起動したら、再接続してください。",
+    "waiting": "ブラウザーで接続を完了してください。ここでキャンセルできます。",
+    "search": "このパック内のデザインを検索",
+    "refresh": "更新",
+    "open_project": "アートワークを挿入するには、プロジェクトを開いてください。",
+    "empty": "このパック内に条件に一致するデザインはありません。",
+    "insert": "挿入",
+    "more": "さらに読み込む",
+    "errors": {
+      "subscription_required": "有効な有料メンバーシップまたは購入済みのデザインパックが必要です。PrintCutCarve でアカウントを管理してください。",
+      "invalid_token": "この接続は期限切れか、アクセス権が取り消されています。接続を解除してから、再接続してください。",
+      "revision_conflict": "このファイルは変更されました。ライブラリを更新して、もう一度お試しください。",
+      "access_denied": "ブラウザーで接続がキャンセルされました。",
+      "connection_timeout": "接続がタイムアウトしました。もう一度接続してください。",
+      "wallet_cleanup_required": "このセッションでアカウントの接続を解除しましたが、保存された認証情報を削除できませんでした。パスワードストアのロックを解除して、もう一度接続を解除してください。PrintCutCarve の「デスクトップ接続」で Beam Bench のアクセス権を取り消すこともできます。",
+      "revocation_pending": "このコンピューターで接続を解除しました。アクセス権を取り消すためのウェブサイトへの接続に失敗しました。PrintCutCarve の「デスクトップ接続」で Beam Bench のアクセス権を取り消してください。",
+      "rate_limited": "リクエストが多すぎます。1分待ってから更新してください。",
+      "stale_document": "アートワークの読み込み中にプロジェクトが変更されました。目的のプロジェクトにもう一度挿入してください。",
+      "unavailable": "PrintCutCarve に接続できませんでした。接続を確認して、もう一度お試しください。",
+      "file_too_large": "このファイルまたはプレビューは大きすぎるためインポートできません。PrintCutCarve でパックを開いてください。",
+      "unsupported_media_type": "このファイルは Beam Bench に挿入できません。PrintCutCarve で開くと、ダウンロード方法を確認できます。",
+      "not_found": "このファイルは利用できなくなりました。パックを更新するか、PrintCutCarve で開いてください。"
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Beam Bench に戻って接続を確認してください。このタブは閉じてもかまいません。",
+    "pack_search": "自分のパックを検索",
+    "empty_packs": "パックが見つかりません。別の検索を試すか、PrintCutCarve の「マイダウンロード」を確認してください。",
+    "back_to_packs": "パックに戻る",
+    "file_count": "{count, plural, one {# ファイル} other {# ファイル}}",
+    "website": "PrintCutCarve で開く",
+    "unavailable_file": "このファイルは挿入できません。PrintCutCarve でパックを開いて、ダウンロード方法を確認してください。"
   }
 }

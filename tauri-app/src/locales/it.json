@@ -2959,6 +2959,48 @@
       "unavailable": "Impossibile raggiungere Craftgineer. Controlla la connessione e riprova."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Torna a Beam Bench per verificare la connessione. Puoi chiudere questa scheda."
+  },
+  "printcutcarve_library": {
+    "title": "Connessione PrintCutCarve",
+    "manage": "Gestisci connessioni",
+    "disclosure": "Collega il tuo account PrintCutCarve per consultare i pacchetti disponibili tramite un abbonamento a pagamento attivo o acquisti di pacchetti completati. Scegli un pacchetto, poi inserisci un disegno. Le illustrazioni inserite vengono salvate nel tuo progetto Beam Bench e restano disponibili offline.",
+    "remember": "Memorizza questo account in modo sicuro su questo computer",
+    "connect": "Collega PrintCutCarve",
+    "disconnect": "Disconnetti",
+    "browse": "Sfoglia la libreria",
+    "session_only": "Connessione valida solo per questa sessione. L'archiviazione sicura delle credenziali non è disponibile. Riconnettiti dopo aver riavviato Beam Bench.",
+    "waiting": "Completa la connessione nel browser. Puoi annullarla qui.",
+    "search": "Cerca disegni in questo pacchetto",
+    "refresh": "Aggiorna",
+    "open_project": "Apri un progetto per inserire la grafica.",
+    "empty": "Nessun disegno corrispondente in questo pacchetto.",
+    "insert": "Inserisci",
+    "more": "Carica altro",
+    "errors": {
+      "subscription_required": "È necessario un abbonamento a pagamento attivo o un pacchetto di disegni acquistato. Gestisci il tuo account su PrintCutCarve.",
+      "invalid_token": "Questa connessione è scaduta o è stata revocata. Disconnettiti e poi riconnettiti.",
+      "revision_conflict": "Questo file è cambiato. Aggiorna la libreria e riprova.",
+      "access_denied": "Connessione annullata nel browser.",
+      "connection_timeout": "Tempo di connessione scaduto. Prova a connetterti di nuovo.",
+      "wallet_cleanup_required": "L'account è stato disconnesso per questa sessione, ma non è stato possibile rimuovere le credenziali salvate. Sblocca l'archivio delle password di sistema e disconnettiti di nuovo. Puoi anche revocare l'accesso di Beam Bench in Connessioni desktop su PrintCutCarve.",
+      "revocation_pending": "Disconnesso su questo computer. Non è stato possibile contattare il sito per revocare l'accesso. Revoca l'accesso di Beam Bench in Connessioni desktop su PrintCutCarve.",
+      "rate_limited": "Troppe richieste. Attendi un minuto, poi aggiorna.",
+      "stale_document": "Il progetto è cambiato durante il caricamento della grafica. Inseriscila di nuovo nel progetto desiderato.",
+      "unavailable": "Impossibile raggiungere PrintCutCarve. Controlla la connessione e riprova.",
+      "file_too_large": "Questo file o la sua anteprima è troppo grande per essere importato. Apri il pacchetto su PrintCutCarve.",
+      "unsupported_media_type": "Questo file non può essere inserito in Beam Bench. Aprilo su PrintCutCarve per vedere le opzioni di download.",
+      "not_found": "Questo file non è più disponibile. Aggiorna il pacchetto o aprilo su PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Torna a Beam Bench per verificare la connessione. Puoi chiudere questa scheda.",
+    "pack_search": "Cerca nei tuoi pacchetti",
+    "empty_packs": "Nessun pacchetto trovato. Prova un'altra ricerca o controlla I miei download su PrintCutCarve.",
+    "back_to_packs": "Torna ai pacchetti",
+    "file_count": "{count, plural, one {# file} other {# file}}",
+    "website": "Apri su PrintCutCarve",
+    "unavailable_file": "Questo file non può essere inserito. Apri il pacchetto su PrintCutCarve per vedere le opzioni di download."
   }
 }

@@ -49,6 +49,7 @@ jobs:
         run: |
           python3 scripts/test-linux-appimage-runtime.py
           python3 scripts/test-linux-appimage-desktop-probe.py
+          python3 scripts/test-connected-library-driver.py
 
       - uses: dtolnay/rust-toolchain@stable
         with:

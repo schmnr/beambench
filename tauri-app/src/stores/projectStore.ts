@@ -1,4 +1,4 @@
-import { connectedLibraryService, type LibraryFile } from '../services/connectedLibraryService';
+import { libraryService, type LibraryFile, type LibraryProvider } from '../services/connectedLibraryService';
 import { isUserCancel } from '../utils/userCancel';
 import { create } from 'zustand';
 import type {
@@ -473,7 +473,7 @@ interface ProjectStoreState {
   ) => Promise<void>;
   restoreRecoveredProject: (project: Project, projectPath?: string | null) => void;
 
-  importCraftgineerFile: (file: LibraryFile) => Promise<void>;
+  importConnectedLibraryFile: (provider: LibraryProvider, file: LibraryFile) => Promise<void>;
   importFiles: (layerId?: string) => Promise<void>;
   importFilePaths: (filePaths: string[], layerId?: string) => Promise<void>;
   importFileData: (
@@ -1996,12 +1996,13 @@ export const useProjectStore = create<ProjectStoreState>(dropStaleDocumentErrors
     );
   },
 
-  importCraftgineerFile: async (file) => {
+  importConnectedLibraryFile: async (provider, file) => {
+    const requestId = crypto.randomUUID();
     const project = get().project;
     if (!project) return;
     const extension = { 'image/svg+xml': 'svg', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.mimeType];
     await importArtworkBatch([`artwork.${extension}`], undefined, (layerId, createLayer) =>
-      connectedLibraryService.insert(file, project.metadata.project_id, layerId, createLayer));
+      libraryService(provider).insert(file, project.metadata.project_id, layerId, createLayer, requestId));
   },
 
   importFileData: async (files, layerId) => {

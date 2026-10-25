@@ -2959,6 +2959,48 @@
       "unavailable": "A Craftgineer nem érhető el. Ellenőrizd a kapcsolatot, és próbáld újra."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Térj vissza a Beam Bench alkalmazásba a kapcsolat ellenőrzéséhez. Ezt a lapot bezárhatod."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve-kapcsolat",
+    "manage": "Kapcsolatok kezelése",
+    "disclosure": "Csatlakoztasd a PrintCutCarve-fiókodat az aktív fizetős tagsággal vagy befejezett csomagvásárlásokkal elérhető csomagok megtekintéséhez. Válassz egy csomagot, majd illessz be egy mintát. A beillesztett grafika a Beam Bench-projektedben tárolódik, és internetkapcsolat nélkül is elérhető marad.",
+    "remember": "Fiók biztonságos megjegyzése ezen a számítógépen",
+    "connect": "PrintCutCarve csatlakoztatása",
+    "disconnect": "Leválasztás",
+    "browse": "Könyvtár böngészése",
+    "session_only": "Csak erre a munkamenetre csatlakoztatva. A hitelesítő adatok biztonságos tárolása nem érhető el. A Beam Bench újraindítása után csatlakozz újra.",
+    "waiting": "Fejezd be a csatlakozást a böngészőben. Itt megszakíthatod.",
+    "search": "Minták keresése ebben a csomagban",
+    "refresh": "Frissítés",
+    "open_project": "Grafika beillesztéséhez nyiss meg egy projektet.",
+    "empty": "Nincs megfelelő minta ebben a csomagban.",
+    "insert": "Beillesztés",
+    "more": "Továbbiak betöltése",
+    "errors": {
+      "subscription_required": "Aktív fizetős tagság vagy megvásárolt mintacsomag szükséges. A fiókodat a PrintCutCarve oldalán kezelheted.",
+      "invalid_token": "Ez a kapcsolat lejárt, vagy visszavonták. Válaszd le, majd csatlakozz újra.",
+      "revision_conflict": "Ez a fájl megváltozott. Frissítsd a könyvtárat, és próbáld újra.",
+      "access_denied": "A csatlakozás megszakítva a böngészőben.",
+      "connection_timeout": "A csatlakozás időtúllépés miatt megszakadt. Próbálj újra csatlakozni.",
+      "wallet_cleanup_required": "A fiókot leválasztottuk erre a munkamenetre, de a mentett hitelesítő adatokat nem sikerült törölni. Oldd fel a jelszótárolót, és válaszd le újra a fiókot. A Beam Bench hozzáférését a PrintCutCarve Asztali kapcsolatok részében is visszavonhatod.",
+      "revocation_pending": "Leválasztva ezen a számítógépen. A hozzáférés visszavonásához nem sikerült elérni a webhelyet. Vond vissza a Beam Bench hozzáférését a PrintCutCarve Asztali kapcsolatok részében.",
+      "rate_limited": "Túl sok kérés. Várj egy percet, majd frissíts.",
+      "stale_document": "A projekt megváltozott a grafika betöltése közben. Illeszd be újra a kívánt projektbe.",
+      "unavailable": "A PrintCutCarve nem érhető el. Ellenőrizd a kapcsolatot, és próbáld újra.",
+      "file_too_large": "Ez a fájl vagy az előnézete túl nagy az importáláshoz. Nyisd meg a csomagot a PrintCutCarve oldalán.",
+      "unsupported_media_type": "Ez a fájl nem illeszthető be a Beam Bench alkalmazásba. A letöltési lehetőségekhez nyisd meg a PrintCutCarve oldalán.",
+      "not_found": "Ez a fájl már nem érhető el. Frissítsd a csomagot, vagy nyisd meg a PrintCutCarve oldalán."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Térj vissza a Beam Bench alkalmazásba a kapcsolat ellenőrzéséhez. Ezt a lapot bezárhatod.",
+    "pack_search": "Keresés a csomagjaidban",
+    "empty_packs": "Nem található csomag. Próbálj másik keresést, vagy nézd meg a Saját letöltések oldalt a PrintCutCarve webhelyén.",
+    "back_to_packs": "Vissza a csomagokhoz",
+    "file_count": "{count, plural, one {# fájl} other {# fájl}}",
+    "website": "Megnyitás a PrintCutCarve oldalán",
+    "unavailable_file": "Ez a fájl nem illeszthető be. A letöltési lehetőségekhez nyisd meg a csomagot a PrintCutCarve oldalán."
   }
 }

@@ -54,6 +54,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['prepare-kde', 'metadata', 'lock', 'unlock', 'deny'])
     parser.add_argument('--provider', choices=['gnome', 'kde'], required=True)
+    parser.add_argument('--library-provider', choices=['craftgineer', 'printcutcarve'], default='craftgineer')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--expect-empty', action='store_true')
     args = parser.parse_args()
@@ -65,7 +66,7 @@ def main():
     expected = 'kwalletd5' if args.provider == 'kde' else 'gnome-keyring-daemon'
     if Path(command).name != expected:
         raise RuntimeError('wrong_password_store_provider')
-    result = {'provider':args.provider, 'process':expected, 'action':args.action}
+    result = {'provider':args.provider, 'process':expected, 'action':args.action,'libraryProvider':args.library_provider}
     if args.action == 'prepare-kde':
         collection, prompt = service.CreateCollection({'org.freedesktop.Secret.Collection.Label':dbus.String('kdewallet',variant_level=1)}, 'default')
         if str(prompt) != '/':
@@ -104,7 +105,7 @@ def main():
             service.Lock([collection])
         properties = dbus.Interface(bus.get_object('org.freedesktop.secrets', collection), 'org.freedesktop.DBus.Properties')
         result['locked'] = bool(properties.Get('org.freedesktop.Secret.Collection', 'Locked'))
-        unlocked, locked = service.SearchItems({'service':'com.beambench.desktop-library','username':'craftgineer'})
+        unlocked, locked = service.SearchItems({'service':'com.beambench.desktop-library','username':args.library_provider})
         result['providerCredentialItems'] = len(unlocked)+len(locked)
         if args.expect_empty and result['providerCredentialItems']:
             raise RuntimeError('provider_credentials_remain')

@@ -2959,6 +2959,48 @@
       "unavailable": "Nie udało się połączyć z Craftgineer. Sprawdź połączenie i spróbuj ponownie."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Wróć do Beam Bench, aby sprawdzić połączenie. Możesz zamknąć tę kartę."
+  },
+  "printcutcarve_library": {
+    "title": "Połączenie z PrintCutCarve",
+    "manage": "Zarządzaj połączeniami",
+    "disclosure": "Połącz konto PrintCutCarve, aby przeglądać pakiety dostępne w ramach aktywnego płatnego członkostwa lub zakończonych zakupów pakietów. Wybierz pakiet, a następnie wstaw wzór. Wstawiona grafika jest zapisywana w projekcie Beam Bench i pozostaje dostępna offline.",
+    "remember": "Bezpiecznie zapamiętaj to konto na tym komputerze",
+    "connect": "Połącz z PrintCutCarve",
+    "disconnect": "Rozłącz",
+    "browse": "Przeglądaj bibliotekę",
+    "session_only": "Połączono tylko na czas tej sesji. Bezpieczne przechowywanie danych uwierzytelniających jest niedostępne. Po ponownym uruchomieniu Beam Bench połącz się ponownie.",
+    "waiting": "Dokończ łączenie w przeglądarce. Tutaj możesz je anulować.",
+    "search": "Szukaj wzorów w tym pakiecie",
+    "refresh": "Odśwież",
+    "open_project": "Otwórz projekt, aby wstawić grafikę.",
+    "empty": "Brak pasujących wzorów w tym pakiecie.",
+    "insert": "Wstaw",
+    "more": "Wczytaj więcej",
+    "errors": {
+      "subscription_required": "Wymagane jest aktywne płatne członkostwo lub zakupiony pakiet wzorów. Zarządzaj kontem w PrintCutCarve.",
+      "invalid_token": "To połączenie wygasło lub dostęp został cofnięty. Rozłącz je, a następnie połącz się ponownie.",
+      "revision_conflict": "Ten plik został zmieniony. Odśwież bibliotekę i spróbuj ponownie.",
+      "access_denied": "Połączenie anulowano w przeglądarce.",
+      "connection_timeout": "Upłynął limit czasu połączenia. Spróbuj połączyć się ponownie.",
+      "wallet_cleanup_required": "Konto zostało rozłączone na czas tej sesji, ale nie udało się usunąć zapisanych danych uwierzytelniających. Odblokuj magazyn haseł i ponownie rozłącz konto. Możesz też cofnąć dostęp aplikacji Beam Bench w sekcji Połączenia z aplikacjami komputerowymi w PrintCutCarve.",
+      "revocation_pending": "Rozłączono na tym komputerze. Nie udało się skontaktować z witryną, aby cofnąć dostęp. Cofnij dostęp aplikacji Beam Bench w sekcji Połączenia z aplikacjami komputerowymi w PrintCutCarve.",
+      "rate_limited": "Zbyt wiele żądań. Poczekaj minutę, a następnie odśwież.",
+      "stale_document": "Projekt zmienił się podczas wczytywania grafiki. Wstaw ją ponownie do właściwego projektu.",
+      "unavailable": "Nie udało się połączyć z PrintCutCarve. Sprawdź połączenie i spróbuj ponownie.",
+      "file_too_large": "Ten plik lub jego podgląd jest zbyt duży, aby go zaimportować. Otwórz pakiet w PrintCutCarve.",
+      "unsupported_media_type": "Tego pliku nie można wstawić do Beam Bench. Otwórz go w PrintCutCarve, aby zobaczyć opcje pobierania.",
+      "not_found": "Ten plik nie jest już dostępny. Odśwież pakiet lub otwórz go w PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Wróć do Beam Bench, aby sprawdzić połączenie. Możesz zamknąć tę kartę.",
+    "pack_search": "Szukaj w swoich pakietach",
+    "empty_packs": "Nie znaleziono pakietów. Spróbuj innego wyszukiwania lub sprawdź Moje pliki do pobrania w PrintCutCarve.",
+    "back_to_packs": "Powrót do pakietów",
+    "file_count": "{count, plural, one {# plik} few {# pliki} many {# plików} other {# pliku}}",
+    "website": "Otwórz w PrintCutCarve",
+    "unavailable_file": "Tego pliku nie można wstawić. Otwórz pakiet w PrintCutCarve, aby zobaczyć opcje pobierania."
   }
 }

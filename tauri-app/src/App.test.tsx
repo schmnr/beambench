@@ -744,7 +744,9 @@ describe('App bootstrap', () => {
 
   it('warns when subscribing to the app event bridge fails', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockListen.mockRejectedValueOnce(new Error('listen failed'));
+    mockListen.mockImplementation((eventName: string) => eventName === 'app-event'
+      ? Promise.reject(new Error('listen failed'))
+      : Promise.resolve(() => {}));
 
     render(<App />);
 

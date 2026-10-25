@@ -30,6 +30,7 @@ import { useAppStore } from './stores/appStore';
 import { useProjectStore } from './stores/projectStore';
 import { usePreviewStore } from './stores/previewStore';
 import { useUiStore } from './stores/uiStore';
+import { useConnectedLibraryEvents } from './stores/connectedLibraryStore';
 import { useUndoStore } from './stores/undoStore';
 import { useUnsavedGuardStore } from './stores/unsavedGuardStore';
 import i18n from './i18n';
@@ -497,6 +498,7 @@ function NestingOverlay() {
 }
 
 function App() {
+  useConnectedLibraryEvents();
   const fetchStatus = useAppStore((s) => s.fetchStatus);
   const fetchSettings = useAppStore((s) => s.fetchSettings);
   const loadProject = useProjectStore((s) => s.loadProject);

@@ -2959,6 +2959,48 @@
       "unavailable": "Službu Craftgineer se nepodařilo kontaktovat. Zkontrolujte připojení a zkuste to znovu."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Vraťte se do Beam Bench a zkontrolujte připojení. Tuto kartu můžete zavřít."
+  },
+  "printcutcarve_library": {
+    "title": "Připojení ke službě PrintCutCarve",
+    "manage": "Spravovat připojení",
+    "disclosure": "Připojte svůj účet PrintCutCarve a prohlížejte balíčky dostupné díky aktivnímu placenému členství nebo dokončeným nákupům balíčků. Vyberte balíček a poté vložte návrh. Vložená grafika se ukládá do projektu Beam Bench a zůstává dostupná offline.",
+    "remember": "Bezpečně si zapamatovat tento účet na tomto počítači",
+    "connect": "Připojit PrintCutCarve",
+    "disconnect": "Odpojit",
+    "browse": "Procházet knihovnu",
+    "session_only": "Připojeno pouze pro tuto relaci. Bezpečné ukládání přihlašovacích údajů není dostupné. Po restartování aplikace Beam Bench se znovu připojte.",
+    "waiting": "Dokončete připojení v prohlížeči. Zde je můžete zrušit.",
+    "search": "Hledat návrhy v tomto balíčku",
+    "refresh": "Obnovit",
+    "open_project": "Pro vložení grafiky otevřete projekt.",
+    "empty": "V tomto balíčku nejsou žádné odpovídající návrhy.",
+    "insert": "Vložit",
+    "more": "Načíst další",
+    "errors": {
+      "subscription_required": "Je vyžadováno aktivní placené členství nebo zakoupený balíček návrhů. Svůj účet můžete spravovat ve službě PrintCutCarve.",
+      "invalid_token": "Platnost tohoto připojení vypršela nebo byl přístup odvolán. Odpojte se a pak se znovu připojte.",
+      "revision_conflict": "Tento soubor se změnil. Obnovte knihovnu a zkuste to znovu.",
+      "access_denied": "Připojení bylo zrušeno v prohlížeči.",
+      "connection_timeout": "Časový limit připojení vypršel. Zkuste se připojit znovu.",
+      "wallet_cleanup_required": "Účet byl pro tuto relaci odpojen, ale uložené přihlašovací údaje se nepodařilo odstranit. Odemkněte úložiště hesel a znovu se odpojte. Přístup aplikace Beam Bench můžete také odvolat v sekci Připojení desktopových aplikací ve službě PrintCutCarve.",
+      "revocation_pending": "Na tomto počítači odpojeno. Web se nepodařilo kontaktovat kvůli odvolání přístupu. Odvolejte přístup aplikace Beam Bench v sekci Připojení desktopových aplikací ve službě PrintCutCarve.",
+      "rate_limited": "Příliš mnoho požadavků. Počkejte minutu a pak zobrazení obnovte.",
+      "stale_document": "Projekt se během načítání grafiky změnil. Vložte ji znovu do požadovaného projektu.",
+      "unavailable": "Službu PrintCutCarve se nepodařilo kontaktovat. Zkontrolujte připojení a zkuste to znovu.",
+      "file_too_large": "Tento soubor nebo jeho náhled je příliš velký pro import. Otevřete balíček ve službě PrintCutCarve.",
+      "unsupported_media_type": "Tento soubor nelze vložit do Beam Bench. Otevřete jej ve službě PrintCutCarve a zobrazte možnosti stažení.",
+      "not_found": "Tento soubor již není dostupný. Obnovte balíček nebo jej otevřete ve službě PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Vraťte se do Beam Bench a zkontrolujte připojení. Tuto kartu můžete zavřít.",
+    "pack_search": "Hledat ve svých balíčcích",
+    "empty_packs": "Nebyly nalezeny žádné balíčky. Zkuste jiné hledání nebo se podívejte do sekce Moje stažené soubory ve službě PrintCutCarve.",
+    "back_to_packs": "Zpět na balíčky",
+    "file_count": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
+    "website": "Otevřít ve službě PrintCutCarve",
+    "unavailable_file": "Tento soubor nelze vložit. Otevřete balíček ve službě PrintCutCarve a zobrazte možnosti stažení."
   }
 }

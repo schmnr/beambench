@@ -1,7 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const mock = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('./invoke', () => mock);
-import { connectedLibraryService as service, type LibraryFile } from './connectedLibraryService';
+import {
+  connectedLibraryService as service,
+  printcutcarveLibraryService,
+  type LibraryFile,
+} from './connectedLibraryService';
 import { beginNewDocument } from '../stores/documentGeneration';
 const file: LibraryFile = {
   id: 'saved-file',
@@ -32,7 +36,8 @@ it('does not begin a download after the frontend document changed while obtainin
 it('carries the native document lease through insertion', async () => {
   mock.invoke.mockResolvedValueOnce(7).mockResolvedValueOnce([]);
   await service.insert(file, 'project', 'layer');
-  expect(mock.invoke).toHaveBeenLastCalledWith('craftgineer_insert', {
+  expect(mock.invoke).toHaveBeenLastCalledWith('connected_library_insert', {
+    provider: 'craftgineer',
     file,
     projectId: 'project',
     layerId: 'layer',
@@ -40,4 +45,17 @@ it('carries the native document lease through insertion', async () => {
     requestId: expect.any(String),
     createLayer: null,
   });
+});
+
+it('keeps the user action identifier across an explicit retry and binds it to the provider', async () => {
+  const requestId = crypto.randomUUID();
+  mock.invoke.mockResolvedValue(7);
+  await printcutcarveLibraryService.insert(file, 'project', 'layer', undefined, requestId);
+  await printcutcarveLibraryService.insert(file, 'project', 'layer', undefined, requestId);
+  const calls = mock.invoke.mock.calls.filter(
+    ([command]) => command === 'connected_library_insert',
+  );
+  expect(calls).toHaveLength(2);
+  expect(calls[0][1]).toMatchObject({ provider: 'printcutcarve', requestId });
+  expect(calls[1][1]).toMatchObject({ provider: 'printcutcarve', requestId });
 });

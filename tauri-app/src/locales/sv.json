@@ -2959,6 +2959,48 @@
       "unavailable": "Craftgineer kunde inte nås. Kontrollera anslutningen och försök igen."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Gå tillbaka till Beam Bench för att kontrollera anslutningen. Du kan stänga den här fliken."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve-anslutning",
+    "manage": "Hantera anslutningar",
+    "disclosure": "Anslut ditt PrintCutCarve-konto för att visa paket som är tillgängliga genom ett aktivt betalt medlemskap eller genomförda paketköp. Välj ett paket och infoga sedan en design. Infogade bilder sparas i ditt Beam Bench-projekt och är tillgängliga offline.",
+    "remember": "Kom ihåg det här kontot säkert på den här datorn",
+    "connect": "Anslut PrintCutCarve",
+    "disconnect": "Koppla från",
+    "browse": "Bläddra i biblioteket",
+    "session_only": "Ansluten endast för den här sessionen. Säker lagring av inloggningsuppgifter är inte tillgänglig. Anslut igen efter att du har startat om Beam Bench.",
+    "waiting": "Slutför anslutningen i webbläsaren. Du kan avbryta här.",
+    "search": "Sök efter designer i det här paketet",
+    "refresh": "Uppdatera",
+    "open_project": "Öppna ett projekt för att infoga bilder.",
+    "empty": "Inga matchande designer i det här paketet.",
+    "insert": "Infoga",
+    "more": "Läs in fler",
+    "errors": {
+      "subscription_required": "Ett aktivt betalt medlemskap eller ett köpt designpaket krävs. Hantera ditt konto på PrintCutCarve.",
+      "invalid_token": "Den här anslutningen har upphört att gälla eller har återkallats. Koppla från och anslut sedan igen.",
+      "revision_conflict": "Den här filen har ändrats. Uppdatera biblioteket och försök igen.",
+      "access_denied": "Anslutningen avbröts i webbläsaren.",
+      "connection_timeout": "Tidsgränsen för anslutningen överskreds. Försök ansluta igen.",
+      "wallet_cleanup_required": "Kontot kopplades från för den här sessionen, men sparade inloggningsuppgifter kunde inte tas bort. Lås upp systemets lösenordslager och koppla från igen. Du kan också återkalla åtkomsten för Beam Bench under Anslutningar till skrivbordsappar på PrintCutCarve.",
+      "revocation_pending": "Frånkopplad på den här datorn. Webbplatsen kunde inte nås för att återkalla åtkomsten. Återkalla åtkomsten för Beam Bench under Anslutningar till skrivbordsappar på PrintCutCarve.",
+      "rate_limited": "För många förfrågningar. Vänta en minut och uppdatera sedan.",
+      "stale_document": "Projektet ändrades medan bilden lästes in. Infoga den igen i det avsedda projektet.",
+      "unavailable": "PrintCutCarve kunde inte nås. Kontrollera anslutningen och försök igen.",
+      "file_too_large": "Den här filen eller dess förhandsvisning är för stor för att importera. Öppna paketet på PrintCutCarve.",
+      "unsupported_media_type": "Den här filen kan inte infogas i Beam Bench. Öppna den på PrintCutCarve för att se nedladdningsalternativ.",
+      "not_found": "Den här filen är inte längre tillgänglig. Uppdatera paketet eller öppna den på PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Gå tillbaka till Beam Bench för att kontrollera anslutningen. Du kan stänga den här fliken.",
+    "pack_search": "Sök bland dina paket",
+    "empty_packs": "Inga paket hittades. Prova en annan sökning eller kontrollera Mina nedladdningar på PrintCutCarve.",
+    "back_to_packs": "Tillbaka till paket",
+    "file_count": "{count, plural, one {# fil} other {# filer}}",
+    "website": "Öppna på PrintCutCarve",
+    "unavailable_file": "Den här filen kan inte infogas. Öppna paketet på PrintCutCarve för nedladdningsalternativ."
   }
 }

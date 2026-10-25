@@ -21,7 +21,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ORIGIN = 'https://craftgineer.com'
+PROVIDER = 'craftgineer'
+HOST = 'craftgineer.com'
+ORIGIN = 'https://' + HOST
+PROVIDER_NAME = 'Craftgineer'
+EXPECTED_CALLBACK_STATUS = 200
 ELEMENT = 'element-6066-11e4-a52e-4f735466cecf'
 
 
@@ -55,13 +59,14 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 class HostedAccount:
     def __init__(self, account):
         self.account = account
+        self.cookies = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), NoRedirect())
+            urllib.request.HTTPCookieProcessor(self.cookies), NoRedirect())
 
     def request(self, path, data=None, headers=None):
         url = urllib.parse.urljoin(ORIGIN, path)
         destination = urllib.parse.urlsplit(url)
-        if destination.scheme != 'https' or destination.netloc != 'craftgineer.com':
+        if destination.scheme != 'https' or destination.netloc != HOST:
             raise RuntimeError('hosted_request_origin_rejected')
         request = urllib.request.Request(url, data=data, headers={
             'Origin': ORIGIN, 'Accept-Language': 'en',
@@ -79,6 +84,19 @@ class HostedAccount:
             return response.status, response.headers, body
 
     def login(self):
+        if PROVIDER == 'printcutcarve':
+            # Approved disposable DB sessions avoid sending email or using a real
+            # Google identity. Native PKCE consent and token exchange stay real.
+            value = self.account.get('sessionToken', '')
+            if not re.fullmatch(r'[a-f0-9]{64}', value):
+                raise RuntimeError('disposable_session_invalid')
+            self.cookies.set_cookie(http.cookiejar.Cookie(0, '__Secure-next-auth.session-token',
+                value, None, False, HOST, False, False, '/', True, True,
+                None, True, None, None, {'HttpOnly': None}, False))
+            status, _, body = self.request('/api/auth/session')
+            if status != 200 or json.loads(body).get('user', {}).get('id') != self.account['id']:
+                raise RuntimeError('disposable_session_rejected')
+            return
         status, _, body = self.request('/api/auth/csrf')
         if status != 200:
             raise RuntimeError('csrf_request_failed')
@@ -96,12 +114,12 @@ class HostedAccount:
     def consent(self, url):
         parsed = urllib.parse.urlsplit(url)
         query = urllib.parse.parse_qs(parsed.query)
-        if parsed.scheme != 'https' or parsed.netloc != 'craftgineer.com' or parsed.path != '/integrations/desktop/authorize':
+        if parsed.scheme != 'https' or parsed.netloc != HOST or parsed.path != '/integrations/desktop/authorize':
             raise RuntimeError('consent_origin_rejected')
         if query.get('client_id') != ['beambench-desktop'] or query.get('scope') != ['library:read']:
             raise RuntimeError('consent_scope_rejected')
         callback = urllib.parse.urlsplit(query['redirect_uri'][0])
-        if callback.scheme != 'http' or callback.hostname != '127.0.0.1' or callback.path != '/oauth/craftgineer/callback' or not callback.port:
+        if callback.scheme != 'http' or callback.hostname != '127.0.0.1' or callback.path != '/oauth/' + PROVIDER + '/callback' or not callback.port:
             raise RuntimeError('callback_rejected')
         status, _, body = self.request(url)
         forms = Forms()
@@ -123,7 +141,7 @@ class HostedAccount:
         # Normal browser callback to the real app's listener. Never print the URL.
         try:
             with urllib.request.urlopen(target.geturl(), timeout=10) as response:
-                if response.status != 204:
+                if response.status != EXPECTED_CALLBACK_STATUS:
                     raise RuntimeError('native_callback_failed')
         except urllib.error.URLError as error:
             raise RuntimeError('callback_network_' + type(error.reason).__name__) from None
@@ -222,8 +240,16 @@ class Driver:
             self.click('//button[@aria-label="Library" or @title="Library"]')
         self.button('Manage connections')
 
+    def choose_provider(self):
+        self.click('//button[@aria-pressed and normalize-space(.)=' + json.dumps(PROVIDER_NAME) + ']')
+
+    def search_packs(self, value):
+        element = self.element('//input[@aria-label="Search your packs"]')
+        self.command('POST', '/element/' + element + '/clear', {})
+        self.command('POST', '/element/' + element + '/value', {'text': value})
+
     def set_remember(self, remember):
-        checkbox = self.element('//section[@aria-label="Craftgineer connection"]//input[@type="checkbox"]')
+        checkbox = self.element('//section[@aria-label=' + json.dumps(PROVIDER_NAME + ' connection') + ']//input[@type="checkbox"]')
         if self.command('GET', '/element/'+checkbox+'/selected') != remember:
             self.command('POST', '/element/'+checkbox+'/click', {})
 
@@ -291,6 +317,15 @@ class WindowsDriver(Driver):
             self.button('Library')
         self.button('Manage connections')
 
+    def choose_provider(self):
+        self.button(PROVIDER_NAME)
+
+    def search_packs(self, value):
+        choices = [c for c in self.controls('Edit') if c.window_text() == 'Search your packs']
+        if len(choices) != 1:
+            raise RuntimeError('native_pack_search_missing')
+        choices[0].set_edit_text(value)
+
     def set_remember(self, remember):
         choices = [c for c in self.controls('CheckBox') if 'Remember this account' in c.window_text()]
         if len(choices) != 1:
@@ -317,7 +352,7 @@ def capture_opener(root):
     program = root / 'capture-url.py'
     program.write_text('import pathlib,sys,urllib.parse\n'
         'url=sys.argv[1]\np=urllib.parse.urlsplit(url)\n'
-        'assert p.scheme=="https" and p.netloc=="craftgineer.com" and p.path=="/integrations/desktop/authorize"\n'
+        f'assert p.scheme=="https" and p.netloc=={HOST!r} and p.path=="/integrations/desktop/authorize"\n'
         'pathlib.Path(' + repr(str(capture)) + ').write_text(url)\n')
     if sys.platform == 'win32':
         if os.environ.get('GITHUB_ACTIONS') != 'true':
@@ -344,7 +379,7 @@ def capture_opener(root):
         # Shell builtins avoid loading the host Python runtime with AppImage
         # library paths inherited by the desktop's normal URL opener.
         opener.write_text('#!/bin/sh\ncase "$1" in\n'
-            'https://craftgineer.com/integrations/desktop/authorize\\?*)\n'
+            f'https://{HOST}/integrations/desktop/authorize\\?*)\n'
             'umask 077\nprintf "%s" "$1" > "' + str(capture) + '";;\n'
             '*) exit 1;;\nesac\n')
         opener.chmod(0o700)
@@ -369,19 +404,34 @@ def capture_opener(root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--provider', choices=['craftgineer', 'printcutcarve'], default='craftgineer')
+    parser.add_argument('--expected-callback-status', type=int, choices=[200, 204], default=200, help='Use 204 only when reproducing an older signed candidate.')
     parser.add_argument('--application', type=Path, required=True)
     parser.add_argument('--driver', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--scenario', choices=['lifecycle', 'session-only', 'wallet-unlock', 'wallet-deny', 'wallet-unavailable', 'deletion'], default='lifecycle')
     parser.add_argument('--wallet-provider', choices=['gnome','kde'])
     args = parser.parse_args()
+    global PROVIDER, HOST, ORIGIN, PROVIDER_NAME, EXPECTED_CALLBACK_STATUS
+    PROVIDER = args.provider
+    HOST = PROVIDER + '.com'
+    ORIGIN = 'https://' + HOST
+    PROVIDER_NAME = 'Craftgineer' if PROVIDER == 'craftgineer' else 'PrintCutCarve'
+    EXPECTED_CALLBACK_STATUS = args.expected_callback_status
+    if PROVIDER == 'printcutcarve' and args.scenario == 'deletion':
+        raise RuntimeError('printcutcarve_hosted_deletion_not_supported_by_driver')
     accounts = json.loads(os.environ.pop('BEAMBENCH_PILOT_ACCOUNTS'))
     deletion_input = os.environ.pop('BEAMBENCH_PILOT_DELETE_PROOF','')
     deletion_proof = json.loads(deletion_input) if deletion_input else None
-    if accounts['run'] != 'beambench-phase2-final-20261025' or len(accounts['accounts']) != 2:
+    expected_run = 'beambench-phase2-final-20261025' if PROVIDER == 'craftgineer' else 'beambench-pcc-20261025'
+    if accounts['run'] != expected_run or len(accounts['accounts']) != 2:
         raise RuntimeError('invalid_disposable_accounts')
     for account in accounts['accounts']:
-        if not re.fullmatch(r'bbp2_[a-f0-9]{16}_[ab]', account['id']) or not re.fullmatch(r'bbp2-[a-f0-9]{16}-[ab]@example\.invalid', account['email']):
+        if PROVIDER == 'craftgineer':
+            valid = re.fullmatch(r'bbp2_[a-f0-9]{16}_[ab]', account['id']) and re.fullmatch(r'bbp2-[a-f0-9]{16}-[ab]@example\.invalid', account['email'])
+        else:
+            valid = re.fullmatch(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', account['id']) and re.fullmatch(r'pccbb-[a-f0-9]{16}-[ab]@example\.invalid', account['email']) and bool(account.get('pack'))
+        if not valid:
             raise RuntimeError('personal_account_rejected')
     from datetime import datetime, timezone
     if datetime.fromisoformat(accounts['expiresAt'].replace('Z', '+00:00')) <= datetime.now(timezone.utc):
@@ -436,6 +486,7 @@ def main():
             except RuntimeError:
                 pass
             active.open_connections()
+            active.choose_provider()
             return active
 
         def passed(name):
@@ -448,7 +499,7 @@ def main():
             active.set_remember(remember)
             web = HostedAccount(account)
             web.login()
-            active.button('Connect Craftgineer')
+            active.button('Connect ' + PROVIDER_NAME)
             print('checkpoint=native_connect_clicked',flush=True)
             active.wait(capture.exists, 'external_consent')
             web.consent(capture.read_text())
@@ -458,6 +509,10 @@ def main():
             print('checkpoint=connected_account_visible',flush=True)
             active.button('Browse library')
             print('checkpoint=library_opened',flush=True)
+            if PROVIDER == 'printcutcarve':
+                active.search_packs(account['pack'])
+                active.wait(lambda: account['pack'] in active.text() and active.button_enabled('Open'), 'pack_listing')
+                active.button('Open')
             active.wait(lambda: account['fixture'] in active.text(), 'account_listing')
             other = next(a for a in accounts['accounts'] if a['id'] != account['id'])
             if other['fixture'] in active.text():
@@ -472,7 +527,7 @@ def main():
             if not args.wallet_provider:
                 raise RuntimeError('wallet_provider_required')
             command = [sys.executable,str(wallet_tool),action,'--provider',args.wallet_provider,
-                '--output',str(root/('wallet-'+action+'.json'))]
+                '--output',str(root/('wallet-'+action+'.json')), '--library-provider', PROVIDER]
             if background:
                 return subprocess.Popen(command)
             subprocess.run(command,check=True,timeout=35)
@@ -489,7 +544,7 @@ def main():
                 driver.wait(lambda: first['name'] in driver.text(),'locked_wallet_restored')
                 passed('native_prompt_unlock_and_account_restore')
             else:
-                driver.wait(lambda: 'Secure credential storage is unavailable' in driver.text(),'denied_restore_fallback')
+                driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME),'denied_restore_not_connected')
                 if first['name'] in driver.text():
                     raise RuntimeError('account_restored_after_wallet_denial')
                 passed('native_prompt_denial_rejected_restore')
@@ -505,16 +560,16 @@ def main():
                 driver.button('Disconnect')
                 if answer.wait(timeout=30) != 0:
                     raise RuntimeError('wallet_cleanup_unlock_failed')
-                driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'denied_store_disconnect')
+                driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME),'denied_store_disconnect')
                 driver.quit()
                 driver = launch()
-                driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'denied_store_restart')
+                driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME),'denied_store_restart')
                 if first['name'] in driver.text() or second['name'] in driver.text():
                     raise RuntimeError('denied_store_old_account_restored')
                 passed('denied_store_cleanup_and_restart')
             if args.scenario == 'wallet-unlock':
                 driver.button('Disconnect')
-                driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'unlocked_store_disconnect')
+                driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME),'unlocked_store_disconnect')
             driver.screenshot(root/'wallet-result.png')
             # Continue through the normal explicit session-only restart check.
         if args.scenario == 'wallet-unavailable':
@@ -523,7 +578,7 @@ def main():
             passed('unavailable_store_session_only')
             driver.quit()
             driver = launch()
-            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'missing_bus_not_restored')
+            driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME),'missing_bus_not_restored')
             if first['name'] in driver.text():
                 raise RuntimeError('unavailable_store_restored')
             passed('unavailable_store_not_restored')
@@ -536,7 +591,7 @@ def main():
             driver.wait(lambda: first['name'] in driver.text(), 'remembered_account_a')
             passed('remembered_restart_a')
             driver.button('Disconnect')
-            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'disconnect_a')
+            driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME), 'disconnect_a')
             if first['name'] in driver.text():
                 raise RuntimeError('old_account_visible_after_disconnect')
             connect(driver, second, True)
@@ -549,10 +604,10 @@ def main():
                 raise RuntimeError('wrong_account_restored')
             passed('remembered_restart_b')
             driver.button('Disconnect')
-            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'disconnect_b')
+            driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME), 'disconnect_b')
             driver.quit()
             driver = launch()
-            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'disconnect_persisted')
+            driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME), 'disconnect_persisted')
             if first['name'] in driver.text() or second['name'] in driver.text():
                 raise RuntimeError('account_restored_after_disconnect')
             passed('disconnect_and_restart_without_account')
@@ -567,13 +622,13 @@ def main():
             web.delete_disposable(deletion_proof)
             passed('hosted_confirmation_delete_and_session_revocation')
             driver.button('Refresh')
-            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'deleted_account_disconnected')
+            driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME),'deleted_account_disconnected')
             if second['name'] in driver.text() or second['fixture'] in driver.text():
                 raise RuntimeError('deleted_account_visible')
             passed('deleted_account_revoked_native_library_and_credential')
             driver.quit()
             driver = launch()
-            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'deleted_account_not_restored')
+            driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME),'deleted_account_not_restored')
             if second['name'] in driver.text():
                 raise RuntimeError('deleted_account_restored')
             passed('deleted_account_not_restored_after_restart')
@@ -582,7 +637,7 @@ def main():
             passed('explicit_session_only_connection')
             driver.quit()
             driver = launch()
-            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'session_only_not_restored')
+            driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME), 'session_only_not_restored')
             if second['name'] in driver.text():
                 raise RuntimeError('session_only_restored')
             passed('session_only_not_restored')
@@ -590,7 +645,8 @@ def main():
         if hashlib.sha256(application.read_bytes()).hexdigest() != original_hash:
             raise RuntimeError('signed_application_changed')
         (root/'results.json').write_text(json.dumps({'scenario':args.scenario,
-            'platform':sys.platform,'applicationSha256':original_hash,
+            'platform':sys.platform,'provider':PROVIDER,'applicationSha256':original_hash,
+            'callbackStatus':EXPECTED_CALLBACK_STATUS,
             'passed':results,'ipcMocked':False,'tlsVerificationBypassed':False,
             'nativePasswordPromptsTested':args.scenario in ['wallet-unlock','wallet-deny']},indent=2)+'\n')
         print(json.dumps({'passed':results,'platform':sys.platform}))
