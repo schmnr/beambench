@@ -396,6 +396,27 @@ async fn complete_refresh(
     connection.tokens = tokens;
     Ok(())
 }
+async fn restored(
+    manager: &ConnectedLibrary,
+    generation: u64,
+    saved: Saved,
+    result: std::result::Result<Tokens, TokenRequestError>,
+) -> Result<Connection> {
+    let tokens = result.map_err(TokenRequestError::refresh_code)?;
+    if tokens.account_id != saved.account_id {
+        return Err(error("library_account_mismatch"));
+    }
+    manager.check(generation)?;
+    let remembered = manager.remember(&tokens).await;
+    Ok(Connection {
+        expires: tokio::time::Instant::now()
+            + Duration::from_secs(tokens.expires_in.saturating_sub(30)),
+        tokens,
+        remembered,
+        wallet_unavailable: !remembered,
+        completed_inserts: Default::default(),
+    })
+}
 
 #[tauri::command]
 pub async fn craftgineer_status(
@@ -418,26 +439,13 @@ pub async fn craftgineer_status(
             if let Some(saved) = saved {
                 let saved: Saved =
                     serde_json::from_str(&saved).map_err(|_| error("invalid_token"))?;
-                let tokens = token_request(&[
+                let result = token_request(&[
                     ("client_id", "beambench-desktop"),
                     ("grant_type", "refresh_token"),
                     ("refresh_token", &saved.refresh_token),
                 ])
-                .await
-                .map_err(TokenRequestError::refresh_code)?;
-                if tokens.account_id != saved.account_id {
-                    return Err(error("library_account_mismatch"));
-                }
-                manager.check(generation)?;
-                let remembered = manager.remember(&tokens).await;
-                *guard = Some(Connection {
-                    expires: tokio::time::Instant::now()
-                        + Duration::from_secs(tokens.expires_in.saturating_sub(30)),
-                    tokens,
-                    remembered,
-                    wallet_unavailable: !remembered,
-                    completed_inserts: Default::default(),
-                });
+                .await;
+                *guard = Some(restored(&manager, generation, saved, result).await?);
             }
         }
         let Some(connection) = guard.as_mut() else {
@@ -947,6 +955,20 @@ mod tests {
         server.await.unwrap();
         result
     }
+    async fn connection_failure() -> std::result::Result<Tokens, TokenRequestError> {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        receive_tokens(
+            reqwest::Client::builder()
+                .no_proxy()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap()
+                .post(format!("http://{address}/token")),
+        )
+        .await
+    }
 
     #[tokio::test]
     async fn remembered_refresh_survives_offline_and_pre_rotation_rejections() {
@@ -966,19 +988,8 @@ mod tests {
         };
         assert!(manager.remember(&connection.tokens).await);
         // A refused connection uses the same reqwest is_connect classification as DNS failure.
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        drop(listener);
-        let offline = receive_tokens(
-            reqwest::Client::builder()
-                .no_proxy()
-                .build()
-                .unwrap()
-                .post(format!("http://{address}/token")),
-        )
-        .await;
         for (result, expected) in [
-            (offline, "service_unavailable"),
+            (connection_failure().await, "service_unavailable"),
             (
                 token_response(503, String::new()).await,
                 "service_unavailable",
@@ -1018,6 +1029,64 @@ mod tests {
         let saved: Saved = serde_json::from_str(&saved).unwrap();
         assert_eq!(saved.refresh_token, "n".repeat(43));
         manager.vault().call(None, false).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn remembered_restore_retries_after_an_outage_without_browser_login() {
+        fn manager() -> ConnectedLibrary {
+            ConnectedLibrary {
+                vault: OnceLock::from(Vault::with_initializer(
+                    mock_store,
+                    "com.beambench.desktop-library.test.restore",
+                )),
+                ..Default::default()
+            }
+        }
+        let first_process = manager();
+        assert!(first_process.remember(&fixture_tokens('r')).await);
+        drop(first_process);
+        for status in [0, 503, 429] {
+            let relaunched = manager();
+            let saved = relaunched.vault().call(None, true).await.unwrap().unwrap();
+            let saved: Saved = serde_json::from_str(&saved).unwrap();
+            let response = if status == 0 {
+                connection_failure().await
+            } else {
+                token_response(status, String::new()).await
+            };
+            let result = restored(&relaunched, 0, saved, response).await;
+            assert_eq!(
+                result.err().unwrap(),
+                if status == 429 {
+                    "rate_limited"
+                } else {
+                    "service_unavailable"
+                },
+            );
+            let saved = relaunched.vault().call(None, true).await.unwrap().unwrap();
+            let saved: Saved = serde_json::from_str(&saved).unwrap();
+            assert_eq!(saved.refresh_token, "r".repeat(43));
+        }
+        let relaunched = manager();
+        let saved = relaunched.vault().call(None, true).await.unwrap().unwrap();
+        let saved: Saved = serde_json::from_str(&saved).unwrap();
+        let response = token_response(
+            200,
+            serde_json::json!({
+                "access_token": "a".repeat(43), "refresh_token": "n".repeat(43),
+                "account_id": "disposable-test-account", "expires_in": 900,
+                "token_type": "Bearer", "scope": "library:read",
+            })
+            .to_string(),
+        )
+        .await;
+        let connection = restored(&relaunched, 0, saved, response).await.unwrap();
+        assert!(connection.remembered);
+        assert_eq!(connection.tokens.refresh_token, "n".repeat(43));
+        let saved = relaunched.vault().call(None, true).await.unwrap().unwrap();
+        let saved: Saved = serde_json::from_str(&saved).unwrap();
+        assert_eq!(saved.refresh_token, "n".repeat(43));
+        relaunched.vault().call(None, false).await.unwrap();
     }
 
     #[tokio::test]
