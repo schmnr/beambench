@@ -207,6 +207,11 @@ export function CraftgineerPanel({ connections = false }: { connections?: boolea
                 {t('connected_library.browse')}
               </button>
             )}
+            {!account && error && (
+              <button className={button} disabled={busy} onClick={() => void restore()}>
+                {t('connected_library.refresh')}
+              </button>
+            )}
           </div>
           {status?.walletUnavailable && <p role="status">{t('connected_library.session_only')}</p>}
         </>

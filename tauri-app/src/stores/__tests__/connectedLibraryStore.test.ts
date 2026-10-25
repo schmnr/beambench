@@ -14,9 +14,40 @@ const account = {
 };
 beforeEach(() => {
   vi.resetAllMocks();
+  window.localStorage.clear();
   store.setState({ status: null, busy: false, error: null });
 });
 describe('connected library account boundaries', () => {
+  it.each(['service_unavailable', 'rate_limited'])(
+    'keeps a remembered login after %s during relaunch and restores on retry',
+    async (error) => {
+      const key = 'beam-bench.craftgineer.remember';
+      window.localStorage.setItem(key, '1');
+      mock.status.mockRejectedValueOnce(error).mockResolvedValueOnce(account);
+      await store.getState().restore();
+      expect(mock.status).toHaveBeenLastCalledWith(true);
+      expect(window.localStorage.getItem(key)).toBe('1');
+      expect(store.getState().status).toBeNull();
+      expect(store.getState().error).toBe(error);
+      expect(store.getState().busy).toBe(false);
+
+      // Relaunching while offline must not turn the next restore into status(false).
+      store.setState({ status: null, busy: false, error: null });
+      await store.getState().restore();
+      expect(mock.status).toHaveBeenLastCalledWith(true);
+      expect(store.getState().status).toEqual(account);
+      expect(store.getState().error).toBeNull();
+    },
+  );
+  it('forgets a rejected or ambiguously rotated credential', async () => {
+    const key = 'beam-bench.craftgineer.remember';
+    window.localStorage.setItem(key, '1');
+    store.setState({ status: account });
+    mock.status.mockRejectedValue('invalid_token');
+    await store.getState().restore();
+    expect(window.localStorage.getItem(key)).toBe('0');
+    expect(store.getState().status).toBeNull();
+  });
   it('discards login completion after cancellation', async () => {
     let finish!: (value: typeof account) => void;
     mock.connect.mockReturnValue(

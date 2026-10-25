@@ -260,18 +260,59 @@ async fn bounded(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8
     }
     Ok(bytes)
 }
-async fn token_request(fields: &[(&str, &str)]) -> Result<Tokens> {
-    let response = client()?
-        .post(format!("{ORIGIN}{API}/token"))
-        .form(fields)
-        .send()
-        .await
-        .map_err(|_| error("service_unavailable"))?;
-    if response.status().as_u16() == 400 {
-        return Err(error("invalid_token"));
+#[derive(Debug)]
+enum TokenRequestError {
+    // The request was not sent, or the server rejected it before rotating tokens.
+    Retryable(String),
+    // The credential is invalid, or rotation may have committed without a response.
+    Discard(String),
+}
+impl TokenRequestError {
+    fn code(self) -> String {
+        match self {
+            Self::Retryable(code) | Self::Discard(code) => code,
+        }
     }
-    let bytes = Zeroizing::new(bounded(response, 8192).await?);
-    let tokens: Tokens = serde_json::from_slice(&bytes).map_err(|_| error("invalid_token"))?;
+    fn refresh_code(self) -> String {
+        match self {
+            Self::Retryable(code) => code,
+            Self::Discard(_) => error("invalid_token"),
+        }
+    }
+}
+async fn token_request(fields: &[(&str, &str)]) -> std::result::Result<Tokens, TokenRequestError> {
+    receive_tokens(
+        client()
+            .map_err(TokenRequestError::Retryable)?
+            .post(format!("{ORIGIN}{API}/token"))
+            .form(fields),
+    )
+    .await
+}
+async fn receive_tokens(
+    request: reqwest::RequestBuilder,
+) -> std::result::Result<Tokens, TokenRequestError> {
+    let response = request.send().await.map_err(|cause| {
+        let code = error("service_unavailable");
+        if cause.is_connect() {
+            TokenRequestError::Retryable(code)
+        } else {
+            TokenRequestError::Discard(code)
+        }
+    })?;
+    match response.status().as_u16() {
+        400 => return Err(TokenRequestError::Discard(error("invalid_token"))),
+        429 => return Err(TokenRequestError::Retryable(error("rate_limited"))),
+        503 => return Err(TokenRequestError::Retryable(error("service_unavailable"))),
+        _ => (),
+    }
+    let bytes = Zeroizing::new(
+        bounded(response, 8192)
+            .await
+            .map_err(TokenRequestError::Discard)?,
+    );
+    let tokens: Tokens = serde_json::from_slice(&bytes)
+        .map_err(|_| TokenRequestError::Discard(error("invalid_token")))?;
     let valid_secret = |s: &str| {
         s.len() == 43
             && s.bytes()
@@ -286,7 +327,7 @@ async fn token_request(fields: &[(&str, &str)]) -> Result<Tokens> {
         || tokens.expires_in == 0
         || tokens.expires_in > 900
     {
-        return Err(error("invalid_token"));
+        return Err(TokenRequestError::Discard(error("invalid_token")));
     }
     Ok(tokens)
 }
@@ -310,7 +351,7 @@ async fn refreshed(manager: &ConnectedLibrary, connection: &mut Connection) -> R
     if connection.expires > tokio::time::Instant::now() {
         return Ok(());
     }
-    // Never retry a refresh automatically: the server rotates it exactly once.
+    // Only a failure known to precede rotation leaves this token available for retry.
     if connection.tokens.refresh_token.is_empty() {
         return Err(error("invalid_token"));
     }
@@ -321,14 +362,26 @@ async fn refreshed(manager: &ConnectedLibrary, connection: &mut Connection) -> R
         ("refresh_token", &old_refresh),
     ])
     .await;
+    complete_refresh(manager, connection, old_refresh, result).await
+}
+async fn complete_refresh(
+    manager: &ConnectedLibrary,
+    connection: &mut Connection,
+    mut old_refresh: Zeroizing<String>,
+    result: std::result::Result<Tokens, TokenRequestError>,
+) -> Result<()> {
     let tokens = match result {
         Ok(tokens) => tokens,
-        Err(code) => {
+        Err(TokenRequestError::Retryable(code)) => {
+            connection.tokens.refresh_token = std::mem::take(&mut *old_refresh);
+            return Err(code);
+        }
+        Err(TokenRequestError::Discard(_)) => {
             // An interrupted refresh may already have rotated on the server.
             // Drop the old secret rather than replaying it on the next request.
             connection.remembered = false;
             let _ = manager.vault().call(None, false).await;
-            return Err(code);
+            return Err(error("invalid_token"));
         }
     };
     if tokens.account_id != connection.tokens.account_id {
@@ -342,6 +395,27 @@ async fn refreshed(manager: &ConnectedLibrary, connection: &mut Connection) -> R
         tokio::time::Instant::now() + Duration::from_secs(tokens.expires_in.saturating_sub(30));
     connection.tokens = tokens;
     Ok(())
+}
+async fn restored(
+    manager: &ConnectedLibrary,
+    generation: u64,
+    saved: Saved,
+    result: std::result::Result<Tokens, TokenRequestError>,
+) -> Result<Connection> {
+    let tokens = result.map_err(TokenRequestError::refresh_code)?;
+    if tokens.account_id != saved.account_id {
+        return Err(error("library_account_mismatch"));
+    }
+    manager.check(generation)?;
+    let remembered = manager.remember(&tokens).await;
+    Ok(Connection {
+        expires: tokio::time::Instant::now()
+            + Duration::from_secs(tokens.expires_in.saturating_sub(30)),
+        tokens,
+        remembered,
+        wallet_unavailable: !remembered,
+        completed_inserts: Default::default(),
+    })
 }
 
 #[tauri::command]
@@ -365,26 +439,13 @@ pub async fn craftgineer_status(
             if let Some(saved) = saved {
                 let saved: Saved =
                     serde_json::from_str(&saved).map_err(|_| error("invalid_token"))?;
-                let tokens = token_request(&[
+                let result = token_request(&[
                     ("client_id", "beambench-desktop"),
                     ("grant_type", "refresh_token"),
                     ("refresh_token", &saved.refresh_token),
                 ])
-                .await
-                .map_err(|_| error("invalid_token"))?;
-                if tokens.account_id != saved.account_id {
-                    return Err(error("library_account_mismatch"));
-                }
-                manager.check(generation)?;
-                let remembered = manager.remember(&tokens).await;
-                *guard = Some(Connection {
-                    expires: tokio::time::Instant::now()
-                        + Duration::from_secs(tokens.expires_in.saturating_sub(30)),
-                    tokens,
-                    remembered,
-                    wallet_unavailable: !remembered,
-                    completed_inserts: Default::default(),
-                });
+                .await;
+                *guard = Some(restored(&manager, generation, saved, result).await?);
             }
         }
         let Some(connection) = guard.as_mut() else {
@@ -543,7 +604,8 @@ pub async fn craftgineer_connect(
         ("code_verifier", &verifier),
         ("redirect_uri", &redirect),
     ])
-    .await?;
+    .await
+    .map_err(TokenRequestError::code)?;
     let result = async {
         let account = account(&tokens).await?;
         manager.check(generation)?;
@@ -835,14 +897,230 @@ pub async fn craftgineer_insert(
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn mock_store() -> Result<()> {
+        static INITIALIZED: OnceLock<()> = OnceLock::new();
+        INITIALIZED.get_or_init(|| {
+            keyring_core::set_default_store(
+                keyring_core::mock::Store::new().expect("create mock credential store"),
+            );
+        });
+        Ok(())
+    }
+    fn fixture_tokens(refresh: char) -> Tokens {
+        Tokens {
+            access_token: "a".repeat(43),
+            refresh_token: refresh.to_string().repeat(43),
+            account_id: "disposable-test-account".into(),
+            expires_in: 900,
+            token_type: "Bearer".into(),
+            scope: "library:read".into(),
+        }
+    }
+    async fn token_response(
+        status: u16,
+        body: String,
+    ) -> std::result::Result<Tokens, TokenRequestError> {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            loop {
+                let mut bytes = [0; 1024];
+                let count = stream.read(&mut bytes).await.unwrap();
+                assert!(count > 0);
+                request.extend_from_slice(&bytes[..count]);
+                if request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            // status 0 simulates losing the response after receiving the request.
+            if status != 0 {
+                let response = format!(
+                    "HTTP/1.1 {status} Test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len(),
+                );
+                stream.write_all(response.as_bytes()).await.unwrap();
+            }
+        });
+        let result = receive_tokens(
+            reqwest::Client::builder()
+                .no_proxy()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap()
+                .post(format!("http://{address}/token")),
+        )
+        .await;
+        server.await.unwrap();
+        result
+    }
+    async fn connection_failure() -> std::result::Result<Tokens, TokenRequestError> {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        receive_tokens(
+            reqwest::Client::builder()
+                .no_proxy()
+                .timeout(Duration::from_secs(5))
+                .build()
+                .unwrap()
+                .post(format!("http://{address}/token")),
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn remembered_refresh_survives_offline_and_pre_rotation_rejections() {
+        let manager = ConnectedLibrary {
+            vault: OnceLock::from(Vault::with_initializer(
+                mock_store,
+                "com.beambench.desktop-library.test.retry",
+            )),
+            ..Default::default()
+        };
+        let mut connection = Connection {
+            tokens: fixture_tokens('r'),
+            expires: tokio::time::Instant::now(),
+            remembered: true,
+            wallet_unavailable: false,
+            completed_inserts: Default::default(),
+        };
+        assert!(manager.remember(&connection.tokens).await);
+        // A refused connection uses the same reqwest is_connect classification as DNS failure.
+        for (result, expected) in [
+            (connection_failure().await, "service_unavailable"),
+            (
+                token_response(503, String::new()).await,
+                "service_unavailable",
+            ),
+            (token_response(429, String::new()).await, "rate_limited"),
+        ] {
+            let old = Zeroizing::new(std::mem::take(&mut connection.tokens.refresh_token));
+            assert_eq!(
+                complete_refresh(&manager, &mut connection, old, result).await,
+                Err(error(expected)),
+            );
+            assert!(connection.remembered);
+            assert_eq!(connection.tokens.refresh_token, "r".repeat(43));
+            let saved = manager.vault().call(None, true).await.unwrap().unwrap();
+            let saved: Saved = serde_json::from_str(&saved).unwrap();
+            assert_eq!(saved.refresh_token, "r".repeat(43));
+        }
+        // A fresh restore still reads the original credential, then persists the rotated one.
+        let saved = manager.vault().call(None, true).await.unwrap().unwrap();
+        let saved: Saved = serde_json::from_str(&saved).unwrap();
+        let old = Zeroizing::new(saved.refresh_token.clone());
+        let response = token_response(
+            200,
+            serde_json::json!({
+                "access_token": "a".repeat(43), "refresh_token": "n".repeat(43),
+                "account_id": saved.account_id, "expires_in": 900,
+                "token_type": "Bearer", "scope": "library:read",
+            })
+            .to_string(),
+        )
+        .await;
+        complete_refresh(&manager, &mut connection, old, response)
+            .await
+            .unwrap();
+        assert_eq!(connection.tokens.refresh_token, "n".repeat(43));
+        let saved = manager.vault().call(None, true).await.unwrap().unwrap();
+        let saved: Saved = serde_json::from_str(&saved).unwrap();
+        assert_eq!(saved.refresh_token, "n".repeat(43));
+        manager.vault().call(None, false).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn remembered_restore_retries_after_an_outage_without_browser_login() {
+        fn manager() -> ConnectedLibrary {
+            ConnectedLibrary {
+                vault: OnceLock::from(Vault::with_initializer(
+                    mock_store,
+                    "com.beambench.desktop-library.test.restore",
+                )),
+                ..Default::default()
+            }
+        }
+        let first_process = manager();
+        assert!(first_process.remember(&fixture_tokens('r')).await);
+        drop(first_process);
+        for status in [0, 503, 429] {
+            let relaunched = manager();
+            let saved = relaunched.vault().call(None, true).await.unwrap().unwrap();
+            let saved: Saved = serde_json::from_str(&saved).unwrap();
+            let response = if status == 0 {
+                connection_failure().await
+            } else {
+                token_response(status, String::new()).await
+            };
+            let result = restored(&relaunched, 0, saved, response).await;
+            assert_eq!(
+                result.err().unwrap(),
+                if status == 429 {
+                    "rate_limited"
+                } else {
+                    "service_unavailable"
+                },
+            );
+            let saved = relaunched.vault().call(None, true).await.unwrap().unwrap();
+            let saved: Saved = serde_json::from_str(&saved).unwrap();
+            assert_eq!(saved.refresh_token, "r".repeat(43));
+        }
+        let relaunched = manager();
+        let saved = relaunched.vault().call(None, true).await.unwrap().unwrap();
+        let saved: Saved = serde_json::from_str(&saved).unwrap();
+        let response = token_response(
+            200,
+            serde_json::json!({
+                "access_token": "a".repeat(43), "refresh_token": "n".repeat(43),
+                "account_id": "disposable-test-account", "expires_in": 900,
+                "token_type": "Bearer", "scope": "library:read",
+            })
+            .to_string(),
+        )
+        .await;
+        let connection = restored(&relaunched, 0, saved, response).await.unwrap();
+        assert!(connection.remembered);
+        assert_eq!(connection.tokens.refresh_token, "n".repeat(43));
+        let saved = relaunched.vault().call(None, true).await.unwrap().unwrap();
+        let saved: Saved = serde_json::from_str(&saved).unwrap();
+        assert_eq!(saved.refresh_token, "n".repeat(43));
+        relaunched.vault().call(None, false).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn rejected_or_ambiguous_refresh_discards_the_credential() {
+        let manager = ConnectedLibrary {
+            vault: OnceLock::from(Vault::with_initializer(
+                mock_store,
+                "com.beambench.desktop-library.test.discard",
+            )),
+            ..Default::default()
+        };
+        for (status, body) in [(400, "{}"), (401, "{}"), (500, "{}"), (200, "{}"), (0, "")] {
+            let mut connection = Connection {
+                tokens: fixture_tokens('r'),
+                expires: tokio::time::Instant::now(),
+                remembered: true,
+                wallet_unavailable: false,
+                completed_inserts: Default::default(),
+            };
+            assert!(manager.remember(&connection.tokens).await);
+            let old = Zeroizing::new(std::mem::take(&mut connection.tokens.refresh_token));
+            let response = token_response(status, body.into()).await;
+            assert_eq!(
+                complete_refresh(&manager, &mut connection, old, response).await,
+                Err(error("invalid_token")),
+            );
+            assert!(!connection.remembered);
+            assert!(connection.tokens.refresh_token.is_empty());
+            assert!(manager.vault().call(None, true).await.unwrap().is_none());
+        }
+    }
+
     #[tokio::test]
     async fn credential_worker_round_trip_and_cancelled_write_cleanup() {
-        fn mock_store() -> Result<()> {
-            keyring_core::set_default_store(
-                keyring_core::mock::Store::new().map_err(|_| error("mock_store"))?,
-            );
-            Ok(())
-        }
         let vault = Vault::with_initializer(mock_store, "com.beambench.desktop-library.test");
         vault
             .call(Some(Zeroizing::new("disposable-test-secret".into())), false)
