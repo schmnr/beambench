@@ -140,7 +140,10 @@ class Driver:
                 value = json.load(response)['value']
         except urllib.error.HTTPError as error:
             try:
-                code = json.load(error)['value']['error']
+                failure = json.load(error)['value']
+                code = failure['error']
+                if path == '/session':
+                    print('webdriver_startup_detail=' + failure.get('message', '')[:800], flush=True)
             except Exception:
                 code = 'invalid_response'
             raise RuntimeError('webdriver_' + code.replace(' ', '_')) from None
@@ -239,7 +242,8 @@ def main():
         BEAMBENCH_CONFIG_DIR=str(root/'config'), BEAMBENCH_DATA_DIR=str(root/'data'))
     application = args.application.resolve(strict=True)
     original_hash = hashlib.sha256(application.read_bytes()).hexdigest()
-    capabilities = ({'browserName': 'webview2', 'ms:edgeOptions': {'binary': str(application)}}
+    capabilities = ({'browserName': 'webview2', 'ms:edgeChromium': True,
+        'ms:edgeOptions': {'binary': str(application)}}
         if sys.platform == 'win32' else
         {'browserName': 'MiniBrowser', 'webkitgtk:browserOptions': {'binary': str(application)}})
     log = (root/'driver.log').open('w')
@@ -334,6 +338,15 @@ def main():
             'passed':results,'ipcMocked':False,'tlsVerificationBypassed':False,
             'nativePasswordPromptsTested':False},indent=2)+'\n')
         print(json.dumps({'passed':results,'platform':sys.platform}))
+    except Exception:
+        (root/'failure.json').write_text(json.dumps({'platform':sys.platform,
+            'scenario':args.scenario,'completed':results},indent=2)+'\n')
+        if driver:
+            try:
+                driver.screenshot(root/'failure.png')
+            except Exception:
+                pass
+        raise
     finally:
         if driver:
             try:

@@ -585,6 +585,7 @@ jobs:
           name: BeamBench-Windows-connected-library-${{ inputs.tag }}
           path: |
             ${{ runner.temp }}/beambench-connected-library/results.json
+            ${{ runner.temp }}/beambench-connected-library/failure.json
             ${{ runner.temp }}/beambench-connected-library/*.png
           if-no-files-found: warn
           retention-days: 14

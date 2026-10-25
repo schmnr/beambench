@@ -25,6 +25,16 @@ on:
         required: false
         default: false
         type: boolean
+      validate_connected_library_only:
+        description: "Test saved login in an existing signed AppImage. Does not rebuild or publish."
+        required: false
+        default: false
+        type: boolean
+      artifact_run_id:
+        description: "Successful Linux release build whose AppImage should be tested."
+        required: false
+        default: "40154787781"
+        type: string
 
 concurrency:
   # Serialize expensive same-tag builds and release uploads. The shared asset
@@ -38,6 +48,7 @@ concurrency:
 
 jobs:
   build-linux:
+    if: ${{ !inputs.validate_connected_library_only }}
     name: Build Linux AppImage
     # Pinned to the oldest supported runner on purpose: the AppImage links
     # the build host's glibc, so building on ubuntu-latest (24.04, glibc
@@ -302,3 +313,64 @@ jobs:
           node tauri-app/scripts/upload-release-assets.mjs \
             --tag "$RELEASE_TAG" \
             "${arguments[@]}"
+
+  validate-connected-library:
+    if: ${{ inputs.validate_connected_library_only }}
+    name: Signed Linux connected-library lifecycle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout validation scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download unchanged signed candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          BUILD_RUN: ${{ inputs.artifact_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN" =~ ^[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" > "$RUNNER_TEMP/build-run.json"
+          git fetch origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          source=$(git rev-parse "$RELEASE_TAG^{}")
+          jq -e --arg source "$source" '.conclusion == "success" and .path == ".github/workflows/release-linux.yml" and .head_sha == $source' "$RUNNER_TEMP/build-run.json"
+          gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --name "BeamBench-Linux-$RELEASE_TAG" --dir "$RUNNER_TEMP/candidate"
+          mapfile -t images < <(find "$RUNNER_TEMP/candidate" -type f -name '*.AppImage')
+          [[ ${#images[@]} == 1 ]]
+          chmod +x "${images[0]}"
+          echo "CANDIDATE_APPIMAGE=${images[0]}" >> "$GITHUB_ENV"
+
+      - name: Prepare disposable password-store test host
+        run: docker build -t beambench-wallet-validation scripts/connected-library-smoke
+
+      - name: Test paid login, real GNOME storage, account switch and disconnect
+        env:
+          BEAMBENCH_PILOT_ACCOUNTS: ${{ secrets.CRAFTGINEER_PHASE2_TEST_ACCOUNTS }}
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/beambench-connected-library"
+          mkdir -p "$evidence"
+          sudo chown 1100:1100 "$evidence"
+          docker run --rm --cap-drop ALL --memory 3g --cpus 2 --pids-limit 768 \
+            --env BEAMBENCH_PILOT_ACCOUNTS \
+            --mount "type=bind,source=$CANDIDATE_APPIMAGE,target=/test.AppImage,readonly" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/scripts,readonly" \
+            --mount "type=bind,source=$evidence,target=/evidence" \
+            beambench-wallet-validation bash /scripts/connected-library-smoke/run.sh gnome
+
+      - name: Upload non-secret lifecycle evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: BeamBench-Linux-connected-library-${{ inputs.tag }}
+          path: |
+            ${{ runner.temp }}/beambench-connected-library/lifecycle/results.json
+            ${{ runner.temp }}/beambench-connected-library/lifecycle/failure.json
+            ${{ runner.temp }}/beambench-connected-library/lifecycle/*.png
+          if-no-files-found: warn
+          retention-days: 14
