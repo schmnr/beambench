@@ -269,7 +269,7 @@ def main():
     capabilities = ({'browserName': 'webview2', 'ms:edgeChromium': True,
         'ms:edgeOptions': {'debuggerAddress': '127.0.0.1:17557'}}
         if sys.platform == 'win32' else
-        {'browserName': 'MiniBrowser', 'webkitgtk:browserOptions': {'binary': str(application)}})
+        {'webkitgtk:browserOptions': {'binary': str(application)}})
     log = (root/'driver.log').open('w')
     process = subprocess.Popen([str(args.driver), '--port=17556'], stdout=log, stderr=log)
     driver = None
