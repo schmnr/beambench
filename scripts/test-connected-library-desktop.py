@@ -204,7 +204,10 @@ class Driver:
         raise RuntimeError('timeout_' + label)
 
     def screenshot(self, path):
-        path.write_bytes(base64.b64decode(self.command('GET', '/screenshot')))
+        try:
+            path.write_bytes(base64.b64decode(self.command('GET', '/screenshot')))
+        except (RuntimeError, TypeError):
+            subprocess.run(['scrot',str(path)],check=True,timeout=10)
 
     def ready(self):
         return self.element('//button[@aria-label="Library" or @title="Library"]')
@@ -309,7 +312,12 @@ def capture_opener(root):
         binary = root / 'bin'
         binary.mkdir(exist_ok=True)
         opener = binary / 'xdg-open'
-        opener.write_text('#!/bin/sh\nexec /usr/bin/python3 ' + str(program) + ' "$1"\n')
+        # Shell builtins avoid loading the host Python runtime with AppImage
+        # library paths inherited by the desktop's normal URL opener.
+        opener.write_text('#!/bin/sh\ncase "$1" in\n'
+            'https://craftgineer.com/integrations/desktop/authorize\\?*)\n'
+            'umask 077\nprintf "%s" "$1" > "' + str(capture) + '";;\n'
+            '*) exit 1;;\nesac\n')
         opener.chmod(0o700)
         os.environ['PATH'] = str(binary) + os.pathsep + os.environ['PATH']
         os.environ['BROWSER'] = str(opener)
@@ -321,7 +329,7 @@ def capture_opener(root):
         config.mkdir(exist_ok=True)
         (data/'applications/beambench-pilot.desktop').write_text(
             '[Desktop Entry]\nType=Application\nName=Beam Bench pilot browser\n'
-            f'Exec=/usr/bin/python3 "{program}" %u\nNoDisplay=true\n'
+            f'Exec="{opener}" %u\nNoDisplay=true\n'
             'MimeType=x-scheme-handler/https;x-scheme-handler/http;\n')
         (config/'mimeapps.list').write_text('[Default Applications]\n'
             'x-scheme-handler/https=beambench-pilot.desktop\n'
@@ -400,6 +408,7 @@ def main():
             web = HostedAccount(account)
             web.login()
             active.button('Connect Craftgineer')
+            print('checkpoint=native_connect_clicked',flush=True)
             active.wait(capture.exists, 'external_consent')
             web.consent(capture.read_text())
             capture.unlink()
@@ -546,6 +555,7 @@ def main():
             'scenario':args.scenario,'completed':results},indent=2)+'\n')
         if driver:
             try:
+                (root/'failure.txt').write_text(driver.text())
                 driver.screenshot(root/'failure.png')
             except Exception:
                 pass

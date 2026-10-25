@@ -582,6 +582,7 @@ jobs:
           path: |
             ${{ runner.temp }}/beambench-connected-library/results.json
             ${{ runner.temp }}/beambench-connected-library/failure.json
+            ${{ runner.temp }}/beambench-connected-library/failure.txt
             ${{ runner.temp }}/beambench-connected-library/desktop.log
             ${{ runner.temp }}/beambench-connected-library/credential-cleanup.json
             ${{ runner.temp }}/beambench-connected-library/*.png
