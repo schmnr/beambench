@@ -35,6 +35,14 @@ on:
         required: false
         default: "40154787781"
         type: string
+      wallet_provider:
+        description: "Native Linux password service to exercise for saved login and prompts."
+        required: false
+        default: gnome
+        type: choice
+        options:
+          - gnome
+          - kde
 
 concurrency:
   # Serialize expensive same-tag builds and release uploads. The shared asset
@@ -351,6 +359,7 @@ jobs:
       - name: Test paid login, real GNOME storage, account switch and disconnect
         env:
           BEAMBENCH_PILOT_ACCOUNTS: ${{ secrets.CRAFTGINEER_PHASE2_TEST_ACCOUNTS }}
+          WALLET_PROVIDER: ${{ inputs.wallet_provider }}
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/beambench-connected-library"
@@ -361,16 +370,19 @@ jobs:
             --mount "type=bind,source=$CANDIDATE_APPIMAGE,target=/test.AppImage,readonly" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/scripts,readonly" \
             --mount "type=bind,source=$evidence,target=/evidence" \
-            beambench-wallet-validation bash /scripts/connected-library-smoke/run.sh gnome
+            beambench-wallet-validation bash /scripts/connected-library-smoke/run.sh "$WALLET_PROVIDER"
 
       - name: Upload non-secret lifecycle evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: BeamBench-Linux-connected-library-${{ inputs.tag }}
+          name: BeamBench-Linux-connected-library-${{ inputs.wallet_provider }}-${{ inputs.tag }}
           path: |
-            ${{ runner.temp }}/beambench-connected-library/lifecycle/results.json
-            ${{ runner.temp }}/beambench-connected-library/lifecycle/failure.json
-            ${{ runner.temp }}/beambench-connected-library/lifecycle/*.png
+            ${{ runner.temp }}/beambench-connected-library/provider.json
+            ${{ runner.temp }}/beambench-connected-library/wallet-created.json
+            ${{ runner.temp }}/beambench-connected-library/*/results.json
+            ${{ runner.temp }}/beambench-connected-library/*/failure.json
+            ${{ runner.temp }}/beambench-connected-library/*/wallet-*.json
+            ${{ runner.temp }}/beambench-connected-library/*/*.png
           if-no-files-found: warn
           retention-days: 14

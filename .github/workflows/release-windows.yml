@@ -550,31 +550,18 @@ jobs:
           if ((Get-Item $app).VersionInfo.ProductVersion -ne $env:RELEASE_TAG.Substring(1)) { throw 'Installed version differs.' }
           "app=$app" | Out-File $env:GITHUB_OUTPUT -Append
 
-      - name: Install matching official WebView2 driver
-        id: driver
+      - name: Install native Windows accessibility test driver
         run: |
-          $ErrorActionPreference = 'Stop'
-          $runtimes = @(Get-ChildItem 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application' -Directory |
-            Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object { [version]$_.Name } -Descending)
-          if ($runtimes.Count -eq 0) { throw 'WebView2 runtime is missing.' }
-          $version = $runtimes[0].Name
-          $archive = Join-Path $env:RUNNER_TEMP 'edgedriver.zip'
-          Invoke-WebRequest "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip" -OutFile $archive
-          $driver = Join-Path $env:RUNNER_TEMP 'beambench-webview-driver'
-          Expand-Archive $archive $driver
-          $exe = Join-Path $driver 'msedgedriver.exe'
-          if ((Get-AuthenticodeSignature $exe).Status -ne 'Valid') { throw 'Official driver signature is invalid.' }
-          "path=$exe" | Out-File $env:GITHUB_OUTPUT -Append
+          python -m pip install pywinauto==0.6.9 pillow
+          if ($LASTEXITCODE -ne 0) { throw 'Native driver installation failed.' }
 
       - name: Test actual paid login, restoration, account switch and disconnect
         env:
           BEAMBENCH_PILOT_ACCOUNTS: ${{ secrets.CRAFTGINEER_PHASE2_TEST_ACCOUNTS }}
           CANDIDATE_APP: ${{ steps.candidate.outputs.app }}
-          NATIVE_DRIVER: ${{ steps.driver.outputs.path }}
         run: |
           python scripts/test-connected-library-desktop.py `
             --application $env:CANDIDATE_APP `
-            --driver $env:NATIVE_DRIVER `
             --output "$env:RUNNER_TEMP\beambench-connected-library"
           if ($LASTEXITCODE -ne 0) { throw 'Connected-library desktop validation failed.' }
 
@@ -586,6 +573,7 @@ jobs:
           path: |
             ${{ runner.temp }}/beambench-connected-library/results.json
             ${{ runner.temp }}/beambench-connected-library/failure.json
+            ${{ runner.temp }}/beambench-connected-library/desktop.log
             ${{ runner.temp }}/beambench-connected-library/*.png
           if-no-files-found: warn
           retention-days: 14

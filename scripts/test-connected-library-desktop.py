@@ -167,6 +167,10 @@ class Driver:
     def button(self, name):
         self.click('//button[normalize-space(.)=' + json.dumps(name) + ' or @aria-label=' + json.dumps(name) + ']')
 
+    def button_enabled(self, name):
+        element = self.element('//button[normalize-space(.)=' + json.dumps(name) + ']')
+        return self.command('GET','/element/'+element+'/enabled')
+
     def wait(self, predicate, label, timeout=40):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
@@ -181,31 +185,78 @@ class Driver:
     def screenshot(self, path):
         path.write_bytes(base64.b64decode(self.command('GET', '/screenshot')))
 
+    def ready(self):
+        return self.element('//button[@aria-label="Library" or @title="Library"]')
+
+    def open_connections(self):
+        if not self.command('POST', '/elements', {'using':'css selector', 'value':'[data-testid="library-drawer"]'}):
+            self.click('//button[@aria-label="Library" or @title="Library"]')
+        self.button('Manage connections')
+
+    def set_remember(self, remember):
+        checkbox = self.element('//section[@aria-label="Craftgineer connection"]//input[@type="checkbox"]')
+        if self.command('GET', '/element/'+checkbox+'/selected') != remember:
+            self.command('POST', '/element/'+checkbox+'/click', {})
+
     def quit(self):
+        self.command('DELETE', '')
+
+
+class WindowsDriver(Driver):
+    """Use Windows accessibility on the installed app without a debug port."""
+    def __init__(self, application, root):
+        from pywinauto import Application
+        with (root/'desktop.log').open('a') as log:
+            self.process = subprocess.Popen([str(application)], stdout=log, stderr=log)
+        self.app = Application(backend='uia').connect(process=self.process.pid, timeout=40)
+
+    def controls(self, kind=None):
+        from pywinauto.findwindows import ElementNotFoundError
         try:
-            self.command('DELETE', '')
-        finally:
-            if self.process is not None and self.process.poll() is None:
-                # A driver attached to WebView2 does not own the app. Close only
-                # this test process's native window, as a user clicking X would.
-                import ctypes
-                user32 = ctypes.windll.user32
-                callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+            window = self.app.top_window()
+        except (ElementNotFoundError, RuntimeError):
+            return []
+        return [c for c in window.descendants(control_type=kind) if c.is_visible()]
 
-                def close(window, _):
-                    owner = ctypes.c_ulong()
-                    user32.GetWindowThreadProcessId(window, ctypes.byref(owner))
-                    if owner.value == self.process.pid:
-                        user32.PostMessageW(window, 0x0010, 0, 0)
-                    return True
+    def text(self):
+        return '\n'.join(c.window_text() for c in self.controls())
 
-                user32.EnumWindows(callback_type(close), 0)
-                try:
-                    self.process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    self.process.terminate()
-                    self.process.wait(timeout=10)
-                    raise RuntimeError('native_window_failed_to_close')
+    def button(self, name):
+        targets = [c for c in self.controls('Button') if c.window_text() == name]
+        if len(targets) != 1:
+            raise RuntimeError('native_button_not_unique')
+        targets[0].invoke()
+
+    def button_enabled(self, name):
+        return any(c.window_text() == name and c.is_enabled() for c in self.controls('Button'))
+
+    def ready(self):
+        return any(c.window_text() == 'Library' for c in self.controls('Button'))
+
+    def open_connections(self):
+        if not any(c.window_text() == 'Manage connections' for c in self.controls('Button')):
+            self.button('Library')
+        self.button('Manage connections')
+
+    def set_remember(self, remember):
+        choices = [c for c in self.controls('CheckBox') if 'Remember this account' in c.window_text()]
+        if len(choices) != 1:
+            raise RuntimeError('native_remember_checkbox_missing')
+        if bool(choices[0].get_toggle_state()) != remember:
+            choices[0].toggle()
+
+    def screenshot(self, path):
+        self.app.top_window().capture_as_image().save(str(path))
+
+    def quit(self):
+        if self.process.poll() is None:
+            self.app.top_window().close()
+            try:
+                self.process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                self.process.terminate()
+                self.process.wait(timeout=10)
+                raise RuntimeError('native_window_failed_to_close')
 
 
 def capture_opener(root):
@@ -240,15 +291,31 @@ def capture_opener(root):
         opener.write_text('#!/bin/sh\nexec /usr/bin/python3 ' + str(program) + ' "$1"\n')
         opener.chmod(0o700)
         os.environ['PATH'] = str(binary) + os.pathsep + os.environ['PATH']
+        os.environ['BROWSER'] = str(opener)
+        # AppImage launchers may prepend their own xdg-open. Register the test
+        # browser through the desktop's normal URL association as well.
+        data = root/'xdg-data'
+        config = root/'xdg-config'
+        (data/'applications').mkdir(parents=True,exist_ok=True)
+        config.mkdir(exist_ok=True)
+        (data/'applications/beambench-pilot.desktop').write_text(
+            '[Desktop Entry]\nType=Application\nName=Beam Bench pilot browser\n'
+            f'Exec=/usr/bin/python3 "{program}" %u\nNoDisplay=true\n'
+            'MimeType=x-scheme-handler/https;x-scheme-handler/http;\n')
+        (config/'mimeapps.list').write_text('[Default Applications]\n'
+            'x-scheme-handler/https=beambench-pilot.desktop\n'
+            'x-scheme-handler/http=beambench-pilot.desktop\n')
+        os.environ.update(XDG_DATA_HOME=str(data),XDG_CONFIG_HOME=str(config))
     return capture
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--application', type=Path, required=True)
-    parser.add_argument('--driver', type=Path, required=True)
+    parser.add_argument('--driver', type=Path)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--scenario', choices=['lifecycle', 'session-only'], default='lifecycle')
+    parser.add_argument('--scenario', choices=['lifecycle', 'session-only', 'wallet-unlock', 'wallet-deny', 'wallet-unavailable'], default='lifecycle')
+    parser.add_argument('--wallet-provider', choices=['gnome','kde'])
     args = parser.parse_args()
     accounts = json.loads(os.environ.pop('BEAMBENCH_PILOT_ACCOUNTS'))
     if accounts['run'] != 'beambench-phase2-final-20261025' or len(accounts['accounts']) != 2:
@@ -266,16 +333,22 @@ def main():
         BEAMBENCH_CONFIG_DIR=str(root/'config'), BEAMBENCH_DATA_DIR=str(root/'data'))
     application = args.application.resolve(strict=True)
     original_hash = hashlib.sha256(application.read_bytes()).hexdigest()
-    capabilities = ({'browserName': 'webview2', 'ms:edgeChromium': True,
-        'ms:edgeOptions': {'debuggerAddress': '127.0.0.1:17557'}}
-        if sys.platform == 'win32' else
-        {'webkitgtk:browserOptions': {'binary': str(application)}})
+    capabilities = {'webkitgtk:browserOptions': {'binary': str(application)}}
+    if args.scenario == 'wallet-unavailable':
+        wrapper = root/'without-wallet'
+        wrapper.write_text('#!/bin/sh\nexport DBUS_SESSION_BUS_ADDRESS=unix:path=/missing-beambench-test-bus\nexec /test.AppImage "$@"\n')
+        wrapper.chmod(0o700)
+        capabilities['webkitgtk:browserOptions']['binary'] = str(wrapper)
     log = (root/'driver.log').open('w')
-    process = subprocess.Popen([str(args.driver), '--port=17556'], stdout=log, stderr=log)
+    process = None
+    if sys.platform != 'win32':
+        if args.driver is None:
+            raise RuntimeError('native_driver_required')
+        process = subprocess.Popen([str(args.driver), '--port=17556'], stdout=log, stderr=log)
     driver = None
     results = []
     try:
-        for _ in range(100):
+        for _ in range(100 if process else 0):
             try:
                 urllib.request.urlopen('http://127.0.0.1:17556/status', timeout=1).close()
                 break
@@ -283,45 +356,14 @@ def main():
                 time.sleep(0.1)
 
         def launch():
-            owned = None
-            if sys.platform == 'win32':
-                # Tauri chooses its own WebView data folder. Attaching to its
-                # explicit loopback port avoids EdgeDriver looking for the port
-                # file in EdgeDriver's unrelated temporary profile.
-                app_env = dict(os.environ,
-                    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=17557')
-                with (root/'desktop.log').open('a') as app_log:
-                    owned = subprocess.Popen([str(application)], env=app_env,
-                        stdout=app_log, stderr=app_log)
-                deadline = time.monotonic() + 45
-                while time.monotonic() < deadline:
-                    if owned.poll() is not None:
-                        raise RuntimeError('signed_desktop_exited')
-                    try:
-                        urllib.request.urlopen('http://127.0.0.1:17557/json/version',timeout=1).close()
-                        break
-                    except urllib.error.URLError:
-                        time.sleep(0.1)
-                else:
-                    owned.terminate()
-                    owned.wait(timeout=10)
-                    raise RuntimeError('webview_debug_port_unavailable')
-            try:
-                active = Driver('http://127.0.0.1:17556', capabilities)
-            except Exception:
-                if owned is not None and owned.poll() is None:
-                    owned.terminate()
-                    owned.wait(timeout=10)
-                raise
-            active.process = owned
-            active.wait(lambda: active.element('//button[@aria-label="Library" or @title="Library"]'), 'frontend')
+            active = (WindowsDriver(application,root) if sys.platform == 'win32'
+                else Driver('http://127.0.0.1:17556', capabilities))
+            active.wait(active.ready, 'frontend')
             try:
                 active.button('Close welcome')
             except RuntimeError:
                 pass
-            if not active.command('POST', '/elements', {'using':'css selector', 'value':'[data-testid="library-drawer"]'}):
-                active.click('//button[@aria-label="Library" or @title="Library"]')
-            active.button('Manage connections')
+            active.open_connections()
             return active
 
         def passed(name):
@@ -331,10 +373,7 @@ def main():
         def connect(active, account, remember):
             if capture.exists():
                 capture.unlink()
-            checkbox = active.element('//section[@aria-label="Craftgineer connection"]//input[@type="checkbox"]')
-            checked = active.command('GET', '/element/'+checkbox+'/selected')
-            if checked != remember:
-                active.command('POST', '/element/'+checkbox+'/click', {})
+            active.set_remember(remember)
             web = HostedAccount(account)
             web.login()
             active.button('Connect Craftgineer')
@@ -351,6 +390,67 @@ def main():
 
         driver = launch()
         first, second = accounts['accounts']
+        wallet_tool = Path(__file__).parent/'connected-library-smoke/wallet.py'
+
+        def wallet(action, background=False):
+            if not args.wallet_provider:
+                raise RuntimeError('wallet_provider_required')
+            command = [sys.executable,str(wallet_tool),action,'--provider',args.wallet_provider,
+                '--output',str(root/('wallet-'+action+'.json'))]
+            if background:
+                return subprocess.Popen(command)
+            subprocess.run(command,check=True,timeout=35)
+
+        if args.scenario in ['wallet-unlock','wallet-deny']:
+            connect(driver,first,True)
+            driver.quit()
+            wallet('lock')
+            answer = wallet('unlock' if args.scenario == 'wallet-unlock' else 'deny',True)
+            driver = launch()
+            if answer.wait(timeout=30) != 0:
+                raise RuntimeError('native_wallet_response_failed')
+            if args.scenario == 'wallet-unlock':
+                driver.wait(lambda: first['name'] in driver.text(),'locked_wallet_restored')
+                passed('native_prompt_unlock_and_account_restore')
+            else:
+                driver.wait(lambda: 'Secure credential storage is unavailable' in driver.text(),'denied_restore_fallback')
+                if first['name'] in driver.text():
+                    raise RuntimeError('account_restored_after_wallet_denial')
+                passed('native_prompt_denial_rejected_restore')
+                answer = wallet('deny',True)
+                connect(driver,second,True)
+                if answer.wait(timeout=30) != 0:
+                    raise RuntimeError('native_wallet_response_failed')
+                driver.wait(lambda: 'Secure credential storage is unavailable' in driver.text(),'denied_save_session_only')
+                passed('native_prompt_denied_save_session_only')
+                # Unlock for cleanup of any previously stored credential, then
+                # disconnect normally. The UI must not silently leave it behind.
+                answer = wallet('unlock',True)
+                driver.button('Disconnect')
+                if answer.wait(timeout=30) != 0:
+                    raise RuntimeError('wallet_cleanup_unlock_failed')
+                driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'denied_store_disconnect')
+                driver.quit()
+                driver = launch()
+                driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'denied_store_restart')
+                if first['name'] in driver.text() or second['name'] in driver.text():
+                    raise RuntimeError('denied_store_old_account_restored')
+                passed('denied_store_cleanup_and_restart')
+            if args.scenario == 'wallet-unlock':
+                driver.button('Disconnect')
+                driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'unlocked_store_disconnect')
+            driver.screenshot(root/'wallet-result.png')
+            # Continue through the normal explicit session-only restart check.
+        if args.scenario == 'wallet-unavailable':
+            connect(driver,first,True)
+            driver.wait(lambda: 'Secure credential storage is unavailable' in driver.text(),'missing_bus_session_only')
+            passed('unavailable_store_session_only')
+            driver.quit()
+            driver = launch()
+            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'),'missing_bus_not_restored')
+            if first['name'] in driver.text():
+                raise RuntimeError('unavailable_store_restored')
+            passed('unavailable_store_not_restored')
         if args.scenario == 'lifecycle':
             connect(driver, first, True)
             driver.screenshot(root/'account-a.png')
@@ -360,7 +460,7 @@ def main():
             driver.wait(lambda: first['name'] in driver.text(), 'remembered_account_a')
             passed('remembered_restart_a')
             driver.button('Disconnect')
-            driver.wait(lambda: 'Connect Craftgineer' in driver.text(), 'disconnect_a')
+            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'disconnect_a')
             if first['name'] in driver.text():
                 raise RuntimeError('old_account_visible_after_disconnect')
             connect(driver, second, True)
@@ -373,10 +473,10 @@ def main():
                 raise RuntimeError('wrong_account_restored')
             passed('remembered_restart_b')
             driver.button('Disconnect')
-            driver.wait(lambda: 'Connect Craftgineer' in driver.text(), 'disconnect_b')
+            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'disconnect_b')
             driver.quit()
             driver = launch()
-            driver.wait(lambda: 'Connect Craftgineer' in driver.text(), 'disconnect_persisted')
+            driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'disconnect_persisted')
             if first['name'] in driver.text() or second['name'] in driver.text():
                 raise RuntimeError('account_restored_after_disconnect')
             passed('disconnect_and_restart_without_account')
@@ -384,7 +484,7 @@ def main():
         passed('explicit_session_only_connection')
         driver.quit()
         driver = launch()
-        driver.wait(lambda: 'Connect Craftgineer' in driver.text(), 'session_only_not_restored')
+        driver.wait(lambda: driver.button_enabled('Connect Craftgineer'), 'session_only_not_restored')
         if second['name'] in driver.text():
             raise RuntimeError('session_only_restored')
         passed('session_only_not_restored')
@@ -394,7 +494,7 @@ def main():
         (root/'results.json').write_text(json.dumps({'scenario':args.scenario,
             'platform':sys.platform,'applicationSha256':original_hash,
             'passed':results,'ipcMocked':False,'tlsVerificationBypassed':False,
-            'nativePasswordPromptsTested':False},indent=2)+'\n')
+            'nativePasswordPromptsTested':args.scenario in ['wallet-unlock','wallet-deny']},indent=2)+'\n')
         print(json.dumps({'passed':results,'platform':sys.platform}))
     except Exception:
         (root/'failure.json').write_text(json.dumps({'platform':sys.platform,
@@ -411,8 +511,9 @@ def main():
                 driver.quit()
             except Exception:
                 pass
-        process.terminate()
-        process.wait(timeout=10)
+        if process:
+            process.terminate()
+            process.wait(timeout=10)
         log.close()
         if capture.exists():
             capture.unlink()
