@@ -19,12 +19,17 @@ def nodes(root):
 
 def visible():
     result = []
-    for node in nodes(pyatspi.Registry.getDesktop(0)):
-        try:
-            if node.getState().contains(pyatspi.STATE_SHOWING):
-                result.append(node)
-        except Exception:
-            pass
+    # A pending app connection also has a Cancel button. Respond only inside
+    # the OS password-store applications, never inside Beam Bench's own UI.
+    for application in pyatspi.Registry.getDesktop(0):
+        if application.name not in ['gcr-prompter','kwalletd5']:
+            continue
+        for node in nodes(application):
+            try:
+                if node.getState().contains(pyatspi.STATE_SHOWING):
+                    result.append(node)
+            except Exception:
+                pass
     return result
 
 
