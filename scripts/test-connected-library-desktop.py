@@ -155,6 +155,7 @@ class Driver:
         self.endpoint = endpoint
         self.session = None
         self.process = None
+        self.closed = False
         result = self.request('POST', '/session', {'capabilities': {'alwaysMatch': capabilities}})
         self.session = result['sessionId']
 
@@ -227,7 +228,31 @@ class Driver:
             self.command('POST', '/element/'+checkbox+'/click', {})
 
     def quit(self):
-        self.command('DELETE', '')
+        if self.closed:
+            return
+        # WebKitWebDriver cannot reliably reap an AppImage's runtime wrapper.
+        # Close the actual test window normally, verify its process exits, then
+        # restart the disposable driver for the next actual app launch.
+        windows = subprocess.check_output(['xdotool','search','--onlyvisible',
+            '--name','.*Beam Bench'],text=True).split()
+        if len(windows) != 1:
+            raise RuntimeError('native_test_window_not_unique')
+        pid = int(subprocess.check_output(['xdotool','getwindowpid',windows[0]],text=True))
+        ancestor = pid
+        while ancestor > 1 and ancestor != self.process.pid:
+            status = Path('/proc/'+str(ancestor)+'/status').read_text()
+            ancestor = int(next(line.split()[1] for line in status.splitlines() if line.startswith('PPid:')))
+        if ancestor != self.process.pid:
+            raise RuntimeError('native_window_not_owned_by_test_driver')
+        subprocess.run(['xdotool','windowactivate','--sync',windows[0],'key','--clearmodifiers','alt+F4'],check=True,timeout=10)
+        deadline = time.monotonic()+15
+        while Path('/proc/'+str(pid)).exists() and time.monotonic()<deadline:
+            time.sleep(0.1)
+        if Path('/proc/'+str(pid)).exists():
+            raise RuntimeError('native_window_failed_to_close')
+        self.process.terminate()
+        self.process.wait(timeout=10)
+        self.closed = True
 
 
 class WindowsDriver(Driver):
@@ -392,8 +417,19 @@ def main():
                 time.sleep(0.1)
 
         def launch():
+            nonlocal process
+            if sys.platform != 'win32' and process.poll() is not None:
+                process = subprocess.Popen([str(args.driver),'--port=17556'],stdout=log,stderr=log)
+                for _ in range(100):
+                    try:
+                        urllib.request.urlopen('http://127.0.0.1:17556/status',timeout=1).close()
+                        break
+                    except urllib.error.URLError:
+                        time.sleep(0.1)
             active = (WindowsDriver(application,root) if sys.platform == 'win32'
                 else Driver('http://127.0.0.1:17556', capabilities))
+            if sys.platform != 'win32':
+                active.process = process
             active.wait(active.ready, 'frontend')
             try:
                 active.button('Close welcome')
