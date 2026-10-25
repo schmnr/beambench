@@ -6,7 +6,6 @@ token injection, TLS overrides, or personal accounts. Account credentials are
 provided privately in BEAMBENCH_PILOT_ACCOUNTS and never written to evidence.
 """
 import argparse
-import base64
 import hashlib
 from html.parser import HTMLParser
 import http.cookiejar
@@ -205,10 +204,7 @@ class Driver:
         raise RuntimeError('timeout_' + label)
 
     def screenshot(self, path):
-        try:
-            path.write_bytes(base64.b64decode(self.command('GET', '/screenshot')))
-        except (RuntimeError, TypeError, TimeoutError):
-            subprocess.run(['scrot',str(path)],check=True,timeout=10)
+        subprocess.run(['scrot',str(path)],check=True,timeout=10)
 
     def ready(self):
         return self.element('//button[@aria-label="Library" or @title="Library"]')
@@ -365,7 +361,8 @@ def main():
         BEAMBENCH_CONFIG_DIR=str(root/'config'), BEAMBENCH_DATA_DIR=str(root/'data'))
     application = args.application.resolve(strict=True)
     original_hash = hashlib.sha256(application.read_bytes()).hexdigest()
-    capabilities = {'webkitgtk:browserOptions': {'binary': str(application)}}
+    capabilities = {'pageLoadStrategy':'none',
+        'webkitgtk:browserOptions': {'binary': str(application)}}
     if args.scenario == 'wallet-unavailable':
         wrapper = root/'without-wallet'
         wrapper.write_text('#!/bin/sh\nexport DBUS_SESSION_BUS_ADDRESS=unix:path=/missing-beambench-test-bus\nexec /test.AppImage "$@"\n')
