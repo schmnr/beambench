@@ -33,6 +33,14 @@ serialized worker bounds wallet waits and removes late writes after cancellation
 The renderer stores only a non-secret preference indicating whether to attempt
 credential restoration when Manage connections is opened.
 
+Remembered credentials survive connection failures that occur before a refresh
+request is sent, and HTTP 429/503 responses. Craftgineer rejects those statuses
+before rotation or rolls back its token transaction. The app reports an
+unavailable or rate-limited connection and permits an explicit refresh. Rejected
+credentials, malformed successful responses, and transport failures after sending
+remain fail-closed: the old refresh token must not be replayed if rotation may
+have committed. This policy applies both when restoring and during a session.
+
 Downloads enforce the MIME type, size and SHA-256 revision. Insertion uses the
 existing importer, local assets and undo transaction. A native document lease,
 window and connection checks at commit, and request identifiers protect pending
