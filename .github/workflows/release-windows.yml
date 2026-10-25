@@ -1,4 +1,4 @@
-# Builds the signed Windows installers and attaches them to a GitHub Release.
+# Builds signed Windows installers, or validates an existing signed candidate.
 #
 # Trigger:
 #   "Run workflow" button on the GitHub Actions page.
@@ -25,6 +25,16 @@ on:
         required: false
         default: false
         type: boolean
+      validate_connected_library_only:
+        description: "Test saved login using an existing signed artifact and approved disposable accounts. Does not build or publish."
+        required: false
+        default: false
+        type: boolean
+      artifact_run_id:
+        description: "Successful Windows build run to download for connected-library validation."
+        required: false
+        default: "40156432393"
+        type: string
 
 concurrency:
   # Serialize expensive same-tag builds and release uploads. The shared asset
@@ -45,6 +55,7 @@ env:
 
 jobs:
   build-windows:
+    if: ${{ !inputs.validate_connected_library_only }}
     name: Build signed Windows installers
     runs-on: windows-2025
     permissions:
@@ -489,3 +500,91 @@ jobs:
             Write-Error "Could not attach Windows artifacts to GitHub Release $env:RELEASE_TAG."
             exit 1
           }
+
+  validate-connected-library:
+    if: ${{ inputs.validate_connected_library_only }}
+    name: Signed Windows connected-library lifecycle
+    runs-on: windows-2025
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout validation scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download and install unchanged signed candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          BUILD_RUN: ${{ inputs.artifact_run_id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:BUILD_RUN -notmatch '^[0-9]+$' -or $env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$') {
+            throw 'Invalid candidate reference.'
+          }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:BUILD_RUN" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.conclusion -ne 'success' -or $run.path -ne '.github/workflows/release-windows.yml') {
+            throw 'Use a successful signed Windows release build.'
+          }
+          git fetch origin "refs/tags/$env:RELEASE_TAG`:refs/tags/$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate tag could not be fetched.' }
+          $source = git rev-parse "$env:RELEASE_TAG^{}"
+          if ($LASTEXITCODE -ne 0 -or $source -ne $run.head_sha) { throw 'Build source differs from candidate tag.' }
+          $download = Join-Path $env:RUNNER_TEMP 'beambench-library-candidate'
+          gh run download $env:BUILD_RUN --repo $env:GITHUB_REPOSITORY --name "BeamBench-Windows-$env:RELEASE_TAG" --dir $download
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate download failed.' }
+          $installers = @(Get-ChildItem $download -Recurse -Filter '*-setup.exe')
+          if ($installers.Count -ne 1 -or (Get-AuthenticodeSignature $installers[0].FullName).Status -ne 'Valid') {
+            throw 'Exactly one valid signed installer is required.'
+          }
+          $install = Join-Path $env:RUNNER_TEMP 'beambench-library-installed'
+          $setup = Start-Process $installers[0].FullName -ArgumentList @('/S', "/D=$install") -Wait -PassThru
+          if ($setup.ExitCode -notin @(0, 3010)) { throw 'Installer failed.' }
+          $app = Join-Path $install 'beambench-tauri.exe'
+          if ((Get-AuthenticodeSignature $app).Status -ne 'Valid') { throw 'Installed signature is invalid.' }
+          if ((Get-Item $app).VersionInfo.ProductVersion -ne $env:RELEASE_TAG.Substring(1)) { throw 'Installed version differs.' }
+          "app=$app" | Out-File $env:GITHUB_OUTPUT -Append
+
+      - name: Install native Windows accessibility test driver
+        run: |
+          python -m pip install pywinauto==0.6.9 pillow
+          if ($LASTEXITCODE -ne 0) { throw 'Native driver installation failed.' }
+
+      - name: Test actual paid login, restoration, account switch and disconnect
+        env:
+          BEAMBENCH_PILOT_ACCOUNTS: ${{ secrets.CRAFTGINEER_PHASE2_TEST_ACCOUNTS }}
+          CANDIDATE_APP: ${{ steps.candidate.outputs.app }}
+        run: |
+          python scripts/test-connected-library-desktop.py `
+            --application $env:CANDIDATE_APP `
+            --output "$env:RUNNER_TEMP\beambench-connected-library"
+          if ($LASTEXITCODE -ne 0) { throw 'Connected-library desktop validation failed.' }
+
+      - name: Verify remembered credential was removed
+        run: |
+          $entries = cmdkey /list
+          if ($LASTEXITCODE -ne 0) { throw 'Credential metadata could not be checked.' }
+          if (($entries -join "`n") -match [regex]::Escape('com.beambench.desktop-library')) {
+            throw 'A provider credential remains after disconnect and session-only testing.'
+          }
+          '{"providerCredentialAbsent":true}' | Set-Content "$env:RUNNER_TEMP\beambench-connected-library\credential-cleanup.json"
+
+      - name: Upload non-secret lifecycle evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: BeamBench-Windows-connected-library-${{ inputs.tag }}
+          path: |
+            ${{ runner.temp }}/beambench-connected-library/results.json
+            ${{ runner.temp }}/beambench-connected-library/failure.json
+            ${{ runner.temp }}/beambench-connected-library/failure.txt
+            ${{ runner.temp }}/beambench-connected-library/desktop.log
+            ${{ runner.temp }}/beambench-connected-library/credential-cleanup.json
+            ${{ runner.temp }}/beambench-connected-library/*.png
+          if-no-files-found: warn
+          retention-days: 14
