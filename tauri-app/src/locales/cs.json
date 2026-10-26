@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Předvolba USB pro původní hardware podle dokumentace. Ověřte rozsah pohybu a maximální hodnotu S. Fyzické testování čeká na provedení."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "380 x 370 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "380 x 370 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "acmer_p2_10w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "420 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "acmer_p2_20w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "420 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "acmer_p2_33w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "420 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Předvolba USB pro GRBL 1.1 podle dokumentace. Testování na stroji zatím neproběhlo.",
+            "advisory": "400 x 400 mm, počátek vpředu vlevo, S1000. Ověřte $30 a režim laseru $32=1. Referování a automatický ofuk jsou vypnuté. Jiný firmware a rozšíření vyžadují samostatné nastavení."
           }
         },
         "report_active_profile": "Uložte a aktivujte tento profil, chcete-li sdílet jeho nastavení s výsledky.",

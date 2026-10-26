@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "USB-voorinstelling voor originele hardware op basis van documentatie. Controleer het bereik en de maximale S-waarde. Praktijktests zijn nog niet uitgevoerd."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "380 x 370 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "380 x 370 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "acmer_p2_10w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "420 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "acmer_p2_20w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "420 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "acmer_p2_33w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "420 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "USB-voorinstelling voor GRBL 1.1 op basis van documentatie. Tests op de machine zijn nog niet uitgevoerd.",
+            "advisory": "400 x 400 mm, oorsprong linksvoor, S1000. Controleer $30 en lasermodus $32=1. Homen en automatische luchtondersteuning staan uit. Andere firmware en uitbreidingen moeten apart worden ingesteld."
           }
         },
         "report_active_profile": "Sla dit profiel op en activeer het om de instellingen met je resultaten te delen.",

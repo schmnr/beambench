@@ -2515,6 +2515,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Documentation-based USB preset for stock hardware. Check travel and S-value max. Physical testing pending."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "380 x 370 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "380 x 370 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "acmer_p2_10w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "acmer_p2_20w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "acmer_p2_33w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Documentation-based GRBL 1.1 USB preset. Physical testing pending.",
+            "advisory": "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup."
           }
         },
         "report_active_profile": "Save and activate this profile to share its settings with your results.",

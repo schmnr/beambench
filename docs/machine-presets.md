@@ -137,6 +137,9 @@ own specifications support an entry. Do not copy the S9 defaults across a brand.
 
 ## Evidence records
 
+- [ACMER USB presets, version 1](machines/acmer-usb-presets.md):
+  P1 S Pro 6W/10W, P2 10W/20W/33W and S2 Pro 36W/48W.
+  Documentation-based, physical testing pending.
 - [Sculpfun S9, preset version 1](machines/sculpfun-s9.md): documentation-based,
   physical testing pending.
 - [Sculpfun S30 Pro 10W, preset version 1](machines/sculpfun-s30-pro-10w.md):

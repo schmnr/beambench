@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Predefinição USB para o hardware original baseada na documentação. Confira o curso e o valor S máximo. Testes físicos pendentes."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "380 x 370 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "380 x 370 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "acmer_p2_10w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "420 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "acmer_p2_20w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "420 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "acmer_p2_33w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "420 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Predefinição USB para GRBL 1.1 baseada na documentação. Testes na máquina pendentes.",
+            "advisory": "400 x 400 mm, origem frontal esquerda, S1000. Verifique $30 e o modo laser $32=1. A busca de origem e a assistência de ar automática estão desativadas. Outros firmwares e extensões precisam de configuração separada."
           }
         },
         "report_active_profile": "Salve e ative este perfil para compartilhar as configurações com os resultados.",

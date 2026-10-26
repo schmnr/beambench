@@ -2363,6 +2363,34 @@
           },
           "twotrees_tt_5_5s": {
             "description": "Préréglage USB pour le matériel d’origine basé sur la documentation. Vérifiez la course et la valeur S maximale. Essais physiques en attente."
+          },
+          "acmer_p1_s_pro_6w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "380 x 370 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "acmer_p1_s_pro_10w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "380 x 370 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "acmer_p2_10w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "420 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "acmer_p2_20w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "420 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "acmer_p2_33w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "420 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "acmer_s2_pro_36w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
+          },
+          "acmer_s2_pro_48w": {
+            "description": "Préréglage USB GRBL 1.1 basé sur la documentation. Tests sur machine en attente.",
+            "advisory": "400 x 400 mm, origine à l'avant gauche, S1000. Vérifiez $30 et le mode laser $32=1. La prise d'origine et l'assistance d'air automatique sont désactivées. Les autres firmwares et les extensions nécessitent une configuration distincte."
           }
         },
         "report_active_profile": "Enregistrez et activez ce profil pour joindre ses réglages à vos résultats.",

@@ -403,6 +403,56 @@ fn documented_grbl_usb_preset(
 
 pub fn profile_presets() -> Vec<MachineProfilePreset> {
     vec![
+        // Exact models and control sources: docs/machines/acmer-usb-presets.md.
+        documented_grbl_usb_preset(
+            "acmer_p1_s_pro_6w",
+            "ACMER P1 S Pro 6W",
+            380.0,
+            370.0,
+            "380 x 370 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_p1_s_pro_10w",
+            "ACMER P1 S Pro 10W",
+            380.0,
+            370.0,
+            "380 x 370 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_p2_10w",
+            "ACMER P2 10W",
+            420.0,
+            400.0,
+            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_p2_20w",
+            "ACMER P2 20W",
+            420.0,
+            400.0,
+            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_p2_33w",
+            "ACMER P2 33W",
+            420.0,
+            400.0,
+            "420 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_s2_pro_36w",
+            "ACMER S2 Pro 36W",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
+        documented_grbl_usb_preset(
+            "acmer_s2_pro_48w",
+            "ACMER S2 Pro 48W",
+            400.0,
+            400.0,
+            "400 x 400 mm, front-left origin, S1000. Verify $30 and laser mode $32=1. Homing and automatic air assist are off. Other firmware and extensions need separate setup.",
+        ),
         // Documentation-based model entries: docs/machines/common-grbl-usb-presets.md.
         documented_grbl_usb_preset(
             "ortur_lm2_pro_s2",
@@ -2633,6 +2683,13 @@ mod tests {
         install_grbl_session_with_info(&ctx, &["Grbl 1.1h ['$' for help]", "$30=255", "ok"]);
 
         for preset_id in [
+            "acmer_p1_s_pro_6w",
+            "acmer_p1_s_pro_10w",
+            "acmer_p2_10w",
+            "acmer_p2_20w",
+            "acmer_p2_33w",
+            "acmer_s2_pro_36w",
+            "acmer_s2_pro_48w",
             "creality_falcon2_pro_22w",
             "creality_falcon2_pro_40w",
             "creality_falcon2_pro_60w",
@@ -2900,6 +2957,13 @@ mod tests {
             ("twotrees_tts_20_pro", 418.0, 418.0, 6000.0, "", true, false),
             ("twotrees_ts2_10w", 450.0, 450.0, 6000.0, "", true, false),
             ("twotrees_ts2_20w", 410.0, 410.0, 6000.0, "", true, false),
+            ("acmer_p1_s_pro_6w", 380.0, 370.0, 6000.0, "", false, false),
+            ("acmer_p1_s_pro_10w", 380.0, 370.0, 6000.0, "", false, false),
+            ("acmer_p2_10w", 420.0, 400.0, 6000.0, "", false, false),
+            ("acmer_p2_20w", 420.0, 400.0, 6000.0, "", false, false),
+            ("acmer_p2_33w", 420.0, 400.0, 6000.0, "", false, false),
+            ("acmer_s2_pro_36w", 400.0, 400.0, 6000.0, "", false, false),
+            ("acmer_s2_pro_48w", 400.0, 400.0, 6000.0, "", false, false),
         ] {
             let ctx = ServiceContext::with_settings(AppSettings::default());
             let created = save_profile(&ctx, sample_input()).unwrap();
