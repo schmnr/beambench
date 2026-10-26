@@ -3,8 +3,8 @@
 - Candidate version/tag: 0.2.34-rc.3 / v0.2.34-rc.3.
 - Source: the immutable tag containing this record.
 - Date: October 26, 2026.
-- Authorization: integration work, approved reviewed wording, signed-package validation, with a separate approval required for fresh
-  disposable PrintCutCarve accounts. Public desktop release
+- Authorization: integration work, approved reviewed wording, signed-package validation,
+  and three approved disposable PrintCutCarve accounts. Public desktop release
   and stable manifest changes remain excluded.
 - Accounts: all free and paid accounts may connect to their available library.
   Only a paid subscription verified through either connected provider hides the
@@ -27,6 +27,9 @@
 
 The Library tabs and Preferences account controls are included in this candidate.
 The earlier rc.2 artifacts do not contain these changes.
+The live catalog has no full free packs at source freeze. The free-account
+pilot must connect successfully, display an empty library and retain the ad.
+Do not change catalog products to manufacture a populated free account.
 
 Keep final hashes, workflow IDs and results beside staged artifacts. Credentials,
 sessions, authorization URLs and private fixture evidence stay outside Git.

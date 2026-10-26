@@ -32,6 +32,15 @@ EXPECTED_CALLBACK_STATUS = 200
 ELEMENT = 'element-6066-11e4-a52e-4f735466cecf'
 
 
+def valid_printcutcarve_fixture(account):
+    synthetic = re.fullmatch(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', account['id']) and re.fullmatch(r'pccbb-[a-f0-9]{16}-[ab]@example\.invalid', account['email'])
+    empty_free = (account.get('emptyLibrary') is True and account.get('label') == 'b'
+                  and account.get('paidSubscription') is False
+                  and not account.get('pack') and not account.get('fixture'))
+    library = empty_free if account.get('emptyLibrary') else account.get('pack') and account.get('fixture')
+    return bool(synthetic and library)
+
+
 def project_geometry(path):
     try:
         with zipfile.ZipFile(path) as archive:
@@ -562,7 +571,7 @@ def main():
         if PROVIDER == 'craftgineer':
             valid = re.fullmatch(r'bbp2_[a-f0-9]{16}_[ab]', account['id']) and re.fullmatch(r'bbp2-[a-f0-9]{16}-[ab]@example\.invalid', account['email'])
         else:
-            valid = re.fullmatch(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', account['id']) and re.fullmatch(r'pccbb-[a-f0-9]{16}-[ab]@example\.invalid', account['email']) and bool(account.get('pack'))
+            valid = valid_printcutcarve_fixture(account)
         if not valid:
             raise RuntimeError('personal_account_rejected')
         if args.check_startup_ad and not isinstance(account.get('paidSubscription'), bool):
@@ -669,13 +678,20 @@ def main():
             print('checkpoint=connected_account_visible',flush=True)
             active.button('Browse library')
             print('checkpoint=library_opened',flush=True)
+            if PROVIDER == 'printcutcarve' and account.get('emptyLibrary'):
+                active.wait(lambda: 'No packs found.' in active.library_text(), 'empty_free_library')
+                other = next(a for a in accounts['accounts'] if a['id'] != account['id'])
+                if other['fixture'] in active.library_text():
+                    raise RuntimeError('cross_account_file_visible')
+                passed('free_account_connected_with_empty_library')
+                return
             if PROVIDER == 'printcutcarve':
                 active.search_packs(account['pack'])
                 active.wait(lambda: account['pack'] in active.text() and active.button_enabled('Open'), 'pack_listing')
                 active.library_button('Open')
             active.wait(lambda: account['fixture'] in active.library_text(), 'account_listing')
             other = next(a for a in accounts['accounts'] if a['id'] != account['id'])
-            if other['fixture'] in active.library_text():
+            if other.get('fixture') and other['fixture'] in active.library_text():
                 raise RuntimeError('cross_account_file_visible')
             if args.check_project_import and account['label'] == 'a':
                 active.button('New')
