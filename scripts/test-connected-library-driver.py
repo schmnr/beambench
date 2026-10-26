@@ -15,6 +15,16 @@ spec.loader.exec_module(driver)
 
 
 class DriverBoundaries(unittest.TestCase):
+    def test_empty_library_exception_is_only_for_an_unpaid_synthetic_second_account(self):
+        account = {'id':'12345678-1234-1234-1234-123456789012',
+                   'email':'pccbb-0123456789abcdef-b@example.invalid',
+                   'label':'b','paidSubscription':False,'emptyLibrary':True,'pack':'','fixture':''}
+        self.assertTrue(driver.valid_printcutcarve_fixture(account))
+        for change in [{'email':'customer@example.com'}, {'paidSubscription':True},
+                       {'label':'a'}, {'emptyLibrary':False}, {'fixture':'unexpected.svg'},
+                       {'label':'a','paidSubscription':True,'pack':'Member pack','fixture':'member.svg'}]:
+            self.assertFalse(driver.valid_printcutcarve_fixture({**account,**change}))
+
     def setUp(self):
         self.before = driver.PROVIDER, driver.HOST, driver.ORIGIN
         driver.PROVIDER, driver.HOST, driver.ORIGIN = 'printcutcarve', 'printcutcarve.com', 'https://printcutcarve.com'

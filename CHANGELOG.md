@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.2.34-rc.3
+
+- Keep Craftgineer and PrintCutCarve Library tabs visible before connecting,
+  with account prompts and a compact two-column tab layout.
+- Add Connected accounts in Preferences. Connection progress and the remember
+  choice stay in sync with the Library, and account changes apply immediately.
+- Prepare fresh signed packages for integration and platform testing.
+
 ## 0.2.34-rc.2
 
 - Add PrintCutCarve pack browsing and original SVG imports alongside Craftgineer.
