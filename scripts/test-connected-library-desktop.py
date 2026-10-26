@@ -227,6 +227,9 @@ class Driver:
     def text(self):
         return self.command('GET','/element/'+self.element('/html/body')+'/text')
 
+    def library_text(self):
+        return self.command('GET','/element/'+self.element('//div[@data-testid="library-drawer"]')+'/text')
+
     def element(self, xpath):
         return self.command('POST', '/element', {'using': 'xpath', 'value': xpath})[ELEMENT]
 
@@ -345,6 +348,12 @@ class WindowsDriver(Driver):
 
     def text(self):
         return '\n'.join(c.window_text() for c in self.controls())
+
+    def library_text(self):
+        panels = [c for c in self.controls('Group') if c.window_text() == PROVIDER_NAME + ' connection']
+        if len(panels) != 1:
+            raise RuntimeError('native_library_region_not_unique')
+        return '\n'.join(c.window_text() for c in panels[0].descendants() if c.is_visible())
 
     def button(self, name):
         targets = [c for c in self.controls('Button') if c.window_text() == name]
@@ -614,9 +623,9 @@ def main():
                 active.search_packs(account['pack'])
                 active.wait(lambda: account['pack'] in active.text() and active.button_enabled('Open'), 'pack_listing')
                 active.button('Open')
-            active.wait(lambda: account['fixture'] in active.text(), 'account_listing')
+            active.wait(lambda: account['fixture'] in active.library_text(), 'account_listing')
             other = next(a for a in accounts['accounts'] if a['id'] != account['id'])
-            if other['fixture'] in active.text():
+            if other['fixture'] in active.library_text():
                 raise RuntimeError('cross_account_file_visible')
             if args.check_project_import and account['label'] == 'a':
                 active.button('New')
