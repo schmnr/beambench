@@ -34,7 +34,7 @@ if [[ "${2:-full}" == deletion ]]; then scenarios=(deletion); fi
 for scenario in "${scenarios[@]}"; do
   startup_args=()
   if [[ "$library_provider" == printcutcarve && "$scenario" == lifecycle ]]; then
-    startup_args=(--check-startup-ad)
+    startup_args=(--check-startup-ad --check-project-import)
   fi
   python3 /scripts/test-connected-library-desktop.py \
     --application /test.AppImage --driver /usr/bin/WebKitWebDriver \

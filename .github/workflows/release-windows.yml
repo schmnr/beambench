@@ -579,7 +579,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:BEAMBENCH_PILOT_ACCOUNTS)) { throw 'Approved disposable accounts are required.' }
           $arguments = @('scripts/test-connected-library-desktop.py', '--provider', $env:LIBRARY_PROVIDER,
             '--application', $env:CANDIDATE_APP, '--output', "$env:RUNNER_TEMP\beambench-connected-library")
-          if ($env:LIBRARY_PROVIDER -eq 'printcutcarve') { $arguments += '--check-startup-ad' }
+          if ($env:LIBRARY_PROVIDER -eq 'printcutcarve') { $arguments += @('--check-startup-ad', '--check-project-import') }
           python @arguments
           if ($LASTEXITCODE -ne 0) { throw 'Connected-library desktop validation failed.' }
 

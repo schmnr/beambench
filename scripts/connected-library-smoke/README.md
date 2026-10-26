@@ -14,6 +14,13 @@ identities and enforces the selected provider's synthetic IDs, named pilot and
 website sessions, without email or Google sign-in. Hosted consent, PKCE and
 desktop token exchange remain real. Its lifecycle also checks that paid
 subscriptions suppress the startup ad and a coupon-pack purchase does not.
+The project check inserts an original design, saves the project, verifies undo
+and redo in the saved geometry, and reopens/saves it with cloud connections
+refused through a reserved loopback proxy. The remembered paid-period cache must
+keep the ad hidden during that offline restart. The driver then restores normal
+network access and verifies that the remembered login still works. Native file
+choosers handle all project paths; no app command is injected. Project archives
+remain in the disposable runner and are excluded from uploaded evidence.
 Provisioning, expiry and cleanup must be arranged before dispatch. Never put
 passwords, cookies, token values or authorization URLs in workflow inputs or
 committed fixtures. Remove temporary secrets and accounts after validation.

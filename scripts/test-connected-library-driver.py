@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Check isolated test-driver origin, session and callback boundaries without network."""
 import importlib.util
+import json
 from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.parse import urlencode
+import zipfile
 
 spec = importlib.util.spec_from_file_location('library_driver', Path(__file__).with_name('test-connected-library-desktop.py'))
 driver = importlib.util.module_from_spec(spec)
@@ -48,6 +51,24 @@ class DriverBoundaries(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, '^disposable_session_invalid$'):
                 account.login()
             request.assert_not_called()
+
+    def test_offline_proof_requires_a_readable_saved_project(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)/'test.lzrproj'
+            self.assertIsNone(driver.project_geometry(project))
+            project.write_bytes(b'incomplete project')
+            self.assertIsNone(driver.project_geometry(project))
+            with zipfile.ZipFile(project,'w') as archive:
+                archive.writestr('project.json',json.dumps({'objects':[]}))
+            self.assertIsNone(driver.project_geometry(project))
+
+    def test_project_round_trip_compares_artwork_and_assets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)/'test.lzrproj'
+            geometry={'objects':[{'id':'shape','paths':[[0,0],[1,1]]}],'layers':[{'id':'line'}],'assets':[]}
+            with zipfile.ZipFile(project,'w') as archive:
+                archive.writestr('project.json',json.dumps({**geometry,'metadata':{'modified_at':'ignored'}}))
+            self.assertEqual(driver.project_geometry(project),geometry)
 
 
 if __name__ == '__main__':

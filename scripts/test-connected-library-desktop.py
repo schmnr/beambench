@@ -14,12 +14,14 @@ import os
 from pathlib import Path
 import re
 import secrets
+import socket
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 
 PROVIDER = 'craftgineer'
 HOST = 'craftgineer.com'
@@ -27,6 +29,26 @@ ORIGIN = 'https://' + HOST
 PROVIDER_NAME = 'Craftgineer'
 EXPECTED_CALLBACK_STATUS = 200
 ELEMENT = 'element-6066-11e4-a52e-4f735466cecf'
+
+
+def project_geometry(path):
+    try:
+        with zipfile.ZipFile(path) as archive:
+            info = archive.getinfo('project.json')
+            if info.file_size > 128 * 1024 * 1024:
+                raise RuntimeError('test_project_json_limit')
+            project = json.loads(archive.read(info))
+        return {key: project[key] for key in ['objects', 'layers', 'assets']}
+    except (OSError, zipfile.BadZipFile, KeyError, ValueError):
+        return None
+
+
+def xpath_literal(value):
+    if "'" not in value:
+        return "'" + value + "'"
+    if '"' not in value:
+        return '"' + value + '"'
+    return 'concat(' + ',"\'",'.join("'" + part + "'" for part in value.split("'")) + ')'
 
 
 class Forms(HTMLParser):
@@ -215,8 +237,27 @@ class Driver:
         self.click('//button[normalize-space(.)=' + json.dumps(name) + ' or @aria-label=' + json.dumps(name) + ']')
 
     def button_enabled(self, name):
-        element = self.element('//button[normalize-space(.)=' + json.dumps(name) + ']')
+        element = self.element('//button[normalize-space(.)=' + json.dumps(name) + ' or @aria-label=' + json.dumps(name) + ']')
         return self.command('GET','/element/'+element+'/enabled')
+
+    def insert_file(self, name):
+        xpath = '//p[normalize-space(.)=' + xpath_literal(name) + ']/parent::div/button[normalize-space(.)="Insert"]'
+        self.wait(lambda: self.command('GET', '/element/' + self.element(xpath) + '/enabled'), 'file_insert_enabled')
+        self.click(xpath)
+
+    def file_dialog(self, title, path):
+        def window():
+            result = subprocess.run(['xdotool','search','--onlyvisible','--name','^'+re.escape(title)+'$'],capture_output=True,text=True)
+            matches = result.stdout.split()
+            return matches[0] if len(matches) == 1 else None
+        self.wait(window, 'native_file_dialog')
+        handle = window()
+        subprocess.run(['xdotool','windowactivate','--sync',handle,'key','--clearmodifiers','ctrl+l'],check=True,timeout=10)
+        subprocess.run(['xdotool','type','--clearmodifiers','--delay','1',str(path)],check=True,timeout=20)
+        subprocess.run(['xdotool','key','--clearmodifiers','Return'],check=True,timeout=10)
+        # Some GTK file choosers use Return to complete the location first.
+        if window():
+            subprocess.run(['xdotool','key','--window',handle,'--clearmodifiers','alt+s' if title.startswith('Save') else 'alt+o'],check=False,timeout=10)
 
     def welcome_visible(self):
         elements = self.command('POST', '/elements', {'using': 'xpath',
@@ -313,6 +354,28 @@ class WindowsDriver(Driver):
 
     def button_enabled(self, name):
         return any(c.window_text() == name and c.is_enabled() for c in self.controls('Button'))
+
+    def insert_file(self, name):
+        labels = [c for c in self.controls('Text') if c.window_text() == name]
+        if len(labels) != 1:
+            raise RuntimeError('native_file_card_not_unique')
+        label = labels[0].rectangle()
+        buttons = [c for c in self.controls('Button') if c.window_text() == 'Insert' and c.is_enabled()
+            and c.rectangle().top >= label.bottom - 4 and c.rectangle().left < label.right and c.rectangle().right > label.left]
+        if not buttons:
+            raise RuntimeError('native_file_insert_not_unique')
+        min(buttons, key=lambda c: c.rectangle().top - label.bottom).invoke()
+
+    def file_dialog(self, title, path):
+        from pywinauto import Desktop
+        from pywinauto.keyboard import send_keys
+        dialog = Desktop(backend='win32').window(title=title, class_name='#32770', process=self.process.pid)
+        dialog.wait('visible enabled', timeout=30)
+        dialog.set_focus()
+        # The standard file chooser opens with its filename edit focused.
+        send_keys('^a')
+        send_keys(str(path), with_spaces=True, pause=0.001)
+        send_keys('{ENTER}')
 
     def welcome_visible(self):
         return any(c.window_text() == 'Close welcome' for c in self.controls('Button'))
@@ -420,9 +483,12 @@ def main():
     parser.add_argument('--scenario', choices=['lifecycle', 'session-only', 'wallet-unlock', 'wallet-deny', 'wallet-unavailable', 'deletion'], default='lifecycle')
     parser.add_argument('--wallet-provider', choices=['gnome','kde'])
     parser.add_argument('--check-startup-ad', action='store_true', help='Check free and paid startup behavior using explicit disposable-account entitlement metadata.')
+    parser.add_argument('--check-project-import', action='store_true', help='Insert an original file, save/undo/redo, then reopen and save locally with cloud access blocked.')
     args = parser.parse_args()
     if args.check_startup_ad and args.scenario not in ['lifecycle', 'session-only']:
         parser.error('--check-startup-ad requires lifecycle or session-only')
+    if args.check_project_import and args.scenario != 'lifecycle':
+        parser.error('--check-project-import requires lifecycle')
     global PROVIDER, HOST, ORIGIN, PROVIDER_NAME, EXPECTED_CALLBACK_STATUS
     PROVIDER = args.provider
     HOST = PROVIDER + '.com'
@@ -479,7 +545,7 @@ def main():
             except urllib.error.URLError:
                 time.sleep(0.1)
 
-        def launch(remembered_account=None):
+        def launch(remembered_account=None, offline=False):
             nonlocal process
             if sys.platform != 'win32' and process.poll() is not None:
                 process = subprocess.Popen([str(args.driver),'--port=17556'],stdout=log,stderr=log)
@@ -510,8 +576,14 @@ def main():
                     pass
             active.open_connections()
             active.choose_provider()
+            if remembered_account and (args.check_startup_ad or offline):
+                if offline:
+                    active.wait(lambda: active.button_enabled('Connect ' + PROVIDER_NAME), 'offline_restore_finished')
+                    if remembered_account['name'] in active.text():
+                        raise RuntimeError('cloud_access_not_blocked')
+                else:
+                    active.wait(lambda: remembered_account['name'] in active.text(), 'ad_check_account_restored')
             if args.check_startup_ad and remembered_account:
-                active.wait(lambda: remembered_account['name'] in active.text(), 'ad_check_account_restored')
                 if active.welcome_visible():
                     raise RuntimeError('paid_startup_ad_visible')
                 if remembered_account['paidSubscription']:
@@ -546,6 +618,27 @@ def main():
             other = next(a for a in accounts['accounts'] if a['id'] != account['id'])
             if other['fixture'] in active.text():
                 raise RuntimeError('cross_account_file_visible')
+            if args.check_project_import and account['label'] == 'a':
+                active.button('New')
+                active.wait(lambda: active.button_enabled('Undo') is False, 'fresh_project')
+                active.insert_file(account['fixture'])
+                active.wait(lambda: active.button_enabled('Undo'), 'native_original_import', timeout=90)
+                active.button('Save')
+                active.file_dialog('Save Project As', root/'imported.lzrproj')
+                active.wait(lambda: project_geometry(root/'imported.lzrproj'), 'saved_import')
+                original = project_geometry(root/'imported.lzrproj')
+                if not original['objects']:
+                    raise RuntimeError('import_saved_without_geometry')
+                passed('native_original_insert_and_project_save')
+                active.button('Undo')
+                active.wait(lambda: active.button_enabled('Redo'), 'native_import_undo')
+                active.button('Save')
+                active.wait(lambda: (project_geometry(root/'imported.lzrproj') or {}).get('objects') == [], 'saved_undo')
+                active.button('Redo')
+                active.wait(lambda: not active.button_enabled('Redo'), 'native_import_redo')
+                active.button('Save')
+                active.wait(lambda: project_geometry(root/'imported.lzrproj') == original, 'saved_redo')
+                passed('native_import_undo_redo_matches_saved_geometry')
             active.button('Manage connections')
 
         driver = launch()
@@ -619,6 +712,39 @@ def main():
             driver = launch(first)
             driver.wait(lambda: first['name'] in driver.text(), 'remembered_account_a')
             passed('remembered_restart_a')
+            if args.check_project_import:
+                expected_geometry = project_geometry(root/'imported.lzrproj')
+                if not expected_geometry or not expected_geometry['objects']:
+                    raise RuntimeError('offline_source_project_invalid')
+                driver.quit()
+                names = ['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','NO_PROXY','http_proxy','https_proxy','all_proxy','no_proxy']
+                previous = {name: os.environ.get(name) for name in names}
+                # Reserve a non-listening loopback port, so cloud connections
+                # are refused before any credential can reach the provider.
+                with socket.socket() as blocker:
+                    blocker.bind(('127.0.0.1',0))
+                    proxy = 'http://127.0.0.1:' + str(blocker.getsockname()[1])
+                    try:
+                        for name in names:
+                            os.environ[name] = '127.0.0.1,localhost' if name.lower() == 'no_proxy' else proxy
+                        driver = launch(first, offline=True)
+                        driver.button('Open')
+                        driver.file_dialog('Open Project', root/'imported.lzrproj')
+                        driver.wait(lambda: driver.button_enabled('Save As'), 'offline_project_open')
+                        driver.button('Save As')
+                        driver.file_dialog('Save Project As', root/'offline-copy.lzrproj')
+                        driver.wait(lambda: project_geometry(root/'offline-copy.lzrproj') == expected_geometry, 'offline_geometry_round_trip')
+                        driver.screenshot(root/'offline-local-project.png')
+                        passed('native_cloud_blocked_offline_project_reopen_and_save')
+                        driver.quit()
+                    finally:
+                        for name,value in previous.items():
+                            if value is None:
+                                os.environ.pop(name,None)
+                            else:
+                                os.environ[name]=value
+                driver = launch(first)
+                passed('remembered_login_survives_offline_project_round_trip')
             driver.button('Disconnect')
             driver.wait(lambda: driver.button_enabled('Connect ' + PROVIDER_NAME), 'disconnect_a')
             if first['name'] in driver.text():
@@ -677,6 +803,7 @@ def main():
             'platform':sys.platform,'provider':PROVIDER,'applicationSha256':original_hash,
             'callbackStatus':EXPECTED_CALLBACK_STATUS,
             'startupAdChecked':args.check_startup_ad,
+            'projectImportChecked':args.check_project_import,
             'passed':results,'ipcMocked':False,'tlsVerificationBypassed':False,
             'nativePasswordPromptsTested':args.scenario in ['wallet-unlock','wallet-deny']},indent=2)+'\n')
         print(json.dumps({'passed':results,'platform':sys.platform}))
