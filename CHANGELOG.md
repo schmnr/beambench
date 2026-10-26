@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Import vector PDFs that retain unused text spacing or scaling commands.
+  Actual PDF text still requires conversion to paths before importing.
+
 ## 0.2.34-rc.3
 
 - Keep Craftgineer and PrintCutCarve Library tabs visible before connecting,
