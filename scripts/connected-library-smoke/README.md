@@ -6,9 +6,14 @@ original `artifact_run_id`. The job verifies that the build source matches the
 tag and tests the downloaded package without rebuilding it. Required source CI
 remains a separate gate.
 
-An owner-approved, expiring `CRAFTGINEER_PHASE2_TEST_ACCOUNTS` repository secret
-supplies the two disposable accounts. The script refuses personal identities:
-only the named pilot, `bbp2_` synthetic IDs and `example.invalid` addresses pass.
+Select `library_provider` for the service under test. An owner-approved, expiring
+`CRAFTGINEER_PHASE2_TEST_ACCOUNTS` or `PRINTCUTCARVE_DESKTOP_TEST_ACCOUNTS`
+repository secret supplies two disposable accounts. The script rejects personal
+identities and enforces the selected provider's synthetic IDs, named pilot and
+`example.invalid` addresses. PrintCutCarve uses approved temporary database
+website sessions, without email or Google sign-in. Hosted consent, PKCE and
+desktop token exchange remain real. Its lifecycle also checks that paid
+subscriptions suppress the startup ad and a coupon-pack purchase does not.
 Provisioning, expiry and cleanup must be arranged before dispatch. Never put
 passwords, cookies, token values or authorization URLs in workflow inputs or
 committed fixtures. Remove temporary secrets and accounts after validation.
