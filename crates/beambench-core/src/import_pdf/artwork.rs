@@ -442,6 +442,12 @@ fn walk(
             "w" | "J" | "j" | "M" => {
                 numbers(&op.operands, 1)?;
             }
+            "Tc" | "Tw" | "Tz" | "TL" | "Ts" => {
+                // Exporters can leave text spacing/scaling setup in outlined
+                // artwork. It cannot affect paths or images; text objects and
+                // text-showing operators still fail below.
+                numbers(&op.operands, 1)?;
+            }
             _ => {
                 return Err(format!(
                     "PDF drawing operator '{operator}' cannot be preserved. Convert text to paths and flatten unsupported effects before importing."

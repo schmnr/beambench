@@ -1580,6 +1580,50 @@ mod document_regressions {
     }
 
     #[test]
+    fn unused_text_spacing_state_does_not_change_vector_artwork() {
+        let drawing = b"1 0 0 RG 0 0 m 72 0 l S q 0 0 1 rg 10 10 20 20 re f Q";
+        let expected = parse_pdf_artwork(&document(drawing)).unwrap();
+        for setup in ["0 Tc", "2 Tc", "-2 Tc", "3 Tw", "100 Tz", "12 TL", "-4 Ts"] {
+            let content = [setup.as_bytes(), b" ", drawing].concat();
+            assert_eq!(
+                parse_pdf_artwork(&document(&content)).unwrap(),
+                expected,
+                "{setup}"
+            );
+        }
+        let content = [b"0 Tc 3 Tw 100 Tz 12 TL -4 Ts ".as_slice(), drawing].concat();
+        assert_eq!(parse_pdf_artwork(&document(&content)).unwrap(), expected);
+    }
+
+    #[test]
+    fn text_spacing_state_rejects_malformed_operands() {
+        for operator in ["Tc", "Tw", "Tz", "TL", "Ts"] {
+            for operands in ["", "1 2", "(0)", "/Zero", "[]", "10000001"] {
+                let content = format!("0 0 10 10 re f {operands} {operator}");
+                assert!(
+                    parse_pdf_artwork(&document(content.as_bytes())).is_err(),
+                    "{content}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn unused_text_state_does_not_allow_partial_import_of_live_text() {
+        for text in ["BT /F1 12 Tf (text) Tj ET", "(text) Tj", "[(text)] TJ"] {
+            let content = format!("0 Tc 0 0 10 10 re f {text}");
+            let error = parse_pdf_artwork(&document(content.as_bytes())).unwrap_err();
+            assert!(error.contains("Convert text to paths"), "{error}");
+        }
+        let content = b"0 Tc /X Do";
+        let form = Stream::new(
+            dictionary! {"Type"=>"XObject", "Subtype"=>"Form", "BBox"=>vec![0.into(),0.into(),100.into(),100.into()]},
+            b"0 0 10 10 re f BT /F1 12 Tf (text) Tj ET".to_vec(),
+        );
+        assert!(parse_pdf_artwork(&with_xobject(content, form)).is_err());
+    }
+
+    #[test]
     fn page_resources_replace_inherited_graphics_states() {
         let bytes = document_with_graphics_state(
             b"/GS0 gs 0 0 10 10 re f",
