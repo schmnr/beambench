@@ -350,7 +350,11 @@ class Driver:
             ancestor = int(next(line.split()[1] for line in status.splitlines() if line.startswith('PPid:')))
         if ancestor != self.process.pid:
             raise RuntimeError('native_window_not_owned_by_test_driver')
-        subprocess.run(['xdotool','windowactivate','--sync',windows[0],'key','--clearmodifiers','alt+F4'],check=True,timeout=10)
+        # Native GTK choosers can leave keyboard focus outside the webview.
+        # Focus the app explicitly and use its normal Quit shortcut, which
+        # reaches the same unsaved-change handling as the visible Quit menu.
+        subprocess.run(['xdotool','windowactivate','--sync',windows[0],
+            'windowfocus','--sync',windows[0],'key','--clearmodifiers','ctrl+q'],check=True,timeout=10)
         deadline = time.monotonic()+15
         while Path('/proc/'+str(pid)).exists() and time.monotonic()<deadline:
             time.sleep(0.1)
