@@ -230,6 +230,9 @@ class Driver:
     def library_text(self):
         return self.command('GET','/element/'+self.element('//div[@data-testid="library-drawer"]')+'/text')
 
+    def library_button(self, name):
+        self.click('//div[@data-testid="library-drawer"]//button[normalize-space(.)=' + xpath_literal(name) + ']')
+
     def element(self, xpath):
         return self.command('POST', '/element', {'using': 'xpath', 'value': xpath})[ELEMENT]
 
@@ -349,11 +352,20 @@ class WindowsDriver(Driver):
     def text(self):
         return '\n'.join(c.window_text() for c in self.controls())
 
-    def library_text(self):
+    def library_region(self):
         panels = [c for c in self.controls('Group') if c.window_text() == PROVIDER_NAME + ' connection']
         if len(panels) != 1:
             raise RuntimeError('native_library_region_not_unique')
-        return '\n'.join(c.window_text() for c in panels[0].descendants() if c.is_visible())
+        return panels[0]
+
+    def library_text(self):
+        return '\n'.join(c.window_text() for c in self.library_region().descendants() if c.is_visible())
+
+    def library_button(self, name):
+        targets = [c for c in self.library_region().descendants(control_type='Button') if c.window_text() == name and c.is_visible()]
+        if len(targets) != 1:
+            raise RuntimeError('native_library_button_not_unique')
+        targets[0].invoke()
 
     def button(self, name):
         targets = [c for c in self.controls('Button') if c.window_text() == name]
@@ -381,7 +393,8 @@ class WindowsDriver(Driver):
         dialog = Desktop(backend='win32').window(title=title, class_name='#32770', process=self.process.pid)
         dialog.wait('visible enabled', timeout=30)
         dialog.set_focus()
-        # The standard file chooser opens with its filename edit focused.
+        # Focus the standard filename field for both Open and Save choosers.
+        send_keys('%n')
         send_keys('^a')
         send_keys(str(path), with_spaces=True, pause=0.001)
         send_keys('{ENTER}')
@@ -622,7 +635,7 @@ def main():
             if PROVIDER == 'printcutcarve':
                 active.search_packs(account['pack'])
                 active.wait(lambda: account['pack'] in active.text() and active.button_enabled('Open'), 'pack_listing')
-                active.button('Open')
+                active.library_button('Open')
             active.wait(lambda: account['fixture'] in active.library_text(), 'account_listing')
             other = next(a for a in accounts['accounts'] if a['id'] != account['id'])
             if other['fixture'] in active.library_text():
