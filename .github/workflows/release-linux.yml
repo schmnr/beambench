@@ -35,6 +35,14 @@ on:
         required: false
         default: "40154787781"
         type: string
+      library_provider:
+        description: "Connected library to validate with approved disposable accounts."
+        required: false
+        default: craftgineer
+        type: choice
+        options:
+          - craftgineer
+          - printcutcarve
       wallet_provider:
         description: "Native Linux password service to exercise for saved login and prompts."
         required: false
@@ -364,14 +372,25 @@ jobs:
       - name: Prepare disposable password-store test host
         run: docker build -t beambench-wallet-validation scripts/connected-library-smoke
 
-      - name: Test paid login, real GNOME storage, account switch and disconnect
+      - name: Test account login, native storage, account switch and disconnect
         env:
-          BEAMBENCH_PILOT_ACCOUNTS: ${{ secrets.CRAFTGINEER_PHASE2_TEST_ACCOUNTS }}
+          CRAFTGINEER_TEST_ACCOUNTS: ${{ secrets.CRAFTGINEER_PHASE2_TEST_ACCOUNTS }}
+          PRINTCUTCARVE_TEST_ACCOUNTS: ${{ secrets.PRINTCUTCARVE_DESKTOP_TEST_ACCOUNTS }}
+          LIBRARY_PROVIDER: ${{ inputs.library_provider }}
           WALLET_PROVIDER: ${{ inputs.wallet_provider }}
           VALIDATION_SCENARIO: ${{ inputs.validation_scenario }}
           BEAMBENCH_PILOT_DELETE_PROOF: ${{ secrets.CRAFTGINEER_PHASE2_DELETE_PROOF }}
         run: |
           set -euo pipefail
+          case "$LIBRARY_PROVIDER" in
+            craftgineer) export BEAMBENCH_PILOT_ACCOUNTS="$CRAFTGINEER_TEST_ACCOUNTS" ;;
+            printcutcarve)
+              [[ "$VALIDATION_SCENARIO" != deletion ]]
+              export BEAMBENCH_PILOT_ACCOUNTS="$PRINTCUTCARVE_TEST_ACCOUNTS"
+              unset BEAMBENCH_PILOT_DELETE_PROOF ;;
+            *) exit 1 ;;
+          esac
+          [[ -n "$BEAMBENCH_PILOT_ACCOUNTS" ]]
           evidence="$RUNNER_TEMP/beambench-connected-library"
           mkdir -p "$evidence"
           sudo chown 1100:1100 "$evidence"
@@ -381,13 +400,13 @@ jobs:
             --mount "type=bind,source=$CANDIDATE_APPIMAGE,target=/test.AppImage,readonly" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/scripts,readonly" \
             --mount "type=bind,source=$evidence,target=/evidence" \
-            beambench-wallet-validation bash /scripts/connected-library-smoke/run.sh "$WALLET_PROVIDER" "$VALIDATION_SCENARIO"
+            beambench-wallet-validation bash /scripts/connected-library-smoke/run.sh "$WALLET_PROVIDER" "$VALIDATION_SCENARIO" "$LIBRARY_PROVIDER"
 
       - name: Upload non-secret lifecycle evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: BeamBench-Linux-connected-library-${{ inputs.wallet_provider }}-${{ inputs.tag }}
+          name: BeamBench-Linux-connected-library-${{ inputs.library_provider }}-${{ inputs.wallet_provider }}-${{ inputs.tag }}
           path: |
             ${{ runner.temp }}/beambench-connected-library/provider.json
             ${{ runner.temp }}/beambench-connected-library/wallet-created.json

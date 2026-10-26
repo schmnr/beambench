@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.2.34-rc.2
+
+- Add PrintCutCarve pack browsing and original SVG imports alongside Craftgineer.
+  Free and paid accounts can connect to their own available library files.
+- Hide the startup ad for a paid subscription verified through either connected
+  service. Remember its verified end date in the OS password store for bounded
+  offline use. Free files and individual pack purchases keep the startup ad.
+- Prepare signed packages for account and platform validation. This candidate
+  does not publish a release or advance the stable update manifest.
+
 ## 0.2.34-rc.1
 
 - Add the optional Craftgineer library connection for active paid subscribers.

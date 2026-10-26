@@ -30,6 +30,7 @@ import { useAppStore } from './stores/appStore';
 import { useProjectStore } from './stores/projectStore';
 import { usePreviewStore } from './stores/previewStore';
 import { useUiStore } from './stores/uiStore';
+import { useConnectedLibraryEvents, useConnectedLibraryStore, usePrintcutcarveLibraryStore } from './stores/connectedLibraryStore';
 import { useUndoStore } from './stores/undoStore';
 import { useUnsavedGuardStore } from './stores/unsavedGuardStore';
 import i18n from './i18n';
@@ -37,7 +38,7 @@ import { useMachineStore } from './stores/machineStore';
 import { consumeSuppressedProfileEvent } from './stores/machineStore';
 import { useCameraStore } from './stores/cameraStore';
 import { useUpdateStore } from './stores/updateStore';
-import { useWelcomeStore, shouldShowWelcome } from './stores/welcomeStore';
+import { useWelcomeStore, shouldShowWelcome, hasActivePaidConnection } from './stores/welcomeStore';
 import { useMacroStore } from './stores/macroStore';
 import { useNotificationStore } from './stores/notificationStore';
 import { localizeBackendMessage, localizeImportWarning, wrapBackendError } from './i18n/errors';
@@ -497,6 +498,17 @@ function NestingOverlay() {
 }
 
 function App() {
+  const connectedLibrariesReady = useConnectedLibraryEvents();
+  const craftgineerPaidThrough = useConnectedLibraryStore((s) => s.status?.paidThrough);
+  const printcutcarvePaidThrough = usePrintcutcarveLibraryStore((s) => s.status?.paidThrough);
+  const paidConnection = hasActivePaidConnection(craftgineerPaidThrough, printcutcarvePaidThrough);
+  const [startupPromoRequested, setStartupPromoRequested] = useState(false);
+  useEffect(() => {
+    if (paidConnection) useWelcomeStore.getState().closeDialog();
+    if (!startupPromoRequested || !connectedLibrariesReady) return;
+    setStartupPromoRequested(false);
+    if (!paidConnection) useWelcomeStore.getState().openDialog();
+  }, [startupPromoRequested, connectedLibrariesReady, paidConnection]);
   const fetchStatus = useAppStore((s) => s.fetchStatus);
   const fetchSettings = useAppStore((s) => s.fetchSettings);
   const loadProject = useProjectStore((s) => s.loadProject);
@@ -934,7 +946,7 @@ function App() {
       }
       // Startup welcome promo, decided after settings resolve.
       if (shouldShowWelcome(settings)) {
-        useWelcomeStore.getState().openDialog();
+        setStartupPromoRequested(true);
       }
     }).catch(() => {
       useNotificationStore

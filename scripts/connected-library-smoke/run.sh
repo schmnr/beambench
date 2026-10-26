@@ -1,5 +1,7 @@
 #!/bin/bash
 set -euo pipefail
+library_provider="${3:-craftgineer}"
+case "$library_provider" in craftgineer|printcutcarve) ;; *) exit 1 ;; esac
 export DISPLAY=:99
 export XDG_RUNTIME_DIR=/home/beamtest/runtime
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/home/beamtest/bus
@@ -26,13 +28,17 @@ else
   echo 'Unsupported wallet scenario' >&2
   exit 1
 fi
-python3 /scripts/connected-library-smoke/wallet.py metadata --provider "$1" --output /evidence/provider.json
+python3 /scripts/connected-library-smoke/wallet.py metadata --provider "$1" --output /evidence/provider.json --library-provider "$library_provider"
 scenarios=(lifecycle wallet-unlock wallet-deny wallet-unavailable)
 if [[ "${2:-full}" == deletion ]]; then scenarios=(deletion); fi
 for scenario in "${scenarios[@]}"; do
+  startup_args=()
+  if [[ "$library_provider" == printcutcarve && "$scenario" == lifecycle ]]; then
+    startup_args=(--check-startup-ad --check-project-import)
+  fi
   python3 /scripts/test-connected-library-desktop.py \
     --application /test.AppImage --driver /usr/bin/WebKitWebDriver \
-    --scenario "$scenario" --wallet-provider "$1" --output "/evidence/$scenario"
+    --scenario "$scenario" --wallet-provider "$1" --provider "$library_provider" "${startup_args[@]}" --output "/evidence/$scenario"
   python3 /scripts/connected-library-smoke/wallet.py metadata --provider "$1" \
-    --expect-empty --output "/evidence/$scenario/wallet-cleanup.json"
+    --library-provider "$library_provider" --expect-empty --output "/evidence/$scenario/wallet-cleanup.json"
 done

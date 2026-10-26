@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer-Verbindung",
     "manage": "Verbindungen verwalten",
-    "disclosure": "Verbinde dein kostenpflichtiges Craftgineer-Konto, um gespeicherte Bibliotheksdateien zu lesen. Bearbeite und speichere Dateien auf Craftgineer und aktualisiere anschließend diese Ansicht. Eingefügte Grafiken werden in deinem Beam Bench-Projekt gespeichert und bleiben offline verfügbar.",
+    "disclosure": "Verbinde ein kostenloses oder kostenpflichtiges Craftgineer-Konto, um deine gespeicherten Bibliotheksdateien zu lesen. Bearbeite und speichere Dateien auf Craftgineer und aktualisiere anschließend diese Ansicht. Eingefügte Grafiken werden in deinem Beam Bench-Projekt gespeichert und bleiben offline verfügbar. Ein aktives kostenpflichtiges Abonnement, das über ein verbundenes Konto bei Craftgineer oder PrintCutCarve bestätigt wird, entfernt die Werbung beim Start von Beam Bench.",
     "remember": "Dieses Konto auf diesem Computer sicher speichern",
     "connect": "Craftgineer verbinden",
     "disconnect": "Trennen",
@@ -2947,7 +2947,7 @@
     "insert": "Einfügen",
     "more": "Mehr laden",
     "errors": {
-      "subscription_required": "Ein aktives kostenpflichtiges Craftgineer-Abonnement ist erforderlich. Verwalte dein Abonnement auf Craftgineer.",
+      "subscription_required": "Diese Bibliothek ist nicht verfügbar. Aktualisiere die Ansicht oder verbinde dein Konto erneut.",
       "invalid_token": "Diese Verbindung ist abgelaufen oder wurde widerrufen. Trenne sie und verbinde dich erneut.",
       "revision_conflict": "Diese Datei wurde geändert. Aktualisiere die Bibliothek und versuche es erneut.",
       "access_denied": "Verbindung im Browser abgebrochen.",
@@ -2959,6 +2959,48 @@
       "unavailable": "Craftgineer konnte nicht erreicht werden. Prüfe deine Verbindung und versuche es erneut."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Kehre zu Beam Bench zurück, um deine Verbindung zu prüfen. Du kannst diesen Tab schließen."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve-Verbindung",
+    "manage": "Verbindungen verwalten",
+    "disclosure": "Verbinde ein kostenloses oder kostenpflichtiges PrintCutCarve-Konto, um die unter Meine Downloads verfügbaren Pakete zu durchsuchen und ein Design einzufügen. Eingefügte Grafiken werden in deinem Beam Bench-Projekt gespeichert und bleiben offline verfügbar. Ein aktives kostenpflichtiges Abonnement, das über ein verbundenes Konto bei Craftgineer oder PrintCutCarve bestätigt wird, entfernt die Werbung beim Start von Beam Bench.",
+    "remember": "Dieses Konto auf diesem Computer sicher speichern",
+    "connect": "PrintCutCarve verbinden",
+    "disconnect": "Trennen",
+    "browse": "Bibliothek durchsuchen",
+    "session_only": "Nur für diese Sitzung verbunden. Die sichere Speicherung der Zugangsdaten ist nicht verfügbar. Verbinde dich nach dem Neustart von Beam Bench erneut.",
+    "waiting": "Schließe die Verbindung im Browser ab. Du kannst hier abbrechen.",
+    "search": "Designs in diesem Paket suchen",
+    "refresh": "Aktualisieren",
+    "open_project": "Öffne ein Projekt, um Grafiken einzufügen.",
+    "empty": "Keine passenden Designs in diesem Paket.",
+    "insert": "Einfügen",
+    "more": "Mehr laden",
+    "errors": {
+      "subscription_required": "Diese Bibliothek ist nicht verfügbar. Aktualisiere die Ansicht oder verbinde dein Konto erneut.",
+      "invalid_token": "Diese Verbindung ist abgelaufen oder wurde widerrufen. Trenne sie und verbinde dich erneut.",
+      "revision_conflict": "Diese Datei wurde geändert. Aktualisiere die Bibliothek und versuche es erneut.",
+      "access_denied": "Verbindung im Browser abgebrochen.",
+      "connection_timeout": "Zeitüberschreitung beim Verbindungsaufbau. Versuche erneut, eine Verbindung herzustellen.",
+      "wallet_cleanup_required": "Das Konto wurde für diese Sitzung getrennt, aber gespeicherte Zugangsdaten konnten nicht entfernt werden. Entsperre deinen Passwortspeicher und trenne die Verbindung erneut. Du kannst den Zugriff von Beam Bench auch unter Desktop-Verbindungen auf PrintCutCarve widerrufen.",
+      "revocation_pending": "Auf diesem Computer getrennt. Die Website konnte zum Widerrufen des Zugriffs nicht erreicht werden. Widerrufe den Zugriff von Beam Bench unter Desktop-Verbindungen auf PrintCutCarve.",
+      "rate_limited": "Zu viele Anfragen. Warte eine Minute und aktualisiere dann die Ansicht.",
+      "stale_document": "Das Projekt wurde während des Ladens der Grafik gewechselt. Füge sie erneut in das gewünschte Projekt ein.",
+      "unavailable": "PrintCutCarve konnte nicht erreicht werden. Prüfe deine Verbindung und versuche es erneut.",
+      "file_too_large": "Diese Datei oder ihre Vorschau ist zu groß zum Importieren. Öffne das Paket auf PrintCutCarve.",
+      "unsupported_media_type": "Diese Datei kann nicht in Beam Bench eingefügt werden. Öffne sie auf PrintCutCarve, um die Downloadoptionen zu sehen.",
+      "not_found": "Diese Datei ist nicht mehr verfügbar. Aktualisiere das Paket oder öffne es auf PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Kehre zu Beam Bench zurück, um deine Verbindung zu prüfen. Du kannst diesen Tab schließen.",
+    "pack_search": "Deine Pakete suchen",
+    "empty_packs": "Keine Pakete gefunden. Versuche eine andere Suche oder sieh unter Meine Downloads auf PrintCutCarve nach.",
+    "back_to_packs": "Zurück zu den Paketen",
+    "file_count": "{count, plural, one {# Datei} other {# Dateien}}",
+    "website": "Auf PrintCutCarve öffnen",
+    "unavailable_file": "Diese Datei kann nicht eingefügt werden. Öffne das Paket auf PrintCutCarve, um die Downloadoptionen zu sehen."
   }
 }

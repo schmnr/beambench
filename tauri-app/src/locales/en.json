@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer connection",
     "manage": "Manage connections",
-    "disclosure": "Connect your paid Craftgineer account to read saved library files. Edit and save files on Craftgineer, then refresh here. Inserted artwork is stored in your Beam Bench project and remains available offline.",
+    "disclosure": "Connect a free or paid Craftgineer account to read your saved library files. Edit and save files on Craftgineer, then refresh here. Inserted artwork is stored in your Beam Bench project and remains available offline. An active paid subscription verified through a connected Craftgineer or PrintCutCarve account removes the Beam Bench startup ad.",
     "remember": "Remember this account securely on this computer",
     "connect": "Connect Craftgineer",
     "disconnect": "Disconnect",
@@ -2947,7 +2947,7 @@
     "insert": "Insert",
     "more": "Load more",
     "errors": {
-      "subscription_required": "An active paid Craftgineer subscription is required. Manage your subscription on Craftgineer.",
+      "subscription_required": "This library is unavailable. Refresh or reconnect your account.",
       "invalid_token": "This connection has expired or was revoked. Disconnect, then reconnect.",
       "revision_conflict": "This file changed. Refresh the library and try again.",
       "access_denied": "Connection cancelled in the browser.",
@@ -2959,6 +2959,48 @@
       "unavailable": "Craftgineer could not be reached. Check your connection and try again."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Return to Beam Bench to check your connection. You can close this tab."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve connection",
+    "manage": "Manage connections",
+    "disclosure": "Connect a free or paid PrintCutCarve account to browse the packs available in My Downloads and insert a design. Inserted artwork is saved in your Beam Bench project and remains available offline. An active paid subscription verified through a connected Craftgineer or PrintCutCarve account removes the Beam Bench startup ad.",
+    "remember": "Remember this account securely on this computer",
+    "connect": "Connect PrintCutCarve",
+    "disconnect": "Disconnect",
+    "browse": "Browse library",
+    "session_only": "Connected for this session only. Secure credential storage is unavailable. Reconnect after restarting Beam Bench.",
+    "waiting": "Finish connecting in your browser. You can cancel here.",
+    "search": "Search designs in this pack",
+    "refresh": "Refresh",
+    "open_project": "Open a project to insert artwork.",
+    "empty": "No matching designs in this pack.",
+    "insert": "Insert",
+    "more": "Load more",
+    "errors": {
+      "subscription_required": "This library is unavailable. Refresh or reconnect your account.",
+      "invalid_token": "This connection has expired or was revoked. Disconnect, then reconnect.",
+      "revision_conflict": "This file changed. Refresh the library and try again.",
+      "access_denied": "Connection cancelled in the browser.",
+      "connection_timeout": "The connection timed out. Try connecting again.",
+      "wallet_cleanup_required": "The account was disconnected for this session, but stored credentials could not be removed. Unlock your password store and disconnect again. You can also revoke Beam Bench access in PrintCutCarve's Desktop connections.",
+      "revocation_pending": "Disconnected on this computer. The website could not be reached to revoke access. Revoke Beam Bench access in PrintCutCarve's Desktop connections.",
+      "rate_limited": "Too many requests. Wait a minute, then refresh.",
+      "stale_document": "The project changed while the artwork was loading. Insert it again in the intended project.",
+      "unavailable": "PrintCutCarve could not be reached. Check your connection and try again.",
+      "file_too_large": "This file or its preview is too large to import. Open the pack on PrintCutCarve.",
+      "unsupported_media_type": "This file cannot be inserted into Beam Bench. Open it on PrintCutCarve to see download options.",
+      "not_found": "This file is no longer available. Refresh the pack or open it on PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Return to Beam Bench to check your connection. You can close this tab.",
+    "pack_search": "Search your packs",
+    "empty_packs": "No packs found. Try another search or check My Downloads on PrintCutCarve.",
+    "back_to_packs": "Back to packs",
+    "file_count": "{count, plural, one {# file} other {# files}}",
+    "website": "Open on PrintCutCarve",
+    "unavailable_file": "This file cannot be inserted. Open the pack on PrintCutCarve for download options."
   }
 }

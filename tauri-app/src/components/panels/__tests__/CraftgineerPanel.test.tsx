@@ -4,9 +4,14 @@ import { connectedLibraryService as service } from '../../../services/connectedL
 import { useConnectedLibraryStore as store } from '../../../stores/connectedLibraryStore';
 import { CraftgineerPanel } from '../CraftgineerPanel';
 
-vi.mock('../../../services/connectedLibraryService', () => ({
-  connectedLibraryService: { status: vi.fn() },
-}));
+vi.mock('../../../services/connectedLibraryService', () => {
+  const service = { status: vi.fn() };
+  return {
+    connectedLibraryService: service,
+    printcutcarveLibraryService: { status: vi.fn() },
+    libraryService: () => service,
+  };
+});
 vi.mock('../../../stores/projectStore', () => ({ useProjectStore: () => false }));
 
 beforeEach(() => {
@@ -34,4 +39,12 @@ it('offers a refresh after offline restoration without asking for another browse
   expect(service.status).toHaveBeenNthCalledWith(2, true);
   expect(screen.queryByRole('alert')).toBeNull();
   expect(screen.getByRole('button', { name: 'Disconnect' })).toBeTruthy();
+});
+
+it('does not claim a session-only connection when wallet denial restored no account', async () => {
+  vi.mocked(service.status).mockResolvedValue({ account: null, remembered: false, walletUnavailable: true });
+  render(<CraftgineerPanel connections />);
+  await waitFor(() => expect(store.getState().status?.walletUnavailable).toBe(true));
+  expect(screen.queryByText(/Connected for this session only/)).toBeNull();
+  expect(screen.getByRole('button', { name: 'Connect Craftgineer' })).toBeTruthy();
 });

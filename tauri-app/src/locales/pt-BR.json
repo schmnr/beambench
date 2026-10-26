@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Conexão com Craftgineer",
     "manage": "Gerenciar conexões",
-    "disclosure": "Conecte sua conta paga do Craftgineer para ler os arquivos salvos na biblioteca. Edite e salve os arquivos no Craftgineer e depois atualize esta visualização. As ilustrações inseridas são salvas no seu projeto do Beam Bench e continuam disponíveis offline.",
+    "disclosure": "Conecte uma conta gratuita ou paga do Craftgineer para ler seus arquivos salvos na biblioteca. Edite e salve os arquivos no Craftgineer e depois atualize esta visualização. As ilustrações inseridas são salvas no seu projeto do Beam Bench e continuam disponíveis offline. Uma assinatura paga e ativa, verificada por meio de uma conta conectada do Craftgineer ou do PrintCutCarve, remove o anúncio de inicialização do Beam Bench.",
     "remember": "Lembrar esta conta com segurança neste computador",
     "connect": "Conectar Craftgineer",
     "disconnect": "Desconectar",
@@ -2947,7 +2947,7 @@
     "insert": "Inserir",
     "more": "Carregar mais",
     "errors": {
-      "subscription_required": "É necessária uma assinatura paga e ativa do Craftgineer. Gerencie sua assinatura no Craftgineer.",
+      "subscription_required": "Esta biblioteca está indisponível. Atualize a visualização ou reconecte sua conta.",
       "invalid_token": "Esta conexão expirou ou foi revogada. Desconecte e conecte-se novamente.",
       "revision_conflict": "Este arquivo mudou. Atualize a biblioteca e tente novamente.",
       "access_denied": "Conexão cancelada no navegador.",
@@ -2959,6 +2959,48 @@
       "unavailable": "Não foi possível acessar o Craftgineer. Verifique sua conexão e tente novamente."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Volte ao Beam Bench para verificar sua conexão. Você pode fechar esta aba."
+  },
+  "printcutcarve_library": {
+    "title": "Conexão com PrintCutCarve",
+    "manage": "Gerenciar conexões",
+    "disclosure": "Conecte uma conta gratuita ou paga do PrintCutCarve para explorar os pacotes disponíveis em Meus downloads e inserir um design. As ilustrações inseridas são salvas no seu projeto do Beam Bench e continuam disponíveis offline. Uma assinatura paga e ativa, verificada por meio de uma conta conectada do Craftgineer ou do PrintCutCarve, remove o anúncio de inicialização do Beam Bench.",
+    "remember": "Lembrar esta conta com segurança neste computador",
+    "connect": "Conectar PrintCutCarve",
+    "disconnect": "Desconectar",
+    "browse": "Explorar biblioteca",
+    "session_only": "Conectado apenas nesta sessão. O armazenamento seguro de credenciais está indisponível. Conecte-se novamente após reiniciar o Beam Bench.",
+    "waiting": "Conclua a conexão no navegador. Você pode cancelar aqui.",
+    "search": "Buscar designs neste pacote",
+    "refresh": "Atualizar",
+    "open_project": "Abra um projeto para inserir ilustrações.",
+    "empty": "Nenhum design correspondente neste pacote.",
+    "insert": "Inserir",
+    "more": "Carregar mais",
+    "errors": {
+      "subscription_required": "Esta biblioteca está indisponível. Atualize a visualização ou reconecte sua conta.",
+      "invalid_token": "Esta conexão expirou ou foi revogada. Desconecte e conecte-se novamente.",
+      "revision_conflict": "Este arquivo mudou. Atualize a biblioteca e tente novamente.",
+      "access_denied": "Conexão cancelada no navegador.",
+      "connection_timeout": "O tempo de conexão se esgotou. Tente se conectar novamente.",
+      "wallet_cleanup_required": "A conta foi desconectada nesta sessão, mas não foi possível remover as credenciais salvas. Desbloqueie o cofre de senhas do sistema e desconecte novamente. Você também pode revogar o acesso do Beam Bench em Conexões com aplicativos de desktop no PrintCutCarve.",
+      "revocation_pending": "Desconectado neste computador. Não foi possível acessar o site para revogar o acesso. Revogue o acesso do Beam Bench em Conexões com aplicativos de desktop no PrintCutCarve.",
+      "rate_limited": "Solicitações demais. Aguarde um minuto e atualize.",
+      "stale_document": "O projeto mudou durante o carregamento da ilustração. Insira-a novamente no projeto desejado.",
+      "unavailable": "Não foi possível acessar o PrintCutCarve. Verifique sua conexão e tente novamente.",
+      "file_too_large": "Este arquivo ou sua prévia é grande demais para importar. Abra o pacote no PrintCutCarve.",
+      "unsupported_media_type": "Este arquivo não pode ser inserido no Beam Bench. Abra-o no PrintCutCarve para ver as opções de download.",
+      "not_found": "Este arquivo não está mais disponível. Atualize o pacote ou abra-o no PrintCutCarve."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Volte ao Beam Bench para verificar sua conexão. Você pode fechar esta aba.",
+    "pack_search": "Buscar nos seus pacotes",
+    "empty_packs": "Nenhum pacote encontrado. Tente outra busca ou confira Meus downloads no PrintCutCarve.",
+    "back_to_packs": "Voltar aos pacotes",
+    "file_count": "{count, plural, one {# arquivo} other {# arquivos}}",
+    "website": "Abrir no PrintCutCarve",
+    "unavailable_file": "Este arquivo não pode ser inserido. Abra o pacote no PrintCutCarve para ver as opções de download."
   }
 }

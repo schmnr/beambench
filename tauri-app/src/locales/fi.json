@@ -2933,7 +2933,7 @@
   "connected_library": {
     "title": "Craftgineer-yhteys",
     "manage": "Hallitse yhteyksiä",
-    "disclosure": "Yhdistä maksullinen Craftgineer-tilisi lukeaksesi kirjastoon tallennettuja tiedostoja. Muokkaa ja tallenna tiedostot Craftgineerissä ja päivitä sitten tämä näkymä. Lisätty grafiikka tallennetaan Beam Bench -projektiisi ja on käytettävissä myös ilman verkkoyhteyttä.",
+    "disclosure": "Yhdistä maksuton tai maksullinen Craftgineer-tili, jotta voit lukea kirjastoon tallentamiasi tiedostoja. Muokkaa ja tallenna tiedostot Craftgineerissä ja päivitä sitten tämä näkymä. Lisätty grafiikka tallennetaan Beam Bench -projektiisi ja on käytettävissä myös ilman verkkoyhteyttä. Yhdistetyn Craftgineer- tai PrintCutCarve-tilin kautta vahvistettu aktiivinen maksullinen tilaus poistaa Beam Bench -sovelluksen käynnistysmainoksen.",
     "remember": "Muista tämä tili turvallisesti tällä tietokoneella",
     "connect": "Yhdistä Craftgineer",
     "disconnect": "Katkaise yhteys",
@@ -2947,7 +2947,7 @@
     "insert": "Lisää",
     "more": "Lataa lisää",
     "errors": {
-      "subscription_required": "Tarvitset voimassa olevan maksullisen Craftgineer-tilauksen. Hallitse tilaustasi Craftgineerissä.",
+      "subscription_required": "Tämä kirjasto ei ole käytettävissä. Päivitä näkymä tai yhdistä tilisi uudelleen.",
       "invalid_token": "Tämä yhteys on vanhentunut tai sen käyttöoikeus on peruttu. Katkaise yhteys ja yhdistä uudelleen.",
       "revision_conflict": "Tämä tiedosto on muuttunut. Päivitä kirjasto ja yritä uudelleen.",
       "access_denied": "Yhteys peruutettiin selaimessa.",
@@ -2959,6 +2959,48 @@
       "unavailable": "Craftgineeriin ei saatu yhteyttä. Tarkista verkkoyhteys ja yritä uudelleen."
     },
     "provider": "Craftgineer",
-    "account": "Craftgineer · {account}"
+    "account": "Craftgineer · {account}",
+    "browser_done": "Palaa Beam Bench -sovellukseen tarkistamaan yhteys. Voit sulkea tämän välilehden."
+  },
+  "printcutcarve_library": {
+    "title": "PrintCutCarve-yhteys",
+    "manage": "Hallitse yhteyksiä",
+    "disclosure": "Yhdistä maksuton tai maksullinen PrintCutCarve-tili, jotta voit selata Omat lataukset -osiossa saatavilla olevia paketteja ja lisätä kuvion. Lisätty grafiikka tallennetaan Beam Bench -projektiisi ja on käytettävissä myös ilman verkkoyhteyttä. Yhdistetyn Craftgineer- tai PrintCutCarve-tilin kautta vahvistettu aktiivinen maksullinen tilaus poistaa Beam Bench -sovelluksen käynnistysmainoksen.",
+    "remember": "Muista tämä tili turvallisesti tällä tietokoneella",
+    "connect": "Yhdistä PrintCutCarve",
+    "disconnect": "Katkaise yhteys",
+    "browse": "Selaa kirjastoa",
+    "session_only": "Yhdistetty vain tämän istunnon ajaksi. Tunnistetietojen turvallinen tallennus ei ole käytettävissä. Yhdistä uudelleen Beam Bench -sovelluksen uudelleenkäynnistyksen jälkeen.",
+    "waiting": "Viimeistele yhteys selaimessa. Voit peruuttaa sen tästä.",
+    "search": "Hae kuvioita tästä paketista",
+    "refresh": "Päivitä",
+    "open_project": "Avaa projekti grafiikan lisäämistä varten.",
+    "empty": "Tässä paketissa ei ole vastaavia kuvioita.",
+    "insert": "Lisää",
+    "more": "Lataa lisää",
+    "errors": {
+      "subscription_required": "Tämä kirjasto ei ole käytettävissä. Päivitä näkymä tai yhdistä tilisi uudelleen.",
+      "invalid_token": "Tämä yhteys on vanhentunut tai sen käyttöoikeus on peruttu. Katkaise yhteys ja yhdistä uudelleen.",
+      "revision_conflict": "Tämä tiedosto on muuttunut. Päivitä kirjasto ja yritä uudelleen.",
+      "access_denied": "Yhteys peruutettiin selaimessa.",
+      "connection_timeout": "Yhteyden muodostus aikakatkaistiin. Yritä yhdistää uudelleen.",
+      "wallet_cleanup_required": "Tilin yhteys katkaistiin tämän istunnon ajaksi, mutta tallennettuja tunnistetietoja ei voitu poistaa. Avaa salasanavarastosi lukitus ja katkaise yhteys uudelleen. Voit myös perua Beam Bench -sovelluksen käyttöoikeuden PrintCutCarve-palvelun Työpöytäsovellusten yhteydet -osiossa.",
+      "revocation_pending": "Yhteys katkaistu tällä tietokoneella. Sivustoon ei saatu yhteyttä käyttöoikeuden perumista varten. Peru Beam Bench -sovelluksen käyttöoikeus PrintCutCarve-palvelun Työpöytäsovellusten yhteydet -osiossa.",
+      "rate_limited": "Liian monta pyyntöä. Odota minuutti ja päivitä sitten näkymä.",
+      "stale_document": "Projekti vaihtui grafiikan latauksen aikana. Lisää grafiikka uudelleen haluamaasi projektiin.",
+      "unavailable": "PrintCutCarve-palveluun ei saatu yhteyttä. Tarkista verkkoyhteys ja yritä uudelleen.",
+      "file_too_large": "Tämä tiedosto tai sen esikatselu on liian suuri tuotavaksi. Avaa paketti PrintCutCarve-palvelussa.",
+      "unsupported_media_type": "Tätä tiedostoa ei voi lisätä Beam Bench -sovellukseen. Avaa se PrintCutCarve-palvelussa nähdäksesi latausvaihtoehdot.",
+      "not_found": "Tämä tiedosto ei ole enää saatavilla. Päivitä paketti tai avaa se PrintCutCarve-palvelussa."
+    },
+    "provider": "PrintCutCarve",
+    "account": "PrintCutCarve · {account}",
+    "browser_done": "Palaa Beam Bench -sovellukseen tarkistamaan yhteys. Voit sulkea tämän välilehden.",
+    "pack_search": "Hae omista paketeistasi",
+    "empty_packs": "Paketteja ei löytynyt. Kokeile toista hakua tai tarkista Omat lataukset PrintCutCarve-palvelussa.",
+    "back_to_packs": "Takaisin paketteihin",
+    "file_count": "{count, plural, one {# tiedosto} other {# tiedostoa}}",
+    "website": "Avaa PrintCutCarve-palvelussa",
+    "unavailable_file": "Tätä tiedostoa ei voi lisätä. Avaa paketti PrintCutCarve-palvelussa nähdäksesi latausvaihtoehdot."
   }
 }
