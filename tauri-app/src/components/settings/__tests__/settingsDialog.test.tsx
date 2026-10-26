@@ -1,15 +1,21 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import { invoke } from '@tauri-apps/api/core';
 import { SettingsDialog } from '../SettingsDialog';
 import { useAppStore } from '../../../stores/appStore';
 import type { AppSettings } from '../../../types/commands';
 import { APP_COMMANDS } from '../../../commands/appCommandIds';
+import { LibraryDrawer } from '../../layout/LibraryDrawer';
+import { useConnectedLibraryStore as cg, usePrintcutcarveLibraryStore as pcc } from '../../../stores/connectedLibraryStore';
+import { useUiStore } from '../../../stores/uiStore';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockReturnValue(new Promise(() => {})) }));
 
 const initialAppState = useAppStore.getState();
+const initialCgState = cg.getState();
+const initialPccState = pcc.getState();
+const initialUiState = useUiStore.getState();
 
 function makeSettings(overrides: Partial<AppSettings> = {}): AppSettings {
   return {
@@ -53,9 +59,80 @@ function makeSettings(overrides: Partial<AppSettings> = {}): AppSettings {
 afterEach(() => {
   cleanup();
   useAppStore.setState(initialAppState, true);
+  cg.setState(initialCgState, true);
+  pcc.setState(initialPccState, true);
+  useUiStore.setState(initialUiState, true);
 });
 
 describe('SettingsDialog', () => {
+  it('shares remember choice and pending login cancellation with the Library', async () => {
+    const disconnected = { account: null, remembered: false, walletUnavailable: false };
+    cg.setState({ status: disconnected });
+    pcc.setState({ status: disconnected });
+    useAppStore.setState({ settings: makeSettings() });
+    useUiStore.setState({ libraryDrawerOpen: true, libraryDrawerTab: 'craftgineer' });
+    let finish!: (value: unknown) => void;
+    vi.mocked(invoke).mockImplementation((command) => command === 'connected_library_connect'
+      ? new Promise(resolve => { finish = resolve }) : Promise.resolve(null));
+    render(<><LibraryDrawer /><SettingsDialog onClose={vi.fn()} /></>);
+    const preferences = within(screen.getByTestId('settings-dialog'));
+    fireEvent.click(preferences.getByRole('tab', { name: 'Connected accounts' }));
+    const library = within(screen.getByTestId('library-drawer'));
+    const settingsAccount = within(preferences.getByRole('region', { name: 'Craftgineer connection' }));
+    fireEvent.click(library.getByRole('checkbox'));
+    expect((settingsAccount.getByRole('checkbox') as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(library.getByRole('button', { name: 'Connect Craftgineer' }));
+    await waitFor(() => expect(cg.getState().connecting).toBe(true));
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith('connected_library_connect', expect.objectContaining({ provider: 'craftgineer', remember: false }));
+    expect((settingsAccount.getByRole('button', { name: 'Connect Craftgineer' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(settingsAccount.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(vi.mocked(invoke)).toHaveBeenCalledWith('connected_library_cancel', { provider: 'craftgineer' }));
+    await act(async () => finish({ account: { account: { id: 'late', displayName: 'Late account' }, access: 'active' }, remembered: false, walletUnavailable: false }));
+    expect(cg.getState().status?.account ?? null).toBeNull();
+    expect(screen.queryByText(/Late account/)).toBeNull();
+    expect(cg.getState().connecting).toBe(false);
+  });
+
+  it('connects and disconnects from Settings immediately without saving preferences', async () => {
+    const disconnected = { account: null, remembered: false, walletUnavailable: false };
+    const connected = { account: { account: { id: 'pcc-maker', displayName: 'PCC maker' }, access: 'active' }, remembered: true, walletUnavailable: false };
+    cg.setState({ status: disconnected });
+    pcc.setState({ status: disconnected });
+    useAppStore.setState({ settings: makeSettings() });
+    useUiStore.setState({ libraryDrawerOpen: true, libraryDrawerTab: 'printcutcarve' });
+    const save = vi.spyOn(useAppStore.getState(), 'updateSettings').mockResolvedValue();
+    vi.mocked(invoke).mockImplementation((command) => Promise.resolve(command === 'connected_library_connect' ? connected : null));
+    render(<><LibraryDrawer /><SettingsDialog onClose={vi.fn()} /></>);
+    const preferences = within(screen.getByTestId('settings-dialog'));
+    fireEvent.click(preferences.getByRole('tab', { name: 'Connected accounts' }));
+    const account = within(preferences.getByRole('region', { name: 'PrintCutCarve connection' }));
+    expect(preferences.queryByRole('button', { name: 'Save' })).toBeNull();
+    fireEvent.click(account.getByRole('button', { name: 'Connect PrintCutCarve' }));
+    await account.findByText('PrintCutCarve · PCC maker');
+    const library = within(screen.getByTestId('library-drawer'));
+    expect(await library.findByText('PrintCutCarve · PCC maker')).toBeDefined();
+    expect(account.getByText('Remembered on this computer.')).toBeDefined();
+    expect(preferences.queryByRole('button', { name: 'Browse library' })).toBeNull();
+    fireEvent.click(account.getByRole('button', { name: 'Disconnect' }));
+    expect(await library.findByRole('button', { name: 'Connect PrintCutCarve' })).toBeDefined();
+    expect(library.getByRole('tab', { name: 'PrintCutCarve' }).getAttribute('aria-selected')).toBe('true');
+    expect(save).not.toHaveBeenCalled();
+    expect(cg.getState().status).toEqual(disconnected);
+  });
+
+  it('keeps Save available for preference edits while viewing connected accounts', () => {
+    const disconnected = { account: null, remembered: false, walletUnavailable: false };
+    cg.setState({ status: disconnected });
+    pcc.setState({ status: disconnected });
+    useAppStore.setState({ settings: makeSettings() });
+    render(<SettingsDialog onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('switch', { name: 'Autosave' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Connected accounts' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDefined();
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }));
+    expect(screen.getByRole('switch', { name: 'Autosave' }).getAttribute('aria-checked')).toBe('false');
+  });
+
   it('waits for real settings instead of rendering editable fallback defaults', async () => {
     useAppStore.setState({ settings: null });
 

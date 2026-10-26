@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Vuelve a Beam Bench para comprobar tu conexión. Puedes cerrar esta pestaña."
+    "browser_done": "Vuelve a Beam Bench para comprobar tu conexión. Puedes cerrar esta pestaña.",
+    "connect_help": "Conecta tu cuenta de Craftgineer para explorar e insertar los archivos guardados en tu biblioteca."
   },
   "printcutcarve_library": {
     "title": "Conexión con PrintCutCarve",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Volver a los paquetes",
     "file_count": "{count, plural, one {# archivo} other {# archivos}}",
     "website": "Abrir en PrintCutCarve",
-    "unavailable_file": "Este archivo no se puede insertar. Abre el paquete en PrintCutCarve para ver las opciones de descarga."
+    "unavailable_file": "Este archivo no se puede insertar. Abre el paquete en PrintCutCarve para ver las opciones de descarga.",
+    "connect_help": "Conecta tu cuenta de PrintCutCarve para explorar tus paquetes e insertar diseños."
+  },
+  "connected_accounts": {
+    "title": "Cuentas conectadas",
+    "help": "Las conexiones se actualizan al instante. Usa Guardar para tus otras preferencias.",
+    "remembered": "Cuenta guardada en este ordenador.",
+    "session_only": "Conexión solo para esta sesión."
   }
 }

@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Palaa Beam Bench -sovellukseen tarkistamaan yhteys. Voit sulkea tämän välilehden."
+    "browser_done": "Palaa Beam Bench -sovellukseen tarkistamaan yhteys. Voit sulkea tämän välilehden.",
+    "connect_help": "Yhdistä Craftgineer-tilisi, jotta voit selata ja lisätä kirjastoon tallentamiasi tiedostoja."
   },
   "printcutcarve_library": {
     "title": "PrintCutCarve-yhteys",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Takaisin paketteihin",
     "file_count": "{count, plural, one {# tiedosto} other {# tiedostoa}}",
     "website": "Avaa PrintCutCarve-palvelussa",
-    "unavailable_file": "Tätä tiedostoa ei voi lisätä. Avaa paketti PrintCutCarve-palvelussa nähdäksesi latausvaihtoehdot."
+    "unavailable_file": "Tätä tiedostoa ei voi lisätä. Avaa paketti PrintCutCarve-palvelussa nähdäksesi latausvaihtoehdot.",
+    "connect_help": "Yhdistä PrintCutCarve-tilisi, jotta voit selata pakettejasi ja lisätä kuvioita."
+  },
+  "connected_accounts": {
+    "title": "Yhdistetyt tilit",
+    "help": "Yhteydet päivittyvät heti. Tallenna-painikkeella tallennat muut asetuksesi.",
+    "remembered": "Tallennettu tälle tietokoneelle.",
+    "session_only": "Yhdistetty vain tämän istunnon ajaksi."
   }
 }

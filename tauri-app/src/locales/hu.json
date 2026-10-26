@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "Térj vissza a Beam Bench alkalmazásba a kapcsolat ellenőrzéséhez. Ezt a lapot bezárhatod."
+    "browser_done": "Térj vissza a Beam Bench alkalmazásba a kapcsolat ellenőrzéséhez. Ezt a lapot bezárhatod.",
+    "connect_help": "Csatlakoztasd a Craftgineer-fiókodat a könyvtárba mentett fájljaid böngészéséhez és beillesztéséhez."
   },
   "printcutcarve_library": {
     "title": "PrintCutCarve-kapcsolat",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "Vissza a csomagokhoz",
     "file_count": "{count, plural, one {# fájl} other {# fájl}}",
     "website": "Megnyitás a PrintCutCarve oldalán",
-    "unavailable_file": "Ez a fájl nem illeszthető be. A letöltési lehetőségekhez nyisd meg a csomagot a PrintCutCarve oldalán."
+    "unavailable_file": "Ez a fájl nem illeszthető be. A letöltési lehetőségekhez nyisd meg a csomagot a PrintCutCarve oldalán.",
+    "connect_help": "Csatlakoztasd a PrintCutCarve-fiókodat a csomagjaid böngészéséhez és minták beillesztéséhez."
+  },
+  "connected_accounts": {
+    "title": "Csatlakoztatott fiókok",
+    "help": "A kapcsolatok azonnal frissülnek. A Mentés a többi beállításodra vonatkozik.",
+    "remembered": "Megjegyezve ezen a számítógépen.",
+    "session_only": "Csak erre a munkamenetre csatlakoztatva."
   }
 }

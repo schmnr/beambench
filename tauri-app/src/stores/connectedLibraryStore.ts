@@ -18,6 +18,9 @@ function rememberAccount(rememberKey: string, value?: boolean): boolean {
 interface ConnectionState {
   status: ConnectionStatus | null;
   busy: boolean;
+  connecting: boolean;
+  rememberChoice: boolean;
+  setRememberChoice: (value: boolean) => void;
   error: string | null;
   generation: number;
   nativeGeneration: number;
@@ -36,9 +39,10 @@ function connectionStore(provider: LibraryProvider, service: typeof connectedLib
     const run = async (
       operation: () => Promise<ConnectionStatus>,
       accepted?: (status: ConnectionStatus) => void,
+      connecting = false,
     ) => {
       const own = ++generation;
-      set({ busy: true, error: null, generation: own });
+      set({ busy: true, connecting, error: null, generation: own });
       try {
         const status = await operation();
         if (own === generation && (status.nativeGeneration ?? Infinity) >= get().nativeGeneration) {
@@ -63,12 +67,15 @@ function connectionStore(provider: LibraryProvider, service: typeof connectedLib
           });
         }
       } finally {
-        if (own === generation) set({ busy: false });
+        if (own === generation) set({ busy: false, connecting: false });
       }
     };
     return {
       status: null,
       busy: false,
+      connecting: false,
+      rememberChoice: true,
+      setRememberChoice: (rememberChoice) => set({ rememberChoice }),
       error: null,
       generation: 0,
       nativeGeneration: -1,
@@ -87,6 +94,7 @@ function connectionStore(provider: LibraryProvider, service: typeof connectedLib
         set({
           status,
           busy: changed ? false : get().busy,
+          connecting: changed ? false : get().connecting,
           error,
           generation: own,
           nativeGeneration: status.nativeGeneration,
@@ -96,7 +104,7 @@ function connectionStore(provider: LibraryProvider, service: typeof connectedLib
         if (!error.includes('invalid_token') && !error.includes('library_account_mismatch')) return;
         const own = ++generation;
         remember(false);
-        set({ status: null, busy: false, error, generation: own });
+        set({ status: null, busy: false, connecting: false, error, generation: own });
       },
       restore: () => run(() => service.status(remember())),
       connect: (rememberChoice) =>
@@ -105,11 +113,12 @@ function connectionStore(provider: LibraryProvider, service: typeof connectedLib
           (status) => {
             remember(status.remembered);
           },
+          true,
         ),
       cancel: async () => {
         const own = ++generation;
         remember(false);
-        set({ status: null, busy: false, generation: own });
+        set({ status: null, busy: false, connecting: false, generation: own });
         try {
           await service.cancel();
         } catch (error) {
@@ -120,7 +129,7 @@ function connectionStore(provider: LibraryProvider, service: typeof connectedLib
         const own = ++generation;
         remember(false);
         // Drop the account and all previews before waiting for network or wallet I/O.
-        set({ status: null, error: null, busy: true, generation: own });
+        set({ status: null, error: null, busy: true, connecting: false, generation: own });
         try {
           await service.disconnect();
         } catch (error) {

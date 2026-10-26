@@ -10,7 +10,8 @@ import { NumberStepper } from '../shared/NumberStepper';
 import { mmToDisplay, displayToMm, roundDisplayLength, lengthStep, lengthUnitLabel, labelWithUnit } from '../../utils/lengthUnits';
 import type { AppSettings, ArtworkDisplayMode, UiTheme } from '../../types/commands';
 import { MovableResizableDialogFrame } from '../shared/MovableResizableDialogFrame';
-import { Download, FileInput, FolderOpen, Keyboard, Monitor, RotateCcw, Ruler, Save, Settings2, Upload } from 'lucide-react';
+import { Download, FileInput, FolderOpen, Keyboard, Monitor, RotateCcw, Ruler, Save, Settings2, Upload, UserRound } from 'lucide-react';
+import { CraftgineerPanel } from '../panels/CraftgineerPanel';
 import type { CustomHotkeys } from '../../commands/commandRegistry';
 import { HotkeySettingsPanel } from './HotkeySettingsPanel';
 import {
@@ -75,7 +76,8 @@ const SETTINGS_DRAFT_KEYS = [
 ] as const;
 
 type SettingsDraftKey = (typeof SETTINGS_DRAFT_KEYS)[number];
-type TabId = 'general' | 'units_grid' | 'display' | 'file_import' | 'shortcuts';
+type TabId = 'general' | 'units_grid' | 'display' | 'file_import' | 'shortcuts' | 'accounts';
+const accountProviders = ['craftgineer', 'printcutcarve'] as const;
 
 function createDraft(settings: AppSettings): SettingsDraft {
   return {
@@ -225,6 +227,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     { id: 'display' as const, label: t('dialog.settings.tab.display'), icon: <Monitor size={14} /> },
     { id: 'file_import' as const, label: t('dialog.settings.tab.file_import'), icon: <FileInput size={14} /> },
     { id: 'shortcuts' as const, label: t('dialog.hotkey_editor.title'), icon: <Keyboard size={14} /> },
+    { id: 'accounts' as const, label: t('connected_accounts.title'), icon: <UserRound size={14} /> },
   ];
   const [draft, setDraft] = useState<SettingsDraft | null>(() => (settings ? createDraft(settings) : null));
   const [activeTab, setActiveTab] = useState<TabId>('general');
@@ -276,6 +279,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
   const ready = draft !== null;
   const content = useMemo(() => draft ?? FALLBACK_DRAFT, [draft]);
+  const accountsOnly = activeTab === 'accounts' && dirtyFieldsRef.current.size === 0;
 
   const updateDraft = <K extends keyof SettingsDraft>(key: K, value: SettingsDraft[K]) => {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
@@ -426,15 +430,17 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               </div>
             )}
             <DialogFooter>
-              <DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t('common.cancel')}</DialogButton>
-              <DialogButton
-                tone={DIALOG_TONE.primary}
-                icon={<Save size={13} />}
-                onClick={() => void handleSave()}
-                disabled={!ready || isSaving || conflictFields.length > 0}
-              >
-                {t('common.save')}
-              </DialogButton>
+              <DialogButton tone={DIALOG_TONE.quiet} onClick={onClose}>{t(accountsOnly ? 'common.close' : 'common.cancel')}</DialogButton>
+              {!accountsOnly && (
+                <DialogButton
+                  tone={DIALOG_TONE.primary}
+                  icon={<Save size={13} />}
+                  onClick={() => void handleSave()}
+                  disabled={!ready || isSaving || conflictFields.length > 0}
+                >
+                  {t('common.save')}
+                </DialogButton>
+              )}
             </DialogFooter>
           </div>
         )}
@@ -453,6 +459,16 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 title={tabs.find((tab) => tab.id === activeTab)?.label}
               />
               <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {activeTab === 'accounts' && (
+                <div>
+                  <p className="text-xs leading-5 text-bb-text-muted">{t('connected_accounts.help')}</p>
+                  <div className="divide-y divide-bb-border [&>section]:px-0 [&>section]:py-4">
+                    {accountProviders.map(provider => (
+                      <CraftgineerPanel key={provider} provider={provider} connections compactConnection />
+                    ))}
+                  </div>
+                </div>
+              )}
               {activeTab === 'general' && (
                 <div className="space-y-4">
                   <SwitchRow

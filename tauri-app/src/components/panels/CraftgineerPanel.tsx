@@ -8,7 +8,6 @@ import {
 } from '../../services/connectedLibraryService';
 import { libraryStore } from '../../stores/connectedLibraryStore';
 import { useProjectStore } from '../../stores/projectStore';
-import { useUiStore } from '../../stores/uiStore';
 const button =
   'rounded border border-bb-border px-3 py-1.5 text-xs text-bb-text hover:bg-bb-hover disabled:opacity-50';
 function Preview({ file, provider }: { file: LibraryFile; provider: LibraryProvider }) {
@@ -46,19 +45,21 @@ function Preview({ file, provider }: { file: LibraryFile; provider: LibraryProvi
 export function CraftgineerPanel({
   connections = false,
   provider = 'craftgineer',
+  compactConnection = false,
+  onBrowseLibrary,
 }: {
   connections?: boolean;
   provider?: LibraryProvider;
+  compactConnection?: boolean;
+  onBrowseLibrary?: () => void;
 }) {
   const { t } = useTranslation();
   const prefix = provider === 'craftgineer' ? 'connected_library' : 'printcutcarve_library';
   const service = libraryService(provider);
   const useConnection = libraryStore(provider);
-  const { status, busy, error, generation, restore, connect, cancel, disconnect } = useConnection();
+  const { status, busy, connecting, rememberChoice, setRememberChoice, error, generation, restore, connect, cancel, disconnect } = useConnection();
   const account = status?.account;
   const needsCleanup = error?.includes('wallet_cleanup_required') ?? false;
-  const [remember, setRemember] = useState(true);
-  const [connecting, setConnecting] = useState(false);
   const [q, setQ] = useState('');
   const [packQuery, setPackQuery] = useState('');
   const [collection, setCollection] = useState<LibraryCollection | null>(null);
@@ -83,7 +84,8 @@ export function CraftgineerPanel({
     setPackQuery('');
   }, [account?.account.id, provider]);
   useEffect(() => {
-    if (connections && !needsCleanup && !useConnection.getState().status) void restore();
+    const current = useConnection.getState();
+    if (connections && !needsCleanup && !current.status && !current.busy) void restore();
   }, [connections, needsCleanup, restore, useConnection]);
   useEffect(() => {
     const own = ++sequence.current;
@@ -212,13 +214,26 @@ export function CraftgineerPanel({
       {connections && (
         <>
           <h2 className="font-semibold">{t(`${prefix}.title`)}</h2>
-          <p className="text-bb-text-muted">{t(`${prefix}.disclosure`)}</p>
+          {(!compactConnection || !account) && (
+            <p className="text-bb-text-muted">{t(`${prefix}.${compactConnection ? 'connect_help' : 'disclosure'}`)}</p>
+          )}
+          {account && (
+            <p className="break-words text-bb-text-muted">
+              {t(`${prefix}.account`, { account: account.account.displayName ?? account.account.id })}
+            </p>
+          )}
+          {account && !status?.walletUnavailable && (
+            <p className="text-bb-text-muted">
+              {t(status?.remembered ? 'connected_accounts.remembered' : 'connected_accounts.session_only')}
+            </p>
+          )}
           {!account && !needsCleanup && (
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
+                checked={rememberChoice}
+                disabled={busy}
+                onChange={(e) => setRememberChoice(e.target.checked)}
               />
               {t(`${prefix}.remember`)}
             </label>
@@ -232,10 +247,7 @@ export function CraftgineerPanel({
               <button
                 className={button}
                 disabled={busy}
-                onClick={() => {
-                  setConnecting(true);
-                  void connect(remember).finally(() => setConnecting(false));
-                }}
+                onClick={() => void connect(rememberChoice)}
               >
                 {t(`${prefix}.connect`)}
               </button>
@@ -245,10 +257,10 @@ export function CraftgineerPanel({
                 {t('common.cancel')}
               </button>
             )}
-            {account && (
+            {account && onBrowseLibrary && (
               <button
                 className={button}
-                onClick={() => useUiStore.getState().setLibraryDrawerTab(provider)}
+                onClick={onBrowseLibrary}
               >
                 {t(`${prefix}.browse`)}
               </button>
@@ -262,7 +274,7 @@ export function CraftgineerPanel({
           {account && status?.walletUnavailable && <p role="status">{t(`${prefix}.session_only`)}</p>}
         </>
       )}
-      {account && (
+      {!connections && account && (
         <p className="break-words text-bb-text-muted">
           {t(`${prefix}.account`, { account: account.account.displayName ?? account.account.id })}
         </p>

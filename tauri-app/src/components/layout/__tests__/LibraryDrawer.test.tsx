@@ -45,8 +45,24 @@ it('keeps Craftgineer visible when PrintCutCarve disconnects and offers its conn
   render(<LibraryDrawer />);
   act(() => pcc.setState({ status: null }));
   expect(screen.getByRole('tab', { name: 'Craftgineer' })).toBeTruthy();
-  expect(screen.queryByRole('tab', { name: 'PrintCutCarve' })).toBeNull();
+  expect(screen.getByRole('tab', { name: 'PrintCutCarve' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByText('printcutcarve:connections')).toBeTruthy();
+  fireEvent.click(screen.getByRole('tab', { name: 'Craftgineer' }));
+  expect(screen.getByText('craftgineer:files')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Manage connections' }));
   fireEvent.click(screen.getByRole('button', { name: 'Craftgineer' }));
   expect(screen.getByText('craftgineer:connections')).toBeTruthy();
+});
+it('keeps both tabs discoverable before login and opens the library after connecting', () => {
+  cg.setState({ status: null });
+  pcc.setState({ status: null });
+  render(<LibraryDrawer />);
+  expect(screen.getAllByRole('tab')).toHaveLength(4);
+  fireEvent.click(screen.getByRole('tab', { name: 'Craftgineer' }));
+  expect(screen.getByText('craftgineer:connections')).toBeTruthy();
+  fireEvent.click(screen.getByRole('tab', { name: 'PrintCutCarve' }));
+  expect(screen.getByText('printcutcarve:connections')).toBeTruthy();
+  act(() => pcc.setState({ status }));
+  expect(screen.getByText('printcutcarve:files')).toBeTruthy();
+  expect(screen.getByRole('tab', { name: 'PrintCutCarve' })).toHaveAttribute('aria-selected', 'true');
 });

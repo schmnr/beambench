@@ -2960,7 +2960,8 @@
     },
     "provider": "Craftgineer",
     "account": "Craftgineer · {account}",
-    "browser_done": "請返回 Beam Bench 檢查連線。您可以關閉此分頁。"
+    "browser_done": "請返回 Beam Bench 檢查連線。您可以關閉此分頁。",
+    "connect_help": "連結您的 Craftgineer 帳戶，即可瀏覽並插入素材庫中已儲存的檔案。"
   },
   "printcutcarve_library": {
     "title": "PrintCutCarve 連線",
@@ -3001,6 +3002,13 @@
     "back_to_packs": "返回素材包",
     "file_count": "{count, plural, one {# 個檔案} other {# 個檔案}}",
     "website": "在 PrintCutCarve 上開啟",
-    "unavailable_file": "此檔案無法插入。請在 PrintCutCarve 上開啟素材包以查看下載選項。"
+    "unavailable_file": "此檔案無法插入。請在 PrintCutCarve 上開啟素材包以查看下載選項。",
+    "connect_help": "連結您的 PrintCutCarve 帳戶，即可瀏覽您的素材包並插入設計。"
+  },
+  "connected_accounts": {
+    "title": "已連結的帳戶",
+    "help": "連線變更會立即生效。其他偏好設定請使用「儲存」。",
+    "remembered": "已在這部電腦上記住此帳戶。",
+    "session_only": "僅在本次工作階段中連線。"
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { CraftgineerPanel } from '../panels/CraftgineerPanel';
 import {
   useConnectedLibraryStore,
@@ -21,20 +21,12 @@ export function LibraryDrawer() {
   const craftgineer = useConnectedLibraryStore((s) => !!s.status?.account);
   const printcutcarve = usePrintcutcarveLibraryStore((s) => !!s.status?.account);
   const [connectionProvider, setConnectionProvider] = useState<LibraryProvider>('craftgineer');
-  const activeTab = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    activeTab.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-  }, [open, tab, craftgineer, printcutcarve]);
   if (!open) return null;
   const tabs = [
     { id: 'art' as const, label: t('panels.registry.art_library') },
     { id: 'materials' as const, label: t('panels.registry.material') },
-    ...(craftgineer
-      ? [{ id: 'craftgineer' as const, label: t('connected_library.provider') }]
-      : []),
-    ...(printcutcarve
-      ? [{ id: 'printcutcarve' as const, label: t('printcutcarve_library.provider') }]
-      : []),
+    { id: 'craftgineer' as const, label: t('connected_library.provider') },
+    { id: 'printcutcarve' as const, label: t('printcutcarve_library.provider') },
   ];
   const provider = tab === 'printcutcarve' || tab === 'craftgineer' ? tab : connectionProvider;
   const connections =
@@ -49,7 +41,7 @@ export function LibraryDrawer() {
     >
       <div className="flex items-center border-b border-bb-border px-2 pt-1.5">
         <div
-          className="flex min-w-0 flex-1 overflow-x-auto"
+          className="grid min-w-0 flex-1 grid-cols-2"
           role="tablist"
           onKeyDown={(event) => {
             if ((event.target as HTMLElement).getAttribute('role') !== 'tab') return;
@@ -77,10 +69,9 @@ export function LibraryDrawer() {
           {tabs.map((value) => (
             <button
               key={value.id}
-              ref={tab === value.id ? activeTab : undefined}
               id={`library-tab-${value.id}`}
               data-testid={`library-tab-${value.id}`}
-              className={`shrink-0 whitespace-nowrap border-b-2 px-3 pb-1.5 text-xs ${tab === value.id ? 'border-bb-accent font-semibold text-bb-accent' : 'border-transparent text-bb-text-muted hover:text-bb-text'}`}
+              className={`whitespace-nowrap border-b-2 px-2 py-2 text-xs ${tab === value.id ? 'border-bb-accent font-semibold text-bb-accent' : 'border-transparent text-bb-text-muted hover:text-bb-text'}`}
               onClick={() => setTab(value.id)}
               role="tab"
               aria-selected={tab === value.id}
@@ -92,7 +83,7 @@ export function LibraryDrawer() {
           ))}
         </div>
         <button
-          className="ml-1 shrink-0 pb-1 text-bb-text-dim hover:text-bb-text"
+          className="ml-1 shrink-0 self-start pt-1.5 text-bb-text-dim hover:text-bb-text"
           onClick={toggle}
           aria-label={t('common.close')}
         >
@@ -112,7 +103,7 @@ export function LibraryDrawer() {
           <MaterialLibrary />
         ) : (
           <>
-            {connections && (
+            {tab === 'connections' && (
               <div
                 className="flex flex-wrap gap-2 border-b border-bb-border p-3"
                 role="group"
@@ -139,6 +130,8 @@ export function LibraryDrawer() {
               key={`${provider}-${connections}`}
               provider={provider}
               connections={connections}
+              compactConnection={tab !== 'connections'}
+              onBrowseLibrary={() => setTab(provider)}
             />
           </>
         )}
