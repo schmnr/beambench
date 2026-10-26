@@ -18,6 +18,7 @@ import socket
 import subprocess
 import sys
 import time
+import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -392,13 +393,13 @@ class WindowsDriver(Driver):
         targets = [c for c in self.library_region().descendants(control_type='Button') if c.window_text() == name and c.is_visible()]
         if len(targets) != 1:
             raise RuntimeError('native_library_button_not_unique')
-        targets[0].invoke()
+        targets[0].click_input()
 
     def button(self, name):
         targets = [c for c in self.controls('Button') if c.window_text() == name]
         if len(targets) != 1:
             raise RuntimeError('native_button_not_unique')
-        targets[0].invoke()
+        targets[0].click_input()
 
     def button_enabled(self, name):
         return any(c.window_text() == name and c.is_enabled() for c in self.controls('Button'))
@@ -412,7 +413,7 @@ class WindowsDriver(Driver):
             and c.rectangle().top >= label.bottom - 4 and c.rectangle().left < label.right and c.rectangle().right > label.left]
         if not buttons:
             raise RuntimeError('native_file_insert_not_unique')
-        min(buttons, key=lambda c: c.rectangle().top - label.bottom).invoke()
+        min(buttons, key=lambda c: c.rectangle().top - label.bottom).click_input()
 
     def file_dialog(self, title, path):
         from pywinauto import Desktop
@@ -876,6 +877,9 @@ def main():
         if driver:
             try:
                 (root/'failure.txt').write_text(driver.text())
+            except Exception:
+                pass
+            try:
                 driver.screenshot(root/'failure.png')
             except Exception:
                 pass
@@ -903,4 +907,8 @@ if __name__ == '__main__':
         message = str(error)
         safe = message if message.replace('_', '').isalnum() and len(message) < 100 else type(error).__name__
         print('desktop_validation_failed=' + safe, file=sys.stderr)
+        # Locations only, never exception messages, locals or source lines
+        # that could contain submitted credentials or consent codes.
+        for frame in traceback.extract_tb(error.__traceback__):
+            print(f'desktop_driver_frame={Path(frame.filename).name}:{frame.lineno}:{frame.name}',file=sys.stderr)
         sys.exit(1)
