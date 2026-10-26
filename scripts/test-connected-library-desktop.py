@@ -600,7 +600,7 @@ def main():
                 time.sleep(0.1)
 
         def launch(remembered_account=None, offline=False):
-            nonlocal process
+            nonlocal process, driver
             if sys.platform != 'win32' and process.poll() is not None:
                 process = subprocess.Popen([str(args.driver),'--port=17556'],stdout=log,stderr=log)
                 for _ in range(100):
@@ -611,6 +611,7 @@ def main():
                         time.sleep(0.1)
             active = (WindowsDriver(application,root) if sys.platform == 'win32'
                 else Driver('http://127.0.0.1:17556', capabilities))
+            driver = active
             if sys.platform != 'win32':
                 active.process = process
             active.wait(active.ready, 'frontend')
@@ -623,13 +624,16 @@ def main():
                     passed('startup_ad_without_paid_subscription')
                 elif active.welcome_visible():
                     raise RuntimeError('paid_startup_ad_visible')
-            else:
-                try:
+            def navigate():
+                # Wallet denial finishes restore asynchronously, so its free
+                # startup dialog can appear after the toolbar first mounts.
+                # The explicit ad assertions above remain strict.
+                if not args.check_startup_ad and active.welcome_visible():
                     active.button('Close welcome')
-                except RuntimeError:
-                    pass
-            active.open_connections()
-            active.choose_provider()
+                active.open_connections()
+                active.choose_provider()
+                return True
+            active.wait(navigate, 'library_navigation')
             if remembered_account and (args.check_startup_ad or offline):
                 if offline:
                     active.wait(lambda: active.button_enabled('Connect ' + PROVIDER_NAME), 'offline_restore_finished')
