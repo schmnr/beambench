@@ -310,6 +310,11 @@ class Driver:
     def ready(self):
         return self.element('//button[@aria-label="Library" or @title="Library"]')
 
+    def project_loaded(self, filename):
+        # WebKit's body-text endpoint omits the toolbar's project-name span.
+        return subprocess.run(['xdotool','search','--onlyvisible','--name',
+            '^'+re.escape(filename)+r'( \*)? - Beam Bench$'],capture_output=True).returncode == 0
+
     def open_connections(self):
         if not self.command('POST', '/elements', {'using':'css selector', 'value':'[data-testid="library-drawer"]'}):
             self.click('//button[@aria-label="Library" or @title="Library"]')
@@ -428,6 +433,10 @@ class WindowsDriver(Driver):
 
     def ready(self):
         return any(c.window_text() == 'Library' for c in self.controls('Button'))
+
+    def project_loaded(self, filename):
+        title = self.app.top_window().window_text()
+        return title.startswith(filename + ' - ') or title.startswith(filename + ' * - ')
 
     def open_connections(self):
         if not any(c.window_text() == 'Manage connections' for c in self.controls('Button')):
@@ -776,7 +785,7 @@ def main():
                         driver = launch(first, offline=True)
                         driver.button('Open')
                         driver.file_dialog('Open Project', root/'imported.lzrproj')
-                        driver.wait(lambda: 'imported.lzrproj' in driver.text(), 'offline_project_open')
+                        driver.wait(lambda: driver.project_loaded('imported.lzrproj'), 'offline_project_open')
                         driver.button('Save As')
                         driver.file_dialog('Save Project As', root/'offline-copy.lzrproj')
                         driver.wait(lambda: project_geometry(root/'offline-copy.lzrproj') == expected_geometry, 'offline_geometry_round_trip')
