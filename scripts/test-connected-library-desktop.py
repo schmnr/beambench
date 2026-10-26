@@ -684,6 +684,7 @@ def main():
                 if other['fixture'] in active.library_text():
                     raise RuntimeError('cross_account_file_visible')
                 passed('free_account_connected_with_empty_library')
+                active.button('Manage connections')
                 return
             if PROVIDER == 'printcutcarve':
                 active.search_packs(account['pack'])
