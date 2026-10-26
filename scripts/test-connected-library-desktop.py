@@ -252,6 +252,9 @@ class Driver:
         self.click(xpath)
 
     def file_dialog(self, title, path):
+        # GTK's native chooser appends the selected project filter extension.
+        # Enter the stem so the saved path has one .lzrproj suffix.
+        destination = path.with_suffix('') if title.startswith('Save') and path.suffix == '.lzrproj' else path
         def window():
             result = subprocess.run(['xdotool','search','--onlyvisible','--name','^'+re.escape(title)+'$'],capture_output=True,text=True)
             matches = result.stdout.split()
@@ -259,7 +262,7 @@ class Driver:
         self.wait(window, 'native_file_dialog')
         handle = window()
         subprocess.run(['xdotool','windowactivate','--sync',handle,'key','--clearmodifiers','ctrl+l'],check=True,timeout=10)
-        subprocess.run(['xdotool','type','--clearmodifiers','--delay','1',str(path)],check=True,timeout=20)
+        subprocess.run(['xdotool','type','--clearmodifiers','--delay','1',str(destination)],check=True,timeout=20)
         subprocess.run(['xdotool','key','--clearmodifiers','Return'],check=True,timeout=10)
         # Some GTK file choosers use Return to complete the location first.
         if window():
@@ -830,8 +833,13 @@ def main():
             'nativePasswordPromptsTested':args.scenario in ['wallet-unlock','wallet-deny']},indent=2)+'\n')
         print(json.dumps({'passed':results,'platform':sys.platform}))
     except Exception:
+        projects=[]
+        for path in root.glob('*.lzrproj'):
+            geometry=project_geometry(path)
+            projects.append({'name':path.name,'readable':geometry is not None,
+                'objects':len(geometry['objects']) if geometry is not None else None})
         (root/'failure.json').write_text(json.dumps({'platform':sys.platform,
-            'scenario':args.scenario,'completed':results},indent=2)+'\n')
+            'scenario':args.scenario,'completed':results,'savedProjects':projects},indent=2)+'\n')
         if driver:
             try:
                 (root/'failure.txt').write_text(driver.text())
