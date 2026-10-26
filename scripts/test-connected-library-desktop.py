@@ -264,9 +264,29 @@ class Driver:
         subprocess.run(['xdotool','windowactivate','--sync',handle,'key','--clearmodifiers','ctrl+l'],check=True,timeout=10)
         subprocess.run(['xdotool','type','--clearmodifiers','--delay','1',str(destination)],check=True,timeout=20)
         subprocess.run(['xdotool','key','--clearmodifiers','Return'],check=True,timeout=10)
-        # Some GTK file choosers use Return to complete the location first.
+        # Return may only complete the location. Accept the native chooser
+        # through its real accessibility button before touching the webview.
         if window():
-            subprocess.run(['xdotool','key','--window',handle,'--clearmodifiers','alt+s' if title.startswith('Save') else 'alt+o'],check=False,timeout=10)
+            import pyatspi
+            def nodes(node):
+                yield node
+                for child in node:
+                    yield from nodes(child)
+            def accept():
+                if not window():
+                    return True
+                for application in pyatspi.Registry.getDesktop(0):
+                    for dialog in nodes(application):
+                        if dialog.name != title or not dialog.getState().contains(pyatspi.STATE_SHOWING):
+                            continue
+                        name = 'Save' if title.startswith('Save') else 'Open'
+                        buttons = [node for node in nodes(dialog) if node.getRoleName() == 'push button'
+                            and node.name.lstrip('_') == name and node.getState().contains(pyatspi.STATE_SHOWING)]
+                        if len(buttons) == 1:
+                            return buttons[0].queryAction().doAction(0)
+                return False
+            self.wait(accept, 'native_file_dialog_accept')
+        self.wait(lambda: not window(), 'native_file_dialog_closed')
 
     def welcome_visible(self):
         elements = self.command('POST', '/elements', {'using': 'xpath',
@@ -401,6 +421,7 @@ class WindowsDriver(Driver):
         send_keys('^a')
         send_keys(str(path), with_spaces=True, pause=0.001)
         send_keys('{ENTER}')
+        dialog.wait_not('visible', timeout=30)
 
     def welcome_visible(self):
         return any(c.window_text() == 'Close welcome' for c in self.controls('Button'))
@@ -755,7 +776,7 @@ def main():
                         driver = launch(first, offline=True)
                         driver.button('Open')
                         driver.file_dialog('Open Project', root/'imported.lzrproj')
-                        driver.wait(lambda: driver.button_enabled('Save As'), 'offline_project_open')
+                        driver.wait(lambda: 'imported.lzrproj' in driver.text(), 'offline_project_open')
                         driver.button('Save As')
                         driver.file_dialog('Save Project As', root/'offline-copy.lzrproj')
                         driver.wait(lambda: project_geometry(root/'offline-copy.lzrproj') == expected_geometry, 'offline_geometry_round_trip')
