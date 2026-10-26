@@ -263,29 +263,25 @@ class Driver:
         handle = window()
         subprocess.run(['xdotool','windowactivate','--sync',handle,'key','--clearmodifiers','ctrl+l'],check=True,timeout=10)
         subprocess.run(['xdotool','type','--clearmodifiers','--delay','1',str(destination)],check=True,timeout=20)
-        subprocess.run(['xdotool','key','--clearmodifiers','Return'],check=True,timeout=10)
-        # Return may only complete the location. Accept the native chooser
-        # through its real accessibility button before touching the webview.
-        if window():
-            import pyatspi
-            def nodes(node):
-                yield node
-                for child in node:
-                    yield from nodes(child)
-            def accept():
-                if not window():
-                    return True
-                for application in pyatspi.Registry.getDesktop(0):
-                    for dialog in nodes(application):
-                        if dialog.name != title or not dialog.getState().contains(pyatspi.STATE_SHOWING):
-                            continue
-                        name = 'Save' if title.startswith('Save') else 'Open'
-                        buttons = [node for node in nodes(dialog) if node.getRoleName() == 'push button'
-                            and node.name.lstrip('_') == name and node.getState().contains(pyatspi.STATE_SHOWING)]
-                        if len(buttons) == 1:
-                            return buttons[0].queryAction().doAction(0)
-                return False
-            self.wait(accept, 'native_file_dialog_accept')
+        # Accept exactly once. Return followed by an accessibility click can
+        # queue two saves and leave GTK's overwrite confirmation open.
+        import pyatspi
+        def nodes(node):
+            yield node
+            for child in node:
+                yield from nodes(child)
+        def accept():
+            for application in pyatspi.Registry.getDesktop(0):
+                for dialog in nodes(application):
+                    if dialog.name != title or not dialog.getState().contains(pyatspi.STATE_SHOWING):
+                        continue
+                    name = 'Save' if title.startswith('Save') else 'Open'
+                    buttons = [node for node in nodes(dialog) if node.getRoleName() == 'push button'
+                        and node.name.lstrip('_') == name and node.getState().contains(pyatspi.STATE_SHOWING)]
+                    if len(buttons) == 1:
+                        return buttons[0].queryAction().doAction(0)
+            return False
+        self.wait(accept, 'native_file_dialog_accept')
         self.wait(lambda: not window(), 'native_file_dialog_closed')
 
     def welcome_visible(self):
